@@ -10,7 +10,7 @@ import { supabase } from '../../utils/supabase';
 import { chaveContato } from '../agents/whatsapp/silenciar';
 import type { DadosPosse } from '../agentes5040/posse';
 import type { ContaRetomada } from '../agentes5040/tipos';
-import { ADIANTO_DO_DOCUMENTO_MS, cnpjDe14, grupoDoTexto, provaDePagamento, segmentoDaConta, type VendaRet } from './retomadaUsuariosRegras';
+import { ADIANTO_DO_DOCUMENTO_MS, cnpjDe14, grupoDoTexto, mascararEmail, provaDePagamento, segmentoDaConta, type VendaRet } from './retomadaUsuariosRegras';
 
 const iso = (ms: number | null): string | null => (ms === null || !Number.isFinite(ms) ? null : new Date(ms).toISOString());
 const tempo = (v: unknown): number | null => { const t = Date.parse(String(v ?? '')); return Number.isFinite(t) ? t : null; };
@@ -57,6 +57,7 @@ export async function lerContaDaRetomada(posse: DadosPosse, chave: string, agora
     forma_antiga: seg.formaAntiga,
     ultimo_documento_em: iso(ultimoDocBruto === null ? null : ultimoDocBruto - ADIANTO_DO_DOCUMENTO_MS),
     tem_cnpj: temCnpj,
+    email_mascarado: mascararEmail(email),
     primeiro_nome: typeof r.primeiro_nome === 'string' && r.primeiro_nome.trim() ? r.primeiro_nome.trim() : null,
     texto_enviado: typeof r.texto === 'string' && r.texto.trim() ? r.texto : null,
     enviado_em: typeof r.em === 'string' && r.em.trim() ? r.em : null,

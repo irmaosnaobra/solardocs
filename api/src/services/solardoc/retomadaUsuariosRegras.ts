@@ -559,3 +559,18 @@ export function carimboReconhecido(valor: unknown): valor is { estado: EstadoCar
   return !!v && typeof v === 'object'
     && (ESTADOS_CARIMBO as readonly string[]).includes(String(v.estado)) && typeof v.user_id === 'string' && v.user_id !== '';
 }
+
+/**
+ * O e-mail da conta com o meio coberto, para a Carla dizer qual e-mail usar no Pix sem escrever o endereço inteiro (jo***@gmail.com).
+ * Mostra até 2 letras do começo (1 se o começo é curto), `***` e o domínio. Sem `@` ou sem as duas partes = null.
+ */
+export function mascararEmail(email: unknown): string | null {
+  const e = String(email ?? '').trim().toLowerCase();
+  const i = e.lastIndexOf('@');
+  if (i < 1 || i === e.length - 1) return null;
+  const local = e.slice(0, i);
+  const dominio = e.slice(i + 1);
+  if (/\s/.test(e) || !dominio.includes('.')) return null;
+  const ini = local.length <= 3 ? local.slice(0, 1) : local.slice(0, 2);
+  return `${ini}***@${dominio}`;
+}

@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // A Carla na rodada viva quando a conversa é a da RETOMADA dos usuários (03/11/2026): quem tem conta e recebeu a mensagem do robô
-// carla_retomada_usuarios. Banco falso em memória, IA falsa, vivoEnvio e fichaEnvio trocados por mocks que contam chamadas. O modo do Pix
-// é controlado por um mock de modoPix. Os casos fora da retomada continuam em agentes5040Carla.test.ts.
+// carla_retomada_usuarios. Banco falso em memória, IA falsa, vivoEnvio e fichaEnvio trocados por mocks que contam chamadas. O Pix é sempre
+// o automático do Asaas (03/11/2026): sem modo para controlar. Os casos fora da retomada continuam em agentes5040Carla.test.ts.
 const h = vi.hoisted(() => ({
   principal: null as any,
   gerador: null as any,
   enviar: vi.fn(),
   ficha: vi.fn(),
-  modo: undefined as 'link' | 'codigo' | 'indisponivel' | undefined,
 }));
 vi.mock('../utils/supabase', () => ({ supabase: new Proxy({}, { get: (_t, k) => h.principal.cliente[k as string] }) }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: new Proxy({}, { get: (_t, k) => h.gerador.cliente[k as string] }) }));
@@ -29,10 +28,6 @@ vi.mock('../services/agentes5040/agendaEnvio', () => ({
   enfileirarAgenda: async () => ({ ok: true, chave: 'ag5040_agenda_fila:0:confirma' }),
   bolhaDeConfirmacao: () => null,
 }));
-vi.mock('../services/agentes5040/modoPix', async (orig) => {
-  const real = await orig<typeof import('../services/agentes5040/modoPix')>();
-  return { ...real, modoPix: () => h.modo ?? real.modoPix() };
-});
 
 import { iaFalsa, novoBanco, respostaIA, saidaJson, type BancoFalso } from './_agentes5040Fake';
 import { runVivoTick } from '../services/agentes5040/vivo';
@@ -114,11 +109,11 @@ const rodar = (extra: Record<string, unknown> = {}) => runVivoTick({ agora: AGOR
 const pedidos = (): any[] => h.enviar.mock.calls.map(c => c[0]);
 /** O que a IA recebeu como mensagem do usuário (os fatos e a conversa), SEM o bloco fixo do sistema, que cita frases como "Conta no SolarDoc: sim". */
 const mensagens = (i: number): string => JSON.stringify(ia.chamadas[i]!.body.messages);
-const link = (id: string, bolha1 = 'Segue o link.'): Saida => ({ bolhas: [bolha1, id === 'pix_kiwify' ? LINKS_CARLA.pix_kiwify! : LINKS_CARLA[id]!], extra: { peca: { tipo: 'link', id } } });
+const link = (id: string, bolha1 = 'Segue o link.'): Saida => ({ bolhas: [bolha1, LINKS_CARLA[id]!], extra: { peca: { tipo: 'link', id } } });
 
 beforeEach(() => {
   banco = novoBanco(); gerador = novoBanco();
-  h.principal = banco; h.gerador = gerador; h.modo = undefined;
+  h.principal = banco; h.gerador = gerador;
   h.enviar.mockReset().mockImplementation(async (p: any) => (p.dry
     ? { ok: false, motivo: 'dry' }
     : { ok: true, enviadas: p.peca ? 2 : 1, carimbos: [`ag5040_sent:${p.waIdAlvo}:1`] }));
@@ -158,28 +153,40 @@ describe('retomada: a Carla atende quem tem conta quando a posse é da campanha'
     expect(r.puladas.carla_lead_ja_e_cliente).toBeUndefined();
   });
 
-  it('o ctx da retomada leva o modo do Pix de agora: código, link ou indisponível mudam a linha de pagamento e o aviso do sistema', async () => {
+  it('o ctx da retomada leva o Pix automático: peça pix_automatico, o e-mail da conta com o meio coberto, e nenhum código nem comprovante', async () => {
     semearRetomada();
     ia = modelo([{ bolhas: ['Quer ver como ficou?'] }]);
     await rodar();
-    let corpo = mensagens(0);
-    expect(corpo).toContain('Pix: peça pix_kiwify; depois de pagar, basta a foto do comprovante aqui.');
+    const corpo = mensagens(0);
+    expect(corpo).toContain('Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar). Nunca Pix avulso nem código.');
+    expect(corpo).toContain('exatamente assim: a***@exemplo.com.');
+    expect(corpo).not.toContain('ana@exemplo.com');
     expect(corpo).not.toContain('Ele já pagou antes');
-    expect(corpo).toContain('Esta pessoa já tem conta neste WhatsApp: depois de pagar, basta a foto do comprovante aqui');
-
-    for (const [modo, frase] of [['link', 'Pix: não ofereça nesta conversa'], ['indisponivel', 'Pix: fora do ar agora, não ofereça.']] as const) {
-      banco = novoBanco(); h.principal = banco; h.modo = modo; h.enviar.mockClear();
-      semearRetomada();
-      ia = modelo([{ bolhas: ['Quer ver como ficou?'] }]);
-      await rodar();
-      corpo = mensagens(0);
-      expect(corpo, modo).toContain(frase);
-      expect(corpo, modo).toContain('peça entrar_no_app');
-      expect(corpo, modo).not.toContain('pix_kiwify; depois de pagar');
-    }
+    expect(corpo).not.toContain('pix_kiwify');
+    expect(corpo).not.toContain('foto do comprovante');
+    expect(corpo).toContain('peça entrar_no_app');
+    expect(corpo).toContain('https://solardoc.app/?pagar=pix');
   });
 
-  it('ex-assinante com pagamento provado: "já foi assinante", a forma e a data de saída, e a frase de renovar pelo Pix no modo código', async () => {
+  it('o Pix na retomada: a bolha 1 com o e-mail coberto passa na trava, a peça sai como link /?pagar=pix e sem e-mail na URL', async () => {
+    semearRetomada();
+    ia = modelo([link('pix_automatico', 'Pelo Pix automático, que cobra na sua conta. Use o mesmo e-mail da conta: a***@exemplo.com.')]);
+    await rodar();
+    expect(pedidos()).toHaveLength(1);
+    expect(pedidos()[0].peca).toEqual({ tipo: 'link', texto: 'https://solardoc.app/?pagar=pix' });
+    expect(pedidos()[0].peca.texto).not.toMatch(/@|email/i);
+    expect(posseDe().links).toEqual(['https://solardoc.app/?pagar=pix']);
+    expect(chavesDoEstado().some(k => k.startsWith('pix_solicitado:'))).toBe(false);
+  });
+
+  it('o e-mail INTEIRO na bolha 1 continua barrado pela trava (só o coberto passa)', async () => {
+    semearRetomada();
+    ia = modelo([link('pix_automatico', 'Use o mesmo e-mail da conta: ana@exemplo.com.')]);
+    await rodar();
+    expect(pedidos().filter(x => x.peca)).toHaveLength(0);
+  });
+
+  it('ex-assinante com pagamento provado: "já foi assinante", a forma e a data de saída, e a frase de renovar pelo Pix', async () => {
     semearRetomada({
       conta: { last_canceled_at: '2026-09-02T12:00:00.000Z' }, vendas: [{ email: 'ana@exemplo.com', valor: 67, status: 'paid' }],
       posse: { retomada: { user_id: 'u1', segmento: 'ex_assinante', grupo: 'pagou', variacao: 0, primeiro_nome: 'Ana', texto: 'Oi, Ana.', em: DESDE_POSSE, ate: new Date(AGORA.getTime() + 20 * DIA).toISOString() } },
@@ -310,15 +317,14 @@ describe('planejarCarla na retomada e fora dela', () => {
     expect(r.motivo).toBe('planilha_na_retomada');
   });
 
-  it('na retomada: o Pix por link é recusado; o código Pix sai; o Pix indisponível é recusado como sempre', () => {
-    h.modo = 'link';
-    expect(recusado(plano(saida({ tipo: 'link', id: 'pix_kiwify' }), posseRet())).motivo).toBe('pix_link_com_conta');
-    h.modo = 'codigo';
-    const ok = plano(saida({ tipo: 'link', id: 'pix_kiwify' }), posseRet());
+  it('na retomada: o Pix sai sempre como link do Pix automático (/?pagar=pix); a peça tipo pix (código) e o id pix_kiwify são recusados', () => {
+    const ok = plano(saida({ tipo: 'link', id: 'pix_automatico' }), posseRet());
     expect(ok.ok).toBe(true);
-    expect((ok as { peca?: { tipo: string } }).peca?.tipo).toBe('pix');
-    h.modo = 'indisponivel';
-    expect(recusado(plano(saida({ tipo: 'link', id: 'pix_kiwify' }), posseRet())).motivo).toBe('pix_indisponivel');
+    expect((ok as { peca?: unknown }).peca).toEqual({ tipo: 'link', texto: 'https://solardoc.app/?pagar=pix' });
+    expect(recusado(plano(saida({ tipo: 'link', id: 'pix_kiwify' }), posseRet())).motivo).toBe('peca_desconhecida');
+    expect(recusado(plano(saida({ tipo: 'pix', id: 'pix_automatico' }), posseRet())).motivo).toBe('peca_desconhecida');
+    const repetido = recusado(plano(saida({ tipo: 'link', id: 'pix_automatico' }), posseRet({ links: ['https://solardoc.app/?pagar=pix'] })));
+    expect(repetido.motivo).toBe('link_repetido');
   });
 
   it('na retomada: entrar_no_app sai como link do login, uma vez só (repetido sem o lead pedir é recusado)', () => {
@@ -329,11 +335,10 @@ describe('planejarCarla na retomada e fora dela', () => {
     expect(repetido.motivo).toBe('link_repetido');
   });
 
-  it('FORA da retomada: entrar_no_app é recusado (é só para quem já tem conta), e assinatura, Pix por link e planilha seguem como hoje', () => {
+  it('FORA da retomada: entrar_no_app é recusado (é só para quem já tem conta), e assinatura, o Pix automático e a planilha seguem como hoje', () => {
     expect(recusado(plano(saida({ tipo: 'link', id: 'entrar_no_app' }), posseNormal())).motivo).toBe('entrar_sem_conta');
     expect(plano(saida({ tipo: 'link', id: 'assinatura' }), posseNormal()).ok).toBe(true);
-    h.modo = 'link';
-    expect(plano(saida({ tipo: 'link', id: 'pix_kiwify' }), posseNormal()).ok).toBe(true);
+    expect(plano(saida({ tipo: 'link', id: 'pix_automatico' }), posseNormal()).ok).toBe(true);
     expect(plano(saida(null, 'prometer_planilha', [PROMESSA_PLANILHA_ELETROPOSTO]), posseNormal()).ok).toBe(true);
   });
 
@@ -343,36 +348,24 @@ describe('planejarCarla na retomada e fora dela', () => {
   });
 });
 
-describe('avisosDaCarla: o Pix pelo modo na retomada, e byte a byte como hoje fora dela', () => {
+describe('avisosDaCarla: o Pix automático, na retomada e fora dela', () => {
   const posseNormal = (): DadosPosse => ({ dona: 'carla', estado: 'viva', desde: DESDE_POSSE, ate_wa_id: 9, respostas: 1, imagens: [], links: [] });
   const posseRet = (): DadosPosse => ({ ...posseNormal(), origem: 'retomada_usuarios' });
   const AVISO_PIX = /^AVISO DO SISTEMA, Pix:/;
 
-  it('na retomada: só o aviso do modo, nenhum manda o link da assinatura, e o de código não pede o e-mail', () => {
-    for (const modo of ['link', 'codigo', 'indisponivel'] as const) {
-      h.modo = modo;
-      const avisos = avisosDaCarla(posseRet(), AGORA).filter(a => AVISO_PIX.test(a));
-      expect(avisos, modo).toHaveLength(1);
-      expect(avisos[0], modo).not.toMatch(/link da assinatura/);
-      expect(avisos[0], modo).not.toMatch(/\bmenu\b/i);
+  it('um aviso de Pix só, sempre o do Pix automático: nenhum manda o link da assinatura, falar de Kiwify, código ou comprovante', () => {
+    for (const p of [posseRet(), posseNormal()]) {
+      const avisos = avisosDaCarla(p, AGORA).filter(a => AVISO_PIX.test(a));
+      expect(avisos).toHaveLength(1);
+      expect(avisos[0]).toContain('pix_automatico');
+      expect(avisos[0]).toContain('https://solardoc.app/?pagar=pix');
+      expect(avisos[0]).not.toMatch(/link da assinatura|Kiwify|pix_kiwify|copia e cola|comprovante|\bmenu\b/i);
     }
-    h.modo = 'link';
-    expect(avisosDaCarla(posseRet(), AGORA)[0]).toContain('o Pix por link não fica preso à conta dele. Não ofereça Pix agora; para o cartão, peça entrar_no_app.');
-    h.modo = 'codigo';
-    const codigo = avisosDaCarla(posseRet(), AGORA)[0]!;
-    expect(codigo).toContain('basta a foto do comprovante aqui, e o acesso volta na conta dela. Nunca diga que liberou.');
-    expect(codigo).not.toMatch(/e-mail/);
-    h.modo = 'indisponivel';
-    expect(avisosDaCarla(posseRet(), AGORA)[0]).toContain('o Pix NÃO está disponível agora. Não ofereça Pix nem use pix_kiwify; para o cartão, peça entrar_no_app.');
   });
 
-  it('fora da retomada os três avisos saem exatamente como eram', () => {
-    h.modo = 'link';
-    expect(avisosDaCarla(posseNormal(), AGORA)[0]).toBe('AVISO DO SISTEMA, Pix: ao pedir a peça pix_kiwify o sistema manda o link do Pix pela Kiwify. Na bolha 1 diga que o acesso abre sozinho quando o banco confirmar.');
-    h.modo = 'codigo';
-    expect(avisosDaCarla(posseNormal(), AGORA)[0]).toBe('AVISO DO SISTEMA, Pix: ao pedir a peça pix_kiwify o sistema manda o código Pix copia e cola na mensagem de baixo. Na bolha 1 diga que o código vem abaixo e que, depois de pagar, ele manda aqui a foto do comprovante e o e-mail que usa no SolarDoc. Nunca diga que liberou.');
-    h.modo = 'indisponivel';
-    expect(avisosDaCarla(posseNormal(), AGORA)[0]).toBe('AVISO DO SISTEMA, Pix: o Pix NÃO está disponível agora. Não ofereça Pix nem use pix_kiwify; ofereça o cartão pelo link da assinatura.');
+  it('na retomada o aviso manda usar o mesmo e-mail da conta; fora dela pede e-mail e CPF ou CNPJ na página', () => {
+    expect(avisosDaCarla(posseRet(), AGORA)[0]).toContain('na bolha 1 diga para usar na página o mesmo e-mail da conta');
+    expect(avisosDaCarla(posseNormal(), AGORA)[0]).toContain('pede e-mail e CPF ou CNPJ');
   });
 
   it('os outros avisos (links já enviados, promessa da planilha) valem igual nas duas conversas', () => {

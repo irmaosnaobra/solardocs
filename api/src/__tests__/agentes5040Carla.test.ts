@@ -34,7 +34,7 @@ import { runVivoTick } from '../services/agentes5040/vivo';
 import { CHAVE_VIVO_ALVO, zerarCacheInterruptores } from '../services/agentes5040/interruptores';
 import { zerarCacheArmazem } from '../services/agentes5040/armazem';
 import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
-import { pixValido, modoPix, pediuDeNovo, planejarCarla, MAX_IMAGENS_POR_CONVERSA } from '../services/agentes5040/carlaVivo';
+import { pediuDeNovo, planejarCarla, MAX_IMAGENS_POR_CONVERSA } from '../services/agentes5040/carlaVivo';
 import { MAX_DEPOIMENTOS_POR_CONVERSA } from '../services/agentes5040/conhecimento/depoimentos';
 import { saida as saidaDe, conversaDoLead } from './_agentes5040Util';
 import { gerarPixCopiaECola } from '../utils/pixBrCode';
@@ -89,7 +89,7 @@ let ia = modelo([{ bolhas: ['Oi'] }]);
 const rodar = (extra: Record<string, unknown> = {}) => runVivoTick({ agora: AGORA, cliente: ia.cliente, ...extra });
 
 const pedidos = (): any[] => h.enviar.mock.calls.map(c => c[0]);
-const link = (id: string, bolha1 = 'Segue o link.'): Saida => ({ bolhas: [bolha1, id === 'pix_kiwify' ? LINKS_CARLA.pix_kiwify! : LINKS_CARLA[id]!], extra: { peca: { tipo: 'link', id } } });
+const link = (id: string, bolha1 = 'Segue o link.'): Saida => ({ bolhas: [bolha1, id === 'pix_kiwify' ? 'https://solardoc.app/pix' : LINKS_CARLA[id]!], extra: { peca: { tipo: 'link', id } } });
 const imagem = (slug: string, bolha1 = 'Escolhi esse porque é da sua região.'): Saida => ({ bolhas: [bolha1], extra: { peca: { tipo: 'imagem', id: `depoimento:${slug}` } } });
 
 beforeEach(() => {
@@ -135,60 +135,46 @@ describe('Carla: link de assinatura, Pix e avulsos', () => {
     expect(pedidos()[0].peca).toEqual({ tipo: 'link', texto: 'https://solardoc.app/assinar' });
   });
 
-  it('Pix com a URL do checkout da Kiwify configurada = peça link https://solardoc.app/pix', async () => {
-    process.env.SOLARDOC_PIX_CHECKOUT_URL = 'https://pay.kiwify.com.br/abc123';
-    semear(); ia = modelo([link('pix_kiwify', 'O mensal sai no Pix e o acesso abre sozinho.')]);
+  it.each([
+    ['sem URL de checkout na env', undefined],
+    ['com a URL do checkout da Kiwify na env', 'https://pay.kiwify.com.br/abc123'],
+  ])('Pix %s = sempre peça link https://solardoc.app/?pagar=pix (o Pix automático), nunca código nem Kiwify', async (_n, env) => {
+    if (env) process.env.SOLARDOC_PIX_CHECKOUT_URL = env;
+    semear(); ia = modelo([link('pix_automatico', 'O Pix é automático, cobra na sua conta, e o acesso abre sozinho quando o banco confirmar.')]);
     await rodar();
-    expect(pedidos()[0].peca).toEqual({ tipo: 'link', texto: 'https://solardoc.app/pix' });
-    expect(posseDe().links).toEqual(['https://solardoc.app/pix']);
+    expect(pedidos()[0].peca).toEqual({ tipo: 'link', texto: 'https://solardoc.app/?pagar=pix' });
+    expect(posseDe().links).toEqual(['https://solardoc.app/?pagar=pix']);
     expect(chavesDoEstado().some(k => k.startsWith('pix_solicitado:'))).toBe(false);
   });
 
-  it('Pix sem URL configurada = peça pix com o copia e cola de R$ 67; registrarPixEnviado SÓ com enviadas === 2', async () => {
-    semear(); ia = modelo([link('pix_kiwify', 'O código Pix vem abaixo. Depois me manda a foto do comprovante.')]);
+  it('o id antigo pix_kiwify e a peça tipo pix (código) não existem mais: recusa, nada de código sai', async () => {
+    semear(); ia = modelo([link('pix_kiwify', 'O código Pix vem abaixo.'), link('pix_kiwify', 'O código Pix vem abaixo.')]);
     await rodar();
-    const peca = pedidos()[0].peca;
-    expect(peca.tipo).toBe('pix');
-    expect(peca.texto).toBe(gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' }));
-    expect(pixValido(peca.texto)).toBe(true);
-    expect(chavesDoEstado().filter(k => k.startsWith('pix_solicitado:'))).toHaveLength(1);
-    const reg = (banco.tabelas.system_state ?? []).find(l => String(l.key).startsWith('pix_solicitado:'))!;
-    expect(reg.value).toMatchObject({ valor: 67 });
-    expect(posseDe().links).toEqual(['pix:67']);
+    expect(pedidos().every((x: any) => x.peca?.tipo !== 'pix')).toBe(true);
+    expect(chavesDoEstado().some(k => k.startsWith('pix_solicitado:'))).toBe(false);
+    expect(LINKS_CARLA.pix_kiwify).toBeUndefined();
   });
 
-  it('Pix copia e cola em que só a bolha saiu (enviadas 1, peça caiu no teto): nada registrado, pendência gravada, e o aviso aparece no turno seguinte', async () => {
-    semear(); ia = modelo([link('pix_kiwify', 'O código Pix vem abaixo.')]);
+  it('Pix em que só a bolha saiu (enviadas 1, peça caiu no teto): pendência gravada, e o aviso aparece no turno seguinte', async () => {
+    semear(); ia = modelo([link('pix_automatico', 'O Pix automático cobra na sua conta.')]);
     h.enviar.mockImplementation(async (p: any) => ({ ok: true, enviadas: 1, carimbos: [`ag5040_sent:${p.waIdAlvo}:1`], pecaCaiu: 'teto' }));
     await rodar();
     expect(chavesDoEstado().some(k => k.startsWith('pix_solicitado:'))).toBe(false);
     expect(posseDe().links).toEqual([]);
-    expect(posseDe().peca_pendente).toMatchObject({ tipo: 'pix', ref: 'pix' });
+    expect(posseDe().peca_pendente).toMatchObject({ tipo: 'link', ref: 'pix_automatico' });
 
     // turno seguinte: o lead fala de novo; a IA recebe o aviso de que a peça não saiu
     const agora2 = new Date(AGORA.getTime() + 10 * 60_000);
-    banco.tabelas.wa_mensagens!.push(nossa(11, new Date(AGORA.getTime() + 5 * 60_000).toISOString()), lead(12, new Date(agora2.getTime() - 2 * 60_000).toISOString(), 'Não chegou o código'));
+    banco.tabelas.wa_mensagens!.push(nossa(11, new Date(AGORA.getTime() + 5 * 60_000).toISOString()), lead(12, new Date(agora2.getTime() - 2 * 60_000).toISOString(), 'Não chegou o link'));
     h.enviar.mockReset().mockImplementation(async (p: any) => ({ ok: true, enviadas: p.peca ? 2 : 1, carimbos: [] }));
-    ia = modelo([link('pix_kiwify', 'Segue o código de novo.')]);
+    ia = modelo([link('pix_automatico', 'Segue o link de novo.')]);
     await runVivoTick({ agora: agora2, cliente: ia.cliente });
     const corpo = JSON.stringify(ia.chamadas[0]!.body);
     expect(corpo).toContain('NÃO saiu');
-    expect(corpo).toContain('pix_kiwify');
-    // e quando a peça sai, a pendência é limpa e o registro do Pix é feito
-    expect(pedidos()[0].peca.tipo).toBe('pix');
+    expect(corpo).toContain('pix_automatico');
+    expect(pedidos()[0].peca).toEqual({ tipo: 'link', texto: 'https://solardoc.app/?pagar=pix' });
     expect(posseDe().peca_pendente).toBeNull();
-    expect(chavesDoEstado().filter(k => k.startsWith('pix_solicitado:'))).toHaveLength(1);
-  });
-
-  it('o código Pix real passa na regra do vivoEnvio (tem espaço no nome do recebedor e o CRC fecha)', () => {
-    const c = gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' });
-    expect(c).toMatch(/^000201/);
-    expect(c).toContain(' ');
-    expect(pixValido(c)).toBe(true);
-    expect(pixValido(c.slice(0, -1) + (c.endsWith('0') ? '1' : '0'))).toBe(false);
-    expect(modoPix()).toBe('codigo');
-    process.env.SOLARDOC_PIX_CHECKOUT_URL = 'http://inseguro.exemplo/x';
-    expect(modoPix()).toBe('codigo');                                 // só https vale como link
+    expect(chavesDoEstado().some(k => k.startsWith('pix_solicitado:'))).toBe(false);
   });
 
   it.each([

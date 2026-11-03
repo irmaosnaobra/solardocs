@@ -1,15 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // A CARLA NA RODADA VIVA (B3b): decide a PEÇA da resposta (link, Pix ou imagem) e os efeitos de depois do envio.
 // NADA aqui envia mensagem nem grava a posse: quem envia é o vivoEnvio (peça única na chave :2) e quem grava a posse
-// é o vivo.ts, que é o ÚNICO que pode importar este arquivo (ele chama registrarPixEnviado e registrarPromessa, que
+// é o vivo.ts, que é o ÚNICO que pode importar este arquivo (ele chama registrarPromessa, que
 // escrevem em system_state; personas/carla.ts e posseLeitura.ts estão no grafo do ensaio e não podem alcançá-lo).
 //
 // A peça sai do `peca.id` que o modelo declarou, NUNCA do texto da 2ª bolha:
 //   assinatura          -> link https://solardoc.app/assinar
 //   avulso:<id>         -> link da rota do avulso (LINKS_CARLA)
-//   pix_kiwify          -> link https://solardoc.app/pix, se a env do checkout Pix da Kiwify é uma URL https; senão
-//                          a peça 'pix' (gerarPixCopiaECola de R$ 67, txid SOLARDOCVIP, o mesmo da Carla antiga);
-//                          código que o vivoEnvio recusaria = Pix indisponível (nunca bolha sem peça)
+//   pix_automatico      -> link https://solardoc.app/?pagar=pix, o Pix AUTOMÁTICO do Asaas (cobra na conta da pessoa; regra do dono
+//                          de 03/11/2026). Nunca Pix avulso, nunca código copia e cola, nunca e-mail na URL.
 //   depoimento:<slug>   -> imagem do card (até 3 por conversa, cada card 1 vez, nunca no 1º toque, o lead falou
 //                          entre duas imagens; o registro vai para a posse ANTES do envio)
 // Uma forma de pagamento por resposta (o contrato do vivoEnvio tem uma peça só). O mesmo link 1 vez por conversa,
@@ -20,8 +19,6 @@
 // (teto, validação) deixa a bolha sair sozinha: isso vira `peca_pendente` na posse e um aviso no turno seguinte.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { VALOR_PIX, TXID_PIX, pixValido, gerarCodigo, modoPix, type ModoPix } from './modoPix';
-import { registrarPixEnviado } from '../agents/whatsapp/pixSolicitado';
 import { registrarPromessa } from './planilhaBonus';
 import { CARDS_CARLA, LINKS_CARLA } from './personas/carla';
 import { MAX_DEPOIMENTOS_POR_CONVERSA } from './conhecimento/depoimentos';
@@ -35,11 +32,6 @@ export const MAX_IMAGENS_POR_CONVERSA = MAX_DEPOIMENTOS_POR_CONVERSA;
 const BASE_DEPOIMENTOS = 'https://solardoc.app/depoimentos/';
 /** Pendência de peça que caiu: vale por 6 h. */
 export const VALIDADE_PENDENCIA_MS = 6 * 3_600_000;
-
-// modoPix, pixValido, VALOR_PIX, TXID_PIX e ModoPix moram em ./modoPix (módulo neutro, que o robô do quiz também usa).
-// Re-export: quem importa daqui segue igual.
-export { VALOR_PIX, TXID_PIX, pixValido, modoPix };
-export type { ModoPix };
 
 // Só pedido EXPLÍCITO de reenvio: ordem no imperativo ("manda o link", "reenvia", "manda de novo"), "não chegou/recebi",
 // "cadê o link/pix". "Vou mandar pro meu sócio" (infinitivo, sem o objeto) não casa. É heurística de palavras.
@@ -62,21 +54,14 @@ const lerPendencia = (posse: DadosPosse): PendenciaDePeca | null => {
   return p && typeof p === 'object' && typeof p.ref === 'string' && typeof p.em === 'string' ? { tipo: String(p.tipo ?? ''), ref: p.ref, em: p.em } : null;
 };
 
-const idDoModelo = (ref: string): string => (ref === 'pix' ? 'pix_kiwify' : ref);
+const idDoModelo = (ref: string): string => (ref === 'pix' ? 'pix_automatico' : ref);
 
 /** Avisos do sistema que entram nos fatos da Carla em TODO turno (a persona imprime ctx.avisosDoSistema). */
 export function avisosDaCarla(posse: DadosPosse, agora: Date = new Date()): string[] {
   const out: string[] = [];
-  const modo = modoPix();
-  // A RETOMADA dos usuários (03/11/2026): quem já tem conta paga na conta que já existe. O aviso do Pix TROCA pelo do modo (não soma): o de hoje
-  // pede também o e-mail, que aqui não faz falta (a conta vem pelo telefone), e manda o cartão pelo link da assinatura, que a retomada recusa.
-  if (ehPosseDaRetomada(posse)) {
-    if (modo === 'link') out.push('AVISO DO SISTEMA, Pix: para quem já tem conta, o Pix por link não fica preso à conta dele. Não ofereça Pix agora; para o cartão, peça entrar_no_app.');
-    else if (modo === 'codigo') out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_kiwify o sistema manda o código Pix copia e cola na mensagem de baixo. Esta pessoa já tem conta neste WhatsApp: depois de pagar, basta a foto do comprovante aqui, e o acesso volta na conta dela. Nunca diga que liberou.');
-    else out.push('AVISO DO SISTEMA, Pix: o Pix NÃO está disponível agora. Não ofereça Pix nem use pix_kiwify; para o cartão, peça entrar_no_app.');
-  } else if (modo === 'link') out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_kiwify o sistema manda o link do Pix pela Kiwify. Na bolha 1 diga que o acesso abre sozinho quando o banco confirmar.');
-  else if (modo === 'codigo') out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_kiwify o sistema manda o código Pix copia e cola na mensagem de baixo. Na bolha 1 diga que o código vem abaixo e que, depois de pagar, ele manda aqui a foto do comprovante e o e-mail que usa no SolarDoc. Nunca diga que liberou.');
-  else out.push('AVISO DO SISTEMA, Pix: o Pix NÃO está disponível agora. Não ofereça Pix nem use pix_kiwify; ofereça o cartão pelo link da assinatura.');
+  // O Pix é sempre o automático do Asaas (03/11/2026): um aviso só, sem modo. Na retomada, o e-mail (com o meio coberto) vem nos fatos da conta.
+  if (ehPosseDaRetomada(posse)) out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_automatico o sistema manda o link do Pix automático (https://solardoc.app/?pagar=pix), que cobra na conta dele. Esta pessoa já tem conta: na bolha 1 diga para usar na página o mesmo e-mail da conta (os fatos trazem o e-mail com o meio coberto) e que o acesso volta sozinho na conta dela quando o banco confirmar. Nunca diga que liberou.');
+  else out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_automatico o sistema manda o link do Pix automático (https://solardoc.app/?pagar=pix), que cobra na conta da pessoa todo mês e pede e-mail e CPF ou CNPJ. Na bolha 1 diga que o acesso abre sozinho quando o banco confirmar. Nunca diga que liberou.');
   if (posse.links.length) out.push(`AVISO DO SISTEMA: links que já saíram nesta conversa: ${posse.links.join(', ')}. Não mande o mesmo de novo, a não ser que ele peça.`);
   if (posse.planilha_prometida === true) out.push('AVISO DO SISTEMA: a promessa da planilha de eletroposto já foi feita nesta conversa. Não repita e não use prometer_planilha.');
   const pend = lerPendencia(posse);
@@ -116,7 +101,7 @@ const semEfeito: PlanoCarla['depois'] = async () => ({});
 export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
   const { saida, posse } = p;
   const bolha = String(saida.bolhas[0] ?? '');
-  // A RETOMADA dos usuários (03/11/2026): quem já tem conta. Cartão só por dentro do app (peça entrar_no_app), Pix só do jeito do aviso do modo.
+  // A RETOMADA dos usuários (03/11/2026): quem já tem conta. Cartão só por dentro do app (peça entrar_no_app); Pix pelo link do Pix automático (pix_automatico).
   // Nenhum aviso de recusa leva a palavra que a trava barra em toda bolha (D33).
   const daRet = ehPosseDaRetomada(posse);
 
@@ -177,30 +162,7 @@ export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
   }
 
   // ── Pix ─────────────────────────────────────────────────────────────────────
-  if (id === 'pix_kiwify' && (peca.tipo === 'link' || peca.tipo === 'pix')) {
-    const modo = modoPix();
-    if (modo === 'link') {
-      if (daRet) return recusa('pix_link_com_conta', 'o Pix por link não fica preso à conta dele; no cartão use a peça entrar_no_app.');
-      return linkDe(LINKS_CARLA.pix_kiwify!, 'pix');
-    }
-    if (modo === 'indisponivel') return recusa('pix_indisponivel', 'o Pix não está disponível agora.');
-    if (posse.links.includes(`pix:${VALOR_PIX}`) && !pediuDeNovo(p.textosDoLead)) {
-      return recusa('pix_repetido', 'o código Pix já foi enviado nesta conversa e ele não pediu de novo.');
-    }
-    const codigo = gerarCodigo();
-    return {
-      ok: true,
-      peca: { tipo: 'pix', texto: codigo },
-      depois: async (res, a) => {
-        if (!res.ok) return {};
-        if (res.pecaCaiu) return { peca_pendente: { tipo: 'pix', ref: 'pix', em: a.agora.toISOString() } };
-        if (res.enviadas !== 2) return {};
-        // Só com as duas mensagens enviadas: o registro é o que faz a foto do comprovante liberar o acesso.
-        try { await registrarPixEnviado(a.tel, VALOR_PIX, a.nome); } catch { /* o erro é logado lá; o envio já saiu */ }
-        return { ...comLinks(`pix:${VALOR_PIX}`), ...(pend?.ref === 'pix' ? { peca_pendente: null } : {}) };
-      },
-    };
-  }
+  if (id === 'pix_automatico' && peca.tipo === 'link') return linkDe(LINKS_CARLA.pix_automatico!, 'pix_automatico');
 
   // ── depoimento (imagem) ─────────────────────────────────────────────────────
   if (id.startsWith('depoimento:') && peca.tipo === 'imagem') {

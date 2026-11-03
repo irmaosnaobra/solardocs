@@ -67,7 +67,6 @@ export interface CardResumo {
 }
 
 import type { QuizContexto } from '../solardoc/quizContexto';
-import type { ModoPix } from './modoPix';
 
 export interface LeadMetaResumo {
   lead_id: string | null;
@@ -108,6 +107,8 @@ export interface ContaRetomada {
   forma_antiga: 'cartao' | 'pix' | null;
   ultimo_documento_em: string | null;
   tem_cnpj: boolean;
+  /** O e-mail da conta com o meio coberto (jo***@gmail.com), para a Carla dizer qual usar no Pix automático. null = sem e-mail válido. */
+  email_mascarado: string | null;
   primeiro_nome: string | null;
   texto_enviado: string | null;
   enviado_em: string | null;
@@ -148,8 +149,6 @@ export interface ContextoLead {
   avisosDoSistema?: string[];
   /** A conta de quem recebeu a retomada da Carla (posse com origem retomada_usuarios). Ausente ou null = não é retomada. Só a Carla usa. */
   contaRetomada?: ContaRetomada | null;
-  /** Qual Pix sai agora, lido pelo vivo.ts só na retomada (a persona continua pura). Ausente vale 'indisponivel': a Carla não oferece Pix. */
-  modoPix?: ModoPix;
 }
 
 /** O que o porteiro precisa saber. `leituraOk=false` = ninguém responde. */

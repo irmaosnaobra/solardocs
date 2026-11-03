@@ -1406,3 +1406,12 @@ describe('o público lido de verdade (depsReais.lerPublico) sobre o banco em mem
     ]);
   });
 });
+
+describe('mascararEmail: o e-mail da conta com o meio coberto para o Pix automático', () => {
+  it('mostra até 2 letras do começo, *** e o domínio; começo curto mostra 1; sem e-mail válido é null', () => {
+    expect(Regras.mascararEmail('Joao@Gmail.com')).toBe('jo***@gmail.com');
+    expect(Regras.mascararEmail(' ana@exemplo.com ')).toBe('a***@exemplo.com');
+    expect(Regras.mascararEmail('a@x.com')).toBe('a***@x.com');
+    for (const x of ['', null, undefined, 'semarroba', '@x.com', 'a@', 'a b@x.com', 'a@semponto']) expect(Regras.mascararEmail(x), String(x)).toBeNull();
+  });
+});

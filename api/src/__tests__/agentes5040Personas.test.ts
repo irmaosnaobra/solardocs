@@ -257,10 +257,10 @@ describe('card do quiz solar: o que a Duda lê', () => {
 
 const conta = (over: Partial<ContaRetomada> = {}): ContaRetomada => ({
   user_id: 'u1', plano: 'free', segmento: 'gratis', grupo: 'nunca_pagou', criada_em: '2026-06-10T12:00:00.000Z', saiu_em: null, forma_antiga: null,
-  ultimo_documento_em: '2026-10-20T15:00:00.000Z', tem_cnpj: true, primeiro_nome: 'Ana', texto_enviado: 'Oi, Ana. Aqui é a Carla, da SolarDoc. Quer ver o que tem de novo?',
+  ultimo_documento_em: '2026-10-20T15:00:00.000Z', tem_cnpj: true, email_mascarado: 'an***@exemplo.com', primeiro_nome: 'Ana', texto_enviado: 'Oi, Ana. Aqui é a Carla, da SolarDoc. Quer ver o que tem de novo?',
   enviado_em: '2026-11-04T12:30:00.000Z', ...over,
 });
-const fatosRet = (c: ContaRetomada, modo: 'link' | 'codigo' | 'indisponivel' = 'codigo'): string => fatosDaRetomada(c, '2026-11-05T17:00:00.000Z', modo).join('\n');
+const fatosRet = (c: ContaRetomada): string => fatosDaRetomada(c, '2026-11-05T17:00:00.000Z').join('\n');
 const pagou = (over: Partial<ContaRetomada> = {}) => conta({ segmento: 'ex_assinante', grupo: 'pagou', saiu_em: '2026-09-02T12:00:00.000Z', forma_antiga: 'cartao', ...over });
 const incerto = (over: Partial<ContaRetomada> = {}) => conta({ segmento: 'ex_assinante', grupo: 'incerto', saiu_em: '2026-08-01T12:00:00.000Z', forma_antiga: 'pix', ...over });
 
@@ -314,26 +314,39 @@ describe('Carla na retomada: fatosDaRetomada', () => {
     }
   });
 
-  it('pelo modo do Pix (D31): no código, o Pix por código, e a frase de renovar só com `pagou`; no link e no indisponível, "não ofereça" e nenhum pix_kiwify; o cartão sai por entrar_no_app nos três', () => {
-    const codigoGratis = fatosRet(conta(), 'codigo');
-    expect(codigoGratis).toContain('Pix: peça pix_kiwify; depois de pagar, basta a foto do comprovante aqui.');
-    expect(codigoGratis).not.toContain('Ele já pagou antes');
-    expect(fatosRet(pagou(), 'codigo')).toContain('Ele já pagou antes e pode renovar pelo Pix.');
-    expect(fatosRet(incerto(), 'codigo')).not.toContain('Ele já pagou antes');
+  it('o Pix é sempre o automático (03/11): peça pix_automatico, e-mail com o meio coberto, nada de código, Kiwify nem Pix avulso; a frase de renovar só com `pagou`; o cartão sai por entrar_no_app', () => {
+    const gratis = fatosRet(conta());
+    expect(gratis).toContain('Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar). Nunca Pix avulso nem código.');
+    expect(gratis).toContain('exatamente assim: an***@exemplo.com.');
+    expect(gratis).toContain('Peça para usar o mesmo e-mail da conta na página.');
+    expect(gratis).not.toContain('ana@exemplo.com');
+    expect(gratis).not.toContain('pix_kiwify');
+    expect(gratis).not.toContain('foto do comprovante');
+    expect(gratis).not.toContain('Ele já pagou antes');
+    expect(fatosRet(pagou())).toContain('Ele já pagou antes e pode renovar pelo Pix.');
+    expect(fatosRet(incerto())).not.toContain('Ele já pagou antes');
+    expect(gratis).toContain('Cartão: peça entrar_no_app');
+    // sem e-mail válido na conta, a Carla não escreve e-mail nenhum
+    const sem = fatosRet(conta({ email_mascarado: null }));
+    expect(sem).toContain('sem escrever o e-mail');
+    expect(sem).not.toContain('***@');
+  });
 
-    const link = fatosRet(pagou(), 'link');
-    expect(link).toContain('Pix: não ofereça nesta conversa, porque o link do Pix não fica preso à conta dele.');
-    expect(link).not.toContain('pix_kiwify');
-    expect(link).not.toContain('Ele já pagou antes');
-    const indisponivel = fatosRet(pagou(), 'indisponivel');
-    expect(indisponivel).toContain('Pix: fora do ar agora, não ofereça.');
-    expect(indisponivel).not.toContain('pix_kiwify');
-    for (const modo of ['link', 'codigo', 'indisponivel'] as const) expect(fatosRet(conta(), modo), modo).toContain('Cartão: peça entrar_no_app');
+  it('a persona manda o Pix só pelo automático: a seção PIX cita pix_automatico e /?pagar=pix, e não cita pix_kiwify, Kiwify nem código copia e cola', () => {
+    expect(LINKS_CARLA.pix_automatico).toBe('https://solardoc.app/?pagar=pix');
+    expect(LINKS_CARLA.pix_kiwify).toBeUndefined();
+    const i = SISTEMA_FIXO_CARLA.indexOf('\nPIX\n');
+    expect(i).toBeGreaterThan(0);
+    const secao = SISTEMA_FIXO_CARLA.slice(i, SISTEMA_FIXO_CARLA.indexOf('QUEM JÁ TEM CONTA'));
+    expect(secao).toContain('pix_automatico');
+    expect(secao).toContain('https://solardoc.app/?pagar=pix');
+    expect(secao).not.toMatch(/pix_kiwify|Kiwify|copia e cola|foto do comprovante e o e-mail/i);
+    expect(SISTEMA_FIXO_CARLA).not.toContain('pix_kiwify');
   });
 
   it('nenhuma linha dos fatos e nenhuma da seção "QUEM JÁ TEM CONTA" leva a palavra "menu" (a trava barra em toda bolha)', () => {
     for (const c of [conta(), pagou(), incerto()]) {
-      for (const modo of ['link', 'codigo', 'indisponivel'] as const) expect(fatosRet(c, modo), modo).not.toMatch(/\bmenu\b/i);
+      expect(fatosRet(c)).not.toMatch(/\bmenu\b/i);
     }
     const secao = SISTEMA_FIXO_CARLA.slice(SISTEMA_FIXO_CARLA.indexOf('QUEM JÁ TEM CONTA'), SISTEMA_FIXO_CARLA.indexOf('DEPOIMENTOS (cards em imagem'));
     expect(secao.length).toBeGreaterThan(300);
@@ -359,23 +372,21 @@ describe('Carla na retomada: fatosDaRetomada', () => {
     }
   });
 
-  it('o fatosCarla sem contaRetomada sai igual ao de hoje: a mesma frase da conta, com ou sem o campo, e o modoPix do ctx é ignorado', () => {
+  it('o fatosCarla sem contaRetomada sai igual ao de hoje: a mesma frase da conta, com ou sem o campo', () => {
     const base = contexto({ ehClienteSolarDoc: true });
     const hoje = CARLA.fatos(base);
     expect(hoje).toContain('Conta no SolarDoc com este WhatsApp: sim (o cadastro nasce depois do pagamento).');
     expect(CARLA.fatos({ ...base, contaRetomada: null })).toBe(hoje);
-    expect(CARLA.fatos({ ...base, contaRetomada: undefined, modoPix: 'link' })).toBe(hoje);
+    expect(CARLA.fatos({ ...base, contaRetomada: undefined })).toBe(hoje);
     const naoCliente = contexto({ ehClienteSolarDoc: false });
     expect(CARLA.fatos(naoCliente)).toContain('Conta no SolarDoc com este WhatsApp: não (não diga que liberou).');
   });
 
-  it('com contaRetomada, os fatos da Carla trocam a frase da conta pela situação e levam o modo do Pix do ctx', () => {
-    const f = CARLA.fatos(contexto({ ehClienteSolarDoc: true, contaRetomada: pagou(), modoPix: 'link' }));
+  it('com contaRetomada, os fatos da Carla trocam a frase da conta pela situação e levam o Pix automático', () => {
+    const f = CARLA.fatos(contexto({ ehClienteSolarDoc: true, contaRetomada: pagou() }));
     expect(f).not.toContain('Conta no SolarDoc com este WhatsApp');
     expect(f).toContain('Situação da conta: já foi assinante (no cartão)');
-    expect(f).toContain('Pix: não ofereça nesta conversa');
-    // sem o modo no ctx a Carla não oferece Pix (o lado seguro)
-    expect(CARLA.fatos(contexto({ ehClienteSolarDoc: true, contaRetomada: pagou() }))).toContain('Pix: fora do ar agora, não ofereça.');
+    expect(f).toContain('Pix: peça pix_automatico');
   });
 
   it('o SISTEMA_FIXO_CARLA tem a seção da conta, manda não usar a peça assinatura e lista entrar_no_app como peça só para quem já tem conta', () => {

@@ -180,8 +180,10 @@ function regrasGerais(s: SaidaAgente, est: EstadoConversa, p: ParametrosTrava): 
   if (!primeira) m.push('a primeira bolha está vazia');
   if (primeira.length > TETO_BOLHA) m.push(`a bolha passa de ${TETO_BOLHA} caracteres (${primeira.length})`);
 
-  // Bolha 1: sem endereço de site nem link.
-  if (/https?:\/\/|www\./i.test(primeira) || /\b[a-z0-9][a-z0-9-]*\.(?:com|app|br|net|me|io|org)\b/i.test(semAcento(primeira))) {
+  // Bolha 1: sem endereço de site nem link. O e-mail com o meio coberto (jo***@gmail.com, o que a Carla mostra na retomada) não é endereço
+  // de site: sai da conta antes. O e-mail inteiro não casa (não tem `***@`) e continua barrado.
+  const semEmailCoberto = primeira.replace(/[a-z0-9._+-]{1,3}\*{3}@[a-z0-9.-]+/gi, ' ');
+  if (/https?:\/\/|www\./i.test(semEmailCoberto) || /\b[a-z0-9][a-z0-9-]*\.(?:com|app|br|net|me|io|org)\b/i.test(semAcento(semEmailCoberto))) {
     m.push('endereço de site ou link na primeira bolha');
   }
 

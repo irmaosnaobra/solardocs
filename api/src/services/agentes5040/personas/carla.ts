@@ -6,7 +6,6 @@
 // entra por fatosCarla(ctx), na mensagem do usuário.
 
 import type { ContaRetomada, ContextoLead, PersonaDef } from '../tipos';
-import type { ModoPix } from '../modoPix';
 import { diaBRT } from '../relogio';
 import {
   AVULSOS, DOCUMENTOS_SOLARDOC, NOVIDADES_SOLARDOC, PLANO_MENSAL, PROMESSA_PLANILHA_ELETROPOSTO, textoConhecimentoSolarDoc, textoRetomadaSolarDoc,
@@ -24,8 +23,8 @@ export const ACOES_CARLA = [...ACOES_COMUNS, 'comprovante_pix', 'prometer_planil
 
 const BASE = 'https://solardoc.app';
 
-/** Link do Pix: endereço fixo em solardoc.app (o redirecionamento para o checkout da Kiwify vem depois). */
-export const PIX_LINK = `${BASE}/pix`;
+/** Link do Pix: o Pix AUTOMÁTICO do Asaas (a LP abre o modal com `?pagar=pix`). Nunca Pix avulso, nunca código solto, nunca e-mail na URL. */
+export const PIX_LINK = `${BASE}/?pagar=pix`;
 
 /**
  * As páginas dos avulsos em solardoc.app (existem em dashboard/public). A rota do catálogo de produtos
@@ -41,7 +40,7 @@ export const ROTAS_AVULSOS: Readonly<Record<string, string>> = {
 /** id da peça de link: endereço exato que o SISTEMA manda sozinho na segunda mensagem (a bolha 2 que o modelo escreve só passa na trava). */
 export const LINKS_CARLA: Readonly<Record<string, string>> = {
   assinatura: `${BASE}/assinar`,
-  pix_kiwify: PIX_LINK,
+  pix_automatico: PIX_LINK,
   /** O login da conta que já existe: o cartão de quem volta é por dentro do app. Só vale na retomada dos usuários (carlaVivo recusa fora dela). */
   entrar_no_app: `${BASE}/auth`,
   ...Object.fromEntries(AVULSOS.filter(a => ROTAS_AVULSOS[a.id]).map(a => [`avulso:${a.id}`, `${BASE}${ROTAS_AVULSOS[a.id]}`])),
@@ -240,8 +239,8 @@ PRODUTOS AVULSOS
 - Nunca empilhe avulso junto com o plano numa primeira conversa. Um avulso por vez, com uma frase do que ele resolve e o link quando ele perguntar o valor ou disser que quer.
 
 PIX
-- Quem quer pagar no Pix: use a peça pix_kiwify (tipo link; na bolha 2 ponha ${PIX_LINK}). Quem decide o que sai de verdade é o sistema, e o AVISO DO SISTEMA nos fatos diz qual: o link do Pix pela Kiwify (o acesso abre sozinho quando o banco confirmar, sem comprovante) ou o código Pix copia e cola na mensagem de baixo (ele paga e manda aqui a foto do comprovante e o e-mail). Siga o aviso na bolha 1, curta, e nunca escreva código nem chave Pix.
-- Se o aviso disser que o Pix não está disponível, não ofereça Pix: ofereça o cartão pelo link da assinatura.
+- Quem quer pagar no Pix: use a peça pix_automatico (tipo link; na bolha 2 ponha ${PIX_LINK}). O único Pix é o Pix automático do Asaas: ele cobra na conta da pessoa todo mês, pede e-mail e CPF ou CNPJ e mostra o código para copiar. Na bolha 1, curta, diga isso e que o acesso abre sozinho quando o banco confirmar; não precisa de comprovante. Nunca ofereça Pix avulso, Pix de um mês só, chave Pix, nem escreva código Pix.
+- Se o AVISO DO SISTEMA ou os fatos trouxerem um e-mail com o meio coberto (jo***@gmail.com), escreva-o na bolha 1 exatamente assim e peça para usar o mesmo e-mail na página. Nunca escreva o e-mail inteiro, e nunca ponha e-mail no link.
 - Uma forma de pagamento por resposta: ou o link da assinatura, ou o Pix. Se ele já pagou na chave e mandou a foto do comprovante, use a acao comprovante_pix e diga só que recebeu e que o acesso chega no e-mail depois da conferência. Nunca diga que liberou.
 
 QUEM JÁ TEM CONTA (os fatos trazem "Situação da conta")
@@ -316,12 +315,12 @@ function dataBR(iso: string | null | undefined): string {
 }
 
 /**
- * Os fatos de quem TEM conta e recebeu a mensagem de retomada da Carla (03/11/2026). Pura. Sem telefone e sem e-mail. NÃO escreve
+ * Os fatos de quem TEM conta e recebeu a mensagem de retomada da Carla (03/11/2026). Pura. Sem telefone e sem e-mail inteiro. NÃO escreve
  * "Conta no SolarDoc: sim" (a regra de cima libera "liberou" com essa frase) e nenhuma linha leva a palavra "menu" (a trava barra em toda bolha).
  * "Já foi assinante" só sai para o grupo `pagou`; o `incerto` diz que não há pagamento confirmado; o grátis diz que nunca assinou.
- * O pagamento vai pelo modo do Pix de agora.
+ * O Pix é sempre o automático (`/?pagar=pix`), com o e-mail da conta com o meio coberto (nunca o endereço inteiro).
  */
-export function fatosDaRetomada(c: ContaRetomada, _agora: string, modo: ModoPix): string[] {
+export function fatosDaRetomada(c: ContaRetomada, _agora: string): string[] {
   const l: string[] = [];
   const enviada = dataBR(c.enviado_em);
   l.push(`Esta pessoa já tem conta no SolarDoc e a conversa começou pela nossa mensagem de retomada${enviada ? ` (${enviada})` : ''}${c.texto_enviado ? `: "${textoLivre(c.texto_enviado, 200)}"` : ''}.`);
@@ -344,13 +343,10 @@ export function fatosDaRetomada(c: ContaRetomada, _agora: string, modo: ModoPix)
     : 'Ele já conhece o SolarDoc: não se apresente de novo e responda ao que ele disse. Se perguntar o que mudou, fale só do que está no seu conhecimento e não invente novidade.');
   l.push('Nunca diga que liberou: o acesso volta sozinho na conta dele depois que o pagamento é conferido.');
   const pagamento = 'Pagamento: nunca a peça assinatura. Cartão: peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade.';
-  if (modo === 'codigo') {
-    l.push(`${pagamento} Pix: peça pix_kiwify; depois de pagar, basta a foto do comprovante aqui.${c.grupo === 'pagou' ? ' Ele já pagou antes e pode renovar pelo Pix.' : ''}`);
-  } else if (modo === 'link') {
-    l.push(`${pagamento} Pix: não ofereça nesta conversa, porque o link do Pix não fica preso à conta dele.`);
-  } else {
-    l.push(`${pagamento} Pix: fora do ar agora, não ofereça.`);
-  }
+  const email = c.email_mascarado
+    ? ` Na bolha 1 escreva este e-mail, com o meio coberto, exatamente assim: ${c.email_mascarado}. Peça para usar o mesmo e-mail da conta na página.`
+    : ' Peça para usar o mesmo e-mail da conta na página, sem escrever o e-mail.';
+  l.push(`${pagamento} Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar). Nunca Pix avulso nem código.${email}${c.grupo === 'pagou' ? ' Ele já pagou antes e pode renovar pelo Pix.' : ''}`);
   l.push('Sem prazo, sem urgência, sem desconto e sem a promessa da planilha nesta conversa. Reembolso, cobrança, reclamação ou acesso: suporte_giovanna.');
   l.push(...textoRetomadaSolarDoc());
   return l;
@@ -360,7 +356,7 @@ export function fatosCarla(ctx: ContextoLead): string {
   const l: string[] = [...fatosGerais(ctx), ...fatosOrigem(ctx)];
   if (ctx.card) l.push(...fatosCard(ctx, 'Consultor do card'));
   // A retomada dos usuários (03/11/2026): a situação da conta no lugar da frase de hoje. Sem `contaRetomada` o texto de hoje fica igual.
-  if (ctx.contaRetomada) l.push(...fatosDaRetomada(ctx.contaRetomada, ctx.agora, ctx.modoPix ?? 'indisponivel'));
+  if (ctx.contaRetomada) l.push(...fatosDaRetomada(ctx.contaRetomada, ctx.agora));
   else {
     l.push(ctx.ehClienteSolarDoc
       ? 'Conta no SolarDoc com este WhatsApp: sim (o cadastro nasce depois do pagamento).'

@@ -101,7 +101,6 @@ import { ehMidia } from './midia';
 import {
   RETOMADA_VALE_MS, agenteAtendeEste, assumirPosse, atualizarPosse, desfazerPosseNova, ehPosseDaRetomada, lerPosse, retomadaVale, type DadosPosse,
 } from './posse';
-import { modoPix } from './modoPix';
 import { lerContaDaRetomada } from '../solardoc/retomadaUsuariosConta';
 import { DONAS_NA_RODADA, donasDaRodadaLigadas } from './posseLeitura';
 import { diaBRT, horaBRT, horarioComercial } from './relogio';
@@ -923,8 +922,8 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       horariosLivres: horariosPorExtenso(dona === 'helena' ? ofertaH.vagas : oferta.vagas, ctx0.agora),
       ...(dona === 'helena' ? { avisosDoSistema: avisosDaHelena() } : {}),
       ...(dona === 'carla' ? { avisosDoSistema: avisosDaCarla(posse, g.agoraEnvio()) } : {}),
-      // A retomada: a situação da conta e o modo do Pix de agora (lido aqui, como o avisosDaCarla), para a persona continuar pura.
-      ...(contaRetomada ? { contaRetomada, modoPix: modoPix(), nome: ctx0.nome ?? contaRetomada.primeiro_nome } : {}),
+      // A retomada: a situação da conta (o Pix é sempre o automático, sem modo a ler), para a persona continuar pura.
+      ...(contaRetomada ? { contaRetomada, nome: ctx0.nome ?? contaRetomada.primeiro_nome } : {}),
     };
     // Todo chamado ao modelo (inclusive a segunda chance de agenda, de peça e de bolha barrada) leva o aviso do sistema e a
     // exigência da trava enquanto a agente não se apresentou: o aviso é somado AQUI, para nenhuma reconstrução de `avisosDoSistema` o perder.

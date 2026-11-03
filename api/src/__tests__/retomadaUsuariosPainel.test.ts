@@ -236,7 +236,7 @@ describe('lerContaDaRetomada (os fatos da Carla)', () => {
     const c = await lerContaDaRetomada(posse(), CHAVE, AGORA);
     expect(c).toEqual({
       user_id: 'u1', plano: 'free', segmento: 'ex_assinante', grupo: 'pagou', criada_em: '2026-06-10T12:00:00.000Z', saiu_em: '2026-09-02T12:00:00.000Z',
-      forma_antiga: 'cartao', ultimo_documento_em: '2026-10-20T15:00:00.000Z', tem_cnpj: true, primeiro_nome: 'Ana', texto_enviado: 'Oi, Ana. Quer ver?', enviado_em: ENVIO,
+      forma_antiga: 'cartao', ultimo_documento_em: '2026-10-20T15:00:00.000Z', tem_cnpj: true, email_mascarado: 'a***@exemplo.com', primeiro_nome: 'Ana', texto_enviado: 'Oi, Ana. Quer ver?', enviado_em: ENVIO,
     });
   });
 
@@ -265,6 +265,13 @@ describe('lerContaDaRetomada (os fatos da Carla)', () => {
     expect(await lerContaDaRetomada(posse(), CHAVE, AGORA)).toMatchObject({ segmento: 'gratis', grupo: 'nunca_pagou', ultimo_documento_em: null });
   });
 
+  it('a conta leva o e-mail com o meio coberto (nunca inteiro), para a Carla dizer qual e-mail usar no Pix automático', async () => {
+    semear({ last_canceled_at: null });
+    const c = await lerContaDaRetomada(posse(), CHAVE, AGORA);
+    expect(typeof c.email_mascarado === 'string' ? c.email_mascarado : '').toMatch(/^[^@*]{1,2}\*\*\*@[^@]+\.[^@]+$/);
+    expect(JSON.stringify(c)).not.toMatch(/ana@exemplo\.com/);
+  });
+
   it('erro LANÇA: conta que não existe, telefone que não casa com a conversa, posse sem user_id e leitura que falha', async () => {
     await expect(lerContaDaRetomada(posse(), CHAVE, AGORA)).rejects.toThrow('conta_nao_existe');
     semear({ whatsapp: '5511999990000' });
@@ -281,7 +288,8 @@ describe('lerContaDaRetomada (os fatos da Carla)', () => {
   it('não leva telefone nem e-mail', async () => {
     semear();
     const texto = JSON.stringify(await lerContaDaRetomada(posse(), CHAVE, AGORA));
-    expect(texto).not.toMatch(/exemplo\.com/);
+    expect(texto).not.toMatch(/ana@|Ana@/);
+    expect(texto).toContain('a***@exemplo.com');
     expect(texto).not.toMatch(/\d{10,}/);
     expect(texto).not.toContain(hmacDe(CHAVE)!);
   });
