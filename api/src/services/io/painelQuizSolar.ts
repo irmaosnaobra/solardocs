@@ -12,7 +12,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import * as qf from './quizFunil';
 import { buscarConjuntosMeta, buscarAnunciosMeta, buscarAnunciosComGastoMeta } from './metaConjuntos';
 import {
-  lerLead, qualidadeDosLeads, resultadoDosCards, montarPorDia, montarPorAnuncio, idsDosAnuncios, acrescentarSoGasto,
+  lerLead, qualidadeDosLeads, resultadoDosCards, montarPorDia, montarPorAnuncio, montarResultadoPorAnuncio, idsDosAnuncios, acrescentarSoGasto,
   diaBRT, diasDoPeriodo,
   type CardQuiz, type VisitaComData, type LeadBruto, type PainelQuizSolar,
 } from './painelQuizSolarPuro';
@@ -148,6 +148,7 @@ export async function lerPainelQuizSolar(periodo: string): Promise<PainelQuizSol
     resultado: resultadoDosCards(b.cards),
     porDia: montarPorDia(dias, b.visitas, b.eventos, b.cards),
     porAnuncio: acrescentarSoGasto(montarPorAnuncio(leads, b.cards, ma.anuncios, ma.ok), sg.anuncios),
+    resultadoPorAnuncio: montarResultadoPorAnuncio(b.cards, ma.anuncios, ma.ok),
     porConjunto,
     meta_ok: mc.ok && ma.ok && sg.ok,
     meta_motivo: mc.motivo || ma.motivo || sg.motivo || null,

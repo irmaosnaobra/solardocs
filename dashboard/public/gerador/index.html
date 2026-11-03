@@ -635,6 +635,7 @@ html[data-mode="viewer"] #inicioSection,html[data-mode="login"] #inicioSection,h
 .pq-tabela-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px}
 .pq-anuncios{min-width:560px}
 .pq-an-nome{overflow-wrap:anywhere}
+.pq-anuncios.pq-resultado{min-width:700px}
 .pq-anuncios tr.pq-melhor td,.pq-anuncios tr.pq-melhor th{background:rgba(25,158,112,.14)}
 .pq-anuncios tr.pq-melhor small{color:#86EFAC}
 @media(max-width:620px){
@@ -35767,6 +35768,7 @@ function pqConteudo(d) {
   html += '</div>';
 
   html += pqCartaoAnuncios(d, socio);
+  html += pqCartaoResultadoAnuncios(d, socio);
   return html;
 }
 const PQ_CAMINHOS = [['vistoria', 'Vistoria'], ['video', 'Vídeo'], ['ligacao', 'Ligação'], ['curioso', 'Curioso']];
@@ -35797,6 +35799,32 @@ function pqCartaoAnuncios(d, socioDaConta) {
       + '<td class="n">' + e(pqN(a.leads)) + '</td><td class="n">' + e(pqN(a.agendados)) + '</td><td class="n">' + (a.notaMedia == null ? 'Sem nota' : e(String(a.notaMedia))) + '</td><td class="n">' + e(pqN(a.quentes)) + '</td>' + din + '</tr>';
   }).join('');
   return html + '<div class="pq-tabela-wrap"><table class="pq-tab pq-anuncios"><thead><tr>' + cab + '</tr></thead><tbody>' + corpo + '</tbody></table></div></div>';
+}
+
+// O que os cards de cada anúncio viraram (03/11/2026): do horário marcado até o
+// orçamento e a venda. `resultadoPorAnuncio` vem da API; sem gasto na resposta
+// (consultor, ou Meta fora do ar) a tela não desenha coluna de dinheiro.
+function pqCartaoResultadoAnuncios(d, socioDaConta) {
+  const e = escapeHtml;
+  const linhas = d.resultadoPorAnuncio || [];
+  const socio = socioDaConta && d.meta_ok !== false;
+  let html = '<div class="card pq-card"><h2>O que cada anúncio virou</h2><p class="pq-sub">Dos horários marcados pelo quiz, quantos viraram orçamento e venda, em cada anúncio' + (socio ? ', com o custo de cada um' : '') + '.</p>';
+  if (!linhas.length) return html + '<p class="pq-vazio">Nenhum horário marcado pelo quiz neste período.</p></div>';
+  const cab = '<th>Anúncio</th><th class="n">Cards</th><th class="n">Agendado</th><th class="n">Não atendeu</th><th class="n">Cancelado</th><th class="n">Orçamento</th><th class="n">Fechou</th>'
+    + (socio ? '<th class="n">Gasto</th><th class="n">Custo por card</th><th class="n">Custo por orçamento</th>' : '');
+  const reais = v => (typeof v === 'number' ? e(pqReais(v)) : 'Sem dado');
+  const corpo = linhas.map(a => {
+    const sit = a.situacao ? (PQ_SITUACAO[String(a.situacao).toUpperCase()] || a.situacao) : '';
+    const din = socio
+      ? '<td class="n">' + reais(a.gasto) + '</td><td class="n">' + (typeof a.custoPorCard === 'number' ? reais(a.custoPorCard) : (typeof a.gasto === 'number' && a.id ? 'Sem card' : 'Sem dado')) + '</td>'
+        + '<td class="n">' + (typeof a.custoPorOrcamento === 'number' ? reais(a.custoPorOrcamento) : (typeof a.gasto === 'number' && a.id ? 'Sem orçamento' : 'Sem dado')) + '</td>'
+      : '';
+    return '<tr><th scope="row"><span class="pq-an-nome">' + e(a.nome || a.id || '') + '</span>' + (sit ? '<small>' + e(sit) + '</small>' : '') + '</th>'
+      + '<td class="n">' + e(pqN(a.cards)) + '</td><td class="n">' + e(pqN(a.agendados)) + '</td><td class="n">' + e(pqN(a.naoAtendeu)) + '</td><td class="n">' + e(pqN(a.cancelados)) + '</td>'
+      + '<td class="n">' + e(pqN(a.orcamentos)) + '</td><td class="n">' + e(pqN(a.fechou)) + '</td>' + din + '</tr>';
+  }).join('');
+  return html + '<div class="pq-tabela-wrap"><table class="pq-tab pq-anuncios pq-resultado"><thead><tr>' + cab + '</tr></thead><tbody>' + corpo + '</tbody></table></div>'
+    + '<p class="pq-nota">Orçamento inclui proposta apresentada e apalavrado. O custo por orçamento conta também quem fechou, e o custo por card não conta os cancelados. Os que ficaram de outro jeito entram só em Cards.</p></div>';
 }
 
 // ── Gráficos ──

@@ -265,6 +265,76 @@ export function acrescentarSoGasto(linhas: LinhaAnuncio[], extras: Map<string, M
   return [...linhas, ...novas];
 }
 
+// ── Resultado por anúncio (03/11/2026) ───────────────────────────────────────
+
+/** Um anúncio (utm_content) visto pelo que os CARDS dele viraram. Cada card cai
+ *  em UM grupo só, então `cards` é a soma dos grupos. */
+export interface LinhaResultadoAnuncio {
+  id: string; nome: string; situacao: string;
+  cards: number;
+  agendados: number;    // agendado ou confirmado: o horário ainda vai acontecer
+  naoAtendeu: number;
+  cancelados: number;
+  orcamentos: number;   // fez_orcamento, proposta_apresentada ou apalavrado
+  fechou: number;
+  outros: number;       // o resto (sem interesse, perdido, em atendimento, reagendar...)
+  gasto?: number | null; custoPorCard?: number | null; custoPorOrcamento?: number | null;
+}
+
+const GRUPO_ORCAMENTO = ['fez_orcamento', 'proposta_apresentada', 'apalavrado'];
+
+/**
+ * Agrupa os cards do quiz por `utm_content` e conta quantos estão em cada grupo
+ * de status. Ordem: mais quem chegou ao orçamento (orçamento ou venda, porque
+ * quem fechou também passou por ele), depois mais cards, depois o id (ordem
+ * estável). NÃO depende do gasto: o consultor recebe a mesma ordem sem dinheiro.
+ *
+ * `meta` é o que a Meta devolveu no nível do anúncio (pode vir vazio). Com
+ * `metaOk` false o gasto e os custos ficam null (a tela mostra "Sem dado"),
+ * nunca zero. O custo por card divide pelos cards que NÃO foram cancelados, como
+ * o "agendados" do resto do painel; o custo por orçamento divide por orçamento
+ * mais venda. Quem veio sem utm_content vai em "(sem anúncio)", sem gasto nem custo.
+ */
+export function montarResultadoPorAnuncio(
+  cards: CardQuiz[], meta: Map<string, MetaAnuncio>, metaOk: boolean,
+): LinhaResultadoAnuncio[] {
+  const grupos = new Map<string, LinhaResultadoAnuncio>();
+  for (const c of cards) {
+    const id = String(c.utm_content || '').trim();
+    let l = grupos.get(id);
+    if (!l) {
+      const m = id ? meta.get(id) : undefined;
+      l = {
+        id, nome: id ? (m?.nome || id) : SEM_ANUNCIO, situacao: m?.status || '',
+        cards: 0, agendados: 0, naoAtendeu: 0, cancelados: 0, orcamentos: 0, fechou: 0, outros: 0,
+        gasto: !id ? 0 : m ? m.gasto : (metaOk ? 0 : null),
+      };
+      grupos.set(id, l);
+    }
+    l.cards++;
+    const st = String(c.status || '').trim().toLowerCase();
+    if (st === 'agendado' || st === 'confirmado') l.agendados++;
+    else if (st === 'nao_atendeu') l.naoAtendeu++;
+    else if (st === 'cancelado') l.cancelados++;
+    else if (GRUPO_ORCAMENTO.includes(st)) l.orcamentos++;
+    else if (st === 'fechou') l.fechou++;
+    else l.outros++;
+  }
+  const dinheiro = (g: number, n: number) => Math.round((g / n) * 100) / 100;
+  const linhas = [...grupos.values()].map((l) => {
+    const vivos = l.cards - l.cancelados;
+    const orcou = l.orcamentos + l.fechou;
+    const ok = l.id !== '' && typeof l.gasto === 'number';
+    return {
+      ...l,
+      custoPorCard: ok && vivos > 0 ? dinheiro(l.gasto as number, vivos) : null,
+      custoPorOrcamento: ok && orcou > 0 ? dinheiro(l.gasto as number, orcou) : null,
+    };
+  });
+  return linhas.sort((a, b) =>
+    (b.orcamentos + b.fechou) - (a.orcamentos + a.fechou) || b.cards - a.cards || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
 // ── O painel inteiro e o corte do dinheiro ───────────────────────────────────
 
 export interface PainelQuizSolar {
@@ -274,6 +344,8 @@ export interface PainelQuizSolar {
   resultado: ResultadoDosCards;
   porDia: DiaDoQuiz[];
   porAnuncio: LinhaAnuncio[];
+  /** Chave acrescentada em 03/11/2026: o que os cards de cada anúncio viraram. */
+  resultadoPorAnuncio: LinhaResultadoAnuncio[];
   porConjunto: LinhaConjunto[];
   meta_ok: boolean; meta_motivo: string | null;
 }
@@ -282,6 +354,7 @@ export interface PainelQuizSolar {
  *  gasto dividido por contagem que o consultor também vê: multiplicando de volta
  *  entrega o gasto, então saem junto. */
 const DINHEIRO_ANUNCIO = ['gasto', 'custoPorAgendado'] as const;
+const DINHEIRO_RESULTADO = ['gasto', 'custoPorCard', 'custoPorOrcamento'] as const;
 const DINHEIRO_CONJUNTO = ['gasto', 'custo_reuniao', 'custo_resultado'] as const;
 
 function semChaves<T extends object>(o: T, chaves: readonly string[]): T {
@@ -314,6 +387,7 @@ export function respostaDoPainel(p: PainelQuizSolar, verGasto: boolean) {
     ...base,
     funil: p.funil, leads: p.leads, resultado: p.resultado, porDia: p.porDia,
     porAnuncio: p.porAnuncio.filter((a) => a.leads > 0 || a.agendados > 0).map((a) => semChaves(a, DINHEIRO_ANUNCIO)),
+    resultadoPorAnuncio: (p.resultadoPorAnuncio || []).map((a) => semChaves(a, DINHEIRO_RESULTADO)),
     porConjunto: conjuntosDoConsultor(p.porConjunto),
     meta_ok: p.meta_ok, meta_motivo: null,
   };

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   campoDoLead, lerLead, classeDoLead, qualidadeDosLeads, resultadoDosCards, diaBRT, diasDoPeriodo,
-  montarPorDia, montarPorAnuncio, idsDosAnuncios, respostaDoPainel, acrescentarSoGasto, SEM_ANUNCIO,
+  montarPorDia, montarPorAnuncio, montarResultadoPorAnuncio, idsDosAnuncios, respostaDoPainel, acrescentarSoGasto, SEM_ANUNCIO,
   type LeadLido, type CardQuiz, type PainelQuizSolar, type LinhaAnuncio,
 } from '../services/io/painelQuizSolarPuro';
 import { montarFunil, CONFIG_SOLAR, type EventoQuiz } from '../services/io/quizFunil';
@@ -181,6 +181,7 @@ describe('o corte do gasto', () => {
     funil: montarFunil([], [], { config: CONFIG_SOLAR }),
     leads: qualidadeDosLeads([]), resultado: resultadoDosCards([]), porDia: [],
     porAnuncio: [{ id: A, nome: 'x', situacao: 'ACTIVE', leads: 1, agendados: 1, notaMedia: 60, quentes: 0, gasto: 80, custoPorAgendado: 80 }],
+    resultadoPorAnuncio: [{ id: A, nome: 'x', situacao: 'ACTIVE', cards: 2, agendados: 1, naoAtendeu: 0, cancelados: 0, orcamentos: 1, fechou: 0, outros: 0, gasto: 80, custoPorCard: 40, custoPorOrcamento: 80 }],
     porConjunto: [{
       id: '1', nome: 'c', status: 'ACTIVE', gasto: 50, visitas: 4, abriram_quiz: 3, reunioes: 2, investidores: 0, pontos: 0,
       parceiros: 0, fichas: 0, custo_reuniao: 25, custo_resultado: 25, negocio: 0, arrendamento: 0, perdidas: 0, pior: null,
@@ -196,7 +197,7 @@ describe('o corte do gasto', () => {
   it('sócio recebe tudo; consultor não recebe nenhuma chave de gasto ou custo, em lugar nenhum', () => {
     const socio = respostaDoPainel(painel(), true);
     expect(socio.verGasto).toBe(true);
-    expect(chaves(socio)).toEqual(expect.arrayContaining(['gasto', 'custoPorAgendado', 'custo_reuniao', 'custo_resultado']));
+    expect(chaves(socio)).toEqual(expect.arrayContaining(['gasto', 'custoPorAgendado', 'custoPorCard', 'custoPorOrcamento', 'custo_reuniao', 'custo_resultado']));
     const consultor = respostaDoPainel(painel(), false);
     expect(consultor.verGasto).toBe(false);
     expect(chaves(consultor).filter((k) => k !== 'verGasto' && /gasto|custo|spend/i.test(k))).toEqual([]);
@@ -368,7 +369,7 @@ describe('anúncio que gastou e não trouxe nada', () => {
   const painel = (): PainelQuizSolar => ({
     periodo: '7dias', desde: 'x', ate: null, funil: montarFunil([], [], { config: CONFIG_SOLAR }),
     leads: qualidadeDosLeads([]), resultado: resultadoDosCards([]), porDia: [],
-    porAnuncio: acrescentarSoGasto([base], extras), porConjunto: [], meta_ok: true, meta_motivo: null,
+    porAnuncio: acrescentarSoGasto([base], extras), resultadoPorAnuncio: [], porConjunto: [], meta_ok: true, meta_motivo: null,
   });
   it('entram depois dos que têm resultado, do maior gasto ao menor, sem repetir nem pegar gasto zero', () => {
     const l = acrescentarSoGasto([base], extras);
@@ -394,7 +395,7 @@ describe('conjuntos do consultor comum: sem ranking de verba', () => {
   const lista = [cj('X', 300, 0, 0), cj('Z', 90, 2, 3), cj('Y', 10, 5, 1), cj('W', 5, 5, 1)];
   const painel = (): PainelQuizSolar => ({
     periodo: '7dias', desde: 'x', ate: null, funil: montarFunil([], [], { config: CONFIG_SOLAR }),
-    leads: qualidadeDosLeads([]), resultado: resultadoDosCards([]), porDia: [], porAnuncio: [], porConjunto: lista,
+    leads: qualidadeDosLeads([]), resultado: resultadoDosCards([]), porDia: [], porAnuncio: [], resultadoPorAnuncio: [], porConjunto: lista,
     meta_ok: true, meta_motivo: null,
   });
   it('sócio: a lista como veio, inclusive o conjunto que só tem gasto', () => {
@@ -408,5 +409,77 @@ describe('conjuntos do consultor comum: sem ranking de verba', () => {
   it('não mexe na lista de origem', () => {
     const p = painel(); respostaDoPainel(p, false);
     expect(p.porConjunto.map((c) => c.id)).toEqual(['X', 'Z', 'Y', 'W']);
+  });
+});
+
+describe('resultado por anúncio (o que os cards de cada anúncio viraram)', () => {
+  const A = '120256657642860602', B = '120256657642860777', C = '120256657642860888';
+  const cd = (utm_content: string | null, status: string): CardQuiz => ({ utm_term: null, utm_content, status });
+  const cards: CardQuiz[] = [
+    // A: 6 cards, 4 viraram orçamento (um deles apalavrado), 1 agendado, 1 cancelado
+    cd(A, 'fez_orcamento'), cd(A, 'proposta_apresentada'), cd(A, 'apalavrado'), cd(A, 'fez_orcamento'), cd(A, 'confirmado'), cd(A, 'cancelado'),
+    // B: 3 cards, 1 fechou, 1 não atendeu, 1 sem interesse
+    cd(B, 'fechou'), cd(B, 'nao_atendeu'), cd(B, 'sem_interesse'),
+    // C: 8 cards, nenhum orçamento
+    ...Array.from({ length: 7 }, () => cd(C, 'agendado')), cd(C, ' Agendado '),
+    // sem anúncio
+    cd(null, 'agendado'), cd('  ', 'fechou'),
+  ];
+  const meta = new Map<string, MetaAnuncio>([
+    [A, { id: A, nome: '6 Video 4.9', status: 'ACTIVE', gasto: 100 }],
+    [B, { id: B, nome: '8 Depoimento', status: 'PAUSED', gasto: 30 }],
+  ]);
+
+  it('conta cada card em um grupo só, e os grupos somam os cards', () => {
+    const l = montarResultadoPorAnuncio(cards, meta, true);
+    for (const x of l) expect(x.agendados + x.naoAtendeu + x.cancelados + x.orcamentos + x.fechou + x.outros).toBe(x.cards);
+    const a = l.find((x) => x.id === A)!;
+    expect(a).toMatchObject({ nome: '6 Video 4.9', situacao: 'ACTIVE', cards: 6, agendados: 1, naoAtendeu: 0, cancelados: 1, orcamentos: 4, fechou: 0, outros: 0 });
+    expect(l.find((x) => x.id === B)).toMatchObject({ cards: 3, naoAtendeu: 1, fechou: 1, outros: 1, orcamentos: 0 });
+    expect(l.find((x) => x.id === C)).toMatchObject({ cards: 8, agendados: 8, nome: C, gasto: 0 });   // sem dado na Meta e Meta ok: gasto 0
+  });
+  it('ordem: mais quem chegou ao orçamento (orçamento ou venda), depois mais cards', () => {
+    // B e '(sem anúncio)' empatam em 1 que chegou ao orçamento: B tem mais cards. C tem 8 cards e nenhum orçamento: por último.
+    expect(montarResultadoPorAnuncio(cards, meta, true).map((x) => x.id)).toEqual([A, B, '', C]);
+  });
+  it('custo por card ignora o cancelado; custo por orçamento soma orçamento e venda', () => {
+    const l = montarResultadoPorAnuncio(cards, meta, true);
+    const a = l.find((x) => x.id === A)!;
+    expect(a.gasto).toBe(100);
+    expect(a.custoPorCard).toBe(20);        // 100 / 5 cards vivos
+    expect(a.custoPorOrcamento).toBe(25);   // 100 / 4
+    const b = l.find((x) => x.id === B)!;
+    expect(b.custoPorOrcamento).toBe(30);   // o único que fechou também passou pelo orçamento
+    expect(b.custoPorCard).toBe(10);
+    expect(l.find((x) => x.id === C)).toMatchObject({ gasto: 0, custoPorCard: 0, custoPorOrcamento: null });
+  });
+  it('sem anúncio: gasto 0 e nenhum custo (não dá para atribuir)', () => {
+    const s = montarResultadoPorAnuncio(cards, meta, true).find((x) => x.id === '')!;
+    expect(s).toMatchObject({ nome: SEM_ANUNCIO, cards: 2, agendados: 1, fechou: 1, gasto: 0, custoPorCard: null, custoPorOrcamento: null });
+  });
+  it('Meta fora: gasto e custos null, nunca zero; as contagens ficam', () => {
+    const l = montarResultadoPorAnuncio(cards, new Map(), false);
+    const a = l.find((x) => x.id === A)!;
+    expect(a).toMatchObject({ nome: A, cards: 6, orcamentos: 4, gasto: null, custoPorCard: null, custoPorOrcamento: null });
+  });
+  it('sem card, lista vazia; não altera a entrada', () => {
+    expect(montarResultadoPorAnuncio([], meta, true)).toEqual([]);
+    const copia = JSON.stringify(cards);
+    montarResultadoPorAnuncio(cards, meta, true);
+    expect(JSON.stringify(cards)).toBe(copia);
+  });
+  it('o corte do consultor tira gasto e os dois custos, e mantém as contagens; o sócio recebe tudo', () => {
+    const p: PainelQuizSolar = {
+      periodo: '7dias', desde: 'x', ate: null, funil: montarFunil([], [], { config: CONFIG_SOLAR }),
+      leads: qualidadeDosLeads([]), resultado: resultadoDosCards([]), porDia: [], porAnuncio: [],
+      resultadoPorAnuncio: montarResultadoPorAnuncio(cards, meta, true), porConjunto: [], meta_ok: true, meta_motivo: null,
+    };
+    const socio = respostaDoPainel(p, true);
+    expect(socio.resultadoPorAnuncio[0]).toMatchObject({ id: A, gasto: 100, custoPorCard: 20, custoPorOrcamento: 25 });
+    const c = respostaDoPainel(p, false);
+    expect(c.resultadoPorAnuncio.map((x) => x.id)).toEqual(socio.resultadoPorAnuncio.map((x) => x.id));
+    expect(c.resultadoPorAnuncio[0]).toMatchObject({ id: A, cards: 6, orcamentos: 4 });
+    expect(JSON.stringify(c.resultadoPorAnuncio)).not.toMatch(/gasto|custo/);
+    expect(p.resultadoPorAnuncio[0].gasto).toBe(100);   // a cópia do cache segue inteira
   });
 });
