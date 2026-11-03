@@ -30,7 +30,7 @@ vi.mock('../services/agentes5040/planilhaBonus', () => ({ tentarBonusPosPagament
 
 import { db, limpar, semear, falhas } from './helpers/dbFalso';
 import { processarEventoKit, acessoDoUsuario, type EventoKit } from '../services/kitIntegradorService';
-import { documentoDoComprador } from '../services/produtos/contaDoComprador';
+import { documentoDoComprador, documentosDoComprador } from '../services/produtos/contaDoComprador';
 import { cpfValido } from '../utils/documento';
 import { cnpjValido } from '../utils/cnpj';
 
@@ -111,6 +111,43 @@ describe('documentoDoComprador: o CPF/CNPJ no payload da Kiwify', () => {
   it('o nome do campo vale em qualquer caixa', () => {
     expect(documentoDoComprador({ Cpf: CPF })).toBe(CPF);
     expect(documentoDoComprador({ CNPJ: CNPJ })).toBe(CNPJ);
+  });
+});
+
+describe('CPF e CNPJ no mesmo payload: os dois são procurados', () => {
+  it('documentosDoComprador devolve todos os válidos, sem repetir', () => {
+    expect(documentosDoComprador({ CPF: CPF_MASCARA, cnpj: CNPJ })).toEqual([CPF, CNPJ]);
+    expect(documentosDoComprador({ CPF: CPF, cpf_cnpj: CPF_MASCARA })).toEqual([CPF]);
+    expect(documentosDoComprador({ CPF: '12345678900', cnpj: CNPJ })).toEqual([CNPJ]);
+    expect(documentosDoComprador({ full_name: 'Sem documento' })).toEqual([]);
+    expect(documentosDoComprador(null)).toEqual([]);
+  });
+
+  it('CPF sem conta e CNPJ da conta X: casa com X', async () => {
+    const x = conta();
+    semear('company', { user_id: x.id, cnpj: CNPJ_MASCARA });
+
+    const r = await processarEventoKit(evento({ documento: documentosDoComprador({ CPF, cnpj: CNPJ }), telefone: null }));
+
+    expect(r.userId).toBe(x.id);
+    expect(r.contaCriada).toBe(false);
+    expect(db.users).toHaveLength(1);
+  });
+
+  it('CPF de uma conta e CNPJ de outra: conflito, não chute', async () => {
+    const a = conta({ email: 'a@x.com' });
+    const b = conta({ email: 'b@x.com' });
+    semear('asaas_pix_assinaturas', { ultimo_pagamento_id: 'pay_a', status: 'ativo', user_id: a.id, cpf_cnpj: CPF });
+    semear('company', { user_id: b.id, cnpj: CNPJ });
+
+    const r = await processarEventoKit(evento({ documento: [CPF, CNPJ], telefone: null, orderId: 'ORDER-2DOC' }));
+
+    expect(r.contaCriada).toBe(true);
+    expect(r.userId).not.toBe(a.id);
+    expect(r.userId).not.toBe(b.id);
+    expect(alertas).toHaveLength(1);
+    expect(alertas[0].corpo).not.toContain(CPF);
+    expect(alertas[0].corpo).not.toContain(CNPJ);
   });
 });
 
@@ -379,6 +416,20 @@ describe('o que a conta achada recebe', () => {
     expect(db.entitlements).toHaveLength(1);
   });
 
+  it('reentrega de pedido já pago não desfaz o acesso movido na mão pelo suporte', async () => {
+    const a = conta({ whatsapp: '34991472583' });
+    const b = conta({ email: 'conta.certa@x.com', whatsapp: null });
+    const kit = { item: 'kit' as const, produto: 'Kit Fechamento - SolarDoc', valorCentavos: 2700, orderId: 'ORDER-MOVIDO' };
+    await processarEventoKit(evento(kit));
+    expect(db.kit_pedidos[0].user_id).toBe(a.id);
+
+    db.kit_pedidos[0].user_id = b.id;                          // o suporte moveu o acesso para B
+    await processarEventoKit(evento(kit));                     // a Kiwify reentrega o paid
+
+    expect(db.kit_pedidos).toHaveLength(1);
+    expect(db.kit_pedidos[0].user_id).toBe(b.id);
+  });
+
   it('o item `kit`: o pedido é amarrado à conta achada e o curso aparece para ela, mesmo com e-mail diferente', async () => {
     const c = conta({ whatsapp: '34991472583' });
     await processarEventoKit(evento({ item: 'kit', produto: 'Kit Fechamento - SolarDoc', valorCentavos: 2700 }));
@@ -531,6 +582,36 @@ describe('fixo não casa com o celular de outra pessoa', () => {
   });
 });
 
+describe('celular de SP com o 9 seguido de 2 a 5 não vira fixo', () => {
+  it("'(11) 94523-1234' casa com a conta 11945231234 e não com a conta do fixo 1145231234", async () => {
+    const fixo = conta({ email: 'dono.do.fixo@x.com', whatsapp: '1145231234' });
+    const cel = conta({ email: 'dono.do.celular@x.com', whatsapp: '11945231234' });
+    const r = await processarEventoKit(evento({ telefone: '(11) 94523-1234' }));
+    expect(r.userId).toBe(cel.id);
+    expect(r.userId).not.toBe(fixo.id);
+    expect(r.contaCriada).toBe(false);
+    expect(alertas.filter((a) => a.assunto.includes('contas diferentes'))).toHaveLength(0);
+  });
+
+  it('variantesDoTelefone decide pelo número que entrou', async () => {
+    const { variantesDoTelefone } = await import('../services/produtos/chaveTelefone');
+    const celSp = variantesDoTelefone('(11) 94523-1234');
+    expect(celSp).toEqual(expect.arrayContaining(['5511945231234', '11945231234', '+5511945231234']));
+    expect(celSp).not.toContain('1145231234');
+    expect(celSp).not.toContain('551145231234');
+
+    const fixo = variantesDoTelefone('(11) 4523-1234');
+    expect(fixo).toEqual(expect.arrayContaining(['1145231234', '551145231234', '+551145231234']));
+    expect(fixo.filter((v) => v.replace(/^\+?55/, '').length === 11)).toEqual([]);
+
+    const antigo = variantesDoTelefone('(34) 9147-2583');
+    expect(antigo).toEqual(expect.arrayContaining(['5534991472583', '553491472583', '34991472583', '3491472583']));
+
+    const celNovo = variantesDoTelefone('(34) 99147-2583');
+    expect(celNovo).toEqual(expect.arrayContaining(['5534991472583', '553491472583', '34991472583', '3491472583']));
+  });
+});
+
 describe('conta achada por documento ou telefone: nada irreversível sozinho', () => {
   it('Pix em dunning numa conta achada pelo telefone NÃO cancela o cartão; só alerta a operação', async () => {
     cancelarStripe.fn.mockClear();
@@ -556,6 +637,17 @@ describe('conta achada por documento ou telefone: nada irreversível sozinho', (
     conta({ whatsapp: '34991472583' });
     await processarEventoKit(evento({ orderId: 'ORDER-SO-TEL' }));
     await processarEventoKit(evento({ orderId: 'ORDER-SO-TEL' }));
+    expect(alertas.filter((a) => a.assunto.includes('achada só pelo telefone'))).toHaveLength(1);
+  });
+});
+
+describe('Pix: o alerta da conta achada só pelo telefone sai quando o paid chega', () => {
+  it('waiting_payment e depois paid do mesmo pedido: exatamente 1 alerta, e a reentrega do paid não repete', async () => {
+    conta({ whatsapp: '34991472583' });
+    await processarEventoKit(evento({ orderId: 'ORDER-PIX-TEL', status: 'waiting_payment' }));
+    expect(alertas.filter((a) => a.assunto.includes('achada só pelo telefone'))).toHaveLength(0);
+    await processarEventoKit(evento({ orderId: 'ORDER-PIX-TEL', status: 'paid' }));
+    await processarEventoKit(evento({ orderId: 'ORDER-PIX-TEL', status: 'paid' }));
     expect(alertas.filter((a) => a.assunto.includes('achada só pelo telefone'))).toHaveLength(1);
   });
 });

@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
 import { agendarRecuperacaoRealtime } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { classificarProdutoKit, processarEventoKit } from '../services/kitIntegradorService';
-import { documentoDoComprador } from '../services/produtos/contaDoComprador';
+import { documentosDoComprador } from '../services/produtos/contaDoComprador';
 import { classificarProdutoPlugcash, processarEventoPlugcash, pareceProdutoDoPlugcash } from '../services/plugcashService';
 import { sendOpsAlert } from '../utils/mailer';
 
@@ -218,9 +218,9 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
           telefone: (buyer as { mobile?: string; phone?: string }).mobile
             || (buyer as { mobile?: string; phone?: string }).phone
             || null,
-          // CPF (Customer.CPF) ou CNPJ (Customer.cnpj) do comprador, só se válido: ajuda a achar a conta certa
-          // quando o e-mail digitado no checkout não é o da conta.
-          documento: documentoDoComprador(buyer),
+          // CPF (Customer.CPF) e CNPJ (Customer.cnpj) do comprador, só os válidos: ajudam a achar a conta certa
+          // quando o e-mail digitado no checkout não é o da conta. Vindo os dois, os dois são procurados.
+          documento: documentosDoComprador(buyer),
           produto: nomeProduto || 'Kit de Fechamento',
           item: itemKit,
           status,

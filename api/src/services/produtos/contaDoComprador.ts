@@ -67,18 +67,25 @@ type LinhaConta = { id: string; email: string | null; password_hash: string | nu
 const CHAVES_DE_DOCUMENTO = ['cnpj', 'cpf', 'cpf_cnpj', 'cpfcnpj', 'documento', 'document'];
 
 /**
- * O CPF ou CNPJ do comprador no payload da Kiwify, só dígitos. Confere o dígito verificador: documento
- * digitado errado ou sequência repetida não serve para casar conta. null = não veio nenhum documento válido.
+ * Todos os CPFs e CNPJs válidos do comprador no payload da Kiwify, só dígitos e sem repetir. Confere o dígito
+ * verificador: documento digitado errado ou sequência repetida não serve para casar conta. Quando vêm CPF e
+ * CNPJ, os dois entram, e a busca procura os dois. Lista vazia = não veio nenhum documento válido.
  */
-export function documentoDoComprador(comprador: unknown): string | null {
-  if (!comprador || typeof comprador !== 'object') return null;
+export function documentosDoComprador(comprador: unknown): string[] {
+  if (!comprador || typeof comprador !== 'object') return [];
   const campos = comprador as Record<string, unknown>;
+  const achados: string[] = [];
   for (const chave of Object.keys(campos)) {
     if (!CHAVES_DE_DOCUMENTO.includes(chave.toLowerCase())) continue;
     const d = documentoSoDigitos(campos[chave]);
-    if (d) return d;
+    if (d && !achados.includes(d)) achados.push(d);
   }
-  return null;
+  return achados;
+}
+
+/** O primeiro documento válido do comprador (ver `documentosDoComprador`). null = nenhum. */
+export function documentoDoComprador(comprador: unknown): string | null {
+  return documentosDoComprador(comprador)[0] ?? null;
 }
 
 /**
@@ -162,12 +169,12 @@ async function contasDoTelefone(telefone: string | null | undefined): Promise<Li
 
 /**
  * Acha a conta de quem comprou. `email` já vem em minúsculas. `telefone` é o que a Kiwify mandou (com ou
- * sem "+55", com máscara ou sem); `documento` é o CPF/CNPJ (use `documentoDoComprador`).
+ * sem "+55", com máscara ou sem); `documento` é o CPF/CNPJ, ou a lista deles (use `documentosDoComprador`).
  */
 export async function acharContaDoComprador(opts: {
   email: string;
   telefone?: string | null;
-  documento?: string | null;
+  documento?: string | string[] | null;
 }): Promise<BuscaDeConta> {
   // 1) E-mail: a regra de sempre.
   const { data: existente, error: erroEmail } = await supabase
@@ -190,11 +197,23 @@ export async function acharContaDoComprador(opts: {
     };
   }
 
-  // 2) Documento e 3) telefone.
-  const [{ contas: porDocumento, truncado }, contasTel] = await Promise.all([
-    usuariosDoDocumento(opts.documento),
+  // 2) Documento e 3) telefone. Cada documento válido é procurado, e as contas de todos entram no mesmo
+  // conjunto: CPF e CNPJ apontando para contas diferentes dão duas contas, ou seja, conflito.
+  const documentos = [...new Set(
+    (Array.isArray(opts.documento) ? opts.documento : [opts.documento])
+      .map((x) => documentoSoDigitos(x))
+      .filter((x): x is string => !!x),
+  )];
+  const [porCadaDocumento, contasTel] = await Promise.all([
+    Promise.all(documentos.map((x) => usuariosDoDocumento(x))),
     contasDoTelefone(opts.telefone),
   ]);
+  const porDocumento = new Map<string, LinhaConta>();
+  let truncado = false;
+  for (const r of porCadaDocumento) {
+    for (const [id, linha] of r.contas) porDocumento.set(id, linha);
+    if (r.truncado) truncado = true;
+  }
   const porTelefone = new Set(contasTel.map((c) => c.id));
   const linhas = new Map<string, LinhaConta>([...contasTel.map((c): [string, LinhaConta] => [c.id, c]), ...porDocumento]);
   const idsDoc = new Set(porDocumento.keys());

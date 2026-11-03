@@ -272,6 +272,14 @@ describe('LimpaPro destrava no SolarDoc', () => {
     }
   });
 
+  it('celular de SP com o 9 seguido de 2 a 5: casa com o próprio número e não com o fixo de 10 dígitos', async () => {
+    const u = usuario({ whatsapp: '(11) 94523-1234' });
+    semear('limpapro_membros', { email: 'fixo@y.com', telefone: '1145231234', ativo: true });   // fixo de outra pessoa
+    expect(await tem(u.id)).toBe(false);
+    semear('limpapro_membros', { email: 'cel@y.com', telefone: '5511945231234', ativo: true });
+    expect(await tem(u.id)).toBe(true);
+  });
+
   it('pelo telefone de outra pessoa, ou com o membro inativo, não abre', async () => {
     const u = usuario({ whatsapp: '34991472583' });
     semear('limpapro_membros', { email: 'a@y.com', telefone: '5534988880000', ativo: true });   // outro número

@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import Cookies from 'js-cookie';
 import api from '@/services/api';
 import { guardarCacheAcessos, idDoToken, lerCacheAcessos } from '@/lib/acessosCache';
+import { PRODUTOS_LOJA } from '@/lib/produtos';
 
 /**
  * O que esta pessoa pode usar. Uma chamada só, cacheada no módulo — a Sidebar,
@@ -51,6 +52,8 @@ const INTERVALO_MIN_MS = 10_000;
 /**
  * Depois de voltar ao foco, repete a leitura enquanto nada mudou: o webhook da Kiwify chega alguns segundos
  * depois do pagamento (no Pix, mais ainda), e quem volta antes disso veria o cadeado até trocar de aba de novo.
+ * Só repete quando há produto trancado (ver `temProdutoTrancado`): quem não tem o que pagar fica na releitura
+ * única ao voltar ao foco.
  */
 const REPETICAO_MS = 15_000;
 const REPETICOES_MAX = 8;
@@ -127,6 +130,15 @@ async function reler(soSeBoa: boolean): Promise<boolean> {
   return boa && [...estado.produtos].sort().join('|') !== antes;
 }
 
+/**
+ * Há algo que esta conta ainda pode destravar comprando? Só com a loja visível (bastidor ligado) e algum
+ * produto da loja que a conta ainda não tem. Fora disso, repetir a leitura é pergunta que não muda nada.
+ */
+function temProdutoTrancado(s: AcessosState | null): boolean {
+  if (!s || s.carregando || !s.bastidor) return false;
+  return PRODUTOS_LOJA.some((p) => !s.produtos.has(p.id));
+}
+
 function pararRepeticao(): void {
   if (timerRepeticao) { clearInterval(timerRepeticao); timerRepeticao = null; }
 }
@@ -143,11 +155,11 @@ function aoVoltarAoFoco(): void {
   if (Date.now() - ultimaLeitura < INTERVALO_MIN_MS) return;
   pararRepeticao();
   void reler(true).then((mudou) => {
-    if (mudou) return;
+    if (mudou || !temProdutoTrancado(cache)) return;
     let vezes = 0;
     timerRepeticao = setInterval(() => {
       vezes += 1;
-      if (vezes > REPETICOES_MAX || document.visibilityState === 'hidden') { pararRepeticao(); return; }
+      if (vezes > REPETICOES_MAX || document.visibilityState === 'hidden' || !temProdutoTrancado(cache)) { pararRepeticao(); return; }
       void reler(true).then((m) => { if (m) pararRepeticao(); });
     }, REPETICAO_MS);
   });

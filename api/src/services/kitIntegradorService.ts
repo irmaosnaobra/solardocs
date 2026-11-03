@@ -138,9 +138,10 @@ export type EventoKit = {
   telefone: string | null;
   /**
    * CPF ou CNPJ do comprador (Customer.CPF / Customer.cnpj da Kiwify), só dígitos e já conferido. Serve para
-   * achar a conta certa quando o e-mail digitado no checkout não é o da conta (ver garantirConta).
+   * achar a conta certa quando o e-mail digitado no checkout não é o da conta (ver garantirConta). Quando vêm
+   * CPF e CNPJ, chega a lista com os dois (documentosDoComprador), e os dois são procurados.
    */
-  documento?: string | null;
+  documento?: string | string[] | null;
   produto: string;
   item: ItemKit;
   /** 'paid' | 'refunded' | 'waiting_payment' | … (já normalizado pelo webhook) */
@@ -306,7 +307,9 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
 
   // Conta achada SÓ pelo telefone: users.whatsapp é digitado sem confirmação, então é a chave mais fraca. A
   // compra entra na conta, mas a operação confere (uma vez por pedido) se é mesmo de quem comprou.
-  if (chave === 'telefone' && !pedidoExistente) {
+  // O gate é "o pedido ainda não estava pago", e não "o pedido é novo": no Pix o waiting_payment grava a linha
+  // antes, e quando o paid chega o pedido já existe. Na reentrega do paid ele não repete.
+  if (chave === 'telefone' && pedidoExistente?.status !== 'paid') {
     const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     sendOpsAlert(
       'Kiwify: compra entregue a uma conta achada só pelo telefone',
@@ -478,7 +481,9 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   await supabase
     .from('kit_pedidos')
     .update({
-      user_id: userId,
+      // Pedido que já estava pago e amarrado a uma conta não troca de dono na reentrega da Kiwify: se o suporte
+      // moveu o acesso na mão para outra conta, a reentrega não desfaz isso.
+      ...(pedidoExistente?.status === 'paid' && pedidoExistente.user_id ? {} : { user_id: userId }),
       conta_criada: contaCriada,
       segmento,
       ...(bumpAplicado !== null ? { bump_aplicado: bumpAplicado } : {}),
@@ -531,7 +536,7 @@ async function garantirConta(opts: {
   email: string;
   nome: string | null;
   telefone: string | null;
-  documento?: string | null;
+  documento?: string | string[] | null;
   utm: EventoKit['utm'];
   orderId?: string | null;
 }): Promise<{ userId: string | null; contaCriada: boolean; resetUrl: string; jaEraMembro: boolean; contaEmail: string; chave: ChaveDaConta | null }> {
@@ -642,13 +647,14 @@ async function registrarConflitoDeConta(a: {
   email: string;
   orderId: string | null;
   telefone?: string | null;
-  documento?: string | null;
+  documento?: string | string[] | null;
   conflito: ConflitoDeConta;
 }): Promise<void> {
   const { conflito } = a;
   const motivo = MOTIVO_DO_CONFLITO[conflito.motivo];
   const pedido = a.orderId || '(sem pedido)';
-  const doc = a.documento ? finalDoDocumento(a.documento) : '(sem documento)';
+  const docs = (Array.isArray(a.documento) ? a.documento : [a.documento]).filter((x): x is string => !!x);
+  const doc = docs.length ? docs.map((x) => finalDoDocumento(x)).join(', ') : '(sem documento)';
   const tel = String(a.telefone ?? '').replace(/\D/g, '');
   const telFinal = tel.length >= 4 ? `final ${tel.slice(-4)}` : '(sem telefone)';
   console.warn(

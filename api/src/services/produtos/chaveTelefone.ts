@@ -41,12 +41,21 @@ export function variantesDoTelefone(telefone: string | null | undefined): string
   if (!telefoneServeDeChave(telefone)) return [];
   const chave = chaveDoContato(telefone);
   if (!chave) return [];
-  let base = variantesDaChave(chave);
-  // Fixo (os 8 últimos começam de 2 a 5): a variante com o 9 na frente seria o CELULAR de outra pessoa
-  // (celular começa por 6 a 9 depois do 9), então o casamento por telefone não a procura.
-  if (/^[2-5]/.test(chave.slice(2))) {
-    base = base.filter((v) => (v.startsWith('55') && v.length >= 12 ? v.slice(2) : v).length !== 11);
-  }
+  // Quem decide as formas é o número que ENTROU, não os 8 últimos sozinhos. Celular de 11 dígitos com o 9
+  // seguido de 2 a 5 existe (o (11) 94523-1234 de SP), e tirar o 9 dele dá o FIXO de outra pessoa.
+  //   - 11 dígitos: as formas de 11 sempre; a de 10 (celular antigo, sem o 9) só se os 8 últimos começam de 6 a 9.
+  //   - 10 dígitos começando de 2 a 5 depois do DDD: é fixo, e a forma com o 9 seria o celular de outra pessoa.
+  //   - 10 dígitos começando de 6 a 9: celular antigo, as quatro formas.
+  //   - 10 dígitos começando por 0 ou 1: não inventa o 9, só as formas de 10.
+  const d = String(telefone ?? '').replace(/\D/g, '');
+  const nacional = d.length >= 12 ? d.slice(2) : d;
+  const celularDeOito = /^[6-9]/.test(chave.slice(2));
+  const com11 = nacional.length === 11 || celularDeOito;
+  const com10 = nacional.length === 10 || celularDeOito;
+  const base = variantesDaChave(chave).filter((v) => {
+    const tam = (v.startsWith('55') && v.length >= 12 ? v.slice(2) : v).length;
+    return tam === 11 ? com11 : com10;
+  });
   // Algumas linhas guardam o número com "+" na frente (+5534999990000).
   return [...base, ...base.filter((v) => v.startsWith('55')).map((v) => `+${v}`)];
 }

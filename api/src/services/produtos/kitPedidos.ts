@@ -12,8 +12,9 @@
  * `acessoDoUsuario` (kitIntegradorService, /kit/meu-acesso) guarda a sua própria cópia da mesma regra (user_id ou
  * e-mail, status paid, qualquer item). Mexeu numa, confira a outra.
  *
- * Este arquivo não importa `acessos` nem `kitIntegradorService` de propósito: os dois importam daqui, e
- * um ciclo entre eles deixaria o `require` do dist pela metade.
+ * Existem DUAS cópias da mesma regra: esta, que só `acessos` importa, e a de `acessoDoUsuario`, dentro do
+ * `kitIntegradorService`, que não importa daqui. Este arquivo não importa `acessos` nem `kitIntegradorService`
+ * de propósito: um ciclo entre eles deixaria o `require` do dist pela metade.
  */
 
 import { supabase } from '../../utils/supabase';
