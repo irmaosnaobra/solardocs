@@ -15,6 +15,10 @@ interface Client {
   nacionalidade?: string;
   cpf_cnpj?: string;
   endereco?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
   cep?: string;
   cidade?: string;
   uf?: string;

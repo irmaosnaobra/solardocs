@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { supabase } from '../utils/supabase';
+import { CAMPOS_ENDERECO, montarEndereco, temParteDeEndereco } from '../services/enderecoCliente';
 
 const clientSchema = z.object({
   nome: z.string().min(1, 'Nome obrigatório'),
@@ -8,6 +9,10 @@ const clientSchema = z.object({
   nacionalidade: z.string().optional(),
   cpf_cnpj: z.string().optional(),
   endereco: z.string().optional(),
+  logradouro: z.string().optional(),
+  numero: z.string().optional(),
+  complemento: z.string().optional(),
+  bairro: z.string().optional(),
   cep: z.string().optional(),
   cidade: z.string().optional(),
   uf: z.string().optional(),
@@ -18,6 +23,32 @@ const clientSchema = z.object({
   padrao: z.enum(['Monofásico', 'Bifásico', 'Trifásico']).optional(),
   tipo_telhado: z.enum(['Fibromadeira', 'Fibrometal', 'Cimento', 'Cerâmico', 'Zinco', 'Sanduíche', 'Solo', 'Carport', 'Estrutura Metálica', 'Outro']).optional(),
 });
+
+// ── Endereço em partes ─────────────────────────────────────────────────────────
+// As colunas logradouro/numero/complemento/bairro vêm da MIGRATION_clients_endereco_partes.sql.
+// Enquanto ela não rodar, o banco recusa a gravação (PGRST204 ou 42703 citando a coluna).
+// Nesse caso grava de novo SEM as 4 partes: o `endereco` (linha completa, que o PDF e os
+// contratos leem) vai do mesmo jeito, então nada para de funcionar antes da migration.
+type ErroBanco = { code?: string; message?: string } | null | undefined;
+
+function colunaDeEnderecoAusente(error: ErroBanco): boolean {
+  if (!error) return false;
+  if (error.code !== 'PGRST204' && error.code !== '42703') return false;
+  const msg = error.message || '';
+  return CAMPOS_ENDERECO.some((c) => msg.includes(c));
+}
+
+function semPartesDeEndereco<T extends Record<string, unknown>>(body: T): Omit<T, (typeof CAMPOS_ENDERECO)[number]> {
+  const copia: Record<string, unknown> = { ...body };
+  for (const c of CAMPOS_ENDERECO) delete copia[c];
+  return copia as Omit<T, (typeof CAMPOS_ENDERECO)[number]>;
+}
+
+// O servidor é a fonte da linha completa: veio alguma parte, `endereco` é remontado.
+function comEnderecoMontado<T extends Record<string, unknown>>(body: T): T {
+  if (!temParteDeEndereco(body)) return body;
+  return { ...body, endereco: montarEndereco(body) };
+}
 
 export async function listClients(req: Request, res: Response): Promise<void> {
   try {
@@ -42,12 +73,20 @@ export async function listClients(req: Request, res: Response): Promise<void> {
 
 export async function createClient(req: Request, res: Response): Promise<void> {
   try {
-    const body = clientSchema.parse(req.body);
-    const { data, error } = await supabase
+    const body = comEnderecoMontado(clientSchema.parse(req.body));
+    let { data, error } = await supabase
       .from('clients')
       .insert({ ...body, user_id: req.userId })
       .select()
       .single();
+
+    if (colunaDeEnderecoAusente(error)) {
+      ({ data, error } = await supabase
+        .from('clients')
+        .insert({ ...semPartesDeEndereco(body), user_id: req.userId })
+        .select()
+        .single());
+    }
 
     if (error) throw error;
     res.status(201).json({ client: data });
@@ -63,16 +102,43 @@ export async function createClient(req: Request, res: Response): Promise<void> {
 
 export async function updateClient(req: Request, res: Response): Promise<void> {
   try {
-    const body = clientSchema.partial().parse(req.body);
+    let body = clientSchema.partial().parse(req.body);
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    // Mandou só algumas das partes: completa com o que o cliente já tem, senão a linha
+    // montada perderia as outras (ex.: mandar só o bairro apagaria a rua do `endereco`).
+    if (temParteDeEndereco(body) && !CAMPOS_ENDERECO.every((c) => body[c] !== undefined)) {
+      const { data: atual } = await supabase
+        .from('clients').select('*').eq('id', id).eq('user_id', req.userId).maybeSingle();
+      if (atual) {
+        // Cliente antigo (ou migration ainda não rodou): sem nenhuma parte no banco, a linha
+        // inteira vale como logradouro, a mesma regra do modal (partesIniciais).
+        const atualTemParte = CAMPOS_ENDERECO.some((c) => atual[c]);
+        const base: Record<string, unknown> = atualTemParte ? atual : { logradouro: atual.endereco };
+        const partes: Record<string, unknown> = {};
+        for (const c of CAMPOS_ENDERECO) partes[c] = body[c] !== undefined ? body[c] : base[c];
+        body = { ...body, ...partes };
+      }
+    }
+    body = comEnderecoMontado(body);
+
+    let { data, error } = await supabase
       .from('clients')
       .update(body)
       .eq('id', id)
       .eq('user_id', req.userId)
       .select()
       .single();
+
+    if (colunaDeEnderecoAusente(error)) {
+      ({ data, error } = await supabase
+        .from('clients')
+        .update(semPartesDeEndereco(body))
+        .eq('id', id)
+        .eq('user_id', req.userId)
+        .select()
+        .single());
+    }
 
     if (error || !data) {
       res.status(404).json({ error: 'Cliente não encontrado' });

@@ -97,3 +97,54 @@ describe('normalizeExtraction — tarifa e iluminação pública', () => {
     expect(detectado.iluminacao_publica).toBeNull();
   });
 });
+
+describe('normalizeExtraction — endereço em partes', () => {
+  const ler = (raw: RawExtraction) => normalizeExtraction(raw).cliente;
+
+  it('partes separadas viram as 4 partes e a linha completa', () => {
+    const c = ler({ logradouro: 'Rua das Flores', numero: '123', complemento: 'Apto 4', bairro: 'Centro' });
+    expect(c.logradouro).toBe('Rua das Flores');
+    expect(c.numero).toBe('123');
+    expect(c.complemento).toBe('Apto 4');
+    expect(c.bairro).toBe('Centro');
+    expect(c.endereco).toBe('Rua das Flores, 123, Apto 4, Centro');
+  });
+
+  it('sem complemento e sem número não deixa vírgula sobrando', () => {
+    expect(ler({ logradouro: 'Rua A', numero: '10', bairro: 'Centro' }).endereco).toBe('Rua A, 10, Centro');
+    expect(ler({ logradouro: 'Rua A', bairro: 'Centro' }).endereco).toBe('Rua A, Centro');
+  });
+
+  it('S/N fica como veio', () => {
+    const c = ler({ logradouro: 'Fazenda Boa Vista', numero: 'S/N', bairro: 'Zona Rural' });
+    expect(c.numero).toBe('S/N');
+    expect(c.endereco).toBe('Fazenda Boa Vista, S/N, Zona Rural');
+  });
+
+  it('mantém a caixa do texto como vier', () => {
+    expect(ler({ logradouro: 'RUA DAS FLORES', numero: '5', bairro: 'centro' }).endereco).toBe('RUA DAS FLORES, 5, centro');
+  });
+
+  it('formato antigo (só endereco) vira o logradouro', () => {
+    const c = ler({ endereco: 'Rua X, 123, Bairro Y' });
+    expect(c.logradouro).toBe('Rua X, 123, Bairro Y');
+    expect(c.numero).toBe('');
+    expect(c.endereco).toBe('Rua X, 123, Bairro Y');
+  });
+
+  it('endereco antigo é ignorado quando alguma parte vem', () => {
+    const c = ler({ endereco: 'Velho, 1', logradouro: 'Rua Nova' });
+    expect(c.logradouro).toBe('Rua Nova');
+    expect(c.endereco).toBe('Rua Nova');
+  });
+
+  it('vazios e valores que não são texto não quebram', () => {
+    const c = ler({ logradouro: 42, numero: null, complemento: {}, bairro: '  ' } as unknown as RawExtraction);
+    expect(c.logradouro).toBe('');
+    expect(c.numero).toBe('');
+    expect(c.complemento).toBe('');
+    expect(c.bairro).toBe('');
+    expect(c.endereco).toBe('');
+    expect(ler({}).endereco).toBe('');
+  });
+});

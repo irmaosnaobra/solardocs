@@ -1,4 +1,5 @@
 import { getRef, geracaoMensal, MESES_ABREV } from './propostaSolarData';
+import { enderecoCompleto } from './enderecoCliente';
 import { propostaOffGrid } from './templates/propostaOffGrid';
 import qrcode from 'qrcode-generator';
 import { inversoresDaProposta, totalKwInversores, type InversorProposta } from './inversoresProposta';
@@ -3534,12 +3535,8 @@ function str(v: unknown): string {
   return v != null ? String(v) : '___';
 }
 
-// Monta endereço no padrão: Logradouro, Bairro, Cidade/UF
-function enderecoCompleto(endereco?: string, bairro?: string, cidade?: string, uf?: string): string {
-  const cidadeUf = [cidade, uf].filter(Boolean).join('/');
-  const parts = [endereco, bairro, cidadeUf].map(p => (p || '').trim()).filter(Boolean);
-  return parts.join(', ') || '___';
-}
+// Endereço no padrão Logradouro, Bairro, Cidade/UF: a regra (sem repetir o bairro que já
+// está na linha) mora em services/enderecoCliente.ts e é importada no topo.
 
 function parseBRL(v: unknown): number {
   return parseFloat(String(v ?? '').replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;

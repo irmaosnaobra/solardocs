@@ -11,6 +11,10 @@ interface Client {
   nacionalidade?: string;
   cpf_cnpj?: string;
   endereco?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
   cep?: string;
   cidade?: string;
   uf?: string;
@@ -55,6 +59,22 @@ function fmtTel(v: string) {
   return d.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
 }
 
+// Linha completa do endereço, mesma regra do servidor: rua, número, complemento e bairro,
+// sem partes vazias, juntos por vírgula. É o que o PDF e os contratos leem em `endereco`.
+function montarEndereco(f: { logradouro: string; numero: string; complemento: string; bairro: string }) {
+  return [f.logradouro, f.numero, f.complemento, f.bairro].map(p => p.trim()).filter(Boolean).join(', ');
+}
+
+// Partes iniciais: usa as partes se o cliente/seed tem alguma; senão (cliente antigo ou
+// banco ainda sem as colunas) a linha inteira vai em Rua e o resto fica vazio.
+function partesIniciais(c?: Partial<Client> | null) {
+  const temParte = !!(c?.logradouro || c?.numero || c?.complemento || c?.bairro);
+  if (temParte) {
+    return { logradouro: c?.logradouro || '', numero: c?.numero || '', complemento: c?.complemento || '', bairro: c?.bairro || '' };
+  }
+  return { logradouro: c?.endereco || '', numero: '', complemento: '', bairro: '' };
+}
+
 export default function ClientModal({ client, onClose, onSave, seed, notice }: ClientModalProps) {
   // Em edição (client com id) usa o client; em criação, cai no seed (Escanear
   // Conta) e depois no default. seed só influencia o estado inicial.
@@ -64,7 +84,7 @@ export default function ClientModal({ client, onClose, onSave, seed, notice }: C
     nome: init?.nome || '',
     nacionalidade: init?.nacionalidade || 'brasileiro(a)',
     cpf_cnpj: init?.cpf_cnpj || '',
-    endereco: init?.endereco || '',
+    ...partesIniciais(init),
     cep: init?.cep || '',
     cidade: init?.cidade || '',
     uf: init?.uf || '',
@@ -91,12 +111,13 @@ export default function ClientModal({ client, onClose, onSave, seed, notice }: C
     setSaving(true);
     setError('');
     try {
+      const payload = { ...form, endereco: montarEndereco(form) };
       let saved: Client;
       if (client) {
-        const { data } = await api.put(`/clients/${client.id}`, form);
+        const { data } = await api.put(`/clients/${client.id}`, payload);
         saved = data.client;
       } else {
-        const { data } = await api.post('/clients', form);
+        const { data } = await api.post('/clients', payload);
         saved = data.client;
       }
       onSave(saved);
@@ -204,16 +225,55 @@ export default function ClientModal({ client, onClose, onSave, seed, notice }: C
             )}
           </div>
 
-          {/* Endereço */}
-          <div className={styles.field}>
-            <label className={styles.label}>Endereço Completo</label>
-            <input
-              type="text"
-              value={form.endereco}
-              onChange={e => set('endereco', e.target.value)}
-              placeholder="Ex: Rua das Flores, 123, Centro"
-              className="input-field"
-            />
+          {/* Endereço em partes: Rua + Número, Complemento + Bairro */}
+          <div className={styles.rowRua}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="cm-logradouro">Rua</label>
+              <input
+                id="cm-logradouro"
+                type="text"
+                value={form.logradouro}
+                onChange={e => set('logradouro', e.target.value)}
+                placeholder="Ex: Rua das Flores"
+                className="input-field"
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="cm-numero">Número</label>
+              <input
+                id="cm-numero"
+                type="text"
+                value={form.numero}
+                onChange={e => set('numero', e.target.value)}
+                placeholder="Ex: 123"
+                className="input-field"
+              />
+            </div>
+          </div>
+
+          <div className={styles.row}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="cm-complemento">Complemento</label>
+              <input
+                id="cm-complemento"
+                type="text"
+                value={form.complemento}
+                onChange={e => set('complemento', e.target.value)}
+                placeholder="Ex: Apto 4"
+                className="input-field"
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="cm-bairro">Bairro</label>
+              <input
+                id="cm-bairro"
+                type="text"
+                value={form.bairro}
+                onChange={e => set('bairro', e.target.value)}
+                placeholder="Ex: Centro"
+                className="input-field"
+              />
+            </div>
           </div>
 
           {/* Cidade + CEP */}

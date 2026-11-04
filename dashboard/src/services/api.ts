@@ -73,9 +73,9 @@ export const companyApi = {
 export const clientsApi = {
   list: (search?: string) =>
     api.get('/clients', { params: search ? { search } : {} }),
-  create: (data: { nome: string; cpf_cnpj?: string; endereco?: string; cep?: string }) =>
+  create: (data: { nome: string; cpf_cnpj?: string; endereco?: string; logradouro?: string; numero?: string; complemento?: string; bairro?: string; cep?: string }) =>
     api.post('/clients', data),
-  update: (id: string, data: { nome?: string; cpf_cnpj?: string; endereco?: string; cep?: string }) =>
+  update: (id: string, data: { nome?: string; cpf_cnpj?: string; endereco?: string; logradouro?: string; numero?: string; complemento?: string; bairro?: string; cep?: string }) =>
     api.put(`/clients/${id}`, data),
   delete: (id: string) => api.delete(`/clients/${id}`),
   // Escanear Conta: manda a conta de luz (foto/PDF em base64) e recebe os

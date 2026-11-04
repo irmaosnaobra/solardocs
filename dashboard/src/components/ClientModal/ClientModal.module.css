@@ -103,6 +103,13 @@
   gap: 12px;
 }
 
+/* Rua larga + Número estreito */
+.rowRua {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+}
+
 .actions {
   display: flex;
   gap: 12px;
@@ -124,7 +131,8 @@
     padding: 24px 20px;
   }
 
-  .row {
+  .row,
+  .rowRua {
     grid-template-columns: 1fr;
   }
 

@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { novoAnthropic } from "../utils/anthropicClient";
 import { logger } from '../utils/logger';
 import { classificarFalha } from '../services/agents/whatsapp/filaAlerta';
+import { montarEndereco } from '../services/enderecoCliente';
 
 // ── Escanear Conta ─────────────────────────────────────────────────
 // Recebe uma foto/PDF da conta de luz, extrai os dados via Claude vision
@@ -134,7 +135,12 @@ export interface RawExtraction {
   nome?: string;
   cpf_cnpj?: string;
   cpf_mascarado?: boolean;
+  /** Formato antigo (linha única). Só vale como fallback quando nenhuma parte vier. */
   endereco?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
   cep?: string;
   cidade?: string;
   uf?: string;
@@ -166,7 +172,10 @@ export const EXTRACT_TOOL: Anthropic.Tool = {
       nome: { type: 'string', description: 'Nome completo do titular (PF) ou razão social (PJ), exatamente como na conta.' },
       cpf_cnpj: { type: 'string', description: 'CPF ou CNPJ do titular, só os dígitos. Se estiver mascarado (ex: ***.456.789-**) deixe vazio.' },
       cpf_mascarado: { type: 'boolean', description: 'true se o CPF/CNPJ aparece parcialmente oculto/mascarado na conta.' },
-      endereco: { type: 'string', description: 'Logradouro completo da instalação: rua, número, complemento e bairro.' },
+      logradouro: { type: 'string', description: 'Tipo e nome da via da instalação, sem o número. Ex: "Rua das Flores", "Avenida Brasil", "Fazenda Boa Vista".' },
+      numero: { type: 'string', description: 'Número do imóvel. Escreva "S/N" se a conta disser sem número; deixe vazio se não houver.' },
+      complemento: { type: 'string', description: 'Apartamento, bloco, casa, quadra, lote ou similar. Deixe vazio se não houver.' },
+      bairro: { type: 'string', description: 'Bairro ou localidade da instalação. Ex: "Centro", "Zona Rural".' },
       cep: { type: 'string', description: 'CEP da instalação, só os dígitos.' },
       cidade: { type: 'string', description: 'Cidade da instalação.' },
       uf: { type: 'string', description: 'Sigla do estado (2 letras). Ex: MG, SP.' },
@@ -279,11 +288,21 @@ export function normalizeExtraction(raw: RawExtraction) {
   const tipo = normTipo(raw.tipo);
   const cpfMascarado = raw.cpf_mascarado === true;
 
+  // Partes do endereço. Resposta no formato antigo (só `endereco`) vira o logradouro.
+  let partes = {
+    logradouro: toStr(raw.logradouro),
+    numero: toStr(raw.numero),
+    complemento: toStr(raw.complemento),
+    bairro: toStr(raw.bairro),
+  };
+  if (!Object.values(partes).some(Boolean)) partes = { ...partes, logradouro: toStr(raw.endereco) };
+
   const cliente = {
     tipo,
     nome: toStr(raw.nome),
     cpf_cnpj: cpfMascarado ? '' : fmtCpfCnpj(raw.cpf_cnpj, tipo),
-    endereco: toStr(raw.endereco),
+    ...partes,
+    endereco: montarEndereco(partes),
     cep: fmtCep(raw.cep),
     cidade: toStr(raw.cidade),
     uf: toUf(raw.uf),
