@@ -208,7 +208,11 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   solardoc_boas_vindas: robo('evento_p0', ['services/agents/whatsapp/whatsappAgentService.ts', 'controllers/authController.ts'], { linha: 'solardoc' }),
   solardoc_compra: robo('evento_p0', ['services/agents/whatsapp/whatsappAgentService.ts', 'controllers/authController.ts', 'controllers/paymentsController.ts'], { linha: 'solardoc' }),
   // Link de definir senha de quem acabou de pagar: sem ele o cliente não entra [crítica].
-  solardoc_ativacao: robo('evento_p0', ['services/agents/whatsapp/whatsappAgentService.ts'], { linha: 'solardoc' }),
+  // [04/11] Boas-vindas do Pix automático pelo WhatsApp (asaasWebhookService, só na ADESÃO, nunca na renovação): 1 bolha, com o e-mail mascarado,
+  // só com o link de senha já enviado por e-mail. O carimbo boasvindas_pix_sent:<contrato> é de agenda (a linha o conta, o frio não o soma).
+  solardoc_ativacao: robo('evento_p0', ['services/agents/whatsapp/whatsappAgentService.ts', 'services/asaas/asaasWebhookService.ts'], {
+    linha: 'solardoc', carimbos: [agenda('boasvindas_pix_sent:')], maxBolhas: 1,
+  }),
   dunning_d0: robo('evento_p0', ['services/dunningService.ts'], { linha: 'solardoc' }),
   // Confirmação de que o pagamento entrou: chega pelo webhook a qualquer hora [crítica].
   dunning_recuperado: robo('evento_p0', ['services/dunningService.ts'], { linha: 'solardoc' }),
@@ -345,6 +349,12 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   solar_boas_vindas: robo('transacional_agenda_p3', ['services/io/solarBoasVindas.ts'], {
     carimbos: [agenda('solar_boasvindas_sent:')], podeTerPrazo: true, respeitaPausa: true,
   }),
+  // [04/11] Pós-venda da SolarDoc, "pagou e não criou a senha" (solardoc/ativacaoPosVenda.ts): 1 bolha da Giovanna, sem link, pela 5040 (sendFrio SEM a
+  // flag transacional: respeita a pausa humana), das 7h às 21h, 2 h ou mais depois do pagamento, 1 por pessoa (claim ativ_senha_sent:<userId> por insert
+  // ANTES do envio, depois do teto transacional), 1 por tick. NÃO é agenda: obedece o teto da linha, como as boas-vindas do solar.
+  ativ_senha: robo('transacional_agenda_p3', ['services/solardoc/ativacaoPosVenda.ts'], {
+    carimbos: [agenda('ativ_senha_sent:')], respeitaPausa: true, linha: 'solardoc', maxBolhas: 1, subprioridade: 3,
+  }),
   // A remarcação do NÃO ATENDEU (a da queda de 02/10): AGENDA desde 07/10, por
   // ordem do dono. Sai sempre, só espaçada: no máximo 1 a cada 15 min
   // (cadenciaPropria, a mesma cadência do HEAD, eletropostoReagendaAuto.ts:586),
@@ -393,6 +403,16 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   }),
   avisos_pauta: robo('frio_p5', ['services/io/avisosTickService.ts', 'services/io/ioSend.ts'], {
     carimbos: [frio('aviso_sent:')], subprioridade: 4,
+  }),
+  // [04/11] Pós-venda da SolarDoc, "criou a senha e não fez a 1ª proposta" (solardoc/ativacaoPosVenda.ts): 1 bolha de até 900 da Giovanna, 1 por pessoa
+  // (claim ativ_proposta_sent:<userId> por insert antes do envio), 2 dias ou mais depois do pagamento e até 30 dias, janela da Base, teto do frio com
+  // robo, espaçamento a cada envio, 1 por tick. Junto com o ativ_senha, no máximo 2 proativas por pessoa no 1º mês.
+  ativ_proposta: robo('frio_p5', ['services/solardoc/ativacaoPosVenda.ts'], {
+    carimbos: [frio('ativ_proposta_sent:')], linha: 'solardoc', maxBolhas: 1, subprioridade: 5,
+  }),
+  // [04/11] Pedido de depoimento da SolarDoc (services/pesquisa/depoimentoWhatsApp.ts, outro executor): frio, 1 bolha, carimbo depo_sent:<userId>.
+  depoimento_pedido: robo('frio_p5', ['services/pesquisa/depoimentoWhatsApp.ts'], {
+    carimbos: [frio('depo_sent:')], maxBolhas: 1, subprioridade: 5,
   }),
   // Hoje 2 bolhas e 2 contatos por tick (carlaRetomada.ts:54); aqui 1 bolha.
   carla_retomada: robo('frio_p5', ['services/agents/sdr/carlaRetomada.ts'], { carimbos: [frio('carla_retomada:')], subprioridade: 5 }),

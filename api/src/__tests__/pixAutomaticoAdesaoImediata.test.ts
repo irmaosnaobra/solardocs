@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PIX AUTOMÁTICO COM 1ª COBRANÇA IMEDIATA (prova de produção, 25/10/2026).
@@ -46,6 +46,9 @@ const H = vi.hoisted(() => {
     e2e: { valor: 'E1234567890123456789012345' as string | null, falha: false },
     autFalha: { v: false },
     chamadasAsaas: [] as string[],
+    boas: [] as Array<{ tel: string; partes: string[]; instancia: string; opts: any }>,
+    sessao: [] as any[],
+    envioFalha: { v: false },
   };
 });
 const { db } = H;
@@ -127,7 +130,18 @@ vi.mock('../services/agents/whatsapp/pixComprovanteService', () => ({
   }),
 }));
 vi.mock('../services/dunningService', () => ({ cancelStripeSubsForEmail: vi.fn(async () => 0) }));
-vi.mock('../services/agents/zapiClient', () => ({ sendWhatsApp: vi.fn(async (_p: string, texto: string) => { H.whats.push(texto); }) }));
+vi.mock('../services/agents/zapiClient', () => ({
+  sendWhatsApp: vi.fn(async (_p: string, texto: string) => { H.whats.push(texto); }),
+  // As boas-vindas do cliente (Giovanna) saem por sendHuman, separadas do aviso ao Thiago (sendWhatsApp).
+  sendHuman: vi.fn(async (tel: string, partes: string[], instancia: string, opts: any) => {
+    if (H.envioFalha.v) throw new Error('z-api fora');
+    H.boas.push({ tel, partes, instancia, opts });
+  }),
+}));
+vi.mock('../services/agents/whatsapp/silenciar', () => ({ motivosDaSupressao: vi.fn(async () => []) }));
+vi.mock('../services/agents/whatsapp/whatsappAgentService', () => ({
+  registrarMsgProativa: vi.fn(async (a: any) => { H.sessao.push(a); }),
+}));
 vi.mock('../services/cuponsService', () => ({
   registrarUsoCupom: vi.fn(async () => {}),
   buscarCupomValido: vi.fn(async () => null),
@@ -248,6 +262,7 @@ beforeEach(() => {
   db.users = [{ id: 'u1', email: 'cliente@teste.com', nome: 'Cliente', whatsapp: '34999990000', plano_expira_em: null, billing_status: 'free' }];
   H.emails.length = 0; H.whats.length = 0; H.vendas.length = 0; H.purchases.length = 0; H.quiz.length = 0;
   H.liberacoes.length = 0; H.chamadasAsaas.length = 0; H.bases.length = 0; H.falhaClaimAdesao.v = false;
+  H.boas.length = 0; H.sessao.length = 0; H.envioFalha.v = false;
   H.e2e.valor = E2E_ID; H.e2e.falha = false; H.autFalha.v = false;
   vi.mocked(dispararPurchasePixQuiz).mockClear();
   vi.mocked(sendPurchaseForSale).mockClear();
@@ -1004,3 +1019,102 @@ function chaveE2eMock(): string {
   // Mesma chave que o mock de chaveE2e monta para o E2E_ID de R$ 67.
   return `pix_e2e:${E2E_ID.slice(0, 21).toUpperCase()}:67`;
 }
+
+describe('boas-vindas do Pix automático pelo WhatsApp (04/11/2026): só na adesão, só com o link de senha já enviado por e-mail', () => {
+  const TEXTO = 'Oi, Maria, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado e o link para criar sua senha chegou no e-mail c***@teste.com. Se não achar, é só responder aqui que eu te ajudo.';
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('(B1) adesão de conta nova com e-mail ok: 1 bolha, e-mail mascarado, telefone da atribuição, carimbo antes do envio e contexto para a Giovanna', async () => {
+    db.users = [];
+    qrSalvo();
+    atribQuiz();
+    await processarWebhookAsaas(recebido('ev-1'));
+    expect(H.emails).toHaveLength(1);
+    expect(H.boas).toHaveLength(1);
+    expect(H.boas[0]).toMatchObject({ tel: '34999990000', instancia: 'solardoc', opts: { maxBolhas: 1, max: 900 } });
+    expect(H.boas[0]!.partes).toEqual([TEXTO]);
+    expect(H.boas[0]!.partes[0]).not.toContain('TOKEN-SECRETO-123');
+    const carimbo = db.system_state.find((x) => x.key === `boasvindas_pix_sent:${CONTRATO}`);
+    expect(carimbo?.updated_at).toBeTruthy();                       // o teto e o espaçamento da linha contam por updated_at
+    expect(H.sessao).toHaveLength(1);
+    expect(H.sessao[0]).toMatchObject({ userId: 'u-novo', phone: '34999990000', content: TEXTO });
+  });
+
+  it('(B1b) sai na hora mesmo de madrugada (evento P0, sem janela)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-04T06:00:00Z'));           // 03h BRT
+    db.users = [];
+    qrSalvo();
+    atribQuiz();
+    await processarWebhookAsaas(recebido('ev-1'));
+    expect(H.boas).toHaveLength(1);
+  });
+
+  it('(B2) nome "Cliente" sai sem nome', async () => {
+    db.users = [];
+    qrSalvo();
+    db.system_state.push({ key: `pix_auto_atrib:${CONTRATO}`, value: { origem: 'quiz_solardoc', whatsapp: '34999990000', nome: 'Cliente' } });
+    await processarWebhookAsaas(recebido('ev-1'));
+    expect(H.boas[0]!.partes[0]!.startsWith('Oi, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado')).toBe(true);
+  });
+
+  it('(B3) o e-mail de acesso falhou: não sai (a frase "chegou no e-mail" mentiria) e não queima o carimbo', async () => {
+    db.users = [];
+    qrSalvo();
+    atribQuiz();
+    const { sendPixAutomaticoAcessoEmail } = await import('../utils/mailer');
+    vi.mocked(sendPixAutomaticoAcessoEmail).mockRejectedValueOnce(new Error('resend fora'));
+    await processarWebhookAsaas(recebido('ev-1'));
+    expect(H.boas).toHaveLength(0);
+    expect(db.system_state.some((x) => x.key.startsWith('boasvindas_pix_sent:'))).toBe(false);
+  });
+
+  it('(B4) conta que já existia (sem token novo): não sai', async () => {
+    qrSalvo();
+    atribQuiz();
+    await processarWebhookAsaas(recebido('ev-1'));
+    expect(H.emails).toHaveLength(0);
+    expect(H.boas).toHaveLength(0);
+  });
+
+  it('(B5) renovação nunca recebe boas-vindas', async () => {
+    db.asaas_pix_assinaturas = [contrato({ user_id: 'u1', status: 'ativo', ultimo_pagamento_id: 'pay_velho', ultimo_pagamento_em: '2026-09-01T00:00:00Z' })];
+    atribQuiz();
+    await processarWebhookAsaas({
+      id: 'ev-1', event: 'PAYMENT_RECEIVED',
+      payment: { id: 'pay_novo', value: 67, externalReference: CONTRATO, dueDate: '2026-10-25' },
+    });
+    expect(H.liberacoes).toEqual(['u1']);
+    expect(H.boas).toHaveLength(0);
+  });
+
+  it('(B6) reentrega e CONFIRMED + RECEIVED + ACTIVATED do mesmo pagamento: 1 boas-vindas só', async () => {
+    db.users = [];
+    qrSalvo();
+    atribQuiz();
+    await processarWebhookAsaas(recebido('ev-1'));
+    await processarWebhookAsaas(recebido('ev-1'));
+    await processarWebhookAsaas(recebido('ev-1b', { event: 'PAYMENT_CONFIRMED' }));
+    await processarWebhookAsaas(ativado('ev-2'));
+    expect(H.boas).toHaveLength(1);
+  });
+
+  it('(B7) sem telefone na atribuição do contrato não sai (nunca usa o telefone do cadastro)', async () => {
+    db.users = [];
+    qrSalvo();
+    db.system_state.push({ key: `pix_auto_atrib:${CONTRATO}`, value: { origem: 'quiz_solardoc', nome: 'Maria' } });
+    await processarWebhookAsaas(recebido('ev-1'));
+    expect(H.boas).toHaveLength(0);
+  });
+
+  it('(B8) o envio falhar não derruba a liberação (o cliente já pagou)', async () => {
+    db.users = [];
+    qrSalvo();
+    atribQuiz();
+    H.envioFalha.v = true;
+    const r = await processarWebhookAsaas(recebido('ev-1'));
+    expect(r).toEqual({ tratado: true, motivo: 'pagamento creditado' });
+    expect(H.liberacoes).toEqual(['u-novo']);
+    expect(H.boas).toHaveLength(0);
+  });
+});

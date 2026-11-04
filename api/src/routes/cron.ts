@@ -9,6 +9,7 @@ import { runCarlaRetomada } from '../services/agents/sdr/carlaRetomada';
 import { dentroDaJanelaDiurna } from '../services/agents/whatsapp/lineThrottle';
 import { dentroDoTetoCarla } from '../services/agents/whatsapp/carlaThrottle';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
+import { rodarAtivacaoPosVenda } from '../services/solardoc/ativacaoPosVenda';
 import { runConfiancaNutricao } from '../services/confiancaService';
 import { runConfiancaWhatsApp } from '../services/confiancaWhatsAppService';
 import { runLimpaproRecoveryConsumer, runLimpaproRecoverySeeds, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, seedLimpaproGrupoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
@@ -51,6 +52,7 @@ import { runSolarBoasVindasTick, runSolarQuizLeadsTick } from '../services/io/so
 import { runSolardocQuizDesistenciaTick } from '../services/solardoc/desistenciaQuizTick';
 import { runQuizRecuperacaoTick } from '../services/solardoc/recuperacaoCarla';
 import { runRetomadaUsuariosTick } from '../services/solardoc/retomadaUsuarios';
+import { runPesquisasTick } from '../services/pesquisa';
 import { runSolarAgenteQuizTick } from '../services/io/solarAgenteQuiz';
 import { rodarInvestidorAgente, previaInvestidorAgente, definirChaveDesligar } from '../services/io/investidorAgente';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
@@ -1592,11 +1594,14 @@ router.get('/master', async (req: Request, res: Response) => {
 
   // WhatsApp FRIO em sequência (chefe-antiban, 04/11/2026): o dunning (D1-D4) e o lembrete de renovação do Pix passavam no espaçamento da
   // linha AO MESMO TEMPO que a recuperação de checkout (que continua no allSettled): com a linha parada há 15 min saíam até 3 frios colados.
-  // Agora rodam aqui, DEPOIS do allSettled e um depois do outro, cada um no seu try/catch (falha de um não impede o outro): o espaçamento
+  // Agora rodam aqui, com a ativação do pós-venda no fim, DEPOIS do allSettled e um depois do outro, cada um no seu try/catch (falha de um não impede o outro): o espaçamento
   // da linha precisa ver o carimbo de um antes de o outro rodar. Mesmo desenho da Carla no /process-messages.
   const emSequencia: Array<[string, () => Promise<unknown>]> = [
     ['dunning',          () => runDunning()],          // 5 dias: D0-D4 lembrete, D5 cancela+free
     ['pix-vip-reminder', () => runPixVipReminder()],   // avisa quem paga por Pix ~2d antes de vencer (e até 3 dias depois), com o Pix automático
+    // [04/11/2026] Pós-venda da SolarDoc (2a: cobra a senha, transacional; 2b: convida à 1ª proposta, frio): por último dos frios de receita, para o
+    // espaçamento ver o carimbo do dunning e do lembrete do Pix. ATIVACAO_POS_VENDA_OFF=1 corta os dois. O pedido de depoimento roda depois, no runPesquisasTick.
+    ['ativacao-pos-venda', () => rodarAtivacaoPosVenda()],
   ];
   for (const [task, fn] of emSequencia) {
     try {
@@ -1606,12 +1611,16 @@ router.get('/master', async (req: Request, res: Response) => {
     }
   }
 
+  // [04/11/2026] As pesquisas (e-mails de saída e de depoimento, até 10/dia cada, e o pedido de depoimento da Carla, 1 por tick, robô
+  // depoimento_pedido): por último, DEPOIS do dunning e do lembrete do Pix (receita passa na frente na linha), e fora de `results`.
+  const pesquisaFeedback = await runPesquisasTick().catch((err) => ({ error: String(err) }));
+
   const failed = results.filter(r => r.status === 'rejected');
   if (failed.length) {
     logger.error('cron', 'master cron parcial', { failed });
   }
 
-  res.json({ ok: true, results });
+  res.json({ ok: true, results, pesquisa_feedback: pesquisaFeedback });
 });
 
 // Pesquisa de 3 perguntas com os 10 clientes mais contínuos (ago/2026), por

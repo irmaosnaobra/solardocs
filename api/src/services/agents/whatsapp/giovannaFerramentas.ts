@@ -1,8 +1,9 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
 import { cnpjValido, formatarCnpj, soDigitos } from '../../../utils/cnpj';
+import { mascararEmail } from '../../solardoc/ativacaoPosVendaTextos';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FERRAMENTAS DA GIOVANNA (atendente do SolarDoc para quem já tem conta).
@@ -126,6 +127,15 @@ export const GIOVANNA_TOOLS: Anthropic.Tool[] = [
       },
       required: ['descricao', 'diagnostico'],
     },
+  },
+  {
+    name: 'reenviar_acesso',
+    description:
+      'Reenvia por E-MAIL o link para criar a senha (acesso) de quem pagou e não conseguiu entrar ou não achou o e-mail. ' +
+      'Vai SEMPRE para o e-mail cadastrado na conta, nunca para o WhatsApp nem para um e-mail digitado na conversa. ' +
+      'No máximo 3 reenvios por conta em 24 horas. Devolve o e-mail mascarado (ex.: j***@gmail.com) para você dizer para onde foi. ' +
+      'Se a conta já tem senha, não reenvia: devolve ja_tem_senha e você orienta o "esqueci minha senha" em solardoc.app/auth.',
+    input_schema: { type: 'object', properties: {}, required: [] },
   },
 ];
 
@@ -729,6 +739,81 @@ async function abrirChamado(input: Record<string, unknown>, ctx: GiovannaCtx): P
     : { ok: true, aberto: r.aberto, aviso: r.aberto ? 'Chamado aberto e o Thiago foi avisado.' : 'Não consegui abrir o chamado agora.' };
 }
 
+// ─── 5. reenviar_acesso ──────────────────────────────────────────────────────
+
+const REENVIOS_POR_DIA = 3;
+const CHAVE_REENVIO = (uid: string) => `giovanna_acesso:${uid}:`;
+const TOKEN_VALE_DIAS = 30;
+/** Reaproveita o link vivo só se ainda valer pelo menos isto (senão o e-mail sairia com um link prestes a vencer). */
+const TOKEN_SOBRA_MIN_MS = 2 * 86_400_000;
+
+async function reenviarAcesso(ctx: GiovannaCtx): Promise<Resultado> {
+  const uid = ctx.userId;
+  // Mesmo critério das escritas: o usuário vem do telefone, e só com exatamente 1 conta casando.
+  if (!uid) return { ok: false, motivo: 'conta_nao_identificada' };
+  if (ctx.userIds.length !== 1 || ctx.userIds[0] !== uid) {
+    return recusa('mais_de_uma_conta', { aviso: 'Este telefone está ligado a mais de uma conta. Não reenvie nada e abra um chamado.', ...ORIENTA_CHAMADO });
+  }
+
+  const { data: u, error: eU } = await supabase
+    .from('users').select('id, email, nome, plano, password_hash, reset_token, reset_token_expires').eq('id', uid).maybeSingle();
+  if (eU) return falhaDeLeitura('reenviar_acesso', eU, uid);
+  const conta = u as { id: string; email: string | null; nome: string | null; plano: string | null; password_hash: string | null; reset_token: string | null; reset_token_expires: string | null } | null;
+  if (!conta) return { ok: false, motivo: 'conta_nao_identificada' };
+
+  if (conta.password_hash) {
+    return {
+      ok: true, reenviado: false, motivo: 'ja_tem_senha',
+      aviso: 'Esta conta já tem senha, então não reenvio o link. Oriente o "esqueci minha senha" em solardoc.app/auth.',
+    };
+  }
+  const email = String(conta.email ?? '').trim();
+  if (!email || !email.includes('@')) return recusa('conta_sem_email', { aviso: 'A conta não tem e-mail válido. Abra um chamado.', ...ORIENTA_CHAMADO });
+
+  // Teto: 3 por conta em 24 h. Cada reenvio é uma chave em system_state, gravada ANTES do envio.
+  const desde = new Date(Date.now() - 24 * 3_600_000).toISOString();
+  const { data: usados, error: eT } = await supabase
+    .from('system_state').select('key').like('key', `${CHAVE_REENVIO(uid)}%`).gte('updated_at', desde).limit(REENVIOS_POR_DIA + 1);
+  if (eT) return falhaDeLeitura('reenviar_acesso_teto', eT, uid);
+  if ((usados?.length ?? 0) >= REENVIOS_POR_DIA) {
+    return recusa('limite_24h', { aviso: 'Já reenviei o acesso 3 vezes nas últimas 24 horas. Peça para olhar a caixa de spam e, se não achar, abra um chamado.', ...ORIENTA_CHAMADO });
+  }
+  const chave = `${CHAVE_REENVIO(uid)}${Date.now()}:${randomBytes(3).toString('hex')}`;
+  const agoraIso = new Date().toISOString();
+  const { error: eC } = await supabase.from('system_state').insert({ key: chave, value: { em: agoraIso }, updated_at: agoraIso });
+  if (eC) return falhaDeLeitura('reenviar_acesso_claim', eC, uid);
+
+  try {
+    // Link: reaproveita o vivo; senão gera um novo de 30 dias.
+    const expira = Date.parse(String(conta.reset_token_expires ?? ''));
+    let token = conta.reset_token;
+    if (!token || !Number.isFinite(expira) || expira < Date.now() + TOKEN_SOBRA_MIN_MS) {
+      token = randomBytes(32).toString('hex');
+      const { error: eUp } = await supabase.from('users')
+        .update({ reset_token: token, reset_token_expires: new Date(Date.now() + TOKEN_VALE_DIAS * 86_400_000).toISOString() }).eq('id', uid);
+      if (eUp) throw new Error('não gravei o link novo');
+    }
+    const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+    const acessoUrl = `${dashboardUrl}/auth?mode=redefinir&token=${token}`;
+
+    // Pix automático vivo -> o e-mail do Pix; senão o do cartão. Sempre para o e-mail DA CONTA.
+    const { data: contratos, error: eP } = await supabase.from('asaas_pix_assinaturas')
+      .select('id').eq('user_id', uid).in('status', ['ativo', 'inadimplente']).limit(1);
+    if (eP) throw new Error('não li o contrato do Pix');
+    const mailer = await import('../../../utils/mailer');
+    if ((contratos?.length ?? 0) > 0) {
+      await mailer.sendPixAutomaticoAcessoEmail({ to: email, nome: conta.nome, acessoUrl });
+    } else {
+      await mailer.sendCheckoutCompletionEmail({ to: email, sessionId: uid, plano: conta.plano, resetUrl: acessoUrl });
+    }
+  } catch (err) {
+    await supabase.from('system_state').delete().eq('key', chave);   // não saiu: não gasta o teto da pessoa
+    logger.error('giovanna-ferramentas', 'reenviar_acesso: o e-mail não saiu', { user_id: uid, erro: err instanceof Error ? err.message : String(err) });
+    return recusa('email_nao_saiu', { aviso: 'O e-mail não saiu agora. Não diga que reenviou e abra um chamado.', ...ORIENTA_CHAMADO });
+  }
+  return { ok: true, reenviado: true, email_mascarado: mascararEmail(email), aviso: 'Diga que reenviou para o e-mail mascarado e peça para olhar também a caixa de spam. Não escreva o link.' };
+}
+
 // ─── despacho ────────────────────────────────────────────────────────────────
 
 /** Executa uma ferramenta. Devolve SEMPRE um JSON em texto (é o conteúdo do tool_result). Nunca lança. */
@@ -745,6 +830,7 @@ export async function executarFerramentaGiovanna(
       case 'ver_erros_recentes':     r = await verErrosRecentes(ctx); break;
       case 'alterar_dados_empresa':  r = await alterarDadosEmpresa(entrada, ctx); break;
       case 'abrir_chamado':          r = await abrirChamado(entrada, ctx); break;
+      case 'reenviar_acesso':        r = await reenviarAcesso(ctx); break;
       default:                       r = { ok: false, motivo: `ferramenta_desconhecida: ${nome}` };
     }
     return JSON.stringify(r);

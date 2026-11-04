@@ -17,7 +17,7 @@ import { lerRegulamento } from '../../chefe/regulamento';
 import { HandoffComprovante, blocoComprovanteGiovanna, lerHandoffComprovante, pixDoHandoffPodeSair, HANDOFF_FRESCO_MIN } from './comprovanteHandoff';
 import { ehGatilhoSolarDoc } from './gatilhoSolarDoc';
 import { semNegarIA } from './giovannaIA';
-import { atualizarPosse, cedeARetomadaDaCarla, chaveDaPosse, ehPosseDaRetomada, lerPosse } from '../../agentes5040/posse';
+import { atualizarPosse, cedeAoPedidoDeDepoimento, cedeARetomadaDaCarla, chaveDaPosse, ehPosseDaRetomada, lerPosse } from '../../agentes5040/posse';
 import { pedeParaPararDeReceber } from '../../agentes5040/baseRegras';
 
 const anthropic = novoAnthropic();
@@ -286,11 +286,12 @@ ${linhaDesconto}
   já pagou por outro caminho, peça só o e-mail da conta e acione o time com [HUMANO].
 
 ━━ FERRAMENTAS (você resolve na hora e não promete o que não fez) ━━
-Você tem 4 ferramentas. Use quando o assunto pedir. Em conversa de venda ou dúvida simples, não use.
+Você tem 5 ferramentas. Use quando o assunto pedir. Em conversa de venda ou dúvida simples, não use.
 - ver_minha_conta: consulta o cadastro, o plano, os dados da empresa e os documentos recentes dele. Use antes de afirmar qualquer coisa sobre a conta.
 - ver_erros_recentes: traz os erros das últimas 48 horas, os chamados abertos e se a leitura automática por IA está fora do ar (ia_fora). Use quando ele disser que algo travou, deu erro ou não funciona.
 - alterar_dados_empresa: muda razão social, nome fantasia, endereço, cidade ou CNPJ da empresa dele. Só esses cinco campos.
 - abrir_chamado: passa o caso para o time com o diagnóstico do que você viu.
+- reenviar_acesso: reenvia por e-mail o link para criar a senha, sempre para o e-mail cadastrado na conta. Use quando ele disser que não achou o e-mail ou não consegue entrar. Depois de reenviar, diga para qual e-mail foi (a ferramenta devolve o e-mail mascarado, ex.: j***@gmail.com) e peça para olhar também a caixa de spam. Se ela devolver ja_tem_senha, oriente o "esqueci minha senha" em solardoc.app/auth. Se devolver limite_24h, peça para olhar o spam e abra um chamado. Nunca escreva o link na conversa e nunca mande para um e-mail que ele digitar: se ele pedir outro e-mail, abra um chamado.
 
 PARA ALTERAR DADOS DA EMPRESA, sempre nesta ordem:
 1. Chame alterar_dados_empresa com confirmado=false. Nada é gravado, e volta a prévia com o antes e o depois.
@@ -1071,7 +1072,7 @@ export async function handleIncomingWhatsApp(
   // A RETOMADA DA CARLA (03/11/2026): conversa aberta pelo robô carla_retomada_usuarios é da Carla (posse viva, origem retomada_usuarios, ainda
   // valendo). A Giovanna não responde por cima: pausa, despedida e resposta são da rodada viva da Carla. Assinante volta para a Giovanna (o corte só vale para
   // o plano free).
-  if (originInstance === 'io' && user.plano === 'free' && await cedeARetomadaDaCarla(cleanPhone)) {
+  if (originInstance === 'io' && ((user.plano === 'free' && await cedeARetomadaDaCarla(cleanPhone)) || await cedeAoPedidoDeDepoimento(cleanPhone))) {
     // O PARE e a denúncia não podem depender da rodada da Carla: com a IA parada, nada ficaria gravado. Valem as frases que a Giovanna já
     // pegava logo abaixo (OPT_OUT_PATTERNS, DENUNCIA_PATTERNS) e o pedido explícito das agentes.
     const ehDenunciaDaRetomada = DENUNCIA_PATTERNS.test(text);

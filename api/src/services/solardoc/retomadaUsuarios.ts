@@ -39,6 +39,7 @@ import {
 import { carregarPausas } from '../agents/whatsapp/pausaHumana';
 import { motivosDaSupressao } from '../agents/whatsapp/silenciar';
 import { hmacDe } from '../agentes5040/hmac';
+import { diaBRT } from '../agentes5040/relogio';
 import {
   carregarListasDeBarragem, lerConversa, lerFatosPorteiro, type ConversaLida, type ListasDeBarragem,
 } from '../agentes5040/contexto';
@@ -354,6 +355,8 @@ export async function runRetomadaUsuariosTick(opts: OpcoesRet = {}, deps?: DepsR
       const em = agoraEnvio.toISOString();
       const retomada = {
         ...base, primeiro_nome: av.primeiro || null, texto: av.texto, em,
+        // O toque do grupo `pagou` é a entrevista de saída: a Carla lê isto (retomadaUsuariosConta.ts) e conduz as 3 perguntas.
+        ...(item.grupo === 'pagou' ? { entrevista_saida: true } : {}),
         ate: new Date(Date.parse(em) + RETOMADA_VALE_MS).toISOString(),
       };
       let posse = await d.assumirPosse(item.chave, em, { origem: ORIGEM_RETOMADA_USUARIOS, retomada });
@@ -609,6 +612,21 @@ async function lerExtras(candidatos: readonly UsuarioRet[], agora: Date): Promis
     }
   }
 
+  // A entrevista de saída (04/11/2026): quem já respondeu o formulário e quem recebeu o e-mail de saída HOJE (dia de Brasília). Só o grupo
+  // `pagou` usa; as duas leituras são por prefixo (uma linha por resposta/e-mail enviado, poucas centenas no máximo).
+  const respondeuSaida = new Set<string>();
+  const linhasResp = await lerTudo<{ key: string }>((de, ate) =>
+    supabase.from('system_state').select('key').like('key', 'pesquisa_saida:%').order('key', { ascending: true }).range(de, ate));
+  for (const l of linhasResp) if (l.key.startsWith('pesquisa_saida:')) respondeuSaida.add(l.key.slice('pesquisa_saida:'.length));
+  const emailSaidaHoje = new Set<string>();
+  const hoje = diaBRT(agora);
+  const linhasEmail = await lerTudo<{ key: string; value: { em?: unknown } | null; updated_at: string | null }>((de, ate) =>
+    supabase.from('system_state').select('key, value, updated_at').like('key', 'pesquisa_saida_email:%').order('key', { ascending: true }).range(de, ate));
+  for (const l of linhasEmail) {
+    const em = typeof l.value?.em === 'string' ? l.value.em : l.updated_at;
+    if (l.key.startsWith('pesquisa_saida_email:') && em && diaBRT(em) === hoje) emailSaidaHoje.add(l.key.slice('pesquisa_saida_email:'.length));
+  }
+
   const hmacs = new Map<string, string>();
   for (const u of candidatos) {
     const t = telefoneDoUsuario(u);
@@ -632,6 +650,8 @@ async function lerExtras(candidatos: readonly UsuarioRet[], agora: Date): Promis
       nexusConviteEmMs: nexus.get(u.id) ?? null,
       jaNaCampanha: !!h && jaFoi.has(`${PREFIXO_CARIMBO_RET}${h}`),
       marcaFora: h ? (marcas.get(h) ?? null) : null,
+      respondeuSaida: respondeuSaida.has(u.id),
+      emailSaidaHoje: emailSaidaHoje.has(u.id),
     });
   }
   return mapa;

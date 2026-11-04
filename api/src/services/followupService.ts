@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase';
 import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail, sendAbandonedCartEmail } from '../utils/mailer';
 import { enviarOpenerRecuperacao } from './agents/whatsapp/pixRecoveryAgentService';
 import { cedeAAgente, lerPosse } from './agentes5040/posse';
+import { contasPagasSemSenha, IDADE_MAX_EMAIL_MS, ESPERA_SENHA_MS, ESPERA_EMAIL_CARTAO_MS } from './solardoc/ativacaoPosVenda';
 import { novaRodadaPortao, tomarToqueRecuperacao, soltarToqueRecuperacao, marcarToqueEnviado, marcarToqueFalhou, lerFalhasWhats, contarFalhaWhats, FALHAS_PARA_SO_EMAIL } from './recuperacaoCheckoutPortao';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
@@ -352,8 +353,7 @@ export async function runCheckoutAbandonRecovery(): Promise<{ sent: number; skip
 // pega subs públicas trialing/active criadas há ≥ GRACE (carência) e ≤ MAX,
 // confirma que a conta AINDA não existe, e manda o link de conclusão.
 // Idempotente via system_state (1 email por checkout). Pega passado e futuro.
-const ORPHAN_GRACE_MS = 30 * 60 * 1000;            // só age após 30min (deu tempo de cadastrar)
-const ORPHAN_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000; // até 6d (antes do trial de 7d virar cobrança)
+// Carência (30 min no cartão, 2 h no Pix automático) e idade máxima (6 d, antes do trial de 7d virar cobrança): constantes de solardoc/ativacaoPosVenda.ts.
 
 // Lê os marcadores `orphan_checkout:{sessionId}` que o webhook gravou (email +
 // plano + session_id já corretos — sem re-derivar do Stripe). Pra cada um que,
@@ -363,8 +363,6 @@ const ORPHAN_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000; // até 6d (antes do trial de
 // Backlog anterior ao marcador (Lucas/Josefi/Ivan) é recuperado manualmente.
 export async function recoverOrphanCheckouts(): Promise<{ sent: number; skipped: number; scanned: number }> {
   const now = Date.now();
-  const graceCutoff  = new Date(now - ORPHAN_GRACE_MS).toISOString();   // criado há ≥30min (deu tempo de ativar)
-  const maxAgeCutoff = new Date(now - ORPHAN_MAX_AGE_MS).toISOString(); // criado há ≤6d (antes do trial virar cobrança)
 
   // 100% CADASTRO — REDE DE SEGURANÇA. O webhook agora CRIA a conta pendente
   // (password_hash null) no pagamento e já manda o "defina sua senha". Este sweep
@@ -372,22 +370,18 @@ export async function recoverOrphanCheckouts(): Promise<{ sent: number; skipped:
   // "marcador órfão sem conta" → "conta pendente" (a conta agora sempre existe).
   // Throttle de 1 reenvio por conta via system_state (activation_nudge:{id}) —
   // o 1º toque já saiu do webhook, então aqui é no máximo +1 (nada de spam).
-  const { data: pendings } = await supabase
-    .from('users')
-    .select('id, email, plano, reset_token, created_at')
-    .is('password_hash', null)
-    .neq('plano', 'free')
-    .not('reset_token', 'is', null)
-    .lte('created_at', graceCutoff)
-    .gte('created_at', maxAgeCutoff)
-    .limit(500);
-
-  if (!pendings?.length) return { sent: 0, skipped: 0, scanned: 0 };
+  //
+  // [04/11/2026] A conta do PIX AUTOMÁTICO também entra. O critério antigo (`neq('plano','free')`) a deixava de
+  // fora enquanto o plano não fechava; agora vale conta com password_hash nulo e link vivo que seja de plano pago
+  // OU de contrato do Pix automático ativo (contasPagasSemSenha). Carência: 30 min no cartão (como sempre) e 2 h
+  // no Pix automático. Até 6 dias depois do pagamento.
+  const contas = await contasPagasSemSenha(now, IDADE_MAX_EMAIL_MS);
 
   const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
   let sent = 0, skipped = 0;
-  for (const u of pendings) {
-    if (!u.reset_token) { skipped++; continue; }
+  for (const u of contas ?? []) {
+    const carencia = u.viaPixAuto ? ESPERA_SENHA_MS : ESPERA_EMAIL_CARTAO_MS;
+    if (now - u.pagoEm < carencia) { skipped++; continue; }
     const nudgeKey = `activation_nudge:${u.id}`;
     // Throttle: marcador presente = já reenviamos uma vez → não reenvia de novo.
     const { data: already } = await supabase.from('system_state').select('key').eq('key', nudgeKey).limit(1);
@@ -404,7 +398,7 @@ export async function recoverOrphanCheckouts(): Promise<{ sent: number; skipped:
     }
   }
 
-  return { sent, skipped, scanned: pendings.length };
+  return { sent, skipped, scanned: contas?.length ?? 0 };
 }
 
 // ════════════════════════════════════════════════════════════════════

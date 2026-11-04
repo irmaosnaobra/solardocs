@@ -1045,7 +1045,11 @@ describe('decidir: propriedade com 2.000 estados sorteados (semente fixa)', () =
       if (d.acao !== 'enviar_agora' || d.classe !== 'lembrete_p1' || oraculos[i]!.agenda) return;
       const { estado: e, agora } = casos[i]!;
       const h = new Date(agora - 3 * HORA).getUTCHours();
-      expect({ i, h, dentro: h >= 7 && h < 21 }).toEqual({ i, h, dentro: true });
+      // Destino da equipe ou de grupo é interno: o alerta ao time não tem janela (decidir.ts: `!interno && jl`). Só o destino de fora segue as 7h às 21h.
+      const ped = casos[i]!.pedido;
+      const destinoInterno = ped.destino === EQUIPE[0] || (ped.destino === '120363000000000000@g.us' && (casos[i]!.estado.gruposInternos ?? []).length > 0)
+        || (/-group$|@g\.us$/.test(ped.destino) && !!CLASSE_POR_ROBO[ped.robo]?.roboDeGrupo);
+      if (!destinoInterno) expect({ i, h, dentro: h >= 7 && h < 21 }).toEqual({ i, h, dentro: true });
       expect((e.contagens['10min']?.lembrete_p1 ?? 0) + d.maxBolhas).toBeLessThanOrEqual(6);
       expect((e.contagens['1h']?.lembrete_p1 ?? 0) + d.maxBolhas).toBeLessThanOrEqual(28);
       expect((e.contagens['24h']?.lembrete_p1 ?? 0) + d.maxBolhas).toBeLessThanOrEqual(150);

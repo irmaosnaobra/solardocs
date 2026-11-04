@@ -45,6 +45,7 @@ import eletropostoEstudoPublicoRoutes from './routes/eletropostoEstudoPublico';
 import ioSolarRoutes from './routes/ioSolar';
 import solardocQuizRoutes from './routes/solardocQuiz';
 import plugcashRoutes from './routes/plugcash';
+import { pesquisaPublicaRouter, pesquisaAdminRouter } from './routes/pesquisa';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
@@ -110,6 +111,8 @@ app.use('/suggestions', suggestionsRoutes);
 app.use('/feature-events', featureEventsRoutes);
 app.use('/prestadores', prestadoresRoutes);
 app.use('/payments', paymentsRoutes);
+app.use('/admin/pesquisas', pesquisaAdminRouter); // antes do /admin: o router já leva o guard de admin
+app.use('/pesquisa', pesquisaPublicaRouter);
 app.use('/admin', adminRoutes);
 app.use('/trafego', trafegoRoutes);
 // /_t = path neutro (escapa adblocker). /tracking mantido temporariamente como alias.

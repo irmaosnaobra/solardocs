@@ -234,6 +234,16 @@ const BOT_SENT_PREFIXES = [
   'dunning_sent:',
   // [04/11] A Carla do quiz SolarDoc, segunda perna (recuperacaoCarla*): `quiz_rec_sent2:`. Frio, fora de PREFIXOS_AGENDA. Não casa com `quiz_rec_sent:`.
   'quiz_rec_sent2:',
+  // [04/11] Pós-venda da SolarDoc (pedido do dono: quem compra tem que se cadastrar e usar). Quatro carimbos, um por insert ANTES do envio:
+  //   `boasvindas_pix_sent:<contrato>` = boas-vindas do Pix automático na adesão (evento P0, asaasWebhookService). Também em PREFIXOS_AGENDA.
+  //   `ativ_senha_sent:<userId>`       = "pagou e não criou a senha" (ativacaoPosVenda, transacional P3, 7h às 21h). Também em PREFIXOS_AGENDA:
+  //                                      transacional conta a linha inteira e o frio não o soma, como o `solar_boasvindas_sent:`.
+  //   `ativ_proposta_sent:<userId>`    = "criou a senha e não fez a 1ª proposta" (ativacaoPosVenda, frio P5). FRIO, fora de PREFIXOS_AGENDA.
+  //   `depo_sent:<userId>`             = pedido de depoimento (services/pesquisa). FRIO, fora de PREFIXOS_AGENDA.
+  'boasvindas_pix_sent:',
+  'ativ_senha_sent:',
+  'ativ_proposta_sent:',
+  'depo_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
@@ -279,6 +289,8 @@ export const PREFIXOS_AGENDA = [
   'solar_giovanna_sent:',   // os dois toques do dia da reunião
   'ep_cobra_sim:',          // régua do SIM: cobrança e aviso de horário liberado
   'ag5040_agenda_sent:',    // a bolha fixa de agenda da Duda (agendaEnvio.ts); NUNCA ag5040_sent:, que fica fora da lista
+  'boasvindas_pix_sent:',   // boas-vindas do Pix automático na adesão (asaasWebhookService); evento P0, a pessoa acabou de pagar
+  'ativ_senha_sent:',       // "pagou e ainda não criou a senha" (ativacaoPosVenda); transacional P3. NUNCA ativ_proposta_sent: nem depo_sent:, que são frios
 ] as const;
 
 // ─── TERCEIRO BALDE: as respostas das agentes da 5040 (21/10/2026) ───────────

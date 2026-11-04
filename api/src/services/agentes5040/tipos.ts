@@ -112,6 +112,8 @@ export interface ContaRetomada {
   primeiro_nome: string | null;
   texto_enviado: string | null;
   enviado_em: string | null;
+  /** O toque foi a entrevista de saída (grupo `pagou`, 04/11/2026). Ausente = não foi. */
+  entrevista_saida?: boolean;
 }
 
 /** Tudo o que a persona vê do lead. Montado por contexto.ts (só leitura). */

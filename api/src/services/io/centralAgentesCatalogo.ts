@@ -527,6 +527,20 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: ['carla_retomada_usuarios'],
   }),
   e({
+    id: 'pos_venda_ativacao', nome: 'Giovanna, pós-venda de quem comprou', area: 'solardoc', canal: 'whatsapp', linha: 'solardoc',
+    resumo: 'Cobra a senha e a 1ª proposta de quem acabou de comprar',
+    papel: 'Duas mensagens da Giovanna, uma bolha cada, sem link e uma por pessoa. A primeira cobra quem pagou (cartão ou Pix automático) e não criou a senha: das 7h às 21h, 2 horas ou mais depois do pagamento, dentro do teto da linha. A segunda convida a fazer a 1ª proposta quem criou a senha e não fez nenhuma em 2 dias: das 9h às 20h de segunda a sábado, na vaga do envio frio da 5040, só no 1º mês. Um envio de cada por rodada. As boas-vindas do Pix automático saem na adesão, pelo webhook do Asaas. ATIVACAO_POS_VENDA_OFF=1 desliga as duas cobranças.',
+    regra: { tipo: 'desliga', env: 'ATIVACAO_POS_VENDA_OFF', valor: '1' }, fonte: 'services/solardoc/ativacaoPosVenda.ts',
+    robos: ['ativ_senha', 'ativ_proposta'],
+  }),
+  e({
+    id: 'depoimento_pedido', nome: 'Carla, pedido de depoimento', area: 'solardoc', canal: 'whatsapp', linha: 'io',
+    resumo: 'Pede o depoimento de quem usa muito a SolarDoc',
+    papel: 'Pede o depoimento, uma bolha e sem link, de quem paga e já fez 20 ou mais propostas solares em 30 dias. Uma vez por pessoa, das 9h às 20h de segunda a sábado, na vaga do envio frio da 5040, um envio por rodada. DEPOIMENTO_PEDIDO_OFF=1 desliga.',
+    regra: { tipo: 'desliga', env: 'DEPOIMENTO_PEDIDO_OFF', valor: '1' }, fonte: 'services/pesquisa/depoimentoWhatsApp.ts',
+    robos: ['depoimento_pedido'],
+  }),
+  e({
     id: 'email', nome: 'E-mails automáticos (SolarDoc)', area: 'solardoc', canal: 'email', linha: null,
     resumo: 'Checkout, CNPJ, cobrança e winback por e-mail',
     papel: 'Recuperação de checkout, follow-up de CNPJ, lembrete de inativo, cobrança (dunning D0 a D4) e winback D+7 e D+30. Sem chave: é e-mail e roda no cron mestre.',

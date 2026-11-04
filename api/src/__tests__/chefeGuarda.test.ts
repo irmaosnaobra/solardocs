@@ -353,7 +353,8 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
     robos: ['giovanna_aviso_dono', 'giovanna_reativa', 'solardoc_ativacao', 'solardoc_boas_vindas', 'solardoc_compra'], classeMaxima: 'evento_p0',
   },
   'services/agents/whatsapp/whatsappFollowupService.ts': { robos: ['whatsapp_followup'], classeMaxima: 'frio_p5' },
-  'services/asaas/asaasWebhookService.ts': { robos: ['asaas_aviso'], classeMaxima: 'aviso_interno_p2' },
+  // [04/11] Boas-vindas do Pix automático pelo WhatsApp: o arquivo ganhou o robô de evento solardoc_ativacao.
+  'services/asaas/asaasWebhookService.ts': { robos: ['asaas_aviso', 'solardoc_ativacao'], classeMaxima: 'evento_p0' },
   'services/confiancaWhatsAppService.ts': { robos: ['confianca_whatsapp'], classeMaxima: 'frio_p5' },
   'services/dunningService.ts': { robos: ['dunning_d0', 'dunning_d5', 'dunning_lembrete', 'dunning_recuperado'], classeMaxima: 'evento_p0' },
   'services/followupService.ts': { robos: ['recuperacao_checkout'], classeMaxima: 'frio_receita_p4' },
@@ -391,6 +392,10 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/io/solarRespostas.ts': { robos: ['solar_respostas_aviso'], classeMaxima: 'aviso_interno_p2' },
   'services/nexus/avisoComercial.ts': { robos: ['nexus_aviso_comercial'], classeMaxima: 'aviso_interno_p2' },
   'services/pesquisaSatisfacao.ts': { robos: ['pesquisa_satisfacao'], classeMaxima: 'frio_p5' },
+  // [04/11] Pedido de depoimento da SolarDoc (frio, 1 bolha).
+  'services/pesquisa/depoimentoWhatsApp.ts': { robos: ['depoimento_pedido'], classeMaxima: 'frio_p5' },
+  // [04/11] Pós-venda da SolarDoc: "pagou e não criou a senha" (transacional P3) e "criou a senha e não fez a 1ª proposta" (frio P5).
+  'services/solardoc/ativacaoPosVenda.ts': { robos: ['ativ_proposta', 'ativ_senha'], classeMaxima: 'transacional_agenda_p3' },
   'services/solardoc/avisoGrupoSolardoc.ts': { robos: ['solardoc_aviso_grupo'], classeMaxima: 'aviso_interno_p2' },
   'services/solardoc/recuperacaoCarla.ts': { robos: ['quiz_recuperacao_5040'], classeMaxima: 'frio_receita_p4' },
   'services/solardoc/retomadaUsuarios.ts': { robos: ['carla_retomada_usuarios'], classeMaxima: 'frio_p5' },
@@ -407,6 +412,7 @@ const ARQUIVOS_MISTOS: Readonly<Record<string, readonly Classe[]>> = Object.free
   'routes/webhook.ts': ['evento_p0', 'reativo_p1', 'aviso_interno_p2'],
   'services/agents/whatsapp/pixComprovanteService.ts': ['evento_p0', 'aviso_interno_p2'],
   'services/agents/whatsapp/whatsappAgentService.ts': ['evento_p0', 'reativo_p1', 'aviso_interno_p2'],
+  'services/asaas/asaasWebhookService.ts': ['evento_p0', 'aviso_interno_p2'],
   'services/dunningService.ts': ['evento_p0', 'frio_receita_p4'],
   'services/io/eletropostoAgenda.ts': ['aviso_interno_p2', 'transacional_agenda_p3'],
   'services/io/eletropostoRemarcar.ts': ['reativo_p1', 'frio_p5'],
@@ -414,6 +420,7 @@ const ARQUIVOS_MISTOS: Readonly<Record<string, readonly Classe[]>> = Object.free
   'services/io/investidorAgente.ts': ['reativo_p1', 'aviso_interno_p2', 'frio_p5'],
   'services/io/recepcaoIo.ts': ['reativo_p1', 'aviso_interno_p2'],
   'services/io/solarAgenteQuiz.ts': ['reativo_p1', 'aviso_interno_p2'],
+  'services/solardoc/ativacaoPosVenda.ts': ['transacional_agenda_p3', 'frio_p5'],
 });
 
 /**
@@ -1859,7 +1866,7 @@ describe('chefeGuarda: arquivo → robôs permitidos, com a classe máxima de ca
     const { classes } = mapaDerivado();
     const mistos = Object.fromEntries(Object.entries(classes).filter(([, cs]) => cs.length > 1));
     expect(mistos).toEqual(ARQUIVOS_MISTOS);
-    expect(Object.keys(ARQUIVOS_MISTOS).length).toBe(11);
+    expect(Object.keys(ARQUIVOS_MISTOS).length).toBe(13);
     // O pior deles: evento ao lado de frio de receita.
     expect(ARQUIVOS_MISTOS['services/dunningService.ts']).toEqual(['evento_p0', 'frio_receita_p4']);
   });
@@ -1948,7 +1955,7 @@ describe('chefeGuarda: arquivo → robôs permitidos, com a classe máxima de ca
     expect(deClasse('evento_p0')).toEqual([
       'controllers/authController.ts', 'controllers/paymentsController.ts', 'controllers/trafegoController.ts',
       'routes/ioIndicacoes.ts', 'routes/webhook.ts', 'services/agents/whatsapp/pixComprovanteService.ts',
-      'services/agents/whatsapp/whatsappAgentService.ts', 'services/dunningService.ts',
+      'services/agents/whatsapp/whatsappAgentService.ts', 'services/asaas/asaasWebhookService.ts', 'services/dunningService.ts',
     ]);
     // Três deles não estão em ARQUIVOS_MISTOS: só têm robô de evento.
     expect(deClasse('evento_p0').filter(a => !(a in ARQUIVOS_MISTOS))).toEqual(['controllers/authController.ts', 'controllers/paymentsController.ts', 'controllers/trafegoController.ts']);

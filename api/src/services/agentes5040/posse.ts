@@ -52,6 +52,21 @@ export const RETOMADA_VALE_MS = 30 * 24 * 3_600_000;
 export const ehPosseDaRetomada = (p: Readonly<Record<string, unknown>>): boolean =>
   p.dona === 'carla' && p.origem === ORIGEM_RETOMADA_USUARIOS;
 
+// ── a posse do PEDIDO DE DEPOIMENTO (04/11/2026) ─────────────────────────────
+// O robô pesquisa/depoimentoWhatsApp.ts pede o depoimento a um pagante e, no mesmo envio, abre a posse da Carla com
+// `origem: 'pedido_depoimento'` e `pedido_depoimento: { user_id, link, em, ate }` (o link do formulário, com o token). Vale 7 dias. Quem responde é a
+// Carla (o vivo.ts não fecha esta posse por "já tem conta") e a Giovanna não responde por cima. Vencida, vale como se não existisse.
+export const ORIGEM_PEDIDO_DEPOIMENTO = 'pedido_depoimento';
+export const PEDIDO_DEPOIMENTO_VALE_MS = 7 * 24 * 3_600_000;
+
+export const ehPosseDoPedidoDeDepoimento = (p: Readonly<Record<string, unknown>>): boolean =>
+  p.dona === 'carla' && p.origem === ORIGEM_PEDIDO_DEPOIMENTO;
+
+export function pedidoDepoimentoVale(p: Readonly<Record<string, unknown>>, agoraMs: number): boolean {
+  const ate = Date.parse(String((p.pedido_depoimento as { ate?: unknown } | null | undefined)?.ate ?? ''));
+  return Number.isFinite(ate) && ate > agoraMs;
+}
+
 /** A posse da retomada ainda vale? `retomada.ate` ausente, ilegível ou no passado = não. */
 export function retomadaVale(p: Readonly<Record<string, unknown>>, agoraMs: number): boolean {
   const ate = Date.parse(String((p.retomada as { ate?: unknown } | null | undefined)?.ate ?? ''));
@@ -242,8 +257,27 @@ export async function cedeAAgente(telefone: string | null | undefined): Promise<
     if (!posse || !ESTADOS_QUE_CEDEM.includes(posse.estado)) return false;
     // A posse da retomada VENCIDA vale como se não existisse (uma `viva` sem resposta não cala a Giovanna do suporte para sempre).
     if (ehPosseDaRetomada(posse) && posse.estado === 'viva' && !retomadaVale(posse, Date.now())) return false;
+    if (ehPosseDoPedidoDeDepoimento(posse) && (posse.estado !== 'viva' || !pedidoDepoimentoVale(posse, Date.now()))) return false;
     if (posse.dona === 'humano') return true;
     return cobrem.includes(posse.dona);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Corte da Giovanna para o PAGANTE que respondeu ao pedido de depoimento da Carla (04/11/2026). Mais estreito que o da retomada, de propósito:
+ * a Carla precisa atender ESTE número (conferido PRIMEIRO), a posse é dela com a origem do pedido, está VIVA (passou_humano, nao_incomodar e
+ * encerrada NUNCA cedem: o suporte do pagante é da Giovanna) e dentro dos 7 dias. Qualquer erro devolve false: na dúvida a Giovanna responde,
+ * a mensagem de um pagante nunca some. Nunca lança.
+ */
+export async function cedeAoPedidoDeDepoimento(telefone: string | null | undefined): Promise<boolean> {
+  try {
+    if (!(await agenteAtendeEste('carla', telefone))) return false;
+    const chave = chaveDaPosse(telefone);
+    if (!chave) return false;
+    const p = await lerPosse(chave);
+    return !!p && ehPosseDoPedidoDeDepoimento(p) && p.estado === 'viva' && pedidoDepoimentoVale(p, Date.now());
   } catch {
     return false;
   }

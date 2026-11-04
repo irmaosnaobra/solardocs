@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../utils/supabase', async () => ({ supabase: (await import('./_bancoFalso')).supabase }));
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
+const emailsEnviados = vi.hoisted(() => [] as Array<{ via: 'cartao' | 'pix'; to: string; url: string }>);
+vi.mock('../utils/mailer', () => ({
+  sendCheckoutCompletionEmail: vi.fn(async (o: any) => { emailsEnviados.push({ via: 'cartao', to: o.to, url: o.resetUrl }); }),
+  sendPixAutomaticoAcessoEmail: vi.fn(async (o: any) => { emailsEnviados.push({ via: 'pix', to: o.to, url: o.acessoUrl }); }),
+}));
 
 import { banco } from './_bancoFalso';
 import {
@@ -94,7 +99,7 @@ describe('cnpj (utilitário)', () => {
 
 describe('definição das ferramentas', () => {
   it('são quatro, e alterar_dados_empresa só aceita os cinco campos da lista', () => {
-    expect(GIOVANNA_TOOLS.map(t => t.name)).toEqual(['ver_minha_conta', 'ver_erros_recentes', 'alterar_dados_empresa', 'abrir_chamado']);
+    expect(GIOVANNA_TOOLS.map(t => t.name)).toEqual(['ver_minha_conta', 'ver_erros_recentes', 'alterar_dados_empresa', 'abrir_chamado', 'reenviar_acesso']);
     const alterar: any = GIOVANNA_TOOLS.find(t => t.name === 'alterar_dados_empresa');
     expect(Object.keys(alterar.input_schema.properties.campos.properties).sort())
       .toEqual(['cidade', 'cnpj', 'endereco', 'nome_fantasia', 'razao_social']);
@@ -769,5 +774,79 @@ describe('despacho', () => {
     expect(await rodar('apagar_tudo', {}, ctx())).toMatchObject({ ok: false });
     const c = ctx({ escalar: vi.fn(async () => { throw new Error('boom'); }) });
     expect(await rodar('abrir_chamado', { descricao: 'x', diagnostico: 'y' }, c)).toMatchObject({ ok: false, motivo: 'falha_interna' });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// reenviar_acesso (04/11/2026): o link de senha volta por E-MAIL, só para o e-mail da conta ligada ao telefone da conversa.
+// ═══════════════════════════════════════════════════════════════════════════
+describe('reenviar_acesso', () => {
+  const semSenha = (over: Record<string, unknown> = {}) => {
+    const u = banco.linhas('users').find(r => r.id === UID)!;
+    Object.assign(u, { email: 'joao@x.com', password_hash: null, reset_token: 'TOKEN-VIVO', reset_token_expires: new Date(Date.now() + 20 * 86_400_000).toISOString(), ...over });
+  };
+  beforeEach(() => { emailsEnviados.length = 0; });
+
+  it('conta sem senha reenvia para o e-mail DA CONTA (cartão), reaproveita o link vivo e devolve o e-mail mascarado', async () => {
+    semSenha();
+    const r = await rodar('reenviar_acesso', { email: 'outro@invasor.com' }, ctx({ email: 'outro@invasor.com' }));
+    expect(r).toMatchObject({ ok: true, reenviado: true, email_mascarado: 'j***@x.com' });
+    expect(JSON.stringify(r)).not.toContain('TOKEN-VIVO');
+    expect(emailsEnviados).toHaveLength(1);
+    expect(emailsEnviados[0]).toMatchObject({ via: 'cartao', to: 'joao@x.com' });          // nunca o e-mail digitado
+    expect(emailsEnviados[0]!.url).toMatch(/\/auth\?mode=redefinir&token=TOKEN-VIVO$/);
+    expect(banco.linhas('system_state').filter(x => String(x.key).startsWith(`giovanna_acesso:${UID}:`))).toHaveLength(1);
+  });
+
+  it('link vencido: gera um novo de 30 dias; contrato do Pix automático vivo usa o e-mail do Pix', async () => {
+    semSenha({ reset_token: 'VELHO', reset_token_expires: new Date(Date.now() - 1000).toISOString() });
+    banco.poe('asaas_pix_assinaturas', { id: 'c1', user_id: UID, status: 'ativo' });
+    const r = await rodar('reenviar_acesso', {}, ctx());
+    expect(r.reenviado).toBe(true);
+    expect(emailsEnviados[0]).toMatchObject({ via: 'pix', to: 'joao@x.com' });
+    const u = banco.linhas('users').find(x => x.id === UID)!;
+    expect(u.reset_token).not.toBe('VELHO');
+    expect(emailsEnviados[0]!.url.endsWith(String(u.reset_token))).toBe(true);
+    const dias = (Date.parse(String(u.reset_token_expires)) - Date.now()) / 86_400_000;
+    expect(dias).toBeGreaterThan(29.9);
+    expect(dias).toBeLessThan(30.1);
+  });
+
+  it('telefone que não é de nenhuma conta, ou ligado a duas, não reenvia', async () => {
+    semSenha();
+    const nenhuma = await rodar('reenviar_acesso', {}, ctx({ userId: null, userIds: [] }));
+    expect(nenhuma).toMatchObject({ ok: false, motivo: 'conta_nao_identificada' });
+    const duas = await rodar('reenviar_acesso', {}, ctx({ userIds: [UID, 'user-2'] }));
+    expect(duas).toMatchObject({ ok: false, motivo: 'mais_de_uma_conta' });
+    expect(emailsEnviados).toHaveLength(0);
+  });
+
+  it('na 4ª vez em 24 h não reenvia; chave com mais de 24 h não conta', async () => {
+    semSenha();
+    for (let i = 0; i < 3; i++) expect((await rodar('reenviar_acesso', {}, ctx())).reenviado).toBe(true);
+    const quarta = await rodar('reenviar_acesso', {}, ctx());
+    expect(quarta).toMatchObject({ ok: false, motivo: 'limite_24h' });
+    expect(emailsEnviados).toHaveLength(3);
+
+    for (const x of banco.linhas('system_state')) if (String(x.key).startsWith('giovanna_acesso:')) x.updated_at = new Date(Date.now() - 25 * 3_600_000).toISOString();
+    expect((await rodar('reenviar_acesso', {}, ctx())).reenviado).toBe(true);
+  });
+
+  it('conta que já tem senha devolve "já tem senha" e não manda nada', async () => {
+    semSenha({ password_hash: 'hash-qualquer' });
+    const r = await rodar('reenviar_acesso', {}, ctx());
+    expect(r).toMatchObject({ ok: true, reenviado: false, motivo: 'ja_tem_senha' });
+    expect(r.aviso).toContain('solardoc.app/auth');
+    expect(emailsEnviados).toHaveLength(0);
+    expect(banco.linhas('system_state').some(x => String(x.key).startsWith('giovanna_acesso:'))).toBe(false);
+  });
+
+  it('e-mail que falha no envio não gasta o teto e a Giovanna é orientada a não dizer que reenviou', async () => {
+    semSenha();
+    const { sendCheckoutCompletionEmail } = await import('../utils/mailer');
+    vi.mocked(sendCheckoutCompletionEmail).mockRejectedValueOnce(new Error('resend fora'));
+    const r = await rodar('reenviar_acesso', {}, ctx());
+    expect(r).toMatchObject({ ok: false, motivo: 'email_nao_saiu' });
+    expect(banco.linhas('system_state').some(x => String(x.key).startsWith('giovanna_acesso:'))).toBe(false);
   });
 });

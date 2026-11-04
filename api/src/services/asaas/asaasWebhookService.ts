@@ -535,6 +535,44 @@ async function creditarPagamento(
       logger.error('asaas-webhook', 'aviso ao grupo de vendas falhou (o do Thiago já saiu)', err);
     }
   }
+
+  // BOAS-VINDAS PELO WHATSAPP (04/11/2026, aprovado pelo chefe-antiban): só na ADESÃO (o claim da adesão devolveu 'novo'; renovação
+  // nunca chega aqui com primeiroPagamento) e só com o link de senha já enviado por e-mail, senão a frase "chegou no e-mail" mente.
+  // Por último de propósito: ela sai na hora, mas depois do cancelamento do cartão na Stripe e do registro da venda, que a Z-API lenta não pode atrasar.
+  if (primeiroPagamento && tokenContaNova && !emailDeAcessoFalhou) {
+    await boasVindasPixWhatsApp({ contratoId: linha.contract_id, userId, email: linha.email, nome: atrib?.nome ?? null, whatsapp: atrib?.whatsapp ?? null });
+  }
+}
+
+/**
+ * Boas-vindas da Giovanna ao cliente do Pix automático (robô `solardoc_ativacao`, evento P0): sai na hora, a qualquer hora, 1 bolha,
+ * com o e-mail mascarado, para o telefone da PRÓPRIA atribuição do contrato (nunca o do cadastro). Um carimbo
+ * `boasvindas_pix_sent:<contrato>` por INSERT antes do envio; a falha aqui nunca derruba a liberação (o cliente já pagou e já tem acesso).
+ */
+async function boasVindasPixWhatsApp(a: { contratoId: string; userId: string; email: string; nome: string | null; whatsapp: string | null }): Promise<void> {
+  try {
+    const tel = soDigitos(a.whatsapp);
+    if (tel.length < 10 || tel.length > 13) return;
+    const { motivosDaSupressao } = await import('../agents/whatsapp/silenciar');
+    if ((await motivosDaSupressao(tel)).length) return;           // pediu para não receber / denunciou: nem o evento fala
+    const { chaveBoasVindasPix, textoBoasVindasPix, nomeParaSaudar } = await import('../solardoc/ativacaoPosVendaTextos');
+    const { reservarChave } = await import('../agentes5040/cota');
+    // Carimbo com updated_at (é por ele que o teto e o espaçamento da linha contam), gravado ANTES do envio.
+    const claim = await reservarChave(chaveBoasVindasPix(a.contratoId), { user_id: a.userId }, new Date());
+    if (claim !== 'reservada') return;
+    const texto = textoBoasVindasPix(a.nome, a.email);
+    const { sendHuman } = await import('../agents/zapiClient');
+    await sendHuman(tel, [texto], 'solardoc', { maxBolhas: 1, max: 900 });
+    // Contexto para a Giovanna quando a pessoa responder (a mensagem fica na sessão como dela). Se falhar, a mensagem já saiu.
+    try {
+      const { registrarMsgProativa } = await import('../agents/whatsapp/whatsappAgentService');
+      await registrarMsgProativa({ userId: a.userId, phone: tel, content: texto, nome: nomeParaSaudar(a.nome) });
+    } catch (err) {
+      logger.error('asaas-webhook', `não registrei as boas-vindas na sessão da Giovanna (${a.contratoId})`, err);
+    }
+  } catch (err) {
+    logger.error('asaas-webhook', `boas-vindas pelo WhatsApp não saíram (${a.contratoId}); o acesso já foi liberado`, err);
+  }
 }
 
 /** O mesmo Pix já foi creditado pelo robô do comprovante: só liga o contrato (status, último pagamento, user_id). */

@@ -20,10 +20,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { registrarPromessa } from './planilhaBonus';
-import { CARDS_CARLA, LINKS_CARLA } from './personas/carla';
+import { registrarFeedbackSaidaPelaCarla } from '../pesquisa/respostas';
+import { CARDS_CARLA, LINKS_CARLA, PEDIDO_DEPOIMENTO_AVISO } from './personas/carla';
 import { MAX_DEPOIMENTOS_POR_CONVERSA } from './conhecimento/depoimentos';
 import { estadoDaConversa, semAcento } from './trava';
-import { ehPosseDaRetomada, type DadosPosse } from './posse';
+import { ehPosseDaRetomada, ehPosseDoPedidoDeDepoimento, type DadosPosse } from './posse';
 import type { MsgConversa, SaidaAgente } from './tipos';
 import type { PecaEnvio, ResultadoEnvio } from './vivoEnvio';
 
@@ -62,6 +63,7 @@ export function avisosDaCarla(posse: DadosPosse, agora: Date = new Date()): stri
   // O Pix é sempre o automático do Asaas (03/11/2026): um aviso só, sem modo. Na retomada, o e-mail (com o meio coberto) vem nos fatos da conta.
   if (ehPosseDaRetomada(posse)) out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_automatico o sistema manda o link do Pix automático (https://solardoc.app/?pagar=pix), que cobra na conta dele. Esta pessoa já tem conta: na bolha 1 diga para usar na página o mesmo e-mail da conta (os fatos trazem o e-mail com o meio coberto) e que o acesso volta sozinho na conta dela quando o banco confirmar. Nunca diga que liberou.');
   else out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_automatico o sistema manda o link do Pix automático (https://solardoc.app/?pagar=pix), que cobra na conta da pessoa todo mês e pede e-mail e CPF ou CNPJ. Na bolha 1 diga que o acesso abre sozinho quando o banco confirmar. Nunca diga que liberou.');
+  if (ehPosseDoPedidoDeDepoimento(posse)) out.push(PEDIDO_DEPOIMENTO_AVISO);
   if (posse.links.length) out.push(`AVISO DO SISTEMA: links que já saíram nesta conversa: ${posse.links.join(', ')}. Não mande o mesmo de novo, a não ser que ele peça.`);
   if (posse.planilha_prometida === true) out.push('AVISO DO SISTEMA: a promessa da planilha de eletroposto já foi feita nesta conversa. Não repita e não use prometer_planilha.');
   const pend = lerPendencia(posse);
@@ -122,6 +124,27 @@ export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
     };
   }
 
+  // A entrevista de saída (04/11/2026): a retomada do grupo `pagou` abriu a conversa com a pergunta. A Carla registra o que ele respondeu
+  // (dados: porque, critica, voltaria) e o sistema grava `pesquisa_saida:<user_id>` como o formulário grava e avisa o Thiago. Só vale nessa conversa.
+  if (saida.acao === 'registrar_feedback_saida') {
+    const ret = (posse.retomada ?? {}) as { user_id?: unknown; entrevista_saida?: unknown };
+    const userId = String(ret.user_id ?? '');
+    if (!daRet || ret.entrevista_saida !== true || !userId) return recusa('feedback_fora_da_entrevista', 'registrar_feedback_saida só vale na conversa da entrevista de saída.');
+    if (saida.peca) return recusa('feedback_com_peca', 'registrar_feedback_saida não leva peça junto.');
+    const d = saida.dados ?? {};
+    if (!['porque', 'critica', 'voltaria'].some(k => String(d[k] ?? '').trim())) return recusa('feedback_vazio', 'registrar_feedback_saida precisa de pelo menos uma das chaves porque, critica ou voltaria em dados.');
+    return {
+      ok: true,
+      depois: async (res) => {
+        if (!res.ok) return {};
+        try {
+          await registrarFeedbackSaidaPelaCarla(userId, { porque: d.porque, critica: d.critica, voltaria: d.voltaria });
+        } catch { /* a bolha já saiu; o registro tenta de novo na próxima resposta dele */ }
+        return {};
+      },
+    };
+  }
+
   const peca = saida.peca;
   if (!peca) return { ok: true, depois: semEfeito };
   const id = String(peca.id ?? '');
@@ -150,6 +173,16 @@ export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
     // O link de assinatura abre o checkout público, que cria outra conta e outra cobrança para quem já tem conta.
     if (daRet) return recusa('assinatura_com_conta', 'esta pessoa já tem conta: o link de assinatura cria outra conta e outra cobrança. No cartão, use a peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade. No Pix, siga o aviso do Pix desta conversa.');
     return linkDe(LINKS_CARLA.assinatura!, 'assinatura');
+  }
+  // O formulário do depoimento (04/11/2026): o link com o token vem da posse do pedido (gravado no envio), nunca do texto do modelo.
+  if (id === 'pesquisa_depoimento' && peca.tipo === 'link') {
+    const link = String((posse.pedido_depoimento as { link?: unknown } | null | undefined)?.link ?? '');
+    if (!ehPosseDoPedidoDeDepoimento(posse) || !link) return recusa('pesquisa_fora_do_pedido', 'o link do formulário do depoimento só vale na conversa do pedido de depoimento.');
+    const plano = linkDe(link, 'pesquisa_depoimento');
+    if (!plano.ok) return plano;
+    // O link saiu (a bolha 2 foi entregue): o pedido acabou, a posse encerra e o que vier depois é da Giovanna. Peça que caiu deixa a posse viva.
+    const depoisLink = plano.depois;
+    return { ...plano, depois: async (res, a) => ({ ...(await depoisLink(res, a)), ...(res.ok && res.enviadas === 2 ? { estado: 'encerrada' as const } : {}) }) };
   }
   // Entrar no app: o login da conta que já existe. Só na retomada.
   if (id === 'entrar_no_app' && peca.tipo === 'link') {

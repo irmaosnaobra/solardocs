@@ -11,6 +11,10 @@ vi.mock('../services/agents/whatsapp/pixVipReminderService', () => ({
   runPixVipReminder: vi.fn(async () => { ordem.log.push('pix:ini'); if (ordem.pix) return ordem.pix(); return { enviados: 0, pulados: 0, erros: 0 }; }),
 }));
 
+vi.mock('../services/solardoc/ativacaoPosVenda', () => ({
+  rodarAtivacaoPosVenda: vi.fn(async () => { ordem.log.push('ativacao:ini'); return { senha: { enviados: 0 }, proposta: { enviados: 0 } }; }),
+}));
+
 // ─── mocks antes do import de app ───────────────────────────────────
 vi.mock('../utils/supabase', () => ({
   supabase: {
@@ -182,10 +186,13 @@ describe('rotas desligadas: 410 com o segredo, 401 sem ele', () => {
     const res = await request(app).get('/cron/master').set('Authorization', `Bearer ${CRON_SECRET}`);
     expect(res.status).toBe(200);
     const nomes = (res.body.results as Array<{ task: string }>).map(r => r.task);
-    expect(nomes.slice(-2)).toEqual(['dunning', 'pix-vip-reminder']);
+    expect(nomes.slice(-3)).toEqual(['dunning', 'pix-vip-reminder', 'ativacao-pos-venda']);
     expect(nomes.filter(n => n === 'dunning')).toHaveLength(1);
     // O dunning começa e termina antes de o lembrete começar, e os dois depois da recuperação de checkout (que fica no allSettled).
-    expect(ordem.log.slice(-3)).toEqual(['dunning:ini', 'dunning:fim', 'pix:ini']);
+    expect(ordem.log.slice(-4)).toEqual(['dunning:ini', 'dunning:fim', 'pix:ini', 'ativacao:ini']);   // a ativação do pós-venda é a última do frio
+    // E ela NÃO está no allSettled nem no recoverOrphanCheckouts: só roda depois do lembrete do Pix.
+    expect(ordem.log.indexOf('ativacao:ini')).toBeGreaterThan(ordem.log.indexOf('pix:ini'));
+    expect(ordem.log.filter(l => l === 'ativacao:ini')).toHaveLength(1);
     expect(ordem.log.indexOf('abandono')).toBeLessThan(ordem.log.indexOf('dunning:ini'));
 
     // Falha do dunning: o lembrete roda mesmo assim, e o master continua respondendo 200.

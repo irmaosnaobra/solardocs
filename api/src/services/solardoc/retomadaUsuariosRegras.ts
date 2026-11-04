@@ -81,10 +81,12 @@ const C = '{oi} Aqui é a Carla, da SolarDoc. Passando pra contar que a platafor
  * o `incerto` (ex-assinante sem pagamento provado) só recebe a C, que não afirma nada sobre a conta.
  */
 export const VARIACOES_RETOMADA: Readonly<Record<GrupoTexto, readonly string[]>> = Object.freeze({
+  // 04/11/2026: quem já pagou e saiu recebe a ENTREVISTA DE SAÍDA (pedido do dono), não a novidade. Uma pergunta só, sem link e sem {oi}
+  // (o "Oi," já está no texto aprovado). O retomadaUsuarios.ts grava `entrevista_saida: true` na posse, e a Carla sabe que o toque foi este.
   pagou: Object.freeze([
-    '{oi} Aqui é a Carla, da SolarDoc. A plataforma mudou bastante desde que você assinou. Quer ver o que tem de novo?',
-    '{oi} Aqui é a Carla, da SolarDoc. Você assinou a plataforma um tempo atrás, e ela mudou bastante. Quer ver o que tem de novo?',
-    C,
+    'Oi, aqui é a Carla, da SolarDoc. O que fez você parar de usar, ou o que faltou pra continuar?',
+    'Carla aqui, da SolarDoc. Se pudesse mudar uma coisa na SolarDoc pra você ter ficado, qual seria?',
+    'Oi, é a Carla, da SolarDoc. Pode ser sincero, não vou me ofender: o que pesou pra você sair?',
   ]),
   nunca_pagou: Object.freeze([
     '{oi} Aqui é a Carla, da SolarDoc. A plataforma mudou bastante desde que você testou. Quer ver o que tem de novo?',
@@ -181,6 +183,10 @@ export interface ExtrasRet {
   nexusConviteEmMs: number | null;
   jaNaCampanha: boolean;
   marcaFora: MarcaForaRet | null;
+  /** `pesquisa_saida:<user_id>` existe: a pessoa já respondeu a entrevista de saída (formulário ou Carla). Ausente = não sei/não. */
+  respondeuSaida?: boolean;
+  /** `pesquisa_saida_email:<user_id>` foi tomado HOJE (dia de Brasília). Ausente = não. */
+  emailSaidaHoje?: boolean;
 }
 
 export interface ContextoClassificar {
@@ -198,6 +204,7 @@ export interface ContextoClassificar {
 export type MotivoDeFora =
   | 'sem_telefone' | 'sem_segredo' | 'telefone_fora_do_padrao' | 'admin_ou_teste' | 'linha_nossa' | 'paga_hoje' | 'opt_out'
   | 'depois_da_largada' | 'data_ilegivel' | 'telefone_em_mais_de_uma_conta' | 'mudo_antigo' | 'ja_na_campanha' | 'email_nexus_24h'
+  | 'respondeu_pesquisa_saida' | 'email_saida_hoje'
   | `fora_marcado:${string}`;
 
 export interface ItemDaFila {
@@ -366,9 +373,14 @@ export function classificarUsuario(u: UsuarioRet, x: ExtrasRet, ctx: ContextoCla
   if (x.nexusConviteEmMs !== null && ctx.agoraMs - x.nexusConviteEmMs < JANELA_NEXUS_MS) return { ok: false, motivo: 'email_nexus_24h' };
 
   const s = segmentoDaConta(u, x, ctx.agoraMs);
+  const grupo = grupoDoTexto(s.segmento, provaDePagamento(x.vendas));
+  // A entrevista de saída (04/11/2026) é só do grupo `pagou`: quem já respondeu o formulário não leva a mesma pergunta pelo WhatsApp, e o
+  // WhatsApp não sai no mesmo dia do e-mail de saída.
+  if (grupo === 'pagou' && x.respondeuSaida === true) return { ok: false, motivo: 'respondeu_pesquisa_saida' };
+  if (grupo === 'pagou' && x.emailSaidaHoje === true) return { ok: false, motivo: 'email_saida_hoje' };
   return {
     ok: true, tel: t.tel, chave: t.chave, hmac: ctx.hmac,
-    segmento: s.segmento, grupo: grupoDoTexto(s.segmento, provaDePagamento(x.vendas)),
+    segmento: s.segmento, grupo,
     saiuEm: s.saiuEm, formaAntiga: s.formaAntiga, recencia: s.recencia,
     respondeu: temTexto(u.whatsapp_replied_at),
   };

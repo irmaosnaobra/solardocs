@@ -118,7 +118,8 @@ describe('divergências de carimbo (dívidas da migração, fixadas pelo nome)',
     // agenda. Era divergência enquanto ele era frio; desde a regra do dono de
     // 07/10 (agenda nunca bloqueia) ele é transacional de agenda e o carimbo bate.
     const d = divergenciasDeCarimbo().map(x => `${x.robo}:${x.prefixo}`).sort();
-    expect(d).toEqual(['ep_remarcar_reativo:ep_remarcar_sent:']);
+    // [04/11] solardoc_ativacao é evento P0 e carimba boasvindas_pix_sent:, que o lineThrottle conta como agenda (a linha o conta, o frio não o soma).
+    expect(d).toEqual(['ep_remarcar_reativo:ep_remarcar_sent:', 'solardoc_ativacao:boasvindas_pix_sent:']);
   });
 
   it('o balde da classe segue a regra de 17/09 e 23/09', () => {
@@ -148,14 +149,14 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
     }
   });
 
-  it('fora do frio, a pausa humana segue o HEAD robô a robô: só a Duda, a cobrança do SIM, a Giovanna (agenda e reativa) e as boas-vindas', () => {
+  it('fora do frio, a pausa humana segue o HEAD robô a robô: só a Duda, a cobrança do SIM, a Giovanna (agenda e reativa), as boas-vindas e a cobrança de senha do pós-venda (ativ_senha: sendFrio sem transacional)', () => {
     // recepcaoIo.ts (Duda), sendFrio (cobrança do SIM, zapiClient.ts:280-291),
     // solarAgendaGiovanna.ts:320, solarBoasVindas.ts:506 e, desde a Giovanna com
     // ferramentas, whatsappAgentService.ts (podeFalarComLead antes do modelo). Mexer nesta lista é
     // mudar quem fala com humano dentro da conversa: passa pela DIVERGENCIAS.
     const naoFrios = robos.filter(([, r]) => r.classe !== 'frio_p5' && r.classe !== 'frio_receita_p4');
     expect(naoFrios.filter(([, r]) => r.respeitaPausa).map(([n]) => n).sort())
-      .toEqual(['carla_vivo_5040', 'duda_agenda_5040', 'duda_recepcao', 'duda_vivo_5040', 'ep_cobra_sim', 'giovanna_agenda', 'giovanna_reativa', 'helena_vivo_5040', 'investidor_agente_respostas', 'solar_agente_quiz', 'solar_boas_vindas']);
+      .toEqual(['ativ_senha', 'carla_vivo_5040', 'duda_agenda_5040', 'duda_recepcao', 'duda_vivo_5040', 'ep_cobra_sim', 'giovanna_agenda', 'giovanna_reativa', 'helena_vivo_5040', 'investidor_agente_respostas', 'solar_agente_quiz', 'solar_boas_vindas']);
   });
 
   it('evento nasce de evento e sai em 1 bolha; só reativo tem 2 bolhas', () => {

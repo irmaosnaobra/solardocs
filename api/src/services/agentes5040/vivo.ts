@@ -102,7 +102,7 @@ import type { ClienteIA } from './ia';
 import type { DonaViva } from './interruptores';
 import { ehMidia } from './midia';
 import {
-  RETOMADA_VALE_MS, agenteAtendeEste, assumirPosse, atualizarPosse, desfazerPosseNova, ehPosseDaRetomada, lerPosse, retomadaVale, type DadosPosse,
+  RETOMADA_VALE_MS, agenteAtendeEste, assumirPosse, atualizarPosse, desfazerPosseNova, ehPosseDaRetomada, ehPosseDoPedidoDeDepoimento, lerPosse, pedidoDepoimentoVale, retomadaVale, type DadosPosse,
 } from './posse';
 import { lerContaDaRetomada } from '../solardoc/retomadaUsuariosConta';
 import { DONAS_NA_RODADA, donasDaRodadaLigadas } from './posseLeitura';
@@ -761,6 +761,14 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     return 'seguir';
   }
 
+  // 2a'. A posse do PEDIDO DE DEPOIMENTO (04/11/2026) vale 7 dias; vencida, a conversa volta para quem atendia (mesmo desenho da retomada).
+  const doPedido = dona === 'carla' && ehPosseDoPedidoDeDepoimento(posse);
+  if (doPedido && !pedidoDepoimentoVale(posse, agoraMs)) {
+    if (!dry) await atualizarPosse(chave, { estado: 'encerrada', ate_wa_id: L.id });
+    soma(r.puladas, 'pedido_depoimento_vencido');
+    return 'seguir';
+  }
+
   // 2b. O lead escreveu de novo com a posse estacionada (B4b): a conversa voltou. Zera o estacionado (vale a regra normal das 48 h
   // e das 2 retomadas). Se ele pedir de novo para esperar, a ação estacionar grava outra data mais abaixo. O dry não grava.
   const baseDaPosse = lerBaseDaPosse(posse as unknown as Record<string, unknown>);
@@ -899,7 +907,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     // Giovanna atende pelo caminho de hoje (encerrada não cede, os robôs antigos voltam).
     // A fala dele NÃO pode sumir: ficha à Giovanna pelo caminho do suporte (reserva ag5040_suporte:<hmac>:<waId>; número de
     // teste vai ao dono), SEM bolha ao lead. Ficha adiada (cooldown, teto) = a posse fica viva e a próxima rodada tenta.
-    if (dona === 'carla' && ctx0.ehClienteSolarDoc && !daRetomada) {
+    if (dona === 'carla' && ctx0.ehClienteSolarDoc && !daRetomada && !doPedido) {
       const rf = dry ? null : await fichaDoClienteComConta(g, { chave, tel, L, hmac, ctx0 });
       if (rf === 'adiada') {
         await soltar();
@@ -1219,12 +1227,13 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
 
       // O estado nao_incomodar é gravado ANTES da despedida: se algo falhar daqui em diante, a conversa já está calada
       // (lado seguro). Em troca, uma despedida recusada pelo envio NÃO é tentada de novo: a pessoa pediu para parar.
-      if (naoIncomodar && !dry) await atualizarPosse(chave, { estado: 'nao_incomodar', ate_wa_id: L.id });
+      // No PEDIDO DE DEPOIMENTO (04/11/2026) a recusa só encerra a posse e NÃO silencia o número: o pagante segue com o suporte da Giovanna.
+      if (naoIncomodar && !dry) await atualizarPosse(chave, { estado: doPedido ? 'encerrada' : 'nao_incomodar', ate_wa_id: L.id });
       const res: ResultadoEnvio = await enviarAoLead(chave, posse, {
         dona, telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, ...(peca && !naoIncomodar ? { peca } : {}), dry,
       }, g.agoraEnvio());
       // O silêncio vem DEPOIS da despedida (o enviarResposta barraria uma fala a quem já está no opt-out).
-      if (naoIncomodar && !dry) await silenciarContato(tel, 'opt_out', 'agentes5040-vivo');
+      if (naoIncomodar && !dry && !doPedido) await silenciarContato(tel, 'opt_out', 'agentes5040-vivo');
 
       // Os efeitos da peça e da promessa da Carla (pagamento registrado, promessa, card liberado de novo) e o patch da posse.
       let patchCarla: Partial<DadosPosse> = {};

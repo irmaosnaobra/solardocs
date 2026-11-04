@@ -20,7 +20,7 @@ const tempo = (v: unknown): number | null => { const t = Date.parse(String(v ?? 
  * com a conversa ou leitura que falhou nunca viram uma resposta com a situação errada.
  */
 export async function lerContaDaRetomada(posse: DadosPosse, chave: string, agora: Date = new Date()): Promise<ContaRetomada> {
-  const r = (posse.retomada ?? {}) as { user_id?: unknown; primeiro_nome?: unknown; texto?: unknown; em?: unknown };
+  const r = (posse.retomada ?? {}) as { user_id?: unknown; primeiro_nome?: unknown; texto?: unknown; em?: unknown; entrevista_saida?: unknown };
   const userId = String(r.user_id ?? '');
   if (!userId) throw new Error('conta_sem_user_id');
 
@@ -61,5 +61,6 @@ export async function lerContaDaRetomada(posse: DadosPosse, chave: string, agora
     primeiro_nome: typeof r.primeiro_nome === 'string' && r.primeiro_nome.trim() ? r.primeiro_nome.trim() : null,
     texto_enviado: typeof r.texto === 'string' && r.texto.trim() ? r.texto : null,
     enviado_em: typeof r.em === 'string' && r.em.trim() ? r.em : null,
+    ...(r.entrevista_saida === true ? { entrevista_saida: true } : {}),
   };
 }

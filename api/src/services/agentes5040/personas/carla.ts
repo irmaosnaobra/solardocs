@@ -17,7 +17,7 @@ import {
   type ExemploPersona,
 } from './comum';
 
-export const ACOES_CARLA = [...ACOES_COMUNS, 'comprovante_pix', 'prometer_planilha', 'passar_duda', 'passar_helena'] as const;
+export const ACOES_CARLA = [...ACOES_COMUNS, 'comprovante_pix', 'prometer_planilha', 'registrar_feedback_saida', 'passar_duda', 'passar_helena'] as const;
 
 // Peças: links e imagens que a Carla pode mandar
 
@@ -273,6 +273,7 @@ AÇÕES (acao)
 - comprovante_pix: ele mandou a foto do comprovante de um pagamento no Pix.
 - prometer_planilha: a sua bolha faz a promessa da planilha de eletroposto (a frase exata acima), só para quem está decidindo fechar hoje e uma vez só na conversa. Sem peça.
 - suporte_giovanna: reembolso, cancelamento, reclamação, cobrança, acesso que não chegou, problema que você não resolve. A ficha vai para a Giovanna antes da sua bolha sair.
+- registrar_feedback_saida: só na conversa da entrevista de saída (veja os fatos da conta). Ele respondeu o porquê, a crítica ou o que o faria voltar: ponha em dados as chaves porque, critica e voltaria (só as que ele respondeu, com as palavras dele), e a sua bolha segue a conversa. Sem peça. O sistema registra e avisa o dono.
 - passar_duda: ele aceitou falar de energia solar para casa ou empresa dele (bolhas vazias).
 - passar_helena: ele aceitou falar de eletroposto (bolhas vazias).
 - nao_incomodar: pediu para parar. Uma frase curta e silêncio.
@@ -320,6 +321,13 @@ function dataBR(iso: string | null | undefined): string {
  * "Já foi assinante" só sai para o grupo `pagou`; o `incerto` diz que não há pagamento confirmado; o grátis diz que nunca assinou.
  * O Pix é sempre o automático (`/?pagar=pix`), com o e-mail da conta com o meio coberto (nunca o endereço inteiro).
  */
+/**
+ * O bloco do PEDIDO DE DEPOIMENTO (04/11/2026): entra nos avisos do sistema só quando a posse é do pedido (carlaVivo.avisosDaCarla). O link do
+ * formulário NÃO vai no texto: a trava barra link na bolha 1, então ele sai como a peça `pesquisa_depoimento`, sozinho na bolha 2 (a resposta fica
+ * em até 2 bolhas).
+ */
+export const PEDIDO_DEPOIMENTO_AVISO = 'AVISO DO SISTEMA: Se o seu último toque foi o pedido de depoimento: agradeça de verdade. Se a pessoa topar, mande o link do formulário para ela escrever e autorizar a publicação ali: peça de link com id pesquisa_depoimento: na bolha 1 diga que segue o link para ela escrever e autorizar, e na bolha 2 escreva só https://solardoc.app/pesquisa/depoimento (o sistema troca pelo link dela, com o token). Se ela escrever o depoimento direto na conversa, agradeça e mande o link mesmo assim, explicando que é lá que fica a autorização. Nunca diga que vai publicar sem a autorização do formulário. Se a pessoa recusar ou disser que não tem tempo, agradeça em uma frase e use a ação nao_incomodar, sem insistir. Esta pessoa já é cliente: nada de preço, assinatura ou Pix; reclamação ou problema de conta: suporte_giovanna.';
+
 export function fatosDaRetomada(c: ContaRetomada, _agora: string): string[] {
   const l: string[] = [];
   const enviada = dataBR(c.enviado_em);
@@ -348,6 +356,9 @@ export function fatosDaRetomada(c: ContaRetomada, _agora: string): string[] {
   const email = c.email_mascarado
     ? ` Na bolha 1 escreva este e-mail, com o meio coberto, exatamente assim: ${c.email_mascarado}. Peça para usar o mesmo e-mail da conta na página.`
     : ' Peça para usar o mesmo e-mail da conta na página, sem escrever o e-mail.';
+  if (c.entrevista_saida === true) {
+    l.push('Se o seu último toque foi a entrevista de saída: agradeça, faça as 3 perguntas uma por vez (por que saiu, a crítica, o que faria voltar), registre as respostas e só depois, se fizer sentido, ofereça a volta pelo Pix automático. Registrar é a ação registrar_feedback_saida, com dados porque, critica e voltaria (as palavras dele). Nesta conversa o seu último toque FOI a entrevista de saída.');
+  }
   l.push(`${pagamento} Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar). Nunca Pix avulso nem código.${email}${c.grupo === 'pagou' ? ' Ele já pagou antes e pode renovar pelo Pix.' : ''}`);
   l.push('Sem prazo, sem urgência, sem desconto e sem a promessa da planilha nesta conversa. Reembolso, cobrança, reclamação ou acesso: suporte_giovanna.');
   l.push(...textoRetomadaSolarDoc());

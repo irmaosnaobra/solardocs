@@ -356,7 +356,7 @@ describe('texto da retomada', () => {
     expect(t.ok && t.texto.startsWith('Oi, Ana. Aqui é a Carla, da SolarDoc.')).toBe(true);
     for (const nome of ['ana@gmail.com', '11999990000', 'MF', 'Eng Flavio Peetz', 'Solar Energia', null, '']) {
       expect(primeiroNome(nome), String(nome)).toBe('');
-      const r = textoDaRetomada('pagou', primeiroNome(nome), hmacs(1)[0]!);
+      const r = textoDaRetomada('nunca_pagou', primeiroNome(nome), hmacs(1)[0]!);
       expect(r.ok && r.texto.startsWith('Oi. Aqui é a Carla'), String(nome)).toBe(true);
     }
   });
@@ -372,7 +372,7 @@ describe('texto da retomada', () => {
     }
     // Um nome que não cabe (só possível se o primeiroNome da NEXUS deixasse passar mais de 30 letras) cai no "Oi.".
     const enorme = 'N'.repeat(80);
-    const r = textoDaRetomada('pagou', enorme, hmacs(2)[1]!);
+    const r = textoDaRetomada('nunca_pagou', enorme, hmacs(2)[1]!);
     expect(r.ok && r.texto.startsWith('Oi. Aqui é a Carla')).toBe(true);
   });
 
@@ -380,7 +380,7 @@ describe('texto da retomada', () => {
     const modelos = [...VARIACOES_RETOMADA.pagou, ...VARIACOES_RETOMADA.nunca_pagou.slice(0, 2)];
     expect(modelos).toHaveLength(5);
     const semNome = modelos.map(m => m.replace('{oi}', 'Oi.'));
-    expect(semNome.map(t => t.length)).toEqual([112, 124, 113, 111, 123]);
+    expect(semNome.map(t => t.length)).toEqual([93, 96, 92, 111, 123]);   // os 3 do pagou são a entrevista de saída (04/11), sem {oi}
     for (const m of modelos) {
       for (const oi of ['Oi.', saudacao(NOME_30)]) {
         const t = m.replace('{oi}', oi);
