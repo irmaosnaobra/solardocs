@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useId } from 'react';
+import { useState, useEffect, useRef, useId, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine, Pencil, AlertTriangle } from 'lucide-react';
@@ -15,6 +15,7 @@ import { useViaCep, type ViaCepAchado } from '@/hooks/useViaCep';
 import { comporEndereco, enderecoLegado, maskCep, temPartesDoEndereco } from '@/utils/enderecoCliente';
 import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart, BookOpen } from 'lucide-react';
 import styles from '../documentos.module.css';
+import InversoresCampo, { type InversorLinha } from './InversoresCampo';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
 
@@ -93,9 +94,13 @@ const initialFields = {
   area_m2: '',
   marca_modulo: '',
   potencia_modulo: '',
+  // Os 4 campos soltos abaixo seguem existindo só por compatibilidade: no envio
+  // eles saem preenchidos com a PRIMEIRA linha de `inversores`. A tela edita a lista.
   qtd_inversores: '1',
   marca_inversor: '',
   potencia_inversor: '',
+  // Um inversor por linha (marcas/potências diferentes). Strings como digitadas.
+  inversores: [{ qtd: '1', marca: '', potencia: '', garantia: '10' }] as InversorLinha[],
   // Bateria (opcional) — só aparece na proposta se a marca estiver preenchida.
   // Padrão render-if-filled, mesmo idioma das garantias extras (nada é persistido
   // como "tem bateria": deriva de marca preenchida → propostas antigas intactas).
@@ -207,6 +212,53 @@ const initialFields = {
   entrada_dias: '30',
   pag_custom: '',
 };
+
+/** Lista de inversores a partir de dados de fora (proposta salva, cliente, kit, rascunho).
+ *  Tem `inversores` (array não vazio de objetos): usa. Senão, UMA linha dos 4 campos
+ *  soltos (proposta antiga), com os padrões do formulário quando faltar. */
+function normalizarInversores(obj: Record<string, unknown> | null | undefined): InversorLinha[] {
+  const o = obj ?? {};
+  const padrao = initialFields.inversores[0];
+  const txt = (v: unknown, def: string) => (v === undefined || v === null ? def : String(v));
+  if (Array.isArray(o.inversores)) {
+    const objs = o.inversores.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object');
+    if (objs.length > 0) {
+      return objs.map(v => ({
+        qtd: String(v.qtd ?? ''),
+        marca: String(v.marca ?? ''),
+        potencia: String(v.potencia ?? ''),
+        garantia: String(v.garantia ?? ''),
+      }));
+    }
+  }
+  return [{
+    qtd: txt(o.qtd_inversores, padrao.qtd),
+    marca: txt(o.marca_inversor, padrao.marca),
+    potencia: txt(o.potencia_inversor, padrao.potencia),
+    garantia: txt(o.garantia_inversor, padrao.garantia),
+  }];
+}
+
+/** A fonte traz algum dado de inversor? Sem isso, não se mexe no que já está na tela. */
+function temDadoInversor(obj: Record<string, unknown> | null | undefined): boolean {
+  if (!obj) return false;
+  if (Array.isArray(obj.inversores) && obj.inversores.some(x => !!x && typeof x === 'object')) return true;
+  return ['qtd_inversores', 'marca_inversor', 'potencia_inversor', 'garantia_inversor'].some(k => obj[k] !== undefined && obj[k] !== null);
+}
+
+/** Lista pronta pro envio: strings aparadas, sem linha com marca E potência vazias,
+ *  mas sempre com pelo menos uma. */
+function limparInversores(linhas: InversorLinha[]): InversorLinha[] {
+  const aparadas = (linhas ?? []).map(l => ({
+    qtd: String(l?.qtd ?? '').trim(),
+    marca: String(l?.marca ?? '').trim(),
+    potencia: String(l?.potencia ?? '').trim(),
+    garantia: String(l?.garantia ?? '').trim(),
+  }));
+  const uteis = aparadas.filter(l => l.marca !== '' || l.potencia !== '');
+  if (uteis.length > 0) return uteis;
+  return [aparadas[0] ?? { ...initialFields.inversores[0] }];
+}
 
 // Rótulo do marco que o integrador escolhe pra quitação do saldo.
 const ENTRADA_MODO_LABEL: Record<'contrato' | 'dias' | 'entrega' | 'montagem' | 'liberacao', string> = {
@@ -377,7 +429,7 @@ export default function PropostaSolarPage() {
       const d = JSON.parse(raw);
       if (d.clienteNome) setClienteNome(d.clienteNome);
       if (d.cidadeUf) setCidadeUf(d.cidadeUf);
-      if (d.fields) setFields(f => ({ ...f, ...d.fields }));
+      if (d.fields) setFields(f => ({ ...f, ...d.fields, inversores: temDadoInversor(d.fields) ? normalizarInversores(d.fields) : f.inversores }));
       // Rascunho já tinha quantidade: era escolha da pessoa, a sugestão não mexe.
       if (d.fields?.qtd_modulos) qtdModulosManual.current = true;
       if (d.fields?.area_m2) areaManual.current = true;
@@ -418,7 +470,30 @@ export default function PropostaSolarPage() {
     } catch { /* ignora */ }
   }
   const [marcasMod, setMarcasMod] = useState<string[]>([]);
-  const [marcasInv, setMarcasInv] = useState<string[]>([]);
+  // Marcas de inversor vêm de três lugares: as das propostas do usuário (prefill, pode
+  // não existir ainda na api), as lembradas neste aparelho e as adicionadas agora.
+  const [marcasInvSalvas, setMarcasInv] = useState<string[]>([]);
+  const [marcasInvPrefill, setMarcasInvPrefill] = useState<string[]>([]);
+  const [marcasInvSessao, setMarcasInvSessao] = useState<string[]>([]);
+  const marcasInv = useMemo(() => {
+    const vistos = new Set<string>();
+    const out: string[] = [];
+    for (const m of [...marcasInvSessao, ...marcasInvSalvas, ...marcasInvPrefill]) {
+      const nome = String(m ?? '').trim();
+      const k = nome.toLowerCase();
+      if (!nome || vistos.has(k)) continue;
+      vistos.add(k);
+      out.push(nome);
+    }
+    return out;
+  }, [marcasInvSalvas, marcasInvPrefill, marcasInvSessao]);
+  function adicionarMarcaInversor(nome: string) {
+    const v = nome.trim();
+    if (!v) return;
+    salvarMarca(MARCAS_INV_KEY, v);
+    setMarcasInv(lerMarcas(MARCAS_INV_KEY));
+    setMarcasInvSessao(p => (p.some(m => m.toLowerCase() === v.toLowerCase()) ? p : [v, ...p]));
+  }
   const [marcasBat, setMarcasBat] = useState<string[]>([]);
   useEffect(() => { setMarcasMod(lerMarcas(MARCAS_MOD_KEY)); setMarcasInv(lerMarcas(MARCAS_INV_KEY)); setMarcasBat(lerMarcas(MARCAS_BAT_KEY)); }, []);
 
@@ -429,6 +504,8 @@ export default function PropostaSolarPage() {
   useEffect(() => {
     api.get('/documents/proposta-prefill').then(({ data }) => {
       setClientesHist(Array.isArray(data?.clientes) ? data.clientes : []);
+      // Campo novo da api: enquanto ela não devolve, fica vazio sem quebrar.
+      setMarcasInvPrefill(Array.isArray(data?.marcas_inversor) ? data.marcas_inversor.filter((m: unknown) => typeof m === 'string') : []);
       // Editando um doc salvo, o kit não entra: os dois chegam por rede e o kit
       // poderia aterrissar depois, trocando as marcas/taxas daquela proposta.
       if (!docParam && !temRascunho.current && data?.kit && Object.keys(data.kit).length) {
@@ -438,7 +515,11 @@ export default function PropostaSolarPage() {
         setFields(f => {
           const merged: Record<string, unknown> = { ...f };
           for (const [k, v] of Object.entries(data.kit as Record<string, unknown>)) {
+            if (k === 'inversores') continue; // vem normalizado logo abaixo
             if (!camposTocados.current.has(k)) merged[k] = v;
+          }
+          if (!camposTocados.current.has('inversores') && temDadoInversor(data.kit as Record<string, unknown>)) {
+            merged.inversores = normalizarInversores(data.kit as Record<string, unknown>);
           }
           return merged as typeof f;
         });
@@ -458,7 +539,7 @@ export default function PropostaSolarPage() {
       // Proposta sem os dados do formulário salvos (doc antigo/importado): reemitir
       // por cima escreveria um formulário em branco em cima de uma proposta boa.
       if (!Object.keys(dados).length) throw new Error('sem dados do formulário');
-      setFields(f => ({ ...f, ...dados }));
+      setFields(f => ({ ...f, ...dados, inversores: normalizarInversores(dados) }));
       // Proposta já emitida: a quantidade dela é decisão tomada, não palpite.
       if (dados.qtd_modulos) qtdModulosManual.current = true;
       if (dados.area_m2) areaManual.current = true;
@@ -509,7 +590,7 @@ export default function PropostaSolarPage() {
         // O endereço é do cliente: o de quem estava na tela não pode sobrar no próximo.
         // Limpa SEMPRE que a resposta chega, também quando o cadastro só tem o nome
         // ({}): aí não há nada para aplicar por cima e o de antes ficaria.
-        setFields(f => ({ ...f, cep: '', logradouro: '', numero: '', complemento: '', bairro: '', endereco: '', ...c }));
+        setFields(f => ({ ...f, cep: '', logradouro: '', numero: '', complemento: '', bairro: '', endereco: '', ...c, inversores: temDadoInversor(c) ? normalizarInversores(c) : f.inversores }));
         setCepBusca('');
         ultimoCep.current = null;
         ruaAntigaRef.current = false;
@@ -746,6 +827,13 @@ export default function PropostaSolarPage() {
       // específicos do cliente/venda — zerados:
       consumo_kwh: '', qtd_modulos: '', area_m2: '', potencia_modulo: '',
       qtd_inversores: initialFields.qtd_inversores, potencia_inversor: '',
+      // Inversores: uma linha só, com a marca e a garantia da 1ª linha atual (template).
+      inversores: [{
+        qtd: initialFields.qtd_inversores,
+        marca: f.inversores?.[0]?.marca ?? '',
+        potencia: '',
+        garantia: f.inversores?.[0]?.garantia ?? initialFields.inversores[0].garantia,
+      }],
       // bateria: capacidade/potência/ciclos são específicos da venda; marca e
       // garantia ficam (template do integrador, igual marca_inversor).
       bateria_qtd: '', bateria_capacidade_kwh: '', bateria_potencia_kw: '', bateria_ciclos: '',
@@ -812,9 +900,19 @@ export default function PropostaSolarPage() {
       // Endereço composto na hora, com a Cidade/UF que está na tela. Sem nada
       // preenchido vai vazio, e a proposta não imprime a linha.
       const endereco = comporEndereco(fields, cidade, uf);
+      // Lista limpa; os 4 campos soltos saem da 1ª linha (compatibilidade com quem lê o antigo).
+      const invLimpos = limparInversores(fields.inversores);
+      const primeiroInv = invLimpos[0];
       const payload: Record<string, unknown> = {
         tipo: 'propostaSolar',
-        fields: { ...fields, cidade, uf, endereco },
+        fields: {
+          ...fields, cidade, uf, endereco,
+          inversores: invLimpos,
+          qtd_inversores: primeiroInv.qtd,
+          marca_inversor: primeiroInv.marca,
+          potencia_inversor: primeiroInv.potencia,
+          garantia_inversor: primeiroInv.garantia,
+        },
         useTemplate: true,
         modeloNumero: modelo,
         cliente_nome_avulso: clienteNome.trim(),
@@ -837,7 +935,8 @@ export default function PropostaSolarPage() {
       // Sucesso: limpa o rascunho e lembra as marcas usadas (itens 1 e 2).
       limparRascunho();
       salvarMarca(MARCAS_MOD_KEY, fields.marca_modulo);
-      salvarMarca(MARCAS_INV_KEY, fields.marca_inversor);
+      // De trás pra frente: a marca da 1ª linha termina como a mais recente.
+      [...invLimpos].reverse().forEach(l => salvarMarca(MARCAS_INV_KEY, l.marca));
       salvarMarca(MARCAS_BAT_KEY, fields.bateria_marca);
       setMarcasMod(lerMarcas(MARCAS_MOD_KEY));
       setMarcasInv(lerMarcas(MARCAS_INV_KEY));
@@ -1440,27 +1539,19 @@ export default function PropostaSolarPage() {
               <input type="text" list="marcas-modulo" value={fields.marca_modulo} onChange={e => setField('marca_modulo', e.target.value)} placeholder="Ex: Canadian Solar" className="input-field" required />
               <datalist id="marcas-modulo">{marcasMod.map(m => <option key={m} value={m} />)}</datalist>
             </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Quantidade de inversores</label>
-              <input type="text" inputMode="numeric" value={fields.qtd_inversores} onChange={e => setField('qtd_inversores', e.target.value)} className="input-field" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Marca do inversor *</label>
-              <input type="text" list="marcas-inversor" value={fields.marca_inversor} onChange={e => setField('marca_inversor', e.target.value)} placeholder="Ex: Growatt" className="input-field" required />
-              <datalist id="marcas-inversor">{marcasInv.map(m => <option key={m} value={m} />)}</datalist>
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Potência do inversor (kW) *</label>
-              <input type="text" inputMode="decimal" value={fields.potencia_inversor} onChange={e => setField('potencia_inversor', e.target.value)} placeholder="Ex: 1,875 ou 5" className="input-field" required />
+            <div className={styles.fieldFull}>
+              <InversoresCampo
+                linhas={fields.inversores}
+                onChange={l => setField('inversores', l)}
+                marcas={marcasInv}
+                onNovaMarca={adicionarMarcaInversor}
+                kwpModulos={kwpCalc}
+              />
             </div>
             {/* GARANTIAS fixas — junto das marcas/potências (mesma grade). */}
             <div className={styles.field}>
               <label className={styles.label}>Garantia dos painéis (anos)</label>
               <input type="text" inputMode="numeric" value={fields.garantia_paineis} onChange={e => setField('garantia_paineis', e.target.value)} placeholder="25" className="input-field" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Garantia do inversor (anos)</label>
-              <input type="text" inputMode="numeric" value={fields.garantia_inversor} onChange={e => setField('garantia_inversor', e.target.value)} placeholder="10" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Garantia da estrutura (anos)</label>

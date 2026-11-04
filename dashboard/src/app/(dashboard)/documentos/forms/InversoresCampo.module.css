@@ -1,0 +1,315 @@
+/* Campo de inversores da proposta solar. Cores só pelas variáveis do globals.css. */
+
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+  min-width: 0;
+}
+
+.cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.titulo {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.ajuda {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.cartao {
+  background: color-mix(in srgb, var(--color-surface-2) 55%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.cartaoTopo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+}
+
+.cartaoTitulo {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cartaoNome {
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.resumo {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.remover {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.remover:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas: "qtd marca pot gar";
+  gap: 12px;
+  align-items: start;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.areaQtd { grid-area: qtd; }
+.areaMarca { grid-area: marca; position: relative; }
+.areaPot { grid-area: pot; }
+.areaGar { grid-area: gar; }
+
+.atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.atalhosRotulo {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-right: 4px;
+}
+
+.atalho {
+  height: 30px;
+  min-width: 40px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.atalho:hover {
+  border-color: var(--color-primary);
+}
+
+.atalhoOn {
+  background: var(--color-primary);
+  color: var(--color-surface);
+  border-color: var(--color-primary);
+}
+
+.adicionar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  width: 100%;
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--color-primary) 55%, transparent);
+  border-radius: 8px;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.adicionar:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+/* Caixa de resumo: mesmo estilo da caixa "Potência calculada". */
+.total {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--color-primary) 40%, transparent);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.totalLinha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.totalRotulo {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.totalValor {
+  font-size: 18px;
+  color: var(--color-primary);
+  text-align: right;
+}
+
+.totalModulos {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: right;
+}
+
+/* Combobox da marca */
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+  z-index: 20;
+  background: var(--color-surface-2);
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 35%, transparent);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px color-mix(in srgb, black 40%, transparent);
+  padding: 6px;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.listaTitulo {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.opcao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.opcaoAtiva {
+  background: color-mix(in srgb, var(--color-text-muted) 18%, transparent);
+}
+
+.opcaoAdd {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.opcaoAdd.opcaoAtiva {
+  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.vazio {
+  margin: 0;
+  padding: 4px 10px 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.rodape {
+  margin: 4px 0 0;
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Mesmo ponto de quebra do grid2 em documentos.module.css */
+@media (max-width: 600px) {
+  .grade {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "marca marca"
+      "qtd pot"
+      "gar gar";
+  }
+
+  .grade :global(.input-field) {
+    min-height: 44px;
+  }
+
+  .atalho {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .remover {
+    min-height: 44px;
+  }
+
+  .opcao {
+    min-height: 44px;
+  }
+
+  .cartaoTitulo {
+    flex-direction: column;
+    gap: 2px;
+  }
+}

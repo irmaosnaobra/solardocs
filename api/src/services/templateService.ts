@@ -1,6 +1,7 @@
 import { getRef, geracaoMensal, MESES_ABREV } from './propostaSolarData';
 import { propostaOffGrid } from './templates/propostaOffGrid';
 import qrcode from 'qrcode-generator';
+import { inversoresDaProposta, totalKwInversores, type InversorProposta } from './inversoresProposta';
 
 // QR (SVG) de um link — usado no rodapé da proposta (WhatsApp do vendedor).
 function qrSvg(text: string): string {
@@ -2235,6 +2236,16 @@ function pEsc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] || c);
 }
 
+// Garantia dos inversores da proposta. Vazio quando todos têm o mesmo prazo (aí vale
+// o texto de sempre, com um número só). Com prazos diferentes devolve, sem escape:
+// "Growatt 10 anos, Deye 5 anos". Quem imprime escapa.
+function pGarantiasInversoresDiferentes(lista: InversorProposta[]): string {
+  if (lista.every((i) => i.garantiaAnos === lista[0].garantiaAnos)) return '';
+  return lista
+    .map((i, n) => `${i.marca || `inversor ${n + 1}`} ${i.garantiaAnos} ${i.garantiaAnos === 1 ? 'ano' : 'anos'}`)
+    .join(', ');
+}
+
 // Telefone só pra LEITURA: "5517996243536" → "(17) 99624-3536". O link do
 // WhatsApp e o QR continuam usando os dígitos crus — formatar a variável em si
 // quebraria os dois.
@@ -2333,9 +2344,8 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const qtdModulos = parseInt(String(f.qtd_modulos || '0'), 10) || 0;
   const potenciaModulo = parseInt(String(f.potencia_modulo || '0'), 10) || 0;
   const marcaModulo = String(f.marca_modulo || '').trim();
-  const qtdInversores = parseInt(String(f.qtd_inversores || '1'), 10) || 1;
-  const marcaInversor = String(f.marca_inversor || '').trim();
-  const potInvStr = String(f.potencia_inversor ?? '').trim().replace('.', ',');
+  // Inversores: lista da proposta (ou os campos soltos das propostas antigas).
+  const invLista = inversoresDaProposta(f);
   const kwp = (qtdModulos * potenciaModulo) / 1000;
   const investimento = parseBRL(f.investimento);
   const taxaMinima = parseFloat(String(f.taxa_minima || '90').replace(',', '.')) || 90;
@@ -2344,7 +2354,7 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   // payback e curvas não mudam (a CIP existe nos dois lados). Ausente/vazio/0 = 0.
   const cip = Math.max(0, parseFloat(String(f.iluminacao_publica || '').replace(',', '.')) || 0);
   const garPaineis = parseInt(String(f.garantia_paineis || '25'), 10) || 25;
-  const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
+  const garInvDiferentes = pGarantiasInversoresDiferentes(invLista);
 
   // Rodapé: nome do vendedor, contato e CNPJ vêm fixos do cadastro, mas o form
   // manda o que o consultor editou — e cada linha tem um desmarcar próprio.
@@ -2430,11 +2440,20 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const hoje = propostaEmissao(f).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const validade = propostaValidade(f);
   const marcaMod = [marcaModulo, potenciaModulo > 0 ? `${potenciaModulo}W` : ''].filter(Boolean).join(' · ');
-  const marcaInv = [marcaInversor, potInvStr ? `${potInvStr} kW` : ''].filter(Boolean).join(' · ');
+  const marcaInvDe = (i: InversorProposta) => [i.marca, i.potenciaTxt ? `${i.potenciaTxt} kW` : ''].filter(Boolean).join(' · ');
   const enderecoCli = (str(f.endereco) === '___' ? (client.endereco || '') : String(f.endereco || client.endereco || '')).trim();
 
   const linhaMk = (label: string, marca: string, right: string) =>
     `<div class="r"><span class="lab">${pEsc(label)}${marca ? ` <em class="mkq">${pEsc(marca)}</em>` : ''}</span><span class="inc">${pEsc(right)}</span></div>`;
+
+  // Uma linha por inversor. Com mais de um, entra também a potência total (soma de qtd x kW).
+  const totalKwInv = totalKwInversores(invLista);
+  const linhasInversoresHtml = [
+    ...invLista.map((i) => linhaMk('Inversor', marcaInvDe(i), `Incluído · ${i.qtd} un`)),
+    ...(invLista.length > 1 && totalKwInv > 0
+      ? [linhaMk('Potência total dos inversores', '', `${totalKwInv.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kW`)]
+      : []),
+  ].join('\n      ');
 
   // Desmarcar nome E contato tira o card inteiro — um card só com o título
   // "Vendedor" e nada dentro parece documento quebrado. Aí a Empresa ocupa a
@@ -2566,11 +2585,11 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
   <div class="sec">
     <div class="rows">
       ${linhaMk('Módulos fotovoltaicos', marcaMod, qtdModulos > 0 ? `Incluído · ${qtdModulos} un` : 'Incluído')}
-      ${linhaMk('Inversor', marcaInv, `Incluído · ${qtdInversores} un`)}
+      ${linhasInversoresHtml}
       ${linhaMk('Estrutura e materiais elétricos', '', 'Incluído')}
       ${linhaMk('Projeto de engenharia e conexão à rede', '', 'Incluído')}
       ${linhaMk('Serviço de instalação', '', 'Incluído')}
-      ${linhaMk(`Garantias (painéis ${garPaineis} anos · inversor ${garInversor} anos)`, '', 'Incluído')}
+      ${linhaMk(`Garantias (painéis ${garPaineis} anos · ${garInvDiferentes ? `inversores ${garInvDiferentes}` : `inversor ${invLista[0].garantiaAnos} anos`})`, '', 'Incluído')}
     </div>
   </div>
 
@@ -2641,10 +2660,9 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const potenciaModulo = parseInt(String(f.potencia_modulo || '0'), 10) || 0;
   // kWp deriva de qtd × W ÷ 1000 (verdade técnica: 10 placas × 620W = 6,2 kWp)
   const kwp = (qtdModulos * potenciaModulo) / 1000;
-  const qtdInversores = parseInt(String(f.qtd_inversores || '1'), 10) || 1;
-  const marcaInversor = String(f.marca_inversor || '');
-  // Aceita vírgula (1,875) ou ponto (1.875) — vendedor digita em pt-BR
-  const potenciaInversor = parseFloat(String(f.potencia_inversor || '0').replace(',', '.')) || 0;
+  // Inversores: lista da proposta (ou os campos soltos das propostas antigas). Aceita
+  // vírgula (1,875) ou ponto (1.875) na potência — vendedor digita em pt-BR.
+  const invLista = inversoresDaProposta(f);
   // Bateria (opcional) — parse compartilhado (mesmo helper dos contratos).
   const bat = parseBateria(f);
   const temBateria = bat.tem;
@@ -2740,7 +2758,9 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const cip = Math.max(0, parseFloat(String(f.iluminacao_publica || '').replace(',', '.')) || 0);
   const prazoDias = parseInt(String(f.prazo_instalacao_dias || '45'), 10) || 45;
   const garPaineis = parseInt(String(f.garantia_paineis || '25'), 10) || 25;
-  const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
+  // Prazos diferentes: vale o MENOR (nunca prometer mais que o inversor mais fraco).
+  const garInversor = Math.min(...invLista.map((i) => i.garantiaAnos));
+  const garInvDiferentes = pGarantiasInversoresDiferentes(invLista);
   const garEstrutura = parseInt(String(f.garantia_estrutura || '10'), 10) || 10;
   const garInstalacao = parseInt(String(f.garantia_instalacao || '1'), 10) || 1;
   // Mão de obra às vezes é dada em meses (ex: 6 meses). Unidade escolhida no form.
@@ -2824,15 +2844,17 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     const nomeCli = String(client.nome || f.cliente_nome || '').trim();
     const localCli = [cidade, uf].filter(Boolean).join(', ');
     // Potência do inversor: valor CRU do form (preserva 1,875 — pKwp arredondaria).
-    const potInvStr = String(f.potencia_inversor ?? '').trim().replace('.', ',');
     // Só mostra a parte se tiver marca OU potência — quantidade sozinha ("10x")
     // não diz nada (marca/potência são required no form; guarda defensiva).
     const modParte = (marcaModulo || potenciaModulo > 0)
       ? [qtdModulos > 0 ? `${qtdModulos}x` : '', marcaModulo, potenciaModulo > 0 ? `${potenciaModulo}W` : ''].filter(Boolean).join(' ')
       : '';
-    const invParte = (marcaInversor || potInvStr)
-      ? [qtdInversores > 0 ? `${qtdInversores}x` : '', marcaInversor, potInvStr ? `${potInvStr}K` : ''].filter(Boolean).join(' ')
-      : '';
+    const invParte = invLista
+      .map((i) => (i.marcaCrua || i.potenciaTxt)
+        ? [i.qtd > 0 ? `${i.qtd}x` : '', i.marcaCrua, i.potenciaTxt ? `${i.potenciaTxt}K` : ''].filter(Boolean).join(' ')
+        : '')
+      .filter(Boolean)
+      .join(' + ');
     const sistemaItens = [modParte, invParte].filter(Boolean).join(' + ');
 
     const L: string[] = ['☀️ PROPOSTA DE ENERGIA SOLAR', ''];
@@ -2852,7 +2874,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
 
     L.push('🛡️ GARANTIAS',
       `* Módulos: ${garPaineis} anos de performance`,
-      `* Inversor: ${garInversor} anos`,
+      garInvDiferentes ? `* Inversores: ${garInvDiferentes}` : `* Inversor: ${garInversor} anos`,
       `* Estrutura: ${garEstrutura} anos`,
       `* Instalação: ${garInstalacao} ${garInstalacaoUnidade}`,
       ...(temBateria && bateriaGarantia > 0 ? [`* Bateria: ${bateriaGarantia} ${bateriaGarantia === 1 ? 'ano' : 'anos'}`] : []),
@@ -3368,7 +3390,7 @@ ${comCapa ? `
       </div>
       <div class="spec">
         <div class="spec-label">Inversor</div>
-        <div class="spec-value">${qtdInversores}× ${pEsc(marcaInversor) || '—'}${potenciaInversor > 0 ? ' ' + potenciaInversor.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) + ' kW' : ''}</div>
+        <div class="spec-value">${invLista.map((i) => `${i.qtd}× ${pEsc(i.marcaCrua) || '—'}${i.potenciaKw > 0 ? ' ' + i.potenciaKw.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) + ' kW' : ''}`).join(' + ')}</div>
       </div>
       ${temBateria ? `<div class="spec">
         <div class="spec-label">Bateria</div>

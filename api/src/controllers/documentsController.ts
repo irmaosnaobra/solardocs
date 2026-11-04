@@ -11,6 +11,7 @@ import { examinarRevisao, ehDesenhado } from '../services/documentos/saudeDocume
 import { logger } from '../utils/logger';
 import { chaveCliente } from '../utils/chaveCliente';
 import { tabelaAusente } from '../services/manutencao/armazenamento';
+import { marcasInversorDasPropostas } from '../services/inversoresProposta';
 
 const generateSchema = z.object({
   tipo: z.string().min(1),
@@ -1439,7 +1440,10 @@ export async function propostaPrefill(req: Request, res: Response): Promise<void
     }
   }
 
-  res.json({ kit, clientes: clientes.slice(0, 250), cliente });
+  // Marcas de inversor já usadas nas últimas propostas (sugestão no formulário).
+  const marcas_inversor = marcasInversorDasPropostas(docs);
+
+  res.json({ kit, clientes: clientes.slice(0, 250), cliente, marcas_inversor });
 }
 
 // DESLIGADA em 28/10/2026, por ordem do dono: nenhum documento de nenhum plano é
