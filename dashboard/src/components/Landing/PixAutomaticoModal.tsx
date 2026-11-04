@@ -18,6 +18,9 @@ const PIX_CAMPOS = 'Confira o e-mail e o CPF ou CNPJ.';
 const PIX_DOC_ERRO = 'Esse CPF ou CNPJ não confere. Confira os números.';
 const PIX_FONE_ERRO = 'Confira o WhatsApp com DDD.';
 const MSG_WHATS = 'Oi! Vim pelo site da SolarDoc e quero assinar no Pix.';
+// Mesmo texto do MSG.pix(c) do quiz (/diagnostico). Sem código, vale o texto de sempre.
+const msgComCodigo = (c: string) => 'Quero saber como assinar o SolarDoc no Pix. Meu código é ' + c + '.';
+const CODIGO_RE = /^SD-[A-Z0-9]{4,6}$/;
 
 const ESPERA_TRAVOU_MS = 3 * 60 * 1000;
 const ESPERA_MAX_MS = 60 * 60 * 1000;
@@ -28,6 +31,7 @@ interface Cobranca {
   payload: string;
   imagem: string;
   temConta: boolean;
+  codigo: string; // SD-XXXX, quando a API devolve; '' se não
 }
 
 interface Props {
@@ -59,7 +63,7 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
   const jaMediu = useRef(false);
   const ocupado = useRef(false);
 
-  const zapUrl = `${whatsappUrl}?text=${encodeURIComponent(MSG_WHATS)}`;
+  const zapUrl = `${whatsappUrl}?text=${encodeURIComponent(cobranca?.codigo ? msgComCodigo(cobranca.codigo) : MSG_WHATS)}`;
 
   // Abriu: mede uma vez (StrictMode monta duas vezes em dev), guarda quem abriu
   // para devolver o foco, trava a rolagem da página e leva o foco ao 1º campo.
@@ -204,6 +208,7 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
         payload: data.qrPayload,
         imagem: data.qrImagemBase64 || '',
         temConta: Boolean(data.temConta),
+        codigo: typeof data.codigo === 'string' && CODIGO_RE.test(data.codigo) ? data.codigo : '',
       });
       registrarEvento('pix_gerou', { tela: 'lp', modo: 'automatico', contrato: data.id, temConta: data.temConta });
       fbq('vip_pix_auto'); // só depois de chegar o id: um 400 com nova tentativa não conta duas vezes

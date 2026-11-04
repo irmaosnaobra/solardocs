@@ -43994,7 +43994,10 @@ const LEADS_ABAS = [
 ];
 const leadEhQuiz = r => r.form_id === 'quiz_solar' || String(r.lead_id || '').startsWith('quiz_');
 // Quiz do SolarDoc (/diagnostico): lead_id sdquiz_. Tem aba propria e fica FORA de todas as outras abas, dos contadores e do CSV delas.
-const leadEhQuizSd = r => String((r && r.lead_id) || '').startsWith('sdquiz_');
+// Lead do SolarDoc (lead_id sdquiz_): vem do quiz (form_id quiz_solardoc) ou da LP (form_id lp_solardoc_pix, sem as respostas do quiz).
+// So o do quiz entra na aba Quiz SolarDoc; o da LP fica fora dela e de todas as outras abas (o prefixo manda, como antes).
+const leadEhSd = r => String((r && r.lead_id) || '').startsWith('sdquiz_');
+const leadEhQuizSd = r => leadEhSd(r) && r.form_id === 'quiz_solardoc';
 function leadCaminho(r) {
   if (!leadEhQuiz(r)) return null;
   const c = leadCampo(r.field_data || [], 'caminho');
@@ -44011,7 +44014,7 @@ function leadGrande(r) {
   return /^\+|mais|acima|900a1200|1200|1\.?500/.test(consumo);
 }
 function leadNaAba(r, aba) {
-  if (leadEhQuizSd(r)) return aba === 'quiz_sd';
+  if (leadEhSd(r)) return leadEhQuizSd(r) && aba === 'quiz_sd';
   if (aba === 'quiz_sd') return false;
   if (aba === 'todos') return true;
   if (aba === 'formulario') return !leadEhQuiz(r);

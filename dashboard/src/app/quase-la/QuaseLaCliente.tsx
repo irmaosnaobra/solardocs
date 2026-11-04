@@ -1,20 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import api from '@/services/api';
 import { getToken } from '@/services/auth';
-import { pixRecorrenteLigado, hrefPagarPix } from '@/components/LinkPagarPix/LinkPagarPix';
 import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import styles from './quase-la.module.css';
-
-interface PixInfo {
-  url: string | null;
-  valor: number;
-  dias: number;
-  /** O trilho de débito automático (Asaas) está de pé NO SERVIDOR. */
-  recorrente?: boolean;
-}
 
 // Marca do Pix (Banco Central). Inline em SVG de propósito: e' o simbolo que faz
 // a pessoa reconhecer o meio de pagamento antes de ler qualquer palavra, e um
@@ -43,33 +35,21 @@ export default function QuaseLaCliente() {
   // das assinaturas duplicadas. Cada um volta pela porta por onde entrou.
   const via = params.get('via') === 'conta' ? 'conta' : 'lp';
 
-  const [pix, setPix] = useState<PixInfo | null>(null);
-  const [conferindo, setConferindo] = useState(true);
   const [indo, setIndo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  useEffect(() => {
-    let vivo = true;
-    // Trilho de Pix: se não estiver configurado a resposta vem com url null e o
-    // bloco cai no WhatsApp. Botão de pagamento que não leva a lugar nenhum é
-    // pior que oferta nenhuma.
-    api.get('/payments/pix-checkout')
-      .then(({ data }) => { if (vivo) setPix(data as PixInfo); })
-      .catch(() => { if (vivo) setPix(null); })
-      .finally(() => { if (vivo) setConferindo(false); });
-    return () => { vivo = false; };
-  }, []);
-
-  // Assinatura no Pix (débito autorizado no banco) só serve pra quem TEM conta:
-  // a cobrança nasce amarrada ao usuário e a tela /pix-recorrente pede login.
-  // Quem veio da LP ainda não tem conta — pra ele o caminho é o Pix avulso, que
-  // cria a conta no ato do pagamento. Escada, não beco.
-  //
-  // E as DUAS pontas precisam estar ligadas: a env do front diz que a tela pode
-  // aparecer, mas quem sabe se o Asaas responde é o servidor (`recorrente`).
-  // Ligar só a do front ofereceria "assinar no Pix" e entregaria 503 — botão
-  // morto na tela de quem está com a carteira na mão.
-  const recorrenteAqui = pixRecorrenteLigado && via === 'conta' && pix?.recorrente === true;
+  // Todo Pix é o automático do Asaas, que abre num modal da LP (/?pagar=pix), com as
+  // UTMs que esta página já tem. (As UTMs guardadas na sessão a LP lê sozinha.)
+  const qsPix = new URLSearchParams();
+  for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
+    const v = params.get(k);
+    if (v) qsPix.set(k, v);
+  }
+  qsPix.set('pagar', 'pix');
+  // Quem já tem conta (via=conta) vai pela tela logada, que amarra a cobrança ao usuário.
+  const hrefPix = via === 'conta'
+    ? `/pix-recorrente${cupomUrl ? `?cupom=${encodeURIComponent(cupomUrl)}` : ''}`
+    : `/?${qsPix.toString()}`;
 
   async function voltarPraCartao() {
     setIndo(true);
@@ -131,58 +111,15 @@ export default function QuaseLaCliente() {
             <span className={styles.seloPix}>Sem cartão</span>
           </div>
 
-          {recorrenteAqui ? (
-            // Trilho recorrente ligado e ele tem conta: é o substituto REAL do
-            // cartão — autoriza uma vez no app do banco e nunca mais pensa nisso.
-            <>
-              <p className={styles.pixChamada}>Assine pagando no Pix</p>
-              <p className={styles.pixNota}>
-                Você paga o primeiro mês e autoriza a renovação no app do seu banco.
-                Dos próximos meses em diante é automático — não precisa lembrar de nada.
-              </p>
-              <a
-                className={styles.btnPix}
-                href={`/pix-recorrente${cupomUrl ? `?cupom=${encodeURIComponent(cupomUrl)}` : ''}`}
-              >
-                <LogoPix className={styles.btnPixLogo} />
-                Assinar pagando no Pix
-              </a>
-            </>
-          ) : pix?.url ? (
-            <>
-              <p className={styles.pixChamada}>
-                R$ {pix.valor} <span className={styles.pixPeriodo}>por {pix.dias} dias</span>
-              </p>
-              <p className={styles.pixNota}>
-                O QR code aparece na hora e <strong>seu acesso libera sozinho</strong> assim que o
-                pagamento cai — não precisa mandar comprovante pra ninguém.
-              </p>
-              <a className={styles.btnPix} href={pix.url}>
-                <LogoPix className={styles.btnPixLogo} />
-                Pagar no Pix agora
-              </a>
-              <p className={styles.pixRodape}>
-                Antes de vencer a gente te chama no WhatsApp com o link pra renovar em um clique.
-              </p>
-            </>
-          ) : (
-            // Nenhum trilho automático configurado. O bloco de Pix NÃO some: some o
-            // automático, não a oferta. O WhatsApp é o Pix que funciona hoje
-            // (comprovante lido por IA, liberação na hora) — mesmo fallback que o
-            // LinkPagarPix já usa nas telas de bloqueio. Quando o link do checkout
-            // entrar, este bloco vira automático sozinho, sem deploy do dashboard.
-            <>
-              <p className={styles.pixChamada}>Pague no Pix, sem cartão</p>
-              <p className={styles.pixNota}>
-                Manda uma mensagem que a gente te passa o código na hora e libera seu acesso
-                assim que o pagamento cair.
-              </p>
-              <a className={styles.btnPix} href={hrefPagarPix()} target="_blank" rel="noopener noreferrer">
-                <LogoPix className={styles.btnPixLogo} />
-                Quero pagar no Pix
-              </a>
-            </>
-          )}
+          <p className={styles.pixChamada}>Assine pagando no Pix</p>
+          <p className={styles.pixNota}>
+            Você autoriza o Pix automático uma vez no app do seu banco, e a mensalidade é debitada
+            sozinha. Seu acesso libera assim que o pagamento cair.
+          </p>
+          <Link className={styles.btnPix} href={hrefPix}>
+            <LogoPix className={styles.btnPixLogo} />
+            Pagar no Pix automático
+          </Link>
         </div>
 
         {erro && <p className={styles.erro}>{erro}</p>}
@@ -190,7 +127,7 @@ export default function QuaseLaCliente() {
         {/* Cartão vira saída discreta: sem caixa, sem preço, sem cupom. Quem quer
             cartão já sabe o que quer e acha um link; quem não tem cartão não
             precisa ver mais uma vez a parede em que acabou de bater. */}
-        <button className={styles.voltarCartao} onClick={voltarPraCartao} disabled={indo || conferindo}>
+        <button className={styles.voltarCartao} onClick={voltarPraCartao} disabled={indo}>
           {indo ? 'Abrindo pagamento...' : 'Prefiro voltar e pagar no cartão'}
         </button>
 
