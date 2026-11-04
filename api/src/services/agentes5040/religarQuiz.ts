@@ -50,11 +50,14 @@ const nao = (motivo: string, cardId?: number): ResultadoReligar => ({ religou: f
  * @param chaveDeQuemEscreveu  chaveContato (DDD + 8 últimos) do número que escreveu.
  * @param telefoneDeQuemEscreveu  o número dele, em dígitos (é o que passa a valer no card; nunca vai para log nem para a chave).
  * @param textoDaFala  a fala, com "Código: XXXXX".
+ * @param deadlineMs  instante absoluto (Date.now()) até onde ESCREVER ainda vale (opcional; a fila não passa). Passou do prazo, não escreve
+ *   mais nada: devolve `teto`. É conferido logo antes do INSERT do marcador e logo antes do UPDATE do card (o marcador já feito é apagado).
  */
 export async function religarQuizPelaEntrada(
-  chaveDeQuemEscreveu: string, telefoneDeQuemEscreveu: string, textoDaFala: string, agora: number = Date.now(),
+  chaveDeQuemEscreveu: string, telefoneDeQuemEscreveu: string, textoDaFala: string, agora: number = Date.now(), deadlineMs?: number,
 ): Promise<ResultadoReligar> {
   let cardId: number | undefined;
+  const passouDoPrazo = (): boolean => deadlineMs !== undefined && Date.now() >= deadlineMs;
   try {
     const codigo = codigoDoTexto(textoDaFala);
     if (!codigo) return nao('sem_codigo');
@@ -111,6 +114,7 @@ export async function religarQuizPelaEntrada(
     if (aberto) return nao('outro_card', cardId);
 
     // 5. o marcador (só HMACs): 23505 = já religado
+    if (passouDoPrazo()) return nao('teto', cardId);
     const em = new Date(agora).toISOString();
     const chaveMarcador = `${PREFIXO_RELIGADO}${cardId}`;
     const { error: erroMarcador } = await supabase.from('system_state').insert({
@@ -129,6 +133,7 @@ export async function religarQuizPelaEntrada(
       }
       return nao(motivo, cardId);
     };
+    if (passouDoPrazo()) return await desfazer('teto');
     try {
       const { data, error } = await supabaseGerador.from('agendamentos')
         .update({ cliente_telefone: telNovo }).eq('id', cardId).eq('cliente_telefone', telDoCardLido).select('id');

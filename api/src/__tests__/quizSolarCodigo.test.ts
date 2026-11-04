@@ -307,6 +307,45 @@ describe('religarQuizPelaEntrada: o marcador que não deu para apagar', () => {
   });
 });
 
+describe('religarQuizPelaEntrada: o prazo de escrita (deadlineMs, 04/11/2026)', () => {
+  const religarComPrazo = (prazo: number | undefined) => religarQuizPelaEntrada(CK_QUEM_ESCREVEU, TEL_QUEM_ESCREVEU, FALA, AGORA, prazo);
+
+  it('sem prazo (a fila) religa como sempre', async () => {
+    semear();
+    expect(await religarComPrazo(undefined)).toMatchObject({ religou: true, motivo: 'religado' });
+  });
+
+  it('prazo vencido antes do INSERT: devolve teto e não escreve nada (nem marcador, nem card, nem código gasto)', async () => {
+    semear();
+    expect(await religarComPrazo(Date.now() - 1)).toEqual({ religou: false, cardId: 1714, motivo: 'teto' });
+    nadaMudou();
+    expect(h.main.tabela('system_state').find((l: any) => l.key === `${PREFIXO_CODIGO}K7M2P`)!.value.usado_em).toBeUndefined();
+    expect(h.enviados).toHaveLength(0);
+  });
+
+  it('prazo vence entre o INSERT do marcador e o UPDATE do card: apaga o marcador, não troca o telefone e devolve teto', async () => {
+    semear();
+    const agoraReal = Date.now.bind(Date);
+    let pulo = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => agoraReal() + pulo);
+    const origemMain = h.main.from.bind(h.main);
+    h.main.from = (t: string) => {
+      const q = origemMain(t);
+      if (t === 'system_state') {
+        const inserir = q.insert.bind(q);
+        q.insert = (p: unknown) => Promise.resolve(inserir(p)).then((r: unknown) => { pulo = 10_000; return r; });   // o INSERT demora: o prazo passa
+      }
+      return q;
+    };
+    const escritasNoCard = h.ger.escritas?.length ?? 0;
+    expect(await religarComPrazo(agoraReal() + 5_000)).toEqual({ religou: false, cardId: 1714, motivo: 'teto' });
+    expect(pulo).toBe(10_000);                                    // o INSERT chegou a acontecer
+    nadaMudou();                                                  // e o marcador foi apagado
+    expect(h.ger.escritas?.length ?? 0).toBe(escritasNoCard);     // o card nunca foi escrito
+    vi.restoreAllMocks();
+  });
+});
+
 describe('a rede da fila: falas recentes com código', () => {
   it('lê só falas do lead na janela, com código e telefone legível', async () => {
     process.env.ZAPI_INSTANCE_ID_IO = 'inst-io';

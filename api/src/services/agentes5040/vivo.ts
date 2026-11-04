@@ -90,6 +90,9 @@ import {
 import { hmacDe } from './hmac';
 import { contarErroDaLinha, espacamentoDoEnvio, linhaLivre, zerarErrosDaLinha } from './guardaDaLinha';
 import { motivoDePassagem } from './passagemPorRegra';
+import { produtoDoBotao } from './porteiro';
+import { codigoDoTexto } from './quizCodigo';
+import { religarQuizPelaEntrada } from './religarQuiz';
 import {
   PREFIXO_PRESENCA, acharVagaEp, aindaLivreEp, bolhaCardCriado, bolhaPresencaAnotada, bolhaSemDetalhe, cardResumoDe, consultorDoCardNovo,
   CONSULTORES_EP, fichaDoCardEp, funcoesEp, gravarCardSeNaoHouver, pendenciaEpDevida, provaDaPresenca, regrasDaHelena, situacaoDaConfirmacao,
@@ -334,6 +337,33 @@ async function telefoneParaEnviar(chave: string, waId: number): Promise<string |
     return t && chaveContato(t) === chave ? t : null;
   } catch {
     return null;
+  }
+}
+
+/** Teto do religar na entrada do turno. Estourou = a escrita dele pode estar em voo: a fala NÃO é atendida nesta rodada (ver o chamador). */
+const RELIGAR_TETO_MS = 2_500;
+/** O prazo para o religar ESCREVER (instante absoluto passado a ele): 0,5 s abaixo do race, que sozinho não cancela nada. */
+const RELIGAR_PRAZO_ESCRITA_MS = 2_000;
+
+/**
+ * Fala nossa não entra; só o botão do quiz solar com "Código: XXXXX". O resultado vai ao log sem telefone. Nunca lança e nunca manda mensagem.
+ * Devolve true SÓ quando o race estourou (o religar pode ainda estar escrevendo); qualquer outro desfecho, falha inclusive, devolve false.
+ */
+async function religarQuizDaEntrada(chave: string, tel: string, bloco: readonly { texto?: string | null; from_me?: boolean }[]): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const texto = bloco.filter(m => !m.from_me).map(m => String(m.texto ?? '')).find(t => codigoDoTexto(t) && produtoDoBotao(t) === 'solar');
+    if (!texto) return false;
+    const teto = new Promise<null>(res => { timer = setTimeout(() => res(null), RELIGAR_TETO_MS); });
+    const res = await Promise.race([religarQuizPelaEntrada(chave, tel, texto, Date.now(), Date.now() + RELIGAR_PRAZO_ESCRITA_MS), teto]);
+    if (!res) { logger.warn(LOG, 'religar quiz: passou do teto, a fala fica para a próxima rodada'); return true; }
+    logger.info(LOG, `religar quiz: religou=${res.religou} card=${res.cardId ?? '-'} motivo=${res.motivo}`);
+    return false;
+  } catch (e) {
+    logger.warn(LOG, `religar quiz: falhou (${codigoDe(e)}), o turno segue`);
+    return false;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -760,6 +790,9 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
   // e mandava ao dono uma ficha vazia. É a MESMA checagem do vivoEnvio (podeFalarComLead, telefone resolvido); a do vivoEnvio segue
   // como última guarda. Sem telefone resolvido não há o que conferir aqui: o passo 5 trata ('sem_telefone').
   const tel = await telefoneParaEnviar(chave, L.id);
+  // 3a0. O botão do quiz solar com "Código: XXXXX" religa o card a quem escreveu ANTES de qualquer leitura do card (contexto, Duda). Dry não escreve.
+  // Estourou o teto: o religar pode estar escrevendo ainda. Nada é gravado (nem ate_wa_id) e a próxima rodada reprocessa esta fala, com o card já religado.
+  if (tel && !dry && await religarQuizDaEntrada(chave, tel, ultimoBlocoDoLead(msgs))) { soma(r.puladas, 'religar_estourou'); return 'seguir'; }
   if (tel) {
     const gate = await podeFalarComLead(tel);
     if (!gate.pode) {
