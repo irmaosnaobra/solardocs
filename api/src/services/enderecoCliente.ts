@@ -12,6 +12,22 @@ export interface EnderecoPartes {
 
 export const CAMPOS_ENDERECO = ['logradouro', 'numero', 'complemento', 'bairro'] as const;
 
+type ErroBanco = { code?: string; message?: string } | null | undefined;
+
+/**
+ * O banco recusou (gravação) ou não achou (leitura) uma das 4 colunas de endereço em
+ * partes? Acontece enquanto a MIGRATION_clients_endereco_partes.sql não rodou: PGRST204
+ * (gravação), 42703 ou mensagem "does not exist" (leitura), sempre citando a coluna.
+ * Erro de outra natureza, ou de outra coluna, não é este caso.
+ */
+export function colunaDeEnderecoAusente(error: ErroBanco): boolean {
+  if (!error) return false;
+  const msg = error.message || '';
+  const ehDeColuna = error.code === 'PGRST204' || error.code === '42703' || /does not exist/i.test(msg);
+  if (!ehDeColuna) return false;
+  return CAMPOS_ENDERECO.some((c) => msg.includes(c));
+}
+
 function texto(v: unknown): string {
   return typeof v === 'string' ? v.trim() : '';
 }

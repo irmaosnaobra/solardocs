@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { supabase } from '../utils/supabase';
-import { CAMPOS_ENDERECO, montarEndereco, temParteDeEndereco } from '../services/enderecoCliente';
+import { CAMPOS_ENDERECO, colunaDeEnderecoAusente, montarEndereco, temParteDeEndereco } from '../services/enderecoCliente';
 
 const clientSchema = z.object({
   nome: z.string().min(1, 'Nome obrigatório'),
@@ -29,15 +29,6 @@ const clientSchema = z.object({
 // Enquanto ela não rodar, o banco recusa a gravação (PGRST204 ou 42703 citando a coluna).
 // Nesse caso grava de novo SEM as 4 partes: o `endereco` (linha completa, que o PDF e os
 // contratos leem) vai do mesmo jeito, então nada para de funcionar antes da migration.
-type ErroBanco = { code?: string; message?: string } | null | undefined;
-
-function colunaDeEnderecoAusente(error: ErroBanco): boolean {
-  if (!error) return false;
-  if (error.code !== 'PGRST204' && error.code !== '42703') return false;
-  const msg = error.message || '';
-  return CAMPOS_ENDERECO.some((c) => msg.includes(c));
-}
-
 function semPartesDeEndereco<T extends Record<string, unknown>>(body: T): Omit<T, (typeof CAMPOS_ENDERECO)[number]> {
   const copia: Record<string, unknown> = { ...body };
   for (const c of CAMPOS_ENDERECO) delete copia[c];

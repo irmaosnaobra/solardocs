@@ -11,6 +11,7 @@ import { examinarRevisao, ehDesenhado } from '../services/documentos/saudeDocume
 import { logger } from '../utils/logger';
 import { chaveCliente } from '../utils/chaveCliente';
 import { tabelaAusente } from '../services/manutencao/armazenamento';
+import { colunaDeEnderecoAusente } from '../services/enderecoCliente';
 import { marcasInversorDasPropostas } from '../services/inversoresProposta';
 
 const generateSchema = z.object({
@@ -1359,7 +1360,14 @@ interface ClienteCadastro {
   endereco: string | null;
   cep?: string | null;
   tipo_telhado: string | null;
+  // Só existem depois da MIGRATION_clients_endereco_partes.sql (leitura tolerante).
+  logradouro?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
 }
+
+const PARTES_ENDERECO_CADASTRO = ['logradouro', 'numero', 'complemento', 'bairro'] as const;
 
 /** Cliente do cadastro (tabela clients) no formato dos campos da proposta. */
 function camposDoCadastro(c: ClienteCadastro): Record<string, unknown> {
@@ -1374,13 +1382,44 @@ function camposDoCadastro(c: ClienteCadastro): Record<string, unknown> {
   }
   if (cidade) out.cidade = cidade;
   if (uf) out.uf = uf;
+  // Com as partes do cadastro (leitura da conta de luz), cada uma vai para o seu campo da
+  // proposta e a linha única NÃO vai junto: com ela o formulário trataria o endereço como
+  // texto antigo e jogaria tudo no campo Rua. É o mesmo desenho do escanear-conta; a linha
+  // é recomposta pelo formulário ao gerar. Sem parte nenhuma (cliente antigo, ou migration
+  // ainda não rodada) segue só `endereco`, como sempre.
+  let temParte = false;
+  for (const k of PARTES_ENDERECO_CADASTRO) {
+    const v = String(c[k] ?? '').trim();
+    if (v) { out[k] = v; temParte = true; }
+  }
   const endereco = String(c.endereco || '').trim();
-  if (endereco) out.endereco = endereco;
+  if (endereco && !temParte) out.endereco = endereco;
   const cep = String(c.cep || '').trim();
   if (cep) out.cep = cep;
   const telhado = TIPOS_TELHADO_PROPOSTA.find((t) => nomeComparavel(t) === nomeComparavel(c.tipo_telhado));
   if (telhado) out.tipo_telhado = telhado;
   return out;
+}
+
+const COLUNAS_CADASTRO_PREFILL = 'nome, cidade, uf, endereco, cep, tipo_telhado, created_at';
+const COLUNAS_CADASTRO_PREFILL_COM_PARTES = `${COLUNAS_CADASTRO_PREFILL}, logradouro, numero, complemento, bairro`;
+
+/**
+ * Cadastro de clientes do usuário para o prefill. Pede também as 4 partes do endereço;
+ * se o banco disser que essas colunas não existem (migration ainda não rodou), repete a
+ * consulta com a lista de sempre. Erro de outra natureza volta como veio.
+ */
+async function lerCadastroParaPrefill(userId: string | undefined) {
+  const consulta = (colunas: string) =>
+    supabase
+      .from('clients')
+      .select(colunas)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(200);
+  const primeira = await consulta(COLUNAS_CADASTRO_PREFILL_COM_PARTES);
+  if (colunaDeEnderecoAusente(primeira.error)) return consulta(COLUNAS_CADASTRO_PREFILL);
+  return primeira;
 }
 
 export async function propostaPrefill(req: Request, res: Response): Promise<void> {
@@ -1397,12 +1436,7 @@ export async function propostaPrefill(req: Request, res: Response): Promise<void
       .eq('tipo', 'propostaSolar')
       .order('created_at', { ascending: false })
       .limit(50),
-    supabase
-      .from('clients')
-      .select('nome, cidade, uf, endereco, cep, tipo_telhado, created_at')
-      .eq('user_id', req.userId)
-      .order('created_at', { ascending: false })
-      .limit(200),
+    lerCadastroParaPrefill(req.userId),
   ]);
   if (historico.error) {
     logger.error('documents', 'prefill falhou', historico.error);
@@ -1413,7 +1447,7 @@ export async function propostaPrefill(req: Request, res: Response): Promise<void
   if (cadastro.error) logger.error('documents', 'prefill: ler o cadastro de clientes falhou', cadastro.error);
 
   const docs = (historico.data ?? []) as { cliente_nome: string | null; dados_json: Record<string, unknown> | null; created_at: string }[];
-  const clientesCadastro = (cadastro.error ? [] : (cadastro.data ?? [])) as ClienteCadastro[];
+  const clientesCadastro = (cadastro.error ? [] : (cadastro.data ?? [])) as unknown as ClienteCadastro[];
 
   const kit = docs.length && docs[0].dados_json ? limpaDados(docs[0].dados_json, true) : {};
 

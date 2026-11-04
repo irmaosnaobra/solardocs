@@ -459,4 +459,67 @@ describe('GET /documents/proposta-prefill', () => {
 
     expect(res.body.cliente).toEqual({ cidade: 'Uberlândia', uf: 'MG', endereco: 'Rua B, 20', cep: '38400-100' });
   });
+
+  // Endereço em partes (04/11/2026): a leitura da conta de luz grava rua, número,
+  // complemento e bairro no cadastro (colunas da MIGRATION_clients_endereco_partes.sql).
+  // A proposta recebe cada parte no seu campo e SEM a linha única: com ela o formulário a
+  // trata como texto antigo e joga tudo no campo Rua.
+  it('cadastro com as partes do endereço entrega cada parte, sem a linha única', async () => {
+    await mockFontes([], [{
+      nome: 'Carla', cidade: 'Uberlândia', uf: 'MG', cep: '38400-100', tipo_telhado: null,
+      endereco: 'Rua das Flores, 123, Apto 4, Centro',
+      logradouro: 'Rua das Flores', numero: '123', complemento: 'Apto 4', bairro: 'Centro',
+    }]);
+
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Carla' }).set('Authorization', AUTH);
+
+    expect(res.status).toBe(200);
+    expect(res.body.cliente).toEqual({
+      cidade: 'Uberlândia', uf: 'MG', cep: '38400-100',
+      logradouro: 'Rua das Flores', numero: '123', complemento: 'Apto 4', bairro: 'Centro',
+    });
+    expect(res.body.cliente.endereco).toBeUndefined();
+  });
+
+  it('partes vazias não viram campo; só o que veio preenchido segue', async () => {
+    await mockFontes([], [{
+      nome: 'Dani', cidade: 'Uberlândia', uf: 'MG', tipo_telhado: null,
+      endereco: 'Rua C, 5', logradouro: 'Rua C', numero: '5', complemento: '  ', bairro: null,
+    }]);
+
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Dani' }).set('Authorization', AUTH);
+
+    expect(res.body.cliente).toEqual({ cidade: 'Uberlândia', uf: 'MG', logradouro: 'Rua C', numero: '5' });
+  });
+
+  it('coluna das partes inexistente (migration não rodou): repete sem elas e devolve como antes', async () => {
+    const { supabase } = await import('../utils/supabase');
+    const primeira = cadeia({ data: null, error: { code: '42703', message: 'column clients.logradouro does not exist' } });
+    const segunda = cadeia({ data: [{ nome: 'Eva', cidade: 'Uberlândia', uf: 'MG', endereco: 'Rua D, 7', cep: '38400-200', tipo_telhado: null }], error: null });
+    vi.mocked(supabase.from)
+      .mockImplementationOnce(() => cadeia({ data: [], error: null }) as never)
+      .mockImplementationOnce(() => primeira as never)
+      .mockImplementationOnce(() => segunda as never);
+
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Eva' }).set('Authorization', AUTH);
+
+    expect(res.status).toBe(200);
+    expect(primeira.select).toHaveBeenCalledWith(expect.stringContaining('logradouro'));
+    expect(segunda.select).toHaveBeenCalledWith('nome, cidade, uf, endereco, cep, tipo_telhado, created_at');
+    expect(res.body.cliente).toEqual({ cidade: 'Uberlândia', uf: 'MG', endereco: 'Rua D, 7', cep: '38400-200' });
+  });
+
+  it('erro do cadastro que não é de coluna não repete e segue só com o histórico', async () => {
+    const { supabase } = await import('../utils/supabase');
+    const falha = cadeia({ data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } });
+    vi.mocked(supabase.from)
+      .mockImplementationOnce(() => cadeia({ data: [], error: null }) as never)
+      .mockImplementationOnce(() => falha as never);
+
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Eva' }).set('Authorization', AUTH);
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(supabase.from)).toHaveBeenCalledTimes(2);
+    expect(res.body.cliente).toBeNull();
+  });
 });
