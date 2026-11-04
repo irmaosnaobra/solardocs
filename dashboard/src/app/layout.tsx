@@ -207,6 +207,7 @@ export default function RootLayout({
             CTA em ~1s vindo de anúncio pode sair sem _fbc/_fbp, o que piora o match
             do CAPI nessa sessão. Se isso doer, inicializar no 1º scroll/toque. */}
         <Script id="meta-pixel" strategy="lazyOnload">{`
+          if (location.pathname.indexOf('/pesquisa') === 0) { /* pesquisa por token: sem pixel */ } else {
           !function(f,b,e,v,n,t,s)
           {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
           n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -217,6 +218,7 @@ export default function RootLayout({
           'https://connect.facebook.net/en_US/fbevents.js');
           fbq('init', '824905216831401');
           fbq('track', 'PageView');
+          }
         `}</Script>
       </head>
       <body>
