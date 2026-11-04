@@ -192,11 +192,29 @@ export default function EscanearContaPage() {
       }
       if (ilum > 0) fields.iluminacao_publica = ilum.toFixed(2).replace('.', ',');
       // Endereço e CEP: vale o que a pessoa conferiu no cadastro; na falta dele, o que a
-      // IA leu da conta. O endereço vai como texto único: o formulário o mostra no campo
-      // Rua e só recompõe quando a pessoa mexer em alguma parte.
-      const endereco = String(created?.endereco || scan?.cliente?.endereco || '').trim();
+      // IA leu da conta. Com as partes (rua, número, complemento, bairro) cada uma vai
+      // para o seu campo da proposta; o texto único só segue quando não há parte nenhuma
+      // (resposta antiga da leitura, ou linha que a pessoa reescreveu no cadastro): aí o
+      // formulário o mostra no campo Rua e só recompõe quando a pessoa mexer em alguma parte.
+      const enderecoLinha = String(created?.endereco || scan?.cliente?.endereco || '').trim();
       const cepDig = String(created?.cep || scan?.cliente?.cep || '').replace(/\D/g, '').slice(0, 8);
-      if (endereco) fields.endereco = endereco;
+      const partesDe = (o?: Partial<Client> | null) => ({
+        logradouro: String(o?.logradouro ?? '').trim(),
+        numero: String(o?.numero ?? '').trim(),
+        complemento: String(o?.complemento ?? '').trim(),
+        bairro: String(o?.bairro ?? '').trim(),
+      });
+      const temParte = (p: Record<string, string>) => Object.values(p).some(Boolean);
+      const linhaDe = (p: Record<string, string>) => [p.logradouro, p.numero, p.complemento, p.bairro].filter(Boolean).join(', ');
+      const doCadastro = partesDe(created);
+      const daLeitura = partesDe(scan?.cliente);
+      let partes: Record<string, string> | null = null;
+      if (temParte(doCadastro)) partes = doCadastro; // cadastro com as colunas novas
+      else if (temParte(daLeitura) && (!created?.endereco || created.endereco.trim() === linhaDe(daLeitura))) {
+        partes = daLeitura; // cadastro sem as colunas: só vale se a linha salva é a que a leitura montou
+      }
+      if (partes) Object.assign(fields, partes);
+      else if (enderecoLinha) fields.endereco = enderecoLinha;
       if (cepDig.length === 8) fields.cep = `${cepDig.slice(0, 5)}-${cepDig.slice(5)}`;
 
       localStorage.setItem('proposta-solar-draft-v1', JSON.stringify({
