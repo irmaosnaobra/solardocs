@@ -4,6 +4,7 @@ import { supabase } from '../../../utils/supabase';
 import { sendWhatsApp, sendHuman, sendImage, sendDocument, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { gerarPixCopiaECola } from '../../../utils/pixBrCode';
+import { fraseProximoMesSemComprovante } from '../../../utils/pixInfo';
 import { concederCursoPorAssinatura } from '../../kitIntegradorService';
 import { novoAnthropic } from "../../../utils/anthropicClient";
 import { hmacDe, idChaveHmac } from '../../agentes5040/hmac';
@@ -517,11 +518,13 @@ function textoConfirmacao(a: {
 }): string {
   const rotulo = a.plano === 'ilimitado' ? 'Ilimitado' : a.plano.toUpperCase();
   const inicio = `Pronto. Recebi seu Pix de R$ ${valorBr(a.valor)} e liberei o plano ${rotulo} até ${diaMes(a.venc)}`;
+  // Fecho (04/11/2026): oferece o Pix automático para o mês seguinte, na MESMA bolha e nunca numa linha sozinha.
+  const fecho = fraseProximoMesSemComprovante();
   if (a.linkSenha) {
-    return `${inicio} na conta ${a.email}. Pra entrar, defina sua senha aqui: ${a.linkSenha}`;
+    return `${inicio} na conta ${a.email}. Pra entrar, defina sua senha aqui: ${a.linkSenha} ${fecho}`;
   }
   const conta = `${inicio} na conta ${a.email}${a.razao ? `, da ${a.razao}` : ''}.`;
-  return `${conta} É só entrar em solardoc.app com o seu e-mail e a sua senha. Se não lembrar a senha, use "Esqueci minha senha" na tela de entrada.`;
+  return `${conta} É só entrar em solardoc.app com o seu e-mail e a sua senha. Se não lembrar a senha, use "Esqueci minha senha" na tela de entrada. ${fecho}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -962,6 +965,8 @@ export async function tryProcessPixComprovante(
         } else {
           linhas.push(`É só entrar em ${dashboardUrl} com seu email e usar. Qualquer dúvida, me chama por aqui! 🙌`);
         }
+        // Fecho (04/11/2026): Pix automático para o mês seguinte, colado na última linha (nunca numa linha sozinha), maxBolhas 1.
+        linhas[linhas.length - 1] += ` ${fraseProximoMesSemComprovante()}`;
         await sendHuman(cleanPhone, linhas, originInstance, { maxBolhas: 1 }).catch(() => {});
       },
       statusThiago: ({ venc }) => `✅ *AUTO-LIBERADO* — vence ${venc.toLocaleDateString('pt-BR')}. Confere e arquiva o comprovante.`,
@@ -1593,7 +1598,11 @@ export async function tryProcessAbandonedPixComprovante(
   // com o e-mail que ELE informou na conversa. Sem isto, quem não veio de
   // checkout abandonado (anúncio, indicação, Instagram) pagava e ficava no limbo
   // — era o buraco que o "sempre peça o e-mail" veio tapar.
-  const solicitado = await lerPixSolicitado(cleanPhone);
+  // Registro do LINK do Pix automático (modo 'automatico'): não é Pix manual pendente. O pagamento é creditado pelo webhook do Asaas, que grava
+  // o E2E; um comprovante depois cai no ramo do desconhecido, que EXIGE ID de Pix e barra o E2E já usado. Sem isto o comprovante
+  // creditaria um 2º mês pelo ramo antigo (que não exige o ID).
+  const registro = await lerPixSolicitado(cleanPhone);
+  const solicitado = registro?.modo === 'automatico' ? null : registro;
   const email = abRow?.email ?? solicitado?.email ?? null;
 
   // Nem abandono nem Pix pendente: ramo do número desconhecido (lê, confere e libera
@@ -1717,6 +1726,8 @@ export async function tryProcessAbandonedPixComprovante(
         } else {
           linhas.push(`É só entrar em ${dashboardUrl} com seu email (${ab.email}). Qualquer dúvida, me chama! 🙌`);
         }
+        // Fecho (04/11/2026): Pix automático para o mês seguinte, colado na última linha, maxBolhas 1.
+        linhas[linhas.length - 1] += ` ${fraseProximoMesSemComprovante()}`;
         await sendHuman(cleanPhone, linhas, originInstance, { maxBolhas: 1 }).catch(() => {});
       },
       statusThiago: ({ venc }) => `✅ *AUTO-LIBERADO (abandono→Pix)* — vence ${venc.toLocaleDateString('pt-BR')}. Confere e arquiva.`,

@@ -53,6 +53,10 @@ export interface PixSolicitado {
   // continua passando pelo ramo do desconhecido (com a trava de ID de Pix), e não
   // pelo ramo antigo, que não exige essa prova.
   origem?: 'desconhecido' | null;
+  // 'automatico' = o que mandamos foi o LINK do Pix automático (04/11/2026), não um Pix manual. Quem paga assim é creditado pelo
+  // webhook do Asaas; um comprovante depois disso NÃO pode creditar por este registro (seria um 2º mês por um pagamento só).
+  // O registro segue valendo para a trava "uma vez por conversa" do comprovanteHandoff.
+  modo?: 'automatico' | null;
 }
 
 // Validade do registro: depois disso, um comprovante que chega sem contexto não
@@ -92,7 +96,7 @@ function chaveLegada(phone: string): string {
   return `pix_solicitado:${chaveTelefoneLegada(phone)}`;
 }
 
-export async function registrarPixEnviado(phone: string, valor: number, nome?: string | null): Promise<void> {
+export async function registrarPixEnviado(phone: string, valor: number, nome?: string | null, modo: 'automatico' | null = null): Promise<void> {
   const atual = await lerPixSolicitado(phone);
   const payload: PixSolicitado = {
     valor,
@@ -100,6 +104,7 @@ export async function registrarPixEnviado(phone: string, valor: number, nome?: s
     email: atual?.email ?? null,
     nome: nome ?? atual?.nome ?? null,
     em: new Date().toISOString(),
+    modo,
   };
   const { error } = await supabase
     .from('system_state')
@@ -160,6 +165,7 @@ export async function guardarComprovantePendente(
     em: atual?.em ?? new Date().toISOString(),
     comprovante,
     origem: extra.origem ?? null,
+    modo: atual?.modo ?? null,
   };
   const { error } = await supabase
     .from('system_state').upsert({ key: chave(phone), value: payload }, { onConflict: 'key' });
@@ -210,6 +216,7 @@ export async function guardarEmailSePendente(phone: string, texto: string, nome?
     em: atual?.em ?? new Date().toISOString(),
     comprovante: atual?.comprovante ?? null,
     origem: atual?.origem ?? null,
+    modo: atual?.modo ?? null,
   };
   const { error } = await supabase
     .from('system_state').upsert({ key: chave(phone), value: payload }, { onConflict: 'key' });

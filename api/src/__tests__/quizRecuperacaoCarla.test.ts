@@ -62,10 +62,13 @@ import {
 import { estadoRecuperacaoCarla, envDesligaRecuperacao } from '../services/solardoc/recuperacaoCarlaEstado';
 import {
   ordenarFila, semCnpj, foraDoTempo, idadeUtilMs, textoDaCarla, chaveVezRec, FRASE_DO_MOTIVO, type LeadRec, type MarcaPagto,
+  montarTextoPagamento, montarTextoToque2, DEP_VANDERLEI, DEP_ALESSANDRO, DEP_GSI,
 } from '../services/solardoc/recuperacaoCarlaRegras';
+import { emBolhas } from '../services/agents/bolhas';
+import { origemDoLeadMeta } from '../services/agentes5040/porteiro';
 import { ehFeriadoBR } from '../utils/feriadosBR';
 import { hmacDe } from '../services/agentes5040/hmac';
-import { chaveDoTelefone, normalizarTelefoneSd } from '../services/solardoc/quizSolardoc';
+import { chaveDoTelefone, codigoDoQuiz, normalizarTelefoneSd } from '../services/solardoc/quizSolardoc';
 import { chaveContato } from '../services/agents/whatsapp/silenciar';
 
 // Quarta-feira, 21/10/2026, 14:00 em Brasília (17:00Z): dentro da janela.
@@ -293,7 +296,7 @@ describe('o texto da Carla (POS.carla do protótipo)', () => {
     const t = textoDaCarla(lead());
     expect(t.ok).toBe(true);
     if (!t.ok) return;
-    expect(t.texto).toBe('Oi, Carlos, aqui é a Carla, do SolarDoc. Olhei o diagnóstico da Solar Andrade e deu 37 de 100, com velocidade pesando mais. O que mais falta na sua proposta é a sua logo e a sua cor. Quer ver como fica a proposta da Solar Andrade no SolarDoc?');
+    expect(t.texto).toBe('Oi, Carlos, aqui é a Carla, da SolarDoc. Olhei o diagnóstico da Solar Andrade e deu 37 de 100, com velocidade pesando mais. O que mais falta na sua proposta é a sua logo e a sua cor. O Vanderlei, da American Energy Solar, de Rondonópolis/MT, conta: "Entre todas que já usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais rapidamente." Quer ver como fica a proposta da Solar Andrade na SolarDoc?');
     expect(t.texto).not.toMatch(/\[|\]|undefined|null|https?:|www\.|[–—]|\n/);
   });
   it('sem empresa vale "sua empresa"; sem item que falte, o texto de reserva', () => {
@@ -392,8 +395,8 @@ describe('as travas, nesta ordem', () => {
 });
 
 describe('quem prefere pagar no Pix (pagamento do quiz)', () => {
-  const FRIO = 'Oi, Carlos, aqui é a Carla, do SolarDoc. Olhei o diagnóstico da Solar Andrade e deu 37 de 100, com velocidade pesando mais. O que mais falta na sua proposta é a sua logo e a sua cor. Quer ver como fica a proposta da Solar Andrade no SolarDoc?';
-  const PIX = 'Oi, Carlos, aqui é a Carla, do SolarDoc. Olhei o diagnóstico da Solar Andrade e deu 37 de 100, com velocidade pesando mais. O que mais falta na sua proposta é a sua logo e a sua cor. Dá para assinar no Pix por aqui mesmo. Quer ver como fica a proposta da Solar Andrade no SolarDoc?';
+  const FRIO = 'Oi, Carlos, aqui é a Carla, da SolarDoc. Olhei o diagnóstico da Solar Andrade e deu 37 de 100, com velocidade pesando mais. O que mais falta na sua proposta é a sua logo e a sua cor. O Vanderlei, da American Energy Solar, de Rondonópolis/MT, conta: "Entre todas que já usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais rapidamente." Quer ver como fica a proposta da Solar Andrade na SolarDoc?';
+  const PIX = 'Oi, Carlos, aqui é a Carla, da SolarDoc. Olhei o diagnóstico da Solar Andrade e deu 37 de 100, com velocidade pesando mais. O que mais falta na sua proposta é a sua logo e a sua cor. O Vanderlei, da American Energy Solar, de Rondonópolis/MT, conta: "Entre todas que já usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais rapidamente." Dá para assinar no Pix automático, que o banco debita sozinho todo mês. Quer ver como fica a proposta da Solar Andrade na SolarDoc?';
   const enviadoDe = async (l: LeadRec): Promise<string | undefined> => {
     const { d, e } = falsas([l]);
     const r = await rodar(d);
@@ -436,7 +439,7 @@ describe('quem entra e quem sai', () => {
     const r = await rodar(d);
     expect(r.enviou).toBe(true);
     expect(e.enviados).toHaveLength(1);
-    expect(e.enviados[0]!.texto).toMatch(/^Oi, Carlos, aqui é a Carla, do SolarDoc\./);
+    expect(e.enviados[0]!.texto).toMatch(/^Oi, Carlos, aqui é a Carla, da SolarDoc\./);
     expect(e.avisos).toEqual([{ tipo: 'saiu', arg: '14:00' }]);
     // a ordem: travas, claim, posse, envio, depois o aviso
     expect(e.chamadas.filter(c => ['claim', 'assumirPosse', 'enviar', 'envioOk'].includes(c))).toEqual(['claim', 'assumirPosse', 'enviar', 'envioOk']);
@@ -881,7 +884,7 @@ describe('a Carla chama quem fez o quiz, gerou o Pix e não pagou', () => {
     expect(r.enviou).toBe(true);
     expect(e.enviados).toHaveLength(2);
     expect(e.enviados[0]!.texto).toBe(
-      'Oi, Carlos, aqui é a Carla, do SolarDoc. Seu Pix da Solar Andrade ainda está valendo, e mais de 700 propostas saíram pelo app só no último mês. É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona do SolarDoc, e você cancela quando quiser pelo app do banco. Vou te mandar o código aqui embaixo, é só copiar e colar no Pix copia e cola do seu banco.',
+      'Oi, Carlos, aqui é a Carla, da SolarDoc. Seu Pix da Solar Andrade ainda está valendo. O Alessandro Goulart, da Força Solar, de Feliz/RS, conta: "Aqui, com quatro, cinco cliques eu consigo montar uma proposta." É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. Vou te mandar o código aqui embaixo, é só copiar e colar no Pix copia e cola do seu banco.',
     );
     expect(e.enviados[1]!.texto).toMatch(/^000201[^\r\n]+6304[0-9A-F]{4}$/);
     expect(e.enviados[1]!.texto).toBe(QR);
@@ -897,11 +900,11 @@ describe('a Carla chama quem fez o quiz, gerou o Pix e não pagou', () => {
     const a = pagamento([marca(6)], () => contrato(20));
     const ra = falsas([semEmpresa], a.over);
     await rodar(ra.d);
-    expect(ra.e.enviados[0]!.texto.startsWith('Oi, Carlos, aqui é a Carla, do SolarDoc. Seu Pix ainda está valendo, e mais de 3.600 propostas solares já saíram pelo app.')).toBe(true);
+    expect(ra.e.enviados[0]!.texto.startsWith('Oi, Carlos, aqui é a Carla, da SolarDoc. Seu Pix ainda está valendo. O Alessandro Goulart, da Força Solar, de Feliz/RS, conta: "Aqui, com quatro, cinco cliques eu consigo montar uma proposta."')).toBe(true);
     const b = pagamento([marca(6, { nome: 'Cliente' })], () => contrato(20));
     const rb = falsas([semCampo(quizLead({ nome: 'Cliente' }), 'Empresa')], b.over);
     await rodar(rb.d);
-    expect(rb.e.enviados[0]!.texto.startsWith('Oi, aqui é a Carla, do SolarDoc. Seu Pix ainda está valendo')).toBe(true);
+    expect(rb.e.enviados[0]!.texto.startsWith('Oi, aqui é a Carla, da SolarDoc. Seu Pix ainda está valendo')).toBe(true);
   });
 
   it('as fases do código: 54 min manda o código, 55 a 64 min espera (nada sai e o claim volta), 65 min manda o link', async () => {
@@ -942,7 +945,7 @@ describe('a Carla chama quem fez o quiz, gerou o Pix e não pagou', () => {
     expect(e.enviados).toHaveLength(1);
     const t = e.enviados[0]!.texto;
     expect(t).toContain('https://solardoc.app/?pagar=pix&utm_source=recuperacao&utm_medium=whatsapp&utm_term=conj123');
-    expect(t.startsWith('Oi, Carlos, aqui é a Carla, do SolarDoc. O Pix que você gerou já venceu, mas é só abrir ')).toBe(true);
+    expect(t.startsWith('Oi, Carlos, aqui é a Carla, da SolarDoc. O Pix que você gerou já venceu, mas é só abrir ')).toBe(true);
     expect(t).not.toContain('000201');
 
     const sem = pagamento([marca(90, { utm_term: null })], () => contrato(70));
@@ -958,7 +961,7 @@ describe('a Carla chama quem fez o quiz, gerou o Pix e não pagou', () => {
     const { d, e } = falsas([quiz], over);
     await rodar(d, onze);
     expect(e.enviados).toHaveLength(1);
-    expect(e.enviados[0]!.texto.startsWith('Bom dia, aqui é a Carla, do SolarDoc. O Pix que você gerou já venceu')).toBe(true);
+    expect(e.enviados[0]!.texto.startsWith('Bom dia, aqui é a Carla, da SolarDoc. O Pix que você gerou já venceu')).toBe(true);
     expect(e.enviados[0]!.texto).toContain('https://solardoc.app/?pagar=pix&utm_source=recuperacao&utm_medium=whatsapp e gerar outro');
     expect(e.enviados[0]!.texto).not.toContain('utm_term');
   });
@@ -1211,5 +1214,402 @@ describe('a Carla chama quem fez o quiz, gerou o Pix e não pagou', () => {
     const r = await rodar(d);
     expect(r.enviou).toBe(true);
     expect(e.enviados).toHaveLength(1);
+  });
+});
+
+
+// ── prova de qualidade, LP no WhatsApp, 2º toque e e-mail do dia seguinte (04/11/2026) ──────────────────────
+
+describe('os textos continuam em 1 bolha (emBolhas maxBolhas 1, max 900), sem link fora do pedido, sem colchete e sem travessão', () => {
+  const nenhuma = /\[|\]|[–—]|\n/;
+  const umaBolha = (t: string): void => {
+    expect(emBolhas(t, { maxBolhas: 1, max: 900 })).toEqual([t]);
+    expect(t.length).toBeLessThanOrEqual(900);
+    expect(t).not.toMatch(nenhuma);
+  };
+  it('mensagem de 15 min (com e sem a frase do Pix automático)', () => {
+    for (const o of [undefined, { pixPorAqui: true }]) {
+      const t = textoDaCarla(lead(), o);
+      expect(t.ok).toBe(true);
+      if (t.ok) { umaBolha(t.texto); expect(t.texto).not.toMatch(/https?:|www\./); expect(t.texto).toContain(DEP_VANDERLEI); }
+    }
+    const pix = textoDaCarla(lead(), { pixPorAqui: true });
+    expect(pix.ok && pix.texto).toContain('Dá para assinar no Pix automático, que o banco debita sozinho todo mês.');
+    expect(pix.ok && pix.texto).not.toContain('por aqui mesmo');
+  });
+  it('pagamento A, B1, B2, C1 e C2: o Alessandro no lugar dos números, 1 bolha, e o código fora do texto', () => {
+    const QR = '000201' + '0'.repeat(120) + '6304ABCD';
+    const base = { qrPayload: QR, utmTerm: 'conj1', horaBrt: 15 };
+    const casos = [
+      { codigoVivo: true, nome: 'Ana', empresa: 'Solar Andrade' }, { codigoVivo: true, nome: 'Ana', empresa: null }, { codigoVivo: true, nome: null, empresa: null },
+      { codigoVivo: false, nome: 'Ana', empresa: null }, { codigoVivo: false, nome: null, empresa: null },
+    ];
+    const tipos: string[] = [];
+    for (const c of casos) {
+      const t = montarTextoPagamento({ ...base, ...c });
+      tipos.push(t.tipo);
+      umaBolha(t.texto);
+      expect(t.texto).toContain(DEP_ALESSANDRO);
+      expect(t.texto).not.toMatch(/700 propostas|3\.600/);
+      expect(t.texto).not.toContain('000201');
+      expect(t.segundo).toBe(c.codigoVivo ? QR : null);
+    }
+    expect(tipos).toEqual(['A', 'B1', 'B2', 'C1', 'C2']);
+  });
+  it('2º toque T1 e T2, com os dois depoimentos', () => {
+    for (const nome of ['Ana', null]) {
+      for (const primeiroTipo of ['pagamento', 'diagnostico', undefined]) {
+        const t = montarTextoToque2({ nome, utmTerm: 'conj1', primeiroTipo });
+        umaBolha(t);
+        expect(t.startsWith(nome ? 'Oi, Ana, aqui é a Carla, da SolarDoc. ' : 'Oi, aqui é a Carla, da SolarDoc. ')).toBe(true);
+        expect(t).toContain(primeiroTipo === 'pagamento' ? DEP_VANDERLEI : DEP_ALESSANDRO);
+        expect(t).toContain('Dá para gerar o Pix automático em 1 minuto em https://solardoc.app/?pagar=pix&utm_source=recuperacao&utm_medium=whatsapp&utm_term=conj1. O banco debita sozinho e você cancela quando quiser pelo app do banco.');
+      }
+    }
+  });
+  it('os 3 depoimentos são literais e passam no textoDaCarla (sem link, colchete nem travessão)', () => {
+    for (const dep of [DEP_VANDERLEI, DEP_ALESSANDRO, DEP_GSI]) expect(dep).not.toMatch(/\[|\]|[–—]|https?:|www\./);
+    expect(DEP_GSI).toBe('A GSI Energia Solar, de Unaí/MG, conta: "Tenho me surpreendido positivamente com o nível de detalhes das propostas."');
+  });
+});
+
+describe('a LP no WhatsApp: o lead da LP (lp_solardoc_pix) com o Código do wa.me', () => {
+  const TEL = '5534991230001';
+  const hm = (tel: string): string => hmacDe(chaveDoTelefone(normalizarTelefoneSd(tel)!))!;
+  const lpLead = (over: Partial<LeadRec> = {}): LeadRec => ({
+    lead_id: `sdquiz_${chaveDoTelefone(TEL)}`, nome: 'Ana Souza', whatsapp: TEL, cidade: null, created_time: min(20),
+    field_data: [{ name: 'Origem', values: ['LP'] }, { name: 'Código', values: [codigoDoQuiz(TEL)] }, { name: 'lp_session', values: ['lp-x'] }], ...over,
+  });
+  const marcaLp = (minutos: number, over: Partial<MarcaPagto> = {}): MarcaPagto => ({
+    hmac: hm(TEL), em: min(minutos), contratoId: 'SD-VIP-LP', origem: 'lp_solardoc', email: 'ana@exemplo.com', nome: 'Ana', utm_term: 'conj9', lp_session: 'lp-x', ...over,
+  });
+  const QR = '00020126580014BR.GOV.BCB.PIX0136abc5204000053039865913AIOROS GROUP6009UBERLANDIA6304A1B2';
+  const base = (extra: Partial<DepsRec> = {}, minutos = 10) => {
+    const emails: string[] = [];
+    const over: Partial<DepsRec> = {
+      garantirLargada: async () => AGORA.getTime() - 72 * 3600_000,
+      marcasPagamento: async () => [marcaLp(minutos)],
+      lerPagamento: async () => ({ contrato: { status: 'pendente', created_at: min(10), qr_payload: QR, ultimo_pagamento_em: null, email: 'ana@exemplo.com' }, whatsapp: TEL }),
+      leadsLp: async () => [lpLead()],
+      enviarEmailPix: async (para) => { emails.push(para); },
+      ...extra,
+    };
+    return { over, emails };
+  };
+
+  it('marca da LP COM lead vai ao WhatsApp como a do quiz: B1 (nome, sem diagnóstico) e o código sozinho na 2ª; sem e-mail', async () => {
+    const { over, emails } = base();
+    const { d, e } = falsas([], over);
+    await rodar(d);
+    expect(e.enviados).toHaveLength(2);
+    expect(e.enviados[0]!.texto.startsWith('Oi, Ana, aqui é a Carla, da SolarDoc. Seu Pix ainda está valendo. O Alessandro Goulart')).toBe(true);
+    expect(e.enviados[1]!.texto).toBe(QR);
+    expect(emails).toHaveLength(0);
+    // o grupo não recebe aviso de "desistência do quiz" por um lead da LP
+    expect(e.avisos).toHaveLength(0);
+  });
+
+  it('o Código gravado faz a Carla ficar quieta com quem já escreveu pelo wa.me (ja_falou), mesmo por um LID sem mapa', async () => {
+    const codigos: string[] = [];
+    const pulos: string[] = [];
+    const { over } = base({
+      mensagemComCodigo: async (codigo: string) => { codigos.push(codigo); return true; },
+      marcarPulo: async (c: string) => { pulos.push(c); },
+    });
+    const { d, e } = falsas([], over);
+    await rodar(d);
+    expect(e.enviados).toHaveLength(0);
+    expect(codigos).toEqual([codigoDoQuiz(TEL)]);   // o Código do lead da LP é o que a página põe no wa.me
+    expect(pulos).toEqual([`quiz_rec_pulou:${hm(TEL)}`]);
+  });
+
+  it('o lead da LP não entra na fila de 15 min: sem marca, a Carla não o chama, mesmo com lead e 20 min', async () => {
+    const { over } = base({ marcasPagamento: async () => [] });
+    const { d, e } = falsas([], over);
+    const r = await rodar(d);
+    expect(r.enviou).toBe(false);
+    expect(e.enviados).toHaveLength(0);
+  });
+
+  it('a leitura da LP é SEPARADA: o d.leads real lê só quiz_solardoc e o leadsLp real só lp_solardoc_pix', async () => {
+    const formIds: unknown[] = [];
+    const cadeia: any = {
+      select: () => cadeia, eq: (c: string, v: unknown) => { if (c === 'form_id') formIds.push(v); return cadeia; },
+      gte: () => cadeia, lte: () => cadeia, order: () => cadeia, limit: async () => ({ data: [], error: null }),
+    };
+    h.gerador = () => cadeia;
+    const real = depsReais();
+    await real.leads('2026-10-30T00:00:00.000Z', '2026-11-04T00:00:00.000Z');
+    await real.leadsLp!('2026-10-30T00:00:00.000Z', '2026-11-04T00:00:00.000Z');
+    expect(formIds).toEqual(['quiz_solardoc', 'lp_solardoc_pix']);
+  });
+
+  it('o porteiro já reconhece o lead da LP (sdquiz_) como SolarDoc: vai para a Carla', () => {
+    expect(origemDoLeadMeta({ lead_id: lpLead().lead_id as string, form_id: 'lp_solardoc_pix' })).toBe('quiz_solardoc');
+  });
+
+  it('marca da LP SEM lead continua só com e-mail (sem WhatsApp)', async () => {
+    const { over, emails } = base({ leadsLp: async () => [] });
+    const { d, e } = falsas([], over);
+    await rodar(d);
+    expect(e.enviados).toHaveLength(0);
+    expect(emails).toEqual(['ana@exemplo.com']);
+  });
+
+  it('a leitura dos leads da LP falhou: a rodada PARA', async () => {
+    const { over } = base({ leadsLp: async () => null });
+    const { d, e } = falsas([], over);
+    const r = await rodar(d);
+    expect(r.motivo).toBe('leitura_das_marcas_falhou');
+    expect(e.enviados).toHaveLength(0);
+  });
+});
+
+describe('o 2º toque: 1 mensagem no dia útil seguinte, com o link, só para quem só a Carla falou', () => {
+  const TEL = '5534991230001';
+  const hm = (tel: string): string => hmacDe(chaveDoTelefone(normalizarTelefoneSd(tel)!))!;
+  // O hmac precisa do segredo que o beforeEach põe: calculado na hora, nunca na montagem do describe.
+  const carimbo = (): string => `quiz_rec_sent:${hm(TEL)}`;
+  const emDe = (horasAtras: number): string => new Date(AGORA.getTime() - horasAtras * 3600_000).toISOString();
+  const marca = (horasAtras = 26, over: Partial<MarcaPagto> = {}): MarcaPagto => ({
+    hmac: hm(TEL), em: emDe(horasAtras + 0.1), contratoId: 'SD-VIP-1', origem: 'quiz_solardoc', email: 'ana@exemplo.com', nome: 'Ana', utm_term: 'conj123', lp_session: 'lp-x', ...over,
+  });
+  const quiz = (): LeadRec => lead({ nome: 'carlos andrade', whatsapp: TEL, created_time: emDe(40) });
+  const msg = (autor: 'lead' | 'robo' | 'equipe', horasAtras: number) =>
+    ({ id: Math.floor(Math.random() * 1e6), from_me: autor !== 'lead', from_api: autor === 'robo' ? true : null, autor, texto: 'x', tipo: 'texto', media_url: null, momment: emDe(horasAtras) } as any);
+  /** O cenário padrão: o 1º toque saiu há 26 h (ontem), a posse é da Carla, a conversa só tem a fala dele. */
+  const cenario = (extra: Partial<DepsRec> = {}, opcoes: { primeiroTipo?: string; primeiroHorasAtras?: number; estado?: string } = {}) => {
+    const horas = opcoes.primeiroHorasAtras ?? 26;
+    const primeiroEm = emDe(horas);
+    const emails: string[] = [];
+    const over: Partial<DepsRec> = {
+      garantirLargada: async () => AGORA.getTime() - 200 * 3600_000,
+      marcasPagamento: async () => [marca(horas + 0.2)],
+      lerPagamento: async () => ({ contrato: { status: 'pendente', created_at: emDe(horas + 0.2), qr_payload: '000201ABC6304ABCD', ultimo_pagamento_em: null, email: 'ana@exemplo.com' }, whatsapp: TEL }),
+      lerEstados: async (chaves: string[]) => new Map(chaves.filter(c => c === carimbo()).map(c => [c, { em: primeiroEm, estado: opcoes.estado ?? 'enviado', tipo: opcoes.primeiroTipo ?? 'pagamento' }])),
+      posse: async () => 'ocupada',
+      posseAindaNossa: async () => true,
+      conversa: async () => ({ msgs: [msg('robo', horas)], completa: true }),
+      enviarEmailPix: async (para: string) => { emails.push(para); },
+      ...extra,
+    };
+    return { over, emails };
+  };
+  const rodarCom = async (over: Partial<DepsRec>, leads: LeadRec[] = [quiz()], agora: Date = AGORA, claims = new Set([carimbo()])) => {
+    const x = falsas(leads, over, { claims });
+    const r = await rodar(x.d, agora);
+    return { ...x, r };
+  };
+
+  it('só a Carla falou (a fala do 1º toque): sai 1 mensagem com o link e o utm_term, claim quiz_rec_sent2 ANTES do envio, posse e travas', async () => {
+    const { over } = cenario();
+    const { e, r } = await rodarCom(over);
+    expect(r.enviou).toBe(true);
+    expect(e.enviados).toHaveLength(1);
+    const t = e.enviados[0]!.texto;
+    expect(t.startsWith('Oi, Carlos, aqui é a Carla, da SolarDoc. ')).toBe(true);
+    expect(t).toContain('https://solardoc.app/?pagar=pix&utm_source=recuperacao&utm_medium=whatsapp&utm_term=conj123');
+    expect(t).toContain(DEP_VANDERLEI);   // o 1º usou o Alessandro (pagamento): o 2º usa o Vanderlei
+    expect(e.claims.has(`quiz_rec_sent2:${hm(TEL)}`)).toBe(true);
+    expect(e.chamadas.indexOf('claim')).toBeLessThan(e.chamadas.indexOf('enviar'));
+    expect(e.chamadas.filter(c => c === 'janela').length).toBeGreaterThan(0);
+    expect(e.chamadas).not.toContain('assumirPosse');   // a posse do 1º toque segue sendo da Carla
+    expect(e.marcas[e.marcas.length - 1]?.chave).toBe(`quiz_rec_sent2:${hm(TEL)}`);
+    expect(e.avisos).toHaveLength(0);   // o grupo não recebe aviso do 2º toque
+  });
+
+  it('o 1º toque foi a mensagem de 15 min (diagnostico): o 2º usa o Alessandro; sem nome vai o T2', async () => {
+    const { over } = cenario({ marcasPagamento: async () => [marca(26.2, { nome: null })] }, { primeiroTipo: 'diagnostico' });
+    const { e } = await rodarCom(over, [lead({ nome: 'Cliente', whatsapp: TEL, created_time: emDe(40) })]);
+    expect(e.enviados[0]!.texto.startsWith('Oi, aqui é a Carla, da SolarDoc. ')).toBe(true);
+    expect(e.enviados[0]!.texto).toContain(DEP_ALESSANDRO);
+  });
+
+  it('alguém da equipe escreveu depois do 1º toque: não sai', async () => {
+    const { over } = cenario({ conversa: async () => ({ msgs: [msg('robo', 26), msg('equipe', 5)], completa: true }) });
+    const { e } = await rodarCom(over);
+    expect(e.enviados).toHaveLength(0);
+  });
+
+  it('outro robô falou depois do 1º toque: não sai', async () => {
+    const { over } = cenario({ conversa: async () => ({ msgs: [msg('robo', 26), msg('robo', 3)], completa: true }) });
+    const { e } = await rodarCom(over);
+    expect(e.enviados).toHaveLength(0);
+  });
+
+  it('o lead respondeu: não sai', async () => {
+    const pulos: string[] = [];
+    const { over } = cenario({ conversa: async () => ({ msgs: [msg('robo', 26), msg('lead', 20)], completa: true }), marcarPulo: async (c: string) => { pulos.push(c); } });
+    const { e } = await rodarCom(over);
+    expect(e.enviados).toHaveLength(0);
+    expect(pulos).toEqual([`quiz_rec_pulou:${hm(TEL)}`]);
+  });
+
+  it('o lead escreveu pelo wa.me por um LID sem mapa (só o código acha): não sai', async () => {
+    const { over } = cenario({ mensagemComCodigo: async () => true });
+    const { e } = await rodarCom(over);
+    expect(e.enviados).toHaveLength(0);
+  });
+
+  it('a posse é de OUTRA agente (não a do 1º toque): não sai', async () => {
+    const { over } = cenario({ posseAindaNossa: async () => false });
+    const { e } = await rodarCom(over);
+    expect(e.enviados).toHaveLength(0);
+  });
+
+  it('nunca há um 3º toque: com o carimbo quiz_rec_sent2 já gravado, nada sai', async () => {
+    const { over } = cenario();
+    const { e } = await rodarCom(over, [quiz()], AGORA, new Set([carimbo(), `quiz_rec_sent2:${hm(TEL)}`]));
+    expect(e.enviados).toHaveLength(0);
+  });
+
+  it('duas rodadas seguidas: o 2º toque sai UMA vez', async () => {
+    const { over } = cenario();
+    const x = falsas([quiz()], over, { claims: new Set([carimbo()]) });
+    await rodar(x.d);
+    await rodar(x.d);
+    expect(x.e.enviados).toHaveLength(1);
+  });
+
+  it('fora da janela: 0 envios', async () => {
+    const { over } = cenario({ janela: () => false });
+    const { e } = await rodarCom(over);
+    expect(e.enviados).toHaveLength(0);
+  });
+
+  it('o mesmo dia do 1º toque, o 1º toque que não saiu, e o contrato pago: 0', async () => {
+    const mesmoDia = await rodarCom(cenario({}, { primeiroHorasAtras: 1 }).over);
+    expect(mesmoDia.e.enviados).toHaveLength(0);
+    const naoSaiu = await rodarCom(cenario({}, { estado: 'nao_saiu' }).over);
+    expect(naoSaiu.e.enviados).toHaveLength(0);
+    const pago = await rodarCom(cenario({
+      lerPagamento: async () => ({ contrato: { status: 'ativo', created_at: emDe(26), qr_payload: null, ultimo_pagamento_em: emDe(1), email: null }, whatsapp: TEL }),
+    }).over);
+    expect(pago.e.enviados).toHaveLength(0);
+  });
+
+  it('só no dia útil seguinte: 1º toque no sábado, o domingo não abre a janela, a segunda manda e a terça já não', async () => {
+    const sabado = '2026-10-17T15:00:00.000Z';
+    const segunda = new Date('2026-10-19T17:00:00.000Z');
+    const terca = new Date('2026-10-20T17:00:00.000Z');
+    const semDomingo = (dt: Date): boolean => new Date(dt.getTime() - 3 * 3600_000).getUTCDay() !== 0;
+    const montar = () => cenario({
+      janela: semDomingo,
+      marcasPagamento: async () => [marca(0, { em: '2026-10-17T14:50:00.000Z' })],
+      lerEstados: async () => new Map([[carimbo(), { em: sabado, estado: 'enviado', tipo: 'pagamento' }]]),
+      conversa: async () => ({ msgs: [{ ...msg('robo', 0), momment: sabado }], completa: true }),
+    }).over;
+    const dom = await rodarCom(montar(), [quiz()], new Date('2026-10-18T17:00:00.000Z'));
+    expect(dom.e.enviados).toHaveLength(0);   // domingo: a janela fecha
+    const seg = await rodarCom(montar(), [quiz()], segunda);
+    expect(seg.e.enviados).toHaveLength(1);
+    const ter = await rodarCom(montar(), [quiz()], terca);
+    expect(ter.e.enviados).toHaveLength(0);
+  });
+
+  it('fica no FIM da fila: com um lead novo na fila, a rodada manda o dele (1 envio) e o 2º toque espera', async () => {
+    const { over } = cenario({ posse: async (chave: string) => (chave === chaveContato(TEL) ? 'ocupada' : 'livre'),
+      conversa: async (chave: string) => ({ msgs: chave === chaveContato(TEL) ? [msg('robo', 26)] : [], completa: true }) });
+    const novo = lead({ created_time: min(30) });
+    const { e } = await rodarCom(over, [quiz(), novo]);
+    expect(e.enviados).toHaveLength(1);
+    expect(e.enviados[0]!.texto).toContain('deu 37 de 100');
+  });
+});
+
+describe('o e-mail do dia seguinte (Assine a SolarDoc no Pix automático): 1 vez por contrato', () => {
+  const TEL = '5534991230001';
+  const hm = (tel: string): string => hmacDe(chaveDoTelefone(normalizarTelefoneSd(tel)!))!;
+  const emDe = (horasAtras: number): string => new Date(AGORA.getTime() - horasAtras * 3600_000).toISOString();
+  const marca = (over: Partial<MarcaPagto> = {}): MarcaPagto => ({
+    hmac: hm(TEL), em: emDe(26), contratoId: 'SD-VIP-1', origem: 'lp_solardoc', email: 'ana@exemplo.com', nome: 'Ana', utm_term: 'conj123', lp_session: 'lp-x', ...over,
+  });
+  const montar = (extra: Partial<DepsRec> = {}, estados: Array<[string, { em: string; estado?: string; tipo?: string }]> = [['quiz_pagto_email:SD-VIP-1', { em: emDe(25) }]]) => {
+    const dia2: Array<{ para: string; link: string }> = [];
+    const over: Partial<DepsRec> = {
+      garantirLargada: async () => AGORA.getTime() - 200 * 3600_000,
+      marcasPagamento: async () => [marca()],
+      lerPagamento: async () => ({ contrato: { status: 'pendente', created_at: emDe(26), qr_payload: null, ultimo_pagamento_em: null, email: 'ana@exemplo.com' }, whatsapp: TEL }),
+      lerEstados: async (chaves: string[]) => new Map(estados.filter(([k]) => chaves.includes(k))),
+      enviarEmailPix: async () => undefined,
+      enviarEmailPix2: async (para: string, link: string) => { dia2.push({ para, link }); },
+      ...extra,
+    };
+    return { over, dia2 };
+  };
+
+  it('no dia seguinte ao 1º e-mail: sai 1 e-mail com o link utm_medium=email, e a rodada seguinte não repete', async () => {
+    const { over, dia2 } = montar();
+    const { d, e } = falsas([], over);
+    await rodar(d);
+    expect(dia2).toHaveLength(1);
+    expect(dia2[0]!.para).toBe('ana@exemplo.com');
+    expect(dia2[0]!.link).toBe('https://solardoc.app/?pagar=pix&utm_source=recuperacao&utm_medium=email&utm_term=conj123');
+    expect(e.claims.has('quiz_pagto_email2:SD-VIP-1')).toBe(true);
+    await rodar(d);
+    await rodar(d);
+    expect(dia2).toHaveLength(1);
+  });
+
+  it('sai a qualquer hora, também com a janela fechada', async () => {
+    const { over, dia2 } = montar();
+    const { d } = falsas([], { ...over, janela: () => false });
+    await rodar(d);
+    expect(dia2).toHaveLength(1);
+  });
+
+  it('o dia seguinte ao 1º toque do WhatsApp também vale (sem 1º e-mail), mesmo com a posse e a fala dele na conversa', async () => {
+    const { over, dia2 } = montar({
+      posse: async () => 'ocupada', posseAindaNossa: async () => true,
+      conversa: async () => ({ msgs: [{ id: 1, from_me: true, from_api: true, autor: 'robo', texto: 'x', tipo: 'texto', media_url: null, momment: emDe(25) } as any], completa: true }),
+    }, [[`quiz_rec_sent:${hm(TEL)}`, { em: emDe(25), estado: 'enviado', tipo: 'pagamento' }]]);
+    const { d } = falsas([], over);
+    await rodar(d);
+    expect(dia2).toHaveLength(1);
+  });
+
+  it('no MESMO dia do 1º e-mail, ou sem 1º e-mail nem 1º toque: não sai', async () => {
+    const mesmoDia = montar({}, [['quiz_pagto_email:SD-VIP-1', { em: emDe(1) }]]);
+    await rodar(falsas([], mesmoDia.over).d);
+    expect(mesmoDia.dia2).toHaveLength(0);
+    const semBase = montar({}, []);
+    await rodar(falsas([], semBase.over).d);
+    expect(semBase.dia2).toHaveLength(0);
+  });
+
+  it('pagou, comprou, já falou com a linha ou sem e-mail: não sai', async () => {
+    const pago = montar({ lerPagamento: async () => ({ contrato: { status: 'ativo', created_at: emDe(26), qr_payload: null, ultimo_pagamento_em: emDe(1), email: null }, whatsapp: TEL }) });
+    await rodar(falsas([], pago.over).d);
+    expect(pago.dia2).toHaveLength(0);
+    const comprou = montar({ compraPorEmail: async () => true });
+    await rodar(falsas([], comprou.over).d);
+    expect(comprou.dia2).toHaveLength(0);
+    const falou = montar({ conversa: async () => ({ msgs: [{ id: 1, from_me: false, from_api: null, autor: 'lead', texto: 'oi', tipo: 'texto', media_url: null, momment: emDe(3) } as any], completa: true }) });
+    await rodar(falsas([], falou.over).d);
+    expect(falou.dia2).toHaveLength(0);
+    const semEmail = montar({ marcasPagamento: async () => [marca({ email: null })] });
+    await rodar(falsas([], semEmail.over).d);
+    expect(semEmail.dia2).toHaveLength(0);
+  });
+
+  it('o envio que falha solta o claim e a rodada seguinte tenta de novo; pagou depois do claim: não sai', async () => {
+    let falhar = true;
+    const dia2: string[] = [];
+    const { over } = montar({ enviarEmailPix2: async (para: string) => { if (falhar) throw new Error('resend caiu'); dia2.push(para); } });
+    const { d } = falsas([], over);
+    await rodar(d);
+    expect(dia2).toHaveLength(0);
+    falhar = false;
+    await rodar(d);
+    expect(dia2).toHaveLength(1);
+
+    let leituras = 0;
+    const tarde = montar({
+      lerPagamento: async () => ({ contrato: { status: leituras++ === 0 ? 'pendente' : 'ativo', created_at: emDe(26), qr_payload: null, ultimo_pagamento_em: null, email: null }, whatsapp: TEL }),
+    });
+    const x = falsas([], tarde.over);
+    await rodar(x.d);
+    expect(tarde.dia2).toHaveLength(0);
+    expect(x.e.claims.has('quiz_pagto_email2:SD-VIP-1')).toBe(false);
   });
 });

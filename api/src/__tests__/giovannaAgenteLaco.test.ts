@@ -18,7 +18,6 @@ vi.mock('../services/agents/zapiClient', () => ({
   linhaEmCooldown: h.linhaEmCooldown,
 }));
 vi.mock('../utils/ofertaCupom', () => ({ ofertaCupomAtiva: async () => null, bolhasOferta: () => [] }));
-vi.mock('../utils/pixInfo', () => ({ pixBlocoWhatsApp: () => '' }));
 vi.mock('../utils/pixBrCode', () => ({ gerarPixCopiaECola: () => '00020126PIXFALSO' }));
 vi.mock('../services/agents/whatsapp/promoGeradorActivation', () => ({
   detectAndActivatePromoCredits: async () => ({ ativado: false, ja_ativado_antes: false }),
@@ -26,6 +25,7 @@ vi.mock('../services/agents/whatsapp/promoGeradorActivation', () => ({
 vi.mock('../services/io/encaminharMidiaConsultor', () => ({ encaminharMidiaAoConsultor: vi.fn() }));
 
 import { banco } from './_bancoFalso';
+import { emBolhas } from '../services/agents/bolhas';
 import { handleIncomingWhatsApp, processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { GIOVANNA_TOOLS } from '../services/agents/whatsapp/giovannaFerramentas';
 
@@ -133,8 +133,16 @@ describe('laço de ferramentas', () => {
     semearUsuario();
     h.create.mockResolvedValueOnce(texto('Claro, segue o Pix. [[ENVIAR_PIX]]'));
     await handleIncomingWhatsApp(PHONE, 'manda o pix', 'Joao', undefined, undefined, 'solardoc', fila());
-    expect(h.sendHuman).toHaveBeenCalledTimes(2); // as bolhas e depois o bloco do Pix
+    expect(h.sendHuman).toHaveBeenCalledTimes(2); // as bolhas e depois a frase do Pix automático
     expect(h.sendHuman.mock.calls[0]![1].join(' ')).not.toContain('ENVIAR_PIX');
+    // Ordem do dono (04/11/2026): o Pix é o automático. O link vai DENTRO da frase, em 1 bolha, sem copia e cola nem Kiwify.
+    const [, pix, , opcoes] = h.sendHuman.mock.calls[1]!;
+    expect(pix).toHaveLength(1);
+    expect(pix[0]).toContain('https://solardoc.app/?pagar=pix&utm_source=giovanna&utm_medium=whatsapp');
+    expect(pix[0]).not.toContain('utm_term');
+    expect(pix[0]).not.toMatch(/000201|00020126|kiwify|mand[ea] (o )?comprovante/i);
+    expect(opcoes).toEqual({ maxBolhas: 1 });
+    expect(emBolhas(pix[0], { maxBolhas: 1, max: 900 })).toHaveLength(1);
   });
 
   it('a entrada de R$ 19 saiu: [[ENVIAR_PIX_CURSO]] é tirada do texto e nenhum Pix de R$ 19 sai', async () => {

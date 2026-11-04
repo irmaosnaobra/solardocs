@@ -1,9 +1,7 @@
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
-import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail, sendAbandonedCartEmail, sendOpsAlert } from '../utils/mailer';
+import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail, sendAbandonedCartEmail } from '../utils/mailer';
 import { enviarOpenerRecuperacao } from './agents/whatsapp/pixRecoveryAgentService';
-import { pixAutomatico, pixPublicoAtivo } from '../utils/pixInfo';
-import { asaasHabilitado } from './asaas/asaasClient';
 import { cedeAAgente, lerPosse } from './agentes5040/posse';
 import { novaRodadaPortao, tomarToqueRecuperacao, soltarToqueRecuperacao, marcarToqueEnviado, marcarToqueFalhou, lerFalhasWhats, contarFalhaWhats, FALHAS_PARA_SO_EMAIL } from './recuperacaoCheckoutPortao';
 
@@ -671,7 +669,6 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
     if (!jaEnviadoAntes) sent++;
   }
   console.log(`[abandon] recuperação: ${sent} toques, ${recovered} recuperados, ${skipped} throttled`);
-  if (sent > 0) await avisarPixSemLink();
   return { sent, recovered, skipped };
 }
 
@@ -694,47 +691,6 @@ async function marcarEmailDoToque(id: string, toque: number): Promise<'ok' | 'ja
     if (!error) return 'ok';
     return (error as { code?: string }).code === '23505' ? 'ja' : 'erro';
   } catch { return 'erro'; }
-}
-
-// Cair no Pix manual não dá erro em lugar nenhum: o cliente recebe dados bancários,
-// paga, manda um PDF que a leitura automática não enxerga e fica dias sem acesso
-// (caso Junior, 11/08). Silêncio é exatamente como `checkout.session.expired` ficou
-// 29 dias sem assinatura — então aqui grita. Uma vez por instância fria: o aviso é
-// sobre configuração faltando, não sobre cada toque.
-let avisouPixSemLink = false;
-async function avisarPixSemLink(): Promise<void> {
-  if (pixAutomatico() || avisouPixSemLink) return;
-  avisouPixSemLink = true;
-  console.error('[abandon] SOLARDOC_PIX_CHECKOUT_URL vazia — recuperação seguindo no Pix manual (comprovante na mão)');
-
-  // O aviso nomeia OS DOIS trilhos de propósito. A primeira versão dele só
-  // falava da Kiwify, e a pergunta que voltou foi "mas não está tudo certo pelo
-  // Asaas?" — está, e não atende esta cadência: o Asaas serve quem SAI do
-  // checkout já com conta (/pix-recorrente). Aqui é outra pessoa, em outro dia,
-  // pelo WhatsApp.
-  const asaas = asaasHabilitado()
-    ? (pixPublicoAtivo()
-        ? 'ligado, e a tela pública /pix-automatico está no ar'
-        : 'ligado, mas só atende quem SAI do checkout já logado (/pix-recorrente) — a tela pública /pix-automatico está desligada (falta <code>PIX_PUBLICO_ATIVO=true</code>)')
-    : 'desligado (sem <code>ASAAS_API_KEY</code>, ou <code>PIX_RECORRENTE_OFF=true</code>)';
-
-  await sendOpsAlert(
-    'Recuperação de checkout: falta o link do Pix',
-    `<p>A recuperação de checkout abandonado está mandando toques, mas <strong>SOLARDOC_PIX_CHECKOUT_URL</strong> está vazia.</p>
-     <p>Sem ela, quem pede Pix recebe chave + pedido de comprovante — o caminho manual, que já custou dias de espera pra cliente.</p>
-
-     <p><strong>E o Asaas?</strong> ${asaas}. De qualquer forma ele não cobre esta cadência sozinho: o trilho do Asaas vende
-     <strong>assinatura</strong> (débito mensal autorizado no app do banco), pede CPF/CNPJ no formulário e, se o e-mail não tiver conta,
-     o webhook não cria — ele avisa pra fazer na mão. O roteiro da Giovanna aqui promete outra coisa: <em>“R$ 67, um mês do plano completo”</em>.</p>
-
-     <p><strong>Conserto do jeito que o código já espera</strong> (mês avulso): crie na Kiwify o produto <strong>"SolarDoc — 1 mês"</strong>
-     (R$ 67, Pix liberado), copie o link do checkout e ponha na env <code>SOLARDOC_PIX_CHECKOUT_URL</code> na Vercel. Ponha também o product_id em
-     <code>KIT_KIWIFY_MES_PIX_IDS</code> — assim o nome pode ser alterado sem quebrar a liberação automática.</p>
-
-     <p><strong>Ou decida o contrário</strong>: se quem abandonou deve virar assinante recorrente do Asaas em vez de comprar um mês solto,
-     isso é mudança de produto (roteiro da Giovanna, e-mail de abandono e o lembrete mensal, que hoje cobra de novo quem já autorizou débito).
-     Nesse caso é pedir a troca, não ligar uma env.</p>`,
-  ).catch(() => {});
 }
 
 // ── Cadência de CONVERSÃO free->pago ───────────────────────────────────────

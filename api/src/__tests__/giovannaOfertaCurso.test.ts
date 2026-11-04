@@ -100,8 +100,12 @@ describe('inadimplente: a reativação é o site com o link e o cupom que existi
 
   // O e-mail é o que casa o pagamento com a conta: sem ele o cliente paga e fica
   // esperando alguém liberar na mão — exatamente o que este fluxo veio matar.
-  it('quando manda Pix, exige comprovante E e-mail', () => {
-    expect(p).toMatch(/\*comprovante\* e o \*e-?mail\*/i);
+  // Era "exige comprovante E e-mail": desde 04/11/2026 todo Pix é o automático (assina uma vez com o e-mail da conta), sem comprovante.
+  it('quando manda Pix, manda o Pix automático com o e-mail da conta e nunca pede comprovante', () => {
+    expect(p).toMatch(/Pix AUTOMÁTICO/);
+    expect(p).toMatch(/e-mail da conta/i);
+    expect(p).toMatch(/NUNCA ofereça copia-e-cola e NUNCA peça comprovante/);
+    expect(p).not.toMatch(/\*comprovante\* e o \*e-?mail\*/i);
   });
 
   it('sem cupom vivo, não inventa desconto: nem no Pix nem no cartão', () => {

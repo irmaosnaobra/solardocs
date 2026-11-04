@@ -959,31 +959,93 @@ export async function sendPixEsperandoEmail(opts: { to: string; link: string }):
   const html = `
 <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
   <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:28px 34px;">
-    <h1 style="margin:0;color:#0f172a;font-size:23px;font-weight:900;line-height:1.2;">Seu Pix do SolarDoc ficou esperando</h1>
+    <h1 style="margin:0;color:#0f172a;font-size:23px;font-weight:900;line-height:1.2;">Seu Pix da SolarDoc ficou esperando</h1>
   </div>
   <div style="padding:30px 34px;">
-    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 16px;">Oi, aqui é a Carla, do SolarDoc.</p>
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 16px;">Oi, aqui é a Carla, da SolarDoc.</p>
     <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 16px;">Vi que você começou a assinar e o Pix não chegou a ser pago. Acontece, e dá para gerar outro em 1 minuto.</p>
-    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 16px;">Mais de 3.600 propostas solares já saíram pelo SolarDoc, e mais de 700 só no último mês.</p>
-    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">O Pix é automático: R$ 67 por mês, no nome da AIOROS GROUP, dona do SolarDoc. O banco debita sozinho e você cancela quando quiser pelo app do banco, sem falar com ninguém.</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 16px;">Mais de 3.600 propostas solares já saíram pela SolarDoc, e mais de 700 só no último mês.</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">O Pix é automático: R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc. O banco debita sozinho e você cancela quando quiser pelo app do banco, sem falar com ninguém.</p>
     <div style="text-align:center;margin:26px 0 8px;">
       <a href="${href}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:17px 40px;border-radius:12px;text-decoration:none;">Gerar meu Pix</a>
     </div>
+    <p style="color:#64748b;font-size:12px;line-height:1.5;margin:26px 0 0;text-align:center;">Não quer mais receber? Responda este e-mail com SAIR.</p>
   </div>
 </div>`;
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: opts.to,
     replyTo: REPLY_TO,
-    subject: 'Seu Pix do SolarDoc ficou esperando',
+    subject: 'Seu Pix da SolarDoc ficou esperando',
     html,
     text: [
-      'Oi, aqui é a Carla, do SolarDoc.',
+      'Oi, aqui é a Carla, da SolarDoc.',
       'Vi que você começou a assinar e o Pix não chegou a ser pago. Acontece, e dá para gerar outro em 1 minuto.',
-      'Mais de 3.600 propostas solares já saíram pelo SolarDoc, e mais de 700 só no último mês.',
-      'O Pix é automático: R$ 67 por mês, no nome da AIOROS GROUP, dona do SolarDoc. O banco debita sozinho e você cancela quando quiser pelo app do banco, sem falar com ninguém.',
+      'Mais de 3.600 propostas solares já saíram pela SolarDoc, e mais de 700 só no último mês.',
+      'O Pix é automático: R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc. O banco debita sozinho e você cancela quando quiser pelo app do banco, sem falar com ninguém.',
       `Gerar meu Pix: ${opts.link}`,
+      'Não quer mais receber? Responda este e-mail com SAIR.',
     ].join('\n\n'),
+  });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}
+
+// E-mail do DIA SEGUINTE (04/11/2026): quem gerou o Pix automático no quiz ou na LP e não pagou, 1 por contrato (claim quiz_pagto_email2:<contratoId> em quem
+// chama). Convence pela qualidade: números, o que a proposta entrega e 3 depoimentos literais. O Pix é o automático (R$ 67 por mês, no nome da AIOROS GROUP).
+// Joga erro se o Resend recusar (quem chama solta o claim e tenta na rodada seguinte).
+const DEPOIMENTOS_PIX_EMAIL: ReadonlyArray<{ fala: string; quem: string }> = [
+  { fala: 'Entre todas que já usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais rapidamente.', quem: 'Vanderlei, American Energy Solar, Rondonópolis/MT' },
+  { fala: 'Aqui, com quatro, cinco cliques eu consigo montar uma proposta.', quem: 'Alessandro Goulart, Força Solar, Feliz/RS' },
+  { fala: 'Tenho me surpreendido positivamente com o nível de detalhes das propostas.', quem: 'GSI Energia Solar, Unaí/MG' },
+];
+
+export async function sendPixAssineEmail(opts: { to: string; link: string }): Promise<void> {
+  const href = opts.link.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  const depoimentosHtml = DEPOIMENTOS_PIX_EMAIL.map(d => `
+    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:13px 14px;margin:0 0 6px;">
+      <p style="color:#0f172a;font-size:15px;line-height:1.6;margin:0;font-style:italic;">"${d.fala}"</p>
+    </div>
+    <p style="color:#94a3b8;font-size:12px;line-height:1.4;margin:0 0 16px;">${d.quem}</p>`).join('');
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:28px 34px;">
+    <h1 style="margin:0;color:#0f172a;font-size:23px;font-weight:900;line-height:1.2;">Assine a SolarDoc no Pix automático</h1>
+  </div>
+  <div style="padding:30px 34px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 16px;">Olá,</p>
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 16px;">Mais de 3.600 propostas solares já saíram pela SolarDoc, mais de 700 delas só no último mês.</p>
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">A proposta sai com a logo e a cor da sua empresa, pronta para mandar no WhatsApp.</p>
+    <p style="color:#fbbf24;font-size:15px;font-weight:700;margin:0 0 12px;">Veja o que quem usa conta:</p>${depoimentosHtml}
+    <p style="color:#fbbf24;font-size:15px;font-weight:700;margin:22px 0 10px;">Como funciona o Pix automático:</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 8px;">A SolarDoc custa R$ 67 por mês.</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 8px;">O banco debita sozinho todo mês, e a cobrança sai no nome da AIOROS GROUP, dona da SolarDoc.</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">Você cancela quando quiser pelo app do banco, sem falar com ninguém.</p>
+    <div style="text-align:center;margin:26px 0 8px;">
+      <a href="${href}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:17px 40px;border-radius:12px;text-decoration:none;">Assinar no Pix automático</a>
+    </div>
+    <p style="color:#64748b;font-size:12px;line-height:1.5;margin:26px 0 0;text-align:center;">Não quer mais receber? Responda este e-mail com SAIR.</p>
+  </div>
+</div>`;
+  const text = [
+    'Olá,',
+    'Mais de 3.600 propostas solares já saíram pela SolarDoc, mais de 700 delas só no último mês.',
+    'A proposta sai com a logo e a cor da sua empresa, pronta para mandar no WhatsApp.',
+    'Veja o que quem usa conta:',
+    ...DEPOIMENTOS_PIX_EMAIL.map(d => `"${d.fala}"\n${d.quem}`),
+    'Como funciona o Pix automático:',
+    'A SolarDoc custa R$ 67 por mês.',
+    'O banco debita sozinho todo mês, e a cobrança sai no nome da AIOROS GROUP, dona da SolarDoc.',
+    'Você cancela quando quiser pelo app do banco, sem falar com ninguém.',
+    `Assinar no Pix automático: ${opts.link}`,
+    'Não quer mais receber? Responda este e-mail com SAIR.',
+  ].join('\n\n');
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: opts.to,
+    replyTo: REPLY_TO,
+    subject: 'Assine a SolarDoc no Pix automático',
+    html,
+    text,
   });
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }

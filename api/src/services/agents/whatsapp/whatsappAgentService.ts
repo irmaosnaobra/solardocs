@@ -3,7 +3,6 @@ import { supabase } from '../../../utils/supabase';
 import { fmtPhone, linhaEmCooldown, sendHuman, sendImage, sendWhatsApp, ZapiInstance } from '../zapiClient';
 import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
-import { pixBlocoWhatsApp } from '../../../utils/pixInfo';
 import { ofertaCupomAtiva, bolhasOferta, OfertaCupom } from '../../../utils/ofertaCupom';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
 import { classificarFalha, flushAvisoFila, registrarAbandono } from './filaAlerta';
@@ -270,18 +269,21 @@ ${vendaBloco}
 - REDEFINIR SENHA: em ${APP_URL} → "Esqueci minha senha" → chega um email com o link. O link dura *24 HORAS* — se der "expirado", é só pedir um NOVO e usar no mesmo dia. NUNCA diga que expira "em minutos".
 - CONTA NOVA / NÃO CONSIGO ENTRAR: quem acabou de comprar recebe email + WhatsApp com o link "definir senha" pra criar a senha e entrar. Peça pra conferir o email (inclusive SPAM). Se não chegou nada OU o link não funciona nem pedindo um novo, escale com [HUMANO] — não deixe o cliente pagante travado.
 - COMEÇAR A USAR: 1) cadastrar o CNPJ em *Empresa*; 2) subir logo, cor e fotos; 3) a proposta sai pelo botão *Nova proposta*, no topo do menu (ou *Ler conta de luz*, que monta a proposta pela foto da conta); contrato, procuração e recibo ficam em *Papelada*, e *Outros documentos* tem proposta de banco, prestação de serviço e contrato de vendedor. Tudo o que ele gera fica salvo em *Arquivos*, em qualquer plano.
-- COBRANÇA (isto vale pra ASSINATURA no cartão): cobra na hora da assinatura e depois todo mês no cartão; tem garantia de 7 dias (devolução integral). Se o cartão falhar, dá pra pagar por *Pix* (a renovação no Pix é R$ 67,00; pagando menos, o sistema avisa quanto falta e manda o Pix do restante) — o cliente manda o comprovante aqui mesmo neste WhatsApp e a gente libera. ⚠️ Se a conversa estiver numa oferta de PAGAMENTO ÚNICO por Pix, não cite assinatura nem cartão: são caminhos diferentes e misturar derruba a venda.
+- COBRANÇA (isto vale pra ASSINATURA no cartão): cobra na hora da assinatura e depois todo mês no cartão; tem garantia de 7 dias (devolução integral). Se o cartão falhar, ou ele preferir Pix, o caminho é o *Pix automático* (R$ 67,00 por mês): ele assina uma vez, com o e-mail da conta dele, num link que o sistema manda pela tag [[ENVIAR_PIX]], e o banco debita todo mês sozinho. Você não pede comprovante. ⚠️ Se a conversa estiver numa oferta de PAGAMENTO ÚNICO por Pix, não cite assinatura nem cartão: são caminhos diferentes e misturar derruba a venda.
 - NÃO SABE a resposta técnica exata? NÃO CHUTE. Diga que vai acionar o time e escale com [HUMANO].
 - SER IA: se perguntarem se você é robô ou IA, diga que sim numa frase curta ("Sou a IA do SolarDoc, sim.") e volte ao assunto. Nunca diga que é humana, pessoa ou gente de verdade. Se ele quiser falar com alguém do time, use [HUMANO].
 
 ━━ 💠 SE ELE PEDIR PIX ━━
-O caminho padrão da assinatura é o site (cartão). Mas se o cliente PEDIR Pix, ou disser que
-não tem cartão, você manda — sem enrolar e sem tentar convencer do contrário.
-- Termine a resposta com a tag literal [[ENVIAR_PIX]]. O sistema anexa o código, o valor e o
-  pedido de comprovante + e-mail. NÃO escreva o código nem o valor você mesma.
+O caminho padrão da assinatura é o site (cartão). Mas se o cliente PEDIR Pix, quiser RENOVAR,
+disser que não tem cartão ou o cartão falhou, você manda o Pix AUTOMÁTICO, sem enrolar e sem
+tentar convencer do contrário. Todo Pix é o automático: ele assina uma vez e o banco debita
+todo mês sozinho.
+- Na sua frase, diga que é para usar o *e-mail da conta dele* na hora de assinar. Termine a
+  resposta com a tag literal [[ENVIAR_PIX]]. O sistema anexa o link do Pix automático. NÃO escreva
+  link, código nem valor você mesma.
 ${linhaDesconto}
-- Depois de pagar ele SEMPRE precisa mandar duas coisas: o *comprovante* e o *e-mail* da conta
-  dele no SolarDoc. Se vier só um, peça o outro numa bolha curta. É com o e-mail que libera.
+- NUNCA ofereça copia-e-cola e NUNCA peça comprovante como caminho de pagamento. Se ele disser que
+  já pagou por outro caminho, peça só o e-mail da conta e acione o time com [HUMANO].
 
 ━━ FERRAMENTAS (você resolve na hora e não promete o que não fez) ━━
 Você tem 4 ferramentas. Use quando o assunto pedir. Em conversa de venda ou dúvida simples, não use.
@@ -744,27 +746,6 @@ export async function sendActivationWhatsApp(phone: string, resetUrl: string, pl
     `Sua conta já tá criada. Falta *1 passo* pra entrar: definir sua senha. Leva 10 segundos:\n\n🔑 ${resetUrl}`,
     `Assim que entrar, faça isso pra deixar tudo com a sua cara:\n\n1️⃣ Cadastre o *CNPJ da sua empresa*\n2️⃣ Suba sua *logo e cor* — todo documento e proposta já sai com a sua marca ✅`,
     `Qualquer dúvida — de verdade, qualquer uma — me chama *aqui mesmo neste número*. Eu te respondo. Bom uso e boas vendas! 🚀`,
-  ];
-
-  await sendHuman(cleanPhone, parts);
-
-  const fullText = parts.join(' || ');
-  await saveSession(cleanPhone, nome || null, [{ role: 'assistant', content: fullText }]);
-}
-
-// RECUPERAÇÃO de checkout abandonado / cartão recusado (público). A pessoa começou
-// a assinar e não concluiu. Tom gentil, oferece ajuda + link pra retomar. Best-effort:
-// o chamador envolve em try/catch e o teto anti-ban se aplica (não pode virar flood).
-export async function sendCheckoutRecoveryWhatsApp(phone: string, produto: string, recoverUrl: string, nome?: string | null): Promise<void> {
-  const cleanPhone = phone.replace(/\D/g, '');
-  const firstName = (nome || '').trim().split(/\s+/)[0];
-  const greeting = firstName ? `Oi ${firstName}!` : 'Oi!';
-
-  const parts = [
-    `${greeting} 🌞 Sou a Giovanna, da SolarDoc Pro. Vi que você começou a assinar o *${produto}* mas o pagamento não finalizou — deu algum problema?`,
-    `Se quiser, retomar pelo cartão leva 1 minutinho — e você tem *7 dias de garantia*: não serviu, a gente devolve:\n\n🔗 ${recoverUrl}`,
-    pixBlocoWhatsApp(),
-    `Qualquer dúvida (cartão, Pix, plano, o que for), me chama *aqui mesmo neste número* que eu te ajudo. 🙌`,
   ];
 
   await sendHuman(cleanPhone, parts);
@@ -1375,9 +1356,8 @@ export async function handleIncomingWhatsApp(
     }
   }
 
-  // Giovanna decidiu mandar o Pix (reativação de acesso pausado) → anexa o copia-e-cola
-  // R$67 + instrução do comprovante. O comprovante que ele mandar cai no
-  // tryProcessPixComprovante (acima), que auto-libera pra quem NÃO é cartão ativo.
+  // Giovanna decidiu mandar o Pix (pedido, renovação, cartão que falhou) → anexa o link do Pix AUTOMÁTICO (desde 04/11/2026).
+  // Quem ainda pagar no manual e mandar comprovante cai no tryProcessPixComprovante (acima), que auto-libera pra quem NÃO é cartão ativo.
   // A entrada de R$19 (curso + 30 dias, tag [[ENVIAR_PIX_CURSO]]) saiu de venda em 20/10/2026: o prompt não a oferece mais e, se o modelo
   // ainda emitir a tag, ela só é tirada do texto (parseTagsResposta) e NENHUM Pix de R$19 sai.
   if (pedePixCurso) logger.info('whatsapp', '[[ENVIAR_PIX_CURSO]] ignorado: a entrada de R$ 19 saiu de venda em 20/10/2026');
@@ -1391,16 +1371,16 @@ export async function handleIncomingWhatsApp(
       logger.error('whatsapp', 'enviar link+cupom (reativação) falhou', err);
     }
   } else if (pedePix) {
-    // Pix SOB DEMANDA: não é mais oferecido de saída, mas quem pede recebe. Sai
-    // sempre com o mesmo pedido — comprovante E e-mail — porque é esse par que
-    // deixa a liberação acontecer sozinha (regra do Thiago, 08/08/2026).
+    // Pix SOB DEMANDA: não é mais oferecido de saída, mas quem pede recebe. Ordem do dono (04/11/2026): todo Pix é o
+    // automático. O link vai DENTRO de uma frase, em 1 bolha (o texto da resposta já saiu em 1 bolha): 2 no total.
+    // Sem copia-e-cola e sem pedir comprovante.
     try {
-      const { gerarPixCopiaECola } = await import('../../../utils/pixBrCode');
-      const { partesPixSobDemanda, registrarPixEnviado } = await import('./pixSolicitado');
-      const copia = gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' });
-      // Texto, instrução e o copia-e-cola POR ÚLTIMO, em no máximo 2 bolhas (o código nunca é fundido).
-      await sendHuman(cleanPhone, partesPixSobDemanda(copia, 67), originInstance, { maxBolhas: 1 }).catch(() => {});
-      await registrarPixEnviado(cleanPhone, 67, senderName ?? null);
+      const { bolhasPixCheckout } = await import('../../../utils/pixInfo');
+      const { registrarPixEnviado } = await import('./pixSolicitado');
+      await sendHuman(cleanPhone, bolhasPixCheckout('giovanna'), originInstance, { maxBolhas: 1 }).catch(() => {});
+      // Marca que o link saiu (segura a trava "uma vez por conversa" do comprovanteHandoff, 24 h). modo 'automatico': um comprovante
+      // depois NÃO credita por este registro, porque o webhook do Asaas já credita o pagamento (senão seriam 2 meses por 1 Pix).
+      await registrarPixEnviado(cleanPhone, 67, senderName ?? null, 'automatico');
     } catch (err) {
       logger.error('whatsapp', 'enviar Pix (sob demanda) falhou', err);
     }

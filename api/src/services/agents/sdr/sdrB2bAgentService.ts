@@ -591,7 +591,7 @@ const CONTRATO_DO_CANAL = `
    Nesses casos o caminho é registrar_chamado, e dizer ao lead que o time
    resolve. Prometer o que não chega derruba a conversa.
 
-   O que você PODE fazer (imagem dos documentos e Pix copia-e-cola) está na
+   O que você PODE fazer (imagem dos documentos e link do Pix automático) está na
    seção "O QUE VOCÊ CONSEGUE FAZER DE VERDADE", que vem logo abaixo. Ela é a
    lista real das suas ações, se um texto mais acima disser que você não manda
    imagem, aquele texto está velho e esta seção vale.
@@ -761,7 +761,8 @@ export async function handleSolarDocB2bLead(
   // curta de verdade é o prompt escrevendo pouco; isto só garante que nunca vire
   // metralhadora.
   if (parts.length) {
-    await sendHuman(cleanPhone, parts, originInstance, BOLHAS_CARLA);
+    // Com Pix, o texto fica em 1 bolha e o link do Pix automático vem em outra: a resposta inteira sai em até 2 bolhas.
+    await sendHuman(cleanPhone, parts, originInstance, acoes.pix ? { ...BOLHAS_CARLA, maxBolhas: 1 } : BOLHAS_CARLA);
   }
 
   // ── as ações, sempre DEPOIS das bolhas ──────────────────────────────
@@ -808,15 +809,12 @@ export async function handleSolarDocB2bLead(
   }
 
   if (acoes.pix) {
-    // O código é gerado aqui, não escrito pelo modelo. Mesmo txid e mesmo valor
-    // que a Giovanna usa, é o que a auto-liberação por comprovante reconhece.
+    // Ordem do dono (04/11/2026): todo Pix é o automático. O link sai de código (não é escrito pelo modelo), dentro de UMA
+    // frase, com teto de 1 bolha: a resposta inteira (texto da Carla + link) fica em até 2 bolhas.
     try {
-      const { gerarPixCopiaECola } = await import('../../../utils/pixBrCode');
-      const { bolhasPix, registrarPixEnviado } = await import('../whatsapp/pixSolicitado');
-      const copia = gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' });
-      await sendHuman(cleanPhone, bolhasPix(copia, 67), originInstance);
-      await registrarPixEnviado(cleanPhone, 67, nome);
-      logger.info('carla', `pix R$67 enviado (${cleanPhone})`);
+      const { bolhasPixCheckout } = await import('../../../utils/pixInfo');
+      await sendHuman(cleanPhone, bolhasPixCheckout('sdr'), originInstance, { maxBolhas: 1 });
+      logger.info('carla', `link do Pix automático enviado (${cleanPhone})`);
     } catch (err) {
       logger.error('carla', `enviar pix falhou (${cleanPhone})`, err);
     }

@@ -232,7 +232,7 @@ async function creditarPagamento(
   // comprovante creditaria de novo. O E2E (`pix_e2e:`) é a trava que os dois dividem. Falhou a busca:
   // credita assim mesmo (melhor um mês em dobro, que o Thiago vê, do que cliente pago sem acesso).
   let e2eKey: string | null = null;
-  if (primeiroPagamento && b.payment?.pixTransaction) {
+  if (b.payment?.pixTransaction) {
     try {
       const t = await asaasFetch<{ endToEndIdentifier?: string }>(`/pix/transactions/${encodeURIComponent(b.payment.pixTransaction)}`);
       const { chaveE2e } = await import('../agents/whatsapp/pixComprovanteService');

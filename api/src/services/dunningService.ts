@@ -11,7 +11,8 @@
 import { supabase } from '../utils/supabase';
 import { Resend } from 'resend';
 import Stripe from 'stripe';
-import { sendWhatsApp } from './agents/zapiClient';
+import { sendWhatsApp, sendFrio } from './agents/zapiClient';
+import { novaRodadaPortao, tomarChaveFria, soltarChaveFria } from './recuperacaoCheckoutPortao';
 import { logger } from '../utils/logger';
 import { FREE_LIMIT } from './planService';
 import { pixBlocoEmailHtml } from '../utils/pixInfo';
@@ -256,38 +257,149 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
 
-async function sendDayNotification(
-  user: { id: string; email: string; nome: string | null; whatsapp: string | null },
-  day: number,
-): Promise<void> {
+// ─────────────────────────────────────────────────────────────────────────────
+// WHATSAPP DO DUNNING, D0 a D4 (a Giovanna). Desde 04/11/2026 (ordem do dono: "sempre oriente eles a utilizar o pix recorrente")
+// a saída é o PIX AUTOMÁTICO (Asaas): a pessoa assina uma vez, o banco debita todo mês, sem cartão e sem comprovante.
+//
+// Remodelo anti-ban (chefe-antiban, linha 5040): UMA bolha por sendFrio (antes: até 5 mensagens por toque, sem teto nem janela).
+//   · D0 é EVENTO (o webhook avisa na hora): sai já, sem janela nem teto, mas em 1 bolha e com claim (o webhook e o stripe-sync
+//     podem chamar duas vezes). Não confere pausa humana: quem acabou de ter a cobrança recusada espera o aviso.
+//   · D1 a D4 (lembrete, frio de receita): portão da linha (janela 9h-20h de segunda a sábado sem feriado, teto do frio, espaçamento,
+//     pausa humana, supressão, mudo, opt-out), claim `dunning_sent:<userId>:<dia>` por INSERT antes de enviar, 1 envio por rodada.
+//     Segurado pelo portão: o e-mail do dia sai uma vez (marca `dunning_email:`), o dia NÃO avança e o WhatsApp tenta no próximo tick.
+// O portão e o claim moram AQUI porque a guarda (chefeGuarda) só conhece o `dunning_lembrete` neste arquivo.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Link do Pix automático do dunning (sem utm_term). */
+export const LINK_PIX_AUTOMATICO_DUNNING = 'https://solardoc.app/?pagar=pix&utm_source=dunning&utm_medium=whatsapp';
+
+/** O texto do WhatsApp do dunning (D0 a D4), UMA bolha, com o link do Pix automático dentro da frase. */
+export function textoWhatsappDunning(nome: string | null, day: number): string {
+  const primeiro = (nome || '').trim().split(/\s+/)[0] || '';
+  const oi = primeiro ? `Oi, ${primeiro}! Aqui é a Giovanna, do SolarDoc.` : 'Oi! Aqui é a Giovanna, do SolarDoc.';
+  const falta = 5 - day;
+  const situacao = day === 0
+    ? 'A cobrança da sua assinatura no cartão não passou, mas seu acesso segue liberado por 5 dias.'
+    : day >= 4
+      ? 'Hoje é o último dia antes do cancelamento automático da sua assinatura, que ficou sem pagamento no cartão.'
+      : `A cobrança da sua assinatura no cartão ainda não passou e seu acesso segue liberado por mais ${falta} dias.`;
+  return `${oi} ${situacao} Dá pra resolver em 2 minutos: assine o Pix automático em ${LINK_PIX_AUTOMATICO_DUNNING}, em que o banco debita todo mês, sem cartão e sem comprovante. Na hora de assinar, use o e-mail da sua conta.`;
+}
+
+type UsuarioDunning = { id: string; email: string; nome: string | null; whatsapp: string | null; whatsapp_opt_out?: boolean | null; past_due_since?: string | null };
+
+/**
+ * O CICLO de cobrança, na chave: a data (10 caracteres) em que a inadimplência começou (`past_due_since`). Sem ela, as marcas de um
+ * ciclo antigo (nov) bloqueariam os avisos de um ciclo novo (mar) e o cliente iria ao D5 sem aviso nenhum. Sem `past_due_since`
+ * (não deveria acontecer: o D0 grava antes de avisar), vale o dia de hoje, que é o início do ciclo que está começando.
+ */
+function cicloDe(user: UsuarioDunning): string {
+  const d = String(user.past_due_since ?? '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : new Date().toISOString().slice(0, 10);
+}
+type PortaoDunning = ReturnType<typeof novaRodadaPortao>;
+
+/** Marca do e-mail do dia, por ciclo (D1 a D4): o e-mail sai uma vez só por dia, mesmo quando o WhatsApp do dia fica para o próximo tick. */
+async function marcarEmailDoDia(userId: string, ciclo: string, day: number): Promise<'ok' | 'ja' | 'erro'> {
+  try {
+    const em = new Date().toISOString();
+    const { error } = await supabase.from('system_state').insert({ key: `dunning_email:${userId}:${ciclo}:${day}`, value: { em }, updated_at: em });
+    if (!error) return 'ok';
+    return (error as { code?: string }).code === '23505' ? 'ja' : 'erro';
+  } catch { return 'erro'; }
+}
+
+/**
+ * O WhatsApp do dia. 'enviado' | 'cortado' (esta pessoa não recebe, ou já saiu: o dia avança) | 'segurado' (tenta no próximo tick, o dia NÃO
+ * avança) | 'falhou' (o sendFrio lançou: talvez saiu, o claim fica e o dia avança, só com o e-mail).
+ */
+async function enviarWhatsappDunning(user: UsuarioDunning, day: number, portao?: PortaoDunning): Promise<'enviado' | 'cortado' | 'segurado' | 'falhou'> {
+  const phone = user.whatsapp;
+  if (!phone) return 'cortado';
+  const texto = textoWhatsappDunning(user.nome, day);
+  const chave = `dunning_sent:${user.id}:${cicloDe(user)}:${day}`;
+  const evento = day === 0;
+
+  if (!evento) {
+    if (user.whatsapp_opt_out === true) return 'cortado';
+    if (!portao) return 'segurado';
+    const v = await portao.avaliar(phone);
+    if (!v.ok) return v.acao === 'corta' ? 'cortado' : 'segurado';
+  }
+
+  // Claim por INSERT antes de enviar. Chave repetida: outra rodada (ou o webhook, no D0) já pegou este dia.
+  const claim = await tomarChaveFria(chave);
+  if (claim === 'ja') return 'cortado';
+  // Erro de leitura no lembrete (frio): segura. No D0 (evento) o aviso sai mesmo assim.
+  if (claim === 'erro' && !evento) return 'segurado';
+
+  try {
+    // D0 é evento: transacional (sem a trava de pausa humana), mas SEMPRE 1 bolha, pelo sendFrio.
+    const saiu = await sendFrio(phone, [texto], 'solardoc', evento ? { transacional: true } : undefined);
+    if (!saiu) {
+      // Calou por regra (pausa humana): nada saiu, o claim é desfeito e o dia fica para o próximo tick.
+      if (claim === 'ok') await soltarChaveFria(chave);
+      portao?.travarRodada('sendfrio_calou');
+      return 'segurado';
+    }
+  } catch (err) {
+    // Erro de envio (transporte ou número): talvez saiu. O claim FICA; o dia avança só com o e-mail e a rodada para de tentar WhatsApp.
+    logger.error('dunning', `whatsapp D${day} falhou pra ${phone}`, err);
+    portao?.travarRodada('envio_falhou');
+    return 'falhou';
+  }
+  portao?.travarRodada('ja_enviou_na_rodada');
+  // O histórico da conversa da plataforma: a resposta dela cai na Giovanna, que precisa saber do que se trata. Melhor esforço.
+  try {
+    const { registrarMsgProativa } = await import('./agents/whatsapp/whatsappAgentService');
+    await registrarMsgProativa({ userId: user.id, phone, content: texto, nome: user.nome });
+  } catch (err) {
+    logger.error('dunning', `histórico do whatsapp D${day} não gravou pra ${phone}`, err);
+  }
+  return 'enviado';
+}
+
+/**
+ * Notifica o dia (e-mail + WhatsApp). Devolve `false` quando o WhatsApp do D1-D4 ficou SEGURADO pelo portão: o chamador não avança o dia
+ * e o próximo tick tenta de novo (o e-mail daquele dia não repete). `true` em todo o resto.
+ */
+async function sendDayNotification(user: UsuarioDunning, day: number, portao?: PortaoDunning): Promise<boolean> {
   const tplFn = TEMPLATES[day];
-  if (!tplFn) return;
+  if (!tplFn) return true;
   const tpl = tplFn(user.nome);
 
   // Oferece PIX como alternativa ao cartão — só nos dias de cobrança em aberto
-  // (D0-D4). No D5 (já cancelado) e no "recuperado" não faz sentido. O comprovante
-  // vai pro WhatsApp do atendimento, que confere o valor e libera 1 mês.
+  // (D0-D4). No D5 (já cancelado) e no "recuperado" não faz sentido.
   const comPix = day <= 4;
   const htmlFinal = comPix
     ? tpl.html.replace('<div style="margin-top:8px;">', pixBlocoEmailHtml() + '<div style="margin-top:8px;">')
     : tpl.html;
 
+  // D1 a D4: o e-mail sai uma vez por dia, mesmo se o WhatsApp do dia for segurado e o dia se repetir no próximo tick.
+  let mandaEmail = true;
+  if (day >= 1 && day <= 4) {
+    const marca = await marcarEmailDoDia(user.id, cicloDe(user), day);
+    if (marca === 'erro') return false;   // não deu para decidir: nada sai e o dia tenta de novo
+    mandaEmail = marca === 'ok';
+  }
   const tasks: Array<Promise<void>> = [];
   // Email = aviso formal (backbone; cobre quem só tem email).
-  tasks.push(
-    sendEmail(user.email, tpl.subject, htmlFinal).catch(err => {
-      logger.error('dunning', `email D${day} falhou pra ${user.email}`, err);
-    }),
-  );
-  // WhatsApp: D0-D4 → Giovanna CONVERSACIONAL (reativação por Pix, tom humano). D5 (já
-  // cancelado) → aviso scriptado. Sem whatsapp → só email.
+  if (mandaEmail) {
+    tasks.push(
+      sendEmail(user.email, tpl.subject, htmlFinal).catch(err => {
+        logger.error('dunning', `email D${day} falhou pra ${user.email}`, err);
+      }),
+    );
+  }
+  // WhatsApp: D0-D4 → texto da Giovanna com o Pix automático, 1 bolha por sendFrio (ver acima). D5 (já cancelado) → aviso scriptado.
+  // Sem whatsapp → só email.
+  let avancar = true;
   if (user.whatsapp) {
     if (comPix) {
       tasks.push(
-        (async () => {
-          const { enviarOpenerDunning } = await import('./agents/whatsapp/pixRecoveryAgentService');
-          await enviarOpenerDunning(user, day);
-        })().catch(err => logger.error('dunning', `giovanna dunning D${day} falhou pra ${user.whatsapp}`, err)),
+        enviarWhatsappDunning(user, day, portao)
+          .then(r => { if (r === 'segurado') avancar = false; })
+          .catch(err => logger.error('dunning', `whatsapp dunning D${day} falhou pra ${user.whatsapp}`, err)),
       );
     } else {
       tasks.push(
@@ -298,6 +410,7 @@ async function sendDayNotification(
     }
   }
   await Promise.allSettled(tasks);
+  return avancar;
 }
 
 // Chamado direto pelo webhook quando invoice.payment_failed dispara — envia D0
@@ -305,7 +418,7 @@ async function sendDayNotification(
 export async function sendDunningDay0(userId: string): Promise<void> {
   const { data: user } = await supabase
     .from('users')
-    .select('id, email, nome, whatsapp')
+    .select('id, email, nome, whatsapp, whatsapp_opt_out, past_due_since')
     .eq('id', userId)
     .single();
   if (!user) return;
@@ -379,7 +492,7 @@ export async function cancelStripeSubsForEmail(email: string): Promise<number> {
 export async function runDunning(): Promise<{ scanned: number; notified: number; canceled: number }> {
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, email, nome, whatsapp, past_due_since, dunning_last_day_sent, billing_status, plano_expira_em')
+    .select('id, email, nome, whatsapp, whatsapp_opt_out, past_due_since, dunning_last_day_sent, billing_status, plano_expira_em')
     .in('billing_status', ['past_due', 'suspended'])
     .not('past_due_since', 'is', null);
 
@@ -391,6 +504,8 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
   let notified = 0;
   let canceled = 0;
   const now = Date.now();
+  // Portão do WhatsApp do lembrete (D1 a D4): uma instância por rodada, 1 envio por rodada.
+  const portao = novaRodadaPortao(undefined, { robo: 'dunning_lembrete' });
 
   for (const u of users ?? []) {
     // Pagou por Pix: o cartão até pode estar falhando no Stripe, mas o acesso
@@ -443,7 +558,10 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
       logger.info('dunning', `${u.email}: D5 — ${cancelCount} subs canceladas no Stripe + rebaixado pra free`);
     }
 
-    await sendDayNotification(u, dayToSend);
+    const avancar = await sendDayNotification(u, dayToSend, portao);
+    // WhatsApp do D1-D4 segurado pelo portão (janela, teto, espaçamento...): o dia NÃO avança e o WhatsApp tenta no próximo tick.
+    // O e-mail daquele dia já saiu e não repete (marca `dunning_email:`).
+    if (!avancar) continue;
 
     // Pro D5 já atualizamos acima junto com o cancel. Pros outros dias só carimba o último enviado.
     if (dayToSend !== 5) {

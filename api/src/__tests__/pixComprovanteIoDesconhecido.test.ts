@@ -124,6 +124,7 @@ const bonusMock = vi.hoisted(() => ({ tentar: vi.fn(async (_a: any) => true) }))
 vi.mock('../services/agentes5040/planilhaBonus', () => ({ tentarBonusPosPagamento: bonusMock.tentar }));
 
 import { sendHuman, sendWhatsApp } from '../services/agents/zapiClient';
+import { emBolhas } from '../services/agents/bolhas';
 import {
   tryProcessAbandonedPixComprovante, liberarComprovantePendente, chaveE2e,
 } from '../services/agents/whatsapp/pixComprovanteService';
@@ -211,8 +212,11 @@ describe('número desconhecido manda comprovante', () => {
     const t = textoEnviado();
     expect(t).toBe(
       'Pronto. Recebi seu Pix de R$ 27,00 e liberei o plano PRO até 20/11 na conta leoimplant@gmail.com, da Leo Implantes Ltda. '
-      + 'É só entrar em solardoc.app com o seu e-mail e a sua senha. Se não lembrar a senha, use "Esqueci minha senha" na tela de entrada.',
+      + 'É só entrar em solardoc.app com o seu e-mail e a sua senha. Se não lembrar a senha, use "Esqueci minha senha" na tela de entrada. '
+      // Fecho de 04/11/2026: oferece o Pix automático para o mês seguinte, na mesma bolha.
+      + 'Se quiser, o próximo mês já fica sem comprovante: é só assinar o Pix automático em https://solardoc.app/?pagar=pix&utm_source=renovacao&utm_medium=whatsapp.',
     );
+    expect(emBolhas(t, { maxBolhas: 1, max: 900 })).toHaveLength(1);
     expect(t).not.toMatch(/redefinir|token/);
     // O telefone foi gravado na conta (estava vazio e ninguém mais o usa).
     expect(db.users[0]!.whatsapp).toBe(TEL_FORMATO_USERS);
@@ -600,6 +604,54 @@ describe('comprovante sem e-mail: pendente do desconhecido', () => {
     expect(db.users[0]!.whatsapp).toBe('34900000000');
     const t = enviadas().map((c) => c[1].join(' ')).join(' ');
     expect(t).not.toMatch(/redefinir|tok-secreto/);
+  });
+});
+
+// 04/11/2026: a Giovanna passou a mandar o LINK do Pix automático e ainda grava o registro de Pix enviado. A pessoa paga pelo Asaas (o webhook
+// credita 1 mês e grava o E2E) e depois manda o comprovante na conversa: o comprovante não pode creditar um 2º mês.
+describe('link do Pix automático enviado + comprovante do mesmo pagamento', () => {
+  const MANUAL_COM_EMAIL = () => ({
+    valor: 67, email: 'leoimplant@gmail.com', nome: null, em: new Date().toISOString(), comprovante: null,
+  });
+  const SEM_ID_PIX = { ...PLANO67, id_transacao: '6a91d60d-2eb9-4936-b62c-a57b9a64ef42' };
+
+  it('controle: Pix MANUAL pedido, com e-mail, e comprovante sem ID de Pix legível credita (ramo antigo)', async () => {
+    leitura = SEM_ID_PIX;
+    db.system_state.push({ key: `pix_solicitado:${TEL_FORMATO_USERS}`, value: MANUAL_COM_EMAIL() });
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+    expect(db.users[0]!.plano).toBe('ilimitado');
+  });
+
+  it('link do Pix automático: o registro leva modo "automatico" e o comprovante sem ID de Pix NÃO credita', async () => {
+    const { registrarPixEnviado } = await import('../services/agents/whatsapp/pixSolicitado');
+    await registrarPixEnviado(TEL, 67, 'Leo', 'automatico');
+    expect((await lerPixSolicitado(TEL))?.modo).toBe('automatico');
+    db.wa_mensagens.push(mensagemRecebida('meu email é leoimplant@gmail.com'));
+    leitura = SEM_ID_PIX;
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+    expect(db.users[0]!.plano).toBe('free');
+    expect(db.users[0]!.plano_expira_em).toBeNull();
+  });
+
+  it('o webhook do Asaas já usou o E2E: o comprovante do mesmo Pix NÃO credita um 2º mês', async () => {
+    const { registrarPixEnviado } = await import('../services/agents/whatsapp/pixSolicitado');
+    await registrarPixEnviado(TEL, 67, 'Leo', 'automatico');
+    db.wa_mensagens.push(mensagemRecebida('meu email é leoimplant@gmail.com'));
+    // o que o webhook do automático grava ao creditar (e2eJaUsado): o E2E do pagamento, com o valor
+    db.system_state.push({ key: chaveE2e(PLANO67.id_transacao, 67)!, value: { user_id: 'u1', valor: 67, at: new Date().toISOString() } });
+    leitura = PLANO67;
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+    expect(db.users[0]!.plano).toBe('free');
+    expect(db.users[0]!.plano_expira_em).toBeNull();
+  });
+
+  it('o modo "automatico" sobrevive ao e-mail que chega depois (a trava do handoff segue lendo o registro)', async () => {
+    const { registrarPixEnviado, guardarEmailSePendente } = await import('../services/agents/whatsapp/pixSolicitado');
+    await registrarPixEnviado(TEL, 67, 'Leo', 'automatico');
+    await guardarEmailSePendente(TEL, 'leoimplant@gmail.com', 'Leo');
+    const reg = await lerPixSolicitado(TEL);
+    expect(reg?.modo).toBe('automatico');
+    expect(reg?.valor).toBe(67);
   });
 });
 

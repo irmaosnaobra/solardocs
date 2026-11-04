@@ -619,6 +619,18 @@ describe('tick de desistência', () => {
     expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(0);
     expect(sendToGroup).toHaveBeenCalledTimes(1);
   });
+  it('o lead da LP (form_id lp_solardoc_pix) nunca entra no tick nem no aviso ao grupo: só o quiz_solardoc é lido', async () => {
+    tabelas.leads_meta!.push(
+      { ...leadsMeta({ lead_id: 'sdquiz_3499998888', whatsapp: '5534999998888', created_time: minAtras(20) }), form_id: 'lp_solardoc_pix' },
+    );
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(0);
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(claims()).toHaveLength(0);
+    // o mesmo lead com o form do quiz é avisado (prova de que só o form_id o tirou da leitura)
+    tabelas.leads_meta![0]!.form_id = 'quiz_solardoc';
+    expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(1);
+  });
   it('não avisa quem comprou: por lp_session, por telefone da venda ou por plano pago', async () => {
     tabelas.leads_meta!.push(
       leadsMeta({ lead_id: 'sdquiz_a', whatsapp: '5534999998888' }),

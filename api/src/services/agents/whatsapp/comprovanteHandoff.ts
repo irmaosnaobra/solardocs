@@ -175,8 +175,9 @@ export async function pixDoHandoffPodeSair(
   // entrada repetida continuam sem Pix (ali falta entender o que ele pagou).
   if (h.codigo !== 'recebedor' && h.codigo !== 'data' && h.codigo !== 'ja_usado') return false;
   const url = (pixCheckoutUrl() || '').trim();
+  // Já mandou Pix nesta conversa: copia e cola, checkout da Kiwify ou o link do Pix automático (qualquer query).
   if (messages.some(m => typeof m.content === 'string'
-    && (m.content.includes('000201') || (url && m.content.includes(url))))) return false;
+    && (m.content.includes('000201') || (url && m.content.includes(url)) || /solardoc\.app\/\?pagar=pix/i.test(m.content)))) return false;
   try {
     const reg = await lerPixSolicitado(cleanPhone);
     if (reg && reg.valor > 0 && Date.now() - Date.parse(reg.em) <= 24 * 3_600_000) return false;

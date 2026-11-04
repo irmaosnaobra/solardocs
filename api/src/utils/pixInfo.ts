@@ -51,62 +51,53 @@ export function pixCheckoutUrl(): string {
 /** Estamos no trilho automático (Kiwify) ou no manual (comprovante)? */
 export const pixAutomatico = (): boolean => !!pixCheckoutUrl();
 
-// Bloco do Pix pra WhatsApp (com *negrito* do WhatsApp).
-// No trilho manual não vai valor de propósito: o atendimento confirma no 1x1
-// (evita errar VIP R$67 vs VIP PROMO R$49). No trilho da Kiwify o valor está na
-// própria página, então também não se repete aqui.
-export function pixBlocoWhatsApp(): string {
-  const url = pixCheckoutUrl();
-  if (url) {
-    return [
-      '💠 *Prefere pagar no Pix?*',
-      '',
-      `É por aqui: ${url}`,
-      '',
-      'Escolhe *Pix* na página — o QR code aparece na hora e seu acesso libera sozinho assim que o pagamento cai. Não precisa mandar comprovante pra ninguém. 🙌',
-    ].join('\n');
-  }
-  return [
-    '💠 *Prefere pagar por Pix?*',
-    '',
-    `🔑 Chave Pix (CNPJ): *${PIX_DADOS.chave}*`,
-    `${PIX_DADOS.titular} · ${PIX_DADOS.banco} · Ag ${PIX_DADOS.agencia} · Conta ${PIX_DADOS.conta}`,
-    '',
-    'Me manda o *comprovante aqui mesmo neste número* que eu confirmo o valor e libero seu acesso na hora. 🙌',
-  ].join('\n');
+// ─────────────────────────────────────────────────────────────────────────────
+// ORDEM DO DONO (04/11/2026): "Todos o pix será de recorrência agora, temos vários clientes que enviam pix
+// para renovar, sempre oriente eles a utilizar o pix recorrente". Tudo que OFERECE Pix passa a oferecer o
+// Pix AUTOMÁTICO (assina uma vez, o banco debita todo mês, sem comprovante). O copia-e-cola manual
+// (gerarPixCopiaECola, PIX_DADOS) e o checkout da Kiwify continuam existindo só para a liberação por
+// comprovante de quem ainda paga no manual: não são mais OFERECIDOS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Link do Pix automático (abre a assinatura direto na LP). `origem` vai em utm_source; sem utm_term de propósito.
+ * Dentro do WhatsApp o link vai SEMPRE no meio de uma frase, nunca sozinho numa linha (sozinho vira uma bolha a mais).
+ */
+export function pixAutomaticoLink(origem: string, medium: 'whatsapp' | 'email' = 'whatsapp'): string {
+  return `https://solardoc.app/?pagar=pix&utm_source=${encodeURIComponent(origem)}&utm_medium=${medium}`;
 }
 
-// Bloco do Pix pra email (HTML).
+/** UMA frase que oferece o Pix automático, com o link dentro. Sem valor de propósito: a página mostra o preço. */
+export function fraseOferecePixAutomatico(origem: string): string {
+  return `O Pix agora é automático: você assina uma vez em ${pixAutomaticoLink(origem)} com o e-mail da sua conta e ele cobra sozinho todo mês, sem comprovante.`;
+}
+
+/** Fecho da confirmação de um Pix manual: oferece o Pix automático para o mês seguinte. Vai SEMPRE colado na última frase da bolha. */
+export function fraseProximoMesSemComprovante(): string {
+  return `Se quiser, o próximo mês já fica sem comprovante: é só assinar o Pix automático em ${pixAutomaticoLink('renovacao')}.`;
+}
+
+// Bloco do Pix pra WhatsApp (com *negrito* do WhatsApp). Uma frase só, com o link dentro.
+export function pixBlocoWhatsApp(origem = 'abandono'): string {
+  return `💠 *Prefere pagar no Pix?* ${fraseOferecePixAutomatico(origem)}`;
+}
+
+// Bloco do Pix pra email (HTML): botão do Pix automático.
 export function pixBlocoEmailHtml(): string {
-  const url = pixCheckoutUrl();
-  if (url) {
-    return `
-    <div style="margin:22px 0 6px;background:#0f231a;border-left:4px solid #10b981;border-radius:0 10px 10px 0;padding:16px 20px;">
-      <p style="margin:0 0 6px;color:#34d399;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">Prefere pagar no Pix?</p>
-      <p style="margin:0 0 14px;color:#e2e8f0;font-size:14.5px;line-height:1.7;">Dá pra entrar pagando no Pix, sem cartão. O QR code aparece na hora e <strong style="color:#f8fafc;">seu acesso libera sozinho</strong> assim que o pagamento cai — não precisa mandar comprovante.</p>
-      <p style="margin:0;text-align:center;">
-        <a href="${url}" style="display:inline-block;background:#10b981;color:#04150e;font-weight:900;font-size:15px;padding:14px 32px;border-radius:11px;text-decoration:none;">Pagar no Pix →</a>
-      </p>
-    </div>`;
-  }
+  const url = pixAutomaticoLink('email', 'email');
   return `
     <div style="margin:22px 0 6px;background:#0f231a;border-left:4px solid #10b981;border-radius:0 10px 10px 0;padding:16px 20px;">
-      <p style="margin:0 0 6px;color:#34d399;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">Prefere pagar por Pix?</p>
-      <p style="margin:0 0 4px;color:#e2e8f0;font-size:14.5px;line-height:1.7;">Chave Pix (CNPJ): <strong style="color:#f8fafc;">${PIX_DADOS.chave}</strong></p>
-      <p style="margin:0 0 8px;color:#94a3b8;font-size:13px;line-height:1.6;">${PIX_DADOS.titular} · ${PIX_DADOS.banco} · Ag ${PIX_DADOS.agencia} · Conta ${PIX_DADOS.conta}</p>
-      <p style="margin:0;color:#cbd5e1;font-size:13.5px;line-height:1.6;">Depois é só mandar o <strong style="color:#f8fafc;">comprovante no WhatsApp ${PIX_DADOS.whatsappLabel}</strong> que a gente confirma o valor e libera seu acesso.</p>
+      <p style="margin:0 0 6px;color:#34d399;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">Prefere pagar no Pix?</p>
+      <p style="margin:0 0 14px;color:#e2e8f0;font-size:14.5px;line-height:1.7;">O Pix agora é <strong style="color:#f8fafc;">automático</strong>: você assina uma vez, usando o e-mail da sua conta, e o banco debita todo mês sozinho. Sem comprovante e sem lembrar de pagar.</p>
+      <p style="margin:0;text-align:center;">
+        <a href="${url}" style="display:inline-block;background:#10b981;color:#04150e;font-weight:900;font-size:15px;padding:14px 32px;border-radius:11px;text-decoration:none;">Assinar no Pix automático</a>
+      </p>
     </div>`;
 }
 
-/** Bolhas de WhatsApp do caminho automático (Kiwify). Vazio = não configurado. */
-export function bolhasPixCheckout(): string[] {
-  const url = pixCheckoutUrl();
-  if (!url) return [];
-  return [
-    `Show! É por aqui ó: ${url}`,
-    'Escolhe *Pix* na página que o QR aparece na hora.',
-    'Assim que o pagamento cair seu acesso libera sozinho — não precisa me mandar comprovante 🙌',
-  ];
+/** O que a recuperação manda quando o lead pede Pix: UMA bolha, com o link do Pix automático dentro da frase. */
+export function bolhasPixCheckout(origem = 'recuperacao'): string[] {
+  return [`Claro! ${fraseOferecePixAutomatico(origem)}`];
 }
 
 // Trava do caminho PÚBLICO de Pix (tela /pix-automatico e a rota sem login que

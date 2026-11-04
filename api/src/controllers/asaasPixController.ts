@@ -16,6 +16,7 @@ import { processarWebhookAsaas, AsaasWebhookBody } from '../services/asaas/asaas
 import { pixPublicoAtivo, pixAutoQuizAtivo, pixAutoLpAtivo, pixAvulsoFunilAtivo } from '../utils/pixInfo';
 import { criarPixAvulso, statusPixAvulso } from '../services/asaas/pixAvulsoService';
 import { gravarMarcaPagamento } from '../services/solardoc/marcaPagamentoQuiz';
+import { codigoDaLp, gravarLeadLp } from '../services/solardoc/leadLpSolardoc';
 
 function responderErro(res: Response, err: unknown, contexto: string): void {
   const status = (err as { statusCode?: number; status?: number })?.statusCode
@@ -160,6 +161,23 @@ export async function asaasWebhookHandler(req: Request, res: Response): Promise<
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 
+/**
+ * `utm_source` dos links que a casa manda SÓ ao cliente pagante (lembrete de renovação e dunning): quem chega por eles nunca vira lead de venda (sem marca
+ * `quiz_pagto:` e sem lead `lp_solardoc_pix`). Os outros links (recuperação, Giovanna, SDR, link do Pix, e-mail) também falam com prospect: aí decide a conta.
+ */
+const UTM_SOURCE_DE_CLIENTE = new Set(['renovacao', 'dunning']);
+/** Plano vencido há até 30 dias ainda é cliente (está renovando); depois disso volta a ser prospect. */
+const CLIENTE_VENCIDO_TOLERANCIA_MS = 30 * 24 * 3600_000;
+
+/** A conta é de cliente PAGANTE? `plano` diferente de `free`, ou `plano_expira_em` maior ou igual a agora menos 30 dias. Conta grátis sem plano vigente é prospect. */
+export function contaEhDeClientePagante(u: { plano?: string | null; plano_expira_em?: string | null } | null | undefined, agoraMs: number = Date.now()): boolean {
+  if (!u) return false;
+  const plano = String(u.plano ?? '').trim().toLowerCase();
+  if (plano && plano !== 'free') return true;
+  const expira = Date.parse(String(u.plano_expira_em ?? ''));
+  return Number.isFinite(expira) && expira >= agoraMs - CLIENTE_VENCIDO_TOLERANCIA_MS;
+}
+
 /** Origem do quiz (trava PIX_AUTO_QUIZ) e da LP (trava PIX_AUTO_LP). Qualquer outro valor é ignorado. */
 const ORIGEM_QUIZ_SOLARDOC = 'quiz_solardoc';
 const ORIGEM_LP_SOLARDOC = 'lp_solardoc';
@@ -219,8 +237,8 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
     // tem conta mas não estava logado pagaria e cairia no alerta de
     // "PAGAMENTO SEM CONTA" — dinheiro entrando e acesso preso na mão.
     const { data: jaTem } = await supabase
-      .from('users').select('id, whatsapp').eq('email', mail).maybeSingle();
-    const dono = (jaTem as { id: string; whatsapp: string | null } | null) ?? null;
+      .from('users').select('id, whatsapp, plano, plano_expira_em').eq('email', mail).maybeSingle();
+    const dono = (jaTem as { id: string; whatsapp: string | null; plano?: string | null; plano_expira_em?: string | null } | null) ?? null;
 
     const atribuicao = atribuicaoDoCorpo(corpo, origem);
 
@@ -252,16 +270,31 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
     // depois, se a pessoa não pagou. Contrato já ativo não tem o que recuperar. Falha na marca nunca derruba a resposta.
     // Pix de teste (utm_source = raio-x-teste, o mesmo corte dos avisos do grupo) não gera marca: a Carla nunca chamaria um teste.
     const ehTeste = String(atribuicao.utm_source ?? '').trim().toLowerCase() === 'raio-x-teste';
-    if (origem && !jaAtivo && !ehTeste) {
+    // Cliente PAGANTE (conta com plano, ou plano vencido há menos de 30 dias) ou quem chegou pelo link de renovação ou de dunning nunca vira lead de venda: nem marca,
+    // nem lead da LP. Conta grátis sem plano vigente é prospect e ganha os dois, como qualquer um.
+    const jaECliente = contaEhDeClientePagante(dono) || UTM_SOURCE_DE_CLIENTE.has(String(atribuicao.utm_source ?? '').trim().toLowerCase());
+    if (origem && !jaAtivo && !ehTeste && !jaECliente) {
       await gravarMarcaPagamento({
         whatsapp: atribuicao.whatsapp ?? soDigitos(whatsapp), contratoId: criado.contractId, origem, email: mail,
         nome: nome.trim(), utm_term: atribuicao.utm_term, lp_session: atribuicao.lp_session,
       });
     }
 
+    // LP: o lead no WhatsApp (leads_meta, form_id lp_solardoc_pix, sem sobrescrever o do quiz) e o `codigo` que o front põe no wa.me. Com o código
+    // a Carla reconhece quem já escreveu; sem lead a marca da LP só recebe e-mail. Teste não grava lead. Falha no lead nunca derruba o Pix.
+    let codigoLp: string | null = null;
+    if (origem === ORIGEM_LP_SOLARDOC) {
+      const foneLp = atribuicao.whatsapp ?? soDigitos(whatsapp);
+      codigoLp = (jaAtivo || ehTeste || jaECliente) ? codigoDaLp(foneLp) : await gravarLeadLp({
+        whatsapp: foneLp, nome: nome.trim(), lp_session: atribuicao.lp_session,
+        utm: { utm_source: atribuicao.utm_source, utm_medium: atribuicao.utm_medium, utm_campaign: atribuicao.utm_campaign, utm_content: atribuicao.utm_content, utm_term: atribuicao.utm_term },
+      });
+    }
+
     res.json({
       ...criado,
       ...(jaAtivo ? { qrPayload: null, qrImagemBase64: null } : {}),
+      ...(codigoLp ? { codigo: codigoLp } : {}),
       temConta: Boolean(dono),
       instrucao: criado.modo === 'automatico'
         ? `Pague este Pix${criado.cupom ? ` de R$ ${criado.primeiroMes}` : ''} no app do banco e autorize a cobrança mensal quando ele perguntar. Dos próximos meses em diante o débito é automático${criado.cupom ? `, de R$ ${criado.valor}` : ''}.`

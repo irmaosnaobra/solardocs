@@ -47,14 +47,15 @@ import { CHAVE_LINHA_ERROS, CHAVE_LINHA_PAUSA, codigoDoErroDeEnvio, erroEhDoDest
 import { erroProvaQueNaoSaiu } from '../agentes5040/fichaEnvio';
 import { modoPix } from '../agentes5040/modoPix';
 import { chaveDoTelefone, codigoDoQuiz, normalizarTelefoneSd } from './quizSolardoc';
+import { FORM_ID_LP_PIX } from './leadLpSolardoc';
 import { avisarDesistencia, avisarSemVaga, ehLeadDeTeste, fecharSemGrupo, PREFIXO_CLAIM_QUIZ, type ColetorSemGrupo, type ResultadoAviso } from './avisoGrupoSolardoc';
 import { comprouLead, comprouPorEmail, vendasRecentes, type VendasRecentes } from './compraQuizSolardoc';
 import { estadoRecuperacaoCarla, garantirLargada, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import {
   FRASE_DO_MOTIVO, ESPERA_MIN_MS, TETO_CALENDARIO_MS, PREFIXO_CARIMBO_REC, PREFIXO_VEZ_REC, ROBO_QUIZ_REC,
   campoFd, chaveVezRec, MOTIVOS_PERMANENTES_REC, PREFIXO_PULOU_REC, diaBRT, foraDoTempo, horaBRT, motivoSemBanco, ordenarFila, semCnpj, textoDaCarla, PREFIXO_AINDA_REC,
-  PAGTO_ESPERA_MS, PAGTO_VALE_MS, PREFIXO_PAGTO, PREFIXO_PAGTO_EMAIL,
-  empresaDoQuiz, faseDoCodigo, linkDoPagamento, marcaDeLinha, montarTextoPagamento, nomeDoPagamento,
+  PAGTO_ESPERA_MS, PAGTO_VALE_MS, PREFIXO_CARIMBO2_REC, PREFIXO_PAGTO, PREFIXO_PAGTO_EMAIL, PREFIXO_PAGTO_EMAIL2,
+  empresaDoQuiz, faseDoCodigo, linkDoPagamento, marcaDeLinha, montarTextoPagamento, montarTextoToque2, nomeDoPagamento,
   type LeadRec, type MarcaPagto, type MotivoNaoChama, type TextoPagto,
 } from './recuperacaoCarlaRegras';
 
@@ -88,6 +89,8 @@ export interface DepsAvaliar {
   supressao(tel: string): Promise<string[] | null>;
   /** Quem já levou 3 toques da linha sem responder em 60 dias (wa_mudos, estrito). 'erro' = não deu para ler. */
   mudo(tel: string): Promise<'sim' | 'nao' | 'erro'>;
+  /** A posse é da Carla, viva, e nasceu em `emIso`? Só o 2º toque pergunta (a posse do 1º toque é dela e não barra). Opcional. */
+  posseAindaNossa?(chave: string, emIso: string): Promise<boolean>;
 }
 
 export interface ContextoAvaliar {
@@ -98,6 +101,12 @@ export interface ContextoAvaliar {
    * e a sonda nunca ligam isto.
    */
   viaPagamento?: boolean;
+  /**
+   * 2º toque (e e-mail do dia seguinte de quem já recebeu o 1º toque): a posse `carla` e a fala do 1º toque NÃO barram, SÓ quando a posse nasceu no `em`
+   * do carimbo do 1º toque e a última fala nossa na conversa é a do 1º toque, sem nenhuma fala do lead nem de humano ou de outro robô depois.
+   * `emMs` = o `em` do carimbo `quiz_rec_sent:`.
+   */
+  segundoToque?: { emMs: number };
 }
 
 /** HMAC do telefone do lead (a chave do claim), ou null. */
@@ -119,6 +128,31 @@ export async function jaFalouComALinha(
   if (!conv.completa) return 'leitura_falhou';
   if (conv.msgs.some(m => m.autor === 'lead')) return 'ja_falou';
   if (conv.msgs.length) return 'humano_na_conversa';
+  const codigo = campoFd(lead.field_data, 'Código') || codigoDoQuiz(tel);
+  const desde = new Date((Date.parse(String(lead.created_time ?? '')) || Date.now()) - 60_000).toISOString();
+  const achou = await d.mensagemComCodigo(codigo, desde);
+  if (achou === 'erro') return 'leitura_falhou';
+  return achou ? 'ja_falou' : 'nao';
+}
+
+/** Tolerância entre o `em` do carimbo (gravado antes do envio) e as mensagens do 1º toque (a 2ª bolha do código sai 2 a 5 s depois). */
+const TOQUE_TOLERANCIA_MS = 10 * 60_000;
+
+/**
+ * Como `jaFalouComALinha`, para quem já recebeu o 1º toque: a fala nossa do 1º toque (até 10 min depois do `em` do carimbo) não conta como
+ * "humano na conversa". Qualquer fala do lead = 'ja_falou'; fala nossa (equipe ou outro robô) DEPOIS do 1º toque = 'humano_na_conversa'.
+ * Fala sem hora legível vale "depois". Conversa incompleta = 'leitura_falhou'. O código do wa.me achado em mensagem recebida = 'ja_falou'.
+ */
+export async function jaFalouDepoisDoToque(
+  lead: LeadRec, tel: string, chave: string, d: DepsAvaliar, emMs: number,
+): Promise<'nao' | 'ja_falou' | 'humano_na_conversa' | 'leitura_falhou'> {
+  const conv = await d.conversa(chave);
+  if (!conv.completa) return 'leitura_falhou';
+  if (conv.msgs.some(m => m.autor === 'lead')) return 'ja_falou';
+  for (const m of conv.msgs) {
+    const t = Date.parse(String(m.momment ?? ''));
+    if (!Number.isFinite(t) || t > emMs + TOQUE_TOLERANCIA_MS) return 'humano_na_conversa';
+  }
   const codigo = campoFd(lead.field_data, 'Código') || codigoDoQuiz(tel);
   const desde = new Date((Date.parse(String(lead.created_time ?? '')) || Date.now()) - 60_000).toISOString();
   const achou = await d.mensagemComCodigo(codigo, desde);
@@ -156,8 +190,12 @@ export async function avaliarLead(lead: LeadRec, c: ContextoAvaliar, d: DepsAval
   } catch { return { ok: false, motivo: 'leitura_falhou' }; }
   const posse = await d.posse(chave);
   if (posse === 'erro') return { ok: false, motivo: 'leitura_falhou' };
-  if (posse === 'ocupada') return { ok: false, motivo: 'posse' };
-  const falou = await jaFalouComALinha(lead, tel, chave, d);
+  if (posse === 'ocupada') {
+    // Só o 2º toque passa, e só se a posse for a da Carla nascida no 1º toque.
+    const nossa = c.segundoToque && d.posseAindaNossa ? await d.posseAindaNossa(chave, new Date(c.segundoToque.emMs).toISOString()) : false;
+    if (!nossa) return { ok: false, motivo: 'posse' };
+  }
+  const falou = c.segundoToque ? await jaFalouDepoisDoToque(lead, tel, chave, d, c.segundoToque.emMs) : await jaFalouComALinha(lead, tel, chave, d);
   if (falou !== 'nao') return { ok: false, motivo: falou };
   const pode = await podeFalarAgora(tel, d);
   if (pode !== 'sim') return { ok: false, motivo: pode };
@@ -176,6 +214,12 @@ export function depsAvaliarReais(): DepsAvaliar {
       try { return (await lerPosse(chave)) ? 'ocupada' : 'livre'; } catch { return 'erro'; }
     },
     conversa: (chave) => lerConversa(chave),
+    async posseAindaNossa(chave, emIso) {
+      try {
+        const p = await lerPosse(chave);
+        return !!p && p.dona === 'carla' && p.estado === 'viva' && Date.parse(p.desde) === Date.parse(emIso);
+      } catch { return false; }
+    },
     async mensagemComCodigo(codigo, desdeIso) {
       try {
         const inst = (process.env.ZAPI_INSTANCE_ID_IO || '').trim();
@@ -233,6 +277,12 @@ export interface DepsRec extends DepsAvaliar {
   compraPorEmail?(vendas: VendasRecentes, email: string): Promise<boolean>;
   /** Manda o e-mail do Pix que ficou esperando. Erro LANÇA (quem chama solta o claim). */
   enviarEmailPix?(para: string, link: string): Promise<void>;
+  /** Os leads da LP (form_id lp_solardoc_pix) entre as datas, do mais novo ao mais antigo. null = leitura falhou. SÓ o `carregarPagto` lê isto. */
+  leadsLp?(desdeIso: string, ateIso: string): Promise<LeadRec[] | null>;
+  /** O valor gravado em cada chave de system_state (`em`, `estado`, `tipo`). Só as que existem entram. null = leitura falhou. */
+  lerEstados?(chaves: string[]): Promise<Map<string, { em: string | null; estado?: string; tipo?: string }> | null>;
+  /** O e-mail do dia seguinte (assine no Pix automático). Erro LANÇA. */
+  enviarEmailPix2?(para: string, link: string): Promise<void>;
   /** Espera entre a 1ª mensagem e o código (2 a 5 s, como as respostas fazem). Opcional: os testes não esperam. */
   esperar?(ms: number): Promise<void>;
   /** Avisa o Thiago (e-mail de operação). Erro é engolido. Opcional. */
@@ -340,11 +390,13 @@ export function contratoPago(c: NonNullable<DadosPagamento['contrato']>): boolea
 }
 
 /** Um item da fila do pagamento: o lead do quiz (só quem fez o quiz vai ao WhatsApp) e o que a marca trouxe. */
-interface ItemPagto { lead: LeadRec; marca: MarcaPagto; quiz: LeadRec; dados: DadosPagamento; utmTerm: string | null }
-interface ItemFila { lead: LeadRec; pagto?: ItemPagto }
+interface ItemPagto { lead: LeadRec; marca: MarcaPagto; quiz: LeadRec; dados: DadosPagamento; utmTerm: string | null; daLp: boolean }
+/** O 2º toque: o `em` do carimbo do 1º toque e o tipo dele (`pagamento` ou `diagnostico`) escolhem o depoimento. */
+interface ItemToque2 extends ItemPagto { carimboEm: string; primeiroTipo: string | undefined }
+interface ItemFila { lead: LeadRec; pagto?: ItemPagto; toque2?: ItemToque2 }
 
 /** O que a rodada leu: TODAS as marcas vivas (120 h) e os leads do quiz por hmac. */
-interface PagtoRodada { marcas: MarcaPagto[]; doQuiz: Map<string, LeadRec> }
+interface PagtoRodada { marcas: MarcaPagto[]; doQuiz: Map<string, LeadRec>; /** hmacs cujo lead veio só da LP (lp_solardoc_pix) */ daLp: Set<string> }
 
 /**
  * Lê UMA vez por rodada as marcas `quiz_pagto:` e, havendo marca, os leads do quiz (dão nome, empresa e utm_term, e dizem quem fez o quiz).
@@ -352,7 +404,7 @@ interface PagtoRodada { marcas: MarcaPagto[]; doQuiz: Map<string, LeadRec> }
  * Sem as dependências do pagamento (testes antigos) não há marca nenhuma.
  */
 async function carregarPagto(d: DepsRec, agora: Date): Promise<PagtoRodada | null> {
-  const vazioP: PagtoRodada = { marcas: [], doQuiz: new Map() };
+  const vazioP: PagtoRodada = { marcas: [], doQuiz: new Map(), daLp: new Set() };
   if (!d.marcasPagamento || !d.lerPagamento) return vazioP;
   const agoraMs = agora.getTime();
   const lidas = await d.marcasPagamento(new Date(agoraMs - PAGTO_VALE_MS).toISOString());
@@ -363,7 +415,14 @@ async function carregarPagto(d: DepsRec, agora: Date): Promise<PagtoRodada | nul
   if (!leads) return null;
   const doQuiz = new Map<string, LeadRec>();
   for (const l of leads) { const h = hmacDoLeadRec(l); if (h && !doQuiz.has(h)) doQuiz.set(h, l); }
-  return { marcas, doQuiz };
+  // Os leads da LP (leitura SEPARADA, só aqui): o do quiz, quando existe, vale mais. Leitura que falha PARA a rodada, como a das marcas.
+  const daLp = new Set<string>();
+  if (d.leadsLp) {
+    const lp = await d.leadsLp(new Date(agoraMs - TETO_CALENDARIO_MS).toISOString(), agora.toISOString());
+    if (!lp) return null;
+    for (const l of lp) { const h = hmacDoLeadRec(l); if (h && !doQuiz.has(h)) { doQuiz.set(h, l); daLp.add(h); } }
+  }
+  return { marcas, doQuiz, daLp };
 }
 
 /** O telefone da marca: o da atribuição do contrato ou o do lead do quiz, o que bater com o hmac da chave. null = não dá para chamar. */
@@ -405,8 +464,8 @@ async function pularMarca(d: DepsRec, hmac: string, motivo: string, agora: Date)
 /**
  * Quem fez o quiz, chegou na parte do pagamento e ainda não foi chamado: as marcas de 5 min a 120 h, sem o claim `quiz_rec_sent:` nem o
  * `quiz_rec_pulou:`, com o contrato lido, sem pagamento e com o código na fase certa (menos de 55 min = código; 65 min ou mais = link; no meio
- * espera). A marca SÓ DA LP (sem lead do quiz) não vai ao WhatsApp: o wa.me da LP não leva código, e quem escreveu por um LID sem mapa passaria como
- * "não falou". `hmacs` leva TODAS as marcas (até as de menos de 5 min): a mensagem de 15 min não atropela quem está pagando.
+ * espera). A marca SÓ DA LP sem lead (leads_meta, form_id lp_solardoc_pix, com o `Código` do wa.me) não vai ao WhatsApp: sem o código, quem escreveu por um LID sem mapa
+ * passaria como "não falou". `hmacs` leva TODAS as marcas (até as de menos de 5 min): a mensagem de 15 min não atropela quem está pagando.
  */
 async function lerFilaPagamento(d: DepsRec, agora: Date, p: PagtoRodada): Promise<{ itens: ItemPagto[]; hmacs: Set<string> }> {
   const hmacs = new Set(p.marcas.map(m => m.hmac));
@@ -430,7 +489,7 @@ async function lerFilaPagamento(d: DepsRec, agora: Date, p: PagtoRodada): Promis
     const tel = telefoneDaMarca(m, dados, quiz);
     if (!tel) { hmacs.delete(m.hmac); continue; }   // sem telefone que bata com o hmac: não dá para chamar por aqui
     if (faseDoCodigo(dados.contrato, agoraMs) === 'espera') continue;   // entre 55 e 65 min o código está no fim: espera
-    itens.push({ lead: quiz, marca: m, quiz, dados, utmTerm: utmTermDaMarca(m, quiz) });
+    itens.push({ lead: quiz, marca: m, quiz, dados, utmTerm: utmTermDaMarca(m, quiz), daLp: p.daLp.has(m.hmac) });
   }
   return { itens, hmacs };
 }
@@ -500,6 +559,130 @@ async function emailDoPagamento(d: DepsRec, agora: Date, r: RelatorioRec, p: Pag
   }
 }
 
+/** O 2º toque por rodada que entra na fila (a conta das avaliações é a mesma de sempre). */
+const TOQUE2_POR_RODADA = 3;
+/** E-mails do dia seguinte por rodada. */
+const EMAILS2_POR_RODADA = 3;
+
+/** O dia (AAAA-MM-DD, Brasília) do PRÓXIMO dia em que a janela da linha abre depois de `emMs`: segunda a sábado, fora de feriado. null = nenhum em 7 dias. */
+function proximoDiaDeJanela(d: DepsRec, emMs: number): string | null {
+  for (let k = 1; k <= 7; k++) {
+    const dia = diaBRT(emMs + k * 24 * 3600_000);
+    if (d.janela(new Date(`${dia}T15:00:00.000Z`))) return dia;
+  }
+  return null;
+}
+
+/**
+ * O 2º TOQUE: quem tem marca de pagamento (quiz, ou LP com lead), recebeu o 1º toque com estado `enviado`, não pagou e ainda não recebeu o `quiz_rec_sent2:`.
+ * Só no dia útil (de janela) seguinte ao 1º toque. Os que não respondem nem têm gente da equipe na conversa são confirmados depois, no `avaliarLead` com a exceção
+ * estreita do 2º toque. Nunca existe um 3º: o carimbo `quiz_rec_sent2:` vale para sempre.
+ */
+async function lerToque2(d: DepsRec, agora: Date, p: PagtoRodada): Promise<ItemToque2[]> {
+  if (!d.lerEstados || !d.lerPagamento) return [];
+  const agoraMs = agora.getTime();
+  const hoje = diaBRT(agoraMs);
+  // O 1º toque vem 5 min depois da marca e o dia seguinte é no máximo 4 dias depois (sábado, domingo e feriado): marcas de até 96 h.
+  const marcas = p.marcas
+    .filter(m => p.doQuiz.has(m.hmac) && agoraMs - Date.parse(m.em) <= 96 * 3600_000 && diaBRT(Date.parse(m.em)) < hoje)
+    .sort((a, b) => Date.parse(a.em) - Date.parse(b.em));
+  if (!marcas.length) return [];
+  const tem = await d.existentes(marcas.flatMap(m => [`${PREFIXO_CARIMBO2_REC}${m.hmac}`, `${PREFIXO_PULOU_REC}${m.hmac}`]));
+  if (!tem) return [];
+  const livres = marcas.filter(m => !tem.has(`${PREFIXO_CARIMBO2_REC}${m.hmac}`) && !tem.has(`${PREFIXO_PULOU_REC}${m.hmac}`));
+  if (!livres.length) return [];
+  const estados = await d.lerEstados(livres.map(m => `${PREFIXO_CARIMBO_REC}${m.hmac}`));
+  if (!estados) return [];
+  const itens: ItemToque2[] = [];
+  for (const m of livres) {
+    if (itens.length >= TOQUE2_POR_RODADA) break;
+    const c = estados.get(`${PREFIXO_CARIMBO_REC}${m.hmac}`);
+    if (!c || c.estado !== 'enviado' || !c.em || !Number.isFinite(Date.parse(c.em))) continue;   // só quem recebeu o 1º toque de verdade
+    if (proximoDiaDeJanela(d, Date.parse(c.em)) !== hoje) continue;   // só no dia útil seguinte ao 1º toque
+    const dados = await d.lerPagamento(m.contratoId);
+    if (!dados || !dados.contrato) continue;
+    if (contratoPago(dados.contrato)) { await pularMarca(d, m.hmac, 'pagou', agora); continue; }
+    const quiz = p.doQuiz.get(m.hmac) as LeadRec;
+    if (!telefoneDaMarca(m, dados, quiz)) continue;
+    itens.push({ lead: quiz, marca: m, quiz, dados, utmTerm: utmTermDaMarca(m, quiz), daLp: p.daLp.has(m.hmac), carimboEm: c.em, primeiroTipo: c.tipo });
+  }
+  return itens;
+}
+
+/**
+ * O e-mail do DIA SEGUINTE (Assine a SolarDoc no Pix automático): 1 por contrato (claim `quiz_pagto_email2:<contratoId>`), a qualquer hora, no dia seguinte ao
+ * 1º e-mail ou ao 1º toque, para quem tem marca com e-mail e ainda não pagou. As mesmas conferências do 1º e-mail (a exceção do 2º toque vale para quem
+ * já recebeu o 1º toque). Nunca lança.
+ */
+async function emailDia1(d: DepsRec, agora: Date, r: RelatorioRec, p: PagtoRodada): Promise<void> {
+  try {
+    if (!d.lerPagamento || !d.lerEstados || !d.enviarEmailPix2) return;
+    const agoraMs = agora.getTime();
+    const hoje = diaBRT(agoraMs);
+    const marcas = p.marcas.filter(m => m.email && agoraMs - Date.parse(m.em) >= PAGTO_ESPERA_MS && diaBRT(Date.parse(m.em)) <= hoje);
+    if (!marcas.length) return;
+    const tem = await d.existentes(marcas.flatMap(m => [`${PREFIXO_PAGTO_EMAIL2}${m.contratoId}`, `${PREFIXO_PULOU_REC}${m.hmac}`]));
+    if (!tem) return;
+    const candidatas = marcas.filter(m => !tem.has(`${PREFIXO_PAGTO_EMAIL2}${m.contratoId}`) && !tem.has(`${PREFIXO_PULOU_REC}${m.hmac}`));
+    if (!candidatas.length) return;
+    const estados = await d.lerEstados(candidatas.flatMap(m => [`${PREFIXO_PAGTO_EMAIL}${m.contratoId}`, `${PREFIXO_CARIMBO_REC}${m.hmac}`]));
+    if (!estados) return;
+    const prontas: Array<{ m: MarcaPagto; toqueEm: number | null; base: number }> = [];
+    for (const m of candidatas) {
+      const e1 = estados.get(`${PREFIXO_PAGTO_EMAIL}${m.contratoId}`);
+      const c = estados.get(`${PREFIXO_CARIMBO_REC}${m.hmac}`);
+      const toque = c && c.estado === 'enviado' && c.em ? Date.parse(c.em) : NaN;
+      const bases = [e1?.em ? Date.parse(e1.em) : NaN, toque].filter(Number.isFinite);
+      if (!bases.length) continue;   // sem 1º e-mail nem 1º toque, ainda não é o dia seguinte de nada
+      const base = Math.min(...bases);
+      if (diaBRT(base) >= hoje) continue;   // só a partir do dia seguinte
+      prontas.push({ m, toqueEm: Number.isFinite(toque) ? toque : null, base });
+    }
+    if (!prontas.length) return;
+    prontas.sort((a, b) => a.base - b.base);
+    let vendas: VendasRecentes;
+    try { vendas = await d.vendas(agoraMs); } catch { return; }
+    let enviados = 0;
+    for (const { m, toqueEm } of prontas) {
+      if (enviados >= EMAILS2_POR_RODADA) break;
+      const quiz = p.doQuiz.get(m.hmac) ?? null;
+      try {
+        const dados = await d.lerPagamento(m.contratoId);
+        if (!dados || !dados.contrato) continue;
+        if (contratoPago(dados.contrato)) { await pularMarca(d, m.hmac, 'pagou', agora); continue; }
+        const tel = telefoneDaMarca(m, dados, quiz);
+        if (!tel) continue;
+        if (await pagouPelaMarca(d, m, dados, vendas)) continue;
+        const av = await avaliarLead(leadDaMarca(m, quiz, tel), {
+          agoraMs, largadaMs: null, vendas, viaPagamento: true, ...(toqueEm !== null ? { segundoToque: { emMs: toqueEm } } : {}),
+        }, d);
+        if (!av.ok) {
+          if (MOTIVOS_PERMANENTES_REC.has(av.motivo)) await pularMarca(d, m.hmac, av.motivo, agora);
+          continue;
+        }
+      } catch { continue; }
+      const chave = `${PREFIXO_PAGTO_EMAIL2}${m.contratoId}`;
+      if ((await d.claim(chave, agora)) !== 'ok') continue;
+      try {
+        const fresco = await d.lerPagamento(m.contratoId);
+        const vendas2 = await d.vendas(Date.now());
+        if (!fresco || !fresco.contrato || await pagouPelaMarca(d, m, fresco, vendas2)) { await d.apagarClaim(chave); continue; }
+      } catch { await d.apagarClaim(chave); continue; }
+      try {
+        await d.enviarEmailPix2(m.email as string, linkDoPagamento(utmTermDaMarca(m, quiz), 'email'));
+        enviados++;
+        r.decisoes.push({ hmac8: m.hmac.slice(0, 8), resultado: 'email_pix_dia2', motivo: null });
+      } catch (e) {
+        await d.apagarClaim(chave);
+        logger.error(LOG, `e-mail do dia seguinte falhou (${String((e as Error)?.message ?? e).slice(0, 40)})`);
+        break;
+      }
+    }
+  } catch (e) {
+    logger.error(LOG, `e-mail do dia seguinte: a leitura falhou (${String((e as Error)?.message ?? e).slice(0, 60)})`);
+  }
+}
+
 /** Telefone com a metade escondida para o aviso ao Thiago: "5534****0001". */
 const mascarar = (tel: string): string => `${tel.slice(0, 4)}****${tel.slice(-4)}`;
 
@@ -528,13 +711,15 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
     if (dentroDaJanela && !pagtoR) return { ...r, ok: false, motivo: 'leitura_das_marcas_falhou' };
     if (!dentroDaJanela) {
       // Quem gerou o Pix e não pagou ganha o e-mail (1 por contrato) enquanto a janela do WhatsApp está fechada.
-      if (pagtoR) await emailDoPagamento(d, agora, r, pagtoR, true);
+      if (pagtoR) { await emailDoPagamento(d, agora, r, pagtoR, true); await emailDia1(d, agora, r, pagtoR); }
       if (horaDeBRT(agora) >= JANELA_FECHA_H && d.janela(meioDiaBRT(agora))) await semVaga(d, agora, largada, r);
       return { ...r, motivo: 'fora_da_janela' };
     }
 
     // A marca SÓ DA LP não vai ao WhatsApp (o wa.me da LP não leva código): recebe o e-mail, também dentro da janela.
     await emailDoPagamento(d, agora, r, pagtoR as PagtoRodada, false);
+    // O e-mail do dia seguinte sai a qualquer hora (1 por contrato).
+    await emailDia1(d, agora, r, pagtoR as PagtoRodada);
 
     // 2. as travas, nesta ordem
     const barra = await travas(d, agora, true);
@@ -550,7 +735,12 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
     const pagto = await lerFilaPagamento(d, agora, pagtoR as PagtoRodada);
     const lida = await lerFila(d, agora, largada, { excluir: pagto.hmacs });
     if (!lida) return { ...r, ok: false, motivo: 'leitura_da_fila_falhou' };
-    const itens: ItemFila[] = [...pagto.itens.map(p => ({ lead: p.lead, pagto: p })), ...lida.fila.map(l => ({ lead: l }))];
+    // O 2º toque fica no FIM da fila, na mesma vez de 10 min: o lead novo e o 1º toque do pagamento passam na frente.
+    const toque2 = await lerToque2(d, agora, pagtoR as PagtoRodada);
+    const itens: ItemFila[] = [
+      ...pagto.itens.map(p => ({ lead: p.lead, pagto: p })), ...lida.fila.map(l => ({ lead: l })),
+      ...toque2.map(t => ({ lead: t.lead, toque2: t })),
+    ];
     r.candidatos = itens.length;
     if (!itens.length) return r;
 
@@ -558,7 +748,8 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
     try { vendas = await d.vendas(agora.getTime()); } catch { return { ...r, ok: false, motivo: 'erro_compras' }; }
     const ctx: ContextoAvaliar = { agoraMs: agora.getTime(), largadaMs: largada, vendas };
 
-    for (const { lead, pagto: pg } of itens) {
+    for (const { lead, pagto: pg, toque2: t2 } of itens) {
+      const pp = pg ?? t2;   // o item do pagamento (1º toque) ou o do 2º toque
       if (r.avaliados >= AVALIACOES_POR_RODADA) { soma(r.puladas, 'limite_por_rodada'); break; }
       r.avaliados++;
       const hmac = hmacDoLeadRec(lead) as string;
@@ -568,8 +759,11 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
         if (motivo) soma(r.puladas, motivo);
       };
 
+      // O grupo só é avisado do 1º toque de quem fez o quiz: o 2º toque e o lead da LP (sem diagnóstico) não geram aviso.
+      const avisaGrupo = !t2 && !pg?.daLp;
+
       // 5. antes do claim: compra, posse, já falou, pausa humana e supressão; depois o phone-exists
-      const av = await avaliarLead(lead, pg ? { ...ctx, viaPagamento: true } : ctx, d);
+      const av = await avaliarLead(lead, t2 ? { ...ctx, viaPagamento: true, segundoToque: { emMs: Date.parse(t2.carimboEm) } } : pg ? { ...ctx, viaPagamento: true } : ctx, d);
       if (!av.ok) {
         nota('pulou', av.motivo);
         if (MOTIVOS_PERMANENTES_REC.has(av.motivo)) { try { await d.marcarPulo?.(`${PREFIXO_PULOU_REC}${hmac}`, av.motivo, agora); } catch { /* sem a marca ele só é reavaliado */ } }
@@ -577,20 +771,20 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       }
       // Quem marcou no quiz que prefere pagar no Pix ouve que dá para assinar no Pix por aqui (só se há Pix disponível agora).
       // Pagamento: contrato pago, sessão da LP na venda ou e-mail com compra tiram o lead antes de gastar o phone-exists.
-      if (pg) {
+      if (pp) {
         try {
-          if (await pagouPelaMarca(d, pg.marca, pg.dados, vendas)) { await pularMarca(d, hmac, 'comprou', agora); nota('pulou', 'comprou'); continue; }
+          if (await pagouPelaMarca(d, pp.marca, pp.dados, vendas)) { await pularMarca(d, hmac, 'comprou', agora); nota('pulou', 'comprou'); continue; }
         } catch { nota('pulou', 'leitura_falhou'); continue; }
       }
       // O caminho do pagamento monta o texto DEPOIS do claim, com o contrato relido (a idade do código decide entre código e link).
       const pixPorAqui = campoFd(lead.field_data, 'pagamento') === 'pix' && modoPix() !== 'indisponivel';
-      const texto = pg ? null : textoDaCarla(lead, { pixPorAqui });
+      const texto = pp ? null : textoDaCarla(lead, { pixPorAqui });
       if (texto && !texto.ok) { nota('pulou', texto.motivo); continue; }
       const existe = await d.telefoneExiste(av.tel);
       if (existe === 'erro') { nota('parou', 'phone_exists_falhou'); break; }
       if (existe === 'nao') {
         // Sem WhatsApp: a Carla não chama nunca; o grupo é avisado (pendente, o tick do B1 envia).
-        if (!pg || pg.quiz) await d.avisarNaoChama(lead, FRASE_DO_MOTIVO.sem_whatsapp);
+        if (avisaGrupo) await d.avisarNaoChama(lead, FRASE_DO_MOTIVO.sem_whatsapp);
         nota('pulou', 'sem_whatsapp');
         continue;
       }
@@ -602,43 +796,54 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       const barra2 = await travas(d, agoraEnvio);
       if (barra2) { nota('parou', barra2); break; }
 
-      const chaveClaim = `${PREFIXO_CARIMBO_REC}${hmac}`;
+      const chaveClaim = `${t2 ? PREFIXO_CARIMBO2_REC : PREFIXO_CARIMBO_REC}${hmac}`;   // o 2º toque tem o carimbo próprio, antes do envio
       const claim = await d.claim(chaveClaim, agoraEnvio);
       if (claim === 'ja') { nota('pulou', 'ja_reivindicado'); continue; }
       if (claim === 'erro') { nota('parou', 'erro_no_claim'); break; }
 
       const em = agoraEnvio.toISOString();
-      let posse = await d.assumirPosse(av.chave, em);
-      if (posse === 'erro') posse = (await d.posseAindaNossa(av.chave, em)) ? 'assumida' : 'erro';
-      if (posse !== 'assumida') {
-        await d.apagarClaim(chaveClaim);
-        nota(posse === 'ja_tinha_dona' ? 'pulou' : 'parou', posse === 'ja_tinha_dona' ? 'posse_tomada_agora' : 'posse_falhou');
-        if (posse === 'erro') break;
-        continue;
+      // 2º toque: a posse do 1º toque ainda é da Carla (nasceu no `em` do carimbo dele): fica como está, e ninguém a desfaz. Sem ela (venceu), assume uma nova.
+      let emPosse = em;
+      let posseNova = true;
+      if (t2 && await d.posseAindaNossa(av.chave, t2.carimboEm)) { emPosse = t2.carimboEm; posseNova = false; }
+      if (posseNova) {
+        let posse = await d.assumirPosse(av.chave, em);
+        if (posse === 'erro') posse = (await d.posseAindaNossa(av.chave, em)) ? 'assumida' : 'erro';
+        if (posse !== 'assumida') {
+          await d.apagarClaim(chaveClaim);
+          nota(posse === 'ja_tinha_dona' ? 'pulou' : 'parou', posse === 'ja_tinha_dona' ? 'posse_tomada_agora' : 'posse_falhou');
+          if (posse === 'erro') break;
+          continue;
+        }
       }
-      const desfazer = async (): Promise<void> => { await d.desfazerPosse(av.chave, em); await d.apagarClaim(chaveClaim); };
+      const soltarPosse = async (): Promise<void> => { if (posseNova) await d.desfazerPosse(av.chave, em); };
+      const desfazer = async (): Promise<void> => { await soltarPosse(); await d.apagarClaim(chaveClaim); };
 
       // Releitura logo antes do envio: o lead ou um humano escreveu, ou alguém tomou a posse? Aborta.
       let reler: string | null;
       try {
-        const falou = await jaFalouComALinha(lead, av.tel, av.chave, d);
+        const falou = t2 ? await jaFalouDepoisDoToque(lead, av.tel, av.chave, d, Date.parse(t2.carimboEm)) : await jaFalouComALinha(lead, av.tel, av.chave, d);
         if (falou !== 'nao') reler = falou;
         else {
           const pode = await podeFalarAgora(av.tel, d);
-          reler = pode === 'sim' ? ((await d.posseAindaNossa(av.chave, em)) ? null : 'posse_perdida') : pode;
+          reler = pode === 'sim' ? ((await d.posseAindaNossa(av.chave, emPosse)) ? null : 'posse_perdida') : pode;
         }
       } catch { reler = 'leitura_falhou'; }
       // Pagamento: depois do claim e ANTES de enviar, lê de novo se a pessoa pagou (contrato, venda e e-mail) e fixa o texto pelo contrato de agora.
       let textoPg: TextoPagto | null = null;
-      if (!reler && pg) {
+      let textoT2: string | null = null;
+      if (!reler && pp) {
         try {
-          const fresco = await d.lerPagamento?.(pg.marca.contratoId);
+          const fresco = await d.lerPagamento?.(pp.marca.contratoId);
           if (!fresco || !fresco.contrato) reler = 'pagamento_falhou';
           else {
             const vendas2 = await d.vendas(agoraEnvio.getTime());
-            const lp = campoFd(lead.field_data, 'lp_session') || pg.marca.lp_session || '';
-            if (await pagouPelaMarca(d, pg.marca, fresco, vendas2) || await d.compra(vendas2, lp, chaveDoTelefone(av.tel))) reler = 'pagou';
-            else {
+            const lp = campoFd(lead.field_data, 'lp_session') || pp.marca.lp_session || '';
+            if (await pagouPelaMarca(d, pp.marca, fresco, vendas2) || await d.compra(vendas2, lp, chaveDoTelefone(av.tel))) reler = 'pagou';
+            else if (t2) {
+              // O QR do 1º toque já venceu: o 2º toque leva o link, com o depoimento que o 1º não usou.
+              textoT2 = montarTextoToque2({ nome: nomeDoPagamento(t2.quiz.nome, t2.marca.nome), utmTerm: t2.utmTerm, primeiroTipo: t2.primeiroTipo });
+            } else if (pg) {
               const c = fresco.contrato;
               // Menos de 55 min = código; 65 min ou mais = link; no meio o código está no fim e a rodada espera (o claim volta).
               const fase = faseDoCodigo(c, agoraEnvio.getTime());
@@ -662,14 +867,14 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       // O sendFrio devolve false (calado) quando há pausa humana: o aviso "falou às" só sai depois de um envio que de fato foi feito.
       let saiu = false;
       try {
-        saiu = await d.enviar(av.tel, textoPg ? textoPg.texto : (texto as { texto: string }).texto);
+        saiu = await d.enviar(av.tel, textoT2 ?? (textoPg ? textoPg.texto : (texto as { texto: string }).texto));
       } catch (err) {
         const cod = codigoDoErroDeEnvio(err);
         logger.error(LOG, `envio ${hmac8} falhou (${cod})`);
         if (erroEhDoDestino(err)) {
           // Número ruim: o claim FICA (nunca tenta de novo), a posse volta, não conta como erro da linha.
-          await d.desfazerPosse(av.chave, em);
-          if (!pg || pg.quiz) await d.avisarNaoChama(lead, FRASE_DO_MOTIVO.sem_whatsapp);
+          await soltarPosse();
+          if (avisaGrupo) await d.avisarNaoChama(lead, FRASE_DO_MOTIVO.sem_whatsapp);
           nota('envio_falhou', 'destino');
         } else if (erroProvaQueNaoSaiu(err)) {
           await desfazer();
@@ -679,20 +884,21 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
           // Timeout e 5xx podem ter saído: claim e posse ficam, o erro conta e o grupo recebe um aviso que não afirma nada.
           await d.erroDeLinha(agoraEnvio);
           await d.marcarClaim(chaveClaim, { em, estado: 'incerto' });
-          if (!pg || pg.quiz) await d.avisarNaoChama(lead, 'A Carla tentou chamar, mas não sei se a mensagem saiu.');
+          if (avisaGrupo) await d.avisarNaoChama(lead, 'A Carla tentou chamar, mas não sei se a mensagem saiu.');
           nota('envio_falhou', cod);
         }
         break;
       }
       if (!saiu) {
         // Nada saiu. O carimbo FICA (1 por pessoa) mas marcado, para o tick não escrever "falou às"; a posse nova volta; o tick avisa com o motivo.
-        await d.desfazerPosse(av.chave, em);
+        await soltarPosse();
         await d.marcarClaim(chaveClaim, { em, estado: 'nao_saiu' });
         nota('nao_enviou', 'envio_nao_saiu');
         break;
       }
       // Envio provado: o carimbo ganha o estado 'enviado', que é o que deixa o tick escrever "A Carla falou às".
-      await d.marcarClaim(chaveClaim, { em, estado: 'enviado' });
+      // `tipo` diz ao 2º toque qual depoimento o 1º usou (pagamento = Alessandro, diagnostico = Vanderlei).
+      await d.marcarClaim(chaveClaim, { em, estado: 'enviado', tipo: t2 ? 'toque2' : pg ? 'pagamento' : 'diagnostico' });
       await d.envioOk(agoraEnvio);
       // O código do Pix vai sozinho, na mensagem seguinte, e só porque a primeira saiu. Se esta falhar a primeira já foi: o claim fica como 'enviado'.
       if (textoPg?.segundo) {
@@ -709,7 +915,7 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
           try { await d.avisarThiago?.(`A Carla mandou a 1ª mensagem do Pix a ${mascarar(av.tel)}, mas o código não saiu: a 1ª prometia o código.`); } catch { /* só avisa */ }
         }
       }
-      if (!pg || pg.quiz) await d.avisarSaiu(lead, horaBRT(agoraEnvio.getTime()));
+      if (avisaGrupo) await d.avisarSaiu(lead, horaBRT(agoraEnvio.getTime()));
       r.enviou = true;
       nota('enviada', null);
       break;
@@ -809,6 +1015,36 @@ export function depsReais(): DepsRec {
     },
     apagarClaim: (chave) => liberarChave(chave),
     async marcarPulo(chave, motivo, agora) { await reservarChave(chave, { em: agora.toISOString(), motivo }, agora); },
+    async leadsLp(desdeIso, ateIso) {
+      try {
+        const { data, error } = await supabaseGerador.from('leads_meta').select(colunas)
+          .eq('form_id', FORM_ID_LP_PIX).gte('created_time', desdeIso).lte('created_time', ateIso)
+          .order('created_time', { ascending: false }).limit(300);
+        if (error) return null;
+        return (data ?? []) as LeadRec[];
+      } catch { return null; }
+    },
+    async lerEstados(chaves) {
+      try {
+        const mapa = new Map<string, { em: string | null; estado?: string; tipo?: string }>();
+        for (let i = 0; i < chaves.length; i += 100) {
+          const { data, error } = await supabase.from('system_state').select('key, value').in('key', chaves.slice(i, i + 100));
+          if (error) return null;
+          for (const l of (data ?? []) as Array<{ key: string; value: Record<string, unknown> | null }>) {
+            const v = l.value ?? {};
+            mapa.set(l.key, {
+              em: typeof v.em === 'string' ? v.em : null,
+              ...(typeof v.estado === 'string' ? { estado: v.estado } : {}), ...(typeof v.tipo === 'string' ? { tipo: v.tipo } : {}),
+            });
+          }
+        }
+        return mapa;
+      } catch { return null; }
+    },
+    async enviarEmailPix2(para, link) {
+      const { sendPixAssineEmail } = await import('../../utils/mailer');
+      await sendPixAssineEmail({ to: para, link });
+    },
     async marcasPagamento(desdeIso) {
       try {
         const { data, error } = await supabase.from('system_state').select('key, value')

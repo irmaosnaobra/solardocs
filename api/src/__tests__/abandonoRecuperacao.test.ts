@@ -210,15 +210,14 @@ describe('recoverAbandonedCheckouts — por onde a Giovanna fala', () => {
     expect(r.sent).toBe(0);
   });
 
-  // ESTE TESTE PRECISA SER O ÚLTIMO DO ARQUIVO. O aviso é "uma vez por instância
-  // fria" (flag de módulo, pra não virar spam a cada rodada do cron), então um
-  // teste acima dele que rodasse sem a env queimaria o único disparo.
-  it('sem link de Pix configurado, grita — o caminho manual não pode ser silencioso', async () => {
+  // Era "sem link de Pix configurado, grita": o aviso saiu junto com o Pix manual (04/11/2026). A recuperação oferece o Pix
+  // automático pelo pixInfo, que não depende da env da Kiwify, então Kiwify vazia não é mais configuração faltando.
+  it('sem a URL da Kiwify a recuperação segue normal e NÃO manda alerta de "falta o link do Pix"', async () => {
     delete process.env.SOLARDOC_PIX_CHECKOUT_URL;
     db.abandoned_checkouts.push(abandono());
 
-    await recoverAbandonedCheckouts();
-    expect(alertas).toHaveLength(1);
-    expect(alertas[0]).toContain('Pix');
+    const r = await recoverAbandonedCheckouts();
+    expect(r.sent).toBe(1);
+    expect(alertas).toHaveLength(0);
   });
 });

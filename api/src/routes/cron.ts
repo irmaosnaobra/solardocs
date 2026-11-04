@@ -1565,12 +1565,12 @@ router.get('/master', async (req: Request, res: Response) => {
     ['solar-boas-vindas',           () => runSolarBoasVindasTick()],     // solar: recibo do cadastro pro cliente (SOLAR_BOASVINDAS_OFF desliga)
     ['solar-respostas',             () => runSolarRespostasTick()],      // solar: resposta do cliente vira recado pro consultor dono
     ['solar-giovanna',              () => runSolarAgendaGiovannaTick()], // solar: bom dia das 7h e "oi" 5 min antes, só na carteira da Giovanna e da Nilce (SOLAR_GIOVANNA_OFF desliga)
-    ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free
+    // ['dunning', ...] saiu desta lista: roda em sequência DEPOIS do allSettled (ver `emSequencia`, abaixo).
     ['dispute-watch',                () => runDisputeWatch()],       // contestação aberta / aviso antecipado de fraude → email pro Thiago com o dossiê. Nada escutava disputa antes disso.
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)
     ['meta-purchase-redrive',       () => reDrivePendingPurchases()], // reenvia Purchase que não confirmou entrega (garante Meta = card-pass)
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
-    ['pix-vip-reminder',            () => runPixVipReminder()],     // avisa VIP-pix (84994501564) ~2d antes de vencer: valor + chave Pix
+    // ['pix-vip-reminder', ...] saiu desta lista: roda em sequência DEPOIS do dunning (ver `emSequencia`, abaixo).
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
     ['capi-lead-qualificado',       () => runCapiLeadQualificado()], // solar >700 kWh que orçou → Meta aprende o perfil do cliente bom (CAPI_QUALIFICADO_OFF desliga)
     ['clientes-quentes',            () => runClientesQuentes()],     // Meta aprende os melhores clientes: público com valor (1x/dia) + evento ao avançar card (CLIENTE_QUENTE_OFF / PUBLICO_QUENTE_OFF desligam)
@@ -1589,6 +1589,22 @@ router.get('/master', async (req: Request, res: Response) => {
     status: r.status,
     ...(r.status === 'fulfilled' ? { res: r.value } : { error: String(r.reason) }),
   }));
+
+  // WhatsApp FRIO em sequência (chefe-antiban, 04/11/2026): o dunning (D1-D4) e o lembrete de renovação do Pix passavam no espaçamento da
+  // linha AO MESMO TEMPO que a recuperação de checkout (que continua no allSettled): com a linha parada há 15 min saíam até 3 frios colados.
+  // Agora rodam aqui, DEPOIS do allSettled e um depois do outro, cada um no seu try/catch (falha de um não impede o outro): o espaçamento
+  // da linha precisa ver o carimbo de um antes de o outro rodar. Mesmo desenho da Carla no /process-messages.
+  const emSequencia: Array<[string, () => Promise<unknown>]> = [
+    ['dunning',          () => runDunning()],          // 5 dias: D0-D4 lembrete, D5 cancela+free
+    ['pix-vip-reminder', () => runPixVipReminder()],   // avisa quem paga por Pix ~2d antes de vencer (e até 3 dias depois), com o Pix automático
+  ];
+  for (const [task, fn] of emSequencia) {
+    try {
+      results.push({ task, status: 'fulfilled', res: await fn() } as (typeof results)[number]);
+    } catch (err) {
+      results.push({ task, status: 'rejected', error: String(err) } as (typeof results)[number]);
+    }
+  }
 
   const failed = results.filter(r => r.status === 'rejected');
   if (failed.length) {

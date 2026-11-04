@@ -91,10 +91,13 @@ export function camposDoLeadSd(a: {
 /** Rascunho do lead em `leads_meta`: atualiza se o telefone voltou. Falha aqui não segura o quiz. */
 async function gravarLead(leadId: string, campos: Record<string, unknown>): Promise<boolean> {
   try {
-    const atualizar = () => supabaseGerador.from('leads_meta').update(campos).eq('lead_id', leadId);
-    const { data } = await supabaseGerador.from('leads_meta').select('lead_id').eq('lead_id', leadId).limit(1);
+    // Lead que nasceu na LP (form_id lp_solardoc_pix) e agora fez o quiz: vira quiz_solardoc COM a hora de agora. Com o created_time da LP a conta de tempo
+    // da fila de 15 min e da desistência sairia errada. O lead que já era do quiz mantém a hora dele.
+    const atualizar = (daLp = false) => supabaseGerador.from('leads_meta').update(daLp ? { ...campos, created_time: new Date().toISOString() } : campos).eq('lead_id', leadId);
+    const { data } = await supabaseGerador.from('leads_meta').select('lead_id, form_id').eq('lead_id', leadId).limit(1);
+    const daLp = (data as Array<{ form_id?: string | null }> | null)?.[0]?.form_id === 'lp_solardoc_pix';
     let { error } = data?.length
-      ? await atualizar()
+      ? await atualizar(daLp)
       : await supabaseGerador.from('leads_meta').insert({ lead_id: leadId, created_time: new Date().toISOString(), ...campos });
     // Dois envios juntos do mesmo telefone: o segundo insert bate no que o primeiro criou.
     if (error && !data?.length) ({ error } = await atualizar());

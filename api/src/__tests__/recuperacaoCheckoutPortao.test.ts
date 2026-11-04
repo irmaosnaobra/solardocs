@@ -119,14 +119,19 @@ describe('recuperação de checkout — portão do WhatsApp', () => {
     expect(linhaDe('ab-1').recovery_attempts).toBe(2);
   });
 
-  it('o Pix, quando o toque o pede, vai sozinho no fim: texto numa chamada, Pix noutra', async () => {
+  // Era "texto numa chamada, Pix noutra" (Kiwify): desde 04/11/2026 o link do Pix automático entra no texto e o toque frio é UMA mensagem.
+  it('o Pix, quando o toque o pede, é o link do Pix automático DENTRO do texto: uma chamada só, sem Kiwify', async () => {
     h.resposta = 'Claro, segue aqui [[ENVIAR_PIX]]';
     abandono();
     await recoverAbandonedCheckouts();
-    expect(h.frio).toHaveLength(2);
-    expect(h.frio[0]!.partes).toEqual(['Claro, segue aqui']);
-    expect(h.frio[1]!.partes).toHaveLength(1);
-    expect(h.frio[1]!.partes[0]).toContain('https://pay.kiwify.com.br/TESTE');
+    expect(h.frio).toHaveLength(1);
+    expect(h.frio[0]!.partes).toHaveLength(1);
+    const t = h.frio[0]!.partes[0]!;
+    expect(t).toContain('Claro, segue aqui');
+    expect(t).toContain('https://solardoc.app/?pagar=pix&utm_source=recuperacao&utm_medium=whatsapp');
+    expect(t).not.toContain('utm_term');
+    expect(t).not.toMatch(/kiwify|000201/i);
+    expect(emBolhas(t, { maxBolhas: 1, max: 900 })).toHaveLength(1);
     expect(linhaDe('ab-1').recovery_attempts).toBe(1);
   });
 
@@ -381,22 +386,18 @@ describe('recuperação de checkout — portão do WhatsApp', () => {
     expect(linhaDe('ab-1').recovery_attempts).toBe(3);
   });
 
-  it('Pix manual: o código sai SOZINHO no 2º sendFrio; o 1º leva o texto com valor e comprovante, sem o código', async () => {
+  // Era "Pix manual: o código sai SOZINHO no 2º sendFrio": o copia e cola não é mais oferecido (ordem do dono, 04/11/2026), com ou sem a URL da Kiwify.
+  it('sem a URL da Kiwify também sai só o link do Pix automático: nada de código 000201 e nada de pedir comprovante', async () => {
     delete process.env.SOLARDOC_PIX_CHECKOUT_URL;
     h.resposta = 'Claro, segue o Pix [[ENVIAR_PIX]]';
     abandono();
     await recoverAbandonedCheckouts();
-    expect(h.frio).toHaveLength(2);
-    const codigo = h.frio[1]!.partes;
-    expect(codigo).toHaveLength(1);
-    // Exatamente o código: começa no 000201, termina no CRC (6304 + 4 hex) e não tem
-    // quebra de linha. Espaço pode haver dentro dele (nome do recebedor, "AIOROS GROUP").
-    expect(codigo[0]).toMatch(/^000201[^\r\n]+6304[0-9A-F]{4}$/);
-    expect(h.frio[0]!.partes).toHaveLength(1);
-    expect(h.frio[0]!.partes[0]).not.toContain('000201');
-    expect(h.frio[0]!.partes[0]).toContain('Claro, segue o Pix');
-    expect(h.frio[0]!.partes[0]).toContain('R$ 67');
-    expect(h.frio[0]!.partes[0]).toContain('comprovante');
+    expect(h.frio).toHaveLength(1);
+    const t = h.frio[0]!.partes[0]!;
+    expect(t).toContain('Claro, segue o Pix');
+    expect(t).toContain('?pagar=pix&utm_source=recuperacao');
+    expect(t).not.toContain('000201');
+    expect(t).not.toMatch(/mand[ea] (o )?comprovante/i);
     expect(linhaDe('ab-1').recovery_attempts).toBe(1);
   });
 

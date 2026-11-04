@@ -285,6 +285,12 @@ describe('trava do [[ENVIAR_PIX]] com handoff ativo', () => {
     // o histórico já tem o copia-e-cola
     expect(await pixDoHandoffPodeSair(h('recebedor'), hist('00020126580014BR.GOV.BCB.PIX...'), TEL)).toBe(false);
     expect(await pixDoHandoffPodeSair(h('data'), hist('00020126580014BR.GOV.BCB.PIX...'), TEL)).toBe(false);
+    // o histórico já tem o link do Pix automático (04/11/2026), com qualquer query: a trava "uma vez por conversa" vale para ele
+    for (const link of ['https://solardoc.app/?pagar=pix&utm_source=giovanna&utm_medium=whatsapp', 'solardoc.app/?pagar=pix']) {
+      expect(await pixDoHandoffPodeSair(h('recebedor'), hist(`O Pix agora é automático: assine em ${link} com o seu e-mail.`), TEL)).toBe(false);
+    }
+    // outro link da solardoc.app não conta como Pix já enviado
+    expect(await pixDoHandoffPodeSair(h('recebedor'), hist('Entra em https://solardoc.app/ e assina.'), TEL)).toBe(true);
     // o Pix pedido já foi registrado nas últimas 24h (o código sai por fora do histórico)
     db.system_state.push({
       key: `pix_solicitado:${TEL_USERS}`,

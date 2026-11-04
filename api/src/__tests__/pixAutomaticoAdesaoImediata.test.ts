@@ -723,6 +723,21 @@ describe('criarPixRecorrente: grava a ligação e a atribuição', () => {
   });
 });
 
+describe('Pix automático: o E2E do pagamento fica gravado também na RENOVAÇÃO', () => {
+  it('débito do mês seguinte (contrato ativo) grava pix_e2e, então o comprovante do mesmo Pix não credita outro mês', async () => {
+    db.asaas_pix_assinaturas = [contrato({ status: 'ativo', user_id: 'u1', ultimo_pagamento_id: 'pay_antigo' })];
+    const r = await processarWebhookAsaas(recebido('ev-ren', {}, { id: 'pay_renov', customer: 'cus_contrato', pixQrCodeId: null }));
+    expect(r.tratado).toBe(true);
+    expect(H.liberacoes).toEqual(['u1']);
+    const chave = chaveE2eFalso();
+    expect(db.system_state.some((x) => x.key === chave)).toBe(true);
+  });
+});
+
+function chaveE2eFalso(): string {
+  return `pix_e2e:${E2E_ID.slice(0, 21).toUpperCase()}:19`;
+}
+
 describe('Aviso ao Thiago: Pix Automático recusado x QR vencido', () => {
   const evento = (tipo: string, auth: Row = {}): any => ({
     id: `ev-${tipo}-${Math.random()}`, event: `PIX_AUTOMATIC_RECURRING_AUTHORIZATION_${tipo}`,

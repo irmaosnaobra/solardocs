@@ -21,9 +21,8 @@ import { sendHuman, sendFrio, sleep } from '../zapiClient';
 import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import { ofertaCupomAtiva, bolhasOferta, resumoOfertaParaPrompt, LINK_ASSINATURA, OfertaCupom } from '../../../utils/ofertaCupom';
-import { gerarPixCopiaECola } from '../../../utils/pixBrCode';
-import { bolhasPixCheckout, pixAutomatico } from '../../../utils/pixInfo';
-import { bolhasPix, registrarPixEnviado, guardarEmailSePendente } from './pixSolicitado';
+import { bolhasPixCheckout } from '../../../utils/pixInfo';
+import { guardarEmailSePendente } from './pixSolicitado';
 import { registrarMsgProativa } from './whatsappAgentService';
 import { novoAnthropic } from "../../../utils/anthropicClient";
 
@@ -85,14 +84,10 @@ function giovannaSystem(nome: string | null, oferta: OfertaCupom | null): string
     '- Acolhe primeiro ("foi o cartão que não passou?"). No primeiro toque, só abre a conversa.',
     `- Assim que ele responder qualquer coisa que não seja "não quero", MANDE O CAMINHO: inclua o marcador [[ENVIAR_LINK]] no fim da sua resposta. O sistema anexa o link e o passo a passo do cupom sozinho — NÃO escreva o link nem o cupom você mesma, e não invente outro desconto.`,
     '- No caminho do site ele faz tudo sozinho: você não libera acesso na mão.',
-    '- SE ELE PEDIR PIX (ou disser que não tem cartão): manda sim, sem enrolar. Inclua o marcador [[ENVIAR_PIX]] — o sistema anexa o caminho do Pix sozinho. NÃO escreva link, código nem valor você mesma, e não mande o link do site junto (ele já escolheu o caminho).',
-    `- O Pix é R$ ${PIX_VALOR}, um mês do plano completo — o desconto de primeiro mês existe só no cartão, pelo site. Se ele perguntar, fale isso na lata, sem inventar desconto no Pix.`,
-    // As duas mecânicas de Pix pedem coisas OPOSTAS da Giovanna: no checkout da
-    // Kiwify pedir comprovante é ruído (e faz o cliente achar que travou); no
-    // copia-e-cola, não pedir é o cliente pagando e ficando sem acesso.
-    pixAutomatico()
-      ? '- O Pix é numa página de checkout: ele paga e o acesso libera SOZINHO em poucos minutos. NÃO peça comprovante e NÃO peça e-mail — não precisa de nada disso. Se ele disser que pagou, comemore e diga que o acesso e o e-mail com o link chegam em minutinhos.'
-      : '- Depois que ele pagar por Pix, você SEMPRE precisa de duas coisas: o *comprovante* e o *e-mail* dele. Se vier só um, peça o outro numa bolha curta. É com o e-mail que o acesso é liberado.',
+    '- SE ELE PEDIR PIX (ou disser que não tem cartão): manda sim, sem enrolar. Inclua o marcador [[ENVIAR_PIX]] — o sistema anexa o link do Pix AUTOMÁTICO sozinho. NÃO escreva link, código nem valor você mesma, e não mande o link do site junto (ele já escolheu o caminho).',
+    // Ordem do dono (04/11/2026): todo Pix é o automático. Nunca copia-e-cola, nunca comprovante.
+    '- Todo Pix é o Pix AUTOMÁTICO: ele assina uma vez, com o e-mail da conta dele, e o banco debita todo mês sozinho. NUNCA ofereça copia-e-cola e NUNCA peça comprovante. Se ele disser que já pagou por outro caminho, peça só o e-mail e avise que o time confere.',
+    `- O Pix custa R$ ${PIX_VALOR} por mês, um mês do plano completo — o desconto de primeiro mês existe só no cartão, pelo site. Se ele perguntar, fale isso na lata, sem inventar desconto no Pix.`,
     '- Se ele pedir pra parar, disser que não quer, ou claramente recusar → responda educada e curta e inclua o marcador [[ENCERRAR]].',
     '- Dúvida sobre o produto: responde com sinceridade e curto. Você acredita no que vende.',
     '',
@@ -153,35 +148,21 @@ async function enviarComMarcadores(
 
   const bolhas = porBarras(limpo);
   const enviado: string[] = [];
+  const mandaPix = pediuPix && !encerrar;
+  // Com Pix o texto e o link saem JUNTOS, numa chamada só (abaixo).
   if (bolhas.length) {
-    await sendHuman(phone, bolhas, 'solardoc');
+    if (!mandaPix) await sendHuman(phone, bolhas, 'solardoc');
     enviado.push(...bolhas);
   }
 
   // PIX SÓ QUANDO ELE PEDE (regra do Thiago, 08/08/2026). Ganha do link: se ele
   // pediu Pix, mandar o site junto é ignorar o que ele acabou de falar.
-  if (pediuPix && !encerrar) {
-    await sleep(600);
-
-    // TRILHO 1 — checkout da Kiwify: Pix nativo, acesso liberado pelo webhook.
-    // Nada de comprovante, nada de e-mail, ninguém confere nada. Sai na frente
-    // sempre que o link estiver configurado.
-    const doCheckout = bolhasPixCheckout();
-    if (doCheckout.length) {
-      await sendHuman(phone, doCheckout, 'solardoc');
-      enviado.push(...doCheckout);
-      return { enviado, encerrar, mandouLink: false };
-    }
-
-    // TRILHO 2 (fallback) — copia-e-cola manual. Só roda sem
-    // SOLARDOC_PIX_CHECKOUT_URL configurada; quem chama grita no log.
-    const copia = gerarPixCopiaECola({ valor: PIX_VALOR, txid: 'SOLARDOCVIP' });
-    const passos = bolhasPix(copia, PIX_VALOR);
-    await sendHuman(phone, passos, 'solardoc');
-    enviado.push(...passos);
-    // Marca que existe um Pix pendente deste telefone: é o que permite casar o
-    // comprovante (e o e-mail) depois, mesmo sem checkout abandonado.
-    await registrarPixEnviado(phone, PIX_VALOR, nome);
+  if (mandaPix) {
+    // Ordem do dono (04/11/2026): todo Pix é o automático. O link vai na MESMA chamada do texto (nunca sozinho),
+    // com teto de 2 bolhas na mensagem inteira. Sem copia-e-cola e sem registrarPixEnviado: não há Pix manual pendente.
+    const pix = bolhasPixCheckout('recuperacao');
+    await sendHuman(phone, [...bolhas, ...pix], 'solardoc', { maxBolhas: 2 });
+    enviado.push(...pix);
     return { enviado, encerrar, mandouLink: false };
   }
 
@@ -261,9 +242,9 @@ export async function enviarOpenerRecuperacao(
 
 /**
  * Envio do toque FRIO da recuperação de checkout (decisão do chefe-antiban, linha 5040).
- * O texto inteiro (as bolhas da IA, mais o link e o cupom quando o toque manda o caminho) vira UMA string e sai
- * numa chamada só de `sendFrio`, que o `emBolhas` mantém em 1 bolha. O único extra é o Pix, sozinho no fim,
- * quando o toque o pede ([[ENVIAR_PIX]]): é uma segunda chamada, de uma bolha só; se ela calar, o texto já saiu.
+ * O texto inteiro (as bolhas da IA, mais o link e o cupom quando o toque manda o caminho, ou o link do Pix automático quando
+ * o toque pede Pix, [[ENVIAR_PIX]]) vira UMA string e sai numa chamada só de `sendFrio`, que o `emBolhas` mantém em 1 bolha.
+ * Desde 04/11/2026 o Pix NÃO tem mais uma 2ª chamada: o link do Pix automático entra dentro da frase do texto (de 2 mensagens para 1).
  * `saiu: false` = o sendFrio calou (pausa humana) e NADA foi enviado. Exceção com `transporte: true` = erro de envio (talvez saiu).
  */
 async function enviarToqueFrio(
@@ -281,18 +262,11 @@ async function enviarToqueFrio(
   // Pix ganha do link (mesma regra do envio conversacional). Quem está saindo da conversa não recebe oferta.
   const mandaLink = pediuLink && !pediuPix && !encerrar;
   const mandaPix = pediuPix && !encerrar;
-  // O Pix é montado ANTES do 1º envio. No copia-e-cola manual o código (000201...) NUNCA vai junto de texto: as linhas de valor e de
-  // comprovante (pix.slice(1)) vão no fim do texto do 1º sendFrio, e o código sai SOZINHO no 2º. No checkout da Kiwify (link, sem
-  // código) o Pix inteiro vai no 2º envio.
-  const doCheckout = mandaPix ? bolhasPixCheckout() : [];
-  const pix = !mandaPix ? [] : doCheckout.length
-    ? doCheckout
-    : bolhasPix(gerarPixCopiaECola({ valor: PIX_VALOR, txid: 'SOLARDOCVIP' }), PIX_VALOR);
-  const codigoManual = mandaPix && !doCheckout.length ? pix[0]! : null;
 
   let texto = porBarras(limpo).join(' ');
   if (mandaLink) texto = [texto, ...bolhasOferta(oferta, TOQUE)].filter(Boolean).join('\n');
-  if (codigoManual) texto = [texto, ...pix.slice(1)].filter(Boolean).join('\n');
+  // O link do Pix automático vai DENTRO do texto, na mesma frase corrida (nunca numa linha ou mensagem à parte).
+  if (mandaPix) texto = [texto, ...bolhasPixCheckout('recuperacao')].filter(Boolean).join(' ');
   if (!texto) return { enviado: [], saiu: false };
 
   // sendFrio: false = a trava de pausa humana calou, NADA saiu. Exceção = erro de envio (timeout, 5xx, número inválido): não dá para
@@ -302,22 +276,8 @@ async function enviarToqueFrio(
   catch (err) { throw Object.assign(err instanceof Error ? err : new Error(String(err)), { transporte: true }); }
   if (!saiu) return { enviado: [], saiu: false };
   const enviado = [texto];
-  // O texto saiu: grava já (antes do Pix e do histórico) que o toque foi enviado. Melhor esforço.
+  // O texto saiu: grava já (antes do histórico) que o toque foi enviado. Melhor esforço.
   if (aoEnviar) { try { await aoEnviar(); } catch { /* o claim fica sem a marca: no pior caso a retomada de claim velho decide */ } }
-
-  if (mandaPix) {
-    try {
-      await sleep(600);
-      const pixTexto = codigoManual ?? pix.join('\n');
-      if (await sendFrio(phone, [pixTexto], 'solardoc')) {
-        enviado.push(pixTexto);
-        // Pix manual: marca que existe um Pix pendente deste telefone (casa o comprovante depois).
-        if (codigoManual) await registrarPixEnviado(phone, PIX_VALOR, nome);
-      }
-    } catch (err) {
-      logger.error('pix-recovery', `pix do toque frio falhou pra ${phone.replace(/\D/g, '').slice(-4)}`, err);
-    }
-  }
   return { enviado, saiu: true };
 }
 
@@ -372,9 +332,9 @@ export async function handleRecoveryReply(
   try {
     raw = await gerarResposta(giovannaSystem(nome, oferta), historico,
       pedindoPix
-        ? 'O lead está pedindo Pix. Responda CURTO (1 bolha) confirmando que já vai mandar e use [[ENVIAR_PIX]] — o sistema anexa o código, o valor e o pedido de comprovante + e-mail.'
+        ? 'O lead está pedindo Pix. Responda CURTO (1 bolha) confirmando que já vai mandar e use [[ENVIAR_PIX]] — o sistema anexa o link do Pix automático (ele assina uma vez com o e-mail da conta). Não peça comprovante.'
         : emailInformado
-          ? `O lead mandou o e-mail dele (${emailInformado}). Confirme que anotou, em UMA bolha curta, e diga que assim que chegar o comprovante você libera. Não repita o link.`
+          ? `O lead mandou o e-mail dele (${emailInformado}). Confirme que anotou, em UMA bolha curta, e diga que o time confere e libera o acesso. Não peça comprovante e não repita o link.`
           : forcarLink
             ? 'Responda a última mensagem do lead como a Giovanna, CURTO (1 bolha), e já emende que vai mandar o caminho pra ele entrar — o sistema anexa o link e o cupom logo depois. Se ele estiver recusando, use [[ENCERRAR]].'
             : 'Responda a última mensagem do lead como a Giovanna (curto: 1 bolha, 2 no máximo; marcadores quando couber).');

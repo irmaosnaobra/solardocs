@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
   enviar: vi.fn(),
   ops: [] as Array<{ tabela: string; op: string; arg?: any; filtros: Array<[string, unknown]> }>,
   existe: false,
+  /** form_id do lead que já existe (quando `existe`). */
+  formIdExistente: 'quiz_solardoc',
   erroGravar: null as unknown,
 }));
 
@@ -22,7 +24,7 @@ vi.mock('../utils/supabaseGerador', () => {
         if (k === 'then') {
           return (ok: (v: unknown) => void) => {
             if (reg.op !== 'select') { h.ops.push(reg); ok({ error: h.erroGravar }); }
-            else ok({ data: h.existe ? [{ lead_id: 'x' }] : [], error: null });
+            else ok({ data: h.existe ? [{ lead_id: 'x', form_id: h.formIdExistente }] : [], error: null });
           };
         }
         return (...a: unknown[]) => {
@@ -121,6 +123,21 @@ describe('POST /solardoc/quiz', () => {
     expect(h.ops).toHaveLength(1);
     expect(h.ops[0].op).toBe('update');
     expect(h.ops[0].filtros).toContainEqual(['lead_id', 'sdquiz_3498165040']);
+  });
+
+  it('lead que nasceu na LP (lp_solardoc_pix) e agora faz o quiz: vira quiz_solardoc COM a hora de agora; o que já era do quiz mantém a hora', async () => {
+    h.existe = true; h.formIdExistente = 'lp_solardoc_pix';
+    const antes = Date.now();
+    await request(app).post('/solardoc/quiz').send(corpo);
+    expect(h.ops).toHaveLength(1);
+    expect(h.ops[0].op).toBe('update');
+    expect(h.ops[0].arg.form_id).toBe('quiz_solardoc');
+    expect(Date.parse(h.ops[0].arg.created_time)).toBeGreaterThanOrEqual(antes - 1000);
+    h.ops.length = 0; h.formIdExistente = 'quiz_solardoc';
+    await request(app).post('/solardoc/quiz').send(corpo);
+    expect(h.ops[0].op).toBe('update');
+    expect(h.ops[0].arg.created_time).toBeUndefined();
+    h.formIdExistente = 'quiz_solardoc';
   });
 
   it('telefone com 55, com 0 e com 11 dígitos chegam ao mesmo lead; telefone ruim é 400', async () => {

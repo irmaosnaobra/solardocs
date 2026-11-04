@@ -414,25 +414,13 @@ describe('abandono / Pix pedido', () => {
   });
 });
 
-describe('lembrete de renovação (plano PRO)', () => {
-  it('quem tem PRO ganha a frase da mudança NA MESMA bolha, sem bolha nova', () => {
-    const frase = 'A partir de agora a renovação no Pix é R$ 67,00, já com o plano Ilimitado.';
-    const pro = montarPartes('Leo', 67, 'pro');
-    const outro = montarPartes('Leo', 67, 'ilimitado');
-    expect(pro.join(' ')).toContain(frase);
-    expect(outro.join(' ')).not.toContain(frase);
-    expect(pro).toHaveLength(outro.length);
-  });
-});
-
-describe('lembrete de renovação', () => {
-  it('pede sempre R$ 67, para qualquer plano', () => {
-    const t = montarPartes('Leo').join(' ');
-    expect(t).toContain('R$ 67');
-    expect(t).not.toMatch(/R\$ ?27|seu plano atual/);
-    // sem o link do checkout, o copia-e-cola traz o valor de 67
-    const code = montarPartes('Leo').find((p) => p.startsWith('000201'));
-    if (code) expect(campo(code, '54')).toBe('67.00');
+describe('lembrete de renovação (desde 04/11/2026: Pix automático, não mais Kiwify nem copia-e-cola)', () => {
+  it('é UMA bolha, com o link do Pix automático e sem código copia-e-cola nem checkout da Kiwify', () => {
+    const t = montarPartes('Leo Silva', '2026-11-09T12:00:00Z');
+    expect(t).toHaveLength(1);
+    expect(t[0]).toContain('https://solardoc.app/?pagar=pix&utm_source=renovacao&utm_medium=whatsapp');
+    expect(t[0]).not.toContain('utm_term');
+    expect(t[0]).not.toMatch(/000201|kiwify|sicredi/i);
   });
 });
 

@@ -19,7 +19,6 @@ vi.mock('../services/agents/zapiClient', () => ({
   fmtPhone: (p: string) => p, sendHuman: h.sendHuman, sendImage: vi.fn(), sendWhatsApp: vi.fn(), linhaEmCooldown: () => false,
 }));
 vi.mock('../utils/ofertaCupom', () => ({ ofertaCupomAtiva: async () => null, bolhasOferta: () => [] }));
-vi.mock('../utils/pixInfo', () => ({ pixBlocoWhatsApp: () => '' }));
 vi.mock('../utils/pixBrCode', () => ({ gerarPixCopiaECola: () => '00020126PIXFALSO' }));
 vi.mock('../utils/mediaProcessor', () => ({
   transcribeAudio: vi.fn(async () => null),

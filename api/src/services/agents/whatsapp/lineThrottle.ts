@@ -228,6 +228,12 @@ const BOT_SENT_PREFIXES = [
   // [03/11] A Carla retomando quem tem conta e não paga (solardoc/retomadaUsuarios.ts): `usu_rec_sent:<hmac>`, um por pessoa para sempre
   // (claim por insert). Frio desde o 1º dia, fora de PREFIXOS_AGENDA. As marcas `usu_rec_fora:` e as vezes `usu_rec_vez:` NÃO entram.
   'usu_rec_sent:',
+  // [04/11] Lembrete de renovação do Pix (pixVipReminderService): `pix_vip_sent:<userId>:<vencimento>`, um por ciclo. Frio, fora de PREFIXOS_AGENDA.
+  'pix_vip_sent:',
+  // [04/11] Dunning D1 a D4 (dunningService): `dunning_sent:<userId>:<dia>`. Frio, fora de PREFIXOS_AGENDA.
+  'dunning_sent:',
+  // [04/11] A Carla do quiz SolarDoc, segunda perna (recuperacaoCarla*): `quiz_rec_sent2:`. Frio, fora de PREFIXOS_AGENDA. Não casa com `quiz_rec_sent:`.
+  'quiz_rec_sent2:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de

@@ -1,23 +1,22 @@
 import { supabase } from '../../../utils/supabase';
-import { sendHuman } from '../zapiClient';
+import { sendFrio } from '../zapiClient';
 import { logger } from '../../../utils/logger';
-import { gerarPixCopiaECola } from '../../../utils/pixBrCode';
-import { pixCheckoutUrl, PIX_MES_VALOR } from '../../../utils/pixInfo';
+import { novaRodadaPortao, tomarChaveFria, soltarChaveFria } from '../../recuperacaoCheckoutPortao';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Lembrete mensal de renovação VIP pago por Pix.
+// Lembrete mensal de renovação de quem paga por Pix.
 //
-// VIP por Pix NÃO tem assinatura no Stripe — a renovação é manual (Thiago bumpa
-// plano_expira_em +1 mês quando o cliente paga). Este serviço só AVISA o cliente
-// que o VIP está vencendo e manda o valor + chave Pix. Não cobra, não renova.
+// Pix NÃO tem assinatura no Stripe: a renovação era manual. Desde 04/11/2026 (ordem do dono: "todos o Pix será de
+// recorrência... sempre oriente eles a utilizar o pix recorrente") o lembrete leva a pessoa para o PIX AUTOMÁTICO
+// (Asaas): ela assina uma vez e o banco debita todo mês, sem comprovante. Não cobra, não renova.
 //
-// Decisões (jun/2026): só pro cliente 84994501564; dispara por plano_expira_em
-// (~0-2 dias antes do vencimento), não por "dia 11 fixo" — assim o aviso segue
-// a data real, para sozinho se ele deixar de ser VIP, e não dispara horas depois
-// de ele já ter pago/renovado. Tom curto e direto (aprovado pelo Thiago).
+// Dispara por plano_expira_em (~0-2 dias antes do vencimento), não por "dia 11 fixo": o aviso segue a data real, para
+// sozinho se a pessoa deixar de ser cliente e não sai horas depois de ela já ter pago.
 //
-// Best-effort: Z-API pode banir número que faz outbound automatizado, então
-// qualquer falha de envio é logada e engolida (não derruba o cron master).
+// PORTÃO ANTI-BAN (chefe-antiban, linha 5040): UMA bolha por sendFrio; antes de cada envio janela 9h-20h de segunda a sábado
+// sem feriado, teto do frio, espaçamento, pausa humana, supressão e mudo (recuperacaoCheckoutPortao.ts); claim por INSERT
+// `pix_vip_sent:<userId>:<vencimento>` ANTES de enviar (um por ciclo, e barra duas rodadas); UM envio por rodada, e a rodada
+// para no erro. O cron roda de hora em hora: o que o portão segura sai na rodada seguinte.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Janela do vencimento em que o lembrete dispara (dias à frente de agora).
@@ -27,42 +26,33 @@ const JANELA_DIAS = 2;
 const COOLDOWN_DIAS = 20;
 
 const DIA_MS = 24 * 60 * 60 * 1000;
+// Vencido há mais que isto não recebe o lembrete: é caso da retomada de quem parou de pagar.
+const VENCIDO_MAX_DIAS = 3;
 
-// Valor da renovação mensal por Pix: R$ 67 para TODO plano, desde 20/10/2026 (regra do
-// dono). Antes era por plano (PRO pagava 27); hoje quem manda 27 recebe o aviso de que
-// faltam R$ 40 e o Pix do restante (ver aplicarPagamentoPix).
-const VALOR_RENOVACAO = PIX_MES_VALOR;
+/** Link do Pix automático da renovação (sem utm_term). */
+export const LINK_PIX_AUTOMATICO_RENOVACAO = 'https://solardoc.app/?pagar=pix&utm_source=renovacao&utm_medium=whatsapp';
 
-// Partes da mensagem de renovação: pitch + copia-e-cola (sozinho, fácil de copiar) +
-// instrução do comprovante. O cliente paga e manda o comprovante → pixComprovanteService
-// lê, valida e empurra o plano_expira_em +1 mês na hora.
-const AVISO_PRO = 'A partir de agora a renovação no Pix é R$ 67,00, já com o plano Ilimitado.';
+/** O vencimento em dd/mm, no horário de Brasília. */
+export function dataDdMm(iso: string | Date): string {
+  const d = new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000);
+  return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
 
-export function montarPartes(nome: string | null, valor: number = VALOR_RENOVACAO, plano: string | null = null): string[] {
-  // Quem ainda está no PRO de R$ 27 é avisado da mudança NA MESMA bolha do pedido (sem bolha nova).
-  const aviso = (plano || '').toLowerCase() === 'pro' ? ` ${AVISO_PRO}` : '';
-  const oi = nome ? `Oi ${nome.split(' ')[0]}! ` : 'Oi! ';
-
-  // RENOVAÇÃO EM UM CLIQUE. O checkout da Kiwify cobra, o webhook empilha mais 30
-  // dias em cima do que resta (concederMesPago) e ninguém confere comprovante —
-  // o mesmo trilho que a recuperação de abandono usa.
-  // O valor é sempre R$ 67 (o do produto lá), então o link vale para todo plano.
-  const link = pixCheckoutUrl();
-  if (link && valor === PIX_MES_VALOR) {
+/**
+ * O texto do lembrete, UMA bolha. Com nome: "Oi, Leo, aqui é a Carla..."; sem nome: "Oi, aqui é a Carla...".
+ * Fica o nome só até o primeiro espaço.
+ */
+export function montarPartes(nome: string | null, expiraEm: string | Date, agora: number = Date.now()): string[] {
+  const primeiro = (nome || '').trim().split(/\s+/)[0] || '';
+  const abertura = primeiro ? `Oi, ${primeiro}, aqui é a Carla, da SolarDoc.` : 'Oi, aqui é a Carla, da SolarDoc.';
+  // Já venceu (1 a 3 dias): variante "venceu", para voltar a usar. Ainda vai vencer: a variante "vence".
+  if (new Date(expiraEm).getTime() <= agora) {
     return [
-      `${oi}Tudo bem? 😊 Seu acesso ao SolarDoc está *vencendo*.`,
-      `Pra renovar por mais um mês (R$ ${valor}), é só pagar por aqui 👇${aviso}`,
-      link,
-      'Escolhe *Pix* na página que o QR aparece na hora. Seu acesso é estendido sozinho quando o pagamento cair — não precisa mandar comprovante 🙌',
+      `${abertura} Seu acesso venceu em ${dataDdMm(expiraEm)}. Que tal assinar o Pix automático em ${LINK_PIX_AUTOMATICO_RENOVACAO}, para voltar a usar e não precisar pagar nem mandar comprovante todo mês? Na hora de assinar, use o e-mail da sua conta.`,
     ];
   }
-
-  const copia = gerarPixCopiaECola({ valor, txid: 'SOLARDOCVIP' });
   return [
-    `${oi}Tudo bem? 😊 Seu acesso ao SolarDoc está *vencendo*.`,
-    `Pra renovar por mais um mês (R$ ${valor}), é só copiar o Pix abaixo e pagar no app do seu banco 👇${aviso}`,
-    copia,
-    'Assim que pagar, me manda o *comprovante aqui* que eu confirmo e libero na hora. Qualquer dúvida me chama! 🙌',
+    `${abertura} Seu acesso vence em ${dataDdMm(expiraEm)}. Que tal assinar o Pix automático em ${LINK_PIX_AUTOMATICO_RENOVACAO}, para não precisar pagar nem mandar comprovante todo mês? Na hora de assinar, use o e-mail da sua conta.`,
   ];
 }
 
@@ -113,6 +103,7 @@ export async function runPixVipReminder(): Promise<{ enviados: number; pulados: 
 
   const agora = Date.now();
   const limite = new Date(agora + JANELA_DIAS * DIA_MS).toISOString();
+  const piso = new Date(agora - VENCIDO_MAX_DIAS * DIA_MS).toISOString();
 
   // Alvo: o cliente Pix-VIP, ainda ilimitado, com vencimento dentro da janela.
   // Alvo GERAL: qualquer cliente Pix (plano pago + plano_expira_em setado na
@@ -120,10 +111,11 @@ export async function runPixVipReminder(): Promise<{ enviados: number; pulados: 
   // único número; agora vale pra todo mundo que paga por Pix.
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, email, nome, whatsapp, plano, plano_expira_em, pix_reminder_last_sent_at')
+    .select('id, email, nome, whatsapp, plano, plano_expira_em, pix_reminder_last_sent_at, whatsapp_opt_out')
     .neq('plano', 'free')
     .not('whatsapp', 'is', null)
     .not('plano_expira_em', 'is', null)
+    .gte('plano_expira_em', piso)
     .lte('plano_expira_em', limite);
 
   if (error) {
@@ -135,11 +127,15 @@ export async function runPixVipReminder(): Promise<{ enviados: number; pulados: 
   const automaticos = await contratosAutomaticosVivos();
   if (!automaticos) return { enviados, pulados, erros: 1 };
 
+  const portao = novaRodadaPortao(undefined, { robo: 'pix_vip_lembrete' });
   for (const u of users) {
-    // Pix automático vivo (ativo ou inadimplente): o banco cobra sozinho, não manda código de renovação.
+    // Pix automático vivo (ativo ou inadimplente): o banco cobra sozinho, não manda lembrete.
     if (automaticos.ids.has(u.id) || automaticos.emails.has(normEmail(u.email))) {
       pulados++; continue;
     }
+
+    // Pediu para não receber WhatsApp.
+    if (u.whatsapp_opt_out === true) { pulados++; continue; }
 
     // Cooldown: não reenviar dentro do mesmo ciclo mensal.
     if (u.pix_reminder_last_sent_at) {
@@ -147,17 +143,37 @@ export async function runPixVipReminder(): Promise<{ enviados: number; pulados: 
       if (desde < COOLDOWN_DIAS * DIA_MS) { pulados++; continue; }
     }
 
+    // Portão da linha: fora da janela, teto, espaçamento, pausa humana, supressão, mudo, e o envio que já houve nesta rodada.
+    const v = await portao.avaliar(u.whatsapp);
+    if (!v.ok) { pulados++; continue; }
+
+    // Claim por INSERT antes de enviar: um por usuário e por vencimento. Chave repetida = outra rodada já pegou (ou já saiu neste ciclo).
+    const chave = `pix_vip_sent:${u.id}:${String(u.plano_expira_em).slice(0, 10)}`;
+    const claim = await tomarChaveFria(chave);
+    if (claim === 'ja') { pulados++; continue; }
+    if (claim === 'erro') { erros++; break; }
+
     try {
-      await sendHuman(u.whatsapp, montarPartes(u.nome, VALOR_RENOVACAO, u.plano), 'solardoc');
-      await supabase
+      const saiu = await sendFrio(u.whatsapp, montarPartes(u.nome, u.plano_expira_em, agora), 'solardoc');
+      if (!saiu) {
+        // Calou por regra (pausa humana): nada saiu, o claim é desfeito e a rodada para.
+        await soltarChaveFria(chave);
+        pulados++;
+        break;
+      }
+      portao.travarRodada('ja_enviou_na_rodada');
+      const { error: erroCooldown } = await supabase
         .from('users')
         .update({ pix_reminder_last_sent_at: new Date().toISOString() })
         .eq('id', u.id);
+      if (erroCooldown) logger.error('pix-vip-reminder', `cooldown não gravou pra ${u.email} (o claim segura o ciclo)`, erroCooldown);
       enviados++;
       logger.info('pix-vip-reminder', `lembrete enviado pra ${u.email} (vence ${u.plano_expira_em})`);
     } catch (err) {
+      // Erro de envio: talvez saiu. O claim FICA (não repete neste ciclo) e a rodada para.
       erros++;
       logger.error('pix-vip-reminder', `envio falhou pra ${u.email}`, err);
+      break;
     }
   }
 

@@ -18,6 +18,11 @@ vi.mock('../utils/supabase', () => {
   return { supabase: { from: () => q } };
 });
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
+// O lead da LP no WhatsApp (leads_meta do Gerador): aqui nada toca a rede.
+vi.mock('../utils/supabaseGerador', () => {
+  const q: any = { select: () => q, eq: () => q, limit: async () => ({ data: [], error: null }), insert: async () => ({ error: null }) };
+  return { supabaseGerador: { from: () => q } };
+});
 vi.mock('../services/asaas/asaasClient', () => ({ asaasHabilitado: () => true }));
 vi.mock('../services/asaas/asaasWebhookService', () => ({ processarWebhookAsaas: vi.fn() }));
 vi.mock('../services/asaas/pixRecorrenteService', () => ({

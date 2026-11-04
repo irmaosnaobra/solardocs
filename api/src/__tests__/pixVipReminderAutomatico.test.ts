@@ -17,7 +17,7 @@ vi.mock('../utils/supabase', () => {
     let modo = 'select';
     const q: any = {
       select: () => q,
-      neq: () => q, not: () => q, lte: () => q,
+      neq: () => q, not: () => q, lte: () => q, gte: () => q,
       eq: (c: string, v: unknown) => { f.push((r) => r[c] === v); return q; },
       in: (c: string, vs: unknown[]) => { f.push((r) => vs.includes(r[c])); return q; },
       update: () => { modo = 'update'; return q; },
@@ -35,7 +35,13 @@ vi.mock('../utils/supabase', () => {
 });
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock('../services/agents/zapiClient', () => ({
-  sendHuman: vi.fn(async (fone: string) => { enviados.push(fone); }),
+  sendFrio: vi.fn(async (fone: string) => { enviados.push(fone); return true; }),
+}));
+// O portão anti-ban tem teste próprio (pixVipLembretePortao.test.ts); aqui deixa passar: o assunto é o Pix automático.
+vi.mock('../services/recuperacaoCheckoutPortao', () => ({
+  novaRodadaPortao: () => ({ avaliar: async () => ({ ok: true }), travarRodada: () => undefined }),
+  tomarChaveFria: async () => 'ok',
+  soltarChaveFria: async () => undefined,
 }));
 
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';

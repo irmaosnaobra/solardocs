@@ -112,13 +112,25 @@ export async function contarFalhaWhats(id: string, agora: Date = new Date()): Pr
   } catch { logger.error('rec-checkout', 'contar a falha do WhatsApp falhou'); }
 }
 
+/**
+ * Claim genérico por INSERT para os outros robôs frios que usam este portão (pixVipReminderService, dunningService): a chave é
+ * `<prefixo>:<...>` e é única. 'ja' = outra rodada já pegou (ou já saiu neste ciclo): não envie.
+ */
+export async function tomarChaveFria(chave: string, agora: Date = new Date()): Promise<'ok' | 'ja' | 'erro'> {
+  const v = await reservarChave(chave, {}, agora);
+  return v === 'reservada' ? 'ok' : v === 'ja_existe' ? 'ja' : 'erro';
+}
+
+/** Desfaz um claim genérico (o envio calou por regra: nada saiu). */
+export const soltarChaveFria = (chave: string): Promise<void> => liberarChave(chave);
+
 /** Desfaz o claim (o envio não saiu: o toque volta na próxima rodada). */
 export async function soltarToqueRecuperacao(id: string, toque: number): Promise<void> {
   await liberarChave(chaveDoToqueRecuperacao(id, toque));
 }
 
 /** Uma rodada do cron. A lista de mudos é lida UMA vez e só fica em memória quando a leitura dá certo. */
-export function novaRodadaPortao(agora: () => Date = () => new Date()) {
+export function novaRodadaPortao(agora: () => Date = () => new Date(), opts: { robo?: string } = {}) {
   let mudos: Promise<(telefone: string) => boolean> | null = null;
   let linhaTravada: string | null = null;
 
@@ -152,7 +164,7 @@ export function novaRodadaPortao(agora: () => Date = () => new Date()) {
 
       // A linha: teto do FRIO (não é transacional: ninguém pediu esta mensagem) e espaçamento.
       try {
-        if (!(await dentroDoTetoHorarioLinha({ transacional: false }))) return trava('teto');
+        if (!(await dentroDoTetoHorarioLinha(opts.robo ? { transacional: false, robo: opts.robo } : { transacional: false }))) return trava('teto');
         if (!(await respeitaEspacamentoLinha())) return trava('espacamento');
       } catch { return trava('leitura_falhou'); }
       return { ok: true };

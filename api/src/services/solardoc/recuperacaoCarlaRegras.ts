@@ -213,14 +213,30 @@ export function marcaDeLinha(key: string, value: unknown): MarcaPagto | null {
   };
 }
 
-// Os textos do redator, aprovados. Só os colchetes mudam.
+/**
+ * Depoimentos de clientes (04/11/2026, ordem do dono: convencer da qualidade da plataforma). Cada um é UMA frase literal: sem link, sem colchete e
+ * sem travessão, senão o `textoDaCarla` reprova. Ficam na mesma bolha do texto que os leva.
+ */
+export const DEP_VANDERLEI =
+  'O Vanderlei, da American Energy Solar, de Rondonópolis/MT, conta: "Entre todas que já usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais rapidamente."';
+export const DEP_ALESSANDRO =
+  'O Alessandro Goulart, da Força Solar, de Feliz/RS, conta: "Aqui, com quatro, cinco cliques eu consigo montar uma proposta."';
+export const DEP_GSI =
+  'A GSI Energia Solar, de Unaí/MG, conta: "Tenho me surpreendido positivamente com o nível de detalhes das propostas."';
+
+/** Carimbo do 2º toque (um por pessoa, para sempre): `quiz_rec_sent2:<hmac>`. Nunca existe um 3º. */
+export const PREFIXO_CARIMBO2_REC = 'quiz_rec_sent2:';
+/** Claim do e-mail do dia seguinte: 1 por contrato. */
+export const PREFIXO_PAGTO_EMAIL2 = 'quiz_pagto_email2:';
+
+// Os textos do redator, aprovados. Só os colchetes mudam (e a frase dos números virou o depoimento do Alessandro, 04/11/2026).
 export const TEXTO_PAGTO_A =
-  'Oi, [nome], aqui é a Carla, do SolarDoc. Seu Pix da [empresa] ainda está valendo, e mais de 700 propostas saíram pelo app só no último mês. É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona do SolarDoc, e você cancela quando quiser pelo app do banco. Vou te mandar o código aqui embaixo, é só copiar e colar no Pix copia e cola do seu banco.';
+  'Oi, [nome], aqui é a Carla, da SolarDoc. Seu Pix da [empresa] ainda está valendo. ' + DEP_ALESSANDRO + ' É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. Vou te mandar o código aqui embaixo, é só copiar e colar no Pix copia e cola do seu banco.';
 export const TEXTO_PAGTO_B1 =
-  'Oi, [nome], aqui é a Carla, do SolarDoc. Seu Pix ainda está valendo, e mais de 3.600 propostas solares já saíram pelo app. É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona do SolarDoc, e você cancela quando quiser pelo app do banco. Vou te mandar o código aqui embaixo, é só copiar e colar no Pix copia e cola do seu banco.';
+  'Oi, [nome], aqui é a Carla, da SolarDoc. Seu Pix ainda está valendo. ' + DEP_ALESSANDRO + ' É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. Vou te mandar o código aqui embaixo, é só copiar e colar no Pix copia e cola do seu banco.';
 export const TEXTO_PAGTO_B2 = TEXTO_PAGTO_B1.replace('Oi, [nome], aqui é a Carla', 'Oi, aqui é a Carla');
 export const TEXTO_PAGTO_C1 =
-  '[saudacao], [nome], aqui é a Carla, do SolarDoc. O Pix que você gerou já venceu, mas é só abrir [link] e gerar outro, leva 1 minuto. É Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, e você cancela quando quiser pelo app do banco. Mais de 700 propostas solares saíram pelo SolarDoc só no último mês.';
+  '[saudacao], [nome], aqui é a Carla, da SolarDoc. O Pix que você gerou já venceu, mas é só abrir [link] e gerar outro, leva 1 minuto. É Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, e você cancela quando quiser pelo app do banco. ' + DEP_ALESSANDRO;
 export const TEXTO_PAGTO_C2 = TEXTO_PAGTO_C1.replace('[saudacao], [nome], aqui é a Carla', '[saudacao], aqui é a Carla');
 
 /** Link para gerar outro Pix. Sem `utm_term` vai sem ele. `meio` = whatsapp ou email. */
@@ -228,6 +244,22 @@ export function linkDoPagamento(utmTerm: string | null | undefined, meio: 'whats
   const base = `https://solardoc.app/?pagar=pix&utm_source=recuperacao&utm_medium=${meio}`;
   const t = String(utmTerm ?? '').trim();
   return t ? `${base}&utm_term=${encodeURIComponent(t)}` : base;
+}
+
+// ── o 2º toque (04/11/2026) ─────────────────────────────────────────────────
+// Um só, no dia útil seguinte ao 1º, para quem recebeu o 1º toque, não pagou e não respondeu. Leva o link (o QR já venceu).
+export const TEXTO_TOQUE2_T1 =
+  'Oi, [nome], aqui é a Carla, da SolarDoc. [depoimento] Dá para gerar o Pix automático em 1 minuto em [link]. O banco debita sozinho e você cancela quando quiser pelo app do banco.';
+export const TEXTO_TOQUE2_T2 = TEXTO_TOQUE2_T1.replace('Oi, [nome], aqui é a Carla', 'Oi, aqui é a Carla');
+
+/**
+ * O texto do 2º toque. O depoimento é o OUTRO do 1º toque: o 1º do pagamento usou o Alessandro, então o 2º usa o Vanderlei; o 1º da mensagem de
+ * 15 min usou o Vanderlei, então o 2º usa o Alessandro. `primeiroTipo` desconhecido (carimbo antigo) vale a mensagem de 15 min.
+ */
+export function montarTextoToque2(e: { nome: string | null; utmTerm: string | null; primeiroTipo: string | null | undefined }): string {
+  const dep = e.primeiroTipo === 'pagamento' ? DEP_VANDERLEI : DEP_ALESSANDRO;
+  const base = e.nome ? TEXTO_TOQUE2_T1.replace('[nome]', () => e.nome as string) : TEXTO_TOQUE2_T2;
+  return base.replace('[depoimento]', () => dep).replace('[link]', () => linkDoPagamento(e.utmTerm, 'whatsapp'));
 }
 
 /** Primeiro nome para o texto do pagamento: "Cliente" (o nome que o sistema põe quando não há) e nome ilegível valem sem nome. */
@@ -318,10 +350,10 @@ export const FALTA_TEXTO: Record<string, string> = {
 const FALTA_RESERVA = 'o acompanhamento depois da proposta';
 
 export const MODELO_CARLA =
-  'Oi, [nome], aqui é a Carla, do SolarDoc. Olhei o diagnóstico da [empresa] e deu [indice] de 100, com [pilar] pesando mais. O que mais falta na sua proposta é [falta]. Quer ver como fica a proposta da [empresa] no SolarDoc?';
+  'Oi, [nome], aqui é a Carla, da SolarDoc. Olhei o diagnóstico da [empresa] e deu [indice] de 100, com [pilar] pesando mais. O que mais falta na sua proposta é [falta]. ' + DEP_VANDERLEI + ' Quer ver como fica a proposta da [empresa] na SolarDoc?';
 
 /** A frase que entra no texto de quem prefere pagar no Pix. Fixa: sem link, sem código, sem valor. */
-export const FRASE_PIX_POR_AQUI = 'Dá para assinar no Pix por aqui mesmo.';
+export const FRASE_PIX_POR_AQUI = 'Dá para assinar no Pix automático, que o banco debita sozinho todo mês.';
 
 /** Texto digitado pela pessoa que vai para dentro da mensagem: uma linha, sem emoji, sem travessão, sem link. null = não serve. */
 function textoDePessoa(bruto: string, max: number): string | null {
