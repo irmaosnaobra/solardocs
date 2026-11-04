@@ -242,6 +242,9 @@ const API = (location.hostname === 'localhost' || location.hostname === '127.0.0
 const WHATS_CENTRAL = '5534998165040';
 // Texto pronto que o porteiro da 5040 reconhece como Solar (porteiro.ts, produtoDoBotao).
 const WHATS_TEXTO = 'Oi! Acabei de preencher a simulação de energia solar.';
+// 03/11/2026: o servidor devolve um código curto (codigo_whats) e ele vai no fim do texto, para o card se ligar a quem escreveu, mesmo de outro número
+// (religarQuiz.ts). O começo do texto não muda (o porteiro casa por ele). Sem código, ou fora do formato, fica o texto de sempre.
+const textoDoBotao = (codigo) => /^[A-HJKMNP-Z2-9]{5}$/.test(String(codigo || '')) ? WHATS_TEXTO + ' Código: ' + codigo : WHATS_TEXTO;
 const $ = id => document.getElementById(id);
 const tela = $('tela');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -678,7 +681,7 @@ function telaFim(){
   const dono = (agoraInfo && agoraInfo.dono) || (marcado && marcado.dono) || (srv && srv.dono) || 'Nilce';
   if (fimTipo === 'agora'){
     const hr = agoraInfo && agoraInfo.quando ? horaBrasilia(agoraInfo.quando) : '';
-    const link = 'https://wa.me/' + WHATS_CENTRAL + '?text=' + encodeURIComponent(WHATS_TEXTO);
+    const link = 'https://wa.me/' + WHATS_CENTRAL + '?text=' + encodeURIComponent(textoDoBotao(agoraInfo && agoraInfo.codigo_whats));
     return barra('diag', true) + `<div class="fim">
       <span class="av pulsa">${esc(dono.charAt(0))}</span>
       <h2>${esc(dono)} vai te chamar no WhatsApp em até 5 minutos</h2>

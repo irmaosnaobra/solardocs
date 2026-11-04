@@ -4,6 +4,7 @@ import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { fichaSubstituiAviso } from '../services/agentes5040/chaves';
 import { gravarCardSolar, gravarCardAgora, cancelarCardsSaiuSemMarcar } from '../services/agentes5040/agendaSolar';
+import { gravarCodigoDoCard } from '../services/agentes5040/quizCodigo';
 import { logger } from '../utils/logger';
 import { cidadeParaGravar } from '../services/io/cidadeCanonica';
 import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
@@ -638,7 +639,10 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
       ]);
       await Promise.all([capi, pagina, aviso]);
     }
-    res.json({ ok: true, id: card.id, quando, dono: DONA_SOLAR, ...(teste ? { teste: true } : {}) });
+    // 03/11/2026: o código que a página põe no texto do botão do WhatsApp (religarQuiz.ts). Gravado ANTES da resposta, no teste também
+    // (a sonda lê). Falha ao gravar não derruba a rota: o botão sai sem código, como antes.
+    const codigoWhats = await gravarCodigoDoCard(card.id);
+    res.json({ ok: true, id: card.id, quando, dono: DONA_SOLAR, ...(codigoWhats ? { codigo_whats: codigoWhats } : {}), ...(teste ? { teste: true } : {}) });
   } catch (err) {
     logger.error('io-solar-quiz', `falha gravando o agora de ${e.tel}`, err);
     res.status(500).json({ ok: false, error: 'nao consegui gravar' });
@@ -713,6 +717,7 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
     // Antes de qualquer resposta (a Vercel corta o que roda depois dela): o card SAIU SEM MARCAR deste telefone sai da agenda. A sonda não mexe em card real.
     if (!teste) await cancelarCardsSaiuSemMarcar(e.alvo!, data.id);
 
+    // Sem código aqui: a tela "marcado" não tem botão de WhatsApp, e o código seria linha morta no banco. Só o /quiz/agora tem o botão.
     if (teste) {
       // A sonda: nenhuma mensagem e nenhum Schedule.
       res.json({ ok: true, id: data.id, caminho: dec.caminho, dono, quando, rotulo: ROTULO_CAMINHO[dec.caminho], teste: true });

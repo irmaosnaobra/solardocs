@@ -147,6 +147,8 @@ describe('porteiro: botões e origens', () => {
     expect(produtoDoBotao('Olá! Quero simular meu projeto de energia solar.')).toBe('solar');
     expect(produtoDoBotao('  OLÁ!  quero simular meu projeto de energia solar ')).toBe('solar');
     expect(produtoDoBotao('Oi! Acabei de preencher a simulação de energia solar')).toBe('solar');
+    // 03/11/2026: o botão do quiz leva o código no fim (religarQuiz.ts); o começo do texto segue casando.
+    expect(produtoDoBotao('Oi! Acabei de preencher a simulação de energia solar. Código: K7M2P')).toBe('solar');
     expect(produtoDoBotao('Quero entrar no grupo do eletroposto')).toBe('eletroposto');
     expect(produtoDoBotao('Olá, Nilce. Sou Ana, de Uberaba.\n\nVim pelo site da NEXUS ELETROPOSTOS e respondi o formulário:')).toBe('eletroposto');
     expect(produtoDoBotao('Quero o Kit de Fechamento do Integrador (R$ 27)')).toBe('solardoc');

@@ -37,6 +37,8 @@ const h = vi.hoisted(() => ({
   conversa: { msgs: [], completa: true } as { msgs: any[]; completa: boolean },
   conversaFalha: false,
   conversaLida: [] as string[],
+  rede: 0,
+  aoReligar: null as null | (() => void),
 }));
 
 function consulta(tabela: string) {
@@ -143,6 +145,11 @@ vi.mock('../services/agentes5040/contexto', async (orig) => ({
   lerConversa: vi.fn(async (chave: string) => { h.conversaLida.push(chave); if (h.conversaFalha) return { msgs: [], completa: false }; return h.conversa; }),
 }));
 
+// A rede do código (religarQuiz.ts): o supabase simulado acima não tem wa_mensagens, ilike nem gte. O módulo tem testes próprios (quizSolarCodigo.test.ts).
+vi.mock('../services/agentes5040/religarQuiz', () => ({
+  religarFalasRecentes: vi.fn(async () => { h.rede++; h.aoReligar?.(); return 0; }),
+}));
+
 vi.mock('../services/agentes5040/agendaSolar', () => ({
   marcarBoasVindasEnviada: vi.fn(async (id: number) => { h.boasVindas.push(id); return true; }),
   rebaixarSaiuAMudo: vi.fn(async (id: number) => { h.rebaixados.push(id); return true; }),
@@ -153,6 +160,8 @@ import {
   type PedidoAgenda,
 } from '../services/agentes5040/agendaEnvio';
 import { sendHuman } from '../services/agents/zapiClient';
+import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
+import { chaveContato } from '../services/agents/whatsapp/silenciar';
 const SORTEIO_REAL = TEMPOS_AGENDA.sorteio;
 import { STATUS_QUE_NAO_RECEBEM } from '../services/agenda/solarStatus';
 import { logger } from '../utils/logger';
@@ -187,7 +196,7 @@ beforeEach(() => {
   h.cooldown = false; h.pode = { pode: true, motivo: 'sem-pausa' }; h.bloqueado = false; h.motivos = [];
   h.escondeCarimbo = false; h.falhaCard = false; h.aposEnvio = null; h.boasVindas.length = 0; h.rebaixados.length = 0;
   h.posse = { dona: 'duda', estado: 'viva', apresentada: true }; h.posseErro = false; h.posseAtualizacoes.length = 0; h.posseLeituras.length = 0;
-  h.conversa = { msgs: [], completa: true }; h.conversaFalha = false; h.conversaLida.length = 0;
+  h.conversa = { msgs: [], completa: true }; h.conversaFalha = false; h.conversaLida.length = 0; h.rede = 0; h.aoReligar = null;
   for (const id of [501, 502, 503, 504, 505, 506]) h.cards.set(id, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
   TEMPOS_AGENDA.esperar = async (ms: number) => { esperas.push(ms); };
   TEMPOS_AGENDA.sorteio = () => 0;   // determinístico: o sorteio de 0 a 35 s tem teste próprio
@@ -1533,5 +1542,98 @@ describe('agendaEnvio: a fala nossa so descarta dentro da janela da corrida (30 
     h.conversa = { completa: true, msgs: [msg(11, true, 'Fechado, amanha as 14h30!', ant(25 * MIN))] };
     await enfileirarAgenda(pedido(), AGORA);
     expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+  });
+});
+
+describe('agendaEnvio: o card religado ao número de quem escreveu com o código do botão (03/11/2026, card 1714)', () => {
+  const TEL2 = '5534988887777';   // o número de quem escreveu; o card (e o item da fila) nasceram com TEL
+  const ab = (extra: Partial<PedidoAgenda> = {}): PedidoAgenda => pedido({ tipo: 'abertura', caminho: 'ligacao', nome: 'Irineu', saiu: true, consultora: 'Nilce', ...extra });
+  const marcador = (cardId: number, extra: Record<string, unknown> = {}): void => {
+    h.estado.set(`quizsolar_religado:${cardId}`, {
+      value: { card_id: cardId, de: hmacDe(chaveContato(TEL)), para: hmacDe(chaveContato(TEL2)), hmac_id: idChaveHmac(), em: AGORA.toISOString(), ...extra }, updated_at: AGORA.toISOString(),
+    });
+  };
+  const mudaOCard = (tel: string = TEL2): void => { h.cards.set(501, { cliente_telefone: tel, status: 'agendado', quando: QUANDO }); };
+
+  it('com o marcador, a abertura SAIU vai para o número NOVO, sem descartar e sem rebaixar o card a MUDO', async () => {
+    await enfileirarAgenda(ab(), AGORA);
+    mudaOCard(); marcador(501);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0, mantidas: 0 });
+    expect(h.enviados.map(e => e.tel)).toEqual([TEL2]);
+    expect(h.rebaixados).toEqual([]);
+    expect([...h.estado.keys()].filter(k => k.startsWith('solar_bv_dedup:'))).toEqual([]);
+    expect(fila()).toEqual([]);
+    // nada do marcador entra nos carimbos de envio: o único carimbo é o da abertura
+    expect(carimbos()).toHaveLength(1);
+  });
+
+  it('o mesmo vale para a confirma', async () => {
+    await enfileirarAgenda(pedido(), AGORA);
+    mudaOCard(); marcador(501);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+    expect(h.enviados.map(e => e.tel)).toEqual([TEL2]);
+  });
+
+  it('SEM o marcador continua telefone_mudou: descarta, a abertura SAIU rebaixa a MUDO e nada sai', async () => {
+    await enfileirarAgenda(ab(), AGORA);
+    mudaOCard();
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+    expect(chamadas()).toBe(0);
+    expect(h.rebaixados).toEqual([501]);
+    expect([...h.estado.keys()].filter(k => k.startsWith('solar_bv_dedup:'))).toEqual(['solar_bv_dedup:501']);
+  });
+
+  it('marcador de OUTRO número, ou de outra chave de HMAC, não vale', async () => {
+    for (const extra of [{ para: hmacDe(chaveContato('5534977776666')) }, { hmac_id: 'deadbeef' }]) {
+      h.estado.clear(); (sendHuman as any).mockClear(); h.rebaixados.length = 0;
+      await enfileirarAgenda(ab(), AGORA);
+      mudaOCard(); marcador(501, extra);
+      expect(await enviarAgendaPendente(AGORA), JSON.stringify(extra)).toMatchObject({ enviadas: 0, descartadas: 1 });
+      expect(chamadas()).toBe(0);
+    }
+  });
+
+  it('o marcador do card 501 não vale para o card 502', async () => {
+    await enfileirarAgenda(ab({ cardId: 502 }), AGORA);
+    h.cards.set(502, { cliente_telefone: TEL2, status: 'agendado', quando: QUANDO });
+    marcador(501);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+  });
+
+  it('a rede do código roda UMA vez por chamada, antes do laço, e nunca no dry; religou antes do passo do card: o envio vai ao número novo', async () => {
+    await enfileirarAgenda(ab(), AGORA);
+    await enfileirarAgenda(ab({ cardId: 502 }), AGORA);
+    h.aoReligar = () => { mudaOCard(); marcador(501); };      // a rede religa o card 501 ANTES de o card ser relido
+    await enviarAgendaPendente(AGORA, { dry: true });
+    expect(h.rede).toBe(0);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 2, descartadas: 0 });
+    expect(h.rede).toBe(1);
+    expect(h.enviados.map(e => e.tel).sort()).toEqual([TEL, TEL2].sort());
+  });
+
+  it('a rede roda em toda chamada com fila, do tipo que for (volta inclusive), e não roda com a fila vazia', async () => {
+    await enviarAgendaPendente(AGORA);
+    expect(h.rede).toBe(0);
+    await enfileirarAgenda(pedidoVolta(), AGORA);
+    await enviarAgendaPendente(AGORA);
+    expect(h.rede).toBe(1);
+  });
+
+  it('a rede roda mesmo quando o item é descartado antes do passo do card (nada a enviar, e o bom dia ainda vê o card religado)', async () => {
+    await enfileirarAgenda(ab(), AGORA);
+    h.estado.set(chaveCarimboAgenda(501, 'abertura', QUANDO), { value: { estado: 'enviado' }, updated_at: AGORA.toISOString() });   // já saiu: o passo 5 descarta
+    await enviarAgendaPendente(AGORA);
+    expect(h.rede).toBe(1);
+    expect(chamadas()).toBe(0);
+  });
+
+  it('o marcador tem que partir do número DO ITEM: item para Z, card trocado à mão para X e religado de X para Y não sai para Y', async () => {
+    const X = '5534977776666';
+    await enfileirarAgenda(ab(), AGORA);                       // o item foi feito para TEL (Z)
+    marcador(501, { de: hmacDe(chaveContato(X)) });            // a religação foi de X para TEL2 (Y), não de Z
+    mudaOCard(TEL2);                                           // e o card (trocado à mão para X e religado) está em Y
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+    expect(chamadas()).toBe(0);
+    expect(h.rebaixados).toEqual([501]);
   });
 });

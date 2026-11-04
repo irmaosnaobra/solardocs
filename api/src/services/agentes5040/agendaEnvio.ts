@@ -50,6 +50,8 @@ import { camposDeHorario, citaAHora, citaSoEstaHora, hhmmBRT, opcaoPorExtenso, p
 import { lerConversa } from './contexto';
 import { AVISO_IA_NA_PRIMEIRA_MSG, fraseDeApresentacao } from './avisoIA';
 import { atualizarPosse, lerPosse } from './posse';
+import { religarFalasRecentes } from './religarQuiz';
+import { PREFIXO_RELIGADO } from './quizCodigo';
 
 const LOG = 'agenda-envio-5040';
 
@@ -409,6 +411,20 @@ async function marcarAberturaDescartada(cardId: number, motivo: string, quando: 
   } catch (err) { logger.error(LOG, `marcador da abertura descartada falhou (${codigoDe(err)})`); }
 }
 
+/**
+ * O card foi religado (religarQuiz.ts) ao número que o item da fila vê agora? 03/11/2026: o cliente do quiz escreveu de outro número com o
+ * código do botão, e o card passou a apontar para ele. O marcador `quizsolar_religado:<cardId>` só guarda HMACs; vale quando o `para` é o
+ * HMAC do telefone ATUAL do card (mesma chave), o `de` é o HMAC do telefone do ITEM (v.tel_hmac: a religação partiu do número para o qual o pedido foi
+ * feito, não de um número que alguém pôs no card à mão) E o hmac_id é o da chave em uso. Leitura que falha = 'erro' (o item fica na fila).
+ */
+async function religadoParaEsteNumero(cardId: number, hmacDoAtual: string | null, hmacDoItem: string): Promise<'sim' | 'nao' | 'erro'> {
+  if (!hmacDoAtual) return 'nao';
+  const { data, error } = await supabase.from('system_state').select('value').eq('key', `${PREFIXO_RELIGADO}${cardId}`).maybeSingle();
+  if (error) { logger.error(LOG, `leitura do marcador de religação falhou (${codigoDe(error)})`); return 'erro'; }
+  const m = (data as { value?: { de?: string; para?: string; hmac_id?: string } } | null)?.value;
+  return m && m.para === hmacDoAtual && m.de === hmacDoItem && m.hmac_id === idChaveHmac() ? 'sim' : 'nao';
+}
+
 export interface OpcoesEnvioAgenda {
   /** Faz tudo menos escrever e enviar: devolve as contagens do que aconteceria. */
   dry?: boolean;
@@ -439,6 +455,10 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
   const inicio = t;
   // O orçamento mede também o tempo REAL da chamada (envio, digitação e leituras também gastam os 300 s da função), não só as esperas simuladas.
   const inicioReal = Date.now();
+  // A rede do código (03/11/2026): o cliente do quiz pode ter escrito de OUTRO número com "Código: XXXXX", antes ou depois de a abertura sair. Em TODA
+  // chamada com fila (e fora do dry), UMA vez, antes do laço: o passo 6 de cada item, e o bom dia e o lembrete (que leem o telefone do card na hora),
+  // já veem o número novo. Nunca lança, nunca envia, nunca segura a fila; o tempo gasto aqui entra no orçamento (inicioReal).
+  if (!dry && itens.length > 0) { try { await religarFalasRecentes(t); } catch { /* segue como sempre */ } }
   const tirarDaFila = async (chave: string): Promise<void> => {
     if (dry) return;
     try { await supabase.from('system_state').delete().eq('key', chave); } catch { /* o próximo giro descarta de novo */ }
@@ -533,9 +553,15 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
     const ck = chaveContato(tel);
     if (!ck) { logger.error(LOG, 'card sem telefone válido, descartado'); await descartar(linha.key, cardId, tipo, 'sem_telefone'); continue; }
     // O card mudou de número depois do pedido? (só compara se os dois HMACs são da mesma chave)
+    // Exceção (03/11/2026): o card religado ao número de quem escreveu com o código do botão (marcador quizsolar_religado:<card> com o HMAC `para`
+    // igual ao do telefone de agora): o item segue para o número novo, sem descartar e sem rebaixar o SAIU a MUDO.
     if (v.tel_hmac && v.hmac_id && v.hmac_id === idChaveHmac() && hmacDe(ck) !== v.tel_hmac) {
-      logger.error(LOG, 'o telefone do card mudou depois do pedido, descartado');
-      await descartar(linha.key, cardId, tipo, 'telefone_mudou'); continue;
+      const religado = await religadoParaEsteNumero(cardId, hmacDe(ck), v.tel_hmac);
+      if (religado === 'erro') { res.mantidas++; continue; }
+      if (religado === 'nao') {
+        logger.error(LOG, 'o telefone do card mudou depois do pedido, descartado');
+        await descartar(linha.key, cardId, tipo, 'telefone_mudou'); continue;
+      }
     }
     // A consultora é relida do card (a ficha pode ter trocado de mãos desde o pedido). Vazia no card = vale a do item.
     if (tipo !== 'volta') {
