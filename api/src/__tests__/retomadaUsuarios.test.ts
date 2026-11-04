@@ -506,8 +506,13 @@ describe('inicioEfetivoMs (D35): nunca no dia do deploy, sempre às 9h de um dia
     expect(inicioEmTexto(Date.parse('2026-11-04T12:00:00.000Z'))).toBe('04/11');
   });
 
-  it('o piso do código é uma data: vermelho aqui = piso esquecido sem preencher (o orquestrador preenche na entrega)', () => {
-    expect(Number.isFinite(Date.parse(INICIO_RETOMADA_ISO))).toBe(true);
+  it('o piso do código é uma data ou a trava PISO_NAO_PREENCHIDO, e com a trava a campanha nunca começa', () => {
+    // Sem data, o robô fica Pausado (sem_data_de_inicio) na Central; o teste "piso ou largada que não são data: nunca envia" prova o tick.
+    if (INICIO_RETOMADA_ISO === 'PISO_NAO_PREENCHIDO') {
+      expect(inicioEfetivoMs(Date.parse('2026-11-03T18:00:00.000Z'), Date.parse(INICIO_RETOMADA_ISO))).toBe(Infinity);
+    } else {
+      expect(Number.isFinite(Date.parse(INICIO_RETOMADA_ISO))).toBe(true);
+    }
   });
 });
 

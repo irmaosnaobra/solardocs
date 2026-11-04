@@ -65,7 +65,7 @@ export const TETO_CONFIRMA_PADRAO = 6;
 /**
  * O PISO do 1º envio (D35). O orquestrador preenche na entrega: as 9h de Brasília (12:00Z) do 1º dia de janela depois do READY previsto e da
  * noite da sonda 1 (a condição do chefe-antiban). O executor NÃO escolhe a data. Enquanto isto não for uma data, o robô não envia nunca
- * (`sem_data_de_inicio`, a Central mostra Pausado) e o teste "o piso é uma data" fica vermelho: é o sinal de piso esquecido.
+ * (`sem_data_de_inicio`, a Central mostra Pausado): esse é o sinal de piso esquecido.
  */
 export const INICIO_RETOMADA_ISO = 'PISO_NAO_PREENCHIDO';
 
