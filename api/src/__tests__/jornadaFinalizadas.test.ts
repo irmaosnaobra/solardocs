@@ -280,6 +280,13 @@ describe('o corte', () => {
     expect(erros).not.toMatch(/lixo/);
     expect((await post('/jornada-solar/obra/401/trazer', { motivo: 'Cliente pediu revisão' }, THIAGO)).status).toBe(409);   // não é finalizada: já está na jornada
   });
+  it('corte gravado no futuro é recusado: a jornada fica como desligada e ninguém é finalizada', async () => {
+    h.linhas.set(CHAVE_CORTE, { updated_at: 'c', value: '2099-01-01T00:00:00.000Z' });
+    expect(await lerCorte()).toBe(0);
+    const l = await get('/jornada-solar/lista', THIAGO);
+    expect(l.status).toBe(200);
+    expect(l.body.contagem.finalizadas).toBe(0);
+  });
   it('o corte é uma data ISO simples, gravada sem segredo; o corte antigo, com assinatura, vale pela data dele', async () => {
     delete process.env.VINCULO_SOLAR_SECRET;
     expect(await lerCorte()).toBe(Date.parse(CORTE));

@@ -144,7 +144,9 @@ export function corteDoValor(value: unknown): number | null {
   const texto = typeof value === 'string' ? value : (o && typeof o.em === 'string' ? o.em : '');
   if (!RE_ISO.test(texto)) return null;
   const t = Date.parse(texto);
-  return Number.isFinite(t) && t > 0 ? t : null;
+  // Corte no futuro é recusado: senão uma data gravada à frente finalizaria as vendas novas.
+  // A folga de 5 minutos cobre diferença de relógio entre instâncias.
+  return Number.isFinite(t) && t > 0 && t <= Date.now() + 5 * 60_000 ? t : null;
 }
 
 let guardado: number | null = null;
