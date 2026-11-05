@@ -38,7 +38,9 @@ function elemento(id: string): any {
 }
 
 function criarSandbox(): Ctx {
-  const html = readFileSync(HTML, 'utf8').replace(/\r\n/g, '\n');
+  let html = readFileSync(HTML, 'utf8').replace(/\r\n/g, '\n');
+  // O papeis-solar.js é script externo no navegador (carrega antes do script grande); aqui entra no mesmo lugar, como inline.
+  html = html.replace('<script src="/gerador/papeis-solar.js"></script>', () => '<script>' + readFileSync(join(__dirname, '..', '..', '..', 'dashboard', 'public', 'gerador', 'papeis-solar.js'), 'utf8').replace(/\r\n/g, '\n') + '</script>');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
   const doc = new Proxy({}, {
     get(_, k) {
@@ -135,7 +137,6 @@ describe('versões no card: a tela', () => {
     expect(rodar('fsCardLigado')).toEqual({ linha: 'vendasolar', codigo: '5', nome: 'Dona Sol' });
     expect(rodar('ctrCardLigado.codigo')).toBe('77');
     expect(rodar('orcSnapTake().ctrCard.codigo')).toBe('77');
-    expect(rodar('fsSnap(false).fsCard.codigo')).toBe('5');
     rodar(`ctrCardSet('ele', null); ctrCardSet('sol', null)`);
   });
 

@@ -52,7 +52,9 @@ function elemento(id: string): any {
 }
 
 function criarSandbox(): Ctx {
-  const html = readFileSync(HTML, 'utf8').replace(/\r\n/g, '\n');
+  let html = readFileSync(HTML, 'utf8').replace(/\r\n/g, '\n');
+  // O papeis-solar.js é script externo no navegador (carrega antes do script grande); aqui entra no mesmo lugar, como inline.
+  html = html.replace('<script src="/gerador/papeis-solar.js"></script>', () => '<script>' + readFileSync(join(__dirname, '..', '..', '..', 'dashboard', 'public', 'gerador', 'papeis-solar.js'), 'utf8').replace(/\r\n/g, '\n') + '</script>');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
   const doc = new Proxy({}, {
     get(_, k) {

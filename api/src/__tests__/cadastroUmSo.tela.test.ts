@@ -32,7 +32,9 @@ const el = (id: string): any => { let e = elementos.get(id); if (!e) { e = criar
 const val = (id: string): string => String(el(id).value);
 
 function criarSandbox(): Ctx {
-  const html = readFileSync(HTML, 'utf8').replace(/\r\n/g, '\n');
+  let html = readFileSync(HTML, 'utf8').replace(/\r\n/g, '\n');
+  // O papeis-solar.js é script externo no navegador (carrega antes do script grande); aqui entra no mesmo lugar, como inline.
+  html = html.replace('<script src="/gerador/papeis-solar.js"></script>', () => '<script>' + readFileSync(join(__dirname, '..', '..', '..', 'dashboard', 'public', 'gerador', 'papeis-solar.js'), 'utf8').replace(/\r\n/g, '\n') + '</script>');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
   const doc = new Proxy({}, {
     get(_t, k) {
@@ -210,7 +212,7 @@ describe('um cadastro, vários papéis', () => {
     expect(puts()[0].corpo.campos).toEqual({ endereco_ponto: 'Rua Nova 77, Uberlandia' });
   });
 
-  it('depois da volta nada digitado à mão por outra pessoa é apagado (cedente, e titular/financiamento no solar)', async () => {
+  it('depois da volta nada digitado à mão por outra pessoa é apagado (cedente e avalista)', async () => {
     await escolher('ele', { ...A, status: 'fechou' });
     el('ctr-ced-end').value = 'Endereço do cedente digitado, Uberaba/MG';   // composto: não volta ao cadastro, e não pode sumir
     el('ctr-aval-nome').value = 'Avalista digitado';
@@ -220,16 +222,6 @@ describe('um cadastro, vários papéis', () => {
     expect(val('ctr-ced-end')).toBe('Endereço do cedente digitado, Uberaba/MG');
     expect(val('ctr-aval-nome')).toBe('Avalista digitado');
     expect(val('el-cliente')).toBe('Nome corrigido');
-    // solar: o titular digitado à mão sobrevive a um telefone corrigido
-    await escolher('sol', { linha: 'vendasolar', codigo: '301', nome: 'Dona Marta Solar', status: 'fechou' });
-    el('fs-p-tuc-end').value = 'Rua do titular digitada'; el('fs-p-tuc-rg').value = 'MG-1.234.567'; el('fs-b-fin-nome').value = 'Financiado digitado';
-    el('fs-tel').value = '34 98888-0099';
-    chamadas.length = 0;
-    await rodar('vdcVoltaParaCadastro("sol")'); await fluxo();
-    expect(puts()[0].corpo.campos).toEqual({ telefone: '34 98888-0099', fin_nome: 'Financiado digitado' });   // rg e endereço do titular são compostos: não voltam, e ficam
-    expect(val('fs-p-tuc-end')).toBe('Rua do titular digitada');
-    expect(val('fs-p-tuc-rg')).toBe('MG-1.234.567');
-    expect(val('fs-b-fin-nome')).toBe('Financiado digitado');
   });
 
   it('endereço composto volta sem o bairro e a cidade-UF volta separada', async () => {
@@ -291,19 +283,6 @@ describe('um cadastro, vários papéis', () => {
     expect(val('orc-cli-end')).toBe('');
     expect(rodar('vdcOrigemEp')).toBe('eletroposto:303');
     expect(JSON.stringify([...elementos.values()].map((e: any) => e.value).filter(Boolean))).not.toMatch(/Marta|Beto|529\.982|Flores/);
-  });
-
-  it('Fechamento: A vendido -> B não vendido limpa a identidade, os titulares e deixa o nome de B; o valor do contrato fica', async () => {
-    await escolher('sol', { linha: 'vendasolar', codigo: '301', nome: 'Dona Marta Solar', status: 'fechou' });
-    el('fs-p-tuc-nome').value = 'Titular de A'; el('fs-b-fin-nome').value = 'Financiado de A'; el('fs-c-valor').value = '55.000,00';
-    await escolher('sol', { linha: 'vendasolar', codigo: '302', nome: 'Seu Zeca Novo', status: 'agendado' });
-    expect(val('fs-nome')).toBe('Seu Zeca Novo');
-    ['fs-doc', 'fs-end', 'fs-cep', 'fs-tel', 'fs-cidade', 'fs-p-tuc-nome', 'fs-b-fin-nome', 'fs-p-uc'].forEach((id) => expect(val(id), id).toBe(''));
-    expect(val('fs-c-valor')).toBe('55.000,00');
-    expect(rodar('fsCardLigado')).toMatchObject({ codigo: '302' });
-    chamadas.length = 0;
-    await rodar('vdcVoltaParaCadastro("sol")');
-    expect(puts()).toHaveLength(0);
   });
 
   it('a resposta atrasada de um card que já foi trocado não aplica nada', async () => {
@@ -389,21 +368,6 @@ describe('um cadastro, vários papéis', () => {
       await fluxo();
       expect(rodar('vdcDiff.ele')).toBeNull();
       expect(String(el('ctr-card-ele').innerHTML)).not.toContain('mudaram desde esta versão');
-    });
-  });
-
-  describe('Fechamento solar', () => {
-    it('ligar o card solar vendido aplica o cadastro; editar o nome e gerar grava só o nome no cadastro solar do mesmo card', async () => {
-      await escolher('sol', { linha: 'vendasolar', codigo: '301', nome: 'Dona Marta Solar', status: 'fechou' });
-      expect(val('fs-nome')).toBe('Dona Marta Solar');
-      expect(rodar('vdcOrigemFs')).toBe('vendasolar:301');
-      chamadas.length = 0;
-      el('fs-nome').value = 'Marta Solar Corrigida'; el('fs-c-valor').value = '55.000,00';
-      await rodar('vdcVoltaParaCadastro("sol")'); await fluxo();
-      expect(puts()).toHaveLength(1);
-      expect(puts()[0].rota).toMatch(/clientes\/vendasolar\/301\/cadastro$/);
-      expect(puts()[0].corpo).toEqual({ campos: { nome: 'Marta Solar Corrigida' }, fonte: 'contrato', base_em: EM });
-      expect(val('fs-c-valor')).toBe('55.000,00');
     });
   });
 
@@ -495,11 +459,9 @@ describe('um cadastro, vários papéis', () => {
       expect(rodar('vdcPendente.ele')).toBe(0);
       expect(val('orc-cli-doc')).toBe('111.444.777-35');
     });
-    it('zerar o cliente também zera a origem dos formulários (eletroposto e Fechamento)', () => {
+    it('zerar o cliente também zera a origem do formulário do eletroposto', () => {
       rodar("vdcOrigemEp = 'eletroposto:101'; try { ctrEstadoZerar(); } catch (e) {}");
       expect(rodar('vdcOrigemEp')).toBe('');
-      const f = readFileSync(HTML, 'utf8');
-      expect(f).toMatch(/function fsLimparCliente\(\) \{\r?\n  vdcBase\.sol = null; vdcDiff\.sol = null; vdcOrigemFs = '';/);
     });
     it('a planilha mudou o cadastro com edição de identidade ainda não gerada: a edição é mantida, o resto recebe, e o Gerar ainda leva a edição', async () => {
       await escolher('ele', { ...A, status: 'fechou' });

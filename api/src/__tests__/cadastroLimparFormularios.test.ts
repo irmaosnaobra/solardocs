@@ -1,6 +1,6 @@
 /**
  * "Limpar os dados desta pessoa" / apagar um campo no "Editar dados" (card de venda do /gerador): os campos do formulário do contrato
- * que o mesmo mapa de `aplicarCadastroEletroposto` / `aplicarCadastroSolar` preenche a partir daquela pessoa também esvaziam, e só esses.
+ * que o mesmo mapa de `aplicarCadastroEletroposto` preenche a partir daquela pessoa também esvaziam, e só esses.
  * O "Confirmar" da leitura por IA (sem `opts`) continua ignorando valor vazio.
  *
  * Lê o dashboard/public/gerador/index.html de verdade, roda os <script> num sandbox `vm` com um DOM de mentira que GUARDA o valor de cada
@@ -34,7 +34,9 @@ const el = (id: string): any => { let e = elementos.get(id); if (!e) { e = criar
 const val = (id: string): string => String(el(id).value);
 
 function criarSandbox(): Ctx {
-  const html = readFileSync(HTML, 'utf8').replace(/\r\n/g, '\n');
+  let html = readFileSync(HTML, 'utf8').replace(/\r\n/g, '\n');
+  // O papeis-solar.js é script externo no navegador (carrega antes do script grande); aqui entra no mesmo lugar, como inline.
+  html = html.replace('<script src="/gerador/papeis-solar.js"></script>', () => '<script>' + readFileSync(join(__dirname, '..', '..', '..', 'dashboard', 'public', 'gerador', 'papeis-solar.js'), 'utf8').replace(/\r\n/g, '\n') + '</script>');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
   const doc = new Proxy({}, {
     get(_t, k) {
@@ -88,10 +90,6 @@ function aplicarEp(cad: unknown, limpar?: string[], tipoAntes = 'PF', origem = '
   SB.__cad = cad; SB.__lim = limpar ?? null; SB.__tipoAntes = tipoAntes; SB.__origem = origem;
   rodar('aplicarCadastroEletroposto(__cad, { origem: __origem, ...(__lim ? { limpar: new Set(__lim), tipoAntes: __tipoAntes } : {}) })');
 }
-function aplicarSol(cad: unknown, limpar?: string[], tipoAntes = 'PF', origem = ''): void {
-  SB.__cad = cad; SB.__lim = limpar ?? null; SB.__tipoAntes = tipoAntes; SB.__origem = origem;
-  rodar('aplicarCadastroSolar(__cad, null, { origem: __origem, ...(__lim ? { limpar: new Set(__lim), tipoAntes: __tipoAntes } : {}) })');
-}
 
 // Os dados do comprador que estavam (por engano) com a pessoa do cedente, e o cedente de verdade.
 const COMPRADOR = { nome: 'Dona Marta Souza', cpf_cnpj: '529.982.247-25', endereco: 'Rua das Flores 10', bairro: 'Centro', cidade: 'Araguari', uf: 'MG', cep: '38440-000', telefone: '34988880001', email: 'marta@exemplo.test' };
@@ -103,7 +101,6 @@ describe('limpar a pessoa zera no formulário só o que veio dela', () => {
 
   it('as funções existem no sandbox', () => {
     expect(rodar('typeof aplicarCadastroEletroposto')).toBe('function');
-    expect(rodar('typeof aplicarCadastroSolar')).toBe('function');
   });
 
   describe('eletroposto', () => {
@@ -186,39 +183,6 @@ describe('limpar a pessoa zera no formulário só o que veio dela', () => {
       expect(val('ctr-ta-matricula')).toBe('');
       expect(val('ctr-ced-nome')).toBe('Joao Cedente');
       expect(val('el-cliente')).toBe('Dona Marta Souza');
-    });
-    it('solar: o Fechamento do card A não fica no B (o cliente é tratado como outro mesmo com a identidade vazia)', () => {
-      SB.__fsLimpou = 0;
-      aplicarSol(cadastro({ ...COMPRADOR }), undefined, 'PF', 'vendasolar:201');
-      expect(val('fs-nome')).toBe('Dona Marta Souza');
-      aplicarSol(cadastro({}), Object.keys(COMPRADOR).concat('tipo'), 'PF', 'vendasolar:201');   // limpa o contratante do A
-      expect(val('fs-nome')).toBe('');
-      expect(SB.__fsLimpou).toBe(0);                                                            // mesmo card: não zera o resto
-      aplicarSol(cadastro({ nome: 'Beto Comprador', cpf_cnpj: '111.444.777-35' }), undefined, 'PF', 'vendasolar:202');
-      expect(SB.__fsLimpou).toBe(1);                                                            // outro card: fsLimparCliente roda
-      expect(val('fs-nome')).toBe('Beto Comprador');
-    });
-  });
-
-  describe('venda solar', () => {
-    const TUC = { tuc_nome: 'Pedro Titular', tuc_cpf_cnpj: '111.444.777-35' };
-    const preenche = () => aplicarSol(cadastro({ ...COMPRADOR, rg_ie: 'MG-1234', estado_civil: 'casada', unidade_consumidora: '12345678', ...TUC, homologacao_mesmo: 'outra_pessoa' }));
-    it('limpar o contratante zera a identidade dele no Fechamento e não toca o titular da homologação', () => {
-      preenche();
-      ['fs-nome', 'fs-doc', 'fs-cep', 'fs-end', 'fs-cidade', 'fs-rg', 'fs-estado-civil', 'fs-p-uc', 'fs-p-tuc-nome'].forEach((id) => expect(val(id), id).not.toBe(''));
-      el('fs-c-valor').value = '30000';       // valor do contrato: não vem do cadastro
-      const apagados = [...Object.keys(COMPRADOR), 'rg_ie', 'estado_civil', 'unidade_consumidora', 'tipo'];
-      aplicarSol(cadastro({ ...TUC, homologacao_mesmo: 'outra_pessoa' }), apagados);
-      ['fs-nome', 'fs-doc', 'fs-cep', 'fs-end', 'fs-bairro', 'fs-cidade', 'fs-uf', 'fs-tel', 'fs-rg', 'fs-estado-civil', 'fs-p-uc'].forEach((id) => expect(val(id), id).toBe(''));
-      expect(val('fs-p-tuc-nome')).toBe('Pedro Titular');
-      expect(val('fs-c-valor')).toBe('30000');
-    });
-    it('sem opts o vazio continua ignorado', () => {
-      preenche();
-      const { telefone: _t, ...resto } = COMPRADOR;
-      aplicarSol(cadastro({ ...resto, ...TUC, homologacao_mesmo: 'outra_pessoa' }));
-      expect(val('fs-tel')).not.toBe('');
-      expect(val('fs-nome')).toBe('Dona Marta Souza');
     });
   });
 });
