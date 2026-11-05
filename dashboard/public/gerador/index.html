@@ -8967,11 +8967,12 @@ function initials(nome) {
   return (partes[0][0] + partes[partes.length-1][0]).toUpperCase();
 }
 
-function showToast(msg) {
+function showToast(msg, ms) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2600);
+  clearTimeout(showToast._h);
+  showToast._h = setTimeout(() => t.classList.remove('show'), ms || 2600);
 }
 
 function showErro(msg) {
@@ -39540,6 +39541,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
   }
   const histCrm = baseHistCrm ? `${linhaCrm}\n\n${baseHistCrm}` : linhaCrm;
   let posVendaFalhou = false;
+  let avisoDoVendido = '';   // o servidor gravou o VENDIDO mas não abriu a etapa 1 (jornada:false): o aviso dele aparece no lugar da frase de sucesso
   try {
     // Fase 1 da Jornada (05/11/2026): o VENDIDO do solar tem um caminho só, o servidor. Ele grava o status, a linha do histórico
     // e abre a etapa 1. Falhou, nada muda no card e o erro aparece (o catch de baixo).
@@ -39549,6 +39551,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
       // O histórico em memória acompanha o que o servidor gravou: sem isto o próximo clique de status montaria a linha em cima
       // do histórico velho e apagaria a do VENDIDO.
       if (rv && typeof rv.historico === 'string') ag.historico = rv.historico;
+      if (rv && rv.aviso) avisoDoVendido = rv.aviso;
     } else {
       await supaPatch(`agendamentos?id=eq.${ag.id}`,
         { status: novoStatus, historico: histCrm, ...(extra || {}) });
@@ -39683,7 +39686,8 @@ async function crmAtualizarStatus(novoStatus, extra) {
       apalavrado:       '🤞 APALAVRADO: sai do ciclo e volta na data',
       fechou:           '🏆 Marcado como VENDIDO',
     };
-    if (vendidoSolarAgora) showToast('Venda aberta. A etapa 1 é de ' + (ag.vendedor_nome || 'quem vendeu') + '. Abra em Solar, Clientes.');
+    if (avisoDoVendido) showToast(avisoDoVendido, 9000);
+    else if (vendidoSolarAgora) showToast('Venda aberta. A etapa 1 é de ' + (ag.vendedor_nome || 'quem vendeu') + '. Abra em Solar, Clientes.');
     else showToast((labels[novoStatus] || 'Status atualizado')
       + (extra && extra.ponto_relacao ? ' · ' + extra.ponto_relacao : ''));
     if (posVendaFalhou) showToast('O card virou vendido, mas não deu para guardar o modelo e o valor. Abra o card e informe de novo.');

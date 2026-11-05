@@ -59,11 +59,11 @@ export const dataDoAno = (mmdd: string, ano: number): string => {
 
 // ── Janelas ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** A fila das 08:00: segunda a sábado, fora de feriado nacional, de 08:00 a 08:11 de Brasília (11:00 a 11:11 UTC). */
+/** A fila das 08:00: segunda a sábado, fora de feriado nacional, de 08:00 a 08:30 de Brasília (11:00 a 11:30 UTC; o cron roda de 3 em 3 minutos). */
 export function naJanelaDaFila(agora: Date): boolean {
   const dow = diaDaSemanaBRT(agora);
   if (dow < 1 || dow > 6 || ehFeriadoBR(diaBRT(agora))) return false;
-  return horaBRT(agora) === 8 && agora.getUTCMinutes() <= 11;
+  return horaBRT(agora) === 8 && agora.getUTCMinutes() <= 30;
 }
 
 /** `AAAAMMDDHHmm` (UTC) do minuto par para baixo: a vez de uma rodada. */
