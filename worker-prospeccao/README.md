@@ -31,6 +31,11 @@ curl http://127.0.0.1:9222/json/version
 > A porta 9222 dá controle total sobre a sessão logada nesse perfil. Mantenha em
 > `127.0.0.1`, nunca `0.0.0.0`, e não rode em máquina compartilhada.
 
+**Um Chrome por canal (05/11/2026).** Instagram: porta 9222, perfil
+`.chrome-prospeccao`. WhatsApp do chip: porta 9223, perfil `.chrome-wa-prospeccao`.
+O `COMECAR.ps1`, o `VIGIA.ps1` e o `abrir-chrome-agente.ps1 -Canal whatsapp` já usam
+isso. Perfil novo é sessão nova: o chip precisa ler o QR de novo (`LIGAR-WHATSAPP.cmd`).
+
 ---
 
 ## 2. Ensaio primeiro. Sempre.
@@ -44,11 +49,10 @@ Percorre a fila inteira e imprime a mensagem exata que sairia pra cada empresa �
 **sem tocar em ninguém**. É aqui que você lê 10 mensagens e decide se a abertura
 está boa antes de mandar pra 200 pessoas.
 
-Fora da janela de horário ele para e avisa. Pra ensaiar de madrugada:
-
-```powershell
-$env:HORA_INI=0; $env:HORA_FIM=24; node worker.mjs --dry
-```
+O ENVIO só acontece de segunda a sábado, das 8h às 21h (Brasília), e a variável de
+ambiente só consegue APERTAR isso (`HORA_INI` nunca abaixo de 8, `HORA_FIM` nunca
+acima de 21). O `--dry` ensaia a qualquer hora. As regras estão em `ritmo.mjs` e
+são provadas por `node teste-ritmo.mjs`.
 
 ## 3. Enviar de verdade
 
@@ -146,10 +150,11 @@ das 9h às 18h seriam uma a cada 5 minutos — o dobro da densidade.
 
 **O que derruba linha é densidade, não total.** Por isso a janela longa ajuda em
 vez de atrapalhar: ela é o denominador da conta. Mandou cedo, o worker anda
-devagar; entrou tarde, ele acelera até o piso de 60s.
+devagar; entrou tarde, ele acelera até o piso de 45 min.
 
-Piso e teto do espaçamento (`MIN_SEG=60`, `MAX_SEG=900`) existem só pra evitar
-rajada de um lado e worker dormindo do outro.
+Piso e teto do espaçamento (`MIN_SEG` nunca abaixo de 2700 s, `MAX_SEG` e
+`TETO_ESPERA` nunca abaixo do piso) existem pra evitar rajada de um lado e worker
+dormindo do outro. Instagram: no máximo 5 por dia; chip: no máximo 10.
 
 ### O que a sua base diz sobre horário
 
