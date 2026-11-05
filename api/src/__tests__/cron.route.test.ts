@@ -186,7 +186,8 @@ describe('rotas desligadas: 410 com o segredo, 401 sem ele', () => {
     const res = await request(app).get('/cron/master').set('Authorization', `Bearer ${CRON_SECRET}`);
     expect(res.status).toBe(200);
     const nomes = (res.body.results as Array<{ task: string }>).map(r => r.task);
-    expect(nomes.slice(-3)).toEqual(['dunning', 'pix-vip-reminder', 'ativacao-pos-venda']);
+    expect(nomes.slice(-4)).toEqual(['dunning', 'pix-vip-reminder', 'ativacao-pos-venda', 'pesquisa-satisfacao']);   // a pesquisa (frio) foi para o emSequencia, depois dos robôs de receita (05/11/2026)
+    expect(nomes.filter(n => n === 'pesquisa-satisfacao')).toHaveLength(1);   // e só 1 vez na lista (não ficou também no allSettled)
     expect(nomes.filter(n => n === 'dunning')).toHaveLength(1);
     // O dunning começa e termina antes de o lembrete começar, e os dois depois da recuperação de checkout (que fica no allSettled).
     expect(ordem.log.slice(-4)).toEqual(['dunning:ini', 'dunning:fim', 'pix:ini', 'ativacao:ini']);   // a ativação do pós-venda é a última do frio

@@ -1529,7 +1529,6 @@ router.get('/master', async (req: Request, res: Response) => {
     // a oferta está fora de venda desde 20/10. Nada no código chama mais o runCursoEntradaBroadcast, com ou sem CAMPANHA_CURSO19_ON.
     // [03/11/2026] As cadências carla-sem-cnpj e carla-inativo da Giovanna saíram do master: a retomada de quem não paga é da Carla
     // (carla_retomada_usuarios, que roda só no /process-messages e por isso NÃO entra aqui).
-    ['pesquisa-satisfacao',         () => dispararPesquisaSatisfacao()],  // 1 msg/tick; para com PESQUISA_WHATSAPP_OFF=1
     // Saúde da linha: o aviso que chega ANTES do bloqueio. Não manda mensagem
     // pra ninguém e não consulta IA, só lê números e avisa por e-mail quando a
     // razão saída/entrada, o pico por hora ou os contatos mudos passam do limite.
@@ -1607,6 +1606,8 @@ router.get('/master', async (req: Request, res: Response) => {
     // [04/11/2026] Pós-venda da SolarDoc (2a: cobra a senha, transacional; 2b: convida à 1ª proposta, frio): por último dos frios de receita, para o
     // espaçamento ver o carimbo do dunning e do lembrete do Pix. ATIVACAO_POS_VENDA_OFF=1 corta os dois. O pedido de depoimento roda depois, no runPesquisasTick.
     ['ativacao-pos-venda', () => rodarAtivacaoPosVenda()],
+    // [05/11/2026, chefe-antiban] Pesquisa de satisfação (frio): saiu do allSettled; vai depois dos robôs de receita para o espaçamento ver o carimbo deles. 1 msg/tick; para com PESQUISA_WHATSAPP_OFF=1
+    ['pesquisa-satisfacao', () => dispararPesquisaSatisfacao()],
   ];
   for (const [task, fn] of emSequencia) {
     try {
