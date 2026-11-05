@@ -156,5 +156,5 @@ Cada um destes já custou caro pelo menos uma vez.
 
 ## Pendências
 
-1. Fechar o backlog do eslint do `dashboard` (171 problemas em 11/09/2026) e
-   tirar o `continue-on-error` dele em `.github/workflows/qualidade.yml`.
+Nenhuma aberta (05/11/2026). O eslint do `dashboard` está com 0 erro e 57 avisos
+e agora derruba o CI: erro novo de lint trava a publicação.
