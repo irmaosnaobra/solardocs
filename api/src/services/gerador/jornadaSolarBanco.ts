@@ -232,7 +232,7 @@ export async function mudarJornada(
 // ── O JSON privado (dinheiro e texto livre) ────────────────────────────────────────────────────────────────────────────
 
 export const caminhoPrivadoJornada = (card: number): string => `vendasolar/${card}.jornada.json`;
-export const privadoVazio = (): PrivadoJornada => ({ v: 1, venda: null, cancelamento: null, descancelamentos: [] });
+export const privadoVazio = (): PrivadoJornada => ({ v: 1, venda: null, cancelamento: null, descancelamentos: [], trazidas: [] });
 
 export const MAX_NOTA = 500;
 export const MAX_PRAZO = 200;
@@ -281,6 +281,7 @@ export function normalizarPrivado(value: unknown): PrivadoJornada {
     venda,
     cancelamento: motivoDe(o.cancelamento),
     descancelamentos: (Array.isArray(o.descancelamentos) ? o.descancelamentos : []).map(motivoDe).filter((x): x is NonNullable<ReturnType<typeof motivoDe>> => !!x).slice(-10),
+    trazidas: (Array.isArray(o.trazidas) ? o.trazidas : []).map(motivoDe).filter((x): x is NonNullable<ReturnType<typeof motivoDe>> => !!x).slice(-10),
   };
 }
 

@@ -21,7 +21,9 @@ import {
 } from '../services/gerador/vendaSolarHub';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
-import { codigoCanonico, ehAdm, ehSocio, hojeBRT, montarObra, nomeSimples, podeVer, type ObraMontada } from '../services/gerador/solarObras';
+import { codigoCanonico, ehAdm, ehSocio, hojeBRT, montarObra, nomeSimples, podeVer, type ObraBruta, type ObraMontada } from '../services/gerador/solarObras';
+import { MSG_FINALIZADA, ehFinalizada, lerCorte, obraFinalizada } from '../services/gerador/jornadaCorte';
+import { dadosDaPlanilha } from '../services/gerador/jornadaFinalizada';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 import {
   CURTOS_ETAPA, DONOS_FIXOS, blocoVendaCompleto, FORMAS_PAGAMENTO, MOTIVOS_ESPERA, NOMES_ETAPA, TIPOS_PAPEL, ROTULO_ESPERA,
@@ -33,9 +35,9 @@ import {
   ErroJornada, ehRecusa, lerJornadaComVersao, lerPrivadoJornada, lerTodasJornadas, mudarJornada, mudarPrivadoJornada,
   MAX_NOTA, MAX_PRAZO, type Recusa,
 } from '../services/gerador/jornadaSolarBanco';
-import { lerObraComVersao, lerTodasObras, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
+import { lerObraComVersao, lerTodasObras, mudarObra, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
 import { lerResumoDoDinheiro } from '../services/gerador/jornadaDinheiroBanco';
-import { CAMPOS_CONTRATO, etapaAtualCompleta, type ContratoObra, type EstadoObra } from '../services/gerador/jornadaObra';
+import { CAMPOS_CONTRATO, etapaAtualCompleta, obraMaterializada, type ContratoObra, type EstadoObra } from '../services/gerador/jornadaObra';
 import { situacaoObra } from '../services/gerador/jornadaObra';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,13 +106,15 @@ const dataBR = (iso: string): string => (iso ? iso.slice(0, 10).split('-').rever
 
 interface Guarda { nome: string; socio: boolean; adm: boolean; card: CardVendido; id: number; ctx: Ctx }
 
-async function guardaObra(req: Request, res: Response): Promise<Guarda | null> {
+/** `escrita`: rota que grava. Venda finalizada abre só para leitura: a checagem vem antes de qualquer `mudarJornada` (que materializaria estado). */
+async function guardaObra(req: Request, res: Response, escrita = false): Promise<Guarda | null> {
   const { nome, socio, adm } = quem(req);
   const id = codigoDeRota('vendasolar', req.params.card);
   if (!id) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return null; }
   try {
     const card = await acessoVendaSolar(nome, socio, Number(id));
     if (!card) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return null; }
+    if (escrita && await obraFinalizada(Number(id))) { res.status(409).json({ ok: false, precisa: 'finalizada', error: MSG_FINALIZADA }); return null; }
     const ctx: Ctx = { linha: 'vendasolar', codigo: String(card.id), nome, socio, cliente: String(card.cliente_nome ?? ''), card };
     return { nome, socio, adm, card, id: Number(id), ctx };
   } catch (err) {
@@ -266,31 +270,30 @@ async function rotaVendido(req: Request, res: Response): Promise<void> {
 
 // ── Rota 2 · A lista ──────────────────────────────────────────────────────────────────────────────────────────────────
 
-const ETAPA_DA_PLANILHA = (p: ObraMontada): number | null =>
-  deduzirEtapa({ temNumero: true, slots: new Set(), planilha: p.etapaAtual }).etapa;
-
 async function rotaLista(req: Request, res: Response): Promise<void> {
   const { nome, socio, adm } = quem(req);
   const hoje = hojeDeBrasilia();
   try {
     const porPlanilha = planilha(false).then(async (p) => (await comSobrescritas(p.dados.obras)).map((o) => montarObra(o, hojeBRT(new Date()))))
       .catch((e) => { logErro('planilha', e); return null; });
-    const [obrasPl, cards, ligs, jornadas, obras, resumoDinheiro] = await Promise.all([
+    const [obrasPl, cards, ligs, jornadas, obras, resumoDinheiro, corte] = await Promise.all([
       porPlanilha, lerCardsSolarVendidos(), lerTodasLigacoes(), lerTodasJornadas(), lerTodasObras(),
       adm ? lerResumoDoDinheiro().catch((e) => { logErro('resumo do dinheiro', e); return null; }) : Promise.resolve(null),
+      lerCorte(),
     ]);
     const plPorCodigo = new Map<string, ObraMontada>();
     for (const o of obrasPl ?? []) plPorCodigo.set(codigoCanonico(o.codigo), o);
 
-    // Quem ainda precisa dos slots: sem estado (para deduzir) e com estado mas sem número (para o "Número pendente").
-    const precisaSlots = cards.filter((c) => !jornadas.has(c.id) || !ligs.get(c.id)?.venda).map((c) => c.id);
+    // Venda finalizada não lê slot nenhum (não deduz etapa e não tem "Número pendente"). Quem ainda precisa: sem estado ativo (para deduzir) e com estado mas sem número.
+    const finalizadaDoCard = (id: number): boolean => ehFinalizada(jornadas.get(id) ?? null, obras.get(id) ?? null, corte);
+    const precisaSlots = cards.filter((c) => !finalizadaDoCard(c.id) && (!jornadas.has(c.id) || !ligs.get(c.id)?.venda)).map((c) => c.id);
     const slotsPorCard = await lerSlotsDosCards(precisaSlots);
 
     interface Linha {
       chave: string; card: number | null; codigo: string | null; cliente: string; cidade: string; vendida_em: string; consultor: string;
-      grupo: 'ativas' | 'posvenda' | 'canceladas'; trilho: string; etapa: { n: number; nome: string } | null;
+      grupo: 'ativas' | 'posvenda' | 'canceladas' | 'finalizadas'; trilho: string; etapa: { n: number; nome: string } | null;
       dono: { nome: string; iniciais: string } | null; situacao: Situacao; minha: boolean; numero_pendente: string | null;
-      cancelada: { em: string; por: string; motivo: string } | null; dinheiro: string | null;
+      cancelada: { em: string; por: string; motivo: string } | null; dinheiro: string | null; finalizada: boolean;
     }
     const linhas: Linha[] = [];
     const usadas = new Set<string>();
@@ -303,6 +306,18 @@ async function rotaLista(req: Request, res: Response): Promise<void> {
       const viaPlanilha = !!pl && lig?.por !== POR_GERADOR && veObra(nome, pl.consultor);
       if (!veObra(nome, vendedor) && !viaPlanilha) continue;
       const estado = jornadas.get(c.id) ?? null;
+      if (finalizadaDoCard(c.id)) {
+        // Finalizada: fora da cobrança, do "É sua" e da "Minha fila"; sem etapa, sem dono e sem número novo (sem número continua com "*").
+        linhas.push({
+          chave: `c:${c.id}`, card: c.id, codigo, cliente: String(c.cliente_nome ?? ''), cidade: String(c.cidade ?? ''),
+          vendida_em: estado?.vendido_em ? diaDeBrasilia(estado.vendido_em) : (pl?.vendaEm ?? (c.quando ? diaDeBrasilia(c.quando) : (c.created_at ? diaDeBrasilia(c.created_at) : ''))),
+          consultor: nomeSimples(vendedor) || estado?.vendedor || '', grupo: 'finalizadas', trilho: 'finalizada', etapa: null, dono: null,
+          situacao: { tipo: 'sem_prazo', texto: 'Finalizada' }, minha: false, numero_pendente: null, cancelada: null,
+          dinheiro: adm ? (pl?.recebimento === 'quitado' ? 'Quitada' : pl?.recebimento === 'nao_quitado' ? `A receber R$ ${reaisBR(Math.round(pl.valores.aReceber * 100))}` : 'Sem registro') : null,
+          finalizada: true,
+        });
+        continue;
+      }
       const slots = slotsPorCard.get(c.id) ?? new Set<string>();
       let trilho: string; let etapa: number | null; let posvenda = false;
       const obraDoCard = obras.get(c.id) ?? null;
@@ -338,18 +353,17 @@ async function rotaLista(req: Request, res: Response): Promise<void> {
         chave: `c:${c.id}`, card: c.id, codigo, cliente: String(c.cliente_nome ?? ''), cidade: String(c.cidade ?? ''), vendida_em: vendida,
         consultor: vend, grupo, trilho, etapa: etapa ? { n: etapa, nome: NOMES_ETAPA[etapa] } : null,
         dono: donos[0] ? { nome: donos[0], iniciais: iniciais(donos[0]) } : null, situacao: sit, minha, numero_pendente: pendente,
-        cancelada: estado?.cancelada ? { em: estado.cancelada.em, por: estado.cancelada.por, motivo: '' } : null, dinheiro,
+        cancelada: estado?.cancelada ? { em: estado.cancelada.em, por: estado.cancelada.por, motivo: '' } : null, dinheiro, finalizada: false,
       });
     }
     // As linhas da planilha que nenhum card usa.
     for (const [cod, o] of plPorCodigo) {
       if (usadas.has(cod) || !veObra(nome, o.consultor)) continue;
-      const et = ETAPA_DA_PLANILHA(o);
       linhas.push({
         chave: `p:${o.codigo}`, card: null, codigo: o.codigo, cliente: o.cliente, cidade: [o.cidade, o.uf].filter(Boolean).join(' - '),
-        vendida_em: o.vendaEm ?? '', consultor: nomeSimples(o.consultor), grupo: o.etapaAtual === 'concluida' ? 'posvenda' : 'ativas', trilho: 'planilha',
-        etapa: et ? { n: et, nome: NOMES_ETAPA[et] } : null, dono: null, situacao: { tipo: 'sem_prazo', texto: 'Lida da planilha' },
-        minha: false, numero_pendente: null, cancelada: null,
+        vendida_em: o.vendaEm ?? '', consultor: nomeSimples(o.consultor), grupo: 'finalizadas', trilho: 'planilha',
+        etapa: null, dono: null, situacao: { tipo: 'sem_prazo', texto: 'Finalizada' },
+        minha: false, numero_pendente: null, cancelada: null, finalizada: true,
         dinheiro: adm ? (o.recebimento === 'quitado' ? 'Quitada' : o.recebimento === 'nao_quitado' ? `A receber R$ ${reaisBR(Math.round(o.valores.aReceber * 100))}` : 'Sem registro') : null,
       });
     }
@@ -385,7 +399,7 @@ async function rotaLista(req: Request, res: Response): Promise<void> {
       fonte: { planilha: obrasPl !== null },
       contagem: {
         ativas: linhas.filter((l) => l.grupo === 'ativas').length, posvenda: linhas.filter((l) => l.grupo === 'posvenda').length,
-        canceladas: linhas.filter((l) => l.grupo === 'canceladas').length, atrasadas, minha: linhas.filter((l) => l.minha).length,
+        canceladas: linhas.filter((l) => l.grupo === 'canceladas').length, finalizadas: linhas.filter((l) => l.grupo === 'finalizadas').length, atrasadas, minha: linhas.filter((l) => l.minha).length,
       },
       linhas,
     });
@@ -440,11 +454,51 @@ export async function etapaDaPlanilha(codigo: string): Promise<{ etapaPlanilha?:
   } catch (err) { logErro('planilha', err); return { fora: true }; }
 }
 
+const MSG_OCULTA = 'Os dados da planilha desta venda são de quem vendeu e dos sócios.';
+
+/** A linha da planilha deste código (já com a troca de consultor da Gestão de clientes). Casa SÓ pelo código; nunca por nome nem por telefone. */
+async function linhaDaPlanilha(codigo: string | null): Promise<{ fora: boolean; achou: { bruta: ObraBruta; m: ObraMontada } | null }> {
+  if (!codigo) return { fora: false, achou: null };
+  try {
+    const pl = await planilha(false);
+    const alvo = codigoCanonico(codigo);
+    const bruta = (await comSobrescritas(pl.dados.obras)).find((x) => codigoCanonico(x.codigo) === alvo);
+    return { fora: false, achou: bruta ? { bruta, m: montarObra(bruta, hojeBRT(new Date())) } : null };
+  } catch (err) { logErro('planilha', err); return { fora: true, achou: null }; }
+}
+
+/** O corpo de uma obra FINALIZADA: cabeçalho, bloco "Dados da planilha" (na visibilidade da Planilha de clientes) e nada que grave. */
+async function corpoFinalizada(
+  nome: string, adm: boolean,
+  card: { id: number; cliente: string; cidade: string; vendedor: string; created_by: string; status: string } | null,
+  codigo: string | null, hoje: string, extra: Record<string, unknown> = {},
+) {
+  const { fora, achou } = await linhaDaPlanilha(codigo);
+  const bloco = achou ? dadosDaPlanilha(achou.bruta, achou.m, nome) : null;
+  return {
+    ok: true, finalizada: true, card, codigo, trilho: 'finalizada', etapa_atual: null, hoje,
+    cancelada: null, esperando: null, pode: { trazer: adm && !!card },
+    planilha: bloco ? { codigo: bloco.codigo, campos: bloco.campos } : null,
+    planilha_oculta: !!achou && !bloco,
+    planilha_aviso: !codigo ? 'Esta venda ainda não tem número, então não há linha na planilha para mostrar.'
+      : fora ? 'Não consegui ler a planilha agora.' : !achou ? 'Este número não está na planilha.' : !bloco ? MSG_OCULTA : null,
+    ...extra,
+  };
+}
+
 async function rotaObra(req: Request, res: Response): Promise<void> {
   const g = await guardaObra(req, res);
   if (!g) return;
   try {
     const hoje = hojeDeBrasilia();
+    if (await obraFinalizada(g.id)) {
+      const { lig } = await lerLigacao(g.id);
+      res.json(await corpoFinalizada(g.nome, g.adm, {
+        id: g.id, cliente: String(g.card.cliente_nome ?? ''), cidade: String(g.card.cidade ?? ''), vendedor: nomeSimples(g.card.vendedor_nome),
+        created_by: String(g.card.created_by ?? ''), status: String(g.card.status ?? ''),
+      }, lig.venda, hoje));
+      return;
+    }
     const l = await ler(g);
     // Venda com número e sem estado: a dedução usa a linha da planilha (cache). Planilha fora = sem trilho.
     let planilhaEtapa: string | undefined; let planilhaFora = false;
@@ -520,6 +574,64 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
   }
 }
 
+/** Linha só da planilha (sem card): abre por código, sempre finalizada, só para leitura. Quem vê a linha da lista (`veObra`) abre; o bloco segue a Planilha. */
+async function rotaObraPlanilha(req: Request, res: Response): Promise<void> {
+  const { nome, adm } = quem(req);
+  const codigo = String(req.params.codigo ?? '').trim();
+  if (!/^#?\d{1,6}$/.test(codigo)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+  try {
+    const { fora, achou } = await linhaDaPlanilha(codigoCanonico(codigo));
+    if (fora) { res.status(503).json({ ok: false, error: MSG_LER }); return; }
+    if (!achou || !veObra(nome, achou.m.consultor)) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return; }
+    // Linha da planilha que algum card já usa abre pela venda do card, não por aqui (assim os anexos e o "Trazer" existem).
+    const ligs = await lerTodasLigacoes();
+    for (const [id, lig] of ligs) {
+      if (lig.venda && codigoCanonico(lig.venda) === codigoCanonico(codigo)) { res.status(200).json({ ok: true, abrir_card: id }); return; }
+    }
+    const m = achou.m;
+    res.json(await corpoFinalizada(nome, adm, null, m.codigo, hojeDeBrasilia(), {
+      cabecalho: { cliente: m.cliente, cidade: [m.cidade, m.uf].filter(Boolean).join(' - '), vendedor: nomeSimples(m.consultor) },
+    }));
+  } catch (err) {
+    falhou(res, 'obra da planilha', err, true);
+  }
+}
+
+// ── Trazer para a jornada ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Só o ADM, com motivo. Tira a marca de finalizada: a venda entra na etapa que a dedução indica (o mesmo `deduzirEtapa` das vendas antigas), com
+ * as etapas anteriores fechadas como `leitura` (nunca como gente), então NENHUMA mensagem sai pelo que já passou. O evento `trazida` é gravado POR
+ * ÚLTIMO: se algo falhar no meio, a venda continua finalizada. Nada é gravado em massa: é uma venda por vez.
+ */
+async function rotaTrazer(req: Request, res: Response): Promise<void> {
+  const g = await guardaObra(req, res);
+  if (!g) return;
+  if (!g.adm) { res.status(403).json({ ok: false, error: 'Só o administrador traz uma venda para a jornada.' }); return; }
+  const b = corpoDe(req);
+  const motivo = b ? textoLimpo(b.motivo, 300) : null;
+  if (!b || !motivo || motivo.length < 3) { res.status(400).json({ ok: false, error: 'Diga o motivo, com pelo menos 3 letras.' }); return; }
+  try {
+    if (!(await obraFinalizada(g.id))) { res.status(409).json({ ok: false, error: 'Esta venda já está na jornada.' }); return; }
+    const l = await ler(g, false);
+    let planilhaEtapa: string | undefined; let planilhaFora = false;
+    if (l.lig.venda) { const pl = await etapaDaPlanilha(l.lig.venda); planilhaEtapa = pl.etapaPlanilha; planilhaFora = pl.fora; }
+    const d = deduzirEtapa({ temNumero: !!l.lig.venda, slots: l.slots, planilha: planilhaEtapa, planilhaFora });
+    const etapa = d.etapa ?? 2;
+    const agora = new Date().toISOString();
+    const vend = vendedorDe(g.card, l.estado);
+    await mudarPrivadoJornada(g.id, g.nome, (p) => ({ ...p, trazidas: [...p.trazidas, { motivo, em: agora, por: g.nome }].slice(-10) }));
+    if (etapa >= 5 && !l.obraEstado) await mudarObra(g.id, () => obraMaterializada(g.id, etapa, agora, agora), (e) => e);
+    const r = await mudarJornada(g.id, () => estadoMaterializado(g.id, vend, Math.min(etapa, 4), agora), (e) => ({
+      ...e, historico: [...e.historico, { em: agora, por: g.nome, acao: 'trazida' as const, etapa }].slice(-50),
+    }));
+    if (ehRecusa(r)) { res.status(r.http).json({ ok: false, error: r.recusa }); return; }
+    res.json({ ok: true, etapa });
+  } catch (err) {
+    falhou(res, 'trazer', err);
+  }
+}
+
 // ── Rota 4 · O valor da venda ─────────────────────────────────────────────────────────────────────────────────────────
 
 const formaDoEspelho = (formas: FormaPagamento[]): string => {
@@ -532,7 +644,7 @@ const formaDoEspelho = (formas: FormaPagamento[]): string => {
 const inteiroPositivo = (v: unknown, max: number): number | null => (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= max ? v : null);
 
 async function rotaVenda(req: Request, res: Response): Promise<void> {
-  const g = await guardaObra(req, res);
+  const g = await guardaObra(req, res, true);
   if (!g) return;
   const b = corpoDe(req);
   if (!b) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
@@ -599,7 +711,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
 // ── Rota 5 · Ligar a proposta ─────────────────────────────────────────────────────────────────────────────────────────
 
 async function rotaProposta(req: Request, res: Response): Promise<void> {
-  const g = await guardaObra(req, res);
+  const g = await guardaObra(req, res, true);
   if (!g) return;
   const b = corpoDe(req);
   const codigo = b && typeof b.codigo === 'string' ? b.codigo.trim() : '';
@@ -644,7 +756,7 @@ async function rotaProposta(req: Request, res: Response): Promise<void> {
 // ── Rota 6 · Excedente, engenheiro, protocolo e rateio ───────────────────────────────────────────────────────────────
 
 async function rotaPatch(req: Request, res: Response): Promise<void> {
-  const g = await guardaObra(req, res);
+  const g = await guardaObra(req, res, true);
   if (!g) return;
   const b = corpoDe(req);
   const chaves = b ? Object.keys(b) : [];
@@ -713,7 +825,7 @@ async function rotaPatch(req: Request, res: Response): Promise<void> {
 // ── Rota 7 · Concluir a etapa ─────────────────────────────────────────────────────────────────────────────────────────
 
 async function rotaEtapa(req: Request, res: Response): Promise<void> {
-  const g = await guardaObra(req, res);
+  const g = await guardaObra(req, res, true);
   if (!g) return;
   const b = corpoDe(req);
   const n = b ? b.etapa : undefined;
@@ -763,7 +875,7 @@ async function rotaEtapa(req: Request, res: Response): Promise<void> {
 // ── Rota 8 · Esperando ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 async function rotaEsperar(req: Request, res: Response): Promise<void> {
-  const g = await guardaObra(req, res);
+  const g = await guardaObra(req, res, true);
   if (!g) return;
   const b = corpoDe(req);
   if (!b) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
@@ -806,7 +918,7 @@ async function rotaEsperar(req: Request, res: Response): Promise<void> {
 // ── Rota 9 · Cancelar e desfazer ───────────────────────────────────────────────────────────────────────────────────────
 
 async function rotaCancelar(req: Request, res: Response, desfazer: boolean): Promise<void> {
-  const g = await guardaObra(req, res);
+  const g = await guardaObra(req, res, true);
   if (!g) return;
   const b = corpoDe(req);
   const motivo = b ? textoLimpo(b.motivo, 300) : null;
@@ -893,7 +1005,7 @@ export function contratoDaObra(
 }
 
 async function rotaPapel(req: Request, res: Response): Promise<void> {
-  const g = await guardaObra(req, res);
+  const g = await guardaObra(req, res, true);
   if (!g) return;
   const b = corpoDe(req);
   const tipo = b ? b.tipo as TipoPapel : undefined;
@@ -1023,7 +1135,7 @@ async function rotaPapel(req: Request, res: Response): Promise<void> {
 // ── Rota 11 · Tentar o número de novo ─────────────────────────────────────────────────────────────────────────────────
 
 async function rotaNumero(req: Request, res: Response): Promise<void> {
-  const g = await guardaObra(req, res);
+  const g = await guardaObra(req, res, true);
   if (!g) return;
   const b = corpoDe(req);
   if (!b || (b.novo !== undefined && typeof b.novo !== 'boolean')) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
@@ -1050,6 +1162,8 @@ export function mountJornadaSolar(router: Router): void {
   router.post('/vendas-solares/:card/vendido', ...base, rotaVendido);
   router.get('/jornada-solar/lista', ...base, rotaLista);
   router.get('/jornada-solar/obra/:card', ...base, rotaObra);
+  router.get('/jornada-solar/planilha/:codigo', ...base, rotaObraPlanilha);
+  router.post('/jornada-solar/obra/:card/trazer', ...base, rotaTrazer);
   router.put('/jornada-solar/obra/:card/venda', ...base, rotaVenda);
   router.post('/jornada-solar/obra/:card/proposta', ...base, rotaProposta);
   router.patch('/jornada-solar/obra/:card', ...base, rotaPatch);

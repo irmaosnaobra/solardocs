@@ -8,7 +8,7 @@
 // NENHUM nome de robô mora aqui (a `chefeGuarda` lê o `robo` pelo arquivo de envio). Nada aqui lê `new Date()` sozinho nem escreve em log.
 // ─────────────────────────────────────────────────────────────────────────────
 import {
-  CURTOS_ETAPA, NOMES_ETAPA, ddmm, donosDaEtapa, prazoDaEtapa, situacao, type EstadoJornada,
+  CURTOS_ETAPA, NOMES_ETAPA, POR_QUE_NAO_E_GENTE, ddmm, donosDaEtapa, prazoDaEtapa, situacao, type EstadoJornada,
 } from '../gerador/jornadaSolar';
 import { etapaAtualCompleta, prazoDaEtapaObra, situacaoObra, type EstadoObra } from '../gerador/jornadaObra';
 import { reaisBR, veRetiradaDosSocios } from '../gerador/jornadaDinheiro';
@@ -25,7 +25,7 @@ export const PREFIXO_LIB = 'jornada_lib_sent:';
 export const PREFIXO_POS = 'jornada_pos_sent:';
 export const PREFIXO_VEZ = 'jornada_vez:';
 export const PESSOAS_FILA = ['thiago', 'diego', 'giovanna', 'nilce'] as const;
-export const POR_QUE_NAO_DISPARA: ReadonlySet<string> = new Set(['leitura', 'sonda', '']);
+export const POR_QUE_NAO_DISPARA: ReadonlySet<string> = POR_QUE_NAO_E_GENTE;
 export const VALE_EQUIPE_MS = 24 * 3600_000;
 export const VALE_LIBERACAO_MS = 7 * 24 * 3600_000;
 export const LIMITE_POR_PESSOA_HORA = 12;

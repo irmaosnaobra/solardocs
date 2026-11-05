@@ -7,6 +7,7 @@ import { ErroCadastro } from '../services/gerador/cadastroVendaBanco';
 import { ErroDocs } from '../services/gerador/docsClienteBanco';
 import { ErroHub } from '../services/gerador/vendaSolarHub';
 import { ErroJornada } from '../services/gerador/jornadaSolarBanco';
+import { MSG_FINALIZADA, obraFinalizada } from '../services/gerador/jornadaCorte';
 import { ehAdm, ehSocio } from '../services/gerador/solarObras';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 
@@ -52,6 +53,11 @@ export async function guardaDaObra(req: Request, res: Response): Promise<GuardaO
   try {
     const card = await acessoVendaSolar(nome, socio, Number(id));
     if (!card) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return null; }
+    // Venda finalizada abre só para leitura: nenhuma rota que grava passa daqui (a checagem vem ANTES de qualquer `mudarJornada`, que materializaria estado).
+    if (req.method !== 'GET' && req.method !== 'HEAD' && await obraFinalizada(Number(id))) {
+      res.status(409).json({ ok: false, precisa: 'finalizada', error: MSG_FINALIZADA });
+      return null;
+    }
     const ctx: Ctx = { linha: 'vendasolar', codigo: String(card.id), nome, socio, cliente: String(card.cliente_nome ?? ''), card };
     return { nome, socio, adm, card, id: Number(id), ctx };
   } catch (err) {

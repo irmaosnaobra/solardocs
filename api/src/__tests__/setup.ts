@@ -7,3 +7,4 @@ process.env.STRIPE_WEBHOOK_SECRET = 'whsec_placeholder';
 process.env.CORS_ORIGIN = 'http://localhost:3000';
 process.env.RESEND_API_KEY = 're_test_placeholder'; // mailer/dunningService instanciam Resend no import
 process.env.CRON_SECRET = 'falso-cron-secret-de-teste-0000'; // verifyCronSecret é env-only (sem fallback hardcoded)
+process.env.JORNADA_FINALIZADAS_OFF = '1'; // venda finalizada tem teste próprio (jornadaFinalizadas.test.ts), que liga a regra; nos outros a regra antiga vale

@@ -135,7 +135,14 @@
       '.jor-vdc-sum{cursor:pointer;font-weight:800;color:var(--n-tx,#E5E7EB);padding:8px 0}',
       '.jor-passo-gasto{color:var(--n-tx2,#B4C0D2);font-weight:700}',
       '.jor-passo.feita .jor-passo-gasto{color:var(--io-ok-tx,#4ADE80)}',
+      '.jor-fin-tag{display:inline-block;border-radius:999px;padding:2px 10px;font-size:11.5px;font-weight:800;background:var(--n-sf2,#182338);color:var(--n-tx2,#B4C0D2);border:1px solid var(--n-bd,#334155)}',
+      '.jor-dl{display:grid;grid-template-columns:minmax(130px,max-content) minmax(0,1fr);gap:6px 16px;margin:0}',
+      '.jor-dl dt{color:var(--n-tx3,#94A3B8);font-size:12.5px}',
+      '.jor-dl dd{margin:0;overflow-wrap:anywhere}',
+      '.jor-docs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}',
+      '.jor-docs a{color:var(--io-azul-tx,#93C5FD)}',
       '@media (max-width:760px){',
+      '.jor-dl{grid-template-columns:minmax(0,1fr)}',
       '.jor-cols{grid-template-columns:minmax(0,1fr)}',
       '.jor-pg{grid-template-columns:minmax(0,1fr)}',
       '.jor-tab thead{display:none}',
@@ -248,7 +255,7 @@
     }
     var ct = d.contagem;
     var abas = el('div', 'jor-abas'); abas.setAttribute('role', 'tablist');
-    [['ativas', 'Ativas ' + ct.ativas], ['posvenda', 'Pós-venda ' + ct.posvenda], ['canceladas', 'Canceladas ' + ct.canceladas]].forEach(function (a) {
+    [['ativas', 'Ativas ' + ct.ativas], ['posvenda', 'Pós-venda ' + ct.posvenda], ['canceladas', 'Canceladas ' + ct.canceladas], ['finalizadas', 'Finalizadas ' + (ct.finalizadas || 0)]].forEach(function (a) {
       var b = el('button', 'jor-aba' + (L.aba === a[0] ? ' on' : ''), a[1]); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', L.aba === a[0] ? 'true' : 'false');
       b.addEventListener('click', function () { L.aba = a[0]; desenharLista(); });
       abas.appendChild(b);
@@ -297,7 +304,7 @@
       td('Cliente', l.cliente);
       td('Cidade', l.cidade);
       td('Vendida em', l.vendida_em ? ddmm(l.vendida_em) + '/' + l.vendida_em.slice(0, 4) : '');
-      td('Etapa', l.etapa ? l.etapa.n + ' ' + l.etapa.nome : 'Sem trilho');
+      if (l.finalizada) { var te = td('Etapa', ''); te.appendChild(el('span', 'jor-fin-tag', 'Finalizada')); } else td('Etapa', l.etapa ? l.etapa.n + ' ' + l.etapa.nome : 'Sem trilho');
       var dn = td('Dono', l.dono ? l.dono.iniciais : ''); if (l.dono) dn.title = nomeBonito(l.dono.nome);
       var s = td('Situação', l.grupo === 'canceladas' && l.cancelada
         ? 'Cancelada em ' + ddmm(l.cancelada.em) + ' por ' + nomeBonito(l.cancelada.por) + (l.cancelada.motivo ? ' · ' + l.cancelada.motivo : '')
@@ -308,11 +315,13 @@
       var ac = td('', '');
       if (l.card) {
         add(ac, btn('Abrir', '', function () { abrirObra(l.card); }));
-        if (adm && l.grupo !== 'canceladas') {
+        if (adm && l.grupo !== 'canceladas' && !l.finalizada) {
           var mn = btn('Venda cancelada', 'jor-btn-link', function () { cancelarDialogo(l.card, function () { abrirLista(); }); });
           mn.setAttribute('aria-label', 'Venda cancelada: ' + l.cliente);
           ac.appendChild(mn);
         }
+      } else if (l.codigo) {
+        add(ac, btn('Abrir', '', function () { abrirPlanilha(l.codigo); }));
       }
       tb.appendChild(tr);
     });
@@ -320,6 +329,7 @@
     tab.appendChild(tb); wrap.appendChild(tab); raiz.appendChild(wrap);
     raiz.appendChild(el('p', 'jor-nota', 'A lista segue a data da venda, da mais nova para a mais antiga. O número nasce com o contrato e a procuração assinados, por isso pode sair fora de ordem.'));
     if (L.aba === 'canceladas') raiz.appendChild(el('p', 'jor-nota', 'Venda cancelada nunca gasta número.'));
+    if (L.aba === 'finalizadas') raiz.appendChild(el('p', 'jor-nota', 'Vendas de antes da jornada. Abrem só para leitura, com os dados da planilha. Ficam fora da cobrança e das mensagens.'));
     c.replaceChildren(raiz);
   }
 
@@ -358,11 +368,98 @@
       O.dinheiro = dnok ? rd.json : null; O.dinErro = !dnok;
       // Fase 3: o pós-venda. Falha, ou resposta sem a lista de toques, vira null e a obra continua.
       O.fase3 = (r3 && r3.status === 200 && r3.json && r3.json.ok !== false && Array.isArray(r3.json.toques)) ? r3.json : null;
-      if (r.status === 200 && r.json && r.json.ok !== false) { O.dados = r.json; desenharObra(); montarQuadro(); } else {
+      if (r.status === 200 && r.json && r.json.ok !== false && r.json.finalizada) { O.dados = r.json; sairDoQuadro(); desenharFinalizada(r.json, O.obraNo, O.card); return; }
+      if (r.status === 200 && r.json && r.json.ok !== false) {
+        O.dados = r.json;
+        // Depois do Trazer (ou de qualquer volta de finalizada), o quadro de documentos que a finalizada tirou da tela volta ao lado da obra.
+        if (O.vdcDet && !O.vdcDet.isConnected && O.obraNo && O.obraNo.parentNode) O.obraNo.parentNode.appendChild(O.vdcDet);
+        desenharObra(); montarQuadro();
+      } else {
         O.obraNo.replaceChildren(el('p', 'jor-erro', msgDe(r, 'Não consegui abrir esta venda agora.')), btn('Voltar para Clientes', '', abrirLista));
       }
     });
   }
+  /** Venda finalizada: o quadro de documentos editável não monta. */
+  function sairDoQuadro() {
+    if (O.vdcNo && typeof vdcFechar === 'function') { try { vdcFechar(O.vdcNo); } catch (e) { /* já fechado */ } }
+    O.vdcChave = '';
+    if (O.vdcDet && O.vdcDet.parentNode) O.vdcDet.parentNode.removeChild(O.vdcDet);
+  }
+
+  function trazerDialogo(card) {
+    dialogoMotivo('Trazer para a jornada', 'Trazer', function (motivo) {
+      return api('/gerador/jornada-solar/obra/' + encodeURIComponent(card) + '/trazer', 'POST', { motivo: motivo }).then(function (r) {
+        if (r.status === 200 && r.json.ok !== false) { toast('A venda voltou para a jornada.'); carregarObra(); return { ok: true }; }
+        return { ok: false, erro: msgDe(r, 'Não consegui trazer agora. Tente de novo.') };
+      });
+    });
+  }
+
+  function dataBr(iso) { var s2 = String(iso || ''); return /^\d{4}-\d{2}-\d{2}/.test(s2) ? s2.slice(8, 10) + '/' + s2.slice(5, 7) + '/' + s2.slice(0, 4) : ''; }
+
+  /** A obra FINALIZADA, só para leitura: cabeçalho, "Dados da planilha" e os documentos que a venda já tem. Nada aqui grava, exceto o Trazer do ADM. */
+  function desenharFinalizada(d, alvo, card) {
+    var raiz = el('div');
+    var cab = el('div', 'jor-cab');
+    cab.appendChild(el('span', 'jor-num', d.codigo || '*'));
+    var info = d.card || d.cabecalho || {};
+    var t = el('div', 'jor-cab-t'); t.appendChild(el('b', '', info.cliente || ''));
+    t.appendChild(el('span', '', [info.cidade, info.vendedor ? 'Vendido por ' + nomeBonito(info.vendedor) : ''].filter(Boolean).join(' · ')));
+    cab.appendChild(t);
+    cab.appendChild(el('span', 'jor-fin-tag', 'Finalizada'));
+    add(cab, btn('Clientes', '', function () { L.aba = 'finalizadas'; abrirLista(); }));
+    if (d.pode && d.pode.trazer && card) add(cab, btn('Trazer para a jornada', '', function () { trazerDialogo(card); }));
+    raiz.appendChild(cab);
+    raiz.appendChild(el('p', 'jor-nota', 'Venda de antes da jornada. Abre só para leitura: sem cobrança, sem mensagem e sem edição.'));
+
+    var bl = el('div', 'jor-bloco'); bl.appendChild(el('div', 'jor-bloco-t', 'Dados da planilha'));
+    if (d.planilha && d.planilha.campos && d.planilha.campos.length) {
+      var dl = el('dl', 'jor-dl');
+      d.planilha.campos.forEach(function (c) { dl.appendChild(el('dt', '', c.rotulo)); dl.appendChild(el('dd', '', c.valor)); });
+      bl.appendChild(dl);
+    } else if (d.planilha) bl.appendChild(el('p', 'jor-nota', 'A planilha não tem dados preenchidos para esta venda.'));
+    else bl.appendChild(el('p', 'jor-nota', d.planilha_aviso || 'Sem dados da planilha para esta venda.'));
+    raiz.appendChild(bl);
+
+    if (card) {
+      var bd = el('div', 'jor-bloco'); bd.appendChild(el('div', 'jor-bloco-t', 'Documentos e anexos'));
+      var lista = el('p', 'jor-nota', 'Carregando…'); bd.appendChild(lista);
+      raiz.appendChild(bd);
+      api('/gerador/clientes/vendasolar/' + encodeURIComponent(card) + '/docs', 'GET').then(function (r) {
+        if (String(O.card) !== String(card) || !lista.isConnected) return;
+        if (!(r.status === 200 && r.json && r.json.ok !== false && Array.isArray(r.json.arquivos))) { lista.textContent = msgDe(r, 'Não consegui abrir os documentos agora.'); return; }
+        var rot = {};
+        (r.json.slots || []).forEach(function (sl) { rot[sl.key || sl.chave] = sl.label || sl.rotulo || sl.key; });
+        if (!r.json.arquivos.length) { lista.textContent = 'Esta venda não tem documentos anexados.'; return; }
+        var ul = el('ul', 'jor-docs');
+        r.json.arquivos.forEach(function (a) {
+          var li = el('li');
+          var nomeArq = a.rotulo || rot[a.slot] || a.slot;
+          if (a.url) { var ln = el('a', '', nomeArq); ln.href = a.url; ln.target = '_blank'; ln.rel = 'noopener noreferrer'; li.appendChild(ln); } else li.appendChild(document.createTextNode(nomeArq));
+          if (a.em) li.appendChild(el('span', 'jor-nota', ' · ' + dataBr(a.em)));
+          ul.appendChild(li);
+        });
+        lista.replaceWith(ul);
+      });
+    }
+    alvo.replaceChildren(raiz);
+  }
+
+  /** Linha só da planilha (sem card): abre por código, só para leitura. */
+  function abrirPlanilha(codigo) {
+    injetarCss();
+    var c = corpo(); if (!c) return;
+    sairDaObra(); O.card = null;
+    var no = el('div'); no.id = 'jor-obra'; no.appendChild(el('p', 'jor-nota', 'Carregando…'));
+    c.replaceChildren(no);
+    api('/gerador/jornada-solar/planilha/' + encodeURIComponent(codigo), 'GET').then(function (r) {
+      if (!no.isConnected) return;
+      if (r.status === 200 && r.json && r.json.abrir_card) { abrirObra(r.json.abrir_card); return; }
+      if (r.status === 200 && r.json && r.json.ok !== false && r.json.finalizada) { desenharFinalizada(r.json, no, null); return; }
+      no.replaceChildren(el('p', 'jor-erro', msgDe(r, 'Não consegui abrir esta venda agora.')), btn('Voltar para Clientes', '', abrirLista));
+    });
+  }
+
   function releia() {
     if (O.debounce) clearTimeout(O.debounce);
     O.debounce = setTimeout(function () { O.debounce = 0; if (O.card) carregarObra(); }, 400);
