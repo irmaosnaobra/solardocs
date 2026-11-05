@@ -164,6 +164,7 @@
       text-decoration: none; cursor: pointer;
     }
 
+    .linkMsg { font-size: 15px; color: #e2e8f0; line-height: 1.5; margin-bottom: 16px; font-weight: 600; }
     .foot { text-align: center; font-size: 11px; color: var(--muted); opacity: .6; font-weight: 600; letter-spacing: 1px; margin-top: 8px; }
   </style>
 </head>
@@ -178,7 +179,7 @@
     </div>
 
     <!-- Tabela de prêmios (display-only) -->
-    <div class="card">
+    <div class="card" id="tierCard">
       <div class="card-title">💰 Quanto você ganha</div>
       <div class="tier"><span class="tier-faixa">Projetos até R$ 13.000</span><span class="tier-pix">R$ 200</span></div>
       <div class="tier"><span class="tier-faixa">De R$ 13.001 a R$ 22.000</span><span class="tier-pix">R$ 300</span></div>
@@ -190,6 +191,7 @@
     <!-- Formulário -->
     <div class="card" id="formCard">
       <div class="card-title">📝 Faça sua indicação</div>
+      <p class="linkMsg" id="linkMsg" hidden></p>
       <div class="formError" id="formError"></div>
 
       <form id="form" novalidate>
@@ -257,9 +259,79 @@
       errBox.style.display = 'block';
     }
 
+    // Link do cliente (?i=<card>-<10 caracteres>): quem abre é o amigo e deixa só o nome e o WhatsApp.
+    // O formato é conferido aqui e o servidor confere de novo. Link que não vale: a página segue como sempre.
+    const ID_LINK = (function () {
+      const v = new URLSearchParams(location.search).get('i') || '';
+      return /^\d{1,9}-[A-Za-z0-9_-]{10}$/.test(v) ? v : '';
+    })();
+    let modoLink = false;
+    let enviado = false;
+
+    function ligarModoLink(nome) {
+      modoLink = true;
+      const msg = document.getElementById('linkMsg');
+      msg.textContent = 'Indicação de ' + nome + '. Deixe seu nome e WhatsApp que a gente chama você.';
+      msg.hidden = false;
+      ['indicador_nome', 'indicador_telefone', 'indicador_pix'].forEach((n) => {
+        const inp = form.querySelector('[name="' + n + '"]');
+        if (!inp) return;
+        inp.required = false;
+        inp.value = '';
+        inp.closest('.field').style.display = 'none';
+      });
+      form.querySelector('[name="indicado_nome"]').closest('.field').querySelector('label').firstChild.textContent = 'Seu nome ';
+      form.querySelector('[name="indicado_telefone"]').closest('.field').querySelector('label').firstChild.textContent = 'Seu WhatsApp (com DDD) ';
+      form.querySelector('[name="indicado_nome"]').placeholder = 'Seu nome';
+      form.querySelector('[name="indicado_telefone"]').closest('.field').querySelector('.hint').textContent = 'É por aqui que vamos falar com você.';
+      document.getElementById('tierCard').style.display = 'none';
+      btn.textContent = 'Quero ser chamado';
+      success.querySelector('.ico').style.display = 'none';
+      success.querySelector('h2').textContent = 'Recebemos.';
+      success.querySelector('p').textContent = 'A Nilce vai chamar você no WhatsApp.';
+      document.getElementById('again').style.display = 'none';
+    }
+    if (ID_LINK) {
+      fetch(API + '/indicacao-link/' + encodeURIComponent(ID_LINK))
+        .then((r) => r.json().then((d) => ({ ok: r.ok, d: d }), () => ({ ok: false, d: {} })))
+        .then((x) => { if (x.ok && x.d && x.d.ok && x.d.nome) ligarModoLink(String(x.d.nome)); })
+        .catch(() => { /* a página segue como sempre */ });
+    }
+
+    async function enviarLink(fd) {
+      if (enviado) return;
+      const nome = (fd.get('indicado_nome') || '').toString().trim();
+      const tel = (fd.get('indicado_telefone') || '').toString().trim();
+      if (!nome || !tel) { showError('Por favor, preencha o nome e o WhatsApp.'); return; }
+      enviado = true;
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+      try {
+        const r = await fetch(API + '/indicacao-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ i: ID_LINK, indicado_nome: nome, indicado_telefone: tel, website: (fd.get('website') || '').toString() }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          showError(data.error || 'Não consegui registrar. Tente novamente.');
+          enviado = false; btn.disabled = false; btn.textContent = 'Quero ser chamado';
+          return;
+        }
+        try { fbq('trackCustom', 'IndicacaoEnviada'); } catch (e) {}
+        formCard.style.display = 'none';
+        success.style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (e) {
+        showError('Sem conexão. Verifique a internet e tente de novo.');
+        enviado = false; btn.disabled = false; btn.textContent = 'Quero ser chamado';
+      }
+    }
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errBox.style.display = 'none';
+      if (modoLink) { await enviarLink(new FormData(form)); return; }
 
       const fd = new FormData(form);
       const payload = {
