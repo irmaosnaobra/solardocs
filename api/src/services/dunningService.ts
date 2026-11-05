@@ -13,6 +13,8 @@ import { Resend } from 'resend';
 import Stripe from 'stripe';
 import { sendWhatsApp, sendFrio } from './agents/zapiClient';
 import { novaRodadaPortao, tomarChaveFria, soltarChaveFria } from './recuperacaoCheckoutPortao';
+import { reservarChave } from './agentes5040/cota';
+import { mascararEmail } from './solardoc/ativacaoPosVendaTextos';
 import { logger } from '../utils/logger';
 import { FREE_LIMIT } from './planService';
 import { pixBlocoEmailHtml } from '../utils/pixInfo';
@@ -313,10 +315,11 @@ async function marcarEmailDoDia(userId: string, ciclo: string, day: number): Pro
  * O WhatsApp do dia. 'enviado' | 'cortado' (esta pessoa não recebe, ou já saiu: o dia avança) | 'segurado' (tenta no próximo tick, o dia NÃO
  * avança) | 'falhou' (o sendFrio lançou: talvez saiu, o claim fica e o dia avança, só com o e-mail).
  */
-async function enviarWhatsappDunning(user: UsuarioDunning, day: number, portao?: PortaoDunning): Promise<'enviado' | 'cortado' | 'segurado' | 'falhou'> {
+async function enviarWhatsappDunning(user: UsuarioDunning, day: number, portao?: PortaoDunning): Promise<'enviado' | 'cortado' | 'perdeu' | 'segurado' | 'falhou'> {
   const phone = user.whatsapp;
   if (!phone) return 'cortado';
-  const texto = textoWhatsappDunning(user.nome, day);
+  // D5 (já cancelado) usa a mensagem de cancelamento do tplD5; textoWhatsappDunning cobre D0 a D4 (o ramo day>=4 diz "último dia antes do cancelamento").
+  const texto = day === 5 ? tplD5(user.nome).whatsapp : textoWhatsappDunning(user.nome, day);
   const chave = `dunning_sent:${user.id}:${cicloDe(user)}:${day}`;
   const evento = day === 0;
 
@@ -329,7 +332,11 @@ async function enviarWhatsappDunning(user: UsuarioDunning, day: number, portao?:
 
   // Claim por INSERT antes de enviar. Chave repetida: outra rodada (ou o webhook, no D0) já pegou este dia.
   const claim = await tomarChaveFria(chave);
-  if (claim === 'ja') return 'cortado';
+  if (claim === 'ja') {
+    // 'perdeu': outra rodada pegou este dia. Quem chama TRAVA a rodada (não segue para a próxima pessoa no mesmo segundo, o que deixaria dois frios
+    // colados), salvo claim antigo no D5, e NÃO mexe na pendência do D5: se o vencedor soltar o claim (sendFrio calou), ela continua aberta.
+    return 'perdeu';
+  }
   // Erro de leitura no lembrete (frio): segura. No D0 (evento) o aviso sai mesmo assim.
   if (claim === 'erro' && !evento) return 'segurado';
 
@@ -387,27 +394,20 @@ async function sendDayNotification(user: UsuarioDunning, day: number, portao?: P
   if (mandaEmail) {
     tasks.push(
       sendEmail(user.email, tpl.subject, htmlFinal).catch(err => {
-        logger.error('dunning', `email D${day} falhou pra ${user.email}`, err);
+        logger.error('dunning', `email D${day} falhou pra ${mascararEmail(user.email)}`, err);
       }),
     );
   }
-  // WhatsApp: D0-D4 → texto da Giovanna com o Pix automático, 1 bolha por sendFrio (ver acima). D5 (já cancelado) → aviso scriptado.
-  // Sem whatsapp → só email.
+  // WhatsApp: D0-D4 → texto da Giovanna com o Pix automático, 1 bolha por sendFrio (ver acima). Sem whatsapp → só email.
+  // D5 (já cancelado): NÃO sai aqui. O runDunning grava a pendência `dunning_d5_pend:` antes de rebaixar a conta e o WhatsApp sai por
+  // enviarPendenciasD5, pelo mesmo portão do D1 a D4 (chefe-antiban, 05/11/2026: antes saía por sendWhatsApp cru, de madrugada e no domingo).
   let avancar = true;
-  if (user.whatsapp) {
-    if (comPix) {
-      tasks.push(
-        enviarWhatsappDunning(user, day, portao)
-          .then(r => { if (r === 'segurado') avancar = false; })
-          .catch(err => logger.error('dunning', `whatsapp dunning D${day} falhou pra ${user.whatsapp}`, err)),
-      );
-    } else {
-      tasks.push(
-        sendWhatsApp(user.whatsapp, tpl.whatsapp).catch(err => {
-          logger.error('dunning', `whatsapp D${day} falhou pra ${user.whatsapp}`, err);
-        }),
-      );
-    }
+  if (user.whatsapp && comPix) {
+    tasks.push(
+      enviarWhatsappDunning(user, day, portao)
+        .then(r => { if (r === 'segurado') avancar = false; if (r === 'perdeu') portao?.travarRodada('claim_perdido'); })   // 'perdeu' conta como 'cortado': o dia avança, a outra rodada já pegou
+        .catch(err => logger.error('dunning', `whatsapp dunning D${day} falhou pra ${user.whatsapp}`, err)),
+    );
   }
   await Promise.allSettled(tasks);
   return avancar;
@@ -434,7 +434,7 @@ export async function sendDunningDay0(userId: string): Promise<void> {
 export async function sendDunningRecovered(userId: string): Promise<void> {
   const { data: user } = await supabase
     .from('users')
-    .select('id, email, nome, whatsapp')
+    .select('id, email, nome, whatsapp, past_due_since')
     .eq('id', userId)
     .single();
   if (!user) return;
@@ -442,15 +442,20 @@ export async function sendDunningRecovered(userId: string): Promise<void> {
   const tasks: Array<Promise<void>> = [];
   tasks.push(
     sendEmail(user.email, tpl.subject, tpl.html).catch(err => {
-      logger.error('dunning', `email recuperação falhou pra ${user.email}`, err);
+      logger.error('dunning', `email recuperação falhou pra ${mascararEmail(user.email)}`, err);
     }),
   );
+  // O Stripe reenvia o webhook: claim por INSERT `dunning_recov:<userId>:<ciclo>` antes do envio (sem claim, não envia). É evento de pagamento:
+  // sem janela. O webhook já zerou o past_due_since, então o ciclo cai no dia de hoje (cicloDe): o reenvio do mesmo dia não duplica.
   if (user.whatsapp) {
-    tasks.push(
-      sendWhatsApp(user.whatsapp, tpl.whatsapp).catch(err => {
-        logger.error('dunning', `whatsapp recuperação falhou pra ${user.whatsapp}`, err);
-      }),
-    );
+    const claim = await tomarChaveFria(`dunning_recov:${user.id}:${cicloDe(user)}`);
+    if (claim === 'ok') {
+      tasks.push(
+        sendWhatsApp(user.whatsapp, tpl.whatsapp).catch(err => {
+          logger.error('dunning', `whatsapp recuperação falhou pra ${user.whatsapp}`, err);
+        }),
+      );
+    }
   }
   await Promise.allSettled(tasks);
 }
@@ -513,7 +518,7 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
     // Pix é justamente quem NÃO tem cartão com limite. O guard do D5 já existia
     // lá embaixo; aqui ele vale pros avisos D0..D4 também.
     if (u.plano_expira_em && new Date(u.plano_expira_em).getTime() > now) {
-      logger.info('dunning', `${u.email}: pulado — acesso pago por Pix até ${u.plano_expira_em}`);
+      logger.info('dunning', `${mascararEmail(u.email)}: pulado — acesso pago por Pix até ${u.plano_expira_em}`);
       continue;
     }
     const past = u.past_due_since ? new Date(u.past_due_since).getTime() : 0;
@@ -539,8 +544,15 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
       const { data: fresh } = await supabase
         .from('users').select('plano_expira_em').eq('id', u.id).maybeSingle();
       if (fresh?.plano_expira_em && new Date(fresh.plano_expira_em).getTime() > now) {
-        logger.info('dunning', `${u.email}: D5 pulado — reativado por Pix durante o cron`);
+        logger.info('dunning', `${mascararEmail(u.email)}: D5 pulado — reativado por Pix durante o cron`);
         continue;
+      }
+      // O WhatsApp do D5 vira pendência ANTES de o past_due_since virar null (o ciclo da chave é o mesmo do D1 a D4). Falhou o insert: o
+      // cancelamento segue e só o WhatsApp do D5 fica sem sair (nunca sendWhatsApp cru).
+      if (u.whatsapp) {
+        const ciclo = cicloDe(u);
+        const pend = await reservarChave(`${PREFIXO_D5_PEND}${u.id}:${ciclo}`, { user_id: u.id, ciclo, whatsapp: u.whatsapp, nome: u.nome }, new Date());
+        if (pend === 'erro') logger.error('dunning', `${mascararEmail(u.email)}: pendência do WhatsApp do D5 não gravou; o D5 sai só por e-mail`);
       }
       const cancelCount = await cancelStripeSubsForEmail(u.email);
       await supabase
@@ -555,7 +567,7 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
         })
         .eq('id', u.id);
       canceled++;
-      logger.info('dunning', `${u.email}: D5 — ${cancelCount} subs canceladas no Stripe + rebaixado pra free`);
+      logger.info('dunning', `${mascararEmail(u.email)}: D5 — ${cancelCount} subs canceladas no Stripe + rebaixado pra free`);
     }
 
     const avancar = await sendDayNotification(u, dayToSend, portao);
@@ -573,5 +585,73 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
     notified++;
   }
 
+  try { await enviarPendenciasD5(portao); } catch (err) { logger.error('dunning', 'pendências do WhatsApp do D5 falharam', err); }
+
   return { scanned: users?.length ?? 0, notified, canceled };
+}
+
+/** Chave da pendência do WhatsApp do D5: `dunning_d5_pend:<userId>:<ciclo>`. */
+export const PREFIXO_D5_PEND = 'dunning_d5_pend:';
+const D5_PEND_VALIDADE_MS = 4 * 86_400_000;
+/** Claim do D5 mais velho que isto, com a pendência ainda aberta, é envio que saiu e não fechou a pendência. */
+const D5_CLAIM_ANTIGO_MS = 10 * 60 * 1000;
+
+type PendenciaD5 = { user_id?: string; ciclo?: string; whatsapp?: string | null; nome?: string | null; em?: string; estado?: string };
+
+async function fecharPendenciaD5(chave: string, v: PendenciaD5, estado: 'enviado' | 'descartado', motivo?: string): Promise<void> {
+  const em = new Date().toISOString();
+  const { error } = await supabase.from('system_state')
+    .update({ value: { ...v, estado, ...(motivo ? { motivo } : {}), fechada_em: em }, updated_at: em }).eq('key', chave);
+  if (error) logger.error('dunning', `pendência do D5 não fechou (${chave})`, error);
+}
+
+/**
+ * O WhatsApp do D5 (cancelamento), pelo MESMO caminho do D1 a D4: portão (janela 9h-20h seg-sáb sem feriado, teto do frio, espaçamento, pausa humana,
+ * supressão), claim `dunning_sent:<id>:<ciclo>:5` e histórico. No máximo 1 por rodada (o portão trava a rodada depois de um envio). Fora da janela só espera.
+ * Sai da fila: enviado; a pessoa voltou a pagar (plano diferente de free ou Pix ainda valendo; o texto "foi cancelada" estaria errado); pendência com mais de 4 dias; sem WhatsApp válido; opt-out/supressão.
+ */
+async function enviarPendenciasD5(portao: PortaoDunning): Promise<void> {
+  const { data, error } = await supabase.from('system_state').select('key, value').like('key', `${PREFIXO_D5_PEND}%`);
+  if (error) { logger.error('dunning', 'ler pendências do D5 falhou', error); return; }
+  const agora = Date.now();
+  const pendencias = ((data ?? []) as Array<{ key: string; value: PendenciaD5 | null }>)
+    .filter(r => r.value && !r.value.estado)
+    .sort((a, b) => String(a.value?.em ?? '').localeCompare(String(b.value?.em ?? '')));
+
+  for (const { key, value } of pendencias) {
+    const v = value as PendenciaD5;
+    const criada = Date.parse(String(v.em ?? ''));
+    if (!Number.isFinite(criada) || agora - criada > D5_PEND_VALIDADE_MS) { await fecharPendenciaD5(key, v, 'descartado', 'velha'); continue; }
+    if (!v.user_id || !v.ciclo) { await fecharPendenciaD5(key, v, 'descartado', 'sem_dados'); continue; }
+
+    const { data: us, error: erroUser } = await supabase.from('users')
+      .select('id, email, nome, whatsapp, whatsapp_opt_out, plano, billing_status, plano_expira_em').eq('id', v.user_id).maybeSingle();
+    if (erroUser) { logger.error('dunning', `ler usuário da pendência do D5 falhou (${key})`, erroUser); continue; }
+    const user = us as (UsuarioDunning & { plano?: string | null; billing_status?: string | null; plano_expira_em?: string | null }) | null;
+    if (!user) { await fecharPendenciaD5(key, v, 'descartado', 'sem_usuario'); continue; }
+    // NÃO olha o billing_status: o cancelamento da Stripe dispara o webhook subscription.deleted, que grava 'suspended' na conta recém-rebaixada.
+    const pagou = user.plano !== 'free' || (!!user.plano_expira_em && Date.parse(user.plano_expira_em) > agora);
+    if (pagou) { await fecharPendenciaD5(key, v, 'descartado', 'voltou_a_pagar'); continue; }
+    const whatsapp = user.whatsapp || v.whatsapp || '';
+    if (whatsapp.replace(/\D/g, '').length < 10) { await fecharPendenciaD5(key, v, 'descartado', 'sem_whatsapp'); continue; }
+
+    const r = await enviarWhatsappDunning(
+      { id: user.id, email: user.email, nome: user.nome ?? v.nome ?? null, whatsapp, whatsapp_opt_out: user.whatsapp_opt_out, past_due_since: v.ciclo },
+      5, portao,
+    );
+    if (r === 'perdeu') {
+      // Outra rodada pegou o claim. Claim RECENTE = corrida de verdade: não mexe na pendência e a rodada para (o vencedor fecha, ou solta o claim).
+      // Claim ANTIGO (> 10 min) = o envio saiu mas a pendência não fechou (falha de banco, função morta nos 300 s): fecha como enviado e segue para
+      // a próxima. Nada é reenviado, o claim continua lá.
+      const { data: cl } = await supabase.from('system_state').select('value').eq('key', `dunning_sent:${v.user_id}:${v.ciclo}:5`).maybeSingle();
+      const claimEm = Date.parse(String((cl as { value?: { em?: string } } | null)?.value?.em ?? ''));
+      if (Number.isFinite(claimEm) && agora - claimEm > D5_CLAIM_ANTIGO_MS) { await fecharPendenciaD5(key, v, 'enviado', 'claim_antigo'); continue; }
+      portao.travarRodada('claim_perdido');
+      return;
+    }
+    if (r === 'segurado') continue;                                  // fora da janela, teto, espaçamento...: espera, não marca nada
+    if (r === 'enviado') await fecharPendenciaD5(key, v, 'enviado');
+    else if (r === 'falhou') await fecharPendenciaD5(key, v, 'descartado', 'envio_falhou');   // talvez saiu: o claim fica, não reenvia
+    else await fecharPendenciaD5(key, v, 'descartado', 'cortado');   // opt-out, supressão ou mudo
+  }
 }

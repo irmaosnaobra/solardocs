@@ -38,6 +38,9 @@ import { sendFrio, fmtPhone } from './agents/zapiClient';
 import { dentroDaJanelaDiurna } from './agents/whatsapp/lineThrottle';
 import { dentroDoTetoCarla, marcarEnvioCarla } from './agents/whatsapp/carlaThrottle';
 import { logger } from '../utils/logger';
+import { motivosDaSupressao, carregarMudos, TOQUES_ATE_DESISTIR } from './agents/whatsapp/silenciar';
+import { reservarChave } from './agentes5040/cota';
+import { mascararEmail } from './solardoc/ativacaoPosVendaTextos';
 
 // TOP_N e' o total ACUMULADO de convidados, nao o tamanho da rodada: quem ja'
 // recebeu fica na lista (com jaEnviado) e e' filtrado na fila. Entao abrir uma
@@ -316,19 +319,50 @@ export async function dispararPesquisaSatisfacao(): Promise<ResultadoPesquisa> {
   // antes, o pior caso é alguém ficar sem mensagem; marcado depois, o pior caso
   // é o cliente receber duas — que é justamente o que não pode acontecer aqui.
   const c = fila[0];
+  const quem = mascararEmail(c.email);
+
+  // O mesmo corte do D1 a D4 do dunning (portão da linha): supressão (opt-out, denúncia...) e mudo. Erro de leitura = na dúvida, não fala e não marca.
+  let cortada: string | null = null;
+  try {
+    const supressao = await motivosDaSupressao(c.telefone);
+    if (supressao.length) cortada = 'suprimida';
+    else if ((await carregarMudos(Math.min(3, TOQUES_ATE_DESISTIR), 60, { estrito: true }))(c.telefone as string)) cortada = 'muda';
+  } catch (err) {
+    logger.error('pesquisa-satisfacao', `leitura de supressão falhou pra ${quem}`, err);
+    return { ...base, motivo: 'leitura de supressão falhou' };
+  }
+
   const carimbo = new Date().toISOString();
-  await supabase.from('users').update({ pesquisa_sent_at: carimbo }).eq('id', c.userId);
+  // [05/11/2026, chefe-antiban] Claim ATÔMICO: o UPDATE só pega a linha se `pesquisa_sent_at` ainda é null e devolve a linha pega. Duas rodadas
+  // juntas (Vercel + GitHub Actions) leem o mesmo fila[0]; só uma recebe 1 linha de volta. Quem perdeu NÃO cai no fila[1] (dois frios colados).
+  const { data: pegou, error: erroClaim } = await supabase.from('users')
+    .update({ pesquisa_sent_at: carimbo }).eq('id', c.userId).is('pesquisa_sent_at', null).select('id');
+  if (erroClaim) {
+    logger.error('pesquisa-satisfacao', `claim falhou pra ${quem}`, erroClaim);
+    return { ...base, motivo: 'claim falhou' };
+  }
+  if (!pegou || pegou.length !== 1) return { ...base, motivo: 'outra rodada já pegou' };
+
+  // Suprimida ou muda: fica marcada (sai da fila para sempre) e nada é enviado.
+  if (cortada) {
+    logger.info('pesquisa-satisfacao', `${quem} cortada (${cortada}), sai da fila sem envio`);
+    return { ...base, restantes: fila.length - 1, motivo: `cortada: ${cortada}` };
+  }
 
   try {
-    await sendFrio(c.telefone as string, [textoPesquisa(c)], 'solardoc');
+    const saiu = await sendFrio(c.telefone as string, [textoPesquisa(c)], 'solardoc');
+    if (!saiu) {
+      // Nada saiu (o sendFrio calou por regra: portão, teto ou espaçamento): desfaz o claim, a pessoa segue na fila, e a rodada para.
+      await supabase.from('users').update({ pesquisa_sent_at: null }).eq('id', c.userId).eq('pesquisa_sent_at', carimbo);
+      return { ...base, motivo: 'sendFrio calou: claim desfeito' };
+    }
     await marcarEnvioCarla(c.userId);
-    logger.info('pesquisa-satisfacao', `enviado pra ${c.email} (${c.fonteTelefone}), restam ${fila.length - 1}`);
+    logger.info('pesquisa-satisfacao', `enviado pra ${quem} (${c.fonteTelefone}), restam ${fila.length - 1}`);
     return { ...base, enviado: c.email, restantes: fila.length - 1 };
   } catch (err) {
-    // Falhou de verdade → devolve pra fila (só se ninguém mais mexeu no carimbo).
-    await supabase.from('users').update({ pesquisa_sent_at: null })
-      .eq('id', c.userId).eq('pesquisa_sent_at', carimbo);
-    logger.error('pesquisa-satisfacao', `falha enviando pra ${c.email}`, err);
+    // Erro de envio (transporte ou número): talvez saiu. O carimbo FICA (1 por pessoa para sempre, como o dunning) e a falha é gravada.
+    await reservarChave(`pesquisa_falha:${c.userId}`, { motivo: String(err).slice(0, 200) }, new Date());
+    logger.error('pesquisa-satisfacao', `falha enviando pra ${quem}`, err);
     return { ...base, motivo: `falha no envio: ${String(err)}` };
   }
 }

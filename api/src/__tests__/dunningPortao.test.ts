@@ -55,7 +55,7 @@ vi.mock('../services/agents/whatsapp/silenciar', () => ({
 }));
 
 import { banco } from './_bancoFalso';
-import { runDunning, sendDunningDay0, textoWhatsappDunning, LINK_PIX_AUTOMATICO_DUNNING } from '../services/dunningService';
+import { runDunning, sendDunningDay0, sendDunningRecovered, textoWhatsappDunning, LINK_PIX_AUTOMATICO_DUNNING } from '../services/dunningService';
 import { dentroDoTetoHorarioLinha } from '../services/agents/whatsapp/lineThrottle';
 import { emBolhas } from '../services/agents/bolhas';
 
@@ -253,5 +253,171 @@ describe('ciclos de cobrança', () => {
     expect(chaves).toContain('dunning_sent:u1:2026-11-09:1');
     expect(chaves).toContain('dunning_sent:u1:2027-03-08:1');
     expect(chaves).toContain('dunning_sent:u1:2027-03-08:4');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// D5 (chefe-antiban, 05/11/2026): o cancelamento e o e-mail saem na hora; o WhatsApp vira pendência `dunning_d5_pend:` (gravada ANTES de o
+// past_due_since virar null) e sai pelo mesmo portão do D1 a D4 (janela 9h-20h seg-sáb), 1 por rodada, claim `dunning_sent:<id>:<ciclo>:5`.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('D5: WhatsApp pendente, pelo portão', () => {
+  const DUAS_BRT_SEGUNDA = '2026-11-09T05:00:00.000Z';   // segunda 02h de Brasília
+  const DEZ_BRT_SEGUNDA = '2026-11-09T13:00:00.000Z';    // segunda 10h de Brasília
+  const pend = () => banco.linhas('system_state').filter(r => String(r.key).startsWith('dunning_d5_pend:'));
+
+  /** Roda o D5 às 02h: cancela, manda o e-mail e deixa o WhatsApp pendente. */
+  async function d5DeMadrugada(): Promise<string> {
+    vi.setSystemTime(new Date(DUAS_BRT_SEGUNDA));
+    inadimplente({ past_due_since: H(5 * 24 + 1), dunning_last_day_sent: 4 });
+    const ciclo = String(u('u1').past_due_since).slice(0, 10);
+    await runDunning();
+    return ciclo;
+  }
+
+  it('às 02h: cancela, manda o e-mail, grava a pendência e NÃO manda WhatsApp', async () => {
+    const ciclo = await d5DeMadrugada();
+    expect(u('u1').plano).toBe('free');
+    expect(u('u1').past_due_since).toBeNull();
+    expect(u('u1').dunning_last_day_sent).toBe(5);
+    expect(h.emails).toHaveLength(1);
+    expect(h.emails[0]!.subject).toMatch(/cancelada/);
+    expect(h.frio).toHaveLength(0);
+    expect(pend().map(r => r.key)).toEqual([`dunning_d5_pend:u1:${ciclo}`]);
+    expect(pend()[0]!.value.estado).toBeUndefined();
+    expect(claims()).toHaveLength(0);
+  });
+
+  it('às 10h de segunda: manda 1 vez (texto de cancelamento, 1 bolha, claim do ciclo); a rodada seguinte não reenvia', async () => {
+    const ciclo = await d5DeMadrugada();
+    vi.setSystemTime(new Date(DEZ_BRT_SEGUNDA));
+    await runDunning();
+    expect(h.frio).toHaveLength(1);
+    expect(h.frio[0]!.partes).toHaveLength(1);
+    expect(h.frio[0]!.partes[0]).toContain('Assinatura cancelada');
+    expect(h.frio[0]!.partes[0]).not.toContain('último dia');
+    expect(h.frio[0]!.opts).toBeUndefined();
+    expect(claims().map(c => c.key)).toEqual([`dunning_sent:u1:${ciclo}:5`]);
+    expect(pend()[0]!.value.estado).toBe('enviado');
+    expect(h.proativas).toHaveLength(1);
+    expect(h.emails).toHaveLength(1);   // o e-mail do D5 não repete
+
+    vi.setSystemTime(new Date(Date.parse(DEZ_BRT_SEGUNDA) + 3_600_000));
+    await runDunning();
+    expect(h.frio).toHaveLength(1);
+  });
+
+  it('quem voltou a pagar é descartado (o texto "cancelada" estaria errado)', async () => {
+    await d5DeMadrugada();
+    u('u1').plano = 'pro';
+    vi.setSystemTime(new Date(DEZ_BRT_SEGUNDA));
+    await runDunning();
+    expect(h.frio).toHaveLength(0);
+    expect(pend()[0]!.value).toMatchObject({ estado: 'descartado', motivo: 'voltou_a_pagar' });
+  });
+
+  it('a pendência de 5 dias é descartada, sem envio', async () => {
+    await d5DeMadrugada();
+    vi.setSystemTime(new Date('2026-11-14T13:00:00.000Z'));   // sábado 10h, 5 dias depois
+    await runDunning();
+    expect(h.frio).toHaveLength(0);
+    expect(pend()[0]!.value).toMatchObject({ estado: 'descartado', motivo: 'velha' });
+  });
+
+  it('fora da janela (segunda 21h30) só espera: nada marcado, nada enviado', async () => {
+    await d5DeMadrugada();
+    vi.setSystemTime(new Date('2026-11-10T00:30:00.000Z'));   // segunda 21h30 de Brasília: fora da janela
+    await runDunning();
+    expect(h.frio).toHaveLength(0);
+    expect(pend()[0]!.value.estado).toBeUndefined();
+  });
+
+  it('domingo às 10h: sem envio, a pendência fica aberta, e na segunda 10h sai', async () => {
+    vi.setSystemTime(new Date('2026-11-07T05:00:00.000Z'));   // sábado 02h: o D5 nasce
+    inadimplente({ past_due_since: H(5 * 24 + 1), dunning_last_day_sent: 4 });
+    await runDunning();
+    vi.setSystemTime(new Date(DOMINGO_DEZ_BRT));              // domingo 10h
+    await runDunning();
+    expect(h.frio).toHaveLength(0);
+    expect(pend()[0]!.value.estado).toBeUndefined();
+    vi.setSystemTime(new Date(DEZ_BRT_SEGUNDA));              // segunda 10h, ainda dentro dos 4 dias
+    await runDunning();
+    expect(h.frio).toHaveLength(1);
+    expect(pend()[0]!.value.estado).toBe('enviado');
+  });
+
+  it('o webhook subscription.deleted grava billing_status "suspended" na conta rebaixada: a pendência NÃO é descartada e sai 1 vez', async () => {
+    await d5DeMadrugada();
+    u('u1').billing_status = 'suspended';   // o que o paymentsController faz depois do cancelamento da Stripe
+    vi.setSystemTime(new Date(DEZ_BRT_SEGUNDA));
+    await runDunning();
+    expect(h.frio).toHaveLength(1);
+    expect(pend()[0]!.value.estado).toBe('enviado');
+  });
+
+  it('duas rodadas juntas dão 1 envio só, a pendência fica "enviado" e a perdedora não manda para outra pessoa', async () => {
+    await d5DeMadrugada();
+    inadimplente({ past_due_since: H(5 * 24 + 1), dunning_last_day_sent: 4 });   // u2: segunda pendência
+    await runDunning();                                                          // 02h: u2 vira pendência também
+    expect(pend()).toHaveLength(2);
+    vi.setSystemTime(new Date(DEZ_BRT_SEGUNDA));
+    await Promise.all([runDunning(), runDunning()]);
+    expect(h.frio).toHaveLength(1);
+    expect(claims()).toHaveLength(1);
+    const estados = pend().map(r => r.value.estado);
+    expect(estados.filter(e => e === 'enviado')).toHaveLength(1);
+    expect(estados.filter(e => e === undefined)).toHaveLength(1);                // a outra espera a próxima rodada
+    expect(pend().some(r => r.value.estado === 'descartado')).toBe(false);
+  });
+
+  it('claim ANTIGO (envio saiu, a pendência não fechou): a 1ª fecha como enviado/claim_antigo, sem reenviar, e a 2ª sai', async () => {
+    const ciclo = await d5DeMadrugada();
+    inadimplente({ past_due_since: H(5 * 24 + 1), dunning_last_day_sent: 4 });
+    await runDunning();                                                         // u2 vira pendência
+    banco.poe('system_state', { key: `dunning_sent:u1:${ciclo}:5`, value: { em: new Date(Date.parse(DUAS_BRT_SEGUNDA) + 60_000).toISOString() }, updated_at: DUAS_BRT_SEGUNDA });
+    vi.setSystemTime(new Date(DEZ_BRT_SEGUNDA));                                // o claim tem 8h
+    await runDunning();
+    const p1 = pend().find(r => String(r.key).startsWith('dunning_d5_pend:u1:'))!;
+    const p2 = pend().find(r => String(r.key).startsWith('dunning_d5_pend:u2:'))!;
+    expect(p1.value).toMatchObject({ estado: 'enviado', motivo: 'claim_antigo' });
+    expect(h.frio).toHaveLength(1);
+    expect(h.frio[0]!.tel).toBe(u('u2').whatsapp);                              // nada foi reenviado ao u1
+    expect(p2.value.estado).toBe('enviado');
+  });
+
+  it('claim RECENTE (corrida de verdade): a rodada para, a pendência fica aberta e a próxima não recebe', async () => {
+    const ciclo = await d5DeMadrugada();
+    inadimplente({ past_due_since: H(5 * 24 + 1), dunning_last_day_sent: 4 });
+    await runDunning();
+    vi.setSystemTime(new Date(DEZ_BRT_SEGUNDA));
+    banco.poe('system_state', { key: `dunning_sent:u1:${ciclo}:5`, value: { em: new Date(Date.now() - 60_000).toISOString() }, updated_at: new Date().toISOString() });
+    await runDunning();
+    expect(h.frio).toHaveLength(0);
+    expect(pend().every(r => r.value.estado === undefined)).toBe(true);
+  });
+
+  it('o vencedor do claim que calou (sendFrio false) solta o claim e a pendência continua aberta', async () => {
+    await d5DeMadrugada();
+    h.frioRetorno = false;
+    vi.setSystemTime(new Date(DEZ_BRT_SEGUNDA));
+    await runDunning();
+    expect(pend()[0]!.value.estado).toBeUndefined();
+    expect(claims()).toHaveLength(0);
+    h.frioRetorno = true;
+    vi.setSystemTime(new Date(Date.parse(DEZ_BRT_SEGUNDA) + 3_600_000));
+    await runDunning();
+    expect(h.frio.filter(f => f.tel).length).toBe(2);   // 1 tentativa que calou + 1 envio
+    expect(pend()[0]!.value.estado).toBe('enviado');
+  });
+});
+
+describe('sendDunningRecovered: claim contra o reenvio do webhook do Stripe', () => {
+  it('dois webhooks iguais dão 1 WhatsApp (e a chave leva o ciclo)', async () => {
+    inadimplente({ billing_status: 'active', past_due_since: null, dunning_last_day_sent: null });
+    const { sendWhatsApp } = await import('../services/agents/zapiClient');
+    const antes = vi.mocked(sendWhatsApp).mock.calls.length;
+    await Promise.all([sendDunningRecovered('u1'), sendDunningRecovered('u1')]);
+    await sendDunningRecovered('u1');
+    expect(vi.mocked(sendWhatsApp).mock.calls.length - antes).toBe(1);
+    expect(banco.linhas('system_state').filter(r => String(r.key).startsWith('dunning_recov:u1:'))).toHaveLength(1);
   });
 });
