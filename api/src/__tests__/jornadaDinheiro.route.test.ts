@@ -279,9 +279,9 @@ beforeEach(() => {
 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-describe('sem comprovante não salva', () => {
-  it('sem `arquivo_path`, com caminho de outro card ou sem a leitura gravada: 400, e nada é gravado', async () => {
-    const sem = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(undefined));
+describe('entrada sem comprovante não salva; saída sem comprovante salva pendente', () => {
+  it('entrada sem `arquivo_path`, saída com caminho de outro card ou sem a leitura gravada: 400, e nada é gravado', async () => {
+    const sem = await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(undefined), GIOVANNA);
     expect(sem.status).toBe(400);
     expect(sem.body).toMatchObject({ error: 'comprovante_obrigatorio', mensagem: 'Sem comprovante, o lançamento não entra.' });
     iaLe(25_000);
@@ -327,29 +327,34 @@ describe('sem comprovante não salva', () => {
     expect(fins()).toEqual([]);
   });
 
-  it('o arquivo que a IA diz que não é comprovante: 409 `nao_e_comprovante`', async () => {
+  it('o arquivo que a IA diz que não é comprovante: NÃO recusa mais; salva "não conferido" com a nota da IA', async () => {
     h.ia = () => ({ ok: true, eh_comprovante: false, sugestao: { valor_centavos: null, data: null, pagador: null, recebedor: null, forma: null, id_transacao: null, descricao: null, confianca: 'baixa' } });
     const { path: p, res } = await subir('uma foto qualquer');
     expect(res.body.leitura).toBe('nao_e_comprovante');
     const l = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(p));
-    expect(l.status).toBe(409);
-    expect(l.body).toMatchObject({ error: 'nao_e_comprovante' });
-    expect(fins()).toEqual([]);
+    expect(l.status).toBe(200);
+    expect(l.body.lancamento).toMatchObject({ conferencia: 'sem_leitura', nota_ia: 'A IA não reconheceu como comprovante', sem_comprovante: false });
+    expect(gravado()[0].obra).toMatchObject({ conferencia: 'sem_leitura', nota_ia: 'A IA não reconheceu como comprovante' });
+    expect(gravado()[0].lido_pela_ia).toBeNull();
+    // Linha "não conferida": o fechamento trava até o ADM conferir.
+    expect(l.body.livro.fechamento.faltam).toContain('1 lançamento não conferido pela IA. O Thiago confere.');
   });
 });
 
 describe('a IA confere o valor no servidor', () => {
-  it('leitura 25.000 e digitado 26.000: 409 com o valor lido; a Nilce com `confirmar_valor` continua 409; o Thiago passa e fica `divergente_adm`', async () => {
+  it('leitura 25.000 e digitado 26.000: NÃO barra mais; salva `divergente` com o lido e o digitado; o Thiago com `confirmar_valor` fica `divergente_adm`', async () => {
     iaLe(25_000);
     const { path: p } = await subir('comprovante do frete');
     const dig = corpoGasto(p, { valor_centavos: 26_000 });
     const a = await post(dinheiro(SOLAR, '/lancamento'), dig);
-    expect(a.status).toBe(409);
-    expect(a.body).toMatchObject({ error: 'valor_diferente', valor_lido_centavos: 25_000, mensagem: 'O comprovante diz R$ 250,00.' });
-    const b = await post(dinheiro(SOLAR, '/lancamento'), { ...dig, confirmar_valor: true });
-    expect(b.status).toBe(409);
-    expect(b.body.error).toBe('valor_diferente');
-    expect(fins()).toEqual([]);
+    expect(a.status).toBe(200);
+    expect(a.body.lancamento).toMatchObject({ valor_centavos: 26_000, conferencia: 'divergente', divergencia: { lido_centavos: 25_000, digitado_centavos: 26_000 } });
+    // `confirmar_valor` da Nilce não vale: só o ADM libera.
+    const outro = await subir('segundo comprovante do frete');
+    const b = await post(dinheiro(SOLAR, '/lancamento'), { ...dig, id: novoId('sai'), confirmar_valor: true, confirmar_duplicado: true, arquivo_path: outro.path });
+    expect(b.status).toBe(200);
+    expect(b.body.lancamento.conferencia).toBe('divergente');
+    for (const k of fins()) h.linhas.delete(k);
     const c = await post(dinheiro(SOLAR, '/lancamento'), { ...dig, confirmar_valor: true }, THIAGO);
     expect(c.status).toBe(200);
     expect(c.body.lancamento).toMatchObject({ valor_centavos: 26_000, conferencia: 'divergente_adm' });
@@ -549,16 +554,12 @@ describe('estorno', () => {
     iaLe(1_167_000);
     const { path: p } = await subir('entrada com devolucao', { auth: GIOVANNA });
     const e = await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(p), GIOVANNA);
+    // A IA lê R$ 10,00 no comprovante da devolução: não barra (a IA nunca barra), mas guarda a divergência na linha.
     iaLe(1_000);
-    const dev = await subir('comprovante da devolucao', { auth: GIOVANNA });
-    const errado = await post(dinheiro(SOLAR, '/estorno'), { id_original: e.body.lancamento.id, motivo: 'Devolvi o Pix', devolucao: true, arquivo_path: dev.path }, GIOVANNA);
-    expect(errado.status).toBe(409);
-    expect(errado.body.error).toBe('valor_diferente');
-    iaLe(1_167_000);
-    const dev2 = await subir('comprovante da devolucao certo', { auth: GIOVANNA });
+    const dev2 = await subir('comprovante da devolucao', { auth: GIOVANNA });
     const ok = await post(dinheiro(SOLAR, '/estorno'), { id_original: e.body.lancamento.id, motivo: 'Devolvi o Pix', devolucao: true, arquivo_path: dev2.path }, GIOVANNA);
     expect(ok.status).toBe(200);
-    expect(ok.body.lancamento).toMatchObject({ devolucao: true, conferencia: 'estorno' });
+    expect(ok.body.lancamento).toMatchObject({ devolucao: true, conferencia: 'estorno', divergencia: { lido_centavos: 1_000, digitado_centavos: 1_167_000 } });
     expect(ok.body.lancamento.comprovante).not.toBeNull();
     // O mesmo comprovante de devolução não serve de novo.
     expect((await post(dinheiro(SOLAR, '/estorno'), { id_original: e.body.lancamento.id, motivo: 'Outra vez', devolucao: true, arquivo_path: dev2.path }, GIOVANNA)).status).toBe(409);
@@ -1001,10 +1002,10 @@ describe('correções do revisor (commit 1)', () => {
     const diego = await subir('o diego tambem tenta', { ler: false, auth: DIEGO });
     expect(diego.res.body.leitura).toBe('ok');
     expect(h.iaChamadas).toBe(2);
-    // Valor diferente do lido continua exigindo o ADM, mesmo com o `ler:false` no corpo.
+    // Valor diferente do lido salva `divergente` e fica para o ADM conferir, com o `ler:false` no corpo ou sem ele.
     const l = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(nilce.path, { valor_centavos: 99_000, ler: false }));
-    expect(l.status).toBe(409);
-    expect(l.body.error).toBe('valor_diferente');
+    expect(l.status).toBe(200);
+    expect(l.body.lancamento.conferencia).toBe('divergente');
     // O ADM pode pular: a leitura fica `pulada` e o lançamento salva "não conferido".
     const thiago = await subir('o thiago pula a ia', { ler: false, auth: THIAGO });
     expect(thiago.res.body.leitura).toBe('pulada');
@@ -1108,5 +1109,312 @@ describe('estrutura', () => {
       expect(imports, a).not.toMatch(/z-?api|whatsapp|instagram|mailer|resend|nodemailer|email|mensag/i);
       expect(src, a).not.toMatch(/fetch\(|sendMail|enviarMensagem|enviarWhatsapp/);
     }
+  });
+});
+
+// ── Comprovante livre (05/11/2026): saída sem comprovante, anexo depois, "Fechar sem comprovante" e a IA que nunca barra ──────────────────
+describe('comprovante livre: a saída pode ficar sem comprovante', () => {
+  const lancarSem = (extra: Record<string, unknown> = {}, auth = NILCE, card = SOLAR) => post(dinheiro(card, '/lancamento'), corpoGasto(undefined, extra), auth);
+  const faltam = async (auth = THIAGO): Promise<string[]> => (await get(dinheiro(SOLAR), auth)).body.livro.fechamento.faltam;
+
+  it('lançar gasto sem comprovante: 200, "Sem comprovante", entra no gasto e trava o fechamento; a IA nem é chamada', async () => {
+    const l = await lancarSem();
+    expect(l.status).toBe(200);
+    expect(l.body.lancamento).toMatchObject({ conferencia: 'sem_comprovante', sem_comprovante: true, comprovante: null, dispensa: null, valor_centavos: 25_000 });
+    expect(l.body.livro.gasto).toBe(25_000);
+    expect(l.body.livro.fechamento.faltam).toContain('Falta comprovante: 1 lançamento.');
+    expect(l.body.livro.fechamento).toMatchObject({ pode_fechar: false, comprovantes: { com: 0, total: 1 } });
+    expect(gravado()[0]).toMatchObject({ arquivo: null, origem: 'manual', lido_pela_ia: null, criado_por: 'nilce' });
+    expect(gravado()[0].obra.conferencia).toBe('sem_comprovante');
+    expect(gravado()[0].sig).toMatch(/^[0-9a-f]{64}$/);
+    expect(h.iaChamadas).toBe(0);
+    // A linha relida do banco tem a assinatura válida: nada ficou de fora da conta.
+    const g = await get(dinheiro(SOLAR), THIAGO);
+    expect(g.body.livro.ignoradas).toBe(0);
+    expect(g.body.livro.linhas).toHaveLength(1);
+    // O criador pode anexar depois, o ADM também pode fechar sem comprovante; a Nilce não.
+    const dela = await get(dinheiro(SOLAR), NILCE);
+    expect(dela.body.pode.anexar_ids).toEqual([l.body.lancamento.id]);
+    expect(dela.body.pode.dispensar_ids).toEqual([]);
+    expect(g.body.pode.dispensar_ids).toEqual([l.body.lancamento.id]);
+  });
+
+  it('o mesmo pedido de novo (toque duplo) devolve o que existe; mesmo valor e data em outro id pede confirmação', async () => {
+    const corpo = corpoGasto(undefined);
+    expect((await post(dinheiro(SOLAR, '/lancamento'), corpo)).status).toBe(200);
+    expect((await post(dinheiro(SOLAR, '/lancamento'), corpo)).status).toBe(200);
+    expect(fins()).toHaveLength(1);
+    const igual = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(undefined));
+    expect(igual.status).toBe(409);
+    expect(igual.body.error).toBe('possivel_duplicado');
+    expect((await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(undefined, { confirmar_duplicado: true }))).status).toBe(200);
+    expect(fins()).toHaveLength(2);
+  });
+
+  it('entrada continua exigindo comprovante; caminho inventado numa saída continua 400', async () => {
+    const e = await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(undefined), GIOVANNA);
+    expect(e.status).toBe(400);
+    expect(e.body.error).toBe('comprovante_obrigatorio');
+    const s = await lancarSem({ arquivo_path: `fin/${SOLAR}/202611/3f2504e0-4f89-41d3-9a0c-0305e82c3301.pdf` });
+    expect(s.status).toBe(400);
+    expect(s.body.error).toBe('comprovante_nao_encontrado');
+    expect(fins()).toEqual([]);
+  });
+
+  it('comissão e retirada também podem ser pagas sem comprovante; a retirada só aparece para quem a vê', async () => {
+    iaLe(1_167_000);
+    const { path: pe } = await subir('entrada para liberar a comissao', { auth: GIOVANNA });
+    expect((await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(pe), GIOVANNA)).status).toBe(200);
+    const venda5 = await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'nilce', papel: 'venda', data: '2026-10-02', forma: 'pix' }, GIOVANNA);
+    expect(venda5.status).toBe(200);
+    expect(venda5.body.lancamento).toMatchObject({ sem_comprovante: true, conferencia: 'sem_comprovante' });
+    const socio = await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'thiago', papel: 'socio', data: '2026-10-02', forma: 'pix' }, GIOVANNA);
+    expect(socio.status).toBe(200);
+    expect(socio.body.livro.fechamento.faltam).toContain('Falta comprovante: 2 lançamentos.');
+    // A Nilce não vê a retirada: para ela falta 1 só, e nenhum campo deixa deduzir a outra.
+    const nilce = await get(dinheiro(SOLAR), NILCE);
+    expect(nilce.body.livro.fechamento.faltam).toContain('Falta comprovante: 1 lançamento.');
+    expect(nilce.body.livro.retirada).toBeUndefined();
+    expect(nilce.body.livro.linhas.every((x: any) => x.grupo !== 'retirada')).toBe(true);
+    expect(nilce.body.livro.fechamento.comprovantes).toEqual({ com: 1, total: 2 });
+  });
+
+  describe('anexar depois', () => {
+    it('a IA lê e confere, a linha ganha o arquivo e a alteração assinada; criou_por e valor não mudam', async () => {
+      const l = await lancarSem();
+      const id = l.body.lancamento.id as string;
+      iaLe(25_000);
+      const { path: p } = await subir('o comprovante que veio depois');
+      const a = await post(dinheiro(SOLAR, '/anexar'), { id, arquivo_path: p });
+      expect(a.status).toBe(200);
+      expect(a.body.lancamento).toMatchObject({ id, conferencia: 'bateu', sem_comprovante: false, valor_centavos: 25_000, criado_por: 'nilce' });
+      expect(a.body.lancamento.comprovante).not.toBeNull();
+      expect(a.body.livro.fechamento.faltam).not.toContain('Falta comprovante: 1 lançamento.');
+      expect(a.body.livro.fechamento.comprovantes).toEqual({ com: 1, total: 1 });
+      const g = gravado()[0];
+      expect(g.arquivo).toMatchObject({ path: p, tipo: 'application/pdf' });
+      expect(g.origem).toBe('ia');
+      expect(g.lido_pela_ia).toMatchObject({ valor_centavos: 25_000 });
+      expect(g.alteracoes).toEqual([{ em: AGORA, por: 'nilce', de: 'sem_comprovante', para: 'anexado' }]);
+      expect(g.criado_por).toBe('nilce');
+      expect(a.body.livro.ignoradas).toBe(0);
+      // Já tem comprovante: não anexa outro por cima.
+      const outro = await subir('um segundo arquivo');
+      const dois = await post(dinheiro(SOLAR, '/anexar'), { id, arquivo_path: outro.path });
+      expect(dois.status).toBe(409);
+      expect(dois.body.error).toBe('ja_tem_comprovante');
+    });
+
+    it('valor lido diferente: anexa como `divergente` (a linha mantém o valor) e o fechamento trava até o ADM conferir', async () => {
+      const l = await lancarSem();
+      iaLe(30_000);
+      const { path: p } = await subir('comprovante de outro valor');
+      const a = await post(dinheiro(SOLAR, '/anexar'), { id: l.body.lancamento.id, arquivo_path: p });
+      expect(a.status).toBe(200);
+      expect(a.body.lancamento).toMatchObject({ conferencia: 'divergente', valor_centavos: 25_000, divergencia: { lido_centavos: 30_000, digitado_centavos: 25_000 } });
+      expect(await faltam()).toContain('1 lançamento não conferido pela IA. O Thiago confere.');
+      const ok = await post(dinheiro(SOLAR, '/conferir'), { id: l.body.lancamento.id }, THIAGO);
+      expect(ok.status).toBe(200);
+      expect(ok.body.lancamento.conferencia).toBe('conferido_adm');
+      expect((await faltam()).join('|')).not.toContain('não conferido');
+      expect(gravado()[0].alteracoes.map((x: any) => x.para)).toEqual(['anexado', 'conferido_adm']);
+    });
+
+    it('IA fora e "não é comprovante" não barram o anexo: ficam "não conferido", este com a nota da IA', async () => {
+      const a = await lancarSem();
+      h.ia = () => ({ ok: false, motivo: 'falhou' });
+      const p1 = await subir('leitura que falhou');
+      const r1 = await post(dinheiro(SOLAR, '/anexar'), { id: a.body.lancamento.id, arquivo_path: p1.path });
+      expect(r1.status).toBe(200);
+      expect(r1.body.lancamento).toMatchObject({ conferencia: 'sem_leitura', nota_ia: '' });
+      const b = await lancarSem({ valor_centavos: 31_000 });
+      h.ia = () => ({ ok: true, eh_comprovante: false, sugestao: { valor_centavos: null, data: null, pagador: null, recebedor: null, forma: null, id_transacao: null, descricao: null, confianca: 'baixa' } });
+      const p2 = await subir('foto que nao e comprovante');
+      const r2 = await post(dinheiro(SOLAR, '/anexar'), { id: b.body.lancamento.id, arquivo_path: p2.path });
+      expect(r2.status).toBe(200);
+      expect(r2.body.lancamento).toMatchObject({ conferencia: 'sem_leitura', nota_ia: 'A IA não reconheceu como comprovante' });
+    });
+
+    it('o repetido continua recusado: mesmo arquivo em outra linha, na mesma obra ou em outra', async () => {
+      const a = await lancarSem();
+      const b = await lancarSem({ valor_centavos: 31_000 });
+      iaLe(25_000);
+      const { path: p } = await subir('o arquivo que só vale uma vez');
+      expect((await post(dinheiro(SOLAR, '/anexar'), { id: a.body.lancamento.id, arquivo_path: p })).status).toBe(200);
+      // O mesmo arquivo na outra linha sem comprovante: o sha256 já está vivo na linha A.
+      iaLe(31_000);
+      const mesmo = Buffer.from(h.bucket.get(p)!);
+      const sobe2 = await post(dinheiro(SOLAR, '/comprovante'), { base64: mesmo.toString('base64'), media_type: 'application/pdf', nome: 'repetido.pdf' });
+      expect(sobe2.body.repetido).toEqual({ onde: 'esta obra' });
+      const rep = await post(dinheiro(SOLAR, '/anexar'), { id: b.body.lancamento.id, arquivo_path: sobe2.body.arquivo.path });
+      expect(rep.status).toBe(409);
+      expect(rep.body).toMatchObject({ error: 'comprovante_repetido', onde: 'esta obra' });
+      expect(gravado().find((x) => x.id === b.body.lancamento.id)!.arquivo).toBeNull();
+      // Comprovante já usado em OUTRA obra (a da Carla, #0062) também é recusado, sem dizer de quem é.
+      iaLe(25_000);
+      const alheio = await subir('comprovante da obra alheia', { card: ALHEIA, auth: THIAGO });
+      expect((await post(dinheiro(ALHEIA, '/lancamento'), corpoGasto(alheio.path), THIAGO)).status).toBe(200);
+      const c = await lancarSem({ valor_centavos: 47_000 });
+      const bytes = Buffer.from(h.bucket.get(alheio.path)!);
+      const sobe3 = await post(dinheiro(SOLAR, '/comprovante'), { base64: bytes.toString('base64'), media_type: 'application/pdf', nome: 'dela.pdf' }, THIAGO);
+      const rep2 = await post(dinheiro(SOLAR, '/anexar'), { id: c.body.lancamento.id, arquivo_path: sobe3.body.arquivo.path }, THIAGO);
+      expect(rep2.status).toBe(409);
+      expect(rep2.body.error).toBe('comprovante_repetido');
+      expect(JSON.stringify(rep2.body)).not.toContain('Carla');
+    });
+
+    it('quem pode: o criador e o ADM; outro consultor, não. Entrada, estorno, estornada, nota e conta fechada não aceitam', async () => {
+      const l = await lancarSem();
+      const id = l.body.lancamento.id as string;
+      iaLe(25_000);
+      const { path: p } = await subir('arquivo do anexo', { auth: DIEGO });
+      expect((await post(dinheiro(SOLAR, '/anexar'), { id, arquivo_path: p }, DIEGO)).status).toBe(403);
+      expect((await post(dinheiro(SOLAR, '/anexar'), { id: 'nao-existe-001', arquivo_path: p })).status).toBe(404);
+      expect((await post(dinheiro(SOLAR, '/anexar'), { id })).status).toBe(400);
+      // Nota fiscal não paga.
+      const nota = await subir('uma nota fiscal', { doc: 'nota', ler: false, auth: THIAGO });
+      const n = await post(dinheiro(SOLAR, '/anexar'), { id, arquivo_path: nota.path }, THIAGO);
+      expect(n.status).toBe(400);
+      expect(n.body.error).toBe('e_nota');
+      // Entrada nunca fica sem comprovante, então não há o que anexar.
+      iaLe(1_167_000);
+      const pe = await subir('entrada', { auth: GIOVANNA });
+      const ent = await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(pe.path), GIOVANNA);
+      iaLe(1_167_000);
+      const p3 = await subir('outro arquivo da entrada', { auth: GIOVANNA });
+      expect((await post(dinheiro(SOLAR, '/anexar'), { id: ent.body.lancamento.id, arquivo_path: p3.path }, GIOVANNA)).status).toBe(409);
+      // Linha estornada não recebe.
+      expect((await post(dinheiro(SOLAR, '/estorno'), { id_original: id, motivo: 'Lancei errado' })).status).toBe(200);
+      iaLe(25_000);
+      const p4 = await subir('anexo na estornada');
+      const est = await post(dinheiro(SOLAR, '/anexar'), { id, arquivo_path: p4.path });
+      expect(est.status).toBe(409);
+      expect(est.body.error).toBe('nada_a_anexar');
+      // O ADM anexa em linha de outra pessoa; conta fechada trava.
+      const m = await lancarSem({ valor_centavos: 12_300 }, DIEGO);
+      iaLe(12_300);
+      const p5 = await subir('anexo do thiago', { auth: THIAGO });
+      fechar(SOLAR);
+      expect((await post(dinheiro(SOLAR, '/anexar'), { id: m.body.lancamento.id, arquivo_path: p5.path }, THIAGO)).status).toBe(409);
+    });
+
+    it('o ADM anexa o comprovante de linha lançada por outra pessoa', async () => {
+      const m = await lancarSem({ valor_centavos: 12_300 }, DIEGO);
+      iaLe(12_300);
+      const p = await subir('anexo do thiago', { auth: THIAGO });
+      const ok = await post(dinheiro(SOLAR, '/anexar'), { id: m.body.lancamento.id, arquivo_path: p.path }, THIAGO);
+      expect(ok.status).toBe(200);
+      expect(gravado()[0]).toMatchObject({ criado_por: 'diego' });
+      expect(gravado()[0].alteracoes).toEqual([{ em: AGORA, por: 'thiago', de: 'sem_comprovante', para: 'anexado' }]);
+    });
+  });
+
+  describe('Fechar sem comprovante (só o ADM, com motivo)', () => {
+    it('só o ADM; motivo de 3 a 300 caracteres; grava em `alteracoes`, reassina e libera o fechamento daquela linha', async () => {
+      const l = await lancarSem();
+      const id = l.body.lancamento.id as string;
+      for (const quem of [NILCE, DIEGO, GIOVANNA]) expect((await post(dinheiro(SOLAR, '/dispensar'), { id, motivo: 'Pagou em dinheiro vivo' }, quem)).status).toBe(403);
+      expect((await post(dinheiro(SOLAR, '/dispensar'), { id }, THIAGO)).status).toBe(400);
+      expect((await post(dinheiro(SOLAR, '/dispensar'), { id, motivo: 'ab' }, THIAGO)).status).toBe(400);
+      expect((await post(dinheiro(SOLAR, '/dispensar'), { id, motivo: 'x'.repeat(301) }, THIAGO)).status).toBe(400);
+      expect(gravado()[0].obra.dispensa).toBeUndefined();
+      const ok = await post(dinheiro(SOLAR, '/dispensar'), { id, motivo: 'Pagou em dinheiro, sem recibo' }, THIAGO);
+      expect(ok.status).toBe(200);
+      expect(ok.body.lancamento).toMatchObject({ sem_comprovante: false, dispensa: { por: 'thiago', motivo: 'Pagou em dinheiro, sem recibo' } });
+      expect(ok.body.livro.fechamento.faltam).not.toContain('Falta comprovante: 1 lançamento.');
+      expect(ok.body.livro.fechamento.comprovantes).toEqual({ com: 1, total: 1 });
+      expect(ok.body.livro.ignoradas).toBe(0);
+      const g = gravado()[0];
+      expect(g.alteracoes).toEqual([{ em: AGORA, por: 'thiago', de: 'sem_comprovante', para: 'dispensado', motivo: 'Pagou em dinheiro, sem recibo' }]);
+      expect(g.obra.dispensa).toEqual({ em: AGORA, por: 'thiago', motivo: 'Pagou em dinheiro, sem recibo' });
+      expect(g.sig).toMatch(/^[0-9a-f]{64}$/);
+      // Não há segunda dispensa, e a fila deixa de cobrar.
+      expect((await post(dinheiro(SOLAR, '/dispensar'), { id, motivo: 'De novo' }, THIAGO)).status).toBe(409);
+    });
+
+    it('linha com arquivo não se dispensa; conta fechada não aceita; `conferir` recusa linha sem comprovante', async () => {
+      const com = await gastar('linha com arquivo');
+      expect((await post(dinheiro(SOLAR, '/dispensar'), { id: com.body.lancamento.id, motivo: 'Sem necessidade' }, THIAGO)).status).toBe(409);
+      const sem = await lancarSem({ valor_centavos: 9_900 });
+      const c = await post(dinheiro(SOLAR, '/conferir'), { id: sem.body.lancamento.id }, THIAGO);
+      expect(c.status).toBe(409);
+      expect(c.body.error).toBe('sem_comprovante');
+      fechar(SOLAR);
+      expect((await post(dinheiro(SOLAR, '/dispensar'), { id: sem.body.lancamento.id, motivo: 'Depois de fechar' }, THIAGO)).status).toBe(409);
+    });
+
+    it('a linha estornada sem comprovante não trava o fechamento', async () => {
+      const l = await lancarSem();
+      expect((await faltam()).some((t) => t.startsWith('Falta comprovante'))).toBe(true);
+      expect((await post(dinheiro(SOLAR, '/estorno'), { id_original: l.body.lancamento.id, motivo: 'Lancei na obra errada' })).status).toBe(200);
+      const f = await faltam();
+      expect(f.some((t) => t.startsWith('Falta comprovante'))).toBe(false);
+    });
+  });
+
+  describe('a IA lê de todo jeito e nunca barra', () => {
+    it('o servidor pede duas leituras e manda as categorias da lista (nunca a de comissão, retirada ou prêmio)', async () => {
+      const { lerComprovante } = await import('../services/gerador/financeiroLeitura');
+      iaLe(25_000, { tipo: 'pix', categoria_sugerida: 'frete', pagador_documento: '***1234', recebedor_documento: '***0190', descricao: 'Frete da carga' });
+      const { res, path: p } = await subir('pedido com reforco');
+      const chamada = vi.mocked(lerComprovante).mock.calls[vi.mocked(lerComprovante).mock.calls.length - 1][0] as { reforco?: boolean; categorias?: Array<{ slug: string }> };
+      expect(chamada.reforco).toBe(true);
+      const slugs = (chamada.categorias ?? []).map((c) => c.slug);
+      expect(slugs).toContain('frete');
+      for (const fora of ['comissao_venda', 'retirada_socio', 'premio_indicacao', 'entrada']) expect(slugs).not.toContain(fora);
+      // O que a IA entendeu vai na resposta, e fica gravado ao lado do arquivo.
+      expect(res.body.sugestao).toMatchObject({ tipo: 'pix', categoria_sugerida: 'frete', pagador_documento: '***1234', recebedor_documento: '***0190', descricao: 'Frete da carga' });
+      expect(JSON.parse(h.bucket.get(`${p}.ia.json`)!.toString('utf8')).sugestao).toMatchObject({ tipo: 'pix', categoria_sugerida: 'frete', recebedor_documento: '***0190' });
+      // Para recebimento, as categorias são as de entrada.
+      await post(dinheiro(SOLAR, '/comprovante'), { base64: PDF('para entrada').toString('base64'), media_type: 'application/pdf', tipo: 'entrada' }, GIOVANNA);
+      const ent = vi.mocked(lerComprovante).mock.calls[vi.mocked(lerComprovante).mock.calls.length - 1][0] as { categorias?: Array<{ slug: string }> };
+      expect((ent.categorias ?? []).map((c) => c.slug)).toEqual(expect.arrayContaining(['entrada', 'parcela']));
+    });
+
+    it('a pessoa escolhe qual vale: o valor do corpo e o `valor_digitado_centavos`; nos dois casos fica `divergente` para o ADM', async () => {
+      iaLe(25_000);
+      const a = await subir('escolheu o valor da IA');
+      // Escolheu o que a IA leu (25.000), digitando 26.000 antes.
+      const x = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(a.path, { valor_centavos: 25_000, valor_digitado_centavos: 26_000 }));
+      expect(x.status).toBe(200);
+      expect(x.body.lancamento).toMatchObject({ valor_centavos: 25_000, conferencia: 'divergente', divergencia: { lido_centavos: 25_000, digitado_centavos: 26_000 } });
+      expect(x.body.livro.gasto).toBe(25_000);
+      // Manteve o que digitou (26.000).
+      const b = await subir('manteve o valor digitado');
+      const y = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(b.path, { valor_centavos: 26_000, valor_digitado_centavos: 26_000, data: '2026-11-03' }));
+      expect(y.status).toBe(200);
+      expect(y.body.lancamento).toMatchObject({ valor_centavos: 26_000, conferencia: 'divergente', divergencia: { lido_centavos: 25_000, digitado_centavos: 26_000 } });
+      // Dois divergentes: o fechamento fala em 2 e só o ADM zera, um por vez.
+      expect(y.body.livro.fechamento.faltam).toContain('2 lançamentos não conferidos pela IA. O Thiago confere.');
+      expect(y.body.livro.fechamento.pode_fechar).toBe(false);
+      expect((await post(dinheiro(SOLAR, '/conferir'), { id: x.body.lancamento.id }, DIEGO)).status).toBe(403);
+      expect((await post(dinheiro(SOLAR, '/conferir'), { id: x.body.lancamento.id }, THIAGO)).status).toBe(200);
+      const fim = await post(dinheiro(SOLAR, '/conferir'), { id: y.body.lancamento.id }, THIAGO);
+      expect(fim.status).toBe(200);
+      expect(fim.body.livro.fechamento.faltam.join('|')).not.toContain('não conferido');
+    });
+
+    it('IA baixa confiança, sem valor ou fora do ar: salva "não conferido", nunca recusa', async () => {
+      h.ia = () => ({ ok: true, eh_comprovante: true, sugestao: { valor_centavos: 25_000, data: null, pagador: null, recebedor: null, forma: null, id_transacao: null, descricao: null, confianca: 'baixa' } });
+      const a = await subir('leitura fraca');
+      const x = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(a.path, { valor_centavos: 99_000 }));
+      expect(x.status).toBe(200);
+      expect(x.body.lancamento).toMatchObject({ conferencia: 'baixa_confianca', divergencia: null });
+      iaLe(null);
+      const b = await subir('leitura sem valor');
+      const y = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(b.path, { valor_centavos: 12_000 }));
+      expect(y.status).toBe(200);
+      expect(y.body.lancamento.conferencia).toBe('sem_leitura');
+    });
+
+    it('a fila e o fechamento da etapa 8 seguem a mesma conta: sem comprovante e divergente entram em `faltam`', async () => {
+      await lancarSem();
+      iaLe(25_000);
+      const a = await subir('divergente');
+      await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(a.path, { valor_centavos: 99_000 }));
+      const f = (await get(dinheiro(SOLAR), THIAGO)).body.livro.fechamento;
+      expect(f.faltam).toEqual(expect.arrayContaining(['Falta comprovante: 1 lançamento.', '1 lançamento não conferido pela IA. O Thiago confere.']));
+      expect(f).toMatchObject({ pode_fechar: false, pode_fechar_sem_material: false });
+    });
   });
 });

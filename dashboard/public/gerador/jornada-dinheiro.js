@@ -1,4 +1,6 @@
 /* Jornada da obra, fase 2 (06/11/2026): o dinheiro da obra solar. A faixa, o livro, o lançar gasto, as comissões e os Ajustes.
+ * 05/11/2026 (regra do dono): gasto, comissão e retirada podem ser lançados SEM comprovante (a linha fica "Sem comprovante" e pendente) e o
+ * comprovante se anexa depois; a IA lê de todo jeito e nunca barra; recebimento continua exigindo comprovante.
  * Script clássico, um IIFE. Pega os ajudantes de window.Jornada.h na hora da chamada e registra window.Jornada.dinheiro.
  * Todo número em reais vem pronto do servidor (livro, fechamento). Aqui só se desenha: nada de sobra, margem ou saldo calculado no navegador.
  * Cor só por var(--n-*) e var(--io-*), com a mesma reserva escura do jornada.js. Sem emoji, sem exclamação, sem travessão. */
@@ -18,11 +20,12 @@
   ];
   var GRUPOS = [['comissao_venda', 'Comissão de venda'], ['homologacao', 'Homologação (ART e projeto)'], ['material', 'Material'], ['frete', 'Frete'], ['mao_de_obra', 'Mão de obra'], ['outros', 'Outros']];
   var REGRAS = [
-    'Nada entra sem comprovante: Salvar só acende com o Anexo.',
-    'A IA lê o comprovante (valor, data, quem recebeu, ID do Pix). Valor digitado diferente do comprovante não salva: "O comprovante diz R$ 250,00."',
+    'Gasto, comissão e retirada podem ser lançados sem comprovante. A linha fica "Sem comprovante" e pendente até anexar. Recebimento só entra com comprovante.',
+    'A IA lê o comprovante (tipo, valor, data, quem pagou, quem recebeu, ID do Pix) e nunca barra o lançamento. Valor lido diferente do digitado: você escolhe qual vale e a linha fica "Divergente" para o Thiago conferir.',
     'Comprovante repetido é recusado, mesmo em outra obra. Nota fiscal também: a chave de 44 dígitos impede a mesma nota duas vezes.',
     'Lançamento não se apaga. Errou, faz estorno com motivo. Os dois ficam no histórico.',
-    'A receber e a pagar são cobrados até zerar. A obra só fecha com os dois em zero.',
+    'A receber e a pagar são cobrados até zerar. A obra só fecha com os dois em zero e sem linha sem comprovante.',
+    'O Thiago pode fechar uma linha sem comprovante, com motivo registrado. Sem isso, o fechamento espera o anexo.',
     'Fechada, a conta trava. Só o Thiago reabre, com motivo registrado.',
     'A faixa e o livro do dinheiro da obra são abertos a todos que veem a obra. Só o Thiago vê a sobra, a margem, a comissão dos sócios e o que fica na empresa.',
     'A IA lê PDF, foto e print da nota, do comprovante ou do pedido, e só sugere. Quem lança confere.',
@@ -62,6 +65,27 @@
   function nomeEtapa(n) {
     var d = O().dados; var e = d && d.etapas && d.etapas[n - 1];
     return e ? e.nome : '';
+  }
+
+  var TIPOS_LIDOS = { pix: 'Pix', ted: 'TED', boleto: 'Boleto', cartao: 'Cartão', dinheiro: 'Dinheiro', recibo: 'Recibo', nota_fiscal: 'Nota fiscal', cupom: 'Cupom' };
+  var FORMA_DO_TIPO = { pix: 'pix', ted: 'transferencia', boleto: 'boleto', cartao: 'cartao', dinheiro: 'dinheiro' };
+  var MSG_HEIC = 'Tire um print ou mande a foto em JPG.';
+  /** O texto de um erro de arquivo (as rejeições de `prepararArquivo`). */
+  function msgArquivo(e) {
+    var m = e && e.message;
+    if (m === 'grande') return 'O arquivo passa de 10 MB.';
+    if (m === 'heic') return MSG_HEIC;
+    return 'Não consegui ler o arquivo. Tente de novo.';
+  }
+  /** O que a IA entendeu do comprovante, numa linha só para a pessoa conferir. */
+  function resumoDaIa(s) {
+    var h = H(); if (!s) return '';
+    var p = [];
+    var tipo = TIPOS_LIDOS[s.tipo] || '';
+    if (tipo || s.valor_centavos) p.push('A IA leu' + (tipo ? ' ' + tipo : '') + (s.valor_centavos ? ' de ' + h.reais(s.valor_centavos) : '') + (s.data ? ' em ' + h.ddmm(s.data) : '') + '.');
+    if (s.pagador) p.push('Pagou: ' + s.pagador + (s.pagador_documento ? ' (' + s.pagador_documento + ')' : '') + '.');
+    if (s.recebedor) p.push('Recebeu: ' + s.recebedor + (s.recebedor_documento ? ' (' + s.recebedor_documento + ')' : '') + '.');
+    return p.join(' ');
   }
 
   function injetarCss() {
@@ -166,24 +190,123 @@
     r.appendChild(m);
     return r;
   }
-  /** A conferência do valor: a IA conferiu, o ADM conferiu, ou falta conferir (só o ADM tem o botão Conferi). */
+  /**
+   * A etiqueta da linha: Conferido, Sem comprovante, Não conferido ou Divergente. Mais os botões: Conferi (só o ADM), Anexar comprovante
+   * (quem pode anexar) e Fechar sem comprovante (só o ADM). Cor só pelas classes ok, av e er, que usam os tokens dos dois visuais.
+   */
   function chipsConferencia(m, l, din) {
     var h = H();
-    if (l.conferencia === 'sem_leitura' || l.conferencia === 'baixa_confianca') {
-      m.appendChild(h.el('span', 'jor-din-chip av', 'Valor não conferido pela IA'));
-      if (l.estornada || l.estorno_de) return;
-      if (eAdm() && !(din && din.pode && din.pode.fechada)) {
-        m.appendChild(h.btn('Conferi', 'jor-btn-link', function () {
-          h.api('/gerador/jornada-solar/obra/' + encodeURIComponent(O().card) + '/dinheiro/conferir', 'POST', { id: l.id }, 30000).then(function (r) {
-            if (r.status === 200 && r.json.ok !== false) { h.toast('Lançamento conferido.'); h.recarregar(); } else h.toast(msgSrv(r, 'Não consegui marcar agora.'));
-          });
-        }));
-      } else m.appendChild(h.el('span', 'jor-din-chip er', 'Falta conferir'));
+    var c = l.conferencia;
+    var pode = (din && din.pode) || {};
+    var morta = !!(l.estornada || l.estorno_de);
+    if (c === 'bateu') m.appendChild(h.el('span', 'jor-din-chip ok', 'Conferido'));
+    if (c === 'conferido_adm') m.appendChild(h.el('span', 'jor-din-chip ok', 'Conferido pelo Thiago'));
+    if (c === 'divergente_adm') m.appendChild(h.el('span', 'jor-din-chip av', 'Valor liberado pelo Thiago'));
+    if (c === 'sem_leitura' || c === 'baixa_confianca' || c === 'divergente') {
+      m.appendChild(h.el('span', 'jor-din-chip ' + (c === 'divergente' ? 'er' : 'av'), c === 'divergente' ? 'Divergente' : 'Não conferido'));
+      if (c === 'divergente' && l.divergencia) m.appendChild(h.el('span', '', 'A IA leu ' + h.reais(l.divergencia.lido_centavos) + '. Você digitou ' + h.reais(l.divergencia.digitado_centavos) + '.'));
+      if (l.nota_ia) m.appendChild(h.el('span', '', l.nota_ia + '.'));
+      if (!morta) {
+        if (eAdm() && !pode.fechada) {
+          m.appendChild(h.btn('Conferi', 'jor-btn-link', function () {
+            h.api('/gerador/jornada-solar/obra/' + encodeURIComponent(O().card) + '/dinheiro/conferir', 'POST', { id: l.id }, 30000).then(function (r) {
+              if (r.status === 200 && r.json.ok !== false) { h.toast('Lançamento conferido.'); h.recarregar(); } else h.toast(msgSrv(r, 'Não consegui marcar agora.'));
+            });
+          }));
+        } else m.appendChild(h.el('span', 'jor-din-chip er', 'Falta conferir'));
+      }
     }
-    if (l.conferencia === 'conferido_adm') m.appendChild(h.el('span', 'jor-din-chip ok', 'Conferido pelo Thiago'));
-    if (l.conferencia === 'divergente_adm') m.appendChild(h.el('span', 'jor-din-chip av', 'Valor liberado pelo Thiago'));
+    if (c === 'estorno' && l.divergencia) m.appendChild(h.el('span', '', 'A IA leu ' + h.reais(l.divergencia.lido_centavos) + ' no comprovante da devolução.'));
+    if (c === 'sem_comprovante') {
+      m.appendChild(h.el('span', 'jor-din-chip ' + (l.dispensa ? 'ok' : 'av'), 'Sem comprovante'));
+      if (l.dispensa) m.appendChild(h.el('span', '', 'Liberado pelo ' + h.nomeBonito(l.dispensa.por) + '. Motivo: ' + l.dispensa.motivo));
+    }
+    if (!l.comprovante && !morta && (pode.anexar_ids || []).indexOf(l.id) >= 0) {
+      m.appendChild(h.btn('Anexar comprovante', 'jor-btn-link', function () { anexarDialogo(l); }));
+    }
+    if (l.sem_comprovante && (pode.dispensar_ids || []).indexOf(l.id) >= 0) {
+      m.appendChild(h.btn('Fechar sem comprovante', 'jor-btn-link', function () { dispensarDialogo(l); }));
+    }
   }
   function formaTxt(f) { var x = FORMAS.filter(function (y) { return y[0] === f; })[0]; return x ? x[1] : (f ? String(f) : ''); }
+
+  /** "Fechar sem comprovante": só o ADM, com motivo de 3 a 300 caracteres. A linha deixa de travar o fechamento e a mudança fica assinada. */
+  function dispensarDialogo(l) {
+    var h = H();
+    h.dialogoMotivo('Fechar sem comprovante', 'Fechar sem comprovante', function (motivo) {
+      return h.api('/gerador/jornada-solar/obra/' + encodeURIComponent(O().card) + '/dinheiro/dispensar', 'POST', { id: l.id, motivo: motivo }, 30000).then(function (r) {
+        if (r.status === 200 && r.json.ok !== false) { h.toast('A linha foi liberada sem comprovante.'); h.recarregar(); return { ok: true }; }
+        return { ok: false, erro: msgSrv(r, 'Não consegui liberar agora.') };
+      });
+    });
+  }
+
+  /** "Anexar comprovante" numa saída que ficou sem ele: sobe, a IA lê, e o servidor prende o arquivo à linha (sem estorno). */
+  function anexarDialogo(l) {
+    injetarCss(); var h = H();
+    var est = { arq: null, sug: null, ler: '', enviando: false, salvando: false, travado: false, erro: '', aviso: '', dup: null, confirmarDup: false };
+    var refs = {}; var ctl = {};
+    function refresh() {
+      if (!ctl.salvar) return;
+      ctl.salvar.disabled = !est.arq || est.enviando || est.salvando || est.travado;
+      refs.estado.textContent = est.enviando ? 'Lendo o comprovante…' : (est.arq ? 'Anexado: ' + est.arq.nome : 'Escolha o comprovante.');
+      refs.estado.className = 'jor-est' + (est.arq && !est.enviando ? ' ok' : '');
+      refs.leu.textContent = est.sug ? resumoDaIa(est.sug) : '';
+      refs.erro.textContent = est.erro || '';
+      refs.aviso.textContent = est.aviso || '';
+      refs.extra.replaceChildren();
+      if (est.dup) {
+        var ul = h.el('ul', 'jor-din-ul');
+        (est.dup.lista || []).forEach(function (d) { ul.appendChild(h.el('li', '', d.valor_centavos ? h.reais(d.valor_centavos) + ' · ' + h.ddmm(d.data) + (d.onde ? ' · ' + d.onde : '') : String(d.onde || 'outra obra'))); });
+        refs.extra.appendChild(ul);
+        refs.extra.appendChild(h.btn('Anexar assim mesmo', '', function () { est.confirmarDup = true; enviar(); }));
+      }
+    }
+    function aoAnexar(file) {
+      est.erro = ''; est.aviso = ''; est.travado = false; est.dup = null; est.enviando = true; est.arq = null; est.sug = null; est.ler = ''; refresh();
+      prepararArquivo(file).then(function (a) {
+        return h.api('/gerador/jornada-solar/obra/' + encodeURIComponent(O().card) + '/dinheiro/comprovante', 'POST', { base64: a.base64, media_type: a.media_type, nome: a.nome, ler: true, doc: 'comprovante', tipo: 'saida' }, 90000);
+      }).then(function (r) {
+        est.enviando = false;
+        if (r.status === 200 && r.json.ok !== false && r.json.arquivo) {
+          est.arq = r.json.arquivo; est.ler = r.json.leitura || ''; est.sug = r.json.sugestao || null;
+          if (r.json.repetido) { est.travado = true; est.erro = 'Este comprovante já foi lançado ' + ondeTxt(r.json.repetido.onde) + '.'; }
+          else if (est.ler === 'nao_e_comprovante') est.aviso = 'A IA não reconheceu como comprovante. Você pode anexar, e o Thiago confere.';
+          else if (est.sug && est.sug.valor_centavos && (est.sug.confianca === 'alta' || est.sug.confianca === 'media') && est.sug.valor_centavos !== l.valor_centavos) {
+            est.aviso = 'A IA leu ' + h.reais(est.sug.valor_centavos) + '. O lançamento tem ' + h.reais(l.valor_centavos) + '. A linha fica para o Thiago conferir.';
+          } else if (est.ler && est.ler !== 'ok') est.aviso = 'A leitura não funcionou. A linha fica para o Thiago conferir.';
+        } else { est.erro = msgSrv(r, 'Não consegui enviar o comprovante. Tente de novo.'); }
+        refresh();
+      }, function (e) { est.enviando = false; est.erro = msgArquivo(e); refresh(); });
+    }
+    function enviar() {
+      if (!est.arq || est.salvando || est.enviando || est.travado) return;
+      est.salvando = true; est.erro = ''; refresh();
+      var corpo = { id: l.id, arquivo_path: est.arq.path };
+      if (est.confirmarDup) corpo.confirmar_duplicado = true;
+      h.api('/gerador/jornada-solar/obra/' + encodeURIComponent(O().card) + '/dinheiro/anexar', 'POST', corpo, 60000).then(function (r) {
+        est.salvando = false; est.confirmarDup = false;
+        if (r.status === 200 && r.json.ok !== false) { h.fecharDlg(); h.toast('Comprovante anexado.'); h.recarregar(); return; }
+        var cod = codSrv(r);
+        if (cod === 'comprovante_repetido') { est.travado = true; est.erro = msgSrv(r, 'Este comprovante já foi lançado em outra obra.'); }
+        else if (cod === 'possivel_duplicado') { est.dup = { lista: r.json.duplicados || [] }; est.aviso = 'Parece que este comprovante já foi usado.'; }
+        else est.erro = msgSrv(r, 'Não consegui anexar agora. Tente de novo.');
+        refresh();
+      });
+    }
+    var api2 = h.dialogo('Anexar comprovante', function (c) {
+      c.classList.add('jor-din-dlg'); ctl.caixa = c;
+      c.appendChild(h.el('p', '', (l.descricao || l.rotulo || 'Lançamento') + ' · ' + h.reais(l.valor_centavos) + ' · ' + h.ddmm(l.data)));
+      var bl = h.el('div'); bl.appendChild(h.el('b', '', 'Comprovante'));
+      bl.appendChild(botoesAnexo('comprovante', aoAnexar));
+      refs.estado = h.el('p', 'jor-est'); refs.estado.setAttribute('role', 'status'); bl.appendChild(refs.estado);
+      c.appendChild(bl);
+      refs.leu = h.el('p', 'jor-nota'); refs.erro = h.el('p', 'jor-erro'); refs.erro.setAttribute('role', 'alert'); refs.aviso = h.el('p', 'jor-aviso'); refs.aviso.setAttribute('role', 'status'); refs.extra = h.el('div', 'jor-din-acoes');
+      h.add(c, refs.leu, refs.erro, refs.aviso, refs.extra, h.el('p', 'jor-nota', 'Comprovante repetido é recusado.'));
+      return { foco: null };
+    }, 'Anexar', function (b) { void b; enviar(); });
+    ctl.salvar = api2.salvar; refresh();
+  }
 
   function estornarDialogo(l, depois) {
     var h = H();
@@ -232,17 +355,54 @@
       fr.readAsDataURL(file);
     });
   }
+  var LADO_MAX = 2000;
+  function ehHeic(file) { return /hei[cf]/i.test(String(file.type || '')) || /\.(heic|heif)$/i.test(String(file.name || '')); }
+  function abrirImagem(file) {
+    return new Promise(function (ok, falha) {
+      var url = URL.createObjectURL(file); var im = new Image();
+      im.onload = function () { URL.revokeObjectURL(url); ok(im); };
+      im.onerror = function () { URL.revokeObjectURL(url); falha(new Error('abrir')); };
+      im.src = url;
+    });
+  }
+  /**
+   * Foto e print: no máximo 2000 px no lado maior, em JPEG. HEIC e HEIF (foto do iPhone) e GIF viram JPEG por canvas quando o navegador
+   * consegue abrir; HEIC que o navegador não abre pede "Tire um print ou mande a foto em JPG". JPEG, PNG e WEBP que já são leves e
+   * pequenos seguem como vieram (recomprimir só tira nitidez). O `dossieReduzirImagem` do index.html corta em 1600 px e deixa o HEIC passar, por isso não serve aqui.
+   */
+  function reduzirImagem(file) {
+    var tipo = String(file.type || '').toLowerCase();
+    var heic = ehHeic(file);
+    var gif = tipo === 'image/gif' || /\.gif$/i.test(String(file.name || ''));
+    return abrirImagem(file).then(function (im) {
+      var w = im.naturalWidth || im.width; var hh = im.naturalHeight || im.height;
+      if (!w || !hh) throw new Error(heic ? 'heic' : 'abrir');
+      var escala = Math.min(1, LADO_MAX / Math.max(w, hh));
+      if (!heic && !gif && escala === 1 && file.size <= 1500000 && /^image\/(jpeg|png|webp)$/.test(tipo)) return file;
+      var cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(w * escala)); cv.height = Math.max(1, Math.round(hh * escala));
+      var cx = cv.getContext('2d'); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(im, 0, 0, cv.width, cv.height);
+      return new Promise(function (ok, falha) {
+        cv.toBlob(function (b) {
+          if (!b) { falha(new Error(heic ? 'heic' : 'abrir')); return; }
+          ok(new File([b], (String(file.name || 'foto').replace(/\.\w+$/, '') || 'foto') + '.jpg', { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.86);
+      });
+    }, function () {
+      if (heic) throw new Error('heic');
+      return file;   // o navegador não abriu: sobe como veio e o servidor diz se aceita
+    });
+  }
   function prepararArquivo(file) {
     var tipo = String(file.type || '').toLowerCase();
     var nomeArq = String(file.name || '');
-    var img = /^image\//.test(tipo);
+    var img = /^image\//.test(tipo) || ehHeic(file) || (!tipo && /\.(jpe?g|png|webp|gif)$/i.test(nomeArq));
     var xml = /\.xml$/i.test(nomeArq) || /(^|[\/+])xml$/.test(tipo);
-    var pronto = Promise.resolve(file);
-    if (img && typeof dossieReduzirImagem === 'function') pronto = Promise.resolve(dossieReduzirImagem(file)).catch(function () { return file; });
+    var pronto = img ? reduzirImagem(file) : Promise.resolve(file);
     return pronto.then(function (f) {
       if (!f || !f.size) return Promise.reject(new Error('vazio'));
       if (f.size > 10 * 1024 * 1024) return Promise.reject(new Error('grande'));
-      return lerArquivo(f).then(function (b64) { return { base64: b64, media_type: xml ? 'application/xml' : String(f.type || tipo || 'application/octet-stream'), nome: String(file.name || (img ? 'comprovante.jpg' : (xml ? 'nota.xml' : 'comprovante.pdf'))).slice(0, 120) }; });
+      return lerArquivo(f).then(function (b64) { return { base64: b64, media_type: xml ? 'application/xml' : String(f.type || tipo || 'application/octet-stream'), nome: String(f.name || nomeArq || (img ? 'comprovante.jpg' : (xml ? 'nota.xml' : 'comprovante.pdf'))).slice(0, 120) }; });
     });
   }
 
@@ -269,7 +429,7 @@
     var tipo = o.tipo === 'entrada' ? 'entrada' : 'saida';
     var etapa = com ? 2 : (Number(o.etapa) || h.atual() || 1);
     var cats = categoriasDe(din, tipo);
-    var est = { arq: null, sug: null, ler: '', enviando: false, salvando: false, travado: false, erro: '', aviso: '', id: novoId(), tocado: {}, auto: {}, valorLido: null, dup: null, confirmarDup: false, confirmarValor: false, salvou: false };
+    var est = { arq: null, sug: null, ler: '', enviando: false, salvando: false, travado: false, erro: '', aviso: '', id: novoId(), tocado: {}, auto: {}, escolha: null, dup: null, confirmarDup: false, salvou: false };
     var ctl = {}; var refs = {};
     var adm = eAdm();
 
@@ -282,8 +442,10 @@
     function marcarAuto(chave, ativa) { if (refs[chave]) refs[chave].hidden = !ativa; }
     function valorCent() { var v = h.cents(refs.valor_in.value); return (typeof v === 'number' && isFinite(v) && v > 0) ? v : 0; }
 
+    /** Só o recebimento exige o arquivo. Gasto, comissão e retirada salvam sem ele e ficam pendentes ("Sem comprovante"). */
     function podeSalvar() {
-      if (!est.arq || est.enviando || est.salvando || est.travado || est.ler === 'nao_e_comprovante') return false;
+      if (est.enviando || est.salvando || est.travado) return false;
+      if (tipo === 'entrada' && !est.arq) return false;
       if (!valorCent() || !refs.data_in.value) return false;
       if (!com && refs.cat_in.value === 'outros' && !refs.desc_in.value.trim()) return false;
       return true;
@@ -291,18 +453,22 @@
     function refresh() {
       if (!ctl.salvar) return;
       ctl.salvar.disabled = !podeSalvar();
-      var frase = est.arq ? '' : (tipo === 'saida' && !com ? 'Sem comprovante, o gasto não entra.' : 'Sem comprovante, o lançamento não entra.');
+      var frase = est.arq || est.enviando ? '' : (tipo === 'saida' ? 'Sem comprovante. Fica pendente até anexar.' : 'Sem comprovante, o recebimento não entra.');
       refs.frase.textContent = frase;
+      refs.frase.className = tipo === 'saida' ? 'jor-aviso' : 'jor-erro';
       refs.erro.textContent = est.erro || '';
       refs.aviso.textContent = est.aviso || '';
-      refs.estado.textContent = est.enviando ? 'Lendo o comprovante…' : (est.arq ? 'Anexado: ' + est.arq.nome : 'Falta o comprovante.');
+      refs.leu.textContent = est.sug ? resumoDaIa(est.sug) : '';
+      refs.estado.textContent = est.enviando ? 'Lendo o comprovante…' : (est.arq ? 'Anexado: ' + est.arq.nome : (tipo === 'saida' ? 'Sem comprovante.' : 'Falta o comprovante.'));
       refs.estado.className = 'jor-est' + (est.arq && !est.enviando ? ' ok' : '');
       refs.extra.replaceChildren();
-      if (est.valorLido && !com) {
-        refs.extra.appendChild(h.btn('Usar ' + h.reais(est.valorLido), '', function () {
-          refs.valor_in.value = txtCents(est.valorLido); est.valorLido = null; est.erro = ''; est.confirmarValor = false; marcarAuto('valor', false); refresh();
-        }));
-        if (adm) refs.extra.appendChild(h.btn('Salvar assim mesmo', '', function () { est.confirmarValor = true; enviar(); }));
+      if (est.escolha) {
+        // A IA leu um valor e a pessoa digitou outro: ela escolhe qual vale antes de salvar. Nos dois casos a linha fica para o ADM conferir.
+        var e1 = est.escolha;
+        refs.extra.appendChild(h.el('p', 'jor-aviso', 'A IA leu ' + h.reais(e1.lido) + '. Você digitou ' + h.reais(e1.digitado) + '. Qual vale?'));
+        refs.extra.appendChild(h.btn('Vale ' + h.reais(e1.lido) + ' (lido)', '', function () { enviar({ valor: e1.lido, digitado: e1.digitado }); }));
+        refs.extra.appendChild(h.btn('Vale ' + h.reais(e1.digitado) + ' (digitado)', '', function () { enviar({ valor: e1.digitado, digitado: e1.digitado }); }));
+        refs.extra.appendChild(h.el('p', 'jor-nota', adm ? 'A sua escolha já vale como conferência.' : 'Nos dois casos, a linha fica para o Thiago conferir.'));
       }
       if (est.dup) {
         var ul = h.el('ul', 'jor-din-ul');
@@ -313,71 +479,84 @@
     }
 
     function aoAnexar(file) {
-      est.erro = ''; est.aviso = ''; est.travado = false; est.valorLido = null; est.dup = null; est.enviando = true; est.arq = null; est.ler = ''; refresh();
+      est.erro = ''; est.aviso = ''; est.travado = false; est.escolha = null; est.dup = null; est.enviando = true; est.arq = null; est.sug = null; est.ler = ''; refresh();
       prepararArquivo(file).then(function (a) {
-        return h.api('/gerador/jornada-solar/obra/' + encodeURIComponent(O().card) + '/dinheiro/comprovante', 'POST', { base64: a.base64, media_type: a.media_type, nome: a.nome, ler: true, doc: 'comprovante' }, 90000);
+        return h.api('/gerador/jornada-solar/obra/' + encodeURIComponent(O().card) + '/dinheiro/comprovante', 'POST', { base64: a.base64, media_type: a.media_type, nome: a.nome, ler: true, doc: 'comprovante', tipo: tipo }, 90000);
       }).then(function (r) {
         est.enviando = false;
         if (r.status === 200 && r.json.ok !== false && r.json.arquivo) {
           est.arq = r.json.arquivo; est.ler = r.json.leitura || ''; est.sug = r.json.sugestao || null;
           if (r.json.repetido) { est.travado = true; est.erro = 'Este comprovante já foi lançado ' + ondeTxt(r.json.repetido.onde) + '.'; }
-          else if (est.ler === 'nao_e_comprovante') { est.erro = 'Este arquivo não parece um comprovante de pagamento. Escolha outro.'; }
+          else if (est.ler === 'nao_e_comprovante') { est.aviso = 'A IA não reconheceu como comprovante. Você pode salvar assim, e o Thiago confere.'; }
           else if (est.sug) { preencher(est.sug); }
-          else if (est.ler && est.ler !== 'ok') { est.aviso = 'A leitura não funcionou. Confira os campos à mão.'; }
-        } else { est.erro = msgSrv(r, 'Não consegui enviar o comprovante. Tente de novo.'); }
+          else if (est.ler && est.ler !== 'ok') { est.aviso = 'A leitura não funcionou. Confira os campos à mão, e o Thiago confere.'; }
+        } else { est.erro = codSrv(r) === 'heic_nao_suportado' ? MSG_HEIC : msgSrv(r, 'Não consegui enviar o comprovante. Tente de novo.'); }
         refresh();
       }, function (e) {
-        est.enviando = false; est.erro = (e && e.message === 'grande') ? 'O arquivo passa de 10 MB.' : 'Não consegui ler o arquivo. Tente de novo.'; refresh();
+        est.enviando = false; est.erro = msgArquivo(e); refresh();
       });
     }
     function preencher(s) {
       if (s.valor_centavos && !com && !est.tocado.valor) { refs.valor_in.value = txtCents(s.valor_centavos); marcarAuto('valor', true); }
       if (s.data && !est.tocado.data) { refs.data_in.value = s.data; marcarAuto('data', true); }
-      if (s.forma && !est.tocado.forma && FORMAS.some(function (f) { return f[0] === s.forma; })) { refs.forma_in.value = s.forma; marcarAuto('forma', true); }
+      var forma = s.forma || FORMA_DO_TIPO[s.tipo] || '';
+      if (forma && !est.tocado.forma && FORMAS.some(function (f) { return f[0] === forma; })) { refs.forma_in.value = forma; marcarAuto('forma', true); }
       if (s.recebedor && !est.tocado.contraparte && !com) { refs.contra_in.value = String(s.recebedor).slice(0, 80); marcarAuto('contraparte', true); }
+      if (s.descricao && !est.tocado.descricao && !com && !refs.desc_in.value.trim()) { refs.desc_in.value = String(s.descricao).slice(0, 160); marcarAuto('descricao', true); }
+      if (s.categoria_sugerida && !est.tocado.categoria && !com && !o.categoria && cats.some(function (ct) { return ct[1] === s.categoria_sugerida; })) { refs.cat_in.value = s.categoria_sugerida; marcarAuto('categoria', true); }
     }
 
-    function enviar() {
-      if (!podeSalvar() && !(est.confirmarValor || est.confirmarDup)) return;
+    /** `esc` = { valor, digitado }: a escolha da pessoa quando a IA leu um valor diferente do digitado. */
+    function enviar(esc) {
+      if (!podeSalvar()) return;
+      var sug = est.sug;
+      if (!esc && !com && est.arq && est.ler === 'ok' && sug && sug.valor_centavos && (sug.confianca === 'alta' || sug.confianca === 'media') && sug.valor_centavos !== valorCent()) {
+        est.escolha = { lido: sug.valor_centavos, digitado: valorCent() }; refresh(); return;
+      }
       est.salvando = true; est.erro = ''; refresh();
       var base = '/gerador/jornada-solar/obra/' + encodeURIComponent(O().card) + '/dinheiro/';
       var corpo, rota;
       if (com) {
         rota = 'comissao';
-        corpo = { id: est.id, nome: com.nome, papel: com.papel, data: refs.data_in.value, forma: refs.forma_in.value, arquivo_path: est.arq.path };
+        corpo = { id: est.id, nome: com.nome, papel: com.papel, data: refs.data_in.value, forma: refs.forma_in.value };
+        if (est.arq) corpo.arquivo_path = est.arq.path;
       } else {
         rota = 'lancamento';
-        corpo = { id: est.id, tipo: tipo, categoria: refs.cat_in.value, etapa: etapa, valor_centavos: valorCent(), data: refs.data_in.value, forma: refs.forma_in.value,
-          descricao: refs.desc_in.value.trim(), contraparte: refs.contra_in.value.trim(), arquivo_path: est.arq.path };
+        corpo = { id: est.id, tipo: tipo, categoria: refs.cat_in.value, etapa: etapa, valor_centavos: esc ? esc.valor : valorCent(), data: refs.data_in.value, forma: refs.forma_in.value,
+          descricao: refs.desc_in.value.trim(), contraparte: refs.contra_in.value.trim() };
+        if (est.arq) corpo.arquivo_path = est.arq.path;
+        if (esc) { corpo.valor_digitado_centavos = esc.digitado; if (adm) corpo.confirmar_valor = true; }
         if (o.compra_id) corpo.compra_id = o.compra_id;
         if (o.carga_id) corpo.carga_id = o.carga_id;
       }
       if (est.confirmarDup) corpo.confirmar_duplicado = true;
-      if (est.confirmarValor) corpo.confirmar_valor = true;
       h.api(base + rota, 'POST', corpo, 60000).then(function (r) {
         est.salvando = false;
         if (r.status === 200 && r.json.ok !== false) {
           if (r.json.livro) din.livro = r.json.livro;
-          est.salvou = true; est.id = novoId();
-          concluido();
+          est.salvou = true; est.id = novoId(); est.escolha = null;
+          concluido(r.json.lancamento || null);
           return;
         }
         var cod = codSrv(r);
-        est.confirmarDup = false; est.confirmarValor = false;
-        if (cod === 'valor_diferente') { est.valorLido = Number(r.json.valor_lido_centavos) || null; est.erro = msgSrv(r, 'O comprovante diz outro valor.'); }
-        else if (cod === 'comprovante_repetido') { est.travado = true; est.erro = msgSrv(r, 'Este comprovante já foi lançado em outra obra.'); }
+        est.confirmarDup = false; est.escolha = null;
+        if (cod === 'comprovante_repetido') { est.travado = true; est.erro = msgSrv(r, 'Este comprovante já foi lançado em outra obra.'); }
         else if (cod === 'possivel_duplicado') { est.dup = { lista: r.json.duplicados || [] }; est.aviso = 'Parece que já existe um lançamento igual.'; }
-        else if (cod === 'nao_e_comprovante') { est.ler = 'nao_e_comprovante'; est.erro = msgSrv(r, 'Este arquivo não parece um comprovante de pagamento.'); }
+        else if (cod === 'comprovante_obrigatorio') { est.erro = msgSrv(r, 'O recebimento só entra com comprovante.'); }
         else if (r.status === 409 && r.json && r.json.mudou) { est.erro = msgSrv(r, 'Outra pessoa mexeu agora. Feche e abra de novo.'); }
         else { est.erro = msgSrv(r, 'Não consegui salvar agora. Tente de novo.'); }
         refresh();
       });
     }
 
-    function concluido() {
+    function concluido(lan) {
       var c = ctl.caixa; c.replaceChildren();
       c.appendChild(h.el('h3', '', com ? 'Pagamento lançado.' : (tipo === 'entrada' ? 'Recebimento lançado.' : 'Gasto lançado.')));
-      c.appendChild(h.el('p', 'jor-ok', 'O comprovante e o livro já estão atualizados.'));
+      var conf = lan && lan.conferencia;
+      if (conf === 'sem_comprovante') c.appendChild(h.el('p', 'jor-aviso', 'Sem comprovante. Fica pendente até anexar. Use Anexar comprovante na linha.'));
+      else c.appendChild(h.el('p', 'jor-ok', 'O comprovante e o livro já estão atualizados.'));
+      if (conf === 'divergente') c.appendChild(h.el('p', 'jor-aviso', 'O valor ficou diferente do comprovante. O Thiago confere.'));
+      else if (conf === 'sem_leitura' || conf === 'baixa_confianca') c.appendChild(h.el('p', 'jor-nota', 'A IA não conseguiu conferir o valor. O Thiago confere.'));
       var bt = h.el('div', 'jor-dlg-bt');
       if (!com) h.add(bt, h.btn(tipo === 'entrada' ? 'Lançar outro' : 'Lançar outro', '', function () { h.fecharDlg(); lancar({ tipo: tipo, etapa: etapa, categoria: o.categoria, compra_id: o.compra_id, carga_id: o.carga_id }); }));
       h.add(bt, h.btn('Voltar à etapa', 'jor-btn-pri', function () { h.fecharDlg(); h.recarregar(); if (o.depois) o.depois(); }));
@@ -393,6 +572,7 @@
       var bl = h.el('div'); bl.appendChild(h.el('b', '', 'Comprovante'));
       bl.appendChild(botoesAnexo('comprovante', aoAnexar));
       refs.estado = h.el('p', 'jor-est'); refs.estado.setAttribute('role', 'status'); bl.appendChild(refs.estado);
+      refs.leu = h.el('p', 'jor-nota'); bl.appendChild(refs.leu);
       c.appendChild(bl);
       // 2. Campos
       var g = h.el('div', 'jor-din-pc');
@@ -412,12 +592,15 @@
       if (!com) h.add(g, campo('Categoria', refs.cat_in, 'categoria'), campo('Descrição', refs.desc_in, 'descricao'));
       c.appendChild(g);
       [['valor', refs.valor_in], ['data', refs.data_in], ['forma', refs.forma_in], ['contraparte', refs.contra_in]].forEach(function (p) {
-        p[1].addEventListener('input', function () { est.tocado[p[0]] = true; marcarAuto(p[0], false); if (p[0] === 'valor' && est.valorLido) { est.valorLido = null; est.erro = ''; } refresh(); });
+        p[1].addEventListener('input', function () { est.tocado[p[0]] = true; marcarAuto(p[0], false); if (p[0] === 'valor' && est.escolha) { est.escolha = null; est.erro = ''; } refresh(); });
         p[1].addEventListener('change', function () { est.tocado[p[0]] = true; marcarAuto(p[0], false); refresh(); });
       });
-      [refs.cat_in, refs.desc_in].forEach(function (x) { x.addEventListener('input', refresh); x.addEventListener('change', refresh); });
+      [['categoria', refs.cat_in], ['descricao', refs.desc_in]].forEach(function (p) {
+        p[1].addEventListener('input', function () { est.tocado[p[0]] = true; marcarAuto(p[0], false); refresh(); });
+        p[1].addEventListener('change', function () { est.tocado[p[0]] = true; marcarAuto(p[0], false); refresh(); });
+      });
       // 3. Mensagens
-      refs.frase = h.el('p', 'jor-erro'); refs.erro = h.el('p', 'jor-erro'); refs.erro.setAttribute('role', 'alert'); refs.aviso = h.el('p', 'jor-aviso'); refs.extra = h.el('div', 'jor-din-acoes');
+      refs.frase = h.el('p', 'jor-aviso'); refs.erro = h.el('p', 'jor-erro'); refs.erro.setAttribute('role', 'alert'); refs.aviso = h.el('p', 'jor-aviso'); refs.extra = h.el('div', 'jor-din-acoes');
       refs.aviso.setAttribute('role', 'status');
       h.add(c, refs.frase, refs.erro, refs.aviso, refs.extra, h.el('p', 'jor-nota', 'Comprovante repetido é recusado.'));
       return { foco: null };
@@ -680,7 +863,7 @@
 
   window.Jornada.dinheiro = {
     faixa: faixa, gastoDaRegua: gastoDaRegua, gastosDaEtapa: gastosDaEtapa, blocoComissoes: blocoComissoes, abrirLivro: abrirLivro,
-    abrirAjustes: abrirAjustes, lancar: lancar, fechamento: fechamento, botoesAnexo: botoesAnexo, prepararArquivo: prepararArquivo,
+    abrirAjustes: abrirAjustes, lancar: lancar, fechamento: fechamento, botoesAnexo: botoesAnexo, prepararArquivo: prepararArquivo, msgArquivo: msgArquivo,
     grupoPrevisto: function (livro, slug) { return gruposDoPrevisto(livro && livro.previsto).filter(function (g) { return g.id === slug; })[0] || null; },
   };
 })();

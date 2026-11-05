@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  chaveEspera, chaveFila, chaveLiberacao, chavePos, chaveSua, chaveVenda, eventosDoCard, filaDaPessoa, linhasDeDinheiro, minutoDaVez, naJanelaDaFila,
+  chaveEspera, chaveFila, chaveLiberacao, chavePos, chaveSua, chaveVenda, eventosDoCard, filaDaPessoa, linhasDeDinheiro, linhasSemComprovante, minutoDaVez, naJanelaDaFila, semComprovanteDoLivro,
   paradosComAEquipe, placarDaSemana, textoAniversario, textoEspera, textoFila, textoLiberacao, textoSua, textoVenda, toquesDoDia,
   type DinheiroObra, type GrupoMsg, type ObraFila,
 } from '../services/io/jornadaMensagensPuro';
@@ -169,6 +169,36 @@ describe('a fila, a escalada, o placar e o dinheiro', () => {
     expect(linhasDeDinheiro('thiago', obras).flat()).toEqual(['Para conferir: #0065 Marcos · 3 lançamentos']);
     expect(linhasDeDinheiro('diego', obras)).toEqual([]);
     expect(linhasDeDinheiro('nilce', obras)).toEqual([]);
+  });
+  it('"Falta comprovante": cada pessoa cobra o que ELA lançou, com a obra e o valor; a retirada só para quem a vê; o bloco vai na mesma mensagem', () => {
+    const obras: DinheiroObra[] = [
+      {
+        card: 1, rotulo: '#0065 Marcos', comissoes: [], a_receber_centavos: 0, nao_conferidas: 0, nao_conferidas_retirada: 0,
+        sem_comprovante: [
+          { criado_por: 'diego', valor_centavos: 25_000, retirada: false }, { criado_por: 'diego', valor_centavos: 5_000, retirada: false },
+          { criado_por: 'nilce', valor_centavos: 6_000, retirada: false }, { criado_por: 'giovanna', valor_centavos: 77_800, retirada: true },
+          { criado_por: 'diego', valor_centavos: 1_000, retirada: true },
+        ],
+      },
+      { card: 2, rotulo: '#0066 Ana', comissoes: [], a_receber_centavos: 0, nao_conferidas: 0, nao_conferidas_retirada: 0, sem_comprovante: [{ criado_por: 'diego', valor_centavos: 12_345, retirada: false }] },
+      { card: 3, rotulo: '#0067 Sem nada', comissoes: [], a_receber_centavos: 0, nao_conferidas: 0, nao_conferidas_retirada: 0 },
+    ];
+    expect(linhasSemComprovante('diego', obras).flat()).toEqual(['Falta comprovante: #0065 Marcos · 2 lançamentos, R$ 300,00', 'Falta comprovante: #0066 Ana · R$ 123,45']);
+    expect(linhasSemComprovante('nilce', obras).flat()).toEqual(['Falta comprovante: #0065 Marcos · R$ 60,00']);
+    expect(linhasSemComprovante('giovanna', obras).flat()).toEqual(['Falta comprovante: #0065 Marcos · R$ 778,00']);
+    expect(linhasSemComprovante('thiago', obras)).toEqual([]);
+    const t = textoFila({ pessoa: 'diego', itens: [], hoje: HOJE, semComprovante: linhasSemComprovante('diego', obras) })!.split('\n');
+    expect(t[0]).toBe('☀️ Sua fila hoje, Diego');
+    expect(t).toContain('*Falta comprovante:*');
+    expect(t).toContain('Falta comprovante: #0066 Ana · R$ 123,45');
+    // Só o bloco novo já basta para existir mensagem (e é UMA mensagem).
+    expect(textoFila({ pessoa: 'nilce', itens: [], hoje: HOJE, semComprovante: [] })).toBeNull();
+  });
+  it('semComprovanteDoLivro pega só as linhas pendentes e marca a retirada', () => {
+    expect(semComprovanteDoLivro([
+      { sem_comprovante: true, criado_por: 'diego', valor_centavos: 100, grupo: 'custo' }, { sem_comprovante: false, criado_por: 'diego', valor_centavos: 200, grupo: 'custo' },
+      { sem_comprovante: true, criado_por: 'giovanna', valor_centavos: 300, grupo: 'retirada' },
+    ])).toEqual([{ criado_por: 'diego', valor_centavos: 100, retirada: false }, { criado_por: 'giovanna', valor_centavos: 300, retirada: true }]);
   });
   it('textoFila: escalada com "Falta", dinheiro e placar viram blocos da MESMA mensagem; "Nada seu"; teto de 25 linhas; sem nada, null', () => {
     const itens = filaDaPessoa('diego', [obra(6, { js: js(6, 4, 'nilce'), jo: jo(6, 4) })], HOJE).itens;

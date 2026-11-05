@@ -263,6 +263,37 @@ describe('a fila das 08:00', () => {
     expect(h.enviados.find((e) => e.numero === TEL_AVISO.thiago)!.texto).toContain('Para conferir: #001 Cliente 1 · 1 lançamento');
   });
 
+  it('"Falta comprovante" vai DENTRO da mensagem de quem lançou a saída (Diego e Nilce também), uma mensagem por pessoa, com a obra e o valor', async () => {
+    h.dinheiro = [{
+      card: 1, rotulo: '#001 Cliente 1', comissoes: [], a_receber_centavos: 0, nao_conferidas: 0, nao_conferidas_retirada: 0,
+      sem_comprovante: [
+        { criado_por: 'diego', valor_centavos: 25_000, retirada: false }, { criado_por: 'diego', valor_centavos: 5_000, retirada: false },
+        { criado_por: 'nilce', valor_centavos: 6_000, retirada: false }, { criado_por: 'giovanna', valor_centavos: 77_800, retirada: true },
+      ],
+    }];
+    const l = leituraDe([]);
+    for (let i = 0; i < 8; i++) await rodarFila(ctx({}, new Date(OITO.getTime() + i * 2 * 60_000)), l);
+    // Uma mensagem por pessoa que lançou algo: Diego, Nilce e Giovanna. O Thiago não lançou nada e não recebe.
+    expect(h.enviados.map((e) => e.numero).sort()).toEqual([TEL_AVISO.diego, TEL_AVISO.giovanna, TEL_AVISO.nilce].sort());
+    expect(travas().map((t) => t.key).sort()).toEqual(['jornada_env:fila:2026-11-05:diego', 'jornada_env:fila:2026-11-05:giovanna', 'jornada_env:fila:2026-11-05:nilce']);
+    const diego = h.enviados.find((e) => e.numero === TEL_AVISO.diego)!.texto;
+    expect(diego).toContain('*Falta comprovante:*');
+    expect(diego).toContain('Falta comprovante: #001 Cliente 1 · 2 lançamentos, R$ 300,00');
+    expect(diego).not.toContain('R$ 778,00');
+    expect(h.enviados.find((e) => e.numero === TEL_AVISO.nilce)!.texto).toContain('Falta comprovante: #001 Cliente 1 · R$ 60,00');
+    // A Giovanna vê a retirada que ela mesma pagou sem comprovante.
+    expect(h.enviados.find((e) => e.numero === TEL_AVISO.giovanna)!.texto).toContain('Falta comprovante: #001 Cliente 1 · R$ 778,00');
+  });
+
+  it('a retirada sem comprovante lançada por quem não pode vê-la nunca vai para ele', async () => {
+    h.dinheiro = [{
+      card: 1, rotulo: '#001 Cliente 1', comissoes: [], a_receber_centavos: 0, nao_conferidas: 0, nao_conferidas_retirada: 0,
+      sem_comprovante: [{ criado_por: 'diego', valor_centavos: 77_800, retirada: true }],
+    }];
+    for (let i = 0; i < 8; i++) await rodarFila(ctx({}, new Date(OITO.getTime() + i * 2 * 60_000)), leituraDe([]));
+    expect(h.enviados).toEqual([]);
+  });
+
   it('domingo e feriado não têm fila', async () => {
     const l = leituraDe([vencida(1)]);
     expect((await rodarFila(ctx({}, new Date('2026-11-08T11:00:30.000Z')), l)).motivo).toBe('fora');

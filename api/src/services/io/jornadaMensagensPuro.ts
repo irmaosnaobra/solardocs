@@ -248,6 +248,29 @@ export interface DinheiroObra {
   /** Lançamentos que a IA não conferiu e o Thiago ainda não marcou; os da retirada à parte. */
   nao_conferidas: number;
   nao_conferidas_retirada: number;
+  /** Saídas lançadas sem comprovante e ainda pendentes (nem anexadas, nem liberadas pelo ADM), com quem lançou. */
+  sem_comprovante?: Array<{ criado_por: string; valor_centavos: number; retirada: boolean }>;
+}
+
+/** As linhas do livro que ainda esperam comprovante, com quem lançou (a fila cobra de quem LANÇOU). */
+export function semComprovanteDoLivro(linhas: ReadonlyArray<{ sem_comprovante: boolean; criado_por: string; valor_centavos: number; grupo: string }>): NonNullable<DinheiroObra['sem_comprovante']> {
+  return linhas.filter((l) => l.sem_comprovante).map((l) => ({ criado_por: l.criado_por, valor_centavos: l.valor_centavos, retirada: l.grupo === 'retirada' }));
+}
+
+/**
+ * O bloco "Falta comprovante" de UMA pessoa: as obras onde ELA lançou saída sem comprovante, com a obra e o valor. Uma linha por obra.
+ * A retirada dos sócios só entra para quem pode vê-la. Quem não lançou nada não ganha o bloco.
+ */
+export function linhasSemComprovante(pessoa: string, obras: readonly DinheiroObra[]): string[][] {
+  const ver = veRetiradaDosSocios(pessoa, ehAdm(pessoa));
+  const saida: string[][] = [];
+  for (const o of obras) {
+    const meus = (o.sem_comprovante ?? []).filter((x) => x.criado_por === pessoa && (!x.retirada || ver));
+    if (!meus.length) continue;
+    const total = meus.reduce((s, x) => s + x.valor_centavos, 0);
+    saida.push([`Falta comprovante: ${o.rotulo} · ${meus.length > 1 ? `${meus.length} lançamentos, ` : ''}${reaisBR(total)}`]);
+  }
+  return saida;
 }
 
 /**
@@ -415,10 +438,10 @@ function caber(blocos: readonly (readonly string[])[], restante: number): { linh
  */
 export function textoFila(a: {
   pessoa: string; itens: readonly ItemFila[]; hoje: string;
-  escalada?: readonly ItemEscalada[]; placar?: readonly LinhaPlacar[] | null; dinheiro?: readonly string[][];
+  escalada?: readonly ItemEscalada[]; placar?: readonly LinhaPlacar[] | null; dinheiro?: readonly string[][]; semComprovante?: readonly string[][];
 }): string | null {
-  const escalada = a.escalada ?? []; const dinheiro = a.dinheiro ?? []; const placar = a.placar ?? [];
-  if (!a.itens.length && !escalada.length && !dinheiro.length && !placar.length) return null;
+  const escalada = a.escalada ?? []; const dinheiro = a.dinheiro ?? []; const placar = a.placar ?? []; const semComprovante = a.semComprovante ?? [];
+  if (!a.itens.length && !escalada.length && !dinheiro.length && !placar.length && !semComprovante.length) return null;
   const linhas: string[] = [`☀️ Sua fila hoje, ${nomeBonitoMsg(a.pessoa)}`];
   let restante = TETO_FILA_LINHAS;
   if (a.itens.length) {
@@ -436,6 +459,12 @@ export function textoFila(a: {
   if (dinheiro.length) {
     const c = caber(dinheiro, restante);
     linhas.push('', '*Dinheiro para resolver:*', ...c.linhas);
+    if (c.fora) linhas.push(`E mais ${c.fora} na lista de Clientes.`);
+  }
+  if (semComprovante.length) {
+    const c = caber(semComprovante, restante);
+    restante -= c.usou;
+    linhas.push('', '*Falta comprovante:*', ...c.linhas);
     if (c.fora) linhas.push(`E mais ${c.fora} na lista de Clientes.`);
   }
   if (placar.length) {

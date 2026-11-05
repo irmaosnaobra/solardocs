@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import crypto from 'crypto';
 import {
   AJUSTES_PADRAO, ajustesAssinados, assinarAjustes, assinarLancamentoObra, categoriaObra, comissoesPelaRegra, idDoEstorno, lancamentoObraAssinado,
   lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, normalizarAjustes, normalizarLancamentoObra, recortarLivro, validarAjustes,
@@ -235,9 +236,12 @@ describe('a pagar e o fechamento', () => {
     const m5 = livroDaObra(entrada65(limpo(), { material: { com_origem: 5, total: 11 } }));
     expect(m5.fechamento.faltam).toEqual(['Material com origem: 5 de 11']);
   });
-  it('lançamento sem comprovante aparece em "Comprovantes: N de M"', () => {
+  it('lançamento sem comprovante aparece em "Falta comprovante: N lançamento"', () => {
     const l = [...limpo(), lanc('saida', 'combustivel', 8, '2026-11-04', 1_000, { sem_arquivo: true })];
-    expect(livroDaObra(entrada65(l)).fechamento.faltam).toContain('Comprovantes: 19 de 20');
+    const lv = livroDaObra(entrada65(l));
+    expect(lv.fechamento.faltam).toContain('Falta comprovante: 1 lançamento.');
+    expect(lv.fechamento.comprovantes).toEqual({ com: 19, total: 20 });
+    expect(lv.fechamento.pode_fechar).toBe(false);
   });
   it('pendências da obra (compra, equipe, frete) entram no a pagar e no fechamento', () => {
     const p = [{ tipo: 'compra' as const, texto: 'Compra Elétrica Central: falta pagar R$ 890,00', valor_centavos: 89_000, etapa: 4 }];
@@ -439,5 +443,114 @@ describe('a retirada dos sócios só para quem pode ver (recorte do livro)', () 
     const l = livroDaObra(entrada65([lanc('entrada', 'entrada', 2, '2026-09-18', 3_890_000)], { vendedor: 'diego', regra: AJUSTES_PADRAO.comissoes.diego }));
     expect(l.comissoes.linhas.map((x) => [x.nome, x.papel])).toEqual([['diego', 'venda'], ['diego', 'socio'], ['thiago', 'socio']]);
     expect(recortarLivro(l, false).comissoes.linhas.map((x) => [x.nome, x.papel])).toEqual([['diego', 'venda']]);
+  });
+});
+
+describe('sem comprovante, divergente e a assinatura que não muda (05/11/2026)', () => {
+  it('uma linha no formato de ANTES (sem nenhum campo novo), assinada antes desta mudança, continua válida', () => {
+    // O JSON abaixo é, byte a byte, o que o normalizador antigo produzia. A assinatura é calculada aqui, de fora, sobre ele.
+    const antigo = {
+      id: 'lan-0000legc', card_id: CARD, tipo: 'saida', categoria: 'frete', valor_centavos: 25_000, data: '2026-10-22', forma: 'pix', descricao: 'Frete', contraparte: 'Frete Rápido Udi',
+      id_transacao: 'E123', arquivo: { path: `fin/${CARD}/202610/a.pdf`, nome: 'c.pdf', tipo: 'application/pdf', tamanho: 10, sha256: 'a'.repeat(64) }, origem: 'ia',
+      lido_pela_ia: { valor_centavos: 25_000, data: '2026-10-22', id_transacao: 'E123' }, criado_por: 'diego', criado_em: '2026-10-22T10:00:00.000Z',
+      alteracoes: [{ em: '2026-10-23T10:00:00.000Z', por: 'thiago', de: 'sem_leitura', para: 'conferido_adm' }],
+      apagado: false, apagado_por: '', apagado_em: '', motivo_apagado: '',
+      obra: { v: 1, etapa: 5, grupo: 'custo', conferencia: 'bateu', estorno_de: null, motivo_estorno: '', devolucao: false, comissao: null, compra_id: null, carga_id: 'c-1' },
+    };
+    const sig = crypto.createHmac('sha256', Buffer.from(SEGREDO, 'utf8')).update(`fin_obra|${CARD}|${antigo.id}|${JSON.stringify(antigo)}`).digest('hex');
+    const lido = lancamentoObraAssinado(CARD, comoJsonb({ ...antigo, sig }));
+    expect(lido).not.toBeNull();
+    expect(lido!.obra).toEqual(antigo.obra);
+    expect(lido!.obra).not.toHaveProperty('dispensa');
+    expect(lido!.obra).not.toHaveProperty('divergencia');
+    expect(lido!.obra).not.toHaveProperty('nota_ia');
+    expect(lido!.alteracoes[0]).toEqual(antigo.alteracoes[0]);
+    // Assinar de novo gera o MESMO valor.
+    expect(assinarLancamentoObra(CARD, antigo)).toBe(sig);
+  });
+
+  const base1 = () => lancamentoObraParaGravar(CARD, {
+    ...normalizarLancamentoObra(CARD, lanc('saida', 'frete', 5, '2026-10-22', 25_000, { sem_arquivo: true, conf: 'sem_comprovante' }))!,
+  })!;
+  it('os campos novos (nota_ia, divergencia, dispensa, motivo da alteração) entram na assinatura: mexer neles invalida', () => {
+    const l = lancamentoObraParaGravar(CARD, {
+      ...base1(),
+      alteracoes: [{ em: '2026-10-23T10:00:00.000Z', por: 'thiago', de: 'sem_comprovante', para: 'dispensado', motivo: 'Pagou em dinheiro' }],
+      obra: { ...base1().obra, nota_ia: 'A IA não reconheceu como comprovante', divergencia: { lido_centavos: 30_000, digitado_centavos: 25_000 }, dispensa: { em: '2026-10-23T10:00:00.000Z', por: 'thiago', motivo: 'Pagou em dinheiro' } },
+    })!;
+    expect(l.obra).toMatchObject({ nota_ia: 'A IA não reconheceu como comprovante', divergencia: { lido_centavos: 30_000, digitado_centavos: 25_000 }, dispensa: { por: 'thiago', motivo: 'Pagou em dinheiro' } });
+    expect(l.alteracoes[0].motivo).toBe('Pagou em dinheiro');
+    expect(lancamentoObraAssinado(CARD, comoJsonb(l))).toEqual(l);
+    const mexidas: Array<(x: any) => void> = [
+      (x) => { x.obra.dispensa.motivo = 'Outro motivo'; }, (x) => { delete x.obra.dispensa; }, (x) => { x.obra.divergencia.lido_centavos = 25_000; },
+      (x) => { x.obra.nota_ia = ''; }, (x) => { x.alteracoes[0].motivo = 'Outro'; }, (x) => { x.obra.conferencia = 'bateu'; },
+    ];
+    for (const f of mexidas) {
+      const c = JSON.parse(JSON.stringify(l));
+      f(c);
+      expect(lancamentoObraAssinado(CARD, c), String(f)).toBeNull();
+    }
+  });
+  it('dispensa incompleta ou divergência sem os dois valores é descartada, e o valor novo de conferência vale', () => {
+    const n = normalizarLancamentoObra(CARD, {
+      ...base1(), obra: { ...base1().obra, dispensa: { em: 'x', por: '', motivo: '' }, divergencia: { lido_centavos: 5 }, nota_ia: '   ' },
+    })!;
+    expect(n.obra).not.toHaveProperty('dispensa');
+    expect(n.obra).not.toHaveProperty('divergencia');
+    expect(n.obra).not.toHaveProperty('nota_ia');
+    expect(n.obra.conferencia).toBe('sem_comprovante');
+    expect(normalizarLancamentoObra(CARD, { ...base1(), obra: { ...base1().obra, conferencia: 'inventada' } })).toBeNull();
+  });
+
+  const semProva = (por = 'diego', valor = 25_000) => lanc('saida', 'frete', 5, '2026-10-22', valor, { sem_arquivo: true, conf: 'sem_comprovante', por });
+  it('o livro: saída sem comprovante entra no gasto, aparece na linha e trava o fechamento (inclusive o da etapa 8)', () => {
+    const lv = livroDaObra(entrada65([...obra65(), semProva()]));
+    const linha = lv.linhas.find((x) => x.conferencia === 'sem_comprovante')!;
+    expect(linha).toMatchObject({ sem_comprovante: true, comprovante: null, dispensa: null, criado_por: 'diego' });
+    expect(lv.gasto).toBe(2_580_395 + 25_000);
+    expect(lv.fechamento.faltam).toEqual(['Falta comprovante: 1 lançamento.']);
+    expect(lv.fechamento).toMatchObject({ pode_fechar: false, pode_fechar_sem_material: false, comprovantes: { com: 19, total: 20 } });
+    // Não é pendência de pagar: o "a pagar" não cresce.
+    expect(lv.a_pagar).toEqual([]);
+    expect(lv.fechamento.a_pagar_total).toBe(0);
+  });
+  it('o livro: linha liberada pelo ADM conta como resolvida, a estornada não pesa, e o estorno sem devolução não precisa de arquivo', () => {
+    const liberada = semProva();
+    liberada.obra.dispensa = { em: '2026-10-23T10:00:00.000Z', por: 'thiago', motivo: 'Pagou em dinheiro' };
+    const lv = livroDaObra(entrada65([...obra65(), liberada]));
+    expect(lv.linhas.find((x) => x.id === liberada.id)).toMatchObject({ sem_comprovante: false, dispensa: { por: 'thiago' } });
+    expect(lv.fechamento).toMatchObject({ pode_fechar: true, faltam: [], comprovantes: { com: 20, total: 20 } });
+    const errada = semProva('diego', 7_000);
+    const est = { ...lanc('saida', 'frete', 5, '2026-10-23', 7_000, { sem_arquivo: true, conf: 'estorno', por: 'diego' }), id: 'est-0000aaaa' };
+    est.obra.estorno_de = errada.id;
+    const lv2 = livroDaObra(entrada65([...obra65(), errada, est]));
+    expect(lv2.fechamento.faltam).toEqual([]);
+    expect(lv2.fechamento.pode_fechar).toBe(true);
+    expect(lv2.linhas.find((x) => x.id === errada.id)).toMatchObject({ sem_comprovante: false });
+  });
+  it('o livro: `divergente` conta como não conferido pela IA até o ADM marcar', () => {
+    const dv = lanc('saida', 'frete', 5, '2026-10-22', 26_000, { conf: 'divergente', por: 'diego' });
+    dv.obra.divergencia = { lido_centavos: 25_000, digitado_centavos: 26_000 };
+    const lv = livroDaObra(entrada65([...obra65(), dv]));
+    expect(lv.fechamento.faltam).toEqual(['1 lançamento não conferido pela IA. O Thiago confere.']);
+    expect(lv.linhas.find((x) => x.id === dv.id)).toMatchObject({ conferencia: 'divergente', divergencia: { lido_centavos: 25_000, digitado_centavos: 26_000 } });
+    const ok = { ...dv, obra: { ...dv.obra, conferencia: 'conferido_adm' as const } };
+    expect(livroDaObra(entrada65([...obra65(), ok])).fechamento.pode_fechar).toBe(true);
+  });
+  it('recortarLivro: quem não vê a retirada não conta a retirada sem comprovante, nem em `faltam`, nem em `comprovantes`', () => {
+    const ret = lanc('saida', 'retirada_socio', 2, '2026-10-02', 77_800, { sem_arquivo: true, conf: 'sem_comprovante', por: 'giovanna', comissao: { nome: 'thiago', papel: 'socio', pb: 200 } });
+    const venda = semProva('diego');
+    const lv = livroDaObra(entrada65([...obra65(), ret, venda]));
+    expect(lv.fechamento.faltam).toContain('Falta comprovante: 2 lançamentos.');
+    const v = recortarLivro(lv, false) as any;
+    expect(v.fechamento.faltam).toContain('Falta comprovante: 1 lançamento.');
+    expect(v.fechamento.faltam).not.toContain('Falta comprovante: 2 lançamentos.');
+    expect(v.fechamento.comprovantes).toEqual({ com: 17, total: 18 });
+    expect(v.linhas.every((x: any) => x.grupo !== 'retirada')).toBe(true);
+    expect(v.fechamento.pode_fechar).toBe(false);
+    // Só a retirada sem comprovante: para quem não a vê o fechamento não fala dela.
+    const so = recortarLivro(livroDaObra(entrada65([...obra65(), ret])), false) as any;
+    expect(so.fechamento.faltam.some((t: string) => t.startsWith('Falta comprovante'))).toBe(false);
+    expect(so.fechamento.comprovantes).toEqual({ com: 17, total: 17 });
   });
 });
