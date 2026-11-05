@@ -349,10 +349,15 @@ const ms = (v: unknown): number | null => {
 };
 const temTexto = (v: unknown): boolean => String(v ?? '').trim() !== '';
 
-/** Hoje paga ou está em cobrança: assinante recebe novidade pelo e-mail e pelo app, não por este robô. */
+/**
+ * Hoje paga ou está em cobrança: assinante recebe novidade pelo e-mail e pelo app, não por este robô.
+ * `billing_status = 'active'` NÃO prova pagamento: é o PADRÃO da coluna (MIGRATION_dunning.sql) e o D5 também grava `active` ao rebaixar para free.
+ * Em 05/11/2026 os 138 free do banco eram 100% `active`, e com 'active' na lista a retomada marcou 118 como `paga_hoje` e a fila deu zero.
+ * Quem paga tem plano pago; o free só paga com cobrança em aberto (teste, atrasada, não paga, suspensa) ou com o Pix ainda valendo.
+ */
 export function pagaHoje(u: Pick<UsuarioRet, 'plano' | 'billing_status' | 'plano_expira_em'>, agoraMs: number): boolean {
   if (u.plano !== 'free') return true;
-  if (['active', 'trialing', 'past_due', 'unpaid', 'suspended'].includes(String(u.billing_status ?? ''))) return true;
+  if (['trialing', 'past_due', 'unpaid', 'suspended'].includes(String(u.billing_status ?? ''))) return true;
   const expira = ms(u.plano_expira_em);
   return expira !== null && expira > agoraMs;
 }

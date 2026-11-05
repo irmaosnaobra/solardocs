@@ -49,9 +49,9 @@ export function podeReceberEmail(u: UsuarioPesq): boolean {
 
 /**
  * Free que ainda paga ou está em cobrança: Pix com plano ainda valendo, ou assinatura da Stripe viva (teste, atrasada, não paga).
- * NÃO é o `pagaHoje` da retomada: aquele trata free + `active` como pagante, e `active` é o PADRÃO da coluna (MIGRATION_dunning.sql), que
- * o D5 também grava ao rebaixar. Os 54 free com `last_canceled_at` eram 100% `active` em 05/11/2026, e a entrevista não achava ninguém.
- * Fica só aqui, no e-mail: mudar o `pagaHoje` abriria a retomada do WhatsApp para a base free inteira (revisor de 05/11).
+ * `active` é o PADRÃO da coluna (MIGRATION_dunning.sql), que o D5 também grava ao rebaixar: free + `active` NÃO paga.
+ * Os 54 free com `last_canceled_at` eram 100% `active` em 05/11/2026, e a entrevista não achava ninguém.
+ * O `pagaHoje` da retomada seguiu a mesma regra em 05/11/2026: a retomada do WhatsApp é justamente para a base free que não paga.
  */
 function aindaPaga(u: Pick<UsuarioPesq, 'billing_status' | 'plano_expira_em'>, agoraMs: number): boolean {
   if (['trialing', 'past_due', 'unpaid'].includes(String(u.billing_status ?? ''))) return true;
