@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase';
 import { ApiError } from '../utils/apiError';
 import { generateDocumentWithAI } from '../services/aiService';
 import { generateFromTemplate, propostaDiasValidade, type Client } from '../services/templateService';
+import { renovarUrlsPortfolio } from './portfolioController';
 import { checkLimit, incrementUsed } from '../services/planService';
 import { acessoOffGrid } from '../services/offgrid/acesso';
 import { injectPrint } from '../utils/printHtml';
@@ -22,7 +23,7 @@ const generateSchema = z.object({
   cliente_nome_avulso: z.string().min(2).optional(),
   fields: z.record(z.string(), z.unknown()),
   useTemplate: z.boolean().optional().default(false),
-  modeloNumero: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional().default(1),
+  modeloNumero: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional().default(1),
 });
 
 // Tipos que aceitam modo rapido (so nome do cliente, sem cadastro)
@@ -35,7 +36,7 @@ const TIPOS_MODO_RAPIDO = ['vistoria', 'propostaSolar', 'propostaOffGrid'];
 const regenerateSchema = z.object({
   fields: z.record(z.string(), z.unknown()),
   useTemplate: z.boolean().optional().default(true),
-  modeloNumero: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional().default(1),
+  modeloNumero: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional().default(1),
   cliente_nome_avulso: z.string().min(2).optional(),
   // Só vale para quem pode trocar de cliente (ilimitado e admin). Plano com limite que
   // mande um id diferente do salvo recebe 409: editar não gasta cota, então não pode
@@ -203,6 +204,11 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
         }
       }
     }
+
+    // Modelo Completo: as galerias (obras, empresas, bancos) são reassinadas aqui, só pelo path,
+    // antes de o template e o dados_json verem o objeto. Vale também no retry do número (abaixo),
+    // que gera de novo a partir de body.fields.
+    if (body.tipo === 'propostaSolar') body.fields = await renovarUrlsPortfolio(req.userId, body.fields);
 
     const tmplOut: { resumo?: string } = {};
     if (body.useTemplate) {
@@ -523,6 +529,9 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
       delete fields.emitido_em;
     }
 
+    // Galerias do modelo Completo: URL nova a partir do path (nunca a que veio do cliente).
+    if (doc.tipo === 'propostaSolar') fields = await renovarUrlsPortfolio(req.userId, fields);
+
     const tmplOut: { resumo?: string } = {};
     let content: string;
     let modeloUsado: string;
@@ -749,8 +758,8 @@ export async function getDocumentForEdit(req: Request, res: Response): Promise<v
         // trocaria o layout da proposta que o cliente já tinha aberto. O 3 (Moderno
         // com capa) entrou em 24/08/2026 e precisou entrar aqui junto: preso em
         // "=== 2 ? 2 : 1", reabrir uma proposta com capa devolvia o modelo 1.
-        modelo_numero: [2, 3].includes(Number(String(doc.modelo_usado || '').replace(/\D/g, '')))
-          ? (Number(String(doc.modelo_usado || '').replace(/\D/g, '')) as 2 | 3)
+        modelo_numero: [2, 3, 4].includes(Number(String(doc.modelo_usado || '').replace(/\D/g, '')))
+          ? (Number(String(doc.modelo_usado || '').replace(/\D/g, '')) as 2 | 3 | 4)
           : 1,
         content: doc.content ?? '',
         codigo: (dados.codigo as string) ?? null,

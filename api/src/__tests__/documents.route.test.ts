@@ -10,6 +10,8 @@ const mockRpc     = vi.fn();
 // /p/:id e o PDF leem o arquivo_url antes do content.
 const mockUpload  = vi.fn().mockResolvedValue({ error: null });
 const mockRemove  = vi.fn().mockResolvedValue({ error: null });
+// Reassinatura das galerias do modelo Completo (renovarUrlsPortfolio).
+const mockSignedUrls = vi.fn();
 
 // ─── mocks antes do import de app ───────────────────────────────────
 vi.mock('../utils/supabase', () => ({
@@ -37,7 +39,7 @@ vi.mock('../utils/supabase', () => ({
     })),
     // Função (e não mockRpc direto): o factory roda antes da const ser inicializada.
     rpc: (...args: unknown[]) => mockRpc(...args),
-    storage: { from: vi.fn(() => ({ upload: mockUpload, remove: mockRemove })) },
+    storage: { from: vi.fn(() => ({ upload: mockUpload, remove: mockRemove, createSignedUrls: (...a: unknown[]) => mockSignedUrls(...a) })) },
   },
 }));
 vi.mock('../utils/logger',    () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
@@ -160,6 +162,34 @@ describe('POST /documents/generate', () => {
     const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
     expect(fields.codigo).toBe('20260036');
     expect(res.body).toMatchObject({ codigo: '20260036', codigo_curto: '20260036', empresa_slug: 'empresa' });
+  });
+
+  // Modelo 4 (Completo): as galerias chegam ao template só com URL assinada pelo servidor,
+  // e o dados_json guardado é essa versão. Path de outro usuário e URL do cliente não passam.
+  it('modelo 4: galerias reassinadas pelo path antes do template; modelo_usado = modelo-4', async () => {
+    mockGeracaoProposta();
+    mockRpc.mockResolvedValueOnce({ data: '20260037', error: null });
+    mockSignedUrls.mockImplementationOnce(async (paths: string[]) => ({
+      data: paths.map((path) => ({ path, signedUrl: 'https://x.test/nova/' + path, error: null })), error: null,
+    }));
+    const meu = 'portfolio/user-123/obra/1700000000000-abcdef12.jpg';
+    const alheio = 'portfolio/user-999/obra/1700000000000-abcdef12.jpg';
+
+    const res = await request(app)
+      .post('/documents/generate')
+      .set('Authorization', AUTH)
+      .send({
+        tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4,
+        fields: { fotos_obras: [{ path: meu, url: 'http://interno/x' }, { path: alheio, url: 'https://a/b' }] },
+      });
+
+    expect(res.status).toBe(200);
+    const call = vi.mocked(generateFromTemplate).mock.calls[0];
+    expect(call[4]).toBe(4);
+    expect(call[3]).toMatchObject({ fotos_obras: [{ path: meu, url: 'https://x.test/nova/' + meu }] });
+    expect(JSON.stringify(call[3])).not.toContain('interno');
+    expect(JSON.stringify(call[3])).not.toContain('user-999');
+    expect(res.body.modelo_usado).toBe('modelo-4');
   });
 
   // Reserva que falha NÃO recomeça do 0001 (foi o que um 504 fez em 12/09/2026), e o

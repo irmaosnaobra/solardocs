@@ -1,18 +1,22 @@
 import { getRef, geracaoMensal, MESES_ABREV } from './propostaSolarData';
 import { enderecoCompleto } from './enderecoCliente';
 import { propostaOffGrid } from './templates/propostaOffGrid';
-import qrcode from 'qrcode-generator';
 import { inversoresDaProposta, totalKwInversores, type InversorProposta } from './inversoresProposta';
+import { propostaSolarCompleta } from './templates/propostaSolarCompleta';
+import {
+  coresModelo1, cssRaizModelo1, CSS_MODELO1, dadosContato, cabecalhoModelo1, analiseModelo1, linhaMk, linhasInversoresHtml, rodapeModelo1,
+} from './templates/propostaSolarPartes';
+import {
+  FIN_PRAZOS, NUM_ANOS, calcularFinanceiro, partesBarrasMensais, partesCurvas25, pBRLshort,
+  valorParcelaCartao as calcParcelaCartao, valorParcelaFin as calcParcelaFin,
+} from './propostaSolarCalculos';
+import {
+  qrSvg, derivePalette, type Palette, pBRL, pNum, pKwp, pEsc, pGarantiasInversoresDiferentes, pTel, pCnpj, pFlagOn,
+  pmtPriceCarencia, propostaDiasValidade, propostaEmissao, propostaValidade, str, parseBRL, parseBateria,
+} from './propostaSolarBase';
 
-// QR (SVG) de um link — usado no rodapé da proposta (WhatsApp do vendedor).
-function qrSvg(text: string): string {
-  try {
-    const qr = qrcode(0, 'M');
-    qr.addData(text);
-    qr.make();
-    return qr.createSvgTag({ cellSize: 3, margin: 0 });
-  } catch { return ''; }
-}
+// Reexportado: o documentsController importa daqui (e o teste de rota mocka este módulo).
+export { propostaDiasValidade };
 
 interface Company {
   nome: string;
@@ -73,7 +77,7 @@ export function generateFromTemplate(
   company: Company,
   client: Client,
   fields: Record<string, unknown>,
-  modelo: 1 | 2 | 3 = 1,
+  modelo: 1 | 2 | 3 | 4 = 1,
   // out opcional: propostaSolar preenche out.resumo com o texto pro WhatsApp
   // (mesmos números do PDF). Outros tipos ignoram — não afeta chamadas existentes.
   out?: { resumo?: string },
@@ -95,7 +99,7 @@ function gerarDoTemplate(
   company: Company,
   client: Client,
   fields: Record<string, unknown>,
-  modelo: 1 | 2 | 3,
+  modelo: 1 | 2 | 3 | 4,
   out?: { resumo?: string }
 ): string {
   switch (type) {
@@ -132,6 +136,12 @@ function gerarDoTemplate(
       // Modelo 1 (padrão) = "1 Página"; Modelo 2 = "Moderno"; Modelo 3 = o MESMO
       // Moderno com uma capa na frente. O 3 nao e' um template novo: chama o mesmo
       // corpo com a folha de rosto ligada, entao mexer no Moderno arruma os dois.
+      // Modelo 4 = "Completo": varias folhas A4 no visual do modelo 1. Como o 1, chama o Moderno so'
+      // para preencher out.resumo (mesmos numeros do WhatsApp) e descarta o HTML dele.
+      if (modelo === 4) {
+        if (out) propostaSolarM1(company, client, fields, out);
+        return propostaSolarCompleta(company, client, fields);
+      }
       if (modelo === 3) return propostaSolarM1(company, client, fields, out, { capa: true });
       return modelo === 2
         ? propostaSolarM1(company, client, fields, out)
@@ -2176,149 +2186,6 @@ Gerado por SolarDoc Pro — solardoc.app
 // Paleta de cor escolhível pelo vendedor (5 opções pré-definidas).
 // Logo da empresa puxada do cadastro (logo_base64).
 
-interface Palette { c1: string; c2: string; c3: string; nome: string; }
-const PALETTES: Record<string, Palette> = {
-  // 2026-05-21: solar/oceano/floresta agora usam tons fortes/escuros pra
-  // dar mais autoridade visual no PDF. Royal e carbono mantidos.
-  solar:    { c1: '#B45309', c2: '#D97706', c3: '#FFFBEB', nome: 'Solar' },
-  oceano:   { c1: '#1E3A8A', c2: '#1D4ED8', c3: '#EFF6FF', nome: 'Oceano' },
-  floresta: { c1: '#065F46', c2: '#047857', c3: '#ECFDF5', nome: 'Floresta' },
-  royal:    { c1: '#8B5CF6', c2: '#A78BFA', c3: '#F5F3FF', nome: 'Royal' },
-  carbono:  { c1: '#1F2937', c2: '#F59E0B', c3: '#FAFAF9', nome: 'Carbono' },
-};
-
-// Deriva uma paleta {c1,c2,c3} de UMA cor (hex) escolhida — usada tanto pela
-// cor personalizada (color picker) quanto pela cor da empresa cadastrada.
-// CONTRASTE é a parte crítica: o template põe texto BRANCO sobre c1/c2. Uma cor
-// clara (ex: amarelo) deixaria o texto branco ilegível — então escurecemos c1
-// até a luminância ser segura pra texto branco (aceita-se aprofundar tons pálidos).
-// c2 = tom um pouco mais claro (gradiente); c3 = tint bem claro do hue (fundo).
-function _hexToRgb(hex: string): [number, number, number] {
-  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
-}
-function _rgbToHex(r: number, g: number, b: number): string {
-  const h = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
-  return `#${h(r)}${h(g)}${h(b)}`;
-}
-function _relLum(r: number, g: number, b: number): number {
-  const f = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
-  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
-}
-function _mix(a: number, b: number, t: number): number { return a + (b - a) * t; }
-function derivePalette(hexRaw: string, nome: string): Palette {
-  const hex = String(hexRaw || '').trim().toLowerCase();
-  // Sanitiza: só #rrggbb entra no CSS/SVG do PDF (campo é POST não confiável).
-  if (!/^#[0-9a-f]{6}$/.test(hex)) return { ...PALETTES.solar, nome };
-  let [r, g, b] = _hexToRgb(hex);
-  // Escurece até luminância <= 0.18 (garante contraste AA com texto branco).
-  let guard = 0;
-  while (_relLum(r, g, b) > 0.18 && guard < 40) { r *= 0.9; g *= 0.9; b *= 0.9; guard++; }
-  const c1 = _rgbToHex(r, g, b);
-  const c2 = _rgbToHex(_mix(r, 255, 0.22), _mix(g, 255, 0.22), _mix(b, 255, 0.22)); // +claro (gradiente)
-  const c3 = _rgbToHex(_mix(r, 255, 0.93), _mix(g, 255, 0.93), _mix(b, 255, 0.93)); // tint de fundo
-  return { c1, c2, c3, nome };
-}
-
-function pBRL(n: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
-}
-
-function pNum(n: number): string {
-  return new Intl.NumberFormat('pt-BR').format(Math.round(n));
-}
-
-// Formato pra kWp: mostra decimais se não for inteiro (5 → "5", 9,6 → "9,6")
-function pKwp(n: number): string {
-  if (Math.abs(n - Math.round(n)) < 0.01) return String(Math.round(n));
-  return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',');
-}
-
-function pEsc(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] || c);
-}
-
-// Garantia dos inversores da proposta. Vazio quando todos têm o mesmo prazo (aí vale
-// o texto de sempre, com um número só). Com prazos diferentes devolve, sem escape:
-// "Growatt 10 anos, Deye 5 anos". Quem imprime escapa.
-function pGarantiasInversoresDiferentes(lista: InversorProposta[]): string {
-  if (lista.every((i) => i.garantiaAnos === lista[0].garantiaAnos)) return '';
-  return lista
-    .map((i, n) => `${i.marca || `inversor ${n + 1}`} ${i.garantiaAnos} ${i.garantiaAnos === 1 ? 'ano' : 'anos'}`)
-    .join(', ');
-}
-
-// Telefone só pra LEITURA: "5517996243536" → "(17) 99624-3536". O link do
-// WhatsApp e o QR continuam usando os dígitos crus — formatar a variável em si
-// quebraria os dois.
-function pTel(s: string): string {
-  const d = String(s || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
-  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return String(s || '');
-}
-
-// CNPJ: pontua se vierem os 14 dígitos; qualquer outra coisa sai como foi digitada.
-function pCnpj(s: string): string {
-  const d = String(s || '').replace(/\D/g, '');
-  if (d.length !== 14) return String(s || '').trim();
-  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
-}
-
-// Checkbox do form: ausente = LIGADO (é o padrão de todos os campos do rodapé).
-// String("false") porque o valor volta do dados_json/kit com o tipo trocado —
-// aqui isso importa mais que nos pag_*: um desmarcado que não pega vira PDF
-// errado na mão do cliente.
-function pFlagOn(v: unknown): boolean {
-  return v !== false && String(v) !== 'false';
-}
-
-// PMT Price com carência: juros capitalizam no saldo durante a carência, depois Price padrão
-function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: number): number {
-  if (!pv || pv <= 0) return 0;
-  const saldo = pv * Math.pow(1 + i, carenciaMeses);
-  return saldo * i / (1 - Math.pow(1 + i, -n));
-}
-
-// Validade da proposta: dias corridos a partir da emissão (padrão 7, editável no
-// form). O HTML é renderizado uma vez na geração e servido salvo em /p/:id, então
-// a data de vencimento congela no dia do envio — proposta antiga não "renova".
-// Fica num só lugar pros dois modelos não divergirem no texto.
-// Dias corridos de validade (padrão 7). Exportado porque o reemissor precisa saber
-// se a proposta antiga ainda está no prazo antes de decidir se congela a data.
-export function propostaDiasValidade(f: Record<string, unknown>): number {
-  const n = parseInt(String(f.validade_dias ?? '').replace(/\D/g, ''), 10);
-  return n > 0 ? n : 7;
-}
-
-// Data de emissão da proposta. Reeditar um doc antigo (pelo /histórico) manda o
-// emitido_em original: cabeçalho e validade continuam os do dia do envio, em vez de
-// renovarem sozinhos porque alguém corrigiu um typo. Vazio = agora (emissão normal).
-function propostaEmissao(f: Record<string, unknown>): Date {
-  const raw = String(f.emitido_em ?? '').trim();
-  if (!raw) return new Date();
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? new Date() : d;
-}
-
-function propostaValidade(f: Record<string, unknown>): { dias: number; curto: string; longo: string } {
-  const dias = propostaDiasValidade(f);
-  const ate = new Date(propostaEmissao(f).getTime() + dias * 86400000);
-  const plural = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
-  // Nº absurdo (14 dígitos) estoura o range do Date — aí sai só "Válido por N dias",
-  // sem a data. Nunca um "Invalid Date" no PDF que vai pro cliente.
-  const ateOk = !Number.isNaN(ate.getTime());
-  const comData = (opts?: Intl.DateTimeFormatOptions) => ateOk
-    ? `Válido por ${plural} · até ${ate.toLocaleDateString('pt-BR', { ...opts, timeZone: 'America/Sao_Paulo' })}`
-    : `Válido por ${plural}`;
-  return {
-    dias,
-    // dd/mm/aaaa — combina com o cabeçalho do modelo "1 Página"
-    curto: comData(),
-    // "6 de agosto de 2026" — combina com o dateBR() do modelo Moderno
-    longo: comData({ day: '2-digit', month: 'long', year: 'numeric' }),
-  };
-}
-
 // ════════════════════════════════════════════════════════════════════════════
 // PROPOSTA SOLAR — MODELO "1 PÁGINA" (orçamento A4 compacto, todos os dados)
 // Reaproveita o resumo de WhatsApp do modelo Moderno (mesmos números, garantido:
@@ -2329,15 +2196,10 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   // Resumo do WhatsApp: reusa 100% a lógica do Moderno (números idênticos).
   if (out) propostaSolarM1(company, client, f, out);
 
-  // ── Cores: principal = cor_marca (via derivePalette); acento = cor_secundaria
-  //    da empresa (fallback âmbar). Texto sobre o acento vira branco/escuro
-  //    conforme a luminância, pra sempre ler bem. ──
-  const p: Palette = derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa');
-  const secRaw = String((company as { cor_secundaria?: string }).cor_secundaria || '').trim();
-  const accent = /^#?[0-9a-fA-F]{6}$/.test(secRaw) ? (secRaw.startsWith('#') ? secRaw : '#' + secRaw) : '#F7B500';
-  const accentLum = (() => { const m = /^#([0-9a-fA-F]{6})$/.exec(accent); if (!m) return 1; const r = parseInt(m[1].slice(0, 2), 16), g = parseInt(m[1].slice(2, 4), 16), b = parseInt(m[1].slice(4, 6), 16); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; })();
-  const accentText = accentLum < 0.5 ? '#ffffff' : p.c1;
-
+  // ── Cores: principal = cor_marca (via derivePalette); acento = cor_secundaria da empresa
+  //    (fallback âmbar). Texto sobre o acento vira branco/escuro conforme a luminância. ──
+  const cores = coresModelo1(company);
+  const p: Palette = cores.p;
   // ── Inputs ──
   const cidade = (str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade)).trim();
   const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).trim().toUpperCase();
@@ -2357,21 +2219,9 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const garPaineis = parseInt(String(f.garantia_paineis || '25'), 10) || 25;
   const garInvDiferentes = pGarantiasInversoresDiferentes(invLista);
 
-  // Rodapé: nome do vendedor, contato e CNPJ vêm fixos do cadastro, mas o form
-  // manda o que o consultor editou — e cada linha tem um desmarcar próprio.
-  const mostraVendNome = pFlagOn(f.mostrar_vendedor_nome);
-  const mostraVendTel = pFlagOn(f.mostrar_vendedor_contato);
-  const vendedorForm = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome).trim();
-  const vendedor = mostraVendNome ? (vendedorForm || String(company.socio_adm || company.nome || '').trim()) : '';
-  const vendWhats = mostraVendTel
-    ? ((str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '') || String((company as { whatsapp?: string }).whatsapp || '').replace(/\D/g, ''))
-    : '';
-  const vendEmail = String(f.vendedor_email || '').trim() || String((company as { email?: string }).email || '').trim();
-  const cnpjForm = str(f.empresa_cnpj) === '___' ? '' : String(f.empresa_cnpj).trim();
-  const cnpjDoc = pFlagOn(f.mostrar_cnpj) ? (cnpjForm || String(company.cnpj || '').trim()) : '';
-  const logo = String((company as { logo_base64?: string }).logo_base64 || '').trim();
-  // Nome exibido = nome fantasia (marca) se houver; senão a razão social.
-  const displayNome = String((company as { nome_fantasia?: string }).nome_fantasia || company.nome || '').trim();
+  // Rodapé e cabeçalho: nome do vendedor, contato, CNPJ, logo e nome da empresa (templates/propostaSolarPartes.ts).
+  const contato = dadosContato(company, f);
+  const { cnpjDoc, logo, displayNome } = contato;
 
   // ── Cálculos (mesmas fórmulas do Moderno) ──
   const refBase = getRef(uf, cidade);
@@ -2444,31 +2294,6 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const marcaInvDe = (i: InversorProposta) => [i.marca, i.potenciaTxt ? `${i.potenciaTxt} kW` : ''].filter(Boolean).join(' · ');
   const enderecoCli = (str(f.endereco) === '___' ? (client.endereco || '') : String(f.endereco || client.endereco || '')).trim();
 
-  const linhaMk = (label: string, marca: string, right: string) =>
-    `<div class="r"><span class="lab">${pEsc(label)}${marca ? ` <em class="mkq">${pEsc(marca)}</em>` : ''}</span><span class="inc">${pEsc(right)}</span></div>`;
-
-  // Uma linha por inversor. Com mais de um, entra também a potência total (soma de qtd x kW).
-  const totalKwInv = totalKwInversores(invLista);
-  const linhasInversoresHtml = [
-    ...invLista.map((i) => linhaMk('Inversor', marcaInvDe(i), `Incluído · ${i.qtd} un`)),
-    ...(invLista.length > 1 && totalKwInv > 0
-      ? [linhaMk('Potência total dos inversores', '', `${totalKwInv.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kW`)]
-      : []),
-  ].join('\n      ');
-
-  // Desmarcar nome E contato tira o card inteiro — um card só com o título
-  // "Vendedor" e nada dentro parece documento quebrado. Aí a Empresa ocupa a
-  // largura toda em vez de deixar meio rodapé vazio.
-  const cardVendedor = (mostraVendNome || vendWhats || vendEmail)
-    ? `<div class="card">
-        <h4>Vendedor</h4>
-        ${mostraVendNome ? `<div class="l"><span>Nome</span><span>${pEsc(vendedor || '—')}</span></div>` : ''}
-        ${vendEmail ? `<div class="l"><span>E-mail</span><span>${pEsc(vendEmail)}</span></div>` : ''}
-        ${vendWhats ? `<div class="l"><span>Contato</span><span class="num">${pEsc(pTel(vendWhats))}</span></div>` : ''}
-        ${vendWhats ? `<div class="qr"><div class="qrbox">${qrSvg('https://wa.me/' + (vendWhats.startsWith('55') ? vendWhats : '55' + vendWhats))}</div><span>Aponte a câmera<br/>e fale no WhatsApp</span></div>` : ''}
-      </div>`
-    : '';
-
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head>
 <meta charset="UTF-8"/>
@@ -2477,69 +2302,8 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{ --c1:${p.c1}; --c2:${p.c2}; --c3:${p.c3}; --accent:${accent}; --accent-text:${accentText}; --ink:#161A22; --muted:#5C6470; --row:#F2F4F8; --line:#E4E8F0; }
-@page{ size:A4; margin:0; }
-*,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
-html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; color:var(--ink); background:#EEF1F5; -webkit-font-smoothing:antialiased; }
-.num{ font-variant-numeric:tabular-nums; }
-.page{ width:794px; min-height:1123px; margin:0 auto; background:#fff; display:flex; flex-direction:column; }
-/* Cabeçalho */
-.head{ display:grid; grid-template-columns:1fr 1fr; }
-.brand{ padding:20px 24px; display:flex; flex-direction:row; align-items:center; gap:16px; }
-.brand img{ width:110px; height:110px; object-fit:contain; flex-shrink:0; }
-.brand .mk{ font-size:27px; font-weight:900; letter-spacing:-.6px; color:var(--c1); line-height:1.02; }
-.brand .mk small{ display:block; font-size:9.5px; font-weight:700; letter-spacing:3px; color:var(--muted); margin-top:6px; }
-.ficha{ background:var(--c1); color:#fff; padding:20px 24px; display:flex; flex-direction:column; gap:8px; }
-.ficha .t{ font-size:12px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; opacity:.85; }
-.ficha .rowf{ display:flex; justify-content:space-between; gap:12px; font-size:12px; border-bottom:1px solid rgba(255,255,255,.16); padding-bottom:6px; }
-.ficha .rowf span:first-child{ opacity:.7; font-weight:600; }
-.ficha .valid{ margin-top:2px; font-size:10.5px; font-weight:800; color:var(--accent-text); background:var(--accent); align-self:flex-start; padding:4px 10px; border-radius:999px; letter-spacing:.3px; }
-/* Faixa de seção — barra amarela com o título na cor da marca (estilo da referência) */
-.band{ display:flex; align-items:center; background:var(--accent); margin-top:2px; }
-.band .tab{ color:var(--accent-text); font-size:12.5px; font-weight:800; letter-spacing:1.3px; text-transform:uppercase; padding:9px 20px; }
-.band .bar{ flex:1; }
-.sec{ padding:13px 26px 4px; }
-.tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
-.tile{ border:1px solid var(--line); border-bottom:3px solid var(--c1); border-radius:12px; padding:11px 13px; }
-.tile .k{ font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); }
-.tile .v{ font-size:22px; font-weight:900; color:var(--c1); line-height:1.1; margin-top:3px; }
-.tile .v u{ font-size:12px; font-weight:700; color:var(--muted); text-decoration:none; margin-left:2px; }
-.rows{ display:flex; flex-direction:column; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
-.r{ display:flex; justify-content:space-between; gap:16px; padding:8px 14px; font-size:12px; align-items:center; }
-.r:nth-child(odd){ background:var(--row); }
-.r .lab{ color:#39404C; font-weight:600; }
-.r .val{ font-weight:800; }
-.r .inc{ color:#127A3E; font-weight:800; font-size:10.5px; letter-spacing:.4px; text-transform:uppercase; }
-.mkq{ display:inline-block; font-style:normal; font-size:10px; font-weight:800; letter-spacing:.3px; color:var(--c1); background:var(--c3); padding:1px 7px; border-radius:6px; margin-left:8px; vertical-align:middle; }
-/* Financeiro */
-.fin{ padding:13px 26px 6px; }
-.hero{ display:grid; grid-template-columns:1.25fr 1fr; gap:12px; margin-bottom:11px; }
-.heroL{ background:linear-gradient(135deg,var(--c1),var(--c2)); color:#fff; border-radius:14px; padding:16px 18px; }
-.heroL .k{ font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; opacity:.85; }
-.heroL .v{ font-size:32px; font-weight:900; line-height:1.05; margin-top:3px; }
-.heroL .s{ font-size:11px; opacity:.8; margin-top:3px; }
-.heroR{ background:var(--accent); border-radius:14px; padding:16px 18px; display:flex; flex-direction:column; justify-content:center; }
-.heroR .k{ font-size:10.5px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--accent-text); opacity:.8; }
-.heroR .v{ font-size:27px; font-weight:900; line-height:1.05; margin-top:2px; color:var(--accent-text); }
-.heroR .s{ font-size:11.5px; font-weight:800; margin-top:3px; color:var(--accent-text); opacity:.9; }
-.finGrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-.fc{ border:1px solid var(--line); border-radius:12px; padding:10px 13px; }
-.fc .k{ font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); }
-.fc .v{ font-size:17px; font-weight:900; color:var(--c1); margin-top:3px; }
-/* Rodapé */
-.foot{ margin-top:auto; background:var(--c1); color:#fff; padding:16px 26px 20px; }
-.foot .pg{ font-size:11px; font-weight:800; letter-spacing:1.3px; text-transform:uppercase; opacity:.85; margin-bottom:11px; }
-.cols{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.card{ background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:12px 15px; }
-.card h4{ margin:0 0 8px; font-size:10.5px; font-weight:800; letter-spacing:1px; text-transform:uppercase; opacity:.9; }
-.card .l{ display:flex; justify-content:space-between; gap:10px; font-size:11.5px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,.10); }
-.card .l:last-child{ border-bottom:none; }
-.card .l span:first-child{ opacity:.65; font-weight:600; }
-.card .l span:last-child{ font-weight:700; text-align:right; }
-.qr{ display:flex; align-items:center; gap:9px; margin-top:10px; }
-.qrbox{ width:54px; height:54px; background:#fff; border-radius:6px; padding:3px; flex-shrink:0; }
-.qrbox svg{ width:100%; height:100%; display:block; }
-.qr span{ font-size:9.5px; line-height:1.3; opacity:.7; }
+${cssRaizModelo1(cores)}
+${CSS_MODELO1}
 /* Com o endereco do cliente a ficha cresce (ate 4 linhas). A folha e' de 1 pagina e
    fecha na conta: sem estes ajustes de espacamento, um endereco longo empurrava o
    rodape para a 2a folha. So entram quando ha endereco; sem ele nada muda. */
@@ -2553,19 +2317,7 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 .com-end .fin{ padding:10px 26px 5px; }
 </style></head><body>
 <div class="page${enderecoCli ? ' com-end' : ''}">
-  <div class="head">
-    <div class="brand">
-      ${logo ? `<img src="${logo}" alt="${pEsc(displayNome)}"/>` : ''}
-      <div class="mk">${pEsc(displayNome || 'Sua Marca')}<small>ENERGIA SOLAR</small></div>
-    </div>
-    <div class="ficha">
-      <div class="t">Proposta Comercial</div>
-      <div class="rowf"><span>Data</span><span class="num">${hoje}</span></div>
-      <div class="rowf"><span>Cliente</span><span>${pEsc(client.nome || '—')}</span></div>
-      ${enderecoCli ? `<div class="rowf end"><span>Endereço</span><span>${pEsc(enderecoCli)}</span></div>` : ''}
-      <div class="valid">${pEsc(validade.curto.toUpperCase())}</div>
-    </div>
-  </div>
+  ${cabecalhoModelo1({ logo, displayNome, hoje, clienteNome: client.nome, enderecoCli, validadeCurto: validade.curto })}
 
   <div class="band"><div class="tab">Detalhamento do Projeto</div><div class="bar"></div></div>
   <div class="sec">
@@ -2586,7 +2338,7 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
   <div class="sec">
     <div class="rows">
       ${linhaMk('Módulos fotovoltaicos', marcaMod, qtdModulos > 0 ? `Incluído · ${qtdModulos} un` : 'Incluído')}
-      ${linhasInversoresHtml}
+      ${linhasInversoresHtml(invLista)}
       ${linhaMk('Estrutura e materiais elétricos', '', 'Incluído')}
       ${linhaMk('Projeto de engenharia e conexão à rede', '', 'Incluído')}
       ${linhaMk('Serviço de instalação', '', 'Incluído')}
@@ -2594,33 +2346,9 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
     </div>
   </div>
 
-  <div class="band"><div class="tab">Análise Financeira</div><div class="bar"></div></div>
-  <div class="fin">
-    <div class="hero">
-      <div class="heroL"><div class="k">Economia em 25 anos</div><div class="v num">${brl(economia25)}</div><div class="s">com o sistema quitado gerando energia própria</div></div>
-      <div class="heroR"><div class="k">Investimento</div><div class="v num">${brl(investimento)}</div>${parcelaLabel ? `<div class="s num">${pEsc(parcelaLabel)}</div>` : ''}</div>
-    </div>
-    <div class="finGrid">
-      <div class="fc"><div class="k">Economia mensal</div><div class="v num">${brl(economiaMensal)}</div></div>
-      <div class="fc"><div class="k">Conta após instalação</div><div class="v num">${brl(taxaMinima + cip)}</div>${cip > 0 ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">${pEsc(`Taxa mínima + iluminação pública ${brl(cip)}`)}</div>` : ''}</div>
-      <div class="fc"><div class="k">Tempo de retorno</div><div class="v num">${paybackTexto}</div></div>
-    </div>
-  </div>
+  ${analiseModelo1({ economia25, investimento, parcelaLabel, economiaMensal, taxaMinima, cip, paybackTexto })}
 
-  <div class="foot">
-    <div class="pg">Forma de pagamento &amp; contato</div>
-    <div class="cols"${cardVendedor ? '' : ' style="grid-template-columns:1fr"'}>
-      ${cardVendedor}
-      <div class="card">
-        <h4>Empresa</h4>
-        <div class="l"><span>Nome</span><span>${pEsc(displayNome || '—')}</span></div>
-        ${cnpjDoc ? `<div class="l"><span>CNPJ</span><span class="num">${pEsc(pCnpj(cnpjDoc))}</span></div>` : ''}
-        ${company.endereco ? `<div class="l"><span>Endereço</span><span>${pEsc(company.endereco)}</span></div>` : ''}
-        ${(company as { whatsapp?: string }).whatsapp ? `<div class="l"><span>Contato</span><span class="num">${pEsc(pTel(String((company as { whatsapp?: string }).whatsapp)))}</span></div>` : ''}
-        ${(company as { email?: string }).email ? `<div class="l"><span>E-mail</span><span>${pEsc(String((company as { email?: string }).email))}</span></div>` : ''}
-      </div>
-    </div>
-  </div>
+  ${rodapeModelo1(company, contato, 'Forma de pagamento &amp; contato')}
 </div>
 </body></html>`;
 }
@@ -2674,37 +2402,11 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const investimento = parseBRL(f.investimento);
   const precoAvistaInput = parseBRL(f.preco_avista);
   const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
-  // Parcelas no cartão — 1x a 21x. Cada parcela tem taxa editável vinda do form
-  // (fallback: tabela Elo padrão). Fórmula: valor = (investimento × (1+taxa%)) / N.
-  // Tabela Elo padrão (usada quando o tenant não envia taxa customizada).
-  const TAXA_CARTAO_DEFAULT: Record<number, number> = {
-    1: 3.99, 2: 5.30, 3: 5.99, 4: 6.68, 5: 7.35, 6: 8.02, 7: 9.47,
-    8: 10.13, 9: 10.78, 10: 11.43, 11: 12.06, 12: 12.70, 13: 13.32,
-    14: 13.94, 15: 14.56, 16: 15.17, 17: 15.77, 18: 16.37,
-    19: 16.97, 20: 17.57, 21: 18.17,
-  };
-  function taxaCartao(n: number): number {
-    const raw = String(f[`taxa_cartao_${n}` as keyof typeof f] || '').replace(',', '.');
-    const v = parseFloat(raw);
-    return v > 0 ? v : (TAXA_CARTAO_DEFAULT[n] ?? 0);
-  }
-  function valorParcelaCartao(n: number): number {
-    if (investimento <= 0 || n <= 0) return 0;
-    return Math.ceil((investimento * (1 + taxaCartao(n) / 100)) / n);
-  }
-  // Financiamento Price com 120 dias (4 meses) de carência.
-  // Taxa mensal editável por proposta (default 2,2% a.m.). Prazos: 36/48/60/72/84.
-  const FIN_CARENCIA_MESES = 4;
-  const FIN_RATE_DEFAULT = 2.20; // % a.m.
-  function taxaFin(n: number): number {
-    const raw = String(f[`taxa_fin_${n}` as keyof typeof f] || '').replace(',', '.');
-    const v = parseFloat(raw);
-    return v > 0 ? v : FIN_RATE_DEFAULT;
-  }
-  function valorParcelaFin(n: number): number {
-    if (investimento <= 0 || n <= 0) return 0;
-    return Math.ceil(pmtPriceCarencia(investimento, taxaFin(n) / 100, n, FIN_CARENCIA_MESES));
-  }
+  // Parcelas no cartão (1x a 21x) e financiamento Price (36 a 84x, 120 dias de carência):
+  // as contas moram em propostaSolarCalculos.ts, que o modelo Completo também usa.
+  const valorParcelaCartao = (n: number): number => calcParcelaCartao(f, investimento, n);
+  const valorParcelaFin = (n: number): number => calcParcelaFin(f, investimento, n);
+
   // Entrada + saldo: integrador define a entrada (R$) e como/quando quitar o restante.
   // Modo do restante, em ordem de tempo:
   // 'contrato' (na assinatura) | 'dias' (N dias) | 'entrega' | 'montagem' | 'liberacao'.
@@ -2737,7 +2439,6 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     cartaoAtivo[n] = f[`pag_cartao_${n}` as keyof typeof f] === true;
   }
   // Financiamento: 36/48/60/72/84. Form é a fonte de verdade — só lê o que veio.
-  const FIN_PRAZOS = [36, 48, 60, 72, 84] as const;
   const finAtivo: Record<number, boolean> = {};
   for (const n of FIN_PRAZOS) {
     finAtivo[n] = f[`pag_fin_${n}` as keyof typeof f] === true;
@@ -2798,38 +2499,10 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
   const mediaMensalGerada = Math.round(geracaoAnual / 12);
   const economiaPercent = consumoKwh > 0 ? Math.min(100, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;
-  // Payback usando o MESMO modelo dual-inflação do chart 25 anos
-  // (senão o "X anos pra retorno" diverge dos números mostrados nas curvas)
-  const paybackMeses = (() => {
-    if (investimento <= 0 || consumoKwh <= 0) return 0;
-    let acum = 0;
-    for (let a = 1; a <= 25; a++) {
-      const ftar = Math.pow(1 + inflacao, a - 1);
-      const fmin = Math.pow(1 + inflacaoTaxaMin, a - 1);
-      const economiaAno = consumoKwh * 12 * ref.tarifa * ftar - taxaMinima * 12 * fmin;
-      if (acum + economiaAno >= investimento) {
-        const restante = investimento - acum;
-        return (a - 1) * 12 + Math.ceil((restante / economiaAno) * 12);
-      }
-      acum += economiaAno;
-    }
-    return 0;
-  })();
-  const paybackAnos = paybackMeses > 0 ? (paybackMeses / 12).toFixed(1).replace('.', ',') : '—';
-  const paybackTexto = (() => {
-    const m = paybackMeses;
-    if (!m) return '—';
-    const anos = Math.floor(m / 12);
-    const meses = m % 12;
-    if (anos === 0) return `${meses} ${meses === 1 ? 'mês' : 'meses'}`;
-    if (meses === 0) return `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
-    return `${anos} ${anos === 1 ? 'ano' : 'anos'} e ${meses} ${meses === 1 ? 'mês' : 'meses'}`;
-  })();
-
-  // Conta antes vs depois: hoje paga consumo × tarifa; com solar paga taxa mínima
-  const contaHoje = Math.round(consumoKwh * ref.tarifa);
-  const contaComSolar = taxaMinima;
-  const economiaMensal = Math.max(0, contaHoje - contaComSolar);
+  // Payback, conta hoje x depois, economia e curvas de 25 anos: propostaSolarCalculos.ts
+  // (o mesmo modelo dual-inflação alimenta os números e os gráficos, então nunca divergem).
+  const fin = calcularFinanceiro({ consumoKwh, tarifa: ref.tarifa, taxaMinima, inflacao, inflacaoTaxaMin, investimento });
+  const { paybackAnos, paybackTexto, contaHoje, contaComSolar, economiaMensal } = fin;
   // Valores exibidos no antes vs depois: com CIP, os dois lados somam a mesma taxa.
   const contaHojeExib = cip > 0 ? Math.round(consumoKwh * ref.tarifa + cip) : contaHoje;
   const contaComSolarExib = contaComSolar + cip;
@@ -2898,98 +2571,13 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     out.resumo = L.join('\n').trim();
   }
 
-  // Série anual acumulada pros 25 anos: conta SEM solar × conta COM solar.
-  // "Sem solar" = consumo × tarifa × 12 (tarifa cresce 7%/ano histórico ANEEL)
-  // "Com solar" = taxa mínima × 12 (taxa mínima cresce ~4%/ano — fixa, menos
-  // exposta ao mercado de geração)
-  // Economia = diff entre as duas curvas — número que o cliente sente no bolso.
-  const NUM_ANOS = 25;
-  const semSolarAcum: number[] = [];
-  const comSolarAcum: number[] = [];
-  {
-    let sem = 0, com = 0;
-    for (let a = 1; a <= NUM_ANOS; a++) {
-      const fatorTarifa = Math.pow(1 + inflacao, a - 1);
-      const fatorMin = Math.pow(1 + inflacaoTaxaMin, a - 1);
-      sem += consumoKwh * 12 * ref.tarifa * fatorTarifa;
-      com += taxaMinima * 12 * fatorMin;
-      semSolarAcum.push(Math.round(sem));
-      comSolarAcum.push(Math.round(com));
-    }
-  }
-  const economia25 = semSolarAcum[NUM_ANOS - 1] - comSolarAcum[NUM_ANOS - 1];
-
-  // Breakdown da economia em 25 anos (ano 1, 5, 10, 25) — usa o MESMO modelo do chart
-  // pra não dar números contraditórios na mesma proposta.
-  const breakdownAnos = [1, 5, 10, 25];
-  const breakdownEconomia = breakdownAnos.map((anoAlvo) => {
-    return semSolarAcum[anoAlvo - 1] - comSolarAcum[anoAlvo - 1];
-  });
+  const { semSolarAcum, comSolarAcum, economia25, breakdownAnos, breakdownEconomia } = fin;
 
   // SVG comparativo 25 anos: 2 áreas (sem/com solar) com gap destacado em verde.
-  const CW = 700, CH = 280, CP = { top: 24, right: 20, bottom: 50, left: 70 };
-  const cInnerW = CW - CP.left - CP.right;
-  const cInnerH = CH - CP.top - CP.bottom;
-  const yMaxComp = Math.max(...semSolarAcum, 1);
-  const pBRLshort = (n: number): string => {
-    if (n >= 1_000_000) return `R$ ${(n / 1_000_000).toFixed(1).replace('.', ',')}M`;
-    if (n >= 1_000) return `R$ ${Math.round(n / 1_000)}k`;
-    return `R$ ${Math.round(n)}`;
-  };
-  const cYTicks = 5;
-  const cYLines = Array.from({ length: cYTicks + 1 }, (_, i) => {
-    const v = (yMaxComp * i) / cYTicks;
-    const y = CP.top + cInnerH - (cInnerH * i) / cYTicks;
-    return `<line x1="${CP.left}" y1="${y}" x2="${CP.left + cInnerW}" y2="${y}" stroke="#E5E7EB" stroke-width="1"/>
-<text x="${CP.left - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="#9CA3AF">${pBRLshort(v)}</text>`;
-  }).join('\n');
-  const xCoord = (i: number): number => CP.left + (cInnerW * i) / (NUM_ANOS - 1);
-  const yCoord = (v: number): number => CP.top + cInnerH - (cInnerH * v) / yMaxComp;
-
-  // Path da linha "sem solar"
-  const semPath = semSolarAcum.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xCoord(i).toFixed(1)} ${yCoord(v).toFixed(1)}`).join(' ');
-  // Path da linha "com solar"
-  const comPath = comSolarAcum.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xCoord(i).toFixed(1)} ${yCoord(v).toFixed(1)}`).join(' ');
-  // Área de economia: polygon do sem (topo) descendo ao com (base) e fechando
-  const areaEconomia = semSolarAcum.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xCoord(i).toFixed(1)} ${yCoord(v).toFixed(1)}`).join(' ')
-    + ' ' + [...comSolarAcum].reverse().map((v, i) => {
-        const idx = NUM_ANOS - 1 - i;
-        return `L ${xCoord(idx).toFixed(1)} ${yCoord(v).toFixed(1)}`;
-      }).join(' ')
-    + ' Z';
-
-  // Labels do eixo X: anos 1, 5, 10, 15, 20, 25
-  const cXLabels = [1, 5, 10, 15, 20, 25].map(a => {
-    const i = a - 1;
-    return `<text x="${xCoord(i).toFixed(1)}" y="${(CP.top + cInnerH + 18).toFixed(1)}" text-anchor="middle" font-size="11" fill="#6B7280" font-weight="600">Ano ${a}</text>`;
-  }).join('\n');
+  const { CW, CH, cYLines, areaEconomia, semPath, comPath, cXLabels } = partesCurvas25(semSolarAcum, comSolarAcum);
 
   // SVG bar chart 12 meses (puro SVG, sem JS)
-  const W = 600, H = 240, P = { top: 24, right: 16, bottom: 50, left: 48 };
-  const innerW = W - P.left - P.right;
-  const innerH = H - P.top - P.bottom;
-  const barCount = 12;
-  const barGap = 6;
-  const barW = (innerW - barGap * (barCount - 1)) / barCount;
-  const maxKwh = Math.max(...mensal, 1);
-  // Y axis ticks (4 níveis)
-  const yTicks = 4;
-  const yLabels = Array.from({ length: yTicks + 1 }, (_, i) => Math.round((maxKwh * i) / yTicks));
-  const yLines = yLabels.map((v, i) => {
-    const y = P.top + innerH - (innerH * i) / yTicks;
-    return `<line x1="${P.left}" y1="${y}" x2="${P.left + innerW}" y2="${y}" stroke="#E5E7EB" stroke-width="1"/>
-<text x="${P.left - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="#9CA3AF">${pNum(v)}</text>`;
-  }).join('\n');
-  const bars = mensal.map((kwh, i) => {
-    const x = P.left + i * (barW + barGap);
-    const h = (kwh / maxKwh) * innerH;
-    const y = P.top + innerH - h;
-    return `<g>
-  <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="url(#g1)"/>
-  <text x="${x + barW / 2}" y="${P.top + innerH + 16}" text-anchor="middle" font-size="11" fill="#6B7280">${MESES_ABREV[i]}</text>
-  <text x="${x + barW / 2}" y="${y - 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${palette.c1}">${pNum(kwh)}</text>
-</g>`;
-  }).join('\n');
+  const { W, H, yLines, bars } = partesBarrasMensais(mensal, MESES_ABREV, palette.c1);
 
   // Logo da empresa: usa logo_base64 se tiver, senão o nome (fantasia se houver).
   const empresaCompany = company as Company & { logo_base64?: string; nome_fantasia?: string };
@@ -3531,16 +3119,8 @@ function dateBR(base: Date = agora()): string {
   return base.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
 }
 
-function str(v: unknown): string {
-  return v != null ? String(v) : '___';
-}
-
 // Endereço no padrão Logradouro, Bairro, Cidade/UF: a regra (sem repetir o bairro que já
 // está na linha) mora em services/enderecoCliente.ts e é importada no topo.
-
-function parseBRL(v: unknown): number {
-  return parseFloat(String(v ?? '').replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
-}
 
 function fmtBRL(n: number): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -3619,47 +3199,6 @@ function garantiaInstalacaoExtenso(f: Record<string, unknown>): string {
     ? (n === 1 ? 'mês' : 'meses')
     : (n === 1 ? 'ano' : 'anos');
   return `${str(valor)} (${numExtenso(valor)}) ${unidade}`;
-}
-
-// Bateria (opcional) — parse único usado pela proposta E pelos contratos.
-// Render-if-filled: só existe se a marca vier preenchida. Capacidade/potência
-// aceitam vírgula (10,24); ciclos e garantia são inteiros. Propostas/contratos
-// antigos (sem esses campos) seguem intactos — tem === false, tudo some.
-interface Bateria {
-  tem: boolean;
-  marca: string;
-  // `titulo` já vem com a quantidade na frente, no mesmo idioma do inversor
-  // ("2× BYD"). Quando a quantidade não foi informada — ou é 1 — é só a marca,
-  // então proposta antiga sai idêntica ao que já saía.
-  titulo: string;
-  qtd: number;        // 0 = não informada
-  capacidade: number; // kWh
-  potencia: number;   // kW
-  ciclos: number;
-  garantia: number;   // anos
-  specParts: string[]; // ['10,24 kWh cada', '5 kW cada', '6.000 ciclos'] — só as preenchidas
-}
-function parseBateria(f: Record<string, unknown>): Bateria {
-  const marca = String(f.bateria_marca ?? '').trim();
-  const capacidade = parseFloat(String(f.bateria_capacidade_kwh ?? '0').replace(',', '.')) || 0;
-  const potencia = parseFloat(String(f.bateria_potencia_kw ?? '0').replace(',', '.')) || 0;
-  const ciclos = parseInt(String(f.bateria_ciclos ?? '0').replace(/\D/g, ''), 10) || 0;
-  const garantia = parseInt(String(f.bateria_garantia_anos ?? '0'), 10) || 0;
-  const qtd = parseInt(String(f.bateria_qtd ?? '0').replace(/\D/g, ''), 10) || 0;
-  // "cada" só com mais de uma unidade, e só na capacidade e na potência: essas duas
-  // SOMAM entre si e um banco lendo a proposta leria "10,24 kWh" como o total do
-  // banco de baterias. Ciclo não soma — é característica da célula, então fica sem.
-  const cada = qtd > 1 ? ' cada' : '';
-  const specParts = [
-    capacidade > 0 ? capacidade.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh' + cada : '',
-    potencia > 0 ? potencia.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kW' + cada : '',
-    ciclos > 0 ? ciclos.toLocaleString('pt-BR') + ' ciclos' : '',
-  ].filter(Boolean);
-  // `tem` continua preso SÓ à marca. Quantidade sem marca não pode acender a linha
-  // da bateria, senão quem digitar um número por engano ganha uma bateria fantasma
-  // na proposta inteira.
-  const titulo = qtd > 1 ? `${qtd}× ${marca}` : marca;
-  return { tem: marca.length > 0, marca, titulo, qtd, capacidade, potencia, ciclos, garantia, specParts };
 }
 
 function extenso(v: unknown): string {

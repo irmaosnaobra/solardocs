@@ -84,6 +84,13 @@ export const clientsApi = {
     api.post('/clients/scan', { file_base64, media_type }),
 };
 
+// Imagens do modelo Completo da proposta solar (fotos de obras, empresas atendidas, logos de bancos).
+// Responde { path, url }; o `path` é o que fica guardado e a `url` é só a miniatura.
+export const portfolioApi = {
+  enviarImagem: (tipo: 'obra' | 'empresa' | 'banco', dataUrl: string) =>
+    api.post<{ path: string; url: string }>('/documents/portfolio-imagem', { tipo, dataUrl }),
+};
+
 // Documents
 export const documentsApi = {
   generate: (tipo: string, clienteId: string, fields: Record<string, unknown>) =>

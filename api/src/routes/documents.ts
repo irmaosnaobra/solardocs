@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { generateDocument, regenerateDocument, getDocumentForEdit, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml, propostaPrefill, resumoDocumentos, documentosPorCliente, excluirDocumento } from '../controllers/documentsController';
 import { generatePdf } from '../controllers/pdfController';
+import { uploadPortfolioImagem } from '../controllers/portfolioController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
@@ -35,6 +36,8 @@ router.post('/generate', authMiddleware, generateDocument);
 // Reemite um doc existente com os campos corrigidos (mesmo link, mesmo número).
 router.post('/:id/regenerate', authMiddleware, regenerateDocument);
 router.post('/save', authMiddleware, saveDocument);
+// Imagens do portfólio da proposta Completa (obras, empresas atendidas, bancos parceiros).
+router.post('/portfolio-imagem', authMiddleware, uploadPortfolioImagem);
 router.patch('/:id/file', authMiddleware, updateDocumentFile);
 router.get('/list', authMiddleware, listDocuments);
 // Indicadores do mês e pastas por cliente (agregados no servidor).

@@ -13,9 +13,10 @@ import InfoHint from '@/components/InfoHint/InfoHint';
 import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
 import { useViaCep, type ViaCepAchado } from '@/hooks/useViaCep';
 import { comporEndereco, enderecoLegado, maskCep, temPartesDoEndereco } from '@/utils/enderecoCliente';
-import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart, BookOpen } from 'lucide-react';
+import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart, BookOpen, Images } from 'lucide-react';
 import styles from '../documentos.module.css';
 import InversoresCampo, { type InversorLinha } from './InversoresCampo';
+import GaleriaPortfolio, { type ImagemObra, type ImagemEmpresa, type BancoParceiro } from './GaleriaPortfolio';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
 
@@ -101,6 +102,12 @@ const initialFields = {
   potencia_inversor: '',
   // Um inversor por linha (marcas/potências diferentes). Strings como digitadas.
   inversores: [{ qtd: '1', marca: '', potencia: '', garantia: '10' }] as InversorLinha[],
+  // Conteúdo do modelo 4 (Completo). Não entram em CLIENTE_ONLY no backend: voltam
+  // sozinhos nas próximas propostas pelo kit. `path` é o que o servidor guarda; a
+  // `url` é só a miniatura (o servidor assina de novo na geração).
+  fotos_obras: [] as ImagemObra[],
+  empresas_atendidas: [] as ImagemEmpresa[],
+  bancos_parceiros: [] as BancoParceiro[],
   // Bateria (opcional) — só aparece na proposta se a marca estiver preenchida.
   // Padrão render-if-filled, mesmo idioma das garantias extras (nada é persistido
   // como "tem bateria": deriva de marca preenchida → propostas antigas intactas).
@@ -239,6 +246,59 @@ function normalizarInversores(obj: Record<string, unknown> | null | undefined): 
   }];
 }
 
+const LIMITE_FOTOS_OBRAS = 6;
+const LIMITE_EMPRESAS = 12;
+const LIMITE_BANCOS = 8;
+const CHAVES_PORTFOLIO = ['fotos_obras', 'empresas_atendidas', 'bancos_parceiros'] as const;
+
+/** Imagens do modelo Completo a partir de dados de fora (proposta salva, cliente, kit, rascunho).
+ *  Aceita só objetos com strings, corta nos limites e descarta o que não serve: obra/empresa sem
+ *  `path` (a `url` é opcional); banco sem `nome` e sem `path`. Sempre devolve os 3 arrays, nunca `undefined`.
+ *  Quando a fonte não traz um dos arrays, vale o de `atual` (se houver), senão vazio. */
+function normalizarPortfolio(
+  obj: Record<string, unknown> | null | undefined,
+  atual?: { fotos_obras?: ImagemObra[]; empresas_atendidas?: ImagemEmpresa[]; bancos_parceiros?: BancoParceiro[] },
+): { fotos_obras: ImagemObra[]; empresas_atendidas: ImagemEmpresa[]; bancos_parceiros: BancoParceiro[] } {
+  const o = obj ?? {};
+  const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v : undefined);
+  const objetos = (v: unknown): Record<string, unknown>[] =>
+    Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x)) : [];
+
+  const comImagem = (chave: 'legenda' | 'nome', limite: number) => (v: unknown) => {
+    const out: Array<{ path: string; url?: string; legenda?: string; nome?: string }> = [];
+    for (const x of objetos(v)) {
+      // Só o `path` é obrigatório: o servidor guarda item sem `url` quando a assinatura falha.
+      // A miniatura mostra "Indisponível" e o item segue no envio.
+      const path = str(x.path), url = str(x.url);
+      if (!path) continue;
+      const texto = typeof x[chave] === 'string' ? (x[chave] as string) : undefined;
+      out.push({ path, ...(url ? { url } : {}), ...(texto !== undefined ? { [chave]: texto } : {}) });
+      if (out.length >= limite) break;
+    }
+    return out;
+  };
+
+  const fotos = Array.isArray(o.fotos_obras)
+    ? (comImagem('legenda', LIMITE_FOTOS_OBRAS)(o.fotos_obras) as ImagemObra[])
+    : [...(atual?.fotos_obras ?? [])];
+  const empresas = Array.isArray(o.empresas_atendidas)
+    ? (comImagem('nome', LIMITE_EMPRESAS)(o.empresas_atendidas) as ImagemEmpresa[])
+    : [...(atual?.empresas_atendidas ?? [])];
+  let bancos: BancoParceiro[];
+  if (Array.isArray(o.bancos_parceiros)) {
+    bancos = [];
+    for (const x of objetos(o.bancos_parceiros)) {
+      const nome = str(x.nome), path = str(x.path), url = str(x.url);
+      if (!nome && !path) continue;
+      bancos.push({ nome: nome ?? '', ...(path ? { path } : {}), ...(url ? { url } : {}) });
+      if (bancos.length >= LIMITE_BANCOS) break;
+    }
+  } else {
+    bancos = [...(atual?.bancos_parceiros ?? [])];
+  }
+  return { fotos_obras: fotos, empresas_atendidas: empresas, bancos_parceiros: bancos };
+}
+
 /** A fonte traz algum dado de inversor? Sem isso, não se mexe no que já está na tela. */
 function temDadoInversor(obj: Record<string, unknown> | null | undefined): boolean {
   if (!obj) return false;
@@ -334,7 +394,7 @@ export default function PropostaSolarPage() {
   // · 3 = o MESMO Moderno com uma folha de rosto na frente (pedido do Eduardo
   // Boso, 21/08/2026: "falta uma capa na proposta"). O 3 nao muda o 2 — quem
   // ja' manda o Moderno continua mandando exatamente o mesmo PDF.
-  const [modelo, setModelo] = useState<1 | 2 | 3>(1);
+  const [modelo, setModelo] = useState<1 | 2 | 3 | 4>(1);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   // Corrigindo uma proposta JÁ emitida: volta pro form com tudo preenchido e o
@@ -429,7 +489,7 @@ export default function PropostaSolarPage() {
       const d = JSON.parse(raw);
       if (d.clienteNome) setClienteNome(d.clienteNome);
       if (d.cidadeUf) setCidadeUf(d.cidadeUf);
-      if (d.fields) setFields(f => ({ ...f, ...d.fields, inversores: temDadoInversor(d.fields) ? normalizarInversores(d.fields) : f.inversores }));
+      if (d.fields) setFields(f => ({ ...f, ...d.fields, inversores: temDadoInversor(d.fields) ? normalizarInversores(d.fields) : f.inversores, ...normalizarPortfolio(d.fields, f) }));
       // Rascunho já tinha quantidade: era escolha da pessoa, a sugestão não mexe.
       if (d.fields?.qtd_modulos) qtdModulosManual.current = true;
       if (d.fields?.area_m2) areaManual.current = true;
@@ -515,11 +575,17 @@ export default function PropostaSolarPage() {
         setFields(f => {
           const merged: Record<string, unknown> = { ...f };
           for (const [k, v] of Object.entries(data.kit as Record<string, unknown>)) {
-            if (k === 'inversores') continue; // vem normalizado logo abaixo
+            if (k === 'inversores' || (CHAVES_PORTFOLIO as readonly string[]).includes(k)) continue; // vêm normalizados logo abaixo
             if (!camposTocados.current.has(k)) merged[k] = v;
           }
           if (!camposTocados.current.has('inversores') && temDadoInversor(data.kit as Record<string, unknown>)) {
             merged.inversores = normalizarInversores(data.kit as Record<string, unknown>);
+          }
+          // Imagens do modelo Completo: só as chaves que o kit trouxe como lista, e só se a pessoa
+          // não mexeu naquela galeria enquanto a rede respondia.
+          const portfolioKit = normalizarPortfolio(data.kit as Record<string, unknown>, f);
+          for (const k of CHAVES_PORTFOLIO) {
+            if (Array.isArray((data.kit as Record<string, unknown>)[k]) && !camposTocados.current.has(k)) merged[k] = portfolioKit[k];
           }
           return merged as typeof f;
         });
@@ -539,14 +605,14 @@ export default function PropostaSolarPage() {
       // Proposta sem os dados do formulário salvos (doc antigo/importado): reemitir
       // por cima escreveria um formulário em branco em cima de uma proposta boa.
       if (!Object.keys(dados).length) throw new Error('sem dados do formulário');
-      setFields(f => ({ ...f, ...dados, inversores: normalizarInversores(dados) }));
+      setFields(f => ({ ...f, ...dados, inversores: normalizarInversores(dados), ...normalizarPortfolio(dados) }));
       // Proposta já emitida: a quantidade dela é decisão tomada, não palpite.
       if (dados.qtd_modulos) qtdModulosManual.current = true;
       if (dados.area_m2) areaManual.current = true;
       setClienteNome(String(d.cliente_nome || ''));
       const cid = String(dados.cidade || '').trim(), uf = String(dados.uf || '').trim();
       if (cid || uf) setCidadeUf([cid, uf].filter(Boolean).join(' - '));
-      setModelo(d.modelo_numero === 2 ? 2 : d.modelo_numero === 3 ? 3 : 1);
+      setModelo(d.modelo_numero === 2 ? 2 : d.modelo_numero === 3 ? 3 : d.modelo_numero === 4 ? 4 : 1);
       setGenerated({
         content: String(d.content || ''),
         modelo_usado: `modelo-${d.modelo_numero}`,
@@ -590,7 +656,7 @@ export default function PropostaSolarPage() {
         // O endereço é do cliente: o de quem estava na tela não pode sobrar no próximo.
         // Limpa SEMPRE que a resposta chega, também quando o cadastro só tem o nome
         // ({}): aí não há nada para aplicar por cima e o de antes ficaria.
-        setFields(f => ({ ...f, cep: '', logradouro: '', numero: '', complemento: '', bairro: '', endereco: '', ...c, inversores: temDadoInversor(c) ? normalizarInversores(c) : f.inversores }));
+        setFields(f => ({ ...f, cep: '', logradouro: '', numero: '', complemento: '', bairro: '', endereco: '', ...c, inversores: temDadoInversor(c) ? normalizarInversores(c) : f.inversores, ...normalizarPortfolio(c, f) }));
         setCepBusca('');
         ultimoCep.current = null;
         ruaAntigaRef.current = false;
@@ -1275,6 +1341,13 @@ export default function PropostaSolarPage() {
                 titulo="Moderno com capa"
                 desc="o mesmo, com folha de rosto na frente"
               />
+              <Escolha
+                on={modelo === 4}
+                icone={Images}
+                onClick={() => setModelo(4)}
+                titulo="Completo"
+                desc="Várias páginas com gráficos, parcelas, bancos, obras e clientes"
+              />
             </Escolhas>
           </div>
 
@@ -1289,6 +1362,19 @@ export default function PropostaSolarPage() {
             </Link>
           </p>
         </div>
+
+        {/* CONTEÚDO DO MODELO COMPLETO: imagens que só esse modelo imprime. */}
+        {modelo === 4 && (
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Conteúdo do modelo Completo</h2>
+            <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
+              Envie uma vez: as imagens voltam sozinhas nas próximas propostas.
+            </p>
+            <GaleriaPortfolio tipo="obra" titulo="Fotos de obras" max={LIMITE_FOTOS_OBRAS} itens={fields.fotos_obras} onChange={v => setField('fotos_obras', v)} />
+            <GaleriaPortfolio tipo="empresa" titulo="Empresas atendidas" max={LIMITE_EMPRESAS} itens={fields.empresas_atendidas} onChange={v => setField('empresas_atendidas', v)} />
+            <GaleriaPortfolio tipo="banco" titulo="Bancos parceiros" max={LIMITE_BANCOS} itens={fields.bancos_parceiros} onChange={v => setField('bancos_parceiros', v)} />
+          </div>
+        )}
 
         {/* CLIENTE */}
         <div className={styles.section}>
