@@ -126,7 +126,13 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
     it('datasheet_modulo', 'Datasheet dos módulos', 'ambos', true, true),
     it('datasheet_inversor', 'Datasheet do inversor', 'ambos', true, true),
     it('contrato_assinado', 'Contrato assinado', 'ambos', true),
-    it('procuracao', 'Procuração', 'ambos', false),
+    it('procuracao', 'Procuração assinada', 'ambos', true),
+    // Etapa 3 da Jornada (fase 1, 05/11/2026): a obrigação mora no portão da etapa, não aqui (o relatório não vira "preliminar").
+    it('art', 'ART (documento)', 'ambos', false),
+    it('art_comprovante', 'Comprovante de pagamento da ART', 'ambos', false),
+    it('projeto_comprovante', 'Comprovante de pagamento do engenheiro', 'ambos', false),
+    it('protocolo', 'Print do protocolo na distribuidora', 'ambos', false),
+    it('parecer_acesso', 'Parecer de acesso aprovado', 'ambos', false),
     it('outros', 'Outros documentos', 'ambos', false, true),
   ],
 };
@@ -148,6 +154,7 @@ export const SLOTS_FORA_DO_RELATORIO: ReadonlySet<string> = new Set([
   'documento_avalista', 'documento_outra_pessoa',
   'comprovante_endereco_comprador', 'comprovante_endereco_cedente', 'comprovante_endereco_avalista',
   'documento_financiamento', 'comprovante_endereco_financiamento',
+  'art_comprovante', 'projeto_comprovante',
 ]);
 
 export const itemDoCatalogo = (linha: Linha, chave: unknown): ItemDoc | null =>

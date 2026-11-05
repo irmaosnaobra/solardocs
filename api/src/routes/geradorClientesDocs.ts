@@ -6,6 +6,7 @@ import {
   vendaSolarDoDono, codigosSolar, acessoVendaSolar, ErroVendaSolar, equipamentoDoCardParaRelatorio, type VendaSolarDoDono,
 } from './geradorClientes';
 import { lerLigacao } from '../services/gerador/vendaSolarHub';
+import { tentarNumeroDaJornada } from './geradorJornadaNumero';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { lerProposta, assinar, normalizarNome, ARQUIVOS_SOLAR } from '../services/gerador/dossieVenda';
 import { celulaDe } from '../services/gerador/gestaoClientes';
@@ -429,6 +430,7 @@ export function mountClientesDocs(router: Router): void {
 
   // ── Registrar o que foi enviado ────────────────────────────────────────────
   router.post('/clientes/:linha/:codigo/docs', ...envio, async (req: Request, res: Response) => {
+    const inicioDoPedido = Date.now();
     const ctx = await contexto(req, res);
     if (!ctx) return;
     if (await recusaSolarDoAlocador(ctx, res)) return;
@@ -505,7 +507,16 @@ export function mountClientesDocs(router: Router): void {
         }
         let urls = new Map<string, string>();
         try { urls = await assinarVarios([caminho], SEG_URL_DOCS); } catch (e) { logErro('assinar falhou', e); }
-        res.json({ ok: true, arquivo: lerNaTela(arq, urls), ...(antigo ? { substituiu: antigo.id } : {}) });
+        // Fase 1 da Jornada (05/11/2026, SPEC 13): o par contrato + procuração assinados dá o número, no servidor. Vale também para o "Trocar".
+        // Chamada longa: o alocador lê o quadro do Trello inteiro (até 150 s). A resposta espera, de propósito.
+        let numero: Record<string, unknown> | undefined;
+        if (ctx.linha === 'vendasolar' && (item.chave === 'contrato_assinado' || item.chave === 'procuracao') && ctx.card) {
+          try {
+            const rn = await tentarNumeroDaJornada(ctx.card, { nome: ctx.nome, socio: ctx.socio }, inicioDoPedido, {});
+            numero = rn.ok ? { ok: true, codigo: rn.codigo } : { ok: false, motivo: rn.motivo };
+          } catch (e) { logErro('número depois do anexo', e); numero = { ok: false, motivo: 'banco' }; }
+        }
+        res.json({ ok: true, arquivo: lerNaTela(arq, urls), ...(antigo ? { substituiu: antigo.id } : {}), ...(numero ? { numero } : {}) });
         return;
       }
       res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta ficha agora. Tente de novo.' });

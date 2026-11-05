@@ -201,7 +201,7 @@ async function lerMarcas(codigos: string[]): Promise<Map<string, Marcas>> {
 
 /** O que a Gestão de clientes preencheu no sistema vale por cima da planilha ANTES de `montarObra`,
  *  para mover a etapa. Uma leitura só (em lotes). Se falhar, Obras segue só com a planilha. */
-async function comSobrescritas(obras: ObraBruta[]): Promise<ObraBruta[]> {
+export async function comSobrescritas(obras: ObraBruta[]): Promise<ObraBruta[]> {
   // Comportamento ACEITO nesta fase: com o banco fora, Obras volta ao consultor da planilha, e o consultor
   // antigo de uma venda trocada por sócio na Planilha de clientes volta a enxergá-la até o banco voltar.
   try {

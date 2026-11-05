@@ -86,6 +86,20 @@ export async function lerCardSolarVendido(id: number): Promise<CardVendido | nul
   return ehCardSolarVendido(c) ? c : null;
 }
 
+/** Todos os cards vendidos de SOLAR (fechou, origem que não é eletroposto), com `quando`. Páginas de 1000 (o PostgREST corta e ignora `.limit()`). */
+export async function lerCardsSolarVendidos(): Promise<Array<CardVendido & { quando?: string | null }>> {
+  const tudo: Array<CardVendido & { quando?: string | null }> = [];
+  for (let de = 0; de < 100_000; de += 1000) {
+    const { data, error } = await supabaseGerador.from('agendamentos').select(`${COLUNAS_CARD}, quando`)
+      .eq('status', 'fechou').order('id', { ascending: true }).range(de, de + 999);
+    if (error) throw new ErroHub(codigoDe(error));
+    if (!Array.isArray(data)) throw new ErroHub('cards');
+    tudo.push(...(data as unknown as Array<CardVendido & { quando?: string | null }>));
+    if (data.length < 1000) break;
+  }
+  return tudo.filter((c) => ehCardSolarVendido(c));
+}
+
 // ── Ligação ──────────────────────────────────────────────────────────────────
 
 /**

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express, { Router } from 'express';
 import request from 'supertest';
 
+// 05/11/2026 (Jornada, fase 1): o número só nasce com o contrato E a procuração assinados anexados (`docs_cliente:vendasolar:<id>`); sem os dois, 409
+// `precisa: 'assinatura'`. O `confirmar` só devolve candidatos ao ADM, e `novo: true` só vale vindo do ADM (Thiago); de outro nome vira false.
 // A rota `POST /gerador/vendas-solares/:card/cliente` (fase 2): guarda, corpo, segredo, credencial, o alocador e as respostas.
 // Login, bancos, planilha e Trello simulados; nada sai para a rede. Dados inventados.
 
@@ -101,7 +103,7 @@ app.use(express.json());
 app.use('/gerador', r);
 
 const NILCE = 'Bearer tk-nilce';
-const GIOVANNA = 'Bearer tk-giovanna';
+const CARLA = 'Bearer tk-carla';
 const THIAGO = 'Bearer tk-thiago';
 const cliente = (id: number, corpo: unknown = {}, auth = NILCE) => request(app).post(`/gerador/vendas-solares/${id}/cliente`).set('Authorization', auth).send(corpo as object);
 const card = (id: number, o: Record<string, unknown> = {}) => ({
@@ -113,13 +115,28 @@ const ligar = (id: number, lig: Partial<Ligacao>) => {
   const l: Ligacao = { proposta: null, venda: null, por: 'nilce', em: '2026-10-20T10:00:00.000Z', ...lig };
   h.linhas.set(`venda_solar:${id}`, { updated_at: 'x', value: { ...l, sig: assinarLigacao(id, l) } });
 };
+const U = (n: number): string => `${String(n).padStart(8, '0')}-0000-4000-8000-000000000000`;
+/** O par de papéis assinados anexado ao card (o portão do número, etapa 2 da Jornada). */
+const comPar = (id: number): void => {
+  h.linhas.set(`docs_cliente:vendasolar:${id}`, {
+    updated_at: 'p',
+    value: {
+      arquivos: [
+        { id: 'a1', slot: 'contrato_assinado', caminho: `vendasolar/${id}/${U(1)}.pdf`, mime: 'application/pdf', bytes: 10, em: '2026-11-01T10:00:00.000Z', por: 'giovanna' },
+        { id: 'a2', slot: 'procuracao', caminho: `vendasolar/${id}/${U(2)}.pdf`, mime: 'application/pdf', bytes: 10, em: '2026-11-01T10:00:00.000Z', por: 'giovanna' },
+      ],
+      alteracoes: [], apagados: [],
+    },
+  });
+};
 const DEPOIS = `${Math.floor(CARTAO_CONFIAVEL_DESDE_MS / 1000).toString(16)}${'0'.repeat(15)}1`;
 
 beforeEach(() => {
-  h.usuarios = { 'tk-nilce': 'nilce@irmaosnaobra.app', 'tk-thiago': 'thiago@irmaosnaobra.app', 'tk-giovanna': 'giovanna@irmaosnaobra.app' };
-  h.cards = [card(1143), card(1144, { created_by: 'lp_eletroposto' }), card(1145, { status: 'agendado' }), card(1146, { vendedor_nome: 'Giovanna' })];
+  h.usuarios = { 'tk-nilce': 'nilce@irmaosnaobra.app', 'tk-thiago': 'thiago@irmaosnaobra.app', 'tk-carla': 'carla@irmaosnaobra.app' };
+  h.cards = [card(1143), card(1144, { created_by: 'lp_eletroposto' }), card(1145, { status: 'agendado' }), card(1146, { vendedor_nome: 'Carla' })];
   h.linhas = new Map(); h.cartoes = [{ id: 'f'.padEnd(24, '1'), name: '#0064 - (Cristiano) Parente - Uberlândia MG' }];
   h.trelloCai = false; h.escritas = 0; h.tique = 0; h.copia = null;
+  for (const id of [1143, 1146, 1147]) comPar(id);
   h.planilha = { codigos: ['#0063'], vendas: [venda('#0063')] };
   process.env.SUPABASE_SERVICE_KEY = 'chave-de-servico-falsa-do-teste';
   process.env.TRELLO_KEY = 'chave-trello-falsa'; process.env.TRELLO_TOKEN = 'token-trello-falso';
@@ -139,7 +156,7 @@ describe('POST /vendas-solares/:card/cliente', () => {
       expect(x.status).toBe(404);
       expect(x.body).toEqual(alheio.body);
     }
-    expect((await cliente(1146, { previa: true }, GIOVANNA)).status).toBe(200);
+    expect((await cliente(1146, { previa: true }, CARLA)).status).toBe(200);
     expect((await cliente(1146, { previa: true }, THIAGO)).status).toBe(200);
     expect(h.escritas).toBe(0);
   });
@@ -171,14 +188,18 @@ describe('POST /vendas-solares/:card/cliente', () => {
 
   it('telefone igual ao de uma linha do Excel: sem novo 409 confirmar (sem telefone); com novo 200 criou com o aviso só de códigos', async () => {
     h.planilha = { codigos: ['#0063', '#0064'], vendas: [venda('#0063'), venda('#0064', { telefone: '34999990001' })] };
-    const c = await cliente(1143, {});
+    const c = await cliente(1143, {}, THIAGO);
     expect(c.status).toBe(409);
     expect(c.body).toEqual({
-      ok: false, precisa: 'confirmar', error: 'Esta venda pode já estar na planilha. Ligue a venda certa ou crie o cliente novo mesmo assim.',
+      ok: false, precisa: 'confirmar', error: 'Esta venda pode já estar na planilha. O administrador decide: ligar a venda antiga ou criar o número novo.',
       candidatos: [{ codigo: '#0064', cliente: 'Parente Inventado', data: '2026-09-01', motivo: 'telefone' }], ocultas: 0,
     });
-    expect(h.escritas).toBe(0);
-    const n = await cliente(1143, { novo: true });
+    // Quem não é ADM não recebe os candidatos, e o `novo` dele vale false.
+    const naoAdm = await cliente(1143, { novo: true });
+    expect(naoAdm.status).toBe(409);
+    expect(naoAdm.body.candidatos).toBeUndefined();
+    expect([...h.linhas.keys()].filter((k) => /^(venda_solar|codigo_solar):/.test(k))).toEqual([]);   // só o estado da Jornada (numero.falha) pode ser gravado
+    const n = await cliente(1143, { novo: true }, THIAGO);
     expect(n.status).toBe(200);
     expect(n.body).toMatchObject({ acao: 'criou', codigo: '#0065', mesmoTelefone: { codigos: ['#0064'], ocultas: 0 } });
     expect(n.body.aviso).toBe('Mesmo telefone da linha #0064 do Excel. Se for a mesma venda, use no Excel o número #0065.');
@@ -189,7 +210,7 @@ describe('POST /vendas-solares/:card/cliente', () => {
     h.planilha = { codigos: ['#0040'], vendas: [venda('#0040', { telefone: '34911112222' })] };
     ligar(1143, { trello_card: DEPOIS, por: 'trello' });
     h.cartoes.push({ id: DEPOIS, name: '#0040 - Cliente Inventado - Uberlândia MG' });
-    const c = await cliente(1143, {});
+    const c = await cliente(1143, {}, THIAGO);
     expect(c.status).toBe(409);
     expect(c.body.candidatos).toEqual([{ codigo: '#0040', cliente: 'Parente Inventado', data: '2026-09-01', motivo: 'cartao' }]);
   });
@@ -209,13 +230,13 @@ describe('POST /vendas-solares/:card/cliente', () => {
     h.copia = { codigos: ['#0070'], vendas: [] };
     expect((await cliente(1143, {})).body).toEqual({ ok: true, acao: 'criou', criou: true, codigo: '#0071', planilhaFora: true, aviso: 'Número conferido sem a planilha do Excel.' });
     h.copia = null;
-    const sem = await cliente(1146, {}, GIOVANNA);
+    const sem = await cliente(1146, {}, THIAGO);
     expect(sem.status).toBe(409);
     expect(sem.body).toEqual({
       ok: false, precisa: 'confirmar', semPlanilha: true, candidatos: [], ocultas: 0,
-      error: 'Não consegui conferir a planilha do Excel agora. Se esta venda já tem número lá, ligue a venda certa no bloco Ligações. Senão, crie o cliente novo.',
+      error: 'Esta venda pode já estar na planilha. O administrador decide: ligar a venda antiga ou criar o número novo.',
     });
-    expect((await cliente(1146, { novo: true }, GIOVANNA)).body).toMatchObject({ ok: true, acao: 'criou', codigo: '#0072', planilhaFora: true });
+    expect((await cliente(1146, { novo: true }, THIAGO)).body).toMatchObject({ ok: true, acao: 'criou', codigo: '#0072', planilhaFora: true });
   });
 
   it('409 tentar de novo com a trava ocupada; 502 com o Trello fora', async () => {
@@ -226,6 +247,34 @@ describe('POST /vendas-solares/:card/cliente', () => {
     const oc = await cliente(1143, {});
     expect(oc.status).toBe(409);
     expect(oc.body).toMatchObject({ conflito: true, tentarDeNovo: true });
-    expect(h.escritas).toBe(0);
+    expect([...h.linhas.keys()].filter((k) => /^(venda_solar|codigo_solar):/.test(k))).toEqual([]);   // só o estado da Jornada (numero.falha) pode ser gravado
   }, 20_000);
+
+  it('sem o contrato E a procuração assinados anexados: 409 assinatura e o alocador não roda', async () => {
+    h.cards.push(card(1148));
+    const a = await cliente(1148, {});
+    expect(a.status).toBe(409);
+    expect(a.body).toMatchObject({ ok: false, precisa: 'assinatura' });
+    expect(a.body.error).toMatch(/contrato e a procuração assinados/);
+    // só um dos dois também não basta
+    h.linhas.set('docs_cliente:vendasolar:1148', { updated_at: 'p', value: { arquivos: [
+      { id: 'a1', slot: 'contrato_assinado', caminho: `vendasolar/1148/${U(1)}.pdf`, mime: 'application/pdf', bytes: 10, em: '2026-11-01T10:00:00.000Z', por: 'x' },
+    ], alteracoes: [], apagados: [] } });
+    expect((await cliente(1148, {})).body.precisa).toBe('assinatura');
+    expect(h.escritas).toBe(0);
+  });
+
+  it('venda cancelada nunca ganha número (409 cancelada) mesmo com o par completo', async () => {
+    const e = { v: 1, card: 1143, origem: 'vendido', vendido_em: '2026-11-01T10:00:00.000Z', vendido_por: 'nilce', vendedor: 'nilce',
+      etapas: { 1: { aberta_em: null, concluida_em: null, concluida_por: '', excedente: null }, 2: { aberta_em: null, concluida_em: null, concluida_por: '', papeis: { contrato: null, procuracao: null, recibo: null } },
+        3: { aberta_em: null, concluida_em: null, concluida_por: '', rateio: null, protocolo: null, engenheiro: null, trello: null }, 4: { aberta_em: null } },
+      esperando: null, cancelada: { em: '2026-11-02T10:00:00.000Z', por: 'thiago', etapa: 2, com_numero: false },
+      numero: { tentado_em: null, falha: null, nasceu_em: null }, historico: [] };
+    const { assinarJornada } = await import('../services/gerador/jornadaSolarBanco');
+    h.linhas.set('jornada_solar:1143', { updated_at: 'j', value: { ...e, sig: assinarJornada(1143, e as any) } });
+    const r = await cliente(1143, {});
+    expect(r.status).toBe(409);
+    expect(r.body).toMatchObject({ ok: false, precisa: 'cancelada' });
+    expect(h.linhas.has('venda_solar:1143')).toBe(false);
+  });
 });

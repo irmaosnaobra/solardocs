@@ -3,8 +3,10 @@ import { leituraAtualDaPlanilha, leituraDaPlanilhaEmCache, leituraDaPlanilhaDoCa
 import { credenciaisTrello } from '../services/gerador/dossieVenda';
 import { TRELLO_BOARD_ID } from '../services/insightsService';
 import { segredoDoVinculo } from '../services/gerador/vendaSolarHub';
+import { ehAdm } from '../services/gerador/solarObras';
+import { tentarNumeroDaJornada, responderNumero409 } from './geradorJornadaNumero';
 import {
-  alocarCodigoSolar, previaDoCodigoSolar, MSG_SEM_PLANILHA, type DepsAlocador, type MotivoErroAlocador,
+  previaDoCodigoSolar, type DepsAlocador, type MotivoErroAlocador,
 } from '../services/gerador/vendaSolarCodigo';
 import type { GuardaDoCard } from './geradorVendaSolarTrello';
 
@@ -18,6 +20,8 @@ import type { GuardaDoCard } from './geradorVendaSolarTrello';
 //        -> 200 { ok, acao: 'criou' | 'adotou_trello' | 'ja_ligada', criou, codigo, aviso?, mesmoTelefone? }
 //        -> 200 previa: { ok, previa: true, acao, codigo?, provisorio?, candidatos?, ocultas?, aviso?, mesmoTelefone? } (não escreve)
 //        -> 409 { precisa: 'confirmar', candidatos: [{ codigo, cliente, data, motivo }], ocultas }   (sem `novo`)
+//        FASE 1 DA JORNADA (05/11/2026): sem o contrato E a procuração assinados anexados (etapa 2), 409 `precisa: 'assinatura'`; venda
+//        cancelada, 409 `precisa: 'cancelada'`; o ADM resolve o `confirmar`. Quem decide é `tentarNumeroDaJornada`.
 //        `novo: true` pula o portão de telefone e do cartão: é o que o gancho do VENDIDO e "Criar novo mesmo assim" mandam.
 //
 // Telefone NUNCA liga nada: só pergunta (portão) ou avisa (códigos que quem pede pode ver e a contagem dos outros). Nenhum GET
@@ -27,7 +31,6 @@ import type { GuardaDoCard } from './geradorVendaSolarTrello';
 const MSG_PEDIDO = 'Pedido inválido.';
 const MSG_GRAVAR = 'Não consegui gravar agora. Tente de novo.';
 const MSG_CREDENCIAL = 'Trello sem credencial de escrita. Gere key e token em trello.com/power-ups/admin e configure TRELLO_KEY e TRELLO_TOKEN na Vercel.';
-const MSG_CONFIRMAR = 'Esta venda pode já estar na planilha. Ligue a venda certa ou crie o cliente novo mesmo assim.';
 
 const logErro = (que: string, codigo: string): void => console.error(`[venda-solar-cliente] ${que}`, codigo);
 
@@ -45,7 +48,7 @@ export function dependenciasDoAlocador(emCache = false): DepsAlocador {
 }
 
 /** A resposta de cada erro do alocador (comum à rota do cliente). */
-function responderErro(res: Response, motivo: MotivoErroAlocador): void {
+export function responderErroDoAlocador(res: Response, motivo: MotivoErroAlocador): void {
   logErro('alocador', motivo);
   switch (motivo) {
     case 'ocupado':
@@ -92,11 +95,12 @@ export function mountVendaSolarCliente(router: Router, base: RequestHandler[], g
 
     if (previa) {
       const r = await previaDoCodigoSolar(pedido, deps);
-      if (!r.ok) { responderErro(res, r.motivo); return; }
+      if (!r.ok) { responderErroDoAlocador(res, r.motivo); return; }
       res.json({ ...r, previa: true });
       return;
     }
-    const r = await alocarCodigoSolar(pedido, deps);
+    // Fase 1 da Jornada (05/11/2026): o número nasce com o contrato E a procuração assinados anexados (etapa 2). Sem os dois, nada aloca.
+    const r = await tentarNumeroDaJornada(g.card, { nome: g.nome, socio: g.socio }, inicio, { novo });
     if (r.ok) {
       res.json({
         ok: true, acao: r.acao, criou: r.acao === 'criou' || r.acao === 'adotou_trello', codigo: r.codigo,
@@ -105,13 +109,7 @@ export function mountVendaSolarCliente(router: Router, base: RequestHandler[], g
       });
       return;
     }
-    if (r.motivo === 'confirmar') {
-      res.status(409).json({
-        ok: false, precisa: 'confirmar', error: r.semPlanilha ? MSG_SEM_PLANILHA : MSG_CONFIRMAR, candidatos: r.candidatos, ocultas: r.ocultas,
-        ...(r.semPlanilha ? { semPlanilha: true } : {}),
-      });
-      return;
-    }
-    responderErro(res, r.motivo);
+    if (responderNumero409(res, r, ehAdm(g.nome))) return;
+    responderErroDoAlocador(res, r.motivo as MotivoErroAlocador);
   });
 }

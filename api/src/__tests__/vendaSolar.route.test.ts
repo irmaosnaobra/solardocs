@@ -260,10 +260,10 @@ const paraCsv = (linhas: string[][]) => [CABECALHO, ...linhas]
   .map((l) => l.map((c) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')).join('\n') + '\n';
 const planilha = () => paraCsv([
   venda('#0057', { 'NOME CLIENTE': 'Ana Souza', CONSULTOR: 'Nilce', CONTATO: '34988880001', 'CADASTRO TRELLO': '03/08/2026', 'SISTEMA LIBERADO PELA CONCESSIONARIA': 'Liberado' }),
-  venda('#0058', { 'NOME CLIENTE': 'Bruno Lima', CONSULTOR: 'Giovanna', CONTATO: '34977770002', 'CADASTRO TRELLO': '01/09/2026' }),
+  venda('#0058', { 'NOME CLIENTE': 'Bruno Lima', CONSULTOR: 'Carla', CONTATO: '34977770002', 'CADASTRO TRELLO': '01/09/2026' }),
   venda('#0059', { 'NOME CLIENTE': 'Ana Souza Pereira', CONSULTOR: 'Nilce', 'CADASTRO TRELLO': '20/08/2026' }),
   venda('#0060', { 'NOME CLIENTE': 'Carla Dias', CONSULTOR: 'Nilce', CONTATO: '34999990003', 'CADASTRO TRELLO': '05/09/2026' }),
-  venda('#0061', { 'NOME CLIENTE': 'Bruno Lima', CONSULTOR: 'Giovanna', CONTATO: '34977770002', 'CADASTRO TRELLO': '06/09/2026' }),
+  venda('#0061', { 'NOME CLIENTE': 'Bruno Lima', CONSULTOR: 'Carla', CONTATO: '34977770002', 'CADASTRO TRELLO': '06/09/2026' }),
 ]);
 
 const r = Router();
@@ -277,7 +277,7 @@ app.use(express.json());
 app.use('/gerador', r);
 
 const NILCE = 'Bearer tk-nilce';
-const GIOVANNA = 'Bearer tk-giovanna';
+const CARLA = 'Bearer tk-carla';
 const THIAGO = 'Bearer tk-thiago';
 const U1 = '11111111-1111-4111-8111-111111111111';
 const U2 = '22222222-2222-4222-8222-222222222222';
@@ -335,13 +335,15 @@ const anexa = (id: number, arquivos: Array<{ slot: string; uuid: string; ext: st
 };
 
 beforeEach(() => {
-  h.usuarios = { 'tk-nilce': 'nilce@irmaosnaobra.app', 'tk-thiago': 'thiago@irmaosnaobra.app', 'tk-giovanna': 'giovanna@irmaosnaobra.app' };
+  // Jornada, fase 1 (05/11/2026): ligar a venda da planilha é só do ADM. Nestes casos a Nilce faz o papel de ADM; o 403 de quem não é ADM tem teste próprio no fim.
+  process.env.SOLAR_ADM = 'thiago,nilce';
+  h.usuarios = { 'tk-nilce': 'nilce@irmaosnaobra.app', 'tk-thiago': 'thiago@irmaosnaobra.app', 'tk-carla': 'carla@irmaosnaobra.app' };
   h.csv = planilha();
   h.cards = [
     card(201, { cliente_nome: 'Ana Souza', cliente_telefone: '(34) 98888-0001' }),
     card(202, { cliente_nome: 'Dora Eletroposto', created_by: 'lp_eletroposto' }),
     card(203, { cliente_nome: 'Fabio Agendado', status: 'agendado' }),
-    card(204, { cliente_nome: 'Bruno Lima', cliente_telefone: '(34) 97777-0002', vendedor_nome: 'Giovanna' }),
+    card(204, { cliente_nome: 'Bruno Lima', cliente_telefone: '(34) 97777-0002', vendedor_nome: 'Carla' }),
     card(205, { cliente_nome: 'Ana Souza Pereira' }),
     card(206, { cliente_nome: 'Ana Souza', cliente_telefone: '34988880001' }),
     card(207, { cliente_nome: 'Carla Dias', cliente_telefone: '34 99999-0003' }),
@@ -349,8 +351,8 @@ beforeEach(() => {
   h.propostas = [
     prop('P1', 'Ana Souza', { dados: { telefoneDigitos: '34988880001', ...arquivosDossie() } }),
     prop('P2', 'Ana Souza', { vendido: false, dados: { telefoneDigitos: '34988880001' } }),
-    prop('P3', 'Bruno Lima', { consultor_nome: 'Giovanna', dados: { telefoneDigitos: '34977770002' } }),
-    prop('P4', 'Bruno Lima', { consultor_nome: 'Giovanna', dados: { telefoneDigitos: '34977770002' } }),
+    prop('P3', 'Bruno Lima', { consultor_nome: 'Carla', dados: { telefoneDigitos: '34977770002' } }),
+    prop('P4', 'Bruno Lima', { consultor_nome: 'Carla', dados: { telefoneDigitos: '34977770002' } }),
     prop('P5', 'Carla Dias', { dados: { telefoneDigitos: '34999990003' } }),
     prop('P6', 'Ana Souza Pereira', { kwp: 5, dados: {} }),
     prop('P7', 'Ana Souza', { tipo: 'eletroposto', kwp: null, dados: { telefoneDigitos: '34988880001' } }),
@@ -379,7 +381,7 @@ beforeEach(() => {
     throw new Error('rede indisponível no teste');
   }));
 });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); delete process.env.SOLAR_ADM; });
 
 describe('guarda da linha vendasolar', () => {
   it('o vendedor do card e o sócio entram; outro consultor, card de eletroposto, card não vendido e inexistente respondem 404 IGUAL', async () => {
@@ -387,7 +389,7 @@ describe('guarda da linha vendasolar', () => {
     expect(ok.status).toBe(200);
     expect(ok.headers['cache-control']).toBe('no-store');
     expect((await docs(201, THIAGO)).status).toBe(200);
-    const alheia = await docs(201, GIOVANNA);
+    const alheia = await docs(201, CARLA);
     expect(alheia.status).toBe(404);
     for (const id of [202, 203, 999]) {
       const x = await docs(id, THIAGO);
@@ -398,22 +400,22 @@ describe('guarda da linha vendasolar', () => {
     expect((await get('/clientes/vendasolar/0/docs')).status).toBe(400);
     expect((await request(app).get('/gerador/clientes/vendasolar/201/docs')).status).toBe(401);
     // a mesma guarda vale para o cadastro, a leitura e o relatório
-    expect((await get('/clientes/vendasolar/201/cadastro', GIOVANNA)).status).toBe(404);
-    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'X' } }, GIOVANNA)).status).toBe(404);
-    expect((await post('/clientes/vendasolar/201/cadastro/ler', {}, GIOVANNA)).status).toBe(404);
+    expect((await get('/clientes/vendasolar/201/cadastro', CARLA)).status).toBe(404);
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'X' } }, CARLA)).status).toBe(404);
+    expect((await post('/clientes/vendasolar/201/cadastro/ler', {}, CARLA)).status).toBe(404);
     expect((await get('/clientes/vendasolar/202/relatorio', THIAGO)).status).toBe(404);
     expect(h.cad.size).toBe(0);
   });
   it('o consultor da venda da planilha ligada ao card passa; o consultor de OUTRA venda não', async () => {
-    expect((await docs(201, GIOVANNA)).status).toBe(404);
-    // sócio liga o card à venda da Giovanna (#0058): ela passa a ver o card; a Nilce segue vendo (é a vendedora)
+    expect((await docs(201, CARLA)).status).toBe(404);
+    // sócio liga o card à venda da Carla (#0058): ela passa a ver o card; a Nilce segue vendo (é a vendedora)
     expect((await ligar(201, { venda: '#0058' }, THIAGO)).status).toBe(200);
-    expect((await docs(201, GIOVANNA)).status).toBe(200);
+    expect((await docs(201, CARLA)).status).toBe(200);
     expect((await docs(201)).status).toBe(200);
-    // ligada à venda da Nilce, a Giovanna volta a ser recusada
+    // ligada à venda da Nilce, a Carla volta a ser recusada
     expect((await ligar(201, { venda: '#0057' }, THIAGO)).status).toBe(200);
-    expect((await docs(201, GIOVANNA)).status).toBe(404);
-    expect((await get('/clientes/vendasolar/201/cadastro', GIOVANNA)).status).toBe(404);
+    expect((await docs(201, CARLA)).status).toBe(404);
+    expect((await get('/clientes/vendasolar/201/cadastro', CARLA)).status).toBe(404);
   });
   it('planilha fora do ar não barra o próprio vendedor do card', async () => {
     h.csv = '';
@@ -436,7 +438,7 @@ describe('catálogo e envio', () => {
     expect(res.body.pode_remover).toBe(true);
   });
   it('envio: o item da linha, o formato do item, o caminho do servidor, desta venda; remove e rotula como nas outras linhas', async () => {
-    expect((await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'art', mime: 'application/pdf', bytes: 10 })).status).toBe(400);    // item do eletroposto/solar, não desta linha
+    expect((await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'vistoria', mime: 'application/pdf', bytes: 10 })).status).toBe(400);    // item do eletroposto, não desta linha
     expect((await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'fachada', mime: 'application/pdf', bytes: 10 })).status).toBe(400);   // foto só imagem
     const u = await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'documento_titular_uc', mime: 'image/jpeg', bytes: JPG.length });
     expect(u.status).toBe(200);
@@ -615,16 +617,16 @@ describe('negociador, contratante, titular da homologação e do financiamento',
     expect(a.body.aviso).toBeUndefined();
     expect(gestao('0057')).toBeUndefined();                                   // o CSV tinha valor: nada gravado
     expect(cadastroDe(201).campos.tuc_nome.valor).toBe('Maria Souza');        // e o cadastro valeu
-    // agora vazio na planilha: a via escreve; depois a Giovanna digita por cima na Planilha do Cliente e a via respeita
+    // agora vazio na planilha: a via escreve; depois a Carla digita por cima na Planilha do Cliente e a via respeita
     csvComHomologacao('');
     await gravaTuc('Joana Souza');
     expect(homologacao()!.valor).toBe('Joana Souza');
     h.linhas.set('gestao_cliente:0057', {
       updated_at: 'g1',
-      value: { campos: { homologacao: { valor: 'Joana Digitada', por: 'giovanna', em: '2026-10-20T14:00:00.000Z' } }, alteracoes: [{ em: '2026-10-20T14:00:00.000Z', por: 'giovanna', coluna: 'homologacao', antes: 'Joana Souza' }], em: '2026-10-20T14:00:00.000Z' },
+      value: { campos: { homologacao: { valor: 'Joana Digitada', por: 'carla', em: '2026-10-20T14:00:00.000Z' } }, alteracoes: [{ em: '2026-10-20T14:00:00.000Z', por: 'carla', coluna: 'homologacao', antes: 'Joana Souza' }], em: '2026-10-20T14:00:00.000Z' },
     });
     await gravaTuc('Terceira Pessoa');
-    expect(homologacao()).toMatchObject({ valor: 'Joana Digitada', por: 'giovanna' });
+    expect(homologacao()).toMatchObject({ valor: 'Joana Digitada', por: 'carla' });
     expect(cadastroDe(201).campos.tuc_nome.valor).toBe('Terceira Pessoa');
   });
   it('planilha mãe: sem venda ligada, sem nome, ou pedido que não mexe no nome, não escreve nada', async () => {
@@ -656,7 +658,7 @@ describe('negociador, contratante, titular da homologação e do financiamento',
     expect(cadastroDe(201).campos.tuc_nome.valor).toBe('Maria Souza');
   });
   it('planilha mãe: quem grava precisa enxergar a venda ligada: o vendedor do card A ligado à venda da consultora B não escreve nela; sócio escreve', async () => {
-    injeta(201, { venda: '#0058' });                                          // card da Nilce ligado à venda da Giovanna (ligação antiga ou injetada)
+    injeta(201, { venda: '#0058' });                                          // card da Nilce ligado à venda da Carla (ligação antiga ou injetada)
     invalidarCachesHub();
     const a = await gravaTuc('Maria Souza');
     expect(a.status).toBe(200);
@@ -764,7 +766,7 @@ describe('análise do rateio e do consumo (cadastro da vendasolar)', () => {
     expect(so.body.analise.consumo).toMatchObject({ base: null, proposta_kwh: null, proposta_consumo_kwh: 500, aviso: null });
     comGeracao({ geracaoAnualKwh: '6000', consumoKwh: 900 });
     // a proposta passa a ser de outro consultor: o vínculo deixa de valer para a Nilce e a comparação some
-    h.propostas = h.propostas.map((p) => (p.codigo === 'P1' ? { ...p, consultor_nome: 'Giovanna' } : p));
+    h.propostas = h.propostas.map((p) => (p.codigo === 'P1' ? { ...p, consultor_nome: 'Carla' } : p));
     expect((await get('/clientes/vendasolar/201/cadastro')).body.analise.consumo.base).toBeNull();
   });
   it('banco do Gerador fora do ar (vínculo ou geração): o GET e o PUT seguem com consumo.base null e o rateio intacto', async () => {
@@ -809,10 +811,10 @@ describe('ligações do card com a proposta e a venda', () => {
   it('sem login 401; formato do card 400; a guarda 404 igual', async () => {
     expect((await request(app).get('/gerador/vendas-solares/201/vinculos')).status).toBe(401);
     expect((await vinculos(0)).status).toBe(400);
-    const alheia = await vinculos(201, GIOVANNA);
+    const alheia = await vinculos(201, CARLA);
     expect(alheia.status).toBe(404);
     for (const id of [202, 203, 999]) expect((await vinculos(id, THIAGO)).body).toEqual(alheia.body);
-    expect((await ligar(201, { proposta: 'P1' }, GIOVANNA)).status).toBe(404);
+    expect((await ligar(201, { proposta: 'P1' }, CARLA)).status).toBe(404);
     expect(ligacao(201)).toBeUndefined();
   });
   it('o GET NUNCA liga sozinho (regra do dono, 22/10): um candidato forte por telefone em cada tipo volta como sugerida e nada é gravado', async () => {
@@ -862,7 +864,7 @@ describe('ligações do card com a proposta e a venda', () => {
     expect(ligacao(201)).toMatchObject({ proposta: null, venda: null });
   });
   it('dois candidatos por telefone: não liga; lista os dois com motivo "telefone"', async () => {
-    const res = await vinculos(204, GIOVANNA);
+    const res = await vinculos(204, CARLA);
     expect(res.body).toMatchObject({ proposta: null, venda: null });
     expect(res.body.sugestoes.propostas.map((p: any) => [p.codigo, p.motivo])).toEqual([['P3', 'telefone'], ['P4', 'telefone']]);
     expect(res.body.sugestoes.vendas.map((v: any) => [v.codigo, v.motivo])).toEqual([['#0058', 'telefone'], ['#0061', 'telefone']]);
@@ -878,11 +880,11 @@ describe('ligações do card com a proposta e a venda', () => {
     expect(ligacao(205)).toBeUndefined();
   });
   it('quem pode ligar: proposta só do consultor dela (ou sócio) e vendida; venda só a que o pedinte enxerga', async () => {
-    expect((await ligar(201, { proposta: 'P3' })).status).toBe(404);            // proposta da Giovanna
+    expect((await ligar(201, { proposta: 'P3' })).status).toBe(404);            // proposta da Carla
     expect((await ligar(201, { proposta: 'P2' })).status).toBe(409);            // não vendida
     expect((await ligar(201, { proposta: 'NAOEXISTE' })).status).toBe(404);
     expect((await ligar(201, { proposta: '../x' })).status).toBe(400);
-    expect((await ligar(201, { venda: '#0058' })).status).toBe(404);             // venda da Giovanna
+    expect((await ligar(201, { venda: '#0058' })).status).toBe(404);             // venda da Carla
     expect((await ligar(201, { venda: 'abc' })).status).toBe(400);
     expect((await ligar(201, {})).status).toBe(400);
     expect(ligacao(201)).toBeUndefined();
@@ -1194,21 +1196,21 @@ describe('leitura por IA da vendasolar', () => {
 
 describe('assinatura das ligações', () => {
   it('registro injetado SEM sig não dá acesso, nem dossiê, nem conta como dono; sig adulterada idem; sig certa dá', async () => {
-    // Giovanna não é dona do card 201 nem da venda #0057: só uma ligação ASSINADA à venda dela (#0058) lhe abre o card.
+    // Carla não é dona do card 201 nem da venda #0057: só uma ligação ASSINADA à venda dela (#0058) lhe abre o card.
     injeta(201, { venda: '#0058' }, 'nenhuma');
-    expect((await docs(201, GIOVANNA)).status).toBe(404);
+    expect((await docs(201, CARLA)).status).toBe(404);
     injeta(201, { venda: '#0058' }, 'torta');
-    expect((await docs(201, GIOVANNA)).status).toBe(404);
-    expect((await get('/clientes/vendasolar/201/cadastro', GIOVANNA)).status).toBe(404);
+    expect((await docs(201, CARLA)).status).toBe(404);
+    expect((await get('/clientes/vendasolar/201/cadastro', CARLA)).status).toBe(404);
     // assinatura de OUTRO card, ou com campo trocado depois de assinada: não vale
     const l: Ligacao = { proposta: null, venda: '#0058', por: 'x', em: '2026-10-20T10:00:00.000Z' };
     h.linhas.set('venda_solar:201', { updated_at: 'x', value: { ...l, sig: assinarLigacao(204, l) } });
-    expect((await docs(201, GIOVANNA)).status).toBe(404);
+    expect((await docs(201, CARLA)).status).toBe(404);
     h.linhas.set('venda_solar:201', { updated_at: 'x', value: { ...l, venda: '#0058', por: 'outro', sig: assinarLigacao(201, l) } });
-    expect((await docs(201, GIOVANNA)).status).toBe(404);
+    expect((await docs(201, CARLA)).status).toBe(404);
     // a certa
     injeta(201, { venda: '#0058' }, 'certa');
-    expect((await docs(201, GIOVANNA)).status).toBe(200);
+    expect((await docs(201, CARLA)).status).toBe(200);
     // o vendedor do card e o sócio nunca dependem da assinatura
     injeta(201, { venda: '#0058' }, 'nenhuma');
     expect((await docs(201)).status).toBe(200);
@@ -1241,14 +1243,14 @@ describe('assinatura das ligações', () => {
     process.env.VINCULO_SOLAR_SECRET = 'segredo-proprio';
     expect(assinarLigacao(201, v)).not.toBe(v.sig);           // a env própria manda sobre a derivação
     // com a env própria a ligação antiga deixa de valer
-    expect((await docs(201, GIOVANNA)).status).toBe(404);
+    expect((await docs(201, CARLA)).status).toBe(404);
   });
   it('sem nenhum segredo no ambiente: a ligação não grava (503) e a guarda só aceita o vendedor do card e o sócio', async () => {
     injeta(201, { venda: '#0058' }, 'certa');
-    expect((await docs(201, GIOVANNA)).status).toBe(200);
+    expect((await docs(201, CARLA)).status).toBe(200);
     delete process.env.SUPABASE_SERVICE_KEY;
     delete process.env.VINCULO_SOLAR_SECRET;
-    expect((await docs(201, GIOVANNA)).status).toBe(404);
+    expect((await docs(201, CARLA)).status).toBe(404);
     expect((await docs(201)).status).toBe(200);
     expect((await docs(201, THIAGO)).status).toBe(200);
     const res = await ligar(201, { proposta: 'P1' });
@@ -1260,7 +1262,7 @@ describe('assinatura das ligações', () => {
 
 describe('sugestão por telefone (nunca liga): só do mesmo consultor, com DDD, e um candidato', () => {
   it('quem abriu o card não muda nada: o sócio abrindo um card de OUTRO consultor recebe sugestão sem a marca "sugerida"', async () => {
-    h.cards = h.cards.map((c) => (c.id === 207 ? { ...c, vendedor_nome: 'Giovanna' } : c));     // P5 e #0060 são da Nilce
+    h.cards = h.cards.map((c) => (c.id === 207 ? { ...c, vendedor_nome: 'Carla' } : c));     // P5 e #0060 são da Nilce
     const res = await vinculos(207, THIAGO);
     expect(res.body).toMatchObject({ proposta: null, venda: null });
     expect(res.body.sugestoes.propostas.map((p: any) => [p.codigo, p.motivo])).toEqual([['P5', 'telefone']]);
@@ -1276,7 +1278,7 @@ describe('sugestão por telefone (nunca liga): só do mesmo consultor, com DDD, 
     expect(ligacao(201)).toBeUndefined();
   });
   it('só uma das pontas vem como sugerida quando a outra é de outro consultor', async () => {
-    h.propostas = h.propostas.map((p) => (p.codigo === 'P5' ? { ...p, consultor_nome: 'Giovanna' } : p));
+    h.propostas = h.propostas.map((p) => (p.codigo === 'P5' ? { ...p, consultor_nome: 'Carla' } : p));
     const res = await vinculos(207);              // a Nilce só enxerga o que é dela: P5 some das sugestões
     expect(res.body).toMatchObject({ proposta: null, venda: null });
     expect(res.body.sugestoes.propostas.map((p: any) => p.codigo)).not.toContain('P5');
@@ -1318,14 +1320,14 @@ describe('sugestão por telefone (nunca liga): só do mesmo consultor, com DDD, 
 
 describe('o relatório usa a posse da venda ligada', () => {
   it('quem não enxerga a venda ligada recebe o cadastro do card sem o equipamento da planilha; quem enxerga, com ele', async () => {
-    expect((await ligar(201, { venda: '#0058' }, THIAGO)).status).toBe(200);           // venda da Giovanna ligada ao card da Nilce
+    expect((await ligar(201, { venda: '#0058' }, THIAGO)).status).toBe(200);           // venda da Carla ligada ao card da Nilce
     const nilce = await get('/clientes/vendasolar/201/relatorio');
     expect(nilce.status).toBe(200);
     expect(nilce.body.secoes.map((x: any) => x.numero)).toEqual([1, 2, 3, 4, 5]);
     expect(JSON.stringify(nilce.body)).not.toContain('Bruno');
-    const giovanna = await get('/clientes/vendasolar/201/relatorio', GIOVANNA);
-    expect(giovanna.status).toBe(200);
-    expect(giovanna.body.secoes.length).toBe(5);
+    const carla = await get('/clientes/vendasolar/201/relatorio', CARLA);
+    expect(carla.status).toBe(200);
+    expect(carla.body.secoes.length).toBe(5);
     expect((await get('/clientes/vendasolar/201/relatorio', THIAGO)).body.secoes.length).toBe(5);
   });
 });
@@ -1430,18 +1432,18 @@ describe('fase 2: código do alocador (venda_origem, religar, guarda, sincronia 
   });
 
   it('guarda: o consultor da linha do Excel com o mesmo número NÃO passa no card de código do alocador; sócio e vendedor passam; ligação de gente segue valendo', async () => {
-    // #0058 é da Giovanna no Excel; o card 201 é da Nilce
+    // #0058 é da Carla no Excel; o card 201 é da Nilce
     injeta(201, { venda: '#0058', por: 'gerador' });
     registro({ codigo: '#0058', card: 201 });
     for (const url of ['/clientes/vendasolar/201/docs', '/clientes/vendasolar/201/cadastro']) {
-      expect((await get(url, GIOVANNA)).status).toBe(404);
+      expect((await get(url, CARLA)).status).toBe(404);
       expect((await get(url, NILCE)).status).toBe(200);
       expect((await get(url, THIAGO)).status).toBe(200);
     }
     // sem registro (ligação feita por gente): o consultor da venda continua passando
     h.linhas.delete('codigo_solar:0058');
-    injeta(201, { venda: '#0058', por: 'giovanna' });
-    expect((await get('/clientes/vendasolar/201/docs', GIOVANNA)).status).toBe(200);
+    injeta(201, { venda: '#0058', por: 'carla' });
+    expect((await get('/clientes/vendasolar/201/docs', CARLA)).status).toBe(200);
   });
 
   it('sincronia do nome da homologação: calada para código do alocador (no CSV ou não); a leitura do registro falhando avisa e não escreve', async () => {
@@ -1472,7 +1474,7 @@ describe('fase 2: código do alocador (venda_origem, religar, guarda, sincronia 
   it('P1: registro presente com assinatura INVÁLIDA conta como do alocador: a guarda nega o consultor da planilha e a sincronia cala', async () => {
     injeta(201, { venda: '#0058', por: 'nilce' });
     h.linhas.set('codigo_solar:0058', { updated_at: 'r', value: { codigo: '#0058', card: 201, por: 'x', em: 'x', origem: 'novo', sig: 'forjada' } });
-    expect((await get('/clientes/vendasolar/201/docs', GIOVANNA)).status).toBe(404);
+    expect((await get('/clientes/vendasolar/201/docs', CARLA)).status).toBe(404);
     expect((await get('/clientes/vendasolar/201/docs', NILCE)).status).toBe(200);
     injeta(201, { venda: '#0057', por: 'nilce' });
     h.linhas.set('codigo_solar:0057', { updated_at: 'r', value: { codigo: '#0057', card: 201, sig: 'forjada' } });
@@ -1515,7 +1517,7 @@ describe('fase 2: relatório com código do alocador', () => {
   const comEquipamento = () => {
     h.csv = paraCsv([
       venda('#0057', { 'NOME CLIENTE': 'Ana Souza', CONSULTOR: 'Nilce', CONTATO: '34988880001', 'QTD PLACA': '99', 'MODELO PLACA': 'Outra 777W' }),
-      venda('#0058', { 'NOME CLIENTE': 'Bruno Lima', CONSULTOR: 'Giovanna', CONTATO: '34977770002' }),
+      venda('#0058', { 'NOME CLIENTE': 'Bruno Lima', CONSULTOR: 'Carla', CONTATO: '34977770002' }),
     ]);
     limparCacheClientes();
   };
@@ -1523,14 +1525,14 @@ describe('fase 2: relatório com código do alocador', () => {
     comEquipamento();
     injeta(204, { venda: '#0057', por: 'gerador' });
     registro('#0057', 204);
-    const res = await get('/clientes/vendasolar/204/relatorio', GIOVANNA);
+    const res = await get('/clientes/vendasolar/204/relatorio', CARLA);
     expect(res.status).toBe(200);
     expect(res.body.cabecalho.codigo).toBe('#0057');
     expect(JSON.stringify(res.body)).not.toMatch(/99 ×|Outra 777W/);
   });
   it('P2-3: registro apagado e ligação por gerador: o consultor da linha do Excel continua sem acesso ao card', async () => {
     injeta(201, { venda: '#0058', por: 'gerador' });   // sem codigo_solar:0058 (a chave pública pode apagá-lo)
-    expect((await get('/clientes/vendasolar/201/docs', GIOVANNA)).status).toBe(404);
+    expect((await get('/clientes/vendasolar/201/docs', CARLA)).status).toBe(404);
     expect((await get('/clientes/vendasolar/201/docs', NILCE)).status).toBe(200);
   });
   it('item 1: registro apagado e ligação por gerador: a sincronia do nome da homologação fica calada', async () => {
@@ -1545,7 +1547,7 @@ describe('fase 2: relatório com código do alocador', () => {
     expect((await ligar(201, { proposta: 'P1' })).status).toBe(200);
     expect(ligacao(201)).toMatchObject({ venda: '#0058', proposta: 'P1', por: 'gerador' });
     h.linhas.delete('codigo_solar:0058');
-    expect((await get('/clientes/vendasolar/201/docs', GIOVANNA)).status).toBe(404);
+    expect((await get('/clientes/vendasolar/201/docs', CARLA)).status).toBe(404);
     const put1 = await put('/clientes/vendasolar/201/cadastro', { campos: { homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza' } }, THIAGO);
     expect(put1.status).toBe(200);
     expect(h.linhas.has('gestao_cliente:0058')).toBe(false);
@@ -1574,5 +1576,17 @@ describe('nenhum dado pessoal em log', () => {
     await post('/clientes/vendasolar/201/cadastro/ler', {});
     const tudo = JSON.stringify([...h.logs, ...espiao.flatMap((e) => e.mock.calls)]).toLowerCase();
     for (const proibido of ['zznome', 'zztitular', '52998224', 'ana souza', '98888']) expect(tudo).not.toContain(proibido);
+  });
+});
+
+describe('Jornada, fase 1: ligar a venda da planilha é só do ADM', () => {
+  it('quem não é ADM leva 403 precisa adm ao ligar ou desligar a VENDA; a PROPOSTA segue passando', async () => {
+    process.env.SOLAR_ADM = 'thiago';
+    const v = await ligar(201, { venda: '#0057' });
+    expect(v.status).toBe(403);
+    expect(v.body).toMatchObject({ ok: false, precisa: 'adm' });
+    expect((await ligar(201, { venda: null })).status).toBe(403);
+    expect((await ligar(201, { proposta: 'P1' })).status).toBe(200);
+    expect((await ligar(201, { venda: '#0057' }, THIAGO)).status).toBe(200);
   });
 });

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { exigeConsultor } from './geradorDossie';
 import { semCache } from './geradorClientesDocs';
 import { acessoVendaSolar, vendaSolarDoDono, vendasDaPlanilha, ErroVendaSolar } from './geradorClientes';
-import { ehSocio, podeVer } from '../services/gerador/solarObras';
+import { ehSocio, podeVer, ehAdm } from '../services/gerador/solarObras';
 import { normalizarNome } from '../services/gerador/dossieVenda';
 import { codigoDeRota, nomesParecidos } from '../services/gerador/docsCliente';
 import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
@@ -202,6 +202,8 @@ export function mountVendaSolar(router: Router): void {
     const querVenda = !!b && Object.prototype.hasOwnProperty.call(b, 'venda');
     const soSeVazia = !!b && b.soSeVazia === true;
     if (!b || (!querProposta && !querVenda)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+    // Fase 1 da Jornada (05/11/2026, SPEC 15): ligar ou desligar a venda da planilha (o número) é só do ADM.
+    if (querVenda && !ehAdm(g.nome)) { res.status(403).json({ ok: false, precisa: 'adm', error: 'Só o administrador liga a venda antiga da planilha.' }); return; }
     // Sem segredo para assinar a ligação, nada é gravado.
     if (!segredoDoVinculo()) { logErro('sem segredo para assinar a ligação', { codigo: 'sem_segredo' }); res.status(503).json({ ok: false, error: MSG_GRAVAR }); return; }
     let proposta: string | null = null;

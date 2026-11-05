@@ -36,7 +36,11 @@ const LOG = 'cadastro-venda';
 export const SLOTS_LIDOS: readonly string[] = CATALOGO.eletroposto.filter((i) => i.aceita !== 'imagem').map((i) => i.chave);
 /** Idem para a venda solar pelo card: ficam de fora as 4 fotos de homologação (fachada, padrão, disjuntor, medidor). */
 /** Datasheet é ficha do fabricante, não documento de pessoa: a IA não lê e não gasta vaga do teto de arquivos lidos. */
-const SLOTS_NAO_LIDOS_SOLAR: ReadonlySet<string> = new Set(['datasheet_modulo', 'datasheet_inversor']);
+const SLOTS_NAO_LIDOS_SOLAR: ReadonlySet<string> = new Set([
+  'datasheet_modulo', 'datasheet_inversor',
+  // Jornada, fase 1: papel de homologação e comprovante não são lidos pela IA.
+  'art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso',
+]);
 export const SLOTS_LIDOS_SOLAR: readonly string[] = CATALOGO.vendasolar.filter((i) => i.aceita !== 'imagem' && !SLOTS_NAO_LIDOS_SOLAR.has(i.chave)).map((i) => i.chave);
 const slotsLidosDa = (linha: LinhaLeitura): readonly string[] => (linha === 'vendasolar' ? SLOTS_LIDOS_SOLAR : SLOTS_LIDOS);
 export const MAX_ARQUIVOS_LIDOS = 20;

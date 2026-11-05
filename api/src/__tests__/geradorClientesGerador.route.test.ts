@@ -226,9 +226,13 @@ describe('portão do número com a planilha fora e os overlays fora (leitores de
     h.cards.push(card(1147, { cliente_nome: 'Parente Inventado', cliente_telefone: '(34) 95555-0000' }));
     expect((await grade()).status).toBe(200);   // aquece o cache do módulo
     h.csvCai = true; h.gestaoCai = true;
+    // 05/11/2026 (Jornada, fase 1): o número só nasce com o contrato E a procuração assinados anexados, e só o ADM recebe os candidatos.
+    const par = (slot: string, n: number) => ({ id: `a${n}`, slot, caminho: `vendasolar/1147/0000000${n}-0000-4000-8000-000000000000.pdf`, mime: 'application/pdf', bytes: 10, em: '2026-11-01T10:00:00.000Z', por: 'x' });
+    h.linhas.set('docs_cliente:vendasolar:1147', { updated_at: 'p', value: { arquivos: [par('contrato_assinado', 1), par('procuracao', 2)], alteracoes: [], apagados: [] } });
     const r = await request(app).post('/gerador/vendas-solares/1147/cliente').set('Authorization', NILCE).send({});
     expect(r.status).toBe(409);
-    expect(r.body).toMatchObject({ precisa: 'confirmar', candidatos: [] });
+    expect(r.body).toMatchObject({ precisa: 'confirmar' });
+    expect(r.body.candidatos).toBeUndefined();
     expect(r.body.ocultas).toBeGreaterThanOrEqual(1);
     expect(JSON.stringify(r.body)).not.toMatch(/Dora|95555/);
     // o mesmo caminho que a rota do Trello usa (as mesmas dependências e novo: false)

@@ -78,11 +78,12 @@ describe('a linha nova em cada ponto fixo', () => {
 
 describe('catálogo da vendasolar', () => {
   const cat = CATALOGO.vendasolar;
-  it('tem os 20 itens (18 + os dois datasheets), com as chaves do dossiê onde elas existem', () => {
+  it('tem os 25 itens (18 + os dois datasheets + os 5 da homologação da Jornada), com as chaves do dossiê onde elas existem', () => {
     expect(cat.map((i) => i.chave)).toEqual([
       'documento_titular', 'comprovante_endereco_comprador', 'documento_titular_uc', 'documento_financiamento', 'comprovante_endereco_financiamento',
       'documento_outra_pessoa', 'documento_avalista', 'comprovante_endereco_avalista', 'conta_luz', 'conta_luz_beneficiaria', 'documento_imovel', 'fachada', 'padrao', 'disjuntor', 'medidor',
-      'datasheet_modulo', 'datasheet_inversor', 'contrato_assinado', 'procuracao', 'outros',
+      'datasheet_modulo', 'datasheet_inversor', 'contrato_assinado', 'procuracao',
+      'art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso', 'outros',
     ]);
     for (const [doDossie, daVenda] of Object.entries(SLOT_DO_DOSSIE_NA_VENDASOLAR)) expect(itemDoCatalogo('vendasolar', daVenda), doDossie).toBeTruthy();
     // o `documento` do dossiê é o documento com foto do TITULAR DA CONTA, não necessariamente o do comprador
@@ -118,8 +119,8 @@ describe('catálogo da vendasolar', () => {
     expect(LIMITES.total).toBe(100);
     expect(motivoSemEspaco({ ...registroDocsVazio(), arquivos: [{ id: 'a', slot: 'conta_luz', caminho: 'c', mime: 'application/pdf', bytes: 1, em: '', por: '' }] }, itemDoCatalogo('vendasolar', 'conta_luz')!)).toBe('slot_ocupado');
   });
-  it('obrigatórios (só pesam no relatório): comprador, conta da geradora, 4 fotos, 2 datasheets e contrato; o resto não', () => {
-    expect(cat.filter((i) => i.obrigatorio).map((i) => i.chave).sort()).toEqual(['conta_luz', 'contrato_assinado', 'datasheet_inversor', 'datasheet_modulo', 'disjuntor', 'documento_titular', 'fachada', 'medidor', 'padrao']);
+  it('obrigatórios (só pesam no relatório): comprador, conta da geradora, 4 fotos, 2 datasheets, contrato e procuração; o resto não', () => {
+    expect(cat.filter((i) => i.obrigatorio).map((i) => i.chave).sort()).toEqual(['conta_luz', 'contrato_assinado', 'datasheet_inversor', 'datasheet_modulo', 'disjuntor', 'documento_titular', 'fachada', 'medidor', 'padrao', 'procuracao']);
   });
 });
 
@@ -331,7 +332,9 @@ describe('leitura por IA da vendasolar', () => {
     expect(FORMATO_CADASTRO_SOLAR.type).toBe('json_schema');
   });
   it('o prompt cobre cada item do catálogo, a média do consumo, as vagas de beneficiária e não pede o percentual', () => {
-    for (const i of CATALOGO.vendasolar.filter((x) => x.chave !== 'outros')) {
+    // Os 5 itens da homologação (Jornada, fase 1) não são lidos pela IA: ficam fora do prompt.
+    const naoLidos = ['art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso'];
+    for (const i of CATALOGO.vendasolar.filter((x) => x.chave !== 'outros' && !naoLidos.includes(x.chave))) {
       expect(SISTEMA_CADASTRO_SOLAR, i.chave).toContain(`"${i.chave}":`);
       expect(DESCRICAO_DOS_ITENS_SOLAR[i.chave], i.chave).toBeTruthy();
     }

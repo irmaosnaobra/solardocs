@@ -36,6 +36,7 @@ import { mountClientesDocs } from './geradorClientesDocs';
 import { mountCadastroVenda } from './geradorCadastroVenda';
 import { mountContratosVersoes } from './geradorContratosVersoes';
 import { mountVendaSolar } from './geradorVendaSolar';
+import { mountJornadaSolar } from './geradorJornadaSolar';
 import { mountPerfil } from './geradorPerfil';
 import { mountRedes } from './geradorRedes';
 import { mountSentinela } from './geradorSentinela';
@@ -1185,6 +1186,8 @@ mountCadastroVenda(router);
 mountContratosVersoes(router);
 // Venda solar pelo card vendido (linha `vendasolar`): ligações do card com a proposta e com a venda da planilha mãe.
 mountVendaSolar(router);
+// Jornada da obra, fase 1 (05/11/2026): lista de Clientes, obra, etapas 1 a 3, papéis da SolarDoc e o número na assinatura.
+mountJornadaSolar(router);
 // Meu perfil: WhatsApp e foto de cada consultor (sócio edita o de qualquer um). O nome nunca muda.
 mountPerfil(router);
 // Automação como centro das redes, fase 1 (servidor): Reels, status da 5040 e caixa de comentários. Cada item nasce desligado.

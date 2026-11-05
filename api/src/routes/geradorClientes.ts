@@ -3,6 +3,7 @@ import { PLANILHA_CSV_URL } from '../services/insightsService';
 import { exigeConsultor } from './geradorDossie';
 import { comLimite, limitesSolar } from './geradorSolar';
 import { ehSocio, podeVer, codigoCanonico } from '../services/gerador/solarObras';
+import { DONOS_FIXOS } from '../services/gerador/jornadaSolar';
 import {
   lerGrade, montarCatalogo, montarLinhas, colunasPara, colunaPublica, totais, validarValor, celulaDe,
   progressoDe, houveConflito, aplicarGravacao, consultorEfetivo, nomeComparavel, GRUPOS, GRUPO_OUTROS,
@@ -223,7 +224,7 @@ export async function vendaLigadaVale(cardId: number, codigo: string, por?: stri
 
 /**
  * Quem pode ver e mexer na venda solar de um card (a guarda da linha `vendasolar`): o card existe, é SOLAR (não eletroposto) e
- * está `fechou`; e quem pede é sócio, ou o `vendedor_nome` do card, ou o consultor EFETIVO da venda da planilha ligada ao card
+ * está `fechou`; e quem pede é sócio, dono de etapa da Jornada (Giovanna, Thiago, Diego), ou o `vendedor_nome` do card, ou o consultor EFETIVO da venda da planilha ligada ao card
  * (mesma regra de `vendaSolarDoDono`), SÓ quando a venda ligada não é um código do alocador deste card (`vendaLigadaVale`). A
  * ordem importa: sócio e vendedor passam sem tocar na planilha, então planilha fora do ar não barra o próprio vendedor. Devolve
  * null quando não existe OU não pode (as duas coisas são iguais para quem pede).
@@ -231,7 +232,8 @@ export async function vendaLigadaVale(cardId: number, codigo: string, por?: stri
 export async function acessoVendaSolar(nome: string, socio: boolean, cardId: number): Promise<CardVendido | null> {
   const card = await lerCardSolarVendido(cardId);
   if (!card) return null;
-  if (socio || podeVer(nome, String(card.vendedor_nome ?? ''))) return card;
+  // Fase 1 da Jornada (05/11/2026, SPEC 18.1 item 1): dono de etapa vê a obra. Giovanna, Thiago e Diego têm etapa em toda venda.
+  if (socio || DONOS_FIXOS.has(String(nome ?? '').trim().toLowerCase()) || podeVer(nome, String(card.vendedor_nome ?? ''))) return card;
   const { lig } = await lerLigacao(cardId);
   if (lig.venda && await vendaLigadaVale(cardId, lig.venda, lig.por) && await vendaSolarDoDono(nome, false, lig.venda)) return card;
   return null;

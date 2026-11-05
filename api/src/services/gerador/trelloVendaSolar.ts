@@ -380,7 +380,10 @@ export function equipamentoDaProposta(p: {
  */
 export const AVISO_QUADRO_PUBLICO = 'Telefone e e-mail no gerador (quadro público).';
 
-export function descricaoDoCartao(a: { telefone: string; email: string; ligacao: string; equip: EquipamentoProposta | null; publico?: boolean }): string {
+export function descricaoDoCartao(a: {
+  telefone: string; email: string; ligacao: string; equip: EquipamentoProposta | null; publico?: boolean;
+  rateio?: Array<{ papel: 'geradora' | 'beneficiaria'; uc: string; titular: string; pct: number | null }>;
+}): string {
   const linhas: string[] = [];
   // Quadro público: telefone e e-mail do cliente NÃO vão (qualquer um lê). Ficam só a ligação e os equipamentos.
   if (!a.publico) {
@@ -395,6 +398,16 @@ export function descricaoDoCartao(a: { telefone: string; email: string; ligacao:
     linhas.push(`**${e.qtdPlacas} - ${e.modeloPlaca}${pot}**`);
   }
   if (e && e.qtdInversor && e.inversor) linhas.push(`**${e.qtdInversor} - ${e.inversor}**`);
+  // Fase 1 da Jornada: o rateio do excedente vai na descrição (SPEC J03). Quadro público: sem o nome do titular.
+  const bens = (a.rateio ?? []).filter((r) => r.papel === 'beneficiaria' && r.uc);
+  if (bens.length) {
+    linhas.push('**Rateio do excedente**');
+    for (const r of a.rateio ?? []) {
+      if (!r.uc) continue;
+      const pct = r.pct === null ? '' : ` · ${String(r.pct).replace('.', ',')}%`;
+      linhas.push(`${r.papel === 'geradora' ? 'Geradora' : 'Beneficiária'} · UC ${r.uc}${a.publico ? '' : ` · ${r.titular}`}${pct}`);
+    }
+  }
   if (a.publico) linhas.push(AVISO_QUADRO_PUBLICO);
   return linhas.join('\n\n');
 }

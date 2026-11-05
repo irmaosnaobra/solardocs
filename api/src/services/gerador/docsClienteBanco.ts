@@ -240,3 +240,26 @@ export async function listarPropostasVendidas(): Promise<PropostaResumo[]> {
   }
   return tudo;
 }
+
+/**
+ * Jornada, fase 1: os slots com arquivo de cada card (`docs_cliente:vendasolar:<id>`), em lotes de `.in()` de 100. Nunca LIKE (o `_`
+ * é curinga). Card sem registro fica com conjunto vazio.
+ */
+export async function lerSlotsDosCards(ids: number[]): Promise<Map<number, Set<string>>> {
+  const mapa = new Map<number, Set<string>>();
+  const prefixo = chaveDocs('vendasolar', '');
+  const unicos = [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))];
+  for (let i = 0; i < unicos.length; i += POR_CONSULTA) {
+    const lote = unicos.slice(i, i + POR_CONSULTA);
+    const { data, error } = await supabase.from('system_state').select('key, value').in('key', lote.map((c) => chaveDocs('vendasolar', String(c))));
+    if (error) throw new ErroDocs(codigoDe(error), 502);
+    for (const l of (data ?? []) as Array<{ key: string; value: unknown }>) {
+      const k = String(l.key);
+      if (!k.startsWith(prefixo)) continue;
+      const id = Number(k.slice(prefixo.length));
+      if (!Number.isInteger(id) || id <= 0) continue;
+      mapa.set(id, new Set(lerRegistroDocs(l.value).arquivos.map((a) => a.slot)));
+    }
+  }
+  return mapa;
+}

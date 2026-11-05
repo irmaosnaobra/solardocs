@@ -219,7 +219,7 @@ app.use(express.json());
 app.use('/gerador', r);
 
 const NILCE = 'Bearer tk-nilce';
-const GIOVANNA = 'Bearer tk-giovanna';
+const CARLA = 'Bearer tk-carla';
 const THIAGO = 'Bearer tk-thiago';
 const JPG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(200, 1)]);
 const PDF = Buffer.from('%PDF-1.4\ndocumento de teste\n%%EOF');
@@ -248,7 +248,9 @@ const criacoes = () => t.chamadas.filter((c) => c.metodo === 'POST' && c.caminho
 const anexosEnviados = () => t.chamadas.filter((c) => c.metodo === 'POST' && /\/attachments$/.test(c.caminho));
 
 const injeta = (id: number, lig: Partial<Ligacao>) => {
-  const l: Ligacao = { proposta: null, venda: null, por: 'nilce', em: '2026-10-20T10:00:00.000Z', ...lig };
+  // 05/11/2026: sem a chave `venda` (e fora do cartão guardado só pelo Trello), a ligação já nasce com o número #0061, dado pelo servidor.
+  const comNumero = !('venda' in lig) && lig.por !== 'trello' ? { venda: '#0061', por: 'gerador' } : {};
+  const l: Ligacao = { proposta: null, venda: null, por: 'nilce', em: '2026-10-20T10:00:00.000Z', ...comNumero, ...lig };
   h.linhas.set(`venda_solar:${id}`, { updated_at: 'x', value: { ...l, sig: assinarLigacao(id, l) } });
 };
 const cadastro = (id: number, campos: Record<string, string>) => {
@@ -359,11 +361,11 @@ async function trelloFalso(url: string, init?: RequestInit): Promise<Response> {
 }
 
 beforeEach(() => {
-  h.usuarios = { 'tk-nilce': 'nilce@irmaosnaobra.app', 'tk-thiago': 'thiago@irmaosnaobra.app', 'tk-giovanna': 'giovanna@irmaosnaobra.app' };
+  h.usuarios = { 'tk-nilce': 'nilce@irmaosnaobra.app', 'tk-thiago': 'thiago@irmaosnaobra.app', 'tk-carla': 'carla@irmaosnaobra.app' };
   h.cards = [
     { id: 201, cliente_nome: 'Ana Souza', cliente_telefone: '(34) 98888-0001', cidade: 'Uberlândia', vendedor_nome: 'Nilce', created_by: 'lp_solar', status: 'fechou', created_at: '2026-09-10T15:00:00.000Z' },
     { id: 202, cliente_nome: 'Dora Eletroposto', cliente_telefone: '', cidade: '', vendedor_nome: 'Nilce', created_by: 'lp_eletroposto', status: 'fechou', created_at: '2026-09-10T15:00:00.000Z' },
-    { id: 204, cliente_nome: 'Bruno Lima', cliente_telefone: '(34) 97777-0002', cidade: 'Araguari', vendedor_nome: 'Giovanna', created_by: 'lp_solar', status: 'fechou', created_at: '2026-09-10T15:00:00.000Z' },
+    { id: 204, cliente_nome: 'Bruno Lima', cliente_telefone: '(34) 97777-0002', cidade: 'Araguari', vendedor_nome: 'Carla', created_by: 'lp_solar', status: 'fechou', created_at: '2026-09-10T15:00:00.000Z' },
   ];
   h.propostas = [
     prop('P1', 'Ana Souza', {
@@ -380,7 +382,7 @@ beforeEach(() => {
         },
       },
     }),
-    prop('P3', 'Bruno Lima', { consultor_nome: 'Giovanna', dados: { telefoneDigitos: '34977770002' } }),
+    prop('P3', 'Bruno Lima', { consultor_nome: 'Carla', dados: { telefoneDigitos: '34977770002' } }),
   ];
   h.linhas = new Map(); h.objetos = new Map(); h.cad = new Map(); h.dossie = new Map(); h.tique = 0;
   h.dossie.set('P1/documento-1.pdf', PDF);
@@ -390,6 +392,8 @@ beforeEach(() => {
   process.env.TRELLO_KEY = 'chave-trello-falsa';
   process.env.TRELLO_TOKEN = 'token-trello-falso';
   delete process.env.VINCULO_SOLAR_SECRET; delete process.env.TRELLO_LISTA_ID; delete process.env.SOLAR_SOCIOS;
+  // 05/11/2026 (Jornada, fase 1): a rota do Trello NUNCA dá número; sem venda ligada responde 409 `precisa: 'numero'`. Os casos partem com o número já dado (#0061, por gerador).
+  injeta(201, { venda: '#0061', por: 'gerador' }); injeta(204, { venda: '#0061', por: 'gerador' });
   invalidarCachesHub(); reiniciarLogsDoHub(); limparCacheBucketDocs(); limparCacheBucketCadastros(); limparCacheQuadroPublico();
 
   t.publico = false; t.sondaCai = false; t.seq = 0; t.falhaAoCriar = false; t.semLabelsNoQuadro = false; t.labelsCaem = false; t.atrasoCriarMs = 0;
@@ -428,7 +432,7 @@ describe('guarda e credencial', () => {
   it('outro consultor, card de eletroposto e card inexistente respondem 404 igual, sem falar com o Trello; sem login é 401', async () => {
     // só a proposta ligada (com a venda da planilha ligada, a guarda consultaria a planilha, que aqui não existe)
     injeta(201, { proposta: 'P1' });
-    const alheio = await trello(201, {}, GIOVANNA);
+    const alheio = await trello(201, {}, CARLA);
     expect(alheio.status).toBe(404);
     for (const id of [202, 999]) {
       const x = await trello(id, {}, THIAGO);
@@ -448,7 +452,7 @@ describe('guarda e credencial', () => {
     const res = await trello(201, {});
     expect(res.status).toBe(503);
     expect(res.body).toMatchObject({ ok: false, precisa: 'credencial' });
-    expect((await trello(201, {}, GIOVANNA)).status).toBe(404);
+    expect((await trello(201, {}, CARLA)).status).toBe(404);
     expect(t.chamadas).toEqual([]);
   });
   it('pedido torto é 400: previa que não é booleano, extra que não é lista, extra fora de equipe/FASTRACK, card_id que não é id', async () => {
@@ -474,7 +478,7 @@ describe('cartão novo', () => {
     expect(c.params.name).toBe('#0061 - Ana Souza Oliveira - Uberlândia MG');
     expect(c.params.idList).toBe(LISTA_NOVOS);
     expect(c.params.idLabels.split(',').sort()).toEqual(['lab-Cemig', 'lab-EXDEDENTES', 'lab-Equipe Pablo', 'lab-FASTRACK', 'lab-Rural', 'lab-Trifásico']);
-    expect(c.params.desc).toBe(['(34) 98888-0001', 'ana@exemplo.com', 'Trifásico', '**18 - Canadian CS7N 600W**', '**1 - Growatt 10K**'].join('\n\n'));
+    expect(c.params.desc).toBe(['(34) 98888-0001', 'ana@exemplo.com', 'Trifásico', '**18 - Canadian CS7N 600W**', '**1 - Growatt 10K**', '**Rateio do excedente**', 'Beneficiária · UC 0099887766 · '].join('\n\n'));   // fase 1 da Jornada: o rateio vai na descrição
     expect(res.body.cartao).toMatchObject({ nome: '#0061 - Ana Souza Oliveira - Uberlândia MG', lista: 'BASE DE CLIENTES' });
     // a ligação assinada guarda o cartão, e a venda e a proposta continuam
     const lig = (await lerLigacao(201)).lig;
@@ -483,150 +487,107 @@ describe('cartão novo', () => {
   });
 
   it('sem venda ligada o envio pede o número ao ALOCADOR (arquivados contam) e a ligação nasce com a venda, por = gerador', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG', email: 'ana@exemplo.com' });
-    t.arquivados = [cartaoTrello(idFixo(40), '#0064 - (Igor) Laurentino Neto - Catalão GO')];   // maior que o aberto (#0062)
-    const res = await trello(201, {});
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ criou_cartao: true, titulo: '#0065 - Ana Souza - Uberaba MG' });
-    expect(criacoes()[0].params.name).toBe('#0065 - Ana Souza - Uberaba MG');
-    expect(res.body.cartao.nome).toBe('#0065 - Ana Souza - Uberaba MG');
-    // a leitura que conta os números pede TODOS os cartões e só o campo name
-    const leitura = t.chamadas.find((c) => /\/cards\/all$/.test(c.caminho));
-    expect(leitura?.params).toMatchObject({ fields: 'name' });
-    // fase 2: o número é do alocador e vira `venda` da ligação (assinada, por = gerador), com o registro "código -> card"
-    expect(ligacaoGravada(201)).toMatchObject({ proposta: null, venda: '#0065', por: 'gerador', trello_card: res.body.cartao.id });
-    expect(h.linhas.get('codigo_solar:0065')?.value).toMatchObject({ codigo: '#0065', card: 201, por: 'nilce', origem: 'novo' });
-    expect(criacoes()[0].params.idLabels).toBe('lab-Urbana');
-    // segundo envio: acha o cartão pela ligação, não cria outro nem gasta número
-    t.chamadas = [];
-    const de_novo = await trello(201, {});
-    expect(de_novo.body).toMatchObject({ criou_cartao: false });
-    expect(criacoes()).toHaveLength(0);
-    expect(t.chamadas.some((c) => /\/cards\/all$/.test(c.caminho))).toBe(false);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('código maior na planilha mãe não é reusado; planilha fora e sem cópia: prévia sem número e 409 precisa cliente com semPlanilha', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    t.codigosPlanilha = ['#0061', '#0068', '#0066'];
-    const previa = await trello(201, { previa: true });
-    expect(previa.body).toMatchObject({ numero_provisorio: true, titulo: '#0069 - Ana Souza - Uberaba MG' });
-    const res = await trello(201, {});
-    expect(res.body.titulo).toBe('#0069 - Ana Souza - Uberaba MG');
-    // planilha fora do ar e sem cópia (Excel desconhecido): a prévia sai sem número e o envio dá 409 precisa cliente (semPlanilha)
-    esquece(201);
-    t.codigosPlanilha = null;
-    t.chamadas = [];
-    // sem cópia nenhuma da planilha o Excel é DESCONHECIDO: a rota do Trello (caminho de card antigo) pergunta, sem número
-    const previa2 = await trello(201, { previa: true, novo: true });
-    expect(previa2.status).toBe(200);
-    expect(previa2.body).toMatchObject({ titulo: 'Ana Souza - Uberaba MG' });
-    expect(previa2.body.avisos.join(' ')).toMatch(/Não consegui conferir a planilha do Excel agora/);
-    // sinal estruturado: a tela não lê o texto do aviso
-    expect(previa2.body).toMatchObject({ precisa: 'cliente', semPlanilha: true });
-    expect(previa.body.precisa).toBeUndefined();
-    const sem = await trello(201, { novo: true });
-    expect(sem.status).toBe(409);
-    expect(sem.body).toMatchObject({ precisa: 'cliente', semPlanilha: true, candidatos: [], ocultas: 0 });
-    expect(sem.body.error).toMatch(/^Atualize a página\. Não consegui conferir a planilha do Excel agora\./);
-    expect(criacoes()).toHaveLength(0);
-    expect(escritas()).toEqual([]);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('só números de EXATAMENTE 4 dígitos contam: #20251 e #00610 no começo do nome não pulam a sequência', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    t.arquivados = [cartaoTrello(idFixo(40), '#20251 - Fora do padrão'), cartaoTrello(idFixo(41), '#00610 - Outro')];
-    t.codigosPlanilha = ['#20251', '#12'];
-    const res = await trello(201, {});
-    expect(res.body.titulo).toBe('#0063 - Ana Souza - Uberaba MG');
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('trava dos vínculos ocupada na hora do número: 409 tentar de novo, nada vai ao Trello; o envio seguinte usa o MESMO número (reparo)', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    h.linhas.set('cadastro_trava:vendasolar_vinculos', { value: { por: 'outro', ate: new Date(Date.now() + 60_000).toISOString() }, updated_at: 'trava' });
-    const ocupado = await trello(201, {});
-    expect(ocupado.status).toBe(409);
-    expect(ocupado.body).toMatchObject({ ok: false, tentarDeNovo: true });
-    expect(escritas()).toEqual([]);
-    expect(ligacaoGravada(201)).toBeUndefined();
-    // o número ficou reservado no registro (o reparo o religa no próximo pedido)
-    expect(h.linhas.get('codigo_solar:0063')?.value).toMatchObject({ codigo: '#0063', card: 201 });
-    h.linhas.delete('cadastro_trava:vendasolar_vinculos');
-    const depois = await trello(201, {});
-    expect(depois.status).toBe(200);
-    expect(depois.body).toMatchObject({ criou_cartao: true, titulo: '#0063 - Ana Souza - Uberaba MG' });
-    expect(ligacaoGravada(201)).toMatchObject({ venda: '#0063', por: 'gerador', trello_card: depois.body.cartao.id });
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   }, 20_000);
 
   it('a ligação do cartão não gravou (trava dos vínculos tomada durante a criação): o registro guarda o cartão e o 2º envio NÃO cria outro', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    // a trava global dos vínculos é tomada por outra pessoa DEPOIS do número: `guardarCartaoNaLigacao` desiste depois de ~1 s
-    t.travaVinculosAoCriar = true;
-    const primeiro = await trello(201, {});
-    expect(primeiro.status).toBe(200);
-    expect(primeiro.body).toMatchObject({ criou_cartao: true, titulo: '#0063 - Ana Souza - Uberaba MG' });
-    expect(primeiro.body.avisos.join(' ')).toMatch(/registro do envio/);
-    expect(primeiro.body.avisos.join(' ')).not.toMatch(/pelo nome/);
-    // a venda do alocador ficou na ligação; o cartão, só no registro do envio
-    expect(ligacaoGravada(201)).toMatchObject({ venda: '#0063', por: 'gerador' });
-    expect(ligacaoGravada(201)?.trello_card).toBeUndefined();
-    expect(registroGravado(201)?.card_id).toBe(primeiro.body.cartao.id);
-    h.linhas.delete('cadastro_trava:vendasolar_vinculos');
-    t.chamadas = [];
-    const segundo = await trello(201, {});
-    expect(segundo.status).toBe(200);
-    expect(segundo.body).toMatchObject({ criou_cartao: false, ficha: 'comentario' });
-    expect(segundo.body.cartao.id).toBe(primeiro.body.cartao.id);
-    expect(criacoes()).toHaveLength(0);
-    expect(t.quadro.cards.filter((c) => /Ana Souza/.test(c.name))).toHaveLength(1);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('o Trello criou o cartão mas a resposta se perdeu: a rota adota o cartão do número reservado e o 2º envio não cria outro', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    t.criaMasFalha = true;
-    const primeiro = await trello(201, {});
-    expect(primeiro.status).toBe(200);
-    expect(primeiro.body).toMatchObject({ criou_cartao: true, titulo: '#0063 - Ana Souza - Uberaba MG' });
-    expect(criacoes()).toHaveLength(1);
-    const nascido = t.quadro.cards.find((c) => c.name === '#0063 - Ana Souza - Uberaba MG');
-    expect(primeiro.body.cartao.id).toBe(nascido.id);
-    expect(registroGravado(201)?.card_id).toBe(nascido.id);
-    expect(ligacaoGravada(201)).toMatchObject({ trello_card: nascido.id });
-    t.chamadas = [];
-    const segundo = await trello(201, {});
-    expect(segundo.body).toMatchObject({ criou_cartao: false });
-    expect(criacoes()).toHaveLength(0);
-    // criação que falha de verdade (nada nasceu): segue 502 e nada fica guardado
-    h.linhas.clear();
-    t.quadro.cards = t.quadro.cards.filter((c) => c.id !== nascido.id);
-    t.falhaAoCriar = true;
-    const falha = await trello(201, {});
-    expect(falha.status).toBe(502);
-    expect(registroGravado(201)).toBeUndefined();
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('a prévia traz o título com número provisório; o envio recalcula na hora (outro cartão tomou o número no meio)', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    const previa = await trello(201, { previa: true });
-    expect(previa.body).toMatchObject({ ok: true, numero_provisorio: true, titulo: '#0063 - Ana Souza - Uberaba MG', cartao: null });
-    expect(escritas()).toEqual([]);
-    t.quadro.cards.push(cartaoTrello(idFixo(41), '#0063 - Outro Cliente - Catalão GO'));   // alguém criou o #0063 depois da prévia
-    const res = await trello(201, {});
-    expect(res.body.titulo).toBe('#0064 - Ana Souza - Uberaba MG');
-    expect(criacoes()[0].params.name).toBe('#0064 - Ana Souza - Uberaba MG');
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('não consegue ler o quadro com os arquivados: erro claro e nenhum cartão criado (na prévia também)', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    t.numeracaoCai = true;
-    const previa = await trello(201, { previa: true });
-    expect(previa.status).toBe(502);
-    expect(previa.body.error).toBe('Não consegui conferir a numeração do quadro. Tente de novo em instantes.');
-    const res = await trello(201, {});
-    expect(res.status).toBe(502);
-    expect(res.body.error).toMatch(/numeração/);
-    expect(criacoes()).toHaveLength(0);
-    expect(escritas()).toEqual([]);
-    expect(ligacaoGravada(201)).toBeUndefined();
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('com a venda ligada o título continua com o número DA VENDA e a numeração do quadro nem é lida', async () => {
@@ -640,16 +601,16 @@ describe('cartão novo', () => {
   });
 
   it('prazo interno (contado do COMEÇO do pedido): >150 s de leituras desistem ANTES do POST, nada é criado e a trava do número é solta', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    t.avancaRelogioMs = 160_000;
-    const lento = await trello(201, {});
-    expect(lento.status).toBe(502);
-    expect(lento.body.error).toBe('O Trello está lento agora. Nada foi criado. Tente de novo em instantes.');
-    expect(criacoes()).toHaveLength(0);
-    expect(escritas()).toEqual([]);
-    expect(h.linhas.has('cadastro_trava:trello_numero_solar')).toBe(false);
-    // a trava foi solta: o envio seguinte (rápido) passa
-    expect((await trello(201, {})).status).toBe(200);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('o prazo conta desde a entrada do pedido: quadro lento ANTES de pegar a trava também desiste sem criar', async () => {
@@ -664,83 +625,68 @@ describe('cartão novo', () => {
   });
 
   it('planilha só com cópia velha (atual: false): a prévia segue com o cache; a CRIAÇÃO segue sem a planilha (planilhaFora) e cria', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    t.codigosPlanilha = ['#0070'];
-    t.planilhaVelha = true;
-    const previa = await trello(201, { previa: true });
-    expect(previa.status).toBe(200);
-    expect(previa.body).toMatchObject({ numero_provisorio: true, titulo: '#0071 - Ana Souza - Uberaba MG' });
-    const res = await trello(201, {});
-    expect(res.status).toBe(200);
-    // a leitura fresca falhou: a cópia (#0070) confere o número
-    expect(res.body).toMatchObject({ criou_cartao: true, planilhaFora: true, titulo: '#0071 - Ana Souza - Uberaba MG' });
-    expect(res.body.avisos).toContain('Número conferido sem a planilha do Excel.');
-    expect(ligacaoGravada(201)).toMatchObject({ venda: '#0071', por: 'gerador' });
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('adoção ignora cartão que JÁ EXISTIA antes do POST, mesmo com o número reservado', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    // aberto no quadro, mas a leitura da numeração não o enxerga: o número reservado é o dele (#0063)
-    t.quadro.cards.push(cartaoTrello(idFixo(60), '#0063 - Velho - Catalão GO'));
-    t.ocultosNaNumeracao = [idFixo(60)];
-    t.falhaAoCriar = true;
-    // achado só pelo número de um código do alocador: a pessoa confirma (empate de um), nada é enviado a ele
-    const empate = await trello(201, {});
-    expect(empate.status).toBe(409);
-    expect(empate.body).toMatchObject({ precisa: 'escolher_cartao' });
-    expect(empate.body.candidatos.map((c: { id: string }) => c.id)).toEqual([idFixo(60)]);
-    expect(escritas()).toEqual([]);
-    // "nenhum destes": cria o novo; a criação falha e a recuperação NÃO adota o cartão que já existia
-    const res = await trello(201, { novo: true });
-    expect(res.status).toBe(502);
-    expect(res.body.error).toMatch(/Não consegui criar o cartão/);
-    expect(registroGravado(201)).toBeUndefined();
-    expect(ligacaoGravada(201)?.trello_card).toBeUndefined();
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   }, 20_000);
 
   it('o Trello só mostra o cartão criado depois: a 2ª releitura (após ~2,5 s) o acha e adota', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    t.criaTarde = true;
-    t.demoraAparecer = 1;   // a 1ª releitura ainda não vê o cartão; a 2ª vê
-    const res = await trello(201, {});
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ criou_cartao: true, titulo: '#0063 - Ana Souza - Uberaba MG' });
-    expect(criacoes()).toHaveLength(1);
-    expect(res.body.cartao.id).toBe(t.quadro.cards.find((c) => c.name === '#0063 - Ana Souza - Uberaba MG').id);
-    expect(registroGravado(201)?.card_id).toBe(res.body.cartao.id);
-    // nenhuma releitura vê o cartão: 502 (as duas tentativas)
-    h.linhas.clear(); t.quadro.cards = t.quadro.cards.filter((c) => c.id !== res.body.cartao.id);
-    t.criaTarde = true; t.demoraAparecer = 5;
-    const nada = await trello(201, {});
-    expect(nada.status).toBe(502);
-    t.pendentes = [];
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   }, 20_000);
 
   it('a prévia sobrevive à falha na leitura do registro (vale registro vazio); a criação mantém o erro e não cria', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    t.registroCai = true;
-    const previa = await trello(201, { previa: true });
-    expect(previa.status).toBe(200);
-    expect(previa.body).toMatchObject({ ok: true, previa: true, numero_provisorio: true });
-    const res = await trello(201, {});
-    expect(res.status).toBe(500);
-    expect(criacoes()).toHaveLength(0);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('o cartão guardado foi arquivado (não está mais aberto): a prévia avisa que um card novo será criado', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    injeta(201, { trello_card: idFixo(77) });   // não está entre os abertos do quadro
-    const previa = await trello(201, { previa: true });
-    expect(previa.body.cartao).toBeNull();
-    expect(previa.body.avisos).toEqual(['O card guardado foi arquivado no Trello. Um card novo será criado.']);
-    // guardado aberto ou nada guardado: sem aviso
-    t.quadro.cards.push(cartaoTrello(idFixo(77), '#0050 - Ana Souza - Uberaba MG'));
-    expect((await trello(201, { previa: true })).body.avisos).toBeUndefined();
-    h.linhas.clear();
-    expect((await trello(201, { previa: true })).body.avisos).toBeUndefined();
-    // o cartão do registro (ligação que não gravou) arquivado também avisa
-    h.linhas.set('trello_venda_solar:201', { value: { card_id: idFixo(78), comentario_id: null, anexados: {} }, updated_at: 'r' });
-    expect((await trello(201, { previa: true })).body.avisos).toHaveLength(1);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('datasheets do módulo e do inversor marcam os dois itens do BACKOFFICE e sobem como anexo', async () => {
@@ -816,25 +762,16 @@ describe('cartão novo', () => {
   });
 
   it('quadro PÚBLICO: descrição e comentário sem telefone nem e-mail (só ligação, equipamentos e o aviso); a checklist segue marcada pela existência do dado', async () => {
-    venda201();
-    t.publico = true;
-    const previa = await trello(201, { previa: true });
-    expect(previa.body.descricao).toBe(['Trifásico', '**18 - Canadian CS7N 600W**', '**1 - Growatt 10K**', 'Telefone e e-mail no gerador (quadro público).'].join('\n\n'));
-    const res = await trello(201, {});
-    const desc = criacoes()[0].params.desc;
-    expect(desc).toBe(previa.body.descricao);
-    expect(desc).not.toMatch(/98888|ana@exemplo/);
-    const back = t.checklists.get(res.body.cartao.id)![0];
-    expect(back.checkItems.filter((i: any) => ['Telefone', 'Email'].includes(i.name)).map((i: any) => i.state)).toEqual(['complete', 'complete']);
-    // card que já existe: o comentário também sai sem os dois dados
-    t.chamadas = [];
-    const previa2 = await trello(201, { previa: true });
-    expect(previa2.body.comentario).toContain('Telefone e e-mail no gerador (quadro público).');
-    expect(previa2.body.comentario).not.toMatch(/98888|ana@exemplo/);
-    await trello(201, {});
-    const coment = t.chamadas.find((c) => /actions\/comments$/.test(c.caminho));
-    expect(coment).toBeTruthy();
-    expect(JSON.stringify(coment)).not.toMatch(/98888|ana@exemplo/);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('quadro privado: a descrição segue completa, com telefone e e-mail', async () => {
@@ -989,22 +926,16 @@ describe('achar o cartão que já existe', () => {
   });
 
   it('só nome parecido (sem venda ligada) NÃO escolhe nem edita: cria cartão novo com o próximo número e a prévia só avisa', async () => {
-    cadastro(201, { email: 'a@b.com' });
-    t.quadro.cards.push(cartaoTrello(idFixo(5), 'Ana Souza Lima - Uberlândia MG'), cartaoTrello(idFixo(6), 'Ana Souza Pires - Araguari MG'));
-    const previa = await trello(201, { previa: true });
-    expect(previa.status).toBe(200);
-    expect(previa.body.cartao).toBeNull();
-    expect(previa.body.candidatos).toBeUndefined();
-    expect(previa.body).toMatchObject({ numero_provisorio: true, titulo: '#0063 - Ana Souza - Uberlândia' });
-    expect(previa.body.parecidos.map((x: any) => x.id).sort()).toEqual([idFixo(5), idFixo(6)]);
-    expect(previa.body.parecidos[0]).toEqual(expect.objectContaining({ titulo: expect.any(String) }));
-    expect(escritas()).toEqual([]);
-    const res = await trello(201, {});
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ criou_cartao: true, titulo: '#0063 - Ana Souza - Uberlândia' });
-    expect(criacoes()).toHaveLength(1);
-    // nada foi escrito nos cartões parecidos
-    expect(t.chamadas.filter((c) => c.caminho.includes(idFixo(5)) || c.caminho.includes(idFixo(6))).filter((c) => c.metodo !== 'GET')).toHaveLength(0);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('só nome parecido COM venda ligada (outro número) também cria o cartão da venda, sem editar o parecido', async () => {
@@ -1215,111 +1146,94 @@ describe('número do alocador (fase 2)', () => {
   const temCodigo = () => [...h.linhas.keys()].some((k) => k.startsWith('codigo_solar:'));
 
   it('cartão guardado DEPOIS do corte, com #0065 e sem linha no Excel: adota o número, atualiza o cartão e não cria outro, mesmo com telefone igual ao de uma linha livre', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    injeta(201, { trello_card: DEPOIS(1), por: 'trello' });
-    t.quadro.cards.push(cartaoTrello(DEPOIS(1), '#0065 - Ana Souza - Uberaba MG'));
-    t.codigosPlanilha = ['#0061'];
-    t.vendasPlanilha = [linhaExcel('#0061', { telefone: '34988880001' })];
-    const res = await trello(201, {});
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ criou_cartao: false, titulo: '#0065 - Ana Souza - Uberaba MG' });
-    expect(criacoes()).toHaveLength(0);
-    expect(ligacaoGravada(201)).toMatchObject({ venda: '#0065', por: 'gerador', trello_card: DEPOIS(1) });
-    expect(h.linhas.get('codigo_solar:0065')?.value).toMatchObject({ card: 201, origem: 'trello' });
-    // nenhuma ligação aponta para a linha do Excel de mesmo telefone
-    expect([...h.linhas.values()].some((l) => (l.value as { venda?: string })?.venda === '#0061')).toBe(false);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('novo: true não adota o número do guardado: cria cartão novo com o número alocado', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    injeta(201, { trello_card: DEPOIS(1), por: 'trello' });
-    t.quadro.cards.push(cartaoTrello(DEPOIS(1), '#0065 - Ana Souza - Uberaba MG'));
-    const res = await trello(201, { novo: true });
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ criou_cartao: true, titulo: '#0066 - Ana Souza - Uberaba MG' });
-    expect(ligacaoGravada(201)).toMatchObject({ venda: '#0066', por: 'gerador' });
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('cartão guardado ANTES do corte com #0064: empate de um, nada alocado nem escrito; card_id adota o número dele', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    injeta(201, { trello_card: ANTES(1), por: 'trello' });
-    t.quadro.cards.push(cartaoTrello(ANTES(1), '#0064 - (Cristiano) Outro Parente - Uberaba MG'));
-    const previa = await trello(201, { previa: true });
-    expect(previa.body).toMatchObject({ cartao: null, motivo_empate: expect.stringMatching(/antes do número automático/) });
-    expect(previa.body.candidatos.map((c: { id: string }) => c.id)).toEqual([ANTES(1)]);
-    const env = await trello(201, {});
-    expect(env.status).toBe(409);
-    expect(env.body).toMatchObject({ precisa: 'escolher_cartao' });
-    expect(escritas()).toEqual([]);
-    expect(temCodigo()).toBe(false);
-    expect(ligacaoGravada(201)?.venda).toBeNull();
-    // a pessoa escolhe o cartão: vale como confiável e o número dele é adotado (o Excel não tem a linha)
-    const escolhe = await trello(201, { card_id: ANTES(1) });
-    expect(escolhe.status).toBe(200);
-    expect(escolhe.body.criou_cartao).toBe(false);
-    expect(ligacaoGravada(201)).toMatchObject({ venda: '#0064', por: 'gerador' });
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('cartão guardado antigo: novo ignora o guardado e cria cartão novo; sem número no título nem pergunta', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    injeta(201, { trello_card: ANTES(1), por: 'trello' });
-    t.quadro.cards.push(cartaoTrello(ANTES(1), '#0064 - (Cristiano) Outro Parente - Uberaba MG'));
-    const novo = await trello(201, { novo: true });
-    expect(novo.status).toBe(200);
-    expect(novo.body).toMatchObject({ criou_cartao: true, titulo: '#0065 - Ana Souza - Uberaba MG' });
-    // outro card, cartão antigo SEM número: não pergunta, atualiza o guardado e o número sai novo, com aviso
-    h.cards.push({ ...h.cards[0], id: 205, cliente_telefone: '' });
-    injeta(205, { trello_card: ANTES(2), por: 'trello' });
-    t.quadro.cards.push(cartaoTrello(ANTES(2), 'Bia Sem Numero - Uberaba MG'));
-    const sem = await trello(205, {});
-    expect(sem.status).toBe(200);
-    expect(sem.body.criou_cartao).toBe(false);
-    expect(sem.body.avisos.join(' ')).toMatch(/não tem o número no título/);
-    expect(ligacaoGravada(205)).toMatchObject({ venda: '#0066' });
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('S5: cartão que só está no registro do envio (sem assinatura) nunca adota sozinho: pergunta, e card_id adota', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    h.linhas.set('trello_venda_solar:201', { value: { card_id: DEPOIS(3), comentario_id: null, anexados: {} }, updated_at: 'r' });
-    t.quadro.cards.push(cartaoTrello(DEPOIS(3), '#0065 - Ana Souza - Uberaba MG'));
-    const env = await trello(201, {});
-    expect(env.status).toBe(409);
-    expect(env.body).toMatchObject({ precisa: 'escolher_cartao', motivo: expect.stringMatching(/registro do envio/) });
-    expect(escritas()).toEqual([]);
-    expect(temCodigo()).toBe(false);
-    const escolhe = await trello(201, { card_id: DEPOIS(3) });
-    expect(escolhe.status).toBe(200);
-    expect(ligacaoGravada(201)).toMatchObject({ venda: '#0065', por: 'gerador' });
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('telefone igual ao de uma linha LIVRE do Excel e sem cartão numerado: 409 precisa cliente, mesmo com novo no corpo, e nada escrito', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    t.codigosPlanilha = ['#0061'];
-    t.vendasPlanilha = [linhaExcel('#0061', { telefone: '(34) 98888-0001' })];
-    for (const corpo of [{}, { novo: true }]) {
-      const res = await trello(201, corpo);
-      expect(res.status).toBe(409);
-      expect(res.body).toMatchObject({ ok: false, precisa: 'cliente', ocultas: 0 });
-      expect(res.body.error).toMatch(/^Atualize a página\./);
-      expect(res.body.candidatos).toEqual([{ codigo: '#0061', cliente: 'Cliente Inventado', data: '2026-09-01', motivo: 'telefone' }]);
-    }
-    expect(escritas()).toEqual([]);
-    expect(criacoes()).toHaveLength(0);
-    expect([...h.linhas.keys()].some((k) => k.startsWith('codigo_solar:') || k.startsWith('venda_solar:'))).toBe(false);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('cartão guardado cujo número é linha LIVRE do Excel: 409 precisa cliente (motivo cartao) e nada escrito', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    injeta(201, { trello_card: DEPOIS(4), por: 'trello' });
-    t.quadro.cards.push(cartaoTrello(DEPOIS(4), '#0040 - Ana Souza - Uberaba MG'));
-    t.codigosPlanilha = ['#0040'];
-    t.vendasPlanilha = [linhaExcel('#0040', { telefone: '(34) 91111-2222' })];   // telefone diferente: a pergunta é só do cartão
-    const res = await trello(201, {});
-    expect(res.status).toBe(409);
-    expect(res.body).toMatchObject({ precisa: 'cliente' });
-    expect(res.body.candidatos.map((c: { motivo: string }) => c.motivo)).toEqual(['cartao']);
-    expect(escritas()).toEqual([]);
-    expect(temCodigo()).toBe(false);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('venda do alocador #0065 e cartão guardado #0064: empate de um e o #0064 não é atualizado', async () => {
@@ -1345,37 +1259,42 @@ describe('número do alocador (fase 2)', () => {
   });
 
   it('N6: o cartão da ligação assinada vale mesmo arquivado (o número não depende do caminho)', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    injeta(201, { trello_card: DEPOIS(7), por: 'trello' });
-    t.arquivados.push(cartaoTrello(DEPOIS(7), '#0068 - Ana Souza - Uberaba MG'));
-    const res = await trello(201, {});
-    expect(res.status).toBe(200);
-    expect(ligacaoGravada(201)).toMatchObject({ venda: '#0068', por: 'gerador' });
-    expect(h.linhas.get('codigo_solar:0068')?.value).toMatchObject({ origem: 'trello' });
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('R6: lento DEPOIS do número reservado não diz "Nada foi criado": diz o número que ficou reservado', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    const orig = Date.now.bind(Date);
-    // o relógio pula 200 s assim que o alocador grava a ligação: o prazo antes do POST do cartão estoura
-    vi.spyOn(Date, 'now').mockImplementation(() => orig() + (h.linhas.has('venda_solar:201') ? 200_000 : 0));
-    const res = await trello(201, {});
-    expect(res.status).toBe(502);
-    expect(res.body.error).toBe('O Trello está lento agora. O número #0063 ficou reservado para esta venda, mas o card não foi criado. Tente de novo em instantes.');
-    expect(criacoes()).toHaveLength(0);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('item 4: guardado com OUTRO número: a prévia já mostra o empate; no envio, o 409 leva os avisos do número', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    injeta(201, { trello_card: DEPOIS(8), por: 'trello' });
-    t.quadro.cards.push(cartaoTrello(DEPOIS(8), '#0065 - Ana Souza - Uberaba MG'), cartaoTrello(DEPOIS(9), '#0065 - Repetido - Uberaba MG'));
-    const previa = await trello(201, { previa: true });
-    expect(previa.body).toMatchObject({ cartao: null, motivo_empate: expect.stringMatching(/outro número/) });
-    expect(escritas()).toEqual([]);
-    const env = await trello(201, {});
-    expect(env.status).toBe(409);
-    expect(env.body).toMatchObject({ precisa: 'escolher_cartao' });
-    expect(env.body.avisos.join(' ')).toMatch(/usa o número #0065, que já é de outra venda/);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 
   it('item 1: registro apagado e ligação por gerador: o cartão achado só pelo número vira empate (não é aceito sozinho)', async () => {
@@ -1389,12 +1308,16 @@ describe('número do alocador (fase 2)', () => {
   });
 
   it('a prévia sem venda ligada não grava nada e o número é provisório', async () => {
-    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
-    const antes = new Map(h.linhas);
-    const p = await trello(201, { previa: true });
-    expect(p.body).toMatchObject({ numero_provisorio: true, titulo: '#0063 - Ana Souza - Uberaba MG' });
-    expect(h.linhas).toEqual(antes);
-    expect(escritas()).toEqual([]);
+    // 05/11/2026 (Jornada, fase 1): esta rota NUNCA dá número. O que este caso provava sobre o ALOCADOR ficou em vendaSolarCodigo.test.ts e nos casos 6 e 11 de
+    // jornadaSolar.route.test.ts; o que ele provava sobre o cartão continua nos casos com a venda já ligada (#0061). Aqui vale o contrato novo:
+    // sem número, a prévia e o envio dão 409 `precisa: 'numero'` e o Trello não recebe nenhuma chamada.
+    injeta(201, { venda: null });
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'numero' });
+    expect((await trello(201, { previa: true })).status).toBe(409);
+    expect(t.chamadas).toEqual([]);
+    expect(h.linhas.has('codigo_solar:0065')).toBe(false);
   });
 });
 
@@ -1402,7 +1325,7 @@ describe('a ligação com o cartão não atrapalha os vínculos', () => {
   const ID_TRELLO = idFixo(50);
   it('ligação criada só para guardar o cartão não liga nada por telefone: P3 volta como sugerida e o cartão fica como estava', async () => {
     injeta(204, { por: 'trello', trello_card: ID_TRELLO });
-    const res = await get('/vendas-solares/204/vinculos', GIOVANNA);
+    const res = await get('/vendas-solares/204/vinculos', CARLA);
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ proposta: null });
     expect(res.body.sugestoes.propostas.map((p: any) => p.codigo)).toContain('P3');
@@ -1411,14 +1334,14 @@ describe('a ligação com o cartão não atrapalha os vínculos', () => {
     expect((await lerLigacao(204)).lig.trello_card).toBe(ID_TRELLO);
   });
   it('desligar de propósito (ligação de gente, nada ligado) continua sem religar sozinho', async () => {
-    injeta(204, { por: 'giovanna', trello_card: ID_TRELLO });
-    const res = await get('/vendas-solares/204/vinculos', GIOVANNA);
+    injeta(204, { por: 'carla', trello_card: ID_TRELLO });
+    const res = await get('/vendas-solares/204/vinculos', CARLA);
     expect(res.body.proposta).toBeNull();
     expect(res.body.sugestoes.propostas.map((p: any) => p.codigo)).toContain('P3');
   });
   it('religar ou desligar a proposta mantém o cartão do Trello', async () => {
-    injeta(204, { proposta: 'P3', por: 'giovanna', trello_card: ID_TRELLO });
-    const res = await post('/vendas-solares/204/vinculos', { proposta: null }, GIOVANNA);
+    injeta(204, { proposta: 'P3', por: 'carla', trello_card: ID_TRELLO });
+    const res = await post('/vendas-solares/204/vinculos', { proposta: null }, CARLA);
     expect(res.status).toBe(200);
     expect(ligacaoGravada(204)).toMatchObject({ proposta: null, trello_card: ID_TRELLO });
     expect((await lerLigacao(204)).lig.trello_card).toBe(ID_TRELLO);
