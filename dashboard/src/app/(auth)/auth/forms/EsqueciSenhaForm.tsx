@@ -39,7 +39,7 @@ export default function EsqueciSenhaForm() {
     <div className={styles.card}>
       <h1 className={styles.title}>Esqueceu a senha? Tranquilo.</h1>
       <p className={styles.subtitle}>
-        Coloca seu e-mail aqui embaixo. A gente manda um link pra você criar uma nova em menos de 1 minuto.
+        Coloca seu e-mail aqui embaixo. A gente manda o link no seu e-mail para você criar uma senha nova. Se você é assinante, ele chega também no WhatsApp da conta.
       </p>
 
       <form onSubmit={handleSubmit} className={styles.form} noValidate>

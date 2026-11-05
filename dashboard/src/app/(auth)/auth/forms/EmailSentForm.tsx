@@ -21,8 +21,8 @@ function EmailSentContent() {
 
       <h1 className={styles.title}>Pronto. E-mail enviado.</h1>
       <p className={styles.subtitle}>
-        Se {email ? <strong style={{ color: '#0f172a' }}>{email}</strong> : 'esse e-mail'} estiver cadastrado, você vai receber o link de
-        recuperação em alguns segundos. <strong style={{ color: '#0f172a' }}>Confere a caixa de spam também</strong>, ok?
+        Se {email ? <strong style={{ color: '#0f172a' }}>{email}</strong> : 'esse e-mail'} estiver cadastrado, o link de recuperação chega no seu e-mail
+        em alguns segundos. Assinante recebe também no WhatsApp da conta. <strong style={{ color: '#0f172a' }}>Confere a caixa de spam também</strong>, ok?
       </p>
 
       <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
