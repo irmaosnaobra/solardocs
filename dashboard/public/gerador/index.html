@@ -1024,6 +1024,10 @@ html[data-mode="app"].solar-aberto .solar-subnav{display:flex}
   font-family:inherit;margin-bottom:-1px;white-space:nowrap;flex:0 0 auto}
 .solar-subtab:hover{color:#E5E7EB}
 .solar-subtab.ativa{color:#fff;border-bottom-color:#F59E0B}
+/* Fase 3: a barra Abertas e Todas dentro de Propostas. Só tokens; a reserva é a do jornada.js. */
+.prop-sub{display:flex;gap:8px;margin:0 0 12px}
+.prop-sub-bt{border:1px solid var(--n-bd,#334155);background:var(--n-sf,#1E293B);color:var(--n-tx2,#B4C0D2);border-radius:999px;padding:7px 14px;font:inherit;font-weight:700;cursor:pointer;min-height:36px}
+.prop-sub-bt[aria-selected="true"]{background:var(--io-marcado,#2563EB);border-color:var(--io-marcado,#2563EB);color:#fff}
 /* Pílula no nível 2, sublinhado no nível 1 — é a mesma hierarquia que a casa já usa
    em Redes (subnav sublinhada -> redes-tabs em pílula). Mesmo nome de classe ativa
    ('ativa') nos dois níveis: a casa tem ativa/ativo/on em componentes diferentes, e
@@ -4458,15 +4462,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <button type="button" class="solar-subtab" data-aba="gerador" onclick="navGerador()">Gerar proposta</button>
     <button type="button" class="solar-subtab" data-aba="planilha" onclick="navPlanilhaSolar()">Planilha de clientes</button>
     <button type="button" class="solar-subtab" data-aba="painel" data-so-adm onclick="navPainelSolar()">Painel</button>
-    <button type="button" class="solar-subtab" data-aba="quemligar" onclick="navQuemLigar()">Quem ligar</button>
+    <button type="button" class="solar-subtab" data-aba="propostas" onclick="navQuemLigar()">Propostas</button>
     <button type="button" class="solar-subtab" data-aba="leads" onclick="navLeads()">Leads</button>
     <button type="button" class="solar-subtab" data-aba="tabelas" onclick="navTabelas()">Tabelas</button>
     <button type="button" class="solar-subtab" data-aba="calc" data-so-adm onclick="navCalc()">Calculadora</button>
-    <button type="button" class="solar-subtab" data-aba="historico" onclick="navHistorico()">Histórico</button>
     <span class="solar-subsep" aria-hidden="true"></span>
-    <button type="button" class="solar-subtab" data-aba="documentos" onclick="navDocumentosSolar()">Documentos</button>
     <button type="button" class="solar-subtab" data-aba="fechamento" onclick="navFechamentoSolar()">Fechamento</button>
-    <button type="button" class="solar-subtab" data-aba="obras" onclick="navObrasSolar()">Obras</button>
   </div>
 
   <!-- ============= TELA: CLIENTES DO SOLAR (Jornada, fase 1, 05/11/2026). Quem desenha é /gerador/jornada.js. ============= -->
@@ -4505,12 +4506,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
   <!-- ============= TELA 1: FORMULÁRIO ============= -->
   <div id="formSection">
-
-    <div class="top-actions">
-      <button type="button" class="btn-top btn-top-agenda" onclick="location.href='/gerador/agenda'">📅 Agenda</button>
-      <button type="button" class="btn-top btn-top-hist" onclick="abrirHistorico()">📋 Histórico</button>
-      <button type="button" class="btn-top btn-top-sair" onclick="sairGerador()">Sair</button>
-    </div>
 
     <div id="edit-banner" class="edit-banner" style="display:none;">
       ✏️ Editando proposta <strong id="edit-codigo"></strong>. O link continuará o mesmo após salvar.<a onclick="cancelarEdicao()">Cancelar</a>
@@ -5156,6 +5151,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
   <!-- ============= TELA 4: HISTÓRICO ============= -->
   <div id="historicoSection" style="display:none;">
+    <div class="prop-sub" role="tablist" aria-label="Propostas">
+      <button type="button" class="prop-sub-bt" role="tab" aria-selected="false" onclick="navQuemLigar()">Abertas</button>
+      <button type="button" class="prop-sub-bt" role="tab" aria-selected="true" onclick="navHistorico()">Todas</button>
+    </div>
     <div class="header">
       <div class="header-titulo">
         <h1>📋 Histórico de propostas</h1>
@@ -7848,6 +7847,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
   <!-- ============= TELA: QUEM LIGAR (orçamentos em aberto, por sinal real de interesse) ============= -->
   <div id="quemLigarSection" style="display:none;">
+    <div class="prop-sub" role="tablist" aria-label="Propostas">
+      <button type="button" class="prop-sub-bt" role="tab" aria-selected="true" onclick="navQuemLigar()">Abertas</button>
+      <button type="button" class="prop-sub-bt" role="tab" aria-selected="false" onclick="navHistorico()">Todas</button>
+    </div>
     <div class="header">
       <div class="header-titulo">
         <h1>Quem ligar</h1>
@@ -7891,38 +7894,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
   <!-- ============= TELA: DOCUMENTOS (14/10/2026) =============
        Uma linha por venda, com o que já foi anexado no dossiê. O clique abre o dossiê do modal de venda. -->
-  <div id="documentosSolarSection" style="display:none;">
-    <div class="dc-resumo" aria-live="polite">
-      <div class="ql-num dc-num"><b id="dc-n-vendas">0</b><span>Vendas</span></div>
-      <div class="ql-num dc-num dc-num-ok"><b id="dc-n-comp">0</b><span>Completas</span></div>
-      <div class="ql-num dc-num dc-num-falta"><b id="dc-n-falta">0</b><span>Faltando</span></div>
-    </div>
-    <div class="dc-barra">
-      <div class="ql-chips" role="group" aria-label="Filtro das vendas">
-        <button type="button" class="ql-chip dc-chip on" data-f="todas" aria-pressed="true">Todas</button>
-        <button type="button" class="ql-chip dc-chip" data-f="faltando" aria-pressed="false">Faltando</button>
-        <button type="button" class="ql-chip dc-chip" data-f="completas" aria-pressed="false">Completas</button>
-      </div>
-      <label class="dc-sr" for="dc-busca">Buscar por nome</label>
-      <input id="dc-busca" class="ql-busca" type="search" placeholder="Buscar por nome" autocomplete="off" inputmode="search">
-      <button type="button" id="dc-atualizar" class="fs-btn-sec">Atualizar</button>
-    </div>
-    <div id="dc-estado" class="dc-estado" role="status" hidden></div>
-    <div class="dc-wrap" hidden>
-      <table class="dc-tab">
-        <thead>
-          <tr>
-            <th scope="col">Cliente</th><th scope="col">Cidade</th><th scope="col">Consultor</th><th scope="col">Venda</th>
-            <th scope="col" class="dc-c">CNH</th><th scope="col" class="dc-c">Conta de luz</th><th scope="col" class="dc-c">Fachada</th>
-            <th scope="col" class="dc-c">Padrão</th><th scope="col" class="dc-c">Disjuntor</th><th scope="col" class="dc-c">Medidor</th>
-            <th scope="col" class="dc-c">Dados</th><th scope="col" class="dc-c">Trello</th><th scope="col"><span class="dc-sr">Ações</span></th>
-          </tr>
-        </thead>
-        <tbody id="dc-tbody"></tbody>
-      </table>
-    </div>
-    <div id="dc-cartoes" class="dc-cartoes"></div>
-  </div>
+  <div id="documentosSolarSection" style="display:none"></div>
 
   <!-- ============= TELA 6: LEADS (Instagram/Meta) ============= -->
   <div id="leadsSection" style="display:none;">
@@ -7935,9 +7907,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
     <div class="card">
       <div class="leads-abas" id="leads-abas" role="tablist"></div>
-      <div class="leads-info" id="leads-info">
-        Quiz da <strong>/io/solar</strong>, com pontuação de 0 a 100 pelas respostas: abaixo de <strong>40 pontos</strong> é <strong>curioso</strong> (lista para depois, sem agenda e sem WhatsApp: o fim do quiz convida a seguir o Instagram); até <strong>300 kWh</strong> liga a <strong>Giovanna</strong>; de 300 a 1.000, a <strong>Nilce</strong> (1 em cada 4 vai para a <strong>Giovanna</strong> treinar, se ela tiver horário em até 3 dias); acima de 1.000 kWh com mais de <strong>90 pontos</strong> e até 150 km de Uberlândia é <strong>visita do Diego</strong>; o resto acima de 1.000 é <strong>atendimento do Thiago</strong>. Formulário do Meta segue a regra antiga. Cliente que já tem consultor continua com ele.
-      </div>
       <div id="leads-sd-topo" style="display:none"></div>
       <div class="leads-barra">
         <span id="leads-conta"></span>
@@ -8154,6 +8123,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <!-- DOSSIÊ DA VENDA — só aparece depois que a venda existe.
          Antes de vendido não há o que homologar, e um formulário de documento
          aberto no meio da confirmação rouba a atenção do que está sendo feito. -->
+    <p id="venda-solar-nota" class="dossie-aviso" style="display:none">Os documentos da venda moram na obra, em Clientes. Marque o Vendido no card da Agenda ou do CRM.</p>
     <div id="dossie-bloco" style="display:none">
       <div class="dossie-topo">
         <h4>📎 Documentos pra homologação</h4>
@@ -8411,20 +8381,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <!-- O MOTIVO DO NÃO (02/10/2026). Espelho da caixa da agenda: as duas telas
            gravam na MESMA marca, e divergir faria uma mostrar o que a outra não
            mostra. 498 cards de solar param em SEM INTERESSE e nenhum diz por quê. -->
-      <!-- VENDIDO: as duas formas de registrar. "Com o valor" leva pro mesmo
-           formulario do Historico, que grava proposta E card. "Só marcar" e a
-           valvula: o card fica certo na hora, mesmo sem ninguem ter o numero em
-           maos. Medido em 02/10: 11 das 21 vendas nao tem card nenhum, e o card do
-           Wesler estava em NAO_ATENDEU com R$ 19.528 vendidos — o relogio que
-           manda mensagem. Deixar o card certo nao pode depender de ter o valor. -->
-      <div id="crm-det-venda" class="motivo-box" hidden>
-        <div class="motivo-tit">Registrar a venda</div>
-        <div class="motivo-grid">
-          <button type="button" class="motivo-btn" style="grid-column:span 2" onclick="crmAbrirVendaDoCard()">💰 Com o valor, no formulário de venda</button>
-          <button type="button" class="motivo-pular" onclick="crmAtualizarStatus('fechou',{__soStatus:1})">Só marcar o card como vendido, sem o valor</button>
-        </div>
-      </div>
-
       <!-- VENDIDO no ELETROPOSTO (10/10/2026): pergunta o modelo e o valor antes de
            gravar. O status continua `fechou`; o modelo e o valor vão para a rota
            /gerador/pos-venda. Solar segue na caixa de cima, intocada. -->
@@ -8550,6 +8506,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <script src="/gerador/qrcode.js"></script>
 <!-- Mapa do Arrendamento (08/10/2026): o botão "Ver no mapa" da aba. O Leaflet só baixa no clique. -->
 <script src="/gerador/mapa-arrendamento.js" defer></script>
+<script src="/gerador/papeis-solar.js"></script>
 <script>
 // Sinaliza pro watchdog de auto-recuperação (no <head>) que o HTML e os JS
 // externos (solar-data.js/tabelas.js) carregaram íntegros e o código principal
@@ -10568,18 +10525,6 @@ function mostrarExpirado(d) {
 }
 
 window.addEventListener('DOMContentLoaded', carregarDeURL);
-// A PORTA QUE VEM DA AGENDA. Fica num listener separado do `carregarDeURL` de
-// proposito: aquele e o caminho de ABRIR UMA PROPOSTA pelo `?p=` e ele faz
-// `return` cedo quando nao tem `p`. Pendurar a venda ali dentro seria enterrar
-// uma funcao numa que nao e dela, e ela deixaria de rodar no dia que alguem
-// mexesse naquele return.
-window.addEventListener('DOMContentLoaded', () => {
-  const qs = new URLSearchParams(location.search);
-  const tel = qs.get('venda_tel');
-  // `venda_card`: o card da agenda de onde o consultor veio. So numero inteiro positivo; qualquer outra coisa e ignorada.
-  const cardLink = /^[1-9]\d{0,11}$/.test(String(qs.get('venda_card') || '')) ? String(qs.get('venda_card')) : '';
-  if (tel) vendaPorTelefone(tel, cardLink || null);
-});
 // Escreve a data do prazo padrão embaixo dos dois campos de validade assim que a
 // tela abre — o consultor precisa ver "vence sexta, 07/08, às 18h" sem clicar.
 window.addEventListener('DOMContentLoaded', validadeUiAtualizar);
@@ -11376,7 +11321,7 @@ function voltarDoHistorico() {
 // ela roda no DOMContentLoaded e em deep link, e uma const no topo do script
 // estaria em zona morta se alguém a chamasse antes da linha dela.
 function marcarNavAtivo(id) {
-  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc', 'nav-fechamento-solar': 'fechamento', 'nav-quem-ligar': 'quemligar', 'nav-obras-solar': 'obras', 'nav-painel-solar': 'painel', 'nav-planilha-solar': 'planilha', 'nav-documentos-solar': 'documentos', 'nav-clientes-solar': 'clientes' };
+  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'propostas', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc', 'nav-fechamento-solar': 'fechamento', 'nav-quem-ligar': 'propostas', 'nav-obras-solar': 'clientes', 'nav-painel-solar': 'painel', 'nav-planilha-solar': 'planilha', 'nav-documentos-solar': 'clientes', 'nav-clientes-solar': 'clientes' };
   const aba = ABA_SOLAR[id] || null;
   // Início: qualquer outra tela que acenda a barra esconde o Início (e solta o pré-desenho do boot).
   if (id !== 'nav-inicio') {
@@ -30751,10 +30696,6 @@ async function varrerAdLibraryEstudio() {
 // ═══════════════════════════════════════════════════════════════════════════
 const SOL_HIST_KEY = 'sol_fech_hist_v1';
 const FS_FORMAS = ['Pix', 'Espécie', 'Transferência', 'Cartão', 'Boleto', 'Cheque'];
-const solEsc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const SOL_LACUNA = '<span class="ep-rec-vazio"></span>';
-const solV = v => (v == null || String(v).trim() === '') ? SOL_LACUNA : solEsc(String(v).trim());
-
 // "27.400,00", "27400", "R$ 27.400,50" e "145.000" valem o que o olho lê. Nunca
 // type=number para dinheiro: "145.000" virava 145 e a vírgula zerava o campo.
 function solParseBRL(v) {
@@ -30765,56 +30706,8 @@ function solParseBRL(v) {
   const n = parseFloat(s);
   return isFinite(n) && n > 0 ? n : 0;
 }
-const solFmt = n => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const solFmtKwp = n => { const k = Math.round((Number(n) || 0) * 100) / 100; return k ? String(k).replace('.', ',') : ''; };
-function solNumExt(v) {
-  const raw = parseFloat(String(v == null ? '' : v).replace(',', '.'));
-  if (!isFinite(raw) || raw < 0) return String(v == null ? '' : v);
-  return recExInt(Math.floor(raw));
-}
-// "5 (cinco)"; vazio vira lacuna
-// "1 (um) ano" / "25 (vinte e cinco) anos"; vazio vira lacuna
-const solUn = (v, sing, plu) => { const t = String(v == null ? '' : v).trim(); return t ? solNumComExt(t) + ' ' + (parseInt(t, 10) === 1 ? sing : plu) : SOL_LACUNA + ' ' + plu; };
-const solNumComExt = v => { const t = String(v == null ? '' : v).trim(); return t ? solEsc(t) + ' (' + solEsc(solNumExt(t)) + ')' : SOL_LACUNA; };
 function solExtenso(n) { return n > 0 ? recExtenso(n) : 'valor a ser definido'; }
-function solHoje() { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); } catch (e) { return new Date().toISOString().slice(0, 10); } }
-function solDataLonga(iso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
-  const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date();
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-}
-function solDataCurta(iso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
-  return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
-}
-// Logradouro, Bairro, Cidade/UF (vazio quando nada foi preenchido)
-function solEnd(end, bairro, cidade, uf) {
-  const cu = [cidade, uf].filter(Boolean).join('/');
-  return [end, bairro, cu].map(p => String(p || '').trim()).filter(Boolean).join(', ');
-}
-const solLimpaArq = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
-
-// ── A emitente (AIOROS GROUP LTDA, marca Irmãos na Obra) ──
-function solEmp() {
-  const e = epEmitGet('aioros');   // solar le SEMPRE o perfil aioros, qualquer que seja o controle de emitente do eletroposto
-  const cnpj = String(e.cnpj || '').trim() || CNPJ_CERTO;
-  const razao = String(e.razao || '').trim() || RAZAO_CERTA;
-  return {
-    razao, cnpj,
-    end: [e.end, e.cidade].filter(Boolean).join(', '),
-    tel: e.tel || '', socio: e.socio || '', socioCpf: e.socioCpf || '',
-    pix: e.pix || '', conta: e.conta || '',
-  };
-}
-// "AIOROS GROUP LTDA (Irmãos na Obra), inscrita no CNPJ sob o nº ..., com sede em ..."
-function solQualifEmp(emp) {
-  return `<b>${solEsc(emp.razao)}</b> (Irmãos na Obra), inscrita no CNPJ sob o nº ${solEsc(emp.cnpj)}${emp.end ? ', com sede em ' + solEsc(emp.end) : ''}`;
-}
-
-// ── Cabeçalhos e rodapé de papel solar (a marca da casa, nunca a NEXUS) ──
-const SOL_LOGO = '<img class="sol-logo" src="/gerador/logo.png" alt="Irmãos na Obra">';
-// A razão social sai sempre colada ao CNPJ, logo sob a marca (o timbre do SolarDoc)
-const solMarca = () => { const emp = solEmp(); return `<div class="ep-brand sol-brand">${SOL_LOGO}<div class="sol-mk">Irmãos na Obra<small>${solEsc(emp.razao)} · CNPJ ${solEsc(emp.cnpj)}</small></div></div>`; };
 function solTopoHTML(titulo, dataStr, rows) {
   const rowsHTML = (rows || []).filter(r => r && r[1])
     .map(r => `<div class="rowf"><span>${r[0]}</span><span class="v">${r[1]}</span></div>`).join('');
@@ -30826,12 +30719,6 @@ function solTopoHTML(titulo, dataStr, rows) {
       </div>
     </div>`;
 }
-function solTopoCtr(ident) {
-  return `<div class="ep-ctr-topo">${solMarca()}<div class="ep-ctr-ident">${ident}</div></div>`;
-}
-const solRodape = (rot, cliente, n, tot, rubricas) =>
-  `<div class="ep-pagefoot"><span class="ep-foot-esq">${IO_FOOT_LOGO}<span>${solEsc(rot)}${cliente ? ' · ' + solEsc(cliente) : ''}</span></span>${rubricas ? `<span class="ep-rubr">Rubricas ${'<i></i>'.repeat(rubricas)}</span>` : ''}<span>${(n && tot) ? 'Página ' + n + ' de ' + tot : 'Documento de uma via'}</span></div>`;
-
 // ═══ Tela ═══
 let fsMontado = false, fsAbaAtual = 'contrato', fsOrigemKey = '', fsListaMapa = {}, fsListaCarregada = false, fsListaCarregando = false;
 const fsEl = id => document.getElementById(id);
@@ -31316,8 +31203,6 @@ function fsAplicarDados(d, forcar, row) {
 }
 // Identidade da fonte: o código da proposta quando existe, senão nome + kWp + preço
 const fsChave = (d, row) => { row = row || {}; const cod = row.codigo || d.codigo; return cod ? 'c:' + cod : ['n', d.nome, (d.item || {}).kwp, d.precoVista].join('|'); };
-// solar de verdade: fora eletroposto e equipamento (mesma regra do histórico, tipo e dados.produto)
-const fsEhSolar = r => { if (!r) return false; const pr = r.produto || (r.dados && r.dados.produto); return !(r.tipo === 'eletroposto' || pr === 'eletroposto' || pr === 'equipamento'); };
 let fsVistoKey = '';
 // Trocou de cliente: tudo que é DO cliente e a proposta não traz sai da tela, senão o papel sai
 // com o nome de B e o CPF e o endereço de A.
@@ -31582,12 +31467,6 @@ function fsCli() {
   c.qualif = tipo === 'PJ' ? '' : solQualifPf({ nac: fsVal('fs-nacionalidade'), ec: fsVal('fs-estado-civil'), prof: fsVal('fs-profissao'), rg: fsVal('fs-rg'), orgao: fsVal('fs-orgao') });
   return c;
 }
-/** "brasileiro, casado, engenheiro, portador(a) do RG nº 12.345 SSP/MG". Texto cru: quem imprime escapa. Órgão sem RG não entra. */
-function solQualifPf(q) {
-  const partes = [q.nac, q.ec, q.prof].filter(Boolean);
-  if (q.rg) partes.push('portador(a) do RG nº ' + q.rg + (q.orgao ? ' ' + q.orgao : ''));
-  return partes.join(', ');
-}
 const fsRot = { 'fs-nome': 'o nome do cliente', 'fs-doc': 'o CPF ou CNPJ', 'fs-c-valor': 'o valor total do contrato', 'fs-p-uc': 'a unidade consumidora (UC)', 'fs-p-conc': 'a concessionária',
   'fs-b-banco': 'o banco', 'fs-b-agencia': 'a agência', 'fs-b-conta': 'a conta corrente', 'fs-b-total': 'o valor total',
   'fs-t-kwp': 'a potência instalada', 'fs-t-conclusao': 'a data de conclusão da instalação',
@@ -31657,21 +31536,6 @@ function fsAoMudar(ev) {
   }
   fsRevalida();
 }
-// qualificação do cliente nos três papéis
-// semQualif: o termo de entrega não leva a qualificação (só o contrato e a procuração)
-function solQualifCli(c, estilo, semQualif) {
-  const e = solEsc;
-  const doc = solV(c.doc);
-  const rep = c.pj && c.rep ? `, neste ato representada por ${e(c.rep)}` : '';
-  const q = !semQualif && !c.pj && c.qualif ? ', ' + e(c.qualif) : '';
-  if (estilo === 'm1') return c.pj
-    ? `${solV(c.nome)}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${doc}, com sede em ${solV(c.endFull)}${rep}`
-    : `${solV(c.nome)}${q}, pessoa física, inscrita no CPF sob o nº ${doc}, residente e domiciliada em ${solV(c.endFull)}`;
-  return c.pj
-    ? `${solV(c.nome)}, CNPJ nº ${doc}, sediada em ${solV(c.endFull)}${rep}`
-    : `${solV(c.nome)}${q}, CPF nº ${doc}, residente na ${solV(c.endFull)}`;
-}
-
 // ═══ CONTRATO ═══
 function fsCtrDados() {
   const cli = fsCli();
@@ -31704,14 +31568,7 @@ function fsCtrDados() {
     gmod: fsVal('fs-c-gmod'), ginv: fsVal('fs-c-ginv'), ginst: fsVal('fs-c-ginst'), ginstun: fsVal('fs-c-ginstun') === 'meses' ? 'meses' : 'anos',
   };
 }
-function solGarInst(d) {
-  const n = parseInt(String(d.ginst).replace(/\D/g, ''), 10) || 0;
-  const un = d.ginstun === 'meses' ? (n === 1 ? 'mês' : 'meses') : (n === 1 ? 'ano' : 'anos');
-  return d.ginst ? `${solEsc(d.ginst)} (${solEsc(solNumExt(d.ginst))}) ${un}` : SOL_LACUNA;
-}
 function solBatGar(d) { return d.bat.tem && d.bat.gar > 0 ? `${d.bat.gar} (${solEsc(solNumExt(d.bat.gar))}) ${d.bat.gar === 1 ? 'ano' : 'anos'}` : ''; }
-const solTxt = s => solEsc(s).replace(/\n/g, '<br>');
-
 // ─── O contrato solar como MODELO DE CLÁUSULAS (20/10/2026) ──────────────────
 // Antes, fsCtrBlocosM1/M2 escreviam o HTML direto, com os números das cláusulas e as remissões ("cláusula 5") cravados.
 // Agora são dois passos, como no eletroposto (ctrModelo):
@@ -32355,10 +32212,6 @@ function fsRecibo() {
 // campo da aba (mesmo dataset.tocado dos demais) e se refazem toda vez que a aba abre.
 // ═══════════════════════════════════════════════════════════════════════════
 const FS_ABAS = ['contrato', 'procuracao', 'recibo', 'banco', 'termo', 'vistoria'];
-// Teto de itens da proposta de banco em 2 folhas, MEDIDO em 10/10/2026 com page.pdf() (mídia print) e
-// descrições realistas de uma a duas linhas: ver teste_fechamento_solar_fase2.js. NÃO é o 8/11/13 do SolarDoc
-// (aquela folha é outra, de 180 x 258 mm). Acima disso a proposta sai com 3 folhas e a tela avisa.
-const FS_PB_ITENS_MAX = 13;
 const FS_FOTOS_MAX = 8;
 const FS_FOTO_LEGS = ['Telhado', 'Padrão de entrada', 'Quadro de distribuição', 'Local do inversor', 'Conta de luz', 'Sombreamento', 'Outro'];
 
@@ -32530,7 +32383,6 @@ function fsBancoSincroniza() {
 
 // Dinheiro em centavos inteiros. Devolve também por que a conta não pode ir para o papel.
 const fsCent = v => Math.round(solParseBRL(v) * 100);
-const fsCentTxt = c => 'R$ ' + solFmt(c / 100);
 function fsBancoContas() {
   const tot = fsCent(fsVal('fs-b-total')), ent = fsCent(fsVal('fs-b-entrada'));
   const eqD = fsCent(fsVal('fs-b-eq')), moD = fsCent(fsVal('fs-b-mo'));
@@ -32602,76 +32454,6 @@ function fsBancoFin() {
   return { nome, doc, pj: vdcDigitos(doc).length === 14, rg: fsVal('fs-b-fin-rg'), qualif: fsVal('fs-b-fin-qualif'), end: fsVal('fs-b-fin-end'),
     cep: fsVal('fs-b-fin-cep'), tel: fsVal('fs-b-fin-tel'), email: fsVal('fs-b-fin-email') };
 }
-// Os blocos do epPaginar. A linha de item é UM bloco (o cabeçalho viaja junto da primeira): linha de
-// equipamento nunca é cortada no meio nem fica órfã de cabeçalho. modo = '' | ' compacta' | ' super'.
-function fsBancoBlocos(d, modo) {
-  const e = solEsc, emp = d.emp, cli = d.cli, c = d.contas;
-  const dataTxt = solDataLonga(d.data);
-  const kv = (k, v, s2) => `<div${s2 ? ' class="s2"' : ''}><span class="k">${e(k)}</span><span class="v${v ? '' : ' bl'}">${v ? e(v) : ''}</span></div>`;
-  const P = h => `<p class="ep-ctr-p">${h}</p>`;
-  const CL = (n, t) => `<div class="ep-ctr-cl">${n}. ${e(t)}</div>`;
-  // empilhado: numa linha só, o timbre (razão social + CNPJ) e a identificação se encostavam
-  const ident = ['Emissão ' + e(solDataCurta(d.data)), 'Validade ' + solUn(d.validade, 'dia', 'dias'), d.prazo ? 'Entrega: ' + e(d.prazo) : ''].filter(Boolean).join('<br>');
-  // Proponente do financiamento: o titular do financiamento quando está preenchido (d.fin), senão o contratante (como sempre).
-  // O rodapé, o nome do arquivo e o histórico seguem o contratante: o papel é da venda dele.
-  const fin = d.fin || null;
-  const nomeUp = cli.nome ? cli.nome.toUpperCase() : '';
-  const pNomeUp = fin ? fin.nome.toUpperCase() : nomeUp;
-  const pDoc = fin ? fin.doc : cli.doc;
-  const assina = (folha2) => `<div class="ep-ctr-fim">
-      <p class="ep-ctr-p" style="margin-top:${folha2 ? 6 : 12}px">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
-      <div class="ep-ctr-assin" style="margin-top:${folha2 ? 11 : 16}mm">
-        <div class="a"><b>${pNomeUp ? e(pNomeUp) : '&nbsp;'}</b>${pDoc ? `<span>CPF/CNPJ ${e(pDoc)}</span>` : ''}${!fin && cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}${fin ? 'Titular do financiamento' : 'Comprador(a)'}</div>
-        <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>Empresa</div>
-      </div>
-    </div>`;
-  const band = (d.kwp || d.ger)
-    ? `<div class="sol-band">${d.kwp ? `<div><span>Potência do sistema</span><b>${e(d.kwp)} kWp</b></div>` : ''}${d.ger ? `<div class="r"><span>Geração estimada</span><b>${e(d.ger)} kWh/mês</b></div>` : ''}</div>`
-    : d.desc ? `<div class="sol-band"><div><span>Sistema</span><b>${e(d.desc)}</b></div></div>` : '';
-  const linha = it => `<div class="sol-pb-it${modo}"><div class="q">${e(/^\d+$/.test(it.qtd) && +it.qtd > 0 ? +it.qtd : 1)}</div><div class="d">${e(it.desc)}</div></div>`;
-  const cab = '<div class="sol-pb-th"><span>Qtd.</span><span>Equipamentos e serviços</span></div>';
-  const linhasBlocos = d.itens.map((it, i) => i === 0 ? `<div class="sol-pb-tab">${cab}${linha(it)}</div>` : linha(it));
-  const boxPreco = `<div class="sol-pb-box"><div class="cap">Composição do preço</div><div class="rows">
-      <div class="row big"><span class="l">Valor total</span><span class="r">${fsCentTxt(c.tot)}</span></div>
-      <div class="row"><span class="l">Valor equipamento</span><span class="r">${fsCentTxt(c.eq)}</span></div>
-      <div class="row"><span class="l">Valor mão de obra</span><span class="r">${fsCentTxt(c.mo)}</span></div></div></div>`;
-  // a caixa de pagamento só existe quando há entrada: sem isso toda proposta à vista imprimia uma "Condição de pagamento" vazia
-  const boxPgto = c.ent > 0
-    ? `<div class="sol-pb-box"><div class="cap">Condição de pagamento</div><div class="rows">
-      <div class="row big"><span class="l">Entrada</span><span class="r">${fsCentTxt(c.ent)}</span></div>
-      <div class="row"><span class="l">Saldo a financiar</span><span class="r">${fsCentTxt(c.saldo)}</span></div>
-      <div class="row nota"><span class="l">${e(d.nota)}</span></div></div></div>` : '';
-  return [
-    solTopoCtr(ident) + `<div class="ep-ctr-tit">Proposta de banco</div><div class="ep-ctr-sub">Formalização de operação de crédito para sistema fotovoltaico</div>`,
-    `<div class="sol-card"><div class="cap">Dados da operação</div><div class="kv">${kv('Cliente', pNomeUp, true)}${kv('CPF / CNPJ', pDoc)}${kv('Banco', d.banco)}${kv('Agência', d.agencia)}${kv('Conta corrente', d.conta)}</div></div>`,
-    CL(1, 'Objeto') + P('Encaminhamos a V.Sa. os documentos necessários para formalização da operação de crédito destinada à aquisição de sistema fotovoltaico, conforme características e preço público à vista discriminados na folha 2 desta proposta.'),
-    CL(2, 'Dados para aprovação do faturamento') + P('Para aprovação do faturamento, orçamento com os seguintes dados:') +
-      `<ul class="sol-ul"><li>Nome do comprador, CPF e endereço;</li><li>Descrição completa do equipamento (quantidade, marca, modelo, ano, etc.);</li><li>Prazo de entrega.</li></ul>`,
-    CL(3, 'Declarações') + P('Autorizamos o acesso aos registros contábeis da mesma, assinada abaixo pelo seu representante legal.') +
-      P('Declaramos, ainda, a esse Agente Financeiro, que temos plena ciência das regras emanadas pela Agência Especial de Financiamento Industrial, no tocante à formalização das vendas dos nossos produtos, através daquela modalidade, principalmente no que tange à elaboração e apresentação de orçamentos, notas fiscais, faturas, bem como aquelas relativas à efetiva entrega do(s) bem(ns).'),
-    assina(false),
-    EP_QUEBRA,
-    solTopoCtr(ident) + `<div class="ep-ctr-tit" style="margin:10px 0 3px">Características e preço</div><div class="ep-ctr-sub" style="margin-bottom:8px">Preço público à vista do produto</div>`,
-    `<div class="sol-pb2"><div class="sol-card"><div class="cap">${fin ? 'Identificação do titular do financiamento' : 'Identificação do comprador'}</div><div class="kv">${kv('Nome', pNomeUp, true)}${kv('CPF / CNPJ', pDoc)}${kv('CEP', fin ? fin.cep : cli.cep)}${kv('Endereço de correspondência', fin ? fin.end : cli.endFull, true)}${fin ? [fin.rg ? kv('RG', fin.rg) : '', fin.tel ? kv('Telefone', fin.tel) : '', fin.qualif ? kv('Qualificação', fin.qualif, true) : '', fin.email ? kv('E-mail', fin.email, true) : ''].join('') : ''}</div></div></div>`,
-    `<div class="sol-pb2">${P('Prezado(s) Senhor(s), atendendo solicitação de V.Sa., fornecemos as características e o preço público à vista do produto abaixo.')}</div>`,
-    band,
-    ...linhasBlocos,
-    d.origem ? `<p class="sol-pb-fis">${e(d.origem)}</p>` : '',
-    `<div class="sol-pb-cols${boxPgto ? '' : ' um'}">${boxPreco}${boxPgto}</div>`,
-    assina(true),
-  ].filter(Boolean);
-}
-// Tenta a tabela solta, depois a compacta e por fim a "super": a primeira que fecha em 2 folhas fica.
-// A medição é do próprio navegador (epPaginar), então não há limiar chutado aqui; o teto de itens
-// (FS_PB_ITENS_MAX) só serve ao aviso da tela e foi conferido contra o PDF.
-function fsBancoPaginado(d, pageFoot) {
-  let html = '';
-  for (const modo of ['', ' compacta', ' super']) {
-    html = epPaginar(fsBancoBlocos(d, modo), pageFoot);
-    if ((html.match(/class="ep-page"/g) || []).length <= 2) break;
-  }
-  return html;
-}
 function fsBanco() {
   const d = fsBancoDados();
   if (fsMostraFaltas(fsFaltas('banco'))) return;
@@ -32687,19 +32469,6 @@ function fsBanco() {
   fsPreview({ tipo: 'Proposta de banco', cliente: d.cli.nome, valor: d.contas.tot / 100, num: '', html, arquivo, titulo: 'Proposta de banco · ' + d.cli.nome, opts: null });
 }
 
-// ═══ TERMO DE ENTREGA ═══
-// MINUTA de 10/10/2026, alinhada à cláusula 10 do contrato completo do SolarDoc ("Entrega e vistoria
-// técnica"). PENDENTE DE REVISÃO DE ADVOGADO, como as outras minutas deste bloco. Uma folha só: no pior
-// caso (todas as linhas da tabela cheias e ressalva de 400 caracteres) cabe reduzindo espaçamento, nunca
-// o texto das declarações, que sai exatamente como foi escrito.
-const FS_TERMO_ITENS = [
-  'Instalação concluída, com o local limpo e sem sobra de material.',
-  'Sistema ligado e gerando energia na presença do cliente.',
-  'Aplicativo de monitoramento instalado no celular do cliente, com o acesso entregue.',
-  'Cliente orientado sobre o funcionamento, o desligamento de emergência e os cuidados de uso.',
-  'Manuais e termos de garantia dos equipamentos entregues.',
-  'Telhado conferido depois da obra, com reposição das telhas danificadas quando houve.',
-];
 function fsPaneTermo() {
   const tinv = [['on-grid', 'On-grid'], ['híbrido', 'Híbrido'], ['off-grid', 'Off-grid'], ['microinversor', 'Microinversor']];
   return `<div id="fs-pane-termo" style="display:none">` +
@@ -32772,59 +32541,6 @@ function fsTermoDados() {
     gmod: g('fs-t-gmod'), ginv: g('fs-t-ginv'), ginst: g('fs-t-ginst'), ginstun: g('fs-t-ginstun') === 'meses' ? 'meses' : 'anos',
     chk: FS_TERMO_ITENS.map((_, i) => g('fs-t-chk' + (i + 1)) || 'sim'), ressalva: g('fs-t-ressalva'),
   };
-}
-function fsTermoHTML(d) {
-  const e = solEsc, cli = d.cli, emp = d.emp;
-  const dataTxt = solDataLonga(d.data);
-  const un = n => (parseInt(n, 10) === 1 ? 'unidade' : 'unidades');
-  const cel = (k, v, cls) => v ? `<div${cls ? ` class="${cls}"` : ''}><span class="k">${e(k)}</span><span class="v">${v}</span></div>` : '';
-  // Sem número, a linha não sai: a data do contrato nasce preenchida com o dia de
-  // hoje, e um termo emitido semanas depois imprimiria "contrato de hoje".
-  const contrato = d.cnum ? 'nº ' + e(d.cnum) + (d.cdata ? ', de ' + e(solDataLonga(d.cdata)) : '') : '';
-  const modulos = (d.nmod || d.mod) ? [d.nmod ? e(d.nmod) + ' ' + un(d.nmod) : '', d.mod ? (d.nmod ? 'de ' : '') + e(d.mod) : ''].filter(Boolean).join(' ') : '';
-  const inversor = (d.ninv || d.minv) ? [d.ninv ? e(d.ninv) + ' ' + un(d.ninv) : '', [d.tinv, d.minv].filter(Boolean).map(e).join(' ')].filter(Boolean).join(' · ') : '';
-  const sistema = cel('Contrato de referência', contrato, 's2') + cel('Potência instalada', d.kwp ? e(d.kwp) + ' kWp' : '') +
-    cel('Módulos', modulos, 's2') + cel('Número de série do inversor', d.serie ? e(d.serie) : '') +
-    cel('Inversor(es)', inversor, 's2') + cel('Bateria', d.bat ? e(d.bat) : '') +
-    cel('Local de instalação', d.local ? e(d.local) : '', 's3') +
-    cel('Unidade consumidora', d.uc ? e(d.uc) + (d.conc ? ' · ' + e(d.conc) : '') : (d.conc ? e(d.conc) : ''), 's2') +
-    cel('Instalação concluída em', d.conclusao ? e(solDataCurta(d.conclusao)) : '') + cel('Sistema liberado em', d.liberacao ? e(solDataCurta(d.liberacao)) : '');
-  const estado = { sim: ['Sim', ''], na: ['Não se aplica', ' na'], pend: ['Pendente', ' pend'] };
-  const conferencia = FS_TERMO_ITENS.map((t, i) => { const s = estado[d.chk[i]] || estado.pend; return `<tr><td class="n">${i + 1}.</td><td>${e(t)}</td><td class="s${s[1]}">${s[0]}</td></tr>`; }).join('');
-  const gar = `As garantias previstas no contrato passam a contar desta data: ${solUn(d.gmod, 'ano', 'anos')} para os módulos e ${solUn(d.ginv, 'ano', 'anos')} para o inversor, prestadas pelo fabricante, e ${solGarInst(d)} para os serviços de instalação, prestada pela EMPRESA.`;
-  const decl = [
-    'O CLIENTE declara que recebeu, nesta data, o sistema de geração de energia solar fotovoltaica descrito acima, instalado e em funcionamento, conforme o contrato firmado entre as partes.',
-    'O CLIENTE declara que acompanhou a conferência descrita neste termo e que foi orientado sobre a operação do sistema e sobre o acompanhamento da geração pelo aplicativo do fabricante do inversor.',
-    gar,
-    'A geração de energia informada na proposta e no contrato é uma estimativa. A produção real varia conforme o clima, o sombreamento, a temperatura, a limpeza dos módulos e a disponibilidade da rede da concessionária.',
-    'O CLIENTE fica ciente de que intervenções no sistema feitas por terceiros sem autorização da EMPRESA podem levar à perda das garantias.',
-  ].map((t, i) => `<p class="ep-ctr-li">${i + 1}. ${i === 2 ? t : e(t)}</p>`).join('');
-  const ress = d.ressalva ? `<div class="sol-sec">Ressalvas</div><div class="sol-te-res"><p class="ep-ctr-p">${solTxt(d.ressalva)}</p><p class="ep-ctr-p">As pendências anotadas acima serão resolvidas pela EMPRESA e não impedem o uso do sistema.</p></div>` : '';
-  return `<div class="ep-doc"><div class="ep-page ep-proc sol-te">
-      ${solTopoCtr(`${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}`)}
-      <div class="ep-ctr-tit">Termo de entrega e recebimento do sistema fotovoltaico</div>
-      <div class="ep-ctr-sub">Instrumento particular · ${e(dataTxt)}</div>
-      <div class="sol-partes">
-        <div class="sol-parte"><div class="cap">Empresa</div>${solQualifEmp(emp)}.</div>
-        <div class="sol-parte"><div class="cap">Cliente</div>${solQualifCli(cli, 'm2', true)}.</div>
-      </div>
-      <div class="sol-sec">Sistema entregue</div>
-      <div class="sol-te-sis">${sistema}</div>
-      <div class="sol-sec">Conferência na entrega</div>
-      <table class="sol-te-chk"><tbody>${conferencia}</tbody></table>
-      <div class="sol-sec">Declarações</div>
-      ${decl}
-      ${ress}
-      <div class="ep-ctr-fim">
-        <p class="ep-ctr-p" style="margin-top:8px">Por estarem de acordo, as partes assinam este termo em 2 (duas) vias de igual teor.</p>
-        <p class="ep-ctr-p">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
-        <div class="ep-ctr-assin">
-          <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>Empresa</div>
-          <div class="a"><b>${cli.nome ? e(cli.nome.toUpperCase()) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}Cliente</div>
-        </div>
-      </div>
-      ${solRodape('Termo de entrega do sistema fotovoltaico', cli.nome)}
-    </div></div>`;
 }
 function fsTermo() {
   const d = fsTermoDados();
@@ -32935,7 +32651,6 @@ async function fsFotoAddArquivos(arq) {
     (recusadas ? 'O limite é de ' + FS_FOTOS_MAX + ' fotos por relatório. ' : '') + (falhas ? 'Não consegui ler ' + (falhas === 1 ? 'uma foto' : falhas + ' fotos') + '. Tente de novo ou use outra imagem.' : '');
 }
 const FS_V_NUM = [['fs-v-t-incl', 'a inclinação'], ['fs-v-t-area', 'a área útil'], ['fs-v-e-disj', 'o disjuntor'], ['fs-v-i-dist', 'a distância']];
-const fsVNum = v => v.replace(/\./g, ',');
 function fsFaltasVistoria(faltam, invalidos, outros) {
   if (!fsVal('fs-v-data')) faltam.push('fs-v-data');
   const c = fsVal('fs-v-concl');
@@ -32959,52 +32674,6 @@ function fsVistoriaDados() {
       ['Abrigado de sol e chuva', g('fs-v-i-abrig')], ['Sinal de Wi-Fi', g('fs-v-i-wifi')]],
     fotos: fsFotos.map(f => ({ src: f.src, leg: f.leg, txt: String(f.txt || '').trim() })),
   };
-}
-// só as linhas preenchidas, duas por linha da tabela (rótulo, valor, rótulo, valor)
-function fsVistoriaTabela(titulo, linhas) {
-  const cheias = linhas.filter(l => l[1]);
-  if (!cheias.length) return '';
-  const par = l => `<td class="k">${solEsc(l[0])}</td><td class="v">${solEsc(l[1])}</td>`;
-  const trs = [];
-  for (let i = 0; i < cheias.length; i += 2) trs.push(`<tr>${par(cheias[i])}${cheias[i + 1] ? par(cheias[i + 1]) : '<td colspan="2"></td>'}</tr>`);
-  return `<div class="sol-vi"><div class="sol-sec">${solEsc(titulo)}</div><table class="sol-vi-sis"><tbody>${trs.join('')}</tbody></table></div>`;
-}
-function fsVistoriaBlocos(d) {
-  const e = solEsc, emp = d.emp, cli = d.cli;
-  const dataTxt = solDataLonga(d.data);
-  const cidade = solEnd('', '', cli.cidade, cli.uf);
-  const kv = (k, v, s2) => `<div${s2 ? ' class="s2"' : ''}><span class="k">${e(k)}</span><span class="v${v ? '' : ' bl'}">${v ? e(v) : ''}</span></div>`;
-  const concl = { ok: ['ok', 'Apto para instalação', 'O imóvel recebe o sistema nas condições em que está.'],
-    adeq: ['adeq', 'Apto com adequações', 'O imóvel recebe o sistema depois das adequações listadas neste relatório.'],
-    nao: ['nao', 'Não apto no momento', 'O imóvel não recebe o sistema agora. O que precisa mudar está nas adequações deste relatório.'] }[d.concl];
-  const ucConc = [d.uc ? 'UC ' + d.uc : '', d.conc].filter(Boolean).join(' · ');
-  const potMod = [d.kwp ? d.kwp + ' kWp' : '', d.nmod ? d.nmod + (parseInt(d.nmod, 10) === 1 ? ' módulo' : ' módulos') : ''].filter(Boolean).join(' · ');
-  const foto = f => `<div class="sol-vi-foto"><div class="m"><img src="${e(f.src)}" alt=""></div><div class="l"><b>${e(f.leg)}</b>${f.txt ? ' · ' + e(f.txt) : ''}</div></div>`;
-  const fotoLinhas = [];
-  for (let i = 0; i < d.fotos.length; i += 2) fotoLinhas.push(`<div class="sol-vi-fotos">${d.fotos.slice(i, i + 2).map(foto).join('')}</div>`);
-  const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-  const mesmo = !!d.acomp && norm(d.acomp) === norm(cli.nome);
-  const assin = `<div class="sol-vi ep-ctr-fim">
-      <p class="ep-ctr-p" style="margin-top:6px">${cidade ? e(cidade) + ', ' : ''}${e(dataTxt)}. Este relatório registra as condições do imóvel vistas e medidas nesta data.</p>
-      <div class="ep-ctr-assin"${d.acomp ? '' : ' style="justify-content:center"'}>
-        <div class="a"${d.acomp ? '' : ' style="flex:0 1 52%"'}><b>${d.quem ? e(d.quem) : '&nbsp;'}</b><span>${e(emp.razao)} · CNPJ ${e(emp.cnpj)}</span>Quem vistoriou</div>
-        ${d.acomp ? (mesmo
-          // quem acompanhou é o próprio cliente: o nome sai uma vez só
-          ? `<div class="a"><b>${e(cli.nome)}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}Cliente, acompanhou no local</div>`
-          : `<div class="a"><b>${e(d.acomp)}</b>Acompanhou no local</div>`) : ''}
-      </div>
-    </div>`;
-  return [
-    solTopoCtr(`${e(solDataCurta(d.data))}${cidade ? ' · ' + e(cidade) : ''}`) + `<div class="ep-ctr-tit">Relatório de vistoria técnica</div><div class="ep-ctr-sub">${e(dataTxt)}${cidade ? ' · ' + e(cidade) : ''}</div>`,
-    `<div class="sol-card sol-vi-card"><div class="cap">Cliente e local</div><div class="kv">${kv('Cliente', cli.nome, true)}${kv('CPF / CNPJ', cli.doc)}${kv('Telefone', d.tel)}${kv('Unidade consumidora', ucConc, true)}${potMod ? kv('Sistema previsto', potMod) : ''}${kv('Local da vistoria', d.local, true)}</div></div>`,
-    fsVistoriaTabela('Telhado', d.telhado), fsVistoriaTabela('Entrada de energia', d.entrada), fsVistoriaTabela('Inversor e cabos', d.inversor),
-    `<div class="sol-vi"><div class="sol-vi-concl ${concl[0]}"><div class="cap">Conclusão da vistoria</div><b>${e(concl[1])}</b><div class="t">${e(concl[2])}</div></div></div>`,
-    d.adeq.length ? `<div class="sol-vi"><p class="ep-ctr-p"><b>Adequações necessárias</b></p>${d.adeq.map((t, i) => `<p class="ep-ctr-li">${String.fromCharCode(97 + i)}) ${e(t)}${i < d.adeq.length - 1 ? ';' : '.'}</p>`).join('')}</div>` : '',
-    d.obs ? `<div class="sol-vi"><p class="ep-ctr-p"><b>Observações.</b> ${solTxt(d.obs)}</p></div>` : '',
-    assin,
-    // o registro fotográfico vai depois das assinaturas, como anexo: cada linha de duas fotos é um bloco inteiro
-    ...fotoLinhas.map((l, i) => i === 0 ? `<div class="sol-vi"><div class="sol-sec" style="margin-top:16px">Registro fotográfico</div>${l}</div>` : `<div class="sol-vi">${l}</div>`),
-  ].filter(Boolean);
 }
 function fsVistoria() {
   const d = fsVistoriaDados();
@@ -33218,29 +32887,8 @@ function navPlanilhaSolar() {
   planilhaAjustarLogo();
 }
 
-// ── Documentos ──────────────────────────────────────────────────────────────
-// Ordem, chaves e rótulos: api/src/services/gerador/dossieVenda.ts (ARQUIVOS_SOLAR
-// e CAMPOS_SOLAR). Mudou lá, muda aqui. O cabeçalho usa o nome curto.
-const DC_ARQUIVOS = [
-  { k: 'documento', cab: 'CNH', nome: 'CNH ou identidade' },
-  { k: 'conta_luz', cab: 'Conta de luz', nome: 'Conta de luz' },
-  { k: 'fachada', cab: 'Fachada', nome: 'Foto da fachada' },
-  { k: 'padrao', cab: 'Padrão', nome: 'Foto do padrão' },
-  { k: 'disjuntor', cab: 'Disjuntor', nome: 'Foto do disjuntor' },
-  { k: 'medidor', cab: 'Medidor', nome: 'Foto do relógio medidor' },
-];
-const DC_CAMPOS = ['email', 'qtd_placa', 'marca_placa', 'qtd_inversor', 'marca_inversor'];
-let _dcLinhas = null;       // vendas lidas do banco, uma por proposta vendida
-let _dcFiltro = 'todas';    // todas | faltando | completas
-let _dcBusca = '';
-let _dcCarregando = false;
-let _dcAbrindo = false;
-let _dcGeracao = 0;         // sobe quando a conta sai: leitura que voltar depois disso é descartada
-
-/** Chamado pelo authLimpar: esquece tudo que as duas abas guardam. A planilha volta a nascer na próxima abertura. */
+/** Chamado pelo authLimpar: esquece o que a aba Planilha guarda. Ela volta a nascer na próxima abertura. */
 function solarSessaoLimpar() {
-  _dcGeracao++;
-  _dcLinhas = null; _dcFiltro = 'todas'; _dcBusca = ''; _dcCarregando = false; _dcAbrindo = false;
   PLANILHA_FRAMES.forEach(par => {
     const f = document.getElementById(par[0]);
     if (!f) return;
@@ -33249,198 +32897,7 @@ function solarSessaoLimpar() {
     novo.removeAttribute('src');
     f.replaceWith(novo);
   });
-  const busca = document.getElementById('dc-busca'); if (busca) busca.value = '';
-  ['dc-tbody', 'dc-cartoes'].forEach(id => { const e = document.getElementById(id); if (e) e.innerHTML = ''; });
-  ['dc-n-vendas', 'dc-n-comp', 'dc-n-falta'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = '0'; });
-  const est = document.getElementById('dc-estado'); if (est) { est.textContent = ''; est.hidden = true; }
-  const wrap = document.querySelector('#documentosSolarSection .dc-wrap'); if (wrap) wrap.hidden = true;
 }
-
-/** Lê o que a linha tem de dossiê. A leitura traz `dados->dossie`; sem dossiê, tudo vazio. */
-function dcResumo(l) {
-  const d = (l && l.dossie) || {};
-  const arq = DC_ARQUIVOS.map(a => (d.arquivos && Array.isArray(d.arquivos[a.k])) ? d.arquivos[a.k].length : 0);
-  const dados = DC_CAMPOS.filter(c => d.campos && typeof d.campos[c] === 'string' && d.campos[c].trim()).length;
-  const t = d.trello || {};
-  let trello = 'nenhum';
-  if (t.status === 'enviado') trello = 'enviado';
-  else if (t.status === 'falhou') trello = 'falhou';
-  else if (t.card_id) trello = 'pendente';
-  const faltam = DC_ARQUIVOS.filter((a, i) => !arq[i]).map(a => a.cab);
-  return { arq, dados, trello, faltam, completa: faltam.length === 0 && dados === DC_CAMPOS.length };
-}
-function dcNorm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
-function dcData(v) {
-  if (!v) return '';
-  const d = new Date(v);
-  return isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-}
-const DC_TRELLO = { enviado: 'Enviado', falhou: 'Falhou', pendente: 'Pendente', nenhum: 'Não enviado' };
-
-function dcLinhasVisiveis() {
-  const q = dcNorm(_dcBusca);
-  return (_dcLinhas || []).filter(l => {
-    if (q && !dcNorm(l.cliente_nome).includes(q)) return false;
-    const r = dcResumo(l);
-    if (_dcFiltro === 'faltando') return !r.completa;
-    if (_dcFiltro === 'completas') return r.completa;
-    return true;
-  });
-}
-
-function dcDesenhar() {
-  const sec = document.getElementById('documentosSolarSection');
-  if (!sec) return;
-  const todas = _dcLinhas || [];
-  const resumos = todas.map(dcResumo);
-  const comp = resumos.filter(r => r.completa).length;
-  document.getElementById('dc-n-vendas').textContent = todas.length;
-  document.getElementById('dc-n-comp').textContent = comp;
-  document.getElementById('dc-n-falta').textContent = todas.length - comp;
-  sec.querySelectorAll('.dc-chip').forEach(b => {
-    const on = b.dataset.f === _dcFiltro;
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-pressed', on ? 'true' : 'false');
-  });
-  const vis = dcLinhasVisiveis();
-  const estado = document.getElementById('dc-estado');
-  const wrap = sec.querySelector('.dc-wrap');
-  const cartoes = document.getElementById('dc-cartoes');
-  if (!vis.length) {
-    estado.textContent = todas.length ? 'Nenhuma venda neste filtro.' : 'Nenhuma venda registrada ainda.';
-    estado.hidden = false;
-    document.getElementById('dc-tbody').innerHTML = '';
-    cartoes.innerHTML = '';
-    wrap.hidden = true;
-    return;
-  }
-  estado.hidden = true; wrap.hidden = false;
-  document.getElementById('dc-tbody').innerHTML = vis.map(l => {
-    const r = dcResumo(l);
-    const cel = r.arq.map(n => n
-      ? '<td class="dc-c dc-ok">' + n + '</td>'
-      : '<td class="dc-c dc-falta"><span class="dc-sr">Falta</span></td>').join('');
-    const dados = '<td class="dc-c ' + (r.dados === DC_CAMPOS.length ? 'dc-ok' : 'dc-falta') + '">' + r.dados + ' de ' + DC_CAMPOS.length + '</td>';
-    const tre = '<td class="dc-c dc-tre dc-tre-' + r.trello + '">' + DC_TRELLO[r.trello] + '</td>';
-    return '<tr data-dc-cod="' + escapeHtml(l.codigo) + '">'
-      + '<th scope="row" class="dc-nome">' + escapeHtml(l.cliente_nome || '-') + '</th>'
-      + '<td>' + escapeHtml(l.cliente_cidade || '') + '</td>'
-      + '<td>' + escapeHtml(l.consultor_nome || '') + '</td>'
-      + '<td class="dc-data">' + escapeHtml(dcData(l.vendido_em)) + '</td>'
-      + cel + dados + tre
-      + '<td class="dc-acao"><button type="button" class="fs-btn-sec dc-anexar" data-dc-cod="' + escapeHtml(l.codigo) + '">Anexar</button></td>'
-      + '</tr>';
-  }).join('');
-  cartoes.innerHTML = vis.map(l => {
-    const r = dcResumo(l);
-    const itens = DC_ARQUIVOS.map((a, i) => r.arq[i]
-      ? '<span class="dc-item dc-ok">' + escapeHtml(a.cab) + (r.arq[i] > 1 ? ' ' + r.arq[i] : '') + '</span>'
-      : '<span class="dc-item dc-falta">' + escapeHtml(a.cab) + '<span class="dc-sr"> falta</span></span>').join('')
-      + '<span class="dc-item ' + (r.dados === DC_CAMPOS.length ? 'dc-ok' : 'dc-falta') + '">Dados ' + r.dados + ' de ' + DC_CAMPOS.length + '</span>';
-    const sub = [l.cliente_cidade, l.consultor_nome, dcData(l.vendido_em)].filter(Boolean).map(escapeHtml).join(' · ');
-    return '<article class="dc-cartao" data-dc-cod="' + escapeHtml(l.codigo) + '">'
-      + '<h3>' + escapeHtml(l.cliente_nome || '-') + '</h3>'
-      + '<div class="dc-sub">' + sub + '</div>'
-      + '<div class="dc-itens">' + itens + '</div>'
-      + '<div class="dc-sub">Trello: ' + DC_TRELLO[r.trello] + '</div>'
-      + '<button type="button" class="fs-btn-sec dc-anexar" data-dc-cod="' + escapeHtml(l.codigo) + '">Anexar</button>'
-      + '</article>';
-  }).join('');
-}
-
-/** Consulta própria, com o token da pessoa: o Histórico pode nem estar carregado (e só traz tudo depois de paginar). */
-async function docsCarregar() {
-  if (_dcCarregando) return;
-  _dcCarregando = true;
-  const geracao = _dcGeracao;
-  const estado = document.getElementById('dc-estado');
-  if (!_dcLinhas) { estado.textContent = 'Carregando as vendas…'; estado.hidden = false; }
-  try {
-    const col = 'codigo,cliente_nome,cliente_cidade,consultor_nome,vendido_em,dossie:dados->dossie';
-    const todas = [];
-    for (let off = 0; off < 5000; off += 500) {
-      const lote = await supaGet('propostas?vendido=eq.true&select=' + col + '&order=vendido_em.desc.nullslast,codigo.asc&limit=500&offset=' + off);
-      todas.push(...lote);
-      if (lote.length < 500) break;
-    }
-    if (geracao !== _dcGeracao) return;   // a conta saiu no meio da leitura
-    _dcLinhas = todas;
-    dcDesenhar();
-  } catch (e) {
-    if (geracao !== _dcGeracao) return;
-    if (!_dcLinhas) {
-      estado.textContent = 'Não consegui carregar as vendas. Toque em Atualizar para tentar de novo.';
-      estado.hidden = false;
-      document.querySelector('#documentosSolarSection .dc-wrap').hidden = true;
-    } else showToast('Não consegui atualizar a lista: ' + e.message);
-  } finally { if (geracao === _dcGeracao) _dcCarregando = false; }
-}
-
-function navDocumentosSolar() {
-  telasSolarLimpar();
-  document.getElementById('formSection').style.display = 'none';
-  document.getElementById('historicoSection').style.display = 'none';
-  const sec = document.getElementById('documentosSolarSection');
-  if (sec) sec.style.display = '';
-  document.documentElement.classList.add('documentos-solar-aberto');
-  marcarNavAtivo('nav-documentos-solar');
-  fecharSidebarMobile();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (_dcLinhas) dcDesenhar();
-  docsCarregar();
-}
-
-/** Abre o dossiê que já existe (o do modal de venda). O modal lê `historicoRows`, que pode estar vazio:
- *  qlGarantirHistorico carrega o que falta sem desenhar o Histórico por cima. */
-async function docsAbrirVenda(codigo) {
-  if (_dcAbrindo || !codigo) return;
-  _dcAbrindo = true;
-  try {
-    if (typeof qlGarantirHistorico === 'function') await qlGarantirHistorico(codigo);
-    else if (!historicoRows.some(r => r.codigo === codigo)) {
-      const um = await supaGet('propostas?codigo=eq.' + encodeURIComponent(codigo) + '&select=*&limit=1');
-      if (um && um[0]) historicoRows.unshift(um[0]);
-    }
-    abrirModalVenda(codigo);
-    if (_vendaCodigo !== codigo) { showToast('Não achei essa venda.'); return; }
-    // O bloco do dossiê aparece depois de renovar a sessão e só ganha altura quando os slots chegam do servidor:
-    // espera os slots (ou o aviso de erro) e então leva a vista até ele.
-    for (let i = 0; i < 100; i++) {
-      if (document.querySelector('#dossie-arquivos .dossie-slot, #dossie-arquivos .dossie-aviso')) break;
-      await new Promise(r => setTimeout(r, 50));
-    }
-    const bloco = document.getElementById('dossie-bloco');
-    if (bloco && bloco.style.display !== 'none') bloco.scrollIntoView({ block: 'start' });
-  } catch (e) {
-    showToast('Não consegui abrir a venda: ' + e.message);
-  } finally { _dcAbrindo = false; }
-}
-
-/** Atualiza a linha a partir do que o modal já leu (_dossieEstado), sem pedir nada ao banco. Chamado
- *  pelo dossieMarcarBadge (anexo e remoção) e ao fechar o modal (campos e Trello). */
-function docsAtualizarDoEstado() {
-  if (!_dcLinhas || !_dossieEstado || !_dossieCodigo) return;
-  const l = _dcLinhas.find(x => x.codigo === _dossieCodigo);
-  if (!l) return;
-  l.dossie = Object.assign({}, l.dossie, {
-    arquivos: _dossieEstado.arquivos, campos: _dossieEstado.campos, trello: _dossieEstado.trello,
-  });
-  const sec = document.getElementById('documentosSolarSection');
-  if (sec && sec.style.display !== 'none') dcDesenhar();
-}
-
-(function () {
-  const sec = document.getElementById('documentosSolarSection');
-  if (!sec) return;
-  sec.addEventListener('click', e => {
-    const chip = e.target.closest('.dc-chip');
-    if (chip) { _dcFiltro = chip.dataset.f; dcDesenhar(); return; }
-    if (e.target.closest('#dc-atualizar')) { docsCarregar(); return; }
-    const alvo = e.target.closest('[data-dc-cod]');
-    if (alvo) docsAbrirVenda(alvo.dataset.dcCod);
-  });
-  document.getElementById('dc-busca').addEventListener('input', e => { _dcBusca = e.target.value; dcDesenhar(); });
-})();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // QUEM LIGAR (10/10/2026)
@@ -34083,12 +33540,11 @@ const OB_ETAPAS = [['venda', 'Venda'], ['projeto', 'Projeto'], ['material', 'Mat
 const OB_GRUPOS = [['venda', 'Venda'], ['projeto', 'Projeto'], ['material', 'Material'], ['instalacao', 'Instalação'], ['vistoria', 'Vistoria'], ['liberado', 'Liberação']];
 // As abas internas. Cada uma tem o seu contêiner e só a ativa é desenhada.
 const OB_ABAS = [
-  { id: 'andamento', rotulo: 'Andamento', render: () => obDesenharAndamento() },
   { id: 'indicacoes', rotulo: 'Indicações e depoimentos', render: () => obDesenharIndicacoes() },
   { id: 'mapa', rotulo: 'Mapa', render: () => obDesenharMapa() },
 ];
 let obDados = null, obErro = null, obCarregando = false, obSeq = 0, obLigado = false;
-let obEstado = { aba: 'andamento', busca: '', consultor: '', soAndamento: true };
+let obEstado = { aba: 'mapa', busca: '', consultor: '', soAndamento: true };
 
 async function obCarregar() {
   const seq = ++obSeq;
@@ -34145,38 +33601,6 @@ function obDesenhar() {
   const ativa = OB_ABAS.find(a => a.id === obEstado.aba) || OB_ABAS[0];
   ativa.render();
 }
-function obDesenharAndamento() {
-  const pane = document.getElementById('ob-pane-andamento');
-  if (!pane || !obDados) return;
-  const d = obDados, obras = d.obras || [];
-  const emAnd = obras.filter(o => o.etapaAtual !== 'concluida');
-  const res = d.resumo || {};
-  const pe = res.porEtapa || {};
-  const cont = ch => emAnd.filter(o => o.etapaAtual === ch).length;
-  const porEtapa = ch => (pe[ch] != null ? Number(pe[ch]) : cont(ch));
-  const andamento = res.emAndamento != null ? res.emAndamento : emAnd.length;
-  const num = (valor, rot, cls) => '<div class="ob-num ' + (cls || '') + '"><b>' + valor + '</b><span>' + rot + '</span></div>';
-  const temDinheiro = res.aReceber != null && isFinite(Number(res.aReceber));
-  const resumo = '<div class="ob-resumo' + (temDinheiro ? '' : ' n3') + '">'
-    + num(andamento, 'Em andamento') + num(porEtapa('vistoria') + porEtapa('liberado'), 'Aguardando concessionária')
-    + num(porEtapa('material'), 'Material a comprar') + (temDinheiro ? num(escapeHtml(qlReais(res.aReceber)), 'A receber', 'din') : '') + '</div>';
-  let consultores = '';
-  if (d.verTudo) {
-    const nomes = [...new Set(obras.map(o => o.consultor).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    const chip = (v, rot) => '<button type="button" class="ql-chip' + (obEstado.consultor === v ? ' on' : '') + '" data-qa="ocons" data-v="' + escapeHtml(v) + '">' + escapeHtml(rot) + '</button>';
-    consultores = '<div class="ql-chips">' + chip('', 'Todos') + nomes.map(n => chip(n, n)).join('') + '</div>';
-  }
-  const atualizado = d.atualizadoEm ? new Date(d.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : '';
-  const fontes = [d.fonte && d.fonte.planilha ? 'Planilha Mestre' : '', d.fonte && d.fonte.trello ? 'Trello' : ''].filter(Boolean).join(' e ');
-  pane.innerHTML = resumo
-    + '<div class="ql-ctrl">' + consultores
-    + '<div class="ql-linha2"><input id="ob-busca" class="ql-busca" type="search" placeholder="Buscar por nome ou código" autocomplete="off" value="' + escapeHtml(obEstado.busca) + '" aria-label="Buscar obra"></div>'
-    + '<label class="ob-tog"><input type="checkbox" id="ob-solo"' + (obEstado.soAndamento ? ' checked' : '') + '> Só em andamento</label></div>'
-    + '<div id="ob-lista"></div>'
-    + '<div class="ob-rodape"><span>' + (fontes ? 'Fonte: ' + escapeHtml(fontes) + '. ' : '') + (atualizado ? 'Atualizado às ' + escapeHtml(atualizado) + '.' : '')
-    + '</span><button type="button" class="fs-btn-sec" data-qa="atualizar">Atualizar</button></div>';
-  obDesenharLista();
-}
 function obClique(ev) {
   const b = ev.target && ev.target.closest ? ev.target.closest('[data-qa]') : null;
   if (!b) return;
@@ -34188,7 +33612,7 @@ function obClique(ev) {
     return obCarregar();
   }
   if (a === 'aba') { obEstado.aba = b.dataset.v; return obDesenhar(); }
-  if (a === 'ocons') { obEstado.consultor = b.dataset.v; return obDesenharAndamento(); }
+  if (a === 'ocons') { obEstado.consultor = b.dataset.v; return obDesenhar(); }
 }
 function obDataCurta(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
@@ -35168,7 +34592,7 @@ function inClique(ev) {
   else if (a === 'ir') {
     if (d === 'agenda' || d === 'vencidos') inAbrirAgenda();
     else if (d === 'quentes') navQuemLigar();
-    else if (d === 'obras' || d === 'areceber') navObrasSolar();
+    else if (d === 'obras' || d === 'areceber') navClientesSolar();
     else if (d === 'quiz') navLeads();
     else if (d === 'quiz_sd') inAbrirQuizSd();
     else if (d === 'painel') navPainelSolar();
@@ -36367,8 +35791,6 @@ function crmAbrirDetalhe(key, agId) {
   // motivo na ficha de OUTRA pessoa — defeito que a caixa da espera ja teve.
   const bxMot = document.getElementById('crm-det-motivo');
   if (bxMot) bxMot.hidden = true;
-  const bxVen = document.getElementById('crm-det-venda');
-  if (bxVen) bxVen.hidden = true;
   // A caixa da espera também fecha, e ZERADA. Sem isto ela ficava aberta ao
   // trocar de card e levava junto o texto do cliente anterior: dois toques e a
   // espera do Cristiano ia parar na ficha de outra pessoa.
@@ -36585,47 +36007,6 @@ async function crmSalvarEdicao() {
 // gatear por outra coisa (o cliente ter EP em algum lugar) faria o botao aparecer
 // e escrever modelo de EP numa ficha de solar.
 // O botao do status atual nunca esconde: ver o comentario longo na agenda.
-/** Do card pro formulario de venda. Resolve a proposta do cliente e abre O MESMO
- *  modal do Historico.
- *
- *  Qual proposta: a mais RECENTE do produto do card, e entre as do mesmo produto a
- *  que ainda NAO esta vendida (porque registrar venda nova em cima de uma ja
- *  vendida e justamente a dobra que o aviso vermelho denuncia). Sem proposta
- *  nenhuma, nao tem onde por o valor: ai só da pra marcar o card, e eu digo isso
- *  em vez de abrir um formulario vazio. */
-async function crmAbrirVendaDoCard() {
-  const det = crmDetAtual;
-  if (!det || !det.c) return;
-  const ehEp = crmEhEletroposto(det.agRec);
-  const cands = (det.c.props || []).filter(p => {
-    const pEp = p.tipo === 'eletroposto' || (p.dados && p.dados.produto === 'eletroposto');
-    return pEp === ehEp;
-  });
-  const ordena = (arr) => [...arr].sort((a, b) =>
-    new Date(b.created_at || 0) - new Date(a.created_at || 0));
-  const escolhida = ordena(cands.filter(p => !p.vendido))[0] || ordena(cands)[0]
-    || ordena(det.c.props || [])[0];
-  if (!escolhida || !escolhida.codigo) {
-    showToast('Esse cliente não tem proposta, então não há onde gravar o valor. Use "Só marcar o card".');
-    return;
-  }
-  const box = document.getElementById('crm-det-venda');
-  if (box) box.hidden = true;
-  // O formulario le `historicoRows`. Quem abriu o CRM direto nunca carregou o
-  // Historico, e sem isto o modal abriria vazio e o `salvarVenda` nao acharia a
-  // linha pra gravar — falha silenciosa, o pior tipo.
-  if (!historicoRows || !historicoRows.length) {
-    showToast('Carregando as propostas…');
-    await abrirHistorico();
-  }
-  if (!(historicoRows || []).some(x => x.codigo === escolhida.codigo)) {
-    showToast('Não achei a proposta ' + escolhida.codigo + ' no histórico.');
-    return;
-  }
-  // O card do CRM e a escolha do consultor: o id segue para a confirmacao (so no solar).
-  abrirModalVenda(escolhida.codigo, ehEp ? null : (det.agRec && det.agRec.id));
-}
-
 /** Card bloqueado some com o grid e mostra o desbloqueio. Espelho da agenda. */
 /**
  * O TELEFONE DO BLOQUEIO, numa expressao so.
@@ -36799,7 +36180,7 @@ async function crmGravarTemperatura(valor) {
 
 /** As caixas que pedem um segundo toque antes de gravar. Espelha
  *  `CAIXAS_DO_CARD` da agenda; as duas telas tem o mesmo modal. */
-const CRM_CAIXAS_DO_CARD = ['crm-det-posse', 'crm-det-espera', 'crm-det-motivo', 'crm-det-venda', 'crm-det-venda-ep'];
+const CRM_CAIXAS_DO_CARD = ['crm-det-posse', 'crm-det-espera', 'crm-det-motivo', 'crm-det-venda-ep'];
 
 /** Fecha TODAS as caixas e devolve qual estava aberta. Ver o comentario longo da
  *  `fecharCaixasDoCard` na agenda: cada guarda fechava um subconjunto diferente, e
@@ -45089,28 +44470,6 @@ function vendaAvisarDobra(r) {
   box.hidden = false;
 }
 
-/** A PORTA QUE VEM DA AGENDA: `/gerador/?venda_tel=<telefone>`.
- *
- *  A agenda nao conhece a tabela `propostas` (medido: ela nunca consulta), e eu
- *  nao vou ensinar ela — seria uma segunda copia da regra de "qual proposta e
- *  desse cliente". Entao a agenda manda o TELEFONE e quem resolve e esta tela, que
- *  e onde o dado mora. */
-async function vendaPorTelefone(tel, cardId) {
-  const k = crmTelKey(tel);
-  if (!k) { showToast('Telefone não reconhecido no link.'); return; }
-  if (!historicoRows || !historicoRows.length) await abrirHistorico();
-  const doCli = (historicoRows || []).filter(x =>
-    crmTelKey((x.dados && (x.dados.telefoneDigitos || x.dados.telefone)) || '') === k);
-  if (!doCli.length) {
-    showToast('Esse cliente não tem proposta no histórico, então não há onde gravar o valor.');
-    return;
-  }
-  const ordena = (arr) => [...arr].sort((a, b) =>
-    new Date(b.created_at || 0) - new Date(a.created_at || 0));
-  const escolhida = ordena(doCli.filter(x => !x.vendido))[0] || ordena(doCli)[0];
-  abrirModalVenda(escolhida.codigo, cardId);
-}
-
 function abrirModalVenda(codigo, cardId) {
   const r = historicoRows.find(x => x.codigo === codigo);
   if (!r) return;
@@ -45138,7 +44497,11 @@ function abrirModalVenda(codigo, cardId) {
   // Documentos so fazem sentido depois que a venda existe. Enquanto nao existe,
   // o bloco fica fora do caminho em vez de aparecer vazio pedindo CNH de quem
   // ainda nao comprou.
-  if (r.vendido) dossieAbrir(codigo); else dossieFechar();
+  // Fase 3 da Jornada: proposta SOLAR não pede documentos aqui (moram na obra) e não marca o Vendido (um caminho só: o card).
+  const ehEpModal = r.tipo === 'eletroposto' || (r.dados && r.dados.produto === 'eletroposto');
+  const notaSol = document.getElementById('venda-solar-nota');
+  if (notaSol) notaSol.style.display = ehEpModal ? 'none' : '';
+  if (r.vendido && ehEpModal) dossieAbrir(codigo); else dossieFechar();
   document.getElementById('modal-venda').classList.add('show');
   // Foco automatico so na venda NOVA. Reabrindo um cliente ja vendido, o que a
   // pessoa veio fazer e anexar documento — e no celular o foco no campo de
@@ -45149,8 +44512,6 @@ function abrirModalVenda(codigo, cardId) {
 
 function fecharModalVenda() {
   document.getElementById('modal-venda').classList.remove('show');
-  // Antes de o dossieFechar zerar o estado: campos e Trello salvos no modal chegam à aba Documentos.
-  if (typeof docsAtualizarDoEstado === 'function') docsAtualizarDoEstado();
   dossieFechar();
   _vendaCodigo = null;
   _vendaCardId = null;
@@ -45284,6 +44645,9 @@ async function confirmarVenda() {
           const ligou = vendaLigarPropostaAoCard(alvo.id, _vendaCodigo);
           ligou.catch(() => {});
         }
+      } else if (!ehEpProposta) {
+        // Fase 3 da Jornada: o Vendido do solar tem um caminho só, o do card. Aqui só a proposta ficou gravada.
+        avisoCard = ' · marque o Vendido no card da Agenda ou do CRM';
       } else {
         const antes = alvo.status;
         const ts = (() => { const d = new Date(); const p = n => String(n).padStart(2, '0');
@@ -45294,10 +44658,7 @@ async function confirmarVenda() {
           + ` (proposta ${_vendaCodigo}). O card estava em ${antes.toUpperCase()}.`;
         // Fase 1 da Jornada (05/11/2026): card de solar vira VENDIDO só pelo servidor (o mesmo caminho do botão do card).
         // O solar tem UM caminho só, o servidor: sem o jornada.js não grava (mesmo erro do CRM). O eletroposto segue como sempre.
-        if (!ehEpProposta) {
-          if (!window.Jornada || typeof Jornada.vendido !== 'function') throw new Error('A tela da obra não carregou. Atualize a página.');
-          await Jornada.vendido(alvo.id, linha);
-        } else await supaPatch(`agendamentos?id=eq.${alvo.id}`, {
+        await supaPatch(`agendamentos?id=eq.${alvo.id}`, {
           status: 'fechou',
           historico: alvo.historico ? `${linha}\n\n${alvo.historico}` : linha,
         });
@@ -45711,8 +45072,6 @@ async function dossieEnviarTrello() {
 /** Atualiza o 📎 da linha do histórico sem recarregar a tabela inteira. */
 function dossieMarcarBadge() {
   if (!_dossieCodigo || !_dossieEstado) return;
-  // A aba Documentos mostra a mesma contagem: atualiza a linha dela também.
-  if (typeof docsAtualizarDoEstado === 'function') docsAtualizarDoEstado();
   const r = historicoRows.find(function (x) { return x.codigo === _dossieCodigo; });
   if (!r) return;
   r.dados = r.dados || {};

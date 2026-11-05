@@ -2938,20 +2938,6 @@ async function adicionarNota() {
  * que custou um dia pra achar. Entre mostrar um botao a mais e esconder a
  * verdade da ficha, mostra o botao.
  */
-/** Leva pro formulario de venda do /gerador, com o telefone deste card.
- *
- *  Telefone e nao codigo de proposta porque a agenda nao consulta `propostas`:
- *  quem sabe qual proposta e deste cliente e a tela que tem a tabela. */
-function abrirVendaNoGerador() {
-  if (!detalheAtual) return;
-  const tel = String(detalheAtual.cliente_telefone || '').replace(/\D/g, '');
-  if (!tel) { showToast('Esse card nao tem telefone: registre a venda pelo Historico.'); return; }
-  // `venda_card`: o card de onde o consultor veio. A confirmacao de venda liga a proposta a ESSE card (escolha explicita, nao telefone).
-  const idCard = Number(detalheAtual.id);
-  const comCard = Number.isInteger(idCard) && idCard > 0 && !cardEhEletroposto(detalheAtual) ? '&venda_card=' + idCard : '';
-  location.href = '/gerador/?venda_tel=' + encodeURIComponent(tel) + comCard;
-}
-
 /** Serie #E do eletroposto (etapa 4): pede ao servidor o codigo do card que acabou de ficar VENDIDO. Sem await de quem chama, sem aviso de erro:
  *  se falhar, a passada de pendentes na lista de clientes numera. `keepalive` porque a Agenda pode navegar logo em seguida. O id do card segue
  *  sendo a chave de tudo; o servidor revalida que o card e eletroposto e vendido. */
