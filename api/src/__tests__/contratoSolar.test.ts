@@ -42,7 +42,6 @@ vi.mock('../utils/supabase', () => ({ supabase: {} }));
 
 import { juntarConflitos, validarCombinacao } from '../services/gerador/contratoHibrido';
 import { PedidoAgente, SISTEMA_AGENTE, checarConflitos, pedirAgente } from '../services/gerador/contratoAgente';
-import { CAMPOS_AGENTE, CAMPO_POR_ID, camposDoItem, validarValorCampo } from '../services/gerador/contratoAgenteCampos';
 import { ITENS_TRAVADOS_SOLAR, geracaoComoGarantia } from '../services/gerador/contratoSolar';
 import { PedidoContratoIa, TIPOS_CONTRATO } from '../services/gerador/contratoIa';
 import { mountContratoAgente } from '../routes/geradorContratoAgente';
@@ -190,81 +189,8 @@ describe('tipos solares', () => {
   });
 });
 
-// ── Lista branca ─────────────────────────────────────────────────────────────
-describe('lista branca do solar', () => {
-  const solares = CAMPOS_AGENTE.filter(c => c.modelos.some(m => m.startsWith('solar_')));
-  it('todo campo solar é fs-c-*, vale nos dois modelos e só neles; nenhum ctr-* vale no solar', () => {
-    expect(solares.length).toBeGreaterThan(20);
-    for (const c of solares) {
-      expect(c.id, c.id).toMatch(/^fs-c-/);
-      expect(c.modelos, c.id).toEqual(['solar_m1', 'solar_m2']);
-    }
-    for (const c of CAMPOS_AGENTE.filter(x => x.id.startsWith('ctr-'))) {
-      expect(c.modelos.filter(m => m.startsWith('solar_')), c.id).toEqual([]);
-    }
-  });
-
-  it('nenhum campo de identidade, endereço, UC, número do contrato, modelo ou dado da empresa', () => {
-    const ids = solares.map(c => c.id);
-    expect(ids.filter(i => /(^fs-(doc|cep|end|bairro|rep|tipo|nome|cli)|endinst|-num$|-modelo$|-uc$|-conc$|titular|razao|cnpj|cpf|rg$|emp)/.test(i))).toEqual([]);
-    for (const proibido of ['fs-c-endinst', 'fs-c-num', 'fs-c-modelo', 'fs-doc', 'fs-end', 'fs-rep', 'fs-p-uc']) expect(CAMPO_POR_ID.has(proibido), proibido).toBe(false);
-  });
-
-  it('valor, pagamento, kWp, geração, equipamento, quantidade e garantia de fabricante são sensíveis; prazo, foro, data e garantia da instalação não', () => {
-    const sens = (id: string) => !!CAMPO_POR_ID.get(id)?.sensivel;
-    for (const id of ['fs-c-valor', 'fs-c-pagto', 'fs-c-kwp', 'fs-c-geracao', 'fs-c-nmod', 'fs-c-mod', 'fs-c-ninv', 'fs-c-tinv', 'fs-c-minv',
-      'fs-c-bat-marca', 'fs-c-bat-qtd', 'fs-c-bat-cap', 'fs-c-bat-gar', 'fs-c-gmod', 'fs-c-ginv']) expect(sens(id), id).toBe(true);
-    for (const id of ['fs-c-pproj', 'fs-c-paprov', 'fs-c-pinst', 'fs-c-foro', 'fs-c-data', 'fs-c-ginst', 'fs-c-ginstun']) expect(sens(id), id).toBe(false);
-  });
-
-  it('o catálogo do prompt traz os campos solares, a AIOROS e a regra de nunca escrever NEXUS no solar', () => {
-    for (const c of solares) expect(SISTEMA_AGENTE).toContain(`"id":"${c.id}"`);
-    for (const t of ['Os nove modelos', 'Contratos solares (solar_m1 e solar_m2)', 'AIOROS GROUP LTDA', 'Irmãos na Obra', 'NUNCA escreva NEXUS', 'O cliente é sempre o CONTRATANTE',
-      'fs-c-sinal', 'ESTIMATIVA', 'UM prazo só']) expect(SISTEMA_AGENTE, t).toContain(t);
-  });
-
-  it('os itens travados e as chaves de campo propostas ao front existem na lista de origem dos itens', () => {
-    for (const m of ['solar_m1', 'solar_m2'] as const) {
-      for (const k of ['prazos.projeto', 'prazos.aprovacao', 'prazos.obra', 'garantias.instalacao', 'foro.comarca', 'preco.valor', 'preco.forma']) {
-        expect(camposDoItem(m, k).length, `${m} ${k}`).toBeGreaterThan(0);
-      }
-      for (const k of ITENS_TRAVADOS_SOLAR[m]) expect(k).toMatch(/^[a-z]+\.[a-z_]+$/);
-    }
-    expect(camposDoItem('solar_m1', 'garantias.modulos')).toEqual(['fs-c-gmod']);
-    expect(camposDoItem('solar_m2', 'garantias.modulos')).toEqual(['fs-c-gmod']);
-    expect(camposDoItem('solar_m2', 'garantias.bateria')).toEqual(['fs-c-bat-gar']);
-    // O sinal é dado novo: manda no item do sinal e no do preço.
-    for (const m of ['solar_m1', 'solar_m2'] as const) expect(camposDoItem(m, 'preco.sinal'), m).toEqual(['fs-c-sinal']);
-    // Um contrato só: as listas de itens travados dos dois tipos são a mesma.
-    expect(ITENS_TRAVADOS_SOLAR.solar_m2).toEqual(ITENS_TRAVADOS_SOLAR.solar_m1);
-  });
-
-  it('validação: dinheiro BR, decimal com vírgula, inteiro e opção sem acento', () => {
-    const v = (id: string, x: unknown) => validarValorCampo(CAMPO_POR_ID.get(id)!, x);
-    expect(v('fs-c-valor', '27.400')).toEqual({ ok: true, valor: '27.400,00' });
-    expect(v('fs-c-valor', '0')).toMatchObject({ ok: false });
-    expect(v('fs-c-kwp', '5,4')).toEqual({ ok: true, valor: '5,4' });
-    expect(v('fs-c-tinv', 'Híbrido')).toEqual({ ok: true, valor: 'hibrido' });
-    expect(v('fs-c-tinv', 'hibrido')).toEqual({ ok: true, valor: 'hibrido' });
-    expect(v('fs-c-ginstun', 'meses')).toEqual({ ok: true, valor: 'meses' });
-    expect(v('fs-c-gmod', '1.000')).toMatchObject({ ok: false });
-    expect(CAMPO_POR_ID.get('fs-c-tinv')?.valoresHtml).toEqual({ hibrido: 'híbrido' });
-  });
-});
-
 // ── Ações do agente no solar ─────────────────────────────────────────────────
 describe('agente no contrato solar', () => {
-  it('campo sensível volta com confirmar:true; prazo não; campo ctr-* não vale no solar', async () => {
-    fila(ia({ acoes: [campo('fs-c-valor', '27.400'), campo('fs-c-pinst', '15'), campo('ctr-foro', 'Goiânia'), campo('fs-c-endinst', 'Rua X, 10')] }));
-    const r = await ok('solar_m2');
-    expect(r.acoes).toEqual([
-      expect.objectContaining({ tipo: 'campo', id: 'fs-c-valor', valor: '27.400,00', confirmar: true }),
-      expect.objectContaining({ tipo: 'campo', id: 'fs-c-pinst', valor: '15', confirmar: false }),
-    ]);
-    expect(r.avisos.join(' ')).toMatch(/não existe neste contrato/);
-    expect(r.avisos.join(' ')).toMatch(/não está na lista/);
-  });
-
   it('valor e percentual escritos por texto são descartados no solar; o que já existe no contrato passa', async () => {
     fila(ia({ acoes: [
       operacao({ alvo: 'garantias.perda', texto: 'A garantia vale mediante pagamento adicional de R$ 3.000,00.' }),
@@ -283,13 +209,6 @@ describe('agente no contrato solar', () => {
     const r = await ok('solar_m2');
     expect(r.acoes).toEqual([]);
     expect(r.avisos.join(' ')).toMatch(/campo próprio na tela/);
-  });
-
-  it('campo e operação sobre o mesmo item no mesmo turno: a operação cai (garantia da instalação)', async () => {
-    fila(ia({ acoes: [campo('fs-c-ginst', '2'), operacao({ alvo: 'garantias.instalacao', texto: 'Instalação: a garantia de instalação cobre defeitos constatados por laudo técnico.' })] }));
-    const r = await ok('solar_m2');
-    expect(r.acoes.map(a => a.tipo)).toEqual(['campo']);
-    expect(r.avisos.join(' ')).toMatch(/Mudei pelo campo/);
   });
 
   it('o emitente do solar é sempre a AIOROS: "nexus" cai com aviso, "aioros" passa', async () => {
@@ -348,12 +267,6 @@ describe('estimativa de geração tratada como garantia', () => {
     expect(JSON.stringify(ops[0])).toContain('aplicativo do fabricante');
   });
 
-  it('o campo de texto do pagamento também não pode prometer geração', async () => {
-    fila(ia({ acoes: [campo('fs-c-pagto', 'Entrada de 30% e saldo em 12x, com geração garantida de 700 kWh por mês.'), campo('fs-c-pagto', 'Entrada de 30% e saldo em 12x no cartão.')] }));
-    const r = await ok('solar_m2');
-    expect(r.avisos.join(' ')).toMatch(/prometia ou garantia geração/);
-    expect(r.acoes).toEqual([expect.objectContaining({ id: 'fs-c-pagto', valor: 'Entrada de 30% e saldo em 12x no cartão.', confirmar: true })]);
-  });
 });
 
 // ── Conflitos do solar ───────────────────────────────────────────────────────

@@ -514,21 +514,34 @@ export function mountJornadaObra(router: Router): void {
         if (!(await gravarRegistroNota(g.id, { id: nfId, compra_id: compraId, sha256: sha, chave, livre: false, em: new Date().toISOString(), por: g.nome }))) {
           return { http: 409, json: { ok: false, error: 'mudou', mensagem: 'Outra pessoa anexou agora. Tente de novo.' } };
         }
-        if (chave) {
-          const rv = await reservarChaveNfe(chave, { card: g.id, compra_id: compraId, nf_id: nfId });
-          if (!rv.ok) {
-            await liberarRegistroNota(g.id, nfId);
-            if ('dono' in rv) {
-              const onde = await ondeEsta(g, { card: rv.dono.card, id: rv.dono.id });
-              return { http: 409, json: { ok: false, error: 'nota_repetida', onde, mensagem: fraseNotaRepetida(onde) } };
+        // Daqui até a compra ficar com a nota, qualquer saída que não seja o 200 (recusa, 409 ou falha) solta o registro novo: nunca fica órfão.
+        let ficou = false;
+        try {
+          if (chave) {
+            const rv = await reservarChaveNfe(chave, { card: g.id, compra_id: compraId, nf_id: nfId });
+            if (!rv.ok) {
+              if ('dono' in rv) {
+                const onde = await ondeEsta(g, { card: rv.dono.card, id: rv.dono.id });
+                return { http: 409, json: { ok: false, error: 'nota_repetida', onde, mensagem: fraseNotaRepetida(onde) } };
+              }
+              if ('reservada' in rv) {
+                return { http: 409, json: { ok: false, error: 'nota_reservada', mensagem: 'Esta nota já está reservada. Se for engano, o Thiago libera.' } };
+              }
+              return { http: 409, json: { ok: false, error: 'mudou', mensagem: 'Outra pessoa anexou agora. Tente de novo.' } };
             }
-            return { http: 409, json: { ok: false, error: 'mudou', mensagem: 'Outra pessoa anexou agora. Tente de novo.' } };
+          }
+          const r = await mudarObraPrivada(g.id, g.nome, null, null, (p) => ({
+            ...p, compra: { ...p.compra, compras: p.compra.compras.map((c) => (c.id === compraId ? { ...c, nota: { path: caminho, sha256: sha, numero: String(lida?.numero ?? ''), chave: chave ?? '', nf_id: nfId } } : c)) },
+          }));
+          if (ehRecusa(r)) return { http: r.http, json: { ok: false, error: r.recusa } };
+          ficou = true;
+        } finally {
+          if (!ficou) {
+            // Só o código vai ao log. Falha ao soltar não troca a resposta nem esconde o erro original.
+            try { if (!(await liberarRegistroNota(g.id, nfId))) logErroJornada('nota_registro_novo_nao_liberado', { codigo: 'nao_liberado' }); }
+            catch (e) { logErroJornada('nota_registro_novo_liberar', e); }
           }
         }
-        const r = await mudarObraPrivada(g.id, g.nome, null, null, (p) => ({
-          ...p, compra: { ...p.compra, compras: p.compra.compras.map((c) => (c.id === compraId ? { ...c, nota: { path: caminho, sha256: sha, numero: String(lida?.numero ?? ''), chave: chave ?? '', nf_id: nfId } } : c)) },
-        }));
-        if (ehRecusa(r)) { await liberarRegistroNota(g.id, nfId); return { http: r.http, json: { ok: false, error: r.recusa } }; }
         if (atual?.nf_id) await liberarRegistroNota(g.id, atual.nf_id);
         return { http: 200, json: { ok: true } };
       });

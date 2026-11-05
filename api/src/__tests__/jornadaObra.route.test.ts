@@ -27,6 +27,7 @@ const h = vi.hoisted(() => ({
   pdfHtmls: [] as string[],
   pdfFalha: false,
   recusaTipo: false,
+  falhaReserva: false,
 }));
 
 const jsonb = (v: unknown): unknown => {
@@ -109,6 +110,7 @@ vi.mock('../utils/supabase', () => ({
           return chain;
         },
         insert: async (l: { key: string; value: unknown; updated_at?: string }) => {
+          if (h.falhaReserva && l.key.startsWith('nfe_chave:')) return { error: { code: 'XX000' } };
           if (h.linhas.has(l.key)) return { error: { code: '23505' } };
           h.linhas.set(l.key, { value: jsonb(l.value), updated_at: stamp() });
           return { error: null };
@@ -365,7 +367,7 @@ beforeEach(() => {
   };
   h.agendamentos = [cardBase(SOLAR), cardBase(ALHEIA, { vendedor_nome: 'Carla' }), cardBase(SEM_ESTADO)];
   h.linhas = new Map(); h.priv = new Map(); h.bucket = new Map(); h.tique = 0; h.iaChamadas = 0; h.ia = null; h.nota = null;
-  h.filas = new Map(); h.etapaPlanilha = undefined; h.cad = {}; h.recusaTipo = false;
+  h.filas = new Map(); h.etapaPlanilha = undefined; h.cad = {}; h.recusaTipo = false; h.falhaReserva = false;
   process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste';
   delete process.env.SOLAR_ADM; delete process.env.SOLAR_SOCIOS;
   invalidarCachesHub(); reiniciarLogsDoHub(); reiniciarLogsDaJornada(); esquecerConferenciaDoBucket();
@@ -599,13 +601,40 @@ describe('a reserva da chave de 44 dígitos (nfe_chave:)', () => {
     expect(novos[0][1].value.livre).toBe(true);
     expect(privadaGravada(SOLAR)!.compra.compras[0].nota).toBeNull();
   });
-  it('T1.2 reserva forjada (assinatura que não confere) é tomada', async () => {
-    h.linhas.set(`${PREFIXO_RESERVA_NFE}${CHAVE_A}`, { value: { v: 1, chave: CHAVE_A, card_id: ALHEIA, compra_id: 'c-9', nf_id: 'nf-forjada01', em: AGORA, sig: 'x' }, updated_at: 'r0' });
+  it('T1.2 reserva com assinatura errada NÃO é tomada: a mesma nota não entra em outra obra, 409 com a frase do Thiago', async () => {
+    const forjada = { value: { v: 1, chave: CHAVE_A, card_id: ALHEIA, compra_id: 'c-9', nf_id: 'nf-forjada01', em: AGORA, sig: 'x' }, updated_at: 'r0' };
+    h.linhas.set(`${PREFIXO_RESERVA_NFE}${CHAVE_A}`, forjada);
     const r = await nota('nota com reserva forjada', SOLAR, 'c-1', CHAVE_A);
-    expect(r.status).toBe(200);
-    const linha = h.linhas.get(`${PREFIXO_RESERVA_NFE}${CHAVE_A}`)!;
-    expect(linha.value.card_id).toBe(SOLAR);
-    expect(reservaNfeAssinada(CHAVE_A, linha.value)).not.toBeNull();
+    expect(r.status).toBe(409);
+    expect(r.body).toMatchObject({ error: 'nota_reservada', mensagem: 'Esta nota já está reservada. Se for engano, o Thiago libera.' });
+    expect(h.linhas.get(`${PREFIXO_RESERVA_NFE}${CHAVE_A}`)).toEqual(forjada);   // a reserva ficou como estava
+    expect(privadaGravada(SOLAR)!.compra.compras[0].nota).toBeNull();
+    const novos = [...h.linhas.entries()].filter(([k]) => k.startsWith(`fin_nf:${SOLAR}:`));
+    expect(novos.every(([, l]) => l.value.livre === true)).toBe(true);   // o registro novo foi solto
+  });
+  it('T1.2b registro fin_nf: com assinatura errada conta como nota viva, nunca como livre', async () => {
+    h.nota = notaLida(null);
+    const a = await subir('nota de registro adulterado', { card: ALHEIA, auth: THIAGO, doc: 'nota' });
+    const sha = JSON.parse(h.bucket.get(`${a.path}.ia.json`)!.toString('utf8')).sha256 as string;
+    h.linhas.set(`fin_nf:${ALHEIA}:nf-adulterado1`, { value: { v: 1, card_id: ALHEIA, id: 'nf-adulterado1', compra_id: 'c-9', sha256: sha, chave: null, livre: false, em: AGORA, por: 'thiago', sig: 'errada' }, updated_at: 'f0' });
+    const b = await subir('nota de registro adulterado', { card: SOLAR, auth: THIAGO, doc: 'nota' });
+    const r = await post(F2(SOLAR, '/nota'), { compra_id: 'c-1', arquivo_path: b.path }, THIAGO);
+    expect(r.status).toBe(409);
+    expect(r.body.error).toBe('nota_repetida');
+    expect(privadaGravada(SOLAR)!.compra.compras[0].nota).toBeNull();
+  });
+  it('T1.6 uma falha no meio (a reserva da chave quebra) não deixa registro órfão', async () => {
+    h.falhaReserva = true;
+    const r = await nota('nota que quebra no meio', SOLAR, 'c-1', CHAVE_A);
+    expect(r.status).toBe(503);
+    const novos = [...h.linhas.entries()].filter(([k]) => k.startsWith(`fin_nf:${SOLAR}:`));
+    expect(novos).toHaveLength(1);
+    expect(novos[0][1].value.livre).toBe(true);
+    expect(h.linhas.has(`${PREFIXO_RESERVA_NFE}${CHAVE_A}`)).toBe(false);
+    expect(privadaGravada(SOLAR)!.compra.compras[0].nota).toBeNull();
+    // Quando o banco volta, a mesma nota entra: nada ficou preso.
+    h.falhaReserva = false;
+    expect((await nota('nota que quebra no meio', SOLAR, 'c-1', CHAVE_A)).status).toBe(200);
   });
   it('T1.3 a corrida: dois PDFs diferentes com a mesma chave, juntos, dão [200, 409] e um só registro vivo', async () => {
     const p1 = await subirNota('corrida nota um', SOLAR, CHAVE_A);

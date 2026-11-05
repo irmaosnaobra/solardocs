@@ -530,8 +530,12 @@ export async function buscarNotaViva(sha: string, chave: string | null): Promise
       if (!Number.isInteger(card) || card <= 0) continue;
       const cheia = await supabase.from('system_state').select('key, value').eq('key', l.key).maybeSingle();
       if (cheia.error) throw new ErroJornada(codigoDe(cheia.error));
-      const reg = registroNotaAssinado(card, (cheia.data as { value?: unknown } | null)?.value);
+      const linhaCheia = cheia.data as { value?: unknown } | null;
+      if (!linhaCheia) continue;   // a linha sumiu entre a varredura e a leitura
+      const reg = registroNotaAssinado(card, linhaCheia.value);
       if (reg && !reg.livre) return { card, id: reg.id, compra_id: reg.compra_id };
+      // Assinatura que não confere: o registro existe e não se prova livre. Conta como nota viva (nunca como livre).
+      if (!reg) return { card, id: String(l.key).split(':').slice(2).join(':'), compra_id: '' };
     }
     if (lote.length < 1000) break;
   }
@@ -575,7 +579,7 @@ export async function lerRegistroNota(card: number, id: string): Promise<Registr
   return l ? registroNotaAssinado(card, l.value) : null;
 }
 
-export type ResultadoReserva = { ok: true } | { ok: false; dono: { card: number; id: string; compra_id: string } } | { ok: false; corrida: true };
+export type ResultadoReserva = { ok: true } | { ok: false; dono: { card: number; id: string; compra_id: string } } | { ok: false; reservada: true } | { ok: false; corrida: true };
 
 /**
  * Reserva a chave por INSERT (o 23505 diz que já tem dono). A reserva existente só é TOMADA (UPDATE com a trava do `updated_at`) se o
@@ -596,11 +600,13 @@ export async function reservarChaveNfe(chave: string, dono: { card: number; comp
     const linha = data as { value?: unknown; updated_at?: string | null } | null;
     if (!linha) continue;
     const atual = reservaNfeAssinada(chave, linha.value);
-    if (atual && !(atual.card_id === dono.card && atual.compra_id === dono.compra_id)) {
+    // Assinatura que não confere: a reserva NÃO é tomada (só o Thiago libera). Quem forja ou quem perdeu o segredo não abre a porta.
+    if (!atual) return { ok: false, reservada: true };
+    if (!(atual.card_id === dono.card && atual.compra_id === dono.compra_id)) {
       const reg = await lerRegistroNota(atual.card_id, atual.nf_id);
       if (reg && !reg.livre) return { ok: false, dono: { card: atual.card_id, id: atual.nf_id, compra_id: atual.compra_id } };
     }
-    // Livre, sumiu, assinatura que não confere ou a mesma compra: toma a reserva, com a trava do updated_at.
+    // Dono livre, registro dono sumido ou a mesma compra: toma a reserva, com a trava do updated_at.
     const alvo = supabase.from('system_state').update({ value: { ...r, sig }, updated_at: agora }).eq('key', k);
     const up = await (linha.updated_at ? alvo.eq('updated_at', linha.updated_at) : alvo.is('updated_at', null)).select('key');
     if (up.error) throw new ErroJornada(codigoDe(up.error));
