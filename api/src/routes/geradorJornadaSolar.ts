@@ -22,7 +22,7 @@ import {
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { codigoCanonico, ehAdm, ehSocio, hojeBRT, montarObra, nomeSimples, podeVer, type ObraBruta, type ObraMontada } from '../services/gerador/solarObras';
-import { MSG_FINALIZADA, ehFinalizada, lerCorte, obraFinalizada } from '../services/gerador/jornadaCorte';
+import { MSG_FINALIZADA, ehFinalizada, esquecerDataDoVendido, lerContextoDasVendas, lerCorte, obraFinalizada } from '../services/gerador/jornadaCorte';
 import { dadosDaPlanilha } from '../services/gerador/jornadaFinalizada';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 import {
@@ -213,6 +213,8 @@ const linhaDoHistorico = (nome: string, statusAntes: string): string => {
   return `[${p('day')}/${p('month')} ${p('hour')}h${p('minute')} · ${nomeBonito}] 🏷️ Status: ${String(statusAntes || 'sem status').toUpperCase().replace(/_/g, ' ')} → VENDIDO.`;
 };
 
+const MSG_JORNADA_NAO_ABRIU = 'A venda foi marcada como vendida, mas a jornada não abriu agora. Avise o administrador para abrir a etapa 1.';
+
 async function rotaVendido(req: Request, res: Response): Promise<void> {
   const { nome, socio, adm } = quem(req);
   const id = codigoDeRota('vendasolar', req.params.card);
@@ -251,8 +253,11 @@ async function rotaVendido(req: Request, res: Response): Promise<void> {
     }
     if (gravado === null) { res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'O card mudou agora. Tente de novo.' }); return; }
 
-    // A etapa 1. Falha aqui não desfaz o status: a venda aparece deduzida.
+    // A data da venda mudou agora: a conta de "finalizada" não pode usar a que estava guardada em memória.
+    esquecerDataDoVendido(Number(id));
+    // A etapa 1. Falha aqui não desfaz o status, mas AVISA quem clicou (`aviso`): a venda nova sem estado dependeria da data do card para não virar finalizada.
     let jornada = false;
+    let aviso: string | undefined;
     try {
       const agora = new Date().toISOString();
       const novo = (): EstadoJornada => ({
@@ -261,8 +266,9 @@ async function rotaVendido(req: Request, res: Response): Promise<void> {
       });
       const r = await mudarJornada(Number(id), novo, (e) => e);
       jornada = !ehRecusa(r);
-    } catch (err) { logErro('abrir a etapa 1', err); }
-    res.json({ ok: true, status: 'fechou', historico: gravado, jornada });
+      if (!jornada) { logErro('abrir a etapa 1', { codigo: `recusa_${String((r as { recusa?: unknown }).recusa ?? 'desconhecida')}` }); aviso = MSG_JORNADA_NAO_ABRIU; }
+    } catch (err) { logErro('abrir a etapa 1', err); aviso = MSG_JORNADA_NAO_ABRIU; }
+    res.json({ ok: true, status: 'fechou', historico: gravado, jornada, ...(aviso ? { aviso } : {}) });
   } catch (err) {
     falhou(res, 'vendido', err);
   }
@@ -285,7 +291,8 @@ async function rotaLista(req: Request, res: Response): Promise<void> {
     for (const o of obrasPl ?? []) plPorCodigo.set(codigoCanonico(o.codigo), o);
 
     // Venda finalizada não lê slot nenhum (não deduz etapa e não tem "Número pendente"). Quem ainda precisa: sem estado ativo (para deduzir) e com estado mas sem número.
-    const finalizadaDoCard = (id: number): boolean => ehFinalizada(jornadas.get(id) ?? null, obras.get(id) ?? null, corte);
+    const contextoDe = await lerContextoDasVendas(cards.map((c) => c.id), jornadas, corte);
+    const finalizadaDoCard = (id: number): boolean => ehFinalizada(jornadas.get(id) ?? null, obras.get(id) ?? null, corte, contextoDe(id));
     const precisaSlots = cards.filter((c) => !finalizadaDoCard(c.id) && (!jornadas.has(c.id) || !ligs.get(c.id)?.venda)).map((c) => c.id);
     const slotsPorCard = await lerSlotsDosCards(precisaSlots);
 

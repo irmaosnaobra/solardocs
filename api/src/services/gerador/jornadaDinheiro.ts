@@ -78,6 +78,16 @@ export const premioVivo = (ls: readonly LancamentoObra[]): boolean => {
   return vivos.some((l) => l.categoria === 'premio_indicacao' && !l.obra.estorno_de && !estornados.has(l.id));
 };
 
+/**
+ * A obra tem lançamento de dinheiro VIVO (não apagado, que não é estorno e que nenhum estorno vivo anulou)? É trabalho de gente: a obra com isso
+ * não é "finalizada" (05/11/2026), senão anexar, dispensar e conferir ficariam presos no 409 da guarda.
+ */
+export const temDinheiroVivo = (ls: readonly LancamentoObra[]): boolean => {
+  const vivos = ls.filter((l) => l.apagado === false);
+  const estornados = new Set(vivos.filter((l) => l.obra.estorno_de).map((l) => l.obra.estorno_de as string));
+  return vivos.some((l) => !l.obra.estorno_de && !estornados.has(l.id));
+};
+
 export const categoriaObra = (tipo: unknown, slug: unknown): CategoriaObra | null =>
   CATEGORIAS_OBRA.find((c) => c.tipo === tipo && c.slug === slug) ?? null;
 

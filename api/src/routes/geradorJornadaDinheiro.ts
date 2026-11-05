@@ -246,7 +246,8 @@ function avaliarLeitura(reg: RegistroLido, valor: number, digitado: number, g: G
   if (!ok || !reg.sugestao || reg.sugestao.valor_centavos === null) return { ...base, conferencia: 'sem_leitura' };
   if (reg.sugestao.confianca !== 'alta' && reg.sugestao.confianca !== 'media') return { ...base, conferencia: 'baixa_confianca' };
   const lidoC = reg.sugestao.valor_centavos;
-  if (lidoC === valor && digitado === valor) return { ...base, conferencia: 'bateu' };
+  // Quem escolheu o valor que a IA leu (`valor` = lido, mesmo tendo digitado outro antes) NÃO é divergente: a linha vale o que o comprovante diz.
+  if (lidoC === valor) return { ...base, conferencia: 'bateu' };
   if (g.adm && corpo.confirmar_valor === true) return { ...base, conferencia: 'divergente_adm' };
   return { ...base, conferencia: 'divergente', divergencia: { lido_centavos: lidoC, digitado_centavos: digitado } };
 }
@@ -264,6 +265,8 @@ interface PedidoGravacao {
   arquivoPath: unknown;
   /** Estorno sem devolução não tem comprovante. */
   semArquivo?: boolean;
+  /** SÓ a rota `lancamento` (gasto) passa true. Comissão e retirada dos sócios seguem exigindo comprovante ("valor gasto" foi a ordem do dono). */
+  aceitaSemProva?: boolean;
   pularAvisos?: boolean;
   /** O valor que o comprovante TEM que mostrar (estorno de devolução: o da original). */
 }
@@ -273,7 +276,7 @@ async function gravarLancamento(p: PedidoGravacao): Promise<Saida> {
   const agoraIso = new Date().toISOString();
   let reg: RegistroLido | null = null;
   // Saída pode ser lançada SEM comprovante (fica "Sem comprovante" e entra como pendência até anexar). Entrada e devolução continuam exigindo.
-  const semProva = !p.semArquivo && base.tipo === 'saida' && !base.estorno_de && (p.arquivoPath === undefined || p.arquivoPath === null || p.arquivoPath === '');
+  const semProva = p.aceitaSemProva === true && !p.semArquivo && base.tipo === 'saida' && !base.estorno_de && (p.arquivoPath === undefined || p.arquivoPath === null || p.arquivoPath === '');
   if (!p.semArquivo && !semProva) {
     const r = await carregarRegistro(g, p.arquivoPath);
     if (!r.ok) return r.saida;
@@ -533,7 +536,7 @@ export function mountJornadaDinheiro(router: Router): void {
         }
       }
       const s = await gravarLancamento({
-        g, d, corpo: b, arquivoPath: b.arquivo_path,
+        g, d, corpo: b, arquivoPath: b.arquivo_path, aceitaSemProva: true,
         base: {
           id: b.id, tipo: b.tipo, categoria: b.categoria, etapa: b.etapa, valor_centavos: b.valor_centavos, data: b.data, forma: b.forma,
           descricao: b.descricao, contraparte: b.contraparte, compra_id: b.compra_id ?? null, carga_id: b.carga_id ?? null,
@@ -733,6 +736,7 @@ export function mountJornadaDinheiro(router: Router): void {
     try {
       const saida = await comTrava(`fin_conta:${g.id}`, g.nome, async (): Promise<Saida> => {
         const d = await lerDinheiro(g);
+        if (d.cancelada) return erro(409, 'cancelada', MSG_CANCELADA);
         if (d.fechada) return erro(409, 'conta_fechada', MSG_FECHADA);
         const { l, versao } = await lerLancamentoObraComVersao(g.id, id);
         const linha = d.livro.linhas.find((x) => x.id === id);

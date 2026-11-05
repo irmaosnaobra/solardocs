@@ -8,7 +8,7 @@ import { supabase } from '../../utils/supabase';
 import { ErroJornada } from './jornadaSolarBanco';
 import { FIN_PREFIX, chaveLancamento, prefixoDoCard } from './financeiroCliente';
 import {
-  AJUSTES_PADRAO, ajustesAssinados, assinarAjustes, lancamentoObraAssinado, normalizarAjustes,
+  AJUSTES_PADRAO, ajustesAssinados, assinarAjustes, lancamentoObraAssinado, normalizarAjustes, temDinheiroVivo,
   type AjustesSolar, type LancamentoObra,
 } from './jornadaDinheiro';
 
@@ -152,6 +152,32 @@ export async function lerResumoDoDinheiro(): Promise<Map<number, ResumoDinheiro>
     if (lote.length < PAGINA) break;
   }
   return mapa;
+}
+
+/**
+ * Os cards que têm lançamento de dinheiro VIVO e não estornado (`temDinheiroVivo`): uma varredura de `fin:%`, só linhas SOLARES assinadas.
+ * Serve à regra das vendas finalizadas (obra com dinheiro lançado é trabalho de gente). Falha de leitura lança `ErroJornada`.
+ */
+export async function lerCardsComDinheiroVivo(): Promise<Set<number>> {
+  const porCard = new Map<number, LancamentoObra[]>();
+  for (let de = 0; de < 200_000; de += PAGINA) {
+    const { data, error } = await supabase.from('system_state').select('key, value')
+      .like('key', `${FIN_PREFIX}%`).order('key', { ascending: true }).range(de, de + PAGINA - 1);
+    if (error) throw new ErroJornada(codigoDe(error));
+    const lote = (data ?? []) as Array<{ key: string; value: unknown }>;
+    for (const l of lote) {
+      const v = obj(l.value);
+      const card = typeof v?.card_id === 'number' ? v.card_id : 0;
+      if (!String(l.key).startsWith(FIN_PREFIX) || !v || !obj(v.obra) || card <= 0) continue;
+      const s = lancamentoObraAssinado(card, l.value);
+      if (!s || l.key !== chaveLancamento(card, s.id)) continue;
+      const lista = porCard.get(card) ?? [];
+      lista.push(s);
+      porCard.set(card, lista);
+    }
+    if (lote.length < PAGINA) break;
+  }
+  return new Set([...porCard].filter(([, ls]) => temDinheiroVivo(ls)).map(([card]) => card));
 }
 
 // ── Os Ajustes (`jornada_solar_ajustes`) ────────────────────────────────────────────────────────────────────────────────
