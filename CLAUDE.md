@@ -92,11 +92,12 @@ Cada um destes já custou caro pelo menos uma vez.
   `execute_sql` batem em produção. `DROP` e `TRUNCATE` são bloqueados por hook;
   `DELETE` com `WHERE` passa normalmente. E arquivo `MIGRATION_*.sql` no repo não
   prova que a migration rodou: confira com sonda.
-- **Nada de force push nem `reset --hard`.** Sem branch protection no `main`, o
-  force push sobrescreve o remoto sem rede de segurança. `--force-with-lease`
-  não é bloqueado e `git revert` resolve quase sempre.
+- **Nada de force push nem `reset --hard`.** Desde 05/11/2026 um ruleset do
+  GitHub no `main` recusa force push (inclusive `--force-with-lease`) e apagar
+  o branch, sem exceção nem para o dono. O `reset --hard` local continua sem
+  rede de segurança. `git revert` resolve quase sempre.
 
-## Estado atual (03/11/2026)
+## Estado atual (05/11/2026)
 
 - Typecheck da `api`: **verde**, 0 erro. É o gate que bloqueia no CI.
 - Testes da `api` (medido em 03/11/2026): **zero vermelho** em 367 arquivos e
@@ -113,16 +114,23 @@ Cada um destes já custou caro pelo menos uma vez.
   `GITHUB_CRON_SECRET` em código. `gitleaks git` no histórico todo dá 0 achado.
   Achado novo é vazamento novo: não ponha no `.gitleaksignore` sem girar o segredo.
   O comentário do `.gitleaksignore` diz o estado de cada segredo antigo.
-- **PENDENTE e visível:** o `CRON_SECRET` vazado no runbook ainda é aceito em
-  produção como `CRON_SECRET_ANTERIOR`, porque o pg_cron do `/process-messages`
-  usa ele. Vale até o dono autorizar o conector do Supabase. Depois disso,
-  apagar o `CRON_SECRET_ANTERIOR`.
+- A troca de segredos de 03/11 a 05/11/2026 terminou. `CRON_SECRET` e
+  `MCP_TOKEN` girados, e os valores vazados dão 401. Os tokens do Meta foram
+  revogados em 04/11. Os gatilhos antigos da Cloudflare foram apagados. O
+  `JWT_SECRET` de produção nunca vazou em arquivo. O `CRON_SECRET_ANTERIOR`
+  saiu da Vercel em 05/11. Os valores antigos seguem no histórico do git, todos
+  mortos.
+- Os jobs do pg_cron que chamam a api (`process-messages`, `sync-leads-meta`)
+  ficam no banco do Gerador (`gerador-propostas`), não no do SolarDoc, que nem
+  tem pg_cron. Lá também roda o `purge-cron-log`, que todo dia às 03:17 UTC
+  apaga o histórico do pg_cron com mais de 7 dias.
 - Hook de **pre-push** em `.githooks/pre-push`: roda o gitleaks só no intervalo que
   sobe (com `--redact`) e, se o intervalo mexe em `api/`, o `tsc --noEmit`. Recusa
   o push se um dos dois falhar. Sem gitleaks ou sem `api/node_modules` ele avisa e
   segue. O `tsc` confere o que está no disco. Emergência: `git push --no-verify`.
   Vale com `core.hooksPath` ligado, igual ao pre-commit.
-- `main` não tem branch protection. Há pre-commit e pre-push em `.githooks/`
+- `main` tem o ruleset "main: sem force push e sem apagar" (05/11/2026). Ele
+  não exige CI antes do push. Há pre-commit e pre-push em `.githooks/`
   (precisam de `core.hooksPath` ligado no clone).
 - Hooks: 6 regras em `.claude/hookify.*.local.md`. Quatro bloqueiam (`git add -A`,
   `vercel --prod` sem alvo explícito, force push e `reset --hard`, `DROP` e
@@ -135,27 +143,10 @@ Cada um destes já custou caro pelo menos uma vez.
 
 ## Pendências
 
-1. Segredos, estado em 03/11/2026:
-   - `CRON_SECRET`: girado em 03/11. O valor vazado no runbook ainda é aceito
-     em produção só como `CRON_SECRET_ANTERIOR`, porque o pg_cron do
-     `/process-messages` usa ele, até o dono autorizar o conector do Supabase.
-     Depois disso, apagar o `CRON_SECRET_ANTERIOR`. Esta pendência tem que
-     ficar visível: enquanto ela existir, o valor vazado ainda abre a rota.
-   - `JWT_SECRET`: o valor que estava no `SETUP_PROMPT.md` não é o de produção
-     (conferido em 03/11 comparando com a env da Vercel). O de produção nunca
-     vazou em arquivo.
-   - `MCP_TOKEN`: girado em 03/11, e o vazado dá 401. O OAuth do MCP foi fechado.
-   - `api/test-db.js`: a senha do banco escrita ali estava morta (em 03/11 deu
-     "password authentication failed"). O arquivo foi apagado.
-   - Tokens do Meta: saíram do código (`pixelController.ts`) e o dono precisa
-     revogá-los no Meta.
-   Os valores saíram do `SECURITY-RUNBOOK.md`, do `SETUP_PROMPT.md`, do
-   `cloudflare-worker/webhook.js` (agora lê `env.CRON_SECRET`) e do `setup.ts`
-   dos testes. Os valores antigos seguem no histórico do git.
-2. Fechar o backlog do eslint do `dashboard` (171 problemas em 11/09/2026) e
+1. Fechar o backlog do eslint do `dashboard` (171 problemas em 11/09/2026) e
    tirar o `continue-on-error` dele em `.github/workflows/qualidade.yml`.
-3. Ligar branch protection no `main` exigindo `Qualidade` e `Segurança`:
-   **continua aberta**. O pre-push já cobre o caso local, e a protection
-   forçaria PR para todas as sessões, que hoje publicam direto no `main`.
-   Decisão do dono.
-4. `dashboard/` e `widget/` não têm `.env.example`.
+2. Exigir `Qualidade` e `Segurança` antes do push no `main`: **continua
+   aberta** e é decisão do dono. Obrigaria toda sessão a publicar por PR, e
+   hoje todas publicam direto no `main`. O pre-push já cobre o caso local. Se
+   ligar, o nome exigido é o do job no `check-runs`, não o do workflow: nome
+   errado deixa todo push esperando para sempre.
