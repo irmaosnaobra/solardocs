@@ -7,7 +7,9 @@ import { MAX_BYTES_XML } from '../services/gerador/financeiroCliente';
 // O leitor do XML da NF-e (Fase 4 da Jornada): os 44 casos do protótipo, um `it` por caso. XML de exemplo FICTÍCIO. Nada de rede, disco ou IA.
 
 const HOJE = '2026-11-05';
-const BASE = fs.readFileSync(path.join(__dirname, 'fixtures', 'nfe-exemplo-55.xml'), 'utf8');
+// No Windows o git entrega o XML com \r\n (core.autocrlf), e os replace() abaixo
+// procuram \n: sem normalizar, nada é trocado e o teste lê o XML intacto.
+const BASE = fs.readFileSync(path.join(__dirname, 'fixtures', 'nfe-exemplo-55.xml'), 'utf8').replace(/\r\n/g, '\n');
 const CH55 = '31261011222333000181550010000012341123456788';
 const dv = (c43: string): string => {
   let s = 0; let p = 2;
