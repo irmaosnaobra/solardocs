@@ -263,11 +263,11 @@ describe('toquesDoDia', () => {
 });
 
 describe('janelas e chaves', () => {
-  it('naJanelaDaFila: 07:59 não, 08:00 sim, 08:11 sim, 08:12 não, domingo não, feriado não', () => {
+  it('naJanelaDaFila: 07:59 não, 08:00 sim, 08:30 sim, 08:31 não, domingo não, feriado não', () => {
     expect(naJanelaDaFila(new Date('2026-11-05T10:59:00Z'))).toBe(false);
     expect(naJanelaDaFila(new Date('2026-11-05T11:00:00Z'))).toBe(true);
-    expect(naJanelaDaFila(new Date('2026-11-05T11:11:59Z'))).toBe(true);
-    expect(naJanelaDaFila(new Date('2026-11-05T11:12:00Z'))).toBe(false);
+    expect(naJanelaDaFila(new Date('2026-11-05T11:30:59Z'))).toBe(true);
+    expect(naJanelaDaFila(new Date('2026-11-05T11:31:00Z'))).toBe(false);
     expect(naJanelaDaFila(new Date('2026-11-07T11:05:00Z'))).toBe(true);      // sábado
     expect(naJanelaDaFila(new Date('2026-11-08T11:05:00Z'))).toBe(false);     // domingo
     expect(naJanelaDaFila(new Date('2026-11-02T11:05:00Z'))).toBe(false);     // Finados

@@ -1937,12 +1937,12 @@ function formatTelBR(raw) {
   if (semDdi.length === 10) return `(${semDdi.slice(0,2)}) ${semDdi.slice(2,6)}-${semDdi.slice(6)}`;
   return raw;
 }
-function showToast(msg) {
+function showToast(msg, ms) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(showToast._h);
-  showToast._h = setTimeout(() => t.classList.remove('show'), 2600);
+  showToast._h = setTimeout(() => t.classList.remove('show'), ms || 2600);
 }
 
 // ============= NAVEGAÇÃO SEMANA =============
@@ -2971,7 +2971,9 @@ async function garantirSerieEpDoCard(idAlvo) {
 }
 
 /** Fase 1 da Jornada: o VENDIDO do solar pelo servidor. Renova o token uma vez se o login venceu. Lança com o texto do erro. */
+let vendidoAviso = '';
 async function vendidoNoServidor(idAlvo, linha) {
+  vendidoAviso = '';
   const rota = API_ESPERA + '/gerador/vendas-solares/' + encodeURIComponent(String(idAlvo)) + '/vendido';
   // Prazo de 20 s, como o vdcFetch: estourou, o erro aparece e nada fica preso.
   const chamar = async (tk) => {
@@ -2988,7 +2990,11 @@ async function vendidoNoServidor(idAlvo, linha) {
   let tk = await window.agSessao.obterToken();
   let r = await chamar(tk);
   if (r.status === 401 || (r.status === 403 && r.json.precisa === 'login')) { tk = await window.agSessao.renovar(tk); r = await chamar(tk); }
-  if (r.status === 200 && r.json.ok !== false) return r.json;
+  if (r.status === 200 && r.json.ok !== false) {
+    // 200 com jornada:false e um aviso: o servidor gravou o VENDIDO mas não abriu a etapa 1. O aviso é mostrado até o fim da função que chamou.
+    vendidoAviso = (r.json.jornada === false && typeof r.json.aviso === 'string') ? r.json.aviso.trim() : '';
+    return r.json;
+  }
   if (r.status === 401) throw new Error('Sua sessão terminou. Entre de novo no Gerador.');
   throw new Error(typeof r.json.error === 'string' && r.json.error ? r.json.error : 'Não consegui marcar a venda agora. Tente de novo.');
 }
@@ -3509,10 +3515,12 @@ async function atualizarStatus(novoStatus, extra) {
   const autorSt = (typeof consultorLogado === 'function' && consultorLogado()) || '—';
   const linhaSt = `[${tsSt} · ${autorSt}] 🏷️ Status: ${rot(stDe)} → ${rot(novoStatus)}${motivoTxt}${posseTxt}.`;
   const histSt = detalheAtual.historico ? `${linhaSt}\n\n${detalheAtual.historico}` : linhaSt;
+  let avisoDoVendido = '';
   try {
     if (novoStatus === 'fechou' && stDe !== 'fechou' && !cardEhEletroposto(detalheAtual)) {
       // Fase 1 da Jornada (05/11/2026): o VENDIDO do solar é gravado pelo servidor (status, histórico e a etapa 1).
       await vendidoNoServidor(idAlvo, linhaSt);
+      avisoDoVendido = vendidoAviso;
     } else {
       await supaPatch(`agendamentos?id=eq.${idAlvo}`,
         { status: novoStatus, historico: histSt, ...(extra || {}) });
@@ -3600,7 +3608,8 @@ async function atualizarStatus(novoStatus, extra) {
       apalavrado:        '🤞 APALAVRADO: sai do ciclo e volta na data',
       fechou:            '🏆 Marcado como VENDIDO',
     };
-    showToast((labels[novoStatus] || 'Status atualizado')
+    if (avisoDoVendido) showToast(avisoDoVendido, 9000);
+    else showToast((labels[novoStatus] || 'Status atualizado')
       + (extra && extra.ponto_relacao ? ' · ' + extra.ponto_relacao : ''));
     await renderTudo();
     // VENDIDO: o card ja esta gravado, agora oferece o valor. Reabre o modal

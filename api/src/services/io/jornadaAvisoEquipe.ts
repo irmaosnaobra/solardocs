@@ -26,7 +26,7 @@ import {
 const ROBOS_EQUIPE = { venda: 'jornada_venda_aviso', sua: 'jornada_etapa_aviso', espera: 'jornada_etapa_aviso', fila: 'jornada_fila_manha' } as const;
 const logAviso = (que: string, id?: number | string): void => console.error(`[jornada-msg] ${que}`, id ?? '');
 
-/** As pessoas da fila do dia que já se sabe sem nada a receber (evita reler o dinheiro nas 6 rodadas da janela). Memória da instância. */
+/** As pessoas da fila do dia que já se sabe sem nada a receber (evita reler o dinheiro nas 11 rodadas da janela). Memória da instância. */
 const vaziosDoDia = new Map<string, Set<string>>();
 /** Para os testes. */
 export function limparMemoriaDaFila(): void { vaziosDoDia.clear(); }

@@ -79,6 +79,7 @@
       { sec: 'quemLigarSection', titulo: 'Quem ligar', area: 'Solar' },
       { sec: 'obrasSolarSection', titulo: 'Obras', area: 'Solar', aba: '.fs-tab.ativa' },
       { sec: 'painelSolarSection', titulo: 'Painel', area: 'Solar' },
+      { sec: 'clientesSolarSection', titulo: 'Clientes', area: 'Solar' },
       { sec: 'planilhaSolarSection', titulo: 'Planilha de clientes', area: 'Solar' },
       { sec: 'documentosSolarSection', titulo: 'Documentos', area: 'Solar' },
       { sec: 'eletroSection', titulo: 'Eletroposto', eletro: true },

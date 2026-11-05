@@ -540,7 +540,7 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
     const nomeCmp = (s: string): string => normalizarNome(s);
     res.json({
       ok: true,
-      card: { id: g.id, cliente: String(g.card.cliente_nome ?? ''), cidade: String(g.card.cidade ?? ''), vendedor: vend, created_by: String(g.card.created_by ?? ''), status: String(g.card.status ?? '') },
+      card: { id: g.id, cliente: String(g.card.cliente_nome ?? ''), telefone: String(g.card.cliente_telefone ?? ''), cidade: String(g.card.cidade ?? ''), vendedor: vend, created_by: String(g.card.created_by ?? ''), status: String(g.card.status ?? '') },
       codigo: l.lig.venda, trilho: pos.trilho, etapa_atual: pos.etapa, hoje,
       numero: { estado: nEstado, ...(l.lig.venda ? { codigo: l.lig.venda } : {}),
         ...(nEstado === 'falhou' && pode.numero ? { motivo: l.estado?.numero.falha } : {}),

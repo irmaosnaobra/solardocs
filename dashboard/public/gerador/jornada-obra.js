@@ -114,7 +114,7 @@
   function injetarCss() {
     if (document.getElementById('jor-obra-css')) return;
     var css = [
-      '.jor-ob-tag{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;background:var(--n-sf2,#182338);color:var(--io-azul-tx,#93C5FD);border:1px solid var(--n-bd,#334155)}',
+      '.jor-ob-tag{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;background:var(--n-sf2,#182338);color:var(--io-azul-tx,#93C5FD);border:1px solid var(--n-bd,#334155)}',
       '.jor-ob-tag.ok{background:var(--io-ok-sf,rgba(74,222,128,.14));color:var(--io-ok-tx,#4ADE80);border-color:var(--io-ok-tx,#4ADE80)}',
       '.jor-ob-tag.av{background:var(--io-av-sf,rgba(251,191,36,.1));color:var(--io-av-tx,#FCD34D);border-color:var(--io-av-tx,#FCD34D)}',
       '.jor-ob-tag.er{background:var(--io-er-sf,rgba(248,113,113,.14));color:var(--io-er-tx,#FCA5A5);border-color:var(--io-er-tx,#FCA5A5)}',
@@ -135,7 +135,7 @@
       '.jor-ob-grade{width:100%;border-collapse:collapse;font-size:13px}',
       '.jor-ob-grade th,.jor-ob-grade td{padding:6px 8px;border-bottom:1px solid var(--n-bd,#334155);text-align:left;color:var(--n-tx,#E5E7EB);vertical-align:top}',
       '.jor-ob-grade th{color:var(--n-tx2,#B4C0D2)}',
-      '.jor-ob-grade td.v{text-align:right;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}',
+      '.jor-ob-grade td.v{text-align:right;font-variant-numeric:tabular-nums}',
       '.jor-ob-grade tr.cab td{font-weight:800;background:var(--n-sf2,#182338)}',
       '.jor-ob-agenda td.ocupado{background:var(--io-av-sf,rgba(251,191,36,.1))}',
       '.jor-ob-agenda td.conflito{background:var(--io-er-sf,rgba(248,113,113,.14));color:var(--io-er-tx,#FCA5A5)}',
@@ -198,7 +198,7 @@
     });
   }
   function botaoSalvar(rot, secao, montar, aviso) {
-    var b = btn(rot, '', function () {
+    var b = btn(rot, 'jor-btn-pri', function () {
       b.disabled = true;
       var c = montar(); if (c === false) { b.disabled = false; return; }
       salvar(secao, c, aviso).then(function () { b.disabled = false; });
@@ -271,12 +271,11 @@
     // 1. Para comprar
     var b1 = bloco('Para comprar');
     if (l) {
-      var p = el('div', 'jor-ob-par');
+      var p = el('div', 'jor-ob-par jor-din-faixa');
       [['Recebido', h.rs(l.recebido)], ['Gasto até aqui', h.rs(l.gasto)], ['Saldo', h.rs(l.saldo)], ['Previsto da compra', prev && prev.previsto ? h.rs(prev.previsto) : 'Sem previsto']].forEach(function (x) {
-        var c0 = el('div'); c0.appendChild(el('small', 'jor-ob-sub', x[0])); c0.appendChild(el('b', 'jor-num', x[1])); p.appendChild(c0);
+        var c0 = el('div', 'jor-din-c' + (x[0] === 'Saldo' && l.saldo < 0 ? ' neg' : '')); c0.appendChild(el('small', 'jor-ob-sub', x[0])); c0.appendChild(el('b', '', x[1])); p.appendChild(c0);
       });
       b1.appendChild(p);
-      b1.appendChild(el('p', 'jor-nota', 'Previsto da compra: ' + (prev && prev.previsto ? h.rs(prev.previsto) : 'sem previsto')));
     } else b1.appendChild(el('p', 'jor-nota', 'O dinheiro desta obra não está à vista agora.'));
     esq.appendChild(b1);
     // 2. A regra
@@ -661,7 +660,7 @@
     var par4 = el('div', 'jor-ob-par'); add(par4, campo('Valor (R$ 0,00 quando vem incluso)', fv), campo('Forma', ff)); bx.appendChild(par4);
     if (Number(cg.frete.valor_centavos) > 0) {
       var lf = el('div', 'jor-din-acoes');
-      var bf = btn('Lançar o frete', '', function () { D().lancar({ tipo: 'saida', etapa: 5, categoria: 'frete', carga_id: cg.id, valor_sugerido: cg.frete.valor_centavos }); });
+      var bf = btn('Lançar o frete', 'jor-btn-pri', function () { D().lancar({ tipo: 'saida', etapa: 5, categoria: 'frete', carga_id: cg.id, valor_sugerido: cg.frete.valor_centavos }); });
       bf.disabled = !cg.id || !pode; lf.appendChild(bf); if (!cg.id) lf.appendChild(el('span', 'jor-nota', 'Salve a carga primeiro.')); bx.appendChild(lf);
     } else bx.appendChild(el('p', 'jor-nota', 'Sem gasto, não pede comprovante.'));
     // 10. Anexar documento
@@ -826,7 +825,7 @@
     var a7 = el('div', 'jor-din-acoes');
     if (podePlano) a7.appendChild(gravaObra('Combinado salvo.'));
     if (podePlano && D() && h.O().dinheiro && h.O().dinheiro.pode && h.O().dinheiro.pode.lancar_saida) {
-      a7.appendChild(btn('Lançar pagamento', '', function () { D().lancar({ tipo: 'saida', etapa: 6, categoria: 'mao_de_obra' }); }));
+      a7.appendChild(btn('Lançar pagamento', 'jor-btn-pri', function () { D().lancar({ tipo: 'saida', etapa: 6, categoria: 'mao_de_obra' }); }));
       a7.appendChild(btn('Material extra', '', function () { materialExtraDialogo(f2); }));
     }
     b7.appendChild(a7); esq.appendChild(b7);
@@ -1024,7 +1023,7 @@
       var lin = el('div', 'jor-ob-linha'); lin.appendChild(el('b', '', x[1]));
       var di = entrada('date', p.data || '', 'Data: ' + x[1]); di.disabled = !pode; di.addEventListener('input', function () { p = { data: di.value, arquivo_id: p.arquivo_id || '' }; P[x[0]] = p; });
       lin.appendChild(di);
-      var sv = btn('Salvar a data', 'jor-btn-link', function () { sv.disabled = true; P[x[0]] = { data: di.value, arquivo_id: p.arquivo_id || '' }; grava('Data salva.').then(function () { sv.disabled = false; }); }); sv.disabled = !pode; lin.appendChild(sv);
+      var sv = btn('Salvar a data', 'jor-btn-pri', function () { sv.disabled = true; P[x[0]] = { data: di.value, arquivo_id: p.arquivo_id || '' }; grava('Data salva.').then(function () { sv.disabled = false; }); }); sv.disabled = !pode; lin.appendChild(sv);
       b2.appendChild(lin);
       if (pode) b2.appendChild(anexoLigado(f2, x[2], 'Print: ' + x[1], p.arquivo_id, function (id) { P[x[0]] = { data: di.value || p.data || '', arquivo_id: id }; return grava('Print guardado.', pr.value.trim()); }));
     });
