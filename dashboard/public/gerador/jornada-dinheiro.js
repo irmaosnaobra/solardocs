@@ -672,6 +672,8 @@
       });
     });
     h.add(raiz, info, sv);
+    // Fase 3: o painel das mensagens (a função confere que é o ADM e mexe só no próprio bloco).
+    if (window.Jornada.extras && window.Jornada.extras.mensagens) window.Jornada.extras.mensagens(raiz);
   }
 
   window.Jornada.dinheiro = {

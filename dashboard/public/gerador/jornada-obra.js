@@ -759,8 +759,6 @@
       a2.appendChild(gravaObra('Plano salvo.')); b2.appendChild(a2);
     }
     esq.appendChild(b2);
-    // 3. Aviso
-    var b3 = bloco('Aviso ao cliente na véspera'); b3.appendChild(el('p', 'jor-nota', 'O aviso ao cliente chega na fase 3.')); esq.appendChild(b3);
     // 4. Álbum
     var album = arqs(f2, 'obra_foto'); var b4 = bloco('Fotos da obra inteira');
     var porDia = {}; album.forEach(function (a) { var dia = String(a.em || '').slice(0, 10); var k = ob.plano.map(function (p) { return p.data; }).indexOf(dia); var rot = k >= 0 ? 'dia ' + (k + 1) : 'sem dia'; porDia[rot] = (porDia[rot] || 0) + 1; });
@@ -988,30 +986,11 @@
   function bookBloco(esq, d, f2) {
     var h = H(); var b = bloco('Book da obra', automatico()); var bk = f2.book || { pode: false, trava: [] };
     b.appendChild(el('p', 'jor-nota', 'Monta com as fotos, os testes e o Termo de garantia.'));
-    var bt = btn('Baixar o Book', 'jor-btn-pri', function () { baixarBook(d, bt); }); bt.disabled = !bk.pode; b.appendChild(bt);
+    var bt = btn('Baixar o Book', 'jor-btn-pri', function () { if (window.Jornada.extras.bookPdf) window.Jornada.extras.bookPdf(d.card.id || O().card, bt); }); bt.disabled = !bk.pode; b.appendChild(bt);
     if (!bk.pode && bk.trava && bk.trava.length) { var ul = el('ul', 'jor-din-ul'); bk.trava.forEach(function (t) { ul.appendChild(el('li', '', t)); }); b.appendChild(ul); }
-    b.appendChild(el('p', 'jor-nota', 'Vai para o cliente na liberação. O envio chega na fase 3.'));
+    b.appendChild(el('p', 'jor-nota', 'Vai para o cliente em PDF quando a obra for finalizada, com a mensagem de obrigado.'));
     esq.appendChild(b); void h;
   }
-  function baixarBook(d, botao) {
-    var h = H(); botao.disabled = true;
-    h.api(base() + '/book', 'GET', undefined, 60000).then(function (r) {
-      botao.disabled = false;
-      if (!(r.status === 200 && r.json && r.json.ok !== false)) { h.toast(msgSrv(r, 'O Book ainda não sai.')); h.recarregar(); return; }
-      var j = r.json; var e = h.esc;
-      var fotos = (j.fotos || []).map(function (id) { return urlDe(id); }).filter(Boolean);
-      var mon = j.monitoramento || {}; var t = j.testes || {};
-      var html = '<style>body{font:13px/1.5 Georgia,serif;color:#111}h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:18px 0 6px;border-bottom:1px solid #111}.g{display:flex;flex-wrap:wrap;gap:6px}.g img{width:31%;height:auto}td{padding:2px 10px 2px 0}</style>'
-        + '<h1>' + e(j.titulo || 'Book da obra') + '</h1><p>' + e(d.card.cliente) + (d.card.cidade ? ' · ' + e(d.card.cidade) : '') + '</p>'
-        + (fotos.length ? '<h2>Fotos da obra</h2><div class="g">' + fotos.map(function (u) { return '<img src="' + e(u) + '" alt="">'; }).join('') + '</div>' : '')
-        + (j.aviso_garantias ? '<p>' + e(j.aviso_garantias) + '</p>' : '') + '<h2>Testes</h2><table>' + [['String 1, Voc', t.string1_voc ? t.string1_voc + ' V' : ''], ['String 2, Voc', t.string2_voc ? t.string2_voc + ' V' : ''], ['Isolamento', t.isolamento_ok ? 'ok' : ''], ['Inversor gerando', t.gerando_kw ? t.gerando_kw + ' kW' + (t.gerando_hora ? ' às ' + t.gerando_hora : '') : ''], ['Wi-Fi do inversor', t.wifi_ok ? 'conectado' : ''], ['Disjuntores', t.disjuntores_ok ? 'identificados' : '']].filter(function (x) { return x[1]; }).map(function (x) { return '<tr><td>' + e(x[0]) + '</td><td>' + e(x[1]) + '</td></tr>'; }).join('') + '</table>'
-        + '<h2>Monitoramento</h2><table>' + [['Aplicativo', mon.app], ['Conta', mon.conta], ['Usina', mon.usina], ['Número de série', mon.serie], ['Comissionamento', mon.comissionamento ? h.ddmm(mon.comissionamento) + '/' + String(mon.comissionamento).slice(0, 4) : '']].filter(function (x) { return x[1]; }).map(function (x) { return '<tr><td>' + e(x[0]) + '</td><td>' + e(x[1]) + '</td></tr>'; }).join('') + '</table>'
-        + (j.contatos && j.contatos.whatsapp ? '<p>Atendimento: ' + e(j.contatos.whatsapp) + '</p>' : '')
-        + '<div style="page-break-before:always">' + String(j.termo_html || '') + '</div>';
-      h.imprimir(html, 'html', j.titulo || 'Book da obra');
-    });
-  }
-
   // ── Etapa 8 · Pedido de vistoria e liberação ───────────────────────────────
   function etapa8(esq, d, et, f2) {
     injetarCss(); var h = H(); var pode = podeSecao(f2, 'liberacao'); var lb = clone(dados(f2).liberacao) || {}; lb.passos = lb.passos || {}; lb.exigencias = lb.exigencias || [];
@@ -1069,7 +1048,7 @@
     }
     esq.appendChild(b3);
     // 4. Mensagem
-    var b4 = bloco('Mensagem ao cliente ao finalizar'); b4.appendChild(el('p', 'jor-nota', 'A mensagem de usina liberada, com o Book, chega na fase 3.')); esq.appendChild(b4);
+    var b4 = bloco('Mensagem ao cliente ao finalizar'); if (window.Jornada.extras.mensagemLiberacao) window.Jornada.extras.mensagemLiberacao(b4, O().fase3); esq.appendChild(b4);
   }
   function exigenciaDialogo(f2, lb, P) {
     var h = H(); var ta = null;

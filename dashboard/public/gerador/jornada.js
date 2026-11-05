@@ -9,7 +9,7 @@
   'use strict';
 
   var L = { dados: null, aba: 'ativas', filtro: 'todas', busca: '', consultor: '', carregando: false, erro: '', menu: null };
-  var O = { card: null, dados: null, fase2: null, dinheiro: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0 };
+  var O = { card: null, dados: null, fase2: null, fase3: null, dinheiro: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0 };
 
   // ── Rede ───────────────────────────────────────────────────────────────────
   function api(rota, metodo, corpo, ms) {
@@ -234,6 +234,10 @@
       if (typeof obEstado !== 'undefined' && obEstado) obEstado.aba = 'mapa';
       if (typeof navObrasSolar === 'function') navObrasSolar();
     }));
+    add(topo, btn('Indicações', '', function () {
+      if (typeof obEstado !== 'undefined' && obEstado) obEstado.aba = 'indicacoes';
+      if (typeof navObrasSolar === 'function') navObrasSolar();
+    }));
     if (typeof admOk === 'function' && admOk()) add(topo, btn('Painel', 'jor-btn-link', function () { if (typeof navPainelSolar === 'function') navPainelSolar(); }));
     if (typeof admOk === 'function' && admOk() && window.Jornada.dinheiro && window.Jornada.dinheiro.abrirAjustes) add(topo, btn('Ajustes', 'jor-btn-link', function () { window.Jornada.dinheiro.abrirAjustes(); }));
     raiz.appendChild(topo);
@@ -344,14 +348,16 @@
   function carregarObra() {
     var seq = ++O.seq; var card = O.card;
     var base = '/gerador/jornada-solar/obra/' + encodeURIComponent(card);
-    return Promise.all([api(base, 'GET'), api(base + '/fase2', 'GET'), api(base + '/dinheiro', 'GET')]).then(function (rs3) {
-      var r = rs3[0], rf = rs3[1], rd = rs3[2];
+    return Promise.all([api(base, 'GET'), api(base + '/fase2', 'GET'), api(base + '/dinheiro', 'GET'), api(base + '/fase3', 'GET')]).then(function (rs3) {
+      var r = rs3[0], rf = rs3[1], rd = rs3[2], r3 = rs3[3];
       if (seq !== O.seq || card !== O.card || !O.obraNo) return;
       // Falha só do fase2 ou do dinheiro não derruba a obra: o bloco diz que não leu e oferece Tentar de novo.
       var f2ok = rf.status === 200 && rf.json && rf.json.ok !== false && Array.isArray(rf.json.etapas);
       var dnok = rd.status === 200 && rd.json && rd.json.ok !== false && (rd.json.visivel === false || !!rd.json.livro);
       O.fase2 = f2ok ? rf.json : null; O.fase2Erro = !f2ok;
       O.dinheiro = dnok ? rd.json : null; O.dinErro = !dnok;
+      // Fase 3: o pós-venda. Falha, ou resposta sem a lista de toques, vira null e a obra continua.
+      O.fase3 = (r3 && r3.status === 200 && r3.json && r3.json.ok !== false && Array.isArray(r3.json.toques)) ? r3.json : null;
       if (r.status === 200 && r.json && r.json.ok !== false) { O.dados = r.json; desenharObra(); montarQuadro(); } else {
         O.obraNo.replaceChildren(el('p', 'jor-erro', msgDe(r, 'Não consegui abrir esta venda agora.')), btn('Voltar para Clientes', '', abrirLista));
       }
@@ -445,7 +451,7 @@
     if (d.aviso) raiz.appendChild(el('p', 'jor-aviso', d.aviso));
     // Régua
     var atual = atualEtapa();
-    if (O.painel === null) O.painel = (atual >= 1 && atual <= 8) ? atual : (atual === 9 ? 8 : 1);
+    if (O.painel === null) O.painel = (atual >= 1 && atual <= 9) ? atual : 1;
     var ets = etapasMescladas();
     var reg = el('div', 'jor-regua');
     ets.forEach(function (e) {
@@ -457,7 +463,7 @@
       b.appendChild(el('small', '', (e.dono || []).map(function (x) { return x.iniciais; }).join(' ')));
       var gp = window.Jornada.dinheiro && window.Jornada.dinheiro.gastoDaRegua ? window.Jornada.dinheiro.gastoDaRegua(O.dinheiro, e.n, atual) : '';
       if (gp) b.appendChild(el('small', 'jor-passo-gasto', gp));
-      if (e.n === 9) { b.title = 'Chega na fase 3'; b.setAttribute('aria-disabled', 'true'); }
+      if (e.n === 9 && atual < 9) { b.setAttribute('aria-disabled', 'true'); }
       else if (e.n > 3 && !O.fase2) { b.title = 'Não consegui ler esta parte agora.'; b.setAttribute('aria-disabled', 'true'); }
       else if (e.n > atual) { b.setAttribute('aria-disabled', 'true'); }
       else {
@@ -476,10 +482,12 @@
     esq.appendChild(el('p', 'jor-nota', 'Dono: ' + donos));
     if (O.vdcDet && O.vdcPainel !== et.n) { O.vdcPainel = et.n; O.vdcDet.open = et.n <= 3; }
     if (et.n === 1) etapa1(esq, d, et); else if (et.n === 2) etapa2(esq, d, et); else if (et.n === 3) etapa3(esq, d, et);
+    else if (et.n === 9 && window.Jornada.etapas[9]) window.Jornada.etapas[9](esq, d, et, O.fase3);
     else if (f2 && window.Jornada.etapas[et.n]) window.Jornada.etapas[et.n](esq, d, et, f2);
     else if (f2et) { var pf = el('div', 'jor-bloco'); pf.appendChild(el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); pf.appendChild(btn('Tentar de novo', '', carregarObra)); esq.appendChild(pf); }
     if (et.n === 1 && window.Jornada.extras.vistoria) window.Jornada.extras.vistoria(esq, d);
     if (et.n === 2 && window.Jornada.extras.banco) window.Jornada.extras.banco(esq, d);
+    if (et.n === 2 && window.Jornada.extras.indicacao) window.Jornada.extras.indicacao(esq, d, O.fase3);
     if (et.n <= 8 && window.Jornada.dinheiro && window.Jornada.dinheiro.gastosDaEtapa && (et.n <= 3 || f2)) window.Jornada.dinheiro.gastosDaEtapa(esq, et.n, O.dinheiro);
     // Portão
     if (et.n <= 3 || (f2et && f2)) {
@@ -519,7 +527,7 @@
     } else if (podeEsp && et.n <= 8 && !et.concluida_em) {
       pz.appendChild(btn('Esperando', '', function () { esperarDialogo(et.n); }));
     }
-    pz.appendChild(el('p', 'jor-nota', 'As mensagens de cobrança chegam na fase 3.'));
+    if (window.Jornada.extras.avisos) window.Jornada.extras.avisos(pz, O.fase3, et.n);
     dir.appendChild(pz);
     add(cols, esq, dir); raiz.appendChild(cols);
     n.replaceChildren(raiz);
@@ -533,6 +541,7 @@
         var num = r.json.numero;
         if (etapa === 2 && num && num.ok === false) toast('Etapa concluída. O número da obra ainda não saiu: use Tentar o número de novo.');
         else toast(etapa === 8 ? 'Obra finalizada.' : 'Etapa concluída.');
+        if (etapa === 8 && window.Jornada.extras.bookPdf) window.Jornada.extras.bookPdf(O.card, null, { silencioso: true });
         carregarObra();
       } else { O.msg = msgDe(r, 'Não consegui concluir agora.'); botao.disabled = false; desenharObra(); }
     });
