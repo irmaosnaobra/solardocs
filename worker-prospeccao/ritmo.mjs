@@ -15,7 +15,8 @@ export const FUSO = 'America/Sao_Paulo';
 export const JANELA_INI = 8;          // primeira hora cheia em que pode ENVIAR
 export const JANELA_FIM = 21;         // às 21h00 já não envia
 export const PISO_SEG = 2700;         // 45 min entre dois envios da mesma conta
-export const TETO_INSTAGRAM = 5;      // regra 25: no máximo 5 por dia no Instagram
+export const TETO_INSTAGRAM = 10;     // limite DURO do Instagram (por rampa: 5 a 10). A env só pode DESCER.
+export const RAMPA_INICIAL = 5;       // onde a rampa começa, volta depois de bloqueio, e quanto vale teto_manual nulo
 export const TETO_CHIP = 10;          // WhatsApp do chip
 export const DIAS_ENTRE_CANAIS = 14;  // o 2º canal só entra 14 dias depois do 1º toque
 export const MAX_TOQUES_60D = 3;      // somando os canais
@@ -39,8 +40,10 @@ export function cfgDe(env = {}) {
   const minSeg = Math.max(PISO_SEG, num(env.MIN_SEG, PISO_SEG));
   const maxSeg = Math.max(minSeg, num(env.MAX_SEG, 3600));
   const tetoEspera = Math.max(minSeg, num(env.TETO_ESPERA, 3600));
+  // Teto do Instagram: a env só DESCE (1 a 10), nunca passa de 10.
+  const tetoInstagramMax = Math.max(1, Math.min(TETO_INSTAGRAM, Math.round(num(env.TETO_INSTAGRAM_MAX, TETO_INSTAGRAM))));
   // Janela invertida ou vazia: fecha (ini = fim), nunca abre.
-  return { horaIni: Math.min(horaIni, horaFim), horaFim, minSeg, maxSeg, tetoEspera };
+  return { horaIni: Math.min(horaIni, horaFim), horaFim, minSeg, maxSeg, tetoEspera, tetoInstagramMax };
 }
 
 /** Hora cheia (0-23), dia da semana (0 = domingo) e data (AAAA-MM-DD) em Brasília. */
@@ -78,12 +81,21 @@ export function calcularEspera({ agora = new Date(), cfg, restam, jitter = 1 }) 
  * Teto e sobra EFETIVOS. O `restam` da view foi calculado com o teto do banco
  * (12 no Instagram), então limitar só o `teto` não basta: recalcula `restam`.
  */
-export function tetoEfetivo(canal, { teto, usados, restam }, bloqueado = false) {
+/** teto_manual da rampa para o Instagram: nulo vale 5 (nulo cairia na rampa da VIEW, de 25 a 100); número ilegível vale 0. */
+export function tetoManualInstagram(v) {
+  if (v === null) return RAMPA_INICIAL;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+export function tetoEfetivo(canal, { teto, usados, restam, tetoManual }, bloqueado = false, maxIg = TETO_INSTAGRAM) {
   // Sem linha em prospeccao_teto_hoje (teto indefinido) = teto 0: a falha é segura, nunca "consultor novo = 5".
   // Bloqueio de conversa nova ativo = teto de frio 0 (responder quem já conversa segue normal).
   if (bloqueado) return { teto: 0, restam: 0 };
-  const limite = canal === 'instagram' ? TETO_INSTAGRAM : TETO_CHIP;
-  const t = Math.min(Number.isFinite(teto) ? teto : 0, limite);
+  const limite = canal === 'instagram' ? Math.min(TETO_INSTAGRAM, Number.isFinite(maxIg) ? maxIg : TETO_INSTAGRAM) : TETO_CHIP;
+  // Instagram: a alavanca é o teto_manual da rampa (5 a 10). A rampa da VIEW (25 a 100) NUNCA vale para ele.
+  const base = canal === 'instagram' && tetoManual !== undefined ? tetoManualInstagram(tetoManual) : teto;
+  const t = Math.min(Number.isFinite(base) ? base : 0, limite);
   const u = Number.isFinite(usados) ? usados : 0;
   const r = Number.isFinite(restam) ? restam : 0;
   return { teto: t, restam: Math.max(0, Math.min(r, t - u)) };
@@ -242,6 +254,83 @@ export function parseBloqueio(texto) {
   if (texto === null || texto === undefined) return { bloqueado: false };
   try {
     const j = JSON.parse(texto);
-    return { bloqueado: true, desde: j.desde || null, motivo: j.motivo || null, perfis: Array.isArray(j.perfis) ? j.perfis : [], corrompido: false };
-  } catch { return { bloqueado: true, desde: null, motivo: 'arquivo de bloqueio ilegível', perfis: [], corrompido: true }; }
+    return { bloqueado: true, desde: j.desde || null, motivo: j.motivo || null, perfis: Array.isArray(j.perfis) ? j.perfis : [], rebaixado: j.rebaixado === true, corrompido: false };
+  } catch { return { bloqueado: true, desde: null, motivo: 'arquivo de bloqueio ilegível', perfis: [], rebaixado: false, corrompido: true }; }
+}
+
+// ── RAMPA DO INSTAGRAM (de 7e99c97b, como função pura) ───────────────────────
+// Começa em 5/dia; +1 só depois de um dia CHEIO (ontem saiu o teto inteiro); nunca passa de 10; bloqueio
+// volta a 5. Roda 1 vez por dia: a marca vem de rampa-<canal>.json (e de atualizado_em no banco), então um
+// reinício no mesmo dia não soma duas vezes. Domingo não conta (o robô não envia): na segunda, "ontem" é o
+// sábado. teto_manual = 0 é o congelamento feito à mão e NUNCA é levantado por aqui.
+const diaUTC = dia => new Date(dia + 'T12:00:00Z');
+export const ehDomingo = dia => diaUTC(dia).getUTCDay() === 0;
+/** Dia útil (não domingo) anterior a `dia`, no formato AAAA-MM-DD. */
+export function diaAnteriorUtil(dia) {
+  let d = diaUTC(dia);
+  do { d = new Date(d.getTime() - 86400_000); } while (d.getUTCDay() === 0);
+  return d.toISOString().slice(0, 10);
+}
+/** Limites [ini, fim) do dia em Brasília, em ISO UTC (para consultar toques). */
+export function limitesDoDia(dia) {
+  const ini = new Date(`${dia}T00:00:00-03:00`);
+  return { ini: ini.toISOString(), fim: new Date(ini.getTime() + 86400_000).toISOString() };
+}
+/**
+ * Decide o teto_manual de hoje. Devolve { gravar, novo, marcar, motivo }:
+ *   gravar = escrever `novo` em prospeccao_rampa.teto_manual; marcar = registrar que hoje já foi olhado.
+ * hoje/marcaDia/atualizadoDia: AAAA-MM-DD em Brasília. atualManual: o teto_manual lido (null = nulo).
+ * enviadosDiaAnterior: toques 'enviei' do último dia útil. bloqueado: canal bloqueado agora (ou ontem).
+ */
+export function decidirRampa({ hoje, marca, marcaDia, atualizadoDia, atualManual, enviadosDiaAnterior, bloqueado, ultimoBloqueioDia, maxIg = TETO_INSTAGRAM }) {
+  const nada = motivo => ({ gravar: false, novo: null, marcar: false, motivo });
+  const jaRodou = marca ? marca.dia : marcaDia;
+  if (ehDomingo(hoje)) return nada('domingo não conta');
+  if (jaRodou === hoje) return nada('a rampa já rodou hoje');
+  if (atualizadoDia === hoje) return { gravar: false, novo: null, marcar: true, motivo: 'o teto já foi mexido hoje (bloqueio ou rampa)' };
+  if (atualManual === 0) return { gravar: false, novo: null, marcar: true, motivo: 'teto_manual 0: congelado à mão, a rampa não levanta' };
+  if (atualManual === null || atualManual === undefined) return { gravar: true, novo: RAMPA_INICIAL, marcar: true, motivo: 'teto_manual nulo cairia na rampa da view: volta a ' + RAMPA_INICIAL };
+  const atual = Number(atualManual);
+  if (!Number.isFinite(atual) || atual < 0) return nada('teto_manual ilegível');
+  const teto = Math.min(atual, maxIg);                       // o limite duro vale mesmo que alguém ponha 12 à mão
+  let novo = teto;
+  let motivo = 'dia não cheio: mantém ' + teto;
+  // "Cheio" = ontem saiu o teto DAQUELE dia (o gravado na marca de ontem), nunca o de hoje, já rebaixado.
+  const anterior = diaAnteriorUtil(hoje);
+  const tetoDeOntem = marca && marca.dia === anterior && Number(marca.teto) > 0 ? Number(marca.teto) : null;
+  const diaDoBloqueio = Boolean((marca && marca.dia === anterior && marca.bloqueio) || (ultimoBloqueioDia && ultimoBloqueioDia >= anterior));
+  if (bloqueado) motivo = 'canal bloqueado (ou rebaixe sem prova): não sobe';
+  else if (diaDoBloqueio) motivo = 'o dia do bloqueio nunca conta como cheio: não sobe';
+  else if (tetoDeOntem === null) motivo = 'sem a marca do teto de ontem: não subo sem prova';
+  else if (Number(enviadosDiaAnterior) >= tetoDeOntem && teto > 0) {
+    novo = Math.min(maxIg, atual + 1);
+    motivo = novo > atual ? 'dia cheio (' + enviadosDiaAnterior + '/' + tetoDeOntem + '): sobe para ' + novo : 'já no limite de ' + maxIg;
+  }
+  return { gravar: novo !== atual, novo, marcar: true, motivo };
+}
+
+// ── HISTÓRICO DO ÚLTIMO BLOQUEIO (não se apaga no destrave) ──────────────────
+// historico-bloqueio-<canal>.json: { ultimo: ISO, dia: AAAA-MM-DD (Brasília), rebaixado: bool, rebaixadoEm }.
+// rebaixado=true é a PROVA de que o teto_manual foi a 5 depois do último bloqueio. Sem a prova, o teto
+// do Instagram é no máximo 5, seja qual for o banco; assim apagar o bloqueio à mão não sobe o teto.
+export function parseHistorico(texto) {
+  if (texto === null || texto === undefined) return null;
+  try {
+    const j = JSON.parse(texto);
+    return { ultimo: j.ultimo || null, dia: j.dia || null, rebaixado: j.rebaixado === true, corrompido: false };
+  } catch { return { ultimo: null, dia: null, rebaixado: false, corrompido: true }; }
+}
+/** Dia (AAAA-MM-DD, Brasília) de um instante ISO. */
+export const diaDeIso = iso => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? null : relogioBRT(d).dia; };
+/** Máximo do Instagram: 5 enquanto o rebaixe não foi provado depois do último bloqueio; senão o limite normal. */
+export function maxInstagramEfetivo({ bloqueio, historico, maxIg = TETO_INSTAGRAM }) {
+  const semProva = Boolean((bloqueio && bloqueio.bloqueado && bloqueio.rebaixado !== true) || (historico && historico.rebaixado !== true));
+  return semProva ? Math.min(maxIg, RAMPA_INICIAL) : maxIg;
+}
+/** O histórico precisa ser criado/atualizado a partir do arquivo de bloqueio (inclusive um criado à mão)? */
+export function historicoPrecisaSincronizar(bloqueio, historico) {
+  if (!bloqueio || !bloqueio.bloqueado) return false;
+  if (!historico) return true;
+  if (bloqueio.desde && historico.ultimo && Date.parse(bloqueio.desde) > Date.parse(historico.ultimo)) return true;
+  return false;
 }

@@ -14,3 +14,7 @@ vigia-chrome-faltas-wa.txt
 qr-aberto-instagram.flag
 # Bloqueio de conversa nova do canal (estado local, criado pelo worker ou à mão).
 bloqueio-*.json
+# Marca do dia da rampa do Instagram (estado local).
+rampa-*.json
+# Dia e prova de rebaixe do ultimo bloqueio (nao se apaga no destrave).
+historico-bloqueio-*.json
