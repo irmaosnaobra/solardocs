@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
 import { PLANILHA_CSV_URL, TRELLO_BOARD_ID } from '../services/insightsService';
 import { exigeConsultor } from './geradorDossie';
+import { exigeAdm } from './geradorAdm';
 import { credenciaisTrello, casarCartao, type TrelloCard } from '../services/gerador/dossieVenda';
 import {
   lerPlanilha, montarObra, hojeBRT, ordenarObras, resumirObras,
@@ -230,9 +231,9 @@ function erroPlanilha(res: Response, err: any): void {
 export function mountSolar(router: Router): void {
   // ── Painel do quiz /io/solar: funil, qualidade dos leads, custo por anúncio ─
   // Os mesmos números de GET /admin/solar/quiz-funil, que exige o login de
-  // administrador do SolarDoc (o Gerador não tem). Contagem e nota todo
-  // consultor vê; GASTO e custo só sócio: para consultor a chave nem existe.
-  router.get('/solar/painel', exigeConsultor, async (req: Request, res: Response) => {
+  // administrador do SolarDoc (o Gerador não tem). Só o ADM entra
+  // (fase 0, 04/11/2026). Dentro, o GASTO e o custo continuam só para sócio: para consultor a chave nem existe.
+  router.get('/solar/painel', exigeConsultor, exigeAdm, async (req: Request, res: Response) => {
     const { socio } = quem(req);
     const pedido = String(req.query.period || '');
     const periodo = (PERIODOS_PAINEL as readonly string[]).includes(pedido) ? pedido : '7dias';

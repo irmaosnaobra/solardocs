@@ -20,6 +20,7 @@ import { buscarTaxas, ambienteAsaas } from '../services/asaas/asaasTaxas';
 import { TRELLO_BOARD_ID } from '../services/insightsService';
 import { buscarCartao } from '../services/gerador/dossieVenda';
 import { mountDossie, exigeConsultor } from './geradorDossie';
+import { soAdmLogado } from './geradorAdm';
 import { mountSolar } from './geradorSolar';
 import { mountSolardocQuizStatus } from './geradorSolardocQuiz';
 import { mountEletropostoAtendimento } from './geradorEletropostoAtendimento';
@@ -954,6 +955,7 @@ router.get('/agentes', async (_req: Request, res: Response) => {
 // muda o que a agente vai falar com cliente de verdade, o outro gasta crédito de
 // IA. Sem CENTRAL_AGENTES_TOKEN configurado, os dois ficam FECHADOS — o painel
 // mostra o motivo em vez de abrir a porta.
+// Desde 04/11/2026, ESCREVER e CONVERSAR também exigem o login do Gerador de ADM (soAdmLogado), antes do token.
 function tokenDaCentral(req: Request, res: Response): boolean {
   const esperado = (process.env.CENTRAL_AGENTES_TOKEN || '').trim();
   if (!esperado) {
@@ -974,7 +976,7 @@ router.get('/agentes/cerebros', async (_req: Request, res: Response) => {
   }
 });
 
-router.put('/agentes/cerebro/:id', async (req: Request, res: Response) => {
+router.put('/agentes/cerebro/:id', ...soAdmLogado, async (req: Request, res: Response) => {
   if (!tokenDaCentral(req, res)) return;
   const id = String(req.params.id);
   if (!ehCerebroValido(id)) { res.status(404).json({ error: 'agente sem cérebro editável' }); return; }
@@ -986,7 +988,7 @@ router.put('/agentes/cerebro/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/agentes/cerebro/:id', async (req: Request, res: Response) => {
+router.delete('/agentes/cerebro/:id', ...soAdmLogado, async (req: Request, res: Response) => {
   if (!tokenDaCentral(req, res)) return;
   const id = String(req.params.id);
   if (!ehCerebroValido(id)) { res.status(404).json({ error: 'agente sem cérebro editável' }); return; }
@@ -1000,7 +1002,7 @@ router.delete('/agentes/cerebro/:id', async (req: Request, res: Response) => {
 
 // Conversa de TESTE: roda o cérebro vigente (ou o rascunho que está na tela) e
 // devolve a resposta. Nada daqui sai no WhatsApp de ninguém.
-router.post('/agentes/conversar/:id', async (req: Request, res: Response) => {
+router.post('/agentes/conversar/:id', ...soAdmLogado, async (req: Request, res: Response) => {
   if (!tokenDaCentral(req, res)) return;
   const id = String(req.params.id);
   if (!ehCerebroValido(id)) { res.status(404).json({ error: 'agente sem conversa de teste' }); return; }
@@ -1023,6 +1025,7 @@ router.post('/agentes/conversar/:id', async (req: Request, res: Response) => {
 // Token PRÓPRIO, separado do da Central: quem edita o texto de um robô não é
 // necessariamente quem pode movimentar a conta. Fail-closed — sem a variável na
 // Vercel o app inteiro responde 503, que é o estado seguro de nascer.
+// Desde 04/11/2026, antes do token vem o login do Gerador de ADM (soAdmLogado).
 function tokenDeCobranca(req: Request, res: Response): boolean {
   const esperado = (process.env.COBRANCA_TOKEN || '').trim();
   if (!esperado) {
@@ -1037,7 +1040,7 @@ function tokenDeCobranca(req: Request, res: Response): boolean {
 // Taxas vigentes + ambiente. A tela pinta o cabeçalho de vermelho quando é
 // sandbox, e o ambiente viaja em TODA resposta — nunca só nesta — pra uma tela
 // em cache não conseguir dizer "produção" enquanto o servidor está em teste.
-router.get('/cobranca/taxas', async (req: Request, res: Response) => {
+router.get('/cobranca/taxas', ...soAdmLogado, async (req: Request, res: Response) => {
   if (!tokenDeCobranca(req, res)) return;
   try {
     const taxas = await buscarTaxas(String(req.query.forcar || '') === '1');
@@ -1048,7 +1051,7 @@ router.get('/cobranca/taxas', async (req: Request, res: Response) => {
 });
 
 // Texto livre → plano preenchido + prévia do dinheiro. NÃO cria nada.
-router.post('/cobranca/montar', async (req: Request, res: Response) => {
+router.post('/cobranca/montar', ...soAdmLogado, async (req: Request, res: Response) => {
   if (!tokenDeCobranca(req, res)) return;
   try {
     const plano = await montarPlanoCobranca(String(req.body?.texto || ''));
@@ -1061,7 +1064,7 @@ router.post('/cobranca/montar', async (req: Request, res: Response) => {
 });
 
 // Recalcula a prévia quando o humano mexe num campo na tela. Também não cria nada.
-router.post('/cobranca/simular', async (req: Request, res: Response) => {
+router.post('/cobranca/simular', ...soAdmLogado, async (req: Request, res: Response) => {
   if (!tokenDeCobranca(req, res)) return;
   try {
     const plano = sanearPlano(req.body?.plano);
@@ -1086,7 +1089,7 @@ function cobrancaDesligada(res: Response): boolean {
   return true;
 }
 
-router.post('/cobranca/criar', async (req: Request, res: Response) => {
+router.post('/cobranca/criar', ...soAdmLogado, async (req: Request, res: Response) => {
   if (!tokenDeCobranca(req, res)) return;
   if (cobrancaDesligada(res)) return;
   try {
@@ -1099,7 +1102,7 @@ router.post('/cobranca/criar', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/cobranca/lista', async (req: Request, res: Response) => {
+router.get('/cobranca/lista', ...soAdmLogado, async (req: Request, res: Response) => {
   if (!tokenDeCobranca(req, res)) return;
   try {
     res.json({ ok: true, ambiente: ambienteAsaas(), cobrancas: await listarCobrancas(40) });
@@ -1110,7 +1113,7 @@ router.get('/cobranca/lista', async (req: Request, res: Response) => {
 
 // Simulação da antecipação: o número EXATO, dado pelo Asaas, da cobrança que já
 // existe. É o que a tela mostra antes de perguntar "confirma?".
-router.post('/cobranca/antecipar/simular', async (req: Request, res: Response) => {
+router.post('/cobranca/antecipar/simular', ...soAdmLogado, async (req: Request, res: Response) => {
   if (!tokenDeCobranca(req, res)) return;
   try {
     const s = await simularAntecipacao(String(req.body?.id || ''), String(req.body?.tipo || 'avulsa'));
@@ -1120,7 +1123,7 @@ router.post('/cobranca/antecipar/simular', async (req: Request, res: Response) =
   }
 });
 
-router.post('/cobranca/antecipar', async (req: Request, res: Response) => {
+router.post('/cobranca/antecipar', ...soAdmLogado, async (req: Request, res: Response) => {
   if (!tokenDeCobranca(req, res)) return;
   if (cobrancaDesligada(res)) return;
   try {

@@ -3715,6 +3715,9 @@ html[data-mode="app"] .container > #historicoSection{
 .sb-spacer{flex:1}
 .sb-foot{display:flex;flex-direction:column;gap:4px;padding-top:12px;border-top:1px solid rgba(255,255,255,.07)}
 .sb-foot .sb-item{font-size:13px;font-weight:600;color:#9aa6c4}
+/* ADM (fase 0, 04/11/2026): o que tem data-so-adm só aparece com a classe io-adm no <html>, que o bloco ADM do fim da página
+   liga pela resposta de GET /gerador/perfil. !important porque o .sb-item (aqui e no io2.css) já diz display:flex. */
+html:not(.io-adm) [data-so-adm]{display:none!important}
 .sb-mobile-toggle{display:none}
 @media(max-width:860px){
   html[data-mode="app"] .container{margin-left:0;padding:0 16px}
@@ -4425,11 +4428,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <button type="button" class="sb-item" id="nav-eletroposto" onclick="navEletroposto()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline></svg></span> Eletroposto</button>
     <button type="button" class="sb-item" id="nav-agenda" onclick="location.href='/gerador/agenda'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span> Agenda</button>
     <button type="button" class="sb-item" id="nav-crm" onclick="navCRM()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg></span> CRM</button>
-    <button type="button" class="sb-item" id="nav-prospeccao" onclick="location.href='/gerador/prospeccao'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="1" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="23"></line><line x1="1" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="23" y2="12"></line></svg></span> Prospecção</button>
-    <button type="button" class="sb-item" id="nav-cobrancas" onclick="location.href='/gerador/cobrancas'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line><line x1="6" y1="15" x2="10" y2="15"></line></svg></span> Cobranças</button>
-    <button type="button" class="sb-item" id="nav-parceiros" onclick="location.href='/gerador/parceiros'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg></span> Parceiros</button>
-    <button type="button" class="sb-item" id="nav-agentes" onclick="location.href='/gerador/agentes'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"></rect><line x1="12" y1="4" x2="12" y2="8"></line><circle cx="12" cy="3" r="1"></circle><line x1="9" y1="13" x2="9" y2="14"></line><line x1="15" y1="13" x2="15" y2="14"></line></svg></span> Agentes</button>
-    <button type="button" class="sb-item" id="nav-automacao" onclick="navAutomacao()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></span> Automação</button>
+    <button type="button" class="sb-item" data-so-adm id="nav-prospeccao" onclick="location.href='/gerador/prospeccao'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="1" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="23"></line><line x1="1" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="23" y2="12"></line></svg></span> Prospecção</button>
+    <button type="button" class="sb-item" data-so-adm id="nav-cobrancas" onclick="location.href='/gerador/cobrancas'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line><line x1="6" y1="15" x2="10" y2="15"></line></svg></span> Cobranças</button>
+    <button type="button" class="sb-item" data-so-adm id="nav-parceiros" onclick="location.href='/gerador/parceiros'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg></span> Parceiros</button>
+    <button type="button" class="sb-item" data-so-adm id="nav-agentes" onclick="location.href='/gerador/agentes'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"></rect><line x1="12" y1="4" x2="12" y2="8"></line><circle cx="12" cy="3" r="1"></circle><line x1="9" y1="13" x2="9" y2="14"></line><line x1="15" y1="13" x2="15" y2="14"></line></svg></span> Agentes</button>
+    <button type="button" class="sb-item" data-so-adm id="nav-automacao" onclick="navAutomacao()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></span> Automação</button>
   </div>
   <div class="sb-spacer"></div>
   <div class="sb-foot">
@@ -4448,11 +4451,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
          Calculadora / Histórico, um traço, e Documentos / Fechamento / Obras. -->
     <button type="button" class="solar-subtab" data-aba="gerador" onclick="navGerador()">Gerar proposta</button>
     <button type="button" class="solar-subtab" data-aba="planilha" onclick="navPlanilhaSolar()">Planilha de clientes</button>
-    <button type="button" class="solar-subtab" data-aba="painel" onclick="navPainelSolar()">Painel</button>
+    <button type="button" class="solar-subtab" data-aba="painel" data-so-adm onclick="navPainelSolar()">Painel</button>
     <button type="button" class="solar-subtab" data-aba="quemligar" onclick="navQuemLigar()">Quem ligar</button>
     <button type="button" class="solar-subtab" data-aba="leads" onclick="navLeads()">Leads</button>
     <button type="button" class="solar-subtab" data-aba="tabelas" onclick="navTabelas()">Tabelas</button>
-    <button type="button" class="solar-subtab" data-aba="calc" onclick="navCalc()">Calculadora</button>
+    <button type="button" class="solar-subtab" data-aba="calc" data-so-adm onclick="navCalc()">Calculadora</button>
     <button type="button" class="solar-subtab" data-aba="historico" onclick="navHistorico()">Histórico</button>
     <span class="solar-subsep" aria-hidden="true"></span>
     <button type="button" class="solar-subtab" data-aba="documentos" onclick="navDocumentosSolar()">Documentos</button>
@@ -5375,7 +5378,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button type="button" id="eletro-tab-finame" class="eletro-subtab2" onclick="eletroSubaba('finame')">Proposta de banco</button>
     </div>
     <div class="eletro-subnav2" id="eletro-subnav2-painel">
-      <button type="button" id="eletro-tab-indicadores" class="eletro-subtab2" onclick="eletroSubaba('indicadores')">Indicadores</button>
+      <button type="button" id="eletro-tab-indicadores" data-so-adm class="eletro-subtab2" onclick="eletroSubaba('indicadores')">Indicadores</button>
       <button type="button" id="eletro-tab-mercado" class="eletro-subtab2" onclick="eletroSubaba('mercado')">Frota</button>
       <button type="button" id="eletro-tab-estados" class="eletro-subtab2" onclick="eletroSubaba('estados')">Estados</button>
       <button type="button" id="eletro-tab-postos" class="eletro-subtab2" onclick="eletroSubaba('postos')">Postos</button>
@@ -5384,7 +5387,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
     <div class="eletro-subnav2" id="eletro-subnav2-cadastros">
       <button type="button" id="eletro-tab-cadastros" class="eletro-subtab2" onclick="eletroSubaba('cadastros')">Base</button>
-      <button type="button" id="eletro-tab-avisos" class="eletro-subtab2" onclick="eletroSubaba('avisos')">Avisos</button>
+      <button type="button" id="eletro-tab-avisos" data-so-adm class="eletro-subtab2" onclick="eletroSubaba('avisos')">Avisos</button>
+      <!-- Fase 0 (04/11/2026): Parceiros saiu do menu lateral da equipe; o painel NEXUS segue aberto a todo login do Gerador. -->
+      <button type="button" id="eletro-atalho-parceiros" class="eletro-subtab2" onclick="location.href='/gerador/parceiros'">Parceiros NEXUS</button>
     </div>
 
     <!-- Emitente do documento (19/10/2026): um clique, POR DOCUMENTO. Nasce em NEXUS (padrao desde
@@ -7153,7 +7158,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
 
       <!-- So aparece na aba Curioso: pergunta o valor a todos pela fila de Avisos. -->
-      <div class="cad-curioso-acao" id="cad-curioso-acao" hidden></div>
+      <div class="cad-curioso-acao" id="cad-curioso-acao" hidden data-so-adm></div>
 
       <div class="card" id="cad-card">
         <div class="eletro-sec-title" id="cad-titulo">Arrendamento: quem tem o local</div>
@@ -7957,6 +7962,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="crm-subnav">
       <button type="button" class="crm-subtab solar ativo" id="crm-subtab-solar" onclick="crmSetProduto('solar')">☀️ Solar <span class="crm-subtab-qt" id="crm-qt-solar">0</span></button>
       <button type="button" class="crm-subtab ep" id="crm-subtab-ep" onclick="crmSetProduto('eletroposto')">⚡ Eletroposto <span class="crm-subtab-qt" id="crm-qt-ep">0</span></button>
+      <!-- Fase 0 (04/11/2026): Prospecção saiu do menu lateral da equipe; a lista fria segue aberta. Não é aba do quadro: só leva à página. -->
+      <button type="button" class="crm-subtab" id="crm-atalho-prospeccao" onclick="location.href='/gerador/prospeccao'">Prospecção</button>
     </div>
 
     <div class="card">
@@ -8582,6 +8589,8 @@ function authLimpar() {
   try { localStorage.removeItem('gerador-perfil-v1'); } catch (e) {}
   try { if (typeof fecharMeuPerfil === 'function') fecharMeuPerfil(); } catch (e) {}
   try { window.dispatchEvent(new Event('io2-sessao-limpa')); } catch (e) {}
+  // O ADM também é desta conta: o cache sai e o menu volta ao da equipe até o próximo perfil.
+  try { if (typeof admEsquecer === 'function') admEsquecer(); } catch (e) {}
   try { localStorage.removeItem(SESSAO_KEY); } catch (e) {}
 }
 async function authEntrar(email, senha) {
@@ -11502,7 +11511,7 @@ function renderAbasTabelas() {
     const nome = NOME_ABA_TABELA[linha] || `${t.inv}${linha.endsWith('-PROMO') ? ' PROMO' : ''} + ${t.mod}`;
     return `<button type="button" class="tbl-aba${sel} ${onoff}" data-linha="${linha}">
       <span onclick="selecionarAba('${linha}')">${nome}</span>
-      <span class="tbl-toggle" title="${ativo ? 'Ativo no gerador: clique p/ desativar' : 'Desativado: clique p/ ativar'}" onclick="toggleEquip('${linha}', event)">${ativo ? '✓' : '✕'}</span>
+      <span class="tbl-toggle" data-so-adm title="${ativo ? 'Ativo no gerador: clique p/ desativar' : 'Desativado: clique p/ ativar'}" onclick="toggleEquip('${linha}', event)">${ativo ? '✓' : '✕'}</span>
     </button>`;
   }).join('');
 }
@@ -11541,6 +11550,8 @@ function renderTabelaAtiva() {
 
 async function toggleEquip(linha, ev) {
   if (ev) ev.stopPropagation();
+  // Fase 0 (04/11/2026): ligar e desligar kit vale para a equipe toda, então é só do ADM. O botão já some; isto fecha o resto.
+  if (typeof admOk === 'function' && !admOk()) return;
   const novoAtivo = !(equipConfig[linha] !== false);
   equipConfig[linha] = novoAtivo;
   renderAbasTabelas();
@@ -11589,6 +11600,7 @@ const CALC_CA_PCT = 0.10;   // Material C.A padrão = 10% do kit
 let calcCaTocado = false;   // vira true quando o consultor edita o C.A na mão
 
 function navCalc() {
+  if (typeof admBarrar === 'function' && admBarrar(navCalc)) return;   // Calculadora é só do ADM (fase 0)
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
   ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection', 'inicioSection'].forEach(id => {
@@ -12249,6 +12261,10 @@ function eletroGrupo(g) {
 const APX_API = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api');
 
 function eletroSubaba(qual) {
+  // Fase 0 (04/11/2026): Indicadores e Avisos são só do ADM. Para a equipe, quem pede uma delas (o grupo Painel abre pela
+  // primeira da lista; o "Perguntar a N" da Base abre Avisos) cai na vizinha que é de todos: Frota e Base.
+  const EP_SO_ADM = { indicadores: 'mercado', avisos: 'cadastros' };
+  if (EP_SO_ADM[qual] && typeof admOk === 'function' && !admOk()) qual = EP_SO_ADM[qual];
   // Orcamento e Carregador NAO estao mais na barra (26/09/2026): tudo que os
   // documentos imprimem se edita na revisao do Simulador. Os PAINEIS continuam
   // aqui, e continuam sendo abertos por dentro — Recibo, Contrato, Procuracao e
@@ -33094,6 +33110,7 @@ function voltarDasObras() {
 }
 // Painel do quiz: mais um clone do navObrasSolar.
 function navPainelSolar() {
+  if (typeof admBarrar === 'function' && admBarrar(navPainelSolar)) return;   // Painel é só do ADM (fase 0)
   telasSolarLimpar();
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
@@ -35028,7 +35045,7 @@ function inCorpoAnuncios(d) {
       h += '<p class="in-fr">' + p.join(', ') + '.</p>';
     }
   }
-  return h + '<button type="button" class="in-link" data-in="ir" data-d="painel">Abrir painel</button>';
+  return h + '<button type="button" class="in-link" data-in="ir" data-d="painel" data-so-adm>Abrir painel</button>';
 }
 
 // ── Desenho do período ──
@@ -46239,6 +46256,7 @@ async function fazerLogin(ev) {
   if (sel) sel.value = consultor;
 
   document.documentElement.dataset.mode = 'app';
+  try { if (typeof admCarregar === 'function') admCarregar(); } catch (e) {}
   document.getElementById('login-senha').value = '';
   // Início logo após o login, no mesmo critério da abertura (URL limpa no carregamento).
   // Quem estava no Início quando a sessão caiu volta para ele (a URL já pode ter parâmetro, e aí
@@ -46361,6 +46379,7 @@ if ('serviceWorker' in navigator) {
 
   // ---- navegação ----
   function navAutomacao(){
+    if (typeof admBarrar === 'function' && admBarrar(navAutomacao)) return;   // Automação é só do ADM (fase 0)
     document.getElementById('formSection').style.display='none';
     document.getElementById('historicoSection').style.display='none';
     ['tabelasSection','leadsSection','fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection','planilhaSolarSection','documentosSolarSection','redesSection','crmSection','calcSection','eletroSection','inicioSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
@@ -46487,6 +46506,71 @@ if ('serviceWorker' in navigator) {
   // expõe os handlers usados por onclick/onchange no HTML
   Object.assign(window,{ navAutomacao, automacaoSubaba, autoUpload, autoIgCarregarPosts, autoIgAddMidia, autoIgSalvar, autoIgToggle });
 })();
+</script>
+
+<script>
+// ── ADM (fase 0, 04/11/2026) ───────────────────────────────────────────────
+// "As coisas mais de edição aparecem só pra mim" (Thiago). Quem é ADM decide a API: GET /gerador/perfil devolve eu.adm
+// (SOLAR_ADM, padrão 'thiago'). A classe io-adm no <html> mostra o que tem data-so-adm (regra no <style> do topo).
+// Esconder não trava: as rotas de ADM respondem 403 no servidor. O cache só evita o menu do Thiago piscar, e vale só
+// para o mesmo login (o nome do auth-v1, não o select "Consultor responsável"). Quem forjar o cache vê botões que o
+// servidor recusa.
+const ADM_CACHE = 'gerador-adm-v1';
+function admLogin() {
+  try { const a = JSON.parse(localStorage.getItem('irmaos-na-obra-auth-v1') || 'null'); return a && a.consultor ? String(a.consultor).trim().toLowerCase() : ''; }
+  catch (e) { return ''; }
+}
+function admOk() { return document.documentElement.classList.contains('io-adm'); }
+function admAplicar(adm) { document.documentElement.classList.toggle('io-adm', adm === true); }
+function admDoCache() {
+  try {
+    const o = JSON.parse(localStorage.getItem(ADM_CACHE) || 'null');
+    const quem = admLogin();
+    return !!(o && quem && o.quem === quem && o.adm === true);
+  } catch (e) { return false; }
+}
+// Cache deste login (qualquer valor): se existe, já se sabe se é ADM. Sem ele (primeira abertura depois do deploy, ou login novo)
+// o admOk() diz "não" por falta de resposta, e isso NÃO pode desviar o Thiago de Painel e Automação.
+function admTemCache() {
+  try {
+    const o = JSON.parse(localStorage.getItem(ADM_CACHE) || 'null');
+    const quem = admLogin();
+    return !!(o && quem && o.quem === quem && typeof o.adm === 'boolean');
+  } catch (e) { return false; }
+}
+let admSabe = false, admEspera = [];
+function admResolver() { admSabe = true; const ws = admEspera; admEspera = []; ws.forEach((f) => f(admOk())); }
+function admEsquecer() { try { localStorage.removeItem(ADM_CACHE); } catch (e) {} admAplicar(false); admSabe = false; }
+// Barra quem não é ADM de uma tela de ADM. Se a resposta do perfil ainda não chegou e não há cache, ESPERA e só desvia
+// se a resposta disser adm:false (ou se não vier em 6 s). Devolve true quando a chamada foi tratada aqui.
+function admBarrar(retomar) {
+  if (admOk()) return false;
+  if (admSabe || admTemCache()) { navGerador(); return true; }
+  let feito = false;
+  const fim = (ok) => { if (feito) return; feito = true; if (ok) retomar(); else navGerador(); };
+  admEspera.push(fim);
+  setTimeout(() => fim(admOk()), 6000);
+  if (document.documentElement.dataset.mode === 'app' && document.readyState !== 'loading') admCarregar();
+  return true;
+}
+let admSeq = 0;
+async function admCarregar() {
+  if (document.documentElement.dataset.mode !== 'app') return;   // link do cliente (?p=) e PDF nunca chegam aqui
+  const seq = ++admSeq, quem = admLogin();
+  admAplicar(admDoCache());
+  admSabe = admTemCache();
+  try {
+    const j = await solApi('/gerador/perfil');
+    if (seq !== admSeq || quem !== admLogin()) return;              // outra pessoa entrou no meio do caminho
+    const adm = !!(j && j.eu && j.eu.adm === true);
+    try { localStorage.setItem(ADM_CACHE, JSON.stringify({ quem, adm })); } catch (e) {}
+    admAplicar(adm);
+    admResolver();
+  } catch (e) { if (seq === admSeq) admResolver(); /* sem resposta: fica o que o cache disse */ }
+}
+// Já na leitura do script, antes dos scripts defer e dos deep links: o Thiago com cache não vê o menu piscar.
+if (document.documentElement.dataset.mode === 'app') { admAplicar(admDoCache()); admSabe = admTemCache(); }
+window.addEventListener('DOMContentLoaded', admCarregar);
 </script>
 
 <script>

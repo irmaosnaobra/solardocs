@@ -106,6 +106,7 @@ app.use('/gerador', r);
 
 const NILCE = 'Bearer tk-nilce';
 const THIAGO = 'Bearer tk-thiago';
+const DIEGO = 'Bearer tk-diego';
 const A = '120256657642860602', B = '120256657642860603', CJ = '120256657642860111';
 
 const ev = (s: string, tipo: string, d: Record<string, unknown>, quando: string) =>
@@ -117,11 +118,14 @@ const fd = (nota: number | null, caminho: string, anuncio: string) => [
 ];
 
 beforeEach(() => {
+  // A Nilce passa na guarda do ADM sem ser sócia: todo caso "consultor comum" continua provando o corte do dinheiro.
+  process.env.SOLAR_ADM = 'thiago,nilce';
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-10T15:00:00Z'));
   h.usuarios = {
     'tk-nilce': 'nilce@irmaosnaobra.app',
     'tk-thiago': 'thiago@irmaosnaobra.app',
+    'tk-diego': 'diego@irmaosnaobra.app',
     'tk-estranho': 'alguem@gmail.com',
   };
   h.conjuntoSoGasto = false; h.chamadasSoGasto = [];
@@ -150,7 +154,7 @@ beforeEach(() => {
   ];
   limparCachesSolar();
 });
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+afterEach(() => { delete process.env.SOLAR_ADM; vi.useRealTimers(); vi.restoreAllMocks(); });
 
 const painel = (qs = '', auth = NILCE) => request(app).get(`/gerador/solar/painel${qs}`).set('Authorization', auth);
 const chaves = (o: unknown, achadas: string[] = []): string[] => {
@@ -159,6 +163,27 @@ const chaves = (o: unknown, achadas: string[] = []): string[] => {
   return achadas;
 };
 const chavesDeDinheiro = (o: unknown) => chaves(o).filter((k) => k !== 'verGasto' && /gasto|custo|spend|valor/i.test(k));
+
+describe('só o ADM entra', () => {
+  it('consultor comum (Nilce sem ser ADM): 403 precisa adm, sem ler o banco', async () => {
+    delete process.env.SOLAR_ADM;
+    const res = await painel('', NILCE);
+    expect(res.status).toBe(403);
+    expect(res.body.precisa).toBe('adm');
+    expect(h.leituras).toBe(0);
+  });
+  it('Diego é sócio e não é ADM: 403, sem ler o banco', async () => {
+    delete process.env.SOLAR_ADM;
+    const res = await painel('', DIEGO);
+    expect(res.status).toBe(403);
+    expect(res.body.precisa).toBe('adm');
+    expect(h.leituras).toBe(0);
+  });
+  it('Thiago (ADM): 200', async () => {
+    delete process.env.SOLAR_ADM;
+    expect((await painel('', THIAGO)).status).toBe(200);
+  });
+});
 
 describe('login', () => {
   it('401 sem token, com chave publishable e com token inválido', async () => {

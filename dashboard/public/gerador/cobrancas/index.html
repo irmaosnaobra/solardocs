@@ -298,6 +298,61 @@ let ultima = null;
 let debounce = null;
 
 const $ = (id) => document.getElementById(id);
+
+// Fase 0 (04/11/2026): as rotas de cobrança exigem o login do Gerador de ADM, além da senha. Sessão lida e renovada como em agentes/index.html.
+(function () {
+  var SESSAO_KEY = 'irmaos-na-obra-sessao-v1';
+  var SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6'; // gitleaks:allow (chave publica de navegador, a mesma do index.html; o .gitleaks.toml libera em dashboard/public)
+  function irParaLogin() { location.replace('/gerador'); }
+  function erro(tipo, extra) { var e = new Error(tipo); e.tipo = tipo; if (extra) for (var k in extra) e[k] = extra[k]; return e; }
+  function lerSessao() { try { return JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null'); } catch (e) { return null; } }
+  function sessaoViva(s) { return !!(s && s.access_token && Number(s.expira_em || 0) > Date.now()); }
+  var renovando = null;
+  function renovar(tokenUsado) {
+    if (renovando) return renovando;
+    var rodar = function () { return renovarAgora(tokenUsado); };
+    var p = (navigator.locks && navigator.locks.request) ? navigator.locks.request('gerador-sessao-renovar', rodar) : rodar();
+    renovando = Promise.resolve(p).then(function (v) { renovando = null; return v; }, function (e) { renovando = null; throw e; });
+    return renovando;
+  }
+  function renovarAgora(tokenUsado) {
+    var s = lerSessao();   // relida dentro da trava: outra aba pode ter renovado
+    if (!s || !s.refresh_token) { irParaLogin(); return Promise.reject(erro('login')); }
+    if (sessaoViva(s) && s.access_token !== tokenUsado) return Promise.resolve(s.access_token);
+    var meu = s.refresh_token;
+    return fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: meu })
+    }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (j) { return { r: r, j: j }; });
+    }, function () { throw erro('rede'); }).then(function (x) {
+      if (x.r.ok && x.j && x.j.access_token) {
+        try {
+          localStorage.setItem(SESSAO_KEY, JSON.stringify({
+            access_token: x.j.access_token,
+            refresh_token: x.j.refresh_token || meu,
+            expira_em: Date.now() + (Number(x.j.expires_in || 3600) - 300) * 1000
+          }));
+        } catch (e) {}
+        return x.j.access_token;
+      }
+      if (x.r.status >= 500 || x.r.status === 429) throw erro('rede');
+      var atual = lerSessao();
+      if (atual && atual.refresh_token !== meu && sessaoViva(atual)) return atual.access_token;
+      try { localStorage.removeItem(SESSAO_KEY); } catch (e) {}
+      irParaLogin();
+      throw erro('login');
+    });
+  }
+  function obterToken() {
+    var s = lerSessao();
+    if (!s || !s.access_token) { irParaLogin(); return Promise.reject(erro('login')); }
+    return sessaoViva(s) ? Promise.resolve(s.access_token) : renovar(null);
+  }
+  window.cobSessao = { obterToken: obterToken, renovar: renovar, irParaLogin: irParaLogin };
+})();
 const brl = (n) => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 
@@ -308,12 +363,22 @@ function toast(msg){
 
 async function api(rota, opcoes){
   const o = opcoes || {};
-  const r = await fetch(API + rota, {
+  const chamar = (bearer) => fetch(API + rota, {
     method: o.body ? 'POST' : 'GET',
-    headers: { 'Content-Type': 'application/json', 'x-cobranca-token': token },
+    headers: { 'Content-Type': 'application/json', 'x-cobranca-token': token, 'Authorization': 'Bearer ' + bearer },
     body: o.body ? JSON.stringify(o.body) : undefined,
   });
-  const j = await r.json().catch(() => ({}));
+  let bearer = await window.cobSessao.obterToken();
+  let r = await chamar(bearer);
+  let j = await r.json().catch(() => ({}));
+  // 401/403 com precisa:'login' é a sessão do Gerador, NUNCA a senha do app: renova uma vez e, se não der, volta ao login.
+  if ((r.status === 401 || r.status === 403) && j.precisa === 'login') {
+    bearer = await window.cobSessao.renovar(bearer);
+    r = await chamar(bearer);
+    j = await r.json().catch(() => ({}));
+    if ((r.status === 401 || r.status === 403) && j.precisa === 'login') { window.cobSessao.irParaLogin(); throw new Error('entre de novo no Gerador'); }
+  }
+  if (r.status === 403 && j.precisa === 'adm') throw new Error(j.error || 'só o administrador usa as cobranças');
   if (r.status === 401) { esquecerToken(); throw new Error('senha inválida'); }
   if (!r.ok) throw new Error(j.error || 'falhou');
   // O ambiente vem em TODA resposta, e a faixa é repintada a cada uma: uma tela

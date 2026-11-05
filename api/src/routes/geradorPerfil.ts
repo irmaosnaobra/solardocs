@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { exigeConsultor } from './geradorDossie';
 import { perfilIpLimiter, perfilPessoaLimiter, perfilGravarLimiter } from '../middleware/rateLimiter';
-import { ehSocio } from '../services/gerador/solarObras';
+import { ehSocio, ehAdm } from '../services/gerador/solarObras';
 import {
   ErroPerfil, MSG_WHATSAPP, lerConsultores, acharConsultor, normalizarWhatsapp, mesmoWhatsapp,
   validarFoto, subirFoto, gravarConsultor, registrarAlteracoes,
@@ -10,10 +10,10 @@ import {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MEU PERFIL do /gerador. Montada dentro de /gerador. Duas rotas:
-//   GET  /perfil   o meu perfil (e, para sócio, a lista da equipe)
-//   POST /perfil   grava WhatsApp e/ou foto (o meu, ou o de outro se eu for sócio)
+//   GET  /perfil   o meu perfil (e, para o ADM, a lista da equipe)
+//   POST /perfil   grava WhatsApp e/ou foto (o meu, ou o de outro se eu for ADM)
 //
-// Cada pessoa edita o PRÓPRIO perfil; sócio (SOLAR_SOCIOS) edita o de qualquer
+// Cada pessoa edita o PRÓPRIO perfil; o ADM (SOLAR_ADM, padrão thiago) edita o de qualquer
 // consultor. O NOME nunca se edita (é chave de junção em vários lugares): o corpo
 // pode até trazer `nome`, ele é ignorado. O porquê do caminho de gravação, do
 // formato do telefone e da foto está em services/gerador/perfilEquipe.ts.
@@ -30,10 +30,10 @@ function semCache(_req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
-function quem(req: Request): { nome: string; email: string; socio: boolean } {
+function quem(req: Request): { nome: string; email: string; socio: boolean; adm: boolean } {
   const c = (req as any).consultor as { nome?: string; email?: string } | undefined;
   const nome = String(c?.nome || '');
-  return { nome, email: String(c?.email || ''), socio: ehSocio(nome) };
+  return { nome, email: String(c?.email || ''), socio: ehSocio(nome), adm: ehAdm(nome) };
 }
 
 const publico = (c: Consultor) => ({ nome: c.nome, whatsapp: c.whatsapp, foto_url: c.foto_url });
@@ -46,7 +46,7 @@ export function mountPerfil(router: Router): void {
   const base = [semCache, perfilIpLimiter, exigeConsultor, perfilPessoaLimiter] as const;
 
   router.get('/perfil', ...base, async (req: Request, res: Response) => {
-    const { nome, email, socio } = quem(req);
+    const { nome, email, socio, adm } = quem(req);
     let lista: Consultor[];
     try { lista = await lerConsultores(); } catch (err) {
       console.error('[perfil] leitura falhou', err instanceof ErroPerfil ? err.codigo : 'interno');
@@ -56,14 +56,14 @@ export function mountPerfil(router: Router): void {
     const meu = acharConsultor(lista, nome);
     res.json({
       ok: true,
-      eu: { nome: meu?.nome ?? nome, email, socio, whatsapp: meu?.whatsapp ?? null, foto_url: meu?.foto_url ?? null },
-      // Só sócio vê a lista; consultor recebe vazia (nunca o telefone dos outros).
-      equipe: socio ? lista.map(publico) : [],
+      eu: { nome: meu?.nome ?? nome, email, socio, adm, whatsapp: meu?.whatsapp ?? null, foto_url: meu?.foto_url ?? null },
+      // Só o ADM vê a lista; os outros recebem vazia (nunca o telefone dos outros).
+      equipe: adm ? lista.map(publico) : [],
     });
   });
 
   router.post('/perfil', ...base, perfilGravarLimiter, async (req: Request, res: Response) => {
-    const { nome, socio } = quem(req);
+    const { nome, adm } = quem(req);
     const b = (req.body || {}) as { alvo?: unknown; whatsapp?: unknown; foto?: unknown };   // `nome` no corpo é ignorado de propósito
 
     // 1) A forma do pedido.
@@ -81,7 +81,7 @@ export function mountPerfil(router: Router): void {
 
     // 2) O papel. Consultor mandando `alvo` que não é ele recebe 403, exista ou não o nome (não revela a equipe).
     const outro = !!alvoPedido && alvoPedido.toLowerCase() !== nome.trim().toLowerCase();
-    if (outro && !socio) {
+    if (outro && !adm) {
       res.status(403).json({ ok: false, error: 'Você só pode editar o seu próprio perfil.' });
       return;
     }

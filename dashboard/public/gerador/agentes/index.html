@@ -491,6 +491,7 @@ async function carregar(){
     if (!r.ok) throw new Error('HTTP ' + r.status);
     dados = await r.json();
     render();
+    restaurarRascunho();
   } catch (e) {
     document.getElementById('conteudo').innerHTML =
       `<div class="erro"><strong>Não consegui ler o estado das agentes.</strong><br>${esc(e.message)}<br>
@@ -744,6 +745,54 @@ function pintarChat(){
 }
 function limparChat(){ conversa = []; pintarChat(); }
 
+async function bearerDoGerador(){
+  if (!window.agentesSessao) throw new Error('A sessão do Gerador não carregou. Recarregue a página.');
+  return window.agentesSessao.obterToken();
+}
+function ehFalhaDeLogin(r, j){ return (r.status === 401 || r.status === 403) && !!j && j.precisa === 'login'; }
+function sessaoDoGeradorVenceu(r, j){
+  if (ehFalhaDeLogin(r, j)) { alert('Sua sessão do Gerador venceu. Entre de novo. O texto que você estava editando fica guardado e volta quando você abrir esta página.'); location.replace('/gerador'); return true; }
+  return false;
+}
+// Texto em edição (cérebro e mensagem de teste): guardado antes de qualquer chamada que possa mandar ao login, e devolvido ao reabrir a página.
+const RASCUNHO_KEY = 'agentes-rascunho-v1';
+function guardarRascunho(msg){
+  try {
+    if (!atual) return;
+    sessionStorage.setItem(RASCUNHO_KEY, JSON.stringify({ id: atual.id, texto: document.getElementById('cerebro-txt').value, msg: msg || '', em: Date.now() }));
+  } catch(e){}
+}
+function restaurarRascunho(){
+  try {
+    const bruto = sessionStorage.getItem(RASCUNHO_KEY);
+    if (!bruto) return;
+    sessionStorage.removeItem(RASCUNHO_KEY);
+    const o = JSON.parse(bruto);
+    if (!o || !o.id || Date.now() - Number(o.em || 0) > 6 * 3600e3) return;
+    if (!cerebros.find(c => c.id === o.id)) return;
+    abrirModal(o.id, 'cerebro');
+    document.getElementById('cerebro-txt').value = o.texto;
+    if (o.msg) document.getElementById('msg').value = o.msg;
+  } catch(e){}
+}
+// Chama a rota de ADM com o login do Gerador. 401/403 com precisa:'login': renova o token UMA vez e tenta de novo
+// (como a página de Cobranças). Se ainda falhar, devolve a resposta e quem chamou manda ao login; o rascunho já está guardado.
+// rasc: undefined não guarda nada; objeto { msg } guarda o cérebro em edição e a mensagem.
+async function chamarGerador(url, init, rasc){
+  if (rasc) guardarRascunho(rasc.msg);
+  const com = (bearer) => fetch(url, Object.assign({}, init, { headers: Object.assign({}, init.headers, { 'Authorization': 'Bearer ' + bearer }) }));
+  let bearer = await bearerDoGerador();
+  let r = await com(bearer);
+  let j = await r.json();
+  if (ehFalhaDeLogin(r, j) && window.agentesSessao && window.agentesSessao.renovar) {
+    try { bearer = await window.agentesSessao.renovar(bearer); } catch (e) { return { r, j }; }
+    r = await com(bearer);
+    j = await r.json();
+  }
+  if (rasc && !ehFalhaDeLogin(r, j)) { try { sessionStorage.removeItem(RASCUNHO_KEY); } catch(e){} }
+  return { r, j };
+}
+
 async function enviarMsg(rascunho){
   const inp = document.getElementById('msg');
   const txt = (inp.value || '').trim();
@@ -758,12 +807,12 @@ async function enviarMsg(rascunho){
   const btn = document.getElementById('btn-enviar');
   btn.disabled = true; btn.textContent = '…';
   try {
-    const r = await fetch(`${API}/conversar/${atual.id}`, {
+    const { r, j } = await chamarGerador(`${API}/conversar/${atual.id}`, {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'x-central-token': token },
       body: JSON.stringify({ mensagens: conversa, rascunho: rascunho || undefined }),
-    });
-    const j = await r.json();
+    }, { msg: txt });
+    if (sessaoDoGeradorVenceu(r, j)) { btn.disabled = false; btn.textContent = 'Enviar'; return; }
     if (!r.ok) {
       if (r.status === 401) esqueceToken();
       conversa.push({ role:'assistant', content:`[erro] ${j.error || r.status}` });
@@ -792,12 +841,12 @@ async function salvarCerebro(){
   const btn = document.getElementById('btn-salvar');
   btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    const r = await fetch(`${API}/cerebro/${atual.id}`, {
+    const { r, j } = await chamarGerador(`${API}/cerebro/${atual.id}`, {
       method:'PUT',
       headers:{ 'Content-Type':'application/json', 'x-central-token': token },
       body: JSON.stringify({ texto }),
-    });
-    const j = await r.json();
+    }, {});
+    if (sessaoDoGeradorVenceu(r, j)) { btn.disabled = false; btn.textContent = 'Salvar'; return; }
     if (!r.ok) { if (r.status === 401) esqueceToken(); alert(j.error || 'não salvou'); }
     else { cerebros = j.cerebros; atual = cerebros.find(c => c.id === atual.id); alert('Salvo. Vale no próximo envio.'); render(); }
   } catch(e){ alert(e.message); }
@@ -808,8 +857,8 @@ async function restaurarCerebro(){
   if (!atual || !confirm('Voltar ao texto original do código?')) return;
   const token = pegarToken(); if (!token) return;
   try {
-    const r = await fetch(`${API}/cerebro/${atual.id}`, { method:'DELETE', headers:{ 'x-central-token': token } });
-    const j = await r.json();
+    const { r, j } = await chamarGerador(`${API}/cerebro/${atual.id}`, { method:'DELETE', headers:{ 'x-central-token': token } });
+    if (sessaoDoGeradorVenceu(r, j)) return;
     if (!r.ok) { if (r.status === 401) esqueceToken(); alert(j.error || 'não deu'); return; }
     cerebros = j.cerebros;
     atual = cerebros.find(c => c.id === atual.id);
@@ -2117,6 +2166,8 @@ setInterval(carregar, 120000);
   }
 
   // ── entrada ──
+  // Fase 0 (04/11/2026): o cérebro (salvar, restaurar, conversa de teste) exige o login do Gerador de ADM além do token da central.
+  window.agentesSessao = { obterToken: obterToken, renovar: renovar };
   window.Ensaio = {
     /** Intervalo (ms) com que a tela confere se a sonda pedida já tem resultado. */
     pollMs: 15000,

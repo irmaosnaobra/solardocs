@@ -1,7 +1,7 @@
 /* Meu perfil do /gerador: a janela que o menu do usuario (casca.js) abre. Vale nos dois visuais.
    - Foto (reduzida no navegador para ate 512 px) e WhatsApp: POST /gerador/perfil. O NOME nunca se edita aqui.
    - Trocar senha: Auth do Supabase do Gerador (PUT /auth/v1/user), so a do proprio usuario.
-   - Socio: "Perfis da equipe" abre a mesma janela com o seletor do consultor (campo `alvo` da API).
+   - ADM: "Perfis da equipe" abre a mesma janela com o seletor do consultor (campo `alvo` da API).
    - Entradas globais: abrirMeuPerfil(), abrirPerfisEquipe() (a casca chama pelo nome, ver MODELO.ir).
    - Depois de salvar: atualiza os mapas consultoresFotos e consultoresWhats do app e avisa a casca (evento
      'io2-perfil') para o avatar da barra mudar na hora.
@@ -191,7 +191,7 @@
     try { if (typeof consultoresWhats === 'object' && consultoresWhats && p.whatsapp) consultoresWhats[p.nome] = String(p.whatsapp); } catch (e2) {}
   }
   function avisarCasca(p) {
-    var eu = { nome: p.nome, email: (S.eu && S.eu.email) || '', socio: !!(S.eu && S.eu.socio), whatsapp: p.whatsapp || null, foto_url: p.foto_url || null };
+    var eu = { nome: p.nome, email: (S.eu && S.eu.email) || '', socio: !!(S.eu && S.eu.socio), adm: !!(S.eu && S.eu.adm), whatsapp: p.whatsapp || null, foto_url: p.foto_url || null };
     try { window.dispatchEvent(new CustomEvent('io2-perfil', { detail: { eu: eu, proprio: ehEu(p) } })); } catch (e) {}
   }
   function aplicarRetorno(p) {
@@ -385,7 +385,7 @@
     /* Nome (so leitura) */
     var sn = criar('div', 'pf-sec');
     var cn = campoTexto('pf-nome', 'Nome', 'text', p.nome, { readonly: 'readonly', 'aria-describedby': 'pf-nome-d' });
-    cn.caixa.appendChild(criar('p', 'pf-dica', S.eu && S.eu.socio && !eu ? 'O nome liga propostas, agenda e robôs. Ele não se troca aqui.' : 'Para trocar o nome, fale com um sócio.')).id = 'pf-nome-d';
+    cn.caixa.appendChild(criar('p', 'pf-dica', S.eu && S.eu.adm && !eu ? 'O nome liga propostas, agenda e robôs. Ele não se troca aqui.' : 'Para trocar o nome, fale com um sócio.')).id = 'pf-nome-d';
     sn.appendChild(cn.caixa);
     corpo.appendChild(sn);
 
@@ -446,10 +446,10 @@
       if (!vivo(id)) return;
       var eu = j.eu || {};
       if (!eu.nome) throw erro('Não consegui ler o perfil agora. Tente de novo em instantes.');
-      S.eu = { nome: eu.nome, email: eu.email || '', socio: eu.socio === true, whatsapp: eu.whatsapp || null, foto_url: eu.foto_url || null };
-      S.lista = (S.eu.socio && j.equipe && j.equipe.length) ? j.equipe.map(function (c) { return { nome: c.nome, whatsapp: c.whatsapp || null, foto_url: c.foto_url || null }; }) : [];
-      /* Pediu a equipe mas nao e socio (ou a lista veio vazia): abre o proprio perfil. */
-      if (S.equipe && !(S.eu.socio && S.lista.length)) S.equipe = false;
+      S.eu = { nome: eu.nome, email: eu.email || '', socio: eu.socio === true, adm: eu.adm === true, whatsapp: eu.whatsapp || null, foto_url: eu.foto_url || null };
+      S.lista = (S.eu.adm && j.equipe && j.equipe.length) ? j.equipe.map(function (c) { return { nome: c.nome, whatsapp: c.whatsapp || null, foto_url: c.foto_url || null }; }) : [];
+      /* Pediu a equipe mas nao e ADM (ou a lista veio vazia): abre o proprio perfil. */
+      if (S.equipe && !(S.eu.adm && S.lista.length)) S.equipe = false;
       if (S.equipe) {
         var primeiro = null;
         for (var i = 0; i < S.lista.length; i++) if (!ehEu(S.lista[i])) { primeiro = S.lista[i]; break; }

@@ -35,7 +35,7 @@
     sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
     /* Trilho recolhivel: setas duplas (recolher; recolhido o CSS espelha). */
     recolher: '<polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>',
-    /* Menu do usuario: perfil, equipe (so socio) e a seta do botao. */
+    /* Menu do usuario: perfil, equipe (so ADM) e a seta do botao. */
     perfil: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
     equipe: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
     seta: '<polyline points="6 9 12 15 18 9"></polyline>'
@@ -57,9 +57,9 @@
       { chave: 'nav-agentes', rotulo: 'Agentes' },
       { chave: 'nav-automacao', rotulo: 'Automação' },
       { sep: true },
-      /* Perfil: `acionar` trata os dois (abrem a janela do perfil.js). `soSocio`: escondido ate o perfil dizer que a pessoa e socio. */
+      /* Perfil: `acionar` trata os dois (abrem a janela do perfil.js). os de SO_ADM ficam escondidos ate o perfil dizer que a pessoa e ADM. */
       { chave: 'perfil', rotulo: 'Meu perfil', icone: 'perfil' },
-      { chave: 'perfil-equipe', rotulo: 'Perfis da equipe', icone: 'equipe', soSocio: true },
+      { chave: 'perfil-equipe', rotulo: 'Perfis da equipe', icone: 'equipe' },
       { chave: 'sb-atualizar', rotulo: 'Atualizar' },
       { chave: 'sair', rotulo: 'Sair', icone: 'sair' },
       /* Botao de tema (claro/escuro): sempre o ultimo item. */
@@ -131,6 +131,9 @@
       prospeccao: [['.ch button.btn.sm', 'Anterior'], ['.ch button.btn.sm .kbd', ''], ['.mbar .linha1 button', '']]
     }
   };
+  /* Fase 0 (04/11/2026): o que so o ADM ve nos menus que a casca monta (folha "Mais", menu do usuario, trilho dos subapps).
+     O ADM vem do GET /gerador/perfil (eu.adm). No index, o #app-sidebar e escondido pelo proprio index (data-so-adm). */
+  var SO_ADM = { 'nav-prospeccao': 1, 'nav-cobrancas': 1, 'nav-parceiros': 1, 'nav-agentes': 1, 'nav-automacao': 1, 'perfil-equipe': 1 };
   /* Icones da barra nos subapps (la nao existe #app-sidebar para clonar). Mesmos tracos do index. */
   var NAV_ICONES = {
     'nav-inicio': '<path d="M3 11l9-8 9 8"></path><path d="M5 9.5V20h14V9.5"></path><path d="M10 20v-6h4v6"></path>',
@@ -293,7 +296,7 @@
       b.appendChild(iconeDe(it));
       var r = criar('span'); r.textContent = it.rotulo;
       b.appendChild(r);
-      if (it.soSocio) { b.hidden = true; b.setAttribute('data-io2-socio', '1'); }
+      if (SO_ADM[it.chave]) { b.hidden = true; b.setAttribute('data-io2-adm', '1'); }
       b.addEventListener('click', function () { fecharFolha(false); acionar(it.chave); });
       lista.appendChild(b);
     });
@@ -305,7 +308,7 @@
     el.dica = criar('div', 'io2-dica');
     el.dica.setAttribute('aria-hidden', 'true');
     var pecas = [el.topo, el.baixo, el.fundo, el.folha, el.dica];
-    if (modoSub) pecas.unshift(montarBarra());
+    if (modoSub) { el.barra = montarBarra(); pecas.unshift(el.barra); }
     pecas.forEach(function (n) { body.appendChild(n); criados.push(n); });
     /* Index: o trilho lateral e o #app-sidebar do proprio app; o link entra no pe dele, depois do Sair, e sai no desfazer(). */
     if (!modoSub) {
@@ -346,12 +349,12 @@
   function lerCachePerfil() {
     try {
       var o = JSON.parse(localStorage.getItem(PERFIL_CHAVE) || 'null');
-      if (o && o.eu && o.eu.nome && mesmaPessoa(o.consultor, consultor())) return { eu: o.eu, em: Number(o.em) || 0 };
+      if (o && o.eu && o.eu.nome && typeof o.eu.adm === 'boolean' && mesmaPessoa(o.consultor, consultor())) return { eu: o.eu, em: Number(o.em) || 0 };
     } catch (e) {}
     return null;
   }
   function gravarCachePerfil(eu) {
-    try { localStorage.setItem(PERFIL_CHAVE, JSON.stringify({ consultor: consultor(), em: Date.now(), eu: { nome: eu.nome, email: eu.email || '', socio: eu.socio === true, whatsapp: eu.whatsapp || null, foto_url: eu.foto_url || null } })); } catch (e) {}
+    try { localStorage.setItem(PERFIL_CHAVE, JSON.stringify({ consultor: consultor(), em: Date.now(), eu: { nome: eu.nome, email: eu.email || '', socio: eu.socio === true, adm: eu.adm === true, whatsapp: eu.whatsapp || null, foto_url: eu.foto_url || null } })); } catch (e) {}
   }
   /* Foto de quem esta logado: a que veio do perfil, senao a do mapa que o app carrega dos consultores (se ja chegou). */
   function fotoDoUsuario() {
@@ -405,14 +408,16 @@
     if (el.umNome) el.umNome.textContent = c;
     if (el.umMail) el.umMail.textContent = (perfilEu && perfilEu.email) || '';
     if (el.umPapel) { var p = papelDoPerfil(); el.umPapel.textContent = p; el.umPapel.hidden = !p; }
-    var socio = !!(perfilEu && perfilEu.socio);
-    itensMenu.forEach(function (b) { if (b.getAttribute('data-io2-socio')) b.hidden = !socio; });
-    var fs = el.folha ? el.folha.querySelectorAll('[data-io2-socio]') : [];
-    for (var i = 0; i < fs.length; i++) fs[i].hidden = !socio;
+    var adm = !!(perfilEu && perfilEu.adm);
+    itensMenu.forEach(function (b) { if (b.getAttribute('data-io2-adm')) b.hidden = !adm; });
+    var fs = el.folha ? el.folha.querySelectorAll('[data-io2-adm]') : [];
+    for (var i = 0; i < fs.length; i++) fs[i].hidden = !adm;
+    var bs = el.barra ? el.barra.querySelectorAll('[data-io2-adm]') : [];
+    for (var j = 0; j < bs.length; j++) bs[j].style.display = adm ? '' : 'none';
   }
   function aplicarPerfil(eu, gravar) {
     if (!eu || !eu.nome) return;
-    perfilEu = { nome: eu.nome, email: eu.email || (perfilEu && perfilEu.email) || '', socio: eu.socio === true || (eu.socio === undefined && !!(perfilEu && perfilEu.socio)), whatsapp: eu.whatsapp || null, foto_url: eu.foto_url || null };
+    perfilEu = { nome: eu.nome, email: eu.email || (perfilEu && perfilEu.email) || '', socio: eu.socio === true || (eu.socio === undefined && !!(perfilEu && perfilEu.socio)), adm: eu.adm === true || (eu.adm === undefined && !!(perfilEu && perfilEu.adm)), whatsapp: eu.whatsapp || null, foto_url: eu.foto_url || null };
     perfilEm = Date.now();
     if (gravar) gravarCachePerfil(perfilEu);
     pintarUsuario();
@@ -474,7 +479,7 @@
     var sep1 = criar('div', null, 'io2-um-sep'); sep1.setAttribute('role', 'separator'); m.appendChild(sep1);
     var perf = itemMenu('Meu perfil', ICONES.perfil, 'perfil');
     var eqp = itemMenu('Perfis da equipe', ICONES.equipe, 'perfil-equipe');
-    eqp.hidden = true; eqp.setAttribute('data-io2-socio', '1');
+    eqp.hidden = true; eqp.setAttribute('data-io2-adm', '1');
     var tema = botaoTema('io2-um-item');
     tema.setAttribute('role', 'menuitem'); tema.tabIndex = -1;
     var sair = itemMenu('Sair', ICONES.sair, 'sair');
@@ -760,6 +765,8 @@
     var lista = criar('div', null, 'sb-nav');
     MODELO.barra.forEach(function (k) {
       var b = itemBarra(k, rotuloDe(k));
+      /* .sb-item tem display:flex no io2.css, entao [hidden] nao basta: estilo na linha, desfeito no pintarUsuario. */
+      if (SO_ADM[k]) { b.setAttribute('data-io2-adm', '1'); b.style.display = 'none'; }
       b.addEventListener('click', function () { acionar(k); });
       lista.appendChild(b);
     });
@@ -858,6 +865,7 @@
     MODELO.barra.forEach(function (k) {
       var f = modoSub ? null : fonteDe(k);
       if (!modoSub && (!f || !visivel(f))) return;
+      if (modoSub && SO_ADM[k] && !(perfilEu && perfilEu.adm)) return; /* subapp: o trilho nao passa pelo visivel() */
       var r = (f && textoDe(f)) || rotuloDe(k);
       raizes[k] = r;
       add([r], [{ chave: k }], k);

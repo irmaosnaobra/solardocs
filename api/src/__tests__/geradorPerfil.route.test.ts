@@ -157,6 +157,7 @@ beforeEach(() => {
   h.updates = []; h.updateVazio = false; h.erroLeitura = false; h.trilha = null; h.tique = 0;
   h.bucket = null; h.bucketCriado = []; h.uploads = []; h.uploadErro = false; h.limiteReal = false;
   delete process.env.SOLAR_SOCIOS;
+  delete process.env.SOLAR_ADM;
   esquecerConferenciaDoBucket();
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -184,16 +185,23 @@ describe('GET /perfil', () => {
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body).toEqual({
       ok: true,
-      eu: { nome: 'Nilce', email: 'nilce@irmaosnaobra.app', socio: false, whatsapp: null, foto_url: null },
+      eu: { nome: 'Nilce', email: 'nilce@irmaosnaobra.app', socio: false, adm: false, whatsapp: null, foto_url: null },
       equipe: [],
     });
     expect(JSON.stringify(res.body)).not.toContain('5534900000001');   // telefone dos outros não vaza
   });
-  it('sócio: eu.socio verdadeiro e a lista da equipe com nome, whatsapp e foto', async () => {
+  it('ADM: eu.adm e eu.socio verdadeiros e a lista da equipe com nome, whatsapp e foto', async () => {
     const res = await get(THIAGO);
-    expect(res.body.eu).toMatchObject({ nome: 'Thiago', socio: true, whatsapp: '5534900000004' });
+    expect(res.body.eu).toMatchObject({ nome: 'Thiago', socio: true, adm: true, whatsapp: '5534900000004' });
     expect(res.body.equipe.map((e: { nome: string }) => e.nome)).toEqual(['Diego', 'Giovanna', 'Nilce', 'Thiago']);
     expect(Object.keys(res.body.equipe[0]).sort()).toEqual(['foto_url', 'nome', 'whatsapp']);
+  });
+  it('Diego é sócio e não é ADM: sem a lista da equipe', async () => {
+    const res = await get(DIEGO);
+    expect(res.status).toBe(200);
+    expect(res.body.eu.socio).toBe(true);
+    expect(res.body.eu.adm).toBe(false);
+    expect(res.body.equipe).toEqual([]);
   });
   it('banco fora: 502 genérico, sem o texto do erro do driver', async () => {
     h.erroLeitura = true;
@@ -246,25 +254,34 @@ describe('POST /perfil: papel', () => {
     expect(h.trilha).toBeNull();
     expect(h.consultores.find((c) => c.nome === 'Diego')!.whatsapp).toBe('5534900000001');
   });
-  it('sócio editando outro: passa, o filtro é o nome canônico e a trilha diz quem mudou e de quem', async () => {
+  it('ADM editando outro: passa, o filtro é o nome canônico e a trilha diz quem mudou e de quem', async () => {
     const res = await post({ alvo: 'nilce', whatsapp: CEL_A }, THIAGO);
     expect(res.status).toBe(200);
     expect(res.body.perfil).toMatchObject({ nome: 'Nilce', whatsapp: CEL_A_GRAVADO });
     expect(h.updates).toEqual([{ patch: { whatsapp: CEL_A_GRAVADO }, nome: 'Nilce' }]);
     expect(h.trilha!.value).toEqual([expect.objectContaining({ por: 'thiago', alvo: 'Nilce', campo: 'whatsapp' })]);
   });
-  it('o outro sócio também edita o de qualquer um', async () => {
-    expect((await post({ alvo: 'Giovanna', whatsapp: CEL_B }, DIEGO)).status).toBe(200);
+  it('o outro sócio NÃO edita o perfil de outro', async () => {
+    expect((await post({ alvo: 'Giovanna', whatsapp: CEL_B }, DIEGO)).status).toBe(403);
+    expect(h.updates).toHaveLength(0);
+  });
+  it('Diego edita o próprio WhatsApp', async () => {
+    expect((await post({ whatsapp: CEL_B }, DIEGO)).status).toBe(200);
   });
   it('sócio com alvo inexistente: 404, nada gravado', async () => {
     const res = await post({ alvo: 'ninguem', whatsapp: CEL_A }, THIAGO);
     expect(res.status).toBe(404);
     expect(h.updates).toHaveLength(0);
   });
-  it('sócio é decidido por SOLAR_SOCIOS: com a variável trocada, Thiago vira consultor comum', async () => {
-    process.env.SOLAR_SOCIOS = 'diego';
+  it('ADM é decidido por SOLAR_ADM: com a variável trocada, Thiago vira consultor comum e Diego edita', async () => {
+    process.env.SOLAR_ADM = 'diego';
     expect((await post({ alvo: 'Nilce', whatsapp: CEL_A }, THIAGO)).status).toBe(403);
     expect((await get(THIAGO)).body.equipe).toEqual([]);
+    expect((await post({ alvo: 'Nilce', whatsapp: CEL_A }, DIEGO)).status).toBe(200);
+  });
+  it('SOLAR_SOCIOS não decide o ADM', async () => {
+    process.env.SOLAR_SOCIOS = 'diego';
+    expect((await post({ alvo: 'Nilce', whatsapp: CEL_A }, THIAGO)).status).toBe(200);
   });
 });
 
@@ -390,11 +407,11 @@ describe('POST /perfil: foto', () => {
     expect(h.updates).toHaveLength(0);
     expect(h.trilha).toBeNull();
   });
-  it('sócio sobe a foto de outro: vai para a pasta do outro', async () => {
-    const res = await post({ alvo: 'giovanna', foto: foto(JPEG()) }, DIEGO);
+  it('ADM sobe a foto de outro: vai para a pasta do outro', async () => {
+    const res = await post({ alvo: 'giovanna', foto: foto(JPEG()) }, THIAGO);
     expect(res.status).toBe(200);
     expect(h.uploads[0].path).toMatch(/^giovanna\//);
-    expect(h.trilha!.value).toEqual([expect.objectContaining({ por: 'diego', alvo: 'Giovanna', antes: 'https://exemplo.test/giovanna-antiga.jpg' })]);
+    expect(h.trilha!.value).toEqual([expect.objectContaining({ por: 'thiago', alvo: 'Giovanna', antes: 'https://exemplo.test/giovanna-antiga.jpg' })]);
   });
   it('a pasta no Storage não deixa o nome escapar do caminho', () => {
     expect(pastaDoNome('José Álvaro')).toBe('jose-alvaro');

@@ -545,6 +545,28 @@ export function ehSocio(nome: string, env?: string): boolean {
   return listaSocios(env).includes(String(nome ?? '').trim().toLowerCase());
 }
 
+/** ADM do /gerador: SOLAR_ADM (nomes separados por vírgula), padrão 'thiago'.
+ *  Separado de SOLAR_SOCIOS de propósito: o Diego é sócio (comissão, vencimentos,
+ *  dinheiro do Início) e não é ADM. Lido a cada chamada. Cada item da LISTA é
+ *  normalizado como o nome do login (a parte do e-mail antes do @, em minúscula):
+ *  corta o "@...", tira espaços e acentos. Assim 'Thiago@irmaosnaobra.app' vale
+ *  'thiago' e a env mal preenchida não tira o acesso do Thiago. O nome que chega
+ *  (ehAdm) só leva minúscula e aparar: 'thiagó' continua não sendo ADM. Lista que
+ *  sai vazia (env com só vírgula ou espaço) volta ao padrão. */
+function nomeDeLista(x: string): string {
+  return x.split('@')[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').toLowerCase();
+}
+
+export function listaAdm(env: string | undefined = process.env.SOLAR_ADM): string[] {
+  const bruto = env && env.trim() ? env : 'thiago';
+  const lista = bruto.split(',').map(nomeDeLista).filter(Boolean);
+  return lista.length ? lista : ['thiago'];
+}
+
+export function ehAdm(nome: string, env?: string): boolean {
+  return listaAdm(env).includes(String(nome ?? '').trim().toLowerCase());
+}
+
 /** Sócio vê tudo; consultor vê só as vendas em que a coluna CONSULTOR é ele.
  *  Acento e caixa se tiram SÓ do lado da planilha (lá se digita "José"); o nome
  *  da conta é comparado exato, pelo mesmo motivo da checagem de sócio. */
