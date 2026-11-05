@@ -86,7 +86,6 @@ const BANCOS_LOGOS = [
 ] as const;
 type BancoId = (typeof BANCOS_LOGOS)[number]['id'];
 const TODOS_BANCOS: BancoId[] = BANCOS_LOGOS.map(b => b.id);
-const LIMITE_BANCOS_NA_PROPOSTA = 12;
 const CARGO_PADRAO = 'Sócio administrador';
 
 type TipoCliente = 'PF' | 'PJ';
@@ -621,8 +620,6 @@ export default function PropostaSolarPage() {
   // Editando uma proposta modelo 4 antiga, emitida SEM assinatura: o bloco fica opcional
   // (só valida e só envia se a pessoa preencher algo). Proposta nova sempre exige.
   const assinaturaOpcional = useRef(false);
-  // As fotos da empresa já foram oferecidas a esta proposta nova?
-  const fotosEmpresaAplicadas = useRef(false);
   const [clientesHist, setClientesHist] = useState<string[]>([]); // clientes com histórico
 
   // Restaura rascunho ao montar (1x). Abrindo pra editar um doc salvo (?doc=), o
@@ -765,11 +762,9 @@ export default function PropostaSolarPage() {
           // não mexeu naquela galeria enquanto a rede respondia.
           const portfolioKit = normalizarPortfolio(data.kit as Record<string, unknown>, f);
           for (const k of CHAVES_PORTFOLIO) {
-            if (Array.isArray((data.kit as Record<string, unknown>)[k]) && !camposTocados.current.has(k)) {
-              // Kit com lista de fotos vazia não apaga as fotos que a empresa já preencheu aqui.
-              if (k === 'fotos_obras' && portfolioKit[k].length === 0 && f.fotos_obras.length > 0) continue;
-              merged[k] = portfolioKit[k];
-            }
+            // As fotos extras são desta proposta (as da empresa entram pelo servidor): o kit não as leva.
+            if (k === 'fotos_obras') continue;
+            if (Array.isArray((data.kit as Record<string, unknown>)[k]) && !camposTocados.current.has(k)) merged[k] = portfolioKit[k];
           }
           return merged as typeof f;
         });
@@ -868,14 +863,13 @@ export default function PropostaSolarPage() {
     });
   }, [empresaDef, carregandoDoc]);
 
-  // Proposta NOVA no modelo 4 sem fotos: entram as fotos de obras do cadastro da empresa. Uma vez
-  // só, e só se a pessoa não mexeu na galeria. Em edição vale o que está salvo.
+  // Fotos extras desta proposta: propostas geradas antes gravaram junto as fotos da tela Empresa. Quem já
+  // está na empresa sai dos extras (editando, carregando a última proposta de um cliente ou vindo de rascunho).
   useEffect(() => {
-    if (modelo !== 4 || docParam || editando || carregandoDoc || !empresaDef || empresaDef.fotos.length === 0) return;
-    if (fotosEmpresaAplicadas.current) return;
-    fotosEmpresaAplicadas.current = true;
-    setFields(f => (f.fotos_obras.length === 0 && !camposTocados.current.has('fotos_obras') ? { ...f, fotos_obras: empresaDef.fotos } : f));
-  }, [modelo, docParam, editando, carregandoDoc, empresaDef]);
+    if (!empresaDef || empresaDef.fotos.length === 0) return;
+    const daEmpresa = new Set(empresaDef.fotos.map(foto => foto.path));
+    setFields(f => (f.fotos_obras.some(foto => daEmpresa.has(foto.path)) ? { ...f, fotos_obras: f.fotos_obras.filter(foto => !daEmpresa.has(foto.path)) } : f));
+  }, [empresaDef, fields.fotos_obras]);
 
   // Carrega um cliente e preenche o que houver: tudo da última proposta dele ou, se ele
   // ainda não tem proposta, os dados do cadastro de Clientes (cidade, UF, endereço,
@@ -956,6 +950,16 @@ export default function PropostaSolarPage() {
     }, 0);
     return () => clearTimeout(t);
   }, [clienteParam, docParam]);
+
+  // Fotos de obra que a proposta terá: as extras daqui primeiro, depois as da tela Empresa, sem repetir, até 12.
+  const totalFotosProposta = (() => {
+    const vistos = new Set<string>();
+    for (const foto of [...fields.fotos_obras, ...(empresaDef?.fotos ?? [])]) {
+      if (foto.path) vistos.add(foto.path);
+      if (vistos.size >= LIMITE_FOTOS_OBRAS) break;
+    }
+    return vistos.size;
+  })();
 
   // kWp deriva de qtd_modulos × potencia_modulo (verdade técnica: 10×620W = 6,2 kWp)
   const kwpCalc = (() => {
@@ -1187,6 +1191,7 @@ export default function PropostaSolarPage() {
       // A empresa e a cidade da assinatura ficam (template do integrador).
       assinatura: { ...f.assinatura, cliente: assinaturaVazia().cliente },
       bancos_logos: [...TODOS_BANCOS],
+      fotos_obras: [],
       // específicos do cliente/venda — zerados:
       consumo_kwh: '', qtd_modulos: '', area_m2: '', potencia_modulo: '',
       qtd_inversores: initialFields.qtd_inversores, potencia_inversor: '',
@@ -1321,6 +1326,8 @@ export default function PropostaSolarPage() {
         // O campo antigo nunca mais vai: rascunho e proposta velhos ainda podem tê-lo em `fields`.
         delete camposEnvio.fio_b_injetada_pct;
       }
+      // Completa + Banco: só os 8 bancos da grade. O "Outro banco" saiu, então nada de `bancos_parceiros` velho.
+      if (modelo === 4) camposEnvio.bancos_parceiros = [];
       if (modelo === 4 && !assinaturaEmUso) {
         delete camposEnvio.assinatura;
       } else if (modelo === 4) {
@@ -1734,19 +1741,37 @@ export default function PropostaSolarPage() {
             </Escolhas>
           </div>
 
-          {/* Completa + Banco: fotos e dados bancários moram na tela Empresa e entram sozinhos. */}
-          {modelo === 4 && empresaDef && (empresaDef.fotos.length < 6 ? (
-            <div className={styles.orientacao}>
-              <span>Cadastre as fotos dos seus trabalhos e os dados bancários uma vez na tela Empresa. Eles ficam salvos e entram sozinhos em toda proposta, sem precisar subir de novo.</span>
-              <Link href="/empresa" style={{ color: 'var(--ink-orange)', fontWeight: 700, textDecoration: 'underline' }}>Ir para a tela Empresa</Link>
-              {!docParam && !editando && <span className={styles.orientacaoPequena}>O que você já preencheu aqui fica salvo.</span>}
+          {/* Completa + Banco: fotos salvas na tela Empresa, logo abaixo dos cartões de modelo. */}
+          {modelo === 4 && (
+            <div className={styles.faixaEmpresa}>
+              <h3 className={styles.subtituloBloco}>Fotos dos seus trabalhos</h3>
+              {!empresaDef ? (
+                <ul className={styles.faixaMiniaturas} aria-hidden="true">
+                  {Array.from({ length: 6 }, (_, k) => <li key={k} className={styles.faixaMini}><div className={styles.faixaMiniQuadro} /></li>)}
+                </ul>
+              ) : empresaDef.fotos.length > 0 ? (
+                <>
+                  <ul className={styles.faixaMiniaturas}>
+                    {empresaDef.fotos.slice(0, LIMITE_FOTOS_OBRAS).map((foto, i) => (
+                      <FotoEmpresa key={`${foto.path}-${i}`} url={foto.url} legenda={foto.legenda} />
+                    ))}
+                  </ul>
+                  <p className={styles.enderecoDica}>
+                    {empresaDef.fotos.length === 1 ? 'Esta 1 foto já entra sozinha em toda proposta.' : `Estas ${empresaDef.fotos.length} fotos já entram sozinhas em toda proposta.`}{' '}
+                    <Link href="/empresa" style={{ color: 'var(--ink-orange)', fontWeight: 700, textDecoration: 'underline' }}>Trocar na tela Empresa</Link>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className={styles.enderecoDica}>
+                    Cadastre as fotos dos seus trabalhos na tela Empresa. Elas ficam salvas e entram sozinhas em toda proposta.{' '}
+                    <Link href="/empresa" style={{ color: 'var(--ink-orange)', fontWeight: 700, textDecoration: 'underline' }}>Ir para a tela Empresa</Link>
+                  </p>
+                  {!docParam && !editando && <p className={styles.orientacaoPequena}>O que você já preencheu aqui fica salvo.</p>}
+                </>
+              )}
             </div>
-          ) : (
-            <div className={`${styles.orientacao} ${styles.orientacaoDiscreta}`}>
-              <span>Suas fotos estão salvas na tela Empresa e já entram sozinhas.</span>
-              <Link href="/empresa" style={{ color: 'var(--ink-orange)', fontWeight: 700, textDecoration: 'underline' }}>Ir para a tela Empresa</Link>
-            </div>
-          ))}
+          )}
 
           {/* A COR MORA NA EMPRESA, e num lugar só. Editar a mesma coisa em duas
               telas faz a pessoa não saber qual vale — e aqui era pior: o campo
@@ -1767,8 +1792,8 @@ export default function PropostaSolarPage() {
             <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
               Envie uma vez: as imagens voltam sozinhas nas próximas propostas.
             </p>
-            <p className={styles.ajudaSecao}>Mande 6, 9 ou 12 fotos. A proposta mostra sempre fileiras completas de 3. Para não subir toda vez, cadastre na <Link href="/empresa" style={{ color: 'var(--ink-orange)', fontWeight: 700, textDecoration: 'underline' }}>tela Empresa</Link>.</p>
-            <GaleriaPortfolio tipo="obra" titulo="Fotos de obras" max={LIMITE_FOTOS_OBRAS} itens={fields.fotos_obras} onChange={v => setField('fotos_obras', v)} />
+            <p className={styles.ajudaSecao}>Entram antes das fotos da tela Empresa. A proposta mostra até 12, sempre em fileiras de 3.</p>
+            <GaleriaPortfolio tipo="obra" titulo="Fotos extras desta proposta (opcional)" max={LIMITE_FOTOS_OBRAS} itens={fields.fotos_obras} totalProposta={totalFotosProposta} onChange={v => setField('fotos_obras', v)} />
             <GaleriaPortfolio tipo="empresa" titulo="Empresas atendidas" max={LIMITE_EMPRESAS} itens={fields.empresas_atendidas} onChange={v => setField('empresas_atendidas', v)} />
           </div>
         )}
@@ -1797,13 +1822,6 @@ export default function PropostaSolarPage() {
                 );
               })}
             </ul>
-            <GaleriaPortfolio tipo="banco" titulo="Outro banco" max={LIMITE_BANCOS} itens={fields.bancos_parceiros} onChange={v => setField('bancos_parceiros', v)} />
-            {fields.bancos_logos.length + fields.bancos_parceiros.length > LIMITE_BANCOS_NA_PROPOSTA && (
-              <p className={styles.avisoCampo} role="status">
-                <AlertTriangle size={14} aria-hidden />
-                <span>A proposta mostra até 12 bancos.</span>
-              </p>
-            )}
 
             <h3 className={styles.subtituloBloco}>Dados bancários</h3>
             {empresaDef && !empresaDef.temBanco ? (
@@ -2771,4 +2789,20 @@ function btn(variant: 'primary' | 'outline' | 'ghost' | 'whatsapp'): React.CSSPr
   if (variant === 'whatsapp') return { ...base, background: '#25D366', color: '#fff' };
   if (variant === 'outline') return { ...base, background: 'transparent', color: 'var(--color-text)', border: '1px solid var(--color-border)' };
   return { ...base, background: 'transparent', color: 'var(--color-text-muted)' };
+}
+
+/** Miniatura de uma foto salva na tela Empresa. Se a URL assinada falhar, o espaço continua e a imagem some. */
+function FotoEmpresa({ url, legenda }: { url?: string; legenda?: string }) {
+  const [quebrada, setQuebrada] = useState(false);
+  return (
+    <li className={styles.faixaMini}>
+      <div className={styles.faixaMiniQuadro}>
+        {url && !quebrada && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt={legenda || 'Foto de obra'} className={styles.faixaMiniImg} onError={() => setQuebrada(true)} />
+        )}
+      </div>
+      {legenda && <span className={styles.faixaMiniLegenda}>{legenda}</span>}
+    </li>
+  );
 }

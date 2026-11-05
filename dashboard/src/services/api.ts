@@ -117,6 +117,8 @@ export interface Abertura {
   pais?: string | null;
   dispositivo: string | null;
   vencida: boolean;
+  /** Tipo do evento do link ('pdf_baixado'). Ausente ou vazio é abertura comum. */
+  evento?: string | null;
 }
 
 export interface ResumoAberturas {

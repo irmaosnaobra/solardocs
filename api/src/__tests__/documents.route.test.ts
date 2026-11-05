@@ -14,6 +14,8 @@ const mockRemove  = vi.fn().mockResolvedValue({ error: null });
 const mockSignedUrls = vi.fn();
 // O que o controller manda para documents.insert (a prova do dados_json gravado).
 const mockInsert = vi.fn();
+// O que o controller manda para documents.update (a prova do dados_json regravado na reedição).
+const mockUpdate = vi.fn();
 
 // ─── mocks antes do import de app ───────────────────────────────────
 vi.mock('../utils/supabase', () => ({
@@ -24,7 +26,8 @@ vi.mock('../utils/supabase', () => ({
       single: mockSingle,
       insert: vi.fn(function (this: unknown, ...a: unknown[]) { mockInsert(...a); return this; }),
       // update(...).eq(...).select('id') devolve a linha acertada (o controller confere que o doc ainda existe).
-      update: vi.fn(() => {
+      update: vi.fn((...a: unknown[]) => {
+        mockUpdate(...a);
         const q: Record<string, unknown> = {};
         for (const m of ['eq', 'select', 'lt']) q[m] = () => q;
         q.single = mockSingle;
@@ -334,13 +337,42 @@ describe('POST /documents/generate', () => {
     expect(fields.assinatura.empresa.cnpj).toBe('11222333000181');
   });
 
-  it('modelo 4: sem a chave fotos_obras valem as fotos da empresa; [] explícito não preenche', async () => {
-    const meu = 'portfolio/user-123/obra/1700000000000-abcdef12.jpg';
-    const empresaComFotos = { data: { id: 'comp-1', nome: 'Empresa', cnpj: '00.000.000/0001-00', fotos_obras: [{ path: meu, legenda: 'Casa' }] } };
+  it('modelo 4: o dados_json guarda SÓ as fotos próprias; o template recebe a mescla (2 próprias + 12 da empresa = 12)', async () => {
     mockSignedUrls.mockImplementation(async (paths: string[]) => ({
       data: paths.map((path) => ({ path, signedUrl: 'https://x.test/nova/' + path, error: null })), error: null,
     }));
-    const gerar = async (fields: Record<string, unknown>) => {
+    const proprias = ['1800000000001-fedcba01.jpg', '1800000000002-fedcba02.jpg'].map((n) => ({ path: 'portfolio/user-123/obra/' + n }));
+    const daEmpresa = Array.from({ length: 12 }, (_, i) => ({ path: `portfolio/user-123/obra/17000000${String(i).padStart(4, '0')}-abcdef0${i % 10}.jpg` }));
+    mockSingle.mockReset();
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: 'comp-1', nome: 'Empresa', cnpj: '00.000.000/0001-00', fotos_obras: daEmpresa } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+      .mockResolvedValueOnce({ data: { id: CLIENT_UUID, nome: 'Cliente' } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', documentos_usados: 5, limite_documentos: 90 } })
+      .mockResolvedValueOnce({ data: { id: 'comp-1', nome: 'Empresa', slug: 'empresa' } })
+      .mockResolvedValueOnce({ data: { documentos_usados: 5 } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+      .mockResolvedValueOnce({ data: { id: 'doc-1' }, error: null });
+    mockRpc.mockResolvedValueOnce({ data: '20260042', error: null });
+    mockInsert.mockClear();
+    const r = await request(app).post('/documents/generate').set('Authorization', AUTH)
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4, fields: { assinatura: ASSIN_OK, fotos_obras: proprias } });
+    expect(r.status).toBe(200);
+    const template = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>;
+    expect(template.fotos_obras).toHaveLength(12);
+    expect(template.fotos_obras.slice(0, 2).map((x: { path: string }) => x.path)).toEqual(proprias.map((x) => x.path));
+    const gravado = mockInsert.mock.calls.map((c) => c[0] as Record<string, any>).find((p) => p.dados_json)?.dados_json;
+    expect(gravado.fotos_obras.map((x: { path: string }) => x.path)).toEqual(proprias.map((x) => x.path));
+    expect(JSON.stringify(gravado.fotos_obras)).not.toContain('17000000');
+  });
+
+  it('modelo 4: fotos próprias primeiro, depois as da empresa, sem repetir, até 12; [] não tira as da empresa', async () => {
+    const meu = 'portfolio/user-123/obra/1700000000000-abcdef12.jpg';
+    mockSignedUrls.mockImplementation(async (paths: string[]) => ({
+      data: paths.map((path) => ({ path, signedUrl: 'https://x.test/nova/' + path, error: null })), error: null,
+    }));
+    const gerar = async (fields: Record<string, unknown>, fotosEmpresa: Array<Record<string, unknown>> = [{ path: meu, legenda: 'Casa' }]) => {
+      const empresaComFotos = { data: { id: 'comp-1', nome: 'Empresa', cnpj: '00.000.000/0001-00', fotos_obras: fotosEmpresa } };
       mockGeracaoProposta();
       mockSingle.mockReset();
       mockSingle
@@ -362,7 +394,19 @@ describe('POST /documents/generate', () => {
     const auto = await gerar({});
     expect(auto.fotos_obras).toEqual([{ path: meu, legenda: 'Casa', url: 'https://x.test/nova/' + meu }]);
     const tirou = await gerar({ fotos_obras: [] });
-    expect(tirou.fotos_obras).toEqual([]);
+    expect(tirou.fotos_obras).toEqual(auto.fotos_obras);
+
+    // O caso real: 2 fotos próprias da proposta + 12 da empresa = 12 na lista, as 2 próprias primeiro.
+    const proprias = ['1800000000001-fedcba01.jpg', '1800000000002-fedcba02.jpg'].map((n) => ({ path: 'portfolio/user-123/obra/' + n, legenda: 'Minha' }));
+    const daEmpresa = Array.from({ length: 12 }, (_, i) => ({ path: `portfolio/user-123/obra/17000000${String(i).padStart(4, '0')}-abcdef0${i % 10}.jpg`, legenda: 'Empresa ' + i }));
+    const real = await gerar({ fotos_obras: proprias }, daEmpresa);
+    expect(real.fotos_obras).toHaveLength(12);
+    expect(real.fotos_obras.slice(0, 2).map((x: { path: string }) => x.path)).toEqual(proprias.map((x) => x.path));
+    expect(real.fotos_obras[2].path).toBe(daEmpresa[0].path);
+    expect(new Set(real.fotos_obras.map((x: { path: string }) => x.path)).size).toBe(12);
+    // Foto repetida (mesma path na proposta e na empresa) entra uma vez só; path de outro usuário não passa.
+    const rep = await gerar({ fotos_obras: [daEmpresa[0], { path: 'portfolio/user-999/obra/1700000000000-abcdef12.jpg' }] }, daEmpresa.slice(0, 3));
+    expect(rep.fotos_obras.map((x: { path: string }) => x.path)).toEqual(daEmpresa.slice(0, 3).map((x) => x.path));
   });
 
   // Reserva que falha NÃO recomeça do 0001 (foi o que um 504 fez em 12/09/2026), e o
@@ -534,6 +578,34 @@ describe('POST /documents/:id/regenerate', () => {
       .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
     const ok = await post(DOC_UUID, { modeloNumero: 4, fields: { fio_b_mostrar: true, fio_b_tarifa: 0.3, fio_b_injetada_pct: 80 } });
     expect(ok.status).toBe(200);
+  });
+
+  it('modelo 4, reedição: trocar as fotos da empresa e regerar muda o template, não o dados_json', async () => {
+    mockSignedUrls.mockImplementation(async (paths: string[]) => ({
+      data: paths.map((path) => ({ path, signedUrl: 'https://x.test/nova/' + path, error: null })), error: null,
+    }));
+    const propria = { path: 'portfolio/user-123/obra/1800000000001-fedcba01.jpg' };
+    const velhas = [{ path: 'portfolio/user-123/obra/1700000000001-abcdef01.jpg' }];
+    const novas = [{ path: 'portfolio/user-123/obra/1700000000009-abcdef09.jpg' }, { path: 'portfolio/user-123/obra/1700000000008-abcdef08.jpg' }];
+    const regerar = async (fotosEmpresa: Array<{ path: string }>) => {
+      mockSingle
+        .mockResolvedValueOnce({ data: { ...docAvulso, dados_json: { ...docAvulso.dados_json, fotos_obras: [propria] } } })
+        .mockResolvedValueOnce({ data: { nome: 'Empresa', cnpj: '00.000.000/0001-00', slug: 'aiorosgroup', fotos_obras: fotosEmpresa } })
+        .mockResolvedValueOnce({ data: { plano: 'ilimitado', is_admin: false } });
+      mockUpdate.mockClear();
+      vi.mocked(generateFromTemplate).mockClear();
+      const r = await post(DOC_UUID, { modeloNumero: 4, fields: { assinatura: ASSIN_OK, fotos_obras: [propria] } });
+      expect(r.status).toBe(200);
+      const template = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>;
+      const gravado = (mockUpdate.mock.calls[0][0] as Record<string, any>).dados_json;
+      return { template: template.fotos_obras.map((x: { path: string }) => x.path), gravado: gravado.fotos_obras.map((x: { path: string }) => x.path) };
+    };
+    const a = await regerar(velhas);
+    expect(a.template).toEqual([propria.path, velhas[0].path]);
+    expect(a.gravado).toEqual([propria.path]);
+    const b = await regerar(novas);
+    expect(b.template).toEqual([propria.path, ...novas.map((x) => x.path)]);
+    expect(b.gravado).toEqual([propria.path]);
   });
 
   it('modelo 4, plano com limite: o cliente salvo no aceite vence o que veio; a empresa nova vale', async () => {

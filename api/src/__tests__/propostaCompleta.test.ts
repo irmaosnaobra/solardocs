@@ -23,6 +23,7 @@ const render = (f: Record<string, unknown> = {}, modelo: 1 | 2 | 3 | 4 = 4, emp:
   const html = generateFromTemplate('propostaSolar', emp, client, { ...base, ...f }, modelo, out);
   return { html, out };
 };
+const secoesTab = (h: string) => (h.match(/<div class="tab">[^<]+<\/div>/g) || []).map((x) => x.replace(/<[^>]+>/g, ''));
 const paginas = (h: string) => (h.match(/<div class="page[ "]/g) || []).length;
 // n fotos de obra com URL já assinada (o servidor só entrega ao template o que já passou pela reassinatura).
 const fotosObra = (n: number, legenda = (i: number) => `Obra ${i + 1}`) => Array.from({ length: n }, (_, i) => ({ url: HTTPS, legenda: legenda(i) }));
@@ -67,11 +68,20 @@ describe('modelo 4 Completo: folhas', () => {
     expect(render({ foto_telhado_b64: PNG }).html).toContain('Local da instalação');
   });
 
-  it('bancos parceiros: logo em ladrilho com nome, ou só o nome', () => {
-    const { html } = render({ bancos_parceiros: [{ nome: 'Banco A', url: HTTPS }, { nome: 'Banco B' }] });
+  it('bancos_parceiros (o "outro banco" de propostas antigas) é ignorado no modelo 4: só os fixos de bancos_logos saem', () => {
+    const antigo = [{ nome: 'Sicredi' }, { nome: 'Banco A', url: HTTPS }];
+    const { html } = render({ bancos_parceiros: antigo, bancos_logos: ['itau', 'bb'] });
     expect(html).toContain('Bancos que financiam o seu sistema');
-    expect(html).toMatch(/<div class="bk"><div class="lg"><img src="https:[^"]+" alt="Banco A"\/><\/div><div class="nm">Banco A<\/div><\/div>/);
-    expect(html).toContain('<div class="bk so"><div class="nm">Banco B</div></div>');
+    expect((html.match(/<div class="bk[ "]/g) || []).length).toBe(2);
+    expect(html).toContain('alt="Itaú"');
+    expect(html).not.toContain('Banco A');
+    expect(html).not.toContain('class="bk so"');
+    // Sem fixos marcados, o "outro banco" não faz a seção aparecer.
+    const vazio = render({ bancos_parceiros: antigo, bancos_logos: [], pag_vista: false, pag_cartao: false, pag_fin: false }).html;
+    expect(vazio).not.toContain('Bancos que financiam o seu sistema');
+    expect(secoesTab(vazio)).not.toContain('Investimento e formas de pagamento');
+    // Com os 8 padrão, o mesmo "Sicredi" só nome não vira um nono cartão.
+    expect((render({ bancos_parceiros: antigo }).html.match(/<div class="bk[ "]/g) || []).length).toBe(8);
   });
 
   it('mesmos tokens do modelo 1: fonte, cores, acento', () => {
@@ -103,7 +113,7 @@ describe('modelo 4 Completo: imagens e escape', () => {
     expect(html).not.toContain('Fantasma');
     expect(html).toContain('alt="boa"');
     expect(html).not.toContain('src="http://x/y.png"');
-    expect(html).toContain('<div class="bk so"><div class="nm">Banco C</div></div>');
+    expect(html).not.toContain('Banco C');
   });
 
   it('foto do telhado só entra como data:image (nunca URL)', () => {
@@ -134,19 +144,18 @@ describe('modelo 4 Completo: imagens e escape', () => {
     expect(html).toContain('&lt;script&gt;alert(2)&lt;/script&gt;');
   });
 
-  it('respeita os limites: 12 obras, 12 empresas, 8 bancos', () => {
+  it('respeita os limites: 12 obras, 12 empresas, 8 bancos fixos (parceiros ignorados)', () => {
     const { html } = render({
       fotos_obras: fotosObra(15),
       empresas_atendidas: Array.from({ length: 15 }, (_, i) => ({ url: HTTPS, nome: `Empresa ${i + 1}` })),
-      bancos_logos: [],
       bancos_parceiros: Array.from({ length: 11 }, (_, i) => ({ nome: `Banco ${i + 1}` })),
     });
     expect(html).toContain('Obra 12<');
     expect(html).not.toContain('Obra 13');
     expect(html).toContain('Empresa 12<');
     expect(html).not.toContain('Empresa 13');
-    expect(html).toContain('Banco 8<');
-    expect(html).not.toContain('Banco 9');
+    expect((html.match(/<div class="bk[ "]/g) || []).length).toBe(8);
+    expect(html).not.toContain('Banco 1<');
   });
 
   it('nome do cliente com HTML sai escapado na faixa do topo e no título', () => {
@@ -408,11 +417,10 @@ describe('modelo 4 Completa + Banco', () => {
     expect(secoes(vazio)).not.toContain('Investimento e formas de pagamento');
   });
 
-  it('fixos primeiro, depois os enviados; no máximo 12', () => {
+  it('só os fixos: os enviados (bancos_parceiros) nunca entram', () => {
     const { html } = render({ bancos_parceiros: Array.from({ length: 6 }, (_, i) => ({ nome: `Banco ${i + 1}` })) });
     expect(logos(html)).toBe(8);
-    expect(html).toContain('Banco 4<');
-    expect(html).not.toContain('Banco 5<');
+    expect(html).not.toContain('Banco 1<');
   });
 
   it('composição traz quantidade e descrição; o que não tem dado fica Incluído', () => {

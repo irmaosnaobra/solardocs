@@ -447,3 +447,53 @@
   font-size: 12px;
   color: var(--color-text-muted);
 }
+
+/* Galeria "Fotos dos seus trabalhos" (as da tela Empresa), logo abaixo dos cartões de modelo. */
+.faixaEmpresa {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-2);
+  min-width: 0;
+}
+
+.faixaMiniaturas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.faixaMini {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.faixaMiniQuadro {
+  aspect-ratio: 4 / 3;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--color-border);
+}
+
+.faixaMiniImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.faixaMiniLegenda {
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}

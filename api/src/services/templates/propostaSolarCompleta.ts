@@ -358,12 +358,11 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
   const fotoTelhado = srcImagemSegura(str(f.foto_telhado_b64) === '___' ? '' : f.foto_telhado_b64);
   const obrasTodas = lerObras(f.fotos_obras);
   const empresas = lerEmpresas(f.empresas_atendidas);
-  const bancosEnviados = lerBancos(f.bancos_parceiros);
-  // Folha 3: primeiro os fixos marcados (ausente = os 8, [] = nenhum), depois os que o usuário subiu; no máximo 12.
-  const bancos: Array<ItemBancoT & { fixo?: boolean }> = [
-    ...bancosEscolhidos(f.bancos_logos).map((id) => ({ nome: BANCOS_FIXOS[id].nome, src: BANCOS_FIXOS[id].img, fixo: true })),
-    ...bancosEnviados,
-  ].slice(0, MAX_BANCOS_FOLHA);
+  // Folha 3: SÓ os bancos fixos de bancos_logos (ausente = os 8, [] = nenhum). `bancos_parceiros` (o "outro banco"
+  // de propostas antigas) é ignorado no modelo 4: o campo fica guardado, mas nunca sai na folha.
+  const bancos: Array<ItemBancoT & { fixo?: boolean }> = bancosEscolhidos(f.bancos_logos)
+    .map((id) => ({ nome: BANCOS_FIXOS[id].nome, src: BANCOS_FIXOS[id].img, fixo: true }))
+    .slice(0, MAX_BANCOS_FOLHA);
   const dadosBanc = normalizarDadosBancarios(company.dados_bancarios);
   const mostraDadosBanc = f.mostrar_dados_bancarios !== false && dadosBancariosCompletos(dadosBanc);
   const assin = normalizarAssinatura(f.assinatura);
@@ -589,11 +588,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     ${pagCustom ? `${sub('Condição especial')}
     <div class="hi"><div class="v t">${pEsc(pagCustom)}</div><div class="s">A combinar com o vendedor</div></div>` : ''}
     ${bancos.length ? `${sub('Bancos que financiam o seu sistema')}
-    <div class="bgrid">${bancos.map((b) => b.fixo
-      ? `<div class="bk fx"><div class="lg"><img src="${pEsc(b.src)}" alt="${pEsc(b.nome)}"/></div></div>`
-      : b.src
-        ? `<div class="bk"><div class="lg"><img src="${pEsc(b.src)}" alt="${pEsc(b.nome || 'Banco parceiro')}"/></div>${b.nome ? `<div class="nm">${pEsc(b.nome)}</div>` : ''}</div>`
-        : `<div class="bk so"><div class="nm">${pEsc(b.nome)}</div></div>`).join('')}</div>` : ''}
+    <div class="bgrid">${bancos.map((b) => `<div class="bk fx"><div class="lg"><img src="${pEsc(b.src)}" alt="${pEsc(b.nome)}"/></div></div>`).join('')}</div>` : ''}
     ${mostraDadosBanc && dadosBanc ? `${sub('Dados para pagamento')}
     <div class="rows dpag">${linhasDadosBanc.join('\n      ')}</div>` : ''}
   </div>`;

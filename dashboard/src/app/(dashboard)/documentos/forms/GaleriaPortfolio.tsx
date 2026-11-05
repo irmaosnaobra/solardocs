@@ -26,6 +26,9 @@ interface Props<T extends ItemGaleria> {
   itens: T[];
   onChange: (itens: T[]) => void;
   max: number;
+  /** Fotos de obras: quantas fotos a proposta terá no total (extras + as da tela Empresa, sem repetir).
+   *  Com isso o aviso de fileiras conta o total, não só esta galeria. */
+  totalProposta?: number;
 }
 
 const ACEITOS = ['image/jpeg', 'image/png', 'image/webp'];
@@ -81,8 +84,15 @@ async function enviarArquivo(tipo: Tipo, file: File): Promise<{ path: string; ur
 
 /** Fotos de obras saem em fileiras completas de 3, e a seção só aparece com 6 ou mais.
  *  `null` com 0 fotos: sem foto nenhuma não há o que avisar. */
-function avisoFileira(n: number): { texto: string; pronto: boolean } | null {
+function avisoFileira(n: number, doTotal = false): { texto: string; pronto: boolean } | null {
   if (n <= 0) return null;
+  if (doTotal) {
+    if (n < 6) {
+      const f = 6 - n;
+      return { texto: `${f === 1 ? 'Falta 1 foto' : `Faltam ${f} fotos`} para a seção aparecer na proposta.`, pronto: false };
+    }
+    return { texto: `A proposta vai mostrar ${n - (n % 3)} fotos.`, pronto: true };
+  }
   if (n < 6) {
     const f = 6 - n;
     return { texto: `${f === 1 ? 'Falta 1 foto' : `Faltam ${f} fotos`} para a seção aparecer na proposta.`, pronto: false };
@@ -92,7 +102,7 @@ function avisoFileira(n: number): { texto: string; pronto: boolean } | null {
   return { texto: `A proposta mostra ${n - resto} fotos. Mande mais ${3 - resto} para completar a fileira.`, pronto: false };
 }
 
-export default function GaleriaPortfolio<T extends ItemGaleria>({ tipo, titulo, itens, onChange, max }: Props<T>) {
+export default function GaleriaPortfolio<T extends ItemGaleria>({ tipo, titulo, itens, onChange, max, totalProposta }: Props<T>) {
   const base = useId();
   const inputArquivo = useRef<HTMLInputElement>(null);
   const inputLogo = useRef<HTMLInputElement>(null);
@@ -194,7 +204,7 @@ export default function GaleriaPortfolio<T extends ItemGaleria>({ tipo, titulo, 
     }
   }
 
-  const fileira = tipo === 'obra' ? avisoFileira(itens.length) : null;
+  const fileira = tipo === 'obra' ? avisoFileira(totalProposta ?? itens.length, totalProposta !== undefined) : null;
   const idArquivo = `${base}-arquivo`;
   const idNomeBanco = `${base}-nome-banco`;
   const marcarQuebrada = (chave: string) => setQuebradas(q => (q.has(chave) ? q : new Set(q).add(chave)));
