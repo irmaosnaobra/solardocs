@@ -226,7 +226,7 @@ import { mountJornadaSolar } from '../routes/geradorJornadaSolar';
 import { esquecerConferenciaDoBucket } from '../services/gerador/financeiroArquivos';
 import { assinarJornada, normalizarJornada, reiniciarLogsDaJornada } from '../services/gerador/jornadaSolarBanco';
 import { estadoMaterializado } from '../services/gerador/jornadaSolar';
-import { assinarObra, obraPrivadaVazia, obraVazia } from '../services/gerador/jornadaObraBanco';
+import { assinarObra, obraPrivadaVazia, obraVazia, gravarRegistroNota, reservarChaveNfe, reservaNfeAssinada, PREFIXO_RESERVA_NFE } from '../services/gerador/jornadaObraBanco';
 import { obraMaterializada, type ObraPrivada, type EstadoObra } from '../services/gerador/jornadaObra';
 import { AJUSTES_PADRAO, assinarAjustes, lancamentoObraParaGravar, montarLancamentoObra, normalizarAjustes } from '../services/gerador/jornadaDinheiro';
 import { assinarLigacao, invalidarCachesHub, POR_GERADOR, reiniciarLogsDoHub } from '../services/gerador/vendaSolarHub';
@@ -550,6 +550,9 @@ describe('a nota fiscal', () => {
     expect(privadaGravada(SOLAR)!.compra.compras[0].nota!.chave).toBe(CHAVE_B);
     // A primeira ficou livre: entra em outra obra.
     expect((await nota('nota um', ALHEIA, 'c-9', CHAVE_A)).status).toBe(200);
+    // A reserva da chave acompanha o trocar: a de CHAVE_A foi para a ALHEIA e a de CHAVE_B ficou com a SOLAR.
+    expect(h.linhas.get(`${PREFIXO_RESERVA_NFE}${CHAVE_A}`)!.value.card_id).toBe(ALHEIA);
+    expect(h.linhas.get(`${PREFIXO_RESERVA_NFE}${CHAVE_B}`)!.value.card_id).toBe(SOLAR);
     // Quem não é da compra não anexa; compra que não existe; arquivo que é comprovante, não nota.
     h.nota = notaLida(null);
     const { path: p } = await subir('mais uma nota', { card: SOLAR, auth: THIAGO, doc: 'nota' });
@@ -560,6 +563,66 @@ describe('a nota fiscal', () => {
     const errado = await post(F2(SOLAR, '/nota'), { compra_id: 'c-1', arquivo_path: comp.path, trocar: true }, THIAGO);
     expect(errado.status).toBe(400);
     expect(errado.body.error).toBe('nao_e_nota');
+  });
+});
+
+describe('a reserva da chave de 44 dígitos (nfe_chave:)', () => {
+  const nota = async (texto: string, card: number, compra: string, chave: string | null, auth = THIAGO) => {
+    h.nota = notaLida(chave);
+    const { path: p, res } = await subir(texto, { card, auth, doc: 'nota' });
+    expect(res.status).toBe(200);
+    return post(F2(card, '/nota'), { compra_id: compra, arquivo_path: p }, auth);
+  };
+  const subirNota = async (texto: string, card: number, chave: string | null) => {
+    h.nota = notaLida(chave);
+    const { path: p, res } = await subir(texto, { card, auth: THIAGO, doc: 'nota' });
+    expect(res.status).toBe(200);
+    return p;
+  };
+  beforeEach(() => {
+    semearJo(SOLAR); semearJo(ALHEIA);
+    for (const [card, id] of [[SOLAR, 'c-1'], [ALHEIA, 'c-9']] as const) {
+      semearPrivada(card, (p) => { p.compra.compras = [{ id, fornecedor: 'Elétrica Central', cidade: '', data: '2026-10-16', forma: 'cartao', nota_chega: 'anexada', nota: null }]; });
+    }
+  });
+  it('T1.1 a reserva sozinha recusa, sem a varredura achar nada', async () => {
+    expect(await gravarRegistroNota(ALHEIA, { id: 'nf-semchave01', compra_id: 'c-9', sha256: 'b'.repeat(64), chave: null, livre: false, em: AGORA, por: 'thiago' })).toBe(true);
+    expect(await reservarChaveNfe(CHAVE_A, { card: ALHEIA, compra_id: 'c-9', nf_id: 'nf-semchave01' })).toEqual({ ok: true });
+    const r = await nota('nota com a chave reservada', SOLAR, 'c-1', CHAVE_A);
+    expect(r.status).toBe(409);
+    expect(r.body.error).toBe('nota_repetida');
+    expect(r.body.mensagem).toMatch(/^Esta nota já foi lançada /);
+    const novos = [...h.linhas.entries()].filter(([k]) => k.startsWith(`fin_nf:${SOLAR}:`));
+    expect(novos).toHaveLength(1);
+    expect(novos[0][1].value.livre).toBe(true);
+    expect(privadaGravada(SOLAR)!.compra.compras[0].nota).toBeNull();
+  });
+  it('T1.2 reserva forjada (assinatura que não confere) é tomada', async () => {
+    h.linhas.set(`${PREFIXO_RESERVA_NFE}${CHAVE_A}`, { value: { v: 1, chave: CHAVE_A, card_id: ALHEIA, compra_id: 'c-9', nf_id: 'nf-forjada01', em: AGORA, sig: 'x' }, updated_at: 'r0' });
+    const r = await nota('nota com reserva forjada', SOLAR, 'c-1', CHAVE_A);
+    expect(r.status).toBe(200);
+    const linha = h.linhas.get(`${PREFIXO_RESERVA_NFE}${CHAVE_A}`)!;
+    expect(linha.value.card_id).toBe(SOLAR);
+    expect(reservaNfeAssinada(CHAVE_A, linha.value)).not.toBeNull();
+  });
+  it('T1.3 a corrida: dois PDFs diferentes com a mesma chave, juntos, dão [200, 409] e um só registro vivo', async () => {
+    const p1 = await subirNota('corrida nota um', SOLAR, CHAVE_A);
+    const p2 = await subirNota('corrida nota dois', ALHEIA, CHAVE_A);
+    const [a, b] = await Promise.all([
+      post(F2(SOLAR, '/nota'), { compra_id: 'c-1', arquivo_path: p1 }, THIAGO),
+      post(F2(ALHEIA, '/nota'), { compra_id: 'c-9', arquivo_path: p2 }, THIAGO),
+    ]);
+    expect([a.status, b.status].sort()).toEqual([200, 409]);
+    expect(a.status).toBe(200);
+    const vivos = [...h.linhas.entries()].filter(([k, l]) => k.startsWith('fin_nf:') && l.value.chave === CHAVE_A && l.value.livre === false);
+    expect(vivos).toHaveLength(1);
+    expect(h.linhas.get(`${PREFIXO_RESERVA_NFE}${CHAVE_A}`)!.value.card_id).toBe(SOLAR);
+  });
+  it('T1.5 o prefixo nfe_chave: não casa com as varreduras de fin: e fin_nf:', () => {
+    const like = (pad: string, s: string): boolean => new RegExp('^' + pad.split('').map((c) => (c === '%' ? '.*' : c === '_' ? '.' : c.replace(/\W/g, '\\$&'))).join('') + '$').test(s);
+    expect(like('fin:%', 'nfe_chave:' + CHAVE_A)).toBe(false);
+    expect(like('fin_nf:%', 'nfe_chave:' + CHAVE_A)).toBe(false);
+    expect(like('fin_nf:%', 'finXnf:1:a')).toBe(true);
   });
 });
 

@@ -22,7 +22,7 @@ import {
   situacaoObra, somaItens, type EstadoObra, type ObraPrivada, type SecaoObra,
 } from '../services/gerador/jornadaObra';
 import {
-  buscarNotaViva, gravarRegistroNota, liberarRegistroNota, lerObraComVersao, lerObraPrivada, lerTodasObras, mudarObra, mudarObraPrivada, normalizarObraPrivada, obraVazia,
+  buscarNotaViva, gravarRegistroNota, liberarRegistroNota, reservarChaveNfe, lerObraComVersao, lerObraPrivada, lerTodasObras, mudarObra, mudarObraPrivada, normalizarObraPrivada, obraVazia,
   obraPrivadaVazia,
 } from '../services/gerador/jornadaObraBanco';
 import { cifrar, decifrar } from '../services/gerador/cofreObra';
@@ -411,6 +411,9 @@ function aplicarSecao(secao: SecaoObra, p: ObraPrivada, dadosBrutos: Record<stri
   return { recusa: MSG_PEDIDO, http: 400 };
 }
 
+const fraseNotaRepetida = (onde: string): string => (onde === 'esta obra' ? 'Esta nota já foi lançada nesta obra.' : onde === 'outra obra' ? 'Esta nota já foi lançada em outra obra.'
+  : onde === 'um card do eletroposto' ? 'Esta nota já foi lançada num card do eletroposto.' : `Esta nota já foi lançada na obra ${onde.replace(/^a obra /, '')}.`);
+
 // ── As rotas ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export function mountJornadaObra(router: Router): void {
@@ -502,22 +505,31 @@ export function mountJornadaObra(router: Router): void {
         const achada = await buscarNotaViva(sha, chave);
         if (achada && !(achada.card === g.id && achada.compra_id === compraId)) {
           const onde = await ondeEsta(g, { card: achada.card, id: achada.id });
-          const frase = onde === 'esta obra' ? 'Esta nota já foi lançada nesta obra.' : onde === 'outra obra' ? 'Esta nota já foi lançada em outra obra.'
-            : onde === 'um card do eletroposto' ? 'Esta nota já foi lançada num card do eletroposto.' : `Esta nota já foi lançada na obra ${onde.replace(/^a obra /, '')}.`;
-          return { http: 409, json: { ok: false, error: 'nota_repetida', onde, mensagem: frase } };
+          return { http: 409, json: { ok: false, error: 'nota_repetida', onde, mensagem: fraseNotaRepetida(onde) } };
         }
         const atual = compra.nota;
         if (atual && !b.trocar && atual.sha256 === sha) return { http: 200, json: { ok: true, repetido_pedido: true } };
         if (atual && !b.trocar) return { http: 409, json: { ok: false, error: 'compra_com_nota', mensagem: 'Esta compra já tem nota. Use Trocar a nota.' } };
-        if (atual?.nf_id) await liberarRegistroNota(g.id, atual.nf_id);
         const nfId = novoId('nf');
         if (!(await gravarRegistroNota(g.id, { id: nfId, compra_id: compraId, sha256: sha, chave, livre: false, em: new Date().toISOString(), por: g.nome }))) {
           return { http: 409, json: { ok: false, error: 'mudou', mensagem: 'Outra pessoa anexou agora. Tente de novo.' } };
         }
+        if (chave) {
+          const rv = await reservarChaveNfe(chave, { card: g.id, compra_id: compraId, nf_id: nfId });
+          if (!rv.ok) {
+            await liberarRegistroNota(g.id, nfId);
+            if ('dono' in rv) {
+              const onde = await ondeEsta(g, { card: rv.dono.card, id: rv.dono.id });
+              return { http: 409, json: { ok: false, error: 'nota_repetida', onde, mensagem: fraseNotaRepetida(onde) } };
+            }
+            return { http: 409, json: { ok: false, error: 'mudou', mensagem: 'Outra pessoa anexou agora. Tente de novo.' } };
+          }
+        }
         const r = await mudarObraPrivada(g.id, g.nome, null, null, (p) => ({
           ...p, compra: { ...p.compra, compras: p.compra.compras.map((c) => (c.id === compraId ? { ...c, nota: { path: caminho, sha256: sha, numero: String(lida?.numero ?? ''), chave: chave ?? '', nf_id: nfId } } : c)) },
         }));
-        if (ehRecusa(r)) return { http: r.http, json: { ok: false, error: r.recusa } };
+        if (ehRecusa(r)) { await liberarRegistroNota(g.id, nfId); return { http: r.http, json: { ok: false, error: r.recusa } }; }
+        if (atual?.nf_id) await liberarRegistroNota(g.id, atual.nf_id);
         return { http: 200, json: { ok: true } };
       });
       if (saida.http !== 200) { res.status(saida.http).json(saida.json); return; }

@@ -6,6 +6,7 @@
 //   - Dados das etapas 4 a 8, vistoria, banco, previsto, regra congelada, garantias do contrato e cofre ... JSON PRIVADO no bucket
 //     `cadastros-venda`, `vendasolar/<card>.obra.json` (trava `obra:<card>`), com número de versão por seção (D17).
 //   - Registro global das notas ... `system_state`, `fin_nf:<card>:<id>`, ASSINADO, sem valor nem nome.
+//   - Reserva da chave de 44 dígitos ... `system_state`, `nfe_chave:<chave>`, ASSINADA, sem valor nem nome (INSERT; 23505 = já tem dono).
 //
 // Serviço: NÃO importa rota. Nada aqui põe valor pessoal em log: só o código.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -20,7 +21,7 @@ import {
   ACOES_HISTORICO_OBRA, CAMPOS_CONTRATO, CHAVES_CHECKLIST, EQUIPES_LISTA, ETAPAS_OBRA, IDS_EQUIPE, ORIGENS_ITEM, SECOES_OBRA, TIPOS_ITEM, UNIDADES_ITEM,
   vazioEtapaObra,
   type AcaoHistoricoObra, type BancoObra, type CargaObra, type CompraObra, type ContratoObra, type EstadoObra, type ItemCompra, type ObraPrivada,
-  type PassoLiberacao, type PrevistoObra, type RegraCongelada, type SecaoObra, type VistoriaObra,
+  type PassoLiberacao, type PrevistoObra, type RegraCongelada, type SecaoObra, type VistoriaObra, chaveNfeValida,
 } from './jornadaObra';
 
 export const EQUIPES = EQUIPES_LISTA;
@@ -535,4 +536,75 @@ export async function buscarNotaViva(sha: string, chave: string | null): Promise
     if (lote.length < 1000) break;
   }
   return null;
+}
+
+// ── A reserva da chave de 44 dígitos (`nfe_chave:<chave>`) ─────────────────────────────────────────────────────────────
+
+export const PREFIXO_RESERVA_NFE = 'nfe_chave:';
+export interface ReservaNfe { v: 1; chave: string; card_id: number; compra_id: string; nf_id: string; em: string }
+
+export function normalizarReservaNfe(chave: string, value: unknown): ReservaNfe | null {
+  const o = obj(value);
+  if (!o || o.v !== 1 || o.chave !== chave || !chaveNfeValida(chave)) return null;
+  if (typeof o.card_id !== 'number' || !Number.isInteger(o.card_id) || o.card_id <= 0) return null;
+  if (typeof o.nf_id !== 'string' || !/^nf-[A-Za-z0-9-]{3,40}$/.test(o.nf_id)) return null;
+  const compra = idCurto(o.compra_id);
+  const em = dataIso(o.em);
+  if (!compra || !em) return null;
+  return { v: 1, chave, card_id: o.card_id, compra_id: compra, nf_id: o.nf_id, em };
+}
+export function assinarReservaNfe(r: ReservaNfe): string | null {
+  const segredo = segredoDoVinculo();
+  const n = normalizarReservaNfe(r.chave, r);
+  if (!segredo || !n) return null;
+  return crypto.createHmac('sha256', segredo).update(`nfe_chave|${n.chave}|${JSON.stringify(n)}`).digest('hex');
+}
+export function reservaNfeAssinada(chave: string, value: unknown): ReservaNfe | null {
+  const n = normalizarReservaNfe(chave, value);
+  const sig = obj(value)?.sig;
+  const esperada = n ? assinarReservaNfe(n) : null;
+  return n && esperada && typeof sig === 'string' && sig.length === esperada.length
+    && crypto.timingSafeEqual(Buffer.from(sig, 'utf8'), Buffer.from(esperada, 'utf8')) ? n : null;
+}
+
+/** Lê um registro de nota pelo card e pelo id (`null` se sumiu ou se a assinatura não confere). */
+export async function lerRegistroNota(card: number, id: string): Promise<RegistroNota | null> {
+  const { data, error } = await supabase.from('system_state').select('key, value').eq('key', `${PREFIXO_NF}${card}:${id}`).maybeSingle();
+  if (error) throw new ErroJornada(codigoDe(error));
+  const l = data as { value?: unknown } | null;
+  return l ? registroNotaAssinado(card, l.value) : null;
+}
+
+export type ResultadoReserva = { ok: true } | { ok: false; dono: { card: number; id: string; compra_id: string } } | { ok: false; corrida: true };
+
+/**
+ * Reserva a chave por INSERT (o 23505 diz que já tem dono). A reserva existente só é TOMADA (UPDATE com a trava do `updated_at`) se o
+ * registro dono está livre, sumiu, a assinatura não confere ou ela é da MESMA obra e da mesma compra.
+ */
+export async function reservarChaveNfe(chave: string, dono: { card: number; compra_id: string; nf_id: string }): Promise<ResultadoReserva> {
+  const k = `${PREFIXO_RESERVA_NFE}${chave}`;
+  for (let t = 0; t < 3; t++) {
+    const agora = new Date().toISOString();
+    const r = normalizarReservaNfe(chave, { v: 1, chave, card_id: dono.card, compra_id: dono.compra_id, nf_id: dono.nf_id, em: agora });
+    const sig = r ? assinarReservaNfe(r) : null;
+    if (!r || !sig) throw new ErroJornada('sem_segredo');
+    const ins = await supabase.from('system_state').insert({ key: k, value: { ...r, sig }, updated_at: agora });
+    if (!ins.error) return { ok: true };
+    if (codigoDe(ins.error) !== '23505') throw new ErroJornada(codigoDe(ins.error));
+    const { data, error } = await supabase.from('system_state').select('key, value, updated_at').eq('key', k).maybeSingle();
+    if (error) throw new ErroJornada(codigoDe(error));
+    const linha = data as { value?: unknown; updated_at?: string | null } | null;
+    if (!linha) continue;
+    const atual = reservaNfeAssinada(chave, linha.value);
+    if (atual && !(atual.card_id === dono.card && atual.compra_id === dono.compra_id)) {
+      const reg = await lerRegistroNota(atual.card_id, atual.nf_id);
+      if (reg && !reg.livre) return { ok: false, dono: { card: atual.card_id, id: atual.nf_id, compra_id: atual.compra_id } };
+    }
+    // Livre, sumiu, assinatura que não confere ou a mesma compra: toma a reserva, com a trava do updated_at.
+    const alvo = supabase.from('system_state').update({ value: { ...r, sig }, updated_at: agora }).eq('key', k);
+    const up = await (linha.updated_at ? alvo.eq('updated_at', linha.updated_at) : alvo.is('updated_at', null)).select('key');
+    if (up.error) throw new ErroJornada(codigoDe(up.error));
+    if (Array.isArray(up.data) && up.data.length > 0) return { ok: true };
+  }
+  return { ok: false, corrida: true };
 }
