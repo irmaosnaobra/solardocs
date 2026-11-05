@@ -10,6 +10,9 @@ import { RESPIRO_EDICAO } from './BannerEdicao';
 import { documentoSumiu, MSG_ARQUIVO_EXCLUIDO } from './useEdicaoDocumento';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
+import AvisoNoCelular from '@/components/AvisoNoCelular/AvisoNoCelular';
+import EtiquetaRastreado from '@/components/EtiquetaRastreado/EtiquetaRastreado';
+import { fmtExpira } from '@/utils/aberturas';
 import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
 import { useViaCep, type ViaCepAchado } from '@/hooks/useViaCep';
 import { comporEndereco, enderecoLegado, maskCep, temPartesDoEndereco } from '@/utils/enderecoCliente';
@@ -18,7 +21,7 @@ import styles from '../documentos.module.css';
 import InversoresCampo, { type InversorLinha } from './InversoresCampo';
 import GaleriaPortfolio, { type ImagemObra, type ImagemEmpresa, type BancoParceiro } from './GaleriaPortfolio';
 
-interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
+interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null; link_expira_em?: string | null }
 
 // Comprime imagem pra max 1200px largura, JPEG 0.82.
 // Foto de celular típica (3-5MB) cai pra ~120-180kb.
@@ -1154,7 +1157,7 @@ export default function PropostaSolarPage() {
           )}
           <div style={{ flex: 1 }} />
           <button type="button" onClick={handleCopyWhatsApp} style={{ ...btn('whatsapp'), display: 'inline-flex', alignItems: 'center', gap: 6 }}><MessageCircle size={15} /> Copiar WhatsApp</button>
-          <button type="button" onClick={handleCopyLink} style={{ ...btn('primary'), display: 'inline-flex', alignItems: 'center', gap: 6 }}><LinkIcon size={15} /> Copiar link</button>
+          <button type="button" onClick={handleCopyLink} style={{ ...btn('primary'), display: 'inline-flex', alignItems: 'center', gap: 6 }}><LinkIcon size={15} /> Copiar link <EtiquetaRastreado sobrePrimaria /></button>
           <button
             type="button"
             onClick={handleDownloadPdf}
@@ -1166,6 +1169,12 @@ export default function PropostaSolarPage() {
           {/* Cor do toast: vermelho só no erro de sessão; sucesso (copiado) fica verde. */}
           {copyMsg && <span style={{ color: copyMsg.startsWith('Sessão') ? 'var(--ink-red)' : 'var(--ink-green)', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}
         </div>
+        {generated.link_expira_em && !!fmtExpira(generated.link_expira_em) && (
+          <p style={{ margin: '-8px 0 12px', fontSize: 13, color: 'var(--color-text-muted)', textAlign: 'right' }}>
+            Expira em {fmtExpira(generated.link_expira_em)}
+          </p>
+        )}
+        {publicId && <AvisoNoCelular compacto ajuda="Você recebe um aviso cada vez que o cliente abrir o link." />}
         <div style={{
           background: '#F3F4F6',
           borderRadius: 12,

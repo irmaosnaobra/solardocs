@@ -96,3 +96,42 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// ── Avisos no celular (web push) ────────────────────────────────────────────
+// O backend manda JSON { title, body, url }. Sem o waitUntil o Chrome troca o
+// aviso por um genérico ("este site foi atualizado em segundo plano").
+self.addEventListener('push', (event) => {
+  let dados = {};
+  try { dados = event.data ? event.data.json() : {}; } catch (_) { dados = {}; }
+  const titulo = dados.title || 'SolarDoc';
+  const url = dados.url || '/historico';
+  const opcoes = {
+    body: dados.body || '',
+    icon: '/icon-192.png',
+    data: { url },
+    // Mesma tag = o aviso novo da mesma proposta substitui o anterior em vez de empilhar.
+    tag: dados.tag || ('proposta-' + url),
+    renotify: true,
+  };
+  if (dados.badge) opcoes.badge = dados.badge;
+  event.waitUntil(self.registration.showNotification(titulo, opcoes));
+});
+
+// Toque no aviso: foca uma aba do app; sem aba aberta, abre o endereço do aviso.
+// A aba que já está aberta só navega se NÃO estiver em /documentos: recarregar o
+// formulário da proposta no meio do preenchimento perderia o que foi digitado.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const alvo = new URL((event.notification.data && event.notification.data.url) || '/historico', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((abas) => {
+      const aba = abas.find((c) => new URL(c.url).origin === self.location.origin);
+      if (!aba) return self.clients.openWindow(alvo);
+      const emFormulario = new URL(aba.url).pathname.startsWith('/documentos');
+      return aba.focus().then((f) => {
+        const c = f || aba;
+        if (!emFormulario && typeof c.navigate === 'function') return c.navigate(alvo);
+      }).catch(() => {});
+    })
+  );
+});

@@ -189,6 +189,77 @@
   word-break: break-all;
 }
 
+/* ── Link rastreado: "Aberta Nx" dentro da célula do cliente ─────────────── */
+.aberturas {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-primary);
+  text-align: left;
+  white-space: normal;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.aberturas:hover { text-decoration: underline; }
+.aberturas:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.aberturasPainel {
+  margin: 2px 0 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text);
+  white-space: normal;
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+  border-radius: 10px;
+}
+
+.aberturasPainel p { margin: 0; color: var(--color-text-muted); }
+
+.aberturasPainel ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aberturasPainel li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  line-height: 1.4;
+}
+
+.aberturaQuando { font-weight: 600; font-variant-numeric: tabular-nums; }
+.aberturaVencida { color: var(--color-text-muted); }
+
+/* Proposta do aviso (?doc=): linha destacada e, se ela não está na lista, painel avulso. */
+.tabela tr.linhaAlvo td { background: color-mix(in srgb, var(--color-primary) 10%, transparent); }
+
+@media (max-width: 720px) {
+  .tabela tr.linhaAlvo { background: color-mix(in srgb, var(--color-primary) 10%, transparent); }
+  .tabela tr.linhaAlvo td { background: transparent; }
+}
+
+.alvoAvulso { margin-bottom: 16px; }
+
+.alvoAvulso h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
 /* ── Tabela de documentos: colunas de largura fixa, tudo alinhado ────────── */
 .tabela {
   width: 100%;
@@ -346,6 +417,7 @@
 }
 
 .menu > :first-child { border-top: none; }
+.menu button:has(> span) { gap: 8px; }
 
 /* Excluir: separado dos demais por um divisor, em vermelho. */
 .divisor {

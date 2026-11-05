@@ -67,6 +67,7 @@ vi.mock('../services/templateService', () => ({
 import app from '../app';
 // Já mockado acima — serve pra inspecionar com que fields o template foi chamado.
 import { generateFromTemplate } from '../services/templateService';
+import { linkExpiraEm } from '../services/propostaLink';
 
 const AUTH = 'Bearer valid-token';
 
@@ -208,6 +209,48 @@ describe('POST /documents/generate', () => {
     expect(fields.codigo).toBeUndefined();
     expect(res.body).toMatchObject({ codigo: null, codigo_curto: null });
   });
+
+  // Link rastreado: a proposta solar nasce com validade do link (fim do último dia, em Brasília).
+  it('proposta solar nasce com link rastreado e devolve link_expira_em', async () => {
+    mockGeracaoProposta();
+    mockRpc.mockResolvedValueOnce({ data: '20260037', error: null });
+
+    const res = await request(app)
+      .post('/documents/generate')
+      .set('Authorization', AUTH)
+      // O prefill pode arrastar a validade de outra proposta: não vale.
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, fields: { validade_dias: '10', link_expira_em: '2020-01-01T23:59:59-03:00' }, useTemplate: true, modeloNumero: 2 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.link_expira_em).toMatch(/^\d{4}-\d{2}-\d{2}T23:59:59-03:00$/);
+    expect(res.body.link_expira_em).toBe(linkExpiraEm({ validade_dias: '10' }, new Date().toISOString()));
+    // Mesmo objeto que vai para o dados_json do insert.
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect(fields.link_rastreado).toBe(true);
+    expect(fields.link_expira_em).toBe(res.body.link_expira_em);
+  });
+
+  it('outros tipos não ganham link rastreado', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { nome: 'Empresa', cnpj: '00.000.000/0001-00' } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+      .mockResolvedValueOnce({ data: { id: CLIENT_UUID, nome: 'Cliente' } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', documentos_usados: 5, limite_documentos: 90 } })
+      .mockResolvedValueOnce({ data: { documentos_usados: 5 } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+      .mockResolvedValueOnce({ data: { id: 'doc-1' }, error: null });
+
+    const res = await request(app)
+      .post('/documents/generate')
+      .set('Authorization', AUTH)
+      .send({ tipo: 'contratoSolar', cliente_id: CLIENT_UUID, fields: { link_rastreado: true, link_expira_em: 'x' }, useTemplate: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.link_expira_em).toBeNull();
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect(fields.link_rastreado).toBeUndefined();
+    expect(fields.link_expira_em).toBeUndefined();
+  });
 });
 
 // ─── POST /documents/:id/regenerate ──────────────────────────────────
@@ -272,6 +315,34 @@ describe('POST /documents/:id/regenerate', () => {
 
     const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
     expect(fields.emitido_em).toBeUndefined();
+  });
+
+  it('link rastreado: recalcula a validade a partir do emitido_em preservado', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: docAvulso })              // emitida ha 2 dias, vale 7
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+
+    // O que o front devolveu do dados_json antigo não vale.
+    const res = await post(DOC_UUID, { fields: { investimento: '22.000,00', link_expira_em: '2020-01-01T23:59:59-03:00' } });
+
+    const esperado = linkExpiraEm({ emitido_em: DOIS_DIAS_ATRAS });
+    expect(res.body.link_expira_em).toBe(esperado);
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect(fields.link_rastreado).toBe(true);
+    expect(fields.link_expira_em).toBe(esperado);
+  });
+
+  it('link rastreado: proposta vencida reemitida conta de hoje', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { ...docAvulso, created_at: TRINTA_DIAS_ATRAS } })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+
+    const res = await post();
+
+    expect(res.body.link_expira_em).toBe(linkExpiraEm({}, new Date().toISOString()));
+    expect(new Date(res.body.link_expira_em).getTime()).toBeGreaterThan(Date.now());
   });
 
   it('troca o HTML no Storage: sobe o novo e apaga o antigo', async () => {

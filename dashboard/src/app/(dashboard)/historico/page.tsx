@@ -4,13 +4,16 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
-import api from '@/services/api';
+import api, { documentsApi, type Abertura, type ResumoAberturas } from '@/services/api';
 import { prewarmPdf, shareOrDownloadPdf } from '@/services/downloadPdf';
 import { fmtDateBR } from '@/utils/brasilia';
 import { chaveCliente, linkPastaCliente } from '@/utils/chaveCliente';
 import { erroDaApi, logDocumentos } from '../documentos/forms/useEdicaoDocumento';
 import { useEsconderWhatsFab } from '@/components/AreaTrabalho/AreaTrabalho';
 import ConfirmarExclusao from '@/components/ConfirmarExclusao/ConfirmarExclusao';
+import AvisoNoCelular from '@/components/AvisoNoCelular/AvisoNoCelular';
+import EtiquetaRastreado from '@/components/EtiquetaRastreado/EtiquetaRastreado';
+import { dataHoraAbertura, linhaDeAberturas } from '@/utils/aberturas';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from './historico.module.css';
 
@@ -140,6 +143,8 @@ function HistoricoConteudo() {
   const pastaId = sp.get('cliente_id');
   const pastaChave = sp.get('cliente_chave');
   const pastaNome = sp.get('nome');
+  // O aviso de abertura leva para /historico?doc=<id>: rola até a proposta, destaca a linha e abre as aberturas.
+  const docAlvo = sp.get('doc');
   const emPasta = !!(pastaId || pastaChave);
 
   const [vista, setVista] = useState<'lista' | 'cliente'>('lista');
@@ -155,6 +160,7 @@ function HistoricoConteudo() {
   const [erro, setErro] = useState('');
 
   const [resumo, setResumo] = useState<Resumo | null>(null);
+  const [aberturas, setAberturas] = useState<Record<string, ResumoAberturas>>({});
   const [porCliente, setPorCliente] = useState<PorCliente | null>(null);
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -178,6 +184,11 @@ function HistoricoConteudo() {
 
   useEffect(() => {
     api.get('/documents/resumo').then(({ data }) => setResumo(data)).catch(() => { /* sem os números a lista segue */ });
+  }, []);
+
+  // Aberturas do link rastreado, de todas as propostas, numa chamada só. Se falhar, a lista segue sem a linha.
+  useEffect(() => {
+    documentsApi.aberturas().then(({ data }) => setAberturas(data && typeof data === 'object' ? data : {})).catch(() => { /* sem a linha de aberturas */ });
   }, []);
 
   // Pasta aberta: documentos, vistorias e manutenções do cliente.
@@ -231,6 +242,16 @@ function HistoricoConteudo() {
     if (primeiroFiltro.current) { primeiroFiltro.current = false; return; }
     logDocumentos('filtro', { tipo: grupo, periodo, busca: !!qAplicada });
   }, [grupo, periodo, qAplicada]);
+
+  // Vindo do aviso (?doc=): rola até a linha da proposta, uma vez, quando ela aparece na lista.
+  const rolouAlvo = useRef(false);
+  useEffect(() => {
+    if (!docAlvo || rolouAlvo.current) return;
+    const linha = document.querySelector<HTMLElement>(`[data-doc-linha="${CSS.escape(docAlvo)}"]`);
+    if (!linha) return;
+    rolouAlvo.current = true;
+    linha.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [docAlvo, docs]);
 
   // Fecha o menu de três pontos ao clicar fora.
   useEffect(() => {
@@ -372,6 +393,8 @@ function HistoricoConteudo() {
         )}
       </header>
 
+      <AvisoNoCelular ajuda="Você recebe um aviso cada vez que o cliente abrir o link." />
+
       {emPasta && (
         <button type="button" className={styles.voltar} onClick={() => router.push('/historico')}>
           <ChevronLeft size={16} /> Todos os arquivos
@@ -419,6 +442,14 @@ function HistoricoConteudo() {
       )}
 
       {aviso && <p className={styles.aviso} role="status">{aviso}</p>}
+
+      {/* Documento do aviso que não está na lista carregada (outra página, outro filtro): abre só o painel. */}
+      {docAlvo && !carregando && !docs.some((d) => d.id === docAlvo) && (
+        <section className={styles.alvoAvulso} aria-label="Aberturas da proposta">
+          <h2>Aberturas da proposta</h2>
+          <AberturasDoc docId={docAlvo} resumo={null} soPainel />
+        </section>
+      )}
 
       {vista === 'cliente' && !emPasta ? (
         <PastasLista pastas={pastasFiltradas} carregando={!resumo} onAbrir={abrirPasta} />
@@ -480,6 +511,8 @@ function HistoricoConteudo() {
                       onAbrir={() => abrir(doc)}
                       onBaixar={() => baixar(doc)}
                       onLink={() => copiarLink(doc)}
+                      aberturas={aberturas[doc.id]}
+                      alvo={docAlvo === doc.id}
                       onExcluir={() => setAlvoExcluir(doc)}
                       excluirTravado={carregandoMais}
                     />
@@ -546,8 +579,10 @@ function IndicadorFaixa({ valor, rotulo, onClick }: { valor: number | undefined;
   );
 }
 
-function LinhaDoc({ doc, semCliente, ocupado, menuAberto, onMenu, onAbrir, onBaixar, onLink, onExcluir, excluirTravado }: {
+function LinhaDoc({ doc, semCliente, ocupado, menuAberto, onMenu, onAbrir, onBaixar, onLink, aberturas, alvo, onExcluir, excluirTravado }: {
   doc: Doc;
+  aberturas?: ResumoAberturas;
+  alvo: boolean;
   semCliente: boolean;
   ocupado: boolean;
   menuAberto: boolean;
@@ -564,10 +599,21 @@ function LinhaDoc({ doc, semCliente, ocupado, menuAberto, onMenu, onAbrir, onBai
   // No computador só Abrir e Editar ficam à vista; o resto vai no menu "...". No celular o menu leva tudo.
   // Todo documento tem menu nos dois tamanhos, porque o Excluir mora lá.
   const temExtras = pdf || !!doc.link_publico;
+  // Só a proposta solar tem link rastreado (outros tipos também têm link público, mas sem aviso).
+  const rastreado = doc.tipo === 'propostaSolar' && !!doc.link_publico;
+  // Vindo do aviso (?doc=), a linha abre as aberturas mesmo que o resumo ainda não tenha chegado.
+  const linhaAberturas = alvo || (aberturas && aberturas.total > 0)
+    ? <AberturasDoc docId={doc.id} resumo={aberturas ?? null} abrirInicial={alvo} />
+    : null;
   return (
-    <tr className={styles.linha}>
-      <td className={styles.tipo}>{rotuloTipo(doc.tipo)}</td>
-      {!semCliente && <td className={styles.cliente} title={doc.cliente_nome || undefined}>{doc.cliente_nome || 'Sem nome'}</td>}
+    <tr className={`${styles.linha} ${alvo ? styles.linhaAlvo : ''}`} data-doc-linha={doc.id}>
+      <td className={styles.tipo}>{rotuloTipo(doc.tipo)}{semCliente && linhaAberturas}</td>
+      {!semCliente && (
+        <td className={styles.cliente} title={doc.cliente_nome || undefined}>
+          {doc.cliente_nome || 'Sem nome'}
+          {linhaAberturas}
+        </td>
+      )}
       <td className={styles.codigo}>{doc.codigo_curto || '-'}</td>
       <td className={styles.data}>
         {fmtDateBR(doc.created_at)}
@@ -599,7 +645,7 @@ function LinhaDoc({ doc, semCliente, ocupado, menuAberto, onMenu, onAbrir, onBai
               <span className={styles.menu} role="menu">
                 {pdf && <button type="button" role="menuitem" className={styles.soMobile} onClick={onAbrir}>Abrir</button>}
                 {editar && <Link href={editar} role="menuitem" className={styles.soMobile}>Editar</Link>}
-                {doc.link_publico && <button type="button" role="menuitem" onClick={onLink}>Copiar link</button>}
+                {doc.link_publico && <button type="button" role="menuitem" onClick={onLink}>Copiar link{rastreado && <EtiquetaRastreado />}</button>}
                 {pdf && <button type="button" role="menuitem" onClick={onBaixar} disabled={ocupado}>{ocupado ? 'Preparando...' : 'Baixar PDF'}</button>}
                 {/* O divisor só aparece quando há algo visível antes dele (no computador, Abrir e Editar não estão no menu). */}
                 {(temExtras || !!editar) && <span role="separator" className={`${styles.divisor} ${temExtras ? '' : styles.soMobile}`} />}
@@ -619,6 +665,70 @@ function LinhaDoc({ doc, semCliente, ocupado, menuAberto, onMenu, onAbrir, onBai
         </div>
       </td>
     </tr>
+  );
+}
+
+// "Aberta 3x · última em Goiânia-GO há 2 h": clica e abre a lista das últimas aberturas do link.
+function AberturasDoc({ docId, resumo, abrirInicial = false, soPainel = false }: {
+  docId: string;
+  resumo: ResumoAberturas | null;
+  abrirInicial?: boolean;
+  /** Sem o botão: só o painel (documento que não está na lista carregada). */
+  soPainel?: boolean;
+}) {
+  const [aberto, setAberto] = useState(abrirInicial || soPainel);
+  const [lista, setLista] = useState<Abertura[] | null>(null);
+  const [falhou, setFalhou] = useState(false);
+
+  // Busca a lista ao abrir. Se falhou, fechar e abrir de novo tenta outra vez.
+  useEffect(() => {
+    if (!aberto || lista !== null) return;
+    let vivo = true;
+    documentsApi.aberturasDoc(docId)
+      .then(({ data }) => { if (vivo) setLista(Array.isArray(data) ? data : []); })
+      .catch(() => { if (vivo) setFalhou(true); });
+    return () => { vivo = false; };
+  }, [aberto, lista, docId]);
+
+  function alternar() {
+    setFalhou(false);
+    setAberto((v) => !v);
+  }
+
+  const onde = (a: Abertura) => {
+    const cidade = a.cidade ? (a.uf ? `${a.cidade}-${a.uf}` : a.cidade) : (a.pais || '');
+    return [cidade, a.dispositivo || ''].filter(Boolean).join(' · ') || 'Local não identificado';
+  };
+
+  return (
+    <>
+      {!soPainel && (
+        <button type="button" className={styles.aberturas} aria-expanded={aberto} onClick={alternar}>
+          {resumo ? linhaDeAberturas(resumo.total, resumo.ultima) : 'Aberturas do link'}
+        </button>
+      )}
+      {aberto && (
+        <div className={styles.aberturasPainel}>
+          {falhou ? (
+            <p>Não foi possível carregar as aberturas. Feche e abra de novo.</p>
+          ) : lista === null ? (
+            <p>Carregando...</p>
+          ) : lista.length === 0 ? (
+            <p>Nenhuma abertura registrada.</p>
+          ) : (
+            <ul>
+              {lista.map((a, i) => (
+                <li key={`${a.em}-${i}`}>
+                  <span className={styles.aberturaQuando}>{dataHoraAbertura(a.em)}</span>
+                  <span>{onde(a)}</span>
+                  {a.vencida && <span className={styles.aberturaVencida}>vencida</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 

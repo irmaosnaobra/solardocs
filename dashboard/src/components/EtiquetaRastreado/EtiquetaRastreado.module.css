@@ -1,0 +1,22 @@
+.pilula {
+  display: inline-block;
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 40%, transparent);
+  border-radius: 999px;
+}
+
+/* Dentro do botão primário: fundo escuro, texto na cor primária. */
+.sobrePrimaria {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  border-color: transparent;
+}

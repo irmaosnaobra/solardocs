@@ -105,6 +105,30 @@ export const documentsApi = {
   }) => api.post('/documents/save', data),
   list: (tipo?: string) =>
     api.get('/documents/list', { params: tipo ? { tipo } : {} }),
+  // Link rastreado da proposta: resumo de aberturas de todos os documentos e a lista de um só.
+  aberturas: () => api.get<Record<string, ResumoAberturas>>('/documents/aberturas'),
+  aberturasDoc: (id: string) => api.get<Abertura[]>(`/documents/${id}/aberturas`),
+};
+
+export interface Abertura {
+  em: string;
+  cidade: string | null;
+  uf: string | null;
+  pais?: string | null;
+  dispositivo: string | null;
+  vencida: boolean;
+}
+
+export interface ResumoAberturas {
+  total: number;
+  ultima: Abertura | null;
+}
+
+// Avisos no celular (web push). O DELETE leva o corpo em `data`: o 2º argumento do axios.delete é config.
+export const pushApi = {
+  chave: () => api.get<{ publicKey: string }>('/push/chave'),
+  inscrever: (subscription: unknown) => api.post('/push/inscricao', { subscription }),
+  cancelar: (endpoint: string) => api.delete('/push/inscricao', { data: { endpoint } }),
 };
 
 export default api;

@@ -5,6 +5,7 @@ import { ApiError } from '../utils/apiError';
 import { generateDocumentWithAI } from '../services/aiService';
 import { generateFromTemplate, propostaDiasValidade, type Client } from '../services/templateService';
 import { renovarUrlsPortfolio } from './portfolioController';
+import { linkExpiraEm } from '../services/propostaLink';
 import { checkLimit, incrementUsed } from '../services/planService';
 import { acessoOffGrid } from '../services/offgrid/acesso';
 import { injectPrint } from '../utils/printHtml';
@@ -170,6 +171,9 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // emitido_em só existe pra congelar a data de uma reemissão (ver regenerate).
     // Doc novo nasce hoje — e o prefill do kit/cliente pode arrastar o campo antigo.
     delete body.fields.emitido_em;
+    // Link rastreado: o prefill pode arrastar a validade de OUTRA proposta. Só a propostaSolar recebe de novo, logo antes de salvar.
+    delete body.fields.link_rastreado;
+    delete body.fields.link_expira_em;
 
     await checkLimit(req.userId);
 
@@ -242,6 +246,15 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       } else {
         logger.error('documents', 'Storage upload falhou', uploadError);
       }
+    }
+
+    // Link rastreado (só propostaSolar): aviso de abertura no celular e vencimento do link.
+    // A validade é a da proposta, contada de hoje (a emissão é agora).
+    let linkExpiraEmGerado: string | null = null;
+    if (body.tipo === 'propostaSolar') {
+      linkExpiraEmGerado = linkExpiraEm(body.fields, new Date().toISOString());
+      body.fields.link_rastreado = true;
+      if (linkExpiraEmGerado) body.fields.link_expira_em = linkExpiraEmGerado;
     }
 
     // Save record immediately so it always appears in history
@@ -358,7 +371,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       return;
     }
 
-    res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: saved?.id ?? null, codigo, codigo_curto: codigoCurto, empresa_slug: empresaSlug, resumo_whatsapp: tmplOut.resumo ?? null });
+    res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: saved?.id ?? null, codigo, codigo_curto: codigoCurto, empresa_slug: empresaSlug, resumo_whatsapp: tmplOut.resumo ?? null, link_expira_em: linkExpiraEmGerado });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.issues[0].message });
@@ -531,6 +544,16 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
 
     // Galerias do modelo Completo: URL nova a partir do path (nunca a que veio do cliente).
     if (doc.tipo === 'propostaSolar') fields = await renovarUrlsPortfolio(req.userId, fields);
+    // Link rastreado: recalcula a partir do emitido_em preservado (ou de hoje, se a validade
+    // venceu e a reedição virou reemissão). O que o front devolveu do dados_json não vale.
+    delete fields.link_rastreado;
+    delete fields.link_expira_em;
+    let linkExpiraEmNovo: string | null = null;
+    if (doc.tipo === 'propostaSolar') {
+      linkExpiraEmNovo = linkExpiraEm(fields, new Date().toISOString());
+      fields.link_rastreado = true;
+      if (linkExpiraEmNovo) fields.link_expira_em = linkExpiraEmNovo;
+    }
 
     const tmplOut: { resumo?: string } = {};
     let content: string;
@@ -607,6 +630,7 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
       codigo_curto: doc.codigo_curto ?? null,
       empresa_slug: company.slug ?? null,
       resumo_whatsapp: tmplOut.resumo ?? null,
+      link_expira_em: linkExpiraEmNovo,
     });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
@@ -1340,7 +1364,7 @@ const CLIENTE_ONLY = new Set<string>([
 // faria a proposta nova nascer com a data da anterior.
 // `codigo` sai sempre: é o número impresso de OUTRA proposta. No prefill por cliente
 // ele entrava no formulário e podia acabar impresso de novo.
-const STRIP_ALWAYS = new Set<string>(['foto_telhado_b64', 'foto_logo_b64', 'emitido_em', 'codigo']);
+const STRIP_ALWAYS = new Set<string>(['foto_telhado_b64', 'foto_logo_b64', 'emitido_em', 'codigo', 'link_rastreado', 'link_expira_em']);
 
 function limpaDados(d: Record<string, unknown>, soKit: boolean): Record<string, unknown> {
   const out: Record<string, unknown> = {};
