@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // OS E-MAILS DAS PESQUISAS (04/11/2026): a entrevista de saída e o pedido de depoimento. SEM WhatsApp e fora da linha: e-mail não conta
-// no teto da 5040. Roda no tick do /cron/master (de hora em hora; o Vercel também chama 1 vez por dia) e é seguro chamar em paralelo:
+// no teto da 5040. Roda no tick do /cron/master (a Vercel chama de hora em hora no minuto 17; o GitHub, quando consegue) e é seguro chamar em paralelo:
 //   · cada pessoa recebe 1 e-mail por tipo, para sempre: o claim `pesquisa_saida_email:<userId>` / `pesquisa_depo_email:<userId>` é por
 //     INSERT, ANTES do envio. Falhou o envio: o claim fica marcado `falhou` (não tenta de novo) e o tick para;
 //   · o teto de 10 por dia é contado pelos claims desde as 0h de Brasília, nunca pelo número de ticks;
