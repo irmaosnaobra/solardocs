@@ -52,10 +52,8 @@ jobs:
           cache-dependency-path: dashboard/package-lock.json
       - run: npm ci
 
-      # NÃO BLOQUEIA ainda. Baseline em 11/09/2026: 171 problemas (116 erros) no
-      # eslint do dashboard. Ligar como bloqueante hoje seria gate vermelho que
-      # ninguém olha. O job existe pra dar visibilidade e pra virar a chave (apagar
-      # o continue-on-error) quando o backlog fechar. Erro NOVO aparece no log.
+      # BLOQUEIA. Erro de lint derruba o CI. O backlog de erros do dashboard
+      # fechou em 05/11/2026 (restam só avisos, que não falham). Regra que parecer
+      # errada num caso pontual leva eslint-disable-next-line com o motivo escrito.
       - name: eslint
         run: npx eslint .
-        continue-on-error: true

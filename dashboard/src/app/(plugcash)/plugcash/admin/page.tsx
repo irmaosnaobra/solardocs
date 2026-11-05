@@ -93,6 +93,7 @@ function AbaCursos({ onNegado }: { onNegado: () => void }) {
     }
   }, [onNegado]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { carregar(); }, [carregar]);
 
   // Troca o gateway do curso para o Asaas: um link de pagamento por degrau da
@@ -381,6 +382,7 @@ function AbaServicos() {
     const { data } = await plugcashApi.adminServicos();
     setServicos(data.servicos);
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { carregar().catch(() => {}); }, [carregar]);
 
   async function salvar(s: Servico, patch: Partial<Servico>) {
@@ -466,6 +468,7 @@ function AbaGateway() {
     const { data } = await plugcashApi.adminGateway();
     setProdutos(data.produtos);
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { carregar().catch(() => {}); }, [carregar]);
 
   async function adicionar() {

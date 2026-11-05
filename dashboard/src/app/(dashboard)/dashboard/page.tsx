@@ -186,6 +186,7 @@ export default function DashboardPage() {
   const thisMonthKey = new Date().toISOString().slice(0, 7);
   const docsMes      = resumo.porMes[thisMonthKey] ?? 0;
   const diasAtivo    = user.created_at
+    // eslint-disable-next-line react-hooks/purity -- O relógio é lido na renderização de propósito, o valor é o de agora.
     ? Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86_400_000)
     : 0;
 

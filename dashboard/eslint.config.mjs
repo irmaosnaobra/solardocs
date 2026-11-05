@@ -5,6 +5,12 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Os scripts de build de landing e de capa rodam só no Node, em CommonJS, e nunca entram no app.
+  // O require() deles é o jeito certo. A regra continua valendo no resto do projeto.
+  {
+    files: ["scripts/**/*.{js,cjs}"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

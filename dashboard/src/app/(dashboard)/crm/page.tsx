@@ -59,6 +59,7 @@ interface Metrics {
   mes: number;
   por_estagio: Record<string, number>;
   conversao_pct: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dado de planilha ou API sem tipo definido.
   agendados_24h: any[];
   em_takeover: number;
   valor_vendido_mes: number;
@@ -257,6 +258,7 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDe
 
   // Sinaliza lead que precisa atenção: agendamento próximo, sem resposta há tempo
   const horarioMs = lead.horario_iso ? new Date(lead.horario_iso).getTime() : 0;
+  // eslint-disable-next-line react-hooks/purity -- O relógio é lido na renderização de propósito, o valor é o de agora.
   const agendamentoProximo = horarioMs && (horarioMs - Date.now()) > 0 && (horarioMs - Date.now()) < 60 * 60 * 1000;
 
   const qualif: string[] = [];
@@ -409,6 +411,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
   onUpdate: () => void;
   onSetConsultor: (phone: string, consultor: string | null) => void;
 }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dado de planilha ou API sem tipo definido.
   const [history, setHistory] = useState<any[]>([]);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
@@ -476,6 +479,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
       const r = await api.get(`/admin/sdr-leads/${lead.phone}/history`);
       setHistory(r.data.messages || []);
       onUpdate();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Erro do axios sem tipo, lê response.data.
     } catch (e: any) { alert('Erro: ' + (e?.response?.data?.error || e.message)); }
     finally { setBusy(false); }
   }
@@ -911,19 +915,19 @@ export default function CrmPage() {
             { v: 'all', l: 'Todos' },
             { v: 'sem', l: 'Sem' },
             ...CONSULTORES.map(c => ({ v: c.id, l: `${c.inicial} · ${c.nome}` })),
-          ]} onChange={v => setFilters(f => ({ ...f, consultor: v as any }))} />
+          ]} onChange={v => setFilters(f => ({ ...f, consultor: v as FilterState['consultor'] }))} />
 
           <FilterChip label="Agendados" value={filters.agendados} options={[
             { v: 'all', l: 'Todos' }, { v: 'sim', l: 'Sim' }, { v: 'nao', l: 'Não' },
-          ]} onChange={v => setFilters(f => ({ ...f, agendados: v as any }))} />
+          ]} onChange={v => setFilters(f => ({ ...f, agendados: v as FilterState['agendados'] }))} />
 
           <FilterChip label="Origem" value={filters.origem} options={[
             { v: 'all', l: 'Todas' }, { v: 'meta', l: 'Meta' }, { v: 'organico', l: 'Orgânico' },
-          ]} onChange={v => setFilters(f => ({ ...f, origem: v as any }))} />
+          ]} onChange={v => setFilters(f => ({ ...f, origem: v as FilterState['origem'] }))} />
 
           <FilterChip label="Atendimento" value={filters.takeover} options={[
             { v: 'all', l: 'Todos' }, { v: 'luma', l: 'Luma' }, { v: 'humano', l: 'Humano' },
-          ]} onChange={v => setFilters(f => ({ ...f, takeover: v as any }))} />
+          ]} onChange={v => setFilters(f => ({ ...f, takeover: v as FilterState['takeover'] }))} />
 
           {algumFiltroAtivo && (
             <button onClick={() => setFilters({ agendados: 'all', origem: 'all', takeover: 'all', consultor: 'all' })}
@@ -1079,6 +1083,7 @@ function colMatch(headers: string[], candidates: string[]): number {
 function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () => void }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dado de planilha ou API sem tipo definido.
   const [result, setResult] = useState<any>(null);
   const [fileName, setFileName] = useState('');
   const [fileLeads, setFileLeads] = useState<{ nome: string; phone: string; cidade?: string }[]>([]);
@@ -1118,6 +1123,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
       const wb = XLSX.read(buffer, { type: 'array' });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       // Lê como matriz (sem cabeçalho automático), pra detectar colunas
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dado de planilha ou API sem tipo definido.
       const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
       if (rows.length === 0) { setFileError('Planilha vazia'); return; }
 
@@ -1128,6 +1134,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
         const hasText = r.some(c => /[a-záé]/i.test(c) && !/^\d+$/.test(c));
         if (hasText) { headerIdx = i; break; }
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dado de planilha ou API sem tipo definido.
       const headers: string[] = (rows[headerIdx] || []).map((c: any) => String(c ?? '').trim());
 
       const idxNome = colMatch(headers, ['nome', 'name', 'cliente', 'lead', 'contato']);
@@ -1155,6 +1162,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
       }
       setFileLeads(leads);
       setText('');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Erro do axios sem tipo, lê response.data.
     } catch (e: any) {
       setFileError(`Erro lendo arquivo: ${e?.message || e}`);
     }
@@ -1174,6 +1182,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
       const r = await api.post('/admin/sdr-leads/import', { leads: parsed.leads });
       setResult(r.data);
       onImport();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Erro do axios sem tipo, lê response.data.
     } catch (e: any) {
       setResult({ error: e?.response?.data?.error || e.message });
     } finally { setBusy(false); }

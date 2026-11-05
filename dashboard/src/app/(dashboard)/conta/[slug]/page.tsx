@@ -16,6 +16,7 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
   const router = useRouter();
   // Preço único: o corte é pagante × grátis. Os slugs antigos ('pro') seguem
   // valendo como assinatura ativa — quem paga não pode ver tela de venda.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- O campo is_admin não está no tipo do usuário.
   const assinante = !!user && (user.plano !== 'free' || (user as any)?.is_admin);
 
   const corPrimary = '#6E56CF';

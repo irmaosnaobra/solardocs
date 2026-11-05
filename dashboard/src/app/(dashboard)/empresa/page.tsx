@@ -277,7 +277,9 @@ export default function EmpresaPage() {
       setTimeout(() => setMessage(null), 3000);
 
       // Meta pixel client-side — apenas no primeiro cadastro (dedup com CAPI via eventId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- O pixel do Meta fica no window e não tem tipo.
       if (isNew && typeof window !== 'undefined' && (window as any).fbq) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- O pixel do Meta fica no window e não tem tipo.
         (window as any).fbq('track', 'CompleteRegistration', {}, { eventID: eventId });
       }
 
@@ -328,8 +330,10 @@ export default function EmpresaPage() {
               <InfoRow label="Razão Social" value={company.nome} />
               <InfoRow label="CNPJ" value={company.cnpj} />
               <InfoRow label="Endereço Completo" value={company.endereco} />
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Campo extra da empresa que não está no tipo. */}
               <InfoRow label="Cidade (Foro)" value={(company as any).cidade} />
               <InfoRow label="Sócio Administrador" value={company.socio_adm} />
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Campo extra da empresa que não está no tipo. */}
               <InfoRow label="WhatsApp do Responsável" value={(company as any).whatsapp} />
             </div>
           </section>

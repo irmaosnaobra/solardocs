@@ -62,7 +62,9 @@ function CompanyRequiredGate({ tipo, children }: { tipo: string | null; children
   const needsClient = !!tipo && REQUIRE_CLIENT.has(tipo);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Sincroniza com dado do navegador que só existe depois de montar.
     if (!tipo) { setGate({ loaded: true, hasCompany: true, hasClient: true }); return; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dado de planilha ou API sem tipo definido.
     const reqs: Promise<any>[] = [
       api.get('/company').then(({ data }) => !!data.company?.cnpj).catch(() => false),
       needsClient

@@ -222,6 +222,7 @@ function InventarioPageInterna() {
       setItems((prev) => prev.map((i) => (i.id === data.item.id ? data.item : i)));
       logUso('movement');
       setMov(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Erro do axios sem tipo, lê response.data.
     } catch (e: any) {
       alert(e?.response?.data?.error || 'Não foi possível registrar a movimentação.');
     } finally {

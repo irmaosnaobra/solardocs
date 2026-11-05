@@ -181,12 +181,12 @@ export default function LoginForm() {
           </div>
           {platform === 'ios-chrome' && (
             <div className={styles.pwaHintText}>
-              <strong>iPhone (Chrome):</strong> 3 pontos (⋯) → "Adicionar à tela de início"
+              <strong>iPhone (Chrome):</strong> 3 pontos (⋯) → &quot;Adicionar à tela de início&quot;
             </div>
           )}
           {platform === 'ios-safari' && (
             <div className={styles.pwaHintText}>
-              <strong>iPhone (Safari):</strong> ícone Compartilhar → "Adicionar à Tela de Início"
+              <strong>iPhone (Safari):</strong> ícone Compartilhar → &quot;Adicionar à Tela de Início&quot;
             </div>
           )}
           {platform === 'android' && installPrompt && (
@@ -196,7 +196,7 @@ export default function LoginForm() {
           )}
           {platform === 'android' && !installPrompt && (
             <div className={styles.pwaHintText}>
-              <strong>Chrome:</strong> 3 pontos (⋮) → "Adicionar à tela inicial"
+              <strong>Chrome:</strong> 3 pontos (⋮) → &quot;Adicionar à tela inicial&quot;
             </div>
           )}
         </div>

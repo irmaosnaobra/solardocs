@@ -52,6 +52,7 @@ export default function SocialProofPopup() {
 
   // Embaralha o pool uma vez por sessão pra ordem variar entre acessos.
   const leads: Lead[] = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity -- Sorteio dentro de useMemo sem dependências, roda uma vez só.
     const shuffled = [...POOL].sort(() => Math.random() - 0.5);
     return shuffled.map((p, i) => ({ ...p, numero: MIN_NUMBER + i }));
   }, []);

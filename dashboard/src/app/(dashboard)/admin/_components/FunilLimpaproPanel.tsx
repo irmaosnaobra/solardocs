@@ -756,9 +756,9 @@ export default function FunilLimpaproPanel() {
             <strong style={{ color: 'var(--color-text)' }}>Recuperação de checkout:</strong> aqui ficam quem
             entrou no checkout e <b>não comprou</b> — abandonou ou gerou Pix e não pagou (mais quente). <b>Recuperado</b> =
             abandonou/gerou pix e SÓ DEPOIS comprou; quem comprou antes é falso positivo e fica de fora. A <b>lista é
-            sempre completa</b>, não segue o filtro de período (lead antigo ainda dá pra recuperar) — só "Recuperados"
+            sempre completa</b>, não segue o filtro de período (lead antigo ainda dá pra recuperar) — só &quot;Recuperados&quot;
             segue o período. <b>R$ na mesa</b> é estimado: pros Pix usa o valor real do checkout, pros abandonos usa o
-            preço do Limpa Solar Pro (R$ 47). "Recuperado" = a pessoa comprou <b>qualquer</b> item depois; se ela tinha
+            preço do Limpa Solar Pro (R$ 47). &quot;Recuperado&quot; = a pessoa comprou <b>qualquer</b> item depois; se ela tinha
             outro produto avulso abandonado, ele não aparece aqui. Lista com nome e telefone de clientes — só pra
             contato comercial.
             <br /><br />
@@ -772,7 +772,7 @@ export default function FunilLimpaproPanel() {
             <strong style={{ color: 'var(--color-text)' }}>Fonte dos dados:</strong> Visita e Clique vêm do
             tracking próprio da landing <code style={{ padding: '0 4px' }}>limpapro.solardoc.app</code>;
             checkout e vendas vêm do <b>webhook da Kiwify</b>. <b>Faturamento</b> = valor cobrado bruto;
-            <b>Líquido</b> = depois da taxa da Kiwify — é o número que aparece na tela "Vendas" da Kiwify.
+            <b>Líquido</b> = depois da taxa da Kiwify — é o número que aparece na tela &quot;Vendas&quot; da Kiwify.
             Reembolsos e recusados ficam de fora. <b>Atenção:</b> o webhook começou a registrar em ~06/jun,
             então vendas anteriores a isso (ex.: pré-lançamento) podem não aparecer aqui — confira o total na
             própria Kiwify se precisar do histórico completo.

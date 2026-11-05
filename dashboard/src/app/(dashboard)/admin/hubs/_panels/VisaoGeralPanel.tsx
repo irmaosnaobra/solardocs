@@ -90,6 +90,7 @@ export default function VisaoGeralPanel({ produto }: { produto: string }) {
     }
   }, [produto]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(); }, [load]);
 
   return (

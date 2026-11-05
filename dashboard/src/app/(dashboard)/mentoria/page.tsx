@@ -40,6 +40,7 @@ export default function MentoriaIndexPage() {
               key={p.slug}
               href={`/mentoria/${p.slug}`}
               className={`mentoria-card ${featured ? 'mentoria-card-featured' : ''} ${p.exclusivo ? 'mentoria-card-exclusive' : ''}`}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Variável CSS personalizada não existe no tipo de estilo.
               style={{ ['--card-color' as any]: cor.primary }}
               data-pitch={p.attention.subtitulo}
             >

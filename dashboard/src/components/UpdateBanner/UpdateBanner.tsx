@@ -17,6 +17,7 @@ export default function UpdateBanner() {
     // roda no 'load' e o React hidrata depois (medido, 1563ms contra 1618ms).
     // Quem volta ao app com um update já baixado cai exatamente nessa janela —
     // por isso o registro também deixa a marca, e aqui lemos a marca primeiro.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Sincroniza com dado do navegador que só existe depois de montar.
     if ((window as unknown as { __sdUpdateReady?: boolean }).__sdUpdateReady) setShow(true);
     function onUpdate() { setShow(true); }
     window.addEventListener('sw-update-ready', onUpdate);

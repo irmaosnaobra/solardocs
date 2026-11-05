@@ -37,6 +37,7 @@ export default function MaoDeObraPage() {
   const { user } = useDashboard();
   // Preço único: quem paga tem tudo. Os slugs legados ('pro', 'iniciante')
   // seguem no banco de quem assinou por 27/47/49 e contam como assinatura ativa.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- O campo is_admin não está no tipo do usuário.
   const isVip = (!!user && user.plano !== 'free') || (user as any)?.is_admin;
 
   const [prestador, setPrestador] = useState<Prestador | null>(null);
@@ -112,6 +113,7 @@ export default function MaoDeObraPage() {
       });
       await loadProfile();
       alert('Cadastro salvo! Aguarde aprovação do admin.');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Erro do axios sem tipo, lê response.data.
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Erro ao salvar');
     } finally {
@@ -125,6 +127,7 @@ export default function MaoDeObraPage() {
         <header className="mob-hero">
           <h1>Cadastro de Mão de Obra</h1>
           <p>Recurso exclusivo de quem assina. Cadastre seu time e receba obras prontas pra executar.</p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Link direto para a página de conta, trocar por Link muda a navegação. */}
           <a href="/conta/mao-de-obra" className="mob-vip-cta">Liberar meu cadastro</a>
         </header>
       </div>

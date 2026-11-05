@@ -31,6 +31,7 @@ export default function IoLpPanel({ match }: { match: string }) {
       .then((r) => { const all = ((r.data as Analytics)?.sessions) || []; setRows(all.filter((s) => (s.landing_url || '').includes(match))); })
       .catch(() => setRows([])).finally(() => setLoading(false));
   }, [match]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(period); }, [period, load]);
 
   const visits = rows?.length ?? 0;

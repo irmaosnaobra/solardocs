@@ -66,6 +66,7 @@ function Painel() {
 
   useEffect(() => {
     if (!isAuthenticated()) { router.replace('/plugcash/entrar?proximo=/plugcash/app'); return; }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
     carregar();
     plugcashApi.evento('app_open');
   }, [router, carregar]);

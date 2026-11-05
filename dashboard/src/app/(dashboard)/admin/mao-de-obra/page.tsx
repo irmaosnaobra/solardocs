@@ -59,6 +59,7 @@ export default function AdminMaoDeObraPage() {
   useEffect(() => { loadAll(); }, [loadAll]);
 
   async function mudarStatus(id: string, status: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dado de planilha ou API sem tipo definido.
     setItems(prev => prev.map(x => x.id === id ? { ...x, status: status as any } : x));
     try {
       await api.patch(`/prestadores/admin/${id}/status`, { status });
@@ -146,7 +147,7 @@ export default function AdminMaoDeObraPage() {
 
                 {p.observacoes && (
                   <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '4px 0 8px', fontStyle: 'italic' }}>
-                    "{p.observacoes}"
+                    &quot;{p.observacoes}&quot;
                   </p>
                 )}
 

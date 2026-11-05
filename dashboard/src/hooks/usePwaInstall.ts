@@ -47,6 +47,7 @@ export function usePwaInstall(): EstadoPwa {
       (navigator as unknown as { standalone?: boolean }).standalone === true;
 
     if (standalone) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sincroniza com dado do navegador que só existe depois de montar.
       setInstalado(true);
       return;
     }

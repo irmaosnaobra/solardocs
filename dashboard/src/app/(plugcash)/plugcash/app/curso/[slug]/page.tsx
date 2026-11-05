@@ -109,6 +109,7 @@ function Tela() {
 
   useEffect(() => {
     if (!isAuthenticated()) { router.replace(`/plugcash/entrar?proximo=/plugcash/app/curso/${slug}`); return; }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
     carregar().catch(() => setCarregando(false));
   }, [router, slug, carregar]);
 
