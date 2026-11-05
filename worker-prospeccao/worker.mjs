@@ -43,7 +43,7 @@
 
 import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio } from './ritmo.mjs';
+import { cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio, decidirRampa, diaAnteriorUtil, limitesDoDia, relogioBRT, RAMPA_INICIAL, tetoManualInstagram, parseHistorico, diaDeIso, maxInstagramEfetivo, historicoPrecisaSincronizar } from './ritmo.mjs';
 
 const ARG = process.argv.slice(2);
 const DRY   = ARG.includes('--dry');
@@ -71,13 +71,14 @@ const CFG = {
   //     nunca abaixo de 8, HORA_FIM nunca acima de 21; domingo fechado;
   //   • piso de 45 min entre dois envios da mesma conta: MIN_SEG nunca abaixo de
   //     2700, e MAX_SEG e TETO_ESPERA nunca abaixo do piso (padrão 3600);
-  //   • Instagram no máximo 5 por dia, chip no máximo 10 (ver travas()).
+  //   • Instagram: rampa de 5 a 10 por dia (rampaDoDia), chip no máximo 10 (ver travas()).
   // Em 11/09 a conta quebrou com DMs de 3 em 3 min, e em 09/10 saíram 12 DMs em
   // 41 min porque a espera calculada só ia para o log e nunca valia.
   // A LISTA continua sendo montada 24h: só o ENVIO obedece a janela.
   minSeg:     RITMO.minSeg,
   maxSeg:     RITMO.maxSeg,
   tetoEspera: RITMO.tetoEspera,
+  tetoIgMax:  RITMO.tetoInstagramMax,   // Instagram: máximo 10/dia, a env só desce
   // De quanto em quanto tempo ela olha se alguém respondeu. LER é de graça e
   // não tem risco nenhum — o que custa é enviar. Então ela olha o tempo todo.
   olharSeg:   Number(process.env.OLHAR_SEG || 150), // 2min30
@@ -239,21 +240,27 @@ const ler = async (q, tentativa = 1) => {
 };
 
 async function travas() {
-  const [saude, teto] = await Promise.all([
+  if (CANAL === 'instagram') await garantirRebaixe();   // rebaixe pendente do último bloqueio: repete até gravar
+  const [saude, teto, rampa] = await Promise.all([
     ler(`prospeccao_saude?select=*&consultor=eq.${encodeURIComponent(CFG.consultor)}`),
     ler(`prospeccao_teto_hoje?select=*&consultor=eq.${encodeURIComponent(CFG.consultor)}`),
+    // Instagram: a alavanca é o teto_manual da rampa (5 a 10). Nulo vale 5; sem linha vale 0.
+    CANAL === 'instagram' ? ler(`prospeccao_rampa?select=teto_manual&consultor=eq.${encodeURIComponent(CFG.consultor)}`) : Promise.resolve(null),
   ]);
   const ef = tetoEfetivo(CANAL, {
     teto: teto[0]?.teto,                // sem linha em prospeccao_teto_hoje = teto 0 (falha segura, nunca "5")
     usados: teto[0]?.usados_hoje ?? 0,
     restam: teto[0]?.restam ?? 0,
-  }, bloqueioAtivo());                  // bloqueio de conversa nova = frio 0
+    tetoManual: rampa === null ? undefined : (rampa[0] ? rampa[0].teto_manual : 0),
+  }, bloqueioAtivo(),
+  // Sem a prova de teto_manual <= 5 depois do último bloqueio (histórico), o Instagram usa no máximo 5, seja qual for o banco.
+  CANAL === 'instagram' ? maxInstagramEfetivo({ bloqueio: lerBloqueio(), historico: lerHistorico(), maxIg: CFG.tetoIgMax }) : CFG.tetoIgMax);
   return {
     // Consultor que não aparece na saúde não tocou ninguém em 14 dias — e quem
     // não tocou ninguém não pode estar queimando linha.
     estado: saude[0]?.estado || 'ok',
     taxa:   saude[0]?.taxa_optout ?? 0,
-    // TETO EFETIVO (regra 25): Instagram no máximo 5/dia, chip no máximo 10. O
+    // TETO EFETIVO (regra 25): Instagram de 5 a 10/dia pela rampa, chip no máximo 10. O
     // restam da view foi calculado com o teto do banco (12), então é refeito aqui.
     teto:   ef.teto,
     usados: teto[0]?.usados_hoje ?? 0,
@@ -299,9 +306,77 @@ function lerBloqueio() {
 }
 function gravarBloqueio(motivo, perfis) {
   try {
-    writeFileSync(ARQ_BLOQUEIO, JSON.stringify({ desde: new Date().toISOString(), motivo, perfis: [...perfis] }, null, 2));
+    const agoraIso = new Date().toISOString();
+    writeFileSync(ARQ_BLOQUEIO, JSON.stringify({ desde: agoraIso, motivo, perfis: [...perfis], rebaixado: false }, null, 2));
+    gravarHistorico({ ultimo: agoraIso, dia: diaDeIso(agoraIso), rebaixado: false });
   } catch (e) { log('NÃO consegui gravar ' + ARQ_BLOQUEIO + ': ' + e.message + ' (o bloqueio segue só na memória)'); }
 }
+const ARQ_RAMPA = fileURLToPath(new URL(`./rampa-${CANAL}.json`, import.meta.url));
+const rampaUrl = () => `${CFG.supa}/prospeccao_rampa?consultor=eq.${encodeURIComponent(CFG.consultor)}`;
+async function patchRampa(tetoManual, obs) {
+  const r = await fetch(rampaUrl(), {
+    method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
+    body: JSON.stringify({ teto_manual: tetoManual, atualizado_em: new Date().toISOString(), obs }),
+  });
+  if (!r.ok) throw new Error('prospeccao_rampa: ' + r.status);
+}
+const ARQ_HISTORICO = fileURLToPath(new URL(`./historico-bloqueio-${CANAL}.json`, import.meta.url));
+/** Histórico do último bloqueio: NÃO se apaga no destrave. */
+function lerHistorico() {
+  try { return parseHistorico(readFileSync(ARQ_HISTORICO, 'utf8')); }
+  catch (e) { return e && e.code === 'ENOENT' ? null : parseHistorico('{ilegível'); }
+}
+function gravarHistorico(h) {
+  try { writeFileSync(ARQ_HISTORICO, JSON.stringify(h, null, 2)); }
+  catch (e) { log('NÃO consegui gravar ' + ARQ_HISTORICO + ': ' + e.message + ' (sem histórico o teto fica em 5 por segurança)'); }
+}
+function lerMarcaRampa() {
+  try { return JSON.parse(readFileSync(ARQ_RAMPA, 'utf8')); } catch { return null; }
+}
+/** Marca do dia da rampa: { dia, teto (o teto em vigor NAQUELE dia), bloqueio (houve bloqueio nesse dia) }. */
+function gravarMarcaRampa(dia, teto, bloqueio = false) {
+  const antiga = lerMarcaRampa();
+  const bl = bloqueio || Boolean(antiga && antiga.dia === dia && antiga.bloqueio);   // dia de bloqueio fica marcado
+  try { writeFileSync(ARQ_RAMPA, JSON.stringify({ dia, teto, bloqueio: bl, em: new Date().toISOString() })); }
+  catch (e) { log('NÃO consegui gravar ' + ARQ_RAMPA + ': ' + e.message); }
+}
+/** Dia do bloqueio: a marca registra (sem gravar PATCH) que hoje foi dia de bloqueio. */
+async function rebaixarRampa() {
+  if (CANAL !== 'instagram' || DRY) return;
+  gravarMarcaRampa(relogioBRT().dia, RAMPA_INICIAL, true);   // o dia do bloqueio nunca conta como cheio, com ou sem PATCH
+  await garantirRebaixe(true);
+}
+let rebaixeTentadoEm = 0;
+/**
+ * Garante que teto_manual = 5 no banco depois de um bloqueio. Enquanto o histórico estiver com rebaixado:false
+ * (PATCH falhou, ou o arquivo de bloqueio foi criado à mão), repete — chamado pelo rampaDoDia e pelo travas.
+ * Devolve true se não há rebaixe pendente.
+ */
+async function garantirRebaixe(forcar = false) {
+  if (CANAL !== 'instagram' || DRY) return true;
+  const bl = lerBloqueio();
+  let h = lerHistorico();
+  if (historicoPrecisaSincronizar(bl, h)) {            // arquivo de bloqueio criado à mão (ou mais novo que o histórico)
+    gravarHistorico({ ultimo: bl.desde || new Date().toISOString(), dia: diaDeIso(bl.desde || new Date().toISOString()), rebaixado: bl.rebaixado === true });
+    h = lerHistorico();
+  }
+  if (!h || h.rebaixado === true) return true;
+  if (!forcar && Date.now() - rebaixeTentadoEm < 60_000) return false;   // no máximo 1 tentativa por minuto
+  rebaixeTentadoEm = Date.now();
+  try {
+    await patchRampa(RAMPA_INICIAL, `RAMPA AUTOMATICA: bloqueio em ${h.dia || 'data desconhecida'}, voltei para ${RAMPA_INICIAL}/dia. Sobe +1 por dia cheio sem bloqueio, teto ${CFG.tetoIgMax}.`);
+    gravarHistorico({ ...h, rebaixado: true, rebaixadoEm: new Date().toISOString() });
+    if (existsSync(ARQ_BLOQUEIO)) {
+      try { const j = JSON.parse(readFileSync(ARQ_BLOQUEIO, 'utf8')); writeFileSync(ARQ_BLOQUEIO, JSON.stringify({ ...j, rebaixado: true }, null, 2)); } catch { /* arquivo ilegível: o histórico já tem a prova */ }
+    }
+    log(`teto_manual voltou a ${RAMPA_INICIAL} na rampa (prova gravada no histórico).`);
+    return true;
+  } catch (e) {
+    log('não consegui voltar o teto_manual a ' + RAMPA_INICIAL + ' (' + e.message + '). Sigo no máximo 5 no Instagram e tento de novo em 1 min.');
+    return false;
+  }
+}
+
 /** Bloqueado para conversa NOVA? Memória OU arquivo (o arquivo criado à mão vale sem reiniciar). */
 const bloqueioAtivo = () => bloqueadaParaNovas || lerBloqueio().bloqueado;
 
@@ -336,7 +411,7 @@ function restaurarArquivoUltimo(prev) {
   } catch { /* na dúvida, a marca nova fica */ }
 }
 
-async function gravarToque(contatoId, listaId, produtoId, resultado, obs, semMarcador = false) {
+async function gravarToque(contatoId, listaId, produtoId, resultado, obs, semMarcador = false, criadoEm = null) {
   if (DRY) return;
   // Envio da fila fria: a hora vai para o disco ANTES do POST, para o piso valer mesmo se o banco estiver fora.
   if (!semMarcador && resultado === 'enviei' && /^worker /.test(obs || '')) gravarArquivoUltimo(Date.now());
@@ -345,6 +420,7 @@ async function gravarToque(contatoId, listaId, produtoId, resultado, obs, semMar
     body: JSON.stringify({
       contato_id: contatoId, lista_id: listaId, produto_id: produtoId,
       consultor: CFG.consultor, resultado, valor: 0, obs,
+      ...(criadoEm ? { criado_em: criadoEm } : {}),   // pendência gravada depois conta no dia em que a DM saiu
     }),
   });
   // 4xx e 5xx NÃO podem passar calados: toque que não gravou sai da conta do teto, do piso e da fila única.
@@ -1029,6 +1105,37 @@ function alvoDoCanal(c) {
     && CELULAR.test(String(c.telefone || '').replace(/\D/g, ''));
 }
 
+// ═══ RAMPA DO DIA (Instagram) ════════════════════════════════════════════════
+// Uma vez por dia. A regra é pura (ritmo.mjs/decidirRampa); aqui só se leem as fontes e se grava.
+let rampaOlhadaEm = null;
+async function rampaDoDia() {
+  if (CANAL !== 'instagram' || DRY) return;
+  const rebaixeOk = await garantirRebaixe();   // PATCH de rebaixe pendente: repete antes de qualquer coisa
+  const hoje = relogioBRT().dia;
+  if (rampaOlhadaEm === hoje) return;
+  rampaOlhadaEm = hoje;
+  try {
+    const marca = lerMarcaRampa();
+    const r = (await ler(`prospeccao_rampa?select=teto_manual,atualizado_em&consultor=eq.${encodeURIComponent(CFG.consultor)}`))[0];
+    if (!r) { log('rampa do dia: sem linha em prospeccao_rampa, não mexo.'); return; }
+    const anterior = diaAnteriorUtil(hoje);
+    const { ini, fim } = limitesDoDia(anterior);
+    const env = await ler(`prospeccao_toques?select=id&consultor=eq.${encodeURIComponent(CFG.consultor)}&resultado=eq.enviei&criado_em=gte.${ini}&criado_em=lt.${fim}`);
+    const d = decidirRampa({
+      hoje, marca,
+      ultimoBloqueioDia: (lerHistorico() || {}).dia || null,
+      atualizadoDia: r.atualizado_em ? relogioBRT(new Date(r.atualizado_em)).dia : null,
+      atualManual: r.teto_manual, enviadosDiaAnterior: env.length,
+      bloqueado: bloqueioAtivo() || !rebaixeOk, maxIg: CFG.tetoIgMax,
+    });
+    log(`rampa do dia: ${d.motivo}${d.gravar ? ' -> teto_manual ' + d.novo : ''} (ontem útil ${anterior}: ${env.length} envios).`);
+    if (d.gravar) {
+      await patchRampa(d.novo, `RAMPA AUTOMATICA: ${anterior} saiu ${env.length}/${r.teto_manual}. Hoje ${d.novo}/dia (de ${RAMPA_INICIAL} a ${CFG.tetoIgMax}, 45 min de piso, envio ${CFG.horaIni}h-${CFG.horaFim}h).`);
+    }
+    if (d.marcar) gravarMarcaRampa(hoje, Math.min(Number(d.novo ?? tetoManualInstagram(r.teto_manual)), CFG.tetoIgMax));   // o teto em vigor HOJE: amanhã é com ele que o dia é medido
+  } catch (e) { log('rampa do dia falhou, sigo com o teto que está: ' + e.message); }
+}
+
 // ═══ FILA ÚNICA ENTRE OS DOIS CANAIS ═════════════════════════════════════════
 // A view não conhece o outro canal, então o worker confere. A chave é a EMPRESA
 // (contato_id), não o telefone nem o @. Regras em ritmo.mjs/avaliarToques. Se a
@@ -1096,7 +1203,8 @@ async function resolverPendente() {
   const p = pendenteAtual();
   if (!p) return true;
   try {
-    await gravarToque(p.id, null, p.pid, 'enviei', `worker ${CANAL} incerto pendente`, true);
+    await gravarToque(p.id, null, p.pid, 'enviei', `worker ${CANAL} incerto pendente`, true,
+      Number.isFinite(p.ms) ? new Date(p.ms).toISOString() : null);
   } catch (e) { log('  o toque pendente ainda não gravou (' + e.message + '); sigo parada de abordar'); return false; }
   limparPendente();
   log('  o toque pendente gravou. Volto a abordar.');
@@ -1249,6 +1357,7 @@ async function umaAbordagem() {
                       ultimo_erro: `compositor não abre em ${caixaNaoAbriu} perfis seguidos` });
         bloqueadaParaNovas = true;
         gravarBloqueio(`compositor não abre em ${caixaNaoAbriu} perfis distintos seguidos`, caixaNaoAbriuEm);
+        await rebaixarRampa();
       }
     }
     if (CANAL === 'instagram' && /não existe mais/.test(r.motivo)) {
@@ -1987,6 +2096,7 @@ async function modoContinuo() {
       }
 
       // ── 2. ABORDAR, se já passou o intervalo e ainda tem teto ─────────────
+      await rampaDoDia();   // 1 vez por dia (marca local + atualizado_em): reinício não soma duas vezes
       if (Date.now() >= proximaAbordagem) {
         const t = await travas();
 

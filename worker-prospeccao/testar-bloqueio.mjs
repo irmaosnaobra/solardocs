@@ -18,7 +18,7 @@
    Roda pela tarefa do Windows as 07h e as 18h.
    ───────────────────────────────────────────────────────────────────────────── */
 
-import { rmSync } from 'node:fs';
+import { rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const CFG = {
@@ -26,7 +26,7 @@ const CFG = {
   supa: 'https://ancecdfqfwlaujknizof.supabase.co/rest/v1',
   key: process.env.SUPA_KEY || 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6',
   consultor: process.env.CONSULTOR || 'irmaosnaobra__',
-  tetoAoVoltar: Number(process.env.TETO_AO_VOLTAR || 5),
+  tetoAoVoltar: 5,   // sempre 5: o teto_manual nunca fica nulo nem acima disso ao destravar
 };
 const H = { apikey: CFG.key, Authorization: `Bearer ${CFG.key}`, 'Content-Type': 'application/json' };
 const log = (...a) => console.log(`[${new Date().toLocaleString('pt-BR')}]`, ...a);
@@ -122,25 +122,34 @@ async function main() {
 
   // ── destravou ──────────────────────────────────────────────────────────────
   log('DESTRAVOU! A caixa de mensagem voltou a abrir em perfil novo.');
-  // O worker nasce bloqueado se existir bloqueio-instagram.json: o teste que PASSA é quem o apaga.
-  try { rmSync(fileURLToPath(new URL('./bloqueio-instagram.json', import.meta.url)), { force: true }); log('bloqueio-instagram.json apagado: o worker pode voltar a abordar no próximo reinício.'); } catch (e) { log('não consegui apagar bloqueio-instagram.json: ' + e.message); }
-
+  // SEMPRE volta o teto_manual a 5, qualquer que fosse o valor. Ele NUNCA pode ficar nulo: nulo cai na rampa
+  // da VIEW (25 a 100), que e o ritmo que ja derrubou a conta. A partir de 5, a rampa do worker sobe +1 por dia cheio, ate 10.
   const rampa = await ler(`prospeccao_rampa?select=teto_manual&consultor=eq.${encodeURIComponent(CFG.consultor)}`);
-  if ((rampa[0]?.teto_manual ?? null) === 0) {
-    await fetch(`${CFG.supa}/prospeccao_rampa?consultor=eq.${encodeURIComponent(CFG.consultor)}`, {
-      method: 'PATCH', headers: H,
-      body: JSON.stringify({
-        teto_manual: CFG.tetoAoVoltar,
-        obs: `Destravou em ${new Date().toLocaleDateString('pt-BR')}. Voltando em ${CFG.tetoAoVoltar}/dia, `
-           + 'nao em 40: foram 33 DMs frias em 2 dias que trouxeram o bloqueio de 11/09. '
-           + 'Suba o teto so depois de uma semana limpa, ou tire o manual e deixe a rampa automatica trabalhar.',
-        atualizado_em: new Date().toISOString(),
-      }),
-    });
-    log(`teto devolvido: ${CFG.tetoAoVoltar} por dia (era 0)`);
-  } else {
-    log(`teto ja estava em ${rampa[0]?.teto_manual}, nao mexi`);
+  const antes = rampa[0]?.teto_manual ?? null;
+  const rr = await fetch(`${CFG.supa}/prospeccao_rampa?consultor=eq.${encodeURIComponent(CFG.consultor)}`, {
+    method: 'PATCH', headers: H,
+    body: JSON.stringify({
+      teto_manual: CFG.tetoAoVoltar,
+      obs: `Destravou em ${new Date().toLocaleDateString('pt-BR')}. Voltando em ${CFG.tetoAoVoltar}/dia (era ${antes}), `
+         + 'nao em 40: foram 33 DMs frias em 2 dias que trouxeram o bloqueio de 11/09. '
+         + 'A rampa do worker sobe +1 por dia cheio, ate 10.',
+      atualizado_em: new Date().toISOString(),
+    }),
+  });
+  if (!rr.ok) {
+    // O PATCH vem ANTES: sem ele gravado, o arquivo de bloqueio FICA, e o worker segue bloqueado (e em no maximo 5).
+    log(`NAO consegui devolver o teto: HTTP ${rr.status}. MANTIVE bloqueio-instagram.json: o worker continua bloqueado.`);
+    return;
   }
+  log(`teto devolvido: ${CFG.tetoAoVoltar} por dia (era ${antes})`);
+  // So agora, com o PATCH gravado (rr.ok), o arquivo de bloqueio sai. O historico NAO se apaga: ele guarda o dia do bloqueio
+  // (que nunca conta como dia cheio) e a prova do rebaixe.
+  try {
+    const hArq = fileURLToPath(new URL('./historico-bloqueio-instagram.json', import.meta.url));
+    try { const h = JSON.parse(readFileSync(hArq, 'utf8')); writeFileSync(hArq, JSON.stringify({ ...h, rebaixado: true, rebaixadoEm: new Date().toISOString() }, null, 2)); } catch { /* sem historico ainda */ }
+    rmSync(fileURLToPath(new URL('./bloqueio-instagram.json', import.meta.url)), { force: true });
+    log('bloqueio-instagram.json apagado: o worker pode voltar a abordar no proximo reinicio, partindo de 5.');
+  } catch (e) { log('nao consegui apagar bloqueio-instagram.json: ' + e.message); }
 
   // O cron de 15 em 15 min le isto e avisa no WhatsApp dele.
   await fetch(`${CFG.supa}/prospeccao_pulso?id=eq.1`, {

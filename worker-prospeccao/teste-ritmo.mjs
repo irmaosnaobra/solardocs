@@ -9,6 +9,8 @@ import {
   cfgDe, podeEnviar, calcularEspera, tetoEfetivo, faltaParaPiso, avaliarToques, contaProibida,
   arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa,
   respiroAposFalha, parseBloqueio, RESPIRO_MIN_SEG,
+  decidirRampa, diaAnteriorUtil, ehDomingo, limitesDoDia, tetoManualInstagram, TETO_INSTAGRAM, RAMPA_INICIAL,
+  parseHistorico, maxInstagramEfetivo, historicoPrecisaSincronizar, diaDeIso,
 } from './ritmo.mjs';
 import { spawnSync } from 'node:child_process';
 
@@ -222,7 +224,7 @@ console.log('\nregra 25: respiro, bloqueio no disco, teto sem linha');
     const t = tetoEfetivo(canal, { teto: 12, usados: 0, restam: 12 }, comArquivo.bloqueado);
     ok(t.teto === 0 && t.restam === 0, canal + ': arquivo de bloqueio presente = teto de frio 0, restam 0');
   }
-  ok(tetoEfetivo('instagram', { teto: 12, usados: 0, restam: 12 }, semBloqueio.bloqueado).restam === 5, 'sem bloqueio o teto segue 5 no Instagram');
+  ok(tetoEfetivo('instagram', { teto: 12, usados: 0, restam: 12 }, semBloqueio.bloqueado).restam === 10, 'sem bloqueio o teto do Instagram é limitado a 10 (limite duro)');
   const dec = decidirAbordagem({ agora: hoje, cfg: padrao, restam: 5, banco: { ok: true, ms: null }, arquivo: arquivoUltimo(null), bloqueio: comArquivo });
   ok(!dec.enviar && dec.motivo === 'bloqueio', 'decidirAbordagem: bloqueio presente barra a abordagem fria');
   ok(decidirAbordagem({ agora: hoje, cfg: padrao, restam: 5, banco: { ok: true, ms: null }, arquivo: arquivoUltimo(null), bloqueio: semBloqueio }).enviar, 'decidirAbordagem: sem bloqueio, dentro da janela, libera');
@@ -236,6 +238,125 @@ console.log('\nregra 25: respiro, bloqueio no disco, teto sem linha');
   }
 }
 
+console.log('\nrampa do Instagram: 5 a 10, +1 por dia cheio');
+{
+  ok(TETO_INSTAGRAM === 10 && RAMPA_INICIAL === 5, 'limite duro 10, rampa começa em 5');
+  // --- teto lido do teto_manual (a rampa da VIEW, 25 a 100, nunca vale) ---
+  const ig = (extra, bloq = false, max = 10) => tetoEfetivo('instagram', { teto: 25, usados: 0, restam: 25, ...extra }, bloq, max);
+  ok(ig({ tetoManual: 5 }).teto === 5 && ig({ tetoManual: 5 }).restam === 5, 'teto_manual 5 vale 5, mesmo com a view dizendo 25');
+  ok(ig({ tetoManual: 8 }).teto === 8, 'teto_manual 8 vale 8');
+  ok(ig({ tetoManual: 12 }).teto === 10, 'teto_manual 12 posto à mão é cortado em 10');
+  ok(ig({ tetoManual: null }).teto === 5 && ig({ tetoManual: null }).restam === 5, 'teto_manual NULO vale 5 (não cai nos 25 da view)');
+  ok(tetoManualInstagram(null) === 5 && tetoManualInstagram('x') === 0 && tetoManualInstagram(0) === 0, 'nulo vale 5; lixo vale 0; 0 continua 0 (congelado)');
+  ok(ig({ tetoManual: 8 }, false, 6).teto === 6, 'a env só DESCE: máximo 6 corta o manual 8');
+  ok(cfgDe({ TETO_INSTAGRAM_MAX: '50' }).tetoInstagramMax === 10 && cfgDe({ TETO_INSTAGRAM_MAX: '3' }).tetoInstagramMax === 3 && cfgDe({}).tetoInstagramMax === 10, 'TETO_INSTAGRAM_MAX nunca sobe de 10');
+  ok(ig({ tetoManual: 8 }, true).restam === 0, 'bloqueio: frio 0 mesmo com manual 8');
+
+  // --- a rampa dia a dia ---
+  const dias = ['2026-11-05', '2026-11-06', '2026-11-07', '2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13'];   // qui sex sáb seg ter qua qui sex (sem domingo)
+  let manual = 5, marca = null, atualizado = null;
+  const subidas = [];
+  for (const hoje of dias) {
+    // ontem saiu o teto INTEIRO daquele dia (o gravado na marca de ontem)
+    const d = decidirRampa({ hoje, marca, atualizadoDia: atualizado, atualManual: manual, enviadosDiaAnterior: marca ? marca.teto : 0, bloqueado: false });
+    if (d.gravar) { manual = d.novo; atualizado = hoje; }
+    if (d.marcar) marca = { dia: hoje, teto: Math.min(manual, 10), bloqueio: false };
+    subidas.push(manual);
+  }
+  ok(subidas.join(',') === '5,6,7,8,9,10,10,10', 'dia cheio todo dia (o 1º dia só marca, sem prova de ontem): ' + subidas.join(', ') + ' e para em 10');
+  ok(Math.max(...subidas) === 10, 'nunca passa de 10');
+
+  const base = { hoje: '2026-11-10', marca: { dia: '2026-11-09', teto: 5, bloqueio: false }, atualizadoDia: null, atualManual: 5, bloqueado: false };
+  ok(!decidirRampa({ ...base, enviadosDiaAnterior: 4 }).gravar, 'dia NÃO cheio (4 de 5): não sobe');
+  ok(!decidirRampa({ ...base, enviadosDiaAnterior: 0 }).gravar, 'dia sem envio: não sobe');
+  ok(decidirRampa({ ...base, enviadosDiaAnterior: 5 }).novo === 6, 'dia cheio (5 de 5): sobe para 6');
+  ok(!decidirRampa({ ...base, enviadosDiaAnterior: 5, bloqueado: true }).gravar, 'canal bloqueado: não sobe nem com dia cheio');
+  ok(decidirRampa({ ...base, atualManual: 12, enviadosDiaAnterior: 0 }).novo === 10, 'manual 12 posto à mão é trazido para 10');
+  ok(decidirRampa({ ...base, enviadosDiaAnterior: 5, maxIg: 5 }).novo === undefined || !decidirRampa({ ...base, enviadosDiaAnterior: 5, maxIg: 5 }).gravar, 'com máximo de env 5, dia cheio não passa de 5');
+
+  // --- reinício no mesmo dia não soma ---
+  const primeira = decidirRampa({ ...base, enviadosDiaAnterior: 5 });
+  ok(primeira.gravar && primeira.novo === 6, 'primeira volta do dia: 5 -> 6');
+  ok(!decidirRampa({ ...base, marca: { dia: base.hoje, teto: 6, bloqueio: false }, atualManual: 6, enviadosDiaAnterior: 6 }).gravar, 'reinício com a marca local de hoje: não soma de novo');
+  ok(!decidirRampa({ ...base, atualizadoDia: base.hoje, atualManual: 6, enviadosDiaAnterior: 6 }).gravar, 'reinício com a marca perdida mas atualizado_em de hoje no banco: não soma de novo');
+
+  // --- domingo não conta ---
+  ok(ehDomingo('2026-11-08') && !ehDomingo('2026-11-07'), '08/11/2026 é domingo, 07/11 sábado');
+  const dom = decidirRampa({ ...base, hoje: '2026-11-08', enviadosDiaAnterior: 5 });
+  ok(!dom.gravar && !dom.marcar, 'domingo: a rampa não roda');
+  ok(diaAnteriorUtil('2026-11-09') === '2026-11-07' && diaAnteriorUtil('2026-11-10') === '2026-11-09', 'na segunda, "ontem" é o sábado (domingo pulado)');
+  ok(limitesDoDia('2026-11-07').ini === '2026-11-07T03:00:00.000Z' && limitesDoDia('2026-11-07').fim === '2026-11-08T03:00:00.000Z', 'o dia de Brasília vai de 03:00Z a 03:00Z');
+
+  // --- nulo e congelado ---
+  const nulo = decidirRampa({ ...base, atualManual: null, enviadosDiaAnterior: 99 });
+  ok(nulo.gravar && nulo.novo === 5, 'teto_manual nulo na rampa: grava 5 (e não sobe nesse dia)');
+  const zero = decidirRampa({ ...base, atualManual: 0, enviadosDiaAnterior: 99 });
+  ok(!zero.gravar, 'teto_manual 0 (congelado à mão) nunca é levantado pela rampa');
+
+  // --- bloqueio volta a 5 (texto do worker e do testar-bloqueio) ---
+  const wsrc = readFileSync(fileURLToPath(new URL('./worker.mjs', import.meta.url)), 'utf8');
+  ok(/async function garantirRebaixe[\s\S]{0,2500}patchRampa\(RAMPA_INICIAL/.test(wsrc) && /gravarBloqueio\([^\n]*\n\s*await rebaixarRampa\(\);/.test(wsrc), 'worker.mjs: quando o detector dispara, grava o bloqueio E volta o teto_manual a 5 na rampa');
+  ok(/await rampaDoDia\(\);/.test(wsrc) && /decidirRampa\(\{/.test(wsrc), 'worker.mjs: o laço chama rampaDoDia, que usa decidirRampa');
+  ok(/tetoManual: rampa === null \? undefined : \(rampa\[0\] \? rampa\[0\]\.teto_manual : 0\)/.test(wsrc), 'worker.mjs: travas lê o teto_manual (nulo=5 no ritmo.mjs, sem linha=0)');
+  const tsrc = readFileSync(fileURLToPath(new URL('./testar-bloqueio.mjs', import.meta.url)), 'utf8');
+  ok(/tetoAoVoltar: 5,/.test(tsrc) && !/teto_manual \?\? null\) === 0/.test(tsrc) && /teto_manual: CFG\.tetoAoVoltar/.test(tsrc), 'testar-bloqueio.mjs: ao destravar devolve o teto_manual a 5 SEMPRE (não só quando era 0)');
+}
+
+console.log('\nbloqueio: rebaixe com prova, dia do bloqueio, teto de ontem');
+{
+  const ig = (tetoManual, max) => tetoEfetivo('instagram', { teto: 25, usados: 0, restam: 25, tetoManual }, false, max);
+  const hRuim = parseHistorico('{"ultimo":"2026-11-03T19:34:00.000Z","dia":"2026-11-03","rebaixado":false}');
+  const hBom = parseHistorico('{"ultimo":"2026-11-03T19:34:00.000Z","dia":"2026-11-03","rebaixado":true}');
+  const semBloq = parseBloqueio(null);
+  const comBloqFalso = parseBloqueio('{"desde":"2026-11-03T16:34:00-03:00","motivo":"x","perfis":[],"rebaixado":false}');
+  const comBloqMao = parseBloqueio('{"desde":"2026-11-03T16:34:00-03:00","motivo":"x","perfis":[]}');
+
+  // 1. PATCH do rebaixe falhou (histórico rebaixado:false) e o destrave apagou o arquivo: o teto NÃO sobe
+  const maxSemProva = maxInstagramEfetivo({ bloqueio: semBloq, historico: hRuim, maxIg: 10 });
+  ok(maxSemProva === 5, 'PATCH do rebaixe falhou e o arquivo de bloqueio sumiu: máximo do Instagram = 5');
+  ok(ig(8, maxSemProva).teto === 5 && ig(12, maxSemProva).teto === 5 && ig(null, maxSemProva).teto === 5, 'banco com teto_manual 8, 12 ou nulo: o worker usa 5 sem a prova');
+  ok(maxInstagramEfetivo({ bloqueio: comBloqFalso, historico: hRuim, maxIg: 10 }) === 5, 'arquivo de bloqueio com rebaixado:false: máximo 5');
+  ok(maxInstagramEfetivo({ bloqueio: comBloqMao, historico: null, maxIg: 10 }) === 5, 'arquivo de bloqueio criado à mão (sem rebaixado): máximo 5');
+  ok(historicoPrecisaSincronizar(comBloqMao, null) && !historicoPrecisaSincronizar(semBloq, null), 'o arquivo de bloqueio à mão gera o histórico (e o rebaixe é refeito no banco)');
+
+  // 2. arquivo apagado à mão não sobe acima de 5 enquanto não houver a prova; com a prova, volta ao normal
+  ok(maxInstagramEfetivo({ bloqueio: semBloq, historico: hRuim, maxIg: 10 }) === 5, 'bloqueio apagado à mão, histórico sem prova: continua 5');
+  ok(maxInstagramEfetivo({ bloqueio: semBloq, historico: hBom, maxIg: 10 }) === 10 && ig(8, 10).teto === 8, 'com a prova do rebaixe gravada, o teto da rampa volta a valer (8 vale 8)');
+  ok(maxInstagramEfetivo({ bloqueio: semBloq, historico: null, maxIg: 10 }) === 10, 'conta que nunca foi bloqueada: sem limite extra');
+  ok(maxInstagramEfetivo({ bloqueio: semBloq, historico: parseHistorico('{lixo'), maxIg: 10 }) === 5, 'histórico ilegível: 5 por segurança');
+  ok(maxInstagramEfetivo({ bloqueio: semBloq, historico: hRuim, maxIg: 3 }) === 3, 'a env de máximo 3 continua mandando mais que os 5');
+  ok(diaDeIso('2026-11-03T19:34:00.000Z') === '2026-11-03' && diaDeIso('2026-11-04T01:00:00.000Z') === '2026-11-03', 'o dia do bloqueio é o de Brasília');
+
+  // 3. o dia do bloqueio nunca conta como cheio
+  const b = { hoje: '2026-11-10', atualizadoDia: null, atualManual: 5, bloqueado: false, enviadosDiaAnterior: 8 };
+  ok(!decidirRampa({ ...b, marca: { dia: '2026-11-09', teto: 8, bloqueio: true } }).gravar, 'marca de ontem com bloqueio: 8 de 8 não conta como cheio');
+  ok(!decidirRampa({ ...b, marca: { dia: '2026-11-09', teto: 8, bloqueio: false }, ultimoBloqueioDia: '2026-11-09' }).gravar, 'histórico diz que ontem teve bloqueio: não conta como cheio');
+  ok(!decidirRampa({ ...b, marca: { dia: '2026-11-09', teto: 8, bloqueio: false }, ultimoBloqueioDia: '2026-11-10' }).gravar, 'bloqueio hoje (depois de ontem): não conta como cheio');
+  ok(decidirRampa({ ...b, marca: { dia: '2026-11-09', teto: 8, bloqueio: false }, ultimoBloqueioDia: '2026-11-03' }).novo === 6, 'bloqueio de uma semana atrás não impede: ontem cheio (8 de 8) sobe de 5 para 6');
+  ok(!decidirRampa({ ...b, marca: { dia: '2026-11-09', teto: 8, bloqueio: false }, bloqueado: true }).gravar, 'sem prova de rebaixe (bloqueado:true para a rampa): não sobe');
+
+  // 4. ontem comparado com o teto de ONTEM, não com o de hoje (já rebaixado para 5)
+  const m8 = { dia: '2026-11-09', teto: 8, bloqueio: false };
+  ok(!decidirRampa({ ...b, marca: m8, enviadosDiaAnterior: 5 }).gravar, 'ontem o teto era 8 e saíram 5: NÃO é dia cheio (mesmo hoje valendo 5)');
+  ok(decidirRampa({ ...b, marca: m8, enviadosDiaAnterior: 8 }).novo === 6, 'ontem o teto era 8 e saíram 8: dia cheio, sobe de 5 para 6');
+  ok(!decidirRampa({ ...b, marca: { dia: '2026-11-07', teto: 5, bloqueio: false }, enviadosDiaAnterior: 99 }).gravar, 'marca de outro dia (sem prova do teto de ontem): não sobe');
+  ok(!decidirRampa({ ...b, marca: null, enviadosDiaAnterior: 99 }).gravar, 'sem marca nenhuma: não sobe, só marca o dia');
+
+  // 5. texto do worker e do testar-bloqueio
+  const wsrc2 = readFileSync(fileURLToPath(new URL('./worker.mjs', import.meta.url)), 'utf8');
+  ok(/maxInstagramEfetivo\(\{ bloqueio: lerBloqueio\(\), historico: lerHistorico\(\)/.test(wsrc2) && /if \(CANAL === 'instagram'\) await garantirRebaixe\(\)/.test(wsrc2), 'worker.mjs: travas repete o rebaixe e limita a 5 sem a prova');
+  ok(/const rebaixeOk = await garantirRebaixe\(\)/.test(wsrc2), 'worker.mjs: rampaDoDia repete o rebaixe pendente');
+  ok(/rebaixado: false/.test(wsrc2) && /historico-bloqueio-/.test(wsrc2), 'worker.mjs: o bloqueio grava rebaixado:false e o histórico que não se apaga');
+  ok(/gravarMarcaRampa\(relogioBRT\(\)\.dia, RAMPA_INICIAL, true\)/.test(wsrc2), 'worker.mjs: o dia do bloqueio fica marcado na marca da rampa');
+  ok(/criado_em: criadoEm/.test(wsrc2) && /new Date\(p\.ms\)\.toISOString\(\)/.test(wsrc2), 'worker.mjs: o incerto pendente gravado depois leva a data em que a DM saiu');
+  const ts2 = readFileSync(fileURLToPath(new URL('./testar-bloqueio.mjs', import.meta.url)), 'utf8').split(String.fromCharCode(13, 10)).join(String.fromCharCode(10));
+  const iPatch = ts2.indexOf("method: 'PATCH', headers: H,\n    body: JSON.stringify({\n      teto_manual");
+  const iRm = ts2.indexOf("rmSync(fileURLToPath(new URL('./bloqueio-instagram.json'");
+  const iOk = ts2.indexOf('if (!rr.ok) {');
+  ok(iPatch > 0 && iOk > iPatch && iRm > iOk && /if \(!rr\.ok\) \{[\s\S]{0,400}return;/.test(ts2.replace(/\r\n/g, '\n')), 'testar-bloqueio.mjs: PATCH primeiro; se falhar, mantém o arquivo e sai; só com rr.ok apaga');
+  ok(/historico-bloqueio-instagram\.json/.test(ts2) && !/rmSync\(fileURLToPath\(new URL\('\.\/historico/.test(ts2), 'testar-bloqueio.mjs: o histórico não é apagado no destrave');
+}
+
 console.log('\ncanal obrigatório');
 ok(canalValido('instagram') && canalValido('whatsapp') && !canalValido(undefined) && !canalValido('') && !canalValido('x'), 'canalValido só aceita instagram ou whatsapp');
 {
@@ -245,8 +366,8 @@ ok(canalValido('instagram') && canalValido('whatsapp') && !canalValido(undefined
 }
 
 console.log('\nteto');
-ok(tetoEfetivo('instagram', { teto: 12, usados: 0, restam: 12 }).restam === 5, 'Instagram: teto 12 do banco vira 5');
-ok(tetoEfetivo('instagram', { teto: 12, usados: 5, restam: 7 }).restam === 0, 'Instagram: 5 enviados fecha o dia mesmo com restam=7 na view');
+ok(tetoEfetivo('instagram', { teto: 12, usados: 0, restam: 12 }).restam === 10, 'Instagram: teto 12 do banco vira 10');
+ok(tetoEfetivo('instagram', { teto: 12, usados: 10, restam: 7 }).restam === 0, 'Instagram: 10 enviados fecha o dia mesmo com restam=7 na view');
 ok(tetoEfetivo('instagram', { teto: 3, usados: 1, restam: 2 }).restam === 2, 'Instagram: teto menor do banco continua valendo');
 ok(tetoEfetivo('instagram', { teto: undefined, usados: undefined, restam: undefined }).restam === 0, 'Instagram: dado ausente = restam 0 (falha segura)');
 ok(tetoEfetivo('whatsapp', { teto: 50, usados: 0, restam: 50 }).teto === 10, 'chip: teto máximo 10');
