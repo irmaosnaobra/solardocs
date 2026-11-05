@@ -24,6 +24,8 @@ const render = (f: Record<string, unknown> = {}, modelo: 1 | 2 | 3 | 4 = 4, emp:
   return { html, out };
 };
 const paginas = (h: string) => (h.match(/<div class="page[ "]/g) || []).length;
+// n fotos de obra com URL já assinada (o servidor só entrega ao template o que já passou pela reassinatura).
+const fotosObra = (n: number, legenda = (i: number) => `Obra ${i + 1}`) => Array.from({ length: n }, (_, i) => ({ url: HTTPS, legenda: legenda(i) }));
 
 const HTTPS = 'https://projeto.supabase.co/storage/v1/object/sign/documentos/portfolio/u1/obra/1-abc123.jpg?token=xyz';
 const PNG = 'data:image/png;base64,iVBORw0KGgo=';
@@ -31,10 +33,10 @@ const PNG = 'data:image/png;base64,iVBORw0KGgo=';
 describe('modelo 4 Completo: folhas', () => {
   it('sem galerias: 4 folhas e nenhuma "Quem já confia na gente"', () => {
     const { html } = render({ pag_cartao_12: true });
-    expect(paginas(html)).toBe(4);
+    expect(paginas(html)).toBe(5);
     expect(html).not.toContain('Quem já confia na gente');
-    expect(html).toContain('Proposta Comercial · Cliente Exemplo · 2/4');
-    expect(html).toContain('Proposta Comercial · Cliente Exemplo · 4/4');
+    expect(html).toContain('Proposta Comercial · Cliente Exemplo · 2/5');
+    expect(html).toContain('Proposta Comercial · Cliente Exemplo · 5/5');
     expect(html).toContain('Análise Financeira');
     expect(html).toContain('Investimento e formas de pagamento');
     expect(html).toContain('Garantias e próximos passos');
@@ -52,16 +54,16 @@ describe('modelo 4 Completo: folhas', () => {
   it('com obras, empresas ou foto do telhado: 5 folhas e a numeração acompanha', () => {
     const { html } = render({
       pag_cartao_12: true,
-      fotos_obras: [{ url: HTTPS, legenda: 'Residência em Campinas' }],
+      fotos_obras: fotosObra(6),
       empresas_atendidas: [{ url: HTTPS, nome: 'Empresa X' }],
       foto_telhado_b64: PNG,
     });
-    expect(paginas(html)).toBe(5);
+    expect(paginas(html)).toBe(6);
     expect(html).toContain('Quem já confia na gente');
     expect(html).toContain('Obras realizadas');
     expect(html).toContain('Empresas atendidas');
     expect(html).toContain('Local da instalação');
-    expect(html).toContain('Proposta Comercial · Cliente Exemplo · 5/5');
+    expect(html).toContain('Proposta Comercial · Cliente Exemplo · 6/6');
     expect(render({ foto_telhado_b64: PNG }).html).toContain('Local da instalação');
   });
 
@@ -89,7 +91,7 @@ describe('modelo 4 Completo: imagens e escape', () => {
         { url: 'http://exemplo.com/a.png', legenda: 'ruim 2' },
         { url: 'data:image/svg+xml;base64,PHN2Zz4=', legenda: 'ruim 3' },
         { url: 'data:text/html;base64,PGI+', legenda: 'ruim 4' },
-        { url: HTTPS, legenda: 'boa' },
+        ...fotosObra(6, () => 'boa'),
       ],
       empresas_atendidas: [{ url: 'javascript:alert(1)', nome: 'Fantasma' }],
       bancos_parceiros: [{ nome: 'Banco C', url: 'http://x/y.png' }],
@@ -121,7 +123,7 @@ describe('modelo 4 Completo: imagens e escape', () => {
 
   it('nome e legenda são escapados', () => {
     const { html } = render({
-      fotos_obras: [{ url: HTTPS, legenda: '<img src=x onerror=alert(1)> "aspas" & cia' }],
+      fotos_obras: fotosObra(6, (i) => (i === 0 ? '<img src=x onerror=alert(1)> "aspas" & cia' : `Obra ${i + 1}`)),
       empresas_atendidas: [{ url: HTTPS, nome: '<script>alert(2)</script>' }],
       bancos_parceiros: [{ nome: '<b>Banco</b>' }],
     });
@@ -132,15 +134,15 @@ describe('modelo 4 Completo: imagens e escape', () => {
     expect(html).toContain('&lt;script&gt;alert(2)&lt;/script&gt;');
   });
 
-  it('respeita os limites: 6 obras, 12 empresas, 8 bancos', () => {
+  it('respeita os limites: 12 obras, 12 empresas, 8 bancos', () => {
     const { html } = render({
-      fotos_obras: Array.from({ length: 9 }, (_, i) => ({ url: HTTPS, legenda: `Obra ${i + 1}` })),
+      fotos_obras: fotosObra(15),
       empresas_atendidas: Array.from({ length: 15 }, (_, i) => ({ url: HTTPS, nome: `Empresa ${i + 1}` })),
       bancos_logos: [],
       bancos_parceiros: Array.from({ length: 11 }, (_, i) => ({ nome: `Banco ${i + 1}` })),
     });
-    expect(html).toContain('Obra 6');
-    expect(html).not.toContain('Obra 7');
+    expect(html).toContain('Obra 12<');
+    expect(html).not.toContain('Obra 13');
     expect(html).toContain('Empresa 12<');
     expect(html).not.toContain('Empresa 13');
     expect(html).toContain('Banco 8<');
@@ -217,7 +219,7 @@ describe('modelo 4 Completo: pagamentos e números', () => {
 
   it('consumo e investimento zerados não quebram nem imprimem economia negativa', () => {
     const { html } = render({ consumo_kwh: '0', investimento: '0' });
-    expect(paginas(html)).toBe(3);
+    expect(paginas(html)).toBe(4);
     expect(html).not.toContain('-R$');
     // Sem consumo a economia some dos destaques (o modelo 1 imprime negativo; aqui não).
     expect(html).not.toContain('Economia em 25 anos');
@@ -232,32 +234,32 @@ describe('modelo 4 Completo: folhas leves, textos e entrada', () => {
   it('sem forma de pagamento nem banco não há folha de pagamentos: o investimento abre a folha de garantias', () => {
     const { html } = render({ pag_vista: false, pag_cartao: false, pag_fin: false, bancos_logos: [] });
     expect(secoes(html)).not.toContain('Investimento e formas de pagamento');
-    expect(paginas(html)).toBe(3);
+    expect(paginas(html)).toBe(4);
     const f5 = html.slice(html.indexOf('Garantias e próximos passos'));
     expect(f5.indexOf('Preço do projeto')).toBeGreaterThan(-1);
     expect(f5.indexOf('Preço do projeto')).toBeLessThan(f5.indexOf('Garantias inclusas'));
-    expect(html).toContain('Proposta Comercial · Cliente Exemplo · 3/3');
+    expect(html).toContain('Proposta Comercial · Cliente Exemplo · 4/4');
   });
 
   it('sem consumo, a folha de geração se junta à seguinte quando cabe; numeração acompanha', () => {
     const solo = render({ consumo_kwh: '0', pag_cartao_12: true });
     expect(secoes(solo.html)).toEqual(expect.arrayContaining(['Economia e Geração', 'Investimento e formas de pagamento']));
-    expect(paginas(solo.html)).toBe(3); // projeto, geração + investimento, garantias
-    expect(solo.html).toContain('· 3/3');
-    expect(solo.html).not.toContain('· 4/');
+    expect(paginas(solo.html)).toBe(4); // projeto, geração + investimento, garantias
+    expect(solo.html).toContain('· 4/4');
+    expect(solo.html).not.toContain('· 5/');
     // Com 21 cartões a folha de pagamentos não comporta o gráfico: a geração fica sozinha.
     const f: Record<string, unknown> = { consumo_kwh: '0' };
     for (let n = 1; n <= 21; n++) f['pag_cartao_' + n] = true;
     for (const n of [36, 48, 60, 72, 84]) f['pag_fin_' + n] = true;
     f.pag_custom = 'Condição especial';
     f.bancos_parceiros = Array.from({ length: 8 }, (_, i) => ({ nome: 'Banco ' + i }));
-    expect(paginas(render(f).html)).toBe(4);
+    expect(paginas(render(f).html)).toBe(5);
   });
 
   it('frases e rótulos começam com maiúscula', () => {
     const f: Record<string, unknown> = { pag_cartao_12: true, pag_custom: 'x', pag_entrada: true, entrada_valor: '8000', preco_avista: '27000' };
     const { html } = render(f);
-    for (const t of ['Por mês na sua conta', 'Taxa mínima da concessionária', 'A combinar com o vendedor', 'Economia de', 'Dias úteis do contrato à ligação', 'Sem entrada', 'Com o sistema quitado']) {
+    for (const t of ['Por mês na sua conta', 'Taxa mínima da concessionária', 'A combinar com o vendedor', 'Economia de', 'Do contrato à ligação: até 45 dias úteis.', 'Sem entrada', 'Com o sistema quitado']) {
       expect(html).toContain(t);
     }
     for (const t of ['>por mês', '>taxa mínima da', '>a combinar', '>economia de', '>dias úteis', '>sem entrada', '>com o sistema', '>ou 12']) {
@@ -297,9 +299,9 @@ describe('modelo 4 Completo: folhas leves, textos e entrada', () => {
     expect(secoes(so)).toContain('Local da instalação');
     expect(secoes(so)).not.toContain('Quem já confia na gente');
     expect(so).not.toContain('Vistoria realizada');
-    const todos = render({ pag_cartao_12: true, foto_telhado_b64: PNG, fotos_obras: [{ url: HTTPS, legenda: 'Casa' }] }).html;
+    const todos = render({ pag_cartao_12: true, foto_telhado_b64: PNG, fotos_obras: fotosObra(6) }).html;
     expect(secoes(todos)).toEqual(expect.arrayContaining(['Local da instalação', 'Quem já confia na gente']));
-    expect(paginas(todos)).toBe(5);
+    expect(paginas(todos)).toBe(6);
     expect(todos.indexOf('Local da instalação')).toBeLessThan(todos.indexOf('Quem já confia na gente'));
   });
 
@@ -504,19 +506,58 @@ describe('modelo 4 Completa + Banco', () => {
     expect(resumo).not.toContain('À vista');
   });
 
-  it('folha de garantias traz as 5 etapas até a ligação, com ou sem aceite, depois do prazo e antes do selo', () => {
-    for (const f of [{}, { assinatura: ASSIN_PF }]) {
+  it('obras: só a partir de 6 fotos, sempre em fileiras completas de 3 (6, 9 ou 12); as que sobram não saem', () => {
+    const fotosNoHtml = (n: number) => (render({ fotos_obras: fotosObra(n) }).html.match(/<div class="ob">/g) || []).length;
+    expect([0, 1, 5].map(fotosNoHtml)).toEqual([0, 0, 0]);
+    expect(render({ fotos_obras: fotosObra(5) }).html).not.toContain('Obras realizadas');
+    expect([6, 7, 8, 9, 10, 11, 12, 15].map(fotosNoHtml)).toEqual([6, 6, 6, 9, 9, 9, 12, 12]);
+    const doze = render({ fotos_obras: fotosObra(12) }).html;
+    expect(doze).toContain('Obra 12<');
+    const onze = render({ fotos_obras: fotosObra(11) }).html;
+    expect(onze).toContain('Obra 9<');
+    expect(onze).not.toContain('Obra 10<');
+  });
+
+  it('nenhuma combinação de foto do telhado, 12 obras e empresas some com seção; folha extra só quando não cabe', () => {
+    const empresas = Array.from({ length: 8 }, (_, i) => ({ url: HTTPS, nome: `Empresa ${i + 1}` }));
+    for (const f of [{ foto_telhado_b64: PNG, fotos_obras: fotosObra(12), empresas_atendidas: empresas }, { fotos_obras: fotosObra(9), empresas_atendidas: empresas }]) {
       const html = render(f).html;
-      const f5 = html.slice(html.indexOf('Garantias e próximos passos'));
-      expect(f5).toContain('Etapas até a ligação');
-      for (const [t, d] of [['Projeto', 'O engenheiro faz o projeto e a ART do seu sistema.'], ['Vistoria técnica', 'A equipe confere o telhado e o padrão de energia.'],
-        ['Instalação', 'Módulos, inversor e proteções instalados no local.'], ['Homologação', 'A empresa faz o pedido de conexão na concessionária.'], ['Ligação', 'Sistema ligado e gerando energia.']]) {
-        expect(f5).toContain(`<div class="t">${t}</div><div class="d">${d}</div>`);
-      }
-      expect((f5.match(/<div class="et">/g) || []).length).toBe(5);
-      expect(f5.indexOf('Prazo de instalação')).toBeLessThan(f5.indexOf('Etapas até a ligação'));
-      expect(f5.indexOf('Etapas até a ligação')).toBeLessThan(f5.indexOf('class="vpill"'));
+      expect(html).toContain('Obras realizadas');
+      expect(html).toContain('Empresas atendidas');
+      const n = paginas(html);
+      for (let i = 2; i <= n; i++) expect(html).toContain(`· ${i}/${n}`);
     }
+  });
+
+  it('cronograma do projeto: prazo total, 5 etapas na vertical com desenho, número, título e explicação', () => {
+    for (const f of [{}, { assinatura: ASSIN_PF }]) {
+      const html = render({ prazo_instalacao_dias: '60', ...f }).html;
+      expect(html).toContain('Cronograma do projeto');
+      expect(html).toContain('Do contrato à ligação: até 60 dias úteis.');
+      expect(html).not.toContain('Etapas até a ligação');
+      expect(html).not.toContain('class="prazo"');
+      expect((html.match(/<div class="cr">/g) || []).length).toBe(5);
+      expect((html.match(/<svg viewBox="0 0 64 64"/g) || []).length).toBe(5);
+      const cron = html.slice(html.indexOf('Cronograma do projeto'));
+      const ordem = ['Projeto', 'Vistoria técnica', 'Instalação', 'Homologação', 'Ligação'].map((t) => cron.indexOf(`</span>${t}</div>`));
+      expect(ordem.every((v, i) => v > 0 && (i === 0 || v > ordem[i - 1]))).toBe(true);
+      expect(cron).toContain('O engenheiro dimensiona o sistema pela sua conta de luz e pelo seu telhado. Depois desenha o projeto elétrico e emite a ART, o registro da responsabilidade técnica.');
+      expect(cron).toContain('A empresa envia o projeto para a concessionária e acompanha o pedido até a aprovação. Depois a concessionária troca o medidor por um bidirecional.');
+      expect(cron).toContain('Com o medidor novo, o sistema é ligado e começa a gerar. A energia que sobra vira crédito na sua conta de luz.');
+      // O traço usa as variáveis de cor da proposta, não cor escrita à mão.
+      expect(html).toContain('.ln{ fill:none; stroke:var(--c1)');
+    }
+  });
+
+  it('cronograma ganha folha própria quando não cabe com as garantias (sem aceite, com o rodapé grande); a numeração fecha', () => {
+    const html = render({}).html;
+    expect(secoes(html)).toEqual(expect.arrayContaining(['Cronograma do projeto', 'Garantias e próximos passos']));
+    expect(secoes(html).indexOf('Cronograma do projeto')).toBeLessThan(secoes(html).indexOf('Garantias e próximos passos'));
+    const n = paginas(html);
+    expect(html).toContain(`· ${n}/${n}`);
+    expect(html.indexOf('<div class="foot">')).toBeGreaterThan(html.indexOf('Garantias e próximos passos'));
+    // Com aceite cabe tudo na folha de garantias.
+    expect(secoes(render({ assinatura: ASSIN_PF }).html)).not.toContain('Cronograma do projeto');
   });
 
   it('sem assinatura: sem folha de aceite, sem CPF no cabeçalho, rodapé grande na última', () => {
@@ -524,7 +565,7 @@ describe('modelo 4 Completa + Banco', () => {
     expect(secoes(html)).not.toContain('Aceite da proposta');
     expect(html).not.toContain('class="dp"');
     expect(html.indexOf('<div class="foot">')).toBeGreaterThan(html.indexOf('Garantias e próximos passos'));
-    expect(paginas(html)).toBe(4);
+    expect(paginas(html)).toBe(5);
   });
 
   it('texto do usuário no aceite e nos dados bancários sai escapado', () => {
@@ -535,3 +576,222 @@ describe('modelo 4 Completa + Banco', () => {
     expect(html).toContain('A &lt;b&gt;B&lt;/b&gt; Ltda');
   });
 });
+
+// ─── Fio B (Lei 14.300) ─────────────────────────────────────────────────────────────────────────
+import { anoCivil, calcularFinanceiro as calcFin, lerFioB, percentualFioB, serieFioB, validarFioB } from '../services/propostaSolarCalculos';
+
+describe('Fio B: contas', () => {
+  it('percentual por ano do calendário', () => {
+    expect([2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2035].map(percentualFioB)).toEqual([15, 15, 30, 45, 60, 75, 90, 100, 100]);
+  });
+
+  it('série: ano 1 é o ano da emissão, reajusta pela tarifa e sobe o percentual', () => {
+    const s = serieFioB({ fio: { tarifa: 0.28, pct: 70 }, geracaoMediaMensal: 756, inflacao: 0.06, anoInicial: 2026 });
+    expect(s.percentuais.slice(0, 5)).toEqual([60, 75, 90, 100, 100]);
+    const cent = (n: number) => Math.round(n * 100) / 100;
+    expect(s.custoMensal[0]).toBe(cent(756 * 0.7 * 0.28 * 1 * 0.6));
+    expect(s.custoMensal[1]).toBe(cent(756 * 0.7 * 0.28 * 1.06 * 0.75));
+    expect(s.custoMensal[3]).toBe(cent(756 * 0.7 * 0.28 * Math.pow(1.06, 3) * 1));
+    expect(s.custoMensal).toHaveLength(25);
+  });
+
+  it('com e sem Fio B: sem ele é idêntico ao de sempre; com ele a conta com solar, a economia e o retorno pioram', () => {
+    const e = { consumoKwh: 650, tarifa: 1.2, taxaMinima: 90, inflacao: 0.06, inflacaoTaxaMin: 0.06, investimento: 28900 };
+    const sem = calcFin(e);
+    expect(calcFin({ ...e, fioBMensal: undefined })).toEqual(sem);
+    const serie = serieFioB({ fio: { tarifa: 0.28, pct: 70 }, geracaoMediaMensal: 756, inflacao: 0.06, anoInicial: 2026 });
+    const com = calcFin({ ...e, fioBMensal: serie.custoMensal });
+    expect(com.contaComSolar).toBeCloseTo(90 + serie.custoMensal[0], 6);
+    expect(com.economiaMensal).toBeLessThan(sem.economiaMensal);
+    expect(com.economia25).toBeLessThan(sem.economia25);
+    expect(com.paybackMeses).toBeGreaterThan(sem.paybackMeses);
+    expect(com.semSolarAcum).toEqual(sem.semSolarAcum);
+    // O acumulado com solar de 25 anos soma a taxa mínima e o Fio B de cada ano.
+    let esperado = 0;
+    for (let a = 1; a <= 25; a++) esperado += 90 * 12 * Math.pow(1.06, a - 1) + serie.custoMensal[a - 1] * 12;
+    expect(com.comSolarAcum[24]).toBe(Math.round(esperado));
+  });
+
+  it('validação: só vale com fio_b_mostrar true; tarifa 0,01 a 2 e parte injetada 1 a 100 (ausente = 70)', () => {
+    expect(validarFioB({})).toBeNull();
+    expect(validarFioB({ fio_b_mostrar: false, fio_b_tarifa: 99 })).toBeNull();
+    const msgTarifa = 'Escreva o valor do Fio B da sua concessionária, em R$ por kWh.';
+    const msgPct = 'A parte da geração que vai para a rede tem que ficar entre 1% e 100%.';
+    for (const t of [undefined, null, '', 0, 0.009, 2.01, 'abc']) expect(validarFioB({ fio_b_mostrar: true, fio_b_tarifa: t })).toBe(msgTarifa);
+    for (const t of [0.01, 2, '0,28']) expect(validarFioB({ fio_b_mostrar: true, fio_b_tarifa: t })).toBeNull();
+    for (const p of [0, 101, -5, 'x']) expect(validarFioB({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: p })).toBe(msgPct);
+    for (const p of [undefined, null, '', 1, 100, 70]) expect(validarFioB({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: p })).toBeNull();
+    expect(lerFioB({ fio_b_mostrar: true, fio_b_tarifa: '0,28' })).toEqual({ tarifa: 0.28, pct: 70 });
+    expect(lerFioB({ fio_b_mostrar: true, fio_b_tarifa: 5 })).toBeNull();
+    expect(lerFioB({ fio_b_tarifa: 0.28 })).toBeNull();
+    expect(anoCivil(new Date('2026-11-05T15:00:00.000Z'))).toBe(2026);
+    expect(anoCivil(new Date('2027-01-01T01:00:00.000Z'))).toBe(2026); // ainda 31/12 em São Paulo
+  });
+});
+
+describe('Fio B: modelo 4', () => {
+  const FIO = { fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: 70 };
+  const moeda = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  it('desligado ou ausente: o HTML é idêntico, sem o bloco', () => {
+    const sem = render({}).html;
+    expect(render({ fio_b_mostrar: false, fio_b_tarifa: 0.28 }).html).toBe(sem);
+    expect(sem).not.toContain('Fio B');
+  });
+
+  it('ligado: bloco com o texto, a linha da proposta e a faixa de 4 anos a partir do ano da emissão', () => {
+    const { html } = render(FIO);
+    expect(html).toContain('Fio B (Lei 14.300)');
+    expect(html).toContain('Quem instala a partir de 2023 paga uma parte do Fio B sobre a energia que vai para a rede. Essa parte sobe a cada ano até chegar a 100% em 2029.');
+    expect(html).toContain(`Nesta proposta: Fio B de ${moeda(0.28)} por kWh sobre 70% da geração. A economia desta proposta já desconta esse custo.`);
+    const faixa = html.slice(html.indexOf('class="fgrid"'));
+    expect(['2026', '2027', '2028', '2029'].map((a) => faixa.indexOf(`<div class="a num">${a}</div>`)).every((v, i, arr) => v > 0 && (i === 0 || v > arr[i - 1]))).toBe(true);
+    for (const pct of ['60%', '75%', '90%', '100%']) expect(faixa).toContain(`<div class="p num">${pct}</div>`);
+    expect((faixa.match(/ por mês<\/div>/g) || []).length).toBeGreaterThanOrEqual(4);
+    expect(html).toContain('Taxa mínima da concessionária + Fio B');
+    // Emissão em 2028: a faixa começa em 2028.
+    const em28 = render({ ...FIO, emitido_em: '2028-03-10T12:00:00.000Z' }).html;
+    expect(em28).toContain('<div class="a num">2028</div>');
+    expect(em28).toContain('<div class="a num">2031</div>');
+  });
+
+  it('os números fecham: conta com solar, economia, retorno, 25 anos e o resumo de WhatsApp usam a mesma conta', () => {
+    const sem = render({});
+    const com = render(FIO);
+    expect(com.html).not.toBe(sem.html);
+    // O custo do ano 1 da faixa é o que entra na conta com solar: conta com solar = taxa mínima (90) + custo do ano 1.
+    const custo1 = parseFloat((/<div class="a num">2026<\/div>[^]*?<div class="c num">R\$.([\d.,]+) por mês/.exec(com.html) as RegExpExecArray)[1].replace(/\./g, '').replace(',', '.'));
+    const contaCom = parseFloat((/Com energia solar<\/div><div class="v num">R\$.([\d.,]+)</.exec(com.html) as RegExpExecArray)[1].replace(/\./g, '').replace(',', '.'));
+    expect(contaCom).toBeCloseTo(90 + custo1, 1);
+    // "Conta após instalação" da folha 1 mostra o mesmo valor; a economia mensal é conta hoje - conta com solar.
+    expect(com.html).toContain(`<div class="k">Conta após instalação</div><div class="v num">${moeda(contaCom)}</div>`);
+    const contaHoje = parseFloat((/Hoje você paga<\/div><div class="v num">R\$.([\d.,]+)</.exec(com.html) as RegExpExecArray)[1].replace(/\./g, '').replace(',', '.'));
+    const eco = parseFloat((/Economia de R\$.([\d.,]+) todo mês/.exec(com.html) as RegExpExecArray)[1].replace(/\./g, '').replace(',', '.'));
+    expect(eco).toBeCloseTo(contaHoje - contaCom, 1);
+    expect(com.html).toContain(`<div class="k">Economia mensal</div><div class="v num">${moeda(eco)}</div>`);
+    // O resumo do WhatsApp do modelo 4 usa a mesma economia mensal (o do modelo 1 segue sem Fio B).
+    const resumoEco = (r?: string) => /Economia: ~R\$.([\d.,]+)\/mês/.exec(String(r))?.[1];
+    expect(resumoEco(com.out.resumo)).toBe(eco.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+    expect(resumoEco(sem.out.resumo)).not.toBe(resumoEco(com.out.resumo));
+    expect(resumoEco(render(FIO, 1).out.resumo)).toBe(resumoEco(sem.out.resumo));
+    // Retorno e 25 anos pioram, e o gráfico e os cartões saem da mesma série.
+    const pay = (h: string) => /Tempo de retorno<\/div><div class="v num">([^<]+)</.exec(h)?.[1];
+    expect(pay(com.html)).not.toBe(pay(sem.html));
+    const ec25 = (h: string) => /Em 25 anos<\/div><div class="v num">([^<]+)</.exec(h)?.[1];
+    expect(ec25(com.html)).not.toBe(ec25(sem.html));
+    expect(com.html).toContain('A área verde é sua economia');
+  });
+
+  it('tarifa inválida com Fio B ligado: o template trata como desligado (o controller devolve 400 antes)', () => {
+    expect(render({ fio_b_mostrar: true, fio_b_tarifa: 9 }).html).toBe(render({}).html);
+  });
+
+  it('modelos 1, 2 e 3 ignoram o Fio B (byte a byte)', () => {
+    for (const m of [1, 2, 3] as const) expect(render(FIO, m).html).toBe(render({}, m).html);
+  });
+});
+
+// ─── Fio B e economia: defesas e conferências ────────────────────────────────────────────────────
+import { numeroFlex, serieFioB as serieFio } from '../services/propostaSolarCalculos';
+import { validarFioBNaProposta, MSG_FIO_B_MAIOR_QUE_TARIFA, MSG_FIO_B_SEM_ECONOMIA } from '../services/propostaSolarFioBCheck';
+
+describe('Fio B: leitura de número, centavos e conferência na proposta', () => {
+  it('numeroFlex: a regra do formulário (ponto de milhar só com vírgula; leitura estrita)', () => {
+    expect([numeroFlex('0,28'), numeroFlex('0.28'), numeroFlex(' 1.000,5 '), numeroFlex(0.3), numeroFlex('2')]).toEqual([0.28, 0.28, 1000.5, 0.3, 2]);
+    for (const ruim of ['0,28abc', 'abc', '', '  ', '1,2,3', undefined, null, {}, [], '0,2 8']) expect(Number.isNaN(numeroFlex(ruim))).toBe(true);
+    expect(validarFioB({ fio_b_mostrar: true, fio_b_tarifa: '0,28abc' })).toBe('Escreva o valor do Fio B da sua concessionária, em R$ por kWh.');
+    expect(validarFioB({ fio_b_mostrar: true, fio_b_tarifa: '1.000,5' })).toBe('Escreva o valor do Fio B da sua concessionária, em R$ por kWh.');
+    expect(validarFioB({ fio_b_mostrar: true, fio_b_tarifa: '0,28', fio_b_injetada_pct: '70%' })).toBe('A parte da geração que vai para a rede tem que ficar entre 1% e 100%.');
+  });
+
+  it('custo mensal do Fio B em centavos; conta com solar + economia = conta de hoje, exato', () => {
+    const s = serieFio({ fio: { tarifa: 0.28, pct: 70 }, geracaoMediaMensal: 803.3333, inflacao: 0.06, anoInicial: 2026 });
+    for (const c of s.custoMensal) expect(Math.round(c * 100) / 100).toBe(c);
+    const { html } = render({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: 70 });
+    const n = (re: RegExp) => Math.round(parseFloat((re.exec(html) as RegExpExecArray)[1].replace(/\./g, '').replace(',', '.')) * 100);
+    const hoje = n(/Hoje você paga<\/div><div class="v num">R\$.([\d.,]+)</);
+    const com = n(/Com energia solar<\/div><div class="v num">R\$.([\d.,]+)</);
+    const eco = n(/Economia de R\$.([\d.,]+) todo mês/);
+    expect(com + eco).toBe(hoje);
+  });
+
+  it('data de emissão: o ano do Fio B é o ano da data impressa (virada do ano em São Paulo)', () => {
+    const { html } = render({ fio_b_mostrar: true, fio_b_tarifa: 0.28, emitido_em: '2027-01-01T01:00:00.000Z' });
+    expect(html).toContain('<span class="num">31/12/2026</span>');
+    expect(html).toContain('<div class="a num">2026</div>');
+    expect(html).toContain('<div class="p num">60%</div>');
+  });
+
+  it('conferência: Fio B >= tarifa de energia, e Fio B que zera a economia do ano 1', () => {
+    const f = { ...base, fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: 70 };
+    expect(validarFioBNaProposta(f, { cidade: 'Sao Jose do Rio Preto', uf: 'SP' })).toBeNull();
+    expect(validarFioBNaProposta({ ...f, fio_b_tarifa: 2, fio_b_injetada_pct: 100 })).toBe(MSG_FIO_B_MAIOR_QUE_TARIFA);
+    expect(validarFioBNaProposta({ ...f, tarifa_kwh: '0,28' })).toBe(MSG_FIO_B_MAIOR_QUE_TARIFA);
+    expect(validarFioBNaProposta({ ...f, tarifa_kwh: '1,00', consumo_kwh: '100', fio_b_tarifa: 0.5, fio_b_injetada_pct: 100 })).toBe(MSG_FIO_B_SEM_ECONOMIA);
+    expect(validarFioBNaProposta({ ...f, fio_b_mostrar: false, fio_b_tarifa: 99 })).toBeNull();
+    // Sem consumo não há economia para comer.
+    expect(validarFioBNaProposta({ ...f, consumo_kwh: '0', fio_b_tarifa: 0.5, tarifa_kwh: '1,00' })).toBeNull();
+    // O limite daqui bate com o que o template imprime: com economia, o texto sai; sem, nada de economia.
+    expect(render({ fio_b_mostrar: true, fio_b_tarifa: 0.28 }).html).toContain('todo mês');
+    const sem = render({ tarifa_kwh: '1,00', consumo_kwh: '100', fio_b_mostrar: true, fio_b_tarifa: 0.5, fio_b_injetada_pct: 100 }).html;
+    expect(sem).not.toContain('todo mês');
+  });
+
+  it('defesa: economia mensal ou de 25 anos <= 0 não mostra frase, cartões, faixa, gráfico, destaque nem retorno', () => {
+    const casos = [
+      { fio_b_mostrar: true, fio_b_tarifa: 2, fio_b_injetada_pct: 100 },
+      { consumo_kwh: '20' }, // conta de hoje menor que a taxa mínima, sem Fio B
+    ];
+    for (const f of casos) {
+      const { html } = render(f);
+      for (const t of ['todo mês', 'o sistema se paga sozinho', 'Em 1 ano', 'Em 25 anos', 'a mais no seu bolso', 'A área verde', 'Sua economia em 25 anos', 'Economia em 25 anos', 'Tempo de retorno', 'Economia mensal']) {
+        expect(html).not.toContain(t);
+      }
+      expect(html).not.toContain('>—<');
+      expect(html).toContain('Conta após instalação');
+      expect(html).toContain('Geração estimada mês a mês');
+    }
+  });
+
+  it('economia positiva mas sem retorno em 25 anos: o cartão de retorno some (nunca "—"), o resto fica', () => {
+    const { html } = render({ investimento: '99.999.999,00' });
+    expect(html).not.toContain('Tempo de retorno');
+    expect(html).not.toContain('>—<');
+    expect(html).toContain('Economia mensal');
+    expect(html).toContain('grid-template-columns:repeat(2,1fr)');
+    expect(html).not.toContain('o sistema se paga sozinho');
+  });
+
+  it('sem consumo com Fio B: a explicação do Fio B aparece (a conta após instalação leva o Fio B), sem a frase da economia', () => {
+    const { html } = render({ consumo_kwh: '0', fio_b_mostrar: true, fio_b_tarifa: 0.28 });
+    expect(html).toContain('Taxa mínima + Fio B');
+    expect(html).toContain('Fio B (Lei 14.300)');
+    expect(html).toContain('Nesta proposta: Fio B de');
+    expect(html).not.toContain('A economia desta proposta já desconta esse custo.');
+    expect(render({ fio_b_mostrar: true, fio_b_tarifa: 0.28 }).html).toContain('A economia desta proposta já desconta esse custo.');
+  });
+
+  it('fotos inválidas saem ANTES do limite de 12; legendas e nomes limitados a 2 linhas', () => {
+    const ruins = Array.from({ length: 12 }, (_, i) => ({ url: 'javascript:alert(1)', legenda: `Ruim ${i}` }));
+    const { html } = render({ fotos_obras: [...ruins, ...fotosObra(6)] });
+    expect((html.match(/<div class="ob">/g) || []).length).toBe(6);
+    expect(html).not.toContain('Ruim');
+    expect(html).toContain('-webkit-line-clamp:2');
+  });
+
+  it('telhado + 12 obras + 12 empresas: tudo aparece, a numeração fecha e a combinação dá o menor número de folhas', () => {
+    const empresas = Array.from({ length: 12 }, (_, i) => ({ url: HTTPS, nome: 'Empresa com nome bem comprido ' + i }));
+    const html = render({ foto_telhado_b64: PNG, fotos_obras: fotosObra(12, (i) => 'L'.repeat(80) + i), empresas_atendidas: empresas, assinatura: ASSIN_BASE }).html;
+    expect(html).toContain('Local da instalação');
+    expect((html.match(/<div class="ob">/g) || []).length).toBe(12);
+    expect((html.match(/<div class="em">/g) || []).length).toBe(12);
+    const n = paginas(html);
+    for (let i = 2; i <= n; i++) expect(html).toContain(`· ${i}/${n}`);
+    // Com tudo isso, o número de folhas de "confiança" é o menor possível entre as combinações de altura.
+    const sem = render({ fotos_obras: fotosObra(12), assinatura: ASSIN_BASE }).html;
+    expect(n - paginas(sem)).toBeLessThanOrEqual(2);
+  });
+});
+const ASSIN_BASE = {
+  empresa: { razao_social: 'Sol Forte Energia Ltda', cnpj: '11222333000181', representante: 'Carlos Pereira', cargo: 'Sócio' },
+  cliente: { tipo: 'PF', nome: 'Maria Aparecida Souza', documento: '52998224725' },
+};

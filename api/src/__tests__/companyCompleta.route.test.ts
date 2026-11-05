@@ -77,19 +77,19 @@ beforeEach(() => {
 });
 
 describe('PUT /company: fotos_obras', () => {
-  it('descarta path de outro usuário e de outro tipo; grava só path e legenda (80); máx 6', async () => {
+  it('descarta path de outro usuário e de outro tipo; grava só path e legenda (80); máx 12', async () => {
     const fotos = [
       { path: MEU, legenda: 'L'.repeat(120), url: 'http://interno/x' },
       { path: ALHEIO, legenda: 'alheia' },
       { path: DE_EMPRESA },
       { path: '../../etc/passwd' },
       { path: MEU2 },
-      ...Array.from({ length: 8 }, (_, i) => ({ path: `portfolio/user-123/obra/17000000000${i}0-abcdef1${i}.jpg` })),
+      ...Array.from({ length: 14 }, (_, i) => ({ path: `portfolio/user-123/obra/17000000000${i}0-abcdef1${i}.jpg` })),
     ];
     const res = await request(app).put('/company').set('Authorization', AUTH).send({ fotos_obras: fotos });
     expect(res.status).toBe(200);
     const gravado = h.gravado[0].fotos_obras as Array<Record<string, unknown>>;
-    expect(gravado).toHaveLength(6);
+    expect(gravado).toHaveLength(12);
     expect(gravado[0]).toEqual({ path: MEU, legenda: 'L'.repeat(80) });
     expect(gravado[1]).toEqual({ path: MEU2 });
     expect(JSON.stringify(gravado)).not.toContain('user-999');

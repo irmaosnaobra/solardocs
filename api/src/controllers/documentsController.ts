@@ -6,6 +6,8 @@ import { generateDocumentWithAI } from '../services/aiService';
 import { generateFromTemplate, propostaDiasValidade, type Client } from '../services/templateService';
 import { renovarUrlsPortfolio } from './portfolioController';
 import { normalizarAssinatura, normalizarCnpj, validarAssinatura } from '../utils/documentoBr';
+import { validarFioB } from '../services/propostaSolarCalculos';
+import { validarFioBNaProposta } from '../services/propostaSolarFioBCheck';
 import { linkExpiraEm } from '../services/propostaLink';
 import { checkLimit, incrementUsed } from '../services/planService';
 import { acessoOffGrid } from '../services/offgrid/acesso';
@@ -87,6 +89,18 @@ async function injetarClienteFinal(
 
 /** Modelo 4 (Completa + Banco): o aceite precisa das duas assinaturas, válidas. Roda antes de gastar número e cota. */
 const MSG_SEM_ASSINATURA = 'Para gerar a Completa + Banco, preencha as assinaturas do cliente e da empresa.';
+/** Fio B ligado no modelo 4: tarifa e parte injetada têm que ser valores possíveis (400 com a frase da tela). */
+function exigirFioBValido(fields: Record<string, unknown>): void {
+  const erro = validarFioB(fields);
+  if (erro) throw new ApiError(400, erro);
+}
+
+/** Fio B contra a proposta: não pode passar da tarifa de energia nem comer a economia do ano 1. Depois de saber o cliente e a data. */
+function exigirFioBCabeNaProposta(fields: Record<string, unknown>, cliente: Record<string, unknown>): void {
+  const erro = validarFioBNaProposta(fields, { cidade: cliente.cidade as string | undefined, uf: cliente.uf as string | undefined });
+  if (erro) throw new ApiError(400, erro);
+}
+
 function exigirAssinaturaModelo4(fields: Record<string, unknown>): void {
   if (fields.assinatura === undefined || fields.assinatura === null) throw new ApiError(400, MSG_SEM_ASSINATURA);
   const erro = validarAssinatura(fields.assinatura);
@@ -98,7 +112,10 @@ function exigirAssinaturaModelo4(fields: Record<string, unknown>): void {
 export async function generateDocument(req: Request, res: Response): Promise<void> {
   try {
     const body = generateSchema.parse(req.body);
-    if (body.tipo === 'propostaSolar' && body.modeloNumero === 4) exigirAssinaturaModelo4(body.fields);
+    if (body.tipo === 'propostaSolar' && body.modeloNumero === 4) {
+      exigirAssinaturaModelo4(body.fields);
+      exigirFioBValido(body.fields);
+    }
 
     const aceitaAvulso = TIPOS_MODO_RAPIDO.includes(body.tipo);
     const usandoAvulso = aceitaAvulso && !!body.cliente_nome_avulso && !body.cliente_id && !body.terceiro_id;
@@ -186,6 +203,9 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // Link rastreado: o prefill pode arrastar a validade de OUTRA proposta. Só a propostaSolar recebe de novo, logo antes de salvar.
     delete body.fields.link_rastreado;
     delete body.fields.link_expira_em;
+
+    // Fio B contra a tarifa e a economia (precisa do cliente e da data de hoje): antes de gastar cota e número.
+    if (body.tipo === 'propostaSolar' && body.modeloNumero === 4) exigirFioBCabeNaProposta(body.fields, entity);
 
     await checkLimit(req.userId);
 
@@ -512,6 +532,7 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     // aceite é o SALVO (nome e CPF/CNPJ do formulário são ignorados); sem salva, o nome na assinatura tem
     // que ser o do cliente desta proposta. A empresa e o local seguem o que veio.
     if (body.modeloNumero === 4 && doc.tipo === 'propostaSolar') {
+      exigirFioBValido(fields);
       const salva = normalizarAssinatura(dadosAntigos.assinatura);
       const nova = normalizarAssinatura(fields.assinatura);
       if (!nova) {
@@ -591,6 +612,8 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
       delete fields.emitido_em;
     }
 
+    // Fio B contra a tarifa e a economia: com a data de emissão já definida (a mesma que a proposta imprime).
+    if (body.modeloNumero === 4 && doc.tipo === 'propostaSolar') exigirFioBCabeNaProposta(fields, entity);
     // Galerias do modelo Completo: URL nova a partir do path (nunca a que veio do cliente).
     if (doc.tipo === 'propostaSolar') fields = await renovarUrlsPortfolio(req.userId, fields);
     // Link rastreado: recalcula a partir do emitido_em preservado (ou de hoje, se a validade

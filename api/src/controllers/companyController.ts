@@ -68,7 +68,7 @@ const companySchema = z.object({
   tecnico3_estado_civil: z.string().optional(),
   tecnico3_endereco: z.string().optional(),
   whatsapp: z.string().optional(),
-  fotos_obras: z.unknown().optional(),     // Array<{ path, legenda? }>, até 6, só paths do próprio usuário
+  fotos_obras: z.unknown().optional(),     // Array<{ path, legenda? }>, até 12, só paths do próprio usuário
   dados_bancarios: z.unknown().optional(), // { banco, agencia, conta, tipo_conta, titular, documento, pix } ou null
 });
 

@@ -266,13 +266,13 @@ describe('renovarUrlsPortfolio', () => {
     expect(r.bancos_parceiros).toEqual([{ nome: 'Banco A', path: ban(1) }, { nome: 'Caixa' }]);
   });
 
-  it('limites 6, 12 e 8; textos aparados em 80 caracteres', async () => {
+  it('limites 12, 12 e 8; textos aparados em 80 caracteres', async () => {
     const r = await renovarUrlsPortfolio(U, {
-      fotos_obras: Array.from({ length: 9 }, (_, i) => ({ path: obra(i), legenda: 'L'.repeat(200) })),
+      fotos_obras: Array.from({ length: 15 }, (_, i) => ({ path: obra(i), legenda: 'L'.repeat(200) })),
       empresas_atendidas: Array.from({ length: 15 }, (_, i) => ({ path: emp(i), nome: 'N'.repeat(100) })),
       bancos_parceiros: Array.from({ length: 11 }, (_, i) => ({ nome: `Banco ${i}` })),
     });
-    expect((r.fotos_obras as Array<{ legenda: string }>)).toHaveLength(6);
+    expect((r.fotos_obras as Array<{ legenda: string }>)).toHaveLength(12);
     expect((r.fotos_obras as Array<{ legenda: string }>)[0].legenda).toHaveLength(80);
     expect((r.empresas_atendidas as Array<{ nome: string }>)).toHaveLength(12);
     expect((r.empresas_atendidas as Array<{ nome: string }>)[0].nome).toHaveLength(80);

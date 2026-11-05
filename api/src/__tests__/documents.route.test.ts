@@ -251,6 +251,58 @@ describe('POST /documents/generate', () => {
     expect(generateFromTemplate).not.toHaveBeenCalled();
   });
 
+  it('modelo 4 com Fio B ligado e valores impossíveis: 400 com a frase da tela, sem gastar número', async () => {
+    const gerar = (fio: Record<string, unknown>) => request(app)
+      .post('/documents/generate').set('Authorization', AUTH)
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4, fields: { assinatura: ASSIN_OK, fio_b_mostrar: true, ...fio } });
+    const t1 = await gerar({});
+    expect(t1.status).toBe(400);
+    expect(t1.body.error).toBe('Escreva o valor do Fio B da sua concessionária, em R$ por kWh.');
+    expect((await gerar({ fio_b_tarifa: 2.5 })).body.error).toBe('Escreva o valor do Fio B da sua concessionária, em R$ por kWh.');
+    expect((await gerar({ fio_b_tarifa: 0.28, fio_b_injetada_pct: 150 })).body.error).toBe('A parte da geração que vai para a rede tem que ficar entre 1% e 100%.');
+    expect((await gerar({ fio_b_tarifa: 0.28, fio_b_injetada_pct: 0 })).status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(generateFromTemplate).not.toHaveBeenCalled();
+  });
+
+  it('modelo 4: Fio B maior que a tarifa de energia ou que zera a economia recebe 400, antes de gastar número e cota', async () => {
+    const gerar = (fields: Record<string, unknown>) => {
+      mockSingle
+        .mockResolvedValueOnce({ data: { id: 'comp-1', nome: 'Empresa', cnpj: '00.000.000/0001-00' } })
+        .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+        .mockResolvedValueOnce({ data: { id: CLIENT_UUID, nome: 'Cliente', cidade: 'Uberlandia', uf: 'MG' } });
+      return request(app)
+        .post('/documents/generate').set('Authorization', AUTH)
+        .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4,
+          fields: { assinatura: ASSIN_OK, fio_b_mostrar: true, qtd_modulos: '12', potencia_modulo: '550', consumo_kwh: '650', ...fields } });
+    };
+    const maior = await gerar({ fio_b_tarifa: 2, fio_b_injetada_pct: 100 });
+    expect(maior.status).toBe(400);
+    expect(maior.body.error).toBe('O Fio B não pode ser maior que a tarifa de energia. Confira o valor.');
+    const semEco = await gerar({ fio_b_tarifa: 0.5, fio_b_injetada_pct: 100, tarifa_kwh: '1,00', consumo_kwh: '100' });
+    expect(semEco.status).toBe(400);
+    expect(semEco.body.error).toBe('Com esse Fio B a proposta fica sem economia. Confira o valor do Fio B.');
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(generateFromTemplate).not.toHaveBeenCalled();
+  });
+
+  it('modelo 4 com Fio B válido passa e vai ao template; desligado não é validado', async () => {
+    mockGeracaoProposta();
+    mockRpc.mockResolvedValueOnce({ data: '20260040', error: null });
+    const ok = await request(app)
+      .post('/documents/generate').set('Authorization', AUTH)
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4,
+        fields: { assinatura: ASSIN_OK, fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: 70 } });
+    expect(ok.status).toBe(200);
+    expect(vi.mocked(generateFromTemplate).mock.calls[0][3]).toMatchObject({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: 70 });
+    mockGeracaoProposta();
+    mockRpc.mockResolvedValueOnce({ data: '20260041', error: null });
+    const off = await request(app)
+      .post('/documents/generate').set('Authorization', AUTH)
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4, fields: { assinatura: ASSIN_OK, fio_b_mostrar: false, fio_b_tarifa: 99 } });
+    expect(off.status).toBe(200);
+  });
+
   it('modelo 4: grava a assinatura limpa (documentos só com dígitos) e preserva bancos_logos []', async () => {
     mockGeracaoProposta();
     mockRpc.mockResolvedValueOnce({ data: '20260038', error: null });
@@ -439,6 +491,33 @@ describe('POST /documents/:id/regenerate', () => {
   // Plano com limite não troca o cliente: com assinatura salva, o cliente do aceite é o salvo.
   const OUTRO_CLIENTE = { tipo: 'PF', nome: 'Outra Pessoa Silva', documento: '111.444.777-35' };
   const docComAssinatura = { ...docAvulso, dados_json: { ...docAvulso.dados_json, assinatura: ASSIN_OK } };
+
+  it('modelo 4: reedição com Fio B que zera a economia recebe 400', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: docComAssinatura })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+    const res = await post(DOC_UUID, { modeloNumero: 4, fields: { fio_b_mostrar: true, fio_b_tarifa: 0.5, fio_b_injetada_pct: 100, tarifa_kwh: '1,00', consumo_kwh: '100', qtd_modulos: '12', potencia_modulo: '550' } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Com esse Fio B a proposta fica sem economia. Confira o valor do Fio B.');
+    expect(generateFromTemplate).not.toHaveBeenCalled();
+  });
+
+  it('modelo 4: reedição com Fio B inválido recebe 400; válido passa', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: docComAssinatura })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+    const ruim = await post(DOC_UUID, { modeloNumero: 4, fields: { fio_b_mostrar: true, fio_b_tarifa: 0 } });
+    expect(ruim.status).toBe(400);
+    expect(ruim.body.error).toBe('Escreva o valor do Fio B da sua concessionária, em R$ por kWh.');
+    mockSingle
+      .mockResolvedValueOnce({ data: docComAssinatura })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+    const ok = await post(DOC_UUID, { modeloNumero: 4, fields: { fio_b_mostrar: true, fio_b_tarifa: 0.3, fio_b_injetada_pct: 80 } });
+    expect(ok.status).toBe(200);
+  });
 
   it('modelo 4, plano com limite: o cliente salvo no aceite vence o que veio; a empresa nova vale', async () => {
     mockSingle

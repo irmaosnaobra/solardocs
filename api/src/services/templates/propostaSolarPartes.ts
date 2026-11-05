@@ -221,6 +221,12 @@ export interface AnaliseModelo1 {
   semConsumo?: boolean;
   /** Só o Completo: frases começam com maiúscula. O modelo 1 segue como sempre foi. */
   capitalizar?: boolean;
+  /** Só o Completo com Fio B: nota sob "Conta após instalação" no lugar da de iluminação pública. */
+  notaConta?: string;
+  /** Só o Completo: com consumo, mas sem economia mensal positiva, o cartão "Economia mensal" não sai. */
+  semEconomiaMensal?: boolean;
+  /** Só o Completo: sem tempo de retorno (nenhum, ou fora dos 25 anos), o cartão não sai (nunca "—" visível). */
+  semRetorno?: boolean;
 }
 
 /** Faixa "Análise Financeira" do modelo 1: destaque (economia em 25 anos e investimento) + grade de 3 cartões. */
@@ -232,10 +238,10 @@ export function analiseModelo1(a: AnaliseModelo1): string {
       ${a.semEconomia ? '' : `<div class="heroL"><div class="k">Economia em 25 anos</div><div class="v num">${brl(a.economia25)}</div><div class="s">${a.capitalizar ? 'Com o' : 'com o'} sistema quitado gerando energia própria</div></div>
       `}<div class="heroR"><div class="k">Investimento</div><div class="v num">${brl(a.investimento)}</div>${a.parcelaLabel ? `<div class="s num">${pEsc(a.parcelaLabel)}</div>` : ''}</div>
     </div>
-    <div class="finGrid"${a.semConsumo ? ' style="grid-template-columns:1fr"' : ''}>
-      ${a.semConsumo ? '' : `<div class="fc"><div class="k">Economia mensal</div><div class="v num">${brl(a.economiaMensal)}</div></div>
-      `}<div class="fc"><div class="k">Conta após instalação</div><div class="v num">${brl(a.taxaMinima + a.cip)}</div>${a.cip > 0 ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">${pEsc(`Taxa mínima + iluminação pública ${brl(a.cip)}`)}</div>` : ''}</div>
-      ${a.semConsumo ? '' : `<div class="fc"><div class="k">Tempo de retorno</div><div class="v num">${a.paybackTexto}</div></div>`}
+    <div class="finGrid"${a.semConsumo ? ' style="grid-template-columns:1fr"' : (a.semEconomiaMensal || a.semRetorno ? ` style="grid-template-columns:repeat(${1 + (a.semEconomiaMensal ? 0 : 1) + (a.semRetorno ? 0 : 1)},1fr)"` : '')}>
+      ${a.semConsumo || a.semEconomiaMensal ? '' : `<div class="fc"><div class="k">Economia mensal</div><div class="v num">${brl(a.economiaMensal)}</div></div>
+      `}<div class="fc"><div class="k">Conta após instalação</div><div class="v num">${brl(a.taxaMinima + a.cip)}</div>${a.notaConta ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">${pEsc(a.notaConta)}</div>` : (a.cip > 0 ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">${pEsc(`Taxa mínima + iluminação pública ${brl(a.cip)}`)}</div>` : '')}</div>
+      ${a.semConsumo || a.semRetorno ? '' : `<div class="fc"><div class="k">Tempo de retorno</div><div class="v num">${a.paybackTexto}</div></div>`}
     </div>
   </div>`;
 }
