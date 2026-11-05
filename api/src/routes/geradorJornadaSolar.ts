@@ -398,6 +398,18 @@ async function candidatasDaObra(g: Guarda, l: Leitura, todas: ReadonlyMap<number
   return saida;
 }
 
+/**
+ * Fase 2 da Jornada (06/11/2026): a etapa que a PLANILHA diz para uma venda com número e sem estado (SPEC 3.6). Planilha fora: `fora`
+ * (sem trilho). Extraída da `rotaObra` para as rotas do dinheiro e das etapas 4 a 8 deduzirem do mesmo jeito.
+ */
+export async function etapaDaPlanilha(codigo: string): Promise<{ etapaPlanilha?: string; fora: boolean }> {
+  try {
+    const pl = await planilha(false);
+    const o = (await comSobrescritas(pl.dados.obras)).find((x) => codigoCanonico(x.codigo) === codigoCanonico(codigo));
+    return { etapaPlanilha: o ? montarObra(o, hojeBRT(new Date())).etapaAtual : undefined, fora: false };
+  } catch (err) { logErro('planilha', err); return { fora: true }; }
+}
+
 async function rotaObra(req: Request, res: Response): Promise<void> {
   const g = await guardaObra(req, res);
   if (!g) return;
@@ -407,11 +419,8 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
     // Venda com número e sem estado: a dedução usa a linha da planilha (cache). Planilha fora = sem trilho.
     let planilhaEtapa: string | undefined; let planilhaFora = false;
     if (!l.estado && l.lig.venda) {
-      try {
-        const pl = await planilha(false);
-        const o = (await comSobrescritas(pl.dados.obras)).find((x) => codigoCanonico(x.codigo) === codigoCanonico(l.lig.venda as string));
-        planilhaEtapa = o ? montarObra(o, hojeBRT(new Date())).etapaAtual : undefined;
-      } catch (err) { logErro('planilha', err); planilhaFora = true; }
+      const pl = await etapaDaPlanilha(l.lig.venda);
+      planilhaEtapa = pl.etapaPlanilha; planilhaFora = pl.fora;
     }
     const pos = posicaoDe(l, planilhaEtapa, planilhaFora);
     const pode = podeDe(g, l, pos);

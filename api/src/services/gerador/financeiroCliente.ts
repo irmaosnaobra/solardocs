@@ -104,6 +104,10 @@ export type Lancamento = {
   apagado_por: string;
   apagado_em: string;
   motivo_apagado: string;
+  /** Fase 2 da Jornada (06/11/2026): só o lançamento do SOLAR leva estes dois. `obra` (etapa, grupo, conferência da IA, estorno...) e a
+   *  assinatura são carregados sem interpretação; quem os lê é `jornadaDinheiro.ts`. O leitor antigo não os usa, mas não os perde. */
+  obra?: Record<string, unknown>;
+  sig?: string;
 };
 
 const lista = (m: Record<string, string>) => Object.entries(m).map(([slug, rotulo]) => ({ slug, rotulo }));
@@ -550,6 +554,8 @@ export function lancamentoDe(value: unknown): Lancamento | null {
     apagado_em: String(v.apagado_em ?? ''),
     motivo_apagado: String(v.motivo_apagado ?? ''),
     ...(v.ja_foi_saida === true ? { ja_foi_saida: true } : {}),
+    ...(v.obra && typeof v.obra === 'object' && !Array.isArray(v.obra) ? { obra: v.obra as Record<string, unknown> } : {}),
+    ...(typeof v.sig === 'string' ? { sig: v.sig } : {}),
   };
 }
 

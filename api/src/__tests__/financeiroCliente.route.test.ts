@@ -8,6 +8,10 @@ import request from 'supertest';
 // pedido duas vezes é uma linha só e que arquivo ruim não entra.
 //
 // Nenhum dado de cliente de verdade: nomes, valores e ids são inventados.
+//
+// 06/11/2026 (Fase 2 da Jornada): o financeiro passou a conferir a POSSE do card (solar: a guarda da obra; eletroposto: sócio ou o
+// vendedor do card). Por isso os cards dos casos agora existem no banco do Gerador simulado, como cards de ELETROPOSTO `fechou`, com o
+// `vendedor_nome` da pessoa de cada caso (`donoDoCard` troca o dono no meio do caso). Todos os casos seguem provando o que provavam.
 
 type Linha = { key: string; value: unknown };
 
@@ -31,7 +35,22 @@ const h = vi.hoisted(() => ({
   leitura: null as null | ((entrada: { bytes: Buffer; media_type: string; hojeBr?: string }) => unknown),
   leituras: [] as Array<{ bytes: number; media_type: string; hojeBr?: string }>,
   log: { error: [] as unknown[][] },
+  agendamentos: [] as Array<Record<string, any>>,
 }));
+
+/** Um construtor de consulta mínimo sobre as linhas dos cards (eq, in, select, maybeSingle). */
+function tabelaCards() {
+  const filtros: Array<(r: any) => boolean> = [];
+  const lista = () => h.agendamentos.filter((r) => filtros.every((f) => f(r))).map((r) => ({ ...r }));
+  const b: any = {
+    select: () => b,
+    eq: (c: string, v: any) => { filtros.push((r) => r[c] === v); return b; },
+    in: (c: string, vs: any[]) => { filtros.push((r) => vs.includes(r[c])); return b; },
+    maybeSingle: async () => ({ data: lista()[0] ?? null, error: null }),
+    then: (ok: any, ko: any) => Promise.resolve({ data: lista(), error: null }).then(ok, ko),
+  };
+  return b;
+}
 
 vi.mock('../utils/logger', () => ({
   logger: { error: vi.fn((...a: unknown[]) => { h.log.error.push(a); }), warn: vi.fn(), info: vi.fn() },
@@ -51,6 +70,7 @@ vi.mock('../utils/supabaseGerador', () => ({
           : { data: { user: null }, error: { message: 'jwt' } };
       }),
     },
+    from: (t: string) => { if (t !== 'agendamentos') throw new Error(`tabela inesperada: ${t}`); return tabelaCards(); },
   },
 }));
 vi.mock('../utils/supabase', () => ({
@@ -202,7 +222,18 @@ beforeEach(() => {
   h.bucketExiste = true; h.criarBucketFalha = false; h.assinarFalha = false;
   h.uploads = []; h.bucketsCriados = []; h.leitura = null; h.leituras = []; h.log.error = [];
   delete process.env.SOLAR_SOCIOS;
+  // Os cards dos casos: eletroposto vendido, da Nilce (cada caso troca o dono quando precisa).
+  h.agendamentos = [1, 3, 12, 50, 501, 777, 999].map((id) => ({
+    id, cliente_nome: 'Cliente Inventado', cliente_telefone: '(34) 99999-0001', cidade: 'Uberlândia - MG', vendedor_nome: 'Nilce',
+    created_by: 'lp_eletroposto', status: 'fechou', created_at: '2026-10-01T10:00:00.000Z',
+  }));
 });
+
+/** Troca o dono (vendedor) do card: quem ele é decide quem enxerga o financeiro daquele card. */
+const donoDoCard = (vendedor: string, card = CARD): void => {
+  const c = h.agendamentos.find((x) => x.id === card);
+  if (c) c.vendedor_nome = vendedor;
+};
 
 const get = (rota: string, auth = NILCE) => request(app).get(`/gerador/financeiro/${rota}`).set('Authorization', auth);
 const post = (rota: string, corpo: unknown, auth = NILCE) =>
@@ -357,6 +388,7 @@ describe('GET /financeiro/:cardId', () => {
     await cardComEntradaESaida();
     process.env.SOLAR_SOCIOS = 'nilce';
     expect((await get(`${CARD}`)).body.totais.gasto).toBe(GASTO);
+    donoDoCard('Thiago');   // o Thiago deixou de ser sócio: só vê o card se for o dono dele
     expect((await get(`${CARD}`, THIAGO)).body.totais.gasto).toBeNull();
   });
 
@@ -478,8 +510,10 @@ describe('POST /financeiro/:cardId/lancamento', () => {
   });
 
   it('quem não é sócio só edita a entrada que ELE criou: a de outro dá 403 so_autor', async () => {
+    donoDoCard('Giovanna');
     await lancar(corpoEntrada({ id: 'ent-da-giovanna' }), GIOVANNA);
     const antes = JSON.stringify(gravado('ent-da-giovanna'));
+    donoDoCard('Nilce');
     const deOutro = await lancar({ id: 'ent-da-giovanna', valor_centavos: 5 });      // nilce tentando
     expect(deOutro.status).toBe(403);
     expect(deOutro.body).toEqual({ error: 'so_autor' });
@@ -490,6 +524,7 @@ describe('POST /financeiro/:cardId/lancamento', () => {
     expect(JSON.stringify(gravado('ent-da-giovanna'))).toBe(antes);
     expect(h.gravacoes).toHaveLength(1);
     // A própria autora edita; o sócio edita qualquer uma.
+    donoDoCard('Giovanna');
     expect((await lancar({ id: 'ent-da-giovanna', descricao: 'Sinal conferido' }, GIOVANNA)).status).toBe(200);
     expect((await lancar({ id: 'ent-da-giovanna', contraparte: 'Cliente de Teste' }, THIAGO)).status).toBe(200);
     expect(gravado('ent-da-giovanna')).toMatchObject({ criado_por: 'giovanna', descricao: 'Sinal conferido', contraparte: 'Cliente de Teste' });
@@ -742,7 +777,9 @@ describe('POST /financeiro/:cardId/lancamento/:id/apagar', () => {
 
   it('consultor apaga a própria entrada, e recebe 403 na de outro e em saída', async () => {
     await lancar(corpoEntrada({ id: 'ent-da-nilce' }), NILCE);
+    donoDoCard('Giovanna');
     await lancar(corpoEntrada({ id: 'ent-da-giovanna', data: '2026-09-20' }), GIOVANNA);
+    donoDoCard('Nilce');
     await lancar(corpoSaida(), THIAGO);
 
     const deOutro = await apagar('ent-da-giovanna', 'não é minha', NILCE);

@@ -3,7 +3,12 @@ import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { exigeConsultor } from './geradorDossie';
-import { ehSocio } from '../services/gerador/solarObras';
+import { ehSocio, podeVer } from '../services/gerador/solarObras';
+import { acessoVendaSolar } from './geradorClientes';
+import { lerCardVendido } from '../services/gerador/fichaEletropostoBanco';
+import { ehCardVendidoEp } from '../services/gerador/fichaEletroposto';
+import { ehCardSolarVendido, lerCardsPorIds } from '../services/gerador/vendaSolarHub';
+import { DONOS_FIXOS } from '../services/gerador/jornadaSolar';
 import { chavePosVenda } from '../services/agenda/posVendaEletroposto';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import {
@@ -59,6 +64,27 @@ function idDoCard(req: Request, res: Response): number | null {
     return null;
   }
   return id;
+}
+
+/** Fase 2 da Jornada (06/11/2026): o financeiro só abre o card de quem pode ver. Solar: a mesma guarda da obra. Eletroposto: a de hoje dos documentos (sócio ou podeVer). Inexistente e alheio: null (404 igual). */
+async function posseDoCard(nome: string, socio: boolean, cardId: number): Promise<'vendasolar' | 'eletroposto' | null> {
+  const n = String(nome ?? '').trim().toLowerCase();
+  if (await acessoVendaSolar(n, socio, cardId)) return 'vendasolar';
+  const card = await lerCardVendido(cardId);
+  if (card && (socio || podeVer(n, String(card.vendedor_nome ?? '')))) return 'eletroposto';
+  return null;
+}
+
+/** O 404 de quem não vê o card e, nos POSTs, o 409 do solar (o dinheiro da obra solar se lança na própria obra). Devolve true se já respondeu. */
+async function barrarPosse(res: Response, nome: string, socio: boolean, cardId: number, escrita: boolean): Promise<boolean> {
+  let posse: Awaited<ReturnType<typeof posseDoCard>>;
+  try { posse = await posseDoCard(nome, socio, cardId); } catch (err) { falhou(res, 'posse', err, cardId); return true; }
+  if (posse === null) { res.status(404).json({ error: 'nao_encontrado' }); return true; }
+  if (escrita && posse === 'vendasolar') {
+    res.status(409).json({ error: 'obra_solar', mensagem: 'O dinheiro da obra solar se lança na própria obra, em Solar, Clientes.' });
+    return true;
+  }
+  return false;
 }
 
 function falhou(res: Response, onde: string, err: any, card?: number): void {
@@ -193,7 +219,7 @@ export function mountFinanceiro(router: Router): void {
   // ── Resumo de vários cards (a lista de vendidos) ──────────────────────────
   // Registrada ANTES de `/financeiro/:cardId`, senão "resumo" vira um cardId.
   router.get('/financeiro/resumo', semCache, exigeConsultor, async (req: Request, res: Response) => {
-    const { socio } = quem(req);
+    const { nome, socio } = quem(req);
     const partes = String(req.query.ids ?? '').split(',').map((x) => x.trim()).filter(Boolean);
     if (!partes.length || partes.some((p) => !/^\d{1,15}$/.test(p) || Number(p) <= 0)) {
       res.status(400).json({ error: 'ids inválidos' }); return;
@@ -201,12 +227,22 @@ export function mountFinanceiro(router: Router): void {
     const ids = new Set(partes.map(Number));   // repetido conta uma vez
     if (ids.size > MAX_IDS_RESUMO) { res.status(400).json({ error: 'ids demais' }); return; }
     try {
+      // Fase 2 da Jornada: só entram os cards que esta pessoa pode ver (eletroposto vendido: sócio ou podeVer; solar vendido: sócio, dono
+      // de etapa ou podeVer). Id que sobra sai do resumo, sem erro. O dinheiro do solar tem o livro próprio (linhas com `obra` ficam de fora).
+      const cards = await lerCardsPorIds([...ids]);
+      const nomeMin = nome.trim().toLowerCase();
+      for (const id of [...ids]) {
+        const c = cards.get(id);
+        const ve = !!c && ((ehCardVendidoEp(c) && (socio || podeVer(nomeMin, String(c.vendedor_nome ?? ''))))
+          || (ehCardSolarVendido(c) && (socio || DONOS_FIXOS.has(nomeMin) || podeVer(nomeMin, String(c.vendedor_nome ?? '')))));
+        if (!ve) ids.delete(id);
+      }
       // UMA varredura do prefixo `fin:`, filtrada aqui pelos ids pedidos. 600
       // consultas (uma por card) ou um `or` com 600 prefixos estourariam a URL.
       const todos = await lerPorPrefixo(FIN_PREFIX);
       const resumo: Record<string, { recebido: number; gasto: number | null; qtd: number }> = {};
       for (const l of todos) {
-        if (l.apagado || !ids.has(l.card_id)) continue;
+        if (l.apagado || !ids.has(l.card_id) || l.obra) continue;
         if (!Number.isInteger(l.valor_centavos) || l.valor_centavos <= 0) continue;
         // Para quem não é sócio a saída não existe: nem no valor, nem na contagem.
         if (!socio && l.tipo !== 'entrada') continue;
@@ -224,6 +260,7 @@ export function mountFinanceiro(router: Router): void {
     const cardId = idDoCard(req, res);
     if (cardId === null) return;
     const { nome, socio } = quem(req);
+    if (await barrarPosse(res, nome, socio, cardId, false)) return;
     try {
       const [todos, venda] = await Promise.all([lerDoCard(cardId), valorDaVenda(cardId)]);
       // Os totais saem de TODOS os lançamentos; a máscara vem depois.
@@ -248,7 +285,8 @@ export function mountFinanceiro(router: Router): void {
   router.post('/financeiro/:cardId/arquivo', semCache, exigeConsultor, limiteSeForLer, async (req: Request, res: Response) => {
     const cardId = idDoCard(req, res);
     if (cardId === null) return;
-    const { socio } = quem(req);
+    const { nome, socio } = quem(req);
+    if (await barrarPosse(res, nome, socio, cardId, true)) return;
     const b = (req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {}) as Record<string, unknown>;
     if (typeof b.base64 !== 'string' || !b.base64 || typeof b.media_type !== 'string'
       || (b.nome !== undefined && typeof b.nome !== 'string')) {
@@ -305,6 +343,7 @@ export function mountFinanceiro(router: Router): void {
     const cardId = idDoCard(req, res);
     if (cardId === null) return;
     const { nome, socio } = quem(req);
+    if (await barrarPosse(res, nome, socio, cardId, true)) return;
     const b = req.body;
     if (!b || typeof b !== 'object' || Array.isArray(b)) { res.status(400).json({ error: 'corpo_invalido' }); return; }
     const id = (b as { id?: unknown }).id;
@@ -368,6 +407,7 @@ export function mountFinanceiro(router: Router): void {
     const cardId = idDoCard(req, res);
     if (cardId === null) return;
     const { nome, socio } = quem(req);
+    if (await barrarPosse(res, nome, socio, cardId, true)) return;
     const id = String(req.params.id ?? '');
     if (!ID_LANCAMENTO.test(id)) { res.status(404).json({ error: 'nao_encontrado' }); return; }
     try {

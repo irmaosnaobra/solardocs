@@ -210,3 +210,42 @@ export async function baixarComprovante(
     return null;
   }
 }
+
+/**
+ * Fase 2 da Jornada (06/11/2026): grava, AO LADO do comprovante e no mesmo bucket privado, o que a IA leu dele (`<path>.ia.json`).
+ * O lançamento do solar só aceita um `arquivo_path` que tenha este registro: o servidor monta o `arquivo` e a conferência de valor a
+ * partir dele, nunca do que o navegador manda. `upsert: false`: a leitura de um arquivo nunca é trocada. Falha devolve false e loga só o código.
+ */
+export async function gravarLeituraDoArquivo(
+  path: string,
+  leitura: object,
+  storage: StorageFinanceiro = storagePadrao(),
+): Promise<boolean> {
+  try {
+    const corpo = Buffer.from(JSON.stringify(leitura), 'utf8');
+    const { error } = await storage.from(BUCKET_FINANCEIRO).upload(`${path}.ia.json`, corpo, { contentType: 'application/json', upsert: false });
+    if (error) {
+      logger.error(LOG, 'gravar a leitura do comprovante falhou', { codigo: String((error as { statusCode?: unknown; code?: unknown }).statusCode ?? (error as { code?: unknown }).code ?? 'erro') });
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    logger.error(LOG, 'gravar a leitura do comprovante lançou erro', { tipo: String(err?.name || 'erro') });
+    return false;
+  }
+}
+
+/** A leitura gravada de um comprovante (`<path>.ia.json`), ou null quando não existe ou não é JSON. */
+export async function lerLeituraDoArquivo(
+  path: string,
+  storage: StorageFinanceiro = storagePadrao(),
+): Promise<Record<string, unknown> | null> {
+  const bytes = await baixarComprovante(`${path}.ia.json`, storage);
+  if (!bytes) return null;
+  try {
+    const v = JSON.parse(bytes.toString('utf8'));
+    return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
