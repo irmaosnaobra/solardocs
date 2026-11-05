@@ -72,7 +72,6 @@ import { runCapiCardNovo } from '../services/meta/capiCardNovo';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
 import { slotDoSegredo, deveAvisarSlot } from '../utils/cronSegredo';
-import { girarSegredoPgcron } from '../services/girarSegredoPgcron';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { supabase } from '../utils/supabase';
@@ -2093,34 +2092,6 @@ router.get('/ficha-5040', async (req: Request, res: Response) => {
   } catch (err) {
     logger.error('cron', 'ficha-5040 falhou', err);
     res.status(500).json({ ok: false, error: 'falha' });
-  }
-});
-
-// TEMPORÁRIA: remover depois de apagar CRON_SECRET_ANTERIOR (troca de segredos de 03/11).
-// Troca, dentro do SQL do banco principal, o CRON_SECRET_ANTERIOR pelo CRON_SECRET no cron.job. Só aceita o CRON_SECRET
-// (o anterior e o do GitHub levam 401). Sem ?aplicar=1 é simulação (rollback). Nunca devolve nem loga o valor dos segredos.
-// O pool é carregado aqui dentro: utils/db lê a DATABASE_URL ao carregar, e importar no topo quebraria boot e testes sem a env.
-router.post('/girar-segredo-pgcron', async (req: Request, res: Response) => {
-  const secret = String(req.headers['authorization'] ?? '').replace('Bearer ', '').trim();
-  if (!secret || slotDoSegredo(secret) !== 'CRON_SECRET') {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-  const velho = process.env.CRON_SECRET_ANTERIOR?.trim();
-  const novo = process.env.CRON_SECRET?.trim();
-  if (!velho || !novo || velho === novo) {
-    res.status(409).json({ error: 'sem par de segredos para trocar' });
-    return;
-  }
-  const aplicar = req.query.aplicar === '1';
-  try {
-    const pool = (await import('../utils/db')).default;
-    const r = await girarSegredoPgcron(pool, { velho, novo, aplicar });
-    logger.info('cron', `girar-segredo-pgcron aplicado=${r.aplicado} casaram=${r.casaram.length} restantes=${r.restantesComVelho} comNovo=${r.comNovo} vault=${r.vault}`);
-    res.json(r);
-  } catch (e: any) {
-    logger.error('cron', `girar-segredo-pgcron falhou codigo=${e?.code ?? 'null'}`);
-    res.status(500).json({ error: 'falhou', codigo: e?.code ?? null });
   }
 });
 
