@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
   tique: 0,
   iaChamadas: 0,
   ia: null as null | ((e: { bytes: Buffer; media_type: string }) => unknown),
+  nota: null as null | (() => unknown),
 }));
 
 const jsonb = (v: unknown): unknown => {
@@ -163,13 +164,22 @@ vi.mock('../services/gerador/financeiroLeitura', async (orig) => ({
   }),
 }));
 
+// A leitura da nota também é SEMPRE simulada.
+vi.mock('../services/gerador/notaLeitura', async (orig) => ({
+  ...(await orig<typeof import('../services/gerador/notaLeitura')>()),
+  lerNota: vi.fn(async () => {
+    h.iaChamadas++;
+    return h.nota ? h.nota() : { ok: false, motivo: 'falhou' };
+  }),
+}));
+
 import { mountFinanceiro } from '../routes/geradorFinanceiro';
 import { mountJornadaDinheiro } from '../routes/geradorJornadaDinheiro';
 import { esquecerConferenciaDoBucket } from '../services/gerador/financeiroArquivos';
 import { assinarJornada, normalizarJornada, reiniciarLogsDaJornada } from '../services/gerador/jornadaSolarBanco';
 import { estadoMaterializado } from '../services/gerador/jornadaSolar';
 import { assinarObra, obraVazia } from '../services/gerador/jornadaObraBanco';
-import { AJUSTES_PADRAO, assinarAjustes, normalizarAjustes } from '../services/gerador/jornadaDinheiro';
+import { AJUSTES_PADRAO, assinarAjustes, idDoEstorno, normalizarAjustes } from '../services/gerador/jornadaDinheiro';
 import { assinarLigacao, invalidarCachesHub, POR_GERADOR, reiniciarLogsDoHub } from '../services/gerador/vendaSolarHub';
 
 const r = Router();
@@ -256,7 +266,7 @@ beforeEach(() => {
     cardBase(SOLAR), cardBase(ALHEIA, { vendedor_nome: 'Carla' }),
     cardBase(ELETRO, { created_by: 'lp_eletroposto' }), cardBase(ELETRO_ALHEIO, { created_by: 'lp_eletroposto', vendedor_nome: 'Carla' }),
   ];
-  h.linhas = new Map(); h.priv = new Map(); h.bucket = new Map(); h.tique = 0; h.iaChamadas = 0; h.ia = null;
+  h.linhas = new Map(); h.priv = new Map(); h.bucket = new Map(); h.tique = 0; h.iaChamadas = 0; h.ia = null; h.nota = null;
   process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste';
   delete process.env.SOLAR_ADM; delete process.env.SOLAR_SOCIOS;
   invalidarCachesHub(); reiniciarLogsDoHub(); reiniciarLogsDaJornada(); esquecerConferenciaDoBucket();
@@ -299,16 +309,19 @@ describe('sem comprovante não salva', () => {
     expect(ia).toMatchObject({ v: 1, card_id: SOLAR, path: p, doc: 'comprovante', por: 'nilce', leitura: 'ok', sugestao: { valor_centavos: 25_000 } });
     expect(ia.sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(h.iaChamadas).toBe(1);
-    // Sem `ler`, a IA não é chamada e a leitura fica `pulada`.
+    // O servidor sempre lê: o `ler: false` da Nilce é ignorado. Só o ADM pula.
     const sem = await subir('outro comprovante', { ler: false });
-    expect(sem.res.body.leitura).toBe('pulada');
-    expect(h.iaChamadas).toBe(1);
+    expect(sem.res.body.leitura).toBe('ok');
+    expect(h.iaChamadas).toBe(2);
+    const adm = await subir('comprovante sem ia', { ler: false, auth: THIAGO });
+    expect(adm.res.body.leitura).toBe('pulada');
+    expect(h.iaChamadas).toBe(2);
   });
 
   it('uma nota fiscal não paga lançamento: 400 `e_nota`', async () => {
-    const { path: p, res } = await subir('uma nota fiscal', { doc: 'nota', ler: false });
+    const { path: p, res } = await subir('uma nota fiscal', { doc: 'nota', ler: false, auth: THIAGO });
     expect(res.status).toBe(200);
-    const l = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(p));
+    const l = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(p), THIAGO);
     expect(l.status).toBe(400);
     expect(l.body).toMatchObject({ error: 'e_nota', mensagem: 'Isto é uma nota fiscal. Para pagar, anexe o comprovante do pagamento.' });
     expect(fins()).toEqual([]);
@@ -793,46 +806,190 @@ describe('uma linha sem assinatura fica fora da conta e trava o fechamento', () 
   });
 });
 
-describe('o financeiro antigo tem guarda', () => {
-  it('a Nilce leva 404 no card solar alheio e no que não existe; no próprio card solar o POST dá 409 `obra_solar` e o bucket não recebe nada', async () => {
-    const f = (rota: string, auth = NILCE) => request(app).get(`/gerador/financeiro/${rota}`).set('Authorization', auth);
-    const fp = (rota: string, corpo: unknown, auth = NILCE) => request(app).post(`/gerador/financeiro/${rota}`).set('Authorization', auth).send(corpo as object);
+describe('o financeiro antigo tem guarda SÓ no card solar da jornada', () => {
+  const f = (rota: string, auth = NILCE) => request(app).get(`/gerador/financeiro/${rota}`).set('Authorization', auth);
+  const fp = (rota: string, corpo: unknown, auth = NILCE) => request(app).post(`/gerador/financeiro/${rota}`).set('Authorization', auth).send(corpo as object);
+  const ent = (id: string, valor = 100) => ({ id, tipo: 'entrada', categoria: 'sinal', valor_centavos: valor, data: '2026-10-01' });
+
+  it('a Nilce leva 404 no card solar alheio; no próprio card solar o POST dá 409 `obra_solar` e o bucket não recebe nada', async () => {
     expect((await f(String(ALHEIA))).status).toBe(404);
-    expect((await f('999999')).status).toBe(404);
-    expect((await f(String(ELETRO_ALHEIO))).status).toBe(404);
     expect((await f(String(SOLAR))).status).toBe(200);
     const sobe = await fp(`${SOLAR}/arquivo`, { base64: PDF('antigo').toString('base64'), media_type: 'application/pdf', ler: false });
     expect(sobe.status).toBe(409);
     expect(sobe.body).toMatchObject({ error: 'obra_solar', mensagem: 'O dinheiro da obra solar se lança na própria obra, em Solar, Clientes.' });
     expect(h.bucket.size).toBe(0);
-    expect((await fp(`${SOLAR}/lancamento`, { id: 'ent-00000001', tipo: 'entrada', categoria: 'sinal', valor_centavos: 100, data: '2026-10-01' })).status).toBe(409);
+    expect((await fp(`${SOLAR}/lancamento`, ent('ent-00000001'))).status).toBe(409);
     expect((await fp(`${SOLAR}/lancamento/ent-00000001/apagar`, { motivo: 'teste' })).status).toBe(409);
     expect((await fp(`${ALHEIA}/arquivo`, { base64: PDF('antigo').toString('base64'), media_type: 'application/pdf' })).status).toBe(404);
-    expect((await fp(`${ALHEIA}/lancamento`, { id: 'ent-00000001', tipo: 'entrada', categoria: 'sinal', valor_centavos: 100, data: '2026-10-01' })).status).toBe(404);
+    expect((await fp(`${ALHEIA}/lancamento`, ent('ent-00000001'))).status).toBe(404);
     expect(fins()).toEqual([]);
     expect(fins(ALHEIA)).toEqual([]);
     expect(h.bucket.size).toBe(0);
   });
 
-  it('o card do eletroposto do consultor continua 200 e gravando, e o do sócio vê qualquer um', async () => {
-    const ent = { id: 'ent-00000001', tipo: 'entrada', categoria: 'sinal', valor_centavos: 100_000, data: '2026-10-01' };
-    const a = await request(app).post(`/gerador/financeiro/${ELETRO}/lancamento`).set('Authorization', NILCE).send(ent);
-    expect(a.status).toBe(200);
+  it('o eletroposto segue como era: a Giovanna (que não é sócia) lê e lança no card da Nilce, e o card que saiu de `fechou` continua acessível; id sem card também', async () => {
+    h.agendamentos.push(cardBase(703, { created_by: 'lp_eletroposto', status: 'agendado' }));
+    expect((await f(String(ELETRO), GIOVANNA)).status).toBe(200);
+    expect((await f(String(ELETRO_ALHEIO), GIOVANNA)).status).toBe(200);
+    expect((await f('703', GIOVANNA)).status).toBe(200);
+    expect((await f('999999', GIOVANNA)).status).toBe(200);
+    expect((await fp(`${ELETRO}/lancamento`, ent('ent-00000001'), GIOVANNA)).status).toBe(200);
+    expect((await fp('703/lancamento', ent('ent-00000002'), GIOVANNA)).status).toBe(200);
+    expect((await fp(`${ELETRO}/arquivo`, { base64: PDF('eletroposto').toString('base64'), media_type: 'application/pdf', ler: false }, GIOVANNA)).status).toBe(200);
     expect(fins(ELETRO)).toHaveLength(1);
-    expect((await request(app).get(`/gerador/financeiro/${ELETRO}`).set('Authorization', NILCE)).status).toBe(200);
-    expect((await request(app).get(`/gerador/financeiro/${ELETRO_ALHEIO}`).set('Authorization', THIAGO)).status).toBe(200);
-    const sobe = await request(app).post(`/gerador/financeiro/${ELETRO}/arquivo`).set('Authorization', NILCE).send({ base64: PDF('eletroposto').toString('base64'), media_type: 'application/pdf', ler: false });
-    expect(sobe.status).toBe(200);
+    expect(fins(703)).toHaveLength(1);
   });
 
-  it('`GET /financeiro/resumo` não devolve o card alheio nem o inexistente', async () => {
-    await request(app).post(`/gerador/financeiro/${ELETRO}/lancamento`).set('Authorization', NILCE).send({ id: 'ent-00000001', tipo: 'entrada', categoria: 'sinal', valor_centavos: 100_000, data: '2026-10-01' });
-    await request(app).post(`/gerador/financeiro/${ELETRO_ALHEIO}/lancamento`).set('Authorization', THIAGO).send({ id: 'ent-00000002', tipo: 'entrada', categoria: 'sinal', valor_centavos: 200_000, data: '2026-10-01' });
+  it('`GET /financeiro/resumo` tira só o card SOLAR alheio; o eletroposto e o id sem card ficam como eram', async () => {
+    await fp(`${ELETRO}/lancamento`, ent('ent-00000001', 100_000));
+    await fp(`${ELETRO_ALHEIO}/lancamento`, ent('ent-00000002', 200_000), THIAGO);
     const res = await request(app).get(`/gerador/financeiro/resumo?ids=${ELETRO},${ELETRO_ALHEIO},${ALHEIA},999999`).set('Authorization', NILCE);
     expect(res.status).toBe(200);
-    expect(Object.keys(res.body.resumo)).toEqual([String(ELETRO)]);
-    const socio = await request(app).get(`/gerador/financeiro/resumo?ids=${ELETRO},${ELETRO_ALHEIO},${ALHEIA},999999`).set('Authorization', THIAGO);
-    expect(Object.keys(socio.body.resumo).sort()).toEqual([String(ELETRO), String(ELETRO_ALHEIO)]);
+    expect(Object.keys(res.body.resumo).sort()).toEqual([String(ELETRO), String(ELETRO_ALHEIO)]);
+    await gastar('um gasto solar na alheia', 25_000, { card: ALHEIA, auth: THIAGO });
+    const solar = await request(app).get(`/gerador/financeiro/resumo?ids=${ALHEIA}`).set('Authorization', NILCE);
+    expect(solar.body.resumo).toEqual({});
+    const socio = await request(app).get(`/gerador/financeiro/resumo?ids=${ALHEIA}`).set('Authorization', THIAGO);
+    expect(socio.body.resumo).toEqual({});   // as linhas do solar têm o livro próprio: não entram no resumo antigo
+  });
+
+  it('o GET antigo de um card solar não soma o estorno como positivo', async () => {
+    const a = await gastar('gasto estornado lido pelo caminho antigo');
+    await post(dinheiro(SOLAR, '/estorno'), { id_original: a.body.lancamento.id, motivo: 'Valor errado' });
+    const velho = await f(String(SOLAR), THIAGO);
+    expect(velho.status).toBe(200);
+    expect(velho.body.totais.gasto).toBe(0);
+    expect(velho.body.totais.qtd_saidas).toBe(0);
+  });
+});
+
+describe('correções do revisor (commit 1)', () => {
+  it('id reservado: lançar ou pagar comissão com `est-...` dá 400, e o estorno daquela linha continua funcionando', async () => {
+    const a = await gastar('gasto a estornar com id reservado');
+    const id = a.body.lancamento.id;
+    iaLe(25_000);
+    const { path: p } = await subir('arquivo do id reservado');
+    const reservado = idDoEstorno(id);
+    const l = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(p, { id: reservado }));
+    expect(l.status).toBe(400);
+    expect(l.body.error).toBe('id_invalido');
+    expect((await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(p, { id: 'EST-00000001' }))).status).toBe(400);
+    expect((await post(dinheiro(SOLAR, '/comissao'), { id: reservado, nome: 'nilce', papel: 'venda', data: '2026-10-02', forma: 'pix', arquivo_path: p }, GIOVANNA)).status).toBe(400);
+    expect(fins()).toHaveLength(1);
+    const est = await post(dinheiro(SOLAR, '/estorno'), { id_original: id, motivo: 'Lancei na obra errada' });
+    expect(est.status).toBe(200);
+    expect(est.body.lancamento.id).toBe(reservado);
+  });
+
+  it('o comprovante da devolução (linha de estorno com arquivo) não serve de gasto em outra obra', async () => {
+    iaLe(1_167_000);
+    const { path: p } = await subir('entrada que será devolvida', { auth: GIOVANNA });
+    const e = await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(p), GIOVANNA);
+    const dev = await subir('pdf da devolucao', { auth: GIOVANNA });
+    const est = await post(dinheiro(SOLAR, '/estorno'), { id_original: e.body.lancamento.id, motivo: 'Devolvi o Pix', devolucao: true, arquivo_path: dev.path }, GIOVANNA);
+    expect(est.status).toBe(200);
+    // O mesmo PDF como gasto em OUTRA obra: recusado.
+    iaLe(1_167_000);
+    const outra = await subir('pdf da devolucao', { card: ALHEIA, auth: THIAGO });
+    const l = await post(dinheiro(ALHEIA, '/lancamento'), corpoGasto(outra.path, { valor_centavos: 1_167_000 }), THIAGO);
+    expect(l.status).toBe(409);
+    expect(l.body.error).toBe('comprovante_repetido');
+    // E a original estornada continua liberando o próprio arquivo.
+    iaLe(1_167_000);
+    const velho = await subir('entrada que será devolvida', { card: ALHEIA, auth: THIAGO });
+    expect((await post(dinheiro(ALHEIA, '/lancamento'), corpoGasto(velho.path, { valor_centavos: 1_167_000 }), THIAGO)).status).toBe(200);
+  });
+
+  it('a IA não pode ser pulada: o `ler:false` de quem não é ADM é ignorado; só o ADM pula; IA fora salva "não conferido"', async () => {
+    iaLe(25_000);
+    const nilce = await subir('a nilce tenta pular a ia', { ler: false });
+    expect(nilce.res.body.leitura).toBe('ok');
+    expect(h.iaChamadas).toBe(1);
+    const diego = await subir('o diego tambem tenta', { ler: false, auth: DIEGO });
+    expect(diego.res.body.leitura).toBe('ok');
+    expect(h.iaChamadas).toBe(2);
+    // Valor diferente do lido continua exigindo o ADM, mesmo com o `ler:false` no corpo.
+    const l = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(nilce.path, { valor_centavos: 99_000, ler: false }));
+    expect(l.status).toBe(409);
+    expect(l.body.error).toBe('valor_diferente');
+    // O ADM pode pular: a leitura fica `pulada` e o lançamento salva "não conferido".
+    const thiago = await subir('o thiago pula a ia', { ler: false, auth: THIAGO });
+    expect(thiago.res.body.leitura).toBe('pulada');
+    expect(h.iaChamadas).toBe(2);
+    const g = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(thiago.path), THIAGO);
+    expect(g.status).toBe(200);
+    expect(g.body.lancamento.conferencia).toBe('sem_leitura');
+    // Nota fiscal: também sempre lida.
+    h.nota = () => ({ ok: true, eh_documento: true, nota: { tipo: 'nota_fiscal', emitente: 'Elétrica Central', cnpj: '', numero: '1', data: '2026-10-16', chave: null, valor_total_centavos: 89_000, itens: [], confianca: 'alta' } });
+    const nota = await subir('uma nota lida', { doc: 'nota', ler: false });
+    expect(nota.res.body.leitura).toBe('ok');
+    expect(nota.res.body.nota).toMatchObject({ emitente: 'Elétrica Central', valor_total_centavos: 89_000 });
+  });
+
+  it('o fechamento trava com linha "não conferida" até o ADM marcar; a marca reassina e não apaga nada', async () => {
+    h.ia = () => ({ ok: false, motivo: 'falhou' });
+    const { path: p } = await subir('sem leitura da ia');
+    const l = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(p));
+    expect(l.status).toBe(200);
+    expect(l.body.lancamento.conferencia).toBe('sem_leitura');
+    const antes = await get(dinheiro(SOLAR), THIAGO);
+    expect(antes.body.livro.fechamento.faltam).toContain('1 lançamento não conferido pela IA. O Thiago confere.');
+    expect(antes.body.livro.fechamento.pode_fechar_sem_material).toBe(false);
+    // Quem não é ADM não marca.
+    expect((await post(dinheiro(SOLAR, '/conferir'), { id: l.body.lancamento.id }, DIEGO)).status).toBe(403);
+    expect((await post(dinheiro(SOLAR, '/conferir'), { id: l.body.lancamento.id }, GIOVANNA)).status).toBe(403);
+    const ok = await post(dinheiro(SOLAR, '/conferir'), { id: l.body.lancamento.id }, THIAGO);
+    expect(ok.status).toBe(200);
+    expect(ok.body.lancamento.conferencia).toBe('conferido_adm');
+    expect(ok.body.livro.fechamento.faltam.join('|')).not.toContain('não conferido');
+    expect(ok.body.livro.linhas).toHaveLength(1);
+    expect(ok.body.livro.gasto).toBe(25_000);
+    expect(gravado()[0].sig).toMatch(/^[0-9a-f]{64}$/);
+    // A segunda marca não tem o que conferir; linha de valor conferido pela IA também não.
+    expect((await post(dinheiro(SOLAR, '/conferir'), { id: l.body.lancamento.id }, THIAGO)).status).toBe(409);
+    expect((await post(dinheiro(SOLAR, '/conferir'), { id: 'nao-existe-000' }, THIAGO)).status).toBe(404);
+    fechar(SOLAR);
+    const a = await gastar('linha depois de fechar', 25_000);
+    expect(a.status).toBe(409);
+  });
+
+  it('venda corrigida de 50.000 para 60.000 deixa R$ 500,00 a pagar para a Nilce; paga a diferença e zera; corrigida para baixo vira "a devolver"', async () => {
+    venda(SOLAR, 5_000_000);
+    iaLe(500_000);
+    const { path: pe } = await subir('entrada de dez por cento', { auth: GIOVANNA });
+    expect((await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(pe, { valor_centavos: 500_000 }), GIOVANNA)).status).toBe(200);
+    iaLe(250_000);
+    const { path: pc } = await subir('comissao da nilce 5000', { auth: GIOVANNA });
+    const c = await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'nilce', papel: 'venda', data: '2026-10-02', forma: 'pix', arquivo_path: pc }, GIOVANNA);
+    expect(c.status).toBe(200);
+    expect(c.body.lancamento.valor_centavos).toBe(250_000);
+    expect(c.body.livro.a_pagar.map((x: any) => x.texto)).not.toContain('Comissão de Nilce (venda 5%): faltam R$ 500,00');
+    // A venda foi corrigida para R$ 60.000,00.
+    venda(SOLAR, 6_000_000);
+    const g = await get(dinheiro(SOLAR), THIAGO);
+    const nilce = g.body.livro.comissoes.linhas.find((x: any) => x.nome === 'nilce');
+    expect(nilce).toMatchObject({ valor_centavos: 300_000, pago_centavos: 250_000, diferenca_centavos: 50_000 });
+    expect(g.body.livro.a_pagar.find((x: any) => x.texto.startsWith('Comissão de Nilce'))).toMatchObject({ texto: 'Comissão de Nilce (venda 5%): faltam R$ 500,00', valor_centavos: 50_000 });
+    expect(g.body.livro.fechamento.pode_fechar_sem_material).toBe(false);
+    // Paga só a diferença.
+    iaLe(50_000);
+    const { path: pd } = await subir('diferenca da comissao da nilce', { auth: GIOVANNA });
+    const d = await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'nilce', papel: 'venda', data: '2026-10-03', forma: 'pix', arquivo_path: pd }, GIOVANNA);
+    expect(d.status).toBe(200);
+    expect(d.body.lancamento.valor_centavos).toBe(50_000);
+    expect(d.body.livro.comissoes.linhas.find((x: any) => x.nome === 'nilce')).toMatchObject({ pago_centavos: 300_000, diferenca_centavos: 0 });
+    expect(d.body.livro.a_pagar.map((x: any) => x.texto).join('|')).not.toContain('Comissão de Nilce');
+    // Pago por completo: nova tentativa dá 409.
+    iaLe(50_000);
+    const { path: pf } = await subir('mais uma tentativa', { auth: GIOVANNA });
+    expect((await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'nilce', papel: 'venda', data: '2026-10-03', forma: 'pix', arquivo_path: pf }, GIOVANNA)).status).toBe(409);
+    // A venda cai para R$ 40.000,00: o pago passa da devida e aparece como "a devolver".
+    venda(SOLAR, 4_000_000);
+    const b = await get(dinheiro(SOLAR), THIAGO);
+    const dev = b.body.livro.a_pagar.find((x: any) => x.texto.startsWith('Comissão de Nilce'));
+    expect(dev).toMatchObject({ texto: 'Comissão de Nilce (venda 5%): a devolver R$ 1.000,00', valor_centavos: 100_000, devolver: true });
+    expect(b.body.livro.fechamento.a_pagar_total).not.toBe(100_000);
+    expect(b.body.livro.fechamento.pode_fechar_sem_material).toBe(false);
   });
 });
 

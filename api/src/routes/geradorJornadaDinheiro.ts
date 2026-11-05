@@ -4,21 +4,23 @@ import { exigeAdm } from './geradorAdm';
 import { semCache, lerDocs } from './geradorClientesDocs';
 import { etapaDaPlanilha } from './geradorJornadaSolar';
 import {
-  corpoDe, falhouJornada, guardaDaObra, limiteSeForLer, logErroJornada, MSG_PEDIDO, type GuardaObra,
+  corpoDe, falhouJornada, guardaDaObra, limiteSeForLer, logErroJornada, MSG_PEDIDO, pulaALeitura, type GuardaObra,
 } from './geradorJornadaGuarda';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { comTrava } from '../services/gerador/cadastroVendaBanco';
 import { ehCardSolarVendido, lerCardsPorIds, lerLigacao, type Ligacao } from '../services/gerador/vendaSolarHub';
 import { deduzirEtapa, veObra, type EstadoJornada } from '../services/gerador/jornadaSolar';
 import { lerJornadaComVersao, lerPrivadoJornada, ehRecusa } from '../services/gerador/jornadaSolarBanco';
-import { etapaAtualCompleta, type EstadoObra, type ObraPrivada } from '../services/gerador/jornadaObra';
+import { etapaAtualCompleta, materialDaCompra, pendenciasDaObra, type EstadoObra, type ObraPrivada } from '../services/gerador/jornadaObra';
+import { lerNota } from '../services/gerador/notaLeitura';
 import { lerObraComVersao, lerObraPrivada, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
 import {
   AJUSTES_PADRAO, CATEGORIAS_OBRA, categoriaObra, idDoEstorno, lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, regraDoVendedor, reaisBR,
   validarAjustes, type AjustesSolar, type Conferencia, type Livro, type LancamentoObra, type LinhaLivro, type LinhaRegra, type Pendencia,
 } from '../services/gerador/jornadaDinheiro';
 import {
-  buscarNoFinanceiro, gravarAjustes, inserirLancamentoObra, lerAjustes, lerLancamentoObra, lerLancamentosDaObra, type AchadoGlobal,
+  atualizarLancamentoObra, buscarNoFinanceiro, gravarAjustes, inserirLancamentoObra, lerAjustes, lerLancamentoObra, lerLancamentoObraComVersao, lerLancamentosDaObra,
+  type AchadoGlobal,
 } from '../services/gerador/jornadaDinheiroBanco';
 import { catalogoFinanceiro, ID_LANCAMENTO, VALOR_MAX_CENTAVOS } from '../services/gerador/financeiroCliente';
 import {
@@ -45,6 +47,8 @@ import { listaSocios, nomeSimples } from '../services/gerador/solarObras';
 const MSG_FECHADA = 'A conta desta obra está fechada. Só o Thiago reabre.';
 const MSG_CANCELADA = 'Venda cancelada. Só cabe estorno.';
 const hojeBr = (): string => diaDeBrasilia(Date.now());
+/** Id que o servidor reserva para si (o do estorno é `est-` mais o hash do original): o navegador não escolhe um assim. */
+const idReservado = (id: string): boolean => /^est-/i.test(id);
 const bonito = (n: string): string => (n ? n.charAt(0).toUpperCase() + n.slice(1) : n);
 
 // ── O que se lê do dinheiro de uma obra ─────────────────────────────────────────────────────────────────────────────────
@@ -66,9 +70,9 @@ export interface DadosDinheiro {
   veDinheiro: boolean;
 }
 
-/** As pendências da obra (compra, equipe, frete) e o material com origem. Vazios até a Compra existir (etapas 4 a 8). */
-function pendenciasEMaterial(_privada: ObraPrivada | null, _lancamentos: readonly LancamentoObra[]): { pendenciasDaObra: Pendencia[]; material: { com_origem: number; total: number } } {
-  return { pendenciasDaObra: [], material: { com_origem: 0, total: 0 } };
+/** As pendências da obra (compra, equipe, frete) e o material com origem, do `obra.json` (Jornada, fase 2). */
+function pendenciasEMaterial(privada: ObraPrivada | null, lancamentos: readonly LancamentoObra[]): { pendenciasDaObra: Pendencia[]; material: { com_origem: number; total: number } } {
+  return { pendenciasDaObra: pendenciasDaObra(privada, lancamentos), material: materialDaCompra(privada, lancamentos) };
 }
 
 export async function lerDinheiro(g: GuardaObra): Promise<DadosDinheiro> {
@@ -103,7 +107,7 @@ export async function lerDinheiro(g: GuardaObra): Promise<DadosDinheiro> {
 }
 
 /** O livro com a URL assinada (1 hora) de cada comprovante, numa CÓPIA: o objeto lido nunca leva link que vence. */
-async function livroComUrls(d: DadosDinheiro): Promise<Livro> {
+export async function livroComUrls(d: DadosDinheiro): Promise<Livro> {
   const caminho = new Map(d.lancamentos.map((l) => [l.id, l.arquivo?.path ?? '']));
   const linhas: LinhaLivro[] = await Promise.all(d.livro.linhas.map(async (l) => {
     const p = caminho.get(l.id);
@@ -185,7 +189,7 @@ async function carregarRegistro(g: GuardaObra, path: unknown): Promise<{ ok: tru
 }
 
 /** Onde está o comprovante repetido, sem nunca dizer nome de cliente. Só diz o número quando quem pede VÊ aquela obra (D8). */
-async function ondeEsta(g: GuardaObra, a: AchadoGlobal): Promise<string> {
+export async function ondeEsta(g: GuardaObra, a: AchadoGlobal): Promise<string> {
   if (a.card === g.id) return 'esta obra';
   try {
     const card = (await lerCardsPorIds([a.card])).get(a.card);
@@ -366,9 +370,19 @@ export function mountJornadaDinheiro(router: Router): void {
 
       let leitura: 'ok' | 'nao_e_comprovante' | 'falhou' | 'pulada' = 'pulada';
       let sugestao: Record<string, unknown> | null = null;
-      // Falha na leitura NÃO derruba a subida: o arquivo já está guardado e a pessoa preenche à mão. A leitura da nota (itens, chave) chega
-      // junto com a Compra, na etapa 4: até lá, a nota sobe sem leitura.
-      if (b.ler === true && doc === 'comprovante') {
+      let nota: Record<string, unknown> | null = null;
+      // Falha na leitura NÃO derruba a subida: o arquivo já está guardado e a pessoa preenche à mão.
+      // O servidor SEMPRE lê: o `ler` do corpo é ignorado. Só o ADM pula (`ler: false`). IA fora: o lançamento salva como "não conferido".
+      const pula = pulaALeitura(req);
+      if (!pula && doc === 'nota') {
+        try {
+          const r = await lerNota({ bytes, media_type: arquivo.tipo, hojeBr: hojeBr() });
+          if (!r.ok) leitura = 'falhou';
+          else if (!r.eh_documento) leitura = 'nao_e_comprovante';
+          else { leitura = 'ok'; nota = { ...r.nota }; }
+        } catch { leitura = 'falhou'; }
+      }
+      if (!pula && doc === 'comprovante') {
         try {
           const r = await lerComprovante({ bytes, media_type: arquivo.tipo, hojeBr: hojeBr() });
           if (!r.ok) leitura = 'falhou';
@@ -383,7 +397,7 @@ export function mountJornadaDinheiro(router: Router): void {
           valor_centavos: sugestao.valor_centavos ?? null, data: sugestao.data ?? null, id_transacao: sugestao.id_transacao ?? null,
           forma: sugestao.forma ?? null, recebedor: sugestao.recebedor ?? null, confianca: sugestao.confianca ?? 'baixa',
         } : null,
-        nota: null,
+        nota,
       });
       if (!gravado) { res.status(503).json({ ok: false, error: 'leitura_nao_gravada', mensagem: 'Não consegui guardar o comprovante. Anexe de novo.' }); return; }
 
@@ -396,7 +410,7 @@ export function mountJornadaDinheiro(router: Router): void {
       res.json({
         ok: true,
         arquivo: { path: arquivo.path, nome: arquivo.nome, tipo: arquivo.tipo, tamanho: arquivo.tamanho, url: await assinarComprovante(arquivo.path, 3600) },
-        leitura, sugestao, nota: null, ...(repetido ? { repetido } : {}),
+        leitura, sugestao, nota, ...(repetido ? { repetido } : {}),
       });
     } catch (err) { falhouJornada(res, 'comprovante', err); }
   });
@@ -407,7 +421,7 @@ export function mountJornadaDinheiro(router: Router): void {
     if (!g) return;
     const b = corpoDe(req);
     if (!b) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
-    if (typeof b.id !== 'string' || !ID_LANCAMENTO.test(b.id)) { res.status(400).json({ ok: false, error: 'id_invalido' }); return; }
+    if (typeof b.id !== 'string' || !ID_LANCAMENTO.test(b.id) || idReservado(b.id)) { res.status(400).json({ ok: false, error: 'id_invalido' }); return; }
     try {
       const d = await lerDinheiro(g);
       if (d.cancelada) { res.status(409).json({ ok: false, error: 'cancelada', mensagem: MSG_CANCELADA }); return; }
@@ -447,7 +461,7 @@ export function mountJornadaDinheiro(router: Router): void {
     const b = corpoDe(req);
     if (!b) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
     if (!ehGiovOuAdm(g)) { res.status(403).json({ ok: false, error: 'so_giovanna', mensagem: 'Só a Giovanna e o Thiago pagam comissão.' }); return; }
-    if (typeof b.id !== 'string' || !ID_LANCAMENTO.test(b.id)) { res.status(400).json({ ok: false, error: 'id_invalido' }); return; }
+    if (typeof b.id !== 'string' || !ID_LANCAMENTO.test(b.id) || idReservado(b.id)) { res.status(400).json({ ok: false, error: 'id_invalido' }); return; }
     const idNovo = b.id;
     const nome = typeof b.nome === 'string' ? nomeSimples(b.nome) : '';
     if (!nome || (b.papel !== 'venda' && b.papel !== 'socio')) { res.status(400).json({ ok: false, error: 'linha_invalida' }); return; }
@@ -461,14 +475,16 @@ export function mountJornadaDinheiro(router: Router): void {
         }
         const linha = d.livro.comissoes.linhas.find((l) => l.nome === nome && l.papel === b.papel);
         if (!linha) { res.status(400).json({ ok: false, error: 'linha_invalida' }); return; }
-        if (linha.pago) { res.status(409).json({ ok: false, error: 'ja_paga', mensagem: 'Esta comissão já foi paga.' }); return; }
+        // A venda corrigida muda a devida: a comissão já paga recebe só a DIFERENÇA que falta; paga a mais ou igual, 409.
+        if (linha.pago_centavos > 0 && linha.diferenca_centavos <= 0) { res.status(409).json({ ok: false, error: 'ja_paga', mensagem: 'Esta comissão já foi paga.' }); return; }
+        const devido = linha.pago_centavos > 0 ? linha.diferenca_centavos : linha.valor_centavos;
         if (!d.venda || linha.valor_centavos <= 0) { res.status(409).json({ ok: false, error: 'sem_valor', mensagem: 'Sem valor de venda: combine na etapa 2.' }); return; }
         const pct = `${String(linha.pb / 100).replace('.', ',')}%`;
         const s = await gravarLancamento({
           g, d, corpo: b, arquivoPath: b.arquivo_path,
           base: {
-            id: b.id, tipo: 'saida', categoria: linha.papel === 'venda' ? 'comissao_venda' : 'retirada_socio', etapa: 2, valor_centavos: linha.valor_centavos,
-            data: b.data, forma: b.forma, descricao: linha.papel === 'venda' ? `Comissão de venda, ${bonito(nome)} (${pct})` : `${bonito(nome)}, sócio ${pct}`,
+            id: b.id, tipo: 'saida', categoria: linha.papel === 'venda' ? 'comissao_venda' : 'retirada_socio', etapa: 2, valor_centavos: devido,
+            data: b.data, forma: b.forma, descricao: (linha.papel === 'venda' ? `Comissão de venda, ${bonito(nome)} (${pct})` : `${bonito(nome)}, sócio ${pct}`) + (linha.pago_centavos > 0 ? ', diferença' : ''),
             contraparte: bonito(nome), comissao: { nome, papel: linha.papel, pb: linha.pb },
           },
         });
@@ -523,6 +539,27 @@ export function mountJornadaDinheiro(router: Router): void {
       }
       enviar(res, await respostaDaGravacao(g, idEstorno));
     } catch (err) { falhouJornada(res, 'estorno', err); }
+  });
+
+  // ── Rota 5b · O ADM confere a linha que a IA não conferiu (não apaga nada: a linha é reassinada com a marca nova) ──────────
+  router.post('/jornada-solar/obra/:card/dinheiro/conferir', ...base, exigeAdm, async (req: Request, res: Response) => {
+    const g = await guardaDaObra(req, res);
+    if (!g) return;
+    const b = corpoDe(req);
+    if (!b || typeof b.id !== 'string' || !ID_LANCAMENTO.test(b.id)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+    try {
+      const d = await lerDinheiro(g);
+      if (d.fechada) { res.status(409).json({ ok: false, error: 'conta_fechada', mensagem: MSG_FECHADA }); return; }
+      const { l, versao } = await lerLancamentoObraComVersao(g.id, b.id);
+      if (!l || versao === null) { res.status(404).json({ ok: false, error: 'nao_encontrado' }); return; }
+      if (l.obra.estorno_de || (l.obra.conferencia !== 'sem_leitura' && l.obra.conferencia !== 'baixa_confianca')) {
+        res.status(409).json({ ok: false, error: 'nada_a_conferir', mensagem: 'Este lançamento não está esperando conferência.' }); return;
+      }
+      const novo = lancamentoObraParaGravar(g.id, { ...l, obra: { ...l.obra, conferencia: 'conferido_adm' } });
+      if (!novo) { res.status(503).json({ ok: false, error: 'sem_segredo' }); return; }
+      if (!(await atualizarLancamentoObra(novo, versao))) { res.status(409).json({ ok: false, error: 'mudou', mensagem: 'Outra pessoa mexeu agora. Tente de novo.' }); return; }
+      enviar(res, await respostaDaGravacao(g, l.id));
+    } catch (err) { falhouJornada(res, 'conferir', err); }
   });
 
   // ── Rota 6 · O previsto por grupo (ADM) ───────────────────────────────────────────────────────────────────────────────

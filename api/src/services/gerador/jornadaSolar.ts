@@ -172,11 +172,15 @@ export function prazoDaEtapa(n: number, e: EstadoJornada | null): { vence: strin
 export type TipoSituacao = 'esperando' | 'sem_prazo' | 'no_prazo' | 'vence_hoje' | 'atrasada' | 'travada';
 export interface Situacao { tipo: TipoSituacao; texto: string; vence?: string; dias?: number }
 
-export function situacao(n: number, e: EstadoJornada | null, hoje: string): Situacao {
-  if (!e || e.cancelada) return { tipo: 'sem_prazo', texto: '' };
-  const esp = e.esperando && e.esperando.etapa === n ? e.esperando : null;
+/**
+ * O miolo da situação: o prazo (`vence`), a espera da etapa, a obra cancelada e o dia de hoje. Extraído do `situacao` na Fase 2 da Jornada
+ * (06/11/2026) para as etapas 4 a 8 usarem a MESMA conta, com o prazo e a espera que moram em outro estado.
+ */
+export function situacaoComPrazo(
+  vence: string | null, esp: { motivo: MotivoEspera; ate: string } | null, cancelada: boolean, hoje: string,
+): Situacao {
+  if (cancelada) return { tipo: 'sem_prazo', texto: '' };
   if (esp && hoje < esp.ate) return { tipo: 'esperando', texto: `Esperando até ${ddmm(esp.ate)} · ${ROTULO_ESPERA[esp.motivo]}` };
-  const { vence } = prazoDaEtapa(n, e);
   if (!vence) return { tipo: 'sem_prazo', texto: 'Sem prazo' };
   const alvo = esp && esp.ate > vence ? esp.ate : vence;
   if (hoje < alvo) return { tipo: 'no_prazo', texto: `No prazo · vence ${ddmm(alvo)}`, vence: alvo };
@@ -186,6 +190,12 @@ export function situacao(n: number, e: EstadoJornada | null, hoje: string): Situ
   return atraso >= 3
     ? { tipo: 'travada', texto: `Atrasada ${dias} · Travada`, vence: alvo, dias: atraso }
     : { tipo: 'atrasada', texto: `Atrasada ${dias}`, vence: alvo, dias: atraso };
+}
+
+export function situacao(n: number, e: EstadoJornada | null, hoje: string): Situacao {
+  if (!e || e.cancelada) return { tipo: 'sem_prazo', texto: '' };
+  const esp = e.esperando && e.esperando.etapa === n ? e.esperando : null;
+  return situacaoComPrazo(prazoDaEtapa(n, e).vence, esp, false, hoje);
 }
 
 // ── Rateio ────────────────────────────────────────────────────────────────────────────────────────────────────────

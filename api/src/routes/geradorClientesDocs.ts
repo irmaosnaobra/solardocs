@@ -20,7 +20,7 @@ import {
   CATALOGO, SLOTS_FORA_DO_RELATORIO, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
   lerCaminho, comArquivo, semArquivo, comVinculo, motivoSemEspaco, nomesParecidos, dadosSolarPlanilha, dadosVendaSolar, dadosEletroposto,
   equipamentoDaPlanilha, montarRelatorio, assinaturaBate, comArquivoMovido, motivoSemEspacoParaMover, TIPOS_FORA_DA_HOMOLOGACAO,
-  limiteDoItem, SLOT_DO_DOSSIE_NA_VENDASOLAR, comArquivosTrocados, type ArquivoDoc, type Linha, type RegistroDocs, type DocBruto, type DadosHomologacao, type ItemDoc,
+  limiteDoItem, tetoDaVenda, SLOT_DO_DOSSIE_NA_VENDASOLAR, comArquivosTrocados, type ArquivoDoc, type Linha, type RegistroDocs, type DocBruto, type DadosHomologacao, type ItemDoc,
 } from '../services/gerador/docsCliente';
 import {
   ErroDocs, garantirBucketDocs, lerPrimeirosBytes, assinarEnvio, sondarObjeto, removerObjeto, assinarVarios, lerDocsComVersao, gravarDocs,
@@ -416,8 +416,8 @@ export function mountClientesDocs(router: Router): void {
       const { reg } = await lerDocs(ctx);
       // "Trocar arquivo": o novo toma o lugar do `substitui`, que tem que estar neste mesmo item. O antigo não conta no espaço.
       if (subId && reg.arquivos.find((x) => x.id === subId)?.slot !== item.chave) { res.status(400).json({ ok: false, error: MSG_SUBSTITUI }); return; }
-      const motivo = subId ? motivoSemEspacoParaMover(reg, subId, item) : motivoSemEspaco(reg, item);
-      if (motivo) { res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo, item) }); return; }
+      const motivo = subId ? motivoSemEspacoParaMover(reg, subId, item, ctx.linha) : motivoSemEspaco(reg, item, ctx.linha);
+      if (motivo) { res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo, item, ctx.linha) }); return; }
       const caminho = novoCaminho(ctx.linha, ctx.codigo, mime);
       const env = await assinarEnvio(caminho);
       // cache-control curto: depois de um DELETE, a cópia em cache do Storage some em 1 min (o padrão é 1 hora),
@@ -489,10 +489,10 @@ export function mountClientesDocs(router: Router): void {
           res.status(400).json({ ok: false, error: MSG_SUBSTITUI });
           return;
         }
-        const motivo = subId ? motivoSemEspacoParaMover(reg, subId, item) : motivoSemEspaco(reg, item);
+        const motivo = subId ? motivoSemEspacoParaMover(reg, subId, item, ctx.linha) : motivoSemEspaco(reg, item, ctx.linha);
         if (motivo) {
           await removerObjeto(caminho).catch((e) => logErro('limpeza falhou', e));
-          res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo, item) });
+          res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo, item, ctx.linha) });
           return;
         }
         const agora = new Date().toISOString();
@@ -814,10 +814,10 @@ function podeRemover(ctx: Ctx): boolean {
   return ctx.linha === 'solar' ? !!ctx.solar : podeVer(ctx.nome, String(ctx.card?.vendedor_nome ?? ''));
 }
 
-function mensagemSemEspaco(motivo: 'slot_ocupado' | 'muitos_no_item' | 'muitos_na_venda', item: ItemDoc): string {
+function mensagemSemEspaco(motivo: 'slot_ocupado' | 'muitos_no_item' | 'muitos_na_venda', item: ItemDoc, linha?: string): string {
   if (motivo === 'slot_ocupado') return 'Este item já tem um arquivo. Remova o atual antes de enviar outro.';
   if (motivo === 'muitos_no_item') return `Este item já tem ${limiteDoItem(item)} arquivos.`;
-  return `Esta venda já tem ${LIMITES.total} arquivos.`;
+  return `Esta venda já tem ${tetoDaVenda(linha)} arquivos.`;
 }
 
 /** venda (só dígitos) -> proposta vinculada, de todas as vendas da planilha. */

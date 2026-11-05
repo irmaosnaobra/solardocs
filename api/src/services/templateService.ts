@@ -3193,7 +3193,7 @@ function _abaixoMil(n: number): string {
   return partes.join(' e ');
 }
 
-function numExtenso(v: unknown): string {
+export function numExtenso(v: unknown): string {
   const raw = parseFloat(String(v ?? '').replace(',', '.'));
   if (!Number.isFinite(raw) || raw < 0) return String(v ?? '');
   const n = Math.floor(raw);
@@ -3229,7 +3229,7 @@ function numExtenso(v: unknown): string {
 // plural correto. Mão de obra às vezes é 6 MESES (não 1 ano) — o form manda
 // garantia_instalacao_unidade='anos'|'meses'. Ex: "1 (um) ano", "2 (dois) anos",
 // "6 (seis) meses", "1 (um) mês". Sem a unidade, cai em anos (retrocompatível).
-function garantiaInstalacaoExtenso(f: Record<string, unknown>): string {
+export function garantiaInstalacaoExtenso(f: Record<string, unknown>): string {
   const valor = f.garantia_instalacao_anos;
   const emMeses = String(f.garantia_instalacao_unidade ?? 'anos').toLowerCase() === 'meses';
   const n = parseInt(String(valor ?? '').replace(/\D/g, ''), 10) || 0;

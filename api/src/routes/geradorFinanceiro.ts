@@ -5,8 +5,6 @@ import { aiLimiter } from '../middleware/rateLimiter';
 import { exigeConsultor } from './geradorDossie';
 import { ehSocio, podeVer } from '../services/gerador/solarObras';
 import { acessoVendaSolar } from './geradorClientes';
-import { lerCardVendido } from '../services/gerador/fichaEletropostoBanco';
-import { ehCardVendidoEp } from '../services/gerador/fichaEletroposto';
 import { ehCardSolarVendido, lerCardsPorIds } from '../services/gerador/vendaSolarHub';
 import { DONOS_FIXOS } from '../services/gerador/jornadaSolar';
 import { chavePosVenda } from '../services/agenda/posVendaEletroposto';
@@ -66,13 +64,16 @@ function idDoCard(req: Request, res: Response): number | null {
   return id;
 }
 
-/** Fase 2 da Jornada (06/11/2026): o financeiro só abre o card de quem pode ver. Solar: a mesma guarda da obra. Eletroposto: a de hoje dos documentos (sócio ou podeVer). Inexistente e alheio: null (404 igual). */
-async function posseDoCard(nome: string, socio: boolean, cardId: number): Promise<'vendasolar' | 'eletroposto' | null> {
+/**
+ * Fase 2 da Jornada (06/11/2026): a checagem de dono vale SÓ para card de venda SOLAR da jornada (fechou, origem que não é eletroposto): ali vale a
+ * mesma guarda da obra, e quem não a vê leva 404 igual ao de card inexistente. Qualquer outro card (eletroposto, inclusive o que saiu de `fechou`,
+ * ou id sem card) segue como era: aceita quem está logado na equipe.
+ */
+async function posseDoCard(nome: string, socio: boolean, cardId: number): Promise<'vendasolar' | 'livre' | null> {
   const n = String(nome ?? '').trim().toLowerCase();
-  if (await acessoVendaSolar(n, socio, cardId)) return 'vendasolar';
-  const card = await lerCardVendido(cardId);
-  if (card && (socio || podeVer(n, String(card.vendedor_nome ?? '')))) return 'eletroposto';
-  return null;
+  const card = (await lerCardsPorIds([cardId])).get(cardId);
+  if (!ehCardSolarVendido(card)) return 'livre';
+  return (await acessoVendaSolar(n, socio, cardId)) ? 'vendasolar' : null;
 }
 
 /** O 404 de quem não vê o card e, nos POSTs, o 409 do solar (o dinheiro da obra solar se lança na própria obra). Devolve true se já respondeu. */
@@ -117,7 +118,15 @@ async function lerPorPrefixo(prefixo: string): Promise<Lancamento[]> {
   return achados;
 }
 
-const lerDoCard = (cardId: number): Promise<Lancamento[]> => lerPorPrefixo(prefixoDoCard(cardId));
+/** Linha SOLAR de estorno (`obra.estorno_de`) não soma como positiva: a original estornada sai da conta (marcada apagada) e a de estorno não entra. */
+function semEstornosSolares(ls: Lancamento[]): Lancamento[] {
+  const estornados = new Set<string>();
+  for (const l of ls) { const e = l.obra?.estorno_de; if (typeof e === 'string') estornados.add(e); }
+  if (!estornados.size) return ls;
+  return ls.filter((l) => typeof l.obra?.estorno_de !== 'string').map((l) => (estornados.has(l.id) ? { ...l, apagado: true } : l));
+}
+
+const lerDoCard = async (cardId: number): Promise<Lancamento[]> => semEstornosSolares(await lerPorPrefixo(prefixoDoCard(cardId)));
 
 /** O lançamento e o `updated_at` com que ele foi lido (a trava da gravação). */
 type Lido = { l: Lancamento; carimbo: string | null };
@@ -227,15 +236,13 @@ export function mountFinanceiro(router: Router): void {
     const ids = new Set(partes.map(Number));   // repetido conta uma vez
     if (ids.size > MAX_IDS_RESUMO) { res.status(400).json({ error: 'ids demais' }); return; }
     try {
-      // Fase 2 da Jornada: só entram os cards que esta pessoa pode ver (eletroposto vendido: sócio ou podeVer; solar vendido: sócio, dono
-      // de etapa ou podeVer). Id que sobra sai do resumo, sem erro. O dinheiro do solar tem o livro próprio (linhas com `obra` ficam de fora).
+      // Fase 2 da Jornada: card de venda SOLAR que esta pessoa não vê (sócio, dono de etapa ou podeVer) sai do resumo, sem erro. O dinheiro do solar
+      // tem o livro próprio (linhas com `obra` ficam de fora).
       const cards = await lerCardsPorIds([...ids]);
       const nomeMin = nome.trim().toLowerCase();
       for (const id of [...ids]) {
         const c = cards.get(id);
-        const ve = !!c && ((ehCardVendidoEp(c) && (socio || podeVer(nomeMin, String(c.vendedor_nome ?? ''))))
-          || (ehCardSolarVendido(c) && (socio || DONOS_FIXOS.has(nomeMin) || podeVer(nomeMin, String(c.vendedor_nome ?? '')))));
-        if (!ve) ids.delete(id);
+        if (c && ehCardSolarVendido(c) && !(socio || DONOS_FIXOS.has(nomeMin) || podeVer(nomeMin, String(c.vendedor_nome ?? '')))) ids.delete(id);
       }
       // UMA varredura do prefixo `fin:`, filtrada aqui pelos ids pedidos. 600
       // consultas (uma por card) ou um `or` com 600 prefixos estourariam a URL.

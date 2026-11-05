@@ -32,6 +32,10 @@ import {
   ErroJornada, ehRecusa, lerJornadaComVersao, lerPrivadoJornada, lerTodasJornadas, mudarJornada, mudarPrivadoJornada,
   MAX_NOTA, MAX_PRAZO, type Recusa,
 } from '../services/gerador/jornadaSolarBanco';
+import { lerObraComVersao, lerTodasObras, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
+import { lerResumoDoDinheiro } from '../services/gerador/jornadaDinheiroBanco';
+import { CAMPOS_CONTRATO, etapaAtualCompleta, type ContratoObra, type EstadoObra } from '../services/gerador/jornadaObra';
+import { situacaoObra } from '../services/gerador/jornadaObra';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // JORNADA DA OBRA SOLAR, FASE 1 (05/11/2026). Montada dentro de /gerador por `mountJornadaSolar`. Todas as rotas exigem consultor
@@ -119,6 +123,8 @@ async function guardaObra(req: Request, res: Response): Promise<Guarda | null> {
 interface Leitura {
   lig: Ligacao;
   estado: EstadoJornada | null;
+  /** Fase 2: o estado das etapas 4 a 8 (`jornada_obra:<card>`). */
+  obraEstado: EstadoObra | null;
   privado: PrivadoJornada | null;
   cad: Cadastro;
   /** Os slots do card MAIS os do dossiê da proposta ligada. */
@@ -130,22 +136,23 @@ interface Leitura {
 }
 
 async function ler(g: Guarda, comProposta = true): Promise<Leitura> {
-  const [{ lig }, { estado }, privado, cad, docs, dv] = await Promise.all([
+  const [{ lig }, { estado }, privado, cad, docs, dv, { estado: obraEstado }] = await Promise.all([
     lerLigacao(g.id), lerJornadaComVersao(g.id), lerPrivadoJornada(g.id).catch((e) => { logErro('privado', e); return null; }),
     lerCadastroVisto(g.id, 'vendasolar'), lerDocs(g.ctx), dossieDaVendaSolar(g.ctx, 0, false).catch((e) => { logErro('dossiê', e); return null; }),
+    lerObraComVersao(g.id),
   ]);
   const slotsDoCard = new Set(docs.reg.arquivos.map((a) => a.slot));
   const slots = new Set(slotsDoCard);
   for (const a of dv?.arquivos ?? []) slots.add(a.slot);
   const proposta = comProposta && lig.proposta ? await lerProposta(lig.proposta).catch((e) => { logErro('proposta', e); return null; }) : null;
-  return { lig, estado, privado, cad, slots, slotsDoCard, tem_cartao: !!lig.trello_card, proposta };
+  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, tem_cartao: !!lig.trello_card, proposta };
 }
 
 const vendedorDe = (card: CardVendido, estado: EstadoJornada | null): string => nomeSimples(card.vendedor_nome) || estado?.vendedor || '';
 
 interface Posicao { trilho: 'jornada' | 'deduzida' | 'sem_trilho'; etapa: number | null; posvenda: boolean }
 function posicaoDe(l: Leitura, planilhaEtapa?: string, planilhaFora?: boolean): Posicao {
-  if (l.estado) return { trilho: 'jornada', etapa: etapaAtualDoEstado(l.estado), posvenda: false };
+  if (l.estado || l.obraEstado) { const etapa = etapaAtualCompleta(l.estado, l.obraEstado, null); return { trilho: 'jornada', etapa, posvenda: etapa === 9 }; }
   const d = deduzirEtapa({ temNumero: !!l.lig.venda, slots: l.slots, planilha: planilhaEtapa, planilhaFora });
   return { trilho: d.trilho, etapa: d.etapa, posvenda: d.posvenda };
 }
@@ -267,7 +274,10 @@ async function rotaLista(req: Request, res: Response): Promise<void> {
   try {
     const porPlanilha = planilha(false).then(async (p) => (await comSobrescritas(p.dados.obras)).map((o) => montarObra(o, hojeBRT(new Date()))))
       .catch((e) => { logErro('planilha', e); return null; });
-    const [obrasPl, cards, ligs, jornadas] = await Promise.all([porPlanilha, lerCardsSolarVendidos(), lerTodasLigacoes(), lerTodasJornadas()]);
+    const [obrasPl, cards, ligs, jornadas, obras, resumoDinheiro] = await Promise.all([
+      porPlanilha, lerCardsSolarVendidos(), lerTodasLigacoes(), lerTodasJornadas(), lerTodasObras(),
+      adm ? lerResumoDoDinheiro().catch((e) => { logErro('resumo do dinheiro', e); return null; }) : Promise.resolve(null),
+    ]);
     const plPorCodigo = new Map<string, ObraMontada>();
     for (const o of obrasPl ?? []) plPorCodigo.set(codigoCanonico(o.codigo), o);
 
@@ -294,7 +304,8 @@ async function rotaLista(req: Request, res: Response): Promise<void> {
       const estado = jornadas.get(c.id) ?? null;
       const slots = slotsPorCard.get(c.id) ?? new Set<string>();
       let trilho: string; let etapa: number | null; let posvenda = false;
-      if (estado) { trilho = 'jornada'; etapa = etapaAtualDoEstado(estado); } else {
+      const obraDoCard = obras.get(c.id) ?? null;
+      if (estado) { trilho = 'jornada'; etapa = etapaAtualCompleta(estado, obraDoCard, null); } else {
         const d = deduzirEtapa({ temNumero: !!codigo, slots, planilha: pl?.etapaAtual, planilhaFora: obrasPl === null });
         trilho = d.trilho; etapa = d.etapa; posvenda = d.posvenda;
       }
@@ -302,10 +313,10 @@ async function rotaLista(req: Request, res: Response): Promise<void> {
       const donos = etapa ? donosDaEtapa(etapa, vend) : [];
       const grupo = estado?.cancelada ? 'canceladas' : (posvenda || etapa === 9 ? 'posvenda' : 'ativas');
       let sit: Situacao;
-      if (trilho === 'jornada' && etapa) sit = situacao(etapa, estado, hoje);
+      if (trilho === 'jornada' && etapa) sit = etapa >= 4 && etapa <= 8 ? situacaoObra(etapa, estado, obraDoCard, hoje) : situacao(etapa, estado, hoje);
       else if (trilho === 'deduzida') sit = { tipo: 'sem_prazo', texto: 'Sem prazo: venda de antes da Jornada' };
       else sit = { tipo: 'sem_prazo', texto: 'Não é cobrada' };
-      const minha = grupo === 'ativas' && !!etapa && etapa <= 3 && (trilho === 'jornada' || trilho === 'deduzida') && donos.includes(nome);
+      const minha = grupo === 'ativas' && !!etapa && etapa <= 8 && (trilho === 'jornada' || trilho === 'deduzida') && donos.includes(nome);
       let pendente: string | null = null;
       if (adm && !codigo && !estado?.cancelada) {
         const par = slots.has('contrato_assinado') && slots.has('procuracao');
@@ -340,6 +351,24 @@ async function rotaLista(req: Request, res: Response): Promise<void> {
         minha: false, numero_pendente: null, cancelada: null,
         dinheiro: adm ? (o.recebimento === 'quitado' ? 'Quitada' : o.recebimento === 'nao_quitado' ? `A receber R$ ${reaisBR(Math.round(o.valores.aReceber * 100))}` : 'Sem registro') : null,
       });
+    }
+    // O dinheiro do ADM, do livro: Recebido, A receber, Gasto e Saldo. O "a receber" usa o valor vendido do JSON privado, lido só das ativas que
+    // têm resumo (até 60 obras). Passou de 60, a linha sai sem o "A receber".
+    if (adm && resumoDinheiro) {
+      const comResumo = linhas.filter((l) => l.card !== null && l.grupo === 'ativas' && resumoDinheiro.has(l.card as number));
+      const valores = new Map<number, number | null>();
+      await Promise.all(comResumo.slice(0, 60).map(async (l) => {
+        try { valores.set(l.card as number, (await lerPrivadoJornada(l.card as number))?.venda?.valor_centavos ?? null); } catch (err) { logErro('valor vendido', err); valores.set(l.card as number, null); }
+      }));
+      for (const l of linhas) {
+        const r = l.card !== null ? resumoDinheiro.get(l.card) : undefined;
+        if (!r) continue;
+        const venda = valores.get(l.card as number);
+        const partes = [`Recebido R$ ${reaisBR(r.recebido)}`];
+        if (venda !== undefined && venda !== null && venda > 0) partes.push(`A receber R$ ${reaisBR(Math.max(0, venda - r.recebido))}`);
+        partes.push(`Gasto R$ ${reaisBR(r.gasto)}`, `Saldo R$ ${reaisBR(r.recebido - r.gasto - r.retirada)}`);
+        l.dinheiro = partes.join(' · ');
+      }
     }
     // O motivo das canceladas (até 30), do JSON privado.
     const canceladas = linhas.filter((l) => l.grupo === 'canceladas' && l.card !== null).slice(0, 30);
@@ -432,7 +461,7 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
     const etapas: Array<Record<string, unknown>> = [];
     for (let n = 1; n <= 9; n++) {
       const donos = donosDaEtapa(n, vend).map((d) => ({ nome: d, iniciais: iniciais(d) }));
-      if (n > 3) { etapas.push({ n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donos, fase: 2 }); continue; }
+      if (n > 3) { etapas.push({ n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donos }); continue; }
       const itens = itensDaEtapa(n, entradaDe(l, l.estado));
       const e = l.estado?.etapas[n as 1 | 2 | 3];
       const prazo = prazoDaEtapa(n, l.estado);
@@ -527,6 +556,8 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     const l = await ler(g, false);
     const pode = podeDe(g, l, posicaoDe(l));
     if (l.estado?.cancelada) { res.status(409).json({ ok: false, error: 'Venda cancelada.' }); return; }
+    // Fase 2: a conta fechada trava o valor vendido (ele é a base do "a receber"). Só o Thiago reabre.
+    if (l.obraEstado?.fechada) { res.status(409).json({ ok: false, error: 'A conta desta obra está fechada. Só o Thiago reabre.' }); return; }
     if (!pode.editar_venda) { res.status(403).json({ ok: false, error: 'Você não pode editar o valor desta venda agora.' }); return; }
     const agora = new Date().toISOString();
     const novo = await mudarPrivadoJornada(g.id, g.nome, (p) => {
@@ -808,6 +839,52 @@ const CAMPOS_EMPRESA = [
 ] as const;
 const ROTULO_FORMA: Record<FormaPagamento, string> = { pix: 'Pix', ted: 'TED', boleto: 'Boleto', cartao: 'Cartão', financiamento: 'Financiamento', dinheiro: 'Dinheiro' };
 
+/**
+ * Os campos do contrato solar (o 3º argumento do `generateFromTemplate('contratoSolar', ...)`), montados da proposta ligada, do cadastro e da venda.
+ * Fase 2 da Jornada (06/11/2026): extraída da `rotaPapel` para o Termo de garantia recalcular o contrato de uma obra gerada antes de guardarmos as
+ * garantias (D21). `v` lê um campo do cadastro.
+ */
+export function camposDoContratoDaObra(
+  l: { proposta: Leitura['proposta'] }, v: (k: string) => string, venda: PrivadoJornada['venda'],
+): Record<string, string | number> {
+  const prop = l.proposta;
+  const equip = prop ? equipamentoDaProposta({ qtd_placas: prop.qtd_placas, inversor: prop.inversor, qtd_inversor: prop.qtd_inversor, dados: prop.dados }) : null;
+  const dados = (prop?.dados ?? {}) as Record<string, unknown>;
+  const kwp = equip?.qtdPlacas && equip.potPlaca ? equip.qtdPlacas * equip.potPlaca / 1000 : null;
+  const gen = Number(dados.mediaMensalGerada);
+  const cond = (venda?.pagamento ?? []).map((p) => `${ROTULO_FORMA[p.forma]} de R$ ${reaisBR(p.valor_centavos)}${p.obs ? ` (${p.obs})` : ''}`).join('; ');
+  return {
+    potencia_kwp: kwp ? String(Math.round(kwp * 100) / 100).replace('.', ',') : '',
+    quantidade_modulos: equip?.qtdPlacas ? String(equip.qtdPlacas) : '', marca_modulos: equip?.modeloPlaca ?? '',
+    quantidade_inversores: equip?.qtdInversor ? String(equip.qtdInversor) : '', marca_inversor: equip?.inversor ?? '',
+    valor_total: reaisBR(venda?.valor_centavos ?? 0), condicoes_pagamento: cond ? `${cond}.` : '',
+    prazo_projeto_dias: '5', prazo_aprovacao_dias: '40', prazo_instalacao_dias: String(dados.prazoInstalacao ?? '10'),
+    garantia_modulos_anos: String(dados.garPaineis ?? '25'), garantia_inversor_anos: String(dados.garInv ?? '10'),
+    garantia_instalacao_anos: String(dados.garInstalacao ?? '1'), garantia_instalacao_unidade: 'anos',
+    geracao_media_kwh: Number.isFinite(gen) && gen > 0 ? String(Math.round(gen)) : '',
+    foro_cidade: 'Uberlândia', endereco_instalacao: v('endereco_ponto'), versao_garantia: 2, garantia_resposta_dias: '2',
+  };
+}
+
+/** As garantias, o kit e o emitente de um contrato, no formato que o `obra.json` guarda (D21). */
+export function contratoDaObra(
+  campos: Record<string, string | number>,
+  quem: { cliente: { nome: string; cpf_cnpj: string; tipo: string; cidade: string; uf: string; endereco: string }; empresaNome: string; empresaCnpj: string; empresaTelefone: string },
+  por: string, fonte: 'gerado' | 'recalculado', agora: string,
+): ContratoObra {
+  const t = (x: unknown): string => String(x ?? '').trim().slice(0, 160);
+  const c = {
+    versao_garantia: t(campos.versao_garantia), garantia_modulos_anos: t(campos.garantia_modulos_anos), garantia_inversor_anos: t(campos.garantia_inversor_anos),
+    garantia_instalacao_anos: t(campos.garantia_instalacao_anos), garantia_instalacao_unidade: t(campos.garantia_instalacao_unidade),
+    garantia_resposta_dias: t(campos.garantia_resposta_dias), empresa_nome: t(quem.empresaNome), empresa_cnpj: t(quem.empresaCnpj),
+    empresa_telefone: t(quem.empresaTelefone), cliente_nome: t(quem.cliente.nome), cliente_doc: t(quem.cliente.cpf_cnpj), cliente_tipo: t(quem.cliente.tipo),
+    endereco_instalacao: t(campos.endereco_instalacao || quem.cliente.endereco), cidade: t(quem.cliente.cidade), uf: t(quem.cliente.uf), kwp: t(campos.potencia_kwp),
+    quantidade_modulos: t(campos.quantidade_modulos), marca_modulos: t(campos.marca_modulos), quantidade_inversores: t(campos.quantidade_inversores),
+    marca_inversor: t(campos.marca_inversor),
+  } as Record<(typeof CAMPOS_CONTRATO)[number], string>;
+  return { gerado_em: agora, por, fonte, ...c };
+}
+
 async function rotaPapel(req: Request, res: Response): Promise<void> {
   const g = await guardaObra(req, res);
   if (!g) return;
@@ -882,21 +959,10 @@ async function rotaPapel(req: Request, res: Response): Promise<void> {
     const dados = (prop?.dados ?? {}) as Record<string, unknown>;
     const ano = new Date().getFullYear();
     let texto: string;
+    let campos: Record<string, string | number> = {};
     if (tipo === 'contrato') {
-      const kwp = equip?.qtdPlacas && equip.potPlaca ? equip.qtdPlacas * equip.potPlaca / 1000 : null;
-      const gen = Number(dados.mediaMensalGerada);
-      const cond = (venda?.pagamento ?? []).map((p) => `${ROTULO_FORMA[p.forma]} de R$ ${reaisBR(p.valor_centavos)}${p.obs ? ` (${p.obs})` : ''}`).join('; ');
-      texto = generateFromTemplate('contratoSolar', emitente, cliente, {
-        potencia_kwp: kwp ? String(Math.round(kwp * 100) / 100).replace('.', ',') : '',
-        quantidade_modulos: equip?.qtdPlacas ? String(equip.qtdPlacas) : '', marca_modulos: equip?.modeloPlaca ?? '',
-        quantidade_inversores: equip?.qtdInversor ? String(equip.qtdInversor) : '', marca_inversor: equip?.inversor ?? '',
-        valor_total: reaisBR(venda?.valor_centavos ?? 0), condicoes_pagamento: cond ? `${cond}.` : '',
-        prazo_projeto_dias: '5', prazo_aprovacao_dias: '40', prazo_instalacao_dias: String(dados.prazoInstalacao ?? '10'),
-        garantia_modulos_anos: String(dados.garPaineis ?? '25'), garantia_inversor_anos: String(dados.garInv ?? '10'),
-        garantia_instalacao_anos: String(dados.garInstalacao ?? '1'), garantia_instalacao_unidade: 'anos',
-        geracao_media_kwh: Number.isFinite(gen) && gen > 0 ? String(Math.round(gen)) : '',
-        foro_cidade: 'Uberlândia', endereco_instalacao: v('endereco_ponto'), versao_garantia: 2, garantia_resposta_dias: '2',
-      }, 2);
+      campos = camposDoContratoDaObra(l, v, venda);
+      texto = generateFromTemplate('contratoSolar', emitente, cliente, campos, 2);
     } else if (tipo === 'procuracao') {
       texto = generateFromTemplate('procuracao', emitente, outorgante, {
         uc: v('unidade_consumidora'), concessionaria: v('concessionaria') || 'CEMIG', foro_cidade: 'Uberlândia',
@@ -911,10 +977,19 @@ async function rotaPapel(req: Request, res: Response): Promise<void> {
         endereco_instalacao: v('endereco_ponto'), foro_cidade: 'Uberlândia', pagamentos, chave_pix: empresa.pix ?? '', conta: empresa.conta ?? '',
       }, 1);
     }
+    // D21: o contrato gerado guarda as garantias, o kit e o emitente usados (o Termo de garantia e a trava do Book leem daqui).
+    let avisoContrato: string | undefined;
+    if (tipo === 'contrato') {
+      try {
+        const guardado = contratoDaObra(campos, { cliente, empresaNome: emitente.nome, empresaCnpj: emitente.cnpj ?? '', empresaTelefone: empresa.telefone ?? '' }, g.nome, 'gerado', new Date().toISOString());
+        const rr = await mudarObraPrivada(g.id, g.nome, null, null, (p) => ({ ...p, contrato: guardado }));
+        if (ehRecusa(rr)) avisoContrato = 'Gerei o contrato, mas não guardei as garantias dele.';
+      } catch (err) { logErro('guardar o contrato', err); avisoContrato = 'Gerei o contrato, mas não guardei as garantias dele.'; }
+    }
     const html = texto.startsWith('[[HTML]]');
     const conteudo = html ? limparHtmlPapel(texto.slice('[[HTML]]'.length)) : texto;
     const agora = new Date().toISOString();
-    let aviso: string | undefined;
+    let aviso: string | undefined = avisoContrato;
     try {
       const r = await mudarJornada(g.id, baseDe(g, l), (e) => {
         if (e.cancelada) return { recusa: 'Venda cancelada.', http: 409 } as Recusa;

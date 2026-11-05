@@ -50,6 +50,22 @@ export async function lerLancamentoObra(card: number, id: string): Promise<Lanca
   return l ? lancamentoObraAssinado(card, l.value) : null;
 }
 
+/** Um lançamento só, com a versão (`updated_at`) para a gravação com trava. */
+export async function lerLancamentoObraComVersao(card: number, id: string): Promise<{ l: LancamentoObra | null; versao: string | null }> {
+  const { data, error } = await supabase.from('system_state').select('key, value, updated_at').eq('key', chaveLancamento(card, id)).maybeSingle();
+  if (error) throw new ErroJornada(codigoDe(error));
+  const r = data as { value?: unknown; updated_at?: string | null } | null;
+  return r ? { l: lancamentoObraAssinado(card, r.value), versao: r.updated_at ?? '' } : { l: null, versao: null };
+}
+
+/** UPDATE do lançamento já reassinado (só a marca de conferência muda), com a trava do `updated_at`. false = outra gravação chegou antes. */
+export async function atualizarLancamentoObra(l: LancamentoObra, versaoLida: string): Promise<boolean> {
+  const alvo = supabase.from('system_state').update({ value: l, updated_at: new Date().toISOString() }).eq('key', chaveLancamento(l.card_id, l.id));
+  const { data, error } = await (versaoLida === '' ? alvo.is('updated_at', null) : alvo.eq('updated_at', versaoLida)).select('key');
+  if (error) throw new ErroJornada(codigoDe(error));
+  return Array.isArray(data) && data.length > 0;
+}
+
 /** INSERT. true = gravou; false = a chave já existia (23505): outra requisição chegou primeiro com o mesmo id. */
 export async function inserirLancamentoObra(l: LancamentoObra): Promise<boolean> {
   const { error } = await supabase.from('system_state').insert({ key: chaveLancamento(l.card_id, l.id), value: l, updated_at: new Date().toISOString() });
@@ -79,15 +95,16 @@ async function varrerFin(): Promise<LinhaLeve[]> {
 export interface AchadoGlobal { card: number; id: string }
 
 /**
- * Uma linha VIVA com o mesmo sha256 de arquivo e/ou o mesmo ID de transação, em qualquer card. Viva = não apagada, não é estorno e nenhuma
- * outra linha do mesmo card a estorna. A linha estornada e a própria linha de estorno ficam de fora: quem lançou errado relança o mesmo comprovante.
+ * Uma linha VIVA com o mesmo sha256 de arquivo e/ou o mesmo ID de transação, em qualquer card. Viva = não apagada e nenhuma outra linha do mesmo
+ * card a estorna. A original estornada fica de fora (quem lançou errado relança o mesmo comprovante); a linha de estorno com arquivo (devolução) conta.
  * Não filtra por assinatura: o card de eletroposto não tem.
  */
 export async function buscarNoFinanceiro(sha: string, idt: string): Promise<{ comprovante: AchadoGlobal | null; transacoes: AchadoGlobal[] }> {
   const linhas = await varrerFin();
   const estornadas = new Set<string>();
   for (const l of linhas) if (l.est) estornadas.add(`${l.card}:${l.est}`);
-  const viva = (l: LinhaLeve): boolean => l.apagado !== 'true' && !l.est && !!l.id && !estornadas.has(`${l.card}:${l.id}`);
+  // Fica de fora só a ORIGINAL estornada (e a apagada). A linha de estorno que tem arquivo próprio (a devolução) conta: o PDF dela não serve de gasto em outra obra.
+  const viva = (l: LinhaLeve): boolean => l.apagado !== 'true' && !!l.id && !estornadas.has(`${l.card}:${l.id}`);
   const achado = (l: LinhaLeve): AchadoGlobal | null => {
     const card = Number(l.card);
     return Number.isInteger(card) && card > 0 && l.id ? { card, id: l.id } : null;

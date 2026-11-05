@@ -40,6 +40,8 @@ const SLOTS_NAO_LIDOS_SOLAR: ReadonlySet<string> = new Set([
   'datasheet_modulo', 'datasheet_inversor',
   // Jornada, fase 1: papel de homologação e comprovante não são lidos pela IA.
   'art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso',
+  // Jornada, fase 2: a IA do cadastro não lê nenhum dos slots das etapas 4 a 8.
+  'cert_modulo', 'cert_inversor', 'log_documento', 'log_conferencia', 'log_avaria', 'log_assinatura', 'obra_foto', 'ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo', 'ent_termo_assinado', 'lib_pedido', 'lib_vistoria', 'lib_medidor', 'lib_liberacao', 'lib_exigencia',
 ]);
 export const SLOTS_LIDOS_SOLAR: readonly string[] = CATALOGO.vendasolar.filter((i) => i.aceita !== 'imagem' && !SLOTS_NAO_LIDOS_SOLAR.has(i.chave)).map((i) => i.chave);
 const slotsLidosDa = (linha: LinhaLeitura): readonly string[] => (linha === 'vendasolar' ? SLOTS_LIDOS_SOLAR : SLOTS_LIDOS);

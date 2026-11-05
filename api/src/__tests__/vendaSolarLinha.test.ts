@@ -78,13 +78,17 @@ describe('a linha nova em cada ponto fixo', () => {
 
 describe('catálogo da vendasolar', () => {
   const cat = CATALOGO.vendasolar;
-  it('tem os 25 itens (18 + os dois datasheets + os 5 da homologação da Jornada), com as chaves do dossiê onde elas existem', () => {
+  it('tem os 46 itens (18 + os dois datasheets + os 5 da homologação + os 21 das etapas 4 a 8 da Jornada), com as chaves do dossiê onde elas existem', () => {
     expect(cat.map((i) => i.chave)).toEqual([
       'documento_titular', 'comprovante_endereco_comprador', 'documento_titular_uc', 'documento_financiamento', 'comprovante_endereco_financiamento',
       'documento_outra_pessoa', 'documento_avalista', 'comprovante_endereco_avalista', 'conta_luz', 'conta_luz_beneficiaria', 'documento_imovel', 'fachada', 'padrao', 'disjuntor', 'medidor',
       'datasheet_modulo', 'datasheet_inversor', 'contrato_assinado', 'procuracao',
-      'art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso', 'outros',
+      'art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso',
+      'cert_modulo', 'cert_inversor', 'log_documento', 'log_conferencia', 'log_avaria', 'log_assinatura', 'obra_foto', 'ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo', 'ent_termo_assinado', 'lib_pedido', 'lib_vistoria', 'lib_medidor', 'lib_liberacao', 'lib_exigencia', 'outros',
     ]);
+    // Jornada, fase 2: os 21 slots novos carregam a etapa (4 a 8) e nunca são obrigatórios (a obrigação mora no portão).
+    expect(cat.filter((i) => i.etapa !== undefined)).toHaveLength(21);
+    expect(cat.filter((i) => i.etapa !== undefined).every((i) => i.etapa! >= 4 && i.etapa! <= 8 && !i.obrigatorio)).toBe(true);
     for (const [doDossie, daVenda] of Object.entries(SLOT_DO_DOSSIE_NA_VENDASOLAR)) expect(itemDoCatalogo('vendasolar', daVenda), doDossie).toBeTruthy();
     // o `documento` do dossiê é o documento com foto do TITULAR DA CONTA, não necessariamente o do comprador
     expect(SLOT_DO_DOSSIE_NA_VENDASOLAR.documento).toBe('documento_titular_uc');
@@ -113,10 +117,21 @@ describe('catálogo da vendasolar', () => {
   });
   it('vários: outra pessoa, beneficiária, imóvel e outros; os demais aceitam um só', () => {
     const varios = cat.filter((i) => i.varios).map((i) => i.chave).sort();
-    expect(varios).toEqual(['conta_luz_beneficiaria', 'datasheet_inversor', 'datasheet_modulo', 'documento_imovel', 'documento_outra_pessoa', 'outros']);
+    expect(varios).toEqual([
+      'cert_inversor', 'cert_modulo', 'conta_luz_beneficiaria', 'datasheet_inversor', 'datasheet_modulo', 'documento_imovel', 'documento_outra_pessoa', 'lib_exigencia',
+      'log_assinatura', 'log_avaria', 'log_conferencia', 'log_documento', 'obra_foto', 'outros',
+    ]);
+    // O álbum da obra aceita 400 fotos e o teto da venda solar é 600; os outros catálogos seguem em 100.
+    expect(limiteDoItem(itemDoCatalogo('vendasolar', 'obra_foto')!)).toBe(400);
+    expect(limiteDoItem(itemDoCatalogo('vendasolar', 'log_documento')!)).toBe(LIMITES.porItem);
     expect(limiteDoItem(itemDoCatalogo('vendasolar', 'documento_imovel')!)).toBe(LIMITES.porItem);
     expect(limiteDoItem(itemDoCatalogo('vendasolar', 'outros')!)).toBe(LIMITES.outros);
     expect(LIMITES.total).toBe(100);
+    const cheio = (n: number) => ({ ...registroDocsVazio(), arquivos: Array.from({ length: n }, (_, i) => ({ id: `a${i}`, slot: 'outros', caminho: 'c', mime: 'application/pdf', bytes: 1, em: '', por: '' })) });
+    expect(motivoSemEspaco(cheio(100), itemDoCatalogo('vendasolar', 'documento_imovel')!)).toBe('muitos_na_venda');
+    expect(motivoSemEspaco(cheio(100), itemDoCatalogo('vendasolar', 'documento_imovel')!, 'vendasolar')).toBeNull();
+    expect(motivoSemEspaco(cheio(600), itemDoCatalogo('vendasolar', 'documento_imovel')!, 'vendasolar')).toBe('muitos_na_venda');
+    expect(motivoSemEspaco({ ...cheio(10), arquivos: Array.from({ length: 400 }, (_, i) => ({ id: `f${i}`, slot: 'obra_foto', caminho: 'c', mime: 'image/jpeg', bytes: 1, em: '', por: '' })) }, itemDoCatalogo('vendasolar', 'obra_foto')!, 'vendasolar')).toBe('muitos_no_item');
     expect(motivoSemEspaco({ ...registroDocsVazio(), arquivos: [{ id: 'a', slot: 'conta_luz', caminho: 'c', mime: 'application/pdf', bytes: 1, em: '', por: '' }] }, itemDoCatalogo('vendasolar', 'conta_luz')!)).toBe('slot_ocupado');
   });
   it('obrigatórios (só pesam no relatório): comprador, conta da geradora, 4 fotos, 2 datasheets, contrato e procuração; o resto não', () => {
@@ -333,7 +348,7 @@ describe('leitura por IA da vendasolar', () => {
   });
   it('o prompt cobre cada item do catálogo, a média do consumo, as vagas de beneficiária e não pede o percentual', () => {
     // Os 5 itens da homologação (Jornada, fase 1) não são lidos pela IA: ficam fora do prompt.
-    const naoLidos = ['art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso'];
+    const naoLidos = ['art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso', 'cert_modulo', 'cert_inversor', 'log_documento', 'log_conferencia', 'log_avaria', 'log_assinatura', 'obra_foto', 'ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo', 'ent_termo_assinado', 'lib_pedido', 'lib_vistoria', 'lib_medidor', 'lib_liberacao', 'lib_exigencia'];
     for (const i of CATALOGO.vendasolar.filter((x) => x.chave !== 'outros' && !naoLidos.includes(x.chave))) {
       expect(SISTEMA_CADASTRO_SOLAR, i.chave).toContain(`"${i.chave}":`);
       expect(DESCRICAO_DOS_ITENS_SOLAR[i.chave], i.chave).toBeTruthy();

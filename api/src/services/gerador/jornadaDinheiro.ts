@@ -75,7 +75,8 @@ export const categoriaObra = (tipo: unknown, slug: unknown): CategoriaObra | nul
 
 // ── O lançamento da obra ───────────────────────────────────────────────────────────────────────────────────────────
 
-export const CONFERENCIAS = ['bateu', 'sem_leitura', 'baixa_confianca', 'divergente_adm', 'estorno'] as const;
+/** `conferido_adm`: o ADM marcou como conferida uma linha que a IA não conferiu (`sem_leitura` ou `baixa_confianca`). */
+export const CONFERENCIAS = ['bateu', 'sem_leitura', 'baixa_confianca', 'divergente_adm', 'estorno', 'conferido_adm'] as const;
 export type Conferencia = typeof CONFERENCIAS[number];
 export interface ComissaoLanc { nome: string; papel: 'venda' | 'socio'; pb: number }
 export interface ObraLanc {
@@ -384,7 +385,11 @@ const pbTexto = (pb: number): string => `${String(pb / 100).replace('.', ',')}%`
 export const percentual = (parte: number, venda: number): number => Math.round(parte * 1000 / venda) / 10;
 const nomeBonito = (n: string): string => (n ? n.charAt(0).toUpperCase() + n.slice(1) : n);
 
-export interface Pendencia { tipo: 'comissao' | 'engenheiro' | 'compra' | 'equipe' | 'frete'; texto: string; valor_centavos: number | null; etapa: number }
+export interface Pendencia {
+  tipo: 'comissao' | 'engenheiro' | 'compra' | 'equipe' | 'frete'; texto: string; valor_centavos: number | null; etapa: number;
+  /** Comissão paga a mais que a devida (a venda foi corrigida para baixo): o valor é o que falta DEVOLVER e não soma no "a pagar". */
+  devolver?: boolean;
+}
 
 export interface EntradaLivro {
   /** Já conferidos pela assinatura. */
@@ -414,7 +419,8 @@ export interface LinhaLivro {
   estorno_de: string | null; devolucao: boolean; compra_id: string | null; carga_id: string | null;
   comissao: ComissaoLanc | null;
 }
-export interface LinhaComissaoLivro extends LinhaComissao { pago: { id: string; data: string } | null }
+/** `pago`: a última linha viva e não estornada. `pago_centavos`: o líquido pago (estornos subtraem). `diferenca_centavos`: devida (pelo valor ATUAL da venda) menos paga. */
+export interface LinhaComissaoLivro extends LinhaComissao { pago: { id: string; data: string } | null; pago_centavos: number; diferenca_centavos: number }
 export interface GrupoPrevistoLivro { grupo: GrupoPrevisto; rotulo: string; previsto: number; real: number; diferenca: number }
 export interface Fechamento {
   a_receber: number | null;
@@ -490,22 +496,29 @@ export function livroDaObra(e: EntradaLivro): Livro {
     };
   });
 
-  // Comissões pela regra vigente. Paga = lançamento vivo, não estornado, nem estorno, com o mesmo nome e papel.
+  // Comissões pela regra vigente, sobre o valor ATUAL da venda. Paga = os lançamentos vivos com o mesmo nome e papel (o estorno subtrai).
   const liberadas = recebido > 0;
-  const pagas = vivos.filter((l) => !l.obra.estorno_de && !estornada(l) && l.obra.comissao);
   const regraLinhas = linhasDaRegra(e.regra, venda ?? 0);
   const comLinhas: LinhaComissaoLivro[] = regraLinhas.map((r) => {
-    const p = pagas.find((l) => l.obra.comissao!.nome === r.nome && l.obra.comissao!.papel === r.papel);
-    return { ...r, pago: p ? { id: p.id, data: p.data } : null };
+    const deles = vivos.filter((l) => l.obra.comissao && l.obra.comissao.nome === r.nome && l.obra.comissao.papel === r.papel);
+    const liquido = deles.reduce((acc, l) => acc + sinal(l), 0);
+    const ult = [...deles].reverse().find((l) => !l.obra.estorno_de && !estornada(l));
+    return { ...r, pago: liquido > 0 && ult ? { id: ult.id, data: ult.data } : null, pago_centavos: liquido, diferenca_centavos: r.valor_centavos - liquido };
   });
 
-  // O "a pagar" (seção 3.3).
+  // O "a pagar" (seção 3.3). A comissão que a venda corrigida deixou maior que a paga aparece como diferença; a paga a mais, como "a devolver".
   const pend: Pendencia[] = [];
   if (liberadas && venda) {
     for (const r of comLinhas) {
-      if (r.pago || r.valor_centavos <= 0) continue;
       const papel = r.papel === 'venda' ? `venda ${pbTexto(r.pb)}` : `sócio ${pbTexto(r.pb)}`;
-      pend.push({ tipo: 'comissao', texto: `Comissão de ${nomeBonito(r.nome)} (${papel}): ${reaisBR(r.valor_centavos)}`, valor_centavos: r.valor_centavos, etapa: 2 });
+      const quem = `Comissão de ${nomeBonito(r.nome)} (${papel})`;
+      if (r.pago_centavos <= 0) {
+        if (r.valor_centavos > 0) pend.push({ tipo: 'comissao', texto: `${quem}: ${reaisBR(r.valor_centavos)}`, valor_centavos: r.valor_centavos, etapa: 2 });
+      } else if (r.diferenca_centavos > 0) {
+        pend.push({ tipo: 'comissao', texto: `${quem}: faltam ${reaisBR(r.diferenca_centavos)}`, valor_centavos: r.diferenca_centavos, etapa: 2 });
+      } else if (r.diferenca_centavos < 0) {
+        pend.push({ tipo: 'comissao', texto: `${quem}: a devolver ${reaisBR(-r.diferenca_centavos)}`, valor_centavos: -r.diferenca_centavos, etapa: 2, devolver: true });
+      }
     }
   }
   if (e.engenheiroAPagar && !vivos.some((l) => l.categoria === 'projeto_eletrico' && !l.obra.estorno_de && !estornada(l))) {
@@ -540,6 +553,9 @@ export function livroDaObra(e: EntradaLivro): Livro {
   if (aMais > 0) faltam.push(`Recebido a mais: ${reaisBR(aMais)}`);
   for (const p of pend) faltam.push(p.texto);
   if (comprovantes.com < comprovantes.total) faltam.push(`Comprovantes: ${comprovantes.com} de ${comprovantes.total}`);
+  // A IA não conferiu o valor (`sem_leitura` ou `baixa_confianca`) e o ADM ainda não marcou como conferida: a conta não fecha.
+  const naoConferidas = vivos.filter((l) => !l.obra.estorno_de && !estornada(l) && (l.obra.conferencia === 'sem_leitura' || l.obra.conferencia === 'baixa_confianca')).length;
+  if (naoConferidas > 0) faltam.push(`${naoConferidas} ${naoConferidas === 1 ? 'lançamento não conferido pela IA' : 'lançamentos não conferidos pela IA'}. O Thiago confere.`);
   const semMaterial = [...faltam];
   if (material.total === 0) faltam.push('Nenhum item de material na Compra');
   else if (material.com_origem < material.total) faltam.push(`Material com origem: ${material.com_origem} de ${material.total}`);
@@ -547,7 +563,7 @@ export function livroDaObra(e: EntradaLivro): Livro {
 
   const fechamento: Fechamento = {
     a_receber: aReceber,
-    a_pagar_total: pend.reduce((s, p) => s + (p.valor_centavos ?? 0), 0),
+    a_pagar_total: pend.reduce((acc, p) => acc + (p.devolver ? 0 : (p.valor_centavos ?? 0)), 0),
     pendencias: pend.length,
     comprovantes,
     custo: gasto,

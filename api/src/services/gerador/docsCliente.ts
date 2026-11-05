@@ -44,14 +44,18 @@ const MAX_ARQUIVOS = 100;         // por venda
 const MAX_POR_ITEM_VARIOS = 40;   // fotos de um item que aceita vários (o `outros` vai até o teto da venda)
 const MAX_TRILHA = 50;
 export const LIMITES = { total: MAX_ARQUIVOS, porItem: MAX_POR_ITEM_VARIOS, outros: MAX_ARQUIVOS, trilha: MAX_TRILHA } as const;
+/** Jornada, fase 2: o álbum da obra (400 fotos) e o teto da venda solar (600 arquivos). Os outros catálogos seguem em 100. */
+export const LIMITE_ALBUM = 400;
+export const TETO_VENDA_SOLAR = 600;
+export const tetoDaVenda = (linha?: string): number => (linha === 'vendasolar' ? TETO_VENDA_SOLAR : MAX_ARQUIVOS);
 
 // ── Catálogo ─────────────────────────────────────────────────────────────────
 
 export type Aceita = 'imagem' | 'pdf' | 'ambos';
-export interface ItemDoc { chave: string; rotulo: string; aceita: Aceita; obrigatorio: boolean; varios: boolean }
+export interface ItemDoc { chave: string; rotulo: string; aceita: Aceita; obrigatorio: boolean; varios: boolean; /** Jornada, fase 2: a etapa (4 a 8) a que o item pertence; a tela do quadro `vdc` só mostra os de etapa menor que 4. */ etapa?: number }
 
-const it = (chave: string, rotulo: string, aceita: Aceita, obrigatorio: boolean, varios = false): ItemDoc =>
-  ({ chave, rotulo, aceita, obrigatorio, varios });
+const it = (chave: string, rotulo: string, aceita: Aceita, obrigatorio: boolean, varios = false, etapa?: number): ItemDoc =>
+  (etapa === undefined ? { chave, rotulo, aceita, obrigatorio, varios } : { chave, rotulo, aceita, obrigatorio, varios, etapa });
 
 // Os 4 itens de foto que já existem no dossiê (fachada, padrão, disjuntor, medidor) seguem só imagem, como lá.
 // Obrigatório = os documentos e as fotos principais; "outros" nunca é. No eletroposto, procuração e anuência só
@@ -133,6 +137,28 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
     it('projeto_comprovante', 'Comprovante de pagamento do engenheiro', 'ambos', false),
     it('protocolo', 'Print do protocolo na distribuidora', 'ambos', false),
     it('parecer_acesso', 'Parecer de acesso aprovado', 'ambos', false),
+    // Jornada, fase 2 (06/11/2026): fotos e documentos das etapas 4 a 8. A obrigação mora no portão da etapa, não aqui.
+    it('cert_modulo', 'Certificado de garantia das placas', 'ambos', false, true, 4),
+    it('cert_inversor', 'Certificado de garantia do inversor', 'ambos', false, true, 4),
+    it('log_documento', 'Documento da carga (canhoto, rastreio ou conhecimento)', 'ambos', false, true, 5),
+    it('log_conferencia', 'Foto da conferência da carga', 'imagem', false, true, 5),
+    it('log_avaria', 'Foto da avaria', 'imagem', false, true, 5),
+    it('log_assinatura', 'Assinatura de quem recebeu a carga', 'imagem', false, true, 5),
+    it('obra_foto', 'Fotos da obra', 'imagem', false, true, 6),
+    it('ent_vista_geral', 'Vista geral das placas', 'imagem', false, false, 7),
+    it('ent_arranjo', 'Arranjo de perto', 'imagem', false, false, 7),
+    it('ent_inversor', 'Inversor ligado, com o visor', 'imagem', false, false, 7),
+    it('ent_quadro', 'Quadro de proteção', 'imagem', false, false, 7),
+    it('ent_aterramento', 'Aterramento', 'imagem', false, false, 7),
+    it('ent_padrao', 'Padrão com placa de advertência', 'imagem', false, false, 7),
+    it('ent_etiquetas', 'Etiquetas', 'imagem', false, false, 7),
+    it('ent_local_limpo', 'Local limpo', 'imagem', false, false, 7),
+    it('ent_termo_assinado', 'Termo de entrega assinado na tela', 'imagem', false, false, 7),
+    it('lib_pedido', 'Print do pedido de vistoria', 'ambos', false, false, 8),
+    it('lib_vistoria', 'Vistoria aprovada', 'ambos', false, false, 8),
+    it('lib_medidor', 'Medidor trocado', 'ambos', false, false, 8),
+    it('lib_liberacao', 'Liberação da usina', 'ambos', false, false, 8),
+    it('lib_exigencia', 'Exigência da Cemig', 'ambos', false, true, 8),
     it('outros', 'Outros documentos', 'ambos', false, true),
   ],
 };
@@ -155,6 +181,8 @@ export const SLOTS_FORA_DO_RELATORIO: ReadonlySet<string> = new Set([
   'comprovante_endereco_comprador', 'comprovante_endereco_cedente', 'comprovante_endereco_avalista',
   'documento_financiamento', 'comprovante_endereco_financiamento',
   'art_comprovante', 'projeto_comprovante',
+  // Jornada, fase 2: nada das etapas 4 a 8 vai ao relatório de engenharia nem ao Trello.
+  'cert_modulo', 'cert_inversor', 'log_documento', 'log_conferencia', 'log_avaria', 'log_assinatura', 'obra_foto', 'ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo', 'ent_termo_assinado', 'lib_pedido', 'lib_vistoria', 'lib_medidor', 'lib_liberacao', 'lib_exigencia',
 ]);
 
 export const itemDoCatalogo = (linha: Linha, chave: unknown): ItemDoc | null =>
@@ -294,8 +322,8 @@ export function comArquivosTrocados(reg: RegistroDocs, idA: string, idB: string,
   };
 }
 /** Por que `a` NÃO cabe no item `item` (null = cabe). O próprio arquivo não conta nos tetos: mover não aumenta o total. */
-export function motivoSemEspacoParaMover(reg: RegistroDocs, id: string, item: ItemDoc): ReturnType<typeof motivoSemEspaco> {
-  return motivoSemEspaco({ ...reg, arquivos: reg.arquivos.filter((x) => x.id !== id) }, item);
+export function motivoSemEspacoParaMover(reg: RegistroDocs, id: string, item: ItemDoc, linha?: string): ReturnType<typeof motivoSemEspaco> {
+  return motivoSemEspaco({ ...reg, arquivos: reg.arquivos.filter((x) => x.id !== id) }, item, linha);
 }
 export function comVinculo(reg: RegistroDocs, proposta: string, por: string, em: string): RegistroDocs {
   return {
@@ -308,16 +336,18 @@ export function comVinculo(reg: RegistroDocs, proposta: string, por: string, em:
 /** Quantos arquivos o item comporta: 1 nos de um arquivo só, 40 nos que aceitam vários, e o `outros` até o teto da venda. */
 export function limiteDoItem(item: ItemDoc): number {
   if (!item.varios) return 1;
+  if (item.chave === 'obra_foto') return LIMITE_ALBUM;
   return item.chave === 'outros' ? LIMITES.outros : LIMITES.porItem;
 }
 
 /** Por que um arquivo novo NÃO cabe (null = cabe). Item de um só arquivo ocupado, teto por item e teto por venda. */
-export function motivoSemEspaco(reg: RegistroDocs, item: ItemDoc): 'slot_ocupado' | 'muitos_no_item' | 'muitos_na_venda' | null {
+export function motivoSemEspaco(reg: RegistroDocs, item: ItemDoc, linha?: string): 'slot_ocupado' | 'muitos_no_item' | 'muitos_na_venda' | null {
+  const teto = tetoDaVenda(linha);
   const doItem = reg.arquivos.filter((a) => a.slot === item.chave).length;
   if (!item.varios && doItem >= 1) return 'slot_ocupado';
   // O `outros` tem o mesmo teto da venda: quando enche, o motivo que vale é o da venda.
-  if (item.varios && limiteDoItem(item) < MAX_ARQUIVOS && doItem >= limiteDoItem(item)) return 'muitos_no_item';
-  if (reg.arquivos.length >= MAX_ARQUIVOS) return 'muitos_na_venda';
+  if (item.varios && limiteDoItem(item) < teto && doItem >= limiteDoItem(item)) return 'muitos_no_item';
+  if (reg.arquivos.length >= teto) return 'muitos_na_venda';
   return null;
 }
 

@@ -60,10 +60,16 @@ export async function guardaDaObra(req: Request, res: Response): Promise<GuardaO
   }
 }
 
-/** O limite de IA só conta quando a IA vai ser chamada. Subir comprovante sem leitura não gasta os 10 por minuto. */
+/**
+ * O servidor SEMPRE lê o comprovante: o `ler` do corpo não pula a IA. A única pessoa que pula é o ADM, com `ler: false`. O limite de IA conta em
+ * todo pedido em que a IA vai ser chamada.
+ */
+export const pulaALeitura = (req: Request): boolean =>
+  ehAdm(String((req as any).consultor?.nome || '').trim().toLowerCase()) && (req.body as { ler?: unknown } | null | undefined)?.ler === false;
+
 export function limiteSeForLer(req: Request, res: Response, next: NextFunction): void {
-  if ((req.body as { ler?: unknown } | null | undefined)?.ler === true) { aiLimiter(req, res, next); return; }
-  next();
+  if (pulaALeitura(req)) { next(); return; }
+  aiLimiter(req, res, next);
 }
 
 export const corpoDe = (req: Request): Record<string, unknown> | null => {
