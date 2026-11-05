@@ -10,11 +10,10 @@
 //   · público: conta que NÃO paga hoje e tem WhatsApp no cadastro (grátis que nunca pagou, ou ex-assinante);
 //   · ordem: o mais quente primeiro (ex-assinante que respondeu, quem já respondeu alguma vez, o resto);
 //   · o texto vai pelo GRUPO DE PAGAMENTO: "assinou" só para quem tem pagamento provado (sales status paid e valor > 0);
-//   · a campanha CEDE à agenda dentro da hora (cede_a_agenda) e nunca sai no dia do deploy (inicioEfetivoMs).
+//   · a campanha CEDE à agenda dentro da hora (cede_a_agenda) e só começa depois que a SONDA automática passou (usu_rec_sonda_ok).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { diaBRT, diaDaSemanaBRT, horaBRT } from '../agentes5040/relogio';
-import { ehFeriadoBR } from '../../utils/feriadosBR';
+import { diaBRT, horaBRT } from '../agentes5040/relogio';
 import { chaveDoTelefone, normalizarTelefoneSd } from './quizSolardoc';
 import type { MsgConversa } from '../agentes5040/tipos';
 
@@ -30,13 +29,28 @@ export const PREFIXO_VEZ_RET = 'usu_rec_vez:';
 export const CHAVE_PAUSA_RET = 'usu_rec_pausa';
 export const CHAVE_LARGADA_RET = 'usu_rec_largada';
 export const CHAVE_RESUMO_RET = 'usu_rec_resumo';
+/** A sonda automática antes do 1º envio (05/11/2026), uma vez por piso. As três chaves levam o piso (ISO) no fim. Fora de BOT_SENT_PREFIXES. */
+export const PREFIXO_SONDA_CLAIM_RET = 'usu_rec_sonda_claim:';
+export const PREFIXO_SONDA_OK_RET = 'usu_rec_sonda_ok:';
+export const PREFIXO_SONDA_FALHOU_RET = 'usu_rec_sonda_falhou:';
+/** O carimbo falso da sonda: mesmo prefixo de um envio real (`usu_rec_sent:`), então come vaga e vale no espaçamento enquanto existe. */
+export const PREFIXO_SONDA_CARIMBO_RET = `${PREFIXO_CARIMBO_RET}sonda:`;
+/** Os tetos que a sonda aceita ver: o da hora e o do dia (já sem a reserva do transacional). Env que afrouxa acima disto reprova a sonda. */
+export const SONDA_TETO_HORA_MAX = 6;
+export const SONDA_TETO_DIA_MAX = 30;
+/** Claim da sonda sem resultado há mais que isto = o tick que a fazia morreu (a Central diz `sonda_travada`, e quem apaga o claim refaz). */
+export const SONDA_TRAVADA_MS = 10 * 60_000;
 
 /** O carimbo de cada envio guarda `estado`; estes são os que o painel reconhece. A chave da sonda 1 não tem nenhum. */
 export const ESTADOS_CARIMBO = ['reservado', 'enviado', 'incerto', 'nao_saiu', 'destino'] as const;
 export type EstadoCarimbo = typeof ESTADOS_CARIMBO[number];
 
+/** O GRUPO de pagamento (vai na posse e a Carla lê). O texto tem mais um corte: quem nunca pagou se divide em `usou` e `nunca usou` (CHAVES_TEXTO). */
 export const GRUPOS_TEXTO = ['pagou', 'nunca_pagou', 'incerto'] as const;
 export type GrupoTexto = typeof GRUPOS_TEXTO[number];
+/** As quatro listas de texto: o `nunca_pagou` se parte pelo uso (users.documentos_usados > 0). */
+export const CHAVES_TEXTO = ['pagou', 'nunca_pagou_usou', 'nunca_pagou_nunca_usou', 'incerto'] as const;
+export type ChaveTexto = typeof CHAVES_TEXTO[number];
 export type Segmento = 'ex_assinante' | 'gratis_ativo' | 'gratis_cnpj' | 'gratis';
 
 export const TETO_CAMPANHA_24H = 25;
@@ -63,11 +77,11 @@ export const FOLGA_DA_AGENDA = 2;
 export const TETO_CONFIRMA_PADRAO = 6;
 
 /**
- * O PISO do 1º envio (D35). O orquestrador preenche na entrega: as 9h de Brasília (12:00Z) do 1º dia de janela depois do READY previsto e da
- * noite da sonda 1 (a condição do chefe-antiban). O executor NÃO escolhe a data. Enquanto isto não for uma data, o robô não envia nunca
- * (`sem_data_de_inicio`, a Central mostra Pausado): esse é o sinal de piso esquecido.
+ * O PISO do 1º envio (D35). Desde 05/11/2026 o dono liberou a largada no mesmo dia: o piso é esta data e a campanha só envia depois que a
+ * SONDA automática (usu_rec_sonda_ok:<este valor>) estiver gravada; a janela de 9h às 20h, segunda a sábado, fora de feriado, segue valendo.
+ * Valor que não é data = o robô não envia nunca (`sem_data_de_inicio`, a Central mostra Pausado). Trocar o valor refaz a sonda.
  */
-export const INICIO_RETOMADA_ISO = 'PISO_NAO_PREENCHIDO';
+export const INICIO_RETOMADA_ISO = '2026-11-05T17:00:00Z';
 
 /** Os telefones cadastrados do 5040 (a linha): quem tem esta chave é linha nossa, nunca público. */
 export const TELEFONE_DA_LINHA_5040 = '5534998165040';
@@ -76,11 +90,15 @@ export const TELEFONE_DA_LINHA_5040 = '5534998165040';
 
 const C = '{oi} Aqui é a Carla, da SolarDoc. Passando pra contar que a plataforma mudou bastante. Quer ver o que tem de novo?';
 
+/** O marcador do nome nos textos de quem nunca pagou: `, {nome}` vira `, Ana` ou some inteiro. */
+export const MARCADOR_NOME = ', {nome}';
+
 /**
- * Uma bolha, sem link, sem emoji, sem preço. `{oi}` vira "Oi, Ana." ou "Oi.". "Assinou" só no grupo `pagou`; "testou" só no `nunca_pagou`;
- * o `incerto` (ex-assinante sem pagamento provado) só recebe a C, que não afirma nada sobre a conta.
+ * Uma bolha de até 160 caracteres, sem link, sem emoji, sem preço. `{oi}` vira "Oi, Ana." ou "Oi."; `, {nome}` vira ", Ana" ou some.
+ * O grupo `pagou` leva a entrevista de saída (decisão do dono de 04/11) e o `incerto` só a C, que não afirma nada sobre a conta.
+ * 05/11/2026 (chefe-antiban): quem nunca pagou recebe um de dois textos por perfil (usou ou nunca usou), A ou B pelo hash do id da conta.
  */
-export const VARIACOES_RETOMADA: Readonly<Record<GrupoTexto, readonly string[]>> = Object.freeze({
+export const VARIACOES_RETOMADA: Readonly<Record<ChaveTexto, readonly string[]>> = Object.freeze({
   // 04/11/2026: quem já pagou e saiu recebe a ENTREVISTA DE SAÍDA (pedido do dono), não a novidade. Uma pergunta só, sem link e sem {oi}
   // (o "Oi," já está no texto aprovado). O retomadaUsuarios.ts grava `entrevista_saida: true` na posse, e a Carla sabe que o toque foi este.
   pagou: Object.freeze([
@@ -88,24 +106,53 @@ export const VARIACOES_RETOMADA: Readonly<Record<GrupoTexto, readonly string[]>>
     'Carla aqui, da SolarDoc. Se pudesse mudar uma coisa na SolarDoc pra você ter ficado, qual seria?',
     'Oi, é a Carla, da SolarDoc. Pode ser sincero, não vou me ofender: o que pesou pra você sair?',
   ]),
-  nunca_pagou: Object.freeze([
-    '{oi} Aqui é a Carla, da SolarDoc. A plataforma mudou bastante desde que você testou. Quer ver o que tem de novo?',
-    '{oi} Aqui é a Carla, da SolarDoc. Você testou a plataforma um tempo atrás, e ela mudou bastante. Quer ver o que tem de novo?',
-    C,
+  nunca_pagou_usou: Object.freeze([
+    'Olá, {nome}. Aqui é a Carla, da SolarDoc. Você já usou a SolarDoc, e agora a proposta aceita inversores de marcas diferentes. Quer ver?',
+    'Opa, {nome}. Sou a Carla, da SolarDoc. Você testou a SolarDoc. Agora a IA lê a conta de luz e preenche o cadastro do cliente. Quer testar?',
+  ]),
+  nunca_pagou_nunca_usou: Object.freeze([
+    'E aí, {nome}! Aqui é a Carla, da SolarDoc. Você criou sua conta e ainda não montou nenhuma proposta. Quer que eu te mostre como é?',
+    'Aqui é a Carla, da SolarDoc. Sua conta ficou parada, e o menu novo traz Nova proposta e Ler conta de luz no topo. Quer um passo a passo, {nome}?',
   ]),
   incerto: Object.freeze([C]),
 });
 
-export type TextosPorGrupo = Readonly<Record<GrupoTexto, readonly string[]>>;
+export type TextosPorGrupo = Readonly<Record<ChaveTexto, readonly string[]>>;
 
-/** Algum dos três grupos está sem texto? É a trava global do robô (sem o texto do redator não envia). O parâmetro existe para o teste. */
-export const textosVazios = (textos: TextosPorGrupo = VARIACOES_RETOMADA): boolean => GRUPOS_TEXTO.some(g => (textos[g] ?? []).length === 0);
+/** Alguma das listas está sem texto? É a trava global do robô (sem o texto do redator não envia). O parâmetro existe para o teste. */
+export const textosVazios = (textos: TextosPorGrupo = VARIACOES_RETOMADA): boolean => CHAVES_TEXTO.some(g => (textos[g] ?? []).length === 0);
 
 /** "Oi, Ana." ou "Oi.". */
 export const saudacao = (primeiro: string | null | undefined): string => {
   const p = String(primeiro ?? '').trim();
   return p ? `Oi, ${p}.` : 'Oi.';
 };
+
+/** A lista de texto desta pessoa: o grupo, e para quem nunca pagou o corte pelo uso. */
+export const chaveDoTexto = (grupo: GrupoTexto, usou: boolean): ChaveTexto =>
+  grupo === 'nunca_pagou' ? (usou ? 'nunca_pagou_usou' : 'nunca_pagou_nunca_usou') : grupo;
+
+/**
+ * Usou a plataforma: `users.documentos_usados > 0` OU existe ao menos 1 linha em `documents` com o user_id (`temDocumento`). O contador zera no
+ * reset mensal do `pro` e em fluxos de ativação; a tabela `documents` é o histórico que não zera. Valor ilegível vale "não usou".
+ */
+export const usouAPlataforma = (u: { documentos_usados?: number | string | null }, temDocumento = false): boolean =>
+  temDocumento === true || Number(u.documentos_usados) > 0;
+
+/** "ANA" e "ana" viram "Ana". Nome com algo além de letra, hífen e apóstrofo vira vazio (nunca leva `{`, `}` ou link para o texto). */
+export function nomeParaTexto(primeiro: string | null | undefined): string {
+  const p = String(primeiro ?? '').trim();
+  if (!p || !/^[\p{L}'’-]+$/u.test(p)) return '';
+  return p.charAt(0).toLocaleUpperCase('pt-BR') + p.slice(1).toLocaleLowerCase('pt-BR');
+}
+
+/** Hash estável (FNV-1a de 32 bits) do id da conta: o mesmo id cai sempre no mesmo texto, A ou B. */
+export function hashEstavel(id: string): number {
+  let h = 0x811c9dc5;
+  const t = String(id ?? '');
+  for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h >>> 0;
+}
 
 /** Estável: o seco mostra a mensagem exata, e reavaliar a pessoa não troca o texto. */
 export function variacaoDe(hmac: string, n: number): number {
@@ -132,16 +179,33 @@ export type TextoDaRetomada =
   | { ok: true; texto: string; variacao: number }
   | { ok: false; motivo: 'sem_texto' | 'texto_invalido'; detalhe?: string[] };
 
-/** O texto desta pessoa: pelo grupo, pela variação estável do hmac e pela saudação (o nome só entra se couber em 160). */
+/** O que a escolha do texto precisa além do grupo: se a pessoa usou a plataforma e o id da conta (o hash do A ou B). */
+export interface PerfilTexto { usou?: boolean; idUsuario?: string | null }
+
+/**
+ * O texto desta pessoa: pela lista (grupo e uso), pela variação estável e pelo nome.
+ *  · `pagou` e `incerto`: a variação vem do hmac do telefone e o nome entra em `{oi}` ("Oi, Ana."), só se o texto couber em 160;
+ *  · `nunca_pagou`: A ou B pelo hash do id da conta; `, {nome}` vira `, Ana` (1ª maiúscula, resto minúsculo) e, sem nome ou se passar de 160
+ *    com ele, some inteiro.
+ */
 export function textoDaRetomada(
-  grupo: GrupoTexto, primeiro: string | null | undefined, hmac: string, textos: TextosPorGrupo = VARIACOES_RETOMADA,
+  grupo: GrupoTexto, primeiro: string | null | undefined, hmac: string, textos: TextosPorGrupo = VARIACOES_RETOMADA, perfil: PerfilTexto = {},
 ): TextoDaRetomada {
-  const lista = textos[grupo] ?? [];
+  const chave = chaveDoTexto(grupo, perfil.usou === true);
+  const lista = textos[chave] ?? [];
   if (!lista.length) return { ok: false, motivo: 'sem_texto' };
-  const variacao = variacaoDe(hmac, lista.length);
+  const eNunca = grupo === 'nunca_pagou';
+  const variacao = eNunca ? hashEstavel(perfil.idUsuario || hmac) % lista.length : variacaoDe(hmac, lista.length);
   const modelo = lista[variacao]!;
-  let texto = modelo.replace('{oi}', saudacao(primeiro));
-  if (texto.length > MAX_CARACTERES_RETOMADA) texto = modelo.replace('{oi}', 'Oi.');
+  let texto: string;
+  if (modelo.includes(MARCADOR_NOME)) {
+    const nome = nomeParaTexto(primeiro);
+    texto = nome ? modelo.replace(MARCADOR_NOME, `, ${nome}`) : modelo.replace(MARCADOR_NOME, '');
+    if (texto.length > MAX_CARACTERES_RETOMADA) texto = modelo.replace(MARCADOR_NOME, '');
+  } else {
+    texto = modelo.replace('{oi}', saudacao(primeiro));
+    if (texto.length > MAX_CARACTERES_RETOMADA) texto = modelo.replace('{oi}', 'Oi.');
+  }
   const detalhe = motivosDoTexto(texto);
   if (detalhe.length) return { ok: false, motivo: 'texto_invalido', detalhe };
   return { ok: true, texto, variacao };
@@ -164,6 +228,8 @@ export interface UsuarioRet {
   carla_sem_cnpj_count?: number | null;
   carla_inativo_count?: number | null;
   last_canceled_at?: string | null;
+  /** Quantos documentos a conta gerou (users.documentos_usados). Separa quem nunca pagou em `usou` e `nunca usou`. */
+  documentos_usados?: number | null;
 }
 
 export interface VendaRet { email?: string | null; valor?: number | string | null; status?: string | null; subscription_id?: string | null }
@@ -183,6 +249,8 @@ export interface ExtrasRet {
   nexusConviteEmMs: number | null;
   jaNaCampanha: boolean;
   marcaFora: MarcaForaRet | null;
+  /** Existe ao menos 1 linha em `documents` com o user_id da conta (qualquer data). Entra no critério de "usou". Ausente = não. */
+  temDocumento?: boolean;
   /** `pesquisa_saida:<user_id>` existe: a pessoa já respondeu a entrevista de saída (formulário ou Carla). Ausente = não sei/não. */
   respondeuSaida?: boolean;
   /** `pesquisa_saida_email:<user_id>` foi tomado HOJE (dia de Brasília). Ausente = não. */
@@ -493,31 +561,18 @@ export function limiteCedeAAgenda(valorDaEnv: string | undefined): number {
   return Math.max(0, Math.min(CEDE_AGENDA_MAX, teto - FOLGA_DA_AGENDA));
 }
 
-// ── o início (D35) ───────────────────────────────────────────────────────────
+// ── o início (D35, revisto em 05/11/2026) ────────────────────────────────────
 
 const TRES_H = 3 * HORA;
 
-/** Dia útil para mensagem fria: segunda a sábado, fora de feriado nacional. Mesma conta de dentroDaJanelaDaBaseLinha. */
-const diaDeJanela = (instante: number): boolean => {
-  const dow = diaDaSemanaBRT(instante);
-  return dow >= 1 && dow <= 6 && !ehFeriadoBR(diaBRT(instante));
-};
-
 /**
- * O 1º instante em que o robô pode enviar: o MAIOR entre o piso e as 9h de Brasília do 1º dia de janela depois do dia (de Brasília) da
- * largada. A largada é gravada na 1ª rodada depois do deploy, então nunca sai envio no dia do deploy, e entre o READY e o 1º envio
- * sempre fica uma noite (onde roda a sonda 1). Piso ou largada que não são número, ou 7 dias sem achar janela, valem Infinity: nunca.
+ * O 1º instante em que o robô pode enviar: o PISO. Desde 05/11/2026 não há mais "nunca no dia do deploy" nem "só às 9h do dia seguinte":
+ * quem libera o 1º envio é a sonda automática (usu_rec_sonda_ok), que o robô confere antes de cada rodada. A janela de 9h às 20h, segunda
+ * a sábado, fora de feriado, continua sendo o portão de horário. Piso ou largada que não são número valem Infinity: nunca.
  */
 export function inicioEfetivoMs(largadaMs: number, pisoMs: number): number {
   if (!Number.isFinite(largadaMs) || !Number.isFinite(pisoMs)) return Infinity;
-  let dia = diaBRT(largadaMs);
-  if (!dia) return Infinity;
-  for (let i = 0; i < 7; i++) {
-    dia = new Date(Date.parse(`${dia}T00:00:00.000Z`) + DIA).toISOString().slice(0, 10);
-    const noveHoras = Date.parse(`${dia}T09:00:00.000Z`) + TRES_H;     // 9h de Brasília
-    if (diaDeJanela(noveHoras)) return Math.max(pisoMs, noveHoras);
-  }
-  return Infinity;
+  return pisoMs;
 }
 
 /** O piso do código como número. Texto que não é data vale NaN (e o início, Infinity). */
@@ -553,6 +608,10 @@ const PARADAS: Readonly<Record<string, { texto: string; bloqueio: boolean }>> = 
   reserva_do_quiz: { texto: 'O frio da linha está perto do teto: a campanha deixa a vaga para o quiz', bloqueio: false },
   teto_da_linha: { texto: 'O envio frio da linha está cheio agora', bloqueio: false },
   cede_a_agenda: { texto: 'A agenda está usando a linha: o frio espera', bloqueio: false },
+  sonda_falhou: { texto: 'A sonda de segurança falhou: a campanha fica parada até alguém apagar usu_rec_sonda_falhou (veja o e-mail do dono)', bloqueio: true },
+  sonda_travada: { texto: 'A sonda de segurança começou e não terminou: apague usu_rec_sonda_claim e usu_rec_sent:sonda (o carimbo de teste come 1 vaga do frio por 24 h) para refazer', bloqueio: true },
+  aguardando_sonda: { texto: 'Aguardando a sonda de segurança: roda sozinha na próxima rodada com a linha calma, antes do 1º envio', bloqueio: false },
+  sonda_rodando: { texto: 'A sonda de segurança está rodando agora', bloqueio: false },
 });
 
 /** Estrutura trava (bloqueio: a Central mostra Pausado); horário, teto e agenda só explicam (a Central segue Ligada). */

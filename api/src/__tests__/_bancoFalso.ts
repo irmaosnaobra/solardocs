@@ -96,7 +96,11 @@ class Consulta implements PromiseLike<any> {
   upsert(p: any, opts?: { onConflict?: string }) { this.op = 'upsert'; this.payload = p; this.onConflict = opts?.onConflict ?? ''; return this; }
   delete() { this.op = 'delete'; return this; }
 
-  eq(c: string, v: any) { this.filtros.push(r => caminho(r, c) === v); return this; }
+  // `->>` devolve TEXTO no Postgres: o falso compara como texto (número gravado no JSON casa com o filtro em string).
+  eq(c: string, v: any) {
+    this.filtros.push(c.includes('->>') ? (r => { const x = caminho(r, c); return x != null && v != null && String(x) === String(v); }) : (r => caminho(r, c) === v));
+    return this;
+  }
   neq(c: string, v: any) { this.filtros.push(r => caminho(r, c) !== v); return this; }
   in(c: string, vs: any[]) { this.filtros.push(r => vs.includes(caminho(r, c))); return this; }
   is(c: string, v: any) { this.filtros.push(r => (v === null ? caminho(r, c) == null : caminho(r, c) === v)); return this; }

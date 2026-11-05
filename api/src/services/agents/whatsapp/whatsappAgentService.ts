@@ -17,7 +17,7 @@ import { lerRegulamento } from '../../chefe/regulamento';
 import { HandoffComprovante, blocoComprovanteGiovanna, lerHandoffComprovante, pixDoHandoffPodeSair, HANDOFF_FRESCO_MIN } from './comprovanteHandoff';
 import { ehGatilhoSolarDoc } from './gatilhoSolarDoc';
 import { semNegarIA } from './giovannaIA';
-import { atualizarPosse, cedeAoPedidoDeDepoimento, cedeARetomadaDaCarla, chaveDaPosse, ehPosseDaRetomada, lerPosse } from '../../agentes5040/posse';
+import { avancarAteWaIdDaRetomada, cedeAoPedidoDeDepoimento, cedeARetomadaDaCarla, chaveDaPosse } from '../../agentes5040/posse';
 import { pedeParaPararDeReceber } from '../../agentes5040/baseRegras';
 
 const anthropic = novoAnthropic();
@@ -819,11 +819,28 @@ export async function silenciarNaRetomada(userId: string, phone: string, motivo:
 }
 
 /**
+ * Qual mensagem o leitor de comprovante acabou de tratar? Volta do FIM da conversa e para na 1ª mensagem NOSSA (robô ou equipe): só vale o
+ * que o lead mandou depois da nossa última fala. Exige EXATAMENTE 1 imagem ou documento do lead nesse trecho; com 0 (a imagem ainda não
+ * chegou à wa_mensagens) ou 2 ou mais (não dá para saber qual foi tratada) devolve null e não marca nada: a Carla responde, como antes.
+ * `msgs` vem em ordem de chegada.
+ */
+export function idDoComprovanteTratado(msgs: ReadonlyArray<{ id: number; autor: string; tipo: string }>): number | null {
+  let alvo: number | null = null;
+  let achados = 0;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]!;
+    if (m.autor !== 'lead') break;
+    if (['image', 'imagem', 'document'].includes(m.tipo)) { achados++; alvo = m.id; }
+  }
+  return achados === 1 ? alvo : null;
+}
+
+/**
  * O leitor de comprovante tratou a imagem (ou o PDF) de quem está na retomada da Carla: marca essa mensagem como atendida na posse
- * (`ate_wa_id` = id dela em wa_mensagens), para a rodada viva da Carla não responder de novo à mesma imagem. Escolhe a última fala do
- * lead do tipo imagem ou documento, nunca a última de qualquer tipo: um texto que chegou depois segue para a Carla. Conversa ilegível,
- * imagem que ainda não chegou à wa_mensagens, posse que não é mais da retomada ou erro: não marca nada (a Carla responde, como antes).
- * Nunca lança.
+ * (`ate_wa_id` = id dela em wa_mensagens), para a rodada viva da Carla não responder de novo à mesma imagem. A imagem é a única do lead
+ * depois da nossa última fala (idDoComprovanteTratado), e a gravação é condicional no banco: só se a posse ainda é da retomada, está viva e o
+ * `ate_wa_id` atual é menor que o alvo (avancarAteWaIdDaRetomada). Conversa ilegível, imagem que ainda não chegou, mais de uma imagem, posse
+ * que mudou ou erro: não marca nada (a Carla responde, como antes). Nunca lança.
  */
 export async function marcarComprovanteDaRetomadaAtendido(phone: string): Promise<boolean> {
   try {
@@ -832,16 +849,9 @@ export async function marcarComprovanteDaRetomadaAtendido(phone: string): Promis
     const { lerConversa } = await import('../../agentes5040/contexto');
     const conv = await lerConversa(chave);
     if (!conv.completa) return false;
-    let alvo: number | null = null;
-    for (let i = conv.msgs.length - 1; i >= 0; i--) {
-      const m = conv.msgs[i]!;
-      if (m.autor === 'lead' && ['image', 'imagem', 'document'].includes(m.tipo)) { alvo = m.id; break; }
-    }
+    const alvo = idDoComprovanteTratado(conv.msgs);
     if (alvo === null) return false;
-    const p = await lerPosse(chave);
-    if (!p || !ehPosseDaRetomada(p)) return false;
-    if (p.ate_wa_id !== null && p.ate_wa_id >= alvo) return true;
-    return await atualizarPosse(chave, { ate_wa_id: alvo });
+    return await avancarAteWaIdDaRetomada(chave, alvo);
   } catch (err) {
     logger.error('whatsapp', 'marcar o comprovante da retomada como atendido falhou (a Carla pode responder)', err);
     return false;

@@ -87,11 +87,12 @@ describe('os 3 textos do grupo pagou', () => {
     for (const t of VARIACOES_RETOMADA.pagou) expect(emBolhas(t, { maxBolhas: 1, max: 900 }), t).toHaveLength(1);
   });
 
-  it('o incerto e o nunca_pagou ficam como estavam', () => {
+  it('o incerto fica como estava; quem nunca pagou tem 2 textos por perfil (usou e nunca usou), decisão de 05/11', () => {
     expect(VARIACOES_RETOMADA.incerto).toHaveLength(1);
     expect(VARIACOES_RETOMADA.incerto[0]).toMatch(/Passando pra contar que a plataforma mudou bastante/);
-    expect(VARIACOES_RETOMADA.nunca_pagou).toHaveLength(3);
-    for (const m of VARIACOES_RETOMADA.nunca_pagou) expect(m).toMatch(/mudou bastante/);
+    expect(VARIACOES_RETOMADA.nunca_pagou_usou).toHaveLength(2);
+    expect(VARIACOES_RETOMADA.nunca_pagou_nunca_usou).toHaveLength(2);
+    for (const m of [...VARIACOES_RETOMADA.nunca_pagou_usou, ...VARIACOES_RETOMADA.nunca_pagou_nunca_usou]) expect(m).toMatch(/Carla, da SolarDoc/);
   });
 });
 

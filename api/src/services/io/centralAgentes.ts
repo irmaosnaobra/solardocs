@@ -567,7 +567,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ],
       destaque: [0, 2],
       toques: [
-        { titulo: 'Uma mensagem', quando: '1 por pessoa, para sempre', copy: 'A plataforma mudou, quer ver o que tem de novo? Sem link, uma bolha. Quem responde é a Carla.' },
+        { titulo: 'Uma mensagem', quando: '1 por pessoa, para sempre', copy: 'Quem usou a SolarDoc recebe a novidade de inversores de marcas diferentes ou da leitura da conta de luz; quem criou a conta e não montou proposta recebe o convite para ver como é; quem já pagou e saiu recebe a entrevista de saída. Sem link, uma bolha. Quem responde é a Carla. Antes do 1º envio, uma sonda automática confere a trava da linha.' },
       ],
       alerta: painelRet?.pausa?.motivo === 'dois_erros_de_linha'
         ? 'Pausada sozinha: dois erros de linha seguidos. Confira a linha antes de retomar.'

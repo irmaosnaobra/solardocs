@@ -20,6 +20,7 @@ vi.mock('../services/solardoc/retomadaUsuariosRegras', async (orig) => {
 import { banco } from './_bancoFalso';
 import { interruptores, semearAlvo } from './_agentes5040Cortes';
 import { zerarCacheInterruptores } from '../services/agentes5040/interruptores';
+import { INICIO_RETOMADA_ISO } from '../services/solardoc/retomadaUsuariosRegras';
 import { lerPainelRetomada, motivoDeParadaAgora } from '../services/solardoc/retomadaUsuariosPainel';
 import { lerContaDaRetomada } from '../services/solardoc/retomadaUsuariosConta';
 import { hmacDe } from '../services/agentes5040/hmac';
@@ -43,9 +44,12 @@ beforeEach(() => {
   interruptores({ carla: true }); zerarCacheInterruptores();
   semearAlvo([], { carla: 'todos' });
   banco.poe('system_state', { key: 'usu_rec_largada', value: { em: LARGADA }, updated_at: LARGADA });
+  semearSondaOk();
 });
 afterEach(() => { interruptores({}); zerarCacheInterruptores(); });
 
+/** A sonda automática já passou (o estado normal da campanha no ar). */
+const semearSondaOk = (): void => { banco.poe('system_state', { key: `usu_rec_sonda_ok:${INICIO_RETOMADA_ISO}`, value: {}, updated_at: LARGADA }); };
 const carimbo = (sufixo: string, valor: Record<string, unknown>, quando: string) =>
   banco.poe('system_state', { key: `usu_rec_sent:${sufixo}`, value: valor, updated_at: quando });
 const sentinela = (key: string, quando: string = antes(30 * 60_000)) => banco.poe('system_state', { key, value: {}, updated_at: quando });
@@ -194,11 +198,13 @@ describe('motivoDeParadaAgora: só leitura, na ordem da tabela', () => {
 
     banco.linhas('system_state').length = 0;
     banco.poe('system_state', { key: 'usu_rec_largada', value: { em: LARGADA }, updated_at: LARGADA });
+    semearSondaOk();
     for (let i = 0; i < 25; i++) sentinela(`usu_rec_sent:x${i}`, antes(3 * HORA));
     expect(await parada()).toBe('teto_da_campanha');
 
     banco.linhas('system_state').length = 0;
     banco.poe('system_state', { key: 'usu_rec_largada', value: { em: LARGADA }, updated_at: LARGADA });
+    semearSondaOk();
     expect(await parada(new Date('2026-11-08T17:00:00.000Z'))).toBe('fora_da_janela');        // domingo
     expect(await parada(new Date('2026-11-05T23:30:00.000Z'))).toBe('fora_da_janela');        // 20h30
 
@@ -225,6 +231,16 @@ describe('motivoDeParadaAgora: só leitura, na ordem da tabela', () => {
     expect(await motivoDeParadaAgora(AGORA)).toMatchObject({ motivo: 'sem_texto', bloqueio: true, texto: 'Sem o texto do redator: não envia' });
   });
 
+  it('o carimbo de teste da sonda não conta no teto de 25 nem aparece como reservado/enviado no painel', async () => {
+    for (let i = 0; i < 24; i++) sentinela(`usu_rec_sent:x${i}`, antes(3 * HORA));
+    banco.poe('system_state', { key: `usu_rec_sent:sonda:${INICIO_RETOMADA_ISO}`, value: { estado: 'reservado', sonda: true }, updated_at: antes(60_000) });
+    expect(await motivoDeParadaAgora(AGORA)).not.toMatchObject({ motivo: 'teto_da_campanha' });
+    const p = await lerPainelRetomada(AGORA);
+    expect(p).toMatchObject({ enviadas_total: 0, enviadas_hoje: 0, enviadas_24h: 0 });
+    sentinela('usu_rec_sent:x24', antes(3 * HORA));
+    expect(await motivoDeParadaAgora(AGORA)).toMatchObject({ motivo: 'teto_da_campanha' });
+  });
+
   it('o espaçamento nunca aparece como parada: um envio há 5 minutos não é motivo para dizer que está parado', async () => {
     carimbo('a', { estado: 'enviado', user_id: 'u1', em: antes(5 * 60_000) }, antes(5 * 60_000));
     expect(await motivoDeParadaAgora(AGORA)).toBeNull();
@@ -235,11 +251,33 @@ describe('motivoDeParadaAgora: só leitura, na ordem da tabela', () => {
     expect(await motivoDeParadaAgora(AGORA)).toMatchObject({ motivo: 'leitura_falhou', bloqueio: true });
   });
 
-  it('a largada ausente vale "agora": o 1º dia de janela depois de hoje', async () => {
+  it('o início é o piso do código, não depende da largada: sem largada gravada e com o piso passado, nada de "Começa em"', async () => {
     banco.reset(); interruptores({ carla: true }); semearAlvo([], { carla: 'todos' }); zerarCacheInterruptores();
+    semearSondaOk();
     h.piso = 0;
-    const p = await motivoDeParadaAgora(AGORA);
-    expect(p).toMatchObject({ motivo: 'antes_do_inicio', texto: 'Começa em 06/11 às 9h' });
+    expect(await motivoDeParadaAgora(AGORA)).toBeNull();
+    const p = await lerPainelRetomada(AGORA);
+    expect(p.inicio).toBe(ISO(0));
+  });
+
+  it('a sonda automática: aguardando (explica), rodando (explica), travada e falhou (Pausado, também fora da janela); com a ok, nada a dizer', async () => {
+    const chave = (p: string) => `${p}${INICIO_RETOMADA_ISO}`;
+    banco.tabelas['system_state'] = banco.linhas('system_state').filter(l => !String(l.key).startsWith('usu_rec_sonda'));
+    expect(await motivoDeParadaAgora(AGORA)).toMatchObject({ motivo: 'aguardando_sonda', bloqueio: false });
+
+    banco.poe('system_state', { key: chave('usu_rec_sonda_claim:'), value: {}, updated_at: antes(60_000) });
+    expect(await motivoDeParadaAgora(AGORA)).toMatchObject({ motivo: 'sonda_rodando', bloqueio: false });
+    banco.tabelas['system_state'] = banco.linhas('system_state').filter(l => !String(l.key).startsWith('usu_rec_sonda'));
+    banco.poe('system_state', { key: chave('usu_rec_sonda_claim:'), value: {}, updated_at: antes(30 * 60_000) });
+    expect(await motivoDeParadaAgora(AGORA)).toMatchObject({ motivo: 'sonda_travada', bloqueio: true });
+
+    banco.poe('system_state', { key: chave('usu_rec_sonda_falhou:'), value: { motivo: 'teto_afrouxado' }, updated_at: antes(60_000) });
+    expect(await motivoDeParadaAgora(AGORA)).toMatchObject({ motivo: 'sonda_falhou', bloqueio: true });
+    expect(await motivoDeParadaAgora(new Date('2026-11-08T17:00:00.000Z'))).toMatchObject({ motivo: 'sonda_falhou', bloqueio: true });   // domingo
+
+    banco.tabelas['system_state'] = banco.linhas('system_state').filter(l => !String(l.key).startsWith('usu_rec_sonda'));
+    semearSondaOk();
+    expect(await motivoDeParadaAgora(AGORA)).toBeNull();
   });
 });
 

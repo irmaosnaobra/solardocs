@@ -191,6 +191,33 @@ export async function atualizarPosse(telefoneOuChave: string, patch: Partial<Dad
   }
 }
 
+/**
+ * Avança o `ate_wa_id` da posse da RETOMADA dos usuários até `alvo`, SÓ se ela ainda for da retomada (dona carla, origem da retomada), estiver
+ * `viva` e o `ate_wa_id` atual for MENOR que o alvo. O update é condicional no banco (o `ate_wa_id` lido e o estado vão no filtro): se a Carla
+ * respondeu, encerrou ou passou a conversa ao humano entre a leitura e a escrita, nenhuma linha muda e devolve false. Só o primeiro dos
+ * escritores concorrentes grava. true = já cobria o alvo ou gravou exatamente 1 linha. Nunca lança.
+ */
+export async function avancarAteWaIdDaRetomada(telefoneOuChave: string, alvo: number): Promise<boolean> {
+  const chave = chaveDaPosse(telefoneOuChave);
+  if (!chave || !Number.isFinite(alvo)) return false;
+  try {
+    const atual = await lerPosse(chave);
+    if (!atual || !ehPosseDaRetomada(atual) || atual.estado !== 'viva') return false;
+    if (atual.ate_wa_id !== null && atual.ate_wa_id >= alvo) return true;
+    let q = supabase.from('whatsapp_sessions')
+      .update({ lead_data: { ...atual, ate_wa_id: alvo }, updated_at: new Date().toISOString() })
+      .eq('phone', chave).eq('tipo', TIPO_POSSE)
+      .eq('lead_data->>dona', 'carla').eq('lead_data->>origem', ORIGEM_RETOMADA_USUARIOS).eq('lead_data->>estado', 'viva');
+    q = atual.ate_wa_id === null ? q.is('lead_data->>ate_wa_id', null) : q.eq('lead_data->>ate_wa_id', String(atual.ate_wa_id));
+    const { data, error } = await q.select('phone');
+    if (error) throw new ErroPosse(String(error.code ?? 'desconhecido'));
+    return (data?.length ?? 0) === 1;
+  } catch (e) {
+    console.error('[agentes5040] avançar o ate_wa_id da retomada falhou', codigoDe(e));
+    return false;
+  }
+}
+
 // ── escopo: quem a agente atende ─────────────────────────────────────────────
 
 // DONAS_LIBERADAS_PARA_TODOS mora em interruptores.ts (a rota do painel a lê sem puxar este arquivo, que escreve
