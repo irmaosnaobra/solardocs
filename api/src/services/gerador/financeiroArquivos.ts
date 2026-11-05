@@ -83,10 +83,15 @@ export function caminhoEhDoCard(path: unknown, cardId: number): boolean {
 
 export type ErroUpload =
   | 'tipo_nao_aceito' | 'heic_nao_suportado' | 'arquivo_invalido' | 'arquivo_grande'
-  | 'bucket_indisponivel' | 'armazenamento_falhou';
+  | 'bucket_indisponivel' | 'armazenamento_falhou' | 'tipo_recusado_pelo_storage';
 
 export type ComprovanteSubido = ArquivoLancamento & { bytes: Buffer };
 
+/** O Storage recusou o arquivo pelo tipo (`allowed_mime_types`): status 415 ou mensagem de mime type. */
+const recusaPorTipo = (e: ErroStorage): boolean => {
+  const x = e as { statusCode?: unknown; status?: unknown; message?: unknown } | null;
+  return String(x?.statusCode ?? x?.status ?? '') === '415' || /mime type|invalid_mime_type|unsupported media/i.test(String(x?.message || e || ''));
+};
 const bucketNaoExiste = (e: ErroStorage): boolean => /not found|NoSuchBucket/i.test(String(e?.message || e || ''));
 
 // ── O bucket é PRIVADO? ──────────────────────────────────────────────────────
@@ -180,6 +185,11 @@ export async function subirComprovante(
       // ("já existe"), a próxima confere pelo getBucket.
       if (!criado.error) bucketConferido = true;
       ({ error } = await subir());
+    }
+    // O bucket pode ter `allowed_mime_types` sem o XML: o Storage recusa por tipo (415). Não é falha de armazenamento.
+    if (error && ehXml && recusaPorTipo(error)) {
+      logger.warn(LOG, 'storage recusou o XML por tipo', { card: cardId });
+      return { ok: false, erro: 'tipo_recusado_pelo_storage' };
     }
     if (error) {
       logger.error(LOG, 'upload do comprovante falhou', { card: cardId, erro: String(error.message || '') });

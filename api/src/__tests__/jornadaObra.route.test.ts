@@ -26,6 +26,7 @@ const h = vi.hoisted(() => ({
   pdfFechou: 0,
   pdfHtmls: [] as string[],
   pdfFalha: false,
+  recusaTipo: false,
 }));
 
 const jsonb = (v: unknown): unknown => {
@@ -131,6 +132,7 @@ vi.mock('../utils/supabase', () => ({
     storage: {
       from: (_bucket: string) => ({
         upload: async (p: string, corpo: Buffer, o: { upsert: boolean }) => {
+          if (h.recusaTipo && p.endsWith('.xml')) return { data: null, error: { message: 'mime type application/xml is not supported', statusCode: '415' } };
           if (h.bucket.has(p) && !o.upsert) return { data: null, error: { message: 'The resource already exists' } };
           h.bucket.set(p, Buffer.from(corpo));
           return { data: { path: p }, error: null };
@@ -363,7 +365,7 @@ beforeEach(() => {
   };
   h.agendamentos = [cardBase(SOLAR), cardBase(ALHEIA, { vendedor_nome: 'Carla' }), cardBase(SEM_ESTADO)];
   h.linhas = new Map(); h.priv = new Map(); h.bucket = new Map(); h.tique = 0; h.iaChamadas = 0; h.ia = null; h.nota = null;
-  h.filas = new Map(); h.etapaPlanilha = undefined; h.cad = {};
+  h.filas = new Map(); h.etapaPlanilha = undefined; h.cad = {}; h.recusaTipo = false;
   process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste';
   delete process.env.SOLAR_ADM; delete process.env.SOLAR_SOCIOS;
   invalidarCachesHub(); reiniciarLogsDoHub(); reiniciarLogsDaJornada(); esquecerConferenciaDoBucket();
@@ -745,6 +747,22 @@ describe('o XML da nota', () => {
     const up = await subirXml(XML, SOLAR, THIAGO, { ler: false });
     expect(up.status).toBe(200);
     expect(up.body).toMatchObject({ leitura: 'ok', nota: { origem: 'xml' } });
+  });
+  it('X10 o Storage recusa o XML por tipo: 415 com a frase, nada gravado e a chave segue livre', async () => {
+    h.recusaTipo = true;
+    const antes = [h.bucket.size, h.linhas.size];
+    const r = await subirXml(XML, SOLAR);
+    expect(r.status).toBe(415);
+    expect(r.body).toMatchObject({ ok: false, mensagem: 'Este arquivo de nota não pode ser guardado. Mande o PDF ou a foto da nota.' });
+    expect([h.bucket.size, h.linhas.size]).toEqual(antes);
+    expect([...h.linhas.keys()].some((k) => k.startsWith('fin_nf:') || k.startsWith(PREFIXO_RESERVA_NFE))).toBe(false);
+    expect(h.iaChamadas).toBe(0);
+    // A chave está livre: com o Storage de volta, a mesma nota entra.
+    h.recusaTipo = false;
+    const up = await subirXml(XML, SOLAR);
+    expect(up.status).toBe(200);
+    expect((await post(F2(SOLAR, '/nota'), { compra_id: 'c-1', arquivo_path: up.body.arquivo.path }, THIAGO)).status).toBe(200);
+    expect(h.linhas.get(`${PREFIXO_RESERVA_NFE}${CH55}`)!.value.card_id).toBe(SOLAR);
   });
   it('X9 `text/xml` entra: o caminho termina em .xml e o tipo gravado é application/xml', async () => {
     const up = await subirXml(XML, SOLAR, THIAGO, { media_type: 'text/xml; charset=utf-8' });

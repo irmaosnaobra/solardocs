@@ -393,6 +393,10 @@ export function mountJornadaDinheiro(router: Router): void {
       }
       const subida = await subirComprovante(g.id, { base64: b.base64, media_type: b.media_type, nome: b.nome, aceitaXml: doc === 'nota' });
       if (!subida.ok) {
+        // Nada foi gravado até aqui (nem leitura, nem lançamento, nem reserva da chave, que só nasce na `fase2/nota`).
+        if (subida.erro === 'tipo_recusado_pelo_storage') {
+          res.status(415).json({ ok: false, error: 'tipo_recusado', mensagem: 'Este arquivo de nota não pode ser guardado. Mande o PDF ou a foto da nota.' }); return;
+        }
         const status = subida.erro === 'bucket_indisponivel' ? 503 : subida.erro === 'armazenamento_falhou' ? 502 : 400;
         res.status(status).json({ ok: false, error: subida.erro }); return;
       }
