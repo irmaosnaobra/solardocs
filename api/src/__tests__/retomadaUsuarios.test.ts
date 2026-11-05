@@ -290,6 +290,45 @@ describe('exclusões: cada motivo com a sua causa', () => {
     expect(motivoDe(usuario({ created_at: ISO(LARGADA - 1000) }))).toBe('ok');
   });
 
+  it('quem cancelou há pouco espera (saiu_ha_pouco, 14 dias); kit do integrador e PlugCash ficam fora', () => {
+    const dias = (n: number) => ISO(AGORA.getTime() - n * DIA);
+    expect(motivoDe(usuario({ last_canceled_at: dias(3) }))).toBe('saiu_ha_pouco');
+    expect(motivoDe(usuario({ last_canceled_at: dias(13) }))).toBe('saiu_ha_pouco');
+    expect(motivoDe(usuario({ last_canceled_at: ISO(AGORA.getTime() + DIA) }))).toBe('saiu_ha_pouco');      // data futura também espera
+    expect(motivoDe(usuario({ last_canceled_at: dias(14) }))).toBe('ok');
+    expect(motivoDe(usuario({ last_canceled_at: dias(20) }))).toBe('ok');
+    expect(motivoDe(usuario({ last_canceled_at: null }))).toBe('ok');
+    expect(motivoDe(usuario({ origem_aquisicao: 'kit-integrador' }))).toBe('kit_integrador');
+    expect(motivoDe(usuario({ origem_aquisicao: ' Kit-Integrador ' }))).toBe('kit_integrador');
+    expect(motivoDe(usuario({ origem_aquisicao: 'plugcash' }))).toBe('plugcash');
+    expect(motivoDe(usuario({ origem_aquisicao: 'quiz' }))).toBe('ok');
+    expect(motivoDe(usuario({ origem_aquisicao: null }))).toBe('ok');
+    expect(motivoDe(usuario({ plano: 'pro', last_canceled_at: dias(3) }))).toBe('paga_hoje');               // o pagante segue fora pelo motivo de antes
+  });
+
+  it('a fila: cancelado há 3 dias e kit ficam de fora; cancelado há 20 dias entra, e o ex-assinante não fura a espera', () => {
+    const dias = (n: number) => ISO(AGORA.getTime() - n * DIA);
+    const entra = usuario({ last_canceled_at: dias(20) });
+    const pub: PublicoLido = {
+      usuarios: [usuario({ last_canceled_at: dias(3) }), usuario({ origem_aquisicao: 'kit-integrador' }), entra],
+      extras: () => EXTRAS_VAZIOS, chavesDaCasa: new Set(),
+    };
+    const r = montarFila(pub, AGORA.getTime(), LARGADA);
+    expect(r.fila.map(i => i.u.id)).toEqual([entra.id]);
+    expect(r.porMotivo).toEqual({ saiu_ha_pouco: 1, kit_integrador: 1 });
+  });
+
+  it('a leitura do público pede origem_aquisicao e last_canceled_at, e a que falha para a rodada', async () => {
+    banco.projeta = true;
+    try {
+      banco.poe('users', { ...usuario({ origem_aquisicao: 'kit-integrador' }) });
+      const pub = await depsReais().lerPublico(AGORA, LARGADA);
+      expect(pub?.usuarios[0]?.origem_aquisicao).toBe('kit-integrador');
+      banco.falhas['users.select'] = { erro: { message: 'caiu' } };
+      expect(await depsReais().lerPublico(AGORA, LARGADA)).toBeNull();
+    } finally { banco.projeta = false; }
+  });
+
   it('telefone em mais de uma conta', () => {
     const a = usuario(); const b = usuario({ whatsapp: a.whatsapp });
     const repetidas = chavesRepetidas([a, b, usuario()]);
