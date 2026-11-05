@@ -121,8 +121,40 @@ describe('regras: paga hoje', () => {
   it('plano pago, billing ativo, em teste, atrasado, não pago, suspenso e plano que ainda não venceu são "paga hoje"', () => {
     expect(u({ plano: 'ilimitado' })).toBe(true);
     expect(u({ plano: 'pro' })).toBe(true);
-    for (const billing_status of ['active', 'trialing', 'past_due', 'unpaid', 'suspended']) expect(u({ billing_status }), billing_status).toBe(true);
+    for (const billing_status of ['trialing', 'past_due', 'unpaid', 'suspended']) expect(u({ billing_status }), billing_status).toBe(true);
+    expect(u({ plano: 'ilimitado', billing_status: 'active' })).toBe(true);
+    expect(u({ plano: 'pro', billing_status: 'active' })).toBe(true);
     expect(u({ plano_expira_em: ISO(AGORA.getTime() + DIA) })).toBe(true);
+  });
+
+  it('free com billing_status "active" (o PADRÃO da coluna, 138 de 138 no banco em 05/11) NÃO é "paga hoje": sem pagamento vigente entra na fila', () => {
+    expect(u({ billing_status: 'active' })).toBe(false);
+    expect(u({ billing_status: 'active', plano_expira_em: null, last_canceled_at: ISO(AGORA.getTime() - 30 * DIA) } as never)).toBe(false);
+    expect(u({ billing_status: 'active', plano_expira_em: ISO(AGORA.getTime() - DIA) })).toBe(false);          // Pix vencido
+    expect(u({ billing_status: 'active', plano_expira_em: ISO(AGORA.getTime() + DIA) })).toBe(true);           // Pix ainda valendo
+    const livre = usuario({ billing_status: 'active' });
+    expect(classificar(livre).ok).toBe(true);
+    expect(motivoDe(usuario({ billing_status: 'active', plano: 'ilimitado' }))).toBe('paga_hoje');
+    expect(motivoDe(usuario({ billing_status: 'active', plano: 'pro' }))).toBe('paga_hoje');
+  });
+
+  it('a fila do público lido: 3 free "active" entram, o pagante "active" e o free em cobrança ficam de fora', () => {
+    const livres = [usuario({ billing_status: 'active' }), usuario({ billing_status: 'active' }), usuario({ billing_status: 'active', last_canceled_at: ISO(AGORA.getTime() - 40 * DIA) })];
+    const fora = [usuario({ plano: 'ilimitado', billing_status: 'active' }), usuario({ plano: 'pro', billing_status: 'active' }), usuario({ billing_status: 'past_due' })];
+    const pub: PublicoLido = { usuarios: [...livres, ...fora], extras: () => EXTRAS_VAZIOS, chavesDaCasa: new Set() };
+    const r = montarFila(pub, AGORA.getTime(), LARGADA);
+    expect(r.fila.map(i => i.u.id).sort()).toEqual(livres.map(u => u.id).sort());
+    expect(r.porMotivo).toEqual({ paga_hoje: 3 });
+  });
+
+  it('falha segura: a conta que não deu para reler (contaAgora null) para a rodada e não envia; a lida como paga não envia', async () => {
+    const nulo = falsas(gente(2), { contaAgora: async () => null });
+    expect(await rodar(nulo.d)).toMatchObject({ enviou: false, avaliados: 1 });
+    expect(nulo.e.enviados).toHaveLength(0);
+    const paga = falsas(gente(1), { contaAgora: async () => ({ plano: 'pro', billing_status: 'active', plano_expira_em: null, whatsapp_opt_out: false }) });
+    expect(await rodar(paga.d)).toMatchObject({ enviou: false });
+    const livre = falsas(gente(1), { contaAgora: async () => ({ plano: 'free', billing_status: 'active', plano_expira_em: null, whatsapp_opt_out: false }) });
+    expect(await rodar(livre.d)).toMatchObject({ enviou: true });
   });
 
   it('grátis sem cobrança, com plano vencido ou cancelado, não é "paga hoje"', () => {
