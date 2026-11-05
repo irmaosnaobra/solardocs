@@ -16,6 +16,8 @@ import { fmtExpira } from '@/utils/aberturas';
 import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
 import { useViaCep, type ViaCepAchado } from '@/hooks/useViaCep';
 import { comporEndereco, enderecoLegado, maskCep, temPartesDoEndereco } from '@/utils/enderecoCliente';
+import { chaveCliente } from '@/utils/chaveCliente';
+import { cpfValido, cnpjValido, maskCpf, maskCnpj as maskCnpjDoc } from '@/utils/documento';
 import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart, BookOpen, Images } from 'lucide-react';
 import styles from '../documentos.module.css';
 import InversoresCampo, { type InversorLinha } from './InversoresCampo';
@@ -70,6 +72,84 @@ const ICONE_TELHADO: Record<string, React.ComponentType<{ size?: number; classNa
 
 const TIPOS_TELHADO = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport'] as const;
 
+// ── Proposta Completa + Banco (modelo 4) ──
+// Ordem fixa: o servidor imprime os bancos nesta ordem.
+const BANCOS_LOGOS = [
+  { id: 'sicredi', nome: 'Sicredi' },
+  { id: 'santander', nome: 'Santander' },
+  { id: 'bv', nome: 'BV' },
+  { id: 'bb', nome: 'Banco do Brasil' },
+  { id: 'caixa', nome: 'Caixa' },
+  { id: 'sicoob', nome: 'Sicoob' },
+  { id: 'bradesco', nome: 'Bradesco' },
+  { id: 'itau', nome: 'Itaú' },
+] as const;
+type BancoId = (typeof BANCOS_LOGOS)[number]['id'];
+const TODOS_BANCOS: BancoId[] = BANCOS_LOGOS.map(b => b.id);
+const LIMITE_BANCOS_NA_PROPOSTA = 12;
+const CARGO_PADRAO = 'Sócio administrador';
+
+type TipoCliente = 'PF' | 'PJ';
+type AssinaturaForm = {
+  empresa: { razao_social: string; cnpj: string; representante: string; cargo: string };
+  cliente: { tipo: TipoCliente; nome: string; documento: string; representante: string };
+  local: string;
+};
+function assinaturaVazia(): AssinaturaForm {
+  return {
+    empresa: { razao_social: '', cnpj: '', representante: '', cargo: CARGO_PADRAO },
+    cliente: { tipo: 'PF', nome: '', documento: '', representante: '' },
+    local: '',
+  };
+}
+const maskDocCliente = (tipo: TipoCliente, v: string) => (tipo === 'PJ' ? maskCnpjDoc(v) : maskCpf(v));
+
+/** `bancos_logos` de fora (proposta salva, rascunho, cliente). Ausente (ou algo que não é lista)
+ *  vale `quandoAusente`; `[]` explícito continua `[]`. Ids desconhecidos saem e a ordem é a fixa. */
+function normalizarBancosLogos(v: unknown, quandoAusente: BancoId[]): BancoId[] {
+  if (!Array.isArray(v)) return [...quandoAusente];
+  return TODOS_BANCOS.filter(id => v.includes(id));
+}
+
+/** `assinatura` de fora. Subchave que falta vem de `base`; nada de objeto parcial na tela. */
+function normalizarAssinatura(v: unknown, base: AssinaturaForm): AssinaturaForm {
+  const obj = (x: unknown): Record<string, unknown> => (x && typeof x === 'object' && !Array.isArray(x) ? (x as Record<string, unknown>) : {});
+  const o = obj(v), e = obj(o.empresa), c = obj(o.cliente);
+  const s = (x: unknown, padrao: string) => (typeof x === 'string' ? x : padrao);
+  const tipo: TipoCliente = c.tipo === 'PJ' ? 'PJ' : c.tipo === 'PF' ? 'PF' : base.cliente.tipo;
+  return {
+    empresa: {
+      razao_social: s(e.razao_social, base.empresa.razao_social),
+      cnpj: maskCnpjDoc(s(e.cnpj, base.empresa.cnpj)),
+      representante: s(e.representante, base.empresa.representante),
+      cargo: s(e.cargo, base.empresa.cargo),
+    },
+    cliente: {
+      tipo,
+      nome: s(c.nome, base.cliente.nome),
+      documento: maskDocCliente(tipo, s(c.documento, base.cliente.documento)),
+      representante: s(c.representante, base.cliente.representante),
+    },
+    local: s(o.local, base.local),
+  };
+}
+
+/** PF ou PJ a partir do cadastro do cliente (`tipo`) ou, na falta, do tamanho do documento. */
+function tipoDoCadastro(tipo: unknown, doc: unknown): TipoCliente | null {
+  const t = String(tipo ?? '').trim().toUpperCase();
+  if (t === 'PJ' || t.startsWith('JUR')) return 'PJ';
+  if (t === 'PF' || t.startsWith('FIS') || t.startsWith('FÍS')) return 'PF';
+  const n = String(doc ?? '').replace(/[^0-9A-Za-z]/g, '').length;
+  return n === 14 ? 'PJ' : n === 11 ? 'PF' : null;
+}
+
+/** Chaves do cadastro do cliente (e da assinatura salva) que só alimentam a assinatura: nunca entram
+ *  em `fields`, senão `cpf_cnpj` iria para o kit do vendedor e para a próxima proposta. */
+const CHAVES_SO_DA_ASSINATURA = new Set<string>(['tipo', 'cpf_cnpj', 'assinatura', 'bancos_logos']);
+
+/** `mostrar_dados_bancarios`: só booleano de verdade vale; ausente fica como está. */
+const boolOu = (v: unknown, padrao: boolean) => (typeof v === 'boolean' ? v : padrao);
+
 const initialFields = {
   paleta: 'solar' as string, // 'solar'|'oceano'|... | 'custom' | 'empresa'
   paleta_c1: '', // cor escolhida no color picker (hex) quando paleta==='custom'
@@ -111,6 +191,11 @@ const initialFields = {
   fotos_obras: [] as ImagemObra[],
   empresas_atendidas: [] as ImagemEmpresa[],
   bancos_parceiros: [] as BancoParceiro[],
+  // Proposta Completa + Banco (modelo 4). Bancos que financiam (ids fixos, os 8
+  // marcados), dados bancários da empresa e bloco de assinaturas.
+  bancos_logos: [...TODOS_BANCOS] as BancoId[],
+  mostrar_dados_bancarios: true,
+  assinatura: assinaturaVazia() as AssinaturaForm,
   // Bateria (opcional) — só aparece na proposta se a marca estiver preenchida.
   // Padrão render-if-filled, mesmo idioma das garantias extras (nada é persistido
   // como "tem bateria": deriva de marca preenchida → propostas antigas intactas).
@@ -379,14 +464,9 @@ function maskTel(raw: string): string {
   if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
-// CNPJ: 12345678000190 → "12.345.678/0001-90".
+// CNPJ: 12345678000190 → "12.345.678/0001-90". Aceita o CNPJ novo, com letras nas 12 primeiras posições.
 function maskCnpj(raw: string): string {
-  const d = soDigitos(raw).slice(0, 14);
-  if (d.length <= 2) return d;
-  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
-  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
-  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
-  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+  return maskCnpjDoc(raw);
 }
 
 export default function PropostaSolarPage() {
@@ -436,9 +516,24 @@ export default function PropostaSolarPage() {
   // O que o cadastro diz — vira o valor fixo dos três campos do rodapé e fica
   // guardado pro botão "usar o do cadastro" de cada um.
   const [padraoEmpresa, setPadraoEmpresa] = useState({ vendedor: '', whatsapp: '', cnpj: '' });
+  // Cadastro da empresa para a Completa + Banco: padrões da assinatura, fotos de obras
+  // e se há dados bancários cadastrados. `null` até a empresa chegar.
+  const [empresaDef, setEmpresaDef] = useState<{
+    razao: string; cnpj: string; representante: string; cidade: string; fotos: ImagemObra[]; temBanco: boolean;
+  } | null>(null);
   useEffect(() => {
     api.get('/company').then(({ data }) => {
       const c = (data?.company || {}) as Record<string, string>;
+      const bruto = (data?.company || {}) as Record<string, unknown>;
+      const bancario = bruto.dados_bancarios && typeof bruto.dados_bancarios === 'object' ? (bruto.dados_bancarios as Record<string, unknown>) : null;
+      setEmpresaDef({
+        razao: String(c.nome || '').trim(),
+        cnpj: maskCnpj(String(c.cnpj || '')),
+        representante: String(c.socio_adm || '').trim(),
+        cidade: String(c.cidade || '').trim(),
+        fotos: normalizarPortfolio({ fotos_obras: bruto.fotos_obras }).fotos_obras,
+        temBanco: !!bancario && ['banco', 'agencia', 'conta', 'titular', 'pix'].some(k => typeof bancario[k] === 'string' && (bancario[k] as string).trim() !== ''),
+      });
       setCorEmpresa(String(c.cor_marca || ''));
       setCorSec(String(c.cor_secundaria || ''));
       const pad = {
@@ -477,6 +572,16 @@ export default function PropostaSolarPage() {
   // automático que chega depois (kit do vendedor, que vem por rede) não escreve
   // por cima deles. Regra da casa: o que o cliente coloca, fica.
   const camposTocados = useRef(new Set<string>());
+  // O nome do cliente na assinatura foi mexido à mão (ou veio de uma proposta salva com
+  // outro nome)? Só então ele deixa de acompanhar o "Nome do cliente".
+  const nomeAssManual = useRef(false);
+  // Espelho do "Nome do cliente" para funções que não podem depender do estado (carregarCliente).
+  const clienteNomeRef = useRef('');
+  // Editando uma proposta modelo 4 antiga, emitida SEM assinatura: o bloco fica opcional
+  // (só valida e só envia se a pessoa preencher algo). Proposta nova sempre exige.
+  const assinaturaOpcional = useRef(false);
+  // As fotos da empresa já foram oferecidas a esta proposta nova?
+  const fotosEmpresaAplicadas = useRef(false);
   const [clientesHist, setClientesHist] = useState<string[]>([]); // clientes com histórico
 
   // Restaura rascunho ao montar (1x). Abrindo pra editar um doc salvo (?doc=), o
@@ -492,7 +597,19 @@ export default function PropostaSolarPage() {
       const d = JSON.parse(raw);
       if (d.clienteNome) setClienteNome(d.clienteNome);
       if (d.cidadeUf) setCidadeUf(d.cidadeUf);
-      if (d.fields) setFields(f => ({ ...f, ...d.fields, inversores: temDadoInversor(d.fields) ? normalizarInversores(d.fields) : f.inversores, ...normalizarPortfolio(d.fields, f) }));
+      if (d.fields) {
+        // Rascunho antigo não tem os campos da Completa + Banco: valem os padrões de agora.
+        const ass = normalizarAssinatura(d.fields.assinatura, assinaturaVazia());
+        nomeAssManual.current = !!ass.cliente.nome && chaveCliente(ass.cliente.nome) !== chaveCliente(d.clienteNome);
+        setFields(f => ({
+          ...f, ...d.fields,
+          inversores: temDadoInversor(d.fields) ? normalizarInversores(d.fields) : f.inversores,
+          ...normalizarPortfolio(d.fields, f),
+          bancos_logos: normalizarBancosLogos(d.fields.bancos_logos, f.bancos_logos),
+          mostrar_dados_bancarios: boolOu(d.fields.mostrar_dados_bancarios, f.mostrar_dados_bancarios),
+          assinatura: normalizarAssinatura(d.fields.assinatura, f.assinatura),
+        }));
+      }
       // Rascunho já tinha quantidade: era escolha da pessoa, a sugestão não mexe.
       if (d.fields?.qtd_modulos) qtdModulosManual.current = true;
       if (d.fields?.area_m2) areaManual.current = true;
@@ -579,6 +696,10 @@ export default function PropostaSolarPage() {
           const merged: Record<string, unknown> = { ...f };
           for (const [k, v] of Object.entries(data.kit as Record<string, unknown>)) {
             if (k === 'inversores' || (CHAVES_PORTFOLIO as readonly string[]).includes(k)) continue; // vêm normalizados logo abaixo
+            // A assinatura traz nome e CPF do cliente da última proposta: nunca entra numa proposta
+            // nova (os padrões vêm da empresa). Os bancos que financiam começam sempre com os 8.
+            if (CHAVES_SO_DA_ASSINATURA.has(k)) continue;
+            if (k === 'mostrar_dados_bancarios' && typeof v !== 'boolean') continue;
             if (!camposTocados.current.has(k)) merged[k] = v;
           }
           if (!camposTocados.current.has('inversores') && temDadoInversor(data.kit as Record<string, unknown>)) {
@@ -588,7 +709,11 @@ export default function PropostaSolarPage() {
           // não mexeu naquela galeria enquanto a rede respondia.
           const portfolioKit = normalizarPortfolio(data.kit as Record<string, unknown>, f);
           for (const k of CHAVES_PORTFOLIO) {
-            if (Array.isArray((data.kit as Record<string, unknown>)[k]) && !camposTocados.current.has(k)) merged[k] = portfolioKit[k];
+            if (Array.isArray((data.kit as Record<string, unknown>)[k]) && !camposTocados.current.has(k)) {
+              // Kit com lista de fotos vazia não apaga as fotos que a empresa já preencheu aqui.
+              if (k === 'fotos_obras' && portfolioKit[k].length === 0 && f.fotos_obras.length > 0) continue;
+              merged[k] = portfolioKit[k];
+            }
           }
           return merged as typeof f;
         });
@@ -608,7 +733,20 @@ export default function PropostaSolarPage() {
       // Proposta sem os dados do formulário salvos (doc antigo/importado): reemitir
       // por cima escreveria um formulário em branco em cima de uma proposta boa.
       if (!Object.keys(dados).length) throw new Error('sem dados do formulário');
-      setFields(f => ({ ...f, ...dados, inversores: normalizarInversores(dados), ...normalizarPortfolio(dados) }));
+      // Completa + Banco: `bancos_logos` ausente é "os 8 marcados" (é o que o servidor imprime),
+      // `[]` é "nenhum". A assinatura volta como foi salva; o que faltar a empresa completa.
+      const dadosBrutos = dados as unknown as Record<string, unknown>;
+      assinaturaOpcional.current = !(dadosBrutos.assinatura && typeof dadosBrutos.assinatura === 'object');
+      const ass = normalizarAssinatura(dadosBrutos.assinatura, assinaturaVazia());
+      nomeAssManual.current = !!ass.cliente.nome && chaveCliente(ass.cliente.nome) !== chaveCliente(String(d.cliente_nome || ''));
+      setFields(f => ({
+        ...f, ...dados,
+        inversores: normalizarInversores(dados),
+        ...normalizarPortfolio(dados),
+        bancos_logos: normalizarBancosLogos(dadosBrutos.bancos_logos, TODOS_BANCOS),
+        mostrar_dados_bancarios: boolOu(dadosBrutos.mostrar_dados_bancarios, true),
+        assinatura: ass,
+      }));
       // Proposta já emitida: a quantidade dela é decisão tomada, não palpite.
       if (dados.qtd_modulos) qtdModulosManual.current = true;
       if (dados.area_m2) areaManual.current = true;
@@ -644,6 +782,42 @@ export default function PropostaSolarPage() {
     }).finally(() => setCarregandoDoc(false));
   }, [docParam, router]);
 
+  // ── Completa + Banco: padrões que vêm da empresa e do nome do cliente ──
+  // O nome/razão social do cliente na assinatura acompanha o nome do cliente digitado
+  // até a pessoa mexer no campo (ou até uma proposta salva trazer outro nome).
+  useEffect(() => {
+    clienteNomeRef.current = clienteNome;
+    if (nomeAssManual.current) return;
+    setFields(f => (f.assinatura.cliente.nome === clienteNome ? f : { ...f, assinatura: { ...f.assinatura, cliente: { ...f.assinatura.cliente, nome: clienteNome } } }));
+  }, [clienteNome]);
+
+  // Empresa e cidade da assinatura: só preenche o que está VAZIO. Roda quando a empresa chega
+  // e quando uma proposta salva termina de abrir (a que não tinha `assinatura` volta em branco).
+  useEffect(() => {
+    if (!empresaDef) return;
+    setFields(f => {
+      const e = f.assinatura.empresa;
+      const prox = {
+        razao_social: e.razao_social || empresaDef.razao,
+        cnpj: e.cnpj || empresaDef.cnpj,
+        representante: e.representante || empresaDef.representante,
+        cargo: e.cargo || CARGO_PADRAO,
+      };
+      const local = f.assinatura.local || empresaDef.cidade;
+      if (prox.razao_social === e.razao_social && prox.cnpj === e.cnpj && prox.representante === e.representante && prox.cargo === e.cargo && local === f.assinatura.local) return f;
+      return { ...f, assinatura: { ...f.assinatura, empresa: prox, local } };
+    });
+  }, [empresaDef, carregandoDoc]);
+
+  // Proposta NOVA no modelo 4 sem fotos: entram as fotos de obras do cadastro da empresa. Uma vez
+  // só, e só se a pessoa não mexeu na galeria. Em edição vale o que está salvo.
+  useEffect(() => {
+    if (modelo !== 4 || docParam || editando || carregandoDoc || !empresaDef || empresaDef.fotos.length === 0) return;
+    if (fotosEmpresaAplicadas.current) return;
+    fotosEmpresaAplicadas.current = true;
+    setFields(f => (f.fotos_obras.length === 0 && !camposTocados.current.has('fotos_obras') ? { ...f, fotos_obras: empresaDef.fotos } : f));
+  }, [modelo, docParam, editando, carregandoDoc, empresaDef]);
+
   // Carrega um cliente e preenche o que houver: tudo da última proposta dele ou, se ele
   // ainda não tem proposta, os dados do cadastro de Clientes (cidade, UF, endereço,
   // telhado). Antes só a primeira fonte existia, e cliente recém-cadastrado não
@@ -659,7 +833,35 @@ export default function PropostaSolarPage() {
         // O endereço é do cliente: o de quem estava na tela não pode sobrar no próximo.
         // Limpa SEMPRE que a resposta chega, também quando o cadastro só tem o nome
         // ({}): aí não há nada para aplicar por cima e o de antes ficaria.
-        setFields(f => ({ ...f, cep: '', logradouro: '', numero: '', complemento: '', bairro: '', endereco: '', ...c, inversores: temDadoInversor(c) ? normalizarInversores(c) : f.inversores, ...normalizarPortfolio(c, f) }));
+        // Completa + Banco. `tipo` e `cpf_cnpj` do cadastro alimentam a assinatura (não vão para
+        // `fields`). A assinatura do cliente que estava na tela é limpa quando o cliente é outro:
+        // nome e CPF de uma pessoa não podem sobrar na proposta da próxima. Se for o mesmo
+        // cliente, o que a pessoa já digitou fica e o prefill só completa o que está vazio.
+        const bruto = c as Record<string, unknown>;
+        const mesmoCliente = chaveCliente(nome) === chaveCliente(clienteNomeRef.current);
+        const tipoCad = tipoDoCadastro(bruto.tipo, bruto.cpf_cnpj);
+        const docCad = String(bruto.cpf_cnpj ?? '');
+        const salvaAss = bruto.assinatura && typeof bruto.assinatura === 'object' ? normalizarAssinatura(bruto.assinatura, assinaturaVazia()) : null;
+        const cResto = Object.fromEntries(Object.entries(bruto).filter(([k]) => !CHAVES_SO_DA_ASSINATURA.has(k)));
+        setFields(f => {
+          const base = mesmoCliente ? f.assinatura.cliente : assinaturaVazia().cliente;
+          const cli = { ...base };
+          if (!cli.nome && !cli.documento) cli.tipo = salvaAss ? salvaAss.cliente.tipo : (tipoCad ?? cli.tipo);
+          if (!cli.nome && salvaAss) cli.nome = salvaAss.cliente.nome;
+          if (!cli.representante && salvaAss) cli.representante = salvaAss.cliente.representante;
+          if (!cli.documento) cli.documento = maskDocCliente(cli.tipo, (salvaAss?.cliente.documento || docCad));
+          cli.documento = maskDocCliente(cli.tipo, cli.documento);
+          nomeAssManual.current = !!cli.nome && chaveCliente(cli.nome) !== chaveCliente(nome);
+          return {
+            ...f, cep: '', logradouro: '', numero: '', complemento: '', bairro: '', endereco: '',
+            ...cResto,
+            inversores: temDadoInversor(c) ? normalizarInversores(c) : f.inversores,
+            ...normalizarPortfolio(c, f),
+            bancos_logos: normalizarBancosLogos(bruto.bancos_logos, f.bancos_logos),
+            mostrar_dados_bancarios: boolOu(bruto.mostrar_dados_bancarios, f.mostrar_dados_bancarios),
+            assinatura: { ...f.assinatura, cliente: cli },
+          } as typeof f;
+        });
         setCepBusca('');
         ultimoCep.current = null;
         ruaAntigaRef.current = false;
@@ -872,6 +1074,33 @@ export default function PropostaSolarPage() {
     setFaltando(prev => { const n = new Set(prev); n.delete(campo); return n; });
   }
 
+  // ── Completa + Banco: edição dos bancos e da assinatura ──
+  function alternarBanco(id: BancoId, marcado: boolean) {
+    camposTocados.current.add('bancos_logos');
+    setFields(f => ({ ...f, bancos_logos: TODOS_BANCOS.filter(b => (b === id ? marcado : f.bancos_logos.includes(b))) }));
+  }
+  function setAssEmpresa(k: keyof AssinaturaForm['empresa'], v: string, campoInvalido: string) {
+    camposTocados.current.add('assinatura');
+    clearFaltando(campoInvalido);
+    setFields(f => ({ ...f, assinatura: { ...f.assinatura, empresa: { ...f.assinatura.empresa, [k]: v } } }));
+  }
+  function setAssCliente<K extends keyof AssinaturaForm['cliente']>(k: K, v: AssinaturaForm['cliente'][K], campoInvalido?: string) {
+    camposTocados.current.add('assinatura');
+    if (campoInvalido) clearFaltando(campoInvalido);
+    if (k === 'nome') nomeAssManual.current = chaveCliente(String(v)) !== chaveCliente(clienteNome);
+    setFields(f => ({ ...f, assinatura: { ...f.assinatura, cliente: { ...f.assinatura.cliente, [k]: v } } }));
+  }
+  function trocarTipoCliente(tipo: TipoCliente) {
+    camposTocados.current.add('assinatura');
+    clearFaltando('ass_cli_doc'); clearFaltando('ass_cli_nome');
+    // O documento digitado vira a máscara do tipo novo (CPF corta em 11 dígitos, CNPJ em 14).
+    setFields(f => ({ ...f, assinatura: { ...f.assinatura, cliente: { ...f.assinatura.cliente, tipo, documento: maskDocCliente(tipo, f.assinatura.cliente.documento) } } }));
+  }
+  function setAssLocal(v: string) {
+    camposTocados.current.add('assinatura');
+    setFields(f => ({ ...f, assinatura: { ...f.assinatura, local: v } }));
+  }
+
   // "Nova proposta" (item 4): zera os dados DO CLIENTE e do sistema desta venda,
   // pra não mandar proposta com nome/valor do cliente anterior. Mantém o que é
   // template reutilizável (garantias, taxas, formas de pagamento, paleta).
@@ -891,8 +1120,14 @@ export default function PropostaSolarPage() {
     qtdModulosManual.current = false;
     areaManual.current = false;
     camposTocados.current.clear();
+    nomeAssManual.current = false;
+    assinaturaOpcional.current = false;
     setFields(f => ({
       ...f,
+      // Completa + Banco: o cliente da assinatura é desta venda; os 8 bancos voltam marcados.
+      // A empresa e a cidade da assinatura ficam (template do integrador).
+      assinatura: { ...f.assinatura, cliente: assinaturaVazia().cliente },
+      bancos_logos: [...TODOS_BANCOS],
       // específicos do cliente/venda — zerados:
       consumo_kwh: '', qtd_modulos: '', area_m2: '', potencia_modulo: '',
       qtd_inversores: initialFields.qtd_inversores, potencia_inversor: '',
@@ -951,10 +1186,34 @@ export default function PropostaSolarPage() {
       if (!fields.potencia_modulo) faltam.add('potencia_modulo');
     }
     if (!fields.investimento) faltam.add('investimento');
+    const nGenericos = faltam.size;
+
+    // Completa + Banco: o bloco de assinaturas sai impresso, então segue a regra do servidor.
+    const msgsAssinatura: string[] = [];
+    // Proposta antiga sem assinatura: só conta se a pessoa preencheu algo do cliente.
+    const assinaturaEmUso = !assinaturaOpcional.current
+      || !!fields.assinatura.cliente.documento.trim() || !!fields.assinatura.cliente.representante.trim() || nomeAssManual.current;
+    if (modelo === 4 && assinaturaEmUso) {
+      const { empresa: emp, cliente: cli } = fields.assinatura;
+      const falha = (campo: string, msg: string) => { faltam.add(campo); msgsAssinatura.push(msg); };
+      if (cli.tipo === 'PF') {
+        if (cli.nome.trim().split(/\s+/).filter(Boolean).length < 2) falha('ass_cli_nome', 'Escreva o nome completo do cliente.');
+        if (!cpfValido(cli.documento)) falha('ass_cli_doc', 'CPF do cliente inválido. Confira os números.');
+      } else {
+        if (cli.nome.trim().length < 3) falha('ass_cli_nome', 'Escreva a razão social do cliente.');
+        if (!cnpjValido(cli.documento)) falha('ass_cli_doc', 'CNPJ do cliente inválido. Confira os números.');
+      }
+      if (emp.razao_social.trim().length < 3) falha('ass_emp_razao', 'Escreva a razão social da sua empresa.');
+      if (!cnpjValido(emp.cnpj)) falha('ass_emp_cnpj', 'CNPJ da sua empresa inválido. Confira na tela Empresa.');
+      if (emp.representante.trim().length < 2) falha('ass_emp_rep', 'Escreva quem assina pela sua empresa.');
+    }
 
     if (faltam.size > 0) {
       setFaltando(faltam);
-      setError(`Preencha os campos destacados (${faltam.size} pendente${faltam.size > 1 ? 's' : ''}).`);
+      setError([
+        ...(nGenericos > 0 ? [`Preencha os campos destacados (${nGenericos} pendente${nGenericos > 1 ? 's' : ''}).`] : []),
+        ...msgsAssinatura,
+      ].join(' '));
       // Rola até o primeiro campo faltante.
       const primeiro = document.querySelector('[data-invalid="true"]');
       primeiro?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -972,16 +1231,36 @@ export default function PropostaSolarPage() {
       // Lista limpa; os 4 campos soltos saem da 1ª linha (compatibilidade com quem lê o antigo).
       const invLimpos = limparInversores(fields.inversores);
       const primeiroInv = invLimpos[0];
+      const camposEnvio: Record<string, unknown> = {
+        ...fields, cidade, uf, endereco,
+        inversores: invLimpos,
+        qtd_inversores: primeiroInv.qtd,
+        marca_inversor: primeiroInv.marca,
+        potencia_inversor: primeiroInv.potencia,
+        garantia_inversor: primeiroInv.garantia,
+      };
+      if (modelo === 4 && !assinaturaEmUso) {
+        delete camposEnvio.assinatura;
+      } else if (modelo === 4) {
+        const { empresa: emp, cliente: cli, local } = fields.assinatura;
+        const t = (s: string) => s.trim();
+        camposEnvio.assinatura = {
+          empresa: { razao_social: t(emp.razao_social), cnpj: t(emp.cnpj), representante: t(emp.representante), cargo: t(emp.cargo) || CARGO_PADRAO },
+          cliente: {
+            tipo: cli.tipo, nome: t(cli.nome), documento: t(cli.documento),
+            ...(cli.tipo === 'PJ' && t(cli.representante) ? { representante: t(cli.representante) } : {}),
+          },
+          ...(t(local) ? { local: t(local) } : {}),
+        };
+      } else {
+        // Os campos da Completa + Banco só existem nesse modelo.
+        delete camposEnvio.assinatura;
+        delete camposEnvio.bancos_logos;
+        delete camposEnvio.mostrar_dados_bancarios;
+      }
       const payload: Record<string, unknown> = {
         tipo: 'propostaSolar',
-        fields: {
-          ...fields, cidade, uf, endereco,
-          inversores: invLimpos,
-          qtd_inversores: primeiroInv.qtd,
-          marca_inversor: primeiroInv.marca,
-          potencia_inversor: primeiroInv.potencia,
-          garantia_inversor: primeiroInv.garantia,
-        },
+        fields: camposEnvio,
         useTemplate: true,
         modeloNumero: modelo,
         cliente_nome_avulso: clienteNome.trim(),
@@ -1020,8 +1299,10 @@ export default function PropostaSolarPage() {
         if (docParam) router.replace('/documentos?tipo=proposta');
         return;
       }
-      const error = err as { response?: { data?: { error?: string; message?: string } } };
-      setError(error.response?.data?.message || error.response?.data?.error || (editando ? 'Erro ao atualizar a proposta' : 'Erro ao gerar proposta'));
+      const error = err as { response?: { status?: number; data?: { error?: string; message?: string } } };
+      // 400 é recusa de validação do servidor (ex.: assinatura): a frase dele é a que a pessoa precisa ler.
+      const msg400 = error.response?.status === 400 ? error.response?.data?.error : undefined;
+      setError(msg400 || error.response?.data?.message || error.response?.data?.error || (editando ? 'Erro ao atualizar a proposta' : 'Erro ao gerar proposta'));
     } finally {
       setGenerating(false);
     }
@@ -1354,8 +1635,8 @@ export default function PropostaSolarPage() {
                 on={modelo === 4}
                 icone={Images}
                 onClick={() => setModelo(4)}
-                titulo="Completo"
-                desc="Várias páginas com gráficos, parcelas, bancos, obras e clientes"
+                titulo="Completa + Banco"
+                desc="Para mandar ao banco"
               />
             </Escolhas>
           </div>
@@ -1372,16 +1653,64 @@ export default function PropostaSolarPage() {
           </p>
         </div>
 
-        {/* CONTEÚDO DO MODELO COMPLETO: imagens que só esse modelo imprime. */}
+        {/* CONTEÚDO DO MODELO COMPLETA + BANCO: imagens que só esse modelo imprime. */}
         {modelo === 4 && (
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Conteúdo do modelo Completo</h2>
+            <h2 className={styles.sectionTitle}>Conteúdo da proposta Completa + Banco</h2>
             <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
               Envie uma vez: as imagens voltam sozinhas nas próximas propostas.
             </p>
             <GaleriaPortfolio tipo="obra" titulo="Fotos de obras" max={LIMITE_FOTOS_OBRAS} itens={fields.fotos_obras} onChange={v => setField('fotos_obras', v)} />
             <GaleriaPortfolio tipo="empresa" titulo="Empresas atendidas" max={LIMITE_EMPRESAS} itens={fields.empresas_atendidas} onChange={v => setField('empresas_atendidas', v)} />
-            <GaleriaPortfolio tipo="banco" titulo="Bancos parceiros" max={LIMITE_BANCOS} itens={fields.bancos_parceiros} onChange={v => setField('bancos_parceiros', v)} />
+          </div>
+        )}
+
+        {/* BANCOS QUE FINANCIAM + DADOS BANCÁRIOS DA EMPRESA (só a Completa + Banco). */}
+        {modelo === 4 && (
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Bancos que financiam</h2>
+            <p className={styles.ajudaSecao}>Todos vêm marcados. Desmarque o banco que você não quer mostrar.</p>
+            <ul className={styles.bancoGrade}>
+              {BANCOS_LOGOS.map(b => {
+                const on = fields.bancos_logos.includes(b.id);
+                return (
+                  <li key={b.id}>
+                    <label className={`${styles.opcaoCaixa} ${on ? styles.opcaoCaixaOn : ''}`}>
+                      <input type="checkbox" checked={on} onChange={e => alternarBanco(b.id, e.target.checked)} />
+                      <span className={styles.bancoLogoQuadro}>
+                        <span className={styles.bancoLogoFundo}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={`/img/bancos/${b.id}.png`} alt="" className={styles.bancoLogoImg} onError={e => { e.currentTarget.style.visibility = 'hidden'; }} />
+                        </span>
+                        <span className={styles.bancoNome}>{b.nome}</span>
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+            <GaleriaPortfolio tipo="banco" titulo="Outro banco" max={LIMITE_BANCOS} itens={fields.bancos_parceiros} onChange={v => setField('bancos_parceiros', v)} />
+            {fields.bancos_logos.length + fields.bancos_parceiros.length > LIMITE_BANCOS_NA_PROPOSTA && (
+              <p className={styles.avisoCampo} role="status">
+                <AlertTriangle size={14} aria-hidden />
+                <span>A proposta mostra até 12 bancos.</span>
+              </p>
+            )}
+
+            <h3 className={styles.subtituloBloco}>Dados bancários</h3>
+            {empresaDef && !empresaDef.temBanco ? (
+              <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.5 }}>
+                Cadastre os dados bancários na tela Empresa.{' '}
+                <Link href="/empresa" style={{ color: 'var(--color-primary)', fontWeight: 700, textDecoration: 'underline' }}>
+                  Abrir a tela Empresa
+                </Link>
+              </p>
+            ) : (
+              <label className={`${styles.opcaoCaixa} ${fields.mostrar_dados_bancarios ? styles.opcaoCaixaOn : ''}`}>
+                <input type="checkbox" checked={fields.mostrar_dados_bancarios} onChange={e => setField('mostrar_dados_bancarios', e.target.checked)} />
+                <span className={styles.opcaoTexto}>Mostrar os dados bancários da empresa</span>
+              </label>
+            )}
           </div>
         )}
 
@@ -1571,9 +1900,91 @@ export default function PropostaSolarPage() {
             onChange={v => setField('empresa_cnpj', maskCnpj(v))}
             placeholder="00.000.000/0001-00"
             padrao={padraoEmpresa.cnpj}
-            inputMode="numeric"
+            inputMode="text"
           />
         </div>
+
+        {/* ASSINATURAS (só a Completa + Banco) */}
+        {modelo === 4 && (
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Assinaturas</h2>
+            <p className={styles.ajudaSecao}>Sai pronto no fim da proposta, com os dois lados para assinar.</p>
+
+            <h3 className={styles.subtituloBloco}>Pela empresa</h3>
+            <div className={styles.grid2}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="ass-emp-razao">Razão social</label>
+                <input id="ass-emp-razao" type="text" className="input-field" autoComplete="off"
+                  value={fields.assinatura.empresa.razao_social}
+                  onChange={e => setAssEmpresa('razao_social', e.target.value, 'ass_emp_razao')}
+                  {...invalidProps('ass_emp_razao')} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="ass-emp-cnpj">CNPJ</label>
+                <input id="ass-emp-cnpj" type="text" inputMode="text" className="input-field" autoComplete="off" placeholder="00.000.000/0000-00" maxLength={18}
+                  value={fields.assinatura.empresa.cnpj}
+                  onChange={e => setAssEmpresa('cnpj', maskCnpjDoc(e.target.value), 'ass_emp_cnpj')}
+                  {...invalidProps('ass_emp_cnpj')} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="ass-emp-rep">Quem assina</label>
+                <input id="ass-emp-rep" type="text" className="input-field" autoComplete="off"
+                  value={fields.assinatura.empresa.representante}
+                  onChange={e => setAssEmpresa('representante', e.target.value, 'ass_emp_rep')}
+                  {...invalidProps('ass_emp_rep')} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="ass-emp-cargo">Cargo</label>
+                <input id="ass-emp-cargo" type="text" className="input-field" autoComplete="off"
+                  value={fields.assinatura.empresa.cargo}
+                  onChange={e => setAssEmpresa('cargo', e.target.value, 'ass_emp_cargo')} />
+              </div>
+            </div>
+
+            <h3 className={styles.subtituloBloco}>Pelo cliente</h3>
+            <div className={styles.opcoesLinha} role="radiogroup" aria-label="Tipo de cliente">
+              {([['PF', 'Pessoa física'], ['PJ', 'Empresa']] as const).map(([valor, rotulo]) => (
+                <label key={valor} className={`${styles.opcaoCaixa} ${fields.assinatura.cliente.tipo === valor ? styles.opcaoCaixaOn : ''}`}>
+                  <input type="radio" name="ass-cli-tipo" checked={fields.assinatura.cliente.tipo === valor} onChange={() => trocarTipoCliente(valor)} />
+                  <span className={styles.opcaoTexto}>{rotulo}</span>
+                </label>
+              ))}
+            </div>
+            <div className={styles.grid2}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="ass-cli-nome">{fields.assinatura.cliente.tipo === 'PJ' ? 'Razão social' : 'Nome completo'}</label>
+                <input id="ass-cli-nome" type="text" className="input-field" autoComplete="off"
+                  value={fields.assinatura.cliente.nome}
+                  onChange={e => setAssCliente('nome', e.target.value, 'ass_cli_nome')}
+                  {...invalidProps('ass_cli_nome')} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="ass-cli-doc">{fields.assinatura.cliente.tipo === 'PJ' ? 'CNPJ' : 'CPF'}</label>
+                <input id="ass-cli-doc" type="text" inputMode={fields.assinatura.cliente.tipo === 'PJ' ? 'text' : 'numeric'} className="input-field" autoComplete="off"
+                  placeholder={fields.assinatura.cliente.tipo === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
+                  maxLength={fields.assinatura.cliente.tipo === 'PJ' ? 18 : 14}
+                  value={fields.assinatura.cliente.documento}
+                  onChange={e => setAssCliente('documento', maskDocCliente(fields.assinatura.cliente.tipo, e.target.value), 'ass_cli_doc')}
+                  {...invalidProps('ass_cli_doc')} />
+              </div>
+              {fields.assinatura.cliente.tipo === 'PJ' && (
+                <div className={styles.fieldFull}>
+                  <label className={styles.label} htmlFor="ass-cli-rep">Quem assina pela empresa (opcional)</label>
+                  <input id="ass-cli-rep" type="text" className="input-field" autoComplete="off"
+                    value={fields.assinatura.cliente.representante}
+                    onChange={e => setAssCliente('representante', e.target.value)} />
+                </div>
+              )}
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="ass-local">Cidade da assinatura</label>
+              <input id="ass-local" type="text" className="input-field" autoComplete="off" placeholder="Ex: São Paulo/SP"
+                value={fields.assinatura.local}
+                onChange={e => setAssLocal(e.target.value)} />
+            </div>
+          </div>
+        )}
 
         {/* SISTEMA */}
         <div className={styles.section}>

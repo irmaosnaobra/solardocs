@@ -66,6 +66,12 @@ vi.mock('../services/templateService', () => ({
   propostaDiasValidade: vi.fn().mockReturnValue(7),
 }));
 
+// O teto de 10 gerações por minuto (aiLimiter) é do app, não do que este arquivo prova: passa direto.
+vi.mock('../middleware/rateLimiter', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../middleware/rateLimiter')>()),
+  aiLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
 import app from '../app';
 // Já mockado acima — serve pra inspecionar com que fields o template foi chamado.
 import { generateFromTemplate } from '../services/templateService';
@@ -74,6 +80,11 @@ import { linkExpiraEm } from '../services/propostaLink';
 const AUTH = 'Bearer valid-token';
 
 beforeEach(() => vi.clearAllMocks());
+
+const ASSIN_OK = {
+  empresa: { razao_social: 'Sol Forte Energia Ltda', cnpj: '11.222.333/0001-81', representante: 'Carlos Pereira', cargo: 'Sócio' },
+  cliente: { tipo: 'PF', nome: 'Maria Aparecida Souza', documento: '529.982.247-25' },
+};
 
 // ─── POST /documents/generate ────────────────────────────────────────
 describe('POST /documents/generate', () => {
@@ -207,7 +218,7 @@ describe('POST /documents/generate', () => {
       .set('Authorization', AUTH)
       .send({
         tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4,
-        fields: { fotos_obras: [{ path: meu, url: 'http://interno/x' }, { path: alheio, url: 'https://a/b' }] },
+        fields: { fotos_obras: [{ path: meu, url: 'http://interno/x' }, { path: alheio, url: 'https://a/b' }], assinatura: ASSIN_OK },
       });
 
     expect(res.status).toBe(200);
@@ -217,6 +228,72 @@ describe('POST /documents/generate', () => {
     expect(JSON.stringify(call[3])).not.toContain('interno');
     expect(JSON.stringify(call[3])).not.toContain('user-999');
     expect(res.body.modelo_usado).toBe('modelo-4');
+  });
+
+  // Completa + Banco: o aceite é obrigatório e a validação roda ANTES de gastar número e cota.
+  it('modelo 4 sem assinatura: 400 com a mensagem, sem reservar número nem gerar', async () => {
+    const res = await request(app)
+      .post('/documents/generate').set('Authorization', AUTH)
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, fields: {}, useTemplate: true, modeloNumero: 4 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Para gerar a Completa + Banco, preencha as assinaturas do cliente e da empresa.');
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(generateFromTemplate).not.toHaveBeenCalled();
+  });
+
+  it('modelo 4 com CPF inválido: 400 com a mensagem do CPF', async () => {
+    const res = await request(app)
+      .post('/documents/generate').set('Authorization', AUTH)
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4,
+        fields: { assinatura: { ...ASSIN_OK, cliente: { ...ASSIN_OK.cliente, documento: '111.111.111-11' } } } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('CPF do cliente inválido. Confira os números.');
+    expect(generateFromTemplate).not.toHaveBeenCalled();
+  });
+
+  it('modelo 4: grava a assinatura limpa (documentos só com dígitos) e preserva bancos_logos []', async () => {
+    mockGeracaoProposta();
+    mockRpc.mockResolvedValueOnce({ data: '20260038', error: null });
+    const res = await request(app)
+      .post('/documents/generate').set('Authorization', AUTH)
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4,
+        fields: { assinatura: ASSIN_OK, bancos_logos: [] } });
+    expect(res.status).toBe(200);
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>;
+    expect(fields.bancos_logos).toEqual([]);
+    expect(fields.assinatura.cliente.documento).toBe('52998224725');
+    expect(fields.assinatura.empresa.cnpj).toBe('11222333000181');
+  });
+
+  it('modelo 4: sem a chave fotos_obras valem as fotos da empresa; [] explícito não preenche', async () => {
+    const meu = 'portfolio/user-123/obra/1700000000000-abcdef12.jpg';
+    const empresaComFotos = { data: { id: 'comp-1', nome: 'Empresa', cnpj: '00.000.000/0001-00', fotos_obras: [{ path: meu, legenda: 'Casa' }] } };
+    mockSignedUrls.mockImplementation(async (paths: string[]) => ({
+      data: paths.map((path) => ({ path, signedUrl: 'https://x.test/nova/' + path, error: null })), error: null,
+    }));
+    const gerar = async (fields: Record<string, unknown>) => {
+      mockGeracaoProposta();
+      mockSingle.mockReset();
+      mockSingle
+        .mockResolvedValueOnce(empresaComFotos)
+        .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+        .mockResolvedValueOnce({ data: { id: CLIENT_UUID, nome: 'Cliente' } })
+        .mockResolvedValueOnce({ data: { plano: 'pro', documentos_usados: 5, limite_documentos: 90 } })
+        .mockResolvedValueOnce({ data: { id: 'comp-1', nome: 'Empresa', slug: 'empresa' } })
+        .mockResolvedValueOnce({ data: { documentos_usados: 5 } })
+        .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+        .mockResolvedValueOnce({ data: { id: 'doc-1' }, error: null });
+      mockRpc.mockResolvedValueOnce({ data: '20260039', error: null });
+      vi.mocked(generateFromTemplate).mockClear();
+      const r = await request(app).post('/documents/generate').set('Authorization', AUTH)
+        .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4, fields: { assinatura: ASSIN_OK, ...fields } });
+      expect(r.status).toBe(200);
+      return vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>;
+    };
+    const auto = await gerar({});
+    expect(auto.fotos_obras).toEqual([{ path: meu, legenda: 'Casa', url: 'https://x.test/nova/' + meu }]);
+    const tirou = await gerar({ fotos_obras: [] });
+    expect(tirou.fotos_obras).toEqual([]);
   });
 
   // Reserva que falha NÃO recomeça do 0001 (foi o que um 504 fez em 12/09/2026), e o
@@ -327,6 +404,109 @@ describe('POST /documents/:id/regenerate', () => {
 
     const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
     expect(fields.emitido_em).toBe(DOIS_DIAS_ATRAS);
+  });
+
+  it('modelo 4: reedição preserva bancos_logos [] e, sem assinatura, gera sem o aceite (sem 400)', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: docAvulso })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+    const res = await post(DOC_UUID, { modeloNumero: 4, fields: { bancos_logos: [] } });
+    expect(res.status).toBe(200);
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect(fields.bancos_logos).toEqual([]);
+    expect(fields.assinatura).toBeUndefined();
+  });
+
+  it('modelo 4: reedição com assinatura inválida recebe 400; válida passa limpa', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: docAvulso })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+    const ruim = await post(DOC_UUID, { modeloNumero: 4, fields: { assinatura: { ...ASSIN_OK, empresa: { ...ASSIN_OK.empresa, representante: '' } } } });
+    expect(ruim.status).toBe(400);
+    expect(ruim.body.error).toBe('Escreva quem assina pela sua empresa.');
+    mockSingle
+      .mockResolvedValueOnce({ data: docAvulso })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'ilimitado', is_admin: false } });
+    const ok = await post(DOC_UUID, { modeloNumero: 4, fields: { assinatura: ASSIN_OK } });
+    expect(ok.status).toBe(200);
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>;
+    expect(fields.assinatura.cliente.documento).toBe('52998224725');
+  });
+
+  // Plano com limite não troca o cliente: com assinatura salva, o cliente do aceite é o salvo.
+  const OUTRO_CLIENTE = { tipo: 'PF', nome: 'Outra Pessoa Silva', documento: '111.444.777-35' };
+  const docComAssinatura = { ...docAvulso, dados_json: { ...docAvulso.dados_json, assinatura: ASSIN_OK } };
+
+  it('modelo 4, plano com limite: o cliente salvo no aceite vence o que veio; a empresa nova vale', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: docComAssinatura })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+    const res = await post(DOC_UUID, { modeloNumero: 4, fields: { assinatura: { ...ASSIN_OK, cliente: OUTRO_CLIENTE, empresa: { ...ASSIN_OK.empresa, representante: 'Novo Rep' }, local: 'Araguari' } } });
+    expect(res.status).toBe(200);
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>;
+    expect(fields.assinatura.cliente).toEqual({ tipo: 'PF', nome: 'Maria Aparecida Souza', documento: '52998224725' });
+    expect(fields.assinatura.empresa.representante).toBe('Novo Rep');
+    expect(fields.assinatura.local).toBe('Araguari');
+  });
+
+  it('modelo 4, plano ilimitado troca o cliente do aceite; proposta antiga sem assinatura aceita a nova', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: docComAssinatura })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'ilimitado', is_admin: false } });
+    const livre = await post(DOC_UUID, { modeloNumero: 4, fields: { assinatura: { ...ASSIN_OK, cliente: OUTRO_CLIENTE } } });
+    expect(livre.status).toBe(200);
+    expect((vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>).assinatura.cliente.documento).toBe('11144477735');
+
+    vi.mocked(generateFromTemplate).mockClear();
+    mockSingle
+      .mockResolvedValueOnce({ data: docAvulso })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'ilimitado', is_admin: false } });
+    const nova = await post(DOC_UUID, { modeloNumero: 4, fields: { assinatura: { ...ASSIN_OK, cliente: OUTRO_CLIENTE } } });
+    expect(nova.status).toBe(200);
+    expect((vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>).assinatura.cliente.nome).toBe('Outra Pessoa Silva');
+  });
+
+  // Proposta emitida em outro modelo (sem assinatura salva) regerada como modelo 4, em plano com limite:
+  // o nome na assinatura tem que ser o cliente da proposta.
+  it('modelo 4 sem assinatura salva, plano com limite: outro nome na assinatura recebe 400; o mesmo nome passa', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: docAvulso })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+    const outro = await post(DOC_UUID, { modeloNumero: 4, fields: { assinatura: { ...ASSIN_OK, cliente: OUTRO_CLIENTE } } });
+    expect(outro.status).toBe(400);
+    expect(outro.body.error).toBe('No seu plano, o nome na assinatura tem que ser o mesmo cliente desta proposta.');
+    expect(generateFromTemplate).not.toHaveBeenCalled();
+
+    const docMaria = { ...docAvulso, cliente_nome: 'Maria Aparecida Souza' };
+    mockSingle
+      .mockResolvedValueOnce({ data: docMaria })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+    const igual = await post(DOC_UUID, { modeloNumero: 4, cliente_nome_avulso: 'Maria Aparecida Souza', fields: { assinatura: ASSIN_OK } });
+    expect(igual.status).toBe(200);
+    expect((vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>).assinatura.cliente.nome).toBe('Maria Aparecida Souza');
+  });
+
+  it('modelo 4: assinatura nova nula, ausente ou vazia mantém a salva (render e dados_json gravado), em qualquer plano', async () => {
+    const salvaLimpa = { ...ASSIN_OK, empresa: { ...ASSIN_OK.empresa, cnpj: '11222333000181' }, cliente: { tipo: 'PF', nome: 'Maria Aparecida Souza', documento: '52998224725' } };
+    for (const [plano, campos] of [['free', { assinatura: null }], ['ilimitado', {}], ['free', { assinatura: {} }]] as const) {
+      vi.mocked(generateFromTemplate).mockClear();
+      mockSingle
+        .mockResolvedValueOnce({ data: docComAssinatura })
+        .mockResolvedValueOnce(empresa)
+        .mockResolvedValueOnce({ data: { plano, is_admin: false } });
+      const res = await post(DOC_UUID, { modeloNumero: 4, fields: { ...campos } });
+      expect(res.status).toBe(200);
+      const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>;
+      expect(fields.assinatura).toEqual(salvaLimpa);
+    }
   });
 
   it('proposta ja vencida: reeditar vale como reemissao (data volta a contar de hoje)', async () => {
@@ -645,6 +825,52 @@ describe('GET /documents/proposta-prefill', () => {
     expect(res.body.cliente).toEqual({ cidade: 'Uberlândia', uf: 'MG', logradouro: 'Rua C', numero: '5' });
   });
 
+  // Completa + Banco: o tipo (PF/PJ) e o CPF/CNPJ do cadastro entram em data.cliente para a assinatura.
+  it('cliente do cadastro traz tipo e cpf_cnpj (só dígitos) em data.cliente', async () => {
+    await mockFontes([], [{ nome: 'Fátima', cidade: 'Uberlândia', uf: 'MG', tipo_telhado: null, tipo: 'pf', cpf_cnpj: '529.982.247-25' }]);
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Fátima' }).set('Authorization', AUTH);
+    expect(res.body.cliente).toMatchObject({ tipo: 'PF', cpf_cnpj: '52998224725' });
+  });
+
+  it('cliente com proposta anterior também recebe tipo e cpf_cnpj do cadastro; a assinatura antiga não vai para outro cliente (kit)', async () => {
+    await mockFontes(
+      [{ cliente_nome: 'Gil', created_at: '2026-10-10T12:00:00Z', dados_json: { bancos_logos: [], assinatura: { cliente: { nome: 'Gil Souza' } } } }],
+      [{ nome: 'Gil', cidade: 'Uberlândia', uf: 'MG', tipo_telhado: null, tipo: 'PJ', cpf_cnpj: '11.222.333/0001-81' }],
+    );
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Gil' }).set('Authorization', AUTH);
+    expect(res.body.cliente).toMatchObject({ tipo: 'PJ', cpf_cnpj: '11222333000181', bancos_logos: [] });
+    expect(res.body.kit.bancos_logos).toEqual([]);
+    expect(res.body.kit.assinatura).toBeUndefined();
+  });
+
+  it('o CPF da Ana não vaza: kit e prefill da Bia (sem cadastro) não trazem documento nem assinatura', async () => {
+    const ana = {
+      cliente_nome: 'Ana', created_at: '2026-10-10T12:00:00Z',
+      dados_json: { cpf_cnpj: '52998224725', tipo: 'PF', bancos_logos: [], assinatura: { cliente: { tipo: 'PF', nome: 'Ana Souza', documento: '52998224725' } } },
+    };
+    await mockFontes([ana], []);
+    const bia = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Bia' }).set('Authorization', AUTH);
+    expect(bia.body.cliente).toBeNull();
+    expect(JSON.stringify(bia.body.kit)).not.toContain('52998224725');
+    expect(bia.body.kit).not.toHaveProperty('cpf_cnpj');
+    expect(bia.body.kit).not.toHaveProperty('tipo');
+    expect(bia.body.kit).not.toHaveProperty('assinatura');
+    expect(bia.body.kit.bancos_logos).toEqual([]);
+
+    // Bia no cadastro, sem documento: continua sem o da Ana.
+    await mockFontes([ana], [{ nome: 'Bia', cidade: 'Uberlândia', uf: 'MG', tipo_telhado: null }]);
+    const bia2 = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Bia' }).set('Authorization', AUTH);
+    expect(bia2.body.cliente).not.toHaveProperty('cpf_cnpj');
+    expect(bia2.body.cliente).not.toHaveProperty('assinatura');
+
+    // A própria Ana: só a assinatura dela volta; cpf_cnpj e tipo soltos do dados_json não valem.
+    await mockFontes([ana], []);
+    const a = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Ana' }).set('Authorization', AUTH);
+    expect(a.body.cliente.assinatura.cliente.documento).toBe('52998224725');
+    expect(a.body.cliente).not.toHaveProperty('cpf_cnpj');
+    expect(a.body.cliente).not.toHaveProperty('tipo');
+  });
+
   it('coluna das partes inexistente (migration não rodou): repete sem elas e devolve como antes', async () => {
     const { supabase } = await import('../utils/supabase');
     const primeira = cadeia({ data: null, error: { code: '42703', message: 'column clients.logradouro does not exist' } });
@@ -658,7 +884,7 @@ describe('GET /documents/proposta-prefill', () => {
 
     expect(res.status).toBe(200);
     expect(primeira.select).toHaveBeenCalledWith(expect.stringContaining('logradouro'));
-    expect(segunda.select).toHaveBeenCalledWith('nome, cidade, uf, endereco, cep, tipo_telhado, created_at');
+    expect(segunda.select).toHaveBeenCalledWith('nome, cidade, uf, endereco, cep, tipo_telhado, tipo, cpf_cnpj, created_at');
     expect(res.body.cliente).toEqual({ cidade: 'Uberlândia', uf: 'MG', endereco: 'Rua D, 7', cep: '38400-200' });
   });
 

@@ -6,12 +6,24 @@ export function soDigitos(v: unknown): string {
   return String(v ?? '').replace(/\D/g, '');
 }
 
-/** 14 dígitos, não todos iguais, e os dois dígitos verificadores batendo. */
+/**
+ * CNPJ sem pontuação, em maiúsculas, mantendo as letras. O CNPJ alfanumérico (regra da Receita de
+ * julho de 2026) tem 12 posições [0-9A-Z] e 2 dígitos verificadores numéricos: `soDigitos` perderia as letras.
+ */
+export function normalizarCnpj(v: unknown): string {
+  return String(v ?? '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+}
+
+/**
+ * 14 posições (12 em [0-9A-Z] + 2 dígitos), não todas iguais, e os dois dígitos verificadores batendo.
+ * Valor de cada caractere = código ASCII - 48 (dígito vale ele mesmo, A vale 17), com os mesmos pesos
+ * do CNPJ numérico. Todo CNPJ numérico antigo continua valendo.
+ */
 export function cnpjValido(v: unknown): boolean {
-  const c = soDigitos(v);
-  if (c.length !== 14 || /^(\d)\1{13}$/.test(c)) return false;
+  const c = normalizarCnpj(v);
+  if (!/^[0-9A-Z]{12}[0-9]{2}$/.test(c) || /^(.)\1{13}$/.test(c)) return false;
   const calc = (base: string, w: number[]) => {
-    const s = w.reduce((a, x, i) => a + parseInt(base[i]) * x, 0);
+    const s = w.reduce((a, x, i) => a + (base.charCodeAt(i) - 48) * x, 0);
     const r = s % 11;
     return r < 2 ? 0 : 11 - r;
   };
@@ -19,9 +31,9 @@ export function cnpjValido(v: unknown): boolean {
          calc(c, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === parseInt(c[13]);
 }
 
-/** 54129446000140 vira 54.129.446/0001-40. Se não tiver 14 dígitos, devolve só os dígitos. */
+/** 54129446000140 vira 54.129.446/0001-40; as letras do CNPJ alfanumérico ficam. Se não tiver 14 posições, devolve só os dígitos. */
 export function formatarCnpj(v: unknown): string {
-  const d = soDigitos(v);
-  if (d.length !== 14) return d;
+  const d = normalizarCnpj(v);
+  if (d.length !== 14) return soDigitos(v);
   return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
 }

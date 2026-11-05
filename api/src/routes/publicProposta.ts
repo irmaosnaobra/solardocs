@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 import { stripPrint } from '../utils/printHtml';
+import { mascararCpfNoHtml } from '../utils/mascaraProposta';
 import { userIdDoToken } from '../middleware/auth';
 import { ehRobo, dispositivo, geo, linkVencido, dataBR, chaveAbertura } from '../services/propostaLink';
 import { paginaVencida } from '../services/propostaVencida';
@@ -215,6 +216,8 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     // era compartilhado com o "abrir pra imprimir"). Sem tirar aqui, o cliente que
     // abre o link leva uma caixa de impressão e a aba tentando se fechar sozinha.
     html = stripPrint(html);
+    // CPF do cliente PF (Completa + Banco) sai mascarado no link aberto; o PDF autenticado leva inteiro.
+    html = mascararCpfNoHtml(html);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     // 60s e não 300: o consultor pode reeditar a proposta depois de já ter aberto o

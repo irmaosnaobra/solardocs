@@ -4,6 +4,29 @@ import { supabase } from '../utils/supabase';
 import { BancoIndisponivel, lerDoBanco, responder503 } from '../utils/dbTransitorio';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { cnpjValido } from '../utils/cnpj';
+import { colunaAusente } from '../services/vistoria/extras';
+import { fotosObrasComUrl, sanitizarFotosObras } from './portfolioController';
+import { normalizarDadosBancarios } from '../utils/dadosBancarios';
+
+// Duas colunas da proposta Completa + Banco. O zod só deixa passar a chave (z.unknown): a limpeza é
+// feita à mão em preparar(), porque item ruim tem que ser descartado, não virar 400 do formulário inteiro.
+// Coluna ausente no banco (migration não rodou): o cadastro (POST) grava o resto e segue; a edição (PUT) responde 503 sem gravar nada.
+const COLUNAS_NOVAS = ['fotos_obras', 'dados_bancarios'] as const;
+
+function separarColunasNovas(userId: string | undefined, body: Record<string, unknown>) {
+  const resto: Record<string, unknown> = { ...body };
+  const novas: Record<string, unknown> = {};
+  for (const k of COLUNAS_NOVAS) delete resto[k];
+  if ('fotos_obras' in body) novas.fotos_obras = sanitizarFotosObras(String(userId ?? ''), body.fotos_obras);
+  if ('dados_bancarios' in body) novas.dados_bancarios = normalizarDadosBancarios(body.dados_bancarios);
+  return { resto, novas };
+}
+
+/** Devolve a empresa com `url` assinada em cada foto de obra. Nunca lança: sem URL, o item vai sem ela. */
+async function comUrlsDasFotos<T extends Record<string, unknown> | null>(userId: string | undefined, company: T): Promise<T> {
+  if (!company || !Array.isArray(company.fotos_obras)) return company;
+  return { ...company, fotos_obras: await fotosObrasComUrl(String(userId ?? ''), company.fotos_obras) };
+}
 
 const companySchema = z.object({
   nome: z.string().min(1, 'Razão Social obrigatória'),
@@ -45,6 +68,8 @@ const companySchema = z.object({
   tecnico3_estado_civil: z.string().optional(),
   tecnico3_endereco: z.string().optional(),
   whatsapp: z.string().optional(),
+  fotos_obras: z.unknown().optional(),     // Array<{ path, legenda? }>, até 6, só paths do próprio usuário
+  dados_bancarios: z.unknown().optional(), // { banco, agencia, conta, tipo_conta, titular, documento, pix } ou null
 });
 
 export async function getCompany(req: Request, res: Response): Promise<void> {
@@ -60,7 +85,7 @@ export async function getCompany(req: Request, res: Response): Promise<void> {
       .limit(1)
       .maybeSingle());
 
-    res.json({ company: data || null });
+    res.json({ company: await comUrlsDasFotos(req.userId, data || null) });
   } catch (err) {
     if (err instanceof BancoIndisponivel) { responder503(res, 'company', err.causa); return; }
     console.error('GetCompany error:', err);
@@ -83,12 +108,21 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const { data, error } = await supabase
+    const { resto, novas } = separarColunasNovas(req.userId, body);
+    let { data, error } = await supabase
       .from('company')
-      .insert({ ...body, user_id: req.userId })
+      .insert({ ...resto, ...novas, user_id: req.userId })
       .select()
       .single();
 
+    // Coluna nova ausente: salva a empresa sem elas.
+    if (error && Object.keys(novas).length && colunaAusente(error)) {
+      ({ data, error } = await supabase
+        .from('company')
+        .insert({ ...resto, user_id: req.userId })
+        .select()
+        .single());
+    }
     if (error) throw error;
 
     // Registra dia do followup em que o usuário converteu (se estava na sequência)
@@ -113,7 +147,7 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
       userAgent: req.headers['user-agent'],
     });
 
-    res.status(201).json({ company: data });
+    res.status(201).json({ company: await comUrlsDasFotos(req.userId, data) });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.issues[0].message });
@@ -150,15 +184,23 @@ export async function updateCompany(req: Request, res: Response): Promise<void> 
       }
     }
 
-    const { data, error } = await supabase
+    const { resto, novas } = separarColunasNovas(req.userId, body);
+    const gravar = (campos: Record<string, unknown>) => supabase
       .from('company')
-      .update(body)
+      .update(campos)
       .eq('user_id', req.userId)
       .select()
       .single();
+    let { data, error } = await gravar({ ...resto, ...novas });
 
+    // Coluna nova ausente: a tela manda o formulário inteiro, então salvar só o resto daria "salvou" sem as
+    // fotos e os dados bancários. O update falhou inteiro (nada foi gravado): 503, nunca 200 sem gravar.
+    if (error && Object.keys(novas).length && colunaAusente(error)) {
+      res.status(503).json({ error: 'Não deu para salvar agora. Tente de novo em instantes.' });
+      return;
+    }
     if (error) throw error;
-    res.json({ company: data });
+    res.json({ company: await comUrlsDasFotos(req.userId, data) });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.issues[0].message });

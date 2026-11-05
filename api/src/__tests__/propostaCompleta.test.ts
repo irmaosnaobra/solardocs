@@ -67,7 +67,7 @@ describe('modelo 4 Completo: folhas', () => {
 
   it('bancos parceiros: logo em ladrilho com nome, ou só o nome', () => {
     const { html } = render({ bancos_parceiros: [{ nome: 'Banco A', url: HTTPS }, { nome: 'Banco B' }] });
-    expect(html).toContain('Bancos parceiros');
+    expect(html).toContain('Bancos que financiam o seu sistema');
     expect(html).toMatch(/<div class="bk"><div class="lg"><img src="https:[^"]+" alt="Banco A"\/><\/div><div class="nm">Banco A<\/div><\/div>/);
     expect(html).toContain('<div class="bk so"><div class="nm">Banco B</div></div>');
   });
@@ -136,6 +136,7 @@ describe('modelo 4 Completo: imagens e escape', () => {
     const { html } = render({
       fotos_obras: Array.from({ length: 9 }, (_, i) => ({ url: HTTPS, legenda: `Obra ${i + 1}` })),
       empresas_atendidas: Array.from({ length: 15 }, (_, i) => ({ url: HTTPS, nome: `Empresa ${i + 1}` })),
+      bancos_logos: [],
       bancos_parceiros: Array.from({ length: 11 }, (_, i) => ({ nome: `Banco ${i + 1}` })),
     });
     expect(html).toContain('Obra 6');
@@ -229,7 +230,7 @@ describe('modelo 4 Completo: folhas leves, textos e entrada', () => {
   const secoes = (h: string) => (h.match(/<div class="tab">[^<]+<\/div>/g) || []).map((x) => x.replace(/<[^>]+>/g, ''));
 
   it('sem forma de pagamento nem banco não há folha de pagamentos: o investimento abre a folha de garantias', () => {
-    const { html } = render({ pag_vista: false, pag_cartao: false, pag_fin: false });
+    const { html } = render({ pag_vista: false, pag_cartao: false, pag_fin: false, bancos_logos: [] });
     expect(secoes(html)).not.toContain('Investimento e formas de pagamento');
     expect(paginas(html)).toBe(3);
     const f5 = html.slice(html.indexOf('Garantias e próximos passos'));
@@ -380,5 +381,157 @@ describe('modelos 1, 2 e 3 seguem byte a byte (trechos do origin/main)', () => {
     expect(r).toContain('Investimento: R$ 28.900,00');
     expect(r).toContain('* 12x: R$ 2.715,00/mês');
     expect(r).toContain('🏦 Financiamento (120 dias de carência):');
+  });
+});
+
+// ─── Completa + Banco: bancos fixos, composição, dados bancários e aceite ──────────────────────
+import { BANCOS_FIXOS } from '../services/templates/bancosLogos';
+
+describe('modelo 4 Completa + Banco', () => {
+  const secoes = (h: string) => (h.match(/<div class="tab">[^<]+<\/div>/g) || []).map((x) => x.replace(/<[^>]+>/g, ''));
+  const ASSIN_PF = {
+    empresa: { razao_social: 'Sol Forte Energia Ltda', cnpj: '11222333000181', representante: 'Carlos Pereira', cargo: 'Sócio administrador' },
+    cliente: { tipo: 'PF', nome: 'Maria Aparecida Souza', documento: '52998224725' },
+  };
+  const empBanc: any = { ...company, cidade: 'Uberlândia-MG', dados_bancarios: { banco: 'Banco Exemplo', agencia: '0001', conta: '12345-6', tipo_conta: 'poupanca', titular: 'Sol Forte', pix: 'pix@exemplo.com' } };
+  const logos = (h: string) => (h.match(/<div class="bk fx">/g) || []).length;
+
+  it('bancos_logos ausente = os 8 logos; [] = nenhum e a seção some sem outro conteúdo na folha', () => {
+    expect(logos(render({}).html)).toBe(8);
+    expect(render({}).html).toContain(`alt="${BANCOS_FIXOS.sicredi.nome}"`);
+    expect(logos(render({ bancos_logos: ['itau', 'bb'] }).html)).toBe(2);
+    const vazio = render({ pag_vista: false, pag_cartao: false, pag_fin: false, bancos_logos: [] }).html;
+    expect(logos(vazio)).toBe(0);
+    expect(vazio).not.toContain('Bancos que financiam o seu sistema');
+    expect(secoes(vazio)).not.toContain('Investimento e formas de pagamento');
+  });
+
+  it('fixos primeiro, depois os enviados; no máximo 12', () => {
+    const { html } = render({ bancos_parceiros: Array.from({ length: 6 }, (_, i) => ({ nome: `Banco ${i + 1}` })) });
+    expect(logos(html)).toBe(8);
+    expect(html).toContain('Banco 4<');
+    expect(html).not.toContain('Banco 5<');
+  });
+
+  it('composição traz quantidade e descrição; o que não tem dado fica Incluído', () => {
+    const { html } = render({ qtd_modulos: '10', potencia_modulo: '550', marca_modulo: 'Canadian', tipo_telhado: 'Cerâmico' });
+    expect(html).toContain('10 módulos Canadian de 550 W');
+    expect(html).toContain('1 inversor Growatt de 5 kW');
+    expect(html).toContain('Estrutura para telhado cerâmico');
+    expect(html).not.toContain('Estrutura para telhado Cerâmico');
+    expect(html).toContain('<span class="inc">Incluído</span>');
+    const bat = render({ bateria_marca: 'BYD', bateria_qtd: '2', bateria_capacidade_kwh: '5' }).html;
+    expect(bat).toContain('2 baterias BYD de 5 kWh');
+    const sem = render({ tipo_telhado: '', marca_inversor: '', potencia_inversor: '' }).html;
+    expect(sem).not.toContain('Estrutura para telhado');
+    expect(sem).not.toContain('1 inversor');
+  });
+
+  it('dados bancários: só as linhas que existem; some com mostrar_dados_bancarios false ou sem dados completos', () => {
+    const { html } = render({}, 4, empBanc);
+    expect(html).toContain('Dados para pagamento');
+    expect(html).toContain('12345-6 poupança');
+    expect(html).toContain('Chave Pix');
+    expect(html).not.toContain('CPF/CNPJ do titular');
+    expect(render({ mostrar_dados_bancarios: false }, 4, empBanc).html).not.toContain('Dados para pagamento');
+    const so = render({}, 4, { ...company, dados_bancarios: { banco: 'X', agencia: '1' } }).html;
+    expect(so).not.toContain('Dados para pagamento');
+    const pix = render({}, 4, { ...company, dados_bancarios: { pix: 'a@b.com' } }).html;
+    expect(pix).toContain('Chave Pix');
+    expect(pix).not.toContain('<span class="lab">Banco</span>');
+    expect(pix).not.toContain('<span class="lab">Agência</span>');
+  });
+
+  it('aceite: última folha, com nome, CPF formatado, local e data; rodapé grande só nela', () => {
+    const { html } = render({ assinatura: ASSIN_PF }, 4, empBanc);
+    expect(paginas(html)).toBe(5);
+    const secs = secoes(html);
+    expect(secs[secs.length - 1]).toBe('Aceite da proposta');
+    expect(html).toContain('As duas partes confirmam os equipamentos, os valores e as condições desta proposta.');
+    expect(html).toContain('Uberlândia-MG, 15 de outubro de 2026.');
+    expect(html).toContain('<div class="nm">Maria Aparecida Souza</div>');
+    expect(html).toContain('CPF <span class="dp">529.982.247-25</span>');
+    expect(html).toContain('CNPJ 11.222.333/0001-81');
+    expect(html).toContain('Carlos Pereira, Sócio administrador');
+    expect(html).toContain('Pela empresa');
+    expect(html).toContain('Pelo cliente');
+    expect((html.match(/<div class="foot">/g) || []).length).toBe(1);
+    expect(html.indexOf('<div class="foot">')).toBeGreaterThan(html.indexOf('Aceite da proposta'));
+    expect(html).toContain('Proposta Comercial · Cliente Exemplo · 5/5');
+    expect(html).toContain('Proposta Comercial · Cliente Exemplo · 2/5');
+    // O cabeçalho da 1ª folha também leva o CPF.
+    expect(html.slice(0, html.indexOf('Detalhamento do Projeto'))).toContain('<div class="rowf"><span>CPF</span><span class="dp">529.982.247-25</span></div>');
+  });
+
+  it('aceite PJ: razão social, CNPJ (sem marca de máscara) e representante; local cai na cidade do cliente', () => {
+    const a = { ...ASSIN_PF, cliente: { tipo: 'PJ', nome: 'Padaria Pão Quente Ltda', documento: '11222333000181', representante: 'Ana Lima' } };
+    const { html } = render({ assinatura: a });
+    expect(html).toContain('<div class="nm">Padaria Pão Quente Ltda</div>');
+    expect(html).toContain('<div class="rp">Ana Lima</div>');
+    expect(html).not.toContain('class="dp"');
+    expect(html.slice(0, html.indexOf('Detalhamento do Projeto'))).toContain('<div class="rowf"><span>CNPJ</span><span class="num">11.222.333/0001-81</span></div>');
+    expect(html).toContain('Sao Jose do Rio Preto, 15 de outubro de 2026.');
+    expect(render({ assinatura: { ...a, local: 'Araguari-MG' } }).html).toContain('Araguari-MG, 15 de outubro de 2026.');
+  });
+
+  it('dados bancários: o CPF do titular (11 dígitos) sai em span.dp; CNPJ e Pix ficam inteiros', () => {
+    const cpf = render({}, 4, { ...company, dados_bancarios: { pix: '529.982.247-25', documento: '529.982.247-25' } }).html;
+    expect(cpf).toContain('<span class="val"><span class="dp">529.982.247-25</span></span>');
+    expect(cpf.match(/class="dp"/g)).toHaveLength(1); // a chave Pix não é mascarada
+    // A contagem é só de dígitos: 11 dígitos com qualquer pontuação (ou sem) é CPF.
+    const solto = render({}, 4, { ...company, dados_bancarios: { pix: 'a@b.com', documento: '529 982 247/25' } }).html;
+    expect(solto).toContain('<span class="dp">529 982 247/25</span>');
+    expect(render({}, 4, { ...company, dados_bancarios: { pix: 'a@b.com', documento: '52998224725' } }).html).toContain('<span class="dp">52998224725</span>');
+    const cnpj = render({}, 4, { ...company, dados_bancarios: { pix: 'a@b.com', documento: '11.222.333/0001-81' } }).html;
+    expect(cnpj).toContain('11.222.333/0001-81');
+    expect(cnpj).not.toContain('class="dp"');
+  });
+
+  it('aceite traz o resumo do que está sendo aceito, só com o que existe', () => {
+    const { html } = render({ assinatura: ASSIN_PF, preco_avista: '27.000,00', pag_vista: true });
+    const aceite = html.slice(html.indexOf('Resumo do que está sendo aceito'));
+    expect(aceite).toContain('<span class="lab">Proposta</span><span class="val num">20260012</span>');
+    expect(aceite).toContain('Sistema</span><span class="val num">6,6 kWp com 12 módulos Canadian de 550 W');
+    expect(aceite).toContain('Inversor</span><span class="val num">1 inversor Growatt de 5 kW');
+    expect(aceite).toContain('Preço do projeto');
+    expect(aceite).toContain('À vista');
+    expect(aceite).toContain('Validade</span><span class="val num">Até 22/10/2026');
+    expect(aceite.indexOf('Resumo do que está sendo aceito')).toBeLessThan(aceite.indexOf('As duas partes confirmam'));
+    const enxuto = render({ assinatura: ASSIN_PF, codigo: '', investimento: '', pag_vista: false, marca_inversor: '', potencia_inversor: '' }).html;
+    const resumo = enxuto.slice(enxuto.indexOf('Resumo do que está sendo aceito'), enxuto.indexOf('As duas partes confirmam'));
+    expect(resumo).not.toContain('Proposta</span>');
+    expect(resumo).not.toContain('Inversor</span>');
+    expect(resumo).not.toContain('À vista');
+  });
+
+  it('folha de garantias traz as 5 etapas até a ligação, com ou sem aceite, depois do prazo e antes do selo', () => {
+    for (const f of [{}, { assinatura: ASSIN_PF }]) {
+      const html = render(f).html;
+      const f5 = html.slice(html.indexOf('Garantias e próximos passos'));
+      expect(f5).toContain('Etapas até a ligação');
+      for (const [t, d] of [['Projeto', 'O engenheiro faz o projeto e a ART do seu sistema.'], ['Vistoria técnica', 'A equipe confere o telhado e o padrão de energia.'],
+        ['Instalação', 'Módulos, inversor e proteções instalados no local.'], ['Homologação', 'A empresa faz o pedido de conexão na concessionária.'], ['Ligação', 'Sistema ligado e gerando energia.']]) {
+        expect(f5).toContain(`<div class="t">${t}</div><div class="d">${d}</div>`);
+      }
+      expect((f5.match(/<div class="et">/g) || []).length).toBe(5);
+      expect(f5.indexOf('Prazo de instalação')).toBeLessThan(f5.indexOf('Etapas até a ligação'));
+      expect(f5.indexOf('Etapas até a ligação')).toBeLessThan(f5.indexOf('class="vpill"'));
+    }
+  });
+
+  it('sem assinatura: sem folha de aceite, sem CPF no cabeçalho, rodapé grande na última', () => {
+    const { html } = render({});
+    expect(secoes(html)).not.toContain('Aceite da proposta');
+    expect(html).not.toContain('class="dp"');
+    expect(html.indexOf('<div class="foot">')).toBeGreaterThan(html.indexOf('Garantias e próximos passos'));
+    expect(paginas(html)).toBe(4);
+  });
+
+  it('texto do usuário no aceite e nos dados bancários sai escapado', () => {
+    const a = { ...ASSIN_PF, empresa: { ...ASSIN_PF.empresa, razao_social: 'A <b>B</b> Ltda' } };
+    const { html } = render({ assinatura: a }, 4, { ...empBanc, dados_bancarios: { pix: '<i>x</i>' } });
+    expect(html).not.toContain('<b>B</b>');
+    expect(html).not.toContain('<i>x</i>');
+    expect(html).toContain('A &lt;b&gt;B&lt;/b&gt; Ltda');
   });
 });

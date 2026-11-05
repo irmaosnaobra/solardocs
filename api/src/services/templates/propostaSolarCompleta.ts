@@ -1,12 +1,17 @@
 /**
- * PROPOSTA SOLAR, MODELO 4 "COMPLETO" — várias folhas A4 em pé, no MESMO visual do modelo
+ * PROPOSTA SOLAR, MODELO 4 "COMPLETA + BANCO" — várias folhas A4 em pé, no MESMO visual do modelo
  * "1 Página" (fonte, cores, faixas, cartões e rodapé vêm de propostaSolarPartes.ts, que o
  * modelo 1 também lê). As contas e os gráficos vêm de propostaSolarCalculos.ts, o mesmo
  * módulo do modelo Moderno, então os números casam com o resumo do WhatsApp.
  *
  * Folhas: 1 Projeto · 2 Análise financeira · 3 Investimento e pagamento ·
  *         4 Quem já confia na gente (só com obras, empresas ou foto do telhado) ·
- *         5 Garantias e próximos passos (com o rodapé grande).
+ *         5 Garantias e próximos passos (com o rodapé grande, se não houver o aceite) ·
+ *         6 Aceite da proposta (só com f.assinatura; é a última e leva o rodapé grande).
+ *
+ * Os 8 bancos fixos vêm de ./bancosLogos (constante interna do servidor, nunca do usuário) e entram
+ * direto; os logos que o usuário sobe passam por srcImagemSegura. O CPF do cliente PF sai dentro de
+ * <span class="dp">: o link público (/p/:id) troca o miolo por máscara antes de servir.
  *
  * SEGURANÇA: o PDF sai no servidor (Puppeteer). Imagem só entra se o `src` for https:// ou
  * data:image/(png|jpeg|webp);base64,. As URLs das galerias já chegam reassinadas pelo servidor
@@ -24,9 +29,16 @@ import {
   valorParcelaCartao, valorParcelaFin,
 } from '../propostaSolarCalculos';
 import {
-  coresModelo1, cssRaizModelo1, CSS_MODELO1, dadosContato, cabecalhoModelo1, analiseModelo1, linhaMk, linhasInversoresHtml,
+  coresModelo1, cssRaizModelo1, CSS_MODELO1, dadosContato, cabecalhoModelo1, analiseModelo1, linhaMk,
   rodapeModelo1, type CompanyProposta,
 } from './propostaSolarPartes';
+import { totalKwInversores } from '../inversoresProposta';
+import { BANCOS_FIXOS, bancosEscolhidos } from './bancosLogos';
+import { formatarCnpj, formatarCpf, normalizarAssinatura, type Assinatura } from '../../utils/documentoBr';
+import { dadosBancariosCompletos, normalizarDadosBancarios } from '../../utils/dadosBancarios';
+
+/** O que o modelo 4 lê a mais da empresa: cidade (local do aceite) e dados bancários (folha 3). */
+export type CompanyCompleta = CompanyProposta & { cidade?: string; dados_bancarios?: unknown };
 
 interface ClienteProposta {
   nome: string;
@@ -148,6 +160,22 @@ const CSS_COMPLETO = `
 .bk img{ max-width:100%; max-height:34px; object-fit:contain; display:block; }
 .bk .nm{ font-size:10.5px; font-weight:700; color:#39404C; line-height:1.2; overflow-wrap:anywhere; }
 .bk.so .nm{ font-size:12px; font-weight:800; color:var(--c1); }
+.bk.fx{ padding:14px 20px; min-height:78px; }
+.bk.fx .lg{ height:46px; width:100%; }
+.bk.fx img{ max-width:100%; max-height:46px; width:100%; height:46px; object-fit:contain; }
+.r .inc.qt{ text-transform:none; letter-spacing:0; font-size:11.5px; text-align:right; }
+.dpag{ margin-top:2px; }
+.acGap{ height:22px; }
+.acT{ font-size:14px; font-weight:700; color:#39404C; line-height:1.5; }
+.acL{ font-size:13px; font-weight:600; color:var(--ink); margin-top:14px; }
+.sigs{ display:grid; grid-template-columns:1fr 1fr; gap:44px; margin-top:100px; }
+.sg{ text-align:center; }
+.sg .ln{ border-top:1.5px solid var(--ink); margin-bottom:8px; }
+.sg .nm{ font-size:13px; font-weight:900; color:var(--ink); line-height:1.3; overflow-wrap:anywhere; }
+.sg .dc{ font-size:11.5px; font-weight:600; color:#39404C; margin-top:3px; }
+.sg .rp{ font-size:11.5px; color:#39404C; margin-top:2px; overflow-wrap:anywhere; }
+.sg .rl{ font-size:9.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); margin-top:8px; }
+.sec.ac{ flex:1; padding-top:34px; }
 .tel{ width:100%; height:232px; object-fit:cover; border-radius:12px; display:block; }
 .tel.baixa{ height:190px; }
 .telcap{ font-size:10.5px; color:var(--muted); font-style:italic; margin-top:5px; text-align:center; }
@@ -160,7 +188,12 @@ const CSS_COMPLETO = `
 .em .lg{ height:62px; width:100%; display:flex; align-items:center; justify-content:center; background:#fff; }
 .em img{ max-width:100%; max-height:62px; object-fit:contain; display:block; }
 .em .nm{ font-size:10.5px; font-weight:700; color:#39404C; line-height:1.2; overflow-wrap:anywhere; }
-.sec.dist{ flex:1; display:flex; flex-direction:column; justify-content:space-evenly; padding-bottom:16px; }
+.sec.dist{ flex:1; display:flex; flex-direction:column; gap:28px; padding-bottom:20px; }
+.etapas{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+.et{ border:1px solid var(--line); border-radius:12px; padding:10px 10px 12px; background:#fff; }
+.et .n{ width:22px; height:22px; border-radius:50%; background:var(--c1); color:#fff; font-size:11px; font-weight:900; display:flex; align-items:center; justify-content:center; margin-bottom:7px; }
+.et .t{ font-size:12px; font-weight:800; color:var(--c1); line-height:1.2; }
+.et .d{ font-size:10.5px; color:var(--muted); margin-top:4px; line-height:1.4; }
 .sec.dist .sub{ margin-top:0; }
 .prazo{ display:flex; align-items:center; gap:16px; border:1px solid var(--line); border-radius:12px; padding:12px 16px; }
 .prazo .n{ font-size:38px; font-weight:900; color:var(--c1); line-height:1; }
@@ -174,9 +207,67 @@ const CSS_COMPLETO = `
 .cta .ph{ margin-top:8px; font-size:15px; font-weight:800; letter-spacing:.3px; }
 `;
 
+// ─── Peças do modelo 4 ───────────────────────────────────────────────────────
+
+const MAX_BANCOS_FOLHA = 12;
+
+// Texto fixo do servidor (sem dado do usuário), por isso entra sem escape.
+const ETAPAS_LIGACAO = [
+  { t: 'Projeto', d: 'O engenheiro faz o projeto e a ART do seu sistema.' },
+  { t: 'Vistoria técnica', d: 'A equipe confere o telhado e o padrão de energia.' },
+  { t: 'Instalação', d: 'Módulos, inversor e proteções instalados no local.' },
+  { t: 'Homologação', d: 'A empresa faz o pedido de conexão na concessionária.' },
+  { t: 'Ligação', d: 'Sistema ligado e gerando energia.' },
+] as const;
+
+function fmtNum(n: number): string {
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+}
+
+/** "3 módulos Canadian de 550 W": cada pedaço só entra se houver dado. Sem nenhum, vazio. */
+function descModulos(qtd: number, marca: string, potW: number): string {
+  if (qtd <= 0) return '';
+  return [`${qtd} ${qtd === 1 ? 'módulo' : 'módulos'}`, marca, potW > 0 ? `de ${fmtNum(potW)} W` : ''].filter(Boolean).join(' ');
+}
+
+function descInversor(qtd: number, marca: string, kw: number): string {
+  if (!marca && !(kw > 0)) return '';
+  return [`${qtd} ${qtd === 1 ? 'inversor' : 'inversores'}`, marca, kw > 0 ? `de ${fmtNum(kw)} kW` : ''].filter(Boolean).join(' ');
+}
+
+function descEstrutura(tipo: string): string {
+  const t = tipo.trim();
+  if (!t) return '';
+  // Solo, laje e carport não são telhado: "Estrutura para telhado Solo" soaria errado.
+  return /^(solo|laje|carport)$/i.test(t) ? `Estrutura para ${t.toLowerCase()}` : `Estrutura para telhado ${t.toLowerCase()}`;
+}
+
+function linhaComp(label: string, marca: string, desc: string): string {
+  if (!desc) return linhaMk(label, marca, 'Incluído');
+  return `<div class="r"><span class="lab">${pEsc(label)}${marca ? ` <em class="mkq">${pEsc(marca)}</em>` : ''}</span><span class="inc qt">${pEsc(desc)}</span></div>`;
+}
+
+function dataPorExtenso(d: Date): string {
+  return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/** CPF vai dentro de <span class="dp">: o link público troca o miolo por máscara. CNPJ é público e sai inteiro. */
+function docClienteHtml(c: Assinatura['cliente']): string {
+  if (c.tipo === 'PJ') return c.documento ? `CNPJ ${pEsc(formatarCnpj(c.documento))}` : '';
+  return c.documento ? `CPF <span class="dp">${pEsc(formatarCpf(c.documento))}</span>` : '';
+}
+
+/** Linha do cabeçalho da folha 1: rótulo à esquerda e número à direita (o CPF dentro de span.dp). */
+function docClienteCabecalho(c: Assinatura['cliente']): { rotulo: string; html: string } | undefined {
+  if (!c.documento) return undefined;
+  return c.tipo === 'PJ'
+    ? { rotulo: 'CNPJ', html: `<span class="num">${pEsc(formatarCnpj(c.documento))}</span>` }
+    : { rotulo: 'CPF', html: `<span class="dp">${pEsc(formatarCpf(c.documento))}</span>` };
+}
+
 // ─── O template ──────────────────────────────────────────────────────────────
 
-export function propostaSolarCompleta(company: CompanyProposta, client: ClienteProposta, f: Record<string, unknown>): string {
+export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteProposta, f: Record<string, unknown>): string {
   const cores = coresModelo1(company);
   const p = cores.p;
   const contato = dadosContato(company, f);
@@ -219,7 +310,16 @@ export function propostaSolarCompleta(company: CompanyProposta, client: ClienteP
   const fotoTelhado = srcImagemSegura(str(f.foto_telhado_b64) === '___' ? '' : f.foto_telhado_b64);
   const obras = lerObras(f.fotos_obras);
   const empresas = lerEmpresas(f.empresas_atendidas);
-  const bancos = lerBancos(f.bancos_parceiros);
+  const bancosEnviados = lerBancos(f.bancos_parceiros);
+  // Folha 3: primeiro os fixos marcados (ausente = os 8, [] = nenhum), depois os que o usuário subiu; no máximo 12.
+  const bancos: Array<ItemBancoT & { fixo?: boolean }> = [
+    ...bancosEscolhidos(f.bancos_logos).map((id) => ({ nome: BANCOS_FIXOS[id].nome, src: BANCOS_FIXOS[id].img, fixo: true })),
+    ...bancosEnviados,
+  ].slice(0, MAX_BANCOS_FOLHA);
+  const dadosBanc = normalizarDadosBancarios(company.dados_bancarios);
+  const mostraDadosBanc = f.mostrar_dados_bancarios !== false && dadosBancariosCompletos(dadosBanc);
+  const assin = normalizarAssinatura(f.assinatura);
+  const temAceite = !!assin && !!assin.cliente.nome && !!assin.empresa.razao_social;
 
   // ── Cálculos: os mesmos do Moderno ──
   const refBase = getRef(uf, cidade);
@@ -287,11 +387,23 @@ export function propostaSolarCompleta(company: CompanyProposta, client: ClienteP
   const mostraEconomia = temConsumo && economia25 > 0;
 
   // ═══ Folha 1: Projeto (o visual do modelo 1 inteiro, menos o rodapé grande) ═══
-  const bateriaLinha = bat.tem
-    ? linhaMk('Bateria', [bat.titulo, ...bat.specParts].filter(Boolean).join(' · '), 'Incluída')
+  const bateriaQtd = bat.qtd > 0 ? bat.qtd : 1;
+  const bateriaDesc = bat.tem
+    ? [`${bateriaQtd} ${bateriaQtd === 1 ? 'bateria' : 'baterias'}`, bat.marca, bat.capacidade > 0 ? `de ${fmtNum(bat.capacidade)} kWh` : ''].filter(Boolean).join(' ')
     : '';
+  const bateriaLinha = bat.tem
+    ? linhaComp('Bateria', [bat.potencia > 0 ? `${fmtNum(bat.potencia)} kW` : '', bat.ciclos > 0 ? `${bat.ciclos.toLocaleString('pt-BR')} ciclos` : ''].filter(Boolean).join(' · '), bateriaDesc)
+    : '';
+  const totalKwInv = totalKwInversores(invLista);
+  const inversoresLinhas = [
+    ...invLista.map((i) => linhaComp('Inversor', '', descInversor(i.qtd, i.marca, i.potenciaKw))),
+    ...(invLista.length > 1 && totalKwInv > 0
+      ? [linhaMk('Potência total dos inversores', '', `${totalKwInv.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kW`)]
+      : []),
+  ].join('\n      ');
+
   const folha1 = `
-  ${cabecalhoModelo1({ logo, displayNome, hoje, clienteNome: client.nome, enderecoCli, validadeCurto: validade.curto })}
+  ${cabecalhoModelo1({ logo, displayNome, hoje, clienteNome: client.nome, enderecoCli, validadeCurto: validade.curto, clienteDoc: assin ? docClienteCabecalho(assin.cliente) : undefined })}
 
   ${band('Detalhamento do Projeto')}
   <div class="sec">
@@ -313,10 +425,10 @@ export function propostaSolarCompleta(company: CompanyProposta, client: ClienteP
   ${band('Composição do Sistema')}
   <div class="sec">
     <div class="rows">
-      ${linhaMk('Módulos fotovoltaicos', marcaMod, qtdModulos > 0 ? `Incluído · ${qtdModulos} un` : 'Incluído')}
-      ${linhasInversoresHtml(invLista)}
+      ${linhaComp('Módulos fotovoltaicos', descModulos(qtdModulos, marcaModulo, potenciaModulo) ? '' : marcaMod, descModulos(qtdModulos, marcaModulo, potenciaModulo))}
+      ${inversoresLinhas}
       ${bateriaLinha}
-      ${linhaMk('Estrutura e materiais elétricos', '', 'Incluído')}
+      ${linhaComp('Estrutura e materiais elétricos', '', descEstrutura(tipoTelhado))}
       ${linhaMk('Projeto de engenharia e conexão à rede', '', 'Incluído')}
       ${linhaMk('Serviço de instalação', '', 'Incluído')}
       ${linhaMk(`Garantias (painéis ${garPaineis} anos · ${garInvDiferentes ? `inversores ${garInvDiferentes}` : `inversor ${invLista[0].garantiaAnos} anos`})`, '', 'Incluído')}
@@ -331,7 +443,7 @@ export function propostaSolarCompleta(company: CompanyProposta, client: ClienteP
   // À vista só aparece com desconto: sem ele repetiria o preço do projeto logo acima (precoAvista já vem 0 se for >= investimento).
   const vistaMostra = vistaOn && precoAvista > 0;
   const temPagamentos = vistaMostra || parcelasCartao.length > 0 || parcelasFin.length > 0 || temEntrada || !!pagCustom;
-  const temFolha3 = temPagamentos || bancos.length > 0;
+  const temFolha3 = temPagamentos || bancos.length > 0 || mostraDadosBanc;
 
   // Geração mês a mês (única parte da folha 2 que não depende do consumo).
   const geracaoHtml = `${sub('Geração estimada mês a mês', `${cidade ? `${cidade}/${uf}` : uf}`)}
@@ -385,6 +497,21 @@ export function propostaSolarCompleta(company: CompanyProposta, client: ClienteP
     ? `<div class="hi"><div class="k">Entrada + saldo</div><div class="v num">${brl(entradaValor)} + ${brl(entradaRestante)}</div><div class="s">Entrada de ${brl(entradaValor)} · Restante de ${brl(entradaRestante)} ${entradaPrazoLabel}</div></div>`
     : '';
   const dois = [blocoVista, blocoEntrada].filter(Boolean);
+  const linhasDadosBanc: string[] = [];
+  if (mostraDadosBanc && dadosBanc) {
+    const l = (k: string, v: string, valorHtml?: string) => `<div class="r"><span class="lab">${pEsc(k)}</span><span class="val">${valorHtml ?? pEsc(v)}</span></div>`;
+    if (dadosBanc.banco) linhasDadosBanc.push(l('Banco', dadosBanc.banco));
+    if (dadosBanc.agencia) linhasDadosBanc.push(l('Agência', dadosBanc.agencia));
+    if (dadosBanc.conta) linhasDadosBanc.push(l('Conta', `${dadosBanc.conta}${dadosBanc.tipo_conta === 'corrente' ? ' corrente' : dadosBanc.tipo_conta === 'poupanca' ? ' poupança' : ''}`));
+    if (dadosBanc.titular) linhasDadosBanc.push(l('Titular', dadosBanc.titular));
+    if (dadosBanc.documento) {
+      // É CPF quando tem 11 dígitos (qualquer outro caractere é ignorado na contagem): sai inteiro em span.dp
+      // e o link público mostra mascarado. CNPJ fica como está.
+      const ehCpf = dadosBanc.documento.replace(/\D/g, '').length === 11;
+      linhasDadosBanc.push(l('CPF/CNPJ do titular', dadosBanc.documento, ehCpf ? `<span class="dp">${pEsc(dadosBanc.documento)}</span>` : undefined));
+    }
+    if (dadosBanc.pix) linhasDadosBanc.push(l('Chave Pix', dadosBanc.pix));
+  }
   const corpoF3 = `<div class="sec">
     ${tileInvestimento}
     ${dois.length ? `<div class="dois" style="margin-top:10px${dois.length === 1 ? ';grid-template-columns:1fr' : ''}">${dois.join('')}</div>` : ''}
@@ -394,15 +521,20 @@ export function propostaSolarCompleta(company: CompanyProposta, client: ClienteP
     <div class="pgrid">${parcelasFin.map((x) => `<div class="pt"><span class="n">${x.n}× de</span><span class="v num">${pBRL(x.v)}</span></div>`).join('')}</div>` : ''}
     ${pagCustom ? `${sub('Condição especial')}
     <div class="hi"><div class="v t">${pEsc(pagCustom)}</div><div class="s">A combinar com o vendedor</div></div>` : ''}
-    ${bancos.length ? `${sub('Bancos parceiros')}
-    <div class="bgrid">${bancos.map((b) => b.src
-      ? `<div class="bk"><div class="lg"><img src="${pEsc(b.src)}" alt="${pEsc(b.nome || 'Banco parceiro')}"/></div>${b.nome ? `<div class="nm">${pEsc(b.nome)}</div>` : ''}</div>`
-      : `<div class="bk so"><div class="nm">${pEsc(b.nome)}</div></div>`).join('')}</div>` : ''}
+    ${bancos.length ? `${sub('Bancos que financiam o seu sistema')}
+    <div class="bgrid">${bancos.map((b) => b.fixo
+      ? `<div class="bk fx"><div class="lg"><img src="${pEsc(b.src)}" alt="${pEsc(b.nome)}"/></div></div>`
+      : b.src
+        ? `<div class="bk"><div class="lg"><img src="${pEsc(b.src)}" alt="${pEsc(b.nome || 'Banco parceiro')}"/></div>${b.nome ? `<div class="nm">${pEsc(b.nome)}</div>` : ''}</div>`
+        : `<div class="bk so"><div class="nm">${pEsc(b.nome)}</div></div>`).join('')}</div>` : ''}
+    ${mostraDadosBanc && dadosBanc ? `${sub('Dados para pagamento')}
+    <div class="rows dpag">${linhasDadosBanc.join('\n      ')}</div>` : ''}
   </div>`;
   const estF3 = 55 + (tileInvestimento ? 85 : 0) + (dois.length ? 100 : 0)
     + (parcelasCartao.length ? 36 + Math.ceil(parcelasCartao.length / 3) * 36 : 0)
     + (parcelasFin.length ? 36 + Math.ceil(parcelasFin.length / 3) * 36 : 0)
-    + (pagCustom ? 120 : 0) + (bancos.length ? 36 + Math.ceil(bancos.length / 4) * 78 : 0);
+    + (pagCustom ? 120 : 0) + (bancos.length ? 36 + Math.ceil(bancos.length / 4) * 78 : 0)
+    + (linhasDadosBanc.length ? 36 + linhasDadosBanc.length * 34 : 0);
 
   // ═══ Folha 4: Local da instalação (foto do telhado) e Quem já confia na gente (obras e empresas) ═══
   const temConfianca = obras.length > 0 || empresas.length > 0;
@@ -448,11 +580,61 @@ export function propostaSolarCompleta(company: CompanyProposta, client: ClienteP
     <div class="finGrid g4">${garantias.map((g) => `<div class="fc"><div class="k">${pEsc(g.k)}</div><div class="v">${pEsc(g.v)}</div></div>`).join('')}</div></div>
     <div>${sub('Prazo de instalação')}
     <div class="prazo"><div class="n num">${prazoDias}</div><div><div class="t">Dias úteis do contrato à ligação</div><div class="d">Inclui projeto, vistoria técnica, instalação, homologação na concessionária e ART. Pode variar conforme aprovação do órgão regulador.</div></div></div></div>
+    <div>${sub('Etapas até a ligação')}
+    <div class="etapas">${ETAPAS_LIGACAO.map((e, i) => `<div class="et"><div class="n">${i + 1}</div><div class="t">${e.t}</div><div class="d">${e.d}</div></div>`).join('')}</div></div>
     <div><span class="vpill">${pEsc(validade.longo.toUpperCase())}</span></div>
     ${vendWhats ? `<div class="cta"><div class="t">Quer fechar essa proposta?</div><div class="s">Me chama no WhatsApp que a gente tira do papel agora</div><a href="${pEsc(waLink)}" target="_blank" rel="noopener noreferrer">Quero fechar pelo WhatsApp</a><div class="ph num">${pEsc(phoneBonito)}</div></div>` : ''}
+  </div>${temAceite ? '' : `
+  ${rodapeModelo1(company, contato, 'Contato')}`}`;
+  const estF5 = 55 + (investF5 ? 95 : 0) + 36 + Math.ceil(garantias.length / 4) * 66 + 116 + 40 + (vendWhats ? 164 : 0) + 130 + (temAceite ? 0 : 250);
+
+  // ═══ Última folha: Aceite da proposta (só com f.assinatura) e o rodapé grande ═══
+  let folhaAceite = '';
+  if (temAceite && assin) {
+    const { empresa, cliente } = assin;
+    const local = assin.local || String(company.cidade || '').trim() || cidade;
+    const linhaLocal = [local, dataPorExtenso(propostaEmissao(f))].filter(Boolean).join(', ');
+    const ehPJ = cliente.tipo === 'PJ';
+    const sigEmpresa = `<div class="sg"><div class="ln"></div>
+        <div class="nm">${pEsc(empresa.razao_social)}</div>
+        ${empresa.cnpj ? `<div class="dc">CNPJ ${pEsc(formatarCnpj(empresa.cnpj))}</div>` : ''}
+        ${empresa.representante ? `<div class="rp">${pEsc([empresa.representante, empresa.cargo].filter(Boolean).join(', '))}</div>` : ''}
+        <div class="rl">Pela empresa</div></div>`;
+    const sigCliente = `<div class="sg"><div class="ln"></div>
+        <div class="nm">${pEsc(cliente.nome)}</div>
+        ${cliente.documento ? `<div class="dc">${docClienteHtml(cliente)}</div>` : ''}
+        ${ehPJ && cliente.representante ? `<div class="rp">${pEsc(cliente.representante)}</div>` : ''}
+        <div class="rl">Pelo cliente</div></div>`;
+    // Resumo do que está sendo aceito: só as linhas que têm dado.
+    const lr = (k: string, v: string) => `<div class="r"><span class="lab">${pEsc(k)}</span><span class="val num">${pEsc(v)}</span></div>`;
+    const codigoProp = String(f.codigo ?? '').trim();
+    const descMod = descModulos(qtdModulos, marcaModulo, potenciaModulo);
+    const sistema = kwp > 0 ? `${pKwp(kwp)} kWp${descMod ? ` com ${descMod}` : ''}` : '';
+    const descInv = invLista.map((i) => descInversor(i.qtd, i.marca, i.potenciaKw)).filter(Boolean).join(', ');
+    const ateData = new Date(propostaEmissao(f).getTime() + validade.dias * 86400000);
+    const validadeTxt = Number.isNaN(ateData.getTime()) ? '' : `Até ${ateData.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+    const linhasResumo = [
+      codigoProp ? lr('Proposta', codigoProp) : '',
+      sistema ? lr('Sistema', sistema) : '',
+      descInv ? lr('Inversor', descInv) : '',
+      investimento > 0 ? lr('Preço do projeto', brl(investimento)) : '',
+      vistaMostra ? lr('À vista', brl(precoAvista)) : '',
+      validadeTxt ? lr('Validade', validadeTxt) : '',
+    ].filter(Boolean);
+    folhaAceite = `${band('Aceite da proposta')}
+  <div class="sec ac">
+    ${linhasResumo.length ? `${sub('Resumo do que está sendo aceito')}
+    <div class="rows">${linhasResumo.join('\n      ')}</div>
+    <div class="acGap"></div>` : ''}
+    <div class="acT">As duas partes confirmam os equipamentos, os valores e as condições desta proposta.</div>
+    ${linhaLocal ? `<div class="acL">${pEsc(linhaLocal)}.</div>` : ''}
+    <div class="sigs">
+      ${sigEmpresa}
+      ${sigCliente}
+    </div>
   </div>
   ${rodapeModelo1(company, contato, 'Contato')}`;
-  const estF5 = 55 + (investF5 ? 95 : 0) + 36 + Math.ceil(garantias.length / 4) * 66 + 116 + 40 + (vendWhats ? 164 : 0) + 250;
+  }
 
   // ── Montagem ──
   // Cada item leva o que a folha tem e uma estimativa de altura (px, sem a faixa do topo). A folha 2
@@ -474,6 +656,7 @@ export function propostaSolarCompleta(company: CompanyProposta, client: ClienteP
     conteudos.push(`${bandaF2}\n  ${corpoF2}`);
   }
   for (const s of seguintes) conteudos.push(s.html);
+  if (folhaAceite) conteudos.push(folhaAceite);
   const total = conteudos.length;
   const topo = (n: number) => `<div class="topo">${logo ? `<img src="${pEsc(logo)}" alt="${pEsc(displayNome)}"/>` : `<span class="tn">${pEsc(displayNome || 'Sua Marca')}</span>`}<span class="tt">${pEsc(`Proposta Comercial · ${client.nome || ''} · ${n}/${total}`)}</span></div>`;
   const folhas = conteudos.map((c, i) => `<div class="page${i === 0 && enderecoCli ? ' com-end' : ''}">${i === 0 ? '' : topo(i + 1)}${c}
@@ -483,7 +666,7 @@ export function propostaSolarCompleta(company: CompanyProposta, client: ClienteP
 <html lang="pt-BR"><head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=794, user-scalable=yes"/>
-<title>Proposta Solar Completa · ${pEsc(client.nome)}</title>
+<title>Proposta Solar Completa + Banco · ${pEsc(client.nome)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>

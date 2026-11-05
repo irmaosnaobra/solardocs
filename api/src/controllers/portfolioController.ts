@@ -86,7 +86,7 @@ const MAX_TEXTO = 80;
 
 const NOME_ARQUIVO = /^\d+-[a-f0-9]{6,}\.(jpg|png|webp)$/;
 
-function pathDoUsuario(path: unknown, userId: string, tipo: TipoPortfolio): path is string {
+export function pathDoUsuario(path: unknown, userId: string, tipo: TipoPortfolio): path is string {
   if (typeof path !== 'string' || path.length > 200) return false;
   const partes = path.split('/');
   return partes.length === 4
@@ -102,6 +102,51 @@ function texto(v: unknown): string {
 
 function ehObjeto(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+/**
+ * Assina de uma vez os paths do bucket. Nunca lança: se o storage falhar devolve o mapa vazio
+ * (o item fica sem `url` e o template não o desenha). Associa pelo path, nunca pela posição.
+ */
+export async function assinarPaths(paths: string[]): Promise<Map<string, string>> {
+  const assinadas = new Map<string, string>();
+  if (!paths.length) return assinadas;
+  try {
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, CINCO_ANOS_S);
+    if (error) throw error;
+    for (const r of data ?? []) {
+      if (r && r.path && r.signedUrl && !r.error && /^https:\/\//.test(r.signedUrl)) assinadas.set(r.path, r.signedUrl);
+    }
+  } catch (err) {
+    logger.error('portfolio', 'falha assinando as imagens do portfólio; a proposta sai sem elas', err);
+  }
+  return assinadas;
+}
+
+/**
+ * Fotos de obras da empresa (company.fotos_obras): fica só o que é path DESTE usuário em
+ * portfolio/{userId}/obra/, no máximo 6, legenda aparada em 80. O resto é descartado.
+ */
+export function sanitizarFotosObras(userId: string, v: unknown): Array<{ path: string; legenda?: string }> {
+  const out: Array<{ path: string; legenda?: string }> = [];
+  if (!Array.isArray(v)) return out;
+  for (const it of v.slice(0, 60)) {
+    if (out.length >= LIMITE_FOTOS_OBRAS) break;
+    if (!ehObjeto(it) || !pathDoUsuario(it.path, userId, 'obra')) continue;
+    const legenda = texto(it.legenda);
+    out.push({ path: it.path, ...(legenda ? { legenda } : {}) });
+  }
+  return out;
+}
+
+/** Mesma lista, cada item com a `url` assinada agora (sem `url` se a assinatura falhar). */
+export async function fotosObrasComUrl(userId: string, v: unknown): Promise<Array<{ path: string; legenda?: string; url?: string }>> {
+  const lista = sanitizarFotosObras(userId, v);
+  const assinadas = await assinarPaths(lista.map((i) => i.path));
+  return lista.map((i) => {
+    const url = assinadas.get(i.path);
+    return url ? { ...i, url } : { ...i };
+  });
 }
 
 type ItemBanco = { nome: string; path?: string; url?: string };
@@ -153,18 +198,7 @@ export async function renovarUrlsPortfolio(userId: string, fields: Record<string
 
   // Uma só chamada para todas as imagens. O resultado é associado pelo path, nunca pela posição.
   const paths = Array.from(new Set([...obras, ...empresas, ...bancos].map((i) => ('path' in i ? i.path : undefined)).filter((p): p is string => !!p)));
-  const assinadas = new Map<string, string>();
-  if (paths.length) {
-    try {
-      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, CINCO_ANOS_S);
-      if (error) throw error;
-      for (const r of data ?? []) {
-        if (r && r.path && r.signedUrl && !r.error && /^https:\/\//.test(r.signedUrl)) assinadas.set(r.path, r.signedUrl);
-      }
-    } catch (err) {
-      logger.error('portfolio', 'falha assinando as imagens do portfólio; a proposta sai sem elas', err);
-    }
-  }
+  const assinadas = await assinarPaths(paths);
 
   // O item limpo (path do próprio usuário e texto) vai para o dados_json MESMO sem URL: se o storage
   // falhar agora, a galeria não some das próximas propostas (o kit vem da última). Só a `url` fica de
