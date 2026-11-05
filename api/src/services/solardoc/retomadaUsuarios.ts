@@ -14,9 +14,10 @@
 //
 // A RODADA (cada 10 min, UM envio no máximo; o /process-messages chama a cada 2 min e a vez de 10 min é por insert):
 //   0. estado (ligada?), segredo de HMAC e o texto do redator (sem texto não envia);   1. a largada (gravada na 1ª rodada);
-//   2. o início: nunca antes do piso e nunca no dia do deploy (inicioEfetivoMs), depois a janela 9h-20h BRT, segunda a sábado;
+//   2. o início: nunca antes do piso (inicioEfetivoMs), a sonda (falhou ou rodando = não envia), depois a janela 9h-20h BRT, segunda a sábado;
 //   3. as travas, nesta ordem: a Carla atende todos > IA > linha pausada > teto do frio {robo} > espaçamento > CEDE À AGENDA >
-//      teto de 25 em 24 h;   4. a vez (insert usu_rec_vez:<faixa de 10 min>);
+//      teto de 25 em 24 h;   3b. a SONDA AUTOMÁTICA, uma vez por piso, só aqui (linha calma): rodarSondaRetomada;
+//      4. a vez (insert usu_rec_vez:<faixa de 10 min>);
 //   5. o público (uma leitura por rodada), a fila e o resumo;   6. por pessoa, ANTES do claim e do barato ao caro: supressão, bloqueio,
 //      número de teste, posse, conversa, pausa humana, outro robô, Carla atende, texto; depois o phone-exists;
 //   7. as travas de novo (a janela e a chave do banco também), o claim (usu_rec_sent:<hmac>, para sempre), assumirPosse('carla') com a
@@ -54,14 +55,16 @@ import {
 import type { FatosPorteiro } from '../agentes5040/tipos';
 import { primeiroNome } from '../nexus/email';
 import {
-  ADIANTO_DO_DOCUMENTO_MS, AVALIACOES_POR_RODADA, CHAVE_RESUMO_RET, JANELA_DOC_ATIVO_MS, PREFIXO_CARIMBO_RET, PREFIXO_FORA_RET, PREFIXO_VEZ_RET,
+  ADIANTO_DO_DOCUMENTO_MS, AVALIACOES_POR_RODADA, CHAVE_RESUMO_RET, INICIO_RETOMADA_ISO, JANELA_DOC_ATIVO_MS, PREFIXO_CARIMBO_RET, PREFIXO_FORA_RET,
+  PREFIXO_SONDA_CARIMBO_RET, PREFIXO_SONDA_CLAIM_RET, PREFIXO_SONDA_FALHOU_RET, PREFIXO_SONDA_OK_RET, PREFIXO_VEZ_RET, SONDA_TETO_DIA_MAX,
+  SONDA_TETO_HORA_MAX, VARIACOES_RETOMADA, usouAPlataforma,
   ROBO_RETOMADA_USUARIOS, TELEFONE_DA_LINHA_5040, RESERVA_DO_QUIZ_24H, TETO_CAMPANHA_24H, chaveVezRet, chavesRepetidas, classificarUsuario, cnpjDe14, inicioEfetivoMs,
   limiteCedeAAgenda, marcaDoMotivo, montarChavesDaCasa, motivoDaConversa, ordenarFila, pagaHoje, pisoDoCodigoMs, telefoneDoUsuario, textoDaRetomada,
   textosVazios, type Classificacao, type ExtrasRet, type MarcaForaRet, type UsuarioRet, type VendaRet,
 } from './retomadaUsuariosRegras';
 import {
-  estadoRetomadaUsuarios, garantirLargadaRet, lerCarlaAtendeTodos, lerIaParada, lerLargadaRet, lerLinhaPausada, pausarRetomada,
-  type EstadoRetomada,
+  estadoRetomadaUsuarios, garantirLargadaRet, lerCarlaAtendeTodos, lerEstadoSonda, lerIaParada, lerLargadaRet, lerLinhaPausada, pausarRetomada,
+  type EstadoRetomada, type EstadoSonda,
 } from './retomadaUsuariosEstado';
 
 const LOG = 'retomada-usuarios';
@@ -84,7 +87,7 @@ export interface PublicoLido {
   chavesDaCasa: ReadonlySet<string>;
 }
 
-export type ItemFila = Extract<Classificacao, { ok: true }> & { u: UsuarioRet };
+export type ItemFila = Extract<Classificacao, { ok: true }> & { u: UsuarioRet; /** usou = contador > 0 ou tem linha em documents (lido com o público) */ usou?: boolean };
 
 export interface FilaMontada { fila: ItemFila[]; porMotivo: Record<string, number>; total: number }
 
@@ -97,7 +100,7 @@ export function montarFila(pub: PublicoLido, agoraMs: number, largadaMs: number)
     const t = telefoneDoUsuario(u);
     const hmac = t ? hmacDe(t.chave) : null;
     const c = classificarUsuario(u, pub.extras(u), { agoraMs, largadaMs, chavesDaCasa: pub.chavesDaCasa, repetidas, hmac });
-    if (c.ok) fila.push({ ...c, u });
+    if (c.ok) fila.push({ ...c, u, usou: usouAPlataforma(u, pub.extras(u).temDocumento === true) });
     else porMotivo[c.motivo] = (porMotivo[c.motivo] ?? 0) + 1;
   }
   return { fila: ordenarFila(fila), porMotivo, total: pub.usuarios.length };
@@ -153,7 +156,7 @@ export async function avaliarPessoa(
   if (!fatos.ehClienteSolarDoc) return recusar('telefone_nao_casa_com_a_conta', agoraMs);
   if (!(await d.carlaAtende(item.tel))) return recusar('carla_nao_atende', agoraMs);
   const primeiro = d.primeiroNome(item.u.nome);
-  const texto = textoDaRetomada(item.grupo, primeiro, item.hmac);
+  const texto = textoDaRetomada(item.grupo, primeiro, item.hmac, VARIACOES_RETOMADA, { usou: item.usou ?? usouAPlataforma(item.u), idUsuario: item.u.id });
   if (!texto.ok) return recusar(texto.motivo, agoraMs);
   return {
     ok: true, texto: texto.texto, variacao: texto.variacao, primeiro,
@@ -177,6 +180,10 @@ export interface DepsRet extends DepsAvaliarRet {
   garantirLargada(agora: Date): Promise<number>;
   /** O piso do início (D35): `Date.parse(INICIO_RETOMADA_ISO)`. O teste injeta o piso que quiser. */
   pisoInicioMs(): number;
+  /** A sonda deste piso (usu_rec_sonda_*). Erro LANÇA: a rodada não envia. */
+  sondaEstado(): Promise<EstadoSonda>;
+  /** Roda a sonda (claim, passos, marca). 'ok' = passou e libera; 'falhou' = reprovou (marca, log e e-mail feitos); 'ocupada' = outro tick tem o claim; 'erro' = nada foi gravado. */
+  sondaRodar(agora: Date): Promise<'ok' | 'falhou' | 'ocupada' | 'erro'>;
   janela(agora: Date): boolean;
   linhaPausada(agora: Date): Promise<'sim' | 'nao' | 'erro'>;
   tetoHorario(): Promise<boolean>;
@@ -235,7 +242,7 @@ const vazio = (extra: Partial<RelatorioRet> = {}): RelatorioRet => ({
   ok: true, ligada: true, motivo: null, candidatos: 0, avaliados: 0, enviou: false, puladas: {}, decisoes: [], ...extra,
 });
 
-/** O horário: ainda antes do início (o piso e o dia do deploy) ou fora da janela? Roda nas DUAS passadas (a rodada pode atravessar as 20h). */
+/** O horário: ainda antes do início (o piso) ou fora da janela? Roda nas DUAS passadas (a rodada pode atravessar as 20h). */
 function portaoDeHorario(d: DepsRet, agora: Date, inicio: number): string | null {
   if (agora.getTime() < inicio) return 'antes_do_inicio';
   if (!d.janela(agora)) return 'fora_da_janela';
@@ -275,7 +282,7 @@ export async function runRetomadaUsuariosTick(opts: OpcoesRet = {}, deps?: DepsR
     if (!d.segredoOk()) return { ...r, ok: false, motivo: 'sem_segredo_de_hmac' };
     if (textosVazios()) return { ...r, motivo: 'sem_texto' };
 
-    // 1. o piso primeiro: sem data de início nada sai e a largada NÃO é gravada (o 1º tick depois do deploy não gasta a rede "nunca no dia do deploy")
+    // 1. o piso primeiro: sem data de início nada sai e a largada NÃO é gravada
     if (!Number.isFinite(d.pisoInicioMs())) return { ...r, motivo: 'sem_data_de_inicio' };
     // a largada: a 1ª rodada grava e conta criada depois dela fica fora
     let largada: number;
@@ -284,15 +291,26 @@ export async function runRetomadaUsuariosTick(opts: OpcoesRet = {}, deps?: DepsR
       return { ...r, ok: false, motivo: 'largada_falhou' };
     }
 
-    // 2. o início (o piso e o dia do deploy) e a janela
+    // 2. o início (o piso), a sonda (falhou ou rodando: não envia, nem fora da janela) e a janela
     const inicio = inicioEfetivoMs(largada, d.pisoInicioMs());
     if (inicio === Infinity) return { ...r, motivo: 'sem_data_de_inicio' };
+    if (agora.getTime() < inicio) return { ...r, motivo: 'antes_do_inicio' };
+    let sonda: EstadoSonda;
+    try { sonda = await d.sondaEstado(); } catch { return { ...r, ok: false, motivo: 'leitura_da_sonda_falhou' }; }
+    if (sonda.estado === 'falhou') return { ...r, motivo: 'sonda_falhou' };
+    if (sonda.estado === 'em_andamento') return { ...r, motivo: 'sonda_em_andamento' };
     const horario = portaoDeHorario(d, agora, inicio);
     if (horario) return { ...r, motivo: horario };
 
     // 3. as travas, nesta ordem
     const barra = await travas(d, agora);
     if (barra) return { ...r, motivo: barra };
+
+    // 3b. a sonda automática, uma vez por piso: só com a linha calma (as travas passaram), antes da vez e de qualquer leitura do público
+    if (sonda.estado === 'nenhuma') {
+      const so = await d.sondaRodar(agora);
+      if (so !== 'ok') return { ...r, ok: so === 'falhou' || so === 'ocupada', motivo: so === 'falhou' ? 'sonda_falhou' : so === 'ocupada' ? 'sonda_em_andamento' : 'sonda_nao_rodou' };
+    }
 
     // 4. a vez de 10 min
     const vez = await d.tomarVez(agora);
@@ -394,7 +412,13 @@ export async function runRetomadaUsuariosTick(opts: OpcoesRet = {}, deps?: DepsR
           }
         }
       } catch { reler = 'leitura_falhou'; }
-      if (reler) { await desfazer(); nota('abortou', `releitura_${reler}`); continue; }
+      if (reler) {
+        await desfazer();
+        nota('abortou', `releitura_${reler}`);
+        // Releitura que não consegue ler (banco ou Z-API com problema) para a rodada: tentar a próxima pessoa seria repetir a mesma falha.
+        if (reler === 'leitura_falhou') break;
+        continue;
+      }
 
       // O sendFrio devolve false (calado) quando há pausa humana: o carimbo só vira `enviado` depois de um envio que de fato foi feito.
       let saiu = false;
@@ -445,6 +469,141 @@ export async function runRetomadaUsuariosTick(opts: OpcoesRet = {}, deps?: DepsR
   }
 }
 
+// ── a sonda automática antes do 1º envio (05/11/2026) ────────────────────────
+//
+// Condições do chefe-antiban. Prova, com a linha de verdade, que um carimbo da retomada come exatamente 1 vaga, que o espaçamento o enxerga,
+// que nenhuma env afrouxou os tetos (hora até 6, dia até 30) e que a chave sai sem deixar rastro. Uma vez por piso: o claim é um INSERT em
+// `usu_rec_sonda_claim:<piso>`; só o tick que inseriu roda. Resultado em `usu_rec_sonda_ok:<piso>` ou `usu_rec_sonda_falhou:<piso>`.
+// Falhou: marca, linha no error_logs e e-mail ao dono; a campanha fica parada até alguém apagar a marca (o claim sai junto com a gravação da marca).
+
+export type VagasFrio = { hora: { teto: number; usadas: number }; dia: { teto: number; usadas: number } };
+
+export interface DepsSonda {
+  /** vagasDoFrioLinha(). null = não deu para ler. */
+  vagas(): Promise<VagasFrio | null>;
+  /** INSERT de uma chave (nunca upsert). */
+  inserir(chave: string, valor: Record<string, unknown>, agora: Date): Promise<'ok' | 'ja' | 'erro'>;
+  /** DELETE que confere o erro: false = a chave pode ter ficado. */
+  apagar(chave: string): Promise<boolean>;
+  /** respeitaEspacamentoLinha(): true = pode enviar (nada recente na linha). Lança se não leu. */
+  espacamento(): Promise<boolean>;
+  avisar(assunto: string, html: string): Promise<void>;
+}
+
+type PassadaSonda = { ok: true } | { ok: false; motivo: string; repetir: boolean; adiar?: boolean; detalhe: Record<string, number | boolean | null> };
+
+const vagaDoDia = (v: VagasFrio): number => v.dia.teto - v.dia.usadas;
+const vagaDaHora = (v: VagasFrio): number => v.hora.teto - v.hora.usadas;
+
+/** Uma passada: mede, grava o carimbo falso, mede, confere o espaçamento, apaga no `finally`, mede de novo. */
+async function passadaDaSonda(chaveCarimbo: string, agora: Date, d: DepsSonda): Promise<PassadaSonda> {
+  const v0 = await d.vagas();
+  if (!v0) return { ok: false, motivo: 'leitura_das_vagas', repetir: false, detalhe: {} };
+  // Os tetos primeiro (sem efeito colateral): env que afrouxou a linha reprova a sonda sem gravar nada.
+  if (v0.hora.teto > SONDA_TETO_HORA_MAX || v0.dia.teto > SONDA_TETO_DIA_MAX) {
+    return { ok: false, motivo: 'teto_afrouxado', repetir: false, detalhe: { teto_hora: v0.hora.teto, teto_dia: v0.dia.teto } };
+  }
+  // O espaçamento ANTES do carimbo tem que dar true: se já dá false, a prova de "depois" não prova nada. Não é falha da linha (alguém enviou há
+  // pouco): a sonda é adiada e a próxima rodada tenta de novo. Leitura que lança reprova.
+  let antes: boolean | null;
+  try { antes = await d.espacamento(); } catch { antes = null; }
+  if (antes === null) return { ok: false, motivo: 'espacamento_nao_leu', repetir: false, detalhe: {} };
+  if (antes === false) return { ok: false, motivo: 'espacamento_ocupado_antes', repetir: false, adiar: true, detalhe: {} };
+  const gravou = await d.inserir(chaveCarimbo, { estado: 'reservado', sonda: true }, agora);
+  if (gravou !== 'ok') {
+    // 'erro' pode ter gravado mesmo assim (timeout) e 'ja' é sobra de antes: nos dois casos a chave tem que sair, senão come 1 vaga por 24 h.
+    const limpou = await d.apagar(chaveCarimbo);
+    const motivo = !limpou ? 'chave_da_sonda_ficou' : gravou === 'ja' ? 'carimbo_da_sonda_ja_existia' : 'carimbo_da_sonda_nao_gravou';
+    return { ok: false, motivo, repetir: false, detalhe: {} };
+  }
+  let v1: VagasFrio | null = null;
+  let espacamento: boolean | null = null;
+  let apagou = false;
+  try {
+    v1 = await d.vagas();
+    try { espacamento = await d.espacamento(); } catch { espacamento = null; }
+  } finally {
+    apagou = await d.apagar(chaveCarimbo);
+  }
+  if (!apagou) return { ok: false, motivo: 'chave_da_sonda_ficou', repetir: false, detalhe: {} };
+  if (!v1) return { ok: false, motivo: 'leitura_das_vagas', repetir: false, detalhe: {} };
+  if (v1.hora.teto > SONDA_TETO_HORA_MAX || v1.dia.teto > SONDA_TETO_DIA_MAX) {
+    return { ok: false, motivo: 'teto_afrouxado', repetir: false, detalhe: { teto_hora: v1.hora.teto, teto_dia: v1.dia.teto } };
+  }
+  // O espaçamento é determinístico (a chave existia nos últimos 10 min): não se repete.
+  if (espacamento !== false) return { ok: false, motivo: espacamento === null ? 'espacamento_nao_leu' : 'espacamento_nao_viu_a_chave', repetir: false, detalhe: {} };
+  // As contas dependem de ninguém mais enviar frio no meio (a sonda roda na janela): diferença errada repete uma vez.
+  const queda = vagaDoDia(v0) - vagaDoDia(v1);
+  const quedaHora = vagaDaHora(v0) - vagaDaHora(v1);
+  if (queda !== 1 || quedaHora !== 1) return { ok: false, motivo: 'vaga_nao_caiu_exatamente_1', repetir: true, detalhe: { queda, queda_hora: quedaHora } };
+  const v2 = await d.vagas();
+  if (!v2) return { ok: false, motivo: 'leitura_das_vagas', repetir: false, detalhe: {} };
+  if (vagaDoDia(v2) !== vagaDoDia(v0) || vagaDaHora(v2) !== vagaDaHora(v0)) {
+    return { ok: false, motivo: 'vaga_nao_voltou', repetir: true, detalhe: { antes: vagaDoDia(v0), depois: vagaDoDia(v2), hora_antes: vagaDaHora(v0), hora_depois: vagaDaHora(v2) } };
+  }
+  return { ok: true };
+}
+
+const html = (linhas: string[]): string => linhas.map(l => `<p>${l}</p>`).join('');
+
+/**
+ * Roda a sonda deste piso. 'ok' = passou (usu_rec_sonda_ok gravada); 'falhou' = reprovou (marca, log e e-mail); 'ocupada' = outro tick tem o
+ * claim; 'erro' = o claim não foi gravado (nada mudou, a próxima rodada tenta). Nunca lança.
+ */
+export async function rodarSondaRetomada(agora: Date, piso: string, d: DepsSonda): Promise<'ok' | 'falhou' | 'ocupada' | 'erro'> {
+  try {
+    const claim = await d.inserir(`${PREFIXO_SONDA_CLAIM_RET}${piso}`, {}, agora);
+    if (claim === 'ja') return 'ocupada';
+    if (claim === 'erro') return 'erro';
+    const chaveCarimbo = `${PREFIXO_SONDA_CARIMBO_RET}${piso}`;
+    let r: PassadaSonda = { ok: false, motivo: 'nao_rodou', repetir: false, detalhe: {} };
+    let tentativas = 0;
+    for (;;) {
+      tentativas++;
+      try { r = await passadaDaSonda(chaveCarimbo, agora, d); } catch (e) {
+        r = { ok: false, motivo: 'excecao', repetir: false, detalhe: {} };
+        logger.error(LOG, `a sonda lançou (${String((e as Error)?.message ?? e).slice(0, 80)})`);
+        await d.apagar(chaveCarimbo).catch(() => false);
+      }
+      // Só a diferença de contagem repete, e uma vez: outro frio pode ter entrado no meio (a sonda roda na janela).
+      if (r.ok || !r.repetir || tentativas >= 2) break;
+    }
+    if (r.ok) {
+      const grav = await d.inserir(`${PREFIXO_SONDA_OK_RET}${piso}`, { tentativas }, agora);
+      if (grav === 'erro') logger.error(LOG, 'a sonda passou e a marca ok não gravou: a campanha fica esperando (claim sem resultado)');
+      else logger.info(LOG, `sonda automática passou (tentativas ${tentativas}): a campanha pode enviar`);
+      return grav === 'erro' ? 'erro' : 'ok';
+    }
+    if (!r.ok && r.adiar) {
+      // Adiada, não reprovada: solta o claim e a próxima rodada tenta com a linha calma.
+      await d.apagar(`${PREFIXO_SONDA_CLAIM_RET}${piso}`).catch(() => false);
+      logger.info(LOG, 'sonda adiada: já havia envio recente na linha');
+      return 'erro';
+    }
+    const motivo = r.motivo;
+    const valor = { motivo, tentativas, ...r.detalhe };
+    const marca = await d.inserir(`${PREFIXO_SONDA_FALHOU_RET}${piso}`, valor, agora);
+    // Marca gravada: o claim sai, e APAGAR SÓ A MARCA basta para refazer a sonda (sem o claim, a marca de falha é o que segura a campanha).
+    // Marca que não gravou: o claim FICA, porque é ele que segura a pausa (estado em_andamento, que a Central mostra como travada).
+    if (marca === 'ok') await d.apagar(`${PREFIXO_SONDA_CLAIM_RET}${piso}`).catch(() => false);
+    logger.error(LOG, `a sonda reprovou (${motivo}): campanha parada`, valor);
+    const ficou = motivo === 'chave_da_sonda_ficou';
+    await d.avisar('Retomada da Carla parada: a sonda de segurança reprovou', html([
+      `A sonda automática da retomada dos usuários da SolarDoc reprovou e a campanha NÃO enviou nada. Motivo: ${motivo}.`,
+      ficou
+        ? `A chave de teste ${PREFIXO_SONDA_CARIMBO_RET}${piso} pode ter ficado no system_state e come 1 vaga do frio por 24 horas. Apague-a à mão.`
+        : 'Nenhuma mensagem foi enviada e a chave de teste não ficou no banco.',
+      marca === 'ok'
+        ? `Para refazer a sonda: apague ${PREFIXO_SONDA_FALHOU_RET}${piso} do system_state. Enquanto ela existir, a campanha fica parada e a Central mostra o motivo.`
+        : `A marca de falha não gravou; o claim ${PREFIXO_SONDA_CLAIM_RET}${piso} mantém a campanha parada. Para refazer a sonda, apague esse claim do system_state.`,
+    ].filter(Boolean))).catch(e => logger.error(LOG, `o e-mail de alerta da sonda não saiu (${String((e as Error)?.message ?? e).slice(0, 60)})`));
+    return 'falhou';
+  } catch (e) {
+    logger.error(LOG, `a sonda falhou por exceção (${String((e as Error)?.message ?? e).slice(0, 80)})`);
+    return 'erro';
+  }
+}
+
 // ── o modo seco: só lê, nunca envia ──────────────────────────────────────────
 
 export interface LinhaSeco {
@@ -474,6 +633,8 @@ export interface RelatorioSeco {
   carla_atende_todos: boolean;
   ia_parada: boolean;
   sem_texto: boolean;
+  /** A sonda deste piso: ok, falhou, nenhuma, em_andamento ou null (não deu para ler). */
+  sonda: EstadoSonda['estado'] | null;
   total_lido: number;
   na_fila: number;
   por_motivo: Record<string, number>;
@@ -512,6 +673,7 @@ export async function sondarRetomadaUsuarios(opts: { n?: number; agora?: Date } 
     carla_atende_todos: await tenta(() => d.carlaAtendeTodos(), false),
     ia_parada: await tenta(() => d.iaParada(agora), true),
     sem_texto: textosVazios(),
+    sonda: (await tenta<EstadoSonda | null>(() => d.sondaEstado(), null))?.estado ?? null,
     total_lido: 0, na_fila: 0, por_motivo: {}, linhas: [],
   };
 
@@ -538,7 +700,7 @@ export async function sondarRetomadaUsuarios(opts: { n?: number; agora?: Date } 
 
 // ── as dependências de verdade ───────────────────────────────────────────────
 
-const COLUNAS_USUARIO = 'id, email, nome, whatsapp, plano, billing_status, plano_expira_em, created_at, whatsapp_opt_out, whatsapp_replied_at, is_admin, carla_sem_cnpj_count, carla_inativo_count, last_canceled_at';
+const COLUNAS_USUARIO = 'id, email, nome, whatsapp, plano, billing_status, plano_expira_em, created_at, whatsapp_opt_out, whatsapp_replied_at, is_admin, carla_sem_cnpj_count, carla_inativo_count, last_canceled_at, documentos_usados';
 
 /** Lê tudo de uma consulta paginada (o PostgREST corta em 1000 linhas e ignora o .limit()). Erro LANÇA: lista cortada também é "não saber". */
 async function lerTudo<T>(pagina: (de: number, ate: number) => PromiseLike<{ data: unknown[] | null; error: unknown }>): Promise<T[]> {
@@ -588,6 +750,16 @@ async function lerExtras(candidatos: readonly UsuarioRet[], agora: Date): Promis
       const t = tempoDe(l.created_at);
       if (t !== null && t > (docs.get(l.user_id) ?? -Infinity)) docs.set(l.user_id, t);
     }
+  }
+
+  // "Usou" (05/11/2026): o contador `documentos_usados` zera no reset mensal e na ativação; a tabela `documents` não. Uma leitura por rodada,
+  // em lotes de 100 ids, só de quem o contador não prova. Erro LANÇA: o público não é lido e a rodada para (não chuta o texto).
+  const comDocumento = new Set<string>();
+  const semContador = candidatos.filter(u => !(Number(u.documentos_usados) > 0)).map(u => u.id);
+  for (const lote of emLotes(semContador, 100)) {
+    const linhas = await lerTudo<{ user_id: string }>((de, ate) =>
+      supabase.from('documents').select('user_id').in('user_id', lote).order('user_id', { ascending: true }).range(de, ate));
+    for (const l of linhas) comDocumento.add(l.user_id);
   }
 
   const comCnpj = new Set<string>();
@@ -646,6 +818,7 @@ async function lerExtras(candidatos: readonly UsuarioRet[], agora: Date): Promis
       vendas: vendas.get(String(u.email ?? '').trim().toLowerCase()) ?? [],
       ultimoDocumentoBrutoMs: docs.get(u.id) ?? null,
       temCnpj: comCnpj.has(u.id),
+      temDocumento: comDocumento.has(u.id),
       toquesCurso19: curso.get(u.id) ?? 0,
       nexusConviteEmMs: nexus.get(u.id) ?? null,
       jaNaCampanha: !!h && jaFoi.has(`${PREFIXO_CARIMBO_RET}${h}`),
@@ -657,6 +830,25 @@ async function lerExtras(candidatos: readonly UsuarioRet[], agora: Date): Promis
   return mapa;
 }
 
+export function depsReaisSonda(): DepsSonda {
+  return {
+    async vagas() { try { return await vagasDoFrioLinha(); } catch { return null; } },
+    async inserir(chave, valor, agora) {
+      const v = await reservarChave(chave, valor, agora);
+      return v === 'reservada' ? 'ok' : v === 'ja_existe' ? 'ja' : 'erro';
+    },
+    async apagar(chave) {
+      try {
+        const { error } = await supabase.from('system_state').delete().eq('key', chave);
+        return !error;
+      } catch { return false; }
+    },
+    espacamento: () => respeitaEspacamentoLinha(),
+    // O mailer cria o cliente do Resend ao carregar: import tardio, só quando a sonda reprova.
+    async avisar(assunto, corpo) { const { sendOpsAlert } = await import('../../utils/mailer'); await sendOpsAlert(assunto, corpo); },
+  };
+}
+
 export function depsReais(): DepsRet {
   return {
     estado: () => estadoRetomadaUsuarios(),
@@ -666,6 +858,8 @@ export function depsReais(): DepsRet {
     lerLargada: () => lerLargadaRet(),
     garantirLargada: (agora) => garantirLargadaRet(agora),
     pisoInicioMs: () => pisoDoCodigoMs(),
+    sondaEstado: () => lerEstadoSonda(INICIO_RETOMADA_ISO),
+    sondaRodar: (agora) => rodarSondaRetomada(agora, INICIO_RETOMADA_ISO, depsReaisSonda()),
     janela: (agora) => dentroDaJanelaDaBaseLinha(agora),
     linhaPausada: (agora) => lerLinhaPausada(agora),
     tetoHorario: () => dentroDoTetoHorarioLinha({ robo: ROBO_RETOMADA_USUARIOS }),
@@ -674,10 +868,12 @@ export function depsReais(): DepsRet {
     limiteAgenda: () => limiteCedeAAgenda(process.env.EP_CONFIRMA_TETO_HORA),
     async tetoCampanha(agora) {
       try {
+        // O carimbo de teste da sonda (`usu_rec_sent:sonda:`) conta para o frio da LINHA, mas não é envio da campanha: fora deste teto de 25.
         const { data, error } = await supabase.from('system_state').select('key').like('key', `${PREFIXO_CARIMBO_RET}%`)
-          .gte('updated_at', new Date(agora.getTime() - 24 * 3_600_000).toISOString()).limit(TETO_CAMPANHA_24H + 1);
+          .gte('updated_at', new Date(agora.getTime() - 24 * 3_600_000).toISOString()).limit(TETO_CAMPANHA_24H + 2);
         if (error) return 'erro';
-        return (data?.length ?? 0) >= TETO_CAMPANHA_24H ? 'cheio' : 'ok';
+        const envios = (data ?? []).filter(l => !String((l as { key?: string }).key ?? '').startsWith(PREFIXO_SONDA_CARIMBO_RET)).length;
+        return envios >= TETO_CAMPANHA_24H ? 'cheio' : 'ok';
       } catch { return 'erro'; }
     },
     async vagasDoFrio() { try { return await vagasDoFrioLinha(); } catch { return null; } },

@@ -17,7 +17,9 @@ import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { DONAS_LIBERADAS_PARA_TODOS, ligado, lerAlvoVivo } from '../agentes5040/interruptores';
 import { pausaDoValor } from './recuperacaoCarlaEstado';
-import { CHAVE_LARGADA_RET, CHAVE_PAUSA_RET } from './retomadaUsuariosRegras';
+import {
+  CHAVE_LARGADA_RET, CHAVE_PAUSA_RET, PREFIXO_SONDA_CLAIM_RET, PREFIXO_SONDA_FALHOU_RET, PREFIXO_SONDA_OK_RET,
+} from './retomadaUsuariosRegras';
 
 const LOG = 'retomada-usuarios';
 
@@ -113,7 +115,7 @@ export async function garantirLargadaRet(agora: Date): Promise<number> {
   if (error && (error as { code?: string }).code !== '23505') throw new Error(`gravar a largada: ${error.message}`);
   const depois = await lerLargadaRet();
   if (depois === null) throw new Error('largada não encontrada depois de gravar');
-  if (depois === agora.getTime()) logger.info(LOG, 'largada da retomada gravada: só conta criada antes dela, e o 1º envio nunca é no dia do deploy');
+  if (depois === agora.getTime()) logger.info(LOG, 'largada da retomada gravada: só conta criada antes dela entra na campanha');
   return depois;
 }
 
@@ -156,4 +158,29 @@ export async function lerCarlaAtendeTodosDetalhe(): Promise<'sim' | 'nao' | 'err
 /** O mesmo, em sim ou não: o robô trata o erro de leitura como "não atende" e não envia. */
 export async function lerCarlaAtendeTodos(): Promise<boolean> {
   return (await lerCarlaAtendeTodosDetalhe()) === 'sim';
+}
+
+// ── a sonda automática (05/11/2026) ──────────────────────────────────────────
+
+/**
+ * O estado da sonda deste piso. `falhou` vale mais que tudo (a campanha fica parada até alguém apagar a marca); `ok` libera; só o claim,
+ * sem resultado, é `em_andamento` (rodando agora, ou o tick que a fazia morreu: `desdeMs` é o `updated_at` do claim, para a Central dizer
+ * qual dos dois). Erro de leitura LANÇA: quem chama não envia.
+ */
+export type EstadoSonda = { estado: 'ok' | 'falhou' | 'nenhuma' } | { estado: 'em_andamento'; desdeMs: number };
+
+export async function lerEstadoSonda(piso: string): Promise<EstadoSonda> {
+  const chaves = [PREFIXO_SONDA_OK_RET, PREFIXO_SONDA_FALHOU_RET, PREFIXO_SONDA_CLAIM_RET].map(p => `${p}${piso}`);
+  const { data, error } = await supabase.from('system_state').select('key, updated_at').in('key', chaves);
+  if (error) throw new Error('ler a sonda da retomada');
+  const linhas = (data ?? []) as Array<{ key: string; updated_at?: string | null }>;
+  const tem = (prefixo: string): { updated_at?: string | null } | undefined => linhas.find(l => l.key === `${prefixo}${piso}`);
+  if (tem(PREFIXO_SONDA_FALHOU_RET)) return { estado: 'falhou' };
+  if (tem(PREFIXO_SONDA_OK_RET)) return { estado: 'ok' };
+  const claim = tem(PREFIXO_SONDA_CLAIM_RET);
+  if (claim) {
+    const t = Date.parse(String(claim.updated_at ?? ''));
+    return { estado: 'em_andamento', desdeMs: Number.isFinite(t) ? t : 0 };
+  }
+  return { estado: 'nenhuma' };
 }
