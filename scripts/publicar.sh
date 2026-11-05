@@ -21,7 +21,7 @@ if [ -z "$TOKEN" ]; then
 fi
 
 api() { curl -sS -m 60 --retry 3 --retry-all-errors -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" "$@"; }
-json() { python3 -c "import sys, json; d = json.load(sys.stdin); $1"; }
+json() { python3 -c "import sys, json; d = json.load(sys.stdin); $1" 2>/dev/null; } # resposta vazia da API vira falha calada e a volta seguinte tenta de novo
 
 git fetch -q origin main
 if ! git merge-base --is-ancestor origin/main HEAD; then
