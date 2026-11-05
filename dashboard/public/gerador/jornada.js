@@ -1,5 +1,6 @@
 /* Jornada da obra, fase 1 (05/11/2026): a aba Clientes do Solar e as etapas 1 a 3 da obra.
- * Script clássico, um IIFE. Expõe window.Jornada = { abrirLista, abrirObra, vendido }.
+ * Fase 2 (06/11/2026): a faixa do dinheiro, as etapas 4 a 8 e os papéis do Fechamento nas etapas moram em jornada-dinheiro.js e jornada-obra.js, que se registram em window.Jornada.
+ * Script clássico, um IIFE. Expõe window.Jornada = { abrirLista, abrirObra, vendido, h, etapas, extras, dinheiro }.
  * Funções do index.html são buscadas na hora da chamada, sempre com typeof: vdcFetch, admOk, vdcDetalhe, vdcFechar, vdcAnexar,
  * epEmitGet, showToast, navObrasSolar, navPainelSolar. A variável vdcEst é um `let` global do index: lida pelo nome, com typeof.
  * O DOM é montado com createElement e textContent (nada de HTML vindo do servidor, salvo o papel dentro do iframe sem scripts).
@@ -8,7 +9,7 @@
   'use strict';
 
   var L = { dados: null, aba: 'ativas', filtro: 'todas', busca: '', consultor: '', carregando: false, erro: '', menu: null };
-  var O = { card: null, dados: null, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, obraNo: null, debounce: 0, seq: 0 };
+  var O = { card: null, dados: null, fase2: null, dinheiro: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0 };
 
   // ── Rede ───────────────────────────────────────────────────────────────────
   function api(rota, metodo, corpo, ms) {
@@ -50,6 +51,13 @@
   function reais(c) { var n = Math.round(Number(c) || 0); var r = String(Math.floor(n / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); return 'R$ ' + r + ',' + ('0' + (n % 100)).slice(-2); }
   function nomeBonito(n) { n = String(n || ''); return n ? n.charAt(0).toUpperCase() + n.slice(1) : ''; }
   function plural(n, a, b) { return n + ' ' + (n === 1 ? a : b); }
+  /** Dinheiro com sinal: o negativo sai "-R$ 61,50" (o reais() acima é só para valor positivo). */
+  function rs(c) { var n = Math.round(Number(c) || 0); return n < 0 ? '-' + reais(-n) : reais(n); }
+  /** Texto de dinheiro em centavos inteiros. null = vazio, NaN = não entendi. */
+  function cents(txt) {
+    if (typeof Financeiro === 'undefined' || typeof Financeiro.centavosDeTexto !== 'function') { var t = String(txt).trim(); if (!t) return null; var n = Number(t.replace(/\./g, '').replace(',', '.')); return isFinite(n) ? Math.round(n * 100) : NaN; }
+    return Financeiro.centavosDeTexto(txt);
+  }
 
   function injetarCss() {
     if (document.getElementById('jor-css')) return;
@@ -123,6 +131,10 @@
       '.jor-tbl th,.jor-tbl td{padding:6px 8px;border-bottom:1px solid var(--n-bd,#334155);text-align:left;color:var(--n-tx,#E5E7EB)}',
       '.jor-tbl th{color:var(--n-tx2,#B4C0D2)}',
       '#jor-vdc{margin-top:14px}',
+      '.jor-vdc-det{margin-top:14px}',
+      '.jor-vdc-sum{cursor:pointer;font-weight:800;color:var(--n-tx,#E5E7EB);padding:8px 0}',
+      '.jor-passo-gasto{color:var(--n-tx2,#B4C0D2);font-weight:700}',
+      '.jor-passo.feita .jor-passo-gasto{color:var(--io-ok-tx,#4ADE80)}',
       '@media (max-width:760px){',
       '.jor-cols{grid-template-columns:minmax(0,1fr)}',
       '.jor-pg{grid-template-columns:minmax(0,1fr)}',
@@ -223,6 +235,7 @@
       if (typeof navObrasSolar === 'function') navObrasSolar();
     }));
     if (typeof admOk === 'function' && admOk()) add(topo, btn('Painel', 'jor-btn-link', function () { if (typeof navPainelSolar === 'function') navPainelSolar(); }));
+    if (typeof admOk === 'function' && admOk() && window.Jornada.dinheiro && window.Jornada.dinheiro.abrirAjustes) add(topo, btn('Ajustes', 'jor-btn-link', function () { window.Jornada.dinheiro.abrirAjustes(); }));
     raiz.appendChild(topo);
     if (L.erro || !d) {
       raiz.appendChild(el('p', 'jor-erro', L.erro || 'Sem dados.'));
@@ -309,7 +322,7 @@
   // ── A obra ──────────────────────────────────────────────────────────────────
   function sairDaObra() {
     if (O.vdcNo && typeof vdcFechar === 'function') { try { vdcFechar(O.vdcNo); } catch (e) { /* já fechado */ } }
-    O.vdcChave = ''; O.vdcNo = null; O.obraNo = null;
+    O.vdcChave = ''; O.vdcNo = null; O.vdcDet = null; O.vdcPainel = 0; O.obraNo = null; O.fase2 = null; O.dinheiro = null;
     if (O.debounce) { clearTimeout(O.debounce); O.debounce = 0; }
   }
 
@@ -321,15 +334,24 @@
     O.card = card;
     if (!O.obraNo) { O.obraNo = el('div'); O.obraNo.id = 'jor-obra'; }
     if (!O.vdcNo) { O.vdcNo = el('div'); O.vdcNo.id = 'jor-vdc'; }
-    if (!c.contains(O.obraNo)) c.replaceChildren(O.obraNo, O.vdcNo);
+    // Fase 2: o quadro de documentos mora num <details>, aberto nas etapas 1 a 3 e fechado nas outras. O #jor-vdc continua o mesmo nó.
+    if (!O.vdcDet) { O.vdcDet = el('details', 'jor-vdc-det'); O.vdcDet.appendChild(el('summary', 'jor-vdc-sum', 'Documentos e cadastro do cliente')); O.vdcDet.appendChild(O.vdcNo); O.vdcPainel = 0; }
+    if (!c.contains(O.obraNo)) c.replaceChildren(O.obraNo, O.vdcDet);
     O.obraNo.replaceChildren(el('p', 'jor-nota', 'Carregando…'));
     carregarObra();
   }
 
   function carregarObra() {
     var seq = ++O.seq; var card = O.card;
-    return api('/gerador/jornada-solar/obra/' + encodeURIComponent(card), 'GET').then(function (r) {
+    var base = '/gerador/jornada-solar/obra/' + encodeURIComponent(card);
+    return Promise.all([api(base, 'GET'), api(base + '/fase2', 'GET'), api(base + '/dinheiro', 'GET')]).then(function (rs3) {
+      var r = rs3[0], rf = rs3[1], rd = rs3[2];
       if (seq !== O.seq || card !== O.card || !O.obraNo) return;
+      // Falha só do fase2 ou do dinheiro não derruba a obra: o bloco diz que não leu e oferece Tentar de novo.
+      var f2ok = rf.status === 200 && rf.json && rf.json.ok !== false && Array.isArray(rf.json.etapas);
+      var dnok = rd.status === 200 && rd.json && rd.json.ok !== false && (rd.json.visivel === false || !!rd.json.livro);
+      O.fase2 = f2ok ? rf.json : null; O.fase2Erro = !f2ok;
+      O.dinheiro = dnok ? rd.json : null; O.dinErro = !dnok;
       if (r.status === 200 && r.json && r.json.ok !== false) { O.dados = r.json; desenharObra(); montarQuadro(); } else {
         O.obraNo.replaceChildren(el('p', 'jor-erro', msgDe(r, 'Não consegui abrir esta venda agora.')), btn('Voltar para Clientes', '', abrirLista));
       }
@@ -342,7 +364,7 @@
 
   function montarQuadro() {
     var d = O.dados; if (!d || !O.vdcNo || typeof vdcDetalhe !== 'function') return;
-    var semTrello = d.etapa_atual !== 3;
+    var semTrello = atualEtapa() !== 3;
     var chave = O.card + ':' + (semTrello ? 'sem' : 'com');
     if (O.vdcChave === chave) return;
     if (O.vdcChave && typeof vdcFechar === 'function') vdcFechar(O.vdcNo);
@@ -384,6 +406,21 @@
     return h;
   }
 
+  /** A etapa da vez: a do fase2 (que conhece as etapas 4 a 8) quando ele respondeu; senão a da Fase 1. */
+  function atualEtapa() {
+    if (O.fase2 && Array.isArray(O.fase2.etapas) && typeof O.fase2.etapa_atual === 'number') return O.fase2.etapa_atual;
+    return (O.dados && O.dados.etapa_atual) || 0;
+  }
+  /** As 9 etapas: 1 a 3 e a 9 da Fase 1; 4 a 8 do fase2 (por n), quando ele respondeu. */
+  function etapasMescladas() {
+    var d = O.dados; var f2 = O.fase2;
+    return d.etapas.map(function (e) {
+      if (e.n < 4 || e.n > 8 || !f2) return e;
+      var x = f2.etapas.filter(function (y) { return y.n === e.n; })[0];
+      return x ? Object.assign({}, e, x) : e;
+    });
+  }
+
   function desenharObra() {
     var d = O.dados; var n = O.obraNo; if (!d || !n) return;
     var raiz = el('div');
@@ -394,10 +431,12 @@
     var vend = d.etapas[0] && d.etapas[0].dono && d.etapas[0].dono[0] ? nomeBonito(d.etapas[0].dono[0].nome) : nomeBonito(d.card.vendedor);
     t.appendChild(el('span', '', [d.card.cidade, 'Vendido por ' + (nomeBonito(d.card.vendedor) || vend)].filter(Boolean).join(' · ')));
     cab.appendChild(t);
-    if (d.etapa_atual) cab.appendChild(el('span', 'jor-pilula', 'Etapa ' + d.etapa_atual + ' de 9'));
+    if (atualEtapa()) cab.appendChild(el('span', 'jor-pilula', 'Etapa ' + atualEtapa() + ' de 9'));
     add(cab, btn('Clientes', '', abrirLista));
+    if (O.dinheiro && O.dinheiro.visivel !== false && O.dinheiro.livro && window.Jornada.dinheiro) add(cab, btn('Dinheiro', '', function () { window.Jornada.dinheiro.abrirLivro(); }));
     if (d.pode.cancelar) add(cab, btn('Venda cancelada', 'jor-btn-link', function () { cancelarDialogo(O.card, carregarObra); }));
     raiz.appendChild(cab);
+    if (window.Jornada.dinheiro && window.Jornada.dinheiro.faixa) window.Jornada.dinheiro.faixa(raiz, O.dinheiro);
     if (d.cancelada) {
       var fx = el('div', 'jor-faixa', 'Venda cancelada em ' + ddmm(d.cancelada.em) + ' por ' + nomeBonito(d.cancelada.por) + '. Motivo: ' + (d.cancelada.motivo || ''));
       if (d.pode.descancelar) fx.appendChild(btn('Desfazer o cancelamento', '', function () { desfazerDialogo(); }));
@@ -405,32 +444,45 @@
     }
     if (d.aviso) raiz.appendChild(el('p', 'jor-aviso', d.aviso));
     // Régua
-    var atual = d.etapa_atual || 0;
-    if (O.painel === null) O.painel = (atual >= 1 && atual <= 3) ? atual : 1;
+    var atual = atualEtapa();
+    if (O.painel === null) O.painel = (atual >= 1 && atual <= 8) ? atual : (atual === 9 ? 8 : 1);
+    var ets = etapasMescladas();
     var reg = el('div', 'jor-regua');
-    d.etapas.forEach(function (e) {
-      var feita = !!e.concluida_em || (atual > e.n && e.n <= 3);
+    ets.forEach(function (e) {
+      var feita = !!e.concluida_em || (atual > e.n);
       var davez = e.n === atual;
       var b = el('button', 'jor-passo ' + (feita ? 'feita' : davez ? 'davez' : 'futura') + (O.painel === e.n ? ' sel' : '')); b.type = 'button';
       var tt = el('b'); tt.appendChild(feita ? icone('ok') : (!davez ? icone('lock') : document.createTextNode('')));
       tt.appendChild(document.createTextNode(e.n + ' ' + e.curto)); b.appendChild(tt);
       b.appendChild(el('small', '', (e.dono || []).map(function (x) { return x.iniciais; }).join(' ')));
-      if (e.n > 3) { b.title = 'Chega na fase 2'; b.setAttribute('aria-disabled', 'true'); } else {
+      var gp = window.Jornada.dinheiro && window.Jornada.dinheiro.gastoDaRegua ? window.Jornada.dinheiro.gastoDaRegua(O.dinheiro, e.n, atual) : '';
+      if (gp) b.appendChild(el('small', 'jor-passo-gasto', gp));
+      if (e.n === 9) { b.title = 'Chega na fase 3'; b.setAttribute('aria-disabled', 'true'); }
+      else if (e.n > 3 && !O.fase2) { b.title = 'Não consegui ler esta parte agora.'; b.setAttribute('aria-disabled', 'true'); }
+      else if (e.n > atual) { b.setAttribute('aria-disabled', 'true'); }
+      else {
         b.addEventListener('click', function () { O.painel = e.n; desenharObra(); });
       }
       reg.appendChild(b);
     });
     raiz.appendChild(reg);
     // Duas colunas
-    var et = d.etapas[(O.painel || 1) - 1];
+    var et = ets[(O.painel || 1) - 1];
+    var f2 = O.fase2; var f2et = et.n >= 4 && et.n <= 8;
     var cols = el('div', 'jor-cols'); var esq = el('div', 'jor-esq'); var dir = el('div', 'jor-dir');
     var titulo = el('h3', '', 'Etapa ' + et.n + ' · ' + et.nome);
     esq.appendChild(titulo);
     var donos = (et.dono || []).map(function (x) { return x.iniciais + ' ' + nomeBonito(x.nome); }).join(', ');
     esq.appendChild(el('p', 'jor-nota', 'Dono: ' + donos));
+    if (O.vdcDet && O.vdcPainel !== et.n) { O.vdcPainel = et.n; O.vdcDet.open = et.n <= 3; }
     if (et.n === 1) etapa1(esq, d, et); else if (et.n === 2) etapa2(esq, d, et); else if (et.n === 3) etapa3(esq, d, et);
+    else if (f2 && window.Jornada.etapas[et.n]) window.Jornada.etapas[et.n](esq, d, et, f2);
+    else if (f2et) { var pf = el('div', 'jor-bloco'); pf.appendChild(el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); pf.appendChild(btn('Tentar de novo', '', carregarObra)); esq.appendChild(pf); }
+    if (et.n === 1 && window.Jornada.extras.vistoria) window.Jornada.extras.vistoria(esq, d);
+    if (et.n === 2 && window.Jornada.extras.banco) window.Jornada.extras.banco(esq, d);
+    if (et.n <= 8 && window.Jornada.dinheiro && window.Jornada.dinheiro.gastosDaEtapa && (et.n <= 3 || f2)) window.Jornada.dinheiro.gastosDaEtapa(esq, et.n, O.dinheiro);
     // Portão
-    if (et.n <= 3) {
+    if (et.n <= 3 || (f2et && f2)) {
       var pt = el('div', 'jor-portao'); pt.appendChild(el('b', '', 'Para concluir'));
       var ul = el('ul', 'jor-itens');
       et.itens.forEach(function (i) {
@@ -438,17 +490,19 @@
       });
       pt.appendChild(ul);
       var concluida = !!et.concluida_em;
-      var pode = d.pode.concluir.indexOf(et.n) >= 0 && et.falta === 0 && !concluida;
-      var bc = btn(concluida ? 'Etapa concluída' : 'Concluir etapa', 'jor-btn-pri', function () { concluir(et.n, bc); });
+      var podeLista = et.n <= 3 ? d.pode.concluir : ((f2 && f2.pode && f2.pode.concluir) || []);
+      var pode = podeLista.indexOf(et.n) >= 0 && et.falta === 0 && !concluida;
+      var bc = btn(concluida ? 'Etapa concluída' : (et.n === 8 ? 'Finalizar a obra' : 'Concluir etapa'), 'jor-btn-pri', function () { concluir(et.n, bc); });
       bc.disabled = !pode; bc.style.marginTop = '10px';
       pt.appendChild(bc);
       if (!concluida && et.falta > 0) {
         pt.appendChild(el('p', 'jor-nota', 'Falta ' + plural(et.falta, 'item', 'itens') + ': ' + et.itens.filter(function (i) { return !i.feito; }).map(function (i) { return i.texto; }).join(', ') + '.'));
       }
-      var prox = d.etapas[et.n];
-      if (prox) pt.appendChild(el('p', 'jor-nota', 'Ao concluir: abre ' + prox.nome + ' e ' + (prox.dono || []).map(function (x) { return nomeBonito(x.nome); }).join(' e ') + ' fica com ela.'));
+      var prox = ets[et.n];
+      if (prox && et.n !== 3 && et.n !== 8) pt.appendChild(el('p', 'jor-nota', 'Ao concluir: abre ' + prox.nome + ' e ' + (prox.dono || []).map(function (x) { return nomeBonito(x.nome); }).join(' e ') + ' fica com ela.'));
       if (et.n === 2) pt.appendChild(el('p', 'jor-nota', 'Entrada, financiamento e comissões não travam esta etapa.'));
-      if (et.n === 3) pt.appendChild(el('p', 'jor-nota', 'Ao concluir: abre Compra (Thiago e Diego). A tela dela chega na fase 2.'));
+      if (et.n === 3) pt.appendChild(el('p', 'jor-nota', 'Ao concluir: abre Compra (Thiago e Diego).'));
+      if (et.n === 8) pt.appendChild(el('p', 'jor-nota', 'Fechada, a conta trava. Só o Thiago reabre, com motivo.'));
       esq.appendChild(pt);
       if (O.msg) { var mm = el('p', 'jor-erro', O.msg); mm.setAttribute('role', 'status'); esq.appendChild(mm); }
     }
@@ -457,11 +511,13 @@
     if (et.prazo && et.prazo.vence) pz.appendChild(el('p', '', et.prazo.rotulo + ' · ' + ddmm(et.prazo.vence)));
     var sit = et.situacao || { tipo: 'sem_prazo', texto: '' };
     var sp = el('p', sit.tipo === 'atrasada' || sit.tipo === 'travada' ? 'jor-erro' : sit.tipo === 'no_prazo' || sit.tipo === 'vence_hoje' ? 'jor-ok' : '', sit.texto); pz.appendChild(sp);
-    if (d.esperando && d.esperando.etapa === et.n) {
-      pz.appendChild(el('p', '', 'Esperando até ' + ddmm(d.esperando.ate) + ' · ' + nomeBonito(d.esperando.motivo)));
-      if (d.pode.esperar) pz.appendChild(btn('Voltar a cobrar', '', function () { esperar({ voltar: true }); }));
-    } else if (d.pode.esperar && et.n <= 3 && !et.concluida_em) {
-      pz.appendChild(btn('Esperando', '', esperarDialogo));
+    var esp = et.n <= 3 ? d.esperando : (f2 ? f2.esperando : null);
+    var podeEsp = et.n <= 3 ? d.pode.esperar : !!(f2 && f2.pode && f2.pode.esperar);
+    if (esp && esp.etapa === et.n) {
+      pz.appendChild(el('p', '', 'Esperando até ' + ddmm(esp.ate) + ' · ' + nomeBonito(esp.motivo)));
+      if (podeEsp) pz.appendChild(btn('Voltar a cobrar', '', function () { esperar({ voltar: true }, et.n); }));
+    } else if (podeEsp && et.n <= 8 && !et.concluida_em) {
+      pz.appendChild(btn('Esperando', '', function () { esperarDialogo(et.n); }));
     }
     pz.appendChild(el('p', 'jor-nota', 'As mensagens de cobrança chegam na fase 3.'));
     dir.appendChild(pz);
@@ -471,23 +527,23 @@
 
   function concluir(etapa, botao) {
     botao.disabled = true; O.msg = '';
-    api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + '/etapa', 'POST', { etapa: etapa }, 200000).then(function (r) {
+    api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + (etapa >= 4 ? '/etapa-obra' : '/etapa'), 'POST', { etapa: etapa }, 200000).then(function (r) {
       if (r.status === 200 && r.json.ok !== false) {
         O.painel = null;
         var num = r.json.numero;
         if (etapa === 2 && num && num.ok === false) toast('Etapa concluída. O número da obra ainda não saiu: use Tentar o número de novo.');
-        else toast('Etapa concluída.');
+        else toast(etapa === 8 ? 'Obra finalizada.' : 'Etapa concluída.');
         carregarObra();
       } else { O.msg = msgDe(r, 'Não consegui concluir agora.'); botao.disabled = false; desenharObra(); }
     });
   }
-  function esperar(corpoPedido) {
-    api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + '/esperar', 'POST', corpoPedido).then(function (r) {
+  function esperar(corpoPedido, etapa) {
+    api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + (etapa >= 4 ? '/esperar-obra' : '/esperar'), 'POST', corpoPedido).then(function (r) {
       if (r.status === 200 && r.json.ok !== false) { carregarObra(); return; }
       toast(msgDe(r, 'Não consegui agora. Tente de novo.'));
     });
   }
-  function esperarDialogo() {
+  function esperarDialogo(etapa) {
     dialogo('Esperando', function (c) {
       var m = el('select', 'jor-sel'); m.setAttribute('aria-label', 'Motivo');
       [['cliente', 'Cliente'], ['cemig', 'Cemig'], ['fornecedor', 'Fornecedor'], ['banco', 'Banco']].forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; m.appendChild(op); });
@@ -500,7 +556,7 @@
       var m = c.querySelector('select').value; var dt = c.querySelector('input').value; var info = c.querySelector('.jor-erro');
       if (!dt) { info.textContent = 'Escolha a data.'; return; }
       b.disabled = true;
-      api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + '/esperar', 'POST', { motivo: m, ate: dt }).then(function (r) {
+      api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + (etapa >= 4 ? '/esperar-obra' : '/esperar'), 'POST', { motivo: m, ate: dt }).then(function (r) {
         if (r.status === 200 && r.json.ok !== false) { fecharDlg(); carregarObra(); return; }
         b.disabled = false; info.textContent = msgDe(r, 'Não consegui agora.');
       });
@@ -757,6 +813,7 @@
     }
     esq.appendChild(b4);
     // Comissões
+    if (window.Jornada.dinheiro && window.Jornada.dinheiro.blocoComissoes) { window.Jornada.dinheiro.blocoComissoes(esq, d, O.dinheiro); return; }
     var b5 = el('div', 'jor-bloco'); b5.appendChild(el('div', 'jor-bloco-t', 'Comissões'));
     if (d.comissoes && d.comissoes.length) {
       b5.appendChild(el('p', '', 'Vendeu: ' + nomeBonito(d.card.vendedor)));
@@ -770,7 +827,7 @@
       var tr = el('tr'); tr.appendChild(el('td', '', x[0])); tr.appendChild(el('td', '', x[1])); rg.appendChild(tr);
     });
     b5.appendChild(el('div', 'jor-nota', 'A regra das comissões')); b5.appendChild(rg);
-    b5.appendChild(el('p', 'jor-nota', 'A parte de quem vendeu entra no custo da obra. Os 2% de cada sócio ficam à parte. O pagamento e o lançamento chegam na fase 2.'));
+    b5.appendChild(el('p', 'jor-nota', 'A parte de quem vendeu entra no custo da obra. Os 2% de cada sócio ficam à parte.'));
     esq.appendChild(b5);
   }
   function tentarNumero(novo, botao) {
@@ -902,7 +959,14 @@
     });
   }
 
-  window.Jornada = { abrirLista: abrirLista, abrirObra: abrirObra, vendido: vendido };
+  // Fase 2: os ajudantes que jornada-dinheiro.js e jornada-obra.js usam. Eles se registram em etapas, extras e dinheiro.
+  var H = {
+    api: api, el: el, add: add, btn: btn, icone: icone, ddmm: ddmm, reais: reais, rs: rs, cents: cents, nomeBonito: nomeBonito, plural: plural, esc: esc,
+    anexo: anexo, blocoTitulo: blocoTitulo, dialogo: dialogo, dialogoMotivo: dialogoMotivo, fecharDlg: fecharDlg, toast: toast, releia: releia, imprimir: imprimir,
+    empresaDoAparelho: empresaDoAparelho, msgDe: msgDe, corpo: corpo, abrirLista: abrirLista, desenhar: desenharObra, recarregar: function () { return carregarObra(); },
+    atual: atualEtapa, O: function () { return O; },
+  };
+  window.Jornada = { abrirLista: abrirLista, abrirObra: abrirObra, vendido: vendido, h: H, etapas: {}, extras: {}, dinheiro: null };
 
   // Link de entrada: /gerador/?obra=<id>. Depois do Início, com o modo app ligado.
   document.addEventListener('DOMContentLoaded', function () {

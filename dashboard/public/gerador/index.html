@@ -8542,6 +8542,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <script src="/gerador/pos-venda.js"></script>
 <script src="/gerador/financeiro.js"></script>
 <script src="/gerador/jornada.js"></script>
+<script src="/gerador/jornada-dinheiro.js"></script>
+<script src="/gerador/jornada-obra.js"></script>
 <!-- QR do WhatsApp no rodapé do orçamento de 1 página (qrcode-generator, MIT).
      Vendorizado porque o documento é impresso offline pelo PWA — CDN não serve. -->
 <script src="/gerador/qrcode.js"></script>
@@ -37683,7 +37685,8 @@ function vdcPintar(st) {
     const papel = st.cfg.papeis && sc.decisao && st.cad ? sc.decisao : '';
     const dec = papel ? vdcDecisao(st.cad, papel) : '';
     const recolhida = dec === 'contratante';
-    const itens = st.docs && !recolhida ? sc.chaves.map(ch => st.docs.slots.find(x => x && x.chave === ch)).filter(Boolean) : [];
+    // Fase 2 da Jornada: os slots das etapas 4 a 8 aparecem só na tela da etapa.
+    const itens = st.docs && !recolhida ? sc.chaves.map(ch => st.docs.slots.find(x => x && x.chave === ch)).filter(Boolean).filter(x => !(x.etapa >= 4)) : [];
     const doDossie = recolhida ? [] : vdcDossieDaSecao(st, sc, secoes);
     if (!itens.length && !doDossie.length && !papel) return;
     const tit = document.createElement('p'); tit.className = 'vdc-sec-t'; tit.textContent = sc.t; tit.setAttribute('data-vdc-secao', sc.t);
@@ -40225,7 +40228,8 @@ function aplicarCadastroSolar(cad, st, opts) {
   const propLigada = st && st.vinc && st.vinc.proposta ? String(st.vinc.proposta).replace(/^#/, '') : '';
   if (dAberta && dAberta.nome && dAberta.item && fsEhSolar({ dados: dAberta }) && !(propLigada && fsChave(dAberta) === 'c:' + propLigada)) fsVistoKey = fsChave(dAberta);
   // `quieto` (ligar o card pelo seletor, planilha, volta do contrato): não navega nem muda de aba; só garante o Fechamento montado.
-  const quieto = !!(opts && opts.quieto);
+  // Fase 2 da Jornada: dentro da obra da jornada (`semFechamento`) confirmar o cadastro fica na obra, igual ao `quieto`.
+  const quieto = !!(opts && opts.quieto) || !!(st && st.op && st.op.semFechamento);
   if (quieto) { if (!fsMontado) { fsMontar(); fsMontado = true; } }
   else {
     try { if (typeof crmDetAtual !== 'undefined' && crmDetAtual) crmFecharDetalhe(); } catch (e) {}
