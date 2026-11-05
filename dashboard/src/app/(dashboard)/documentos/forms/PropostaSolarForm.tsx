@@ -146,6 +146,26 @@ function tipoDoCadastro(tipo: unknown, doc: unknown): TipoCliente | null {
 /** Chaves do cadastro do cliente (e da assinatura salva) que só alimentam a assinatura: nunca entram
  *  em `fields`, senão `cpf_cnpj` iria para o kit do vendedor e para a próxima proposta. */
 const CHAVES_SO_DA_ASSINATURA = new Set<string>(['tipo', 'cpf_cnpj', 'assinatura', 'bancos_logos']);
+/** Ao carregar um cliente, o Fio B (da concessionária) que está na tela não é trocado pelo da proposta antiga dele. */
+const CHAVES_FIO_B = new Set<string>(['fio_b_mostrar', 'fio_b_tarifa', 'fio_b_injetada_pct']);
+
+/** Texto decimal digitado (com vírgula ou ponto) para número. "0,28" e "0.28" viram 0.28; "1.234,5"
+ *  vira 1234.5. Nunca passa por <input type=number>: a vírgula do teclado zerava o campo. */
+function decimalBR(v: unknown): number {
+  const t = String(v ?? '').trim();
+  if (!t) return 0;
+  const norm = t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t;
+  const n = Number(norm);
+  return Number.isFinite(n) ? n : 0;
+}
+/** Fio B de fora (proposta salva traz número; rascunho traz texto). Vira o texto do campo, com vírgula. */
+function fioBTexto(v: unknown, padrao: string): string {
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v).replace('.', ',');
+  if (typeof v === 'string') return v;
+  return padrao;
+}
+/** Só dígitos, vírgula e ponto. */
+const soDecimal = (v: string) => v.replace(/[^\d.,]/g, '').slice(0, 8);
 
 /** `mostrar_dados_bancarios`: só booleano de verdade vale; ausente fica como está. */
 const boolOu = (v: unknown, padrao: boolean) => (typeof v === 'boolean' ? v : padrao);
@@ -195,6 +215,10 @@ const initialFields = {
   // marcados), dados bancários da empresa e bloco de assinaturas.
   bancos_logos: [...TODOS_BANCOS] as BancoId[],
   mostrar_dados_bancarios: true,
+  // Fio B (só Completa + Banco), desligado por padrão. Texto como digitado; vira número no envio.
+  fio_b_mostrar: false,
+  fio_b_tarifa: '',
+  fio_b_injetada_pct: '70',
   assinatura: assinaturaVazia() as AssinaturaForm,
   // Bateria (opcional) — só aparece na proposta se a marca estiver preenchida.
   // Padrão render-if-filled, mesmo idioma das garantias extras (nada é persistido
@@ -334,7 +358,7 @@ function normalizarInversores(obj: Record<string, unknown> | null | undefined): 
   }];
 }
 
-const LIMITE_FOTOS_OBRAS = 6;
+const LIMITE_FOTOS_OBRAS = 12;
 const LIMITE_EMPRESAS = 12;
 const LIMITE_BANCOS = 8;
 const CHAVES_PORTFOLIO = ['fotos_obras', 'empresas_atendidas', 'bancos_parceiros'] as const;
@@ -489,6 +513,8 @@ export default function PropostaSolarPage() {
   const podeTrocarCliente = !!usuarioLogado && (usuarioLogado.is_admin === true || usuarioLogado.plano === 'ilimitado');
   const travaNome = editando && !podeTrocarCliente;
   const [error, setError] = useState('');
+  // Recusa do servidor ligada ao Fio B (ex.: custo do Fio B zera a economia), mostrada junto do campo.
+  const [erroFioB, setErroFioB] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [copyMsg, setCopyMsg] = useState('');
   // Validação inline: quais campos obrigatórios estão faltando (pra marcar de vermelho).
@@ -607,6 +633,9 @@ export default function PropostaSolarPage() {
           ...normalizarPortfolio(d.fields, f),
           bancos_logos: normalizarBancosLogos(d.fields.bancos_logos, f.bancos_logos),
           mostrar_dados_bancarios: boolOu(d.fields.mostrar_dados_bancarios, f.mostrar_dados_bancarios),
+          fio_b_mostrar: boolOu(d.fields.fio_b_mostrar, f.fio_b_mostrar),
+          fio_b_tarifa: fioBTexto(d.fields.fio_b_tarifa, f.fio_b_tarifa),
+          fio_b_injetada_pct: fioBTexto(d.fields.fio_b_injetada_pct, f.fio_b_injetada_pct),
           assinatura: normalizarAssinatura(d.fields.assinatura, f.assinatura),
         }));
       }
@@ -700,6 +729,12 @@ export default function PropostaSolarPage() {
             // nova (os padrões vêm da empresa). Os bancos que financiam começam sempre com os 8.
             if (CHAVES_SO_DA_ASSINATURA.has(k)) continue;
             if (k === 'mostrar_dados_bancarios' && typeof v !== 'boolean') continue;
+            // Fio B é da empresa/concessionária, não do cliente: o kit pode levar.
+            if (k === 'fio_b_mostrar') { if (typeof v === 'boolean' && !camposTocados.current.has(k)) merged[k] = v; continue; }
+            if (k === 'fio_b_tarifa' || k === 'fio_b_injetada_pct') {
+              if ((typeof v === 'number' || typeof v === 'string') && !camposTocados.current.has(k)) merged[k] = fioBTexto(v, '');
+              continue;
+            }
             if (!camposTocados.current.has(k)) merged[k] = v;
           }
           if (!camposTocados.current.has('inversores') && temDadoInversor(data.kit as Record<string, unknown>)) {
@@ -745,6 +780,9 @@ export default function PropostaSolarPage() {
         ...normalizarPortfolio(dados),
         bancos_logos: normalizarBancosLogos(dadosBrutos.bancos_logos, TODOS_BANCOS),
         mostrar_dados_bancarios: boolOu(dadosBrutos.mostrar_dados_bancarios, true),
+        fio_b_mostrar: boolOu(dadosBrutos.fio_b_mostrar, false),
+        fio_b_tarifa: fioBTexto(dadosBrutos.fio_b_tarifa, ''),
+        fio_b_injetada_pct: fioBTexto(dadosBrutos.fio_b_injetada_pct, '70'),
         assinatura: ass,
       }));
       // Proposta já emitida: a quantidade dela é decisão tomada, não palpite.
@@ -842,7 +880,7 @@ export default function PropostaSolarPage() {
         const tipoCad = tipoDoCadastro(bruto.tipo, bruto.cpf_cnpj);
         const docCad = String(bruto.cpf_cnpj ?? '');
         const salvaAss = bruto.assinatura && typeof bruto.assinatura === 'object' ? normalizarAssinatura(bruto.assinatura, assinaturaVazia()) : null;
-        const cResto = Object.fromEntries(Object.entries(bruto).filter(([k]) => !CHAVES_SO_DA_ASSINATURA.has(k)));
+        const cResto = Object.fromEntries(Object.entries(bruto).filter(([k]) => !CHAVES_SO_DA_ASSINATURA.has(k) && !CHAVES_FIO_B.has(k)));
         setFields(f => {
           const base = mesmoCliente ? f.assinatura.cliente : assinaturaVazia().cliente;
           const cli = { ...base };
@@ -1208,7 +1246,17 @@ export default function PropostaSolarPage() {
       if (emp.representante.trim().length < 2) falha('ass_emp_rep', 'Escreva quem assina pela sua empresa.');
     }
 
+    // Fio B (só Completa + Banco, quando ligado): tarifa de 0,01 a 2 R$/kWh e parte injetada de 1% a 100%.
+    if (modelo === 4 && fields.fio_b_mostrar) {
+      const tarifa = decimalBR(fields.fio_b_tarifa), pct = decimalBR(fields.fio_b_injetada_pct);
+      const tarifaEnergia = decimalBR(fields.tarifa_kwh);
+      if (!(tarifa >= 0.01 && tarifa <= 2)) { faltam.add('fio_b_tarifa'); msgsAssinatura.push('Escreva o valor do Fio B da sua concessionária, em R$ por kWh.'); }
+      else if (tarifaEnergia > 0 && tarifa >= tarifaEnergia) { faltam.add('fio_b_tarifa'); msgsAssinatura.push('O Fio B não pode ser maior que a tarifa de energia. Confira o valor.'); }
+      if (!(pct >= 1 && pct <= 100)) { faltam.add('fio_b_pct'); msgsAssinatura.push('A parte da geração que vai para a rede tem que ficar entre 1% e 100%.'); }
+    }
+
     if (faltam.size > 0) {
+      setErroFioB('');
       setFaltando(faltam);
       setError([
         ...(nGenericos > 0 ? [`Preencha os campos destacados (${nGenericos} pendente${nGenericos > 1 ? 's' : ''}).`] : []),
@@ -1222,7 +1270,7 @@ export default function PropostaSolarPage() {
 
     setFaltando(new Set());
     setError('');
-    setGenerating(true);
+    setErroFioB(''); setGenerating(true);
     try {
       const { cidade, uf } = parseCidadeUf(cidadeUf);
       // Endereço composto na hora, com a Cidade/UF que está na tela. Sem nada
@@ -1239,6 +1287,18 @@ export default function PropostaSolarPage() {
         potencia_inversor: primeiroInv.potencia,
         garantia_inversor: primeiroInv.garantia,
       };
+      if (modelo === 4) {
+        // Número de verdade no envio. Desligado: só `fio_b_mostrar: false`, sem os outros.
+        if (fields.fio_b_mostrar) {
+          camposEnvio.fio_b_mostrar = true;
+          camposEnvio.fio_b_tarifa = decimalBR(fields.fio_b_tarifa);
+          camposEnvio.fio_b_injetada_pct = decimalBR(fields.fio_b_injetada_pct);
+        } else {
+          camposEnvio.fio_b_mostrar = false;
+          delete camposEnvio.fio_b_tarifa;
+          delete camposEnvio.fio_b_injetada_pct;
+        }
+      }
       if (modelo === 4 && !assinaturaEmUso) {
         delete camposEnvio.assinatura;
       } else if (modelo === 4) {
@@ -1257,6 +1317,9 @@ export default function PropostaSolarPage() {
         delete camposEnvio.assinatura;
         delete camposEnvio.bancos_logos;
         delete camposEnvio.mostrar_dados_bancarios;
+        delete camposEnvio.fio_b_mostrar;
+        delete camposEnvio.fio_b_tarifa;
+        delete camposEnvio.fio_b_injetada_pct;
       }
       const payload: Record<string, unknown> = {
         tipo: 'propostaSolar',
@@ -1302,6 +1365,12 @@ export default function PropostaSolarPage() {
       const error = err as { response?: { status?: number; data?: { error?: string; message?: string } } };
       // 400 é recusa de validação do servidor (ex.: assinatura): a frase dele é a que a pessoa precisa ler.
       const msg400 = error.response?.status === 400 ? error.response?.data?.error : undefined;
+      // Recusa do servidor sobre o Fio B: aparece também junto do campo, que fica marcado.
+      if (msg400 && /fio b/i.test(msg400)) {
+        setErroFioB(msg400);
+        setFaltando(new Set(['fio_b_tarifa']));
+        document.getElementById('fio-b-tarifa')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       setError(msg400 || error.response?.data?.message || error.response?.data?.error || (editando ? 'Erro ao atualizar a proposta' : 'Erro ao gerar proposta'));
     } finally {
       setGenerating(false);
@@ -1660,6 +1729,7 @@ export default function PropostaSolarPage() {
             <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
               Envie uma vez: as imagens voltam sozinhas nas próximas propostas.
             </p>
+            <p className={styles.ajudaSecao}>Mande 6, 9 ou 12 fotos. A proposta mostra sempre fileiras completas de 3.</p>
             <GaleriaPortfolio tipo="obra" titulo="Fotos de obras" max={LIMITE_FOTOS_OBRAS} itens={fields.fotos_obras} onChange={v => setField('fotos_obras', v)} />
             <GaleriaPortfolio tipo="empresa" titulo="Empresas atendidas" max={LIMITE_EMPRESAS} itens={fields.empresas_atendidas} onChange={v => setField('empresas_atendidas', v)} />
           </div>
@@ -2362,6 +2432,38 @@ export default function PropostaSolarPage() {
             Payback calculado automaticamente baseado no kWp, UF e inflação configurada abaixo. Geração mensal usa o valor que você preencheu na seção Sistema (vazio = calcula via HSP da cidade).
           </p>
         </div>
+
+        {/* FIO B (só a Completa + Banco): opcional, desligado por padrão. */}
+        {modelo === 4 && (
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Fio B</h2>
+            <label className={`${styles.opcaoCaixa} ${fields.fio_b_mostrar ? styles.opcaoCaixaOn : ''}`}>
+              <input type="checkbox" checked={fields.fio_b_mostrar} onChange={e => { setField('fio_b_mostrar', e.target.checked); clearFaltando('fio_b_tarifa'); clearFaltando('fio_b_pct'); }} />
+              <span className={styles.opcaoTexto}>Mostrar o Fio B na proposta</span>
+            </label>
+            {fields.fio_b_mostrar && (
+              <div className={styles.grid2}>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="fio-b-tarifa">Fio B da concessionária (R$/kWh)</label>
+                  <input id="fio-b-tarifa" type="text" inputMode="decimal" className="input-field" autoComplete="off" placeholder="Ex: 0,28"
+                    value={fields.fio_b_tarifa}
+                    onChange={e => { setField('fio_b_tarifa', soDecimal(e.target.value)); clearFaltando('fio_b_tarifa'); setErroFioB(''); }}
+                    {...invalidProps('fio_b_tarifa')} />
+                  <span className={styles.enderecoDica}>Está na tabela de tarifas da sua concessionária, na TUSD Fio B. Exemplo: 0,28.</span>
+                  {erroFioB && <p className="error-message" role="alert" style={{ margin: 0 }}>{erroFioB}</p>}
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="fio-b-pct">Energia que vai para a rede (%)</label>
+                  <input id="fio-b-pct" type="text" inputMode="decimal" className="input-field" autoComplete="off" placeholder="70"
+                    value={fields.fio_b_injetada_pct}
+                    onChange={e => { setField('fio_b_injetada_pct', soDecimal(e.target.value)); clearFaltando('fio_b_pct'); }}
+                    {...invalidProps('fio_b_pct')} />
+                  <span className={styles.enderecoDica}>Parte da geração que não é usada na hora e vai para a rede. Em casa costuma ficar entre 60% e 80%.</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* DETALHES EDITÁVEIS (abertos por padrão — afetam payback/economia) */}
         <details className={styles.section} style={{ cursor: 'pointer' }} open>

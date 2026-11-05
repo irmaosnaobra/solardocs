@@ -79,6 +79,19 @@ async function enviarArquivo(tipo: Tipo, file: File): Promise<{ path: string; ur
   return { path, url };
 }
 
+/** Fotos de obras saem em fileiras completas de 3, e a seção só aparece com 6 ou mais.
+ *  `null` com 0 fotos: sem foto nenhuma não há o que avisar. */
+function avisoFileira(n: number): { texto: string; pronto: boolean } | null {
+  if (n <= 0) return null;
+  if (n < 6) {
+    const f = 6 - n;
+    return { texto: `${f === 1 ? 'Falta 1 foto' : `Faltam ${f} fotos`} para a seção aparecer na proposta.`, pronto: false };
+  }
+  const resto = n % 3;
+  if (resto === 0) return { texto: `Pronto. A proposta mostra as ${n} fotos.`, pronto: true };
+  return { texto: `A proposta mostra ${n - resto} fotos. Mande mais ${3 - resto} para completar a fileira.`, pronto: false };
+}
+
 export default function GaleriaPortfolio<T extends ItemGaleria>({ tipo, titulo, itens, onChange, max }: Props<T>) {
   const base = useId();
   const inputArquivo = useRef<HTMLInputElement>(null);
@@ -181,6 +194,7 @@ export default function GaleriaPortfolio<T extends ItemGaleria>({ tipo, titulo, 
     }
   }
 
+  const fileira = tipo === 'obra' ? avisoFileira(itens.length) : null;
   const idArquivo = `${base}-arquivo`;
   const idNomeBanco = `${base}-nome-banco`;
   const marcarQuebrada = (chave: string) => setQuebradas(q => (q.has(chave) ? q : new Set(q).add(chave)));
@@ -254,7 +268,7 @@ export default function GaleriaPortfolio<T extends ItemGaleria>({ tipo, titulo, 
       ) : (
         <>
           {(itens.length > 0 || pendentes > 0) && (
-            <ul className={styles.grade}>
+            <ul className={`${styles.grade} ${tipo === 'obra' ? styles.grade3 : ''}`}>
               {itens.map((it, i) => {
                 const idTexto = `${base}-texto-${i}`;
                 const chave = `${tipo}-${it.path ?? i}`;
@@ -314,6 +328,7 @@ export default function GaleriaPortfolio<T extends ItemGaleria>({ tipo, titulo, 
       )}
 
       <div aria-live="polite">
+        {tipo === 'obra' && fileira && <p className={`${styles.fileira} ${fileira.pronto ? styles.fileiraOk : ''}`}>{fileira.texto}</p>}
         {aviso && <p className={styles.aviso}>{aviso}</p>}
         {erro && <p className={styles.erro} role="alert">{erro}</p>}
       </div>

@@ -79,7 +79,7 @@ export async function uploadPortfolioImagem(req: Request, res: Response): Promis
 
 // ─── Reassinatura na geração ─────────────────────────────────────────────────
 
-export const LIMITE_FOTOS_OBRAS = 6;
+export const LIMITE_FOTOS_OBRAS = 12;
 export const LIMITE_EMPRESAS = 12;
 export const LIMITE_BANCOS = 8;
 const MAX_TEXTO = 80;
@@ -125,7 +125,7 @@ export async function assinarPaths(paths: string[]): Promise<Map<string, string>
 
 /**
  * Fotos de obras da empresa (company.fotos_obras): fica só o que é path DESTE usuário em
- * portfolio/{userId}/obra/, no máximo 6, legenda aparada em 80. O resto é descartado.
+ * portfolio/{userId}/obra/, no máximo 12, legenda aparada em 80. O resto é descartado.
  */
 export function sanitizarFotosObras(userId: string, v: unknown): Array<{ path: string; legenda?: string }> {
   const out: Array<{ path: string; legenda?: string }> = [];

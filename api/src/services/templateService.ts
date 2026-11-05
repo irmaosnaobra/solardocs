@@ -7,7 +7,7 @@ import {
   coresModelo1, cssRaizModelo1, CSS_MODELO1, dadosContato, cabecalhoModelo1, analiseModelo1, linhaMk, linhasInversoresHtml, rodapeModelo1,
 } from './templates/propostaSolarPartes';
 import {
-  FIN_PRAZOS, NUM_ANOS, calcularFinanceiro, partesBarrasMensais, partesCurvas25, pBRLshort,
+  FIN_PRAZOS, NUM_ANOS, anoCivil, calcularFinanceiro, lerFioB, partesBarrasMensais, partesCurvas25, pBRLshort, serieFioB,
   valorParcelaCartao as calcParcelaCartao, valorParcelaFin as calcParcelaFin,
 } from './propostaSolarCalculos';
 import {
@@ -141,7 +141,7 @@ function gerarDoTemplate(
       // Modelo 4 = "Completa + Banco": varias folhas A4 no visual do modelo 1. Como o 1, chama o Moderno so'
       // para preencher out.resumo (mesmos numeros do WhatsApp) e descarta o HTML dele.
       if (modelo === 4) {
-        if (out) propostaSolarM1(company, client, fields, out);
+        if (out) propostaSolarM1(company, client, fields, out, { fioB: true });
         return propostaSolarCompleta(company, client, fields);
       }
       if (modelo === 3) return propostaSolarM1(company, client, fields, out, { capa: true });
@@ -2393,7 +2393,7 @@ ${CSS_MODELO1}
 </body></html>`;
 }
 
-function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>, out?: { resumo?: string }, opts?: { capa?: boolean }): string {
+function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>, out?: { resumo?: string }, opts?: { capa?: boolean; fioB?: boolean }): string {
   // CAPA (modelo 3). O corpo da proposta e' EXATAMENTE o mesmo do modelo 2 — a capa
   // e' uma folha a mais na frente, nao um segundo template. Se fossem dois templates,
   // toda mudanca futura teria que ser feita duas vezes e uma delas seria esquecida.
@@ -2541,7 +2541,12 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const economiaPercent = consumoKwh > 0 ? Math.min(100, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;
   // Payback, conta hoje x depois, economia e curvas de 25 anos: propostaSolarCalculos.ts
   // (o mesmo modelo dual-inflação alimenta os números e os gráficos, então nunca divergem).
-  const fin = calcularFinanceiro({ consumoKwh, tarifa: ref.tarifa, taxaMinima, inflacao, inflacaoTaxaMin, investimento });
+  // Fio B (Lei 14.300): só o modelo 4 liga (o resumo de WhatsApp dele sai com a mesma conta da proposta).
+  const fioBLido = opts?.fioB ? lerFioB(f) : null;
+  const fioBSerie = fioBLido
+    ? serieFioB({ fio: fioBLido, geracaoMediaMensal: geracaoAnual / 12, inflacao, anoInicial: anoCivil(propostaEmissao(f)) })
+    : null;
+  const fin = calcularFinanceiro({ consumoKwh, tarifa: ref.tarifa, taxaMinima, inflacao, inflacaoTaxaMin, investimento, ...(fioBSerie ? { fioBMensal: fioBSerie.custoMensal } : {}) });
   const { paybackAnos, paybackTexto, contaHoje, contaComSolar, economiaMensal } = fin;
   // Valores exibidos no antes vs depois: com CIP, os dois lados somam a mesma taxa.
   const contaHojeExib = cip > 0 ? Math.round(consumoKwh * ref.tarifa + cip) : contaHoje;

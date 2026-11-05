@@ -65,7 +65,7 @@ const emptyForm = {
   tecnico3_endereco: '',
 };
 
-const LIMITE_FOTOS_OBRAS = 6;
+const LIMITE_FOTOS_OBRAS = 12;
 
 type DadosBancarios = {
   banco: string; agencia: string; conta: string; tipo_conta: '' | 'corrente' | 'poupanca';
@@ -721,7 +721,7 @@ export default function EmpresaPage() {
         <section className={styles.card}>
           <h2 className={styles.sectionTitle}>Fotos dos seus trabalhos <span className={styles.optional}>opcional</span></h2>
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
-            Até 6 fotos de obras prontas. Elas já entram na proposta Completa + Banco.
+            Elas já entram na proposta Completa + Banco. Mande 6, 9 ou 12 fotos. A proposta mostra sempre fileiras completas de 3.
           </p>
           <GaleriaPortfolio
             tipo="obra"

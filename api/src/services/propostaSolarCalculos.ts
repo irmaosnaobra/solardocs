@@ -57,6 +57,8 @@ export interface EntradaFinanceira {
   /** Fração. */
   inflacaoTaxaMin: number;
   investimento: number;
+  /** Só o modelo 4 com Fio B ligado: custo mensal do Fio B de cada ano (25 posições), somado à conta COM solar. Ausente = como sempre foi. */
+  fioBMensal?: number[];
 }
 
 export interface Financeiro {
@@ -77,6 +79,7 @@ export function calcularFinanceiro(e: EntradaFinanceira): Financeiro {
   const { consumoKwh, taxaMinima, inflacao, investimento } = e;
   const inflacaoTaxaMin = e.inflacaoTaxaMin;
   const ref = { tarifa: e.tarifa };
+  const fioB = e.fioBMensal;
 
   // Payback usando o MESMO modelo dual-inflação do chart 25 anos
   // (senão o "X anos pra retorno" diverge dos números mostrados nas curvas)
@@ -86,7 +89,7 @@ export function calcularFinanceiro(e: EntradaFinanceira): Financeiro {
     for (let a = 1; a <= 25; a++) {
       const ftar = Math.pow(1 + inflacao, a - 1);
       const fmin = Math.pow(1 + inflacaoTaxaMin, a - 1);
-      const economiaAno = consumoKwh * 12 * ref.tarifa * ftar - taxaMinima * 12 * fmin;
+      const economiaAno = consumoKwh * 12 * ref.tarifa * ftar - taxaMinima * 12 * fmin - (fioB ? fioB[a - 1] * 12 : 0);
       if (acum + economiaAno >= investimento) {
         const restante = investimento - acum;
         return (a - 1) * 12 + Math.ceil((restante / economiaAno) * 12);
@@ -108,7 +111,7 @@ export function calcularFinanceiro(e: EntradaFinanceira): Financeiro {
 
   // Conta antes vs depois: hoje paga consumo × tarifa; com solar paga taxa mínima
   const contaHoje = Math.round(consumoKwh * ref.tarifa);
-  const contaComSolar = taxaMinima;
+  const contaComSolar = taxaMinima + (fioB ? fioB[0] : 0);
   const economiaMensal = Math.max(0, contaHoje - contaComSolar);
 
   // Série anual acumulada pros 25 anos: conta SEM solar × conta COM solar.
@@ -120,7 +123,7 @@ export function calcularFinanceiro(e: EntradaFinanceira): Financeiro {
       const fatorTarifa = Math.pow(1 + inflacao, a - 1);
       const fatorMin = Math.pow(1 + inflacaoTaxaMin, a - 1);
       sem += consumoKwh * 12 * ref.tarifa * fatorTarifa;
-      com += taxaMinima * 12 * fatorMin;
+      com += taxaMinima * 12 * fatorMin + (fioB ? fioB[a - 1] * 12 : 0);
       semSolarAcum.push(Math.round(sem));
       comSolarAcum.push(Math.round(com));
     }
@@ -248,4 +251,98 @@ export function svgCurvas25(semSolarAcum: number[], comSolarAcum: number[], core
   <path d="${comPath}" fill="none" stroke="${cores.com}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
   ${cXLabels}
 </svg>`;
+}
+
+// ─── Fio B (Lei 14.300), só no modelo 4 ──────────────────────────────────────
+// Quem instala a partir de 2023 paga uma parte do Fio B sobre a energia injetada na rede. A parte sobe
+// por ano do calendário. O ano 1 da série de 25 anos é o ano da emissão da proposta.
+
+/** Percentual do Fio B cobrado no ano do calendário. */
+export function percentualFioB(ano: number): number {
+  if (ano <= 2023) return 15;
+  if (ano === 2024) return 30;
+  if (ano === 2025) return 45;
+  if (ano === 2026) return 60;
+  if (ano === 2027) return 75;
+  if (ano === 2028) return 90;
+  return 100;
+}
+
+/**
+ * Ano do calendário (fuso de São Paulo) de uma data: o ano da MESMA string dd/mm/aaaa que a proposta imprime
+ * como data de emissão (mesma chamada de formatação), então os dois nunca divergem.
+ */
+export function anoCivil(d: Date): number {
+  const partes = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }).split('/');
+  return parseInt(partes[partes.length - 1], 10);
+}
+
+export const FIO_B_INJETADA_PADRAO = 70;
+export const MSG_FIO_B_TARIFA = 'Escreva o valor do Fio B da sua concessionária, em R$ por kWh.';
+export const MSG_FIO_B_PCT = 'A parte da geração que vai para a rede tem que ficar entre 1% e 100%.';
+
+/**
+ * A mesma regra do formulário: com vírgula, o ponto é de milhar ("1.000,5" vale 1000,5); a vírgula vira ponto;
+ * e a leitura é estrita (Number): "0,28abc" não é número.
+ */
+export function numeroFlex(v: unknown): number {
+  if (typeof v === 'number') return v;
+  if (typeof v !== 'string') return NaN;
+  let t = v.trim();
+  if (t === '') return NaN;
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  return Number(t);
+}
+
+/** Valor do campo ausente, nulo ou vazio: não veio. */
+function veio(v: unknown): boolean {
+  return !(v === undefined || v === null || (typeof v === 'string' && v.trim() === ''));
+}
+
+/** Mensagem do primeiro erro do Fio B (só vale com fio_b_mostrar = true), ou null. */
+export function validarFioB(f: Record<string, unknown>): string | null {
+  if (f.fio_b_mostrar !== true) return null;
+  const tarifa = numeroFlex(f.fio_b_tarifa);
+  if (!(tarifa >= 0.01 && tarifa <= 2)) return MSG_FIO_B_TARIFA;
+  if (veio(f.fio_b_injetada_pct)) {
+    const pct = numeroFlex(f.fio_b_injetada_pct);
+    if (!(pct >= 1 && pct <= 100)) return MSG_FIO_B_PCT;
+  }
+  return null;
+}
+
+export interface FioBLido { tarifa: number; pct: number }
+
+/** Os dados do Fio B, ou null se está desligado (ausente ou false) ou inválido (o controller já barra o inválido). */
+export function lerFioB(f: Record<string, unknown>): FioBLido | null {
+  if (validarFioB(f) !== null || f.fio_b_mostrar !== true) return null;
+  const pct = veio(f.fio_b_injetada_pct) ? numeroFlex(f.fio_b_injetada_pct) : FIO_B_INJETADA_PADRAO;
+  return { tarifa: numeroFlex(f.fio_b_tarifa), pct };
+}
+
+export interface SerieFioB {
+  tarifa: number;
+  pct: number;
+  anoInicial: number;
+  /** Percentual do ano (15 a 100), 25 posições. */
+  percentuais: number[];
+  /** Custo mensal do Fio B em cada um dos 25 anos, em R$ (sem arredondar). */
+  custoMensal: number[];
+}
+
+/**
+ * custo mensal do ano y = geração mensal média x (pct injetada / 100) x tarifa do Fio B
+ *                         x (1 + reajuste da tarifa)^(y-1) x percentual do ano / 100.
+ * `inflacao` é fração (0,06 = 6% a.a.), a mesma da tarifa de energia.
+ */
+export function serieFioB(a: { fio: FioBLido; geracaoMediaMensal: number; inflacao: number; anoInicial: number }): SerieFioB {
+  const percentuais: number[] = [];
+  const custoMensal: number[] = [];
+  for (let y = 1; y <= NUM_ANOS; y++) {
+    const pctAno = percentualFioB(a.anoInicial + y - 1);
+    percentuais.push(pctAno);
+    // Em centavos: conta com solar + economia = conta de hoje, exato, no que a proposta imprime.
+    custoMensal.push(Math.round(a.geracaoMediaMensal * (a.fio.pct / 100) * a.fio.tarifa * Math.pow(1 + a.inflacao, y - 1) * (pctAno / 100) * 100) / 100);
+  }
+  return { tarifa: a.fio.tarifa, pct: a.fio.pct, anoInicial: a.anoInicial, percentuais, custoMensal };
 }

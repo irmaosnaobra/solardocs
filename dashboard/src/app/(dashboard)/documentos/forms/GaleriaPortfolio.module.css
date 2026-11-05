@@ -263,3 +263,26 @@
   font-weight: 600;
   color: var(--color-error);
 }
+
+/* Fotos de obras: grade de 3 colunas, para a pessoa ver as fileiras que a proposta imprime.
+   minmax(0, 1fr) deixa as colunas encolherem: nada de rolagem horizontal a 390 px. */
+.grade3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.grade3 .cartao {
+  padding: 6px;
+  gap: 6px;
+}
+
+.fileira {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.fileiraOk {
+  color: var(--color-primary);
+}
