@@ -234,18 +234,20 @@
   }
   function prepararArquivo(file) {
     var tipo = String(file.type || '').toLowerCase();
+    var nomeArq = String(file.name || '');
     var img = /^image\//.test(tipo);
+    var xml = /\.xml$/i.test(nomeArq) || /(^|[\/+])xml$/.test(tipo);
     var pronto = Promise.resolve(file);
     if (img && typeof dossieReduzirImagem === 'function') pronto = Promise.resolve(dossieReduzirImagem(file)).catch(function () { return file; });
     return pronto.then(function (f) {
       if (!f || !f.size) return Promise.reject(new Error('vazio'));
       if (f.size > 10 * 1024 * 1024) return Promise.reject(new Error('grande'));
-      return lerArquivo(f).then(function (b64) { return { base64: b64, media_type: String(f.type || tipo || 'application/octet-stream'), nome: String(file.name || (img ? 'comprovante.jpg' : 'comprovante.pdf')).slice(0, 120) }; });
+      return lerArquivo(f).then(function (b64) { return { base64: b64, media_type: xml ? 'application/xml' : String(f.type || tipo || 'application/octet-stream'), nome: String(file.name || (img ? 'comprovante.jpg' : (xml ? 'nota.xml' : 'comprovante.pdf'))).slice(0, 120) }; });
     });
   }
 
   /** Os três botões do Anexo (Foto, Arquivo, Print). Cada um entrega o arquivo a `aoEscolher`. */
-  function botoesAnexo(rotulo, aoEscolher, multiplo) {
+  function botoesAnexo(rotulo, aoEscolher, multiplo, opcoes) {
     var h = H(); var caixa = h.el('div', 'jor-din-anx');
     function entrada(rot, aceita, camera) {
       var lab = h.el('label', 'jor-btn', rot);
@@ -255,7 +257,7 @@
       lab.appendChild(inp); lab.tabIndex = 0;
       return lab;
     }
-    h.add(caixa, entrada('Foto', 'image/*', true), entrada('Arquivo', 'image/*,application/pdf', false), entrada('Print', 'image/*', false));
+    h.add(caixa, entrada('Foto', 'image/*', true), entrada('Arquivo', 'image/*,application/pdf' + (opcoes && opcoes.xml ? ',.xml,text/xml,application/xml' : ''), false), entrada('Print', 'image/*', false));
     return caixa;
   }
 

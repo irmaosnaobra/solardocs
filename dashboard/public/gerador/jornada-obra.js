@@ -494,20 +494,25 @@
           h.recarregar().then(function () { if (r.json.lida && r.json.lida.itens && r.json.lida.itens.length) lidosDialogo(cp, r.json.lida); });
         } else aviso(msgSrv(r, 'Não consegui ligar a nota. Tente de novo.'));
       }, function () { aviso('Não consegui ler o arquivo. Tente de novo.'); });
-    }));
+    }, false, { xml: true }));
     return caixa;
   }
+  function unidadeDaNota(u) { var s = String(u || '').trim().toLowerCase(); if (/^(m|mt|mts|metro|metros)$/.test(s)) return 'm'; if (/^(par|pr|pares)$/.test(s)) return 'par'; if (/^(kit|kt|kits)$/.test(s)) return 'kit'; return 'un'; }
   /** Os itens que a IA leu na nota: a pessoa confere um por um. Cada um preenche um item que falta ou entra como item novo. */
   function lidosDialogo(cp, lida) {
     var h = H(); var f2 = O().fase2; if (!f2) return; var c = compraDe(f2); var itens = itensBase(c);
     var livres = itens.filter(function (x) { return !veDinheiro() || !(Number(x.valor_centavos) > 0); });
     var linhas = [];
     h.dialogo('A nota foi lida', function (box) {
-      box.appendChild(el('p', 'jor-ok', 'A nota foi lida: ' + [lida.emitente, lida.data ? h.ddmm(lida.data) : '', h.plural(lida.n_itens || lida.itens.length, 'item', 'itens'), lida.valor_total_centavos ? h.rs(lida.valor_total_centavos) : ''].filter(Boolean).join(' · ')));
-      box.appendChild(el('p', 'jor-nota', 'A leitura só sugere. Confira cada item e o valor antes de salvar.'));
+      var xml = lida.origem === 'xml';
+      box.appendChild(el('p', 'jor-ok', (xml ? 'O XML foi lido: ' : 'A nota foi lida: ') + [lida.emitente, lida.data ? h.ddmm(lida.data) : '', h.plural(lida.n_itens || lida.itens.length, 'item', 'itens'), lida.valor_total_centavos ? h.rs(lida.valor_total_centavos) : ''].filter(Boolean).join(' · ')));
+      box.appendChild(el('p', 'jor-nota', xml ? 'Cada item já vem com o frete, o IPI e o desconto dele. Confira antes de salvar.' : 'A leitura só sugere. Confira cada item e o valor antes de salvar.'));
+      if (Number(lida.diferenca_centavos) < 0) box.appendChild(el('p', 'jor-nota', 'Os itens somam ' + h.rs(lida.soma_itens_centavos) + ' e a nota ' + h.rs(lida.valor_total_centavos) + '. Confira antes de salvar.'));
       lida.itens.forEach(function (li) {
         var lin = el('div', 'jor-ob-linha');
-        var m = marca((li.descricao || 'Item') + ' · ' + h.rs(li.valor_total_centavos), true, li.descricao || 'Item da nota'); lin.appendChild(m);
+        var rot = (li.descricao || 'Item') + (li.ncm ? ' · NCM ' + li.ncm : '') + ' · ' + h.rs(li.valor_total_centavos)
+          + (typeof li.valor_produto_centavos === 'number' && li.valor_produto_centavos !== li.valor_total_centavos ? ' (produto ' + h.rs(li.valor_produto_centavos) + ')' : '');
+        var m = marca(rot, true, li.descricao || 'Item da nota'); lin.appendChild(m);
         var sel = selecao([['', 'Item novo']].concat(livres.map(function (x) { return [x.id, x.descricao]; })), '', 'Ligar a um item');
         lin.appendChild(sel); box.appendChild(lin); linhas.push({ li: li, m: m, sel: sel });
       });
@@ -518,9 +523,10 @@
         if (!p.m.input.checked) return; tem = true; var li = p.li;
         var alvo = p.sel.value && !usadas[p.sel.value] ? lista.filter(function (x) { return x.id === p.sel.value; })[0] : null;
         if (alvo) { usadas[alvo.id] = 1; if (veDinheiro()) alvo.valor_centavos = li.valor_total_centavos || null; if (!alvo.quantidade && li.quantidade) alvo.quantidade = li.quantidade; alvo.fornecedor = lida.emitente || cp.fornecedor || alvo.fornecedor; alvo.data = lida.data || alvo.data || ''; alvo.compra_id = cp.id; }
-        else lista.push({ id: null, origem: 'nota', tipo: 'outro', descricao: String(li.descricao || 'Item da nota').slice(0, 120), quantidade: li.quantidade || null, unidade: 'un', marca: '', modelo: '', fornecedor: lida.emitente || cp.fornecedor || '', valor_centavos: veDinheiro() ? (li.valor_total_centavos || null) : null, data: lida.data || '', etapa: 4, compra_id: cp.id });
+        else lista.push({ id: null, origem: 'nota', tipo: 'outro', descricao: String(li.descricao || 'Item da nota').slice(0, 120), quantidade: li.quantidade || null, unidade: unidadeDaNota(li.unidade), marca: '', modelo: '', fornecedor: lida.emitente || cp.fornecedor || '', valor_centavos: veDinheiro() ? (li.valor_total_centavos || null) : null, data: lida.data || '', etapa: 4, compra_id: cp.id });
       });
       if (!tem) { h.fecharDlg(); return; }
+      if (lista.length > 80) { h.toast('A Compra ficaria com mais de 80 itens. Junte alguns antes de usar a nota.'); return; }
       b.disabled = true;
       salvar('compra', { itens: lista, compras: clone(c.compras) }, 'Itens da nota salvos.').then(function (r) { if (r.status === 200) h.fecharDlg(); else b.disabled = false; });
     });
@@ -529,7 +535,7 @@
     var h = H(); var sel = null;
     if (!c.compras.length) { compraDialogo(null, itens, c, f2, function () { h.toast('Compra criada. Agora anexe a nota nela.'); }); return; }
     h.dialogo('Ler a nota ou o pedido', function (box) {
-      box.appendChild(el('p', 'jor-nota', 'Foto, arquivo ou print da nota, do comprovante ou do pedido. A IA lê e só sugere.'));
+      box.appendChild(el('p', 'jor-nota', 'Foto, PDF, print ou o XML da nota. O XML entra exato, sem IA. Foto, PDF e print a IA lê e só sugere.'));
       sel = selecao(c.compras.map(function (cp, i) { return [cp.id, nomeCompra(cp, i)]; }), cp0 ? cp0.id : c.compras[0].id, 'Compra da nota');
       box.appendChild(campo('Compra', sel));
       var st = el('p', 'jor-nota'); st.setAttribute('role', 'status'); box.appendChild(st);
