@@ -487,6 +487,16 @@ export async function recentSignupsCount(_req: Request, res: Response): Promise<
   }
 }
 
+// Colunas do usuário que vão ao front junto com o token (o front salva este user no cookie). Mesmas do login e do reset de senha.
+// is_admin + billing_status precisam vir: o Sidebar decide a Área Restrita por is_admin e não pode esperar o /auth/me.
+const COLUNAS_DA_SESSAO = 'id, email, nome, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status';
+
+/** O token e o user (SEM password_hash) que o front recebe ao abrir sessão. Usado pelo login e pelo reset de senha. Pode lançar (signToken). */
+function sessaoDoUsuario<U extends { id: string; password_hash?: unknown }>(user: U): { token: string; user: Omit<U, 'password_hash'> } {
+  const { password_hash: _, ...userWithoutPassword } = user;
+  return { token: signToken(user.id), user: userWithoutPassword };
+}
+
 export async function login(req: Request, res: Response): Promise<void> {
   try {
     const body = loginSchema.parse(req.body);
@@ -506,7 +516,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       // is_admin + billing_status precisam vir no login: o front salva este user
       // no cookie e o Sidebar decide a Área Restrita por is_admin. Sem eles, o
       // admin loga e a Área Restrita some até o /auth/me corrigir (race no 1º paint).
-      .select('id, email, nome, password_hash, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status')
+      .select(`${COLUNAS_DA_SESSAO}, password_hash`)
       .eq('email', emailLc)
       .maybeSingle());
 
@@ -530,9 +540,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { password_hash: _, ...userWithoutPassword } = user;
-    const token = signToken(user.id);
-    res.json({ token, user: userWithoutPassword });
+    res.json(sessaoDoUsuario(user));
   } catch (err: unknown) {
     if (err instanceof BancoIndisponivel) { responder503(res, 'login', err.causa); return; }
     if (err instanceof z.ZodError) {
@@ -649,13 +657,33 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
 
     const password_hash = await bcrypt.hash(password, 12);
     // O error era ignorado: respondia "Senha redefinida com sucesso!" sem gravar.
-    const { error: updErr, status: updStatus } = await supabase
+    // A gravação é CONDICIONAL ao token (`reset_token = <token>`) e devolve a linha: o link é de uso único. Dois cliques ao mesmo
+    // tempo passam pela leitura acima, mas só um acha o token ainda no banco; o outro não grava nada, não abre sessão e lê "já usado".
+    const { data: gravadas, error: updErr, status: updStatus } = await supabase
       .from('users')
       .update({ password_hash, reset_token: null, reset_token_expires: null })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      .eq('reset_token', token)
+      .select('id');
     if (updErr) throw falhaDoBanco(updErr, updStatus);
+    if (!Array.isArray(gravadas) || gravadas.length === 0) {
+      res.status(400).json({ error: 'Esse link já foi usado ou não vale mais. Se você já criou a senha nova, é só entrar com ela. Se não, peça outro link.' });
+      return;
+    }
 
-    res.json({ message: 'Senha redefinida com sucesso!' });
+    // Quem acabou de criar a senha já entra logado (mesmo formato do login). O usuário é lido DEPOIS da gravação. Daqui para a frente
+    // a senha JÁ mudou: se a sessão não sair por qualquer motivo, responde sucesso SEM token (a tela cai no login com reset=ok) e
+    // loga o erro sem token.
+    let sessao: { token: string; user: Record<string, unknown> } | null = null;
+    try {
+      const atual = await lerDoBanco(() => supabase.from('users').select(COLUNAS_DA_SESSAO).eq('id', user.id).maybeSingle());
+      if (!atual) throw new Error('usuário não encontrado depois da troca de senha');
+      sessao = sessaoDoUsuario(atual);
+    } catch (errSessao) {
+      console.error('ResetPassword: senha trocada, mas a sessão não saiu:', errSessao instanceof Error ? errSessao.message : 'erro desconhecido');
+    }
+
+    res.json({ message: 'Senha redefinida com sucesso!', ...(sessao ?? {}) });
   } catch (err) {
     if (err instanceof BancoIndisponivel) { responder503(res, 'reset-password', err.causa); return; }
     console.error('ResetPassword error:', err);

@@ -96,6 +96,10 @@ export default function LoginForm() {
       <h1 className={styles.title}>Bem-vindo de volta</h1>
       <p className={styles.subtitle}>Entre para continuar de onde parou.</p>
 
+      {searchParams.get('reset') === 'ok' && (
+        <div className={styles.formOk} role="status">Senha nova salva. Entre com ela aqui embaixo.</div>
+      )}
+
       <form onSubmit={handleSubmit} className={styles.form} noValidate>
         <div className={styles.field}>
           <label className={styles.label} htmlFor="login-email">E-mail</label>

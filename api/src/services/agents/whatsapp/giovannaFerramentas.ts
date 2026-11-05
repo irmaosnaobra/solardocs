@@ -28,7 +28,8 @@ import type { ZapiInstance } from '../zapiClient';
 //  • Este módulo NÃO envia mensagem, com UMA exceção: o link de senha de quem esqueceu
 //    a senha (reenviar_acesso numa conta que já tem senha). Esse sai por
 //    services/solardoc/linkDeSenha.ts (enviarLinkDeSenha), que carrega as travas da linha:
-//    supressão, pausa humana, tetos por conta e do robô. O link nunca volta ao modelo nem
+//    supressão, tetos por conta e do robô e, só para a origem `giovanna` (a que passa por aqui), a pausa
+//    humana (o pedido feito no site passa mesmo com humano na conversa). O link nunca volta ao modelo nem
 //    vai para o log. Quem fala com o dono é o serviço, uma vez por turno
 //    (ctx.avisosPendentes), e quem abre o chamado é o serviço (ctx.escalar): um caminho de
 //    aviso só, sem ciclo de import.
