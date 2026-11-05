@@ -234,12 +234,15 @@ html[data-mode="app"].painel-solar-aberto .sb-mobile-toggle,
 html[data-mode="app"].planilha-solar-aberto #app-sidebar,
 html[data-mode="app"].planilha-solar-aberto .sb-mobile-toggle,
 html[data-mode="app"].documentos-solar-aberto #app-sidebar,
-html[data-mode="app"].documentos-solar-aberto .sb-mobile-toggle{display:none!important}
+html[data-mode="app"].documentos-solar-aberto .sb-mobile-toggle,
+html[data-mode="app"].clientes-solar-aberto #app-sidebar,
+html[data-mode="app"].clientes-solar-aberto .sb-mobile-toggle{display:none!important}
 html[data-mode="app"].quem-ligar-aberto .container,
 html[data-mode="app"].obras-solar-aberto .container,
 html[data-mode="app"].painel-solar-aberto .container,
 html[data-mode="app"].planilha-solar-aberto .container,
-html[data-mode="app"].documentos-solar-aberto .container{margin-left:0!important}
+html[data-mode="app"].documentos-solar-aberto .container,
+html[data-mode="app"].clientes-solar-aberto .container{margin-left:0!important}
 #quemLigarSection,#obrasSolarSection,#painelSolarSection{max-width:860px;margin:0 auto}
 #quemLigarSection .btn-hist-voltar,#obrasSolarSection .btn-hist-voltar,#painelSolarSection .btn-hist-voltar{min-height:44px}
 #quemLigarSection .card,#obrasSolarSection .card,#painelSolarSection .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:16px 16px;margin-bottom:12px}
@@ -250,8 +253,9 @@ html[data-mode="app"].documentos-solar-aberto .container{margin-left:0!important
    visual antigo os tokens não existem e vale a reserva; no novo (claro ou escuro) valem os tokens.
    A barra lateral some e o .container perde a margem pela lista das telas soltas, logo acima. */
 html[data-mode="app"].planilha-solar-aberto .container,
-html[data-mode="app"].documentos-solar-aberto .container{max-width:none!important}
-#planilhaSolarSection,#documentosSolarSection{max-width:none;margin:0}
+html[data-mode="app"].documentos-solar-aberto .container,
+html[data-mode="app"].clientes-solar-aberto .container{max-width:none!important}
+#planilhaSolarSection,#documentosSolarSection,#clientesSolarSection{max-width:none;margin:0}
 /* Separador fino entre os dois grupos da régua do Solar */
 .solar-subsep{flex:0 0 auto;align-self:center;width:1px;height:22px;margin:0 10px;background:var(--n-bd2,rgba(255,255,255,.22))}
 /* A altura é a janela menos o topo do iframe e menos o que sobra embaixo (planilhaAjustar soma o preenchimento dos pais,
@@ -3723,7 +3727,7 @@ html:not(.io-adm) [data-so-adm]{display:none!important}
   html[data-mode="app"] .container{margin-left:0;padding:0 16px}
   #app-sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.5)}
   #app-sidebar.aberta{transform:translateX(0)}
-  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.fechamento-solar-aberto):not(.quem-ligar-aberto):not(.obras-solar-aberto):not(.painel-solar-aberto):not(.planilha-solar-aberto):not(.documentos-solar-aberto):not(.redes-aberto):not(.crm-aberto) .sb-mobile-toggle{
+  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.fechamento-solar-aberto):not(.quem-ligar-aberto):not(.obras-solar-aberto):not(.painel-solar-aberto):not(.planilha-solar-aberto):not(.documentos-solar-aberto):not(.clientes-solar-aberto):not(.redes-aberto):not(.crm-aberto) .sb-mobile-toggle{
     display:flex!important;align-items:center;justify-content:center;
     position:fixed;top:14px;left:14px;z-index:950;width:44px;height:44px;
     border-radius:12px;border:1px solid rgba(255,255,255,.12);
@@ -4424,7 +4428,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   </button>
   <div class="sb-nav">
     <button type="button" class="sb-item" id="nav-inicio" onclick="navInicio()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"></path><path d="M5 9.5V20h14V9.5"></path><path d="M10 20v-6h4v6"></path></svg></span> Início</button>
-    <button type="button" class="sb-item" id="nav-solar" onclick="navGerador()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"></line></svg></span> Solar</button>
+    <button type="button" class="sb-item" id="nav-solar" onclick="navClientesSolar()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"></line></svg></span> Solar</button>
     <button type="button" class="sb-item" id="nav-eletroposto" onclick="navEletroposto()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline></svg></span> Eletroposto</button>
     <button type="button" class="sb-item" id="nav-agenda" onclick="location.href='/gerador/agenda'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span> Agenda</button>
     <button type="button" class="sb-item" id="nav-crm" onclick="navCRM()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg></span> CRM</button>
@@ -4449,6 +4453,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <div class="solar-subnav" role="tablist" aria-label="Solar">
     <!-- 14/10/2026, pedido do Thiago: Gerar / Planilha de clientes / Painel / Quem ligar / Leads / Tabelas /
          Calculadora / Histórico, um traço, e Documentos / Fechamento / Obras. -->
+    <!-- Fase 1 da Jornada (05/11/2026, SPEC 12.0): Clientes é a primeira aba do Solar. -->
+    <button type="button" class="solar-subtab" data-aba="clientes" onclick="navClientesSolar()">Clientes</button>
     <button type="button" class="solar-subtab" data-aba="gerador" onclick="navGerador()">Gerar proposta</button>
     <button type="button" class="solar-subtab" data-aba="planilha" onclick="navPlanilhaSolar()">Planilha de clientes</button>
     <button type="button" class="solar-subtab" data-aba="painel" data-so-adm onclick="navPainelSolar()">Painel</button>
@@ -4462,6 +4468,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <button type="button" class="solar-subtab" data-aba="fechamento" onclick="navFechamentoSolar()">Fechamento</button>
     <button type="button" class="solar-subtab" data-aba="obras" onclick="navObrasSolar()">Obras</button>
   </div>
+
+  <!-- ============= TELA: CLIENTES DO SOLAR (Jornada, fase 1, 05/11/2026). Quem desenha é /gerador/jornada.js. ============= -->
+  <div id="clientesSolarSection" style="display:none;"><div id="jor-corpo" class="jor"></div></div>
 
   <!-- ============= TELA: INÍCIO (12/10/2026) ============= -->
   <div id="inicioSection" style="display:none;">
@@ -8532,6 +8541,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <script src="/gerador/etiqueta.js"></script>
 <script src="/gerador/pos-venda.js"></script>
 <script src="/gerador/financeiro.js"></script>
+<script src="/gerador/jornada.js"></script>
 <!-- QR do WhatsApp no rodapé do orçamento de 1 página (qrcode-generator, MIT).
      Vendorizado porque o documento é impresso offline pelo PWA — CDN não serve. -->
 <script src="/gerador/qrcode.js"></script>
@@ -11363,7 +11373,7 @@ function voltarDoHistorico() {
 // ela roda no DOMContentLoaded e em deep link, e uma const no topo do script
 // estaria em zona morta se alguém a chamasse antes da linha dela.
 function marcarNavAtivo(id) {
-  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc', 'nav-fechamento-solar': 'fechamento', 'nav-quem-ligar': 'quemligar', 'nav-obras-solar': 'obras', 'nav-painel-solar': 'painel', 'nav-planilha-solar': 'planilha', 'nav-documentos-solar': 'documentos' };
+  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc', 'nav-fechamento-solar': 'fechamento', 'nav-quem-ligar': 'quemligar', 'nav-obras-solar': 'obras', 'nav-painel-solar': 'painel', 'nav-planilha-solar': 'planilha', 'nav-documentos-solar': 'documentos', 'nav-clientes-solar': 'clientes' };
   const aba = ABA_SOLAR[id] || null;
   // Início: qualquer outra tela que acenda a barra esconde o Início (e solta o pré-desenho do boot).
   if (id !== 'nav-inicio') {
@@ -11379,7 +11389,8 @@ function marcarNavAtivo(id) {
    ['nav-obras-solar', 'obrasSolarSection', 'obras-solar-aberto'],
    ['nav-painel-solar', 'painelSolarSection', 'painel-solar-aberto'],
    ['nav-planilha-solar', 'planilhaSolarSection', 'planilha-solar-aberto'],
-   ['nav-documentos-solar', 'documentosSolarSection', 'documentos-solar-aberto']].forEach(([navId, secId, cls]) => {
+   ['nav-documentos-solar', 'documentosSolarSection', 'documentos-solar-aberto'],
+   ['nav-clientes-solar', 'clientesSolarSection', 'clientes-solar-aberto']].forEach(([navId, secId, cls]) => {
     if (id === navId) return;
     const sec = document.getElementById(secId);
     if (sec) sec.style.display = 'none';
@@ -11395,23 +11406,23 @@ function marcarNavAtivo(id) {
 // diferente; com a régua dá para ir de Leads direto para Tabelas, e sem isto uma
 // tela ficaria empilhada sobre a outra.
 function telasSolarLimpar() {
-  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection', 'inicioSection']
+  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'clientesSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection', 'inicioSection']
     .forEach(t => { const el = document.getElementById(t); if (el) el.style.display = 'none'; });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'clientes-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
 }
 // Fecha só Quem ligar e Obras. Existe para as telas que escondem as outras à mão
 // (abrirHistorico, navRedes, navCRM) e para não repetir a lista em cada uma.
 function solarExtrasFechar() {
-  ['quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'inicioSection'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-  document.documentElement.classList.remove('quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto');
+  ['quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'clientesSolarSection', 'inicioSection'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  document.documentElement.classList.remove('quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'clientes-solar-aberto');
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
-  ['historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection', 'inicioSection'].forEach(id => {
+  ['historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'clientesSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection', 'inicioSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'clientes-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
   document.getElementById('formSection').style.display = '';
   // Kit ligado ou desligado em Tabelas vale assim que a pessoa volta pela régua
   // (antes só o "Voltar" de Tabelas reaplicava).
@@ -11586,7 +11597,7 @@ function navRedes() {
   const sec = document.getElementById('redesSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('redes-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'clientes-solar-aberto');
   marcarNavAtivo('nav-redes');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -11603,14 +11614,14 @@ function navCalc() {
   if (typeof admBarrar === 'function' && admBarrar(navCalc)) return;   // Calculadora é só do ADM (fase 0)
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection', 'inicioSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'clientesSolarSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection', 'inicioSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('calcSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('calc-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'clientes-solar-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto', 'automacao-aberto');
   marcarNavAtivo('nav-calc');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -11620,14 +11631,14 @@ function navCalc() {
 function navEletroposto() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection', 'inicioSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'planilhaSolarSection', 'documentosSolarSection', 'clientesSolarSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection', 'inicioSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('eletroSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('eletro-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'clientes-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'automacao-aberto');
   marcarNavAtivo('nav-eletroposto');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -33044,6 +33055,14 @@ function fsEmitir() {
 // ═══ Navegação ═══
 function navFechamentoSolar() {
   telasSolarLimpar();
+  // Fase 1 da Jornada (05/11/2026, SPEC 16.1): o Fechamento segue no ar, com o aviso apontando para a etapa 2.
+  (function () {
+    const secAv = document.getElementById('fechamentoSolarSection');
+    if (!secAv || document.getElementById('fs-aviso-jornada')) return;
+    const av = document.createElement('p'); av.id = 'fs-aviso-jornada'; av.className = 'vdc-nota';
+    av.textContent = 'Venda nova do solar: gere o contrato, a procuração e o recibo na etapa 2 da obra, em Solar, Clientes.';
+    secAv.insertBefore(av, secAv.firstChild);
+  })();
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
   const sec = document.getElementById('fechamentoSolarSection');
@@ -33101,6 +33120,19 @@ function navObrasSolar() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   obAbrir();
 }
+// Fase 1 da Jornada (05/11/2026): a lista de vendas e a obra. Clone do navObrasSolar; o desenho é do /gerador/jornada.js.
+function navClientesSolar(card) {
+  telasSolarLimpar();
+  const sec = document.getElementById('clientesSolarSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('clientes-solar-aberto');
+  marcarNavAtivo('nav-clientes-solar');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (window.Jornada) { if (card) Jornada.abrirObra(card); else Jornada.abrirLista(); }
+  else { const c = document.getElementById('jor-corpo'); if (c) c.textContent = 'Não consegui abrir a lista agora. Atualize a página.'; }
+}
+
 function voltarDasObras() {
   document.getElementById('obrasSolarSection').style.display = 'none';
   document.getElementById('formSection').style.display = '';
@@ -36232,7 +36264,7 @@ function navCRM(opts) {
   const sec = document.getElementById('crmSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('crm-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'redes-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'planilha-solar-aberto', 'documentos-solar-aberto', 'clientes-solar-aberto', 'redes-aberto');
   marcarNavAtivo('nav-crm');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -37410,16 +37442,26 @@ async function vdcFetch(rota, metodo, corpo, ms, opc) {
 }
 
 // ── O bloco no detalhe do card ─────────────────────────────────────────────
-function vdcFechar() {
+/** Fase 1 da Jornada: o quadro montado dentro da obra avisa a etapa a cada gravação, para o "Para concluir" não ficar velho. Nunca derruba o quadro. */
+function vdcAvisarMudanca(st) { try { if (st && st.op && typeof st.op.aoMudar === 'function') st.op.aoMudar(); } catch (e) {} }
+(function () {
+  ['vdcAnexar', 'vdcTrocarEnviar', 'vdcExcluir', 'vdcMover', 'vdcMesmo', 'vdcEmailSalvar', 'vdcRatSalvar', 'vdcPesSalvar', 'vdcConfirmar', 'vdcLigar', 'vdcTrEnviar'].forEach(function (nome) {
+    const orig = window[nome];
+    if (typeof orig !== 'function') return;
+    window[nome] = async function (st) { const r = await orig.apply(this, arguments); vdcAvisarMudanca(st); return r; };
+  });
+})();
+
+function vdcFechar(alvo) {
   vdcEst = null;
-  const el = document.getElementById('crm-det-cadastro');
+  const el = alvo || document.getElementById('crm-det-cadastro');
   if (el) { el.hidden = true; el.replaceChildren(); }
 }
 
 /** Mesma condição do pós-venda e do financeiro: vendido. Eletroposto usa a linha do eletroposto; o resto (solar) usa `vendasolar`.
  *  Qualquer outro card esconde o bloco e esquece o anterior. */
-function vdcDetalhe(rec) {
-  const el = document.getElementById('crm-det-cadastro');
+function vdcDetalhe(rec, op) {
+  const el = (op && op.alvo) || document.getElementById('crm-det-cadastro');
   if (!el) return;
   const vendido = !!rec && rec.id != null && String(rec.status || '') === 'fechou';
   const linha = vendido ? (crmEhEletroposto(rec) ? 'eletroposto' : 'vendasolar') : '';
@@ -37435,7 +37477,7 @@ function vdcDetalhe(rec) {
     vinc: null, vincErroCarga: '', vincOcupado: '', vincMsg: '', analise: null, rat: null, ratMsg: '', ratGravando: false,
     // Fase 2: "Criar cliente na planilha" (portão de telefone) e o campo de e-mail. Nascem aqui, no literal comum, porque o card de eletroposto repinta com o mesmo `st`.
     cli: { ocupado: '', confirmar: false, ocultas: 0, semPlanilha: false, texto: '', cands: [] }, email: null, sugEmail: '', emailGravando: false,
-    pesEdit: null, pesForcar: false, avisoDocs: false,
+    pesEdit: null, pesForcar: false, avisoDocs: false, op: op || {},
     negociador: '', mesmoOcupado: '', mesmoMsg: null, aviso: '', tre: VDC_CFG[linha].trello ? vdcTrNovo() : null };
   vdcEst = st;
   const sec = document.createElement('section');
@@ -37464,7 +37506,7 @@ function vdcDetalhe(rec) {
   const email = st.cfg.papeis ? document.createElement('div') : null;
   if (email) { email.className = 'vdc-email'; email.setAttribute('data-vdc-email-bloco', '1'); }
   // Solar: o card no Trello fica depois dos botões, num nó próprio (o painel de conferência da leitura não é dele).
-  const tre = st.cfg.trello ? document.createElement('div') : null;
+  const tre = st.cfg.trello && !st.op.semTrello ? document.createElement('div') : null;
   if (tre) { tre.className = 'vdc-tre'; tre.setAttribute('data-vdc-trello', '1'); }
   if (vinc) { vinc.className = 'vdc-vinc'; vinc.setAttribute('data-vdc-vinc', '1'); sec.append(h, topo, ...(email ? [email] : []), vinc, docs, lista, org, pes, rat, acoes, ...(tre ? [tre] : []), msg, pn, arqs); }
   else sec.append(h, topo, docs, lista, org, pes, acoes, msg, pn, arqs);
@@ -37655,7 +37697,7 @@ function vdcPintar(st) {
     const t = document.createElement('div'); t.className = 'vdc-doc-t';
     const nm = document.createElement('span'); nm.className = 'vdc-doc-n'; nm.textContent = s.rot;
     const q = document.createElement('span'); q.className = 'vdc-doc-q';
-    q.textContent = sub ? ((sub.fase === 'enviando' ? 'Enviando' : 'Preparando') + (sub.n > 1 ? ' ' + (sub.i + 1) + ' de ' + sub.n : '') + '…')
+    q.textContent = sub ? ((sub.fase === 'numero' ? 'Dando o número da obra' : sub.fase === 'enviando' ? 'Enviando' : 'Preparando') + (sub.n > 1 ? ' ' + (sub.i + 1) + ' de ' + sub.n : '') + '…')
       : (qtd == null ? '' : qtd === 0 ? 'Nenhum arquivo' : qtd === 1 ? '1 arquivo' : qtd + ' arquivos');
     t.append(nm, q);
     // "Adicionar vários documentos" é só do item Outros (a IA organiza). Imóvel e outra pessoa também aceitam vários, mas são itens de pessoa: Anexar.
@@ -37696,7 +37738,7 @@ function vdcPintar(st) {
   pre.textContent = st.cfg.textoPreencher;
   pre.disabled = st.lendo || st.gravando || !st.cad || !vdcV(st.cad, 'nome');
   pre.addEventListener('click', () => vdcPreencher(st));
-  N.acoes.append(ler, pre);
+  if (st.op.semFechamento) N.acoes.append(ler); else N.acoes.append(ler, pre);
   if (N.tre) vdcPintarTrello(st);
   // aviso
   N.msg.hidden = !st.msg; N.msg.textContent = st.msg || '';
@@ -37910,21 +37952,14 @@ function vdcPintarVinc(st) {
         it.append(c, b);
         box.appendChild(it);
       });
-      // Fase 2: o cliente do card vendido nasce na planilha de clientes. Sem `novo`, o servidor pergunta quando a venda pode já estar lá.
-      if (!ehProposta) {
-        const ax = document.createElement('div'); ax.className = 'vdc-acoes';
-        const bc = document.createElement('button'); bc.type = 'button'; bc.className = 'vdc-btn vdc-btn-mini vdc-btn-pri';
-        bc.textContent = st.cli.ocupado === 'criar' ? 'Criando…' : 'Criar cliente na planilha';
-        bc.disabled = !!st.vincOcupado || !!st.cli.ocupado; bc.setAttribute('data-vdc-acao', 'criar-cliente'); bc.dataset.vdcFoco = 'criar-cliente';
-        bc.addEventListener('click', () => vdcCriarCliente(st, false));
-        ax.appendChild(bc); box.appendChild(ax);
-        if (st.cli.confirmar) box.appendChild(vdcPainelCliente(st, sugs));
-      }
+      // Fase 1 da Jornada (05/11/2026): o número nasce com o contrato e a procuração assinados, na etapa 2. Não há mais botão para criá-lo.
     }
     return box;
   };
   V.appendChild(bloco('proposta', 'Proposta', v.proposta, v.sugProp, true));
-  V.appendChild(bloco('venda', 'Venda da planilha', v.venda, v.sugVenda, false));
+  // Ligar a venda antiga da planilha é só do ADM (SPEC 15). Os outros veem o número, sem trocar.
+  if (typeof admOk === 'function' && admOk()) V.appendChild(bloco('venda', 'Venda da planilha', v.venda, v.sugVenda, false));
+  else { const pn = document.createElement('p'); pn.className = 'vdc-nota'; pn.textContent = v.venda ? 'Número da obra: ' + vdcRotCodigo(v.venda) + '.' : 'A obra ainda não tem número. Ele nasce com o contrato e a procuração assinados.'; V.appendChild(pn); }
   if ((v.proposta || v.venda) && (v.por || v.em)) {
     const p = document.createElement('p'); p.className = 'vdc-nota';
     p.textContent = 'Ligado' + (v.por === 'gerador' ? ' pelo Gerador' : (v.por ? ' por ' + v.por : '')) + (v.em ? ' em ' + vdcDataCurta(v.em) : '') + '.';
@@ -39284,7 +39319,10 @@ async function vdcEnviar(st, slot, p, substitui) {
   try { r = await fetch(alvo, { method: String(j.metodo || 'PUT').toUpperCase() === 'POST' ? 'POST' : 'PUT', headers: h, body: p.blob }); }
   catch (e) { throw vdcInvalido('Sem conexão. Tente de novo.'); }
   if (!r.ok) throw vdcInvalido('O envio não terminou (erro ' + r.status + '). Tente de novo.');
-  const b = await vdcChamar(st, 'POST', '/docs', { slot: slot.chave, caminho: j.caminho, ...extra });
+  // Fase 1 da Jornada: o registro do contrato ou da procuração assinados pode dar o número da obra (o servidor lê o quadro do Trello: até 150 s).
+  const dandoNumero = !!(st.cfg && st.cfg.linha === 'vendasolar' && (slot.chave === 'contrato_assinado' || slot.chave === 'procuracao'));
+  if (dandoNumero && st.sub[slot.chave]) { st.sub[slot.chave] = { ...st.sub[slot.chave], fase: 'numero' }; vdcPintar(st); }
+  const b = await vdcChamar(st, 'POST', '/docs', { slot: slot.chave, caminho: j.caminho, ...extra }, dandoNumero ? 200000 : undefined);
   if (b.status < 200 || b.status >= 300 || (b.json && b.json.ok === false)) {
     const er2 = vdcInvalido((b.json && typeof b.json.error === 'string' && b.json.error) || 'O arquivo subiu, mas não consegui registrar. Tente de novo.');
     if (vdcSemEspaco(b)) { er2.semEspaco = true; er2.curto = 'sem espaço'; }
@@ -46382,10 +46420,10 @@ if ('serviceWorker' in navigator) {
     if (typeof admBarrar === 'function' && admBarrar(navAutomacao)) return;   // Automação é só do ADM (fase 0)
     document.getElementById('formSection').style.display='none';
     document.getElementById('historicoSection').style.display='none';
-    ['tabelasSection','leadsSection','fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection','planilhaSolarSection','documentosSolarSection','redesSection','crmSection','calcSection','eletroSection','inicioSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
+    ['tabelasSection','leadsSection','fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection','planilhaSolarSection','documentosSolarSection', 'clientesSolarSection','redesSection','crmSection','calcSection','eletroSection','inicioSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const sec=document.getElementById('automacaoSection'); if(sec) sec.style.display='';
     document.documentElement.classList.add('automacao-aberto');
-    document.documentElement.classList.remove('historico-aberto','tabelas-aberta','leads-aberto','fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto','planilha-solar-aberto','documentos-solar-aberto','redes-aberto','crm-aberto','calc-aberto','eletro-aberto');
+    document.documentElement.classList.remove('historico-aberto','tabelas-aberta','leads-aberto','fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto','planilha-solar-aberto','documentos-solar-aberto', 'clientes-solar-aberto','redes-aberto','crm-aberto','calc-aberto','eletro-aberto');
     marcarNavAtivo('nav-automacao');
     fecharSidebarMobile();
     window.scrollTo({top:0,behavior:'smooth'});

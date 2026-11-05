@@ -97,7 +97,7 @@
     /* Reguas de aba: a ativa e trazida para a vista quando nao cabe. */
     reguas: '.solar-subnav, .eletro-subnav, .eletro-subnav2, .cad-abas, .crm-subnav',
     /* gerador-ir: destino pedido por outra pagina (subapps) -> funcao de navegacao existente. */
-    ir: { inicio: 'navInicio', solar: 'navGerador', eletroposto: 'navEletroposto', crm: 'navCRM', automacao: 'navAutomacao', sair: 'sairGerador', perfil: 'abrirMeuPerfil', 'perfil-equipe': 'abrirPerfisEquipe' },
+    ir: { inicio: 'navInicio', solar: 'navClientesSolar', eletroposto: 'navEletroposto', crm: 'navCRM', automacao: 'navAutomacao', sair: 'sairGerador', perfil: 'abrirMeuPerfil', 'perfil-equipe': 'abrirPerfisEquipe' },
     /* Ordem da barra lateral do index (a dos subapps repete esta). */
     barra: ['nav-inicio', 'nav-solar', 'nav-eletroposto', 'nav-agenda', 'nav-crm', 'nav-prospeccao', 'nav-cobrancas', 'nav-parceiros', 'nav-agentes', 'nav-automacao'],
     /* Onde cada item mora. `index`: grava gerador-ir e abre /gerador limpo. `sub`: abre /gerador/<nome>. */
