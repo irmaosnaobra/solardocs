@@ -7,7 +7,20 @@ import { lerLigacao } from './vendaSolarHub';
 import { blocoVendaCompleto } from './jornadaSolar';
 import { lerJornadaComVersao, lerPrivadoJornada, mudarJornada } from './jornadaSolarBanco';
 
-export async function marcarVendaCompleta(card: number, por: string): Promise<void> {
+/** O bloco Venda deste card está completo AGORA? Erro de leitura devolve `true` (na dúvida, não dispara aviso). */
+export async function blocoCompletoDoCard(card: number): Promise<boolean> {
+  try {
+    const [{ lig }, privado] = await Promise.all([lerLigacao(card), lerPrivadoJornada(card)]);
+    return blocoVendaCompleto(lig, privado);
+  } catch { return true; }
+}
+
+/**
+ * `completoAntes`: o bloco já estava completo ANTES desta gravação (quem chama mede antes de gravar). Só passa de INCOMPLETO para COMPLETO dispara:
+ * venda que já estava completa (as antigas) editada depois de ligar NÃO gera aviso.
+ */
+export async function marcarVendaCompleta(card: number, por: string, completoAntes: boolean): Promise<void> {
+  if (completoAntes) return;
   try {
     const [{ estado }, { lig }, privado] = await Promise.all([lerJornadaComVersao(card), lerLigacao(card), lerPrivadoJornada(card)]);
     const pendente = (e: NonNullable<typeof estado>): boolean =>

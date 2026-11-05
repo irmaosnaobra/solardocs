@@ -24,7 +24,7 @@ import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { codigoCanonico, ehAdm, ehSocio, hojeBRT, montarObra, nomeSimples, podeVer, type ObraMontada } from '../services/gerador/solarObras';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 import {
-  CURTOS_ETAPA, DONOS_FIXOS, FORMAS_PAGAMENTO, MOTIVOS_ESPERA, NOMES_ETAPA, TIPOS_PAPEL, ROTULO_ESPERA,
+  CURTOS_ETAPA, DONOS_FIXOS, blocoVendaCompleto, FORMAS_PAGAMENTO, MOTIVOS_ESPERA, NOMES_ETAPA, TIPOS_PAPEL, ROTULO_ESPERA,
   comissoesDaVenda, ddmm, deduzirEtapa, donosDaEtapa, estadoMaterializado, etapaAtualDoEstado, iniciais, itensDaEtapa, marcaDoRateio,
   podeConcluir, prazoDaEtapa, rateioDoCadastro, situacao, somarDiasUteis, totalDoRateio, veObra,
   type EntradaItens, type EstadoJornada, type FormaPagamento, type MotivoEspera, type PrivadoJornada, type Situacao, type TipoPapel,
@@ -562,6 +562,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     if (l.obraEstado?.fechada) { res.status(409).json({ ok: false, error: 'A conta desta obra está fechada. Só o Thiago reabre.' }); return; }
     if (!pode.editar_venda) { res.status(403).json({ ok: false, error: 'Você não pode editar o valor desta venda agora.' }); return; }
     const agora = new Date().toISOString();
+    const completoAntes = blocoVendaCompleto(l.lig, l.privado);
     const novo = await mudarPrivadoJornada(g.id, g.nome, (p) => {
       const ant = p.venda;
       const venda: NonNullable<PrivadoJornada['venda']> = {
@@ -588,7 +589,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
       if (error) { logErro('espelho na proposta', { codigo: 'espelho' }); aviso = 'Salvei o valor, mas não consegui atualizar a proposta ligada.'; }
     }
     // Fase 3: o bloco Venda pode ter ficado completo agora (grava `venda_completa` uma vez só; nunca lança).
-    await marcarVendaCompleta(g.id, g.nome);
+    await marcarVendaCompleta(g.id, g.nome, completoAntes);
     res.json({ ok: true, venda: novo.venda, ...(aviso ? { aviso } : {}) });
   } catch (err) {
     falhou(res, 'venda', err);
@@ -612,6 +613,7 @@ async function rotaProposta(req: Request, res: Response): Promise<void> {
     if (!p || !propostaDoPapel(g.nome, g.socio, p.consultor_nome)) { res.status(404).json({ ok: false, error: 'Proposta não encontrada.' }); return; }
     const { data: tipoRow } = await supabaseGerador.from('propostas').select('tipo').eq('codigo', codigo).maybeSingle();
     if (String((tipoRow as { tipo?: unknown } | null)?.tipo ?? 'solar').toLowerCase() === 'eletroposto') { res.status(404).json({ ok: false, error: 'Proposta não encontrada.' }); return; }
+    const completoAntesProposta = blocoVendaCompleto(l.lig, l.privado);
     const saida = await comTrava(TRAVA_VINCULOS, g.nome, async () => {
       const [{ lig }, todas] = await Promise.all([lerLigacao(g.id), lerTodasLigacoes()]);
       if (lig.proposta && lig.proposta !== codigo) {
@@ -632,7 +634,7 @@ async function rotaProposta(req: Request, res: Response): Promise<void> {
       invalidarCachesHub();
       return { status: 200, corpo: { ok: true, proposta: codigo } };
     });
-    if (saida.status === 200) await marcarVendaCompleta(g.id, g.nome);
+    if (saida.status === 200) await marcarVendaCompleta(g.id, g.nome, completoAntesProposta);
     res.status(saida.status).json(saida.corpo);
   } catch (err) {
     falhou(res, 'proposta', err);

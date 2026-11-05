@@ -9,12 +9,14 @@
 import { sendFrio } from '../agents/zapiClient';
 import { novaRodadaPortao } from '../recuperacaoCheckoutPortao';
 import { diaBRT } from '../agentes5040/relogio';
+import { contarErroDaLinha, zerarErrosDaLinha } from '../agentes5040/guardaDaLinha';
 import { linkIndicacao } from '../gerador/indicacaoJornada';
 import { lerDatasDoPosVenda, primeiroNomeDaObra, type DatasPosVenda } from '../gerador/jornadaPosVendaDados';
 import { POR_QUE_NAO_DISPARA, chavePos, textoAniversario, toquesDoDia } from './jornadaMensagensPuro';
 import { jaTravadas, marcarTrava, nada, parou, soltarTrava, travar, type CtxMsg, type Leitura, type ResultadoMsg } from './jornadaMensagensBase';
 
 const ROBO_ANIV = 'jornada_aniversario' as const;
+const MOTIVOS_DA_PESSOA: ReadonlySet<string> = new Set(['humano_na_conversa']);
 const logAniv = (que: string): void => console.error(`[jornada-msg] ${que}`, 'aniversario');
 
 export async function rodarAniversarios(c: CtxMsg, leitura: Leitura): Promise<ResultadoMsg> {
@@ -46,7 +48,8 @@ export async function rodarAniversarios(c: CtxMsg, leitura: Leitura): Promise<Re
     const tel = String(info?.cliente_telefone ?? '').replace(/\D/g, '');
     if (tel.length < 10) continue;
     const v = await portao.avaliar(tel);
-    if (!v.ok) { if (v.acao === 'segura') return parou(v.motivo); continue; }
+    // Motivo da PESSOA (gente da equipe na conversa) pula só ela; linha, janela, teto e espaçamento seguram a rodada inteira.
+    if (!v.ok) { if (v.acao === 'segura' && !MOTIVOS_DA_PESSOA.has(v.motivo)) return parou(v.motivo); continue; }
     if (!(await c.vez.tomar())) return parou('vez_ocupada');
     const r = await travar(chave, { robo: ROBO_ANIV, atrasado: t.atrasado }, c.agora);
     if (r === 'ja') continue;
@@ -56,12 +59,14 @@ export async function rodarAniversarios(c: CtxMsg, leitura: Leitura): Promise<Re
     try {
       const saiu = await sendFrio(tel, [texto], 'io');
       if (saiu === false) { await soltarTrava(chave); return parou('calado'); }
-    } catch {
+    } catch (err) {
+      await contarErroDaLinha(c.agora, err);
       await marcarTrava(chave, { falhou: true }, c.agora);
       logAniv('envio_falhou');
       return { enviado: false, parar: true, motivo: 'envio_falhou', chave };
     }
     await marcarTrava(chave, { enviado: true }, c.agora);
+    await zerarErrosDaLinha(c.agora);
     portao.travarRodada('ja_enviou_na_rodada');
     return { enviado: true, parar: true, motivo: 'enviado', chave };
   }

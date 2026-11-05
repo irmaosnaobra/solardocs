@@ -169,11 +169,17 @@ interface DadosBook {
 }
 
 /** O Book pode sair (a trava limpa)? Para a leitura do pós-venda mostrar o botão de gerar. */
-export async function bookPodeSair(g: GuardaObra): Promise<boolean> { return trava(await lerFase2(g)).length === 0; }
+export async function bookPodeSair(g: GuardaObra): Promise<boolean> {
+  const f = await lerFase2(g);
+  return podeGerarBook(g, f.vend) && trava(f).length === 0;
+}
+
+/** Quem gera o Book em PDF: o ADM, o Diego (dono da entrega) e quem vendeu a obra. */
+export const podeGerarBook = (g: GuardaObra, vendedor: string): boolean => g.adm || g.nome === 'diego' || (!!vendedor && g.nome === vendedor);
 
 /** O Book só sai com a trava limpa (a mesma do `pode.book` da fase 2). A resposta do GET do Book não leva `cliente`, `cidade` nem `caminhos`. */
-async function dadosDoBook(g: GuardaObra): Promise<{ trava: string[] } | DadosBook> {
-  const f = await lerFase2(g);
+async function dadosDoBook(g: GuardaObra, lida?: Fase2): Promise<{ trava: string[] } | DadosBook> {
+  const f = lida ?? await lerFase2(g);
   const { contrato, campos: k } = campos(f);
   const falta = travaDoBook(k, contrato, f.privada.compra.itens, !!f.privada.entrega.termo?.assinado_em);
   if (falta.length) return { trava: falta };
@@ -717,7 +723,9 @@ export function mountJornadaObra(router: Router): void {
     if (!g) return;
     let browser: Awaited<ReturnType<typeof abrirNavegador>> | undefined;
     try {
-      const d = await dadosDoBook(g);
+      const f = await lerFase2(g);
+      if (!podeGerarBook(g, f.vend)) { res.status(403).json({ ok: false, error: 'Você não pode gerar o Book desta obra.' }); return; }
+      const d = await dadosDoBook(g, f);
       if ('trava' in d) { res.status(409).json({ ok: false, error: 'O Book ainda não pode sair.', trava: d.trava }); return; }
       const urls = await assinarVarios(d.caminhos, 600);
       const fotos = d.caminhos.map((c) => urls.get(c)).filter((u): u is string => !!u);

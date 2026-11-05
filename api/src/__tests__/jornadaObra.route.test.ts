@@ -1074,6 +1074,17 @@ describe('o Book em PDF no servidor', () => {
   const URL_PDF = `/jornada-solar/obra/${SOLAR}/book/pdf`;
   beforeEach(() => { h.pdfTam = []; h.pdfFechou = 0; h.pdfHtmls = []; h.pdfFalha = false; });
 
+  it('sem permissão (a Giovanna vê a obra, mas não gera o Book): 403 com a frase; o ADM, o Diego e quem vendeu geram', async () => {
+    preparar();
+    h.pdfTam = [1000, 1000, 1000];
+    const g = await post(URL_PDF, {}, GIOVANNA);
+    expect(g.status).toBe(403);
+    expect(g.body.error).toBe('Você não pode gerar o Book desta obra.');
+    expect(h.pdfHtmls).toHaveLength(0);
+    expect(h.priv.has(`vendasolar/${SOLAR}.book.json`)).toBe(false);
+    for (const quem of [THIAGO, DIEGO, NILCE]) expect((await post(URL_PDF, {}, quem)).status).toBe(200);
+  });
+
   it('com trava, 409 com a lista e sem navegador aberto; o GET sem o PDF dá 404', async () => {
     preparar();
     semearPrivada(SOLAR, (p) => { p.contrato!.marca_inversor = 'Growatt'; });

@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   ger: null as any,
   enviados: [] as Array<{ numero: string; texto: string; inst: string }>,
   falhar: false,
+  erroMsg: 'z-api fora',
   cooldown: false,
   upserts: [] as string[],
   dinheiro: [] as any[],
@@ -19,7 +20,7 @@ vi.mock('../utils/supabaseGerador', () => ({ geradorComServiceKey: false, supaba
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('../services/agents/zapiClient', async (orig) => ({
   ...(await orig<typeof import('../services/agents/zapiClient')>()),
-  sendWhatsApp: vi.fn(async (numero: string, texto: string, inst: string) => { if (h.falhar) throw new Error('z-api fora'); h.enviados.push({ numero, texto, inst }); }),
+  sendWhatsApp: vi.fn(async (numero: string, texto: string, inst: string) => { if (h.falhar) throw new Error(h.erroMsg); h.enviados.push({ numero, texto, inst }); }),
   sendDocument: vi.fn(), sendFrio: vi.fn(),
   linhaEmCooldown: vi.fn(() => h.cooldown),
 }));
@@ -61,7 +62,7 @@ beforeEach(() => {
   const orig = h.main.from.bind(h.main);
   h.upserts = [];
   h.main.from = (t: string) => { const q = orig(t); const u = q.upsert; q.upsert = (...a: any[]) => { h.upserts.push(`${t}:${a[0]?.key}`); return u(...a); }; return q; };
-  h.enviados.length = 0; h.falhar = false; h.cooldown = false; h.dinheiro = [];
+  h.enviados.length = 0; h.falhar = false; h.erroMsg = 'z-api fora'; h.cooldown = false; h.dinheiro = [];
   vi.mocked(sendWhatsApp).mockClear();
   process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste';
   delete process.env.JORNADA_MSG_OFF;
@@ -126,6 +127,54 @@ describe('os eventos: trava, vez e erro', () => {
     await rodarEventos(ctx(), l);
     expect(h.enviados.map((e) => e.numero)).toEqual([TEL_AVISO.thiago]);
     expect(travas().some((t) => t.key === 'jornada_env:venda:7:nilce')).toBe(false);
+  });
+
+  it('3 erros de linha seguidos armam a pausa de 15 min e a rodada seguinte não chama a Z-API; o envio que dá certo zera o contador', async () => {
+    h.falhar = true; h.erroMsg = 'HTTP 503 da instancia';
+    const l = leituraDe([obraDe(1, jsDe(1, 4, 'nilce', [concluiu3()])), obraDe(2, jsDe(2, 4, 'nilce', [concluiu3('thiago', '2026-11-05T14:30:00.000Z')])), obraDe(3, jsDe(3, 4, 'nilce', [concluiu3('thiago', '2026-11-05T14:40:00.000Z')]))]);
+    const em = (min: number) => new Date(AG.getTime() + min * 60_000);
+    await rodarEventos(ctx({}, em(0)), l);
+    expect(h.main.tabela('system_state').find((x: any) => x.key === 'ag5040_linha_pausa')).toBeUndefined();
+    await rodarEventos(ctx({}, em(2)), l);
+    const pausa = h.main.tabela('system_state').find((x: any) => x.key === 'ag5040_linha_pausa');
+    expect(pausa.value).toMatchObject({ motivo: 'erros_seguidos', n: 2 });
+    expect(vi.mocked(sendWhatsApp)).toHaveBeenCalledTimes(2);
+    const r3 = await rodarEventos(ctx({}, em(4)), l);
+    expect(r3).toMatchObject({ enviado: false, parar: true, motivo: 'linha_ocupada' });
+    expect(vi.mocked(sendWhatsApp)).toHaveBeenCalledTimes(2);
+  });
+
+  it('um envio que dá certo zera o contador de erros da linha', async () => {
+    const l = leituraDe([obraDe(1, jsDe(1, 4, 'nilce', [concluiu3()])), obraDe(2, jsDe(2, 4, 'nilce', [concluiu3('thiago', '2026-11-05T14:30:00.000Z')]))]);
+    h.falhar = true; h.erroMsg = 'HTTP 503';
+    await rodarEventos(ctx(), l);
+    expect(h.main.tabela('system_state').find((x: any) => x.key === 'ag5040_linha_erros').value.n).toBe(1);
+    h.falhar = false;
+    await rodarEventos(ctx({}, new Date(AG.getTime() + 2 * 60_000)), l);
+    expect(h.main.tabela('system_state').find((x: any) => x.key === 'ag5040_linha_erros').value.n).toBe(0);
+  });
+
+  it('acima de 12 por hora da pessoa o aviso NÃO é descartado: fica pendente e sai na rodada em que couber (dentro das 24 h)', async () => {
+    const evento = { em: '2026-11-05T14:00:00.000Z', por: 'diego', acao: 'venda_completa' as const, etapa: 1 };
+    const l = leituraDe([obraDe(7, jsDe(7, 1, 'nilce', [evento]))]);
+    for (let i = 0; i < 12; i++) h.main.tabela('system_state').push({ key: `jornada_env:sua:${100 + i}:4:nilce`, value: { robo: 'x', enviado: true }, updated_at: new Date(AG.getTime() - 5 * 60_000).toISOString() });
+    await rodarEventos(ctx(), l);
+    expect(h.enviados.map((e) => e.numero)).toEqual([TEL_AVISO.thiago]);
+    expect(travas().some((t) => t.key === 'jornada_env:venda:7:nilce')).toBe(false);
+    for (let m = 2; m <= 6; m += 2) await rodarEventos(ctx({}, new Date(AG.getTime() + (60 + m) * 60_000)), l);
+    expect(h.enviados.map((e) => e.numero)).toContain(TEL_AVISO.nilce);
+    expect(travas().find((t) => t.key === 'jornada_env:venda:7:nilce').value.enviado).toBe(true);
+  });
+
+  it('o teto de 40 por hora da linha: com a linha cheia o aviso espera sem travar', async () => {
+    for (let i = 0; i < 40; i++) h.main.tabela('system_state').push({ key: `ag5040_sent:${i}`, value: {}, updated_at: new Date(AG.getTime() - 60_000).toISOString() });
+    const r = await rodarEventos(ctx(), doisEventos());
+    expect(r).toMatchObject({ enviado: false, parar: true, motivo: 'linha_cheia' });
+    expect(travas()).toEqual([]);
+    expect(h.enviados).toEqual([]);
+    h.main.tabelas.system_state = h.main.tabela('system_state').filter((l: any) => !String(l.key).startsWith('ag5040_sent:'));
+    h.main.tabela('system_state').push(...Array.from({ length: 39 }, (_, i) => ({ key: `ag5040_sent:${i}`, value: {}, updated_at: new Date(AG.getTime() - 60_000).toISOString() })));
+    expect((await rodarEventos(ctx({}, new Date(AG.getTime() + 2 * 60_000)), doisEventos())).enviado).toBe(true);
   });
 
   it('telefone fora do TEL_AVISO (dono pablo): não sai e não trava', async () => {

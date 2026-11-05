@@ -10,6 +10,8 @@ import { linhaEmCooldown } from '../agents/zapiClient';
 import { chavesExistentes, liberarChave, reservarChave } from '../agentes5040/cota';
 import { CHAVE_LINHA_PAUSA } from '../agentes5040/vivoEnvio';
 import { ehDestinoInterno } from '../chefe/destinos';
+import { classificarErroEnvio } from '../chefe/decidir';
+import { prefixosTotalDaLinha } from '../agents/whatsapp/lineThrottle';
 import { TEL_AVISO } from './solarEquipe';
 import { PREFIXO_ENV, PREFIXO_VEZ, minutoDaVez, type DinheiroObra, type ObraFila } from './jornadaMensagensPuro';
 import { lerTodasJornadas, lerPrivadoJornada } from '../gerador/jornadaSolarBanco';
@@ -93,6 +95,22 @@ export async function linhaLivre(agora: Date): Promise<boolean> {
     return !(Number.isFinite(ate) && ate > agora.getTime());
   } catch { return false; }
 }
+
+/** O teto de envios da linha por hora para um aviso à equipe (o mesmo de `avisoGrupoSolardoc`: 40). */
+export const LINHA_MAX_HORA_PARA_AVISAR = 40;
+
+/** Cabe mais um aviso na linha? Conta todos os carimbos da linha na última hora; leitura que falha vale "não cabe" (o aviso fica para a próxima rodada). */
+export async function cabeNaLinha(agora: Date): Promise<boolean> {
+  try {
+    const filtro = prefixosTotalDaLinha().map((p) => `key.like.${p}%`).join(',');
+    const { data, error } = await supabase.from('system_state').select('key').or(filtro)
+      .gte('updated_at', new Date(agora.getTime() - POR_HORA_MS).toISOString()).limit(LINHA_MAX_HORA_PARA_AVISAR + 1);
+    return !error && (data?.length ?? 0) < LINHA_MAX_HORA_PARA_AVISAR;
+  } catch { return false; }
+}
+
+/** O erro de envio é da LINHA (5xx, timeout, instância fora)? Erro do destino ou desconhecido dá false. */
+export const erroEhDaLinha = (err: unknown): boolean => classificarErroEnvio(err) === 'linha';
 
 // ── Telefones da equipe: da fonte que já existe, nunca escritos aqui ──────────────────────────────────────────────────────
 

@@ -97,6 +97,12 @@ export class BancoFalso {
       lt: (c: string, v: any) => { filtros.push(l => l[c] !== undefined && l[c] !== null && l[c] < v); return q; },
       ilike: (c: string, p: string) => { filtros.push(l => like(l[c], p, true)); return q; },
       like: (c: string, p: string) => { filtros.push(l => like(l[c], p, false)); return q; },
+      // `or('key.like.a%,key.like.b%')`: só o `coluna.like.padrão` e `coluna.eq.valor`, que é o que o código usa.
+      or: (expr: string) => {
+        const regras = String(expr).split(',').map((r) => /^([\w]+)\.(like|eq)\.(.*)$/.exec(r.trim())).filter((m): m is RegExpExecArray => !!m);
+        filtros.push(l => regras.some(([, c, op, v]) => (op === 'like' ? like(l[c], v, false) : l[c] === v)));
+        return q;
+      },
       order: (c: string, o?: { ascending?: boolean }) => { ordem.push([c, o?.ascending !== false]); return q; },
       limit: (n: number) => { limite = n; return q; },
       range: (a: number, b: number) => { faixa = [a, b]; return q; },

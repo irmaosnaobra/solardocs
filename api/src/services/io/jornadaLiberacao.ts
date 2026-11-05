@@ -12,12 +12,13 @@ import { dentroDaJanelaDaBaseLinha, dentroDoTetoHorarioLinha, respeitaEspacament
 import { carregarMudos, motivosDaSupressao, TOQUES_ATE_DESISTIR } from '../agents/whatsapp/silenciar';
 import { podeFalarComLead } from '../agents/whatsapp/pausaHumana';
 import { diaBRT } from '../agentes5040/relogio';
+import { contarErroDaLinha, zerarErrosDaLinha } from '../agentes5040/guardaDaLinha';
 import { lerObraPrivada } from '../gerador/jornadaObraBanco';
 import { lerMetaBook, urlAssinadaDoBook } from '../gerador/bookObra';
 import { linkIndicacao } from '../gerador/indicacaoJornada';
 import { primeiroNomeDaObra } from '../gerador/jornadaPosVendaDados';
 import { POR_QUE_NAO_DISPARA, VALE_LIBERACAO_MS, chaveLiberacao, textoLiberacao } from './jornadaMensagensPuro';
-import { jaTravadas, linhaLivre, marcarTrava, nada, parou, soltarTrava, travar, type CtxMsg, type Leitura, type ResultadoMsg } from './jornadaMensagensBase';
+import { erroEhDaLinha, jaTravadas, linhaLivre, marcarTrava, nada, parou, soltarTrava, travar, type CtxMsg, type Leitura, type ResultadoMsg } from './jornadaMensagensBase';
 
 const ROBO_LIB = 'jornada_liberacao' as const;
 const ymdMenosDias = (ymd: string, dias: number): string => {
@@ -78,12 +79,16 @@ export async function rodarLiberacao(c: CtxMsg, leitura: Leitura): Promise<Resul
       const legenda = textoLiberacao({ primeiro, link: linkIndicacao(o.card) });
       try {
         await sendDocument(tel, url, `Book da obra ${o.codigo ?? ''}`.trim() + '.pdf', legenda, 'io');
-      } catch {
-        await marcarTrava(chave, { falhou: true }, c.agora);
+      } catch (err) {
+        await contarErroDaLinha(c.agora, err);
         logLib('envio_falhou');
+        // Erro da LINHA (5xx, timeout, instância fora) solta a trava: o Book não se perde e a rodada seguinte tenta de novo. Erro do DESTINO fica `falhou`.
+        if (erroEhDaLinha(err)) { await soltarTrava(chave); return parou('linha_caida'); }
+        await marcarTrava(chave, { falhou: true }, c.agora);
         return { enviado: false, parar: true, motivo: 'envio_falhou', chave };
       }
       await marcarTrava(chave, { enviado: true }, c.agora);
+      await zerarErrosDaLinha(c.agora);
       return { enviado: true, parar: true, motivo: 'enviado', chave };
     } catch { logLib('leitura_falhou'); return parou('leitura_falhou'); }
   }

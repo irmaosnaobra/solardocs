@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
   doc: [] as any[],
   frio: [] as any[],
   frioRetorno: true as boolean,
+  docErro: '' as string,
+  frioErro: '' as string,
   book: true,
   url: 'https://assinado.test/vendasolar/10.book.pdf?exp=3600' as string | null,
   supressao: [] as string[],
@@ -28,8 +30,8 @@ vi.mock('../utils/supabaseGerador', () => ({ geradorComServiceKey: false, supaba
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('../services/agents/zapiClient', async (orig) => ({
   ...(await orig<typeof import('../services/agents/zapiClient')>()),
-  sendDocument: vi.fn(async (...a: any[]) => { h.doc.push(a); }),
-  sendFrio: vi.fn(async (...a: any[]) => { h.frio.push(a); return h.frioRetorno; }),
+  sendDocument: vi.fn(async (...a: any[]) => { if (h.docErro) throw new Error(h.docErro); h.doc.push(a); }),
+  sendFrio: vi.fn(async (...a: any[]) => { if (h.frioErro) throw new Error(h.frioErro); h.frio.push(a); return h.frioRetorno; }),
   linhaEmCooldown: vi.fn(() => false),
 }));
 vi.mock('../services/agents/whatsapp/lineThrottle', async (orig) => ({
@@ -92,7 +94,7 @@ const trava = (prefixo: string): any[] => h.main.tabela('system_state').filter((
 
 beforeEach(() => {
   h.main = new BancoFalso();
-  h.doc.length = 0; h.frio.length = 0; h.frioRetorno = true; h.book = true; h.url = 'https://assinado.test/vendasolar/10.book.pdf?exp=3600';
+  h.doc.length = 0; h.frio.length = 0; h.docErro = ''; h.frioErro = ''; h.frioRetorno = true; h.book = true; h.url = 'https://assinado.test/vendasolar/10.book.pdf?exp=3600';
   h.supressao = []; h.mudo = false; h.mudosErro = false; h.humano = true; h.teto = true; h.espacamento = true; h.tetoOpts.length = 0;
   h.libPriv = { liberacao: { passos: { liberada: { data: '2026-11-04' } } } };
   h.portao.avaliar = vi.fn(async () => ({ ok: true })); h.portao.travarRodada = vi.fn();
@@ -142,6 +144,37 @@ describe('7.7 a liberação com o Book', () => {
     h.humano = true;
     await rodarLiberacao(ctx({}, new Date(AG.getTime() + 2 * 60_000)), leituraDe([obra9()]));
     expect(h.doc).toHaveLength(1);
+  });
+
+  it('um 5xx da LINHA solta a trava e o Book não se perde (sai na rodada seguinte); erro do DESTINO fica `falhou` e não reenvia', async () => {
+    h.docErro = 'HTTP 503 instancia';
+    const r = await rodarLiberacao(ctx(), leituraDe([obra9()]));
+    expect(r).toMatchObject({ enviado: false, parar: true, motivo: 'linha_caida' });
+    expect(trava('jornada_lib_sent:')).toEqual([]);
+    h.docErro = '';
+    await rodarLiberacao(ctx({}, new Date(AG.getTime() + 2 * 60_000)), leituraDe([obra9()]));
+    expect(h.doc).toHaveLength(1);
+    expect(trava('jornada_lib_sent:')[0].value.enviado).toBe(true);
+    // Destino: número recusado (4xx) marca falhou e a rodada seguinte NÃO tenta de novo.
+    h.main.zerar(); h.doc.length = 0; h.docErro = 'HTTP 400 numero invalido';
+    expect(await rodarLiberacao(ctx({}, new Date(AG.getTime() + 20 * 60_000)), leituraDe([obra9()]))).toMatchObject({ motivo: 'envio_falhou' });
+    expect(trava('jornada_lib_sent:')[0].value.falhou).toBe(true);
+    h.docErro = '';
+    await rodarLiberacao(ctx({}, new Date(AG.getTime() + 22 * 60_000)), leituraDe([obra9()]));
+    expect(h.doc).toEqual([]);
+  });
+
+  it('3 erros de linha seguidos armam a pausa e a rodada seguinte não chama a Z-API', async () => {
+    h.docErro = 'HTTP 503 instancia';
+    const em = (min: number) => new Date(AG.getTime() + min * 60_000);
+    await rodarLiberacao(ctx({}, em(0)), leituraDe([obra9()]));
+    await rodarLiberacao(ctx({}, em(2)), leituraDe([obra9()]));
+    expect(h.main.tabela('system_state').find((x: any) => x.key === 'ag5040_linha_pausa').value).toMatchObject({ motivo: 'erros_seguidos' });
+    expect(vi.mocked(sendDocument)).toHaveBeenCalledTimes(2);
+    const r3 = await rodarLiberacao(ctx({}, em(4)), leituraDe([obra9()]));
+    expect(r3).toMatchObject({ parar: true, motivo: 'linha_ocupada' });
+    expect(vi.mocked(sendDocument)).toHaveBeenCalledTimes(2);
+    expect(trava('jornada_lib_sent:')).toEqual([]);
   });
 
   it('supressão e mudo cortam; erro de leitura da lista de mudos para a rodada', async () => {
@@ -231,6 +264,31 @@ describe('7.8 e 7.9 os aniversários', () => {
     expect(r).toMatchObject({ enviado: true });
     expect(h.frio[0][1][0]).toContain('hoje a sua usina faz 1 ano.');
     expect(trava('jornada_pos_sent:').map((t) => t.key)).toEqual(['jornada_pos_sent:10:usina:2026']);
+  });
+
+  it('uma pessoa em conversa (humano_na_conversa) não segura o aniversário dos outros', async () => {
+    h.portao.avaliar = vi.fn()
+      .mockResolvedValueOnce({ ok: false, acao: 'segura', motivo: 'humano_na_conversa' }).mockResolvedValueOnce({ ok: true });
+    const outra = { ...obra9(), card: 11 };
+    const r = await rodarAniversarios(ctx(), leituraDe([obra9(), outra]));
+    expect(r).toMatchObject({ enviado: true });
+    expect(h.frio).toHaveLength(1);
+    expect(trava('jornada_pos_sent:').map((t) => t.key)).toEqual(['jornada_pos_sent:11:aniv:2026']);
+  });
+
+  it('3 erros de linha seguidos armam a pausa (o freio de erro da linha) e a rodada seguinte não chama a Z-API', async () => {
+    const { PREFIXOS_AGENDA: _ } = await import('../services/agents/whatsapp/lineThrottle');
+    void _;
+    h.frioErro = 'HTTP 503 instancia';
+    const em = (min: number) => new Date(AG.getTime() + min * 60_000);
+    const a = { ...obra9(), card: 11 }; const b = { ...obra9(), card: 12 };
+    await rodarAniversarios(ctx({}, em(0)), leituraDe([obra9(), a, b]));
+    await rodarAniversarios(ctx({}, em(2)), leituraDe([obra9(), a, b]));
+    expect(h.main.tabela('system_state').find((x: any) => x.key === 'ag5040_linha_pausa').value).toMatchObject({ motivo: 'erros_seguidos' });
+    expect(vi.mocked(sendFrio)).toHaveBeenCalledTimes(2);
+    h.portao.avaliar = vi.fn(async () => ({ ok: false, acao: 'segura', motivo: 'linha_pausada' }));
+    await rodarAniversarios(ctx({}, em(4)), leituraDe([obra9(), a, b]));
+    expect(vi.mocked(sendFrio)).toHaveBeenCalledTimes(2);
   });
 
   it('sendFrio devolve false (pausa humana): a trava some e a rodada para', async () => {

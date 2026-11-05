@@ -6,7 +6,8 @@ import { logger } from '../utils/logger';
 import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 import { slotLivreConsultor, dataBaseDaFaixa } from '../services/agenda/leadsMetaService';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
-import { lerCardSolarVendido, lerLigacao, ultimos8 } from '../services/gerador/vendaSolarHub';
+import { reservarChave, liberarChave } from '../services/agentes5040/cota';
+import { lerCardSolarVendido, lerLigacao } from '../services/gerador/vendaSolarHub';
 import { lerJornadaComVersao } from '../services/gerador/jornadaSolarBanco';
 import { cardDoToken, gravarIndicacao } from '../services/gerador/indicacaoJornada';
 
@@ -18,14 +19,14 @@ import { cardDoToken, gravarIndicacao } from '../services/gerador/indicacaoJorna
 //
 // Esta rota NÃO MANDA MENSAGEM e NÃO importa o `zapiClient`. Mas o card que ela cria cai na carteira da Nilce, e a agenda da Giovanna
 // (`solarAgendaGiovanna`) fala com o indicado (bom dia e o "oi" de 5 minutos antes): isso é esperado e legítimo (veredito do chefe-antiban de 05/11).
-// Trava contada no BANCO antes de criar o card: 3 por link em 24 h, 10 por link em 30 dias e 20 por dia no total (acima disso grava só a linha, sem
-// card). Duplicado de 30 dias medido pela CAUDA do telefone. Nunca loga o corpo (telefone e nome).
+// Vaga reservada por INSERT em chave única antes de criar o card: 3 por link por dia, 10 por link em 30 dias e 20 por dia no total (acima disso grava só a
+// linha, sem card). Duplicado de 30 dias: telefone normalizado inteiro (tolera só o 9º dígito); o card que já existe nunca é ligado ao dono do link. Nunca loga o corpo (telefone e nome).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const router = Router();
 const MAX = 200;
 const TELEFONE_DA_SONDA = '34900000000';
-export const TETO_LINK_24H = 3;
+export const TETO_LINK_DIA = 3;
 export const TETO_LINK_30D = 10;
 export const TETO_DIA_TOTAL = 20;
 const DIA_MS = 24 * 3600_000;
@@ -53,10 +54,37 @@ async function indicadorValido(token: unknown) {
   return estado?.cancelada ? null : card;
 }
 
-async function contar(filtro: (q: any) => any): Promise<number> {
-  const { data, error } = await filtro(supabase.from('io_indicacoes').select('id')).limit(1000);
-  if (error) throw error;
-  return Array.isArray(data) ? data.length : 0;
+/** As formas do mesmo telefone: o normalizado inteiro (55 + DDD + número) e a variante com ou sem o 9º dígito. Telefone de outro DDD nunca casa. */
+export function chavesDoTelefone(norm: string): string[] {
+  const d = norm.replace(/\D/g, '');
+  if (d.length === 13 && d.startsWith('55') && d[4] === '9') return [d, d.slice(0, 4) + d.slice(5)];
+  if (d.length === 12 && d.startsWith('55')) return [d, d.slice(0, 4) + '9' + d.slice(4)];
+  return d.length >= 10 ? [d] : [];
+}
+
+/** Tenta as vagas 1..max de um prefixo, por INSERT em chave única; devolve a chave ganha ou null. Erro de banco = sem vaga (fecha). */
+async function tomarVaga(prefixo: string, max: number, agora: Date): Promise<string | null> {
+  for (let n = 1; n <= max; n++) {
+    const chave = `${prefixo}:${n}`;
+    const r = await reservarChave(chave, {}, agora);
+    if (r === 'reservada') return chave;
+    if (r === 'erro') return null;
+  }
+  return null;
+}
+
+/** As três vagas (por link e dia, por link em 30 dias, global do dia) ou nenhuma: se uma falta, solta as que pegou. */
+async function reservarVagas(card: number, agoraMs: number): Promise<boolean> {
+  const agora = new Date(agoraMs);
+  const dia = diaDeBrasilia(agoraMs);
+  const janela = Math.floor(agoraMs / (30 * DIA_MS));
+  const ganhas: string[] = [];
+  for (const [prefixo, max] of [[`indic_vaga:${card}:${dia}`, TETO_LINK_DIA], [`indic_vaga_30:${card}:${janela}`, TETO_LINK_30D], [`indic_vaga_dia:${dia}`, TETO_DIA_TOTAL]] as const) {
+    const g = await tomarVaga(prefixo, max, agora);
+    if (!g) { await Promise.all(ganhas.map((k) => liberarChave(k))); return false; }
+    ganhas.push(g);
+  }
+  return true;
 }
 
 router.get('/:token', indicacaoRateLimit, async (req: Request, res: Response) => {
@@ -101,42 +129,34 @@ router.post('/', indicacaoRateLimit, async (req: Request, res: Response) => {
     // Bloqueado (fora do padrão): só a linha, sem card.
     if (await estaBloqueado(tel)) { await gravaLinha(); res.json({ ok: true }); return; }
 
-    // O teto, contado no banco ANTES de criar o card.
-    const desde24 = new Date(agora - DIA_MS).toISOString();
+    // Duplicado de 30 dias: o telefone normalizado INTEIRO, com DDD, tolerando só o 9º dígito. Acha um card que já existe: grava SÓ a linha. Esse card NUNCA
+    // é ligado a quem tem o link (nada de `veio_de` nem de prêmio por um lead que já era nosso) e não gasta vaga.
     const desde30 = new Date(agora - 30 * DIA_MS).toISOString();
-    const inicioDoDia = new Date(`${diaDeBrasilia(agora)}T00:00:00-03:00`).toISOString();
-    const [n24, n30, nDia] = await Promise.all([
-      contar((q) => q.eq('origem', origem).gte('created_at', desde24)),
-      contar((q) => q.eq('origem', origem).gte('created_at', desde30)),
-      contar((q) => q.like('origem', 'jornada:%').gte('created_at', inicioDoDia)),
-    ]);
-    const acima = n24 >= TETO_LINK_24H || n30 >= TETO_LINK_30D || nDia >= TETO_DIA_TOTAL;
-
-    // Duplicado de 30 dias: pela CAUDA do telefone normalizado.
-    let existente: number | null = null;
-    const cauda = ultimos8(tel);
-    if (!acima && cauda) {
-      const { data, error } = await supabaseGerador.from('agendamentos').select('id').like('cliente_telefone', `%${cauda}`).gte('created_at', desde30).order('id', { ascending: true }).limit(1);
+    const chaves = chavesDoTelefone(tel);
+    const final4 = tel.replace(/\D/g, '').slice(-4);
+    if (chaves.length && final4.length === 4) {
+      const { data, error } = await supabaseGerador.from('agendamentos').select('id, cliente_telefone').like('cliente_telefone', `%${final4}`).gte('created_at', desde30).limit(500);
       if (error) throw error;
-      existente = Array.isArray(data) && data[0] ? Number((data[0] as { id: unknown }).id) : null;
+      const repetido = ((data ?? []) as Array<{ cliente_telefone?: unknown }>).some((c) => chavesDoTelefone(normalizarTelefoneBR(String(c.cliente_telefone ?? ''))).some((k) => chaves.includes(k)));
+      if (repetido) { await gravaLinha(); res.json({ ok: true }); return; }
     }
 
+    // O teto: a vaga é reservada por INSERT em chave única ANTES de criar o card (o mesmo padrão da `jornada_vez:`), então requisições em paralelo
+    // não passam do teto. 3 por link por dia, 10 por link por janela de 30 dias, 20 por dia no total. Sem vaga: só a linha, sem card.
+    const vagas = await reservarVagas(card.id, agora);
     await gravaLinha();
-    if (acima) { res.json({ ok: true }); return; }
+    if (!vagas) { res.json({ ok: true }); return; }
 
-    let idNovo = existente;
-    if (!idNovo) {
-      const lig = await lerLigacao(card.id).catch(() => null);
-      const rot = lig?.lig.venda && /^#\d{3,6}$/.test(lig.lig.venda) ? lig.lig.venda : `card ${card.id}`;
-      const quando = await slotLivreConsultor(CARTEIRA_DO_SOLAR, dataBaseDaFaixa(''));
-      const { data, error } = await supabaseGerador.from('agendamentos').insert({
-        vendedor_nome: CARTEIRA_DO_SOLAR, quando: quando.toISOString(), cliente_nome: nome, cliente_telefone: tel, temperatura: 'quente', status: 'agendado',
-        created_by: 'indicacao',
-        observacao: `🎁 INDICADO\nIndicação de ${String(card.cliente_nome ?? '').replace(/[*_~]/g, '').trim()} (${rot})\n→ Atendimento personalizado`,
-      }).select('id').single();
-      if (error) throw error;
-      idNovo = Number((data as { id: unknown } | null)?.id) || null;
-    }
+    const lig = await lerLigacao(card.id).catch(() => null);
+    const rot = lig?.lig.venda && /^#\d{3,6}$/.test(lig.lig.venda) ? lig.lig.venda : `card ${card.id}`;
+    const quando = await slotLivreConsultor(CARTEIRA_DO_SOLAR, dataBaseDaFaixa(''));
+    const { data, error } = await supabaseGerador.from('agendamentos').insert({
+      vendedor_nome: CARTEIRA_DO_SOLAR, quando: quando.toISOString(), cliente_nome: nome, cliente_telefone: tel, temperatura: 'quente', status: 'agendado',
+      created_by: 'indicacao',
+      observacao: `🎁 INDICADO\nIndicação de ${String(card.cliente_nome ?? '').replace(/[*_~]/g, '').trim()} (${rot})\n→ Atendimento personalizado`,
+    }).select('id').single();
+    if (error) throw error;
+    const idNovo = Number((data as { id: unknown } | null)?.id) || null;
     if (idNovo) await gravarIndicacao(idNovo, card.id);
     res.json({ ok: true });
   } catch (err) {

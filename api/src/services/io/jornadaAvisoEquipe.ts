@@ -13,12 +13,13 @@ import { equipamentoDaProposta } from '../gerador/trelloVendaSolar';
 import { prazoDaEtapa } from '../gerador/jornadaSolar';
 import { prazoDaEtapaObra } from '../gerador/jornadaObra';
 import { diaBRT, diaDaSemanaBRT } from '../agentes5040/relogio';
+import { contarErroDaLinha, zerarErrosDaLinha } from '../agentes5040/guardaDaLinha';
 import {
   LIMITE_POR_PESSOA_HORA, PESSOAS_FILA, chaveFila, eventosDoCard, filaDaPessoa, linhasDeDinheiro, naJanelaDaFila, paradosComAEquipe, placarDaSemana,
   textoEspera, textoFila, textoSua, textoVenda, type EventoMsg, type ObraFila,
 } from './jornadaMensagensPuro';
 import {
-  TEL_EQUIPE, dinheiroDasObras, enviosDaPessoaNaHora, faltaDaObra, jaTravadas, linhaLivre, marcarTrava, nada, parou, propostaDoCard, telefoneDaEquipe, travar,
+  TEL_EQUIPE, cabeNaLinha, dinheiroDasObras, enviosDaPessoaNaHora, faltaDaObra, jaTravadas, linhaLivre, marcarTrava, nada, parou, propostaDoCard, telefoneDaEquipe, travar,
   type CtxMsg, type Leitura, type ResultadoMsg,
 } from './jornadaMensagensBase';
 
@@ -41,20 +42,25 @@ async function enviarUm(c: CtxMsg, e: Envio): Promise<ResultadoMsg | 'pular'> {
   if (!tel) return 'pular';
   const n = await enviosDaPessoaNaHora(e.pessoa, c.agora);
   if (n === null) return parou('leitura_falhou');
+  // Acima de 12 por hora da pessoa o aviso NÃO é descartado: sem trava, ele volta a cada rodada até vencer (24 h) ou caber.
   if (n >= LIMITE_POR_PESSOA_HORA) return 'pular';
   if (!(await linhaLivre(c.agora))) return parou('linha_ocupada');
+  if (!(await cabeNaLinha(c.agora))) return parou('linha_cheia');
   if (!(await c.vez.tomar())) return parou('vez_ocupada');
   const t = await travar(e.chave, e.valor, c.agora);
   if (t === 'ja') return 'pular';
   if (t === 'erro') return parou('trava_falhou');
   try {
     await sendWhatsApp(tel, e.texto, 'io');
-  } catch {
+  } catch (err) {
+    // O freio de erro da linha: 2 erros seguidos armam a pausa de 15 min (erro do destino não conta).
+    await contarErroDaLinha(c.agora, err);
     await marcarTrava(e.chave, { falhou: true }, c.agora);
     logAviso(`envio_falhou ${e.tipoLog}`);
     return { enviado: false, parar: true, motivo: 'envio_falhou', chave: e.chave };
   }
   await marcarTrava(e.chave, { enviado: true }, c.agora);
+  await zerarErrosDaLinha(c.agora);
   return { enviado: true, parar: true, motivo: 'enviado', chave: e.chave };
 }
 

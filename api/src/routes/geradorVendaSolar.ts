@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { marcarVendaCompleta } from '../services/gerador/jornadaVendaCompleta';
+import { blocoCompletoDoCard, marcarVendaCompleta } from '../services/gerador/jornadaVendaCompleta';
 import { exigeConsultor } from './geradorDossie';
 import { semCache } from './geradorClientesDocs';
 import { acessoVendaSolar, vendaSolarDoDono, vendasDaPlanilha, ErroVendaSolar } from './geradorClientes';
@@ -233,6 +233,7 @@ export function mountVendaSolar(router: Router): void {
         res.status(404).json({ ok: false, error: 'Venda da planilha não encontrada.' });
         return;
       }
+      const completoAntesVinculo = await blocoCompletoDoCard(g.id);
       const saida = await comTrava(TRAVA_VINCULOS, g.nome, async () => {
         const [{ lig }, todas] = await Promise.all([lerLigacao(g.id), lerTodasLigacoes()]);
         if (soSeVazia && ((proposta && lig.proposta) || (venda && lig.venda))) {
@@ -262,7 +263,7 @@ export function mountVendaSolar(router: Router): void {
         return { status: 200 as const, corpo: { ok: true, ...corpoLigacao(novo) } };
       });
       // Fase 3: a ordem inversa (o valor entrou primeiro e a proposta é ligada agora) também completa o bloco Venda.
-      if (saida.status === 200) await marcarVendaCompleta(g.id, g.nome);
+      if (saida.status === 200) await marcarVendaCompleta(g.id, g.nome, completoAntesVinculo);
       res.status(saida.status).json(saida.corpo);
     } catch (err) {
       if (err instanceof ErroCadastro && err.codigo === 'ocupado') {

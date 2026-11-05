@@ -197,28 +197,57 @@ describe('o link público de indicação', () => {
     await envia({ indicado_telefone: '(34) 9 9999-0000' });
     expect(linhas()).toHaveLength(1);
     expect(agendados()).toHaveLength(0);
-    h.ger.tabela('agendamentos').push(card(900, { cliente_telefone: '5534988880007', created_by: 'lp_solar', status: 'agendado', created_at: new Date().toISOString() }));
-    await envia({ indicado_telefone: '34 98888-0007' });
-    expect(linhas()).toHaveLength(2);
-    expect(agendados()).toHaveLength(0);
-    expect(await lerIndicacaoDoCard(900)).toMatchObject({ indicador: INDICADOR });
   });
-  it('o teto contado no banco: o 3º do link em 24 h cria card, o 4º grava só a linha', async () => {
+  it('o telefone de um lead que já existe não muda o card, não liga o dono do link e não gera prêmio (só a linha); tolera o 9º dígito', async () => {
+    h.ger.tabela('agendamentos').push(card(900, { cliente_telefone: '5534988880007', created_by: 'lp_solar', status: 'agendado', created_at: new Date().toISOString() }));
+    h.ger.tabela('agendamentos').push(card(901, { cliente_telefone: '(34) 3333-4444', created_by: 'lp_solar', status: 'agendado', created_at: new Date().toISOString() }));
+    const antes = JSON.stringify(h.ger.tabela('agendamentos'));
+    await envia({ indicado_telefone: '34 98888-0007' });
+    await envia({ indicado_telefone: '34 8888-0007' });                 // sem o 9º dígito: é o mesmo número
+    await envia({ indicado_telefone: '(34) 9 3333-4444' });             // o antigo não tinha o 9
+    expect(linhas()).toHaveLength(3);
+    expect(JSON.stringify(h.ger.tabela('agendamentos'))).toBe(antes);
+    expect(agendados()).toHaveLength(0);
+    expect(await lerIndicacaoDoCard(900)).toBeNull();
+    expect(await lerIndicacaoDoCard(901)).toBeNull();
+    expect(sistema().some((l) => String(l.key).startsWith('jornada_indicacao:'))).toBe(false);
+    expect(sistema().some((l) => String(l.key).startsWith('indic_vaga'))).toBe(false);      // nem gasta vaga
+  });
+  it('o mesmo final com OUTRO DDD não casa: nasce o card', async () => {
+    h.ger.tabela('agendamentos').push(card(902, { cliente_telefone: '5511988880007', created_by: 'lp_solar', status: 'agendado', created_at: new Date().toISOString() }));
+    await envia({ indicado_telefone: '34 98888-0007' });
+    expect(agendados()).toHaveLength(1);
+    expect(agendados()[0].cliente_telefone).toBe('5534988880007');
+  });
+  it('o teto é uma vaga reservada por INSERT: o 3º do link no dia cria card, o 4º grava só a linha', async () => {
     for (let i = 1; i <= 4; i++) await envia({ indicado_nome: `Amigo ${i}`, indicado_telefone: `3498888000${i}` });
     expect(linhas()).toHaveLength(4);
     expect(agendados().map((a) => a.cliente_nome)).toEqual(['Amigo 1', 'Amigo 2', 'Amigo 3']);
+    expect(sistema().filter((l) => String(l.key).startsWith(`indic_vaga:${INDICADOR}:`)).map((l) => l.key.split(':').pop()).sort()).toEqual(['1', '2', '3']);
   });
-  it('20 por dia no total: o 21º do dia (de links diferentes) grava só a linha', async () => {
-    for (let i = 0; i < 20; i++) linhas().push({ origem: `jornada:${5000 + i}`, created_at: new Date().toISOString() });
-    await envia();
-    expect(linhas()).toHaveLength(21);
-    expect(agendados()).toHaveLength(0);
+  it('20 POST em paralelo no mesmo link criam no máximo 3 cards (e as 17 linhas sem vaga ficam só como linha)', async () => {
+    await Promise.all(Array.from({ length: 20 }, (_, i) => envia({ indicado_nome: `Par ${i}`, indicado_telefone: `349${77000000 + i}` })));
+    expect(linhas()).toHaveLength(20);
+    expect(agendados().length).toBeLessThanOrEqual(3);
+    expect(agendados().length).toBeGreaterThanOrEqual(1);
+    expect(sistema().filter((l) => String(l.key).startsWith(`indic_vaga:${INDICADOR}:`)).length).toBeLessThanOrEqual(3);
   });
-  it('10 em 30 dias por link: com 10 linhas antigas do link (fora das 24 h) a próxima grava só a linha', async () => {
-    const velho = new Date(Date.now() - 5 * 86_400_000).toISOString();
-    for (let i = 0; i < 10; i++) linhas().push({ origem: 'jornada:800', created_at: velho });
+  it('o teto global do dia segura no 20º: com 19 vagas tomadas só o próximo cria card', async () => {
+    const dia = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
+    for (let n = 1; n <= 19; n++) sistema().push({ key: `indic_vaga_dia:${dia}:${n}`, value: {}, updated_at: new Date().toISOString() });
+    await envia({ indicado_nome: 'Vigésimo', indicado_telefone: '34966660001' });
+    await envia({ indicado_nome: 'Vinte e um', indicado_telefone: '34966660002' });
+    expect(agendados().map((a) => a.cliente_nome)).toEqual(['Vigésimo']);
+    expect(linhas()).toHaveLength(2);
+    expect(sistema().filter((l) => String(l.key).startsWith(`indic_vaga:${INDICADOR}:`))).toHaveLength(1);      // a vaga do link do 21º foi solta
+  });
+  it('10 em 30 dias por link: com as 10 vagas da janela tomadas a próxima grava só a linha e não gasta vaga do dia', async () => {
+    const janela = Math.floor(Date.now() / (30 * 86_400_000));
+    for (let n = 1; n <= 10; n++) sistema().push({ key: `indic_vaga_30:${INDICADOR}:${janela}:${n}`, value: {}, updated_at: new Date().toISOString() });
     await envia();
     expect(agendados()).toHaveLength(0);
+    expect(linhas()).toHaveLength(1);
+    expect(sistema().some((l) => String(l.key).startsWith(`indic_vaga:${INDICADOR}:`))).toBe(false);
   });
   it('normalizarTelefoneBR dá a mesma saída do normalizePhone do formulário em 8 casos; a rota não importa o zapiClient', () => {
     for (const t of ['(34) 99999-0001', '34999990001', '5534999990001', '0 34 9999-0001', '3433334444', '12345', '', '+55 (34) 3333-4444']) expect(normalizarTelefoneBR(t)).toBe(normalizePhone(t));
@@ -234,11 +263,11 @@ describe('o venda_completa', () => {
 
   it('grava UMA vez só, mesmo chamado de novo; só com o bloco completo', async () => {
     semearJs(11); h.privado = cheio();
-    await marcarVendaCompleta(11, 'nilce');
+    await marcarVendaCompleta(11, 'nilce', false);
     expect(marcas(11)).toBe(0);                    // sem proposta ligada
     ligar(11); invalidarCachesHub();
-    await marcarVendaCompleta(11, 'nilce');
-    await marcarVendaCompleta(11, 'diego');
+    await marcarVendaCompleta(11, 'nilce', false);
+    await marcarVendaCompleta(11, 'diego', false);
     expect(marcas(11)).toBe(1);
   });
   it('nunca em origem leitura, nunca com a etapa 1 concluída, nunca em venda sem estado', async () => {
@@ -246,16 +275,23 @@ describe('o venda_completa', () => {
     semearJs(12, (e) => { e.origem = 'leitura'; }); ligar(12);
     semearJs(13, (e) => { e.etapas[1].concluida_em = AG.toISOString(); }); ligar(13);
     ligar(14);
-    for (const id of [12, 13, 14]) await marcarVendaCompleta(id, 'nilce');
+    for (const id of [12, 13, 14]) await marcarVendaCompleta(id, 'nilce', false);
     expect(marcas(12)).toBe(0); expect(marcas(13)).toBe(0);
     expect(sistema().some((l) => l.key === 'jornada_solar:14')).toBe(false);
   });
+  it('venda que já estava completa ANTES da gravação (as antigas) editada depois de ligado não gera aviso', async () => {
+    semearJs(16); h.privado = cheio(); ligar(16); invalidarCachesHub();
+    await marcarVendaCompleta(16, 'nilce', true);
+    expect(marcas(16)).toBe(0);
+    await marcarVendaCompleta(16, 'nilce', false);       // a transição de verdade (incompleto -> completo) segue gravando
+    expect(marcas(16)).toBe(1);
+  });
   it('a ordem inversa funciona igual: o valor entra primeiro e a proposta é ligada depois', async () => {
     semearJs(15); h.privado = cheio();
-    await marcarVendaCompleta(15, 'nilce');
+    await marcarVendaCompleta(15, 'nilce', false);
     expect(marcas(15)).toBe(0);
     ligar(15); invalidarCachesHub();
-    await marcarVendaCompleta(15, 'nilce');
+    await marcarVendaCompleta(15, 'nilce', false);
     expect(marcas(15)).toBe(1);
   });
 });
