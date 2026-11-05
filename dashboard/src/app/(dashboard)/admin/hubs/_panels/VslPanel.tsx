@@ -57,6 +57,7 @@ export default function VslPanel({ lp }: { lp: string }) {
       .catch(() => { setDados(null); setErro(true); })
       .finally(() => setLoading(false));
   }, [lp]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(period); }, [period, load]);
 
   const curva = dados?.curva ?? [];

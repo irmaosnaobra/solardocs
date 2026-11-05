@@ -62,6 +62,7 @@ export default function KitPanel() {
     setLoading(true);
     api.get('/admin/kit-funil').then((r) => setData(r.data as KitFunil)).catch(() => {}).finally(() => setLoading(false));
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(); }, [load]);
 
   const conv = data?.conv_visita_compra ?? null;

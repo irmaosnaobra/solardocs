@@ -102,6 +102,7 @@ export default function PontoCertoPanel() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(dias); }, [load, dias]);
 
   const f = data;

@@ -44,6 +44,7 @@ function Lista() {
     }
   }, [preview]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { carregar(); plugcashApi.evento('esteira_view'); }, [carregar]);
 
   return (

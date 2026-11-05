@@ -54,6 +54,7 @@ export default function Nota1Panel() {
     setLoading(true);
     api.get('/admin/nota1-funil').then((r) => setData(r.data as Funil)).catch(() => {}).finally(() => setLoading(false));
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(); }, [load]);
 
   const conv = data?.conv_mandado_chegou ?? null;

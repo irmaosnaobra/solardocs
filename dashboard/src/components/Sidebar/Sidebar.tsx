@@ -144,6 +144,7 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
   const tem = (produto: string) => (previa ? previa.produtos.has(produto) : temServidor(produto));
   const nexusLigado = useNexusPortal();
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Sincroniza com dado do navegador que só existe depois de montar.
   useEffect(() => { setOpen(false); }, [pathname]);
 
   // Abre sozinho quando a tela atual é um dos três documentos que moram lá dentro.

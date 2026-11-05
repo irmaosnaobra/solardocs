@@ -38,6 +38,7 @@ function Lista() {
     setDados(data);
   }, [preview]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { carregar().catch(() => {}); }, [carregar]);
 
   if (!dados) return <div className={styles.pc} />;

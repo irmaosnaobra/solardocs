@@ -283,7 +283,7 @@ export default function FunilSolarDocPanel() {
                 <Group title="Checkout" unit="por assinatura (Stripe)" items={stripeRates} />
                 <Group title="Ativação na plataforma" unit="por pessoa" items={pessoas} />
                 <div style={{ padding: '12px 16px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                  <b style={{ color: 'var(--color-text)' }}>Por que não tem "LP → Pagante" aqui:</b> tráfego é contado
+                  <b style={{ color: 'var(--color-text)' }}>Por que não tem &quot;LP → Pagante&quot; aqui:</b> tráfego é contado
                   por sessão e pagamento por assinatura — são populações diferentes, e hoje não existe atribuição
                   UTM→usuário no banco pra ligar uma na outra. Mostrar essa taxa daria um número falso (poderia
                   passar de 100%). Quando a atribuição estiver ligada, essa ponte vira real e entra aqui.
@@ -296,7 +296,7 @@ export default function FunilSolarDocPanel() {
           <div style={{ marginTop: 32, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
             <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> os números são únicos —
             visitantes únicos por sessão (LP) e usuários distintos (Cadastro/Stripe/Empresa/Plataforma).
-            "Pageviews" no canto inferior conta o total de visitas (com re-visita). LP conta a home
+            &quot;Pageviews&quot; no canto inferior conta o total de visitas (com re-visita). LP conta a home
             <code style={{ padding: '0 4px' }}>solardoc.app</code> (exclui /io, /gerador, /apresentacao).
             A VSL faz parte da própria LP, por isso não aparece como etapa separada.
             <br /><br />

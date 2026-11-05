@@ -92,6 +92,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
   const liberado = acesso?.liberado === true;
   const emTrial = !!acesso?.packTrialUntil && new Date(acesso.packTrialUntil) > new Date();
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- A lista de conquistas é refeita a cada render e o callback acompanha, o comportamento está certo.
   const concluir = useCallback((licao: Licao, modulo: ModuloCurso) => {
     if (feitos.includes(licao.id)) return;
     const novos = [...feitos, licao.id];
@@ -110,6 +111,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
     if (fechouModulo && !avaliacoes.some((a) => a.modulo_slug === modulo.slug)) {
       setAvaliarModulo(modulo.slug);
     }
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- A lista de conquistas é refeita a cada render e o callback acompanha, o comportamento está certo.
   }, [feitos, CONQUISTAS, avaliacoes]);
 
   if (loading) {

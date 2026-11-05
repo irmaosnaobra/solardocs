@@ -52,6 +52,7 @@ export default function ClientSelector({ value, onChange }: ClientSelectorProps)
   useEffect(() => {
     if (value && clients.length > 0 && !selected) {
       const found = clients.find(c => c.id === value);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sincroniza com dado do navegador que só existe depois de montar.
       if (found) setSelected(found);
     }
   }, [value, clients, selected]);

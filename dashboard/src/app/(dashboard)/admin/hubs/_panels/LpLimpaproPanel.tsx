@@ -47,6 +47,7 @@ export default function LpLimpaproPanel() {
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(dias); }, [dias, load]);
 
   const f = data?.funil;

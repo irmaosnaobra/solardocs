@@ -15,7 +15,7 @@ function proximosDiasUteis(qtd: number): { ymd: string; label: string }[] {
   const fmtData = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit' });
   const fmtYmd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
   const fmtWd = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' });
-  let cursor = new Date();
+  const cursor = new Date();
   let achados = 0;
   // começa amanhã; varre até achar `qtd` dias úteis dentro de ~10 dias corridos
   for (let i = 1; i <= 10 && achados < qtd; i++) {

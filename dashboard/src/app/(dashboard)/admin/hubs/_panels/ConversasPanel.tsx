@@ -66,6 +66,7 @@ export default function ConversasPanel({ produto }: { produto: string }) {
     api.get(`/admin/hub-followup?produto=${encodeURIComponent(produto)}`)
       .then((r) => setData(r.data as HubFollowup)).catch(() => {}).finally(() => setLoading(false));
   }, [produto]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(); }, [load]);
 
   const sessions = data?.sessions ?? [];

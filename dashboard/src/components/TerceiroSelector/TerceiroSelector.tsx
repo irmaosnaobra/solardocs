@@ -50,6 +50,7 @@ export default function TerceiroSelector({ value, onChange }: TerceiroSelectorPr
   useEffect(() => {
     if (value && terceiros.length > 0 && !selected) {
       const found = terceiros.find(t => t.id === value);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sincroniza com dado do navegador que só existe depois de montar.
       if (found) setSelected(found);
     }
   }, [value, terceiros, selected]);

@@ -43,6 +43,7 @@ export default function UpgradeModal({ onClose, plano }: UpgradeModalProps) {
   async function assinar(planKey: string, value: number, name: string) {
     setLoading(planKey);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- O pixel do Meta fica no window e não tem tipo.
       (window as any).fbq?.('track', 'InitiateCheckout', { value, currency: 'BRL', content_name: name });
       const { data } = await api.post('/payments/create-checkout', { plan: planKey });
       if (data.upgraded) {

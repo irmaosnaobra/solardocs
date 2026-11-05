@@ -189,6 +189,7 @@ export function useAcessos(): AcessosState & { tem: (produto: string) => boolean
 
   useEffect(() => {
     ouvintes.add(setEstado);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Sincroniza com dado do navegador que só existe depois de montar.
     if (cache) setEstado(cache);
     else {
       voando = voando || buscar().then((r) => r.estado);

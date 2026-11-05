@@ -31,6 +31,7 @@ export default function GeradorFunilPanel({ produto }: { produto: string }) {
     setLoading(true);
     api.get(`/admin/hub-gerador?produto=${encodeURIComponent(produto)}`).then((r) => setData(r.data as HubGerador)).catch(() => {}).finally(() => setLoading(false));
   }, [produto]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(); }, [load]);
 
   const entries = Object.entries(data?.por_status ?? {}).sort((a, b) => b[1] - a[1]);

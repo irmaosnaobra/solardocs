@@ -31,6 +31,7 @@ export default function LpVendaPanel() {
     setLoading(true);
     api.get(`/admin/analytics?limit=300&period=${p}`).then((r) => setData(r.data as Analytics)).catch(() => {}).finally(() => setLoading(false));
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(period); }, [period, load]);
 
   const f = data?.funnel;

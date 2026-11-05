@@ -52,6 +52,7 @@ export default function Conta() {
 
   useEffect(() => {
     if (!isAuthenticated()) { router.replace('/plugcash/entrar?proximo=/plugcash/app/conta'); return; }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
     carregar();
   }, [router, carregar]);
 

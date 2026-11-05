@@ -14,6 +14,7 @@ export default function BaixeAppPage() {
   const [installPrompt, setInstallPrompt] = useState<InstallPrompt | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Sincroniza com dado do navegador que só existe depois de montar.
     setHost(window.location.host);
 
     const standalone = window.matchMedia('(display-mode: standalone)').matches

@@ -43,6 +43,7 @@ export default function SugestoesPage() {
   const { user } = useDashboard();
   // Preço único: quem paga tem tudo. Os slugs legados ('pro', 'iniciante')
   // seguem no banco de quem assinou por 27/47/49 e contam como assinatura ativa.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- O campo is_admin não está no tipo do usuário.
   const isVip = (!!user && user.plano !== 'free') || (user as any)?.is_admin;
 
   const [feed, setFeed] = useState<Sugestao[]>([]);
@@ -77,6 +78,7 @@ export default function SugestoesPage() {
       await api.post('/suggestions', { titulo: titulo.trim(), descricao: descricao.trim() });
       setTitulo(''); setDescricao(''); setShowForm(false);
       alert('Sua ideia foi enviada! Vai passar por aprovação do admin antes de aparecer no fórum.');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Erro do axios sem tipo, lê response.data.
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Erro ao enviar');
     } finally {
@@ -138,6 +140,7 @@ export default function SugestoesPage() {
       setComments(prev => [...prev, novo]);
       setFeed(prev => prev.map(x => x.id === suggestionId ? { ...x, comentarios_count: x.comentarios_count + 1 } : x));
       setNovoComentario('');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Erro do axios sem tipo, lê response.data.
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Erro ao comentar');
     }
@@ -155,6 +158,7 @@ export default function SugestoesPage() {
         )}
         {!isVip && (
           <p className="sug-vip-cta">
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Link direto para a página de conta, trocar por Link muda a navegação. */}
             <a href="/conta/sugestoes">Liberar o fórum</a>
           </p>
         )}

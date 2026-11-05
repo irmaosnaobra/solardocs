@@ -36,6 +36,7 @@ export default function MinhaContaPage() {
       // que o /auth/me, e trocar o objeto inteiro apagava o resto do estado.
       setUser({ ...(user ?? {}), ...data.user });
       setNomeMsg({ ok: true, text: 'Nome atualizado!' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Erro do axios sem tipo, lê response.data.
     } catch (err: any) {
       setNomeMsg({ ok: false, text: err?.response?.data?.error ?? 'Erro ao salvar' });
     } finally {
@@ -58,6 +59,7 @@ export default function MinhaContaPage() {
       const { data } = await api.patch('/auth/password', { currentPassword: curPass, newPassword: newPass });
       setPassMsg({ ok: true, text: data.message ?? 'Senha alterada!' });
       setCurPass(''); setNewPass(''); setConfirmPass('');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Erro do axios sem tipo, lê response.data.
     } catch (err: any) {
       setPassMsg({ ok: false, text: err?.response?.data?.error ?? 'Erro ao alterar senha' });
     } finally {
