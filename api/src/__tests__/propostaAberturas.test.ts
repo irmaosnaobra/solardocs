@@ -92,6 +92,24 @@ describe('GET /documents/aberturas e /documents/:id/aberturas', () => {
     expect(h.filtros).toContainEqual(['feature_events.event_data->>document_id', 'doc-1']);
   });
 
+  it('download do PDF (pdf_baixado): vem com evento "pdf_baixado" na lista, não conta como abertura e aparece em pdfs no resumo', async () => {
+    h.eventos = [
+      ev('doc-1', '2026-11-05T12:00:00Z', {}, 'pdf_baixado'),
+      ev('doc-1', '2026-11-04T12:00:00Z'),
+      ev('doc-1', '2026-11-04T11:00:00Z', {}, 'pdf_baixado'),
+    ];
+    const lista = await request(app).get('/documents/doc-1/aberturas').set('Authorization', AUTH);
+    expect(lista.body.map((x: { evento?: string }) => x.evento)).toEqual(['pdf_baixado', undefined, 'pdf_baixado']);
+    expect(lista.body[0]).toMatchObject({ em: '2026-11-05T12:00:00Z', vencida: false, evento: 'pdf_baixado' });
+    const resumo = await request(app).get('/documents/aberturas').set('Authorization', AUTH);
+    expect(resumo.body['doc-1'].total).toBe(1);
+    expect(resumo.body['doc-1'].pdfs).toBe(2);
+    expect(resumo.body['doc-1'].ultima.em).toBe('2026-11-04T12:00:00Z');
+    // Sem download, o campo pdfs não existe e nada mudou.
+    expect(agregarAberturas([ev('x', '2026-11-04T12:00:00Z')]).x).not.toHaveProperty('pdfs');
+    expect(agregarAberturas([ev('y', '2026-11-04T12:00:00Z', {}, 'pdf_baixado')])).toEqual({});
+  });
+
   it('documento de outro usuário dá 404', async () => {
     h.docDoDono = false;
     const res = await request(app).get('/documents/doc-1/aberturas').set('Authorization', AUTH);

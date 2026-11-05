@@ -81,3 +81,11 @@ export function dataHoraAbertura(iso: string): string {
   const p = partesBrasilia(ms);
   return `${p.day}/${p.month}/${p.year}, ${p.hour}:${p.minute}`;
 }
+
+/** Rótulo do tipo de evento do link rastreado. A abertura comum não leva rótulo; só os eventos extras. */
+const ROTULO_EVENTO: Record<string, string> = {
+  pdf_baixado: 'Baixou o PDF',
+};
+export function rotuloEvento(evento: string | null | undefined): string {
+  return evento ? (ROTULO_EVENTO[evento] ?? '') : '';
+}

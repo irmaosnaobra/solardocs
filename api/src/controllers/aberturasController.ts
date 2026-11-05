@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 
 // Aberturas do link rastreado da proposta: eventos feature 'proposta_link' em feature_events.
+// O mesmo lugar guarda o download do PDF pelo link público (event_type 'pdf_baixado'): ele NÃO conta como abertura.
+export const EVENTO_PDF_BAIXADO = 'pdf_baixado';
 
 export interface LinhaAbertura {
   event_type: string;
@@ -13,16 +15,21 @@ export interface LinhaAbertura {
 
 export interface UltimaAbertura { em: string; cidade: string | null; uf: string | null; dispositivo: string | null; vencida: boolean }
 
+/** Resumo por documento: aberturas e a última; `pdfs` (só quando houve) é quantas vezes baixaram o PDF. */
+export interface ResumoAbertura { total: number; ultima: UltimaAbertura; pdfs?: number }
+
 /**
  * Agrega as linhas (da MAIS NOVA para a mais antiga) por documento: total e a última abertura.
  * Limite de leitura: o PostgREST corta a resposta em 1000 linhas, então quem tem mais de 1000
  * aberturas no total vê contagem parcial dos documentos mais antigos. É o teto aceito do painel.
  */
-export function agregarAberturas(linhas: LinhaAbertura[]): Record<string, { total: number; ultima: UltimaAbertura }> {
-  const out: Record<string, { total: number; ultima: UltimaAbertura }> = {};
+export function agregarAberturas(linhas: LinhaAbertura[]): Record<string, ResumoAbertura> {
+  const out: Record<string, ResumoAbertura> = {};
+  const pdfs: Record<string, number> = {};
   for (const l of linhas) {
     const id = l.event_data?.document_id;
     if (!id) continue;
+    if (l.event_type === EVENTO_PDF_BAIXADO) { pdfs[id] = (pdfs[id] ?? 0) + 1; continue; }
     const atual = out[id];
     if (atual) { atual.total++; continue; }
     out[id] = {
@@ -36,6 +43,7 @@ export function agregarAberturas(linhas: LinhaAbertura[]): Record<string, { tota
       },
     };
   }
+  for (const [id, n] of Object.entries(pdfs)) if (out[id]) out[id].pdfs = n;
   return out;
 }
 
@@ -83,6 +91,8 @@ export async function aberturasDoDocumento(req: Request, res: Response): Promise
       pais: l.event_data?.pais ?? null,
       dispositivo: l.event_data?.dispositivo ?? null,
       vencida: l.event_type === 'aberta_vencida',
+      // Só no download do PDF: a tela mostra "baixou o PDF" no lugar de "abriu".
+      ...(l.event_type === EVENTO_PDF_BAIXADO ? { evento: EVENTO_PDF_BAIXADO } : {}),
     })));
   } catch (err) {
     console.error('[aberturas] lista falhou', (err as Error).message);

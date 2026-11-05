@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
   selectNovoComErro: false,
   insertLento: false,
   push: vi.fn(),
+  filtrosTipo: [] as Array<[string, unknown]>,
 }));
 
 vi.mock('../utils/supabase', () => ({
@@ -25,6 +26,8 @@ vi.mock('../utils/supabase', () => ({
       q.select = (cols: string) => { h.selects.push(`${tabela}: ${cols}`); return q; };
       q.eq = (c: string) => { if (c === 'event_data->>chave') porChave = true; return q; };
       q.gte = () => { desde = true; return q; };
+      // As consultas de abertura filtram por tipo: só aberta e aberta_vencida (o download do PDF não conta).
+      q.in = (c: string, v: unknown) => { h.filtrosTipo.push([c, v]); return q; };
       for (const m of ['order', 'limit']) q[m] = () => q;
       q.maybeSingle = async () => {
         if (tabela === 'documents' && h.selectNovoComErro && h.selects[h.selects.length - 1].includes('dados_json')) {
@@ -108,8 +111,20 @@ beforeEach(() => {
   h.selects = [];
   h.selectNovoComErro = false;
   h.insertLento = false;
+  h.filtrosTipo = [];
   h.push.mockReset();
   h.push.mockResolvedValue({ enviados: 1, removidas: 0 });
+});
+
+describe('GET /p/:id: abertura não se mistura com download de PDF', () => {
+  it('a repetição por aparelho e a contagem do aviso olham só aberta e aberta_vencida', async () => {
+    await abrir();
+    expect(h.filtrosTipo.length).toBeGreaterThanOrEqual(3); // repetição + contagem total + contagem do dia
+    for (const [c, v] of h.filtrosTipo) {
+      expect(c).toBe('event_type');
+      expect(v).toEqual(['aberta', 'aberta_vencida']);
+    }
+  });
 });
 
 describe('GET /p/:id mascara o CPF do cliente (Completa + Banco)', () => {
@@ -184,7 +199,9 @@ describe('GET /p/:id com link rastreado', () => {
     h.selectNovoComErro = true;
     const res = await abrir();
     expect(res.status).toBe(200);
-    expect(res.text).toBe('<html><body>PROPOSTA ORIGINAL</body></html>');
+    // O corpo é o de sempre; a única diferença é o botão "Baixar PDF" injetado antes do </body>.
+    expect(res.text.replace(/<style>\.sd-pdf[\s\S]*?<\/a>/, '')).toBe('<html><body>PROPOSTA ORIGINAL</body></html>');
+    expect(res.text).toContain('class="sd-pdf"');
     expect(res.headers['cache-control']).toBe('public, max-age=60, s-maxage=60');
     const doDoc = h.selects.filter((x) => x.startsWith('documents: '));
     expect(doDoc).toHaveLength(2);
@@ -246,7 +263,9 @@ describe('GET /p/:id com link rastreado', () => {
     const res = await abrir();
     expect(res.status).toBe(200);
     // Idêntico ao que o origin/main servia: o HTML tal como está, mesmo tipo, mesmo cache.
-    expect(res.text).toBe('<html><body>PROPOSTA ORIGINAL</body></html>');
+    // O corpo é o de sempre; a única diferença é o botão "Baixar PDF" injetado antes do </body>.
+    expect(res.text.replace(/<style>\.sd-pdf[\s\S]*?<\/a>/, '')).toBe('<html><body>PROPOSTA ORIGINAL</body></html>');
+    expect(res.text).toContain('class="sd-pdf"');
     expect(res.headers['content-type']).toBe('text/html; charset=utf-8');
     expect(res.headers['cache-control']).toBe('public, max-age=60, s-maxage=60');
     expect(h.eventos).toHaveLength(0);

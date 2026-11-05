@@ -13,7 +13,7 @@ import { useEsconderWhatsFab } from '@/components/AreaTrabalho/AreaTrabalho';
 import ConfirmarExclusao from '@/components/ConfirmarExclusao/ConfirmarExclusao';
 import AvisoNoCelular from '@/components/AvisoNoCelular/AvisoNoCelular';
 import EtiquetaRastreado from '@/components/EtiquetaRastreado/EtiquetaRastreado';
-import { dataHoraAbertura, linhaDeAberturas } from '@/utils/aberturas';
+import { dataHoraAbertura, linhaDeAberturas, rotuloEvento } from '@/utils/aberturas';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from './historico.module.css';
 
@@ -721,6 +721,7 @@ function AberturasDoc({ docId, resumo, abrirInicial = false, soPainel = false }:
                 <li key={`${a.em}-${i}`}>
                   <span className={styles.aberturaQuando}>{dataHoraAbertura(a.em)}</span>
                   <span>{onde(a)}</span>
+                  {rotuloEvento(a.evento) && <span className={styles.aberturaEvento}>{rotuloEvento(a.evento)}</span>}
                   {a.vencida && <span className={styles.aberturaVencida}>vencida</span>}
                 </li>
               ))}

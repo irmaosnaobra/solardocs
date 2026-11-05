@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 import chromium from '@sparticuz/chromium-min';
 import puppeteer from 'puppeteer-core';
+import { hostDoSupabase, redePermitida } from '../utils/redePdf';
 
 // IMPORTANTE: a versão precisa BATER com @sparticuz/chromium-min do package.json.
 // Mismatch causa TargetCloseError ao tentar ler o PDF do navegador.
@@ -210,5 +211,37 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
     res.status(500).json({ error: 'Erro ao gerar PDF', stage, message: e?.message });
   } finally {
     if (browser) await browser.close();
+  }
+}
+
+/**
+ * PDF A4 de uma proposta solar a partir do HTML pronto (o do link público, com o CPF já mascarado).
+ * Os mesmos passos do generatePdf para propostaSolar: mesmo Chromium (abrirNavegador), JavaScript desligado,
+ * networkidle0, A4 com printBackground e margem 0 (a proposta é full-bleed e controla o próprio espaçamento).
+ */
+export async function gerarPdfDeHtml(html: string): Promise<Buffer> {
+  let browser: Awaited<ReturnType<typeof abrirNavegador>> | undefined;
+  try {
+    browser = await abrirNavegador();
+    const page = await browser.newPage();
+    await page.setJavaScriptEnabled(false);
+    // Rota PÚBLICA: o navegador só alcança data:, blob:, o Supabase do projeto e a fonte do template; o resto aborta.
+    // (O PDF autenticado, generatePdf, não passa por aqui e segue como sempre foi.)
+    const supabaseHost = hostDoSupabase();
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (redePermitida(req.url(), supabaseHost)) void req.continue();
+      else void req.abort();
+    });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60_000 });
+    const pdf = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0', bottom: '0', left: '0', right: '0' },
+      preferCSSPageSize: false,
+    });
+    return Buffer.from(pdf);
+  } finally {
+    if (browser) await browser.close().catch(() => undefined);
   }
 }

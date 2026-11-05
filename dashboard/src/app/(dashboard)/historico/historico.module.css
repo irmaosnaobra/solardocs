@@ -242,6 +242,7 @@
 
 .aberturaQuando { font-weight: 600; font-variant-numeric: tabular-nums; }
 .aberturaVencida { color: var(--color-text-muted); }
+.aberturaEvento { color: var(--color-text-muted); }
 
 /* Proposta do aviso (?doc=): linha destacada e, se ela não está na lista, painel avulso. */
 .tabela tr.linhaAlvo td { background: color-mix(in srgb, var(--color-primary) 10%, transparent); }

@@ -219,3 +219,13 @@ export const forgotPasswordLimiter = rateLimit({
   skip: (req) => (process.env.NODE_ENV === 'test' && process.env.FORGOT_LIMITE_NO_TESTE !== '1')
     || String((req.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase().trim() === EMAIL_DO_HEALTHCHECK,
 });
+
+// PDF da proposta no link público (GET /p/:id/pdf): abre o Chromium na primeira vez de cada versão, então o teto
+// por IP é apertado. Quem baixa de boa fé baixa uma ou duas vezes.
+export const propostaPdfLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 20,
+  message: 'Muitos downloads em pouco tempo. Tente de novo em alguns minutos.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});

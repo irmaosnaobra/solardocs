@@ -109,6 +109,43 @@ function exigirAssinaturaModelo4(fields: Record<string, unknown>): void {
   fields.assinatura = normalizarAssinatura(fields.assinatura);
 }
 
+/**
+ * Fotos de obra do modelo 4: as PRÓPRIAS da proposta (dados_json.fotos_obras) primeiro, depois as da empresa
+ * (company.fotos_obras), sem repetir path, no máximo 12. `[]` não "tira" nada: as da empresa sempre entram.
+ * Só junta e tira repetidos: NÃO corta em 12 nem confere dono. Quem filtra por dono, tipo e caminho, reassina e
+ * corta em 12 (depois de descartar o que não for válido) é o renovarUrlsPortfolio, logo em seguida.
+ */
+export function fotosDaProposta(proprias: unknown, daEmpresa: unknown): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  const vistos = new Set<string>();
+  for (const lista of [proprias, daEmpresa]) {
+    if (!Array.isArray(lista)) continue;
+    for (const it of lista.slice(0, 60)) {
+      if (!it || typeof it !== 'object' || Array.isArray(it)) continue;
+      const path = (it as Record<string, unknown>).path;
+      if (typeof path !== 'string' || vistos.has(path)) continue;
+      vistos.add(path);
+      out.push(it as Record<string, unknown>);
+    }
+  }
+  return out;
+}
+
+/**
+ * Galerias do modelo 4 no generate e no regenerate. O que fica GRAVADO no dados_json são só as fotos próprias da
+ * proposta (as da empresa mudam com o tempo e têm a própria fonte); o que vai para o TEMPLATE é a mescla (próprias
+ * primeiro, depois as da empresa, até 12), reassinada agora. Trocar as fotos da empresa e regerar muda só o template.
+ */
+async function galeriasModelo4(
+  userId: string, fields: Record<string, unknown>, fotosEmpresa: unknown,
+): Promise<{ guardado: Record<string, unknown>; paraTemplate: Record<string, unknown> }> {
+  const proprias = new Set(fotosDaProposta(fields.fotos_obras, []).map((f) => f.path as string));
+  const todas = await renovarUrlsPortfolio(userId, { ...fields, fotos_obras: fotosDaProposta(fields.fotos_obras, fotosEmpresa) });
+  const soProprias = (Array.isArray(todas.fotos_obras) ? todas.fotos_obras : [])
+    .filter((f: { path?: string }) => typeof f?.path === 'string' && proprias.has(f.path));
+  return { guardado: { ...todas, fotos_obras: soProprias }, paraTemplate: todas };
+}
+
 export async function generateDocument(req: Request, res: Response): Promise<void> {
   try {
     const body = generateSchema.parse(req.body);
@@ -244,13 +281,17 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // Modelo Completo: as galerias (obras, empresas, bancos) são reassinadas aqui, só pelo path,
     // antes de o template e o dados_json verem o objeto. Vale também no retry do número (abaixo),
     // que gera de novo a partir de body.fields.
-    // Completa + Banco: sem a chave fotos_obras no formulário, valem as fotos de obra do cadastro da empresa
-    // (só os paths; a reassinatura e o filtro por usuário são os de sempre). `[]` explícito = a pessoa tirou.
-    if (body.tipo === 'propostaSolar' && body.modeloNumero === 4 && !('fotos_obras' in body.fields)
-      && Array.isArray(company.fotos_obras) && company.fotos_obras.length > 0) {
-      body.fields = { ...body.fields, fotos_obras: company.fotos_obras };
+    // Completa + Banco: o dados_json guarda só as fotos próprias; o template recebe as próprias primeiro e depois as da
+    // empresa (a reassinatura e o filtro por usuário são os de sempre). `[]` não tira as da empresa.
+    let fotosParaTemplate: unknown = null;
+    if (body.tipo === 'propostaSolar' && body.modeloNumero === 4) {
+      const g = await galeriasModelo4(req.userId, body.fields, company.fotos_obras);
+      body.fields = g.guardado;
+      fotosParaTemplate = g.paraTemplate.fotos_obras;
+    } else if (body.tipo === 'propostaSolar') {
+      body.fields = await renovarUrlsPortfolio(req.userId, body.fields);
     }
-    if (body.tipo === 'propostaSolar') body.fields = await renovarUrlsPortfolio(req.userId, body.fields);
+    const camposDoTemplate = (): Record<string, unknown> => (fotosParaTemplate ? { ...body.fields, fotos_obras: fotosParaTemplate } : body.fields);
     // Contrato solar novo sai com o texto de garantia de 11/2026. A marca é só do servidor:
     // o que o formulário mandar em versao_garantia é sobrescrito.
     // No caminho por IA o template não roda, então a marca não entra.
@@ -258,7 +299,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
 
     const tmplOut: { resumo?: string } = {};
     if (body.useTemplate) {
-      content = generateFromTemplate(body.tipo, company, entity as unknown as Client, body.fields, body.modeloNumero, tmplOut);
+      content = generateFromTemplate(body.tipo, company, entity as unknown as Client, camposDoTemplate(), body.modeloNumero, tmplOut);
       modeloUsado = `modelo-${body.modeloNumero}`;
     } else {
       content = await generateDocumentWithAI(body.tipo, company, entity as unknown as Client, body.fields);
@@ -333,7 +374,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       else delete body.fields.codigo;
       insertPayload.dados_json = body.fields;
       if (body.useTemplate) {
-        content = generateFromTemplate(body.tipo, company, entity as unknown as Client, body.fields, body.modeloNumero, tmplOut);
+        content = generateFromTemplate(body.tipo, company, entity as unknown as Client, camposDoTemplate(), body.modeloNumero, tmplOut);
         insertPayload.content = content;
         conteudoMudou = true;
       }
@@ -615,7 +656,15 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     // Fio B contra a tarifa e a economia: com a data de emissão já definida (a mesma que a proposta imprime).
     if (body.modeloNumero === 4 && doc.tipo === 'propostaSolar') exigirFioBCabeNaProposta(fields, entity);
     // Galerias do modelo Completo: URL nova a partir do path (nunca a que veio do cliente).
-    if (doc.tipo === 'propostaSolar') fields = await renovarUrlsPortfolio(req.userId, fields);
+    // Modelo 4: gravado = só as fotos próprias; o template recebe as próprias primeiro e depois as da empresa de HOJE.
+    let fotosParaTemplate: unknown = null;
+    if (doc.tipo === 'propostaSolar' && body.modeloNumero === 4) {
+      const g = await galeriasModelo4(req.userId, fields, company.fotos_obras);
+      fields = g.guardado;
+      fotosParaTemplate = g.paraTemplate.fotos_obras;
+    } else if (doc.tipo === 'propostaSolar') {
+      fields = await renovarUrlsPortfolio(req.userId, fields);
+    }
     // Link rastreado: recalcula a partir do emitido_em preservado (ou de hoje, se a validade
     // venceu e a reedição virou reemissão). O que o front devolveu do dados_json não vale.
     delete fields.link_rastreado;
@@ -631,7 +680,7 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     let content: string;
     let modeloUsado: string;
     if (body.useTemplate) {
-      content = generateFromTemplate(doc.tipo, company, entity as unknown as Client, fields, body.modeloNumero, tmplOut, dataBaseReedicao);
+      content = generateFromTemplate(doc.tipo, company, entity as unknown as Client, fotosParaTemplate ? { ...fields, fotos_obras: fotosParaTemplate } : fields, body.modeloNumero, tmplOut, dataBaseReedicao);
       modeloUsado = `modelo-${body.modeloNumero}`;
     } else {
       content = await generateDocumentWithAI(doc.tipo, company, entity as unknown as Client, fields);
