@@ -3,10 +3,11 @@ import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { exigeConsultor } from './geradorDossie';
-import { ehSocio, podeVer } from '../services/gerador/solarObras';
+import { ehAdm, ehSocio, podeVer } from '../services/gerador/solarObras';
 import { acessoVendaSolar } from './geradorClientes';
 import { ehCardSolarVendido, lerCardsPorIds } from '../services/gerador/vendaSolarHub';
 import { DONOS_FIXOS } from '../services/gerador/jornadaSolar';
+import { veRetiradaDosSocios } from '../services/gerador/jornadaDinheiro';
 import { chavePosVenda } from '../services/agenda/posVendaEletroposto';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import {
@@ -274,7 +275,9 @@ export function mountFinanceiro(router: Router): void {
     const posse = await barrarPosse(res, nome, socio, cardId, false);
     if (posse === 'barrado') return;
     try {
-      const [todos, venda] = await Promise.all([lerDoCard(cardId, posse === 'vendasolar'), valorDaVenda(cardId)]);
+      const [lidos, venda] = await Promise.all([lerDoCard(cardId, posse === 'vendasolar'), valorDaVenda(cardId)]);
+      // A retirada dos sócios (linhas solares `obra.grupo: retirada`) só vai para o ADM e para a Giovanna: sai ANTES dos totais, que a deduziriam.
+      const todos = posse === 'vendasolar' && !veRetiradaDosSocios(nome, ehAdm(nome)) ? lidos.filter((l) => l.obra?.grupo !== 'retirada') : lidos;
       // Os totais saem de TODOS os lançamentos; a máscara vem depois.
       const completos = totais(todos, venda);
       const ordenados = ordenarLancamentos(todos);

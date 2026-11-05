@@ -716,6 +716,58 @@ describe('o dinheiro escondido não some no PUT', () => {
   });
 });
 
+describe('o item "a receber e a pagar zerados" para quem não vê a retirada', () => {
+  it('quando só falta a retirada de um sócio, o Diego lê um texto genérico (sem valor nem quem); o Thiago e a Giovanna leem o texto de sempre', async () => {
+    cenario8();
+    const diegoLinha = [...h.linhas.keys()].find((k) => k.startsWith(`fin:${SOLAR}:`) && JSON.stringify(h.linhas.get(k)!.value).includes('"diego"'))!;
+    h.linhas.delete(diegoLinha);
+    const item = (corpo: any) => corpo.etapas.find((e: any) => e.n === 8).itens.find((i: any) => i.chave === 'dinheiro');
+    const d = await get(F2(SOLAR), DIEGO);
+    expect(item(d.body)).toMatchObject({ feito: false, texto: 'Falta uma pendência que o Thiago resolve' });
+    expect(d.text).not.toMatch(/778|Diego \(sócio|sócio 2/);
+    expect(item((await get(F2(SOLAR), NILCE)).body).texto).toBe('Falta uma pendência que o Thiago resolve');
+    for (const a of [THIAGO, GIOVANNA]) expect(item((await get(F2(SOLAR), a)).body)).toMatchObject({ feito: false, texto: 'A receber e a pagar zerados' });
+    // Falta algo que a pessoa vê (a comissão de quem vendeu): o texto de sempre.
+    const nilce = [...h.linhas.keys()].find((k) => k.startsWith(`fin:${SOLAR}:`) && h.linhas.get(k)!.value.categoria === 'comissao_venda')!;
+    h.linhas.delete(nilce);
+    expect(item((await get(F2(SOLAR), DIEGO)).body).texto).toBe('A receber e a pagar zerados');
+  });
+});
+
+describe('os PUT de compra, logística e obra rodam dentro da trava da conta', () => {
+  it('fechar a conta e tirar o valor de um item da Compra ao mesmo tempo: nunca fecha com o material incompleto', async () => {
+    cenario8();
+    semearJo(SOLAR, (e) => { e.etapas[8].concluida_em = AGORA; e.etapas[8].concluida_por = 'thiago'; }, 8);
+    const antes = privadaGravada(SOLAR)!;
+    const itens = antes.compra.itens.map((i, k) => (k === 1 ? { ...i, valor_centavos: null } : i));
+    const [fecha, muda] = await Promise.all([
+      post(DIN(SOLAR, '/fechar'), {}, THIAGO),
+      put(F2(SOLAR, '/compra'), { versao: antes.versoes.compra, dados: { itens, compras: antes.compra.compras } }, THIAGO),
+    ]);
+    const jo = joGravado(SOLAR);
+    const depois = privadaGravada(SOLAR)!;
+    if (fecha.status === 200) {
+      expect(muda.status).toBe(409);
+      expect(depois.compra.itens.every((i) => (i.valor_centavos ?? 0) > 0)).toBe(true);
+      expect(jo.fechada).not.toBeNull();
+    } else {
+      expect(muda.status).toBe(200);
+      expect(fecha.status).toBe(409);
+      expect(jo.fechada).toBeNull();
+    }
+    // Invariante: conta fechada nunca tem material sem valor.
+    if (jo.fechada) expect(depois.compra.itens.every((i) => (i.valor_centavos ?? 0) > 0)).toBe(true);
+  });
+  it('depois de fechada, os PUT de compra, logística e obra dão 409', async () => {
+    cenario8();
+    expect((await post(`/jornada-solar/obra/${SOLAR}/etapa-obra`, { etapa: 8 }, THIAGO)).status).toBe(200);
+    const p = privadaGravada(SOLAR)!;
+    for (const [secao, dados] of [['compra', { itens: [], compras: [] }], ['logistica', { cargas: [] }], ['obra', { plano: [] }]] as const) {
+      expect((await put(F2(SOLAR, `/${secao}`), { versao: p.versoes[secao], dados }, THIAGO)).status, secao).toBe(409);
+    }
+  });
+});
+
 describe('o fechamento não corre contra um lançamento', () => {
   it('fechar a etapa 8 e estornar a comissão ao mesmo tempo: nunca fecha com a conta aberta', async () => {
     cenario8();

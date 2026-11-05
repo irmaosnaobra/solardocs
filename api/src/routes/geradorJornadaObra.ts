@@ -29,7 +29,7 @@ import { cifrar, decifrar } from '../services/gerador/cofreObra';
 import { chaveNfeValida } from '../services/gerador/jornadaObra';
 import { camposDoTermo, termoGarantiaHtml, travaDoBook } from '../services/gerador/termoGarantia';
 import { garantiaInstalacaoExtenso } from '../services/templateService';
-import { reaisBR } from '../services/gerador/jornadaDinheiro';
+import { reaisBR, recortarLivro, veRetiradaDosSocios } from '../services/gerador/jornadaDinheiro';
 import { lerLeituraDoArquivo } from '../services/gerador/financeiroArquivos';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -182,6 +182,17 @@ async function prepararEscrita(g: GuardaObra, f: Fase2): Promise<void> {
   }
 }
 
+/**
+ * Os itens do portão como a pessoa pode ver. O item "A receber e a pagar zerados" da etapa 8 usa o livro inteiro; para quem não vê a retirada dos
+ * sócios, quando o que falta é só o que ela não vê, o texto vira genérico (nem valor, nem qual é a pendência).
+ */
+function itensParaQuem(n: number, f: Fase2, g: GuardaObra) {
+  const itens = itensDaEtapaObra(n, fonteItens(f));
+  if (n !== 8 || veRetiradaDosSocios(g.nome, g.adm)) return itens;
+  const visivelFecha = recortarLivro(f.din.livro, false).fechamento.pode_fechar_sem_material;
+  return itens.map((i) => (i.chave === 'dinheiro' && !i.feito && visivelFecha ? { ...i, texto: 'Falta uma pendência que o Thiago resolve' } : i));
+}
+
 const fonteItens = (f: Fase2) => ({ jo: f.joView, privada: f.privada, livro: f.din.livro, slots: f.slotsMap, docsIds: f.docsIds });
 
 // ── O corpo do GET (e da resposta de todo PUT) ────────────────────────────────────────────────────────────────────────
@@ -193,7 +204,7 @@ async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): P
   const veDin = f.din.veDinheiro;
   const etapas = [4, 5, 6, 7, 8].map((n) => {
     const e = f.joView?.etapas[n as 4 | 5 | 6 | 7 | 8];
-    const itens = f.joView && e?.aberta_em ? itensDaEtapaObra(n, fonteItens(f)) : [];
+    const itens = f.joView && e?.aberta_em ? itensParaQuem(n, f, g) : [];
     return {
       n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donosDaEtapa(n, f.vend).map((d) => ({ nome: d, iniciais: iniciais(d) })),
       aberta_em: e?.aberta_em ?? null, concluida_em: e?.concluida_em ?? null,
@@ -371,7 +382,9 @@ export function mountJornadaObra(router: Router): void {
     if (!SECOES_OBRA.includes(secao) || secao === 'previsto' || !b || !dados || typeof b.versao !== 'number' || !Number.isInteger(b.versao)) {
       res.status(400).json({ ok: false, error: MSG_PEDIDO }); return;
     }
-    try {
+    const versaoLida: number = b.versao;
+    // Compra, logística e obra mexem no que o fechamento confere (material, frete, equipe): rodam DENTRO da trava da conta, junto com o fechamento.
+    const corpo = async (): Promise<void> => {
       const f = await lerFase2(g);
       if (f.din.cancelada) { res.status(409).json({ ok: false, error: MSG_CANCELADA }); return; }
       if (f.din.fechada) { res.status(409).json({ ok: false, error: MSG_FECHADA }); return; }
@@ -380,7 +393,7 @@ export function mountJornadaObra(router: Router): void {
       const numeroPedido = secao === 'liberacao'
         ? (typeof dados.pedido_numero === 'string' ? dados.pedido_numero : (typeof obj(obj(dados.passos)?.pedido)?.numero === 'string' ? String(obj(obj(dados.passos)?.pedido)?.numero) : ''))
         : '';
-      const r = await mudarObraPrivada(g.id, g.nome, secao, b.versao, (p) => aplicarSecao(secao, p, dados, g, f));
+      const r = await mudarObraPrivada(g.id, g.nome, secao, versaoLida, (p) => aplicarSecao(secao, p, dados, g, f));
       if (ehRecusa(r)) { res.status(r.http).json({ ok: false, error: r.recusa, ...(r.extra ?? {}) }); return; }
       const extra: Record<string, unknown> = {};
       if (secao === 'obra') {
@@ -402,7 +415,9 @@ export function mountJornadaObra(router: Router): void {
         }));
       }
       res.json(await corpoFase2(g, extra));
-    } catch (err) { falhouJornada(res, 'fase2-secao', err); }
+    };
+    try { if (secao === 'compra' || secao === 'logistica' || secao === 'obra') await comTrava(`fin_conta:${g.id}`, g.nome, corpo); else await corpo(); }
+    catch (err) { if (!res.headersSent) falhouJornada(res, 'fase2-secao', err); }
   });
 
   // ── Rota 3 · A nota fiscal de uma compra ─────────────────────────────────────────────────────────────────────────────
@@ -480,7 +495,7 @@ export function mountJornadaObra(router: Router): void {
       if (f.din.fechada) { res.status(409).json({ ok: false, error: MSG_FECHADA }); return; }
       if (f.etapa !== n) { res.status(409).json({ ok: false, error: 'Esta etapa não é a da vez.' }); return; }
       if (!podeConcluir(g.nome, n, f.vend)) { res.status(403).json({ ok: false, error: 'Só o dono conclui a etapa.' }); return; }
-      const falta = itensDaEtapaObra(n, fonteItens(f)).filter((i) => !i.feito);
+      const falta = itensParaQuem(n, f, g).filter((i) => !i.feito);
       if (falta.length) {
         res.status(409).json({
           ok: false, precisa: 'itens', falta: falta.map((i) => ({ chave: i.chave, texto: i.texto })),

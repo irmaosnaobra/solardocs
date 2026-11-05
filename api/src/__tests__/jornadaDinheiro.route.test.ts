@@ -681,6 +681,28 @@ describe('a retirada dos sócios só para o ADM e para a Giovanna', () => {
   });
 });
 
+describe('a retirada pelo financeiro antigo', () => {
+  it('o GET antigo de um card solar não leva a retirada para o Diego (sócio, não ADM); o Thiago a recebe, e os totais saem sem ela', async () => {
+    iaLe(1_167_000);
+    const { path: pe } = await subir('entrada do financeiro antigo', { auth: GIOVANNA });
+    expect((await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(pe), GIOVANNA)).status).toBe(200);
+    iaLe(77_800);
+    const { path: pt } = await subir('retirada pelo caminho antigo', { auth: GIOVANNA });
+    expect((await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'thiago', papel: 'socio', data: '2026-10-02', forma: 'pix', arquivo_path: pt }, GIOVANNA)).status).toBe(200);
+    expect((await gastar('um frete para os totais', 25_000, { auth: DIEGO })).status).toBe(200);
+    const velho = (auth: string) => request(app).get(`/gerador/financeiro/${SOLAR}`).set('Authorization', auth);
+    const d = await velho(DIEGO);
+    expect(d.status).toBe(200);
+    expect(d.body.socio).toBe(true);
+    expect(d.body.lancamentos.map((x: any) => x.categoria).sort()).toEqual(['entrada', 'frete']);
+    expect(d.body.totais).toMatchObject({ recebido: 1_167_000, gasto: 25_000, qtd_saidas: 1 });
+    expect(d.text).not.toMatch(/retirada_socio|77800/);
+    const t = await velho(THIAGO);
+    expect(t.body.lancamentos.map((x: any) => x.categoria).sort()).toEqual(['entrada', 'frete', 'retirada_socio']);
+    expect(t.body.totais).toMatchObject({ gasto: 25_000 + 77_800, qtd_saidas: 2 });
+  });
+});
+
 describe('quem lança o quê', () => {
   it('o Diego lança gasto, leva 403 em entrada, e a categoria `comissao_venda` pela rota do lançamento dá 400', async () => {
     expect((await gastar('gasto do diego', 25_000, { auth: DIEGO })).status).toBe(200);
@@ -810,8 +832,13 @@ describe('o previsto e os Ajustes', () => {
     expect((await put(dinheiro(SOLAR, '/previsto'), { ...corpo, versao: 1, frete: 1.5 }, THIAGO)).status).toBe(400);
   });
 
-  it('GET dos Ajustes para qualquer consultor; PUT só do ADM, validado e assinado', async () => {
-    const g = await get('/jornada-solar/ajustes');
+  it('GET dos Ajustes só para o ADM (a regra dos sócios é retirada); PUT só do ADM, validado e assinado', async () => {
+    for (const a of [NILCE, DIEGO, GIOVANNA]) {
+      const no = await get('/jornada-solar/ajustes', a);
+      expect(no.status).toBe(403);
+      expect(JSON.stringify(no.body)).not.toMatch(/socio|sócio|"pb"/);
+    }
+    const g = await get('/jornada-solar/ajustes', THIAGO);
     expect(g.status).toBe(200);
     expect(g.body).toMatchObject({ ok: true, valido: true, socios: ['thiago', 'diego'] });
     expect(g.body.ajustes.comissoes.nilce[0]).toEqual({ nome: 'nilce', papel: 'venda', pb: 500 });
@@ -829,7 +856,7 @@ describe('o previsto e os Ajustes', () => {
     const forjada = JSON.parse(JSON.stringify(h.linhas.get('jornada_solar_ajustes')!.value));
     forjada.comissoes.nilce[0].pb = 1;
     h.linhas.set('jornada_solar_ajustes', { value: jsonb(forjada), updated_at: 'f' });
-    const f = await get('/jornada-solar/ajustes');
+    const f = await get('/jornada-solar/ajustes', THIAGO);
     expect(f.body.valido).toBe(false);
     expect(f.body.ajustes.comissoes.nilce[0].pb).toBe(500);
     expect(f.body.ajustes.dinheiro_aberto).toBe(true);

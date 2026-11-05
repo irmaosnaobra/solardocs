@@ -596,7 +596,8 @@ export function mountJornadaDinheiro(router: Router): void {
   });
 
   // ── Rota 7 · Os Ajustes do Solar ──────────────────────────────────────────────────────────────────────────────────────
-  router.get('/jornada-solar/ajustes', ...base, async (_req: Request, res: Response) => {
+  // Só o ADM: a regra dos sócios (os 2% de cada um) é retirada e não vai para o resto. A tela só abre os Ajustes para o ADM.
+  router.get('/jornada-solar/ajustes', ...base, exigeAdm, async (_req: Request, res: Response) => {
     try {
       const { ajustes, valido } = await lerAjustes();
       res.json({ ok: true, ajustes, padrao: AJUSTES_PADRAO, valido, socios: listaSocios() });
