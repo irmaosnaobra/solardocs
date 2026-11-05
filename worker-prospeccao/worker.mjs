@@ -13,14 +13,20 @@
         --remote-debugging-port=9222 `
         --user-data-dir="$env:USERPROFILE\.chrome-prospeccao"
 
+      (Instagram: porta 9222. WhatsApp do chip: porta 9223 e perfil
+       .chrome-wa-prospeccao, para rodar junto sem disputar o Chrome.)
+
    2) NESSA janela, faça login no WhatsApp Web (ou no Instagram). Uma vez só —
       a sessão fica salva no perfil.
 
    3) Rode em outro terminal:
 
-        node worker.mjs --dry              # ensaio: mostra tudo, não envia nada
-        node worker.mjs --canal=whatsapp   # envia de verdade
-        node worker.mjs --canal=instagram  # idem, por DM
+        node worker.mjs --dry --canal=instagram   # ensaio: mostra tudo, não envia nada
+        node worker.mjs --canal=whatsapp          # envia de verdade
+        node worker.mjs --canal=instagram         # idem, por DM
+
+   --canal é OBRIGATÓRIO (sem padrão): sem ele o worker sai com erro, para nenhum
+   comando esquecido prospectar pela conta errada.
 
    COMECE PELO --dry. Ele percorre a fila inteira e imprime a mensagem exata que
    sairia pra cada empresa, sem tocar em ninguém.
@@ -35,12 +41,23 @@
    o worker relê a cada envio.
    ───────────────────────────────────────────────────────────────────────────── */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio } from './ritmo.mjs';
+
+const ARG = process.argv.slice(2);
+const DRY   = ARG.includes('--dry');
+const CANAL = ARG.find(a => a.startsWith('--canal='))?.split('=')[1];
+if (!canalValido(CANAL)) {
+  console.error('Informe o canal: --canal=instagram ou --canal=whatsapp. Não há padrão, de propósito.');
+  process.exit(2);
+}
 
 // ═══ CONFIGURAÇÃO ════════════════════════════════════════════════════════════
+const RITMO = cfgDe(process.env);
 const CFG = {
-  cdp:        process.env.CHROME_CDP || 'http://127.0.0.1:9222',
+  // Cada canal tem o SEU Chrome: Instagram na 9222, WhatsApp do chip na 9223.
+  cdp:        process.env.CHROME_CDP || (CANAL === 'whatsapp' ? 'http://127.0.0.1:9223' : 'http://127.0.0.1:9222'),
   supa:       'https://ancecdfqfwlaujknizof.supabase.co/rest/v1',
   key:        process.env.SUPA_KEY || 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6',
   consultor:  process.env.CONSULTOR || 'Thiago',
@@ -49,37 +66,25 @@ const CFG = {
   // escreve "Oi! irmaosnaobra__ aqui" pra outro ser humano.
   assinatura: process.env.NOME || process.env.CONSULTOR || 'Thiago',
 
-  // Ritmo. Piso e teto de espaçamento. O intervalo REAL e calculado: o worker divide o que
-  // sobrou da janela pelo que sobrou do teto, entao 100 mensagens em 17 horas
-  // viram uma a cada ~10 min sozinhas. O que derruba linha e densidade, nao
-  // total — e densidade e exatamente o que essa conta minimiza.
-  // Entre uma abordagem e outra. Um humano fazendo prospecção manda de 4 em 4,
-  // de 10 em 10 minutos — não de hora em hora. O que protege a conta é o TETO
-  // do dia, não o espaço entre uma mensagem e outra.
-  minSeg:     Number(process.env.MIN_SEG || 240),   //  4 min
-  maxSeg:     Number(process.env.MAX_SEG || 900),   // 15 min
-  // O máximo que ela espera entre uma mensagem e outra, por mais vazio que o
-  // teto esteja. Existe pra a conta de espalhar não virar gotejamento: com 6
-  // mensagens sobrando e 20 horas pela frente, sem teto daria 3h20 de intervalo.
-  tetoEspera: Number(process.env.TETO_ESPERA || 2700),   // 45 min
+  // RITMO (anti-ban, 05/11/2026). Tudo vem de ritmo.mjs, e a env só APERTA:
+  //   • ENVIO só de segunda a sábado, das 8h às 21h (horário de Brasília). HORA_INI
+  //     nunca abaixo de 8, HORA_FIM nunca acima de 21; domingo fechado;
+  //   • piso de 45 min entre dois envios da mesma conta: MIN_SEG nunca abaixo de
+  //     2700, e MAX_SEG e TETO_ESPERA nunca abaixo do piso (padrão 3600);
+  //   • Instagram no máximo 5 por dia, chip no máximo 10 (ver travas()).
+  // Em 11/09 a conta quebrou com DMs de 3 em 3 min, e em 09/10 saíram 12 DMs em
+  // 41 min porque a espera calculada só ia para o log e nunca valia.
+  // A LISTA continua sendo montada 24h: só o ENVIO obedece a janela.
+  minSeg:     RITMO.minSeg,
+  maxSeg:     RITMO.maxSeg,
+  tetoEspera: RITMO.tetoEspera,
   // De quanto em quanto tempo ela olha se alguém respondeu. LER é de graça e
   // não tem risco nenhum — o que custa é enviar. Então ela olha o tempo todo.
   olharSeg:   Number(process.env.OLHAR_SEG || 150), // 2min30
-  // JANELA DE 24 HORAS. Quem recebe de madrugada le e responde de manha — o
-  // computador fica ligado, entao nao ha motivo pra ela dormir.
-  //
-  // Isso NAO aumenta o volume: quem limita quantas mensagens saem por dia e o
-  // teto (prospeccao_teto_hoje), nao o relogio. Espalhar o mesmo teto em 24h em
-  // vez de 17h baixa as mensagens por hora, nao sobe.
-  //
-  // horaIni=0 e horaFim=24 desligam as duas pontas da guarda de janela.
-  horaIni:    Number(process.env.HORA_INI || 0),
-  horaFim:    Number(process.env.HORA_FIM || 24),
+  horaIni:    RITMO.horaIni,
+  horaFim:    RITMO.horaFim,
 };
 
-const ARG = process.argv.slice(2);
-const DRY   = ARG.includes('--dry');
-const CANAL = (ARG.find(a => a.startsWith('--canal='))?.split('=')[1]) || 'whatsapp';
 // UM CANAL, UMA IDENTIDADE. Instagram e WhatsApp rodam como duas agentes
 // separadas, cada uma com seu pulso, seu teto e sua fila. Foi o que o bloqueio
 // de 11/09 ensinou: 40 por dia não sai de uma conta forçando, sai de várias
@@ -238,28 +243,112 @@ async function travas() {
     ler(`prospeccao_saude?select=*&consultor=eq.${encodeURIComponent(CFG.consultor)}`),
     ler(`prospeccao_teto_hoje?select=*&consultor=eq.${encodeURIComponent(CFG.consultor)}`),
   ]);
+  const ef = tetoEfetivo(CANAL, {
+    teto: teto[0]?.teto,                // sem linha em prospeccao_teto_hoje = teto 0 (falha segura, nunca "5")
+    usados: teto[0]?.usados_hoje ?? 0,
+    restam: teto[0]?.restam ?? 0,
+  }, bloqueioAtivo());                  // bloqueio de conversa nova = frio 0
   return {
     // Consultor que não aparece na saúde não tocou ninguém em 14 dias — e quem
     // não tocou ninguém não pode estar queimando linha.
     estado: saude[0]?.estado || 'ok',
     taxa:   saude[0]?.taxa_optout ?? 0,
-    teto:   teto[0]?.teto ?? 5,        // sem linha na rampa = consultor novo = 5
+    // TETO EFETIVO (regra 25): Instagram no máximo 5/dia, chip no máximo 10. O
+    // restam da view foi calculado com o teto do banco (12), então é refeito aqui.
+    teto:   ef.teto,
     usados: teto[0]?.usados_hoje ?? 0,
-    restam: teto[0]?.restam ?? 0,
+    restam: restamComPendente(ef.restam, pendenteAtual()),   // a pendência conta como envio
     porque: teto[0]?.porque || '',
     respostas: teto[0]?.respostas_hoje ?? 0,
   };
 }
 
-async function gravarToque(contatoId, listaId, produtoId, resultado, obs) {
+// ── ÚLTIMO ENVIO, NO DISCO ───────────────────────────────────────────────────
+// O piso de 45 min precisa sobreviver a reinício E a banco fora do ar: o laço do
+// COMECAR.ps1 religa o node 60 s depois de qualquer queda. Então toda tentativa de
+// envio grava a hora neste arquivo ANTES de digitar, e o piso vale a MAIOR hora
+// entre o arquivo e o banco (ver faltaPiso em ritmo.mjs).
+const ARQ_ULTIMO = fileURLToPath(new URL(`./ultimo-envio-${CANAL}.json`, import.meta.url));
+function lerArquivoUltimo() {
+  try { return arquivoUltimo(readFileSync(ARQ_ULTIMO, 'utf8')); }
+  catch (e) { return e && e.code === 'ENOENT' ? arquivoUltimo(null) : { ok: false, ms: null }; }
+}
+/** true se gravou. Falha de disco = quem chamou NÃO envia. */
+function lerBrutoArquivo() {
+  try { return JSON.parse(readFileSync(ARQ_ULTIMO, 'utf8')); } catch { return null; }
+}
+function gravarArquivoUltimo(ms) {
+  try {
+    const obj = { ms, em: new Date(ms).toISOString(), canal: CANAL };
+    const atual = lerBrutoArquivo();
+    if (atual && atual.pendente_gravar) obj.pendente_gravar = atual.pendente_gravar;   // nunca apaga a pendência
+    writeFileSync(ARQ_ULTIMO, JSON.stringify(obj));
+    return true;
+  } catch (e) { log('NÃO consegui gravar ' + ARQ_ULTIMO + ': ' + e.message); return false; }
+}
+
+// ── BLOQUEIO DE CONVERSA NOVA, NO DISCO ──────────────────────────────────────
+// bloqueio-<canal>.json: { "desde": ISO-8601, "motivo": texto, "perfis": [...] }. Gravado quando o
+// detector dispara (3 perfis distintos sem compositor). Na partida, se existir, o canal começa
+// bloqueado para conversa NOVA (teto de frio 0); responder quem já conversa segue normal. Só sai à
+// mão, ou pelo testar-bloqueio.mjs quando o compositor abre de novo em perfil novo.
+const ARQ_BLOQUEIO = fileURLToPath(new URL(`./bloqueio-${CANAL}.json`, import.meta.url));
+function lerBloqueio() {
+  try { return parseBloqueio(readFileSync(ARQ_BLOQUEIO, 'utf8')); }
+  catch (e) { return e && e.code === 'ENOENT' ? parseBloqueio(null) : parseBloqueio('{ilegível'); }
+}
+function gravarBloqueio(motivo, perfis) {
+  try {
+    writeFileSync(ARQ_BLOQUEIO, JSON.stringify({ desde: new Date().toISOString(), motivo, perfis: [...perfis] }, null, 2));
+  } catch (e) { log('NÃO consegui gravar ' + ARQ_BLOQUEIO + ': ' + e.message + ' (o bloqueio segue só na memória)'); }
+}
+/** Bloqueado para conversa NOVA? Memória OU arquivo (o arquivo criado à mão vale sem reiniciar). */
+const bloqueioAtivo = () => bloqueadaParaNovas || lerBloqueio().bloqueado;
+
+// ── ENVIO PENDENTE DE GRAVAR ─────────────────────────────────────────────────
+// A DM saiu (ou pode ter saído) mas o toque NÃO entrou no banco depois de 3 tentativas. Sem o toque
+// o banco não enxerga o envio: o teto, a fila única e a view deixariam abordar de novo. Então a
+// pendência fica na memória E no arquivo (pendente_gravar: { id, pid, ms }, sobrevive a reinício), e a
+// 1ª coisa de cada umaAbordagem é tentar gravar. Enquanto houver pendência, NINGUÉM é abordado.
+let pendenteGravar = null;
+function pendenteAtual() { return pendenteGravar || lerArquivoUltimo().pendente || null; }
+function registrarPendente(id, pid) {
+  pendenteGravar = { id, pid: pid ?? null, ms: Date.now() };
+  try {
+    const a = lerBrutoArquivo() || {};
+    writeFileSync(ARQ_ULTIMO, JSON.stringify({ ...a, ms: Math.max(Number(a.ms) || 0, pendenteGravar.ms), canal: CANAL, pendente_gravar: pendenteGravar }));
+  } catch (e) { log('NÃO consegui gravar a pendência em ' + ARQ_ULTIMO + ': ' + e.message + ' (segue só na memória)'); }
+}
+function limparPendente() {
+  pendenteGravar = null;
+  try {
+    const a = lerBrutoArquivo();
+    if (a && a.pendente_gravar) { delete a.pendente_gravar; writeFileSync(ARQ_ULTIMO, JSON.stringify(a)); }
+  } catch { /* sem arquivo, sem pendência */ }
+}
+/** Tentativa que comprovadamente não enviou nada devolve o arquivo ao que era. */
+function restaurarArquivoUltimo(prev) {
+  try {
+    if (!prev || !prev.ok) return;                       // não sei o que havia: deixo a marca nova (lado seguro)
+    if (prev.pendente) return;                           // com pendência o marcador não volta atrás
+    if (prev.ms === null) rmSync(ARQ_ULTIMO, { force: true });
+    else writeFileSync(ARQ_ULTIMO, JSON.stringify({ ms: prev.ms, canal: CANAL }));
+  } catch { /* na dúvida, a marca nova fica */ }
+}
+
+async function gravarToque(contatoId, listaId, produtoId, resultado, obs, semMarcador = false) {
   if (DRY) return;
-  await fetch(`${CFG.supa}/prospeccao_toques`, {
+  // Envio da fila fria: a hora vai para o disco ANTES do POST, para o piso valer mesmo se o banco estiver fora.
+  if (!semMarcador && resultado === 'enviei' && /^worker /.test(obs || '')) gravarArquivoUltimo(Date.now());
+  const r = await fetch(`${CFG.supa}/prospeccao_toques`, {
     method: 'POST', headers: { ...H, Prefer: 'return=minimal' },
     body: JSON.stringify({
       contato_id: contatoId, lista_id: listaId, produto_id: produtoId,
       consultor: CFG.consultor, resultado, valor: 0, obs,
     }),
   });
+  // 4xx e 5xx NÃO podem passar calados: toque que não gravou sai da conta do teto, do piso e da fila única.
+  if (!r.ok) throw new Error(`prospeccao_toques: ${r.status} ${(await r.text().catch(() => '')).slice(0, 120)}`);
 }
 
 // ═══ MENSAGEM ════════════════════════════════════════════════════════════════
@@ -317,8 +406,9 @@ async function enviarWhatsApp(aba, tel, msg) {
   // e apertava Enter uma vez: saía UM balão com todas as linhas grudadas, que no
   // WhatsApp é a cara de disparo. Cada linha do script vira um balão, com a
   // mesma pausa de gente que a resposta já usa.
-  const bolhas = String(msg).split(/\n+/).map(s => s.trim()).filter(Boolean);
-  const r = await mandarBolhas(aba, bolhas, 'whatsapp');
+  // 05/11/2026: abordagem fria é UMA mensagem (rajada de balões derrubou a linha
+  // 5040). As linhas viram quebra de linha DENTRO da mensagem (de 7e99c97b).
+  const r = await mandarUmaZap(aba, String(msg));
   // Conversa aberta na tela marca como lida o que chega. Fechar é o que deixa a
   // resposta aparecer como "não lida" pra responderZap() achar.
   await fecharConversaZap(aba);
@@ -472,6 +562,56 @@ async function lerConversa(aba, alvo, canal, quantas = 12) {
 }
 
 // ═══ BOCA: digitar as bolhas, uma mensagem por bolha ═════════════════════════
+// UMA MENSAGEM NO WHATSAPP, com as linhas dentro dela (03/10/2026).
+//
+// Duas lições do Instagram valem aqui:
+//   1. o Enter só envia com a janela EM FOCO, e a agente roda escondida
+//      (document.hasFocus() = false). Então o envio é CLIQUE no botão de
+//      enviar; o Enter fica de reserva.
+//   2. "caixa vazia" não prova envio. A prova é o balão nosso (.message-out)
+//      com a última linha do texto, procurado por até 20 s.
+// Quebra de linha dentro da mensagem é Shift+Enter. NADA DISTO FOI PROVADO COM
+// SESSÃO LOGADA: no primeiro dia do chip, conferir os primeiros envios por foto.
+async function mandarUmaZap(aba, msg) {
+  const CX = 'document.querySelector(\'' + SEL_CAIXA.whatsapp + '\')';
+  if (!await aba.esperar('!!' + CX, 20000)) return { ok: false, motivo: 'caixa de mensagem não apareceu' };
+  await aba.js(CX + '.focus()');
+  await dorme(500);
+  const linhas = msg.split(/\r?\n/);
+  for (let i = 0; i < linhas.length; i++) {
+    if (linhas[i]) await aba.digitar(linhas[i]);
+    if (i < linhas.length - 1) {
+      for (const type of ['keyDown', 'keyUp']) {
+        await aba.enviar('Input.dispatchKeyEvent',
+          { type, key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, modifiers: 8 });
+      }
+      await dorme(120);
+    }
+  }
+  await dorme(900);
+  const clicou = await aba.js(`(() => {
+    const b = document.querySelector('button[aria-label="Send"],button[aria-label="Enviar"],[data-icon="send"],[data-icon="wds-ic-send-filled"]');
+    const alvo = b && (b.closest('button,[role="button"]') || b);
+    if (alvo) { alvo.click(); return true; }
+    return false;
+  })()`);
+  if (!clicou) {
+    for (const type of ['keyDown', 'keyUp']) {
+      await aba.enviar('Input.dispatchKeyEvent', { type, key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    }
+  }
+  const ultima = msg.split(/\r?\n/).map(x => x.trim()).filter(Boolean).pop() || '';
+  const CONFERIR = `(() => {
+    const alvo = ${JSON.stringify(ultima.slice(0, 50))};
+    return [...document.querySelectorAll('.message-out')].some(e => (e.innerText || '').includes(alvo));
+  })()`;
+  for (let i = 0; i < 10; i++) {
+    if (await aba.js(CONFERIR).catch(() => false)) return { ok: true };
+    await dorme(2000);
+  }
+  return { ok: false, motivo: 'mensagem ficou na caixa — não saiu' };
+}
+
 // Uma bolha por Enter. Mandar tudo junto vira parede de texto — a cara de robô
 // que a casa evita em todos os outros agentes.
 async function mandarBolhas(aba, bolhas, canal) {
@@ -730,6 +870,14 @@ async function responderZap() {
     // A MESMA ORDEM DO INSTAGRAM (planoDeEnvio): fala, prova, link. Prova antes
     // do link faz a pessoa clicar já convencida.
     const link = v.mandar_link ? ((v.envio || [])[(v.bolhas || []).length] || null) : null;
+    // Antes de CADA resposta: o número logado ainda é o do chip?
+    const ccR = await contaDoChipOk();
+    if (!ccR.ok) {
+      log('  NÃO respondo: ' + ccR.motivo + '.');
+      zapLogado = false;
+      await fecharConversaZap(aba);
+      break;
+    }
     let env = await mandarBolhas(aba, v.bolhas || [], 'whatsapp');
     if (env.ok) for (const m of material) await mandarImagemZap(aba, m);
     if (env.ok && link) env = await mandarBolhas(aba, [link], 'whatsapp');
@@ -830,6 +978,10 @@ async function modoResponder() {
 
     if (DRY) { respondidas++; continue; }
 
+    if (CANAL === 'whatsapp') {
+      const ccR = await contaDoChipOk();
+      if (!ccR.ok) { log('  NÃO respondo: ' + ccR.motivo + '.'); break; }
+    }
     const env = await mandarBolhas(aba, v.envio, CANAL);
     if (!env.ok) { falhas++; log('  x ' + env.motivo); continue; }
     respondidas++;
@@ -877,6 +1029,80 @@ function alvoDoCanal(c) {
     && CELULAR.test(String(c.telefone || '').replace(/\D/g, ''));
 }
 
+// ═══ FILA ÚNICA ENTRE OS DOIS CANAIS ═════════════════════════════════════════
+// A view não conhece o outro canal, então o worker confere. A chave é a EMPRESA
+// (contato_id), não o telefone nem o @. Regras em ritmo.mjs/avaliarToques. Se a
+// consulta falhar, NÃO aborda: sem o histórico não dá para provar que é seguro.
+async function filaUnica(c) {
+  if (recusadosFila.has(c.id)) return { ok: false, motivo: 'já recusada nesta sessão' };
+  let toques;
+  try {
+    toques = await ler('prospeccao_toques?select=resultado,consultor,obs,criado_em&contato_id=eq.' + encodeURIComponent(c.id) + '&limit=100');
+  } catch (e) { return { ok: false, erro: e.message, motivo: 'não consegui ler o histórico de toques' }; }
+  const v = avaliarToques(toques, CANAL);
+  if (!v.ok) recusadosFila.add(c.id);
+  return v;
+}
+
+/** Última hora de envio desta conta no banco: { ok, ms }. ok=false é "não consegui ler". */
+async function ultimoEnvioNoBanco() {
+  try {
+    const u = await ler('prospeccao_toques?select=criado_em&consultor=eq.' + encodeURIComponent(CFG.consultor)
+      + '&resultado=eq.enviei&order=criado_em.desc&limit=1');
+    if (!u[0]) return { ok: true, ms: null };
+    const ms = Date.parse(u[0].criado_em);
+    return Number.isFinite(ms) ? { ok: true, ms } : { ok: false, ms: null };
+  } catch { return { ok: false, ms: null }; }
+}
+
+/** A decisão de ritmo (janela, piso, teto) — a regra mora em ritmo.mjs/decidirAbordagem, aqui só se lêem as fontes. */
+async function decidirAgora(restam) {
+  return decidirAbordagem({
+    agora: new Date(), cfg: CFG, restam,
+    banco: await ultimoEnvioNoBanco(), arquivo: lerArquivoUltimo(), pendente: pendenteAtual(),
+    bloqueio: { bloqueado: bloqueioAtivo() },
+  });
+}
+/** Ms que faltam para o piso (ignora janela e teto). */
+async function faltaDoPiso() {
+  return faltaPiso({ agoraMs: Date.now(), cfg: CFG, banco: await ultimoEnvioNoBanco(), arquivo: lerArquivoUltimo() });
+}
+
+/** O WhatsApp logado AGORA é o chip da prospecção? Confere a cada envio: o chip pode ser trocado no Chrome a qualquer hora. */
+async function contaDoChipOk() {
+  const s = await sessaoZap();
+  if (s.logado === false) return { ok: false, motivo: 'o WhatsApp está deslogado' };
+  if (s.logado !== true) return { ok: false, motivo: 'não consegui confirmar a sessão do WhatsApp' };
+  if (contaProibida(s.conta)) return { ok: false, motivo: 'o WhatsApp logado é a linha IO, o celular do dono, ou o número é ilegível' };
+  return { ok: true, conta: s.conta };
+}
+
+/** Envio incerto ("não saiu", ou estourou depois de tentar): grava como enviado, com a marca incerto, para contar no teto, no piso e na fila única. */
+async function gravarIncerto(contatoId, produtoId) {
+  if (DRY || !contatoId) return true;
+  const ok = await gravarComRetentativa(
+    () => gravarToque(contatoId, null, produtoId, 'enviei', `worker ${CANAL} incerto`, true),
+    { vezes: 3, esperaMs: 1500, dorme });
+  if (!ok) {
+    registrarPendente(contatoId, produtoId);
+    log('  NÃO consegui gravar o toque em 3 tentativas. PARO de abordar (Instagram e chip) até um toque gravar.');
+    await bater({ fazendo: 'PARADA: envio saiu mas o toque não gravou no banco', ultimo_erro: 'toque pendente de gravar' });
+  }
+  return ok;
+}
+
+/** 1ª coisa de cada abordagem: grava o toque pendente, se houver. true = nada pendente (ou gravou). */
+async function resolverPendente() {
+  const p = pendenteAtual();
+  if (!p) return true;
+  try {
+    await gravarToque(p.id, null, p.pid, 'enviei', `worker ${CANAL} incerto pendente`, true);
+  } catch (e) { log('  o toque pendente ainda não gravou (' + e.message + '); sigo parada de abordar'); return false; }
+  limparPendente();
+  log('  o toque pendente gravou. Volto a abordar.');
+  return true;
+}
+
 // ═══ UMA ABORDAGEM ═══════════════════════════════════════════════════════════
 // O modo contínuo manda UMA por rodada, não um lote. É o que espalha os toques
 // pelo dia inteiro em vez de despejar o teto numa hora só — e despejar numa
@@ -886,6 +1112,29 @@ function alvoDoCanal(c) {
 // acumula estado, memória e sessão velha. Custa 2 segundos e evita a classe
 // inteira de bug de "funcionava de manhã".
 async function umaAbordagem() {
+  // Zera o estado da tentativa ANTES de qualquer coisa que possa estourar: o catch do laço lê estas duas.
+  tentouEnviar = false;
+  alvoAtual = null;
+  // Bloqueio de conversa nova (memória ou arquivo): nenhuma abordagem fria, em nenhum caminho.
+  if (!DRY && bloqueioAtivo()) { log('canal bloqueado para conversa nova — não abordo.'); return 'vazio'; }
+  // 1ª coisa: tentar gravar um toque pendente. Com pendência, ninguém é abordado.
+  if (!DRY && !(await resolverPendente())) {
+    pisoFaltaMs = 120_000;
+    log('há um envio pendente de gravar no banco — não abordo ninguém até gravar.');
+    return 'piso';
+  }
+  // O piso e a janela valem a CADA abordagem, lidos do banco E do arquivo, e não só na partida:
+  // qualquer caminho que chegue aqui cedo demais é barrado antes de abrir perfil ou conversa.
+  if (!DRY) {
+    const dec = await decidirAgora();
+    if (!dec.enviar) {
+      pisoFaltaMs = dec.esperaMs;
+      log(dec.motivo === 'piso'
+        ? `piso de ${Math.round(CFG.minSeg / 60)} min: faltam ${Math.ceil(dec.esperaMs / 60000)} min para a próxima abordagem.`
+        : 'fora da janela de envio — não abordo.');
+      return dec.motivo === 'piso' ? 'piso' : 'vazio';
+    }
+  }
   // O WhatsApp filtra no banco: a view entrega 200 por vez, e sem o filtro os
   // 200 primeiros podem ser todos de @ ou de fixo, e ela acharia a fila vazia.
   const qFila = CANAL === 'whatsapp'
@@ -899,7 +1148,8 @@ async function umaAbordagem() {
     ler('prospeccao_produtos?select=*&ativo=eq.true&order=ordem.asc'),
   ]);
 
-  const alvos = fila.filter(alvoDoCanal);
+  const alvos = fila.filter(alvoDoCanal)
+    .filter(x => !caixaNaoAbriuEm.has(x.instagram) && !pularNaSessao.has(x.id) && !recusadosFila.has(x.id));
   if (!alvos.length) {
     log(CANAL === 'instagram'
       ? 'ninguém com @ na fila agora — vou procurar mais endereço'
@@ -907,7 +1157,15 @@ async function umaAbordagem() {
     return 'vazio';
   }
 
-  const c = alvos[0];
+  // Primeiro da fila que a regra da fila única libera (no máximo 40 consultas).
+  let c = null;
+  for (const cand of alvos.slice(0, 40)) {
+    const v = await filaUnica(cand);
+    if (v.erro) { log(`${v.motivo} — não abordo nesta rodada (${v.erro})`); return 'vazio'; }
+    if (v.ok) { c = cand; break; }
+    log(`  pulei ${cand.empresa}: ${v.motivo}`);
+  }
+  if (!c) { log('ninguém liberado pela regra da fila única agora'); return 'vazio'; }
   const pid = c.produto_da_lista || (produtos[0] && produtos[0].id);
   const prod = produtos.find(p => p.id === pid);
   const preco = prod ? `R$ ${Number(prod.preco).toLocaleString('pt-BR')}` : '';
@@ -919,19 +1177,43 @@ async function umaAbordagem() {
   console.log(msg.split('\n').map(l => '  │ ' + l).join('\n'));
   if (DRY) return 'enviou';
 
+  // WhatsApp: reconfere QUEM está logado imediatamente antes de CADA envio (não a cada N voltas).
+  if (CANAL === 'whatsapp') {
+    const cc = await contaDoChipOk();
+    if (!cc.ok) {
+      log(`  NÃO envio: ${cc.motivo}.`);
+      zapLogado = false;
+      await bater({ logado: false, fazendo: 'PARADA: ' + cc.motivo });
+      return 'vazio';
+    }
+  }
   let aba = null;
+  let prevArq = null;
   try {
     aba = CANAL === 'whatsapp' ? await zap() : await Aba.abrir(CFG.cdp);
+    // A hora da tentativa vai para o disco ANTES de digitar. Sem conseguir gravar, não envia.
+    prevArq = lerArquivoUltimo();
+    if (!gravarArquivoUltimo(Date.now())) return 'vazio';
+    alvoAtual = { id: c.id, pid };
+    tentouEnviar = true;   // daqui em diante a DM pode ter saído, mesmo que a função estoure
     const r = CANAL === 'instagram'
       ? await enviarInstagram(aba, c.instagram, msg)
       : await enviarWhatsApp(aba, c.telefone, msg);
     if (r.ok) {
       caixaNaoAbriu = 0;   // uma que sai limpa zera a suspeita
+      caixaNaoAbriuEm.clear();
       await gravarToque(c.id, null, pid, 'enviei', `worker ${CANAL}`);
       log('  ✓ enviado');
       return 'enviou';
     }
     log('  ✗ ' + r.motivo);
+    // Este contato sai da frente da fila nesta sessão (salvo página que não
+    // carregou ou sessão caída, que não são culpa dele).
+    if (!/perfil não carregou|deslogado/.test(r.motivo || '')) pularNaSessao.add(c.id);
+    // "Não saiu" não prova que não saiu (Rei da Energia, EJS Solar): conta como envio para o piso.
+    const incerto = /não saiu|ficou na caixa/.test(r.motivo || '');
+    if (incerto) await gravarIncerto(c.id, pid);     // conta no teto, no piso e na fila única
+    else restaurarArquivoUltimo(prevArq);             // comprovadamente nada saiu: o marcador volta ao que era
 
     // Falha passageira (página não carregou, rede caiu) NÃO vira toque: quem
     // não recebeu não pode sair da fila. Mas perfil que não existe mais é
@@ -953,7 +1235,10 @@ async function umaAbordagem() {
     // Insistir num bloqueio brando é o que o torna duro. Três seguidas e ela
     // para sozinha, avisa no pulso, e espera alguém conferir.
     if (CANAL === 'instagram' && /caixa de DM não abriu/.test(r.motivo)) {
-      caixaNaoAbriu++;
+      // Conta PERFIS DISTINTOS, que é o que a regra diz. O mesmo @ falhando três
+      // vezes não prova bloqueio da conta: prova que aquele perfil não abre.
+      caixaNaoAbriuEm.add(c.instagram);
+      caixaNaoAbriu = caixaNaoAbriuEm.size;
       if (caixaNaoAbriu >= 3 && !bloqueadaParaNovas) {
         log('');
         log('O INSTAGRAM PAROU DE DEIXAR ABRIR CONVERSA NOVA.');
@@ -963,6 +1248,7 @@ async function umaAbordagem() {
         await bater({ fazendo: 'PARADA: Instagram bloqueou conversa nova',
                       ultimo_erro: `compositor não abre em ${caixaNaoAbriu} perfis seguidos` });
         bloqueadaParaNovas = true;
+        gravarBloqueio(`compositor não abre em ${caixaNaoAbriu} perfis distintos seguidos`, caixaNaoAbriuEm);
       }
     }
     if (CANAL === 'instagram' && /não existe mais/.test(r.motivo)) {
@@ -985,7 +1271,7 @@ async function umaAbordagem() {
       zapLogado = false;
       await bater({ logado: false, fazendo: 'PARADA: o WhatsApp deslogou, precisa ler o QR' });
     }
-    return 'falhou';
+    return incerto ? 'incerto' : 'falhou';
   } finally {
     // A aba fixa do WhatsApp fica. Fechar e reabrir é recarregar o aplicativo.
     if (aba && aba !== abaZap) await aba.fechar();
@@ -1033,7 +1319,20 @@ const EU = `${process.pid}-${Date.now().toString(36)}`;
 // Quantos perfis seguidos recusaram abrir o compositor. Ver o comentario longo
 // em umaAbordagem(): e assim que a restricao de conversa nova se manifesta.
 let caixaNaoAbriu = 0;
-let bloqueadaParaNovas = false;
+/** @ cujo compositor não abriu nesta sessão: o bloqueio só vale com 3 PERFIS DISTINTOS. */
+const caixaNaoAbriuEm = new Set();
+/** Contatos que falharam nesta sessão: a fila entrega sempre o primeiro, e repetir o mesmo a cada 15 s é gesto de robô. */
+const pularNaSessao = new Set();
+/** Contatos que a regra da fila única recusou nesta sessão. */
+const recusadosFila = new Set();
+/** true entre "vou digitar/enviar" e o fim da tentativa: se estourar aí, a DM pode ter saído. */
+let tentouEnviar = false;
+/** O contato da tentativa em curso (para gravar o toque incerto se a função estourar). */
+let alvoAtual = null;
+/** Ms que faltavam para o piso quando umaAbordagem devolveu 'piso'. */
+let pisoFaltaMs = 0;
+// Na partida, o arquivo bloqueio-<canal>.json (se existir) já deixa o canal bloqueado para conversa NOVA.
+let bloqueadaParaNovas = lerBloqueio().bloqueado;
 // Sessão do WhatsApp na última conferência: true, false ou null (não deu pra afirmar).
 let zapLogado = null;
 
@@ -1531,10 +1830,8 @@ async function descobrir(aba) {
 // tarde. Isso é o oposto de metrônomo, que é o que denuncia robô.
 async function modoContinuo() {
   console.log('\n  MODO CONTÍNUO — trabalha sozinho das '
-    + (CFG.horaIni === 0 && CFG.horaFim === 24
-        ? '24 horas por dia, sem parar'
-        : CFG.horaIni + 'h às ' + (CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h')) + '.');
-  console.log('  Espalha o teto do dia ate a meia-noite, no maximo '
+    + 'ENVIA de segunda a sábado, das ' + CFG.horaIni + 'h às ' + CFG.horaFim + 'h (a lista é montada 24h).');
+  console.log('  Espalha o teto do dia até o fim da janela, de ' + Math.round(CFG.minSeg / 60) + ' a '
     + Math.round(CFG.tetoEspera / 60) + ' min entre uma e outra.');
   if (CANAL === 'instagram') {
     console.log('  Quem RESPONDE e o webhook da Meta, no servidor — nao este worker.');
@@ -1581,7 +1878,12 @@ async function modoContinuo() {
     } catch (e) { log('não consegui conferir se já tem outra rodando: ' + e.message); }
   }
 
-  let proximaAbordagem = 0;   // epoch em que pode mandar a próxima fria
+  // O piso de 45 min sobrevive a REINÍCIO: o laço do COMECAR religa o node a cada
+  // 60 s quando ele cai, e com proximaAbordagem = 0 cada religada mandava uma DM.
+  // Parte do último 'enviei' gravado no banco; se não consegue ler, espera o piso.
+  let proximaAbordagem = DRY ? 0 : Date.now() + await faltaDoPiso();   // banco E arquivo, vale a maior hora
+     // epoch em que pode mandar a próxima fria
+  if (!DRY && proximaAbordagem > Date.now()) log(`piso de ${Math.round(CFG.minSeg / 60)} min: a próxima abordagem só depois das ${new Date(proximaAbordagem).toLocaleTimeString('pt-BR')}.`);
   let semAlvo = false;
   let ciclo = 0;
   let ultimoErro = null;
@@ -1631,15 +1933,22 @@ async function modoContinuo() {
       });
 
       // ── 0. WHATSAPP: sem sessão, nada adiante funciona ─────────────────────
-      // Confere na 1a volta, a cada 20 (uns 50 min) e sempre que a última
-      // conferência não confirmou. Deslogada ela NÃO tenta mandar: cada
+      // Confere a CADA volta (e de novo antes de cada envio, em umaAbordagem): o chip
+      // pode ser trocado no Chrome, e responderZap() também envia. Deslogada ela NÃO tenta mandar: cada
       // tentativa viraria falha, falha vai pro próximo em 15s, e a fila inteira
       // seria queimada em meia hora sem nenhuma mensagem sair.
       if (CANAL === 'whatsapp') {
-        if (zapLogado !== true || ciclo % 20 === 0) {
+        {
           const s = await sessaoZap();
           zapLogado = s.logado;
-          if (s.logado === true) {
+          // Nunca pela linha IO (5040) nem pelo celular do dono. Sem conseguir ler
+          // o número, também não: não dá para provar que é o chip.
+          const proibida = s.logado === true && contaProibida(s.conta);
+          if (proibida) zapLogado = false;
+          if (proibida) {
+            log('ESTE WHATSAPP NÃO PODE PROSPECTAR (linha IO, celular do dono, ou número ilegível). Parei.');
+            await bater({ ciclo, logado: false, fazendo: 'PARADA: o WhatsApp logado não é o chip da prospecção' });
+          } else if (s.logado === true) {
             await bater({ ciclo, logado: true, conta: s.conta, ativo: true, fazendo: 'WhatsApp logado, trabalhando' });
           } else if (s.logado === false) {
             log('o WhatsApp está DESLOGADO. Espero alguém ler o QR (LIGAR-WHATSAPP.cmd).');
@@ -1655,17 +1964,8 @@ async function modoContinuo() {
         }
       }
 
-      // ── fora da janela: dorme até o próximo turno ──────────────────────────
-      if (h < CFG.horaIni || (CFG.horaFim < 24 && h >= CFG.horaFim)) {
-        const alvo = new Date();
-        if (h >= CFG.horaIni) alvo.setDate(alvo.getDate() + 1);
-        alvo.setHours(CFG.horaIni, 0, 0, 0);
-        const seg = Math.max(60, Math.floor((alvo - new Date()) / 1000));
-        log(`fora da janela — dormindo ${Math.round(seg / 60)} min, volto às ${CFG.horaIni}h`);
-        await dorme(seg * 1000);
-        proximaAbordagem = 0; semAlvo = false;
-        continue;
-      }
+      // A janela de 8h-21h (seg a sáb) vale só para ENVIAR (ver "2. ABORDAR").
+      // A lista continua sendo montada 24h.
 
       // ── 1. RESPONDER ──────────────────────────────────────────────────────
       // No Instagram isto NÃO roda mais: quem responde é o webhook da Meta, que
@@ -1679,8 +1979,11 @@ async function modoContinuo() {
       // No WhatsApp continua rodando: lá não existe webhook, e o navegador é o
       // único jeito de saber que alguém respondeu.
       if (CANAL === 'whatsapp') {
-        try { await responderZap(); }
-        catch (e) { log('rodada de resposta falhou: ' + e.message); }
+        // Responder também é enviar: só dentro da janela (8h às 21h, seg a sáb).
+        if (podeEnviar(new Date(), CFG)) {
+          try { await responderZap(); }
+          catch (e) { log('rodada de resposta falhou: ' + e.message); }
+        }
       }
 
       // ── 2. ABORDAR, se já passou o intervalo e ainda tem teto ─────────────
@@ -1690,12 +1993,18 @@ async function modoContinuo() {
         if (t.estado === 'travado') {
           log('DISJUNTOR ARMADO — opt-out alto. Paro de abordar; sigo só respondendo.');
           proximaAbordagem = Date.now() + 3600_000;   // reconfere de hora em hora
-        } else if (bloqueadaParaNovas) {
+        } else if (bloqueioAtivo()) {
         if (!semAlvo) {
           log('sigo parada de abordar: o Instagram ainda não deixa abrir conversa nova.');
           semAlvo = true;
         }
         proximaAbordagem = Date.now() + 3600_000;   // reconfere de hora em hora
+      } else if (!podeEnviar(new Date(), CFG)) {
+        if (!semAlvo) {
+          log(`fora da janela de envio (${CFG.horaIni}h–${CFG.horaFim}h, segunda a sábado). Sigo só construindo a lista.`);
+          semAlvo = true;
+        }
+        proximaAbordagem = Date.now() + 600_000;
       } else if (t.restam <= 0) {
           // TETO FECHADO NÃO É FIM DE EXPEDIENTE. O teto limita ENVIAR, não
           // trabalhar. Enquanto não pode mandar, ela constrói a lista de amanhã —
@@ -1709,7 +2018,21 @@ async function modoContinuo() {
           semAlvo = false;
           let desfecho = 'falhou';
           try { desfecho = await umaAbordagem(); }
-          catch (e) { log('abordagem falhou: ' + e.message); }
+          catch (e) {
+            log('abordagem falhou: ' + e.message);
+            // Estourou depois de tentar enviar: a DM pode ter saído, vale como envio.
+            if (tentouEnviar) {
+              desfecho = 'incerto';
+              // SEMPRE, antes de qualquer outra coisa: este contato sai da frente da fila.
+              if (alvoAtual) pularNaSessao.add(alvoAtual.id);
+              if (alvoAtual) await gravarIncerto(alvoAtual.id, alvoAtual.pid);   // se falhar 3x, vira pendência e para tudo
+              tentouEnviar = false;
+              alvoAtual = null;
+            }
+          }
+          // O PISO VALE JÁ, antes de qualquer leitura que possa falhar logo abaixo:
+          // se o travas() estourar, a volta seguinte não pode mandar outra DM em 30 s.
+          if (desfecho === 'enviou' || desfecho === 'incerto') proximaAbordagem = Date.now() + CFG.minSeg * 1000;
 
           // Três desfechos, três esperas:
           //   enviou  o dia inteiro dividido pelo que falta (ver abaixo)
@@ -1734,14 +2057,16 @@ async function modoContinuo() {
           // viram rajada.
           const t2 = await travas();
           let espera;
-          if (desfecho !== 'enviou') {
+          if (desfecho !== 'enviou' && desfecho !== 'incerto') {
             // "Imediatamente" com um respiro de 10 a 20s, não zero cravado.
             // Falhar ainda significa ter ABERTO um perfil, e perfil atrás de
             // perfil sem pausa nenhuma é exatamente a assinatura de raspador
             // que a conta não pode ter. 15s não atrasa o dia (são segundos numa
             // vaga que valeria 36 minutos) e apaga essa assinatura.
+            // REGRA 25: perfil que não abriu espera de 300 a 600 s (respiroAposFalha), não 10 a 20 s.
             espera = desfecho === 'falhou'
-              ? 10 + Math.floor(10 * ((Date.now() % 997) / 997))
+              ? respiroAposFalha((Date.now() % 997) / 997)
+              : desfecho === 'piso' ? Math.max(60, Math.ceil(pisoFaltaMs / 1000))
               : 900;
           } else {
             // O PRAZO É A MEIA-NOITE DE HOJE, não "daqui a 24 horas".
@@ -1755,19 +2080,15 @@ async function modoContinuo() {
             // o prazo tem que ser o fim desse dia. Assim a conta se conserta
             // sozinha: se ela atrasar, sobra menos tempo pro mesmo tanto de
             // mensagem e o intervalo encurta até dar.
-            const fim = new Date();
-            fim.setHours(24, 0, 0, 0);   // meia-noite de hoje, no relógio daqui
-            const sobramSeg = Math.max(60, Math.floor((fim - new Date()) / 1000));
-            const sobramMsg = Math.max(1, t2.restam);
-            const ideal = Math.floor(sobramSeg / sobramMsg);
-            // +-25% pra não sair de metrônomo, que é o outro jeito de parecer robô
+            // +-25% pra não sair de metrônomo. O piso (2700 s) é a operação mais
+            // externa em calcularEspera(): nenhum teto de espera o fura.
             const jitter = 0.75 + 0.5 * ((Date.now() % 1013) / 1013);
-            // TETO no espaçamento, senão a conta cai no extremo oposto: com 6
-            // mensagens e 20 horas pela frente daria 3h20 entre uma e outra, e
-            // aí qualquer queda de 4 horas queima os slots do dia inteiro.
-            // 45 min espalha as 6 por umas 4 horas: nem rajada, nem gotejamento.
-            espera = Math.min(CFG.tetoEspera, Math.max(CFG.minSeg, Math.floor(ideal * jitter)));
+            espera = calcularEspera({ agora: new Date(), cfg: CFG, restam: t2.restam, jitter });
           }
+          // A ESPERA TEM QUE SER APLICADA. Até 05/11/2026 ela só ia para o log: a
+          // variável proximaAbordagem não recebia o valor, e em 09/10 saíram 12 DMs
+          // em 41 min com o log dizendo "próxima em 94 min".
+          proximaAbordagem = Date.now() + espera * 1000;
           log(`${t2.usados}/${t2.teto} abordagens · ${t2.respostas} respostas hoje`
             + ` · próxima abordagem em ${Math.round(espera / 60)} min`);
           ultimoErro = null;   // uma volta inteira sem tropeço limpa o histórico
@@ -1814,20 +2135,42 @@ async function main() {
   console.log(`║  ${(MODO === 'responder' ? 'RESPONDENDO' : 'ABORDANDO').padEnd(11)} · ${CANAL.toUpperCase().padEnd(9)} ${(DRY ? 'ENSAIO (não envia)' : 'ENVIANDO DE VERDADE').padEnd(19)}║`);
   console.log('╚══════════════════════════════════════════════════════════╝\n');
 
-  if (MODO === 'responder') return await modoResponder();
+  if (MODO === 'responder') {
+    // Responder também é enviar: janela de 8h-21h (seg a sáb) e conta do chip conferidas antes de começar.
+    if (!DRY && !podeEnviar(new Date(), CFG)) {
+      log(`fora da janela de envio (${CFG.horaIni}h–${CFG.horaFim}h, segunda a sábado). Não respondo agora.`);
+      return;
+    }
+    if (!DRY && CANAL === 'whatsapp') {
+      const cc = await contaDoChipOk();
+      if (!cc.ok) { log('NÃO respondo: ' + cc.motivo + '.'); return; }
+    }
+    return await modoResponder();
+  }
   if (MODO === 'continuo')  return await modoContinuo();
 
   const t0 = await travas();
   log(`conta ${CFG.consultor} · assina como "${CFG.assinatura}" · teto ${t0.usados}/${t0.teto} · opt-out ${t0.taxa}% (${t0.estado})`);
   if (t0.porque) log(`  ${t0.porque}`);
-  log('  janela ' + (CFG.horaIni === 0 && CFG.horaFim === 24
-    ? '24h por dia' : `${CFG.horaIni}h–${CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h'}`));
+  log(`  janela de envio ${CFG.horaIni}h–${CFG.horaFim}h, segunda a sábado`);
+  if (!DRY) {
+    const falta = await faltaDoPiso();
+    if (falta > 0) { log(`piso de ${Math.round(CFG.minSeg / 60)} min: volte em ${Math.ceil(falta / 60000)} min.`); return; }
+  }
   if (t0.estado === 'travado') {
     log('DISJUNTOR ARMADO — a fila está travada por opt-out alto. Nada será enviado.');
     log('Troque a abertura e recomece por uma lista nova antes de voltar.');
     return;
   }
   if (t0.restam <= 0 && !DRY) { log('teto do dia já atingido. Volte amanhã — a rampa continua.'); return; }
+  if (!DRY && bloqueioAtivo()) { log('canal bloqueado para conversa nova (bloqueio-' + CANAL + '.json). Não abordo.'); return; }
+  if (!DRY && !(await resolverPendente())) { log('há um envio pendente de gravar no banco — não abordo ninguém até gravar.'); return; }
+  // WhatsApp: confere QUEM está logado antes de começar (e de novo antes de cada envio, abaixo).
+  if (!DRY && CANAL === 'whatsapp') {
+    const cc = await contaDoChipOk();
+    if (!cc.ok) { log('NÃO envio: ' + cc.motivo + '.'); return; }
+    log('  conta do WhatsApp conferida: não é a linha IO nem o celular do dono.');
+  }
 
   const [fila, scripts, alegacoes, produtos] = await Promise.all([
     ler('prospeccao_fila_worker?select=*&limit=200'),
@@ -1849,7 +2192,7 @@ async function main() {
     try { aba = await Aba.abrir(CFG.cdp); }
     catch (e) {
       log('NÃO CONSEGUI FALAR COM O CHROME:', e.message);
-      log('Suba o Chrome com --remote-debugging-port=9222 e um --user-data-dir próprio.');
+      log('Suba o Chrome com --remote-debugging-port=' + new URL(CFG.cdp).port + ' e um --user-data-dir próprio.');
       log('Enquanto isso, "node worker.mjs --dry" funciona e mostra tudo que sairia.');
       return;
     }
@@ -1864,11 +2207,12 @@ async function main() {
     if (t.estado === 'travado') { log('DISJUNTOR ARMOU no meio da fila — parando.'); break; }
     if (!DRY && t.restam <= 0)  { log(`teto do dia atingido (${t.teto}). Parando.`); break; }
 
-    const h = new Date().getHours();
-    if (h < CFG.horaIni || (CFG.horaFim < 24 && h >= CFG.horaFim)) {
-      log(`fora da janela (${CFG.horaIni}h–${CFG.horaFim}h). Parando.`); break;
+    if (!DRY && !podeEnviar(new Date(), CFG)) {
+      log(`fora da janela de envio (${CFG.horaIni}h–${CFG.horaFim}h, segunda a sábado). Parando.`); break;
     }
 
+    const vf = await filaUnica(c);
+    if (!vf.ok) { log(`  pulei ${c.empresa}: ${vf.motivo}`); if (vf.erro) break; continue; }
     const pid = c.produto_da_lista || (produtos[0] && produtos[0].id);
     const prod = produtos.find(p => p.id === pid);
     const preco = prod ? `R$ ${Number(prod.preco).toLocaleString('pt-BR')}` : '';
@@ -1881,17 +2225,34 @@ async function main() {
 
     if (DRY) { enviados++; continue; }
 
+    // Antes de CADA envio: conta do chip, piso (banco + arquivo) e marcador local.
+    if (CANAL === 'whatsapp') {
+      const cc = await contaDoChipOk();
+      if (!cc.ok) { log('NÃO envio: ' + cc.motivo + '. Parando.'); break; }
+    }
+    const decA = await decidirAgora();
+    if (!decA.enviar) { log(`parando: ${decA.motivo === 'piso' ? 'piso de 45 min' : decA.motivo}.`); break; }
+    const prevArq = lerArquivoUltimo();
+    if (!gravarArquivoUltimo(Date.now())) { log('não consegui gravar o marcador local de envio — parando.'); break; }
     const r = CANAL === 'instagram'
       ? await enviarInstagram(aba, c.instagram, msg)
       : await enviarWhatsApp(aba, c.telefone, msg);
 
     if (r.ok) {
       enviados++;
-      await gravarToque(c.id, null, pid, 'enviei', `worker ${CANAL}`);
+      try {
+        await gravarToque(c.id, null, pid, 'enviei', `worker ${CANAL}`);
+      } catch (e) {
+        // A DM saiu e o toque não gravou: vira pendência, para o teto e a fila única enxergarem.
+        log(`  ! toque não gravou (${e?.message || e}); registrando como incerto`);
+        await gravarIncerto(c.id, pid);
+      }
       log(`  ✓ enviado (${enviados})`);
     } else {
       falhas++;
       log(`  ✗ ${r.motivo}`);
+      if (/não saiu|ficou na caixa/.test(r.motivo || '')) await gravarIncerto(c.id, pid);
+      else restaurarArquivoUltimo(prevArq);
       // Falha NÃO vira toque: gravar "enviei" pra mensagem que não saiu faria a
       // pessoa sumir da fila sem nunca ter sido falada.
       if (falhas >= 5) { log('5 falhas seguidas — algo mudou na página ou a sessão caiu. Parando.'); break; }
@@ -1905,15 +2266,10 @@ async function main() {
     // Com janela de 24h nao existe "fim do expediente": o horizonte e sempre as
     // proximas 24h. Sem isto, as 23h50 ela acharia que sobram 10 minutos pra
     // gastar o teto inteiro e despejaria tudo de uma vez.
-    const fimJanela = new Date();
-    if (CFG.horaIni === 0 && CFG.horaFim === 24) fimJanela.setTime(Date.now() + 86400_000);
-    else fimJanela.setHours(CFG.horaFim, 0, 0, 0);
-    const sobramSeg = Math.max(60, Math.floor((fimJanela - new Date()) / 1000));
     const sobramMsg = Math.max(1, (await travas()).restam);
-    const ideal = Math.floor(sobramSeg / sobramMsg);
     const jitter = 0.75 + 0.5 * ((Date.now() % 1013) / 1013);   // +-25%, nunca ritmo de metronomo
-    const espera = Math.min(CFG.maxSeg, Math.max(CFG.minSeg, Math.floor(ideal * jitter)));
-    log(`  aguardando ${espera}s (${sobramMsg} restantes em ${Math.floor(sobramSeg/60)} min de janela)`);
+    const espera = calcularEspera({ agora: new Date(), cfg: CFG, restam: sobramMsg, jitter });
+    log(`  aguardando ${espera}s (${sobramMsg} restantes; piso ${CFG.minSeg}s)`);
     await dorme(espera * 1000);
   }
 

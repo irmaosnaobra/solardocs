@@ -6,3 +6,11 @@ whatsapp-ligado.flag
 qr-aberto.flag
 chrome-visivel.flag
 vigia-chrome-faltas.txt
+
+# Estado local do worker (nao versionar): hora do ultimo envio por canal e marcas do Chrome do WhatsApp.
+ultimo-envio-*.json
+chrome-visivel-wa.flag
+vigia-chrome-faltas-wa.txt
+qr-aberto-instagram.flag
+# Bloqueio de conversa nova do canal (estado local, criado pelo worker ou à mão).
+bloqueio-*.json

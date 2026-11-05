@@ -18,12 +18,20 @@
 #                                      min, pra logar no Instagram ou ler o QR
 #                                      do WhatsApp. Depois o vigia esconde de novo.
 # ═════════════════════════════════════════════════════════════════════════════
-param([switch]$Mostrar)
+param([switch]$Mostrar, [ValidateSet('instagram','whatsapp')][string]$Canal = 'instagram')
 $ErrorActionPreference = 'Stop'
 
-$porta        = 9222
-$perfil       = Join-Path $env:USERPROFILE '.chrome-prospeccao'
-$marcaVisivel = Join-Path $PSScriptRoot 'chrome-visivel.flag'
+# Cada canal tem o SEU Chrome: Instagram na 9222 (perfil .chrome-prospeccao) e o
+# WhatsApp do chip na 9223 (perfil .chrome-wa-prospeccao). O nome do perfil do
+# WhatsApp NAO contem "chrome-prospeccao" de proposito: os filtros do vigia e
+# deste script casam pelo nome do perfil, e um nome que contivesse o do outro
+# fecharia o Chrome errado.
+$wa           = ($Canal -eq 'whatsapp')
+$porta        = if ($wa) { 9223 } else { 9222 }
+$nomePerfil   = if ($wa) { '.chrome-wa-prospeccao' } else { '.chrome-prospeccao' }
+$perfil       = Join-Path $env:USERPROFILE $nomePerfil
+$padraoPerfil = '*' + $nomePerfil + '*'
+$marcaVisivel = Join-Path $PSScriptRoot $(if ($wa) { 'chrome-visivel-wa.flag' } else { 'chrome-visivel.flag' })
 $mesa         = 'AgenteProspeccao'
 
 $chrome = @("${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
@@ -45,11 +53,11 @@ $flags = @(
   '--disable-backgrounding-occluded-windows',
   '--js-flags=--max-old-space-size=512'
 )
-$inicio = 'https://www.instagram.com/'
+$inicio = if ($wa) { 'https://web.whatsapp.com/' } else { 'https://www.instagram.com/' }
 
 function FecharChromeDaAgente {
   Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-    Where-Object { $_.CommandLine -like '*chrome-prospeccao*' } |
+    Where-Object { $_.CommandLine -like $padraoPerfil } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
   Start-Sleep -Seconds 3
 }
@@ -63,7 +71,7 @@ if ($Mostrar -or $marcaValendo) {
     FecharChromeDaAgente
   }
   Start-Process $chrome -ArgumentList ($flags + $inicio)
-  Write-Output 'Chrome da agente aberto NA TELA por ate 30 minutos.'
+  Write-Output "Chrome da agente ($Canal) aberto NA TELA por ate 30 minutos."
   exit 0
 }
 
@@ -98,4 +106,4 @@ public class MesaDaAgente {
 
 $linha = '"' + $chrome + '" ' + ($flags -join ' ') + ' ' + $inicio
 $pidChrome = [MesaDaAgente]::Abrir($mesa, $chrome, $linha)
-Write-Output "Chrome da agente aberto na area de trabalho escondida (PID $pidChrome)."
+Write-Output "Chrome da agente ($Canal, porta $porta) aberto na area de trabalho escondida (PID $pidChrome)."

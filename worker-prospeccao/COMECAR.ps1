@@ -51,8 +51,16 @@ try {
   $seguraAcordado = ($r -ne 0)
 } catch { $seguraAcordado = $false }
 Set-Location $PSScriptRoot
-$porta  = 9222
-$perfil = Join-Path $env:USERPROFILE '.chrome-prospeccao'
+# Cada canal tem o SEU Chrome: Instagram na 9222 (perfil .chrome-prospeccao) e o
+# WhatsApp do chip na 9223 (perfil .chrome-wa-prospeccao). Rodam juntos sem
+# disputar a porta. O nome do perfil do WhatsApp nao contem o do Instagram, senao
+# o filtro por nome de perfil acharia o Chrome do outro.
+$porta        = if ($canal -eq 'whatsapp') { 9223 } else { 9222 }
+$nomePerfil   = if ($canal -eq 'whatsapp') { '.chrome-wa-prospeccao' } else { '.chrome-prospeccao' }
+$perfil       = Join-Path $env:USERPROFILE $nomePerfil
+$padraoPerfil = '*' + $nomePerfil + '*'
+# O worker.mjs, o checar-sessao.mjs e o ligar-whatsapp.mjs leem esta variavel.
+$env:CHROME_CDP = "http://127.0.0.1:$porta"
 $log    = Join-Path $PSScriptRoot $(if ($canal -eq 'whatsapp') { 'AGENTE-whatsapp.log' } else { 'AGENTE.log' })
 try { Stop-Transcript | Out-Null } catch { }
 try { Start-Transcript -Path $log -Force -Append | Out-Null } catch { }
@@ -83,7 +91,7 @@ Write-Host ''
 # responder, e abrir outro por cima so empilha janela na frente de quem usa o
 # computador. Se o processo dele existe, espera ate 90s antes de concluir.
 $navegadorExiste = @(Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-  Where-Object { $_.CommandLine -like '*chrome-prospeccao*' -and $_.CommandLine -notlike '*--type=*' }).Count -gt 0
+  Where-Object { $_.CommandLine -like $padraoPerfil -and $_.CommandLine -notlike '*--type=*' }).Count -gt 0
 if ($navegadorExiste -and -not (Porta)) {
   Write-Host '  [1/3] O Chrome da agente existe mas esta lento. Espero ate 90s...' -ForegroundColor Yellow
   foreach ($i in 1..30) { Start-Sleep -Seconds 3; if (Porta) { break } }
@@ -95,7 +103,7 @@ if (Porta) {
   # Numa area de trabalho escondida do Windows: ela e um robo, e janela de robo
   # na frente de quem usa o computador e defeito (14/09, "o Instagram fica
   # abrindo toda hora"). Os cortes de memoria moram no abrir-chrome-agente.ps1.
-  $saida = (& (Join-Path $PSScriptRoot 'abrir-chrome-agente.ps1') 2>&1) -join ' '
+  $saida = (& (Join-Path $PSScriptRoot 'abrir-chrome-agente.ps1') -Canal $canal 2>&1) -join ' '
   Write-Host "        $saida" -ForegroundColor DarkGray
   foreach ($i in 1..40) { Start-Sleep -Milliseconds 700; if (Porta) { break } }
   if (-not (Porta)) { Parar 'O Chrome abriu mas a porta nao respondeu. Feche TODAS as janelas do Chrome e clique aqui de novo.' }
@@ -150,7 +158,8 @@ if ($valendo) {
 }
 Write-Host ''
 Write-Host "  Conta:  $env:CONSULTOR   (assina como $env:NOME)"
-Write-Host '  Janela: 24 horas por dia (o teto do dia e que limita, nao o relogio)'
+Write-Host '  Janela: ENVIA de segunda a sabado, das 8h as 21h (a lista e montada 24h). Piso de 45 min entre envios.'
+Write-Host "  Chrome: porta $porta, perfil $nomePerfil"
 Write-Host '  Radar:  https://solardoc.app/gerador/radar/' -ForegroundColor Cyan
 Write-Host ''
 Write-Host '  DEIXE ESTA JANELA ABERTA. Ctrl+C para parar.' -ForegroundColor Yellow

@@ -20,14 +20,15 @@ import { createHash } from 'node:crypto';
 import { writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const CDP   = process.env.CHROME_CDP || 'http://127.0.0.1:9222';
+// O WhatsApp do chip tem o seu Chrome: porta 9223, perfil .chrome-wa-prospeccao.
+const CDP   = process.env.CHROME_CDP || 'http://127.0.0.1:9223';
 const SUPA  = 'https://ancecdfqfwlaujknizof.supabase.co/rest/v1';
 const KEY   = process.env.SUPA_KEY || 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
 const MARCA = fileURLToPath(new URL('./whatsapp-ligado.flag', import.meta.url));
 // Enquanto existem, o vigia não esconde o Chrome: o QR precisa ficar na tela.
 // Somem ao fechar a aba (e vencem sozinhas, 15 e 30 min).
 const MARCA_QR = fileURLToPath(new URL('./qr-aberto.flag', import.meta.url));
-const MARCA_VISIVEL = fileURLToPath(new URL('./chrome-visivel.flag', import.meta.url));
+const MARCA_VISIVEL = fileURLToPath(new URL('./chrome-visivel-wa.flag', import.meta.url));
 const ABRIR = fileURLToPath(new URL('./abrir-chrome-agente.ps1', import.meta.url));
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
 
@@ -46,7 +47,7 @@ async function main() {
   // vigia devolve o Chrome pro escondido.
   writeFileSync(MARCA_QR, new Date().toISOString());
   diga('Trazendo o Chrome da agente pra tela...');
-  spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ABRIR, '-Mostrar'], { stdio: 'ignore' });
+  spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ABRIR, '-Mostrar', '-Canal', 'whatsapp'], { stdio: 'ignore' });
   let pronto = false;
   for (let i = 0; i < 60 && !pronto; i++) {
     try { await (await fetch(CDP + '/json/version')).json(); pronto = true; }

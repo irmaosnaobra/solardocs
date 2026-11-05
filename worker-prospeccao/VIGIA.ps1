@@ -20,8 +20,6 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8; chcp 65001 | Out-Null }
 $ErrorActionPreference = 'Continue'
 
 $pasta  = $PSScriptRoot
-$porta  = 9222
-$perfil = Join-Path $env:USERPROFILE '.chrome-prospeccao'
 $diario = Join-Path $pasta 'vigia.log'
 
 function Anotar($msg) {
@@ -30,6 +28,16 @@ function Anotar($msg) {
   try { Add-Content -Path $diario -Value $linha -Encoding UTF8 } catch { }
 }
 
+# Um Chrome por canal: Instagram na 9222 (perfil .chrome-prospeccao) e WhatsApp do
+# chip na 9223 (perfil .chrome-wa-prospeccao). O nome de um NAO contem o do outro,
+# entao o filtro por nome de perfil nunca fecha o Chrome errado. As marcas e o
+# contador de faltas tambem sao separados (sufixo -wa).
+function ChromeDoCanal([string]$canal) {
+  $wa      = ($canal -eq 'whatsapp')
+  $porta   = if ($wa) { 9223 } else { 9222 }
+  $nome    = if ($wa) { '.chrome-wa-prospeccao' } else { '.chrome-prospeccao' }
+  $padrao  = '*' + $nome + '*'
+  $sufixo  = if ($wa) { '-wa' } else { '' }
 # ── 1. o Chrome dela esta de pe? ─────────────────────────────────────────────
 # LENTO NAO E MORTO. Ate 14/09 este passo matava o Chrome se a porta nao
 # respondesse em 5 segundos e abria outro. Com a maquina a 0,3 GB livres o
@@ -40,19 +48,19 @@ function Anotar($msg) {
 # Agora: sem processo do Chrome dela, sobe (escondido). Com processo e porta
 # muda, conta uma falta e nao mexe. So fecha depois de 3 faltas seguidas (uns 6
 # minutos travado) e nunca um Chrome aberto ha menos de 10 minutos.
-$faltasArq = Join-Path $pasta 'vigia-chrome-faltas.txt'
+$faltasArq = Join-Path $pasta "vigia-chrome-faltas$sufixo.txt"
 $chromeVivo = $false
 try { Invoke-RestMethod "http://127.0.0.1:$porta/json/version" -TimeoutSec 15 | Out-Null; $chromeVivo = $true } catch { }
 
 $navegador = @(Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-  Where-Object { $_.CommandLine -like '*chrome-prospeccao*' -and $_.CommandLine -notlike '*--type=*' })
+  Where-Object { $_.CommandLine -like $padrao -and $_.CommandLine -notlike '*--type=*' })
 
 $subir = $false
 if ($chromeVivo) {
   if (Test-Path $faltasArq) { Remove-Item $faltasArq -Force -ErrorAction SilentlyContinue }
 }
 elseif ($navegador.Count -eq 0) {
-  Anotar 'o Chrome dela nao esta aberto. Subindo escondido.'
+  Anotar "[$canal] o Chrome dela nao esta aberto. Subindo escondido."
   $subir = $true
 }
 else {
@@ -60,9 +68,9 @@ else {
   try { $faltas = [int](Get-Content $faltasArq -ErrorAction Stop | Select-Object -First 1) + 1 } catch { }
   $idadeMin = [int]((Get-Date) - $navegador[0].CreationDate).TotalMinutes
   if ($faltas -ge 3 -and $idadeMin -ge 10) {
-    Anotar "o Chrome dela existe mas nao responde ha $faltas rodadas. Travado: fechando e subindo de novo."
+    Anotar "[$canal] o Chrome dela existe mas nao responde ha $faltas rodadas. Travado: fechando e subindo de novo."
     Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-      Where-Object { $_.CommandLine -like '*chrome-prospeccao*' } |
+      Where-Object { $_.CommandLine -like $padrao } |
       ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Seconds 3
     Remove-Item $faltasArq -Force -ErrorAction SilentlyContinue
@@ -70,7 +78,7 @@ else {
   }
   else {
     Set-Content -Path $faltasArq -Value $faltas
-    Anotar "o Chrome dela esta lento (falta $faltas de 3, aberto ha $idadeMin min). Nao mexo."
+    Anotar "[$canal] o Chrome dela esta lento (falta $faltas de 3, aberto ha $idadeMin min). Nao mexo."
   }
 }
 
@@ -83,8 +91,8 @@ else {
 # Se ele estiver na SUA tela e porque alguem pediu pra ver (MOSTRAR-CHROME,
 # LIGAR-WHATSAPP) ou porque subiu pelo caminho velho. Vencida a marca, volta
 # pro escondido sozinho.
-$marcaVisivel = Join-Path $pasta 'chrome-visivel.flag'
-$marcaQr      = Join-Path $pasta 'qr-aberto.flag'
+$marcaVisivel = Join-Path $pasta "chrome-visivel$sufixo.flag"
+$marcaQr      = Join-Path $pasta $(if ($wa) { 'qr-aberto.flag' } else { 'qr-aberto-instagram.flag' })
 function Recente([string]$arq, [int]$min) {
   (Test-Path $arq) -and (((Get-Date) - (Get-Item $arq).LastWriteTime).TotalMinutes -lt $min)
 }
@@ -103,7 +111,7 @@ public class TelaDoVigia {
   # EnumWindows so enxerga a area de trabalho de quem pergunta, que e a da tela.
   # Chrome escondido nao aparece aqui nem que queira.
   $pidsAgente = @(Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-    Where-Object { $_.CommandLine -like '*chrome-prospeccao*' } | ForEach-Object { [uint32]$_.ProcessId })
+    Where-Object { $_.CommandLine -like $padrao } | ForEach-Object { [uint32]$_.ProcessId })
   $naTela = New-Object System.Collections.ArrayList
   [TelaDoVigia]::EnumWindows({ param($h, $l)
     if ([TelaDoVigia]::IsWindowVisible($h)) {
@@ -113,9 +121,9 @@ public class TelaDoVigia {
     }
     $true }, [IntPtr]::Zero) | Out-Null
   if ($naTela.Count -gt 0) {
-    Anotar "o Chrome dela esta na SUA tela ($($naTela.Count) janela). Passando pra area de trabalho escondida."
+    Anotar "[$canal] o Chrome dela esta na SUA tela ($($naTela.Count) janela). Passando pra area de trabalho escondida."
     Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-      Where-Object { $_.CommandLine -like '*chrome-prospeccao*' } |
+      Where-Object { $_.CommandLine -like $padrao } |
       ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Seconds 3
     Remove-Item $marcaVisivel -Force -ErrorAction SilentlyContinue
@@ -124,9 +132,15 @@ public class TelaDoVigia {
 }
 
 if ($subir) {
-  $saida = (& (Join-Path $pasta 'abrir-chrome-agente.ps1') 2>&1) -join ' '
+  $saida = (& (Join-Path $pasta 'abrir-chrome-agente.ps1') -Canal $canal 2>&1) -join ' '
   Anotar $saida
 }
+
+}
+
+ChromeDoCanal 'instagram'
+# O Chrome do WhatsApp so interessa depois que o LIGAR-WHATSAPP leu o QR.
+if (Test-Path (Join-Path $pasta 'whatsapp-ligado.flag')) { ChromeDoCanal 'whatsapp' }
 
 # ── 2 e 3. cada agente de pe, e so uma de cada ───────────────────────────────
 # Sao duas identidades: a do Instagram (sempre) e a do WhatsApp (so depois que

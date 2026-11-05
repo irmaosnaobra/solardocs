@@ -18,6 +18,9 @@
    Roda pela tarefa do Windows as 07h e as 18h.
    ───────────────────────────────────────────────────────────────────────────── */
 
+import { rmSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 const CFG = {
   cdp: process.env.CHROME_CDP || 'http://127.0.0.1:9222',
   supa: 'https://ancecdfqfwlaujknizof.supabase.co/rest/v1',
@@ -119,6 +122,8 @@ async function main() {
 
   // ── destravou ──────────────────────────────────────────────────────────────
   log('DESTRAVOU! A caixa de mensagem voltou a abrir em perfil novo.');
+  // O worker nasce bloqueado se existir bloqueio-instagram.json: o teste que PASSA é quem o apaga.
+  try { rmSync(fileURLToPath(new URL('./bloqueio-instagram.json', import.meta.url)), { force: true }); log('bloqueio-instagram.json apagado: o worker pode voltar a abordar no próximo reinício.'); } catch (e) { log('não consegui apagar bloqueio-instagram.json: ' + e.message); }
 
   const rampa = await ler(`prospeccao_rampa?select=teto_manual&consultor=eq.${encodeURIComponent(CFG.consultor)}`);
   if ((rampa[0]?.teto_manual ?? null) === 0) {
