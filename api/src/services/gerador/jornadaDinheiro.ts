@@ -91,13 +91,16 @@ export interface ObraLanc {
   compra_id: string | null;
   carga_id: string | null;
 }
-export type LancamentoObraSemSig = Omit<Lancamento, 'ja_foi_saida' | 'obra' | 'sig'> & { obra: ObraLanc };
+/** Quem mudou a marca de conferência da linha, quando e de quê para quê (a linha é reassinada; nada se apaga). */
+export interface AlteracaoObra { em: string; por: string; de: string; para: string }
+export type LancamentoObraSemSig = Omit<Lancamento, 'ja_foi_saida' | 'obra' | 'sig' | 'alteracoes'> & { obra: ObraLanc; alteracoes: AlteracaoObra[] };
 export type LancamentoObra = LancamentoObraSemSig & { sig: string };
 
 export const ID_VINCULO = /^[A-Za-z0-9-]{3,40}$/;
 const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null);
 const txt = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max) : '');
 const inteiro = (v: unknown, min: number, max: number): number | null => (typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max ? v : null);
+const lista = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const tem = (m: Record<string, string>, k: string): boolean => Object.prototype.hasOwnProperty.call(m, k);
 
 /** O id fixo do estorno (D4): o segundo estorno da mesma linha bate no 23505 e vira 409. */
@@ -167,7 +170,9 @@ export function normalizarLancamentoObra(card: number, value: unknown): Lancamen
     descricao: txt(v.descricao, MAX_DESCRICAO), contraparte: txt(v.contraparte, MAX_CONTRAPARTE), id_transacao: txt(v.id_transacao, MAX_ID_TRANSACAO),
     arquivo: arquivoNormal(v.arquivo), origem: v.origem === 'ia' ? 'ia' : 'manual', lido_pela_ia: lidoNormal(v.lido_pela_ia),
     criado_por: nomeSimples(txt(v.criado_por, 60)).slice(0, 60), criado_em: txt(v.criado_em, 40),
-    alteracoes: [], apagado: false, apagado_por: '', apagado_em: '', motivo_apagado: '',
+    alteracoes: lista(v.alteracoes).map((a) => obj(a)).filter((a): a is Record<string, unknown> => !!a && typeof a.em === 'string' && typeof a.por === 'string')
+      .map((a) => ({ em: txt(a.em, 40), por: nomeSimples(txt(a.por, 60)).slice(0, 60), de: txt(a.de, 30), para: txt(a.para, 30) })).slice(-10),
+    apagado: false, apagado_por: '', apagado_em: '', motivo_apagado: '',
     obra,
   };
 }
@@ -389,6 +394,8 @@ export interface Pendencia {
   tipo: 'comissao' | 'engenheiro' | 'compra' | 'equipe' | 'frete'; texto: string; valor_centavos: number | null; etapa: number;
   /** Comissão paga a mais que a devida (a venda foi corrigida para baixo): o valor é o que falta DEVOLVER e não soma no "a pagar". */
   devolver?: boolean;
+  /** Só na pendência de comissão: de quem VENDEU (custo) ou do sócio (retirada, que só o ADM e a Giovanna veem). */
+  papel?: 'venda' | 'socio';
 }
 
 export interface EntradaLivro {
@@ -513,11 +520,11 @@ export function livroDaObra(e: EntradaLivro): Livro {
       const papel = r.papel === 'venda' ? `venda ${pbTexto(r.pb)}` : `sócio ${pbTexto(r.pb)}`;
       const quem = `Comissão de ${nomeBonito(r.nome)} (${papel})`;
       if (r.pago_centavos <= 0) {
-        if (r.valor_centavos > 0) pend.push({ tipo: 'comissao', texto: `${quem}: ${reaisBR(r.valor_centavos)}`, valor_centavos: r.valor_centavos, etapa: 2 });
+        if (r.valor_centavos > 0) pend.push({ tipo: 'comissao', texto: `${quem}: ${reaisBR(r.valor_centavos)}`, valor_centavos: r.valor_centavos, etapa: 2, papel: r.papel });
       } else if (r.diferenca_centavos > 0) {
-        pend.push({ tipo: 'comissao', texto: `${quem}: faltam ${reaisBR(r.diferenca_centavos)}`, valor_centavos: r.diferenca_centavos, etapa: 2 });
+        pend.push({ tipo: 'comissao', texto: `${quem}: faltam ${reaisBR(r.diferenca_centavos)}`, valor_centavos: r.diferenca_centavos, etapa: 2, papel: r.papel });
       } else if (r.diferenca_centavos < 0) {
-        pend.push({ tipo: 'comissao', texto: `${quem}: a devolver ${reaisBR(-r.diferenca_centavos)}`, valor_centavos: -r.diferenca_centavos, etapa: 2, devolver: true });
+        pend.push({ tipo: 'comissao', texto: `${quem}: a devolver ${reaisBR(-r.diferenca_centavos)}`, valor_centavos: -r.diferenca_centavos, etapa: 2, devolver: true, papel: r.papel });
       }
     }
   }
@@ -587,5 +594,46 @@ export function livroDaObra(e: EntradaLivro): Livro {
     venda_centavos: venda, recebido, recebido_a_mais: aMais, a_receber: aReceber, gasto, retirada, saldo, por_etapa: porEtapa, linhas,
     comissoes: { vendedor: nomeSimples(e.vendedor), aviso: e.regraAviso ?? null, congelada: e.regraCongelada === true, liberadas, linhas: comLinhas },
     previsto, a_pagar: pend, ignoradas: e.ignoradas, fechamento,
+  };
+}
+
+// ── O que cada pessoa vê da retirada dos sócios ────────────────────────────────────────────────────────────────────────────
+
+/** Quem vê a retirada dos sócios (os 2% de cada sócio): o ADM e a dona da etapa 2, a Giovanna, que paga essas comissões e lança o comprovante. */
+export const veRetiradaDosSocios = (nome: string, adm: boolean): boolean => adm || String(nome ?? '').trim().toLowerCase() === 'giovanna';
+
+export type LivroSemRetirada = Omit<Livro, 'retirada'> & { retirada?: undefined };
+
+/**
+ * O livro como a pessoa pode ver. Quem não vê a retirada recebe um livro SEM as linhas dela, sem o total, com o saldo igual a recebido menos gasto
+ * e sem nenhum campo do qual ela se deduza (linhas de sócio das comissões, pendência e comprovantes delas). A comissão de quem VENDEU, que é custo, fica.
+ * O servidor decide o fechamento com o livro inteiro; este recorte é só para a resposta.
+ */
+export function recortarLivro(l: Livro, veRetirada: boolean): Livro | LivroSemRetirada {
+  if (veRetirada) return l;
+  const linhas = l.linhas.filter((x) => x.grupo !== 'retirada');
+  const socio = (p: Pendencia): boolean => p.tipo === 'comissao' && p.papel === 'socio';
+  const textosSocio = new Set(l.a_pagar.filter(socio).map((p) => p.texto));
+  const a_pagar = l.a_pagar.filter((p) => !socio(p));
+  const contam = linhas.filter((x) => !(x.estorno_de && !x.devolucao));
+  const comprovantes = { com: contam.filter((x) => x.comprovante).length, total: contam.length };
+  const naoConferidas = linhas.filter((x) => !x.estorno_de && !x.estornada && (x.conferencia === 'sem_leitura' || x.conferencia === 'baixa_confianca')).length;
+  const ehMaterial = (t: string): boolean => t === 'Nenhum item de material na Compra' || t.startsWith('Material com origem:');
+  const base = l.fechamento.faltam.filter((t) => !textosSocio.has(t) && !t.startsWith('Comprovantes:') && !/ não conferidos? pela IA\./.test(t));
+  const faltam = [...base];
+  if (comprovantes.com < comprovantes.total) faltam.push(`Comprovantes: ${comprovantes.com} de ${comprovantes.total}`);
+  if (naoConferidas > 0) faltam.push(`${naoConferidas} ${naoConferidas === 1 ? 'lançamento não conferido pela IA' : 'lançamentos não conferidos pela IA'}. O Thiago confere.`);
+  const { retirada: _r, ...resto } = l;
+  void _r;
+  const { adm: _a, ...fech } = l.fechamento;
+  void _a;
+  return {
+    ...resto, saldo: l.recebido - l.gasto, linhas,
+    comissoes: { ...l.comissoes, linhas: l.comissoes.linhas.filter((x) => x.papel !== 'socio') },
+    a_pagar,
+    fechamento: {
+      ...fech, a_pagar_total: a_pagar.reduce((acc, p) => acc + (p.devolver ? 0 : (p.valor_centavos ?? 0)), 0), pendencias: a_pagar.length, comprovantes, faltam,
+      pode_fechar: faltam.length === 0, pode_fechar_sem_material: faltam.filter((t) => !ehMaterial(t)).length === 0,
+    },
   };
 }

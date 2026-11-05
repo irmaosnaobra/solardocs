@@ -236,7 +236,7 @@ async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): P
         itens: p.compra.itens.map((i) => ({ ...i, valor_centavos: mascarar(i.valor_centavos) })), compras,
         contador: { com_origem: mat.com_origem, total: mat.total }, sugeridos,
       },
-      logistica: p.logistica, obra: { ...p.obra, equipe: { ...p.obra.equipe, combinado_centavos: mascarar(p.obra.equipe.combinado_centavos) } },
+      logistica: { cargas: p.logistica.cargas.map((c) => ({ ...c, frete: { ...c.frete, valor_centavos: mascarar(c.frete.valor_centavos) } })) }, obra: { ...p.obra, equipe: { ...p.obra.equipe, combinado_centavos: mascarar(p.obra.equipe.combinado_centavos) } },
       entrega: {
         testes: e.testes, monitoramento: { ...e.monitoramento, conta: mascara(e.monitoramento.conta), conta_mascarada: mascara(e.monitoramento.conta) },
         cofre: e.cofre ? { gravado: true, em: e.cofre.em, por: e.cofre.por } : null,
@@ -284,6 +284,10 @@ function aplicarSecao(secao: SecaoObra, p: ObraPrivada, dadosBrutos: Record<stri
       };
     });
     const novo = normalizarObraPrivada({ ...p, compra: { itens, compras } });
+    // Quem não vê o dinheiro (Ajustes com `dinheiro_aberto` desligado) recebeu `null` nos valores: o servidor restaura o do item que já existe.
+    if (!f.din.veDinheiro) {
+      for (const i of novo.compra.itens) i.valor_centavos = p.compra.itens.find((x) => x.id === i.id)?.valor_centavos ?? null;
+    }
     for (const c of p.compra.compras) {
       const pago = pagoDaCompra(c.id, f.din.lancamentos);
       if (pago <= 0) continue;
@@ -307,12 +311,18 @@ function aplicarSecao(secao: SecaoObra, p: ObraPrivada, dadosBrutos: Record<stri
         conferencia: { ...conf, itens_ok: lista(conf.itens_ok).filter((x): x is string => typeof x === 'string' && idsItens.has(x)) },
       };
     });
-    return normalizarObraPrivada({ ...p, logistica: { cargas } });
+    const novo = normalizarObraPrivada({ ...p, logistica: { cargas } });
+    if (!f.din.veDinheiro) {
+      for (const c of novo.logistica.cargas) c.frete.valor_centavos = p.logistica.cargas.find((x) => x.id === c.id)?.frete.valor_centavos ?? null;
+    }
+    return novo;
   }
   if (secao === 'obra') {
     // O Thiago só mexe no plano (os dias e as equipes); o resto da obra é do Diego e do ADM.
     if (g.nome === 'thiago' && !g.adm) return normalizarObraPrivada({ ...p, obra: { ...p.obra, plano: d.plano } });
-    return normalizarObraPrivada({ ...p, obra: d });
+    const novo = normalizarObraPrivada({ ...p, obra: d });
+    if (!f.din.veDinheiro) novo.obra.equipe.combinado_centavos = p.obra.equipe.combinado_centavos;
+    return novo;
   }
   if (secao === 'entrega') {
     const mon = obj(d.monitoramento) ?? {};
@@ -463,7 +473,8 @@ export function mountJornadaObra(router: Router): void {
     const b = corpoDe(req);
     const n = b ? b.etapa : undefined;
     if (!b || typeof n !== 'number' || !Number.isInteger(n) || n < 4 || n > 8) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
-    try {
+    // O "tudo em zero" da etapa 8 é calculado DENTRO da trava da conta: nenhum lançamento entra entre a conferência e o fechamento.
+    const corpo = async (): Promise<void> => {
       const f = await lerFase2(g);
       if (f.din.cancelada) { res.status(409).json({ ok: false, error: MSG_CANCELADA }); return; }
       if (f.din.fechada) { res.status(409).json({ ok: false, error: MSG_FECHADA }); return; }
@@ -496,7 +507,9 @@ export function mountJornadaObra(router: Router): void {
       });
       if (ehRecusa(r)) { res.status(r.http).json({ ok: false, error: r.recusa, ...(r.extra ?? {}) }); return; }
       res.json({ ok: true, etapa_atual: n === 8 ? 9 : n + 1, ...(r.fechada ? { fechada: r.fechada } : {}) });
-    } catch (err) { falhouJornada(res, 'etapa-obra', err); }
+    };
+    try { if (n === 8) await comTrava(`fin_conta:${g.id}`, g.nome, corpo); else await corpo(); }
+    catch (err) { if (!res.headersSent) falhouJornada(res, 'etapa-obra', err); }
   });
 
   // ── Rota 5 · Esperando (4 a 8) ────────────────────────────────────────────────────────────────────────────────────────
@@ -569,7 +582,7 @@ export function mountJornadaObra(router: Router): void {
     const g = await guardaDaObra(req, res);
     if (!g) return;
     if (!g.adm) { res.status(403).json({ ok: false, error: 'Só o administrador fecha a conta.' }); return; }
-    try {
+    const corpo = async (): Promise<void> => {
       const f = await lerFase2(g);
       if (f.din.cancelada) { res.status(409).json({ ok: false, error: MSG_CANCELADA }); return; }
       if (!f.jo?.etapas[8].concluida_em) { res.status(409).json({ ok: false, error: 'A etapa 8 ainda não foi concluída.' }); return; }
@@ -582,7 +595,9 @@ export function mountJornadaObra(router: Router): void {
       }));
       if (ehRecusa(r)) { res.status(r.http).json({ ok: false, error: r.recusa }); return; }
       res.json({ ok: true, fechada: r.fechada });
-    } catch (err) { falhouJornada(res, 'fechar', err); }
+    };
+    try { await comTrava(`fin_conta:${g.id}`, g.nome, corpo); }
+    catch (err) { if (!res.headersSent) falhouJornada(res, 'fechar', err); }
   });
 
   // ── Rota 8 · Grava a senha no cofre ──────────────────────────────────────────────────────────────────────────────────

@@ -204,7 +204,7 @@ import { assinarJornada, normalizarJornada, reiniciarLogsDaJornada } from '../se
 import { estadoMaterializado } from '../services/gerador/jornadaSolar';
 import { assinarObra, obraPrivadaVazia, obraVazia } from '../services/gerador/jornadaObraBanco';
 import { obraMaterializada, type ObraPrivada, type EstadoObra } from '../services/gerador/jornadaObra';
-import { lancamentoObraParaGravar, montarLancamentoObra } from '../services/gerador/jornadaDinheiro';
+import { AJUSTES_PADRAO, assinarAjustes, lancamentoObraParaGravar, montarLancamentoObra, normalizarAjustes } from '../services/gerador/jornadaDinheiro';
 import { assinarLigacao, invalidarCachesHub, POR_GERADOR, reiniciarLogsDoHub } from '../services/gerador/vendaSolarHub';
 import { cifrar } from '../services/gerador/cofreObra';
 
@@ -665,6 +665,98 @@ describe('fechamento só com tudo em zero', () => {
   });
 });
 
+describe('o dinheiro escondido não some no PUT', () => {
+  const ajustesFechados = (): void => {
+    const a = normalizarAjustes({ ...AJUSTES_PADRAO, dinheiro_aberto: false, editado_em: AGORA, editado_por: 'thiago' })!;
+    h.linhas.set('jornada_solar_ajustes', { updated_at: 'a0', value: jsonb({ ...a, sig: assinarAjustes(a) }) });
+  };
+  const itemBase = (id: string, valor: number | null) => ({
+    id, origem: 'manual' as const, tipo: 'outro' as const, descricao: id, quantidade: 1, unidade: 'un' as const, marca: '', modelo: '', potencia_w: null, potencia_kw: null,
+    garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: null, compra_id: 'c-1', fornecedor: 'Distribuidora', valor_centavos: valor, data: '2026-10-15',
+    etapa: 4 as const, criado_por: 'thiago', criado_em: AGORA,
+  });
+  it('com `dinheiro_aberto` desligado, quem não vê o dinheiro grava com `null` e o servidor restaura o valor do item, da equipe e do frete que já existem', async () => {
+    semearJo(SOLAR, undefined, 6);
+    semearPrivada(SOLAR, (p) => {
+      p.compra.compras = [{ id: 'c-1', fornecedor: 'Distribuidora', cidade: '', data: '2026-10-15', forma: 'pix', nota_chega: 'anexada', nota: null }];
+      p.compra.itens = [itemBase('i-1', 100_000)];
+      p.obra.equipe = { combinado_centavos: 165_000, descricao: '15 placas' };
+      p.logistica.cargas = [{
+        id: 'g-1', nome: 'Carga 1', itens: ['i-1'], saida: { lugar: '', em: '' }, chegada: { lugar: '', destino: 'obra', em: '' }, transporte: { empresa: '', motorista: '' }, compras: [],
+        recebido_por: { nome: '', assinatura_id: '' }, conferencia: { itens_ok: [], foto_id: '' }, avaria: { tem: false, descricao: '', foto_id: '', o_que_fazer: '', resolvida: false },
+        frete: { valor_centavos: 25_000, forma: 'pix' }, documentos: [],
+      }];
+    });
+    ajustesFechados();
+    const g = await get(F2(SOLAR), DIEGO);
+    expect(g.body.dados.compra.itens[0].valor_centavos).toBeNull();
+    expect(g.body.dados.obra.equipe.combinado_centavos).toBeNull();
+    expect(g.body.dados.logistica.cargas[0].frete.valor_centavos).toBeNull();
+    expect(g.text).not.toMatch(/100000|165000|25000/);
+    // O Thiago (ADM) vê o dinheiro e acrescenta um item de R$ 770,00.
+    const v = g.body.versoes;
+    const compra = await put(F2(SOLAR, '/compra'), { versao: v.compra, dados: { itens: [itemBase('i-1', 100_000), { ...itemBase('novo', 77_000), id: null }], compras: g.body.dados.compra.compras } }, THIAGO);
+    expect(compra.status).toBe(200);
+    expect(privadaGravada(SOLAR)!.compra.itens[0]).toMatchObject({ id: 'i-1', valor_centavos: 100_000 });
+    // O Thiago é ADM e vê o dinheiro: o que ele manda vale. Já o Diego (não ADM), com o mesmo corpo de `null`, não apaga nada.
+    const diego = await put(F2(SOLAR, '/compra'), { versao: privadaGravada(SOLAR)!.versoes.compra, dados: { itens: privadaGravada(SOLAR)!.compra.itens.map((i) => ({ ...i, valor_centavos: null })), compras: privadaGravada(SOLAR)!.compra.compras } }, DIEGO);
+    expect(diego.status).toBe(200);
+    expect(privadaGravada(SOLAR)!.compra.itens.map((i) => i.valor_centavos)).toEqual([100_000, 77_000]);
+    const obra = await put(F2(SOLAR, '/obra'), { versao: 0, dados: { ...g.body.dados.obra, equipe: { combinado_centavos: null, descricao: 'mudou o texto' } } }, DIEGO);
+    expect(obra.status).toBe(200);
+    expect(privadaGravada(SOLAR)!.obra.equipe).toEqual({ combinado_centavos: 165_000, descricao: 'mudou o texto' });
+    const log = await put(F2(SOLAR, '/logistica'), { versao: 0, dados: { cargas: g.body.dados.logistica.cargas.map((c: any) => ({ ...c, nome: 'Carga renomeada' })) } }, DIEGO);
+    expect(log.status).toBe(200);
+    expect(privadaGravada(SOLAR)!.logistica.cargas[0]).toMatchObject({ nome: 'Carga renomeada', frete: { valor_centavos: 25_000 } });
+    // Com o dinheiro aberto, quem grava manda no valor.
+    h.linhas.delete('jornada_solar_ajustes');
+    const aberto = await put(F2(SOLAR, '/obra'), { versao: privadaGravada(SOLAR)!.versoes.obra, dados: { ...g.body.dados.obra, equipe: { combinado_centavos: 170_000, descricao: 'x' } } }, DIEGO);
+    expect(aberto.status).toBe(200);
+    expect(privadaGravada(SOLAR)!.obra.equipe.combinado_centavos).toBe(170_000);
+  });
+});
+
+describe('o fechamento não corre contra um lançamento', () => {
+  it('fechar a etapa 8 e estornar a comissão ao mesmo tempo: nunca fecha com a conta aberta', async () => {
+    cenario8();
+    const comissao = [...h.linhas.entries()].find(([k, l]) => k.startsWith(`fin:${SOLAR}:`) && l.value.categoria === 'comissao_venda')!;
+    const id = comissao[0].split(':')[2];
+    const [fecha, estorna] = await Promise.all([
+      post(`/jornada-solar/obra/${SOLAR}/etapa-obra`, { etapa: 8 }, THIAGO),
+      post(DIN(SOLAR, '/estorno'), { id_original: id, motivo: 'Valor errado' }, THIAGO),
+    ]);
+    const jo = joGravado(SOLAR);
+    if (fecha.status === 200) {
+      // Fechou primeiro: o estorno bateu na conta fechada.
+      expect(estorna.status).toBe(409);
+      expect(jo.fechada).not.toBeNull();
+    } else {
+      // O estorno entrou primeiro: a comissão virou pendência e a etapa 8 não fechou.
+      expect(estorna.status).toBe(200);
+      expect(fecha.status).toBe(409);
+      expect(jo.fechada).toBeNull();
+    }
+    // Invariante: conta fechada nunca tem "a pagar".
+    const g = await get(DIN(SOLAR), THIAGO);
+    if (jo.fechada) expect(g.body.livro.a_pagar).toEqual([]);
+    else expect(g.body.livro.a_pagar.map((x: any) => x.texto)).toEqual(['Comissão de Nilce (venda 5%): R$ 1.945,00']);
+  });
+  it('o `fechar` do ADM confere dentro da trava: quando alguém estorna junto, não fecha com pendência', async () => {
+    cenario8();
+    semearJo(SOLAR, (e) => { e.etapas[8].concluida_em = AGORA; e.etapas[8].concluida_por = 'thiago'; }, 8);
+    const comissao = [...h.linhas.entries()].find(([k, l]) => k.startsWith(`fin:${SOLAR}:`) && l.value.categoria === 'comissao_venda')!;
+    const [fecha, estorna] = await Promise.all([
+      post(DIN(SOLAR, '/fechar'), {}, THIAGO),
+      post(DIN(SOLAR, '/estorno'), { id_original: comissao[0].split(':')[2], motivo: 'Valor errado' }, THIAGO),
+    ]);
+    expect([fecha.status, estorna.status].sort()).toEqual(fecha.status === 200 ? [200, 409] : [200, 409]);
+    const jo = joGravado(SOLAR);
+    const g = await get(DIN(SOLAR), THIAGO);
+    if (jo.fechada) expect(g.body.livro.a_pagar).toEqual([]);
+    else expect(g.body.livro.a_pagar).toHaveLength(1);
+  });
+});
+
 describe('o cofre', () => {
   const SENHA = 'Sen#ha-Secreta-9';
   it('a senha não aparece no GET, no system_state nem no obra.json em texto; a Nilce e a Giovanna levam 403 no revelar; o Diego revela e o histórico ganha `cofre_revelado` sem a senha', async () => {
@@ -837,6 +929,30 @@ describe('a lista e o papel', () => {
     expect(o.body.etapa_atual).toBe(9);
     expect(o.body.etapas.find((e: any) => e.n === 5).fase).toBeUndefined();
   });
+  it('conta fechada: o contrato guardado não é regravado (409) e `gerar_papeis` fica falso', async () => {
+    h.cad = { nome: 'Marcos Vinícius Andrade', cpf_cnpj: '000.000.000-00', endereco: 'Rua Exemplo, 100', cidade: 'Uberlândia', uf: 'MG', endereco_ponto: 'Rua Exemplo, 100' };
+    expect((await post(`/jornada-solar/obra/${SOLAR}/papel`, { tipo: 'contrato', empresa: { telefone: '(34) 90000-0000' } }, GIOVANNA)).status).toBe(200);
+    const antes = JSON.stringify(privadaGravada(SOLAR)!.contrato);
+    expect((await get(`/jornada-solar/obra/${SOLAR}`, GIOVANNA)).body.pode.gerar_papeis).toBe(true);
+    fechar2(SOLAR);
+    h.cad = { ...h.cad, endereco_ponto: 'Outro endereço, 999', unidade_consumidora: '1234567' };
+    for (const tipo of ['contrato', 'procuracao', 'recibo']) {
+      const r2 = await post(`/jornada-solar/obra/${SOLAR}/papel`, { tipo, empresa: { telefone: '(34) 91111-1111' }, recibo: { pagamentos: [{ forma: 'pix', data: '2026-09-18', valor_centavos: 1_167_000 }] } }, GIOVANNA);
+      expect(r2.status, tipo).toBe(409);
+      expect(r2.body.error).toBe('A conta desta obra está fechada. Só o Thiago reabre.');
+    }
+    expect(JSON.stringify(privadaGravada(SOLAR)!.contrato)).toBe(antes);
+    expect((await get(`/jornada-solar/obra/${SOLAR}`, GIOVANNA)).body.pode.gerar_papeis).toBe(false);
+  });
+
+  it('a Fase 1 só leva os 2% dos sócios para o ADM e para a Giovanna; a comissão de quem vendeu fica para todos', async () => {
+    const n = await get(`/jornada-solar/obra/${SOLAR}`, NILCE);
+    expect(n.body.comissoes.map((c: any) => [c.nome, c.papel])).toEqual([['nilce', 'venda']]);
+    expect(JSON.stringify(n.body)).not.toMatch(/"papel":"socio"/);
+    for (const a of [GIOVANNA, THIAGO]) expect((await get(`/jornada-solar/obra/${SOLAR}`, a)).body.comissoes.map((c: any) => c.papel)).toEqual(['venda', 'socio', 'socio']);
+    expect((await get(`/jornada-solar/obra/${SOLAR}`, DIEGO)).body.comissoes.map((c: any) => c.papel)).toEqual(['venda']);
+  });
+
   it('gerar o contrato grava as garantias, o kit e o emitente no `obra.json`', async () => {
     h.cad = { nome: 'Marcos Vinícius Andrade', cpf_cnpj: '000.000.000-00', endereco: 'Rua Exemplo, 100', cidade: 'Uberlândia', uf: 'MG', endereco_ponto: 'Rua Exemplo, 100, Uberlândia-MG' };
     const r2 = await post(`/jornada-solar/obra/${SOLAR}/papel`, { tipo: 'contrato', empresa: { telefone: '(34) 90000-0000' } }, GIOVANNA);

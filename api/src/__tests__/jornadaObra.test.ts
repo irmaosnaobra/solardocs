@@ -353,6 +353,19 @@ describe('o Termo de garantia e a trava do Book', () => {
     expect(pj).toContain('A garantia dos equipamentos é dos fabricantes. A Irmãos na Obra ajuda você');
     expect(pj).toContain('CNPJ 12.345.678/0001-90');
   });
+  it('contrato v1 (sem `versao_garantia` 2): o Termo sai no texto antigo, sem as exclusões da cláusula nova; v2 as tem', () => {
+    const v1 = termoGarantiaHtml(campos({ ...contrato(), versao_garantia: '' }));
+    expect(campos({ ...contrato(), versao_garantia: '1' }).v2).toBe(false);
+    expect(v1).toContain('A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da Irmãos na Obra, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.');
+    for (const t of ['Sujeira acumulada por falta de limpeza dos módulos.', 'Sobretensão ou sobrecarga da rede elétrica.', 'A garantia continua valendo para o resto da usina.', 'Obra no imóvel que atinja a usina', 'Essas garantias se somam à garantia que a lei dá.']) {
+      expect(v1, t).not.toContain(t);
+    }
+    expect(v1).toContain('1 (um) ano, até 30/10/2027');
+    expect(v1).toContain('devidamente constatados por laudo técnico');
+    const v2 = termoGarantiaHtml(campos());
+    expect(v2).toContain('Sujeira acumulada por falta de limpeza dos módulos.');
+    expect(v2).not.toContain('devidamente constatados por laudo técnico');
+  });
   it('todo texto sai escapado', () => {
     const c = { ...contrato(), cliente_nome: '<b>Marcos</b> & "Filho"' };
     const h = termoGarantiaHtml(campos(c));
@@ -377,7 +390,17 @@ describe('o Termo de garantia e a trava do Book', () => {
     expect(livre({ ...contrato(), quantidade_modulos: '14' })[0]).toContain('quantidade de placas');
     expect(livre({ ...contrato(), garantia_inversor_anos: '5' })).toEqual(['A garantia do inversor da Compra (10 anos) é diferente da do contrato (5 anos).']);
     expect(livre({ ...contrato(), garantia_modulos_anos: '30' })).toEqual(['A garantia de desempenho das placas da Compra (25 anos) é diferente da do contrato (30 anos).']);
-    expect(livre({ ...contrato(), garantia_instalacao_anos: '' })).toEqual(['O contrato não tem a garantia da instalação.']);
+    // Instalação: a MESMA regra do contrato (vazio, zero, negativo ou inválido vale 1 ano), então não trava; sem WhatsApp da empresa, trava.
+    for (const bruto of ['', '0', '-2', 'abc', '0,5']) {
+      const c = { ...contrato(), garantia_instalacao_anos: bruto };
+      expect(livre(c), bruto).toEqual([]);
+      expect(campos(c).instalacao_garantia, bruto).toBe('1 (um) ano');
+      expect(campos(c).instalacao_garantia_fim, bruto).toBe('30/10/2027');
+    }
+    expect(campos({ ...contrato(), garantia_instalacao_anos: '2' }).instalacao_garantia).toBe('2 (dois) anos');
+    expect(campos({ ...contrato(), garantia_instalacao_anos: '6', garantia_instalacao_unidade: 'meses' })).toMatchObject({ instalacao_garantia: '6 (seis) meses', instalacao_garantia_fim: '30/04/2027' });
+    expect(livre({ ...contrato(), empresa_telefone: '' })).toEqual(['Falta o WhatsApp da empresa no contrato.']);
+    expect(travaDoBook({ ...campos(), empresa_whatsapp: '   ' }, contrato(), itens(), true)).toEqual(['Falta o WhatsApp da empresa no contrato.']);
     // Faltas de dado.
     expect(livre(contrato(), itens().map((i) => (i.tipo === 'inversor' ? { ...i, garantia_anos: null } : i)))).toEqual(['Falta a garantia do inversor na Compra.']);
     expect(livre(contrato(), itens().map((i) => (i.tipo === 'modulo' ? { ...i, garantia_fabricacao_anos: null } : i)))).toEqual(['Falta a garantia de fabricação e de desempenho das placas na Compra.']);

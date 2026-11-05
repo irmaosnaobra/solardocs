@@ -30,6 +30,8 @@ export interface CamposTermo {
   cliente_doc_tipo: 'CPF' | 'CNPJ';
   cliente_doc: string;
   pj: boolean;
+  /** `versao_garantia` do contrato >= 2: só então valem as exclusões da cláusula nova. O contrato v1 recebe o Termo no texto antigo. */
+  v2: boolean;
   obra_endereco: string;
   obra_cidade_uf: string;
   empresa_razao_social: string;
@@ -83,8 +85,11 @@ export function camposDoTermo(e: EntradaTermo): CamposTermo {
   const doc = soDigitos(c?.cliente_doc ?? '');
   const pj = /pj|jur[ií]dica|empresa|cnpj/i.test(c?.cliente_tipo ?? '') || doc.length === 14;
   const meses = String(c?.garantia_instalacao_unidade ?? 'anos').toLowerCase() === 'meses';
-  const prazoN = parseInt(String(c?.garantia_instalacao_anos ?? '').replace(/\D/g, ''), 10) || 0;
-  const instal = c && prazoN > 0 ? garantiaInstalacaoExtenso({ garantia_instalacao_anos: c.garantia_instalacao_anos, garantia_instalacao_unidade: c.garantia_instalacao_unidade }) : '';
+  // A MESMA regra do contrato (`templateService`): instalação vazia, zero, negativa ou inválida (e também "0,5") vira 1 (um) ano.
+  const brutoInst = String(c?.garantia_instalacao_anos ?? '').trim();
+  const efetivoInst = parseFloat(brutoInst.replace(',', '.')) >= 1 ? brutoInst : '1';
+  const prazoN = Math.max(1, Math.floor(parseFloat(efetivoInst.replace(',', '.'))) || 1);
+  const instal = c ? garantiaInstalacaoExtenso({ garantia_instalacao_anos: efetivoInst, garantia_instalacao_unidade: c.garantia_instalacao_unidade }) : '';
   const resp = parseInt(String(c?.garantia_resposta_dias ?? '').replace(/\D/g, ''), 10) || 2;
   const entrega = e.entregaYmd ?? '';
   return {
@@ -93,6 +98,7 @@ export function camposDoTermo(e: EntradaTermo): CamposTermo {
     cliente_doc_tipo: pj ? 'CNPJ' : 'CPF',
     cliente_doc: c?.cliente_doc ?? '',
     pj,
+    v2: Number(c?.versao_garantia) >= 2,
     obra_endereco: c?.endereco_instalacao ?? '',
     obra_cidade_uf: [c?.cidade, c?.uf].filter(Boolean).join('-'),
     empresa_razao_social: c?.empresa_nome ?? '',
@@ -125,9 +131,27 @@ export function termoGarantiaHtml(k: CamposTermo): string {
     `<li>${esc(i.qtd ?? '')} ${(i.qtd ?? 1) === 1 ? 'inversor' : 'inversores'} ${esc(i.marca)} ${esc(i.modelo)}, de ${esc(i.potencia_kw === null ? '' : numPt(i.potencia_kw))} kW, número de série ${esc(i.serie)}.</li>`;
   const cobreInv = (i: InversorTermo): string =>
     `<li><b>Inversor (${esc(i.marca)}):</b> garantia do fabricante de ${esc(anosTxt(i.anos))} contra defeito de funcionamento e falha de componentes eletrônicos.</li>`;
-  const item5 = k.pj
+  const item5 = k.pj && k.v2
     ? 'A garantia dos equipamentos é dos fabricantes. A Irmãos na Obra ajuda você a abrir o pedido no fabricante e acompanha até o conserto ou a troca.'
     : 'A Irmãos na Obra fala com o fabricante por você, abre o pedido e acompanha até o conserto ou a troca.';
+  const instalacao = `<li><b>Instalação:</b> garantia da Irmãos na Obra de ${esc(k.instalacao_garantia)}, até ${esc(k.instalacao_garantia_fim)}. ${k.v2
+    ? 'Ela vale para o defeito que vier da obra e for confirmado na visita técnica, como fixação, vedação nos pontos de fixação, cabos, conexões, quadro de proteção e aterramento. Nesse prazo, a Irmãos na Obra corrige o defeito sem custo.'
+    : 'Ela vale somente para defeitos de instalação devidamente constatados por laudo técnico.'}</li>`;
+  // Contrato v1: o texto antigo, sem as exclusões da cláusula nova (sujeira, obra no imóvel, "o resto da usina").
+  const secao2 = k.v2 ? `<h2>2. Quando o conserto da instalação é por orçamento</h2>
+<p>A garantia da instalação vale para o uso normal da usina. O dano causado por um destes casos é consertado por orçamento, que você recebe antes e aprova:</p>
+<ul>
+<li>Mau uso, como limpar as placas com produto ou ferramenta que o manual do fabricante proíbe.</li>
+<li>Conserto, alteração ou mudança na usina feita por quem a Irmãos na Obra não autorizou.</li>
+<li>Raio, granizo, enchente, vendaval ou outra força maior.</li>
+<li>Sobretensão ou sobrecarga da rede elétrica.</li>
+<li>Obra no imóvel que atinja a usina, como reforma do telhado ou da parte elétrica.</li>
+<li>Sujeira acumulada por falta de limpeza dos módulos.</li>
+</ul>
+<p>A garantia continua valendo para o resto da usina.</p>
+<p>Para as placas e o inversor, o que a garantia cobre está no certificado de cada fabricante.</p>` : `<h2>2. Quando a garantia da instalação não se aplica</h2>
+<p>A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da Irmãos na Obra, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.</p>
+<p>Para as placas e o inversor, o que a garantia cobre está no certificado de cada fabricante.</p>`;
   return `<div class="termo-garantia">
 <h1>TERMO DE GARANTIA DA SUA USINA SOLAR</h1>
 <p>Obra ${esc(k.obra_codigo)}<br>Cliente: ${esc(k.cliente_nome)}, ${doc}.<br>Endereço da usina: ${esc(k.obra_endereco)}, ${esc(k.obra_cidade_uf)}.<br>Empresa: ${esc(k.empresa_razao_social)}, CNPJ ${esc(k.empresa_cnpj)}, marca Irmãos na Obra.<br>Contrato: ${esc(k.contrato_ref)}${k.contrato_data ? `, assinado em ${esc(k.contrato_data)}` : ''}.<br>Data de entrega: ${esc(k.data_entrega)}.</p>
@@ -140,22 +164,11 @@ ${k.inversores.map(linhaInv).join('\n')}
 <ul>
 <li><b>Placas (${esc(m.marca)}):</b> garantia do fabricante de ${esc(anosTxt(m.fabricacao_anos))} contra defeito de fabricação e de ${esc(anosTxt(m.desempenho_anos))} de desempenho. Desempenho é a potência mínima que o fabricante promete no certificado.</li>
 ${k.inversores.map(cobreInv).join('\n')}
-<li><b>Instalação:</b> garantia da Irmãos na Obra de ${esc(k.instalacao_garantia)}, até ${esc(k.instalacao_garantia_fim)}. Ela vale para o defeito que vier da obra e for confirmado na visita técnica, como fixação, vedação nos pontos de fixação, cabos, conexões, quadro de proteção e aterramento. Nesse prazo, a Irmãos na Obra corrige o defeito sem custo.</li>
+${instalacao}
 </ul>
 <p>O certificado de cada fabricante vem neste Book, e as condições de cada equipamento são as do certificado dele.</p>
-${k.pj ? '' : '<p>Essas garantias se somam à garantia que a lei dá.</p>\n'}<p>A geração mostrada na proposta é uma estimativa. Ela muda com o sol de cada mês e com sombra que apareça depois da obra.</p>
-<h2>2. Quando o conserto da instalação é por orçamento</h2>
-<p>A garantia da instalação vale para o uso normal da usina. O dano causado por um destes casos é consertado por orçamento, que você recebe antes e aprova:</p>
-<ul>
-<li>Mau uso, como limpar as placas com produto ou ferramenta que o manual do fabricante proíbe.</li>
-<li>Conserto, alteração ou mudança na usina feita por quem a Irmãos na Obra não autorizou.</li>
-<li>Raio, granizo, enchente, vendaval ou outra força maior.</li>
-<li>Sobretensão ou sobrecarga da rede elétrica.</li>
-<li>Obra no imóvel que atinja a usina, como reforma do telhado ou da parte elétrica.</li>
-<li>Sujeira acumulada por falta de limpeza dos módulos.</li>
-</ul>
-<p>A garantia continua valendo para o resto da usina.</p>
-<p>Para as placas e o inversor, o que a garantia cobre está no certificado de cada fabricante.</p>
+${k.pj || !k.v2 ? '' : '<p>Essas garantias se somam à garantia que a lei dá.</p>\n'}<p>A geração mostrada na proposta é uma estimativa. Ela muda com o sol de cada mês e com sombra que apareça depois da obra.</p>
+${secao2}
 <h2>3. Como pedir a garantia</h2>
 <ul>
 <li>Chame a Irmãos na Obra no WhatsApp ${esc(k.empresa_whatsapp)}.</li>
@@ -227,8 +240,9 @@ export function travaDoBook(k: CamposTermo, contrato: ContratoObra | null, itens
   if (mods.length && mods[0].garantia_desempenho_anos !== null && gModC && mods[0].garantia_desempenho_anos !== gModC) {
     f.push(`A garantia de desempenho das placas da Compra (${mods[0].garantia_desempenho_anos} anos) é diferente da do contrato (${gModC} anos).`);
   }
-  // 4. instalação
-  if (!parseInt(contrato.garantia_instalacao_anos.replace(/\D/g, ''), 10)) f.push('O contrato não tem a garantia da instalação.');
+  // 4. instalação: igual ao contrato (vazio, zero ou inválido vale 1 ano), então não há o que comparar aqui.
+  // O WhatsApp da empresa é o canal do pedido de garantia: sem ele o Termo não diz onde pedir.
+  if (!k.empresa_whatsapp.trim()) f.push('Falta o WhatsApp da empresa no contrato.');
   // Faltas de dado.
   for (const i of mods) if (i.garantia_fabricacao_anos === null || i.garantia_desempenho_anos === null) { f.push('Falta a garantia de fabricação e de desempenho das placas na Compra.'); break; }
   for (const i of invs) if (i.garantia_anos === null) { f.push('Falta a garantia do inversor na Compra.'); break; }

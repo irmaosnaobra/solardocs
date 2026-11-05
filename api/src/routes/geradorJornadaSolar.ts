@@ -184,7 +184,7 @@ function podeDe(g: Guarda, l: Leitura, pos: Posicao) {
     descancelar: cancelada && g.adm,
     esperar: !cancelada && no123 && (g.adm || donosDaEtapa(etapa as number, vend).includes(g.nome)),
     editar_venda: !cancelada && (e1Aberta ? (ehVend || g.adm) : (e1Feita && (giov || g.adm))),
-    gerar_papeis: !cancelada && (giov || ehVend || g.adm) && e1Feita,
+    gerar_papeis: !cancelada && !l.obraEstado?.fechada && (giov || ehVend || g.adm) && e1Feita,
     marcar_excedente: !cancelada && (ehVend || g.adm) && e1Aberta,
     etapa3: !cancelada && (g.nome === 'thiago' || g.adm) && etapa === 3,
     numero: !cancelada && (giov || ehVend || g.adm) && par && !l.lig.venda,
@@ -495,7 +495,8 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       pode,
       etapas,
       venda: l.privado?.venda ?? null,
-      comissoes: com?.linhas ?? [], comissoes_aviso: com?.aviso ?? null,
+      // A retirada dos sócios (os 2% de cada um) só vai para o ADM e para a Giovanna; a comissão de quem vendeu fica para todos.
+      comissoes: (com?.linhas ?? []).filter((c) => c.papel === 'venda' || g.adm || g.nome === 'giovanna'), comissoes_aviso: com?.aviso ?? null,
       proposta: p ? { codigo: p.codigo, cliente: p.cliente_nome ?? '', kwp } : null,
       propostas_candidatas: candidatas,
       documentos: {
@@ -923,6 +924,8 @@ async function rotaPapel(req: Request, res: Response): Promise<void> {
     const l = await ler(g);
     const pos = posicaoDe(l);
     if (l.estado?.cancelada) { res.status(409).json({ ok: false, error: 'Venda cancelada.' }); return; }
+    // Conta fechada: o contrato guardado (e o Termo que sai dele) não é regravado. Só o Thiago reabre.
+    if (l.obraEstado?.fechada) { res.status(409).json({ ok: false, error: 'A conta desta obra está fechada. Só o Thiago reabre.' }); return; }
     if (!podeDe(g, l, pos).gerar_papeis) { res.status(403).json({ ok: false, error: 'Você não pode gerar os papéis desta venda agora.' }); return; }
     const v = (k: string): string => String((l.cad.campos as Record<string, { valor?: string } | undefined>)[k]?.valor ?? '').trim();
     const outra = v('homologacao_mesmo') === 'outra_pessoa';

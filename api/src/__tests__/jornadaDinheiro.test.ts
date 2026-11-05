@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   AJUSTES_PADRAO, ajustesAssinados, assinarAjustes, assinarLancamentoObra, categoriaObra, comissoesPelaRegra, idDoEstorno, lancamentoObraAssinado,
-  lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, normalizarAjustes, normalizarLancamentoObra, validarAjustes,
+  lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, normalizarAjustes, normalizarLancamentoObra, recortarLivro, validarAjustes,
   type AjustesSolar, type Conferencia, type EntradaLivro, type LancamentoObra,
 } from '../services/gerador/jornadaDinheiro';
 import { comissoesDaVenda } from '../services/gerador/jornadaSolar';
@@ -401,5 +401,43 @@ describe('o estado da Fase 1 segue válido (D15)', () => {
     const mexido = JSON.parse(JSON.stringify(value));
     mexido.etapas['4'].aberta_em = '2026-10-21T12:00:00.000Z';
     expect(jornadaAssinada(4242, mexido)).toBeNull();
+  });
+});
+
+describe('a retirada dos sócios só para quem pode ver (recorte do livro)', () => {
+  const inteiro = () => livroDaObra(entrada65(obra65()));
+  it('o ADM e a Giovanna recebem o livro inteiro; os outros, sem as linhas, sem o total e com o saldo igual a recebido menos gasto', () => {
+    const l = inteiro();
+    expect(recortarLivro(l, true)).toBe(l);
+    const v = recortarLivro(l, false) as any;
+    expect(v.retirada).toBeUndefined();
+    expect('retirada' in v).toBe(false);
+    expect(v.saldo).toBe(3_890_000 - 2_580_395);
+    expect(v.linhas).toHaveLength(17);
+    expect(v.linhas.some((x: any) => x.grupo === 'retirada' || x.categoria === 'retirada_socio')).toBe(false);
+    expect(v.comissoes.linhas.map((x: any) => [x.nome, x.papel])).toEqual([['nilce', 'venda']]);
+    expect(v.fechamento.comprovantes).toEqual({ com: 17, total: 17 });
+    expect(v.fechamento.adm).toBeUndefined();
+    expect(v.gasto).toBe(2_580_395);
+    expect(v.por_etapa['2']).toBe(196_340);   // o custo da etapa 2 (cartório e comissão de quem vendeu) fica
+    // Nada do que sobra permite deduzir os 1.556,00 da retirada.
+    const texto = JSON.stringify(v);
+    expect(texto).not.toMatch(/77800|155600|retirada_socio|sócio|socio/);
+    expect(l.retirada).toBe(155_600);
+  });
+  it('a pendência do sócio some da conta dos outros, mas a de quem vendeu fica; o servidor segue decidindo pelo livro inteiro', () => {
+    const sem = obra65().filter((x) => !x.obra.comissao);
+    const l = livroDaObra(entrada65(sem));
+    expect(l.a_pagar).toHaveLength(3);
+    const v = recortarLivro(l, false);
+    expect(v.a_pagar.map((p) => p.texto)).toEqual(['Comissão de Nilce (venda 5%): R$ 1.945,00']);
+    expect(v.fechamento).toMatchObject({ a_pagar_total: 194_500, pendencias: 1 });
+    expect(v.fechamento.faltam.join('|')).not.toMatch(/Thiago|Diego|sócio/);
+    expect(l.fechamento.pode_fechar).toBe(false);
+  });
+  it('quando o sócio vende, a parte dele como vendedor (custo) fica e a de sócio (retirada) sai', () => {
+    const l = livroDaObra(entrada65([lanc('entrada', 'entrada', 2, '2026-09-18', 3_890_000)], { vendedor: 'diego', regra: AJUSTES_PADRAO.comissoes.diego }));
+    expect(l.comissoes.linhas.map((x) => [x.nome, x.papel])).toEqual([['diego', 'venda'], ['diego', 'socio'], ['thiago', 'socio']]);
+    expect(recortarLivro(l, false).comissoes.linhas.map((x) => [x.nome, x.papel])).toEqual([['diego', 'venda']]);
   });
 });

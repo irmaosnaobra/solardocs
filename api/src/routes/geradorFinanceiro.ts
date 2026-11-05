@@ -76,16 +76,16 @@ async function posseDoCard(nome: string, socio: boolean, cardId: number): Promis
   return (await acessoVendaSolar(n, socio, cardId)) ? 'vendasolar' : null;
 }
 
-/** O 404 de quem não vê o card e, nos POSTs, o 409 do solar (o dinheiro da obra solar se lança na própria obra). Devolve true se já respondeu. */
-async function barrarPosse(res: Response, nome: string, socio: boolean, cardId: number, escrita: boolean): Promise<boolean> {
+/** O 404 de quem não vê o card e, nos POSTs, o 409 do solar (o dinheiro da obra solar se lança na própria obra). Devolve 'barrado' se já respondeu. */
+async function barrarPosse(res: Response, nome: string, socio: boolean, cardId: number, escrita: boolean): Promise<'barrado' | 'vendasolar' | 'livre'> {
   let posse: Awaited<ReturnType<typeof posseDoCard>>;
-  try { posse = await posseDoCard(nome, socio, cardId); } catch (err) { falhou(res, 'posse', err, cardId); return true; }
-  if (posse === null) { res.status(404).json({ error: 'nao_encontrado' }); return true; }
+  try { posse = await posseDoCard(nome, socio, cardId); } catch (err) { falhou(res, 'posse', err, cardId); return 'barrado'; }
+  if (posse === null) { res.status(404).json({ error: 'nao_encontrado' }); return 'barrado'; }
   if (escrita && posse === 'vendasolar') {
     res.status(409).json({ error: 'obra_solar', mensagem: 'O dinheiro da obra solar se lança na própria obra, em Solar, Clientes.' });
-    return true;
+    return 'barrado';
   }
-  return false;
+  return posse;
 }
 
 function falhou(res: Response, onde: string, err: any, card?: number): void {
@@ -126,7 +126,11 @@ function semEstornosSolares(ls: Lancamento[]): Lancamento[] {
   return ls.filter((l) => typeof l.obra?.estorno_de !== 'string').map((l) => (estornados.has(l.id) ? { ...l, apagado: true } : l));
 }
 
-const lerDoCard = async (cardId: number): Promise<Lancamento[]> => semEstornosSolares(await lerPorPrefixo(prefixoDoCard(cardId)));
+/** As linhas do card. Linha SOLAR (com `obra`) só aparece na leitura de um card solar; no financeiro "livre" ela é filtrada. */
+const lerDoCard = async (cardId: number, comSolar = false): Promise<Lancamento[]> => {
+  const todas = await lerPorPrefixo(prefixoDoCard(cardId));
+  return comSolar ? semEstornosSolares(todas) : todas.filter((l) => !l.obra);
+};
 
 /** O lançamento e o `updated_at` com que ele foi lido (a trava da gravação). */
 type Lido = { l: Lancamento; carimbo: string | null };
@@ -267,9 +271,10 @@ export function mountFinanceiro(router: Router): void {
     const cardId = idDoCard(req, res);
     if (cardId === null) return;
     const { nome, socio } = quem(req);
-    if (await barrarPosse(res, nome, socio, cardId, false)) return;
+    const posse = await barrarPosse(res, nome, socio, cardId, false);
+    if (posse === 'barrado') return;
     try {
-      const [todos, venda] = await Promise.all([lerDoCard(cardId), valorDaVenda(cardId)]);
+      const [todos, venda] = await Promise.all([lerDoCard(cardId, posse === 'vendasolar'), valorDaVenda(cardId)]);
       // Os totais saem de TODOS os lançamentos; a máscara vem depois.
       const completos = totais(todos, venda);
       const ordenados = ordenarLancamentos(todos);
@@ -293,7 +298,7 @@ export function mountFinanceiro(router: Router): void {
     const cardId = idDoCard(req, res);
     if (cardId === null) return;
     const { nome, socio } = quem(req);
-    if (await barrarPosse(res, nome, socio, cardId, true)) return;
+    if ((await barrarPosse(res, nome, socio, cardId, true)) === 'barrado') return;
     const b = (req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {}) as Record<string, unknown>;
     if (typeof b.base64 !== 'string' || !b.base64 || typeof b.media_type !== 'string'
       || (b.nome !== undefined && typeof b.nome !== 'string')) {
@@ -350,7 +355,7 @@ export function mountFinanceiro(router: Router): void {
     const cardId = idDoCard(req, res);
     if (cardId === null) return;
     const { nome, socio } = quem(req);
-    if (await barrarPosse(res, nome, socio, cardId, true)) return;
+    if ((await barrarPosse(res, nome, socio, cardId, true)) === 'barrado') return;
     const b = req.body;
     if (!b || typeof b !== 'object' || Array.isArray(b)) { res.status(400).json({ error: 'corpo_invalido' }); return; }
     const id = (b as { id?: unknown }).id;
@@ -362,6 +367,8 @@ export function mountFinanceiro(router: Router): void {
       for (let volta = 0; volta < 2; volta++) {
         const lido = await lerUm(cardId, id);
         const atual = lido?.l ?? null;
+        // A linha da obra solar (com `obra`) só se mexe pelas rotas da jornada: aqui, em qualquer caso, 409.
+        if (atual?.obra) { res.status(409).json({ error: 'linha_da_obra', mensagem: 'Esta linha é do dinheiro da obra solar e só se mexe pela própria obra.' }); return; }
 
         if (!socio) {
           // Quem não é sócio não toca em saída: nem cria, nem edita uma que
@@ -414,12 +421,13 @@ export function mountFinanceiro(router: Router): void {
     const cardId = idDoCard(req, res);
     if (cardId === null) return;
     const { nome, socio } = quem(req);
-    if (await barrarPosse(res, nome, socio, cardId, true)) return;
+    if ((await barrarPosse(res, nome, socio, cardId, true)) === 'barrado') return;
     const id = String(req.params.id ?? '');
     if (!ID_LANCAMENTO.test(id)) { res.status(404).json({ error: 'nao_encontrado' }); return; }
     try {
       const lido = await lerUm(cardId, id);
       if (!lido) { res.status(404).json({ error: 'nao_encontrado' }); return; }
+      if (lido.l.obra) { res.status(409).json({ error: 'linha_da_obra', mensagem: 'Esta linha é do dinheiro da obra solar e só se mexe pela própria obra.' }); return; }
       const atual = lido.l;
       // Sócio apaga qualquer um. Quem não é sócio, só a ENTRADA que ele mesmo criou.
       if (!socio && atual.tipo !== 'entrada') { res.status(403).json({ error: 'so_socio' }); return; }

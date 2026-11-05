@@ -638,6 +638,49 @@ describe('comissão por quem vendeu', () => {
   });
 });
 
+describe('a retirada dos sócios só para o ADM e para a Giovanna', () => {
+  it('a Nilce e o Diego (não ADM) não recebem a retirada nem o que a deduza; a Giovanna e o Thiago recebem; o saldo da Nilce é recebido menos gasto', async () => {
+    iaLe(1_167_000);
+    const { path: pe } = await subir('entrada para a retirada', { auth: GIOVANNA });
+    expect((await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(pe), GIOVANNA)).status).toBe(200);
+    iaLe(194_500);
+    const { path: pn } = await subir('comissao da nilce', { auth: GIOVANNA });
+    expect((await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'nilce', papel: 'venda', data: '2026-10-02', forma: 'pix', arquivo_path: pn }, GIOVANNA)).status).toBe(200);
+    iaLe(77_800);
+    const { path: pt } = await subir('retirada do thiago', { auth: GIOVANNA });
+    expect((await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'thiago', papel: 'socio', data: '2026-10-02', forma: 'pix', arquivo_path: pt }, GIOVANNA)).status).toBe(200);
+    iaLe(25_000);
+    expect((await gastar('um frete qualquer', 25_000, { auth: DIEGO })).status).toBe(200);
+
+    for (const auth of [NILCE, DIEGO]) {
+      const g = await get(dinheiro(SOLAR), auth);
+      expect(g.status).toBe(200);
+      const l = g.body.livro;
+      expect(l.recebido).toBe(1_167_000);
+      expect(l.gasto).toBe(194_500 + 25_000);
+      expect(l.saldo).toBe(1_167_000 - 194_500 - 25_000);   // recebido menos gasto, sem a retirada
+      expect('retirada' in l).toBe(false);
+      expect(l.linhas.map((x: any) => x.categoria).sort()).toEqual(['comissao_venda', 'entrada', 'frete']);
+      expect(l.comissoes.linhas.map((x: any) => x.papel)).toEqual(['venda']);
+      expect(l.comissoes.linhas[0]).toMatchObject({ nome: 'nilce', valor_centavos: 194_500 });   // a comissão de quem vendeu fica
+      expect(l.a_pagar.map((x: any) => x.texto)).toEqual([]);   // a retirada do Diego ainda não paga NÃO aparece
+      expect(l.fechamento.faltam.join('|')).not.toMatch(/Diego|Thiago|sócio/);
+      expect(g.text).not.toMatch(/retirada|77800|7\.78|778,00|1\.556|155600/i);
+      // A resposta de um gasto também sai recortada.
+      expect(JSON.stringify(l.por_etapa)).not.toContain('77800');
+    }
+    for (const auth of [GIOVANNA, THIAGO]) {
+      const g = await get(dinheiro(SOLAR), auth);
+      const l = g.body.livro;
+      expect(l.retirada).toBe(77_800);
+      expect(l.saldo).toBe(1_167_000 - 194_500 - 25_000 - 77_800);
+      expect(l.linhas.some((x: any) => x.categoria === 'retirada_socio' && x.valor_centavos === 77_800)).toBe(true);
+      expect(l.comissoes.linhas.map((x: any) => x.papel).sort()).toEqual(['socio', 'socio', 'venda']);
+      expect(l.a_pagar.map((x: any) => x.texto)).toEqual(['Comissão de Diego (sócio 2%): R$ 778,00']);
+    }
+  });
+});
+
 describe('quem lança o quê', () => {
   it('o Diego lança gasto, leva 403 em entrada, e a categoria `comissao_venda` pela rota do lançamento dá 400', async () => {
     expect((await gastar('gasto do diego', 25_000, { auth: DIEGO })).status).toBe(200);
@@ -853,6 +896,29 @@ describe('o financeiro antigo tem guarda SÓ no card solar da jornada', () => {
     expect(socio.body.resumo).toEqual({});   // as linhas do solar têm o livro próprio: não entram no resumo antigo
   });
 
+  it('linha com `obra` nunca é editada nem apagada pelo financeiro antigo (409), e o GET livre a filtra; a linha comum do eletroposto segue como era', async () => {
+    h.linhas.set(`fin:${ELETRO}:ent-obra-0001`, {
+      updated_at: 'e0',
+      value: jsonb({ id: 'ent-obra-0001', card_id: ELETRO, tipo: 'entrada', categoria: 'sinal', valor_centavos: 777_001, data: '2026-10-01', apagado: false, obra: { v: 1, etapa: 2, grupo: 'entrada', conferencia: 'bateu' }, sig: 'a'.repeat(64) }),
+    });
+    await fp(`${ELETRO}/lancamento`, ent('ent-comum-001', 123_457));
+    const edit = await fp(`${ELETRO}/lancamento`, { id: 'ent-obra-0001', valor_centavos: 5 }, THIAGO);
+    expect(edit.status).toBe(409);
+    expect(edit.body.error).toBe('linha_da_obra');
+    const apaga = await fp(`${ELETRO}/lancamento/ent-obra-0001/apagar`, { motivo: 'limpando a conta' }, THIAGO);
+    expect(apaga.status).toBe(409);
+    expect(apaga.body.error).toBe('linha_da_obra');
+    expect(h.linhas.get(`fin:${ELETRO}:ent-obra-0001`)!.value.valor_centavos).toBe(777_001);
+    expect(h.linhas.get(`fin:${ELETRO}:ent-obra-0001`)!.value.apagado).toBe(false);
+    const g = await f(String(ELETRO), THIAGO);
+    expect(g.body.lancamentos.map((x: any) => x.id)).toEqual(['ent-comum-001']);
+    expect(JSON.stringify(g.body)).not.toContain('777001');
+    expect(g.body.totais.recebido).toBe(123_457);
+    // A linha comum segue editável e apagável.
+    expect((await fp(`${ELETRO}/lancamento`, { id: 'ent-comum-001', valor_centavos: 200_000 }, THIAGO)).status).toBe(200);
+    expect((await fp(`${ELETRO}/lancamento/ent-comum-001/apagar`, { motivo: 'engano de digitacao' }, THIAGO)).status).toBe(200);
+  });
+
   it('o GET antigo de um card solar não soma o estorno como positivo', async () => {
     const a = await gastar('gasto estornado lido pelo caminho antigo');
     await post(dinheiro(SOLAR, '/estorno'), { id_original: a.body.lancamento.id, motivo: 'Valor errado' });
@@ -945,6 +1011,8 @@ describe('correções do revisor (commit 1)', () => {
     expect(ok.body.livro.linhas).toHaveLength(1);
     expect(ok.body.livro.gasto).toBe(25_000);
     expect(gravado()[0].sig).toMatch(/^[0-9a-f]{64}$/);
+    // A linha registra quem marcou, quando e de quê para quê.
+    expect(gravado()[0].alteracoes).toEqual([{ em: AGORA, por: 'thiago', de: 'sem_leitura', para: 'conferido_adm' }]);
     // A segunda marca não tem o que conferir; linha de valor conferido pela IA também não.
     expect((await post(dinheiro(SOLAR, '/conferir'), { id: l.body.lancamento.id }, THIAGO)).status).toBe(409);
     expect((await post(dinheiro(SOLAR, '/conferir'), { id: 'nao-existe-000' }, THIAGO)).status).toBe(404);

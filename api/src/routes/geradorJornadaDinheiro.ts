@@ -15,7 +15,7 @@ import { etapaAtualCompleta, materialDaCompra, pendenciasDaObra, type EstadoObra
 import { lerNota } from '../services/gerador/notaLeitura';
 import { lerObraComVersao, lerObraPrivada, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
 import {
-  AJUSTES_PADRAO, CATEGORIAS_OBRA, categoriaObra, idDoEstorno, lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, regraDoVendedor, reaisBR,
+  AJUSTES_PADRAO, CATEGORIAS_OBRA, recortarLivro, veRetiradaDosSocios, categoriaObra, idDoEstorno, lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, regraDoVendedor, reaisBR,
   validarAjustes, type AjustesSolar, type Conferencia, type Livro, type LancamentoObra, type LinhaLivro, type LinhaRegra, type Pendencia,
 } from '../services/gerador/jornadaDinheiro';
 import {
@@ -107,13 +107,14 @@ export async function lerDinheiro(g: GuardaObra): Promise<DadosDinheiro> {
 }
 
 /** O livro com a URL assinada (1 hora) de cada comprovante, numa CÓPIA: o objeto lido nunca leva link que vence. */
-export async function livroComUrls(d: DadosDinheiro): Promise<Livro> {
+export async function livroComUrls(d: DadosDinheiro, g: GuardaObra): Promise<Livro> {
   const caminho = new Map(d.lancamentos.map((l) => [l.id, l.arquivo?.path ?? '']));
   const linhas: LinhaLivro[] = await Promise.all(d.livro.linhas.map(async (l) => {
     const p = caminho.get(l.id);
     return l.comprovante && p ? { ...l, comprovante: { ...l.comprovante, url: await assinarComprovante(p, 3600) } } : l;
   }));
-  return { ...d.livro, linhas };
+  // A retirada dos sócios só vai para o ADM e para a Giovanna.
+  return recortarLivro({ ...d.livro, linhas }, veRetiradaDosSocios(g.nome, g.adm)) as Livro;
 }
 
 const ehGiovOuAdm = (g: GuardaObra): boolean => g.adm || g.nome === 'giovanna';
@@ -304,7 +305,12 @@ async function gravarLancamento(p: PedidoGravacao): Promise<Saida> {
     return { http: 200, json: { ok: true } };
   };
 
-  const saida = reg ? await comTrava(`fin_sha:${reg.sha256.slice(0, 32)}`, g.nome, gravar) : await gravar();
+  // A trava da CONTA (uma por obra): o fechamento calcula o "tudo em zero" dentro dela, então nenhum lançamento entra no meio. Reconfere a conta fechada aqui dentro.
+  const saida = await comTrava(`fin_conta:${g.id}`, g.nome, async (): Promise<Saida> => {
+    const { estado } = await lerObraComVersao(g.id);
+    if (estado?.fechada) return erro(409, 'conta_fechada', MSG_FECHADA);
+    return reg ? await comTrava(`fin_sha:${reg.sha256.slice(0, 32)}`, g.nome, gravar) : await gravar();
+  });
   if (saida.http !== 200) return saida;
   return { http: 200, json: { ok: true, id: assinado.id } };
 }
@@ -316,7 +322,7 @@ async function respostaDaGravacao(g: GuardaObra, id: string): Promise<Saida> {
     const l = d.livro.linhas.find((x) => x.id === id);
     return { http: 200, json: { ok: true, lancamento: l ? { id: l.id, etapa: l.etapa, categoria: l.categoria, valor_centavos: l.valor_centavos } : { id } } };
   }
-  const livro = await livroComUrls(d);
+  const livro = await livroComUrls(d, g);
   return { http: 200, json: { ok: true, lancamento: livro.linhas.find((x) => x.id === id) ?? { id }, livro } };
 }
 
@@ -336,8 +342,8 @@ export function mountJornadaDinheiro(router: Router): void {
       if (!d.veDinheiro) { res.json({ ok: true, visivel: false }); return; }
       res.json({
         ok: true, visivel: true,
-        livro: await livroComUrls(d),
-        categorias: CATEGORIAS_OBRA.map((c) => ({ tipo: c.tipo, slug: c.slug, rotulo: c.rotulo, grupo: c.grupo, previsto: c.previsto, quem: c.quem })),
+        livro: await livroComUrls(d, g),
+        categorias: CATEGORIAS_OBRA.filter((c) => c.grupo !== 'retirada' || veRetiradaDosSocios(g.nome, g.adm)).map((c) => ({ tipo: c.tipo, slug: c.slug, rotulo: c.rotulo, grupo: c.grupo, previsto: c.previsto, quem: c.quem })),
         formas: catalogoFinanceiro().formas,
         pode: podeDoDinheiro(g, d),
         previsto: d.privada?.previsto ? { homologacao: d.privada.previsto.homologacao, material: d.privada.previsto.material, frete: d.privada.previsto.frete, mao_de_obra: d.privada.previsto.mao_de_obra, outros: d.privada.previsto.outros } : null,
@@ -548,18 +554,24 @@ export function mountJornadaDinheiro(router: Router): void {
     const b = corpoDe(req);
     if (!b || typeof b.id !== 'string' || !ID_LANCAMENTO.test(b.id)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
     try {
-      const d = await lerDinheiro(g);
-      if (d.fechada) { res.status(409).json({ ok: false, error: 'conta_fechada', mensagem: MSG_FECHADA }); return; }
-      const { l, versao } = await lerLancamentoObraComVersao(g.id, b.id);
-      if (!l || versao === null) { res.status(404).json({ ok: false, error: 'nao_encontrado' }); return; }
-      if (l.obra.estorno_de || (l.obra.conferencia !== 'sem_leitura' && l.obra.conferencia !== 'baixa_confianca')) {
-        res.status(409).json({ ok: false, error: 'nada_a_conferir', mensagem: 'Este lançamento não está esperando conferência.' }); return;
-      }
-      const novo = lancamentoObraParaGravar(g.id, { ...l, obra: { ...l.obra, conferencia: 'conferido_adm' } });
-      if (!novo) { res.status(503).json({ ok: false, error: 'sem_segredo' }); return; }
-      if (!(await atualizarLancamentoObra(novo, versao))) { res.status(409).json({ ok: false, error: 'mudou', mensagem: 'Outra pessoa mexeu agora. Tente de novo.' }); return; }
-      enviar(res, await respostaDaGravacao(g, l.id));
-    } catch (err) { falhouJornada(res, 'conferir', err); }
+      await comTrava(`fin_conta:${g.id}`, g.nome, async () => {
+        const d = await lerDinheiro(g);
+        if (d.fechada) { res.status(409).json({ ok: false, error: 'conta_fechada', mensagem: MSG_FECHADA }); return; }
+        const { l, versao } = await lerLancamentoObraComVersao(g.id, b.id as string);
+        if (!l || versao === null) { res.status(404).json({ ok: false, error: 'nao_encontrado' }); return; }
+        if (l.obra.estorno_de || (l.obra.conferencia !== 'sem_leitura' && l.obra.conferencia !== 'baixa_confianca')) {
+          res.status(409).json({ ok: false, error: 'nada_a_conferir', mensagem: 'Este lançamento não está esperando conferência.' }); return;
+        }
+        // Registra quem marcou, quando e de quê para quê (a linha é reassinada; nada se apaga).
+        const novo = lancamentoObraParaGravar(g.id, {
+          ...l, alteracoes: [...l.alteracoes, { em: new Date().toISOString(), por: g.nome, de: l.obra.conferencia, para: 'conferido_adm' }],
+          obra: { ...l.obra, conferencia: 'conferido_adm' },
+        });
+        if (!novo) { res.status(503).json({ ok: false, error: 'sem_segredo' }); return; }
+        if (!(await atualizarLancamentoObra(novo, versao))) { res.status(409).json({ ok: false, error: 'mudou', mensagem: 'Outra pessoa mexeu agora. Tente de novo.' }); return; }
+        enviar(res, await respostaDaGravacao(g, l.id));
+      });
+    } catch (err) { if (!res.headersSent) falhouJornada(res, 'conferir', err); }
   });
 
   // ── Rota 6 · O previsto por grupo (ADM) ───────────────────────────────────────────────────────────────────────────────
@@ -579,7 +591,7 @@ export function mountJornadaDinheiro(router: Router): void {
       }));
       if (ehRecusa(r)) { res.status(r.http).json({ ok: false, ...(r.extra ?? {}) }); return; }
       const d = await lerDinheiro(g);
-      res.json({ ok: true, previsto_versao: r.versoes.previsto, livro: await livroComUrls(d) });
+      res.json({ ok: true, previsto_versao: r.versoes.previsto, livro: await livroComUrls(d, g) });
     } catch (err) { falhouJornada(res, 'previsto', err); }
   });
 
