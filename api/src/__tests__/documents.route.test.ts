@@ -261,6 +261,11 @@ describe('POST /documents/generate', () => {
     expect((await gerar({ fio_b_tarifa: 2.5 })).body.error).toBe('Escreva o valor do Fio B da sua concessionária, em R$ por kWh.');
     expect((await gerar({ fio_b_tarifa: 0.28, fio_b_injetada_pct: 150 })).body.error).toBe('A parte da geração que vai para a rede tem que ficar entre 1% e 100%.');
     expect((await gerar({ fio_b_tarifa: 0.28, fio_b_injetada_pct: 0 })).status).toBe(400);
+    for (const s of [-1, 101, 30.5, 'abc']) {
+      const r = await gerar({ fio_b_tarifa: 0.28, fio_b_simultaneidade_pct: s });
+      expect(r.status).toBe(400);
+      expect(r.body.error).toBe('A simultaneidade tem que ficar entre 0% e 100%.');
+    }
     expect(mockRpc).not.toHaveBeenCalled();
     expect(generateFromTemplate).not.toHaveBeenCalled();
   });
@@ -284,6 +289,18 @@ describe('POST /documents/generate', () => {
     expect(semEco.body.error).toBe('Com esse Fio B a proposta fica sem economia. Confira o valor do Fio B.');
     expect(mockRpc).not.toHaveBeenCalled();
     expect(generateFromTemplate).not.toHaveBeenCalled();
+  });
+
+  it('modelo 4 com simultaneidade 0 e 100 passa e vai ao template', async () => {
+    for (const s of [0, 100]) {
+      mockGeracaoProposta();
+      mockRpc.mockResolvedValueOnce({ data: '2026004' + s, error: null });
+      const r = await request(app)
+        .post('/documents/generate').set('Authorization', AUTH)
+        .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4,
+          fields: { assinatura: ASSIN_OK, fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_simultaneidade_pct: s } });
+      expect(r.status).toBe(200);
+    }
   });
 
   it('modelo 4 com Fio B válido passa e vai ao template; desligado não é validado', async () => {

@@ -147,7 +147,7 @@ function tipoDoCadastro(tipo: unknown, doc: unknown): TipoCliente | null {
  *  em `fields`, senão `cpf_cnpj` iria para o kit do vendedor e para a próxima proposta. */
 const CHAVES_SO_DA_ASSINATURA = new Set<string>(['tipo', 'cpf_cnpj', 'assinatura', 'bancos_logos']);
 /** Ao carregar um cliente, o Fio B (da concessionária) que está na tela não é trocado pelo da proposta antiga dele. */
-const CHAVES_FIO_B = new Set<string>(['fio_b_mostrar', 'fio_b_tarifa', 'fio_b_injetada_pct']);
+const CHAVES_FIO_B = new Set<string>(['fio_b_mostrar', 'fio_b_tarifa', 'fio_b_simultaneidade_pct', 'fio_b_injetada_pct']);
 
 /** Texto decimal digitado (com vírgula ou ponto) para número. "0,28" e "0.28" viram 0.28; "1.234,5"
  *  vira 1234.5. Nunca passa por <input type=number>: a vírgula do teclado zerava o campo. */
@@ -162,6 +162,18 @@ function decimalBR(v: unknown): number {
 function fioBTexto(v: unknown, padrao: string): string {
   if (typeof v === 'number' && Number.isFinite(v)) return String(v).replace('.', ',');
   if (typeof v === 'string') return v;
+  return padrao;
+}
+/** Simultaneidade (% da geração usada na hora) de uma fonte de fora. Proposta, rascunho ou kit antigo só
+ *  tem `fio_b_injetada_pct` (o que vai para a rede): a simultaneidade é 100 menos isso. 0 e 100 valem. */
+function simultaneidadeDe(obj: Record<string, unknown> | null | undefined, padrao: string): string {
+  const o = obj ?? {};
+  const limita = (n: number) => String(Math.min(100, Math.max(0, Math.round(n))));
+  const num = (v: unknown) => (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '') ? decimalBR(v) : null);
+  const sim = num(o.fio_b_simultaneidade_pct);
+  if (sim !== null) return limita(sim);
+  const inj = num(o.fio_b_injetada_pct);
+  if (inj !== null) return limita(100 - inj);
   return padrao;
 }
 /** Só dígitos, vírgula e ponto. */
@@ -218,7 +230,7 @@ const initialFields = {
   // Fio B (só Completa + Banco), desligado por padrão. Texto como digitado; vira número no envio.
   fio_b_mostrar: false,
   fio_b_tarifa: '',
-  fio_b_injetada_pct: '70',
+  fio_b_simultaneidade_pct: '30',
   assinatura: assinaturaVazia() as AssinaturaForm,
   // Bateria (opcional) — só aparece na proposta se a marca estiver preenchida.
   // Padrão render-if-filled, mesmo idioma das garantias extras (nada é persistido
@@ -359,6 +371,9 @@ function normalizarInversores(obj: Record<string, unknown> | null | undefined): 
 }
 
 const LIMITE_FOTOS_OBRAS = 12;
+// A etiqueta "Novo" do cartão Completa + Banco vale até esta data (inclusive, horário de Brasília).
+const SELO_NOVO_ATE = '2026-12-05T23:59:59-03:00';
+const seloNovoAtivo = () => Date.now() <= new Date(SELO_NOVO_ATE).getTime();
 const LIMITE_EMPRESAS = 12;
 const LIMITE_BANCOS = 8;
 const CHAVES_PORTFOLIO = ['fotos_obras', 'empresas_atendidas', 'bancos_parceiros'] as const;
@@ -635,7 +650,7 @@ export default function PropostaSolarPage() {
           mostrar_dados_bancarios: boolOu(d.fields.mostrar_dados_bancarios, f.mostrar_dados_bancarios),
           fio_b_mostrar: boolOu(d.fields.fio_b_mostrar, f.fio_b_mostrar),
           fio_b_tarifa: fioBTexto(d.fields.fio_b_tarifa, f.fio_b_tarifa),
-          fio_b_injetada_pct: fioBTexto(d.fields.fio_b_injetada_pct, f.fio_b_injetada_pct),
+          fio_b_simultaneidade_pct: simultaneidadeDe(d.fields, f.fio_b_simultaneidade_pct),
           assinatura: normalizarAssinatura(d.fields.assinatura, f.assinatura),
         }));
       }
@@ -731,11 +746,17 @@ export default function PropostaSolarPage() {
             if (k === 'mostrar_dados_bancarios' && typeof v !== 'boolean') continue;
             // Fio B é da empresa/concessionária, não do cliente: o kit pode levar.
             if (k === 'fio_b_mostrar') { if (typeof v === 'boolean' && !camposTocados.current.has(k)) merged[k] = v; continue; }
-            if (k === 'fio_b_tarifa' || k === 'fio_b_injetada_pct') {
+            if (k === 'fio_b_tarifa') {
               if ((typeof v === 'number' || typeof v === 'string') && !camposTocados.current.has(k)) merged[k] = fioBTexto(v, '');
               continue;
             }
+            // Kit antigo só tem `fio_b_injetada_pct`: vira simultaneidade logo depois do laço.
+            if (k === 'fio_b_simultaneidade_pct' || k === 'fio_b_injetada_pct') continue;
             if (!camposTocados.current.has(k)) merged[k] = v;
+          }
+          const kitFio = data.kit as Record<string, unknown>;
+          if (!camposTocados.current.has('fio_b_simultaneidade_pct') && (kitFio.fio_b_simultaneidade_pct !== undefined || kitFio.fio_b_injetada_pct !== undefined)) {
+            merged.fio_b_simultaneidade_pct = simultaneidadeDe(kitFio, f.fio_b_simultaneidade_pct);
           }
           if (!camposTocados.current.has('inversores') && temDadoInversor(data.kit as Record<string, unknown>)) {
             merged.inversores = normalizarInversores(data.kit as Record<string, unknown>);
@@ -782,7 +803,7 @@ export default function PropostaSolarPage() {
         mostrar_dados_bancarios: boolOu(dadosBrutos.mostrar_dados_bancarios, true),
         fio_b_mostrar: boolOu(dadosBrutos.fio_b_mostrar, false),
         fio_b_tarifa: fioBTexto(dadosBrutos.fio_b_tarifa, ''),
-        fio_b_injetada_pct: fioBTexto(dadosBrutos.fio_b_injetada_pct, '70'),
+        fio_b_simultaneidade_pct: simultaneidadeDe(dadosBrutos, '30'),
         assinatura: ass,
       }));
       // Proposta já emitida: a quantidade dela é decisão tomada, não palpite.
@@ -1246,13 +1267,12 @@ export default function PropostaSolarPage() {
       if (emp.representante.trim().length < 2) falha('ass_emp_rep', 'Escreva quem assina pela sua empresa.');
     }
 
-    // Fio B (só Completa + Banco, quando ligado): tarifa de 0,01 a 2 R$/kWh e parte injetada de 1% a 100%.
+    // Fio B (só Completa + Banco, quando ligado): tarifa de 0,01 a 2 R$/kWh e a simultaneidade (0% a 100%) vem da barra e sempre vale.
     if (modelo === 4 && fields.fio_b_mostrar) {
-      const tarifa = decimalBR(fields.fio_b_tarifa), pct = decimalBR(fields.fio_b_injetada_pct);
+      const tarifa = decimalBR(fields.fio_b_tarifa);
       const tarifaEnergia = decimalBR(fields.tarifa_kwh);
       if (!(tarifa >= 0.01 && tarifa <= 2)) { faltam.add('fio_b_tarifa'); msgsAssinatura.push('Escreva o valor do Fio B da sua concessionária, em R$ por kWh.'); }
       else if (tarifaEnergia > 0 && tarifa >= tarifaEnergia) { faltam.add('fio_b_tarifa'); msgsAssinatura.push('O Fio B não pode ser maior que a tarifa de energia. Confira o valor.'); }
-      if (!(pct >= 1 && pct <= 100)) { faltam.add('fio_b_pct'); msgsAssinatura.push('A parte da geração que vai para a rede tem que ficar entre 1% e 100%.'); }
     }
 
     if (faltam.size > 0) {
@@ -1292,12 +1312,14 @@ export default function PropostaSolarPage() {
         if (fields.fio_b_mostrar) {
           camposEnvio.fio_b_mostrar = true;
           camposEnvio.fio_b_tarifa = decimalBR(fields.fio_b_tarifa);
-          camposEnvio.fio_b_injetada_pct = decimalBR(fields.fio_b_injetada_pct);
+          camposEnvio.fio_b_simultaneidade_pct = Number(simultaneidadeDe(fields, '30'));
         } else {
           camposEnvio.fio_b_mostrar = false;
           delete camposEnvio.fio_b_tarifa;
-          delete camposEnvio.fio_b_injetada_pct;
+          delete camposEnvio.fio_b_simultaneidade_pct;
         }
+        // O campo antigo nunca mais vai: rascunho e proposta velhos ainda podem tê-lo em `fields`.
+        delete camposEnvio.fio_b_injetada_pct;
       }
       if (modelo === 4 && !assinaturaEmUso) {
         delete camposEnvio.assinatura;
@@ -1319,6 +1341,7 @@ export default function PropostaSolarPage() {
         delete camposEnvio.mostrar_dados_bancarios;
         delete camposEnvio.fio_b_mostrar;
         delete camposEnvio.fio_b_tarifa;
+        delete camposEnvio.fio_b_simultaneidade_pct;
         delete camposEnvio.fio_b_injetada_pct;
       }
       const payload: Record<string, unknown> = {
@@ -1680,6 +1703,14 @@ export default function PropostaSolarPage() {
           <div style={{ marginTop: 6 }}>
             <Escolhas colunas={2}>
               <Escolha
+                on={modelo === 4}
+                icone={Images}
+                onClick={() => setModelo(4)}
+                titulo="Completa + Banco"
+                desc="Para mandar ao banco"
+                selo={seloNovoAtivo() ? 'Novo' : undefined}
+              />
+              <Escolha
                 on={modelo === 1}
                 icone={FileText}
                 onClick={() => setModelo(1)}
@@ -1700,15 +1731,22 @@ export default function PropostaSolarPage() {
                 titulo="Moderno com capa"
                 desc="o mesmo, com folha de rosto na frente"
               />
-              <Escolha
-                on={modelo === 4}
-                icone={Images}
-                onClick={() => setModelo(4)}
-                titulo="Completa + Banco"
-                desc="Para mandar ao banco"
-              />
             </Escolhas>
           </div>
+
+          {/* Completa + Banco: fotos e dados bancários moram na tela Empresa e entram sozinhos. */}
+          {modelo === 4 && empresaDef && (empresaDef.fotos.length < 6 ? (
+            <div className={styles.orientacao}>
+              <span>Cadastre as fotos dos seus trabalhos e os dados bancários uma vez na tela Empresa. Eles ficam salvos e entram sozinhos em toda proposta, sem precisar subir de novo.</span>
+              <Link href="/empresa" style={{ color: 'var(--ink-orange)', fontWeight: 700, textDecoration: 'underline' }}>Ir para a tela Empresa</Link>
+              {!docParam && !editando && <span className={styles.orientacaoPequena}>O que você já preencheu aqui fica salvo.</span>}
+            </div>
+          ) : (
+            <div className={`${styles.orientacao} ${styles.orientacaoDiscreta}`}>
+              <span>Suas fotos estão salvas na tela Empresa e já entram sozinhas.</span>
+              <Link href="/empresa" style={{ color: 'var(--ink-orange)', fontWeight: 700, textDecoration: 'underline' }}>Ir para a tela Empresa</Link>
+            </div>
+          ))}
 
           {/* A COR MORA NA EMPRESA, e num lugar só. Editar a mesma coisa em duas
               telas faz a pessoa não saber qual vale — e aqui era pior: o campo
@@ -1729,7 +1767,7 @@ export default function PropostaSolarPage() {
             <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
               Envie uma vez: as imagens voltam sozinhas nas próximas propostas.
             </p>
-            <p className={styles.ajudaSecao}>Mande 6, 9 ou 12 fotos. A proposta mostra sempre fileiras completas de 3.</p>
+            <p className={styles.ajudaSecao}>Mande 6, 9 ou 12 fotos. A proposta mostra sempre fileiras completas de 3. Para não subir toda vez, cadastre na <Link href="/empresa" style={{ color: 'var(--ink-orange)', fontWeight: 700, textDecoration: 'underline' }}>tela Empresa</Link>.</p>
             <GaleriaPortfolio tipo="obra" titulo="Fotos de obras" max={LIMITE_FOTOS_OBRAS} itens={fields.fotos_obras} onChange={v => setField('fotos_obras', v)} />
             <GaleriaPortfolio tipo="empresa" titulo="Empresas atendidas" max={LIMITE_EMPRESAS} itens={fields.empresas_atendidas} onChange={v => setField('empresas_atendidas', v)} />
           </div>
@@ -2438,7 +2476,7 @@ export default function PropostaSolarPage() {
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>Fio B</h2>
             <label className={`${styles.opcaoCaixa} ${fields.fio_b_mostrar ? styles.opcaoCaixaOn : ''}`}>
-              <input type="checkbox" checked={fields.fio_b_mostrar} onChange={e => { setField('fio_b_mostrar', e.target.checked); clearFaltando('fio_b_tarifa'); clearFaltando('fio_b_pct'); }} />
+              <input type="checkbox" checked={fields.fio_b_mostrar} onChange={e => { setField('fio_b_mostrar', e.target.checked); clearFaltando('fio_b_tarifa'); }} />
               <span className={styles.opcaoTexto}>Mostrar o Fio B na proposta</span>
             </label>
             {fields.fio_b_mostrar && (
@@ -2453,12 +2491,16 @@ export default function PropostaSolarPage() {
                   {erroFioB && <p className="error-message" role="alert" style={{ margin: 0 }}>{erroFioB}</p>}
                 </div>
                 <div className={styles.field}>
-                  <label className={styles.label} htmlFor="fio-b-pct">Energia que vai para a rede (%)</label>
-                  <input id="fio-b-pct" type="text" inputMode="decimal" className="input-field" autoComplete="off" placeholder="70"
-                    value={fields.fio_b_injetada_pct}
-                    onChange={e => { setField('fio_b_injetada_pct', soDecimal(e.target.value)); clearFaltando('fio_b_pct'); }}
-                    {...invalidProps('fio_b_pct')} />
-                  <span className={styles.enderecoDica}>Parte da geração que não é usada na hora e vai para a rede. Em casa costuma ficar entre 60% e 80%.</span>
+                  <label className={styles.label} htmlFor="fio-b-simultaneidade">Simultaneidade</label>
+                  <div className={styles.faixaLinha}>
+                    <input id="fio-b-simultaneidade" type="range" min={0} max={100} step={5} className={styles.faixa}
+                      value={Number(simultaneidadeDe(fields, '30'))}
+                      aria-describedby="fio-b-simultaneidade-ajuda fio-b-simultaneidade-efeito"
+                      onChange={e => setField('fio_b_simultaneidade_pct', e.target.value)} />
+                    <output htmlFor="fio-b-simultaneidade" className={styles.faixaValor}>{simultaneidadeDe(fields, '30')}%</output>
+                  </div>
+                  <span id="fio-b-simultaneidade-ajuda" className={styles.enderecoDica}>Parte da geração usada na hora, que não vai para a rede e não paga Fio B. Em casa costuma ficar entre 20% e 40%.</span>
+                  <span id="fio-b-simultaneidade-efeito" className={styles.orientacaoPequena}>{100 - Number(simultaneidadeDe(fields, '30'))}% da geração vai para a rede.</span>
                 </div>
               </div>
             )}

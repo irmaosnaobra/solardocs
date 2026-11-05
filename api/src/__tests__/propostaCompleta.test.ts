@@ -586,7 +586,7 @@ describe('Fio B: contas', () => {
   });
 
   it('série: ano 1 é o ano da emissão, reajusta pela tarifa e sobe o percentual', () => {
-    const s = serieFioB({ fio: { tarifa: 0.28, pct: 70 }, geracaoMediaMensal: 756, inflacao: 0.06, anoInicial: 2026 });
+    const s = serieFioB({ fio: { tarifa: 0.28, pct: 70, simultaneidade: 30 }, geracaoMediaMensal: 756, inflacao: 0.06, anoInicial: 2026 });
     expect(s.percentuais.slice(0, 5)).toEqual([60, 75, 90, 100, 100]);
     const cent = (n: number) => Math.round(n * 100) / 100;
     expect(s.custoMensal[0]).toBe(cent(756 * 0.7 * 0.28 * 1 * 0.6));
@@ -599,7 +599,7 @@ describe('Fio B: contas', () => {
     const e = { consumoKwh: 650, tarifa: 1.2, taxaMinima: 90, inflacao: 0.06, inflacaoTaxaMin: 0.06, investimento: 28900 };
     const sem = calcFin(e);
     expect(calcFin({ ...e, fioBMensal: undefined })).toEqual(sem);
-    const serie = serieFioB({ fio: { tarifa: 0.28, pct: 70 }, geracaoMediaMensal: 756, inflacao: 0.06, anoInicial: 2026 });
+    const serie = serieFioB({ fio: { tarifa: 0.28, pct: 70, simultaneidade: 30 }, geracaoMediaMensal: 756, inflacao: 0.06, anoInicial: 2026 });
     const com = calcFin({ ...e, fioBMensal: serie.custoMensal });
     expect(com.contaComSolar).toBeCloseTo(90 + serie.custoMensal[0], 6);
     expect(com.economiaMensal).toBeLessThan(sem.economiaMensal);
@@ -621,7 +621,7 @@ describe('Fio B: contas', () => {
     for (const t of [0.01, 2, '0,28']) expect(validarFioB({ fio_b_mostrar: true, fio_b_tarifa: t })).toBeNull();
     for (const p of [0, 101, -5, 'x']) expect(validarFioB({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: p })).toBe(msgPct);
     for (const p of [undefined, null, '', 1, 100, 70]) expect(validarFioB({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: p })).toBeNull();
-    expect(lerFioB({ fio_b_mostrar: true, fio_b_tarifa: '0,28' })).toEqual({ tarifa: 0.28, pct: 70 });
+    expect(lerFioB({ fio_b_mostrar: true, fio_b_tarifa: '0,28' })).toEqual({ tarifa: 0.28, pct: 70, simultaneidade: 30 });
     expect(lerFioB({ fio_b_mostrar: true, fio_b_tarifa: 5 })).toBeNull();
     expect(lerFioB({ fio_b_tarifa: 0.28 })).toBeNull();
     expect(anoCivil(new Date('2026-11-05T15:00:00.000Z'))).toBe(2026);
@@ -642,7 +642,7 @@ describe('Fio B: modelo 4', () => {
     const { html } = render(FIO);
     expect(html).toContain('Fio B (Lei 14.300)');
     expect(html).toContain('Quem instala a partir de 2023 paga uma parte do Fio B sobre a energia que vai para a rede. Essa parte sobe a cada ano até chegar a 100% em 2029.');
-    expect(html).toContain(`Nesta proposta: Fio B de ${moeda(0.28)} por kWh sobre 70% da geração. A economia desta proposta já desconta esse custo.`);
+    expect(html).toContain(`Nesta proposta: Fio B de ${moeda(0.28)} por kWh e simultaneidade de 30%, então 70% da geração vai para a rede. A economia desta proposta já desconta esse custo.`);
     const faixa = html.slice(html.indexOf('class="fgrid"'));
     expect(['2026', '2027', '2028', '2029'].map((a) => faixa.indexOf(`<div class="a num">${a}</div>`)).every((v, i, arr) => v > 0 && (i === 0 || v > arr[i - 1]))).toBe(true);
     for (const pct of ['60%', '75%', '90%', '100%']) expect(faixa).toContain(`<div class="p num">${pct}</div>`);
@@ -704,7 +704,7 @@ describe('Fio B: leitura de número, centavos e conferência na proposta', () =>
   });
 
   it('custo mensal do Fio B em centavos; conta com solar + economia = conta de hoje, exato', () => {
-    const s = serieFio({ fio: { tarifa: 0.28, pct: 70 }, geracaoMediaMensal: 803.3333, inflacao: 0.06, anoInicial: 2026 });
+    const s = serieFio({ fio: { tarifa: 0.28, pct: 70, simultaneidade: 30 }, geracaoMediaMensal: 803.3333, inflacao: 0.06, anoInicial: 2026 });
     for (const c of s.custoMensal) expect(Math.round(c * 100) / 100).toBe(c);
     const { html } = render({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: 70 });
     const n = (re: RegExp) => Math.round(parseFloat((re.exec(html) as RegExpExecArray)[1].replace(/\./g, '').replace(',', '.')) * 100);
@@ -795,3 +795,78 @@ const ASSIN_BASE = {
   empresa: { razao_social: 'Sol Forte Energia Ltda', cnpj: '11222333000181', representante: 'Carlos Pereira', cargo: 'Sócio' },
   cliente: { tipo: 'PF', nome: 'Maria Aparecida Souza', documento: '52998224725' },
 };
+
+// ─── Fio B: simultaneidade (barra de 0% a 100%) ──────────────────────────────────────────────────
+describe('Fio B: simultaneidade', () => {
+  const FIO_S = (s: unknown) => ({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_simultaneidade_pct: s });
+  const FIO_ANTIGO = { fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: 70 };
+
+  it('conversão: simultaneidade vence; sem ela vale a injetada de antes; sem nenhuma, 30% (injetada 70%)', () => {
+    expect(lerFioB({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_simultaneidade_pct: 40 })).toEqual({ tarifa: 0.28, pct: 60, simultaneidade: 40 });
+    expect(lerFioB({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_injetada_pct: 80 })).toEqual({ tarifa: 0.28, pct: 80, simultaneidade: 20 });
+    expect(lerFioB({ fio_b_mostrar: true, fio_b_tarifa: 0.28 })).toEqual({ tarifa: 0.28, pct: 70, simultaneidade: 30 });
+    // As duas chaves juntas: a simultaneidade é quem manda.
+    expect(lerFioB({ fio_b_mostrar: true, fio_b_tarifa: 0.28, fio_b_simultaneidade_pct: 10, fio_b_injetada_pct: 50 })).toEqual({ tarifa: 0.28, pct: 90, simultaneidade: 10 });
+    expect(lerFioB(FIO_S('25'))).toEqual({ tarifa: 0.28, pct: 75, simultaneidade: 25 });
+  });
+
+  it('extremos: 0% (tudo vai para a rede) e 100% (nada vai, custo zero)', () => {
+    expect(lerFioB(FIO_S(0))).toEqual({ tarifa: 0.28, pct: 100, simultaneidade: 0 });
+    expect(lerFioB(FIO_S(100))).toEqual({ tarifa: 0.28, pct: 0, simultaneidade: 100 });
+    const zero = serieFioB({ fio: { tarifa: 0.28, pct: 0, simultaneidade: 100 }, geracaoMediaMensal: 800, inflacao: 0.06, anoInicial: 2026 });
+    expect(zero.custoMensal.every((c) => c === 0)).toBe(true);
+    const tudo = serieFioB({ fio: { tarifa: 0.28, pct: 100, simultaneidade: 0 }, geracaoMediaMensal: 800, inflacao: 0.06, anoInicial: 2026 });
+    expect(tudo.custoMensal[0]).toBe(Math.round(800 * 0.28 * 0.6 * 100) / 100);
+  });
+
+  it('validação: inteira de 0 a 100, senão 400 com a frase; 100% é válido', () => {
+    const msg = 'A simultaneidade tem que ficar entre 0% e 100%.';
+    for (const s of [-1, 101, 30.5, 'abc', '30%', 1000]) expect(validarFioB(FIO_S(s))).toBe(msg);
+    for (const s of [0, 1, 30, 99, 100, '70', undefined, null, '']) expect(validarFioB(FIO_S(s))).toBeNull();
+    expect(validarFioB({ fio_b_mostrar: false, fio_b_tarifa: 0.28, fio_b_simultaneidade_pct: 500 })).toBeNull();
+    // Com simultaneidade, a injetada antiga é ignorada na validação.
+    expect(validarFioB({ ...FIO_S(30), fio_b_injetada_pct: 500 })).toBeNull();
+    expect(lerFioB(FIO_S(101))).toBeNull();
+  });
+
+  it('texto do bloco: simultaneidade e parte que vai para a rede; com 100%, nada vai e não há custo', () => {
+    const moeda = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const html40 = render(FIO_S(40)).html;
+    expect(html40).toContain(`Nesta proposta: Fio B de ${moeda(0.28)} por kWh e simultaneidade de 40%, então 60% da geração vai para a rede. A economia desta proposta já desconta esse custo.`);
+    expect(html40).not.toContain('sobre 70% da geração');
+    const html100 = render(FIO_S(100)).html;
+    expect(html100).toContain(`Nesta proposta: Fio B de ${moeda(0.28)} por kWh e simultaneidade de 100%, então nada vai para a rede e não há custo de Fio B. A economia desta proposta já desconta esse custo.`);
+    expect(html100).toContain('R$' + NB + '0,00 por mês');
+    // Sem consumo (sem economia), a frase da economia não entra.
+    const semEco = render({ ...FIO_S(100), consumo_kwh: '0' }).html;
+    expect(semEco).toContain('então nada vai para a rede e não há custo de Fio B.</div>');
+  });
+
+  it('simultaneidade 30 = números idênticos ao de antes (injetada 70, ou nenhuma das duas)', () => {
+    const antigo = render(FIO_ANTIGO);
+    const nova = render(FIO_S(30));
+    const padrao = render({ fio_b_mostrar: true, fio_b_tarifa: 0.28 });
+    expect(nova.html).toBe(antigo.html);
+    expect(padrao.html).toBe(antigo.html);
+    expect(nova.out.resumo).toBe(antigo.out.resumo);
+  });
+
+  it('simultaneidade maior = custo menor, economia maior; o resumo de WhatsApp acompanha', () => {
+    const eco = (r: { html: string }) => parseFloat((/Economia de R\$.([\d.,]+) todo mês/.exec(r.html) as RegExpExecArray)[1].replace(/\./g, '').replace(',', '.'));
+    const a = render(FIO_S(0));
+    const b = render(FIO_S(30));
+    const c = render(FIO_S(100));
+    expect(eco(a)).toBeLessThan(eco(b));
+    expect(eco(b)).toBeLessThan(eco(c));
+    const resumo = (r: { out: { resumo?: string } }) => /Economia: ~R\$.([\d.,]+)\/mês/.exec(String(r.out.resumo))?.[1];
+    expect(resumo(a)).not.toBe(resumo(c));
+    // Com 100% o Fio B não tira nada: a economia é a mesma de sem Fio B.
+    expect(eco(c)).toBe(eco(render({})));
+  });
+
+  it('a conferência "Fio B que zera a economia" continua valendo com a simultaneidade', () => {
+    const f = { ...base, tarifa_kwh: '1,00', consumo_kwh: '100', fio_b_mostrar: true, fio_b_tarifa: 0.5 };
+    expect(validarFioBNaProposta({ ...f, fio_b_simultaneidade_pct: 0 })).toBe(MSG_FIO_B_SEM_ECONOMIA);
+    expect(validarFioBNaProposta({ ...f, fio_b_simultaneidade_pct: 100 })).toBeNull();
+  });
+});
