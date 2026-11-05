@@ -502,8 +502,8 @@ CPF/CNPJ: ${client.cpf_cnpj || '___'}
 // pdfController repassa — assim o template decide o que aparece, sem o
 // controller precisar consultar a empresa no banco.
 //
-// O TEXTO DAS CLÁUSULAS É O DE ANTES, palavra por palavra. Só o continente
-// mudou. Existe teste comparando as sentenças com as do modelo antigo.
+// O texto das cláusulas é o de antes, palavra por palavra, salvo as cláusulas 4, 8 e 13
+// do contrato com versao_garantia >= 2 (texto de 11/2026).
 
 const CT_CSS = docBaseCss('ct', DOC_TOKENS_SOBRIO) + `
 .ct { font-size:10pt; }
@@ -593,6 +593,31 @@ function contratoSolarM2(
       : '') +
     `e prazos específicos para demais componentes conforme manual do fabricante.`;
 
+  // Garantia, texto de 11/2026. Só o contrato com versao_garantia >= 2 usa o texto novo.
+  // O servidor grava a marca na 1ª geração e a mantém na reedição: contrato antigo,
+  // reaberto ou não, sai com o texto de antes, palavra por palavra.
+  const garV2 = Number(f.versao_garantia) >= 2;
+  // Cliente pessoa física: o que limita direito dele sai em negrito (CDC, art. 54, § 4º).
+  // Cliente sem tipo cai aqui, que é o lado seguro.
+  const B = (h: string) => (isPJClient ? h : `<b>${h}</b>`);
+  const anosTxt = (v: unknown) => {
+    const n = parseInt(String(v ?? '').replace(/\D/g, ''), 10) || 0;
+    return `${str(v)} (${numExtenso(v)}) ${n === 1 ? 'ano' : 'anos'}`;
+  };
+  const garEquipLista = bat.tem && bat.garantia > 0
+    ? `${anosTxt(f.garantia_modulos_anos)} para os módulos, ${anosTxt(f.garantia_inversor_anos)} para o inversor e ${anosTxt(bat.garantia)} para a bateria`
+    : `${anosTxt(f.garantia_modulos_anos)} para os módulos e ${anosTxt(f.garantia_inversor_anos)} para o inversor`;
+  // Instalação vazia, zero ou negativa vira 1 (um) ano, o padrão do formulário.
+  const garInstRaw = String(f.garantia_instalacao_anos ?? '').trim();
+  const garInst = garantiaInstalacaoExtenso({
+    ...f,
+    garantia_instalacao_anos: parseFloat(garInstRaw.replace(',', '.')) >= 1 ? garInstRaw : '1',
+  });
+  // Prazo de resposta ao pedido de garantia: campo novo, padrão 2 (dois) dias úteis.
+  const respN = parseInt(String(f.garantia_resposta_dias ?? '').replace(/\D/g, ''), 10) || 2;
+  const garResposta = `${respN} (${numExtenso(respN)}) ${respN === 1 ? 'dia útil' : 'dias úteis'}`;
+  const telEmpresa = (company as { telefone?: string }).telefone || '';
+
   // Cabeçalho que corre nas folhas 2 em diante (o pdfController o desenha na
   // margem). Vai em atributo pra não depender de o controller conhecer a empresa.
   const runHeader = [m.nome, company.cnpj ? `CNPJ ${company.cnpj}` : '', 'Contrato de instalação de usina fotovoltaica']
@@ -654,7 +679,16 @@ function contratoSolarM2(
     <p>O valor total dos serviços é de R$ ${e(curr(str(f.valor_total)))} (${e(extenso(f.valor_total))}), sendo o pagamento realizado da seguinte forma:</p>
     <p>${e(str(f.condicoes_pagamento))}</p>`)}
 
-  ${cl(4, 'Garantias e manutenção', `
+  ${cl(4, 'Garantias e manutenção', garV2 ? `
+    <p><span class="rot">Equipamentos:</span> Os equipamentos têm a garantia do fabricante: ${e(garEquipLista)}. As condições de cada garantia, inclusive o que ela cobre, são as do certificado do fabricante, entregue com o sistema. Os demais componentes têm o prazo que o fabricante de cada um dá.</p>
+    <p>${isPJClient
+      ? 'As garantias dos equipamentos são só dos fabricantes. A CONTRATADA ajuda o CLIENTE a abrir o pedido e acompanha até o conserto ou a troca.'
+      : 'Quando for preciso, a CONTRATADA aciona o fabricante pelo CLIENTE, abre o pedido e acompanha até o conserto ou a troca. Essas garantias se somam à garantia que a lei dá.'}</p>
+    <p><span class="rot">Instalação:</span> A CONTRATADA garante a instalação por ${e(garInst)}, a contar da entrega do sistema, na vistoria do fim da instalação. Nesse prazo, ela corrige sem custo o defeito que vier da obra e for confirmado em visita técnica, como na fixação, na vedação dos pontos de fixação, nos cabos, nas conexões, no quadro de proteção e no aterramento.</p>
+    <p><span class="rot">Como pedir:</span> O CLIENTE pede a garantia à CONTRATADA por escrito, ${telEmpresa ? `por mensagem ao telefone ${e(telEmpresa)} ou por e-mail` : 'por mensagem ou e-mail'}, com a descrição e fotos do problema. A CONTRATADA responde em até ${e(garResposta)} do pedido e, quando precisar de visita, marca a data nessa resposta.</p>
+    <p>${B('<span class="rot">Conserto por orçamento:</span> A garantia da instalação vale para o uso normal do sistema. O dano causado por mau uso, intervenção de terceiro sem autorização da CONTRATADA, raio, granizo, enchente, vendaval, sobretensão ou sobrecarga da rede elétrica, outra força maior, obra no imóvel que atinja o sistema ou sujeira acumulada por falta de limpeza dos módulos é consertado por orçamento, que o CLIENTE recebe e aprova antes do serviço. A garantia continua valendo para o resto do sistema.')}</p>
+    <p><span class="rot">Cuidados:</span> A CONTRATADA recomenda limpar os módulos ao menos 1 (uma) vez por ano, e antes se a sujeira aparecer, só com água e pano ou escova macia. A limpeza e a revisão das conexões também podem ser feitas pela CONTRATADA, por orçamento.</p>
+    <p><span class="rot">Telhas:</span> Se alguma telha quebrar durante a obra, a CONTRATADA faz a reposição. Quem paga a telha nova é combinado entre as partes, levando em conta a fragilidade e o estado do material.</p>` : `
     <p>${e(garantiaEquip)}</p>
     <p><span class="rot">Instalação:</span> A garantia de instalação é de ${e(garantiaInstalacaoExtenso(f))}, válida somente para defeitos de instalação devidamente constatados por laudo técnico.</p>
     <p><span class="rot">Exclusões de Garantia:</span> A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da CONTRATADA, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.</p>
@@ -675,7 +709,10 @@ function contratoSolarM2(
     <p><span class="rot">Cessão de Direitos:</span> Nenhuma das partes poderá transferir seus direitos e obrigações sob este contrato sem o consentimento por escrito da outra parte.</p>
     <p><span class="rot">Alterações:</span> Qualquer alteração neste contrato deverá ser formalizada por meio de termo aditivo assinado por ambas as partes.</p>`)}
 
-  ${cl(8, 'Desempenho e geração de energia', `
+  ${cl(8, 'Desempenho e geração de energia', garV2 ? `
+    <p>${B('A geração estimada parte de condições normais de clima e de operação. Ela é uma projeção técnica, não promessa nem garantia de geração ou de economia.')}</p>
+    <p>${B('A geração real muda com o clima, a temperatura, a sujeira nos módulos, a sombra e a qualidade da rede da distribuidora. Essa variação não é defeito do sistema nem da instalação.')}</p>
+    <p>${B('A CONTRATADA não responde pela queda de geração causada por fator externo ou por mudança no local depois da instalação, como uma sombra nova.')}</p>` : `
     <p>O desempenho estimado da usina é baseado em condições climáticas e operacionais normais.</p>
     <p>A geração de energia pode variar até 10% devido a condições climáticas e características do local.</p>
     <p>A CONTRATADA não se responsabiliza por perdas de geração de energia decorrentes de fatores externos ou mudanças estruturais no local de instalação, tais como sombras adicionais.</p>`)}
@@ -692,7 +729,8 @@ function contratoSolarM2(
   ${cl(12, 'Responsabilidades ambientais e sustentabilidade', `
     <p>As partes reconhecem a natureza sustentável deste contrato e comprometem-se a atuar de forma a minimizar impactos ambientais durante e após a instalação. O CLIENTE concorda em manter a área de instalação livre de obstruções e a CONTRATADA assegura que todos os materiais e equipamentos usados estão de acordo com as normas ambientais.</p>`)}
 
-  ${cl(13, 'Multa por interrupção não autorizada', `
+  ${cl(13, 'Multa por interrupção não autorizada', garV2 ? `
+    <p>${B('Caso o CLIENTE ou terceiros não autorizados interfiram no sistema sem a aprovação da CONTRATADA, estará sujeito a multa de 5% (cinco por cento) do valor total do contrato. O dano que essa interferência causar é consertado por orçamento, como diz a cláusula Garantias e manutenção.')}</p>` : `
     <p>Caso o CLIENTE ou terceiros não autorizados interfiram no sistema sem a aprovação da CONTRATADA, estará sujeito a multa de 5% do valor total do contrato, além da perda das garantias aplicáveis.</p>`)}
 
   ${cl(14, 'Foro', `

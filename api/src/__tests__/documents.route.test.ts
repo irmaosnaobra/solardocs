@@ -12,6 +12,8 @@ const mockUpload  = vi.fn().mockResolvedValue({ error: null });
 const mockRemove  = vi.fn().mockResolvedValue({ error: null });
 // Reassinatura das galerias do modelo Completo (renovarUrlsPortfolio).
 const mockSignedUrls = vi.fn();
+// O que o controller manda para documents.insert (a prova do dados_json gravado).
+const mockInsert = vi.fn();
 
 // ─── mocks antes do import de app ───────────────────────────────────
 vi.mock('../utils/supabase', () => ({
@@ -20,7 +22,7 @@ vi.mock('../utils/supabase', () => ({
       select: vi.fn().mockReturnThis(),
       eq:     vi.fn().mockReturnThis(),
       single: mockSingle,
-      insert: vi.fn().mockReturnThis(),
+      insert: vi.fn(function (this: unknown, ...a: unknown[]) { mockInsert(...a); return this; }),
       // update(...).eq(...).select('id') devolve a linha acertada (o controller confere que o doc ainda existe).
       update: vi.fn(() => {
         const q: Record<string, unknown> = {};
@@ -91,11 +93,35 @@ describe('POST /documents/generate', () => {
     const res = await request(app)
       .post('/documents/generate')
       .set('Authorization', AUTH)
-      .send({ tipo: 'contratoSolar', cliente_id: CLIENT_UUID, fields: {}, useTemplate: true });
+      .send({ tipo: 'contratoSolar', cliente_id: CLIENT_UUID, fields: { versao_garantia: 1 }, useTemplate: true, modeloNumero: 2 });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('content');
     expect(res.body).toHaveProperty('doc_id');
+    // Texto de garantia de 11/2026: a marca é só do servidor e sobrescreve a do formulário.
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect(fields.versao_garantia).toBe(2);
+  });
+
+  it('contratoSolar pelo caminho da IA (useTemplate false) não leva a marca versao_garantia', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { nome: 'Empresa', cnpj: '00.000.000/0001-00' } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+      .mockResolvedValueOnce({ data: { id: CLIENT_UUID, nome: 'Cliente' } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', documentos_usados: 5, limite_documentos: 90 } })
+      .mockResolvedValueOnce({ data: { documentos_usados: 5 } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+      .mockResolvedValueOnce({ data: { id: 'doc-1' }, error: null });
+
+    const res = await request(app)
+      .post('/documents/generate')
+      .set('Authorization', AUTH)
+      .send({ tipo: 'contratoSolar', cliente_id: CLIENT_UUID, fields: {}, useTemplate: false });
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(generateFromTemplate)).not.toHaveBeenCalled();
+    const insert = mockInsert.mock.calls[mockInsert.mock.calls.length - 1]?.[0] as { dados_json?: Record<string, unknown> } | undefined;
+    expect(insert?.dados_json?.versao_garantia).toBeUndefined();
   });
 
   it('retorna 400 sem cliente_id ou terceiro_id', async () => {
@@ -370,6 +396,32 @@ describe('POST /documents/:id/regenerate', () => {
 
     const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
     expect(fields.codigo).toBe('202600010035');
+  });
+
+  // Texto de garantia de 11/2026: a marca é só do servidor. A reedição mantém a que estava
+  // salva (ou a falta dela), nunca a que o formulário devolve.
+  it('contratoSolar antigo, sem a marca: a reedição continua sem ela', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { ...docAvulso, tipo: 'contratoSolar', dados_json: { valor_total: '1' } } })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } });
+
+    await post(DOC_UUID, { fields: { valor_total: '2', versao_garantia: 2 }, modeloNumero: 2 });
+
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect('versao_garantia' in fields).toBe(false);
+  });
+
+  it('contratoSolar novo: a reedição mantém a versão salva, mesmo se o formulário mandar outra', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { ...docAvulso, tipo: 'contratoSolar', dados_json: { valor_total: '1', versao_garantia: 2 } } })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } });
+
+    await post(DOC_UUID, { fields: { valor_total: '2', versao_garantia: 1 }, modeloNumero: 2 });
+
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect(fields.versao_garantia).toBe(2);
   });
 
   it('retorna 404 pra doc de outro usuario', async () => {

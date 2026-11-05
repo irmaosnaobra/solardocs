@@ -35,7 +35,8 @@ const initialFields = {
   prazo_instalacao_dias: '10',
   garantia_modulos_anos: '',
   garantia_inversor_anos: '',
-  garantia_instalacao_anos: '',
+  garantia_instalacao_anos: '1',
+  garantia_resposta_dias: '2', // prazo, em dias úteis, para a empresa responder a um pedido de garantia
   garantia_instalacao_unidade: 'anos', // 'anos' | 'meses' — mão de obra às vezes é 6 meses
   foro_cidade: '',
   // Bateria (opcional) — mesmos campos da proposta, mesmo helper no backend.
@@ -253,7 +254,7 @@ export default function ContratoSolarPage() {
             <div className={styles.field}>
               <label className={styles.label}>Instalação (mão de obra) *</label>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input type="number" value={fields.garantia_instalacao_anos} onChange={e => setFields({...fields, garantia_instalacao_anos: e.target.value})} placeholder="2" className="input-field" style={{ flex: 1, minWidth: 0 }} required />
+                <input type="number" min={1} value={fields.garantia_instalacao_anos} onChange={e => setFields({...fields, garantia_instalacao_anos: e.target.value})} placeholder="1" className="input-field" style={{ flex: 1, minWidth: 0 }} required />
                 <select
                   value={fields.garantia_instalacao_unidade}
                   onChange={e => setFields({...fields, garantia_instalacao_unidade: e.target.value})}
@@ -265,6 +266,12 @@ export default function ContratoSolarPage() {
                   <option value="meses">meses</option>
                 </select>
               </div>
+            </div>
+          </div>
+          <div className={styles.grid3} style={{ marginTop: 12 }}>
+            <div className={styles.field}>
+              <label className={styles.label}>Resposta ao cliente (dias úteis) *</label>
+              <input type="number" min={1} value={fields.garantia_resposta_dias} onChange={e => setFields({...fields, garantia_resposta_dias: e.target.value})} placeholder="2" className="input-field" required />
             </div>
           </div>
         </div>

@@ -408,6 +408,25 @@ describe('POST /documents/save', () => {
     expect(banco.linhas('documents')).toHaveLength(1);
   });
 
+  it('contratoSolar salvo: a versao_garantia do corpo é sobrescrita pela do servidor', async () => {
+    usuario('pro', { documentos_usados: 0, limite_documentos: 5 });
+
+    const res = await request(app).post('/documents/save').set('Authorization', AUTH)
+      .send({ ...corpo, dados_json: { valor_total: '1', versao_garantia: 1 } });
+
+    expect(res.status).toBe(201);
+    expect(banco.linhas('documents')[0]!.dados_json).toMatchObject({ valor_total: '1', versao_garantia: 2 });
+  });
+
+  it('outro tipo salvo: dados_json segue como veio', async () => {
+    usuario('pro', { documentos_usados: 0, limite_documentos: 5 });
+
+    await request(app).post('/documents/save').set('Authorization', AUTH)
+      .send({ ...corpo, tipo: 'recibo', dados_json: { versao_garantia: 1 } });
+
+    expect(banco.linhas('documents')[0]!.dados_json).toEqual({ versao_garantia: 1 });
+  });
+
   it('no limite: 403 LIMIT_REACHED e nada é gravado', async () => {
     usuario('pro', { documentos_usados: 5, limite_documentos: 5 });
 

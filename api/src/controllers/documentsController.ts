@@ -213,6 +213,10 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // antes de o template e o dados_json verem o objeto. Vale também no retry do número (abaixo),
     // que gera de novo a partir de body.fields.
     if (body.tipo === 'propostaSolar') body.fields = await renovarUrlsPortfolio(req.userId, body.fields);
+    // Contrato solar novo sai com o texto de garantia de 11/2026. A marca é só do servidor:
+    // o que o formulário mandar em versao_garantia é sobrescrito.
+    // No caminho por IA o template não roda, então a marca não entra.
+    if (body.tipo === 'contratoSolar' && body.useTemplate) body.fields = { ...body.fields, versao_garantia: 2 };
 
     const tmplOut: { resumo?: string } = {};
     if (body.useTemplate) {
@@ -518,6 +522,12 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     if (doc.tipo === 'propostaBanco' && !podeTrocarCliente) {
       if ('cpf_cnpj' in dadosAntigos) fields.cpf_cnpj = dadosAntigos.cpf_cnpj;
       else delete fields.cpf_cnpj;
+    }
+    // Contrato solar: a versão do texto de garantia é a que estava salva. Contrato antigo, sem a
+    // marca, continua sem ela e sai com o texto de antes. O que o front mandar é ignorado.
+    if (doc.tipo === 'contratoSolar') {
+      if ('versao_garantia' in dadosAntigos) fields.versao_garantia = dadosAntigos.versao_garantia;
+      else delete fields.versao_garantia;
     }
     // Reedição de contrato, procuração, recibo etc. reimprime a data da emissão. O
     // created_at de documents vem 3h adiantado (conhecido), por isso o -3h. A proposta
@@ -828,7 +838,10 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
         cliente_id: body.cliente_id || null,
         terceiro_id: body.terceiro_id || null,
         cliente_nome: body.cliente_nome || null,
-        dados_json: body.dados_json || null,
+        // A versão do texto de garantia é só do servidor: o que vier no corpo nunca vale.
+        dados_json: body.tipo === 'contratoSolar' && body.dados_json
+          ? { ...body.dados_json, versao_garantia: 2 }
+          : (body.dados_json || null),
         content: body.content,
         modelo_usado: body.modelo_usado || null,
         arquivo_url,
