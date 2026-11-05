@@ -63,6 +63,8 @@ const MIN = 60_000;
 const HORA = 60 * MIN;
 const DIA = 24 * HORA;
 export const JANELA_TOQUE_RECENTE_MS = 14 * DIA;
+/** Quem cancelou há menos que isto espera: a retomada não chega logo depois do D1 a D5 do dunning (chefe-antiban, 05/11/2026). */
+export const JANELA_SAIU_HA_POUCO_MS = 14 * DIA;
 export const JANELA_FALA_RECENTE_MS = 24 * HORA;
 export const JANELA_MUDO_MS = 60 * DIA;
 export const TOQUES_MUDO = 3;
@@ -230,6 +232,8 @@ export interface UsuarioRet {
   last_canceled_at?: string | null;
   /** Quantos documentos a conta gerou (users.documentos_usados). Separa quem nunca pagou em `usou` e `nunca usou`. */
   documentos_usados?: number | null;
+  /** Como a conta nasceu (users.origem_aquisicao): 'kit-integrador' e 'plugcash' são compradores de outro produto e ficam fora. */
+  origem_aquisicao?: string | null;
 }
 
 export interface VendaRet { email?: string | null; valor?: number | string | null; status?: string | null; subscription_id?: string | null }
@@ -271,6 +275,7 @@ export interface ContextoClassificar {
 
 export type MotivoDeFora =
   | 'sem_telefone' | 'sem_segredo' | 'telefone_fora_do_padrao' | 'admin_ou_teste' | 'linha_nossa' | 'paga_hoje' | 'opt_out'
+  | 'saiu_ha_pouco' | 'kit_integrador' | 'plugcash'
   | 'depois_da_largada' | 'data_ilegivel' | 'telefone_em_mais_de_uma_conta' | 'mudo_antigo' | 'ja_na_campanha' | 'email_nexus_24h'
   | 'respondeu_pesquisa_saida' | 'email_saida_hoje'
   | `fora_marcado:${string}`;
@@ -429,6 +434,13 @@ export function classificarUsuario(u: UsuarioRet, x: ExtrasRet, ctx: ContextoCla
   if (ehLinhaNossa(t.chave, ctx.chavesDaCasa)) return { ok: false, motivo: 'linha_nossa' };
   if (pagaHoje(u, ctx.agoraMs)) return { ok: false, motivo: 'paga_hoje' };
   if (u.whatsapp_opt_out === true) return { ok: false, motivo: 'opt_out' };
+  // Comprador de outro produto (o kit do integrador e o PlugCash criam conta free com esta marca): não é ex-usuário da SolarDoc.
+  const origem = String(u.origem_aquisicao ?? '').trim().toLowerCase();
+  if (origem === 'kit-integrador') return { ok: false, motivo: 'kit_integrador' };
+  if (origem === 'plugcash') return { ok: false, motivo: 'plugcash' };
+  // Cancelou há menos de 14 dias (data futura também espera): o dunning ainda está falando com ela.
+  const cancelou = ms(u.last_canceled_at);
+  if (cancelou !== null && ctx.agoraMs - cancelou < JANELA_SAIU_HA_POUCO_MS) return { ok: false, motivo: 'saiu_ha_pouco' };
   const criada = ms(u.created_at);
   if (criada === null) return { ok: false, motivo: 'data_ilegivel' };
   if (criada >= ctx.largadaMs) return { ok: false, motivo: 'depois_da_largada' };

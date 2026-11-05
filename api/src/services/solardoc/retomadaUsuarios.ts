@@ -700,7 +700,7 @@ export async function sondarRetomadaUsuarios(opts: { n?: number; agora?: Date } 
 
 // ── as dependências de verdade ───────────────────────────────────────────────
 
-const COLUNAS_USUARIO = 'id, email, nome, whatsapp, plano, billing_status, plano_expira_em, created_at, whatsapp_opt_out, whatsapp_replied_at, is_admin, carla_sem_cnpj_count, carla_inativo_count, last_canceled_at, documentos_usados';
+const COLUNAS_USUARIO = 'id, email, nome, whatsapp, plano, billing_status, plano_expira_em, created_at, whatsapp_opt_out, whatsapp_replied_at, is_admin, carla_sem_cnpj_count, carla_inativo_count, last_canceled_at, documentos_usados, origem_aquisicao';
 
 /** Lê tudo de uma consulta paginada (o PostgREST corta em 1000 linhas e ignora o .limit()). Erro LANÇA: lista cortada também é "não saber". */
 async function lerTudo<T>(pagina: (de: number, ate: number) => PromiseLike<{ data: unknown[] | null; error: unknown }>): Promise<T[]> {
