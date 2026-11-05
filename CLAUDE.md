@@ -33,8 +33,9 @@ contrato. Eles são a memória escrita do projeto, não sobra.
 | Build | `dashboard/` | `npm run build` |
 | Lint | `dashboard/` | `npm run lint` |
 | Dev | `dashboard/` | `npm run dev` |
+| Publicar no `main` | raiz do repo | `bash scripts/publicar.sh` |
 
-Não existe script na raiz. Todo comando roda de dentro da pasta do projeto.
+Fora o `scripts/publicar.sh`, todo comando roda de dentro da pasta do projeto.
 
 ## Guardrails
 
@@ -52,8 +53,16 @@ Cada um destes já custou caro pelo menos uma vez.
   isso: commit parcial deixa a dependência de fora e derruba o build.
 - **`vercel --prod` publica o BRANCH que está no disco, não o `main`.** Pior: o
   `.vercel/` da raiz aponta para o projeto `pack-solar`, não para o dashboard.
-  No solardocs, empurre para o `main` e deixe o push disparar o build. Existe
-  hook que bloqueia o `--prod` sem `--cwd` ou `VERCEL_PROJECT_ID`.
+  No solardocs, publique com `bash scripts/publicar.sh` e deixe o merge no
+  `main` disparar o build. Existe hook que bloqueia o `--prod` sem `--cwd` ou
+  `VERCEL_PROJECT_ID`.
+- **Push direto no `main` é recusado** (desde 05/11/2026). O ruleset só aceita
+  commit que já passou em `api — typecheck e testes`, `Varredura de segredos` e
+  `dashboard — lint`. Publique com `bash scripts/publicar.sh`: ele faz rebase no
+  `origin/main`, empurra o HEAD para um ramo `pub/...`, abre PR com merge
+  automático por rebase e espera. Sai 0 com o sha que entrou no `main`, ou 1
+  dizendo qual check reprovou. O CI leva de 2 a 3 minutos. Os ramos `pub/*` não
+  geram build na Vercel: o `ignoreCommand` pula.
 - **Deploy só conta quando chega em READY.** Push que não vira build acontece
   aqui e passa despercebido.
 - **Cada projeto só monta quando a própria pasta muda** (desde 19/10/2026,
@@ -129,9 +138,9 @@ Cada um destes já custou caro pelo menos uma vez.
   o push se um dos dois falhar. Sem gitleaks ou sem `api/node_modules` ele avisa e
   segue. O `tsc` confere o que está no disco. Emergência: `git push --no-verify`.
   Vale com `core.hooksPath` ligado, igual ao pre-commit.
-- `main` tem o ruleset "main: sem force push e sem apagar" (05/11/2026). Ele
-  não exige CI antes do push. Há pre-commit e pre-push em `.githooks/`
-  (precisam de `core.hooksPath` ligado no clone).
+- `main` tem o ruleset "main: só com CI verde, sem force push e sem apagar"
+  (05/11/2026). Há pre-commit e pre-push em `.githooks/` (precisam de
+  `core.hooksPath` ligado no clone).
 - Hooks: 6 regras em `.claude/hookify.*.local.md`. Quatro bloqueiam (`git add -A`,
   `vercel --prod` sem alvo explícito, force push e `reset --hard`, `DROP` e
   `TRUNCATE`) e duas avisam (bump do `sw.js`; e envio pelo WhatsApp, Instagram
@@ -145,8 +154,3 @@ Cada um destes já custou caro pelo menos uma vez.
 
 1. Fechar o backlog do eslint do `dashboard` (171 problemas em 11/09/2026) e
    tirar o `continue-on-error` dele em `.github/workflows/qualidade.yml`.
-2. Exigir `Qualidade` e `Segurança` antes do push no `main`: **continua
-   aberta** e é decisão do dono. Obrigaria toda sessão a publicar por PR, e
-   hoje todas publicam direto no `main`. O pre-push já cobre o caso local. Se
-   ligar, o nome exigido é o do job no `check-runs`, não o do workflow: nome
-   errado deixa todo push esperando para sempre.
