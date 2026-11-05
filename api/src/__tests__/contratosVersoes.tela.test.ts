@@ -88,7 +88,7 @@ beforeAll(() => { SB = criarSandbox(); });
 describe('versões no card: a tela', () => {
   it('o script carrega sem erro e expõe as peças novas', () => {
     expect(SB.__errosDeCarga).toEqual([]);
-    for (const f of ['ctrCardSet', 'ctrCardDeOrigem', 'ctrVersEnviar', 'ctrVersAbrir', 'ctrVersImprimir', 'ctrVersExcluir', 'epAbrirEntrada', 'fsReabrirEntrada']) {
+    for (const f of ['ctrCardSet', 'ctrCardDeOrigem', 'ctrVersEnviar', 'ctrVersAbrir', 'ctrVersImprimir', 'ctrVersExcluir', 'epAbrirEntrada']) {
       expect(rodar(`typeof ${f}`)).toBe('function');
     }
   });

@@ -434,7 +434,6 @@ describe('um cadastro, vários papéis', () => {
       expect(rodar('epPrevEstado')).toBeNull();       // solar esperou
       rodar("vdcPendente = { ele: 1, sol: 0 }; epPrevEstado = null; try { epPreview({ html: '<p>x</p>', arquivo: 'a', titulo: 'a', ctx: 'sol' }); } catch (e) {}");
       expect(rodar('epPrevEstado')).not.toBeNull();
-      expect(readFileSync(HTML, 'utf8')).toMatch(/hist: null, ctx: 'sol',/);
     });
     it('vdcFetch: a renovação do token travada estoura no mesmo prazo (status 0), sem prender quem espera', async () => {
       rodar("globalThis.__orig = [finToken, setTimeout, clearTimeout]; finToken = () => new Promise(() => {}); setTimeout = (f) => { f(); return 1; }; clearTimeout = () => {};");

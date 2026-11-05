@@ -23618,7 +23618,7 @@ function ctrEstadoZerar() {
   ctrIa = { pedidos: ctrIa.pedidos.filter(ctrIaEhSolar) };   // os pedidos do contrato solar (Fechamento) não são deste cliente
   ctrIaGeracao++;
   // Outro cliente: a conversa com o assistente e o cadastro puxado são do anterior.
-  ctrAgCad = null; ctrAgZerar(undefined, 'ele');
+  ctrAgCad = null; ctrAgZerar(undefined);
   { const at = document.getElementById('ctr-ag-texto'); if (at) at.value = ''; }
   ctrHib = ctrHibNovo();
   { const hp = document.getElementById('ctr-hib-pedido'); if (hp) hp.value = ''; }
@@ -24155,7 +24155,6 @@ const CTR_PAG_MSG_SO_TEXTO = 'A forma de pagamento está só em texto. Clique em
 // `ok` é o texto que o Aplicar (ou o modelo rápido, que guarda vazio) deixou guardado.
 const ctrPagTextoNaoMontado = (texto, ok) => { const t = String(texto || '').trim(); return !!t && t !== String(ok || '').trim(); };
 const CTR_PAG_MSG_NAO_MONTADO = 'Você escreveu como o cliente vai pagar, mas a tabela não foi montada a partir desse texto. Clique em Montar, confira e gere (ou apague o texto se a tabela já está certa).';
-const CTR_PAG_MSG_NAO_MONTADO_SOL = 'Você escreveu como o cliente vai pagar, mas a tabela não foi montada a partir desse texto. Clique em Montar (ou em À vista no Pix), confira e gere (ou apague o texto se a tabela já está certa).';
 function ctrPagTotal() { return ctrPag.linhas.reduce((t, l) => t + ctrPagConta(l).valor, 0); }
 
 // ─── A conta do pagamento, sem tela e sem estado ─────────────────────────────
@@ -24655,7 +24654,7 @@ function ctrInit() {
   ctrPctNota();
   ctrResumo();
   ctrIaRender();
-  ctrAgSync(); ctrAgRender();
+  ctrAgRender();
   ctrDosRender();
   ctrDosCarregar().then(() => { ctrDosRender(); ctrOpcRender(); });
 }
@@ -25887,8 +25886,8 @@ let ctrIaGeracao = 0;
 // 07/10/2026, é do Completo). Trocar de modelo esconde os pedidos do outro, e
 // voltar traz de volta: as chaves das cláusulas não são as mesmas entre eles.
 const ctrIaTipoDe = p => (p && p.tipo) || 'completo';
-// O tipo do contrato que a tela aberta mostra: o do eletroposto, ou o solar (solar_m1 / solar_m2) com o Fechamento aberto.
-function ctrIaTipoAberto() { return ctrAgSolarAtivo() ? ctrSolarTipo(fsModeloSolar()) : ctrTipo(); }
+// O tipo do contrato que a tela aberta mostra: o do eletroposto.
+function ctrIaTipoAberto() { return ctrTipo(); }
 function ctrIaPedidos(tipo) { const t = tipo || ctrIaTipoAberto(); return ctrIa.pedidos.filter(p => ctrIaTipoDe(p) === t); }
 
 // Título vem da IA já escapado pelo servidor; aqui volta a texto puro, porque
@@ -26453,57 +26452,23 @@ const CTR_AG_FALHA_CONF = 'Não consegui conferir os conflitos. Tente de novo.';
 // Campo de valor que o assistente quer mudar e que espera o clique: nada de gerar nem de abrir prévia enquanto houver.
 const ctrAgPendente = () => ctrAg.msgs.some(m => (m.pend || []).length);
 // O motivo que desliga o Gerar (texto vazio = liberado). Lido pelo ctrHibUi a cada tecla.
-const ctrAgGateMotivo = () => { ctrAgSync(); return ctrAgBloqueado ? (ctrAgConferenciaFalhou ? CTR_AG_FALHA_CONF : CTR_AG_BLOQ) : (ctrAgPendente() ? CTR_AG_PEND : ''); };
+const ctrAgGateMotivo = () => { return ctrAgBloqueado ? (ctrAgConferenciaFalhou ? CTR_AG_FALHA_CONF : CTR_AG_BLOQ) : (ctrAgPendente() ? CTR_AG_PEND : ''); };
 const ctrAgBloq = () => !!ctrAgGateMotivo();
 
-// ── O mesmo assistente no Fechamento solar (20/10/2026) ──────────────────────
-// Há dois contextos, cada um com a sua conversa, os seus Desfazer e o seu bloqueio: 'ele' (a aba Contrato do eletroposto)
-// e 'sol' (a aba Contrato do Fechamento solar). As variáveis acima são as do contexto aberto; ao trocar de tela
-// (ctrAgSync, no começo de cada entrada) as do contexto que sai vão para a gaveta e as do que entra voltam.
-// Resposta que estava a caminho na troca é descartada (ctrAgCli sobe), com um aviso na conversa de quem saiu.
-// O contexto vem de qual tela está aberta, não da aba: o Fechamento inteiro é 'sol'.
-let ctrAgCtx = 'ele';
-const ctrAgGaveta = { ele: null, sol: null };
-const ctrAgSolarAtivo = () => { const s = document.getElementById('fechamentoSolarSection'); return !!s && s.style.display !== 'none'; };
-const ctrAgSol = () => ctrAgCtx === 'sol';
-// Elemento do painel do contexto de agora: ctr-ag-* no eletroposto, fsag-* no Fechamento solar.
-const ctrAgDom = n => document.getElementById((ctrAgCtx === 'sol' ? 'fsag-' : 'ctr-ag-') + n);
-function ctrAgSync(forcar) {
-  const q = forcar || (ctrAgSolarAtivo() ? 'sol' : 'ele');
-  if (q === ctrAgCtx) return;
-  if (ctrAgOcupado) ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Você saiu desta tela enquanto o assistente respondia. A resposta não foi aplicada.' });
-  if (ctrAgCtl) { try { ctrAgCtl.abort(); } catch (e) {} }
-  if (ctrAgTimer) { clearInterval(ctrAgTimer); ctrAgTimer = null; }
-  if (ctrAgReconfT) { clearTimeout(ctrAgReconfT); ctrAgReconfT = null; }
-  ctrAgGaveta[ctrAgCtx] = { ctrAg, ctrAgTurnos, ctrAgBloqueado, ctrAgConferenciaFalhou, ctrAgConflitoLista, ctrAgJurTxt };
-  const g = ctrAgGaveta[q] || { ctrAg: ctrAgNovo(), ctrAgTurnos: {}, ctrAgBloqueado: false, ctrAgConferenciaFalhou: false, ctrAgConflitoLista: [], ctrAgJurTxt: CTR_AG_JUR };
-  ctrAg = g.ctrAg; ctrAgTurnos = g.ctrAgTurnos; ctrAgBloqueado = g.ctrAgBloqueado; ctrAgConferenciaFalhou = g.ctrAgConferenciaFalhou;
-  ctrAgConflitoLista = g.ctrAgConflitoLista; ctrAgJurTxt = g.ctrAgJurTxt;
-  ctrAgOcupado = false; ctrAgStatus = ''; ctrAgContinuando = ''; ctrAgCtl = null; ctrAgParado = false; ctrAgDigitado = false;
-  ctrAgCli++;
-  ctrAgCtx = q;
-}
-// A conversa de um contexto sem trocar de tela (o histórico do eletroposto guarda a dele mesmo com o Fechamento aberto).
-function ctrAgDoCtx(q) { return q === ctrAgCtx ? ctrAg : ((ctrAgGaveta[q] && ctrAgGaveta[q].ctrAg) || ctrAgNovo()); }
-// O que muda com o contexto na tela: onde o botão de gerar liga e desliga.
-function ctrAgUi() { if (ctrAgCtx === 'sol') fsAgUi(); else ctrHibUi(); }
-// Contrato solar único (21/10/2026): sempre solar_m1. O seletor "Modelo" saiu da tela.
-function fsModeloSolar() { return 1; }
-const CTR_AG_SOL_NAO = {
-  modelo: 'O contrato solar é um só.',
-  hibrido: 'O contrato solar não tem versão híbrida.',
-  emitente: 'O contrato solar é sempre da AIOROS (Irmãos na Obra). O assistente não troca o emitente.',
-  cadastro: 'O cadastro do cliente entra pelo card vendido, não por aqui.',
-};
+// ── O assistente do contrato (aba Contrato do eletroposto) ──────────────────
+// Havia um segundo contexto, o do Fechamento solar (20/10/2026). A tela saiu na Fase 3 e o contexto saiu na Fase 4 (commit 4).
+// Elemento do painel do assistente: ctr-ag-*.
+const ctrAgDom = n => document.getElementById('ctr-ag-' + n);
+// O que muda na tela: onde o botão de gerar liga e desliga.
+function ctrAgUi() { ctrHibUi(); }
 
 // O que não sai daqui: os valores inteiros que o ctrHibSensivel junta, mais os pedaços de endereço
 // (separados por vírgula ou ponto e vírgula, 6 letras ou mais) e o CPF/CNPJ com e sem pontuação.
 // Texto livre costuma citar só a rua, ou o documento sem os pontos.
 function ctrAgSensivel(ds) {
-  const sol = ctrAgCtx === 'sol';
-  const base = sol ? fsAgSensivelBase() : ctrHibSensivel(ds), set = new Set(base);
+  const base = ctrHibSensivel(ds), set = new Set(base);
   // Dado do imóvel e da unidade consumidora (cartões "O imóvel e a energia"): nunca sai, venha de onde vier no texto.
-  if (!sol) ['ctr-ta-matricula', 'ctr-ta-cartorio', 'ctr-ta-iptu', 'ctr-ta-uc'].forEach(id => { const x = orcVal(id).trim(); if (x.length >= 4) { base.push(x); set.add(x); set.add(orcEsc(x)); } });
+  ['ctr-ta-matricula', 'ctr-ta-cartorio', 'ctr-ta-iptu', 'ctr-ta-uc'].forEach(id => { const x = orcVal(id).trim(); if (x.length >= 4) { base.push(x); set.add(x); set.add(orcEsc(x)); } });
   base.forEach(v => {
     String(v).split(/[,;\n]/).map(x => x.trim()).filter(x => x.length >= 6).forEach(x => { set.add(x); set.add(orcEsc(x)); });
     const dg = String(v).replace(/\D/g, '');
@@ -26522,7 +26487,6 @@ function ctrAgSensivel(ds) {
 // Simples: o modelo com os pedidos já aplicados. Híbrido: o modelo de cada Parte com o plano
 // aplicado (ou o esqueleto, se ainda não há plano). Tudo escovado de dado do cliente.
 function ctrAgEstado() {
-  if (ctrAgCtx === 'sol') return ctrAgEstadoSolar();
   const hib = ctrEhHibrido();
   const tipos = hib ? ctrHib.tipos.slice() : [ctrTipo()];
   let ds, efet = {}, d = null;
@@ -26548,19 +26512,7 @@ function ctrAgEstado() {
   return { hib, tipos, tipo: hib ? null : tipos[0], hibrido: hib ? { tipos } : null, clausulas, sens, efet, ds };
 }
 // A chave de "o contrato mudou enquanto a IA respondia": modelo ou par de modelos.
-const ctrAgImpressao = () => ctrAgCtx === 'sol' ? 'solar|' + fsModeloSolar() : ctrTipoSel() + '|' + (ctrEhHibrido() ? ctrHib.tipos.join('+') : '');
-// O estado do contrato solar como o servidor o quer: o modelo com os pedidos aplicados, travados como "[travado: chave]",
-// dado do cliente escovado. É a mesma forma do eletroposto simples (tipo = solar_m1 ou solar_m2), sem híbrido.
-function ctrAgEstadoSolar() {
-  const d = fsCtrDados(), tipo = ctrSolarTipo(d.modelo);
-  const efet = ctrIaAplicar(ctrModeloSolar(d, d.modelo), ctrIaPedidos(tipo)).modelo;
-  const sens = ctrAgSensivel({ [tipo]: d });
-  const clausulas = efet.map(c => ({ key: c.key, titulo: ctrHibScrub(c.titulo, sens), itens: c.itens.map(it => ({
-    key: it.key, travado: !!it.travado, campo: ctrIaCampo(tipo, it.key),
-    html: it.travado ? `[travado: ${it.key}]` : ctrHibScrub((it.iaTexto || it.html).split(SOL_PUA).join(''), sens),
-  })) }));
-  return { hib: false, tipos: [tipo], tipo, hibrido: null, clausulas, sens, efet, ds: { [tipo]: d } };
-}
+const ctrAgImpressao = () => ctrTipoSel() + '|' + (ctrEhHibrido() ? ctrHib.tipos.join('+') : '');
 
 // ── A lista branca de campos ─────────────────────────────────────────────────
 function ctrAgToken() { return sessaoAtual && sessaoAtual.access_token; }
@@ -26580,13 +26532,12 @@ const ctrAgCampoDe = id => (ctrAgCampos || []).find(c => c.id === id) || null;
 // O campo vale para o modelo aberto (ou para qualquer dos dois do híbrido).
 function ctrAgCampoServe(c) {
   if (!Array.isArray(c.modelos) || !c.modelos.length) return true;
-  const sol = ctrAgCtx === 'sol';
-  const ativos = sol ? [ctrSolarTipo(fsModeloSolar())] : ctrTiposAtivos();
-  return c.modelos.some(m => ativos.includes(m) || m === 'todos' || (m === 'hibrido' && !sol && ctrEhHibrido()));
+  const ativos = ctrTiposAtivos();
+  return c.modelos.some(m => ativos.includes(m) || m === 'todos' || (m === 'hibrido' && ctrEhHibrido()));
 }
 function ctrAgEl(id) {
   const el = document.getElementById(id);
-  const pane = document.getElementById(ctrAgCtx === 'sol' ? 'fs-pane-contrato' : 'eletro-pane-contrato');
+  const pane = document.getElementById('eletro-pane-contrato');
   return el && pane && pane.contains(el) && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) && el.type !== 'file' ? el : null;
 }
 // "1.234,56" (tela) e "1234.56" (input number) viram número. Sem vírgula, o ponto é decimal só se
@@ -26674,7 +26625,6 @@ function ctrAgEscrever(c, valor) {
 
 // ── O retrato antes de cada turno (só na memória) ────────────────────────────
 function ctrAgSnapTake() {
-  if (ctrAgCtx === 'sol') return fsAgSnapTake();
   const pane = document.getElementById('eletro-pane-contrato');
   const campos = [];
   if (pane) pane.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
@@ -26686,7 +26636,6 @@ function ctrAgSnapTake() {
   return { campos, ctrPag: cp(ctrPag), ctrEsc: cp(ctrEsc), ctrOpc: cp(ctrOpc), ctrIa: cp(ctrIa), ctrHib: cp(ctrHib), ...epEmitSnapGrava() };
 }
 function ctrAgSnapApply(s) {
-  if (s.solar) { fsAgSnapApply(s); return; }
   s.campos.forEach(c => {
     const el = document.getElementById(c.id);
     if (!el) return;
@@ -26740,8 +26689,6 @@ async function ctrAgExecutar(acoes, opts) {
   await ctrAgCarregarCampos();
   const ops = [];
   for (const a of lista) {
-    // Contrato solar: modelo, híbrido, emitente e cadastro não valem. Uma frase na conversa e segue.
-    if (ctrAgCtx === 'sol' && Object.prototype.hasOwnProperty.call(CTR_AG_SOL_NAO, a.tipo)) { if (!res.falhas.includes(CTR_AG_SOL_NAO[a.tipo])) res.falhas.push(CTR_AG_SOL_NAO[a.tipo]); continue; }
     if (a.tipo === 'modelo') {
       const sel = document.getElementById('ctr-tipo');
       const t = String(a.modelo || '');
@@ -26806,18 +26753,16 @@ async function ctrAgExecutar(acoes, opts) {
     }
   }
   if (ops.length) {
-    const r = ctrAgCtx !== 'sol' && ctrEhHibrido() ? ctrAgOperacoesHib(ops, opts) : ctrAgOperacoesSimples(ops, opts);
+    const r = ctrEhHibrido() ? ctrAgOperacoesHib(ops, opts) : ctrAgOperacoesSimples(ops, opts);
     res.linhas.push(...r.linhas); res.falhas.push(...r.falhas); if (r.linhas.length || r.falhas.length) res.mudou = true;
   }
-  if (ctrAgCtx === 'sol') fsAgDepois(); else ctrResumo();
+  ctrResumo();
   return res;
 }
 // Operações do contrato simples: um pedido por turno, como era o "Pedir mudança à IA".
 function ctrAgOperacoesSimples(itens, opts) {
-  const sol = ctrAgCtx === 'sol';
-  const d = sol ? fsCtrDados() : ctrDados();
-  d.tipo = sol ? ctrSolarTipo(d.modelo) : d.tipo;
-  const modeloDe = () => sol ? ctrModeloSolar(d, d.modelo) : ctrModelo(d);
+  const d = ctrDados();
+  const modeloDe = () => ctrModelo(d);
   const base = ctrIaAplicar(modeloDe(), ctrIaPedidos(d.tipo));
   const htmlDe = {}, clausulaDe = {};
   base.modelo.forEach(c => { clausulaDe[c.key] = c.key; c.itens.forEach(it => { htmlDe[it.key] = it.html; clausulaDe[it.key] = c.key; }); });
@@ -26927,7 +26872,6 @@ function ctrAgAplicarBloqueio(rc, vindoDe, eraAntes) {
 // Confere com o Gerar travado: a conferência é uma espera, e o contrato mudou. Se ela não responder, o Gerar
 // fica desligado com o motivo à vista (liberar sem saber seria o erro). Devolve true se a conferência respondeu.
 async function ctrAgConferirTravando(vindoDe) {
-  ctrAgSync();
   const cli = ctrAgCli, era = ctrAgBloqueado;
   ctrAgBloqueado = true; ctrAgConferenciaFalhou = false; ctrAgUi();
   const rc = await ctrAgConferir();
@@ -26949,8 +26893,7 @@ function ctrAgReconferirSoon() {
 }
 // Nem todo campo chama o ctrResumo ao mudar (a garantia, por exemplo, não chama): quem escuta é o painel inteiro.
 ['input', 'change'].forEach(tipo => document.addEventListener(tipo, ev => {
-  if (!ev.target || !ev.target.closest || !ev.target.closest('#eletro-pane-contrato, #fs-pane-contrato') || ev.target.closest('#ctr-ia-card, #fsag-card')) return;
-  ctrAgSync();
+  if (!ev.target || !ev.target.closest || !ev.target.closest('#eletro-pane-contrato') || ev.target.closest('#ctr-ia-card')) return;
   if (ctrAgBloqueado) ctrAgReconferirSoon();
 }, true));
 
@@ -26962,8 +26905,8 @@ function ctrAgMsg(m) {
   return m;
 }
 // O que vai para o histórico: a conversa sem botões vivos e sem retratos.
-function ctrAgPersistir(q) {
-  const A = q ? ctrAgDoCtx(q) : ctrAg;   // `q`: a conversa de um contexto sem trocar de tela ('ele' ou 'sol')
+function ctrAgPersistir() {
+  const A = ctrAg;
   const cut = s => String(s == null ? '' : s).slice(0, CTR_AG_TXT_MAX);
   // No máximo as últimas 20 de cada papel (usuário, assistente, sistema), na ordem de antes.
   const cont = {}, manter = new Set();
@@ -26984,8 +26927,7 @@ function ctrAgRestaurar(s) {
   return out;
 }
 // Zera tudo que é da conversa em andamento (troca de cliente, reabertura do histórico).
-function ctrAgZerar(novoEstado, ctx) {
-  ctrAgSync(ctx);   // `ctx`: quem chama sabe de qual contexto é a conversa ('ele' ou 'sol'), com a outra tela aberta ou não
+function ctrAgZerar(novoEstado) {
   ctrAgCli++;
   ctrAg = novoEstado || ctrAgNovo();
   ctrAgTurnos = {}; ctrAgBloqueado = false; ctrAgConferenciaFalhou = false; ctrAgConflitoLista = []; ctrAgStatus = ''; ctrAgJurTxt = CTR_AG_JUR;
@@ -27087,27 +27029,24 @@ function ctrAgTick() {
 function ctrAgTecla(ev) {
   if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); ctrAgEnviarCampo(); }
 }
-function ctrAgDigitou() { ctrAgSync(); if (ctrAgOcupado) ctrAgDigitado = true; }
-function ctrAgChip(btn) { ctrAgSync(); if (btn && !ctrAgOcupado) ctrAgEnviar(btn.textContent.trim()); }
+function ctrAgDigitou() { if (ctrAgOcupado) ctrAgDigitado = true; }
+function ctrAgChip(btn) { if (btn && !ctrAgOcupado) ctrAgEnviar(btn.textContent.trim()); }
 function ctrAgEnviarCampo() {
-  ctrAgSync();
   const campo = ctrAgDom('texto');
   const t = (campo && campo.value || '').trim();
   if (!t || ctrAgOcupado) return;
   if (ctrAgEnviar(t) && campo) campo.value = '';
 }
 function ctrAgPararAgora() {
-  ctrAgSync();
   ctrAgParado = true;
   if (ctrAgCtl) { try { ctrAgCtl.abort(); } catch (e) {} }
 }
 // Devolve false se não enviou (e diz por quê na conversa).
 function ctrAgEnviar(texto) {
-  ctrAgSync();
   if (ctrAgOcupado) return false;
   if (!ctrAgToken()) { ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Entre com sua conta para falar com o assistente.' }); ctrAgRender(); return false; }
   if (ctrAg.n >= CTR_AG_MAX) { ctrAgMsg({ papel: 'sistema', falha: true, texto: `Este contrato chegou a ${CTR_AG_MAX} mensagens. Para continuar, abra um contrato novo.` }); ctrAgRender(); return false; }
-  if (ctrAgCtx !== 'sol' && ctrEhHibrido() && ctrHib.tipos.length < 2) { ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Marque os dois modelos do contrato híbrido antes de falar com o assistente.' }); ctrAgRender(); return false; }
+  if (ctrEhHibrido() && ctrHib.tipos.length < 2) { ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Marque os dois modelos do contrato híbrido antes de falar com o assistente.' }); ctrAgRender(); return false; }
   ctrAgOcupado = true;     // já aqui: dois cliques seguidos não abrem dois turnos
   ctrAgMsg({ papel: 'usuario', texto: texto.slice(0, CTR_AG_TXT_MAX) });   // a fala aparece na hora, antes de qualquer espera
   ctrAgLaco(texto.slice(0, 2000));
@@ -27162,8 +27101,8 @@ async function ctrAgTurno(mensagem, continuacao, modo) {
   // O histórico é o que veio antes: a fala nova (a última da lista, já na tela) vai em `mensagem`.
   const historico = (continuacao ? ctrAg.msgs : ctrAg.msgs.slice(0, -1)).filter(m => m.papel === 'usuario' || m.papel === 'assistente').slice(-6)
     .map(m => ({ papel: m.papel, texto: ctrHibScrub([m.texto, m.pergunta].filter(Boolean).join(' '), sens).slice(0, CTR_AG_TXT_MAX) }));
-  const cad = ctrAgCtx !== 'sol' && ctrAgCad ? { tem: true, faltando: (Array.isArray(ctrAgCad.faltando) ? ctrAgCad.faltando : []).filter(k => typeof k === 'string').slice(0, 30) } : { tem: false, faltando: [] };
-  const corpo = { modo: modo === 'revisar' ? 'revisar' : 'normal', tipo: est.tipo, hibrido: est.hibrido, clausulas: est.clausulas, campos: lista, emitente: ctrAgCtx === 'sol' ? 'aioros' : epEmitEfetivo(), arrCli: ctrAgCtx !== 'sol' && ctrArrCliAtivo(), cadastro: cad, historico, mensagem: ctrHibScrub(mensagem, sens).slice(0, 2000) };
+  const cad = ctrAgCad ? { tem: true, faltando: (Array.isArray(ctrAgCad.faltando) ? ctrAgCad.faltando : []).filter(k => typeof k === 'string').slice(0, 30) } : { tem: false, faltando: [] };
+  const corpo = { modo: modo === 'revisar' ? 'revisar' : 'normal', tipo: est.tipo, hibrido: est.hibrido, clausulas: est.clausulas, campos: lista, emitente: epEmitEfetivo(), arrCli: ctrArrCliAtivo(), cadastro: cad, historico, mensagem: ctrHibScrub(mensagem, sens).slice(0, 2000) };
   // O contador conta cada envio, inclusive o "continue".
   ctrAg.n++;
   ctrAgRender();
@@ -27212,10 +27151,9 @@ async function ctrAgTurno(mensagem, continuacao, modo) {
   ctrAgUi(); ctrAgRender();
   // A prévia por último, e só com o Gerar liberado: conflito, conferência que falhou e valor por confirmar a seguram.
   if (res.previa) {
-    const sol = ctrAgCtx === 'sol';
-    const gb = document.getElementById(sol ? 'fs-btn-emitir' : 'ctr-gerar-btn'), gm = ctrAgGateMotivo();
+    const gb = document.getElementById('ctr-gerar-btn'), gm = ctrAgGateMotivo();
     if (gm || (gb && gb.disabled)) ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Não abri a prévia. ' + (gm || 'O Gerar está desligado: veja o aviso ao lado do botão.') });
-    else { ctrAgMsg({ papel: 'sistema', texto: 'Abrindo a prévia.' }); ctrAgRender(); try { if (sol) fsContrato(); else await ctrImprimir(); } catch (e) { ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Não consegui abrir a prévia agora.' }); } }
+    else { ctrAgMsg({ papel: 'sistema', texto: 'Abrindo a prévia.' }); ctrAgRender(); try { await ctrImprimir(); } catch (e) { ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Não consegui abrir a prévia agora.' }); } }
   }
   return { continuar: !!j.continuar && !pergunta };
 }
@@ -27224,7 +27162,6 @@ async function ctrAgTurno(mensagem, continuacao, modo) {
 // `confirmado` só vem do clique no pendente (a pessoa viu o antes e o depois). Achado nunca o traz:
 // campo de valor dentro de achado cai de novo na confirmação, com antes e depois, numa mensagem nova.
 async function ctrAgAplicarAcoesManual(acoes, mensagem, confirmado) {
-  ctrAgSync();
   if (ctrAgOcupado) return;
   const cli = ctrAgCli;
   ctrAgOcupado = true; ctrAgStatus = 'Aplicando'; ctrAgSeg = 0; ctrAgRender();
@@ -27242,7 +27179,6 @@ async function ctrAgAplicarAcoesManual(acoes, mensagem, confirmado) {
   }
 }
 function ctrAgAplicarPend(id) {
-  ctrAgSync();
   const m = ctrAg.msgs.find(x => x.id === id);
   if (!m || !(m.pend || []).length || ctrAgOcupado) return;
   const acoes = m.pend.map(p => ({ tipo: 'campo', id: p.id, rotulo: p.rotulo, valor: p.valor }));
@@ -27250,7 +27186,6 @@ function ctrAgAplicarPend(id) {
   ctrAgAplicarAcoesManual(acoes, '', true);
 }
 function ctrAgDescartarPend(id) {
-  ctrAgSync();
   const m = ctrAg.msgs.find(x => x.id === id);
   if (!m || !(m.pend || []).length || ctrAgOcupado) return;
   m.pend = [];
@@ -27258,14 +27193,12 @@ function ctrAgDescartarPend(id) {
   ctrAgUi(); ctrAgRender();
 }
 function ctrAgAplicarAchado(id, i) {
-  ctrAgSync();
   const m = ctrAg.msgs.find(x => x.id === id), a = m && m.achados && m.achados[i];
   if (!a || a.feito || ctrAgOcupado) return;
   a.feito = true;
   ctrAgAplicarAcoesManual(a.acoes, a.texto, false);
 }
 async function ctrAgDesfazer(turno) {
-  ctrAgSync();
   const t = ctrAgTurnos[turno];
   if (!t || t.desfeito || ctrAgOcupado) return;
   // Desfazer um turno de que outros dependem desfaz os seguintes: o retrato é de antes deste.
@@ -27293,7 +27226,7 @@ async function ctrAgDesfazer(turno) {
   ctrAgRender();
 }
 // Nota na conversa vinda de outro lugar da tela (o "Montar de novo" do híbrido refaz o plano).
-function ctrAgNota(texto) { ctrAgSync(); ctrAgMsg({ papel: 'sistema', texto }); ctrAgRender(); }
+function ctrAgNota(texto) { ctrAgMsg({ papel: 'sistema', texto }); ctrAgRender(); }
 
 // Desfazer um pedido de que outros dependem (mexem no mesmo trecho, ou citam o
 // que ele criou) não desfaz o efeito: os seguintes trazem o texto dele embutido.
@@ -27330,18 +27263,17 @@ function ctrIaLimpar() {
 // o que não se aplica mais e as citações que ficaram sem destino. Roda também a
 // cada mudança de campo (ctrResumo), para nada disso ficar velho na tela.
 function ctrIaRender() {
-  const sol = ctrAgSolarAtivo();   // com o Fechamento solar aberto, a lista é a do contrato solar (painel fsag-*)
-  const box = document.getElementById(sol ? 'fsag-ia-lista' : 'ctr-ia-lista');
+  const box = document.getElementById('ctr-ia-lista');
   if (!box) return;
-  const btnLimpar = document.getElementById(sol ? 'fsag-ia-limpar' : 'ctr-ia-limpar');
+  const btnLimpar = document.getElementById('ctr-ia-limpar');
   const pedidos = ctrIaPedidos();
-  if (btnLimpar) btnLimpar.style.display = pedidos.length && (sol || !ctrEhHibrido()) ? '' : 'none';
+  if (btnLimpar) btnLimpar.style.display = pedidos.length && !ctrEhHibrido() ? '' : 'none';
   if (!pedidos.length) { box.innerHTML = ''; return; }
   let d;
-  try { d = sol ? fsCtrDados() : ctrDados(); } catch (e) { return; }
-  const base = sol ? ctrModeloSolar(d, d.modelo) : ctrModelo(d);
+  try { d = ctrDados(); } catch (e) { return; }
+  const base = ctrModelo(d);
   const { modelo, relatorio } = ctrIaAplicar(base, pedidos);
-  const { resolver, quebradas } = sol ? ctrNumerarSolar(ctrSolarEstilos(modelo)) : ctrNumerar(modelo);
+  const { resolver, quebradas } = ctrNumerar(modelo);
   const numsBase = new Set(base.flatMap(c => c.itens.flatMap(it => ctrIaNumeros(it.html))));
   const e = orcEsc;
   const ROT = { troca: 'Muda', inclui: 'Inclui', nova: 'Cláusula nova', tira: 'Tira a cláusula', remove: 'Tira', renomeia: 'Renomeia' };
@@ -29574,7 +29506,7 @@ async function ctrVersBuscar(c, id) {
   return null;
 }
 // O snapshot de uma versão salva veio de OUTRA pessoa: nada dele pode virar marcação no papel. O "Abrir para editar" só aplica campos por
-// .value/.checked/seleção (orcSnapApply e fsReabrirEntrada), nunca joga HTML guardado na página, e os textos que os geradores inserem
+// .value/.checked/seleção (orcSnapApply e epAbrirEntrada), nunca joga HTML guardado na página, e os textos que os geradores inserem
 // no papel sem escapar (pedidos à IA e suas operações, cláusulas extras, plano do híbrido, conversa do assistente, itens) saem daqui
 // limpos: só <b>, <i> e <br> (e a lacuna do papel) ficam; qualquer outro < ou > vira entidade.
 const CTR_SEG_A = String.fromCharCode(1), CTR_SEG_B = String.fromCharCode(2);
@@ -29608,8 +29540,8 @@ async function ctrVersAbrir(c, id) {
   if (!v || !v.snap) return;
   v.snap = ctrSnapLimpo(v.snap);
   const k = ctrCardGet(c);
-  if (c === 'sol') fsReabrirEntrada({ id: v.id, tipo: v.tipo, cliente: ((v.snap.campos || {})['fs-nome']) || '', fotos: 0, snap: v.snap }, k);
-  else epAbrirEntrada({ id: v.id, tipo: v.tipo, cliente: ((v.snap.sim || {})['el-cliente']) || '', snap: v.snap }, k);
+  if (c === 'sol') return;   // o Fechamento saiu: não há formulário do solar para reabrir
+  epAbrirEntrada({ id: v.id, tipo: v.tipo, cliente: ((v.snap.sim || {})['el-cliente']) || '', snap: v.snap }, k);
 }
 /**
  * Imprime o HTML guardado exatamente como saiu, SEM a trava de pagamento do contrato. O HTML veio de outra pessoa (outro consultor,
@@ -29771,7 +29703,7 @@ function orcSnapTake() {
     // reaberto e sai igual, sem chamar a IA de novo.
     ctrIa: JSON.parse(JSON.stringify({ pedidos: ctrIa.pedidos.filter(p => !ctrIaEhSolar(p)) })),   // os do contrato solar vão no histórico do Fechamento
     // A conversa com o assistente de contrato (só o texto, sem botões vivos nem retratos de Desfazer).
-    ...(ctrAgDoCtx('ele').msgs.length ? { ctrAg: ctrAgPersistir('ele') } : {}),
+    ...(ctrAg.msgs.length ? { ctrAg: ctrAgPersistir() } : {}),
     // Contrato híbrido (19/10/2026): os dois modelos, o texto pedido à IA e o plano inteiro.
     // Reabrir remonta o papel com os campos de agora, sem chamar a IA de novo.
     ctrHib: JSON.parse(JSON.stringify(ctrHib)),
@@ -30021,7 +29953,7 @@ function orcSnapApply(s, tipo) {
   ctrIa = s.ctrIa && Array.isArray(s.ctrIa.pedidos) ? JSON.parse(JSON.stringify(s.ctrIa)) : { pedidos: [] };
   ctrIa.pedidos = ctrIa.pedidos.filter(p => !ctrIaEhSolar(p)).concat(prevSolarIa);   // os do contrato solar (Fechamento) ficam como estavam
   // A conversa volta do histórico (papel de antes do assistente não tem). Resposta em voo é descartada; o cadastro puxado era de outro cliente.
-  ctrAgCad = null; ctrAgZerar(ctrAgRestaurar(s.ctrAg), 'ele');
+  ctrAgCad = null; ctrAgZerar(ctrAgRestaurar(s.ctrAg));
   ctrDos = s.ctrDos &&typeof s.ctrDos === 'object' ? Object.assign(ctrDosNovo(), JSON.parse(JSON.stringify(s.ctrDos))) : ctrDosNovo();
   ctrDosCache = {};
   ctrDosCarregar().then(() => { ctrDosRender(); ctrOpcRender(); });
@@ -30664,1275 +30596,37 @@ async function varrerAdLibraryEstudio() {
   } catch (e) { showToast && showToast('Erro na varredura'); }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// FECHAMENTO SOLAR (09/10/2026): contrato, procuração e recibo de quem fechou
-//
-// Pedido do dono: "Fechamento com contrato e procuração, utiliza os da SolarDoc
-// de referência, e recibo também". O texto jurídico vem de
-// api/src/services/templateService.ts (contratoSolarM1/M2, procuracaoM1/M2/M3,
-// reciboM1), com duas adaptações: sem travessão e sem o crédito do SolarDoc.
-//
-// Quem assina é a AIOROS GROUP LTDA (razão social SEMPRE colada ao CNPJ), com a
-// marca Irmãos na Obra. A marca NEXUS e o logo dela NUNCA entram em papel solar
-// (epEmitGet().nome é a marca NEXUS: não se usa aqui).
-//
-// A impressão reaproveita a esteira do eletroposto (epPreview, epPrevSaida,
-// orc1Imprimir, epPaginar, classes .ep-*). O histórico NÃO: papel solar vai para
-// 'sol_fech_hist_v1', nunca para 'orc_hist_v1' (o do eletroposto). A 2ª via usa o
-// mesmo IndexedDB (epPapelGrava / epHistSegundaVia), que é chaveado por id.
-// ═══════════════════════════════════════════════════════════════════════════
-const SOL_HIST_KEY = 'sol_fech_hist_v1';
-const FS_FORMAS = ['Pix', 'Espécie', 'Transferência', 'Cartão', 'Boleto', 'Cheque'];
-// "27.400,00", "27400", "R$ 27.400,50" e "145.000" valem o que o olho lê. Nunca
-// type=number para dinheiro: "145.000" virava 145 e a vírgula zerava o campo.
-function solParseBRL(v) {
-  let s = String(v == null ? '' : v).replace(/R\$|\s/g, '');
-  if (!s) return 0;
-  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
-  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
-  const n = parseFloat(s);
-  return isFinite(n) && n > 0 ? n : 0;
-}
-const fsEl = id => document.getElementById(id);
-const fsVal = id => { const el = fsEl(id); return el ? String(el.value == null ? '' : el.value).trim() : ''; };
-function fsSet(id, v, forcar) {
-  const el = fsEl(id); if (!el) return;
-  if (!forcar && el.dataset.tocado === '1') return;
-  el.value = v == null ? '' : String(v);
-  el.classList.remove('fs-erro');
-  if (forcar) delete el.dataset.tocado;
-}
-function fsTocar(el) { el.dataset.tocado = '1'; el.classList.remove('fs-erro'); }
-function fsMoeda(el) { const n = solParseBRL(el.value); if (n > 0) el.value = solFmt(n); }
 
-const fsCard = (tit, corpo, extra) => `<div class="card"${extra || ''}><div class="calc-card-title"><span class="dot"></span>${tit}</div>${corpo}</div>`;
 
 // ─── Como o cliente vai pagar (solar, 21/10/2026) ────────────────────────────
-// As formas moram num campo escondido (fs-c-pagjson), para o fsSnap guardar e o Reabrir devolver. A conta é a do eletroposto
-// (ctrPagConta, ctrPagResolve, ctrPagCalc, ctrPagTrava); o estado NÃO: ctrPag é do eletroposto e nunca é lido nem escrito aqui.
-// A IA (modo 'pagamento' de /gerador/contrato/agente) só separa o que está escrito no texto; o valor só entra com o clique em Aplicar.
-let fsPagProp = null, fsPagMontando = false;
-const fsPagLinhas = () => {
-  try {
-    const a = JSON.parse(fsVal('fs-c-pagjson') || '[]');
-    return (Array.isArray(a) ? a : []).slice(0, 6).map(x => Object.assign(ctrPagLinha('', 0, 1, 0, '', ''), x && typeof x === 'object' ? x : {}));
-  } catch (e) { return []; }
-};
-function fsPagSaldo() {
-  const v = solParseBRL(fsVal('fs-c-valor'));
-  return Math.max(0, ctrCent(v - Math.min(solParseBRL(fsVal('fs-c-sinal')), v || Infinity)));
-}
-// O que impede de gerar o contrato (vazio = pode). O texto sem tabela e a soma diferente do saldo travam, como no eletroposto.
-// `fs-c-pagtxt` (campo escondido, vai no snapshot) guarda o texto de que a tabela veio: o do Aplicar do Montar, ou vazio quando a tabela
-// nasceu do padrão da casa ou de "À vista no Pix". Texto escrito diferente dele = tabela que não veio do texto.
-const fsPagNaoMontado = () => ctrPagTextoNaoMontado(fsVal('fs-c-pagto'), fsVal('fs-c-pagtxt'));
-function fsPagTrava(d) { return ctrPagTrava('solar_m1', fsPagLinhas(), d.saldo, !!fsVal('fs-c-pagto'), fsPagNaoMontado(), CTR_PAG_MSG_NAO_MONTADO_SOL); }
-function fsPagTxtGrava(t) { const el = fsEl('fs-c-pagtxt'); if (!el) return; el.value = String(t || '').trim(); el.dataset.tocado = '1'; }
-function fsPagGrava(linhas) {
-  const el = fsEl('fs-c-pagjson'); if (!el) return;
-  el.value = linhas.length ? JSON.stringify(linhas) : '';
-  el.dataset.tocado = '1';
-  fsAgDepois();
-}
-function fsPagTira(i) { const l = fsPagLinhas(); l.splice(i, 1); fsPagGrava(l); }
-function fsPagPreviaMsg(txt, falha) {
-  const box = fsEl('fs-pag-previa'); if (!box) return;
-  box.textContent = '';
-  if (!txt) return;
-  const d = document.createElement('div');
-  d.className = 'ctr-ia-msg' + (falha ? ' falha' : '');
-  d.textContent = txt;
-  box.appendChild(d);
-}
-// A lista das formas aplicadas e a conta contra o saldo (a mesma que o Gerar confere, fsPagTrava).
-function fsPagRender() {
-  const box = fsEl('fs-pag-lista'), so = fsEl('fs-pag-soma');
-  if (!box || !so) return;
-  const valor = solParseBRL(fsVal('fs-c-valor')), sinal = solParseBRL(fsVal('fs-c-sinal'));
-  const saldo = fsPagSaldo(), pc = ctrPagCalc(fsPagLinhas(), saldo);
-  box.textContent = '';
-  pc.linhas.forEach((l, i) => {
-    if (!ctrPagLinhaVale(l)) return;
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13px';
-    const t = document.createElement('span');
-    t.textContent = (l.forma || 'Forma sem nome') + ': ' + ORC_MONEY(ctrPagConta(l).valor) + ' · ' + ctrPagCondicao(l) + (ctrPagQuando(l) ? ' · ' + ctrPagQuando(l) : '');
-    const x = document.createElement('button'); x.type = 'button'; x.className = 'orc-link'; x.textContent = 'Tirar'; x.onclick = () => fsPagTira(i);
-    row.appendChild(t); row.appendChild(x); box.appendChild(row);
-  });
-  let cls = 'ctr-pag-soma', txt = '';
-  if (!(valor > 0)) txt = 'Preencha o valor total para conferir o pagamento.';
-  else if (sinal > 0 && sinal >= valor) { cls += ' dif'; txt = 'O sinal tem de ser menor que o valor total do contrato.'; }
-  else if (!pc.itens.length) {
-    cls += ' dif';
-    txt = fsVal('fs-c-pagto') ? CTR_PAG_MSG_SO_TEXTO : 'Sem formas na lista: o contrato não é gerado sem o pagamento. Escreva como o cliente vai pagar e clique em Montar, ou use À vista no Pix.';
-  } else if (pc.incompletas.length) { cls += ' dif'; txt = pc.incompletas[0] + ' O contrato não é gerado assim.'; }
-  else if (fsPagNaoMontado()) { cls += ' dif'; txt = CTR_PAG_MSG_NAO_MONTADO_SOL; }
-  else if (ctrPagFecha(pc.dif)) { cls += ' fecha'; txt = 'As formas somam ' + ORC_MONEY(pc.soma) + ', exatamente o saldo a pagar' + (sinal > 0 ? ' (valor total menos o sinal de ' + ORC_MONEY(sinal) + ')' : '') + '.'; }
-  else if (pc.dif > 0) { cls += ' dif'; txt = 'As formas somam ' + ORC_MONEY(pc.soma) + '. Faltam ' + ORC_MONEY(pc.dif) + ' para fechar o saldo de ' + ORC_MONEY(saldo) + '. O contrato não é gerado assim.'; }
-  else { cls += ' dif'; txt = 'As formas somam ' + ORC_MONEY(pc.soma) + '. Passam ' + ORC_MONEY(-pc.dif) + ' do saldo de ' + ORC_MONEY(saldo) + '. O contrato não é gerado assim.'; }
-  so.className = cls; so.textContent = txt;
-}
 
-function fsAba(qual) {
-  fsAbaAtual = FS_ABAS.includes(qual) ? qual : 'contrato';
-  FS_ABAS.forEach(a => {
-    const pane = fsEl('fs-pane-' + a); if (pane) pane.style.display = a === fsAbaAtual ? '' : 'none';
-  });
-  const fila = document.querySelector('#fechamentoSolarSection .fs-tabs');
-  document.querySelectorAll('#fechamentoSolarSection .fs-tab').forEach(b => {
-    const on = b.dataset.aba === fsAbaAtual;
-    b.classList.toggle('ativa', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
-    // Traz a aba ativa para a vista mexendo só no scrollLeft da fila: scrollIntoView rolaria a página inteira.
-    if (on && fila && fila.scrollWidth > fila.clientWidth) fila.scrollLeft = Math.max(0, b.offsetLeft - (fila.clientWidth - b.offsetWidth) / 2);
-  });
-  if (fsAbaAtual === 'recibo') fsRecSincroniza();
-  fsSincronizaNovos(fsAbaAtual);
-  fsMsg('');
-  fsAgUi();   // o botão de gerar só fica desligado na aba Contrato
-}
-function fsTipoMudou() {
-  const pj = fsVal('fs-tipo') === 'PJ';
-  const rep = fsEl('fs-f-rep'); if (rep) rep.style.display = pj ? '' : 'none';
-  const rot = fsEl('fs-doc-rot'); if (rot) rot.textContent = pj ? 'CNPJ' : 'CPF';
-  const doc = fsEl('fs-doc'); if (doc) doc.placeholder = pj ? '00.000.000/0000-00' : '000.000.000-00';
-  // RG, nacionalidade, estado civil e profissão são de pessoa física
-  document.querySelectorAll('#fechamentoSolarSection .fs-pf-only').forEach(x => { x.style.display = pj ? 'none' : ''; });
-}
-function fsProcModelo() {
-  const m3 = fsVal('fs-p-modelo') === '3';
-  const s = fsEl('fs-f-socio'); if (s) s.style.display = m3 ? '' : 'none';
-  const t = fsEl('fs-det-tec23'); if (t) t.style.display = m3 ? '' : 'none';
-  const uc = fsEl('fs-p-uc'); if (uc) uc.placeholder = m3 ? 'Não consta no modelo ANEEL' : 'Obrigatória nos modelos Padrão e Jurídico';
-}
-function fsMsg(txt, ids, silencioso) {
-  const m = fsEl('fs-msg'); if (!m) return;
-  document.querySelectorAll('#fechamentoSolarSection .fs-erro').forEach(el => el.classList.remove('fs-erro'));
-  if (!txt) { m.classList.remove('on'); m.textContent = ''; return; }
-  m.textContent = txt; m.classList.add('on');
-  const els = (ids || []).filter(Boolean);
-  els.forEach(el => el.classList.add('fs-erro'));
-  const primeiro = els[0];
-  if (silencioso) return;
-  if (primeiro) { try { primeiro.focus({ preventScroll: true }); primeiro.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }
-  else { try { m.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }
-}
 
-// Conta de luz em nome de outra pessoa e sem o titular preenchido: a procuração não sai com o comprador como outorgante sem um clique de confirmação.
-let fsTitularPend = '', fsTitularOk = false, fsTitularTxt = '';
-// `txt`: texto próprio (a pessoa marcou "Outra pessoa" como titular da homologação, mas falta o nome). Sem ele, vale o da conta de luz.
-const fsTitularMsg = () => fsTitularTxt || ('A conta de luz está em nome de ' + fsTitularPend + '. Anexe o documento do titular da conta: ele é quem assina a procuração.');
-function fsTitularAlerta(nome, txt) {
-  fsTitularPend = String(nome || ''); fsTitularOk = false; fsTitularTxt = nome ? String(txt || '') : '';
-  fsTitularAlertaPinta();
-}
-// Titular do financiamento marcado como "Outra pessoa" e sem nome: a proposta de banco só sai com um clique de confirmação (com o contratante).
-let fsFinPend = '', fsFinOk = false;
-function fsFinAlerta(txt) {
-  fsFinPend = String(txt || ''); fsFinOk = false;
-  fsFinAlertaPinta();
-}
-function fsFinAlertaPinta() {
-  const box = fsEl('fs-b-fin-alerta'); if (!box) return;
-  box.replaceChildren();
-  if (!fsFinPend) return;
-  const t = document.createElement('span'); t.textContent = fsFinPend + (fsFinOk ? ' Confirmado: a proposta de banco sai com o contratante.' : ' ');
-  box.appendChild(t);
-  if (!fsFinOk) {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'fs-btn-sec'; b.id = 'fs-b-fin-assim'; b.textContent = 'Gerar assim mesmo';
-    b.addEventListener('click', () => { fsFinOk = true; fsFinAlertaPinta(); fsBanco(); });
-    box.appendChild(b);
-  }
-}
-function fsTitularAlertaPinta() {
-  const box = fsEl('fs-p-tuc-alerta'); if (!box) return;
-  box.replaceChildren();
-  if (!fsTitularPend) return;
-  const t = document.createElement('span'); t.textContent = fsTitularMsg() + (fsTitularOk ? ' Confirmado: a procuração sai com o ' + (fsTitularTxt ? 'contratante.' : 'comprador.') : ' ');
-  box.appendChild(t);
-  if (!fsTitularOk) {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'fs-btn-sec'; b.id = 'fs-p-tuc-assim'; b.textContent = 'Gerar assim mesmo';
-    b.addEventListener('click', () => { fsTitularOk = true; fsTitularAlertaPinta(); fsProcuracao(); });
-    box.appendChild(b);
-  }
-}
-// o valor do contrato e a frase do recibo acompanham o contrato enquanto o consultor não mexer no recibo
-function fsRecSincroniza() {
-  fsSet('fs-r-valctr', fsVal('fs-c-valor'), false);
-  const k = fsVal('fs-c-kwp');
-  if (k) fsSet('fs-r-desc', 'instalação de usina fotovoltaica de ' + k + ' kWp', false);
-  fsRecSugerir(); fsRecResumo();
-}
 
 // ── Pagamentos do recibo ──
-function fsPagAdd(p) {
-  const host = fsEl('fs-r-pags'); if (!host) return;
-  p = p || {};
-  const row = document.createElement('div'); row.className = 'fs-pag';
-  row.innerHTML = `<select class="fs-pag-forma" aria-label="Forma de pagamento">${FS_FORMAS.map(f => `<option${f === (p.forma || 'Pix') ? ' selected' : ''}>${f}</option>`).join('')}</select>` +
-    `<input class="fs-pag-data" type="date" aria-label="Data do pagamento" value="${solEsc(p.data || solHoje())}">` +
-    `<div class="fs-inp has-pre"><span class="pre">R$</span><input class="fs-pag-valor" inputmode="decimal" autocomplete="off" aria-label="Valor do pagamento" placeholder="0,00" value="${solEsc(p.valor || '')}" oninput="fsTocar(this);fsRecResumo()" onblur="fsMoeda(this);fsRecResumo()"></div>` +
-    `<button type="button" class="fs-x" aria-label="Remover pagamento" onclick="fsPagDel(this)">&times;</button>`;
-  host.appendChild(row);
-  fsRecResumo();
-}
-function fsPagDel(btn) {
-  const host = fsEl('fs-r-pags'); if (!host) return;
-  if (host.querySelectorAll('.fs-pag').length <= 1) { const v = host.querySelector('.fs-pag-valor'); if (v) v.value = ''; }
-  else btn.closest('.fs-pag').remove();
-  fsRecResumo();
-}
-const fsPagsRaw = () => [...document.querySelectorAll('#fs-r-pags .fs-pag')].map(r => ({
-  forma: r.querySelector('.fs-pag-forma').value, data: r.querySelector('.fs-pag-data').value, valor: r.querySelector('.fs-pag-valor').value }));
-const fsPags = () => fsPagsRaw().map(p => ({ forma: p.forma, data: p.data, valor: solParseBRL(p.valor) })).filter(p => p.valor > 0);
-function fsRecResumo() {
-  const el = fsEl('fs-r-resumo'); if (!el) return;
-  const pago = fsPags().reduce((s, p) => s + p.valor, 0);
-  const tot = solParseBRL(fsVal('fs-r-valctr'));
-  el.innerHTML = pago > 0
-    ? `Total recebido <b>R$ ${solFmt(pago)}</b>${tot > 0 ? ` · ${pago >= tot - 0.005 ? '<b class="ok">quitado</b>' : 'saldo em aberto <b>R$ ' + solFmt(tot - pago) + '</b>'}` : ''}`
-    : 'Informe ao menos um pagamento com valor.';
-}
-function fsHistList() { try { return JSON.parse(localStorage.getItem(SOL_HIST_KEY) || '[]') || []; } catch (e) { return []; } }
-function fsRecProx() {
-  const ano = solHoje().slice(0, 4); let max = 0;
-  fsHistList().forEach(h => {
-    if (h.tipo !== 'Recibo') return;
-    const m = /^(\d+)\/(\d{4})$/.exec(String(h.num || '').trim());
-    if (m && m[2] === ano) max = Math.max(max, +m[1]);
-  });
-  return String(max + 1).padStart(3, '0') + '/' + ano;
-}
-function fsRecSugerir() {
-  const el = fsEl('fs-r-num'); if (!el) return;
-  if (!el.value || el.dataset.tocado !== '1') el.value = fsRecProx();
-}
 
 // ── Histórico próprio (nunca o orc_hist_v1 do eletroposto) ──
-function fsHistAdd(e) {
-  const l = fsHistList(); l.unshift(e);
-  if (l.length > 200) l.length = 200;
-  try { localStorage.setItem(SOL_HIST_KEY, JSON.stringify(l)); }
-  catch (er) { if (typeof showToast === 'function') showToast('O aparelho recusou guardar o histórico (espaço cheio).'); }
-}
-function fsHistRender() {
-  try { ctrCardUi('sol'); } catch (e) {}
-  const host = fsEl('fs-hist'); if (!host) return;
-  const l = fsHistList();
-  if (!l.length) { host.innerHTML = '<div class="fs-sub">Nenhum papel emitido neste aparelho ainda. Os que você imprimir aparecem aqui.</div>'; return; }
-  host.innerHTML = l.slice(0, 40).map(h => `<div class="fs-h"><div class="i"><b>${solEsc(h.tipo)}</b> · ${solEsc(h.cliente || 'Sem nome')}${h.editado ? ' <span class="ed">texto editado</span>' : ''}<small>${solEsc(h.data || '')}${h.num ? ' · nº ' + solEsc(h.num) : ''}${h.valor > 0 ? ' · R$ ' + solFmt(h.valor) : ''}${h.fotos > 0 ? ' · ' + h.fotos + (h.fotos === 1 ? ' foto' : ' fotos') : ''}</small></div>` +
-    `<div class="a"><button type="button" class="fs-btn-sec" onclick="fsReabrir('${solEsc(h.id)}')">Reabrir</button><button type="button" class="fs-btn-sec" onclick="epHistSegundaVia('${solEsc(h.id)}')">2ª via</button></div></div>`).join('') +
-    (l.length > 40 ? `<div class="fs-sub">Mostrando os 40 mais recentes de ${l.length}.</div>` : '');
-}
-function fsSnap(comAssistente) {
-  const campos = {};
-  document.querySelectorAll('#fechamentoSolarSection input[id^="fs-"], #fechamentoSolarSection select[id^="fs-"], #fechamentoSolarSection textarea[id^="fs-"]').forEach(el => { if (el.id !== 'fs-pux') campos[el.id] = el.value; });
-  // As fotos da vistoria NÃO entram aqui (estourariam a cota do localStorage): ficam na memória da
-  // tela e na cópia do papel no IndexedDB. Os itens da proposta de banco são linhas, como os pagamentos.
-  const snap = { aba: fsAbaAtual, campos, pags: fsPagsRaw(), itens: fsBItensRaw(), fsCard: fsCardLigado ? { linha: fsCardLigado.linha, codigo: fsCardLigado.codigo, nome: fsCardLigado.nome } : null };
-  // O contrato leva os pedidos de texto e a conversa do assistente (20/10/2026), para reabrir igual. Papel de antes não tem.
-  if (comAssistente) {
-    snap.solIa = JSON.parse(JSON.stringify(ctrIa.pedidos.filter(ctrIaEhSolar)));
-    if (ctrAgDoCtx('sol').msgs.length) snap.ctrAg = ctrAgPersistir('sol');
-  }
-  return snap;
-}
-// Papel solar de antes da trava do texto (21/10/2026) não tem `fs-c-pagtxt`. O texto padrão "À vista via Pix: R$ X." com X igual ao saldo
-// e sem tabela vira a linha à vista, sem IA, e conta como texto aplicado. Qualquer outro texto fica como está: a trava manda Montar.
-function fsPagLegado(snap) {
-  if (snap && snap.campos && Object.prototype.hasOwnProperty.call(snap.campos, 'fs-c-pagtxt')) return;
-  const m = /^\s*À vista via Pix: R\$ ([\d.]+,\d{2})\.?\s*$/.exec(fsVal('fs-c-pagto'));
-  if (!m || fsPagLinhas().length) return;
-  const saldo = fsPagSaldo();
-  if (!(saldo > 0) || Math.abs(solParseBRL(m[1]) - saldo) > CTR_PAG_TOL) return;
-  fsPagTxtGrava(fsVal('fs-c-pagto'));
-  fsPagGrava(ctrPagModelo('vista', saldo));
-}
-function fsReabrir(id) { fsReabrirEntrada(fsHistList().find(x => x.id === id), null); }
-// O mesmo caminho para o histórico do aparelho e para as versões salvas no card (`cardDaVersao`: o card de onde a versão veio).
-function fsReabrirEntrada(h, cardDaVersao) {
-  if (!h || !h.snap) return;
-  const cardPapel = ctrCardNormal(cardDaVersao || h.snap.fsCard);
-  if (fsCardLigado && cardPapel && ctrCardChave(fsCardLigado) !== ctrCardChave(cardPapel)
-    && !confirm(`Abrir o papel de ${cardPapel.nome || 'outro cliente'} troca o cliente ligado (${fsCardLigado.nome || 'outro cliente'}). Os campos dele saem da tela.\n\nContinuar?`)) return;
-  // papel de ONTEM não traz os campos novos no snapshot: limpa antes, senão ficam os do cliente anterior
-  fsLimparNovos();
-  vdcBase.sol = null; vdcDiff.sol = null;   // campos de uma versão salva: nada volta ao cadastro até alguém aplicar o cadastro de novo
-  Object.keys(h.snap.campos || {}).forEach(k => { const el = fsEl(k); if (el) { el.value = h.snap.campos[k]; el.dataset.tocado = '1'; } });
-  const host = fsEl('fs-r-pags'); if (host) host.innerHTML = '';
-  (h.snap.pags && h.snap.pags.length ? h.snap.pags : [{}]).forEach(p => fsPagAdd(p));
-  fsBItensRestaura(h.snap.itens);
-  // o papel guardado já saiu; a trava do rateio é do cadastro de agora, não dele
-  const usoRe = fsEl('fs-p-rateio-uso'); if (usoRe) usoRe.disabled = false;
-  const avRe = fsEl('fs-p-rateio-aviso'); if (avRe) avRe.textContent = '';
-  fsTitularAlerta(''); fsFinAlerta('');
-  fsFotosLimpa();
-  fsOrigemKey = 'reaberto:' + h.id;
-  // O assistente do contrato: os pedidos de texto e a conversa do papel reaberto. Papel de antes não tem: o contrato sai como saiu.
-  ctrIa = { pedidos: ctrIa.pedidos.filter(p => !ctrIaEhSolar(p)).concat(Array.isArray(h.snap.solIa) ? JSON.parse(JSON.stringify(h.snap.solIa)).filter(ctrIaEhSolar).map(ctrSolarPedidoLegado) : []) };
-  ctrAgZerar(ctrAgRestaurar(h.snap.ctrAg), 'sol');
-  { const at = fsEl('fsag-texto'); if (at) at.value = ''; }
-  fsPagProp = null; fsPagPreviaMsg('');
-  fsPagLegado(h.snap);
-  fsTipoMudou(); fsProcModelo(); fsRecResumo(); fsBancoResumo(); fsTermoChkVisual(); fsTermoContador(); fsPagRender();
-  fsAba(h.snap.aba || 'contrato');
-  ctrIaRender();
-  const m = fsEl('fs-pux-msg'); if (m) m.textContent = 'Campos de ' + (h.cliente || 'cliente') + ' reabertos. Confira e imprima de novo.' + (h.fotos > 0 ? ' As fotos ficam só na 2ª via.' : '');
-  const av = fsEl('fs-v-fotos-aviso'); if (av) av.textContent = h.fotos > 0 ? 'As fotos ficam só na 2ª via. Este papel tinha ' + h.fotos + (h.fotos === 1 ? ' foto' : ' fotos') + ': adicione de novo se for imprimir outra vez.' : '';
-  if (cardPapel) { ctrCardSet('sol', cardPapel); vdcConferirVersao('sol'); }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
 
 // ── Leitura dos campos ──
-function fsCli() {
-  const tipo = fsVal('fs-tipo') === 'PJ' ? 'PJ' : 'PF';
-  const c = { nome: fsVal('fs-nome'), tipo, pj: tipo === 'PJ', doc: fsVal('fs-doc'), cep: fsVal('fs-cep'), end: fsVal('fs-end'), bairro: fsVal('fs-bairro'),
-    cidade: fsVal('fs-cidade'), uf: fsVal('fs-uf').toUpperCase(), tel: fsVal('fs-tel'), rep: fsVal('fs-rep') };
-  c.endFull = solEnd(c.end, c.bairro, c.cidade, c.uf);
-  // Qualificação da pessoa física (20/10/2026): só existe quando algum dos cinco campos foi preenchido. Vazia, os papéis saem como sempre.
-  c.qualif = tipo === 'PJ' ? '' : solQualifPf({ nac: fsVal('fs-nacionalidade'), ec: fsVal('fs-estado-civil'), prof: fsVal('fs-profissao'), rg: fsVal('fs-rg'), orgao: fsVal('fs-orgao') });
-  return c;
-}
-const fsRot = { 'fs-nome': 'o nome do cliente', 'fs-doc': 'o CPF ou CNPJ', 'fs-c-valor': 'o valor total do contrato', 'fs-p-uc': 'a unidade consumidora (UC)', 'fs-p-conc': 'a concessionária',
-  'fs-b-banco': 'o banco', 'fs-b-agencia': 'a agência', 'fs-b-conta': 'a conta corrente', 'fs-b-total': 'o valor total',
-  'fs-t-kwp': 'a potência instalada', 'fs-t-conclusao': 'a data de conclusão da instalação',
-  'fs-v-data': 'a data da vistoria', 'fs-v-concl': 'a conclusão da vistoria' };
-// prazos e garantias só em número inteiro: o papel nunca imprime "2,5 (dois)" nem "abc (abc)"
-const FS_INT = [['fs-c-nmod', 'o nº de módulos'], ['fs-c-ninv', 'o nº de inversores'], ['fs-c-bat-qtd', 'a quantidade de baterias'], ['fs-c-bat-gar', 'a garantia da bateria'],
-  ['fs-c-pproj', 'o prazo do projeto'], ['fs-c-paprov', 'o prazo de aprovação'], ['fs-c-pinst', 'o prazo de instalação'],
-  ['fs-c-gmod', 'a garantia dos módulos'], ['fs-c-ginv', 'a garantia do inversor'], ['fs-c-ginst', 'a garantia da instalação']];
-// itens: ids de campo ou { el, rot }
-function fsFaltas(aba) {
-  aba = aba || fsAbaAtual;
-  const faltam = [], invalidos = [], outros = [];
-  const cli = fsCli();
-  if (!cli.nome) faltam.push('fs-nome');
-  // A vistoria acontece antes de fechar: o CPF ainda pode não existir, só o nome é obrigatório.
-  if (!cli.doc && aba !== 'vistoria') faltam.push('fs-doc');
-  if (aba === 'banco' || aba === 'termo' || aba === 'vistoria') {
-    if (aba === 'banco') fsFaltasBanco(faltam, invalidos, outros);
-    else if (aba === 'termo') fsFaltasTermo(faltam, invalidos, outros);
-    else fsFaltasVistoria(faltam, invalidos, outros);
-  } else if (aba === 'contrato') {
-    if (!(solParseBRL(fsVal('fs-c-valor')) > 0)) faltam.push('fs-c-valor');
-    { const vN = solParseBRL(fsVal('fs-c-valor')), sN = solParseBRL(fsVal('fs-c-sinal'));
-      if (sN > 0 && vN > 0 && sN >= vN) outros.push({ el: fsEl('fs-c-sinal'), msg: 'O sinal tem de ser menor que o valor total do contrato.' }); }
-    FS_INT.forEach(p => { const v = fsVal(p[0]); if (v && !/^\d+$/.test(v)) invalidos.push({ el: fsEl(p[0]), rot: p[1] }); });
-  } else if (aba === 'procuracao') {
-    if (fsVal('fs-p-modelo') !== '3' && !fsVal('fs-p-uc')) faltam.push('fs-p-uc');
-    if (!fsVal('fs-p-conc')) faltam.push('fs-p-conc');
-  } else if (!(fsPags().reduce((t, p) => t + p.valor, 0) > 0)) {
-    faltam.push({ el: document.querySelector('#fs-r-pags .fs-pag-valor'), rot: 'ao menos um pagamento com valor' });
-  }
-  return { faltam, invalidos, outros };
-}
-const fsJunta = l => l.join(', ').replace(/, ([^,]*)$/, ' e $1');
-// devolve true quando há pendência (e mostra o aviso); silencioso = só atualiza o texto, sem foco nem rolagem
-function fsMostraFaltas(f, silencioso) {
-  const rot = i => typeof i === 'string' ? (fsRot[i] || i) : i.rot;
-  const el = i => typeof i === 'string' ? fsEl(i) : i.el;
-  const partes = [];
-  if (f.faltam.length) partes.push('Falta preencher ' + fsJunta(f.faltam.map(rot)) + '.');
-  if (f.invalidos.length) partes.push('Use só números inteiros em ' + fsJunta(f.invalidos.map(rot)) + '.');
-  // Avisos que não cabem no molde "falta preencher": cada um traz a frase pronta e o campo a marcar.
-  (f.outros || []).forEach(o => partes.push(o.msg));
-  if (!partes.length) { fsMsg(''); return false; }
-  fsMsg(partes.join(' '), f.faltam.concat(f.invalidos).map(el).concat((f.outros || []).map(o => o.el)), silencioso);
-  return true;
-}
-// o aviso aberto acompanha o que o consultor vai preenchendo
-function fsRevalida() {
-  const m = fsEl('fs-msg');
-  if (m && m.classList.contains('on')) fsMostraFaltas(fsFaltas(), true);
-}
-// ═══ CONTRATO ═══
-function fsCtrDados() {
-  const cli = fsCli();
-  const qtdBat = fsVal('fs-c-bat-qtd');
-  const cap = parseFloat(fsVal('fs-c-bat-cap').replace(',', '.')) || 0;
-  const qn = parseInt(qtdBat, 10) || 0;
-  const bat = { tem: !!fsVal('fs-c-bat-marca'), marca: fsVal('fs-c-bat-marca'), qtd: qn, gar: parseInt(fsVal('fs-c-bat-gar'), 10) || 0 };
-  bat.titulo = qn > 1 ? qn + '× ' + bat.marca : bat.marca;
-  bat.spec = cap > 0 ? [cap.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh' + (qn > 1 ? ' cada' : '')] : [];
-  const valorN = solParseBRL(fsVal('fs-c-valor'));
-  const gerN = solParseBRL(fsVal('fs-c-geracao'));
-  const endInst = fsVal('fs-c-endinst');
-  // Sinal fora da tabela; a tabela soma o saldo. O restante é resolvido numa CÓPIA, com o saldo de agora (ctrPagResolve).
-  const sinal = Math.min(solParseBRL(fsVal('fs-c-sinal')), valorN || Infinity);
-  const saldo = Math.max(0, ctrCent(valorN - sinal));
-  const pagLinhas = ctrPagResolve(fsPagLinhas(), saldo).filter(ctrPagLinhaVale)
-    .map(l => ({ forma: (l.forma || '').trim(), quando: ctrPagQuando(l), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: ctrPagCondicao(l) }))
-    .filter(l => l.conta.valor > 0 || l.forma);
-  return {
-    cli, emp: solEmp(), modelo: 1, num: fsVal('fs-c-num'),
-    sinal, saldo, pagLinhas, pagSoma: pagLinhas.reduce((s, l) => s + l.conta.valor, 0),
-    // O texto de "Como o cliente vai pagar" só vira papel pela tabela. Sem formas montadas (papel antigo), ele aparece na cláusula e a geração trava.
-    pagObs: pagLinhas.length ? '' : fsVal('fs-c-pagto'),
-    temFin: pagLinhas.some(l => l.conta.fin),
-    temAcr: pagLinhas.some(l => !l.conta.fin && l.conta.acr > 0 && l.conta.parc > 1),
-    tucOutro: !!fsVal('fs-p-tuc-nome'), data: fsVal('fs-c-data') || solHoje(),
-    foro: fsVal('fs-c-foro'), kwp: fsVal('fs-c-kwp'), geracao: gerN, nmod: fsVal('fs-c-nmod'), mod: fsVal('fs-c-mod'), ninv: fsVal('fs-c-ninv'),
-    tinv: fsVal('fs-c-tinv'), minv: fsVal('fs-c-minv'), endInst: endInst || cli.endFull, bat,
-    valorN, pagto: fsVal('fs-c-pagto'), pproj: fsVal('fs-c-pproj'), paprov: fsVal('fs-c-paprov'), pinst: fsVal('fs-c-pinst'),
-    gmod: fsVal('fs-c-gmod'), ginv: fsVal('fs-c-ginv'), ginst: fsVal('fs-c-ginst'), ginstun: fsVal('fs-c-ginstun') === 'meses' ? 'meses' : 'anos',
-  };
-}
-function solBatGar(d) { return d.bat.tem && d.bat.gar > 0 ? `${d.bat.gar} (${solEsc(solNumExt(d.bat.gar))}) ${d.bat.gar === 1 ? 'ano' : 'anos'}` : ''; }
 // ─── O contrato solar como MODELO DE CLÁUSULAS (20/10/2026) ──────────────────
-// Antes, fsCtrBlocosM1/M2 escreviam o HTML direto, com os números das cláusulas e as remissões ("cláusula 5") cravados.
-// Agora são dois passos, como no eletroposto (ctrModelo):
-//   1) ctrModeloSolar(d, modelo): a lista de cláusulas e itens, cada um com CHAVE estável (as que o servidor usa:
-//      contratoSolar.ts / ITENS_TRAVADOS_SOLAR). Remissão é marcador ({{c:preco}}), nunca número.
-//   2) ctrSolarClausulas(): aplica por cima os pedidos do assistente (ctrIa.pedidos de tipo solar_m1 / solar_m2),
-//      numera pela posição e escreve o HTML NO MESMO FORMATO de sempre. Sem pedido nenhum, sai byte a byte igual.
-// Diferenças em relação ao eletroposto, todas por marca na cláusula ou no item (o eletroposto não usa nenhuma):
-//   cláusula  semNumero  não conta na numeração (partes; no Padrão, também as assinaturas)
-//             semTitulo  não escreve "N. Título" (partes e assinaturas)
-//             fim        o fecho: nada entra depois dele
-//   item      estilo     p (padrão) · nt (nota) · li (alínea a), b), c)...) · ul (marcador, junto do parágrafo anterior)
-//                        · num (N.M. pela posição, só no Completo) · raw (bloco pronto, dos campos)
-//             grupo      itens seguidos do mesmo grupo viram UM bloco (as duas caixas das partes do Padrão)
-// A remissão sai como o papel sempre teve: "cláusula 5", minúscula e sem ordinal.
-// Texto digitado nos campos com "{{" não pode virar marcador: ganha um caractere invisível (U+E000) que sai na impressão.
-const SOL_PUA = String.fromCharCode(0xE000);   // o caractere invisível que separa as duas chaves
-const solProt = v => typeof v === 'string' ? v.split('{{').join('{' + SOL_PUA + '{') : Array.isArray(v) ? v.map(solProt)
-  : (v && typeof v === 'object') ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, solProt(x)])) : v;
-const ctrSolarC = (key, titulo, itens, extra) => { const its = itens.filter(Boolean); return Object.assign({ key, titulo, travada: its.some(it => it.travado), itens: its }, extra || {}); };
-const ctrSolarI = (key, html, extra) => html ? Object.assign({ key, html }, extra || {}) : null;
-const CTR_SOLAR_GRUPOS = { 'sol-partes': blocos => `<div class="sol-partes">\n      ${blocos.join('\n      ')}\n    </div>` };
-// Contrato novo é sempre solar_m1. O solar_m2 só aparece em pedido salvo de papel antigo (ctrSolarPedidoLegado o traduz).
-function ctrSolarTipo() { return 'solar_m1'; }
-// Pedido salvo do assistente em papel de antes de 21/10/2026: o contrato era outro (Padrão = solar_m2, Completo = solar_m1 com
-// outras chaves). A chave que mudou de lugar é traduzida; o pedido vira solar_m1. Operação que carrega o texto antigo (base)
-// continua falhando de forma visível se o texto do item mudou: o papel sai com o texto dos campos, que está certo.
-const SOL_DEPARA_ITEM = {
-  solar_m2: { 'partes.cliente': 'partes.contratante', 'partes.resumo': 'objeto.sistema', 'partes.qualificacao': 'partes.contratante', 'objeto.sistema': 'objeto.objetivo',
-    'objeto.geracao': 'desempenho.dimensionamento', 'objeto.componentes': 'objeto.sistema', 'objeto.local': 'objeto.sistema', 'objeto.escopo': 'obrigacoes.telhado',
-    'prazos.nota': 'prazos.suspensao', 'garantias.equipamentos': 'garantias.modulos', 'garantias.exclusoes': 'garantias.perda', 'obrigacoes.monitorar': 'obrigacoes.anomalias',
-    'rescisao.prazo': 'rescisao.iniciativa', 'desempenho.estimado': 'desempenho.dimensionamento', 'desempenho.responsabilidade': 'desempenho.variacao',
-    'vistoria.laudo': 'entrega.vistoria', 'transferencia.cliente': 'gerais.cessao', 'ambiental.partes': 'obrigacoes.anomalias', 'multa.interrupcao': 'obrigacoes.intervencao' },
-  solar_m1: { 'partes.intro': 'partes.contratante', 'partes.boafe': 'partes.contratante', 'objeto.normas': 'objeto.objetivo', 'objeto.geracao': 'desempenho.dimensionamento',
-    'qualificacao.contratada': 'partes.contratada', 'qualificacao.capacidade': 'qualificacao.contratante', 'etapas.intro': 'objeto.escopo', 'etapas.visita': 'objeto.escopo',
-    'etapas.projeto': 'objeto.escopo', 'etapas.aquisicao': 'objeto.escopo', 'etapas.instalacao': 'objeto.escopo', 'etapas.comissionamento': 'objeto.escopo',
-    'etapas.homologacao': 'homologacao.definicao', 'prazos.distribuidora': 'homologacao.documentacao', 'preco.inicio': 'prazos.intro', 'garantias.intro': 'garantias.modulos',
-    'obrigacoes.acesso': 'obrigacoes.telhado', 'obrigacoes.pagamentos': 'preco.mora', 'homologacao.interligacao': 'homologacao.definicao', 'desempenho.monitoramento': 'desempenho.variacao',
-    'entrega.laudo': 'entrega.vistoria', 'manutencao.garantia': 'garantias.instalacao', 'manutencao.limpeza': 'manutencao.posgarantia', 'rescisao.intro': 'rescisao.iniciativa',
-    'rescisao.acordo': 'rescisao.iniciativa', 'gerais.independencia': 'gerais.alteracoes', 'gerais.integralidade': 'gerais.alteracoes' },
-};
-const SOL_DEPARA_CLAUSULA = {
-  solar_m2: { manutencao: 'garantias', vistoria: 'entrega', transferencia: 'gerais', ambiental: 'objeto', multa: 'obrigacoes', foro: 'gerais' },
-  solar_m1: { qualificacao: 'objeto', etapas: 'objeto', manutencao: 'garantias', foro: 'gerais' },
-};
-function ctrSolarPedidoLegado(p) {
-  const t = ctrIaTipoDe(p);
-  if (t !== 'solar_m1' && t !== 'solar_m2') return p;
-  const chave = k => { if (!k) return k; const s = String(k); const tab = s.indexOf('.') >= 0 ? SOL_DEPARA_ITEM[t] : SOL_DEPARA_CLAUSULA[t]; return tab[s] || s; };
-  const marcas = s => s == null ? s : String(s).replace(/\{\{([cin]):([A-Za-z0-9._-]+)\}\}/g, (x, tp, k) => '{{' + tp + ':' + chave(k) + '}}');
-  const q = JSON.parse(JSON.stringify(p));
-  q.tipo = 'solar_m1';
-  (q.ops || []).forEach(op => {
-    ['alvo', 'depois_de', 'ancora'].forEach(f => { if (op[f]) op[f] = chave(op[f]); });
-    if (op.texto != null) op.texto = marcas(op.texto);
-    if (Array.isArray(op.itens)) op.itens = op.itens.map(marcas);
-  });
-  return q;
-}
 function ctrIaEhSolar(p) { return /^solar_m[12]$/.test(ctrIaTipoDe(p)); }
 // As cláusulas sem número (partes, assinaturas do Padrão) não entram na conta do "Cláusula N" do "O que mudou".
 function ctrAgTitulos(modelo) { return modelo.filter(c => !c.semNumero).map(c => c.titulo); }
 
-// Solar_m1 e solar_m2 devolvem o MESMO texto (21/10/2026): o segundo argumento só existe por compatibilidade.
-function ctrModeloSolar(d0) {
-  return ctrModeloSolarUnico(solProt(d0));
-}
 
-// Contrato solar DEFINITIVO (21/10/2026): um texto só para solar_m1 e solar_m2. O Padrão (14 cláusulas) e o Completo (15) saíram.
-// Contrato novo é salvo como solar_m1; solar_m2 só existe para reabrir papel antigo, que sai neste mesmo texto.
-// Regras: contratoRegras.ts. Emitente sempre a AIOROS GROUP LTDA (marca Irmãos na Obra): a palavra NEXUS não aparece.
-// Todo número do texto sai de solPrazos() ou de um campo da tela (regra 14). Remissão só por marcador ({{c:..}} e {{i:..}}).
-// Cláusulas numeradas: itens `num` (N.M). Fora disso: partes e assinaturas (sem número e sem título).
-function solPrazos() {
-  return {
-    docs: 5,          // dias úteis para entregar os documentos (obrigacoes.documentos)
-    aviso: 30,        // dias de aviso para desistir antes da entrega (rescisao.iniciativa)
-    corrigir: 5,      // dias úteis para corrigir antes de encerrar (rescisao.descumprimento)
-    devolucao: 15,    // dias para devolver o que não é da outra parte (rescisao.antes e rescisao.culpa)
-    penal: 10,        // % do preço de quem desiste, SEM sinal (rescisao.antes)
-    multa: 2,         // % de multa por atraso, dos dois lados (preco.mora e prazos.atraso)
-    juros: 1,         // % de juros ao mês por atraso, dos dois lados
-    atraso: 60,       // dias de atraso que deixam o outro lado encerrar (decisão do dono, 21/10/2026)
-    fabricante: 30,   // teto da suspensão por atraso do fabricante (prazos.suspensao; decisão do dono)
-    credito: 30,      // dias para o banco liberar o crédito (preco.financiamento)
-    acordoCredito: 10, // dias para combinar outra forma se o banco não liberar
-  };
-}
-function ctrModeloSolarUnico(d) {
-  const e = solEsc, emp = d.emp, cli = d.cli;
-  const C = ctrSolarC, I = ctrSolarI;
-  const P = solPrazos();
-  // Regra 12: pessoa física é consumidor (fs-tipo; PF é o padrão). Negrito só para ela.
-  const pf = !cli.pj;
-  const L = h => (pf && h ? `<b>${h}</b>` : h);
-  const nx = n => `${n} (${recExInt(n)})`;
-  const px = v => {
-    const t = ctrPctTxt(v), [i, dd] = t.split(',');
-    const dec = dd ? ' vírgula ' + (dd.length > 1 && dd[0] === '0' ? 'zero ' + recExInt(+dd) : recExInt(+dd)) : '';
-    return `${e(t)}% (${recExInt(+i)}${dec} por cento)`;
-  };
-  const rx = v => `<b>R$ ${solFmt(v)}</b> (${e(recExtenso(v))})`;
-  const multa = pf ? Math.min(P.multa, 2) : P.multa;
-  const N = { estilo: 'num' }, NT = { estilo: 'num', travado: true };
-  const sinal = d.sinal > 0 ? d.sinal : 0;
-  const pagL = Array.isArray(d.pagLinhas) ? d.pagLinhas : [];
-  const temCartao = pagL.some(l => /cart[ãa]o/i.test(l.forma));
-  const geraTxt = d.geracao > 0 ? Math.round(d.geracao).toLocaleString('pt-BR') : '';
-  const row = (k, v) => `<tr><td class="k">${e(k)}</td><td>${v}</td></tr>`;
-  const linhas = [row('Potência instalada', `${solV(d.kwp)} kWp`),
-    row('Módulos', `${solV(d.nmod)} unidade(s) · ${solV(d.mod)}`),
-    row('Inversores', `${solV(d.ninv)} unidade(s) · ${solV(d.tinv)} / ${solV(d.minv)}`),
-    d.bat.tem ? row('Bateria', e(d.bat.titulo) + (d.bat.spec.length ? ' · ' + e(d.bat.spec.join(' · ')) : '')) : '',
-    geraTxt ? row('Geração estimada', `~${e(geraTxt)} kWh/mês, média anual, projeção da {{c:desempenho}}`) : '',
-    row('Local de instalação', solV(d.endInst))];
-  const tabela = '<p class="ep-ctr-p">Especificações do sistema:</p><table class="sol-res"><tbody>' + linhas.map(l => '\n        ' + l).join('') + '\n      </tbody></table>';
-  const batG = solBatGar(d);
-  const dadosPag = [emp.pix && 'chave Pix ' + e(emp.pix), emp.conta && 'conta ' + e(emp.conta)].filter(Boolean).join(' ou ');
-  const valorTxt = d.valorN > 0 ? rx(d.valorN) : SOL_LACUNA;
-  return [
-    C('partes', 'Partes', [
-      I('partes.contratada', `<b>CONTRATADA:</b> <b>${e(emp.razao)}</b> (Irmãos na Obra), pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${e(emp.cnpj)}${emp.end ? `, com sede em ${e(emp.end)}` : ''}.`, { travado: true }),
-      I('partes.contratante', pf
-        ? `<b>CONTRATANTE:</b> ${solV(cli.nome)}${cli.qualif ? ', ' + e(cli.qualif) : ''}, pessoa física, inscrita no CPF sob o nº ${solV(cli.doc)}, residente e domiciliada em ${solV(cli.endFull)}.`
-        : `<b>CONTRATANTE:</b> ${solV(cli.nome)}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${solV(cli.doc)}, com sede em ${solV(cli.endFull)}${cli.rep ? `, representada por ${e(cli.rep)}` : ''}.`, { travado: true }),
-    ], { semNumero: true, semTitulo: true }),
-    C('objeto', 'Do objeto', [
-      I('objeto.objetivo', 'A CONTRATADA fornece e instala para o CONTRATANTE o sistema de energia solar fotovoltaica descrito abaixo, faz o projeto, pede a homologação na distribuidora de energia e entrega o sistema funcionando. Ela segue as normas técnicas e as regras da ANEEL e da distribuidora.', N),
-      I('objeto.sistema', tabela, { travado: true, estilo: 'raw' }),
-      I('objeto.escopo', 'O preço cobre a visita técnica, o projeto elétrico com ART, os equipamentos da tabela com cabos, conectores, estruturas de fixação e proteções elétricas, o transporte, a montagem, os testes de funcionamento (comissionamento) e o pedido de conexão à distribuidora, acompanhado até a ligação do sistema à rede.', N),
-      I('objeto.adequacoes', L('Obra que não estiver nesta cláusula, como reforço de telhado, obra civil, terraplanagem ou adequação do padrão de entrada, é orçada à parte e só é feita com a aprovação do CONTRATANTE, avisado antes pela CONTRATADA.'), N),
-      I('qualificacao.contratante', 'O CONTRATANTE declara que conhece o sistema, as condições do local e este contrato, e que o assina por vontade própria.', NT),
-    ]),
-    C('preco', 'Do preço e do pagamento', [
-      I('preco.valor', `O preço total deste contrato é de ${valorTxt}.`, NT),
-      sinal > 0 ? I('preco.sinal', `Desse preço, ${rx(sinal)} são o sinal, pago até a assinatura deste contrato. ` + L(`O sinal vale como arras penitenciais (art. 420 do Código Civil): se o CONTRATANTE desistir${pf ? ' fora do prazo da {{i:rescisao.arrependimento}}' : ''}, perde o sinal, e se a CONTRATADA desistir, devolve o sinal em dobro, sem outra indenização para ninguém.`), NT) : null,
-      pagL.length
-        ? I('preco.forma', `${sinal > 0 ? `O saldo de ${rx(d.saldo)}` : 'O preço'} é pago como no quadro abaixo.${d.pagObs ? ' ' + e(d.pagObs) : ''}${d.temAcr ? ' O acréscimo do parcelamento já está nas parcelas e é custo do meio de pagamento.' : ''}`, { estilo: 'num', bloco: 'pagamento', travado: true })
-        : I('preco.forma', `${sinal > 0 ? 'O saldo' : 'O preço'} é pago assim: ${d.pagObs ? solTxt(d.pagObs) : SOL_LACUNA}`, NT),
-      I('preco.dados', `Todo pagamento é feito à CONTRATADA${dadosPag ? `, por <b>${dadosPag}</b>,` : ''} ou por cobrança emitida em nome dela. Pagamento a terceiro, inclusive a vendedor, não quita o preço.`, N),
-      d.temFin ? I('preco.financiamento', `A parte financiada depende do banco, que tem de liberar o crédito em até ${nx(P.credito)} dias da assinatura. ` + L(`Se não liberar, e as partes não combinarem outra forma de pagamento em até ${nx(P.acordoCredito)} dias, este contrato acaba sem multa, e o CONTRATANTE recebe de volta tudo o que pagou, descontados só os custos já feitos e comprovados.`) + ' Os prazos da {{c:prazos}} contam também da liberação do crédito.', N) : null,
-      temCartao ? I('preco.cartao', L('No cartão, o pagamento conta como feito na autorização da compra. Contestação ou estorno pedido pelo CONTRATANTE sem motivo vale como falta de pagamento.'), N) : null,
-      I('preco.mora', `Parcela em atraso tem multa de ${px(multa)}, juros de ${px(P.juros)} ao mês e correção pelo IPCA, e os prazos da {{c:prazos}} ficam suspensos até o pagamento. ` + L(`Passados ${nx(P.atraso)} dias de atraso, a CONTRATADA pode encerrar este contrato por aviso escrito, com as consequências da {{i:rescisao.descumprimento}}.`), N),
-    ]),
-    C('prazos', 'Dos prazos', [
-      I('prazos.intro', 'Os prazos abaixo contam da confirmação do primeiro pagamento e da entrega dos documentos da {{i:obrigacoes.documentos}}, o que vier por último, e só então a CONTRATADA começa os serviços.', N),
-      I('prazos.projeto', `<b>Projeto:</b> a CONTRATADA faz o projeto técnico e o envia à distribuidora em até ${solUn(d.pproj, 'dia', 'dias')} úteis.`, N),
-      I('prazos.aprovacao', `<b>Aprovação:</b> prazo estimado de até ${solUn(d.paprov, 'dia', 'dias')}, que depende da análise da distribuidora.`, N),
-      I('prazos.obra', `<b>Instalação:</b> a CONTRATADA instala o sistema em até ${solUn(d.pinst, 'dia', 'dias')} úteis depois da aprovação da distribuidora.`, N),
-      I('prazos.suspensao', L(`Os prazos ficam suspensos, com aviso ao CONTRATANTE, enquanto durar: atraso dele nos documentos, no acesso ou no pagamento; adequação do local que caiba a ele; chuva que impeça o trabalho seguro; demora da distribuidora na análise e exigência dela que não venha de erro do projeto; força maior; e atraso do fabricante na entrega dos equipamentos, por até ${nx(P.fabricante)} dias.`) + ' O prazo de resposta às exigências da {{i:homologacao.documentacao}} não fica suspenso.', N),
-      I('prazos.atraso', `Se a CONTRATADA passar do prazo do projeto ({{i:prazos.projeto}}), da instalação ({{i:prazos.obra}}) ou de resposta às exigências da distribuidora ({{i:homologacao.documentacao}}), fora das suspensões da {{i:prazos.suspensao}}, paga ao CONTRATANTE multa de ${px(multa)}, juros de ${px(P.juros)} ao mês e correção pelo IPCA sobre o valor que ele já pagou, até cumprir a etapa atrasada. Passados ${nx(P.atraso)} dias de atraso, o CONTRATANTE pode encerrar este contrato por aviso escrito, na forma da {{i:rescisao.culpa}}.`, N),
-    ]),
-    C('homologacao', 'Da homologação na distribuidora', [
-      I('homologacao.definicao', 'A homologação é o pedido na distribuidora que permite ligar o sistema à rede e compensar a energia injetada, na forma da Lei nº 14.300/2022 e da Resolução Normativa ANEEL nº 1.000/2021. A CONTRATADA prepara e envia a documentação técnica em nome do CONTRATANTE, pela procuração dele, e acompanha o pedido até a ligação.', N),
-      I('homologacao.documentacao', L('Os prazos de análise, vistoria e troca do medidor são da distribuidora e não dependem da CONTRATADA.') + ' Ela informa o CONTRATANTE de cada etapa e responde às exigências da distribuidora que caibam a ela no mesmo prazo do projeto ({{i:prazos.projeto}}).', N),
-      I('homologacao.negativa', L('Se a distribuidora negar a conexão ou limitar a potência por motivo da rede, e não por erro do projeto, a CONTRATADA propõe o ajuste possível, por aditivo. Se o CONTRATANTE não aceitar, qualquer parte pode encerrar este contrato sem multa. Ele recebe o projeto e tudo o que pagou, descontados só os custos já feitos e comprovados, e fica com o que foi comprado com esse valor.'), N),
-    ]),
-    C('obrigacoes', 'Das obrigações do contratante', [
-      I('obrigacoes.intro', 'Cabe ao CONTRATANTE:', { estilo: 'p' }),
-      I('obrigacoes.documentos', `Entregar, em até ${nx(P.docs)} dias úteis da assinatura, os documentos que a CONTRATADA pedir, como a conta de energia e os documentos do imóvel e pessoais, e assinar a procuração para o pedido na distribuidora. ` +
-        (d.tucOutro ? 'Como a conta de energia está em nome de outra pessoa, entregar também a autorização escrita do titular dela.' : 'Se o imóvel ou a conta de energia estiver em nome de outra pessoa, entregar também a autorização escrita dela.'), N),
-      I('obrigacoes.telhado', 'Dar acesso livre ao imóvel nos dias combinados e deixar o local pronto, com a área limpa e o telhado ou o solo em condições de receber o peso do sistema. Se houver dúvida sobre a estrutura, a CONTRATADA indica um profissional para avaliá-la.', N),
-      I('obrigacoes.padrao', L('Manter o padrão de entrada e a instalação elétrica do imóvel como a distribuidora exige. A adequação, se for precisa, pode ser feita pela CONTRATADA por orçamento à parte.'), N),
-      I('obrigacoes.intervencao', 'Não mexer no sistema nem deixar terceiro mexer nele sem autorização escrita da CONTRATADA, e não ligá-lo à rede antes da aprovação da distribuidora.', N),
-      I('obrigacoes.anomalias', 'Manter a área do sistema livre de sombra e obstrução que possa evitar e avisar a CONTRATADA, assim que souber, de alarme, defeito ou mudança no imóvel que afete o sistema.', N),
-    ]),
-    C('entrega', 'Da entrega', [
-      I('entrega.vistoria', 'Concluída a instalação, as partes fazem juntas a vistoria do sistema. A CONTRATADA mostra o funcionamento, orienta o uso e entrega o laudo técnico de conformidade com as normas e com este contrato.', N),
-      I('entrega.termo', 'O CONTRATANTE assina então o Termo de Recebimento, que registra o sistema recebido funcionando e a orientação de uso, com as ressalvas que ele anotar.', N),
-    ]),
-    C('garantias', 'Das garantias e da manutenção', [
-      I('garantias.modulos', `<b>Módulos:</b> garantia do fabricante de ${solUn(d.gmod, 'ano', 'anos')} contra defeito de fabricação e degradação acima da prevista no manual.`, N),
-      I('garantias.inversor', `<b>Inversor:</b> garantia do fabricante de ${solUn(d.ginv, 'ano', 'anos')} contra defeito de funcionamento e falha de componentes eletrônicos.`, N),
-      batG ? I('garantias.bateria', `<b>Bateria:</b> garantia do fabricante de ${batG} contra defeito de funcionamento e perda de capacidade acima da prevista no manual.`, N) : null,
-      I('garantias.instalacao', `<b>Instalação:</b> garantia da CONTRATADA de ${solGarInst(d)}, a contar da entrega do sistema ({{c:entrega}}), para o defeito que vier da obra e for constatado em vistoria técnica. Nesse prazo, a CONTRATADA corrige o defeito sem custo.`, N),
-      I('garantias.fabricantes', pf
-        ? 'As garantias dos equipamentos seguem os certificados dos fabricantes, entregues com o sistema, e a CONTRATADA aciona o fabricante pelo CONTRATANTE quando for preciso.'
-        : 'As garantias dos equipamentos são só dos fabricantes, nas condições dos certificados entregues com o sistema, e a CONTRATADA ajuda o CONTRATANTE a acioná-las.', N),
-      I('garantias.perda', L('A garantia da instalação vale para o uso normal do sistema e deixa de valer para o dano causado por mau uso, intervenção de terceiro sem autorização da CONTRATADA, raio, enchente, granizo, sobretensão da rede, outra força maior ou obra no imóvel que atinja o sistema.'), N),
-      I('garantias.telhas', 'A CONTRATADA repõe à sua custa a telha que quebrar durante a obra. A telha que a visita técnica apontar como já quebrada, trincada ou fragilizada pelo tempo é reposta pelo CONTRATANTE.', N),
-      I('manutencao.posgarantia', 'Depois da garantia, a CONTRATADA pode fazer a manutenção preventiva e corretiva por proposta própria. Ela recomenda limpar os módulos e verificar as conexões ao menos uma vez por ano.', N),
-    ]),
-    C('desempenho', 'Da geração de energia', [
-      I('desempenho.dimensionamento', L('O sistema foi dimensionado pelo consumo informado pelo CONTRATANTE e pela irradiação solar histórica da região, e a estimativa de geração deste contrato e da proposta comercial é projeção técnica, não promessa nem garantia de geração ou de economia.'), N),
-      I('desempenho.variacao', L('A geração real muda com o clima, a temperatura, a sujeira nos módulos, a sombra e a qualidade da rede da distribuidora. Essa variação, a sombra nova e a mudança no imóvel depois da instalação não são defeito do sistema nem da instalação.') + '', N),
-      I('desempenho.compensacao', L('O crédito de energia e o desconto na conta seguem a Lei nº 14.300/2022 e as regras da ANEEL e da distribuidora, inclusive a cobrança pelo uso da rede. Mudança nessas regras ou nas tarifas não altera este contrato.'), N),
-    ]),
-    C('rescisao', 'Da desistência e do encerramento', [
-      pf ? I('rescisao.arrependimento', 'Se este contrato for fechado fora do estabelecimento da CONTRATADA, como em visita, por telefone ou pela internet, o CONTRATANTE pode desistir dele em até 7 (sete) dias da assinatura, sem multa, e recebe de volta de imediato tudo o que pagou, corrigido (art. 49 do Código de Defesa do Consumidor). ' + L('A CONTRATADA pode esperar esse prazo para comprar os equipamentos, sem que a espera conte como atraso.'), N) : null,
-      I('rescisao.iniciativa', `As partes podem encerrar este contrato por acordo escrito a qualquer momento. Qualquer parte também pode desistir dele antes da entrega do sistema, por aviso escrito com ${nx(P.aviso)} dias de antecedência.`, N),
-      I('rescisao.antes', sinal > 0
-        ? L(`Quem desistir paga à outra parte o sinal, na forma da {{i:preco.sinal}}, como única indenização. O que o CONTRATANTE pagou além do sinal volta para ele em até ${nx(P.devolucao)} dias, ressalvado o acerto da {{i:rescisao.depois}}.`)
-        : L(`Quem desistir${pf ? ', fora do prazo da {{i:rescisao.arrependimento}},' : ''} paga à outra parte ${px(P.penal)} do preço, como única indenização. O que o CONTRATANTE pagou volta para ele em até ${nx(P.devolucao)} dias, descontado esse valor quando a desistência for dele e ressalvado o acerto da {{i:rescisao.depois}}.`), N),
-      I('rescisao.depois', L('Se quem desistir for o CONTRATANTE, ele paga também o serviço já feito e os equipamentos já comprados para este contrato, na proporção do preço e com os comprovantes, e fica com eles. O total pago por ele nunca passa do preço.'), N),
-      I('rescisao.descumprimento', L(`Se uma parte descumprir este contrato e não corrigir em ${nx(P.corrigir)} dias úteis da notificação, a outra pode encerrá-lo. Se a culpa for do CONTRATANTE, valem as consequências da desistência dele ({{i:rescisao.antes}} e {{i:rescisao.depois}}).`), N),
-      I('rescisao.culpa', `Se quem desistir for a CONTRATADA, ou se o contrato acabar por culpa dela, o CONTRATANTE escolhe entre: (a) receber de volta tudo o que pagou, corrigido pelo IPCA, com a retirada do que foi instalado e o local refeito, à custa dela; ou (b) ficar com o que já foi entregue, pago na proporção do preço, e receber de volta o restante. Nos dois casos, a devolução é feita em até ${nx(P.devolucao)} dias, e vale também a {{i:rescisao.antes}}.`, N),
-    ]),
-    C('gerais', 'Das disposições gerais e do foro', [
-      I('gerais.alteracoes', 'Este contrato substitui a proposta e qualquer acordo verbal anterior sobre o mesmo assunto, e só muda por aditivo assinado pelas partes. Os avisos valem quando enviados por escrito, inclusive por e-mail ou mensagem, aos contatos das partes. Tolerar um descumprimento não é renúncia ao direito nem novação.', N),
-      I('gerais.cessao', 'Nenhuma parte transfere este contrato sem a concordância escrita da outra. Com ela, o CONTRATANTE pode transferi-lo a quem assumir as obrigações dele, como o comprador do imóvel.', N),
-      I('gerais.confidencialidade', 'As partes guardam sigilo das informações técnicas e comerciais deste contrato. A CONTRATADA usa os dados pessoais do CONTRATANTE só para executá-lo, inclusive no pedido à distribuidora e no financiamento, se houver, na forma da Lei nº 13.709/2018 (LGPD).', N),
-      I('gerais.eletronica', 'As partes aceitam a assinatura eletrônica deste contrato, por meio que comprove autoria e integridade, com o mesmo efeito da assinatura à mão (MP nº 2.200-2/2001, art. 10, § 2º). Assinado em plataforma de assinatura eletrônica, ele dispensa testemunhas para ser cobrado diretamente (CPC, art. 784, § 4º).', N),
-      I('foro.comarca', pf
-        ? `Fica eleito o foro da comarca de <b>${solV(d.foro)}</b>, ressalvado ao CONTRATANTE o foro do seu domicílio.`
-        : `Fica eleito o foro da comarca de <b>${solV(d.foro)}</b>, com renúncia a qualquer outro.`, N),
-    ]),
-    C('assinaturas', 'Assinaturas', [
-      I('assinaturas.fecho', solCtrFecho(d), { travado: true, estilo: 'raw' }),
-    ], { semNumero: true, semTitulo: true, fim: true }),
-  ];
-}
 
-// Estilo de cada item: o que o modelo marcou, ou (item que a IA incluiu) o da lista em que ele entrou.
-function ctrSolarEstilos(modelo) {
-  return modelo.map(c => {
-    let ant = 'p';
-    return Object.assign({}, c, { itens: c.itens.map(it => {
-      const s = it.estilo || (it.ia && (ant === 'li' || ant === 'ul' || ant === 'num') ? ant : 'p');
-      ant = s;
-      return Object.assign({}, it, { estilo: s });
-    }) });
-  });
-}
-// Numera pela posição, sem contar as cláusulas semNumero, e resolve os marcadores no jeito do papel solar:
-// {{c:K}} e {{i:K}} viram "cláusula 5" (ou "cláusula 2.1" para item numerado), {{n:K}} vira "5". Começo de frase fica em maiúscula.
-function ctrNumerarSolar(modelo) {
-  const pos = {};
-  let n = 0;
-  modelo.forEach(c => {
-    const cn = c.semNumero ? null : ++n;
-    pos[c.key] = { n: cn };
-    let m = 0;
-    c.itens.forEach(it => { pos[it.key] = { n: cn, m: it.estilo === 'num' ? ++m : null }; });
-  });
-  const quebradas = [];
-  const RE_MARCA = /\{\{([cin]):([A-Za-z0-9._-]+)\}\}/g;
-  modelo.forEach(c => c.itens.forEach(it => {
-    for (const [, , k] of String(it.html).matchAll(RE_MARCA)) { const p = pos[k]; if (!p || !p.n) quebradas.push(k); }
-  }));
-  const resolver = html => String(html).replace(RE_MARCA, (_, t, k, off) => {
-    const p = pos[k];
-    if (!p || !p.n) return '<span class="ep-rec-vazio"></span>';
-    if (t === 'n') return String(p.n);
-    const txt = 'cláusula ' + (t === 'i' && p.m ? p.n + '.' + p.m : p.n);
-    return off === 0 ? 'C' + txt.slice(1) : txt;
-  });
-  return { pos, resolver, quebradas };
-}
-// O HTML das cláusulas do modelo já com os pedidos aplicados, um bloco por parágrafo, alínea ou tabela
-// (o título da cláusula vai grudado no primeiro bloco: título órfão no pé da folha não se manda).
-function ctrSolarClausulas(efet, versal, quadros) {
-  const e = solEsc;
-  const est = ctrSolarEstilos(efet);
-  const { resolver } = ctrNumerarSolar(est);
-  const out = [];
-  let n = 0;
-  est.forEach(c => {
-    if (!c.semNumero) n++;
-    const blocos = [];
-    const it = c.itens;
-    let letra = 0, num = 0, i = 0;
-    while (i < it.length) {
-      const x = it[i];
-      if (x.estilo === 'ul') {
-        const lis = [];
-        while (i < it.length && it[i].estilo === 'ul') { const t = resolver(it[i].html); if (t) lis.push(`<li>${t}</li>`); i++; }
-        if (lis.length) { const ul = `<ul class="sol-ul">${lis.join('')}</ul>`; if (blocos.length) blocos[blocos.length - 1] += ul; else blocos.push(ul); }
-        continue;
-      }
-      if (x.grupo) {
-        const g = [];
-        while (i < it.length && it[i].grupo === x.grupo) { const t = resolver(it[i].html); if (t) g.push(t); i++; }
-        if (g.length) blocos.push(CTR_SOLAR_GRUPOS[x.grupo] ? CTR_SOLAR_GRUPOS[x.grupo](g) : g.join(''));
-        continue;
-      }
-      i++;
-      const h = resolver(x.html);
-      if (!h) continue;
-      // O quadro (a tabela de pagamento) vai no MESMO bloco da frase que o apresenta: tabela órfã em folha nova não se manda.
-      const q = x.bloco && quadros ? (quadros[x.bloco] || '') : '';
-      if (x.estilo === 'li') blocos.push(`<p class="ep-ctr-li">${String.fromCharCode(97 + letra++)}) ${h}</p>${q}`);
-      else if (x.estilo === 'num') blocos.push(`<p class="ep-ctr-p">${n}.${++num}. ${h}</p>${q}`);
-      else if (x.estilo === 'nt') blocos.push(`<p class="ep-ctr-p sol-nt">${h}</p>${q}`);
-      else if (x.estilo === 'raw') blocos.push(h);
-      else blocos.push(`<p class="ep-ctr-p">${h}</p>${q}`);
-    }
-    if (!blocos.length) return;
-    if (!c.semTitulo) blocos[0] = `<div class="ep-ctr-cl">${n}. ${e(versal ? String(c.titulo).toUpperCase() : c.titulo)}</div>` + blocos[0];
-    out.push(...blocos);
-  });
-  return out.map(b => b.split(SOL_PUA).join(''));
-}
 
-// O contrato do Fechamento solar: cabeçalho, cláusulas do modelo (com os pedidos do assistente) e fecho.
-function fsCtrBlocosSolar(d) {
-  const e = solEsc;
-  const dataTxt = solDataLonga(d.data), foro = d.foro || '';
-  const topo = solTopoCtr(`${d.num ? 'Contrato nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${foro ? ' · ' + e(foro) : ''}`) +
-    `<div class="ep-ctr-tit">Contrato de Fornecimento e Instalação de Sistema de Energia Solar Fotovoltaica</div><div class="ep-ctr-sub">Instrumento particular · ${e(dataTxt)}</div>`;
-  const { modelo: efet } = ctrIaAplicar(ctrModeloSolar(d), ctrIaPedidos(ctrSolarTipo()));
-  const quadros = ctrQuadros({ tipo: 'solar_m1', pagLinhas: d.pagLinhas || [], pagSoma: d.pagSoma || 0 });
-  return { blocos: [topo, ...ctrSolarClausulas(efet, false, quadros)].filter(Boolean), quem: d.cli.nome };
-}
 
-// O fecho do contrato: local e data, assinaturas e as duas testemunhas. Assina à mão ou por meio eletrônico (gerais.eletronica).
-function solCtrFecho(d) {
-  const e = solEsc, emp = d.emp, cli = d.cli;
-  const dataTxt = solDataLonga(d.data);
-  return `<div class="ep-ctr-fim">
-      <p class="ep-ctr-p" style="margin-top:14px">Por estarem de acordo, as partes assinam este contrato à mão, em 2 (duas) vias iguais e com as 2 (duas) testemunhas abaixo, ou por meio eletrônico, na forma da {{i:gerais.eletronica}}.</p>
-      <p class="ep-ctr-p">${d.foro ? e(d.foro) + ', ' : ''}${e(dataTxt)}.</p>
-      <div class="ep-ctr-assin">
-        <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>CONTRATADA</div>
-        <div class="a"><b>${cli.nome ? e(cli.nome.toUpperCase()) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}CONTRATANTE</div>
-      </div>
-      <div class="ep-ctr-test">
-        <div class="a"><b>Testemunha 1</b><span>Nome e CPF:</span></div>
-        <div class="a"><b>Testemunha 2</b><span>Nome e CPF:</span></div>
-      </div>
-    </div>`;
-}
 
-// O que não sai do computador para a IA: identidade do cliente, do titular da conta de luz e o endereço da instalação.
-// O ctrAgSensivel completa com os pedaços de endereço e as formas de CPF, CNPJ, telefone e CEP.
-function fsAgSensivelBase() {
-  const v = new Set();
-  const add = (x) => { x = String(x || '').trim(); if (x.length >= 4) { v.add(x); v.add(orcEsc(x)); v.add(solEsc(x)); } };
-  ['fs-nome', 'fs-doc', 'fs-rep', 'fs-end', 'fs-rg', 'fs-tel', 'fs-cep', 'fs-email', 'fs-c-endinst', 'fs-p-uc',
-    'fs-p-tuc-nome', 'fs-p-tuc-doc', 'fs-p-tuc-rg', 'fs-p-tuc-qualif', 'fs-p-tuc-end', ...FS_B_FIN].forEach(id => add(fsVal(id)));
-  // Lista de rateio (anexo da procuração): "Papel | Unidade | Titular | Documento | Percentual". Saem a unidade, o titular e o documento;
-  // o papel e o percentual são palavras comuns e não identificam ninguém.
-  fsVal('fs-p-rateio-lista').split('\n').forEach(l => { const p = l.split('|').map(s => s.trim()); [p[1], p[2], p[3]].forEach(add); });
-  const f = fsCli().endFull;
-  if (f && f.length >= 4) { v.add(f); v.add(orcEsc(f)); v.add(solEsc(f)); }
-  return [...v].sort((a, b) => b.length - a.length);
-}
-// Gerar fica desligado (e diz por quê) com conflito, conferência que falhou ou valor por confirmar: só na aba Contrato.
-function fsAgUi() {
-  const motivo = ctrAgGateMotivo();
-  const on = fsAbaAtual === 'contrato';
-  const btn = fsEl('fs-btn-emitir'); if (btn) btn.disabled = on && !!motivo;
-  const nota = fsEl('fsag-gate'); if (nota) nota.textContent = on ? motivo : '';
-}
-// Depois que o assistente mexeu em campo ou texto: o aviso de campo faltando, a lista de mudanças e o botão.
-function fsAgDepois() { fsPagRender(); fsRevalida(); ctrIaRender(); fsAgUi(); }
-// O retrato de antes de cada turno: só os campos da aba Contrato e os pedidos de texto do contrato solar.
-function fsAgSnapTake() {
-  const pane = fsEl('fs-pane-contrato');
-  const campos = [];
-  if (pane) pane.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
-    if (el.type === 'file' || el.closest('#fsag-card')) return;   // o campo de texto do assistente não é do contrato
-    const ck = el.type === 'checkbox' || el.type === 'radio';
-    campos.push({ id: el.id, v: ck ? null : el.value, ck: ck ? el.checked : null, t: el.dataset.tocado === undefined ? null : el.dataset.tocado, a: el.dataset.antes === undefined ? null : el.dataset.antes, va: el.dataset.vdcAuto === undefined ? null : el.dataset.vdcAuto });
-  });
-  return { solar: true, campos, ctrIa: JSON.parse(JSON.stringify({ pedidos: ctrIa.pedidos.filter(ctrIaEhSolar) })) };
-}
-function fsAgSnapApply(s) {
-  s.campos.forEach(c => {
-    const el = document.getElementById(c.id);
-    if (!el) return;
-    if (c.ck != null) el.checked = c.ck; else el.value = c.v;
-    [['tocado', c.t], ['antes', c.a], ['vdcAuto', c.va]].forEach(([k, v]) => { if (v == null) delete el.dataset[k]; else el.dataset[k] = v; });
-  });
-  ctrIa = { pedidos: [...ctrIa.pedidos.filter(p => !ctrIaEhSolar(p)), ...JSON.parse(JSON.stringify(s.ctrIa)).pedidos] };
-  fsAgDepois();
-}
 
-function fsContrato() {
-  const d = fsCtrDados();
-  if (fsMostraFaltas(fsFaltas('contrato'))) return;
-  { const gm = ctrAgGateMotivo(); if (gm) { fsMsg(gm); return; } }
-  { const tr = fsPagTrava(d); if (tr) { fsMsg(tr, [fsEl('fs-c-pagto')]); return; } }   // a soma das formas tem de fechar no saldo, como no eletroposto
-  const { blocos, quem } = fsCtrBlocosSolar(d);
-  const rot = 'Contrato de instalação de usina fotovoltaica';
-  const pageFoot = (n, tot) => solRodape(rot, quem, n, tot, tot > 1 ? 2 : 0);
-  const html = `<div class="ep-doc">${epPaginar(blocos, pageFoot)}</div>`;
-  const arquivo = ['Contrato_Solar', solLimpaArq(d.cli.nome) || 'Cliente', d.num ? 'N' + solLimpaArq(d.num.replace(/\//g, '-')) : ''].filter(Boolean).join('_');
-  fsPreview({ tipo: 'Contrato', cliente: d.cli.nome, valor: d.valorN, num: d.num, html, arquivo, titulo: 'Contrato solar · ' + d.cli.nome, opts: null });
-}
 
 // ═══ PROCURAÇÃO ═══
 /** "Papel | Unidade | Titular | Documento | Percentual", uma por linha. Linha sem nenhum conteúdo some. */
-function solRateioLinhas(txt) {
-  return String(txt == null ? '' : txt).split('\n').map(l => l.split('|').map(c => c.trim())).filter(c => c.some(Boolean))
-    .map(c => ({ papel: c[0] || '', uc: c[1] || '', titular: c[2] || '', doc: c[3] || '', pct: c[4] || '' }));
-}
-function fsProcDados() {
-  const cli = fsCli();
-  const g = id => fsVal(id);
-  // Titular da conta de luz (20/10/2026): preenchido o nome, ele é o outorgante da procuração. Vazio, nada muda.
-  const tuc = g('fs-p-tuc-nome') ? { nome: g('fs-p-tuc-nome'), doc: g('fs-p-tuc-doc'), rg: g('fs-p-tuc-rg'), qualif: g('fs-p-tuc-qualif'), end: g('fs-p-tuc-end') } : null;
-  // Lista de rateio (anexo): só com "Sim", linhas preenchidas e o campo não desligado por bloqueio do cadastro. Vazio, a procuração é a de sempre.
-  const uso = fsEl('fs-p-rateio-uso');
-  const rateio = uso && uso.value === 'sim' && !uso.disabled ? solRateioLinhas(g('fs-p-rateio-lista')) : [];
-  return {
-    tuc, rateio: rateio.length ? rateio : null,
-    cli, emp: solEmp(), modelo: +fsVal('fs-p-modelo') || 1, uc: g('fs-p-uc'), conc: g('fs-p-conc'), data: g('fs-p-data') || solHoje(), cidade: g('fs-p-cidade'), socio: g('fs-p-socio'),
-    eng: { nome: g('fs-p-eng-nome'), nac: g('fs-p-eng-nac'), ec: g('fs-p-eng-ec'), prof: g('fs-p-eng-prof'), crea: g('fs-p-eng-crea'), rg: g('fs-p-eng-rg'), cpf: g('fs-p-eng-cpf'), end: g('fs-p-eng-end') },
-    tec: { nome: g('fs-p-tec-nome'), nac: g('fs-p-tec-nac'), ec: g('fs-p-tec-ec'), crt: g('fs-p-tec-crt'), rg: g('fs-p-tec-rg'), cpf: g('fs-p-tec-cpf'), end: g('fs-p-tec-end') },
-    tec2: { nome: g('fs-p-tec2-nome'), nac: g('fs-p-tec2-nac'), ec: g('fs-p-tec2-ec'), crt: g('fs-p-tec2-crt'), rg: g('fs-p-tec2-rg'), cpf: g('fs-p-tec2-cpf'), end: g('fs-p-tec2-end') },
-    tec3: { nome: g('fs-p-tec3-nome'), nac: g('fs-p-tec3-nac'), ec: g('fs-p-tec3-ec'), crt: g('fs-p-tec3-crt'), rg: g('fs-p-tec3-rg'), cpf: g('fs-p-tec3-cpf'), end: g('fs-p-tec3-end') },
-  };
-}
-// engenheiro e técnico, na ordem do procQualifica (modelos 1 e 2) ou na da ANEEL (modelo 3)
-function solProcQualifica(d, aneel) {
-  const e = solEsc, lac = SOL_LACUNA;
-  const junta = ps => { const q = ps.filter(x => x && String(x).trim()).join(', '); return q ? q + '.' : ''; };
-  const E = d.eng, T = d.tec;
-  const eng = E.nome ? junta(aneel ? [
-    '<b>' + e(E.nome.toUpperCase()) + '</b>', e(E.nac), e(E.ec), e(E.prof),
-    E.rg ? 'portador(a) da carteira de identidade nº ' + e(E.rg) : '',
-    E.cpf ? 'CPF nº ' + e(E.cpf) : '',
-    E.crea ? 'inscrito(a) no ' + e(E.crea) : 'inscrito(a) no CREA sob o nº ' + lac,
-    E.end ? 'residente na ' + e(E.end) : '',
-  ] : [
-    '<b>' + e(E.nome.toUpperCase()) + '</b>', e(E.prof), e(E.nac), e(E.ec),
-    E.crea ? 'inscrito(a) no ' + e(E.crea) : 'inscrito(a) no CREA sob o nº ' + lac,
-    E.cpf ? 'CPF nº ' + e(E.cpf) : '',
-    E.rg ? 'RG nº ' + e(E.rg) : '',
-    E.end ? 'residente e domiciliado(a) na ' + e(E.end) : '',
-  ]) : '';
-  const qt = T => T.nome ? junta(aneel ? [
-    '<b>' + e(T.nome.toUpperCase()) + '</b>', e(T.nac), e(T.ec),
-    T.crt ? e(T.crt) : 'inscrito(a) no CRT/CFT sob o nº ' + lac,
-    T.rg ? 'portador(a) da carteira de identidade nº ' + e(T.rg) : '',
-    T.cpf ? 'CPF nº ' + e(T.cpf) : '',
-    T.end ? 'residente na ' + e(T.end) : '',
-  ] : [
-    '<b>' + e(T.nome.toUpperCase()) + '</b>', e(T.nac), e(T.ec),
-    T.crt ? e(T.crt) : 'inscrito(a) no CRT/CFT sob o nº ' + lac,
-    T.cpf ? 'CPF nº ' + e(T.cpf) : '',
-    T.rg ? 'RG nº ' + e(T.rg) : '',
-    T.end ? 'residente e domiciliado(a) na ' + e(T.end) : '',
-  ]) : '';
-  const tec = qt(T);
-  return { eng, tec, tec2: aneel ? qt(d.tec2) : '', tec3: aneel ? qt(d.tec3) : '' };
-}
-function solProcOutorgados(lista) {
-  if (!lista.length) return `<div class="sol-outs"><div class="sol-out"><div class="ot">Outorgado</div><div class="oq">${SOL_LACUNA}</div></div></div>`;
-  if (lista.length >= 3) return `<div class="sol-outs"><div class="sol-out"><div class="ot">Procuradores</div><ol class="lst">${lista.map(o => `<li>${o.texto}</li>`).join('')}</ol></div></div>`;
-  return `<div class="sol-outs">${lista.map(o => `<div class="sol-out"><div class="ot">${solEsc(o.rotulo)}</div><div class="oq">${o.texto}</div></div>`).join('')}</div>`;
-}
-function fsProcHTML(d) {
-  const e = solEsc, cli = d.cli, emp = d.emp;
-  const dataTxt = solDataLonga(d.data);
-  const concTxt = solV(d.conc), ucTxt = solV(d.uc);
-  const { eng, tec, tec2, tec3 } = solProcQualifica(d, d.modelo === 3);
-  const plural = !!eng && !!tec;
-  const lista = [];
-  if (d.modelo === 3) [eng, tec, tec2, tec3].filter(Boolean).forEach((t, i, a) => lista.push({ rotulo: a.length > 1 ? 'Procurador ' + (i + 1) : 'Procurador', texto: t }));
-  else if (plural) { lista.push({ rotulo: '1º Outorgado', texto: eng }); lista.push({ rotulo: '2º Outorgado', texto: tec }); }
-  else if (eng || tec) lista.push({ rotulo: 'Outorgado', texto: eng || tec });
-  const P = (h, st) => `<p class="ep-ctr-p"${st ? ` style="${st}"` : ''}>${h}</p>`;
-  const SEC = t => `<div class="sol-sec">${e(t)}</div>`;
-  const kv = (k, v, s2) => `<div${s2 ? ' class="s2"' : ''}><span class="k">${e(k)}</span><span class="v${v ? '' : ' bl'}">${v ? e(v) : ''}</span></div>`;
-  const rep = cli.pj && cli.rep ? `, neste ato representada por ${e(cli.rep)}` : '';
-  const tuc = d.tuc;   // titular da conta de luz: quando existe, é ele quem outorga (o comprador segue só no contrato)
-  const tucQ = tuc && tuc.qualif ? ', ' + e(tuc.qualif) : '';
-  const tucRg = tuc && tuc.rg ? ', portador(a) do RG nº ' + e(tuc.rg) : '';
-  const tucPj = !!tuc && vdcDigitos(tuc.doc).length === 14;   // titular empresa: "com sede em", não "residente"
-  let titulo, sub, corpo, legenda;
 
-  if (d.modelo === 1) {
-    titulo = 'Procuração'; sub = 'Representação junto à concessionária de energia elétrica'; legenda = 'Outorgante';
-    corpo = P('Pelo presente instrumento particular de procuração,') +
-      (tuc ? `<div class="sol-card"><div class="cap">Outorgante</div><div class="kv">
-        ${kv('Nome', tuc.nome, true)}${tuc.qualif ? kv('Qualificação', tuc.qualif, true) : ''}${kv('CPF / CNPJ', tuc.doc)}${tuc.rg ? kv('RG', tuc.rg) : ''}
-        ${kv('Endereço', tuc.end, true)}${kv('Unidade Consumidora (UC)', d.uc)}${kv('Concessionária', d.conc)}
-      </div></div>` : `<div class="sol-card"><div class="cap">Outorgante</div><div class="kv">
-        ${kv('Nome', cli.nome + (cli.pj && cli.rep ? ' (representada por ' + cli.rep + ')' : ''), true)}${cli.qualif ? kv('Qualificação', cli.qualif, true) : ''}${kv('CPF / CNPJ', cli.doc)}${kv('CEP', cli.cep)}
-        ${kv('Endereço', cli.endFull, true)}${kv('Unidade Consumidora (UC)', d.uc)}${kv('Concessionária', d.conc)}
-      </div></div>`) +
-      P(`nomeia e constitui como ${plural ? 'seus bastantes procuradores' : 'seu(ua) bastante procurador(a)'}:`) +
-      solProcOutorgados(lista) +
-      SEC('Poderes conferidos') +
-      P(`conferindo-lhe(s) amplos poderes para que ${plural ? 'os outorgados representem' : 'o(a) outorgado(a) represente'} perante a concessionária ${concTxt}, em todos os assuntos relativos à UC nº ${ucTxt}, incluindo: apresentação e protocolo de projetos técnicos, análise de carga, troca de titularidade, atualização cadastral, assinatura de contratos de conexão e quaisquer outros atos necessários à homologação e operação do sistema fotovoltaico.`);
-  } else if (d.modelo === 2) {
-    titulo = 'Instrumento Particular de Procuração'; sub = 'Poderes especiais para representação junto à concessionária'; legenda = 'Outorgante';
-    corpo = P('SAIBAM todos quantos este instrumento virem que, na data abaixo indicada,') +
-      (tuc ? `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${solV(tuc.nome)}${tucQ}${tucRg}, inscrito(a) no CPF/CNPJ sob o nº ${solV(tuc.doc)}, ${tucPj ? 'com sede em' : 'residente e domiciliado(a) à'} ${solV(tuc.end)}, titular da Unidade Consumidora nº ${ucTxt}, doravante denominado(a) simplesmente OUTORGANTE,</p></div>`
-        : `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${solV(cli.nome)}${cli.qualif ? ', ' + e(cli.qualif) : ''}, inscrito(a) no CPF/CNPJ sob o nº ${solV(cli.doc)}, residente e domiciliado(a) à ${solV(cli.endFull)}${cli.cep ? `, CEP ${e(cli.cep)}` : ''}${rep}, doravante denominado(a) simplesmente OUTORGANTE,</p></div>`) +
-      P(`pelo presente instrumento particular e na melhor forma de direito, nomeia e constitui como ${plural ? 'seus legítimos procuradores' : 'seu(ua) legítimo(a) procurador(a)'}:`) +
-      solProcOutorgados(lista) +
-      SEC('Poderes especiais conferidos') +
-      P(`conferindo-${plural ? 'lhes' : 'lhe'} os seguintes poderes especiais:`, 'margin-bottom:5px') +
-      [`Representar o(a) OUTORGANTE junto à concessionária de energia elétrica ${concTxt}, em todos os assuntos relacionados à Unidade Consumidora de nº ${ucTxt};`,
-        'Assinar e protocolar requerimentos, projetos técnicos, formulários, contratos de conexão e todos os documentos necessários ao processo de homologação e conexão do sistema fotovoltaico;',
-        `Solicitar análise de carga, troca de titularidade, atualização cadastral e quaisquer serviços técnicos junto à ${concTxt};`,
-        'Receber notificações, intimações e quaisquer comunicados em nome do(a) OUTORGANTE;',
-        `Substabelecer este mandato, no todo ou em parte, com ou sem reserva de iguais poderes, a critério ${plural ? 'dos procuradores' : 'do(a) procurador(a)'}.`]
-        .map((t, i) => `<p class="ep-ctr-li">${String.fromCharCode(97 + i)}) ${t}</p>`).join('') +
-      P('Esta procuração terá validade de 1 (um) ano a contar da data de sua assinatura, salvo revogação expressa anterior.<br>O(A) OUTORGANTE declara que as informações constantes neste instrumento são verdadeiras e assume integral responsabilidade pelo seu conteúdo.', 'font-size:11px;font-style:italic;border-left:2px solid #F59E0B;padding-left:9px');
-  } else {
-    titulo = 'Procuração'; sub = 'Representação junto à concessionária e à ANEEL'; legenda = '(nome completo do cliente)';
-    const empEnd = emp.end;
-    const outorgada = `OUTORGADO(A): ${e(emp.razao.toUpperCase())} (Irmãos na Obra), inscrita no CNPJ nº ${e(emp.cnpj)}${empEnd ? `, sediada na ${e(empEnd)}` : ''}${d.socio ? `, neste ato devidamente representada por seu sócio proprietário ${e(d.socio.toUpperCase())}` : ''}, com poderes para assinar procuração em nome da empresa supracitada.`;
-    if (tuc) legenda = '(nome completo do titular da conta de luz)';
-    corpo = (tuc ? `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${e(tuc.nome.toUpperCase())}${tucQ}${tucRg}, CPF/CNPJ nº ${solV(tuc.doc)}, ${tucPj ? 'com sede no' : 'residente no'} ${solV(tuc.end)} (endereço idêntico à conta de energia).</p></div>`
-      : `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${cli.nome ? e(cli.nome.toUpperCase()) : SOL_LACUNA}${cli.qualif ? ', ' + e(cli.qualif) : ''}, ${cli.pj ? 'CNPJ' : 'CPF'} nº ${solV(cli.doc)}, ${cli.pj ? 'sediada' : 'residente'} no ${solV(cli.endFull)} (endereço idêntico à conta de energia)${rep}.</p></div>`) +
-      `<div class="sol-card"><div class="cap">Outorgada</div><p class="ep-ctr-p" style="margin:0">${outorgada}</p></div>` +
-      solProcOutorgados(lista) +
-      SEC('Finalidade e poderes') +
-      P(`Por intermédio do presente instrumento particular de procuração, o OUTORGANTE infra-assinado nomeia e constitui seu Procurador o OUTORGADO supramencionado conferindo-lhes poderes para representá-lo com a finalidade exclusiva de providenciar ou autorizar qualquer requerimento junto à prestadora de serviço de energia, ${d.conc ? e(d.conc) : '(NOME DA CONCESSIONÁRIA DE DISTRIBUIÇÃO LOCAL)'}, e a Agência Nacional de Energia Elétrica (ANEEL), com as devidas finalidades: Troca de titularidade, solicitação de conexão, formulário de solicitação de acesso, emissão de TRT, formulário de rateio, aumento de carga, nova ligação, troca de medidor, mudança de padrão, ou seja, homologação geral do sistema de geração de energia solar fotovoltaica.`) +
-      P('Insta esclarecer que o presente instrumento não permite o substabelecimento a terceiros.<br>Por oportuno, ressalta-se ainda que os efeitos deste, cessa a partir do término das atividades delimitadas neste documento.<br>Tudo isto, com fulcro nos artigos 653 e 654 do Código Civil de 2002.', 'font-size:11px;font-style:italic;border-left:2px solid #F59E0B;padding-left:9px');
-  }
-  // Anexo "Lista de rateio": uma segunda folha, só quando há linhas. Sem ele a procuração é byte a byte a de sempre.
-  const anexo = d.rateio ? solRateioAnexo(d, tuc ? { nome: tuc.nome, doc: tuc.doc } : { nome: cli.nome, doc: cli.doc }) : '';
-  return `<div class="ep-doc"><div class="ep-page ep-proc">
-      ${solTopoCtr(`${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}`)}
-      <div class="ep-ctr-tit">${e(titulo)}</div>
-      <div class="ep-ctr-sub">${e(sub)}</div>
-      ${corpo}
-      <p class="ep-ctr-p" style="margin-top:14px">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
-      <div class="ep-ctr-fim"><div class="ep-ctr-assin" style="justify-content:center">
-        <div class="a" style="flex:0 1 58%">${tuc ? `<b>${e(tuc.nome)}</b>${tuc.doc ? `<span>CPF/CNPJ ${e(tuc.doc)}</span>` : ''}` : `<b>${cli.nome ? e(cli.nome) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? e(cli.rep) + '<br>' : ''}`}${e(legenda)}</div>
-      </div></div>
-      ${solRodape('Procuração · representação junto à concessionária', tuc ? tuc.nome : cli.nome)}
-    </div>${anexo}</div>`;
-}
-function solRateioAnexo(d, out) {
-  const e = solEsc;
-  const dataTxt = solDataLonga(d.data);
-  const num = (s) => { const n = parseFloat(String(s).replace('%', '').replace(',', '.')); return isFinite(n) ? n : null; };
-  let soma = 0, tudo = true;
-  const linhas = d.rateio.map(r => { const n = num(r.pct); if (n == null) tudo = false; else soma += n; return `<tr><td>${solV(r.papel)}</td><td>${solV(r.uc)}</td><td>${solV(r.titular)}</td><td>${solV(r.doc)}</td><td class="num">${solV(r.pct)}</td></tr>`; }).join('');
-  const total = tudo ? `<tr class="hl"><td colspan="4">Total</td><td class="num">${e(soma.toLocaleString('pt-BR', { maximumFractionDigits: 2 }))}%</td></tr>` : '';
-  return `<div class="ep-page ep-proc">
-      ${solTopoCtr(`${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}`)}
-      <div class="ep-ctr-tit">Lista de rateio</div>
-      <div class="ep-ctr-sub">Anexo da procuração · rateio dos créditos de energia</div>
-      <table class="ep-kv"><tbody><tr class="hl"><td>Papel</td><td>Unidade consumidora</td><td>Titular</td><td>Documento</td><td class="num">Percentual</td></tr>${linhas}${total}</tbody></table>
-      <div class="ep-ctr-fim"><div class="ep-ctr-assin" style="justify-content:center">
-        <div class="a" style="flex:0 1 58%"><b>${out.nome ? e(out.nome) : '&nbsp;'}</b>${out.doc ? `<span>CPF/CNPJ ${e(out.doc)}</span>` : ''}Outorgante</div>
-      </div></div>
-      ${solRodape('Lista de rateio · anexo da procuração', out.nome)}
-    </div>`;
-}
-function fsProcuracao() {
-  const d = fsProcDados();
-  if (fsMostraFaltas(fsFaltas('procuracao'))) return;
-  // conta de luz em nome de outra pessoa, titular sem preencher: pede o clique "Gerar assim mesmo" antes de sair com o comprador
-  if (fsTitularPend && !d.tuc && !fsTitularOk) {
-    const det = fsEl('fs-det-tuc'); if (det) det.open = true;
-    fsMsg(fsTitularMsg() + (fsTitularTxt ? ' Ou use "Gerar assim mesmo".' : ' Preencha o titular ou use "Gerar assim mesmo".'), [fsEl('fs-p-tuc-nome')]);
-    return;
-  }
-  const arquivo = ['Procuracao_Solar', solLimpaArq(d.cli.nome) || 'Cliente'].join('_');
-  fsPreview({ tipo: 'Procuração', cliente: d.cli.nome, valor: 0, num: '', html: fsProcHTML(d), arquivo, titulo: 'Procuração solar · ' + d.cli.nome, opts: { umaPagina: true, piso: 0.86, alvo: '.ep-page' } });
-}
 
-// ═══════════════════════════════════════════════════════════════════════════
-// FECHAMENTO SOLAR, FASE 2 (10/10/2026): proposta de banco, termo de entrega e vistoria
-//
-// Três papéis a mais nas abas internas, no mesmo molde dos três de ontem: card Cliente
-// compartilhado, campos em cartões, "Ver e imprimir" que valida e lista o que falta,
-// timbre Irmãos na Obra com AIOROS GROUP LTDA + CNPJ colados (nunca NEXUS), histórico
-// próprio (sol_fech_hist_v1) com Reabrir e 2ª via.
-//
-// Campos que vêm do Contrato (sistema, valor, garantias, endereço) ou da Procuração (UC e
-// concessionária) são ESPELHADOS: entram com o valor de lá enquanto o consultor não mexeu no
-// campo da aba (mesmo dataset.tocado dos demais) e se refazem toda vez que a aba abre.
-// ═══════════════════════════════════════════════════════════════════════════
-const FS_ABAS = ['contrato', 'procuracao', 'recibo', 'banco', 'termo', 'vistoria'];
-const FS_FOTOS_MAX = 8;
-const FS_FOTO_LEGS = ['Telhado', 'Padrão de entrada', 'Quadro de distribuição', 'Local do inversor', 'Conta de luz', 'Sombreamento', 'Outro'];
 
-const fsBatTitulo = () => { const m = fsVal('fs-c-bat-marca'); if (!m) return ''; const q = parseInt(fsVal('fs-c-bat-qtd'), 10) || 0; return q > 1 ? q + '× ' + m : m; };
-const fsLocalContrato = () => fsVal('fs-c-endinst') || fsCli().endFull;
-const fsPrazoEntrega = () => { const n = fsVal('fs-c-pinst'); return n ? n + ' dias úteis' : ''; };
-const fsDoContrato = id => () => fsVal(id);
-// [campo da aba, de onde vem o valor]
-const FS_ESPELHOS = {
-  banco: [['fs-b-total', fsDoContrato('fs-c-valor')], ['fs-b-kwp', fsDoContrato('fs-c-kwp')], ['fs-b-ger', fsDoContrato('fs-c-geracao')], ['fs-b-prazo', fsPrazoEntrega]],
-  termo: [['fs-t-cnum', fsDoContrato('fs-c-num')], ['fs-t-cdata', fsDoContrato('fs-c-data')], ['fs-t-kwp', fsDoContrato('fs-c-kwp')], ['fs-t-nmod', fsDoContrato('fs-c-nmod')], ['fs-t-mod', fsDoContrato('fs-c-mod')],
-    ['fs-t-ninv', fsDoContrato('fs-c-ninv')], ['fs-t-tinv', fsDoContrato('fs-c-tinv')], ['fs-t-minv', fsDoContrato('fs-c-minv')], ['fs-t-bat', fsBatTitulo],
-    ['fs-t-local', fsLocalContrato], ['fs-t-uc', fsDoContrato('fs-p-uc')], ['fs-t-conc', fsDoContrato('fs-p-conc')],
-    ['fs-t-gmod', fsDoContrato('fs-c-gmod')], ['fs-t-ginv', fsDoContrato('fs-c-ginv')], ['fs-t-ginst', fsDoContrato('fs-c-ginst')], ['fs-t-ginstun', fsDoContrato('fs-c-ginstun')]],
-  vistoria: [['fs-v-local', fsLocalContrato], ['fs-v-kwp', fsDoContrato('fs-c-kwp')], ['fs-v-nmod', fsDoContrato('fs-c-nmod')], ['fs-v-uc', fsDoContrato('fs-p-uc')], ['fs-v-conc', fsDoContrato('fs-p-conc')]],
-};
-// Titular do financiamento (proposta de banco): campos da pessoa. Vazios = a proposta sai com o contratante.
-const FS_B_FIN = ['fs-b-fin-nome', 'fs-b-fin-doc', 'fs-b-fin-rg', 'fs-b-fin-qualif', 'fs-b-fin-end', 'fs-b-fin-cep', 'fs-b-fin-tel', 'fs-b-fin-email'];
-// campos próprios que são do CLIENTE e voltam ao vazio quando a proposta puxada é de outro
-const FS_NOVOS_DO_CLIENTE = [...FS_B_FIN, 'fs-rg', 'fs-orgao', 'fs-nacionalidade', 'fs-estado-civil', 'fs-profissao',
-  'fs-p-tuc-nome', 'fs-p-tuc-doc', 'fs-p-tuc-rg', 'fs-p-tuc-qualif', 'fs-p-tuc-end', 'fs-p-rateio-uso', 'fs-p-rateio-lista', 'fs-b-banco', 'fs-b-agencia', 'fs-b-conta', 'fs-b-entrada', 'fs-b-eq', 'fs-b-mo', 'fs-b-nota', 'fs-b-desc',
-  'fs-t-conclusao', 'fs-t-liberacao', 'fs-t-serie', 'fs-t-ressalva',
-  'fs-v-acomp', 'fs-v-t-tipo', 'fs-v-t-estado', 'fs-v-t-orient', 'fs-v-t-incl', 'fs-v-t-area', 'fs-v-t-sombra', 'fs-v-t-estr', 'fs-v-t-acesso',
-  'fs-v-e-padrao', 'fs-v-e-disj', 'fs-v-e-tensao', 'fs-v-e-apto', 'fs-v-e-aterr', 'fs-v-e-quadro',
-  'fs-v-i-local', 'fs-v-i-dist', 'fs-v-i-abrig', 'fs-v-i-wifi', 'fs-v-obs', 'fs-v-adeq', 'fs-v-concl'];
-function fsPadroesNovos() {
-  const p = { 'fs-b-data': solHoje(), 'fs-b-cidade': 'Uberlândia', 'fs-b-validade': '30',
-    'fs-b-origem': 'Origem da mercadoria: nacional, mercadoria ou bem com conteúdo de importação superior a 40% e inferior ou igual a 70%.',
-    'fs-t-data': solHoje(), 'fs-t-cidade': 'Uberlândia', 'fs-v-data': solHoje() };
-  for (let i = 1; i <= FS_TERMO_ITENS.length; i++) p['fs-t-chk' + i] = 'sim';
-  return p;
-}
-// limpa um campo e devolve o "tocado": select volta à primeira opção, o resto vira vazio
-function fsLimpaCampo(id) {
-  const el = fsEl(id); if (!el) return;
-  if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
-  el.classList.remove('fs-erro'); delete el.dataset.tocado;
-}
-function fsLimparNovos() {
-  Object.keys(FS_ESPELHOS).forEach(a => FS_ESPELHOS[a].forEach(p => fsLimpaCampo(p[0])));
-  FS_NOVOS_DO_CLIENTE.forEach(fsLimpaCampo);
-  ['fs-c-sinal', 'fs-c-pagto', 'fs-c-pagjson', 'fs-c-pagtxt'].forEach(fsLimpaCampo);   // o pagamento é do cliente de antes
-  fsPagProp = null; fsPagPreviaMsg(''); fsPagRender();
-  const pad = fsPadroesNovos();
-  ['fs-v-data', 'fs-t-data', 'fs-b-data'].forEach(id => fsSet(id, pad[id], true));
-  for (let i = 1; i <= FS_TERMO_ITENS.length; i++) fsSet('fs-t-chk' + i, 'sim', true);
-  // esvazia a lista (e não só a marca): senão o fsSnap de um papel de B gravaria os itens de A
-  // e o Reabrir daria a B o equipamento de A. A lista se refaz a partir do Contrato quando a aba abre.
-  const it = fsEl('fs-b-itens'); if (it) { it.innerHTML = ''; delete it.dataset.tocado; }
-  fsFotosLimpa();
-  const av = fsEl('fs-v-fotos-aviso'); if (av) av.textContent = '';
-  fsTermoChkVisual(); fsTermoContador();
-}
-// ao abrir a aba (e ao puxar uma proposta com ela aberta): campos espelhados e itens derivados do Contrato
-function fsSincronizaNovos(aba) {
-  (FS_ESPELHOS[aba] || []).forEach(p => fsSet(p[0], p[1](), false));
-  if (aba === 'banco') { fsBancoSincroniza(); fsBancoResumo(); }
-  if (aba === 'termo') { fsTermoChkVisual(); fsTermoContador(); }
-  if (aba === 'vistoria') fsVistoriaQuem();
-}
 
-// itens: linhas por classe (como os pagamentos do recibo), nunca por id
-function fsBItemAdd(p, tocou) {
-  const host = fsEl('fs-b-itens'); if (!host) return;
-  p = p || {};
-  const row = document.createElement('div'); row.className = 'fs-bit';
-  row.innerHTML = `<input class="fs-bit-qtd q" inputmode="numeric" maxlength="3" autocomplete="off" aria-label="Quantidade" value="${solEsc(p.qtd == null ? '1' : p.qtd)}" oninput="fsBItemTocou(this)">` +
-    `<input class="fs-bit-desc" maxlength="140" autocomplete="off" aria-label="Descrição do item ou serviço" placeholder="Descrição do item ou serviço" value="${solEsc(p.desc || '')}" oninput="fsBItemTocou(this)">` +
-    `<button type="button" class="fs-x" aria-label="Remover item" onclick="fsBItemDel(this)">&times;</button>`;
-  host.appendChild(row);
-  if (tocou) { host.dataset.tocado = '1'; const d = row.querySelector('.fs-bit-desc'); try { d.focus({ preventScroll: true }); } catch (e) {} }
-  fsBancoResumo();
-}
-function fsBItemTocou(el) { const host = fsEl('fs-b-itens'); if (host) host.dataset.tocado = '1'; if (el) el.classList.remove('fs-erro'); }
-function fsBItemDel(btn) {
-  const host = fsEl('fs-b-itens'); if (!host) return;
-  if (host.querySelectorAll('.fs-bit').length <= 1) { host.querySelectorAll('input').forEach(i => { i.value = i.classList.contains('fs-bit-qtd') ? '1' : ''; }); }
-  else btn.closest('.fs-bit').remove();
-  host.dataset.tocado = '1';
-  fsBancoResumo(); fsRevalida();
-}
-const fsBItensRaw = () => [...document.querySelectorAll('#fs-b-itens .fs-bit')].map(r => ({ qtd: r.querySelector('.fs-bit-qtd').value.trim(), desc: r.querySelector('.fs-bit-desc').value.trim() }));
-const fsBItens = () => fsBItensRaw().filter(i => i.desc);
-function fsBItensRestaura(arr) {
-  const host = fsEl('fs-b-itens'); if (!host) return;
-  host.innerHTML = '';
-  if (Array.isArray(arr) && arr.length) { arr.forEach(i => fsBItemAdd(i)); host.dataset.tocado = '1'; }
-  else delete host.dataset.tocado;
-}
-// os itens que o sistema do Contrato já diz (módulos, inversor, bateria) + o que toda instalação leva
-function fsBItensDerivados() {
-  const q = v => (/^\d+$/.test(String(v).trim()) && +v > 0) ? String(+v) : '1';
-  const mod = fsVal('fs-c-mod'), nmod = fsVal('fs-c-nmod'), minv = fsVal('fs-c-minv'), ninv = fsVal('fs-c-ninv'), tinv = fsVal('fs-c-tinv');
-  const out = [];
-  if (nmod || mod) out.push({ qtd: q(nmod), desc: 'Módulos fotovoltaicos' + (mod ? ' ' + mod : '') });
-  if (ninv || minv) out.push({ qtd: q(ninv), desc: ('Inversor ' + tinv + ' ' + minv).trim() });
-  const bm = fsVal('fs-c-bat-marca');
-  if (bm) {
-    const cap = fsVal('fs-c-bat-cap');
-    out.push({ qtd: q(fsVal('fs-c-bat-qtd')), desc: 'Bateria ' + bm + (cap ? ' de ' + cap + ' kWh' : '') });
-  }
-  out.push({ qtd: '1', desc: 'Kit estrutura para telhado' }, { qtd: '1', desc: 'Kit cabo fotovoltaico' }, { qtd: '1', desc: 'Kit material elétrico CA' },
-    { qtd: '1', desc: 'Homologação do projeto de engenharia' }, { qtd: '1', desc: 'Montagem especializada' });
-  return out;
-}
-function fsBancoSincroniza() {
-  const host = fsEl('fs-b-itens'); if (!host || host.dataset.tocado === '1') return;
-  host.innerHTML = '';
-  fsBItensDerivados().forEach(i => fsBItemAdd(i));
-}
 
-// Dinheiro em centavos inteiros. Devolve também por que a conta não pode ir para o papel.
-const fsCent = v => Math.round(solParseBRL(v) * 100);
-function fsBancoContas() {
-  const tot = fsCent(fsVal('fs-b-total')), ent = fsCent(fsVal('fs-b-entrada'));
-  const eqD = fsCent(fsVal('fs-b-eq')), moD = fsCent(fsVal('fs-b-mo'));
-  let eq, mo;
-  if (eqD > 0 && moD > 0) { eq = eqD; mo = moD; }
-  else if (eqD > 0) { eq = eqD; mo = tot - eqD; }
-  else if (moD > 0) { mo = moD; eq = tot - moD; }
-  else { eq = Math.round(tot * 0.82); mo = tot - eq; }
-  const erros = [];
-  if (tot > 0) {
-    if (eq < 0 || mo < 0) erros.push({ id: 'fs-b-eq', msg: 'O valor dos equipamentos ou da mão de obra passa do valor total.' });
-    else if (eq + mo !== tot) erros.push({ id: 'fs-b-eq', msg: 'Equipamento mais mão de obra (' + fsCentTxt(eq + mo) + ') não fecha com o valor total (' + fsCentTxt(tot) + '). O gerente confere essa soma.' });
-    if (ent >= tot) erros.push({ id: 'fs-b-entrada', msg: 'A entrada é igual ou maior que o valor total: não sobra saldo a financiar.' });
-  }
-  return { tot, ent, eq, mo, saldo: tot - ent, padrao: !(eqD > 0 || moD > 0), erros };
-}
-function fsBancoResumo() {
-  const el = fsEl('fs-b-resumo'), av = fsEl('fs-b-itens-msg'); if (!el) return;
-  const c = fsBancoContas();
-  if (!(c.tot > 0)) el.innerHTML = 'Informe o valor total para ver a conta que vai para o papel.';
-  else el.innerHTML = `Vai sair no papel: total <b>${fsCentTxt(c.tot)}</b> = equipamento <b>${fsCentTxt(c.eq)}</b> + mão de obra <b>${fsCentTxt(c.mo)}</b>${c.padrao ? ' (divisão padrão de 82% e 18%)' : ''}` +
-    (c.ent > 0 && c.ent < c.tot ? `<br>Entrada <b>${fsCentTxt(c.ent)}</b> e saldo a financiar <b>${fsCentTxt(c.saldo)}</b>` : '') +
-    c.erros.map(x => `<br><b class="fs-vm">${solEsc(x.msg)}</b>`).join('');
-  if (av) {
-    const n = fsBItens().length;
-    av.textContent = n > FS_PB_ITENS_MAX ? n + ' itens. Em 2 folhas cabem até ' + FS_PB_ITENS_MAX + ': a proposta vai sair com 3 folhas. Junte itens ou encurte as descrições.' : '';
-  }
-}
-function fsFaltasBanco(faltam, invalidos, outros) {
-  ['fs-b-banco', 'fs-b-agencia', 'fs-b-conta'].forEach(id => { if (!fsVal(id)) faltam.push(id); });
-  // Titular do financiamento com dado e sem nome: o papel sairia com o contratante e o dado digitado se perderia calado.
-  if (!fsVal('fs-b-fin-nome') && FS_B_FIN.some(id => fsVal(id))) {
-    const det = fsEl('fs-det-fin'); if (det) det.open = true;
-    outros.push({ el: fsEl('fs-b-fin-nome'), msg: 'Preencha o nome do titular do financiamento ou esvazie os campos dele.' });
-  }
-  const c = fsBancoContas();
-  if (!(c.tot > 0)) faltam.push('fs-b-total');
-  const linhas = [...document.querySelectorAll('#fs-b-itens .fs-bit')];
-  let algum = false, qtdRuim = null;
-  linhas.forEach(r => {
-    const d = r.querySelector('.fs-bit-desc').value.trim(), q = r.querySelector('.fs-bit-qtd');
-    if (!d) return;
-    algum = true;
-    if (!/^\d+$/.test(q.value.trim()) || +q.value.trim() < 1) qtdRuim = qtdRuim || q;
-  });
-  if (!algum) faltam.push({ el: linhas[0] ? linhas[0].querySelector('.fs-bit-desc') : null, rot: 'ao menos um item de equipamento ou serviço' });
-  if (qtdRuim) outros.push({ el: qtdRuim, msg: 'Use só números inteiros, a partir de 1, na quantidade dos itens.' });
-  const v = fsVal('fs-b-validade');
-  if (!v) faltam.push({ el: fsEl('fs-b-validade'), rot: 'a validade em dias' });
-  else if (!/^\d+$/.test(v) || +v < 1) outros.push({ el: fsEl('fs-b-validade'), msg: 'A validade deve ser um número inteiro de dias, a partir de 1.' });
-  c.erros.forEach(x => outros.push({ el: fsEl(x.id), msg: x.msg }));
-}
-function fsBancoDados() {
-  const sem = (id, un) => fsVal(id).replace(new RegExp('\\s*' + un + '\\s*$', 'i'), '');
-  return {
-    cli: fsCli(), emp: solEmp(), contas: fsBancoContas(), itens: fsBItens(),
-    banco: fsVal('fs-b-banco'), agencia: fsVal('fs-b-agencia'), conta: fsVal('fs-b-conta'),
-    kwp: sem('fs-b-kwp', 'kwp'), ger: sem('fs-b-ger', 'kwh/mês'), desc: fsVal('fs-b-desc'),
-    nota: fsVal('fs-b-nota') || 'Entrada paga pelo comprador com recursos próprios',
-    validade: fsVal('fs-b-validade'), prazo: fsVal('fs-b-prazo'), origem: fsVal('fs-b-origem'),
-    data: fsVal('fs-b-data') || solHoje(), cidade: fsVal('fs-b-cidade'),
-    fin: fsBancoFin(),
-  };
-}
-// O titular do financiamento (proponente), quando o nome dele está preenchido. Null = a proposta sai com o contratante, como sempre.
-function fsBancoFin() {
-  const nome = fsVal('fs-b-fin-nome'); if (!nome) return null;
-  const doc = fsVal('fs-b-fin-doc');
-  return { nome, doc, pj: vdcDigitos(doc).length === 14, rg: fsVal('fs-b-fin-rg'), qualif: fsVal('fs-b-fin-qualif'), end: fsVal('fs-b-fin-end'),
-    cep: fsVal('fs-b-fin-cep'), tel: fsVal('fs-b-fin-tel'), email: fsVal('fs-b-fin-email') };
-}
-function fsBanco() {
-  const d = fsBancoDados();
-  if (fsMostraFaltas(fsFaltas('banco'))) return;
-  // "Outra pessoa" marcada como titular do financiamento e sem nome: não sai com o contratante sem o clique "Gerar assim mesmo"
-  if (fsFinPend && !d.fin && !fsFinOk) {
-    const det = fsEl('fs-det-fin'); if (det) det.open = true;
-    fsMsg(fsFinPend + ' Ou use "Gerar assim mesmo".', [fsEl('fs-b-fin-nome')]);
-    return;
-  }
-  const pageFoot = (n, tot) => solRodape('Proposta de banco', d.cli.nome, n, tot, 0);
-  const html = `<div class="ep-doc">${fsBancoPaginado(d, pageFoot)}</div>`;
-  const arquivo = ['Proposta_Banco_Solar', solLimpaArq(d.cli.nome) || 'Cliente'].join('_');
-  fsPreview({ tipo: 'Proposta de banco', cliente: d.cli.nome, valor: d.contas.tot / 100, num: '', html, arquivo, titulo: 'Proposta de banco · ' + d.cli.nome, opts: null });
-}
-
-// item pendente pinta o seletor de âmbar e liga o aviso da ressalva
-function fsTermoChkVisual() {
-  let pend = false;
-  for (let i = 1; i <= FS_TERMO_ITENS.length; i++) {
-    const s = fsEl('fs-t-chk' + i); if (!s) continue;
-    const p = s.value === 'pend'; pend = pend || p;
-    const linha = s.closest('.fs-chk'); if (linha) linha.classList.toggle('pend', p);
-  }
-  const av = fsEl('fs-t-ress-aviso');
-  if (av) av.textContent = pend && !fsVal('fs-t-ressalva') ? 'Há item pendente: descreva a ressalva antes de imprimir.' : '';
-}
-function fsTermoContador() {
-  const el = fsEl('fs-t-ress-n'); if (el) el.textContent = fsVal('fs-t-ressalva').length + ' de 500 caracteres';
-  fsTermoChkVisual();
-}
-function fsFaltasTermo(faltam, invalidos, outros) {
-  if (!fsVal('fs-t-kwp')) faltam.push('fs-t-kwp');
-  if (!fsVal('fs-t-conclusao')) faltam.push('fs-t-conclusao');
-  const ruim = [['fs-t-nmod'], ['fs-t-ninv'], ['fs-t-gmod'], ['fs-t-ginv'], ['fs-t-ginst']].map(p => fsEl(p[0])).filter(el => el && el.value.trim() && !/^\d+$/.test(el.value.trim()));
-  if (ruim.length) outros.push({ el: ruim[0], msg: 'Use só números inteiros no nº de módulos, no nº de inversores e nas garantias.' });
-  for (let i = 1; i <= FS_TERMO_ITENS.length; i++) {
-    if (fsVal('fs-t-chk' + i) === 'pend' && !fsVal('fs-t-ressalva')) { outros.push({ el: fsEl('fs-t-ressalva'), msg: 'Há item pendente na conferência: descreva a ressalva.' }); break; }
-  }
-}
-// ═══ VISTORIA TÉCNICA DO SOLAR ═══
-// Visita do consultor ou do técnico ao imóvel, antes de fechar ou de instalar. Sai como relatório
-// paginado pelo mesmo epPaginar dos contratos. A estrutura e a impressão seguem o relatório de vistoria do
-// eletroposto (visHTML); os campos são do telhado, da entrada de energia e do inversor.
-//
-// FOTOS: ficam só na memória da tela (fsFotos) e na cópia do papel no IndexedDB (a 2ª via). NUNCA no
-// localStorage: 8 fotos de 200 KB estourariam a cota de 5 MB e o histórico inteiro pararia de gravar.
-// Por isso nenhum campo de foto tem id "fs-" (o fsSnap só lê esses) e o histórico guarda apenas a contagem.
-let fsFotos = [];
-function fsVistoriaQuem() {
-  let q = ''; try { q = crmConsultorLogado() || eletroConsultorLogado() || ''; } catch (e) {}
-  if (q) fsSet('fs-v-quem', q, false);
-}
 // ── fotos ──
-function fsFotosRender() {
-  const host = fsEl('fs-v-fotos'); if (!host) return;
-  host.innerHTML = fsFotos.map((f, i) =>
-    `<div class="fs-foto"><img src="${solEsc(f.src)}" alt="Foto ${i + 1}">` +
-    `<div class="c"><select aria-label="Legenda da foto ${i + 1}" onchange="fsFotoCampo(${i},'leg',this.value)">${FS_FOTO_LEGS.map(l => `<option${l === f.leg ? ' selected' : ''}>${solEsc(l)}</option>`).join('')}</select>` +
-    `<input aria-label="Texto da foto ${i + 1}" maxlength="90" autocomplete="off" placeholder="Texto opcional" value="${solEsc(f.txt)}" oninput="fsFotoCampo(${i},'txt',this.value)"></div>` +
-    `<button type="button" class="fs-x" aria-label="Remover foto ${i + 1}" onclick="fsFotoDel(${i})">&times;</button></div>`).join('');
-  const n = fsEl('fs-v-fotos-n'); if (n) n.textContent = fsFotos.length ? fsFotos.length + ' de ' + FS_FOTOS_MAX + ' fotos' : 'Nenhuma foto ainda.';
-  const b = fsEl('fv-add'); if (b) b.disabled = fsFotos.length >= FS_FOTOS_MAX;
-}
-function fsFotoCampo(i, k, v) { if (fsFotos[i]) fsFotos[i][k] = v; }
-function fsFotoDel(i) { fsFotos.splice(i, 1); fsFotosRender(); }
-// geração: trocar de cliente ou reabrir papel sobe o contador, e foto que terminou de comprimir depois disso é descartada
-let fsFotosGer = 0;
-function fsFotosLimpa() { fsFotosGer++; fsFotos = []; fsFotosRender(); }
-const FS_V_NUM = [['fs-v-t-incl', 'a inclinação'], ['fs-v-t-area', 'a área útil'], ['fs-v-e-disj', 'o disjuntor'], ['fs-v-i-dist', 'a distância']];
-function fsFaltasVistoria(faltam, invalidos, outros) {
-  if (!fsVal('fs-v-data')) faltam.push('fs-v-data');
-  const c = fsVal('fs-v-concl');
-  if (!c) faltam.push('fs-v-concl');
-  if ((c === 'adeq' || c === 'nao') && !fsVal('fs-v-adeq')) outros.push({ el: fsEl('fs-v-adeq'), msg: c === 'adeq' ? 'Com a conclusão "apto com adequações", descreva as adequações necessárias.' : 'Com a conclusão "não apto no momento", descreva as adequações necessárias.' });
-  const ruim = FS_V_NUM.filter(p => { const v = fsVal(p[0]); return v && !/^\d+([.,]\d+)?$/.test(v); });
-  if (ruim.length) outros.push({ el: fsEl(ruim[0][0]), msg: 'Use só números em ' + fsJunta(ruim.map(p => p[1])) + '.' });
-}
-// A prévia do eletroposto, com o histórico SOLAR pendurado no gancho aoSair
-// (epPrevSaida chama no clique de Imprimir/Baixar, e não ao abrir a prévia).
-function fsPreview(o) {
-  fsMsg('');
-  const id = epId();
-  const snap = fsSnap(o.tipo === 'Contrato');
-  const hojeBR = new Date().toLocaleDateString('pt-BR');
-  epPreview({
-    html: o.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts, hist: null, ctx: 'sol',
-    emit: 'aioros',   // Fechamento solar: o selo e' sempre da AIOROS, qualquer que seja o controle do eletroposto
-    aoSair: r => {
-      // fotos: só a CONTAGEM vai para o histórico (o localStorage não aguenta imagem); as fotos vivem na 2ª via
-      fsHistAdd({ id, tipo: o.tipo, cliente: o.cliente, valor: o.valor, num: o.num, data: hojeBR, snap, editado: !!r.editado, fotos: o.fotos || 0 });
-      // Cliente ligado: a mesma versão também vai para o card, no servidor. Extra: nunca bloqueia nem muda o histórico acima.
-      try {
-        ctrVersEnviar('sol', { tipo: o.tipo, rotulo: o.tipo, modelo: '', num: o.num || '', data: hojeBR, editado: !!r.editado, snap, html: r.html, arquivo: o.arquivo, titulo: o.titulo,
-          opts: o.opts || null, emit: 'aioros', emitSelo: '', card: snap.fsCard });
-      } catch (er) {}
-      try { vdcVoltaParaCadastro('sol'); } catch (er) {}   // Gerar: a identidade editada também vai para o cadastro do card
-      epPapelGrava({ id, html: r.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts || null, editado: !!r.editado, em: new Date().toISOString() }).then(res => {
-        if (res !== false) return;
-        const aviso = 'Não deu para guardar a 2ª via neste aparelho. Baixe o PDF agora.';
-        try { epPrevAviso(aviso); } catch (e) {}
-        const m = fsEl('fs-pux-msg'); if (m) m.textContent = aviso;
-        if (typeof showToast === 'function') showToast(aviso);
-      });
-      if (o.tipo === 'Recibo') { const n = fsEl('fs-r-num'); if (n) { delete n.dataset.tocado; n.value = fsRecProx(); } }
-      fsHistRender();
-    },
-  });
-}
 // ═══ Navegação: Quem ligar e Obras (10/10/2026) ═══
 // Clones do navFechamentoSolar: telasSolarLimpar esconde tudo, a classe da tela
 // esconde a barra lateral, e o marcarNavAtivo acende a aba da régua.
@@ -38276,7 +36970,7 @@ function aplicarCadastroEletroposto(cad, opts) {
   // Cliente outro, por este caminho ou por qualquer outro: a conversa com o assistente, os retratos de Desfazer, as
   // confirmações pendentes e a resposta em voo eram do anterior (o mesmo que o ctrEstadoZerar faz). Reaplicar o cadastro
   // do MESMO cliente, inclusive pelo próprio assistente, não mexe na conversa.
-  if (mudou && !ctrAgAplicandoCadastro) { ctrAgZerar(undefined, 'ele'); const at = document.getElementById('ctr-ag-texto'); if (at) at.value = ''; }
+  if (mudou && !ctrAgAplicandoCadastro) { ctrAgZerar(undefined); const at = document.getElementById('ctr-ag-texto'); if (at) at.value = ''; }
   // O assistente puxa de novo o último cadastro aplicado (o card fecha ao preencher e some do vdcEst).
   ctrAgCad = cad;
   // 3) escreve
@@ -38623,7 +37317,7 @@ function vdcLimparDoCardAnterior(c, novo, carregando) {
       epLimparIdentidade(); vdcLimparTerceiros(); vdcLimparImovel();
       const loc = document.getElementById('ctr-local'); if (loc) { loc.value = ''; delete loc.dataset.tocado; }
       const cli = document.getElementById('el-cliente'); if (cli) { cli.value = novo.nome || ''; vdcDispara(cli); }
-      ctrAgZerar(undefined, 'ele'); ctrAgCad = null;
+      ctrAgZerar(undefined); ctrAgCad = null;
       vdcOrigemEp = '';
       try { ctrEspSync(); ctrResumo(); } catch (e) {}
     }
@@ -38744,16 +37438,6 @@ async function vdcAtualizarDaFaixa(c) {
   const ok = await vdcAplicarDoCard(c, k, { mesmoCliente: true, atualizar: true, toast: true });
   if (ok) { vdcDiff[c] = null; try { ctrCardUi(c); } catch (e) {} } else showToast('Não consegui buscar os dados do cliente agora.');
 }
-/** O formulário do Fechamento está com OUTRO cliente? Compara o documento (só dígitos) e, sem documento dos dois lados, o nome. */
-function vdcFsClienteMudou(C) {
-  const formDoc = vdcDigitos(fsVal('fs-doc')), formNome = vdcNorm(fsVal('fs-nome'));
-  if (!formDoc && !formNome) return false;
-  const cadDoc = vdcDigitos(C.cpf_cnpj), cadNome = vdcNorm(C.nome);
-  if (formDoc && cadDoc) return formDoc !== cadDoc;
-  if (formNome && cadNome) return formNome !== cadNome;
-  return true;
-}
-
 // A faixa fica até alguém fechar (o toast some em 2 segundos, curto para uma lista do que falta).
 function vdcAvisar(txt, id) {
   const box = document.getElementById(id || 'vdc-aviso');
