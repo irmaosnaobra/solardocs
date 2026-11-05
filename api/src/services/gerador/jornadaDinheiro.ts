@@ -83,8 +83,14 @@ export const categoriaObra = (tipo: unknown, slug: unknown): CategoriaObra | nul
 
 // ── O lançamento da obra ───────────────────────────────────────────────────────────────────────────────────────────
 
-/** `conferido_adm`: o ADM marcou como conferida uma linha que a IA não conferiu (`sem_leitura` ou `baixa_confianca`). */
-export const CONFERENCIAS = ['bateu', 'sem_leitura', 'baixa_confianca', 'divergente_adm', 'estorno', 'conferido_adm'] as const;
+/**
+ * `conferido_adm`: o ADM marcou como conferida uma linha que a IA não conferiu (`sem_leitura`, `baixa_confianca` ou `divergente`).
+ * `divergente` (05/11/2026): a IA leu um valor diferente do que a pessoa digitou; a linha salva e fica para o ADM conferir.
+ * `sem_comprovante` (05/11/2026): saída lançada sem arquivo; fica pendente até anexar ou até o ADM fechar sem comprovante.
+ * Valor novo entra SEMPRE no fim da lista, e campo novo da linha só entra como chave condicional (`...(x ? { x } : {})`): a assinatura de cada
+ * linha que já existe é sobre o JSON normalizado, e uma chave nova emitida sempre mudaria o JSON de todas elas.
+ */
+export const CONFERENCIAS = ['bateu', 'sem_leitura', 'baixa_confianca', 'divergente_adm', 'estorno', 'conferido_adm', 'divergente', 'sem_comprovante'] as const;
 export type Conferencia = typeof CONFERENCIAS[number];
 export interface ComissaoLanc { nome: string; papel: 'venda' | 'socio'; pb: number }
 export interface ObraLanc {
@@ -98,9 +104,15 @@ export interface ObraLanc {
   comissao: ComissaoLanc | null;
   compra_id: string | null;
   carga_id: string | null;
+  /** Só existe quando a IA não reconheceu o arquivo como comprovante ("A IA não reconheceu como comprovante"). */
+  nota_ia?: string;
+  /** Só existe na linha `divergente`: o valor que a IA leu e o que a pessoa digitou. */
+  divergencia?: { lido_centavos: number; digitado_centavos: number };
+  /** Só existe quando o ADM marcou "Fechar sem comprovante": a linha sem arquivo deixa de travar o fechamento. */
+  dispensa?: { em: string; por: string; motivo: string };
 }
 /** Quem mudou a marca de conferência da linha, quando e de quê para quê (a linha é reassinada; nada se apaga). */
-export interface AlteracaoObra { em: string; por: string; de: string; para: string }
+export interface AlteracaoObra { em: string; por: string; de: string; para: string; motivo?: string }
 export type LancamentoObraSemSig = Omit<Lancamento, 'ja_foi_saida' | 'obra' | 'sig' | 'alteracoes'> & { obra: ObraLanc; alteracoes: AlteracaoObra[] };
 export type LancamentoObra = LancamentoObraSemSig & { sig: string };
 
@@ -147,11 +159,23 @@ function obraNormal(v: unknown, tipo: 'entrada' | 'saida'): ObraLanc | null {
   const comNome = com ? nomeSimples(txt(com.nome, 60)).slice(0, 60) : '';
   const comissao: ComissaoLanc | null = com && pb !== null && comNome && (com.papel === 'venda' || com.papel === 'socio')
     ? { nome: comNome, papel: com.papel, pb } : null;
+  const notaIa = txt(o.nota_ia, 120);
+  const dv = obj(o.divergencia);
+  const lidoC = dv ? inteiro(dv.lido_centavos, 1, VALOR_MAX_CENTAVOS) : null;
+  const digC = dv ? inteiro(dv.digitado_centavos, 1, VALOR_MAX_CENTAVOS) : null;
+  const dp = obj(o.dispensa);
+  const dpEm = dp ? txt(dp.em, 40) : '';
+  const dpPor = dp ? nomeSimples(txt(dp.por, 60)).slice(0, 60) : '';
+  const dpMotivo = dp ? txt(dp.motivo, 300) : '';
   return {
     v: 1, etapa, grupo, conferencia, estorno_de: est, motivo_estorno: est ? txt(o.motivo_estorno, 300) : '',
     devolucao: est !== null && o.devolucao === true, comissao,
     compra_id: typeof o.compra_id === 'string' && ID_VINCULO.test(o.compra_id) ? o.compra_id : null,
     carga_id: typeof o.carga_id === 'string' && ID_VINCULO.test(o.carga_id) ? o.carga_id : null,
+    // Chaves condicionais, no fim: a linha que já existe (sem nenhuma delas) continua com o mesmo JSON e a mesma assinatura.
+    ...(notaIa ? { nota_ia: notaIa } : {}),
+    ...(lidoC !== null && digC !== null ? { divergencia: { lido_centavos: lidoC, digitado_centavos: digC } } : {}),
+    ...(dpEm && dpPor && dpMotivo ? { dispensa: { em: dpEm, por: dpPor, motivo: dpMotivo } } : {}),
   };
 }
 
@@ -179,7 +203,7 @@ export function normalizarLancamentoObra(card: number, value: unknown): Lancamen
     arquivo: arquivoNormal(v.arquivo), origem: v.origem === 'ia' ? 'ia' : 'manual', lido_pela_ia: lidoNormal(v.lido_pela_ia),
     criado_por: nomeSimples(txt(v.criado_por, 60)).slice(0, 60), criado_em: txt(v.criado_em, 40),
     alteracoes: lista(v.alteracoes).map((a) => obj(a)).filter((a): a is Record<string, unknown> => !!a && typeof a.em === 'string' && typeof a.por === 'string')
-      .map((a) => ({ em: txt(a.em, 40), por: nomeSimples(txt(a.por, 60)).slice(0, 60), de: txt(a.de, 30), para: txt(a.para, 30) })).slice(-10),
+      .map((a) => ({ em: txt(a.em, 40), por: nomeSimples(txt(a.por, 60)).slice(0, 60), de: txt(a.de, 30), para: txt(a.para, 30), ...(txt(a.motivo, 300) ? { motivo: txt(a.motivo, 300) } : {}) })).slice(-10),
     apagado: false, apagado_por: '', apagado_em: '', motivo_apagado: '',
     obra,
   };
@@ -255,6 +279,7 @@ export function montarLancamentoObra(entrada: unknown, ctx: ContextoObra): Resul
       v: 1, etapa, grupo: cat.grupo, conferencia, estorno_de: estorno, motivo_estorno: txt(e.motivo_estorno, 300),
       devolucao: e.devolucao === true, comissao: com ?? null,
       compra_id: typeof e.compra_id === 'string' ? e.compra_id : null, carga_id: typeof e.carga_id === 'string' ? e.carga_id : null,
+      nota_ia: e.nota_ia, divergencia: e.divergencia,
     },
   };
   const n = normalizarLancamentoObra(ctx.cardId, candidato);
@@ -433,6 +458,13 @@ export interface LinhaLivro {
   estornada: { id: string; em: string; por: string; motivo: string } | null;
   estorno_de: string | null; devolucao: boolean; compra_id: string | null; carga_id: string | null;
   comissao: ComissaoLanc | null;
+  /** Saída sem arquivo que ainda trava o fechamento (não estornada, nem estorno, nem liberada pelo ADM). */
+  sem_comprovante: boolean;
+  /** O ADM marcou "Fechar sem comprovante". */
+  dispensa: { em: string; por: string; motivo: string } | null;
+  /** Só na linha `divergente`: o que a IA leu e o que a pessoa digitou. */
+  divergencia: { lido_centavos: number; digitado_centavos: number } | null;
+  nota_ia: string;
 }
 /** `pago`: a última linha viva e não estornada. `pago_centavos`: o líquido pago (estornos subtraem). `diferenca_centavos`: devida (pelo valor ATUAL da venda) menos paga. */
 export interface LinhaComissaoLivro extends LinhaComissao { pago: { id: string; data: string } | null; pago_centavos: number; diferenca_centavos: number }
@@ -441,6 +473,7 @@ export interface Fechamento {
   a_receber: number | null;
   a_pagar_total: number;
   pendencias: number;
+  /** `com` = tem arquivo, foi liberada pelo ADM ou foi estornada. */
   comprovantes: { com: number; total: number };
   custo: number;
   previsto: number | null;
@@ -468,6 +501,13 @@ export interface Livro {
   ignoradas: number;
   fechamento: Fechamento;
 }
+
+/** A linha não tem arquivo e o ADM não a liberou. Estorno sem devolução nunca tem arquivo e fica de fora. */
+const semComprovante = (l: LancamentoObra): boolean => !l.arquivo && !l.obra.dispensa && !(l.obra.estorno_de && !l.obra.devolucao);
+/** A IA não conferiu o valor e o ADM ainda não marcou: a conta não fecha. */
+const NAO_CONFERIDAS: readonly Conferencia[] = ['sem_leitura', 'baixa_confianca', 'divergente'];
+const TXT_FALTA_COMPROVANTE = 'Falta comprovante:';
+const textoFaltaComprovante = (n: number): string => `${TXT_FALTA_COMPROVANTE} ${n} ${n === 1 ? 'lançamento' : 'lançamentos'}.`;
 
 export function livroDaObra(e: EntradaLivro): Livro {
   const vivos = e.lancamentos.filter((l) => l.apagado === false);
@@ -508,6 +548,7 @@ export function livroDaObra(e: EntradaLivro): Livro {
       comprovante: l.arquivo ? { nome: l.arquivo.nome, url: null } : null,
       estornada: est ? { id: est.id, em: est.criado_em, por: est.criado_por, motivo: est.obra.motivo_estorno } : null,
       estorno_de: l.obra.estorno_de, devolucao: l.obra.devolucao, compra_id: l.obra.compra_id, carga_id: l.obra.carga_id, comissao: l.obra.comissao,
+      sem_comprovante: semComprovante(l) && !estornada(l), dispensa: l.obra.dispensa ?? null, divergencia: l.obra.divergencia ?? null, nota_ia: l.obra.nota_ia ?? '',
     };
   });
 
@@ -561,15 +602,16 @@ export function livroDaObra(e: EntradaLivro): Livro {
   // Fechamento (seção 3.4).
   const material = e.material ?? { com_origem: 0, total: 0 };
   const total = vivos.filter((l) => !(l.obra.estorno_de && !l.obra.devolucao));
-  const comprovantes = { com: total.filter((l) => l.arquivo).length, total: total.length };
+  const comprovantes = { com: total.filter((l) => l.arquivo || l.obra.dispensa || estornada(l)).length, total: total.length };
+  const faltaComprovante = vivos.filter((l) => semComprovante(l) && !estornada(l)).length;
   const faltam: string[] = [];
   if (venda === null) faltam.push('Sem valor de venda');
   else if (aReceber! > 0) faltam.push(`A receber: ${reaisBR(aReceber!)}`);
   if (aMais > 0) faltam.push(`Recebido a mais: ${reaisBR(aMais)}`);
   for (const p of pend) faltam.push(p.texto);
-  if (comprovantes.com < comprovantes.total) faltam.push(`Comprovantes: ${comprovantes.com} de ${comprovantes.total}`);
-  // A IA não conferiu o valor (`sem_leitura` ou `baixa_confianca`) e o ADM ainda não marcou como conferida: a conta não fecha.
-  const naoConferidas = vivos.filter((l) => !l.obra.estorno_de && !estornada(l) && (l.obra.conferencia === 'sem_leitura' || l.obra.conferencia === 'baixa_confianca')).length;
+  if (faltaComprovante > 0) faltam.push(textoFaltaComprovante(faltaComprovante));
+  // A IA não conferiu o valor (`sem_leitura`, `baixa_confianca` ou `divergente`) e o ADM ainda não marcou como conferida: a conta não fecha.
+  const naoConferidas = vivos.filter((l) => !l.obra.estorno_de && !estornada(l) && NAO_CONFERIDAS.includes(l.obra.conferencia)).length;
   if (naoConferidas > 0) faltam.push(`${naoConferidas} ${naoConferidas === 1 ? 'lançamento não conferido pela IA' : 'lançamentos não conferidos pela IA'}. O Thiago confere.`);
   const semMaterial = [...faltam];
   if (material.total === 0) faltam.push('Nenhum item de material na Compra');
@@ -624,12 +666,13 @@ export function recortarLivro(l: Livro, veRetirada: boolean): Livro | LivroSemRe
   const textosSocio = new Set(l.a_pagar.filter(socio).map((p) => p.texto));
   const a_pagar = l.a_pagar.filter((p) => !socio(p));
   const contam = linhas.filter((x) => !(x.estorno_de && !x.devolucao));
-  const comprovantes = { com: contam.filter((x) => x.comprovante).length, total: contam.length };
-  const naoConferidas = linhas.filter((x) => !x.estorno_de && !x.estornada && (x.conferencia === 'sem_leitura' || x.conferencia === 'baixa_confianca')).length;
+  const comprovantes = { com: contam.filter((x) => x.comprovante || x.dispensa || x.estornada).length, total: contam.length };
+  const faltaComprovante = linhas.filter((x) => x.sem_comprovante).length;
+  const naoConferidas = linhas.filter((x) => !x.estorno_de && !x.estornada && NAO_CONFERIDAS.includes(x.conferencia)).length;
   const ehMaterial = (t: string): boolean => t === 'Nenhum item de material na Compra' || t.startsWith('Material com origem:');
-  const base = l.fechamento.faltam.filter((t) => !textosSocio.has(t) && !t.startsWith('Comprovantes:') && !/ não conferidos? pela IA\./.test(t));
+  const base = l.fechamento.faltam.filter((t) => !textosSocio.has(t) && !t.startsWith(TXT_FALTA_COMPROVANTE) && !/ não conferidos? pela IA\./.test(t));
   const faltam = [...base];
-  if (comprovantes.com < comprovantes.total) faltam.push(`Comprovantes: ${comprovantes.com} de ${comprovantes.total}`);
+  if (faltaComprovante > 0) faltam.push(textoFaltaComprovante(faltaComprovante));
   if (naoConferidas > 0) faltam.push(`${naoConferidas} ${naoConferidas === 1 ? 'lançamento não conferido pela IA' : 'lançamentos não conferidos pela IA'}. O Thiago confere.`);
   const { retirada: _r, ...resto } = l;
   void _r;

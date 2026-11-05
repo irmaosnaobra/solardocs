@@ -15,7 +15,7 @@ import { prazoDaEtapaObra } from '../gerador/jornadaObra';
 import { diaBRT, diaDaSemanaBRT } from '../agentes5040/relogio';
 import { contarErroDaLinha, zerarErrosDaLinha } from '../agentes5040/guardaDaLinha';
 import {
-  LIMITE_POR_PESSOA_HORA, PESSOAS_FILA, chaveFila, eventosDoCard, filaDaPessoa, linhasDeDinheiro, naJanelaDaFila, paradosComAEquipe, placarDaSemana,
+  LIMITE_POR_PESSOA_HORA, PESSOAS_FILA, chaveFila, eventosDoCard, filaDaPessoa, linhasDeDinheiro, linhasSemComprovante, naJanelaDaFila, paradosComAEquipe, placarDaSemana,
   textoEspera, textoFila, textoSua, textoVenda, type EventoMsg, type ObraFila,
 } from './jornadaMensagensPuro';
 import {
@@ -78,7 +78,8 @@ export async function rodarFila(c: CtxMsg, leitura: Leitura): Promise<ResultadoM
   if (!pessoas.length) return nada('feita');
 
   // O que custa leitura (dinheiro, "Falta") só se monta aqui, dentro da janela, para quem ainda não recebeu.
-  const doDinheiro = pessoas.some((p) => p === 'giovanna' || p === 'thiago') ? await dinheiroDasObras(leitura.obras) : [];
+  // O dinheiro é lido para quem ainda não recebeu, seja qual for a pessoa: o bloco "Falta comprovante" é de quem LANÇOU a saída.
+  const doDinheiro = await dinheiroDasObras(leitura.obras);
   let escalada = pessoas.includes('thiago') ? paradosComAEquipe(leitura.obras, dia).slice(0, 25) : [];
   if (escalada.length) {
     const porCard = new Map<number, ObraFila>(leitura.obras.map((o) => [o.card, o]));
@@ -90,6 +91,7 @@ export async function rodarFila(c: CtxMsg, leitura: Leitura): Promise<ResultadoM
     const texto = textoFila({
       pessoa, hoje: dia, itens: filaDaPessoa(pessoa, leitura.obras, dia).itens,
       escalada: pessoa === 'thiago' ? escalada : [], placar: pessoa === 'thiago' ? placar : [], dinheiro: linhasDeDinheiro(pessoa, doDinheiro),
+      semComprovante: linhasSemComprovante(pessoa, doDinheiro),
     });
     if (!texto) { vazios.add(pessoa); continue; }
     const r = await enviarUm(c, { chave: chaveFila(dia, pessoa), pessoa, valor: { robo: ROBOS_EQUIPE.fila }, texto, tipoLog: 'fila' });

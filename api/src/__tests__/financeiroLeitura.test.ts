@@ -17,8 +17,9 @@ const PDF = Buffer.from('%PDF-1.4\ncomprovante de teste\n%%EOF');
 
 const bruta = (extra: Partial<LeituraBruta> = {}): LeituraBruta => ({
   eh_comprovante: true, valor: 1234.56, data: '2026-10-09', pagador: 'Cliente de Teste', recebedor: 'Empresa de Teste',
-  forma: 'pix', id_transacao: 'E00000000202610091200abcdef', descricao: 'Sinal do contrato', confianca: 'alta', ...extra,
-});
+  forma: 'pix', id_transacao: 'E00000000202610091200abcdef', descricao: 'Sinal do contrato', confianca: 'alta',
+  tipo: 'Pix', pagador_documento: '123.456.789-01', recebedor_documento: '12.345.678/0001-90', categoria_sugerida: 'frete', ...extra,
+} as LeituraBruta);
 
 type Chamada = { corpo: any; opcoes: any };
 type Resposta = { erro?: unknown; msg?: unknown };
@@ -104,6 +105,8 @@ describe('a resposta', () => {
       sugestao: {
         valor_centavos: 123456, data: '2026-10-09', pagador: 'Cliente de Teste', recebedor: 'Empresa de Teste',
         forma: 'pix', id_transacao: 'E00000000202610091200abcdef', descricao: 'Sinal do contrato', confianca: 'alta',
+        // Acrescentados em 05/11/2026: o tipo normalizado, o documento SÓ com o final e a categoria só se estiver na lista pedida.
+        tipo: 'pix', pagador_documento: '***8901', recebedor_documento: '***0190', categoria_sugerida: null,
       },
     });
   });
@@ -189,6 +192,95 @@ describe('a resposta', () => {
       expect(r.ok).toBe(false);
       expect(chamadas).toHaveLength(1);
     }
+  });
+});
+
+describe('entender o comprovante (05/11/2026)', () => {
+  const CATS = [{ slug: 'frete', rotulo: 'Frete' }, { slug: 'material', rotulo: 'Material' }];
+  it('a categoria sugerida só vale se estiver na lista pedida, e a lista vai no pedido', async () => {
+    const { cliente, chamadas } = clienteFalso([respondeu(bruta({ categoria_sugerida: 'frete' })), respondeu(bruta({ categoria_sugerida: 'inventada' }))]);
+    const r = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE, categorias: CATS }, cliente);
+    expect(r.ok && r.sugestao.categoria_sugerida).toBe('frete');
+    expect(chamadas[0].corpo.messages[0].content[1].text).toContain('frete: Frete; material: Material');
+    const r2 = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE, categorias: CATS }, cliente);
+    expect(r2.ok && r2.sugestao.categoria_sugerida).toBeNull();
+  });
+  it('resposta sem os campos novos (mock antigo) continua valendo', async () => {
+    const velha: Record<string, unknown> = { ...bruta() };
+    for (const k of ['tipo', 'pagador_documento', 'recebedor_documento', 'categoria_sugerida']) delete velha[k];
+    const { cliente } = clienteFalso([respondeu(velha)]);
+    const r = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE }, cliente);
+    expect(r.ok && r.sugestao).toMatchObject({ valor_centavos: 123456, tipo: null, pagador_documento: null, categoria_sugerida: null });
+  });
+  it('tipo fora da lista vira null; documento curto demais não identifica ninguém', async () => {
+    const { cliente } = clienteFalso([respondeu(bruta({ tipo: 'Nota Fiscal', pagador_documento: '12' })), respondeu(bruta({ tipo: 'voucher' }))]);
+    const a = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE }, cliente);
+    expect(a.ok && a.sugestao).toMatchObject({ tipo: 'nota_fiscal', pagador_documento: null });
+    const b = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE }, cliente);
+    expect(b.ok && b.sugestao.tipo).toBeNull();
+  });
+  it('o pedido manda ler todas as páginas do PDF', () => {
+    expect(SISTEMA_LEITURA).toContain('PDF com várias páginas');
+    expect(SISTEMA_LEITURA).toContain('TODAS');
+  });
+});
+
+describe('a segunda leitura (só com `reforco`)', () => {
+  const sem = (extra: Partial<LeituraBruta> = {}) => bruta({ valor: null, ...extra });
+  it('sem `reforco` é UMA chamada só, mesmo com a leitura fraca (o resto do sistema não gasta a mais)', async () => {
+    const { cliente, chamadas } = clienteFalso([respondeu(sem())]);
+    const r = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE }, cliente);
+    expect(r.ok && r.sugestao.valor_centavos).toBeNull();
+    expect(chamadas).toHaveLength(1);
+  });
+  it('leitura boa: uma chamada só', async () => {
+    const { cliente, chamadas } = clienteFalso([respondeu(bruta())]);
+    await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE, reforco: true }, cliente);
+    expect(chamadas).toHaveLength(1);
+    expect(chamadas[0].corpo.output_config.effort).toBe('low');
+  });
+  it('a primeira falhou: a segunda usa o modelo forte do financeiro, esforço alto e o pedido focado em valor, data e quem recebeu', async () => {
+    const { cliente, chamadas } = clienteFalso([{ erro: erroApi(500, 'internal') }, respondeu(bruta())]);
+    const r = await lerComprovante({ bytes: PDF, media_type: 'application/pdf', hojeBr: HOJE, reforco: true }, cliente);
+    expect(r.ok && r.sugestao.valor_centavos).toBe(123456);
+    expect(chamadas).toHaveLength(2);
+    expect(chamadas[1].corpo.model).toBe(FIN_IA_MODELOS[0]);
+    expect(chamadas[1].corpo.output_config.effort).toBe('high');
+    expect(chamadas[1].corpo.messages[0].content[1].text).toMatch(/VALOR.*DATA.*QUEM RECEBEU/);
+    expect(chamadas[1].corpo.messages[0].content[0].type).toBe('document');
+  });
+  it('baixa confiança ou sem valor dispara a segunda; fica a segunda se achou o valor', async () => {
+    const baixa = clienteFalso([respondeu(bruta({ confianca: 'baixa' })), respondeu(bruta({ valor: 99.9, confianca: 'alta' }))]);
+    const r1 = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE, reforco: true }, baixa.cliente);
+    expect(baixa.chamadas).toHaveLength(2);
+    expect(r1.ok && r1.sugestao).toMatchObject({ valor_centavos: 9990, confianca: 'alta' });
+    const semValor = clienteFalso([respondeu(sem()), respondeu(bruta({ valor: 10 }))]);
+    const r2 = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE, reforco: true }, semValor.cliente);
+    expect(semValor.chamadas).toHaveLength(2);
+    expect(r2.ok && r2.sugestao.valor_centavos).toBe(1000);
+  });
+  it('"não é comprovante" também dispara a segunda', async () => {
+    const naoE = bruta({ eh_comprovante: false, valor: null, data: null, pagador: null, recebedor: null, forma: null, id_transacao: null, descricao: null, confianca: 'baixa' });
+    const { cliente, chamadas } = clienteFalso([respondeu(naoE), respondeu(bruta())]);
+    const r = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE, reforco: true }, cliente);
+    expect(chamadas).toHaveLength(2);
+    expect(r.ok && r.eh_comprovante).toBe(true);
+  });
+  it('a segunda sem valor não piora: fica a primeira (baixa confiança, mas com valor)', async () => {
+    const { cliente, chamadas } = clienteFalso([respondeu(bruta({ confianca: 'baixa' })), respondeu(sem())]);
+    const r = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE, reforco: true }, cliente);
+    expect(chamadas).toHaveLength(2);
+    expect(r.ok && r.sugestao).toMatchObject({ valor_centavos: 123456, confianca: 'baixa' });
+  });
+  it('as duas falham: devolve a falha, sem lançar', async () => {
+    const { cliente, chamadas } = clienteFalso([{ erro: erroApi(500, 'x') }, { erro: erroApi(500, 'y') }]);
+    expect(await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE, reforco: true }, cliente)).toEqual({ ok: false, motivo: 'falhou' });
+    expect(chamadas).toHaveLength(2);
+  });
+  it('tipo que não se lê (GIF, HEIC) nem chega a chamar a IA, com ou sem reforço', async () => {
+    const { cliente, chamadas } = clienteFalso([]);
+    expect(await lerComprovante({ bytes: PNG, media_type: 'image/gif', hojeBr: HOJE, reforco: true }, cliente)).toEqual({ ok: false, motivo: 'tipo_nao_aceito' });
+    expect(chamadas).toHaveLength(0);
   });
 });
 

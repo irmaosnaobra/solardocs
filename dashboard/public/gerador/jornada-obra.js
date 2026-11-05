@@ -493,7 +493,7 @@
           aviso(r.json.mensagem || 'A nota foi anexada.');
           h.recarregar().then(function () { if (r.json.lida && r.json.lida.itens && r.json.lida.itens.length) lidosDialogo(cp, r.json.lida); });
         } else aviso(msgSrv(r, 'Não consegui ligar a nota. Tente de novo.'));
-      }, function () { aviso('Não consegui ler o arquivo. Tente de novo.'); });
+      }, function (e) { aviso(D().msgArquivo ? D().msgArquivo(e) : 'Não consegui ler o arquivo. Tente de novo.'); });
     }, false, { xml: true }));
     return caixa;
   }

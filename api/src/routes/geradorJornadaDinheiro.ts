@@ -38,7 +38,9 @@ import { listaSocios, nomeSimples } from '../services/gerador/solarObras';
 //
 //   GET   /jornada-solar/obra/:card/dinheiro               o livro, a faixa e o que cada pessoa pode fazer
 //   POST  /jornada-solar/obra/:card/dinheiro/comprovante   sobe o comprovante (ou a nota) e grava o que a IA leu, ao lado dele
-//   POST  /jornada-solar/obra/:card/dinheiro/lancamento    lança entrada ou gasto (comprovante OBRIGATÓRIO, valor conferido pela IA no servidor)
+//   POST  /jornada-solar/obra/:card/dinheiro/lancamento    lança entrada ou gasto (entrada exige comprovante; SAÍDA pode ficar "sem comprovante" e a IA nunca barra)
+//   POST  /jornada-solar/obra/:card/dinheiro/anexar        anexa DEPOIS o comprovante numa saída lançada sem ele (a IA lê e confere; sem estorno)
+//   POST  /jornada-solar/obra/:card/dinheiro/dispensar     o ADM fecha a linha sem comprovante, com motivo (assinado em `alteracoes`)
 //   POST  /jornada-solar/obra/:card/dinheiro/comissao      paga a comissão de quem vendeu (custo) ou a retirada de um sócio
 //   POST  /jornada-solar/obra/:card/dinheiro/estorno       anula um lançamento (nunca se apaga)
 //   PUT   /jornada-solar/obra/:card/dinheiro/previsto      o previsto por grupo (ADM)
@@ -137,6 +139,10 @@ function podeDoDinheiro(g: GuardaObra, d: DadosDinheiro) {
     lancar_saida: !d.cancelada && livre,
     comissao: ehGiovOuAdm(g) && !d.cancelada && livre,
     estornar_ids: livre ? d.livro.linhas.filter((l) => !l.estorno_de && !l.estornada && podeEstornar(g, l)).map((l) => l.id) : [],
+    /** Saída sem arquivo que esta pessoa pode completar com o comprovante (a liberada pelo ADM também aceita o anexo). */
+    anexar_ids: livre && !d.cancelada ? d.livro.linhas.filter((l) => !l.comprovante && !l.estorno_de && !l.estornada && l.tipo === 'saida' && podeEstornar(g, l)).map((l) => l.id) : [],
+    /** "Fechar sem comprovante": só o ADM. */
+    dispensar_ids: livre && g.adm ? d.livro.linhas.filter((l) => l.sem_comprovante).map((l) => l.id) : [],
     previsto: g.adm && livre,
     fechada: d.fechada,
   };
@@ -213,6 +219,40 @@ const fraseOnde = (o: string, oQue: string): string => {
   return `Este ${oQue} já foi lançado na obra ${o.replace(/^a obra /, '')}.`;
 };
 
+// ── A leitura da IA nunca barra: ela só marca a linha ────────────────────────────────────────────────────────────────────
+
+const NOTA_NAO_E_COMPROVANTE = 'A IA não reconheceu como comprovante';
+interface Avaliacao {
+  conferencia: Conferencia;
+  nota_ia: string;
+  divergencia: { lido_centavos: number; digitado_centavos: number } | null;
+  lido: { valor_centavos: number | null; data: string | null; id_transacao: string | null } | null;
+  idt: string;
+}
+
+/**
+ * O que a leitura gravada diz do valor da linha. NUNCA recusa (decisão do dono, 05/11/2026):
+ *   - IA falhou ou pulada: `sem_leitura`;  - não é comprovante: `sem_leitura` com a nota "A IA não reconheceu como comprovante";
+ *   - baixa confiança ou sem valor: `baixa_confianca`/`sem_leitura`;  - valor lido igual ao digitado: `bateu`;
+ *   - valor lido diferente do digitado: `divergente` (guarda o lido e o digitado), e o ADM confere. O ADM com `confirmar_valor` já libera (`divergente_adm`).
+ * `valor` é o que a linha vai valer; `digitado` é o que a pessoa digitou antes de escolher (igual a `valor` quando ela não escolheu).
+ */
+function avaliarLeitura(reg: RegistroLido, valor: number, digitado: number, g: GuardaObra, corpo: Record<string, unknown>): Avaliacao {
+  const idt = reg.sugestao?.id_transacao && PIX.test(reg.sugestao.id_transacao.trim()) ? reg.sugestao.id_transacao.trim() : '';
+  const ok = reg.leitura === 'ok' && !!reg.sugestao;
+  const lido = ok && reg.sugestao ? { valor_centavos: reg.sugestao.valor_centavos, data: reg.sugestao.data, id_transacao: reg.sugestao.id_transacao } : null;
+  const base = { nota_ia: '', divergencia: null, lido, idt };
+  if (reg.leitura === 'nao_e_comprovante') return { ...base, conferencia: 'sem_leitura', nota_ia: NOTA_NAO_E_COMPROVANTE };
+  if (!ok || !reg.sugestao || reg.sugestao.valor_centavos === null) return { ...base, conferencia: 'sem_leitura' };
+  if (reg.sugestao.confianca !== 'alta' && reg.sugestao.confianca !== 'media') return { ...base, conferencia: 'baixa_confianca' };
+  const lidoC = reg.sugestao.valor_centavos;
+  if (lidoC === valor && digitado === valor) return { ...base, conferencia: 'bateu' };
+  if (g.adm && corpo.confirmar_valor === true) return { ...base, conferencia: 'divergente_adm' };
+  return { ...base, conferencia: 'divergente', divergencia: { lido_centavos: lidoC, digitado_centavos: digitado } };
+}
+const centavosDoCorpo = (v: unknown, padrao: number): number =>
+  (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= VALOR_MAX_CENTAVOS ? v : padrao);
+
 // ── A gravação de UM lançamento (lançamento, comissão e estorno com devolução) ─────────────────────────────────────
 
 interface PedidoGravacao {
@@ -232,37 +272,29 @@ async function gravarLancamento(p: PedidoGravacao): Promise<Saida> {
   const { g, d, corpo, base } = p;
   const agoraIso = new Date().toISOString();
   let reg: RegistroLido | null = null;
-  if (!p.semArquivo) {
+  // Saída pode ser lançada SEM comprovante (fica "Sem comprovante" e entra como pendência até anexar). Entrada e devolução continuam exigindo.
+  const semProva = !p.semArquivo && base.tipo === 'saida' && !base.estorno_de && (p.arquivoPath === undefined || p.arquivoPath === null || p.arquivoPath === '');
+  if (!p.semArquivo && !semProva) {
     const r = await carregarRegistro(g, p.arquivoPath);
     if (!r.ok) return r.saida;
     reg = r.reg;
     if (reg.doc === 'nota') return erro(400, 'e_nota', 'Isto é uma nota fiscal. Para pagar, anexe o comprovante do pagamento.');
-    if (reg.leitura === 'nao_e_comprovante') return erro(409, 'nao_e_comprovante', 'Este arquivo não parece um comprovante de pagamento.');
   }
 
-  // D6: a IA confere o valor NO SERVIDOR, pela leitura gravada na subida. IA fora: salva "não conferido". Só o ADM passa por cima.
-  let conferencia: Conferencia = p.semArquivo ? 'estorno' : 'sem_leitura';
-  const valor = base.valor_centavos;
-  if (reg && reg.leitura === 'ok' && reg.sugestao && reg.sugestao.valor_centavos !== null) {
-    if (reg.sugestao.confianca === 'alta' || reg.sugestao.confianca === 'media') {
-      if (reg.sugestao.valor_centavos === valor) conferencia = 'bateu';
-      else if (g.adm && corpo.confirmar_valor === true) conferencia = 'divergente_adm';
-      else {
-        return erro(409, 'valor_diferente', `O comprovante diz ${reaisBR(reg.sugestao.valor_centavos)}.`, { valor_lido_centavos: reg.sugestao.valor_centavos });
-      }
-    } else conferencia = 'baixa_confianca';
-  }
+  // D6 (regra de 05/11/2026): a IA lê NO SERVIDOR, pela leitura gravada na subida, e NUNCA barra. Ela só marca a linha.
+  const valor = centavosDoCorpo(base.valor_centavos, 0);
+  const av: Avaliacao | null = reg ? avaliarLeitura(reg, valor, centavosDoCorpo(corpo.valor_digitado_centavos, valor), g, corpo) : null;
+  let conferencia: Conferencia = p.semArquivo ? 'estorno' : (semProva ? 'sem_comprovante' : (av?.conferencia ?? 'sem_leitura'));
   if (base.conferencia_fixa) conferencia = base.conferencia_fixa as Conferencia;
 
-  const idt = reg?.sugestao?.id_transacao && PIX.test(reg.sugestao.id_transacao.trim()) ? reg.sugestao.id_transacao.trim() : '';
-  const lido = reg?.leitura === 'ok' && reg.sugestao
-    ? { valor_centavos: reg.sugestao.valor_centavos, data: reg.sugestao.data, id_transacao: reg.sugestao.id_transacao }
-    : null;
+  const idt = av?.idt ?? '';
+  const lido = av?.lido ?? null;
   const { conferencia_fixa: _cf, ...resto } = base;
   void _cf;
   const m = montarLancamentoObra({
     ...resto, conferencia, id_transacao: idt || (reg?.sugestao?.id_transacao ?? ''), lido_pela_ia: lido, origem: lido ? 'ia' : 'manual',
     arquivo: reg ? { path: reg.path, nome: reg.nome, tipo: reg.tipo, tamanho: reg.tamanho, sha256: reg.sha256 } : null,
+    nota_ia: av?.nota_ia ?? '', divergencia: av?.divergencia ?? null,
   }, { cardId: g.id, autor: g.nome, agoraIso, hojeBr: hojeBr() });
   if (!m.ok) return erro(400, m.erro);
   const assinado = lancamentoObraParaGravar(g.id, m.lancamento);
@@ -276,8 +308,9 @@ async function gravarLancamento(p: PedidoGravacao): Promise<Saida> {
         ? { http: 200, json: { ok: true, repetido_pedido: true } }
         : erro(409, 'mudou', 'Este lançamento já existe com outros dados.');
     }
-    if (reg) {
-      const achados = await buscarNoFinanceiro(reg.sha256, idt);
+    // Sem comprovante não há sha nem ID de Pix para recusar; o aviso de "mesmo valor e data" continua valendo (`confirmar_duplicado` passa).
+    if (reg || semProva) {
+      const achados = reg ? await buscarNoFinanceiro(reg.sha256, idt) : { comprovante: null, transacoes: [] as AchadoGlobal[] };
       if (achados.comprovante) {
         const onde = await ondeEsta(g, achados.comprovante);
         return erro(409, 'comprovante_repetido', fraseOnde(onde, 'comprovante'), { onde });
@@ -337,6 +370,10 @@ async function respostaDaGravacao(g: GuardaObra, id: string): Promise<Saida> {
 
 const enviar = (res: Response, s: Saida): void => { res.status(s.http).json(s.json); };
 
+/** As categorias entre as quais a IA sugere uma: as que a pessoa escolhe à mão (nunca a de comissão, retirada ou prêmio, que têm rota própria). */
+const categoriasParaIa = (tipo: 'entrada' | 'saida'): Array<{ slug: string; rotulo: string }> =>
+  CATEGORIAS_OBRA.filter((c) => c.tipo === tipo && c.quem === 'quem_ve' || (tipo === 'entrada' && c.tipo === 'entrada')).map((c) => ({ slug: c.slug, rotulo: c.rotulo }));
+
 // ── As rotas ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export function mountJornadaDinheiro(router: Router): void {
@@ -368,7 +405,8 @@ export function mountJornadaDinheiro(router: Router): void {
     if (!g) return;
     const b = corpoDe(req);
     if (!b || typeof b.base64 !== 'string' || !b.base64 || typeof b.media_type !== 'string' || (b.nome !== undefined && typeof b.nome !== 'string')
-      || (b.doc !== undefined && b.doc !== 'comprovante' && b.doc !== 'nota') || (b.ler !== undefined && typeof b.ler !== 'boolean')) {
+      || (b.doc !== undefined && b.doc !== 'comprovante' && b.doc !== 'nota') || (b.ler !== undefined && typeof b.ler !== 'boolean')
+      || (b.tipo !== undefined && b.tipo !== 'entrada' && b.tipo !== 'saida')) {
       res.status(400).json({ ok: false, error: MSG_PEDIDO }); return;
     }
     const doc = b.doc === 'nota' ? 'nota' : 'comprovante';
@@ -419,7 +457,8 @@ export function mountJornadaDinheiro(router: Router): void {
       }
       if (!pula && doc === 'comprovante') {
         try {
-          const r = await lerComprovante({ bytes, media_type: arquivo.tipo, hojeBr: hojeBr() });
+          // A IA lê "de todo jeito": duas leituras (a segunda, mais forte, se a primeira falhar, vier fraca ou sem valor) e sugere uma categoria da lista.
+          const r = await lerComprovante({ bytes, media_type: arquivo.tipo, hojeBr: hojeBr(), reforco: true, categorias: categoriasParaIa(b.tipo === 'entrada' ? 'entrada' : 'saida') });
           if (!r.ok) leitura = 'falhou';
           else if (!r.eh_comprovante) leitura = 'nao_e_comprovante';
           else { leitura = 'ok'; sugestao = { ...r.sugestao }; }
@@ -431,6 +470,8 @@ export function mountJornadaDinheiro(router: Router): void {
         sugestao: sugestao ? {
           valor_centavos: sugestao.valor_centavos ?? null, data: sugestao.data ?? null, id_transacao: sugestao.id_transacao ?? null,
           forma: sugestao.forma ?? null, recebedor: sugestao.recebedor ?? null, confianca: sugestao.confianca ?? 'baixa',
+          tipo: sugestao.tipo ?? null, pagador: sugestao.pagador ?? null, pagador_documento: sugestao.pagador_documento ?? null,
+          recebedor_documento: sugestao.recebedor_documento ?? null, descricao: sugestao.descricao ?? null, categoria_sugerida: sugestao.categoria_sugerida ?? null,
         } : null,
         nota,
       });
@@ -602,7 +643,11 @@ export function mountJornadaDinheiro(router: Router): void {
         if (d.fechada) { res.status(409).json({ ok: false, error: 'conta_fechada', mensagem: MSG_FECHADA }); return; }
         const { l, versao } = await lerLancamentoObraComVersao(g.id, b.id as string);
         if (!l || versao === null) { res.status(404).json({ ok: false, error: 'nao_encontrado' }); return; }
-        if (l.obra.estorno_de || (l.obra.conferencia !== 'sem_leitura' && l.obra.conferencia !== 'baixa_confianca')) {
+        if (l.obra.conferencia === 'sem_comprovante' && !l.obra.estorno_de) {
+          // Sem arquivo não há o que conferir: sai anexando o comprovante ou pelo "Fechar sem comprovante".
+          res.status(409).json({ ok: false, error: 'sem_comprovante', mensagem: 'Este lançamento está sem comprovante. Anexe o comprovante ou feche sem comprovante.' }); return;
+        }
+        if (l.obra.estorno_de || (l.obra.conferencia !== 'sem_leitura' && l.obra.conferencia !== 'baixa_confianca' && l.obra.conferencia !== 'divergente')) {
           res.status(409).json({ ok: false, error: 'nada_a_conferir', mensagem: 'Este lançamento não está esperando conferência.' }); return;
         }
         // Registra quem marcou, quando e de quê para quê (a linha é reassinada; nada se apaga).
@@ -615,6 +660,97 @@ export function mountJornadaDinheiro(router: Router): void {
         enviar(res, await respostaDaGravacao(g, l.id));
       });
     } catch (err) { if (!res.headersSent) falhouJornada(res, 'conferir', err); }
+  });
+
+  // ── Rota 5c · Anexa DEPOIS o comprovante numa saída lançada sem ele (sem estorno) ────────────────────────────────────────
+  // O arquivo sobe antes pela rota `comprovante` (que já lê). Aqui ele é preso à linha que já existe: o sha256 e o ID do Pix continuam recusando o repetido,
+  // a leitura da IA marca a linha (nunca barra) e a mudança fica em `alteracoes {em, por, de, para}`, com a linha reassinada. Quem lançou segue sendo quem lançou.
+  router.post('/jornada-solar/obra/:card/dinheiro/anexar', ...base, async (req: Request, res: Response) => {
+    const g = await guardaDaObra(req, res);
+    if (!g) return;
+    const b = corpoDe(req);
+    if (!b || typeof b.id !== 'string' || !ID_LANCAMENTO.test(b.id) || typeof b.arquivo_path !== 'string' || !b.arquivo_path) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+    const id = b.id;
+    try {
+      const saida = await comTrava(`fin_conta:${g.id}`, g.nome, async (): Promise<Saida> => {
+        const d = await lerDinheiro(g);
+        if (d.cancelada) return erro(409, 'cancelada', MSG_CANCELADA);
+        if (d.fechada) return erro(409, 'conta_fechada', MSG_FECHADA);
+        const { l, versao } = await lerLancamentoObraComVersao(g.id, id);
+        const linha = d.livro.linhas.find((x) => x.id === id);
+        if (!l || versao === null || !linha) return erro(404, 'nao_encontrado');
+        if (l.obra.estorno_de || linha.estornada || l.tipo !== 'saida') return erro(409, 'nada_a_anexar', 'Este lançamento não aceita comprovante depois.');
+        if (l.arquivo) return erro(409, 'ja_tem_comprovante', 'Este lançamento já tem comprovante.');
+        if (!podeEstornar(g, linha)) return erro(403, 'sem_permissao', 'Você não pode anexar o comprovante deste lançamento.');
+        if (!d.veDinheiro && (ehSensivel(linha) || linha.criado_por !== g.nome)) return erro(403, 'sem_acesso');
+        const r = await carregarRegistro(g, b.arquivo_path);
+        if (!r.ok) return r.saida;
+        const reg = r.reg;
+        if (reg.doc === 'nota') return erro(400, 'e_nota', 'Isto é uma nota fiscal. Para pagar, anexe o comprovante do pagamento.');
+        const av = avaliarLeitura(reg, l.valor_centavos, l.valor_centavos, g, b);
+        return await comTrava(`fin_sha:${reg.sha256.slice(0, 32)}`, g.nome, async (): Promise<Saida> => {
+          const achados = await buscarNoFinanceiro(reg.sha256, av.idt);
+          if (achados.comprovante) {
+            const onde = await ondeEsta(g, achados.comprovante);
+            return erro(409, 'comprovante_repetido', fraseOnde(onde, 'comprovante'), { onde });
+          }
+          if (b.confirmar_duplicado !== true && av.idt) {
+            const dups: Array<Record<string, unknown>> = [];
+            for (const x of d.lancamentos) {
+              if (x.id !== l.id && !x.obra.estorno_de && x.id_transacao.trim() === av.idt && !d.livro.linhas.find((y) => y.id === x.id)?.estornada) {
+                dups.push({ id: x.id, tipo: x.tipo, valor_centavos: x.valor_centavos, data: x.data, categoria: x.categoria, motivo: 'mesma_transacao', onde: 'esta obra' });
+              }
+            }
+            for (const a of achados.transacoes) if (a.card !== g.id) dups.push({ motivo: 'mesma_transacao', onde: await ondeEsta(g, a) });
+            if (dups.length) return { http: 409, json: { ok: false, error: 'possivel_duplicado', duplicados: dups } };
+          }
+          const novo = lancamentoObraParaGravar(g.id, {
+            ...l,
+            arquivo: { path: reg.path, nome: reg.nome, tipo: reg.tipo, tamanho: reg.tamanho, sha256: reg.sha256 },
+            id_transacao: av.idt || (reg.sugestao?.id_transacao ?? ''), lido_pela_ia: av.lido, origem: av.lido ? 'ia' : l.origem,
+            alteracoes: [...l.alteracoes, { em: new Date().toISOString(), por: g.nome, de: 'sem_comprovante', para: 'anexado' }],
+            obra: { ...l.obra, conferencia: av.conferencia, nota_ia: av.nota_ia, divergencia: av.divergencia ?? undefined },
+          });
+          if (!novo) return erro(503, 'sem_segredo', 'Não consegui gravar agora. Tente de novo.');
+          if (!(await atualizarLancamentoObra(novo, versao))) return erro(409, 'mudou', 'Outra pessoa mexeu agora. Tente de novo.');
+          return { http: 200, json: { ok: true } };
+        });
+      });
+      if (saida.http !== 200) { enviar(res, saida); return; }
+      enviar(res, await respostaDaGravacao(g, id));
+    } catch (err) { if (!res.headersSent) falhouJornada(res, 'anexar', err); }
+  });
+
+  // ── Rota 5d · "Fechar sem comprovante" (só o ADM, com motivo) ─────────────────────────────────────────────────────────
+  router.post('/jornada-solar/obra/:card/dinheiro/dispensar', ...base, exigeAdm, async (req: Request, res: Response) => {
+    const g = await guardaDaObra(req, res);
+    if (!g) return;
+    const b = corpoDe(req);
+    if (!b || typeof b.id !== 'string' || !ID_LANCAMENTO.test(b.id)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+    const motivo = typeof b.motivo === 'string' ? b.motivo.replace(/[\u0000-\u001f\u007f]/g, ' ').trim() : '';
+    if (motivo.length < 3 || motivo.length > 300) { res.status(400).json({ ok: false, error: 'motivo_invalido', mensagem: 'Diga o motivo, de 3 a 300 caracteres.' }); return; }
+    const id = b.id;
+    try {
+      const saida = await comTrava(`fin_conta:${g.id}`, g.nome, async (): Promise<Saida> => {
+        const d = await lerDinheiro(g);
+        if (d.fechada) return erro(409, 'conta_fechada', MSG_FECHADA);
+        const { l, versao } = await lerLancamentoObraComVersao(g.id, id);
+        const linha = d.livro.linhas.find((x) => x.id === id);
+        if (!l || versao === null || !linha) return erro(404, 'nao_encontrado');
+        if (!linha.sem_comprovante) return erro(409, 'nada_a_dispensar', 'Este lançamento não está esperando comprovante.');
+        const agora = new Date().toISOString();
+        const novo = lancamentoObraParaGravar(g.id, {
+          ...l,
+          alteracoes: [...l.alteracoes, { em: agora, por: g.nome, de: 'sem_comprovante', para: 'dispensado', motivo }],
+          obra: { ...l.obra, dispensa: { em: agora, por: g.nome, motivo } },
+        });
+        if (!novo) return erro(503, 'sem_segredo', 'Não consegui gravar agora. Tente de novo.');
+        if (!(await atualizarLancamentoObra(novo, versao))) return erro(409, 'mudou', 'Outra pessoa mexeu agora. Tente de novo.');
+        return { http: 200, json: { ok: true } };
+      });
+      if (saida.http !== 200) { enviar(res, saida); return; }
+      enviar(res, await respostaDaGravacao(g, id));
+    } catch (err) { if (!res.headersSent) falhouJornada(res, 'dispensar', err); }
   });
 
   // ── Rota 6 · O previsto por grupo (ADM) ───────────────────────────────────────────────────────────────────────────────

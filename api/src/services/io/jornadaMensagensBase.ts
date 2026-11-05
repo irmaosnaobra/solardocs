@@ -13,7 +13,7 @@ import { ehDestinoInterno } from '../chefe/destinos';
 import { classificarErroEnvio } from '../chefe/decidir';
 import { prefixosTotalDaLinha } from '../agents/whatsapp/lineThrottle';
 import { TEL_AVISO } from './solarEquipe';
-import { PREFIXO_ENV, PREFIXO_VEZ, minutoDaVez, type DinheiroObra, type ObraFila } from './jornadaMensagensPuro';
+import { PREFIXO_ENV, PREFIXO_VEZ, minutoDaVez, semComprovanteDoLivro, type DinheiroObra, type ObraFila } from './jornadaMensagensPuro';
 import { lerTodasJornadas, lerPrivadoJornada } from '../gerador/jornadaSolarBanco';
 import { lerObraPrivada, lerTodasObras } from '../gerador/jornadaObraBanco';
 import { ehCardSolarVendido, lerCardsPorIds, lerTodasLigacoes, type Ligacao } from '../gerador/vendaSolarHub';
@@ -182,7 +182,7 @@ export async function dinheiroDasObras(obras: readonly ObraFila[]): Promise<Dinh
       previsto: privada?.previsto ?? null, pendenciasDaObra: pendenciasDaObra(privada, lancamentos), engenheiroAPagar: o.js?.etapas[3].engenheiro === 'a_pagar',
       material: materialDaCompra(privada, lancamentos), adm: false,
     });
-    const naoConf = (retirada: boolean) => livro.linhas.filter((l) => !l.estorno_de && !l.estornada && (l.conferencia === 'sem_leitura' || l.conferencia === 'baixa_confianca')
+    const naoConf = (retirada: boolean) => livro.linhas.filter((l) => !l.estorno_de && !l.estornada && (l.conferencia === 'sem_leitura' || l.conferencia === 'baixa_confianca' || l.conferencia === 'divergente')
       && (l.grupo === 'retirada') === retirada).length;
     const x: DinheiroObra = {
       card: o.card, rotulo: (o.codigo && /^#\d{3,6}$/.test(o.codigo) ? `${o.codigo} ` : '') + String(o.cliente ?? '').replace(/[*_~]/g, '').trim(),
@@ -190,8 +190,9 @@ export async function dinheiroDasObras(obras: readonly ObraFila[]): Promise<Dinh
         .map((p) => ({ valor_centavos: p.valor_centavos as number, papel: p.papel === 'socio' ? 'socio' as const : 'venda' as const })),
       a_receber_centavos: livro.a_receber && livro.a_receber > 0 ? livro.a_receber : 0,
       nao_conferidas: naoConf(false), nao_conferidas_retirada: naoConf(true),
+      sem_comprovante: semComprovanteDoLivro(livro.linhas),
     };
-    return x.comissoes.length || x.a_receber_centavos || x.nao_conferidas || x.nao_conferidas_retirada ? x : null;
+    return x.comissoes.length || x.a_receber_centavos || x.nao_conferidas || x.nao_conferidas_retirada || (x.sem_comprovante?.length ?? 0) ? x : null;
   });
 }
 
