@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { diaBRT, horaBRT } from '../agentes5040/relogio';
-import { ehContaDeTeste, pagaHoje, saidaDaConta, type UsuarioRet } from '../solardoc/retomadaUsuariosRegras';
+import { ehContaDeTeste, saidaDaConta, type UsuarioRet } from '../solardoc/retomadaUsuariosRegras';
 
 export const TETO_EMAIL_DIA = 10;
 export const MIN_PROPOSTAS_DEPOIMENTO = 20;
@@ -47,12 +47,29 @@ export function podeReceberEmail(u: UsuarioPesq): boolean {
   return emailEntregavel(u.email) && u.email_opt_out !== true && !ehContaDeTeste(u);
 }
 
-/** Já pagou (venda paid com valor, ou plano vencido), hoje está free e saiu há pelo menos SAIU_HA_DIAS_MIN dias (quando a data é conhecida). */
+/**
+ * Free que ainda paga ou está em cobrança: Pix com plano ainda valendo, ou assinatura da Stripe viva (teste, atrasada, não paga).
+ * NÃO é o `pagaHoje` da retomada: aquele trata free + `active` como pagante, e `active` é o PADRÃO da coluna (MIGRATION_dunning.sql), que
+ * o D5 também grava ao rebaixar. Os 54 free com `last_canceled_at` eram 100% `active` em 05/11/2026, e a entrevista não achava ninguém.
+ * Fica só aqui, no e-mail: mudar o `pagaHoje` abriria a retomada do WhatsApp para a base free inteira (revisor de 05/11).
+ */
+function aindaPaga(u: Pick<UsuarioPesq, 'billing_status' | 'plano_expira_em'>, agoraMs: number): boolean {
+  if (['trialing', 'past_due', 'unpaid'].includes(String(u.billing_status ?? ''))) return true;
+  const expira = ms(u.plano_expira_em);
+  return expira !== null && expira > agoraMs;
+}
+
+/**
+ * Já pagou (venda paid com valor, plano vencido ou assinatura cancelada na Stripe), hoje está free e saiu há pelo menos SAIU_HA_DIAS_MIN dias
+ * (quando a data é conhecida). O `last_canceled_at` conta como prova: a tabela `sales` tem só as vendas da LP (6 pagas em 05/11/2026) e os
+ * 54 ex-assinantes de cartão só tinham o cancelamento da Stripe.
+ */
 export function ehExAssinante(u: UsuarioPesq, temVendaPaga: boolean, agoraMs: number): boolean {
-  if (u.plano !== 'free' || pagaHoje(u, agoraMs)) return false;
+  if (u.plano !== 'free' || aindaPaga(u, agoraMs)) return false;
   const venceu = ms(u.plano_expira_em);
   const planoVencido = venceu !== null && venceu < agoraMs;
-  if (!temVendaPaga && !planoVencido) return false;
+  const cancelouNaStripe = ms(u.last_canceled_at) !== null;
+  if (!temVendaPaga && !planoVencido && !cancelouNaStripe) return false;
   const { saiuEm } = saidaDaConta(u, agoraMs);
   return saiuEm === null || agoraMs - saiuEm >= SAIU_HA_DIAS_MIN * DIA;
 }
