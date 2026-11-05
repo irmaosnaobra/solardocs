@@ -77,6 +77,10 @@ describe('quem recebe', () => {
     expect(ehExAssinante(usuario(), false, agoraMs)).toBe(true);                                         // plano vencido
     expect(ehExAssinante(usuario({ plano_expira_em: null }), true, agoraMs)).toBe(true);                 // venda paga, sem data
     expect(ehExAssinante(usuario({ plano_expira_em: null }), false, agoraMs)).toBe(false);               // nunca pagou
+    expect(ehExAssinante(usuario({ plano_expira_em: null, billing_status: 'active', last_canceled_at: ISO(agoraMs - 5 * DIA) }), false, agoraMs)).toBe(true);  // cancelou o cartão (o D5 deixa active)
+    expect(ehExAssinante(usuario({ plano_expira_em: null, billing_status: 'suspended', last_canceled_at: ISO(agoraMs - 5 * DIA) }), false, agoraMs)).toBe(true); // fim do acesso pelo webhook
+    expect(ehExAssinante(usuario({ plano_expira_em: null, last_canceled_at: ISO(agoraMs - DIA) }), false, agoraMs)).toBe(false);  // cancelou ontem: espera 2 dias
+    expect(ehExAssinante(usuario({ plano_expira_em: null, billing_status: 'active' }), false, agoraMs)).toBe(false);  // free padrão (active), nunca pagou
     expect(ehExAssinante(usuario({ plano: 'pro', billing_status: 'active' }), true, agoraMs)).toBe(false); // paga hoje
     expect(ehExAssinante(usuario({ plano_expira_em: ISO(agoraMs + DIA) }), true, agoraMs)).toBe(false);  // ainda não venceu
     expect(ehExAssinante(usuario({ plano_expira_em: ISO(agoraMs - 3_600_000) }), false, agoraMs)).toBe(false); // venceu agora há pouco
