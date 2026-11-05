@@ -91,7 +91,22 @@ describe('conferência de variáveis de ambiente', () => {
     const r = conferirEnv({} as NodeJS.ProcessEnv);
     expect(r.ok).toBe(false);
     expect(r.faltando).toContain('ANTHROPIC_API_KEY');
-    expect(r.faltando).toContain('DATABASE_URL');
+    // Sem FILA_PGBOSS, ninguém lê a DATABASE_URL: a falta dela não é alarme.
+    expect(r.faltando).not.toContain('DATABASE_URL');
+  });
+
+  it('DATABASE_URL só é exigida quando a fila pg-boss está ligada', () => {
+    const semUrl = { ...COMPLETO } as NodeJS.ProcessEnv;
+    delete semUrl.DATABASE_URL;
+    expect(conferirEnv(semUrl).faltando).not.toContain('DATABASE_URL');
+    expect(conferirEnv(semUrl).ok).toBe(true);
+
+    const ligada = conferirEnv({ ...semUrl, FILA_PGBOSS: 'true' } as NodeJS.ProcessEnv);
+    expect(ligada.faltando).toContain('DATABASE_URL');
+    expect(ligada.ok).toBe(false);
+
+    const comUrl = conferirEnv({ ...COMPLETO, FILA_PGBOSS: 'true' } as NodeJS.ProcessEnv);
+    expect(comUrl.faltando).not.toContain('DATABASE_URL');
   });
 
   it('separa "falta" de "dívida conhecida"', () => {

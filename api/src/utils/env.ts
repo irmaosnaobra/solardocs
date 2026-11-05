@@ -30,7 +30,7 @@ import { z } from 'zod';
 
 /** Descrição do que quebra quando cada uma falta — vai no aviso do boot. */
 const O_QUE_QUEBRA: Record<string, string> = {
-  DATABASE_URL: 'nada lê nem escreve no banco',
+  DATABASE_URL: 'a fila pg-boss (FILA_PGBOSS=true) não sobe e o envio segue pela fila antiga',
   JWT_SECRET: 'ninguém consegue logar no /gerador',
   ANTHROPIC_API_KEY: 'todos os robôs emudecem (07, 08 e 10/08/2026 foi isso)',
   SUPABASE_URL: 'fichas, agenda e propostas param',
@@ -99,8 +99,11 @@ function lerEnv(fonte: NodeJS.ProcessEnv = process.env) {
 export const env = lerEnv();
 
 /** As que, faltando, deixam o sistema de pé mentindo. */
+// DATABASE_URL não está aqui: a api lê e escreve no banco pelo Supabase. Só a
+// fila pg-boss lê a DATABASE_URL, então ela só é exigida com FILA_PGBOSS=true
+// (ver `conferirEnv`).
 const CRITICAS = [
-  'DATABASE_URL', 'JWT_SECRET', 'ANTHROPIC_API_KEY', 'SUPABASE_URL',
+  'JWT_SECRET', 'ANTHROPIC_API_KEY', 'SUPABASE_URL',
   'STRIPE_SECRET_KEY', 'ZAPI_INSTANCE_ID_IO', 'ZAPI_TOKEN_IO', 'DASHBOARD_URL',
 ] as const;
 
@@ -121,7 +124,11 @@ export interface RelatorioEnv {
  */
 export function conferirEnv(fonte: NodeJS.ProcessEnv = process.env): RelatorioEnv {
   const vazia = (k: string) => !String(fonte[k] ?? '').trim();
-  const faltando = CRITICAS.filter(vazia);
+  const faltando: string[] = CRITICAS.filter(vazia);
+  // Mesma regra de `pgBossLigado()`: só a fila pg-boss lê a DATABASE_URL.
+  if (String(fonte.FILA_PGBOSS ?? '').toLowerCase() === 'true' && vazia('DATABASE_URL')) {
+    faltando.push('DATABASE_URL');
+  }
   const dividas = DIVIDAS.filter(vazia);
   return { faltando, dividas, ok: faltando.length === 0 };
 }
