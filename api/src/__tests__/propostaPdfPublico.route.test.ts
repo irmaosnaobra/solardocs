@@ -83,7 +83,7 @@ app.use('/p', publicProposta);
 const DOC_ID = 'b1ffc99a-9c0b-4ef8-bb6d-6bb9bd380a22';
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 const FUTURO = new Date(Date.now() + 3 * 86400000).toISOString();
-const HTML = '<html><body>PROPOSTA CPF <span class="dp">529.982.247-25</span> CNPJ 11.222.333/0001-81</body></html>';
+const HTML = '<html><body>PROPOSTA CPF 529.982.247-25 CNPJ 11.222.333/0001-81</body></html>';
 
 function doc(extra: Record<string, unknown> = {}) {
   return {
@@ -102,13 +102,14 @@ beforeEach(() => {
 });
 
 describe('GET /p/:id/pdf', () => {
-  it('gera o PDF do HTML do link (CPF mascarado), guarda no bucket e entrega com o nome "Proposta {codigo} {cliente}.pdf"', async () => {
+  it('gera o PDF do HTML do link (CPF inteiro), guarda no bucket e entrega com o nome "Proposta {codigo} {cliente}.pdf"', async () => {
     const res = await baixar();
     expect(res.status).toBe(302);
     expect(h.gerar).toHaveBeenCalledTimes(1);
     const htmlGerador = String(h.gerar.mock.calls[0][0]);
-    expect(htmlGerador).toContain('<span class="dp">***.982.247-**</span>');
-    expect(htmlGerador).not.toContain('529.982.247-25');
+    // O PDF público leva o mesmo HTML do link, com o CPF e o CNPJ inteiros (igual ao PDF autenticado).
+    expect(htmlGerador).toContain('CPF 529.982.247-25');
+    expect(htmlGerador).not.toContain('***');
     expect(htmlGerador).toContain('CNPJ 11.222.333/0001-81');
     expect(htmlGerador).not.toContain('Baixar PDF'); // o botão não vai para dentro do PDF
     expect(h.enviados).toHaveLength(1);
@@ -254,7 +255,7 @@ describe('Botão "Baixar PDF" na página pública', () => {
     expect(res.text).toContain('Baixar PDF');
     expect(res.text).toContain('@media print{.sd-pdf{display:none!important}}');
     expect(res.text.indexOf('Baixar PDF')).toBeLessThan(res.text.indexOf('</body>'));
-    expect(res.text).toContain('<span class="dp">***.982.247-**</span>');
+    expect(res.text).toContain('CPF 529.982.247-25');
     expect(h.doc?.content).toBe(HTML);
   });
 

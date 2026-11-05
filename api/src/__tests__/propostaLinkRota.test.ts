@@ -3,6 +3,8 @@ import express from 'express';
 import request from 'supertest';
 
 const h = vi.hoisted(() => ({
+  // Lido por cspPaginaProposta() quando a rota é montada.
+  supabaseUrl: (process.env.SUPABASE_URL = 'https://projetoteste.supabase.co'),
   doc: null as Record<string, unknown> | null,
   company: null as Record<string, unknown> | null,
   eventos: [] as Record<string, unknown>[],
@@ -70,6 +72,7 @@ vi.mock('../middleware/clerkAuth', () => ({
 }));
 vi.mock('../services/pushUsuario', () => ({ enviarPushAoUsuario: (...a: unknown[]) => h.push(...a) }));
 
+import helmet from 'helmet';
 import publicProposta from '../routes/publicProposta';
 
 const app = express();
@@ -116,6 +119,37 @@ beforeEach(() => {
   h.push.mockResolvedValue({ enviados: 1, removidas: 0 });
 });
 
+describe('GET /p/:id: CSP da página pública (imagens do Storage)', () => {
+  const diretivas = (cabecalho: string) => Object.fromEntries(
+    cabecalho.split(';').map((d) => d.trim()).filter(Boolean).map((d) => { const [nome, ...resto] = d.split(/\s+/); return [nome, resto.join(' ')]; }),
+  ) as Record<string, string>;
+
+  it("img-src ganha o host do Supabase (derivado da env); default-src e script-src seguem 'self'", async () => {
+    const res = await abrir();
+    const csp = res.headers['content-security-policy'] as string;
+    expect(csp).toBeTruthy();
+    const d = diretivas(csp);
+    expect(d['img-src']).toBe("'self' data: https://projetoteste.supabase.co");
+    expect(d['default-src']).toBe("'self'");
+    expect(d['script-src']).toBe("'self'");
+    expect(csp).not.toMatch(/img-src[^;]*\shttps:(\s|;|$)/); // nada de https: genérico
+  });
+
+  it('com o helmet do app na frente, só o img-src muda em relação à CSP padrão; as outras rotas ficam como estão', async () => {
+    const comHelmet = express();
+    comHelmet.use(helmet());
+    comHelmet.get('/outra', (_q, r) => { r.send('ok'); });
+    comHelmet.use('/p', publicProposta);
+    const padrao = diretivas((await request(comHelmet).get('/outra')).headers['content-security-policy'] as string);
+    const proposta = diretivas((await request(comHelmet).get(`/p/${DOC_ID}`).set({ 'User-Agent': IPHONE })).headers['content-security-policy'] as string);
+    expect(padrao['img-src']).toBe("'self' data:");
+    expect(proposta['img-src']).toBe("'self' data: https://projetoteste.supabase.co");
+    const { 'img-src': _a, ...restoPadrao } = padrao;
+    const { 'img-src': _b, ...restoProposta } = proposta;
+    expect(restoProposta).toEqual(restoPadrao);
+  });
+});
+
 describe('GET /p/:id: abertura não se mistura com download de PDF', () => {
   it('a repetição por aparelho e a contagem do aviso olham só aberta e aberta_vencida', async () => {
     await abrir();
@@ -127,16 +161,16 @@ describe('GET /p/:id: abertura não se mistura com download de PDF', () => {
   });
 });
 
-describe('GET /p/:id mascara o CPF do cliente (Completa + Banco)', () => {
-  it('CPF sai com só os 6 dígitos do meio; o CNPJ sai inteiro', async () => {
+describe('GET /p/:id mostra a assinatura inteira (Completa + Banco)', () => {
+  it('CPF e CNPJ saem inteiros no link público, igual ao PDF autenticado', async () => {
     h.doc = doc(rastreada(FUTURO), {
-      content: '<html><body>CPF <span class="dp">529.982.247-25</span> e CNPJ 11.222.333/0001-81 <span class="dp">529.982.247-25</span></body></html>',
+      content: '<html><body>CPF 529.982.247-25 e CNPJ 11.222.333/0001-81 titular 529.982.247-25</body></html>',
     });
     const res = await abrir();
     expect(res.status).toBe(200);
-    expect(res.text).toContain('CPF <span class="dp">***.982.247-**</span>');
-    expect(res.text).not.toContain('529.982.247-25');
+    expect(res.text).toContain('CPF 529.982.247-25');
     expect(res.text).toContain('CNPJ 11.222.333/0001-81');
+    expect(res.text).not.toContain('***');
   });
 });
 

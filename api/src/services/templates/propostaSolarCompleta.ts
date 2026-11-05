@@ -10,8 +10,8 @@
  *         6 Aceite da proposta (só com f.assinatura; é a última e leva o rodapé grande).
  *
  * Os 8 bancos fixos vêm de ./bancosLogos (constante interna do servidor, nunca do usuário) e entram
- * direto; os logos que o usuário sobe passam por srcImagemSegura. O CPF do cliente PF sai dentro de
- * <span class="dp">: o link público (/p/:id) troca o miolo por máscara antes de servir.
+ * direto; os logos que o usuário sobe passam por srcImagemSegura. O CPF e o CNPJ do cliente saem inteiros
+ * (no link público também, igual ao PDF autenticado).
  *
  * SEGURANÇA: o PDF sai no servidor (Puppeteer). Imagem só entra se o `src` for https:// ou
  * data:image/(png|jpeg|webp);base64,. As URLs das galerias já chegam reassinadas pelo servidor
@@ -299,18 +299,18 @@ function dataPorExtenso(d: Date): string {
   return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-/** CPF vai dentro de <span class="dp">: o link público troca o miolo por máscara. CNPJ é público e sai inteiro. */
+/** "CPF 529.982.247-25" (PF) ou "CNPJ 11.222.333/0001-81" (PJ), inteiro. */
 function docClienteHtml(c: Assinatura['cliente']): string {
-  if (c.tipo === 'PJ') return c.documento ? `CNPJ ${pEsc(formatarCnpj(c.documento))}` : '';
-  return c.documento ? `CPF <span class="dp">${pEsc(formatarCpf(c.documento))}</span>` : '';
+  if (!c.documento) return '';
+  return c.tipo === 'PJ' ? `CNPJ ${pEsc(formatarCnpj(c.documento))}` : `CPF ${pEsc(formatarCpf(c.documento))}`;
 }
 
-/** Linha do cabeçalho da folha 1: rótulo à esquerda e número à direita (o CPF dentro de span.dp). */
+/** Linha do cabeçalho da folha 1: rótulo à esquerda e número à direita, inteiro. */
 function docClienteCabecalho(c: Assinatura['cliente']): { rotulo: string; html: string } | undefined {
   if (!c.documento) return undefined;
   return c.tipo === 'PJ'
     ? { rotulo: 'CNPJ', html: `<span class="num">${pEsc(formatarCnpj(c.documento))}</span>` }
-    : { rotulo: 'CPF', html: `<span class="dp">${pEsc(formatarCpf(c.documento))}</span>` };
+    : { rotulo: 'CPF', html: `<span class="num">${pEsc(formatarCpf(c.documento))}</span>` };
 }
 
 // ─── O template ──────────────────────────────────────────────────────────────
@@ -570,12 +570,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     if (dadosBanc.agencia) linhasDadosBanc.push(l('Agência', dadosBanc.agencia));
     if (dadosBanc.conta) linhasDadosBanc.push(l('Conta', `${dadosBanc.conta}${dadosBanc.tipo_conta === 'corrente' ? ' corrente' : dadosBanc.tipo_conta === 'poupanca' ? ' poupança' : ''}`));
     if (dadosBanc.titular) linhasDadosBanc.push(l('Titular', dadosBanc.titular));
-    if (dadosBanc.documento) {
-      // É CPF quando tem 11 dígitos (qualquer outro caractere é ignorado na contagem): sai inteiro em span.dp
-      // e o link público mostra mascarado. CNPJ fica como está.
-      const ehCpf = dadosBanc.documento.replace(/\D/g, '').length === 11;
-      linhasDadosBanc.push(l('CPF/CNPJ do titular', dadosBanc.documento, ehCpf ? `<span class="dp">${pEsc(dadosBanc.documento)}</span>` : undefined));
-    }
+    if (dadosBanc.documento) linhasDadosBanc.push(l('CPF/CNPJ do titular', dadosBanc.documento));
     if (dadosBanc.pix) linhasDadosBanc.push(l('Chave Pix', dadosBanc.pix));
   }
   const corpoF3 = `<div class="sec">
