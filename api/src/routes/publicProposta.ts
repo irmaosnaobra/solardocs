@@ -1,14 +1,15 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, RequestHandler } from 'express';
+import helmet from 'helmet';
 import { createHash } from 'crypto';
 import { supabase } from '../utils/supabase';
 import { stripPrint } from '../utils/printHtml';
-import { mascararCpfNoHtml } from '../utils/mascaraProposta';
 import { userIdDoToken } from '../middleware/auth';
 import { ehRobo, dispositivo, geo, linkVencido, dataBR, chaveAbertura } from '../services/propostaLink';
 import { paginaVencida } from '../services/propostaVencida';
 import { enviarPushAoUsuario } from '../services/pushUsuario';
 import { propostaPdfLimiter } from '../middleware/rateLimiter';
 import { gerarPdfDeHtml } from '../controllers/pdfController';
+import { hostDoSupabase } from '../utils/redePdf';
 
 const router = Router();
 
@@ -145,13 +146,13 @@ async function lerHtmlDoc(doc: DocRow): Promise<string | null> {
   return html || null;
 }
 
-/** O que o visitante recebe: sem o script de impressão e com o CPF do cliente PF mascarado. */
+/** O que o visitante recebe (a página e o PDF público): o HTML guardado, sem o script de impressão. */
 function htmlPublico(html: string): string {
   // Proposta antiga subiu pro Storage com o script de impressão dentro (o arquivo
   // era compartilhado com o "abrir pra imprimir"). Sem tirar aqui, o cliente que
   // abre o link leva uma caixa de impressão e a aba tentando se fechar sozinha.
-  // CPF do cliente PF (Completa + Banco) sai mascarado no link aberto; o PDF autenticado leva inteiro.
-  return mascararCpfNoHtml(stripPrint(html));
+  // O CPF e o CNPJ da assinatura saem inteiros, igual ao PDF autenticado.
+  return stripPrint(html);
 }
 
 /**
@@ -172,6 +173,21 @@ export function comBotaoPdf(html: string, id: string): string {
   return i >= 0 ? html.slice(0, i) + bloco + html.slice(i) : html + bloco;
 }
 
+/**
+ * CSP da página pública da proposta. É a CSP padrão do helmet (a do app), trocando SÓ o `img-src`: sem isso o
+ * navegador bloqueia toda imagem do Storage (fotos de obra, do telhado, empresas atendidas), que vêm por URL
+ * assinada em https://{projeto}.supabase.co. Fica o host exato do SUPABASE_URL, nunca `https:` genérico; sem a
+ * variável, a CSP do app segue como está. As outras rotas não mudam.
+ */
+export function cspPaginaProposta(env: NodeJS.ProcessEnv = process.env): RequestHandler {
+  const host = hostDoSupabase(env);
+  if (!host) return (_req, _res, next) => next();
+  return helmet.contentSecurityPolicy({
+    useDefaults: true,
+    directives: { 'img-src': ["'self'", 'data:', `https://${host}`] },
+  });
+}
+
 // GET /p/:id — serve a proposta solar publicamente (sem auth).
 // Aceita id em 3 formatos:
 //  - {slug}.{YYYYNNNN} — novo padrão, ex: irmaosnaobra.20260001 (preferido)
@@ -180,7 +196,7 @@ export function comBotaoPdf(html: string, id: string): string {
 // Pega o HTML do Storage e devolve com Content-Type correto.
 // Só funciona pra proposta ('propostaSolar' e 'propostaOffGrid') — os outros
 // tipos são contrato/procuração e não têm por que ficar num link público.
-router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', cspPaginaProposta(), async (req: Request, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id || '');
 

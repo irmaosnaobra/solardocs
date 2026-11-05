@@ -3,7 +3,6 @@ import {
   cpfValido, cnpjValido, soDigitos, formatarCpf, formatarCnpj, normalizarCnpj, validarAssinatura, normalizarAssinatura,
 } from '../utils/documentoBr';
 import { normalizarDadosBancarios, dadosBancariosCompletos } from '../utils/dadosBancarios';
-import { mascararCpfNoHtml } from '../utils/mascaraProposta';
 
 const empresa = { razao_social: 'Sol Forte Energia Ltda', cnpj: '11.222.333/0001-81', representante: 'Carlos Pereira', cargo: 'Sócio' };
 const pf = { tipo: 'PF', nome: 'Maria Aparecida Souza', documento: '529.982.247-25' };
@@ -88,7 +87,7 @@ describe('validarAssinatura', () => {
   });
 });
 
-describe('dados bancários e máscara do CPF', () => {
+describe('dados bancários', () => {
   it('normaliza: apara, limita, descarta vazio e vira null sem nada', () => {
     expect(normalizarDadosBancarios({ banco: '  Banco X  ', agencia: '', conta: 'c'.repeat(50), tipo_conta: 'xx', lixo: 1 }))
       .toEqual({ banco: 'Banco X', conta: 'c'.repeat(20) });
@@ -102,12 +101,5 @@ describe('dados bancários e máscara do CPF', () => {
     expect(dadosBancariosCompletos({ banco: 'X', agencia: '1' })).toBe(false);
     expect(dadosBancariosCompletos({ pix: 'a' })).toBe(true);
     expect(dadosBancariosCompletos(null)).toBe(false);
-  });
-  it('máscara: miolo de 6 dígitos; formato estranho mascara tudo', () => {
-    expect(mascararCpfNoHtml('<span class="dp">529.982.247-25</span>')).toBe('<span class="dp">***.982.247-**</span>');
-    expect(mascararCpfNoHtml('<span class="dp">52998224725</span>')).toBe('<span class="dp">***.982.247-**</span>');
-    expect(mascararCpfNoHtml('<span class="dp">529 982 247/25</span>')).toBe('<span class="dp">***.982.247-**</span>');
-    expect(mascararCpfNoHtml('<span class="dp">123</span>')).toBe('<span class="dp">***.***.***-**</span>');
-    expect(mascararCpfNoHtml('<b>529.982.247-25</b>')).toBe('<b>529.982.247-25</b>');
   });
 });

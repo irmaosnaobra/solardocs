@@ -460,8 +460,12 @@ describe('modelo 4 Completa + Banco', () => {
     expect(html).toContain('As duas partes confirmam os equipamentos, os valores e as condições desta proposta.');
     expect(html).toContain('Uberlândia-MG, 15 de outubro de 2026.');
     expect(html).toContain('<div class="nm">Maria Aparecida Souza</div>');
-    expect(html).toContain('CPF <span class="dp">529.982.247-25</span>');
-    expect(html).toContain('CNPJ 11.222.333/0001-81');
+    // Na folha de aceite sempre aparecem a empresa (razão social e CNPJ) e o cliente (nome completo e CPF), inteiros.
+    expect(html).toContain('<div class="nm">Sol Forte Energia Ltda</div>');
+    expect(html).toContain('<div class="dc">CNPJ 11.222.333/0001-81</div>');
+    expect(html).toContain('<div class="dc">CPF 529.982.247-25</div>');
+    expect(html).not.toContain('class="dp"');
+    expect(html).not.toContain('***');
     expect(html).toContain('Carlos Pereira, Sócio administrador');
     expect(html).toContain('Pela empresa');
     expect(html).toContain('Pelo cliente');
@@ -470,31 +474,29 @@ describe('modelo 4 Completa + Banco', () => {
     expect(html).toContain('Proposta Comercial · Cliente Exemplo · 5/5');
     expect(html).toContain('Proposta Comercial · Cliente Exemplo · 2/5');
     // O cabeçalho da 1ª folha também leva o CPF.
-    expect(html.slice(0, html.indexOf('Detalhamento do Projeto'))).toContain('<div class="rowf"><span>CPF</span><span class="dp">529.982.247-25</span></div>');
+    expect(html.slice(0, html.indexOf('Detalhamento do Projeto'))).toContain('<div class="rowf"><span>CPF</span><span class="num">529.982.247-25</span></div>');
   });
 
-  it('aceite PJ: razão social, CNPJ (sem marca de máscara) e representante; local cai na cidade do cliente', () => {
+  it('aceite PJ: razão social, CNPJ inteiro e representante; local cai na cidade do cliente', () => {
     const a = { ...ASSIN_PF, cliente: { tipo: 'PJ', nome: 'Padaria Pão Quente Ltda', documento: '11222333000181', representante: 'Ana Lima' } };
     const { html } = render({ assinatura: a });
     expect(html).toContain('<div class="nm">Padaria Pão Quente Ltda</div>');
     expect(html).toContain('<div class="rp">Ana Lima</div>');
+    expect(html).toContain('<div class="dc">CNPJ 11.222.333/0001-81</div>');
     expect(html).not.toContain('class="dp"');
     expect(html.slice(0, html.indexOf('Detalhamento do Projeto'))).toContain('<div class="rowf"><span>CNPJ</span><span class="num">11.222.333/0001-81</span></div>');
     expect(html).toContain('Sao Jose do Rio Preto, 15 de outubro de 2026.');
     expect(render({ assinatura: { ...a, local: 'Araguari-MG' } }).html).toContain('Araguari-MG, 15 de outubro de 2026.');
   });
 
-  it('dados bancários: o CPF do titular (11 dígitos) sai em span.dp; CNPJ e Pix ficam inteiros', () => {
+  it('dados bancários: o CPF e o CNPJ do titular e a chave Pix saem inteiros', () => {
     const cpf = render({}, 4, { ...company, dados_bancarios: { pix: '529.982.247-25', documento: '529.982.247-25' } }).html;
-    expect(cpf).toContain('<span class="val"><span class="dp">529.982.247-25</span></span>');
-    expect(cpf.match(/class="dp"/g)).toHaveLength(1); // a chave Pix não é mascarada
-    // A contagem é só de dígitos: 11 dígitos com qualquer pontuação (ou sem) é CPF.
-    const solto = render({}, 4, { ...company, dados_bancarios: { pix: 'a@b.com', documento: '529 982 247/25' } }).html;
-    expect(solto).toContain('<span class="dp">529 982 247/25</span>');
-    expect(render({}, 4, { ...company, dados_bancarios: { pix: 'a@b.com', documento: '52998224725' } }).html).toContain('<span class="dp">52998224725</span>');
+    expect(cpf).toContain('<span class="lab">CPF/CNPJ do titular</span><span class="val">529.982.247-25</span>');
+    expect(cpf).toContain('<span class="lab">Chave Pix</span><span class="val">529.982.247-25</span>');
+    expect(cpf).not.toContain('class="dp"');
+    expect(cpf).not.toContain('***');
     const cnpj = render({}, 4, { ...company, dados_bancarios: { pix: 'a@b.com', documento: '11.222.333/0001-81' } }).html;
-    expect(cnpj).toContain('11.222.333/0001-81');
-    expect(cnpj).not.toContain('class="dp"');
+    expect(cnpj).toContain('<span class="val">11.222.333/0001-81</span>');
   });
 
   it('aceite traz o resumo do que está sendo aceito, só com o que existe', () => {
