@@ -2,12 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import api from '@/services/api';
 import styles from './login.module.css';
 
 export default function EsqueciSenhaForm() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,13 +23,14 @@ export default function EsqueciSenhaForm() {
       // erro aqui é servidor ou rede falhando, e aí a pessoa NÃO pode ir pra tela de
       // "enviamos o link": ficaria esperando um e-mail que não saiu.
       await api.post('/auth/forgot-password', { email });
-      router.push(`/auth?mode=email-sent&e=${encodeURIComponent(email)}`);
+      // window.location e não router.push: o push para o mesmo /auth mudando só a query não navegava em produção (04/11/2026).
+      // Sem setLoading(false) aqui: o botão fica carregando até a página trocar.
+      window.location.assign(`/auth?mode=email-sent&e=${encodeURIComponent(email.trim())}`);
     } catch (err) {
       const e = err as { response?: { data?: { error?: string } } };
       setError(e.response
         ? (e.response.data?.error || 'Não deu certo agora. Tenta de novo em instantes.')
         : 'Não conseguimos conectar. Tenta de novo em instantes.');
-    } finally {
       setLoading(false);
     }
   }

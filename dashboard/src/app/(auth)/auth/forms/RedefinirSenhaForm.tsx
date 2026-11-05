@@ -62,7 +62,8 @@ function RedefinirSenhaContent() {
         const proximo = new URLSearchParams(window.location.search).get('next');
         router.push(proximo && proximo.startsWith('/') ? proximo : '/empresa?reset=ok');
       } else {
-        router.push('/auth?mode=login&reset=ok');
+        // window.location e não router.push: o push para o mesmo /auth mudando só a query não navegava em produção (04/11/2026).
+        window.location.assign('/auth?mode=login&reset=ok');
       }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };

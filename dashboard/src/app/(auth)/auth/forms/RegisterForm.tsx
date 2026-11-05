@@ -259,7 +259,8 @@ function RegisterContent() {
       // conta existente. Manda fazer login (não recria, não reseta senha).
       if (code === 'JA_TEM_CONTA_PLANO_ATIVADO') {
         const plano = e.response?.data?.planoAtivado;
-        router.push(`/auth?mode=login&plano_ativado=${plano ?? '1'}`);
+        // window.location e não router.push: o push para o mesmo /auth mudando só a query não navegava em produção (04/11/2026).
+        window.location.assign(`/auth?mode=login&plano_ativado=${plano ?? '1'}`);
         return;
       }
       if (code === 'Email já cadastrado') {
