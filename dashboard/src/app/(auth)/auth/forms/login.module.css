@@ -144,6 +144,19 @@
   line-height: 1.5;
 }
 
+/* Aviso de sucesso acima do form (vindo da troca de senha: ?reset=ok) */
+.formOk {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
 /* Linha de ações (esqueci senha alinhado à direita) */
 .actionRow {
   display: flex;

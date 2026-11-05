@@ -158,6 +158,8 @@ describe('decidir: uma regra por caso', () => {
     expect(adiar(decidir(comPausa(), ped('ep_respostas_aviso'), T))).toMatchObject({ classe: 'frio_p5', motivo: 'pausa_humana' });
     // A agenda do eletroposto não confere a pausa hoje, nem com prazo.
     expect(decidir(comPausa(), ped('ep_agenda', { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
+    // O link de senha pedido no site (P0) sai com humano dentro; a origem giovanna confere a pausa no código, não no CHEFE.
+    expect(decidir(comPausa(), ped('solardoc_link_senha'), T).acao).toBe('enviar_agora');
   });
 
   it('pausa (destino) e janela (linha) juntas: o escopo é da linha', () => {
@@ -1162,7 +1164,7 @@ describe('decidir: propriedade com 2.000 estados sorteados (semente fixa)', () =
     decisoes.forEach((d, i) => {
       if (d.classe !== 'evento_p0') return;
       const o = oraculos[i]!;
-      // pausa_humana só vale para o robô P0 que declara respeitaPausa (hoje, o solardoc_link_senha): não é teto, é a pessoa já estar
+      // pausa_humana só vale para o robô P0 que declara respeitaPausa (hoje, nenhum P0): não é teto, é a pessoa já estar
       // falando com um humano. Para qualquer outro P0 continua proibida.
       const permitidas = ['chave_repetida', 'freio_de_erro', 'teto_emergencia'];
       if (CLASSE_POR_ROBO[casos[i]!.pedido.robo]?.respeitaPausa === true) permitidas.push('pausa_humana');

@@ -60,7 +60,8 @@ function RedefinirSenhaContent() {
         // aterrissa no que ele comprou. Sem isso ele cairia na tela de CNPJ, que
         // é do gerador — produto que ele não comprou.
         const proximo = new URLSearchParams(window.location.search).get('next');
-        router.push(proximo && proximo.startsWith('/') ? proximo : '/empresa?reset=ok');
+        // Só caminho interno: "//site" seria outro domínio.
+        router.push(proximo && proximo.startsWith('/') && !proximo.startsWith('//') ? proximo : '/empresa?reset=ok');
       } else {
         // window.location e não router.push: o push para o mesmo /auth mudando só a query não navegava em produção (04/11/2026).
         window.location.assign('/auth?mode=login&reset=ok');

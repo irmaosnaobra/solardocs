@@ -15,8 +15,9 @@ import { diaBRT } from '../agentes5040/relogio';
 //  • O token e a URL NUNCA vão para console, logger, sessão, registrarMsgProativa nem modelo. Só o corpo
 //    da mensagem de WhatsApp e do e-mail carregam o link.
 //  • O WhatsApp sai como mensagem de resposta a um PEDIDO da própria pessoa (não é toque frio de verdade),
-//    por isso sem janela de horário: tem que sair às 22h30. Mas a pausa humana vale (sendFrio sem
-//    `transacional`), a supressão vale, e há tetos: 3 por conta em 24 h (e 1 por 10 min, que mata o duplo
+//    por isso sem janela de horário: tem que sair às 22h30. O link pedido no SITE passa mesmo com atendente
+//    humano na conversa (sendFrio com `transacional`, que só dispensa a pausa; aprovado pelo chefe anti-ban em
+//    05/11/2026); o da Giovanna ainda confere a pausa (sendFrio sem `transacional`). A supressão vale, e há tetos: 3 por conta em 24 h (e 1 por 10 min, que mata o duplo
 //    clique) e, para proteger a linha, 6 por hora e 20 por dia no robô inteiro (carimbo link_senha_sent:).
 //  • Nunca lança: quem chama decide o que dizer ao cliente pelo status devolvido.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -211,11 +212,12 @@ export async function enviarLinkDeSenha(
     }
     if (naHoraDepois > TETO_ROBO_HORA) return devolve('teto_robo');
 
-    // 5. envio: SEM `transacional`, então a pausa humana vale
+    // 5. envio: o pedido do SITE leva `transacional`, que no sendFrio só dispensa a pausa humana (como no evento do dunning,
+    // dunningService.ts:338); bolha, desvio e o freio de 60 s continuam valendo. A origem `giovanna` NÃO leva, então a pausa vale para ela.
     const texto = `Aqui está o link para você criar uma senha nova na SolarDoc:\n${url}\nEle vale por 24 horas. Se não foi você que pediu, pode ignorar esta mensagem.`;
-    const saiu = await sendFrio(fmtPhone(tel), [texto], instancia);
+    const saiu = await sendFrio(fmtPhone(tel), [texto], instancia, origem === 'site' ? { transacional: true } : undefined);
 
-    // 6. pausa humana: nada saiu, devolve as duas vagas
+    // 6. pausa humana (só pode acontecer na origem `giovanna`): nada saiu, devolve as duas vagas
     if (saiu === false) return devolve('pausa');
 
     // 7. registro na sessão, SEM o link (só quando a pessoa não estava falando com a Giovanna: lá o turno já registra)

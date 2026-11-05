@@ -113,16 +113,21 @@ describe('linkVivoDeSenha', () => {
 });
 
 describe('enviarLinkDeSenha: envio', () => {
-  it('manda para o número da conta normalizado, em 1 bolha, SEM transacional', async () => {
+  it('pedido do site: número da conta normalizado, em 1 bolha, COM transacional (passa com humano na conversa)', async () => {
     expect(await enviarLinkDeSenha(UID, 'site', 'solardoc', URL_DO_LINK)).toBe('enviado');
     expect(zapi.sendFrio).toHaveBeenCalledTimes(1);
     const args = zapi.sendFrio.mock.calls[0]!;
-    expect(args).toHaveLength(3);                       // sem o 4º argumento { transacional }
+    expect(args[3]).toEqual({ transacional: true });
     expect(args[0]).toBe('5534998364589');
     expect(args[2]).toBe('solardoc');
     expect(args[1]).toHaveLength(1);
     expect(args[1][0]).toBe(`Aqui está o link para você criar uma senha nova na SolarDoc:\n${URL_DO_LINK}\nEle vale por 24 horas. Se não foi você que pediu, pode ignorar esta mensagem.`);
     expect(args[1][0]).not.toMatch(/[—–]/);
+  });
+
+  it('origem giovanna: SEM 4º argumento (a pausa humana vale)', async () => {
+    expect(await enviarLinkDeSenha(UID, 'giovanna', 'solardoc', URL_DO_LINK)).toBe('enviado');
+    expect(zapi.sendFrio.mock.calls[0]![3]).toBeUndefined();
   });
 
   it('respeita a linha pedida', async () => {
@@ -173,9 +178,9 @@ describe('enviarLinkDeSenha: sem WhatsApp, supressão e pausa', () => {
     expect(zapi.sendFrio).not.toHaveBeenCalled();
   });
 
-  it('pausa humana (sendFrio devolve false): devolve "pausa" e libera as duas chaves', async () => {
+  it('pausa humana na origem giovanna (sendFrio devolve false): devolve "pausa" e libera as duas chaves', async () => {
     zapi.sendFrio.mockResolvedValue(false);
-    expect(await enviarLinkDeSenha(UID, 'site', 'solardoc', URL_DO_LINK)).toBe('pausa');
+    expect(await enviarLinkDeSenha(UID, 'giovanna', 'solardoc', URL_DO_LINK)).toBe('pausa');
     expect(chaves('link_senha_conta:')).toHaveLength(0);
     expect(chaves('link_senha_sent:')).toHaveLength(0);
     expect(sessao.registrar).not.toHaveBeenCalled();
