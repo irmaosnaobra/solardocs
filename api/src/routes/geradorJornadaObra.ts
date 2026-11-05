@@ -31,6 +31,13 @@ import { camposDoTermo, termoGarantiaHtml, travaDoBook } from '../services/gerad
 import { garantiaInstalacaoExtenso } from '../services/templateService';
 import { reaisBR, recortarLivro, veRetiradaDosSocios } from '../services/gerador/jornadaDinheiro';
 import { lerLeituraDoArquivo } from '../services/gerador/financeiroArquivos';
+import crypto from 'crypto';
+import { abrirNavegador } from '../controllers/pdfController';
+import { assinarVarios } from '../services/gerador/docsClienteBanco';
+import { gravarArquivoBruto, gravarJsonBruto, lerJsonBruto } from '../services/gerador/cadastroVendaBanco';
+import {
+  TETO_BOOK_BYTES, bookHtml, caminhoBookJson, caminhoBookPdf, urlAssinadaDoBook, type MetaBook,
+} from '../services/gerador/bookObra';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // JORNADA DA OBRA SOLAR, FASE 2 (06/11/2026): AS ETAPAS 4 A 8. Montada dentro de /gerador por `mountJornadaObra`.
@@ -82,6 +89,8 @@ interface Fase2 {
   slotsMap: Map<string, string[]>;
   docsIds: Set<string>;
   arquivos: Array<{ id: string; slot: string; em: string }>;
+  /** id do arquivo -> caminho no Storage. INTERNO: nunca vai para uma resposta. */
+  caminhos: Map<string, string>;
   slotsSet: Set<string>;
   contratoAnexoYmd: string | null;
   cad: Awaited<ReturnType<typeof lerCadastroVisto>>;
@@ -114,7 +123,7 @@ async function lerFase2(g: GuardaObra): Promise<Fase2> {
   const contratoAnexo = docs.reg.arquivos.find((a) => a.slot === 'contrato_assinado');
   return {
     din, js: din.js, jo: din.jo, joView, privada: din.privada ?? obraPrivadaVazia(), etapa, vend: din.vendedor, slotsMap, slotsSet,
-    docsIds: new Set(docs.reg.arquivos.map((a) => a.id)), arquivos: docs.reg.arquivos.map((a) => ({ id: a.id, slot: a.slot, em: a.em })),
+    docsIds: new Set(docs.reg.arquivos.map((a) => a.id)), caminhos: new Map(docs.reg.arquivos.map((a) => [a.id, a.caminho] as [string, string])), arquivos: docs.reg.arquivos.map((a) => ({ id: a.id, slot: a.slot, em: a.em })),
     contratoAnexoYmd: contratoAnexo?.em ? diaDeBrasilia(contratoAnexo.em) : null, cad, proposta, vendaPrivada,
   };
 }
@@ -148,6 +157,42 @@ function campos(f: Fase2, telefone = '') {
 function trava(f: Fase2): string[] {
   const { contrato, campos: k } = campos(f);
   return travaDoBook(k, contrato, f.privada.compra.itens, !!f.privada.entrega.termo?.assinado_em);
+}
+
+// ── O Book (miolo compartilhado pelo GET do Book e pela geração do PDF) ─────────────────────────────────────────────────────
+
+interface DadosBook {
+  titulo: string; cliente: string; cidade: string; termo_html: string; fotos: string[]; caminhos: string[];
+  testes: ObraPrivada['entrega']['testes'];
+  monitoramento: { app: string; conta: string; usina: string; serie: string; comissionamento: string };
+  contatos: { whatsapp: string }; aviso_garantias?: string;
+}
+
+/** O Book pode sair (a trava limpa)? Para a leitura do pós-venda mostrar o botão de gerar. */
+export async function bookPodeSair(g: GuardaObra): Promise<boolean> { return trava(await lerFase2(g)).length === 0; }
+
+/** O Book só sai com a trava limpa (a mesma do `pode.book` da fase 2). A resposta do GET do Book não leva `cliente`, `cidade` nem `caminhos`. */
+async function dadosDoBook(g: GuardaObra): Promise<{ trava: string[] } | DadosBook> {
+  const f = await lerFase2(g);
+  const { contrato, campos: k } = campos(f);
+  const falta = travaDoBook(k, contrato, f.privada.compra.itens, !!f.privada.entrega.termo?.assinado_em);
+  if (falta.length) return { trava: falta };
+  const p = f.privada;
+  const fotosEntrega = ['ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo']
+    .flatMap((s) => (f.slotsMap.get(s) ?? []).slice(0, 1));
+  const doAlbum = p.obra.diario.flatMap((d) => d.fotos).filter((id) => f.docsIds.has(id)).slice(0, 12);
+  const fotos = [...fotosEntrega, ...doAlbum];
+  const m = p.entrega.monitoramento;
+  return {
+    titulo: `Book da obra · ${f.din.lig.venda ?? '*'} · ${k.cliente_nome}`,
+    cliente: String(g.card.cliente_nome ?? k.cliente_nome ?? ''), cidade: String((g.card as { cidade?: unknown }).cidade ?? ''),
+    termo_html: limparHtmlPapel(termoGarantiaHtml(k)),
+    fotos, caminhos: fotos.map((id) => f.caminhos.get(id)).filter((c): c is string => !!c),
+    testes: p.entrega.testes,
+    monitoramento: { app: m.app, conta: m.conta, usina: m.usina, serie: m.serie, comissionamento: m.comissionamento },
+    contatos: { whatsapp: k.empresa_whatsapp },
+    ...(contrato.fonte === 'recalculado' ? { aviso_garantias: 'Garantias lidas da proposta (contrato gerado antes de 06/11/2026).' } : {}),
+  };
 }
 
 // ── Quem mexe em quê ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -658,26 +703,62 @@ export function mountJornadaObra(router: Router): void {
     const g = await guardaDaObra(req, res);
     if (!g) return;
     try {
-      const f = await lerFase2(g);
-      const { contrato, campos: k } = campos(f);
-      const falta = travaDoBook(k, contrato, f.privada.compra.itens, !!f.privada.entrega.termo?.assinado_em);
-      if (falta.length) { res.status(409).json({ ok: false, error: 'O Book ainda não pode sair.', trava: falta }); return; }
-      const p = f.privada;
-      const fotosEntrega = ['ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo']
-        .flatMap((s) => (f.slotsMap.get(s) ?? []).slice(0, 1));
-      const doAlbum = p.obra.diario.flatMap((d) => d.fotos).filter((id) => f.docsIds.has(id)).slice(0, 12);
-      const m = p.entrega.monitoramento;
-      res.json({
-        ok: true,
-        titulo: `Book da obra · ${f.din.lig.venda ?? '*'} · ${k.cliente_nome}`,
-        termo_html: limparHtmlPapel(termoGarantiaHtml(k)),
-        fotos: [...fotosEntrega, ...doAlbum],
-        testes: p.entrega.testes,
-        monitoramento: { app: m.app, conta: m.conta, usina: m.usina, serie: m.serie, comissionamento: m.comissionamento },
-        contatos: { whatsapp: k.empresa_whatsapp },
-        ...(contrato.fonte === 'recalculado' ? { aviso_garantias: 'Garantias lidas da proposta (contrato gerado antes de 06/11/2026).' } : {}),
-      });
+      const d = await dadosDoBook(g);
+      if ('trava' in d) { res.status(409).json({ ok: false, error: 'O Book ainda não pode sair.', trava: d.trava }); return; }
+      const { cliente: _c, cidade: _ci, caminhos: _ca, ...corpo } = d;
+      void _c; void _ci; void _ca;
+      res.json({ ok: true, ...corpo });
     } catch (err) { falhouJornada(res, 'book', err, true); }
+  });
+
+  // ── Rota 10b · O Book em PDF (gerado no servidor, por ação de gente, nunca no cron) ────────────────────────────────────
+  router.post('/jornada-solar/obra/:card/book/pdf', ...base, async (req: Request, res: Response) => {
+    const g = await guardaDaObra(req, res);
+    if (!g) return;
+    let browser: Awaited<ReturnType<typeof abrirNavegador>> | undefined;
+    try {
+      const d = await dadosDoBook(g);
+      if ('trava' in d) { res.status(409).json({ ok: false, error: 'O Book ainda não pode sair.', trava: d.trava }); return; }
+      const urls = await assinarVarios(d.caminhos, 600);
+      const fotos = d.caminhos.map((c) => urls.get(c)).filter((u): u is string => !!u);
+      let pdf: Buffer | null = null;
+      try {
+        browser = await abrirNavegador();
+        for (const larguraFoto of ['31%', '15%'] as const) {
+          const page = await browser.newPage();
+          try {
+            await page.setJavaScriptEnabled(false);
+            await page.setContent(bookHtml({
+              titulo: d.titulo, cliente: d.cliente, cidade: d.cidade, fotos, testes: d.testes as unknown as Record<string, unknown>,
+              monitoramento: d.monitoramento, contatos: d.contatos, termo_html: d.termo_html, aviso_garantias: d.aviso_garantias, larguraFoto,
+            }), { waitUntil: 'networkidle0', timeout: 45_000 });
+            pdf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true }));
+          } finally { await page.close().catch(() => {}); }
+          if (pdf.length <= TETO_BOOK_BYTES) break;
+        }
+      } catch (err) {
+        logErroJornada('book_pdf', err);
+        res.status(503).json({ ok: false, error: 'Não consegui gerar o PDF agora. Tente de novo em 1 minuto.' });
+        return;
+      }
+      if (!pdf || pdf.length > TETO_BOOK_BYTES) { res.status(413).json({ ok: false, error: 'O Book ficou grande demais. Tire fotos do álbum do diário.' }); return; }
+      const agora = new Date().toISOString();
+      await gravarArquivoBruto(caminhoBookPdf(g.id), pdf, 'application/pdf');
+      const meta: MetaBook = { v: 1, gerado_em: agora, por: g.nome, tamanho: pdf.length, sha256: crypto.createHash('sha256').update(pdf).digest('hex'), fotos: fotos.length };
+      await gravarJsonBruto(caminhoBookJson(g.id), meta);
+      res.json({ ok: true, gerado_em: agora, url: await urlAssinadaDoBook(g.id, 600) });
+    } catch (err) { falhouJornada(res, 'book_pdf', err); } finally { if (browser) await browser.close().catch(() => {}); }
+  });
+
+  router.get('/jornada-solar/obra/:card/book/pdf', ...base, async (req: Request, res: Response) => {
+    const g = await guardaDaObra(req, res);
+    if (!g) return;
+    try {
+      const m = await lerJsonBruto(caminhoBookJson(g.id)) as Partial<MetaBook> | null;
+      const url = m && m.v === 1 && typeof m.gerado_em === 'string' ? await urlAssinadaDoBook(g.id, 600) : null;
+      if (!m || !url) { res.status(404).json({ ok: false, error: 'O Book em PDF ainda não foi gerado.' }); return; }
+      res.json({ ok: true, gerado_em: m.gerado_em, por: m.por ?? '', url });
+    } catch (err) { falhouJornada(res, 'book_pdf_ler', err, true); }
   });
 
   // ── Rota 11 · A agenda das equipes ───────────────────────────────────────────────────────────────────────────────────

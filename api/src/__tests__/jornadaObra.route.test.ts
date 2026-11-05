@@ -22,6 +22,10 @@ const h = vi.hoisted(() => ({
   filas: new Map<string, Promise<void>>(),
   etapaPlanilha: undefined as string | undefined,
   cad: {} as Record<string, string>,
+  pdfTam: [] as number[],
+  pdfFechou: 0,
+  pdfHtmls: [] as string[],
+  pdfFalha: false,
 }));
 
 const jsonb = (v: unknown): unknown => {
@@ -146,6 +150,8 @@ vi.mock('../services/gerador/cadastroVendaBanco', async (orig) => ({
   ...(await orig<typeof import('../services/gerador/cadastroVendaBanco')>()),
   lerJsonBruto: async (c: string) => (h.priv.has(c) ? JSON.parse(h.priv.get(c) as string) : null),
   gravarJsonBruto: async (c: string, v: unknown) => { h.priv.set(c, JSON.stringify(v)); },
+  gravarArquivoBruto: async (c: string, b: Buffer) => { h.bucket.set(c, Buffer.from(b)); },
+  assinarArquivoBruto: async (c: string, seg: number) => (h.bucket.has(c) ? `https://assinado.test/${c}?exp=${seg}` : null),
   // Trava de verdade (uma fila por chave), para provar que dois pedidos juntos não gravam duas vezes.
   comTrava: async (id: unknown, _por: string, fn: () => Promise<unknown>) => {
     const k = String(id);
@@ -154,6 +160,20 @@ vi.mock('../services/gerador/cadastroVendaBanco', async (orig) => ({
     h.filas.set(k, new Promise<void>((r) => { solta = r; }));
     await antes;
     try { return await fn(); } finally { solta(); }
+  },
+}));
+vi.mock('../controllers/pdfController', () => ({
+  abrirNavegador: async () => {
+    if (h.pdfFalha) throw new Error('chromium fora');
+    return {
+      newPage: async () => ({
+        setJavaScriptEnabled: async () => undefined,
+        setContent: async (html: string) => { h.pdfHtmls.push(html); },
+        pdf: async () => Buffer.alloc(h.pdfTam.shift() ?? 1000, 1),
+        close: async () => undefined,
+      }),
+      close: async () => { h.pdfFechou++; },
+    };
   },
 }));
 vi.mock('../routes/geradorSolar', async (orig) => ({
@@ -175,6 +195,7 @@ vi.mock('../routes/geradorJornadaSolar', async (orig) => ({
 vi.mock('../services/gerador/docsClienteBanco', async (orig) => ({
   ...(await orig<typeof import('../services/gerador/docsClienteBanco')>()),
   garantirBucketDocs: async () => undefined,
+  assinarVarios: async (c: string[]) => new Map(c.map((x) => [x, `https://foto.test/${x}`] as [string, string])),
 }));
 // A IA é SEMPRE simulada: nenhuma chamada à API da Anthropic, em teste nenhum.
 vi.mock('../services/gerador/financeiroLeitura', async (orig) => ({
@@ -198,6 +219,9 @@ vi.mock('../services/gerador/notaLeitura', async (orig) => ({
 import { mountFinanceiro } from '../routes/geradorFinanceiro';
 import { mountJornadaDinheiro } from '../routes/geradorJornadaDinheiro';
 import { mountJornadaObra } from '../routes/geradorJornadaObra';
+import { mountJornadaPosVenda } from '../routes/geradorJornadaPosVenda';
+import { gravarGrupo } from '../services/gerador/jornadaMensagensChave';
+import { limparCachePosVenda } from '../services/gerador/jornadaPosVendaDados';
 import { mountJornadaSolar } from '../routes/geradorJornadaSolar';
 import { esquecerConferenciaDoBucket } from '../services/gerador/financeiroArquivos';
 import { assinarJornada, normalizarJornada, reiniciarLogsDaJornada } from '../services/gerador/jornadaSolarBanco';
@@ -207,12 +231,14 @@ import { obraMaterializada, type ObraPrivada, type EstadoObra } from '../service
 import { AJUSTES_PADRAO, assinarAjustes, lancamentoObraParaGravar, montarLancamentoObra, normalizarAjustes } from '../services/gerador/jornadaDinheiro';
 import { assinarLigacao, invalidarCachesHub, POR_GERADOR, reiniciarLogsDoHub } from '../services/gerador/vendaSolarHub';
 import { cifrar } from '../services/gerador/cofreObra';
+import { gravarIndicacao } from '../services/gerador/indicacaoJornada';
 
 const r = Router();
 mountFinanceiro(r);
 mountJornadaSolar(r);
 mountJornadaDinheiro(r);
 mountJornadaObra(r);
+mountJornadaPosVenda(r);
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use('/gerador', r);
@@ -1021,6 +1047,205 @@ describe('a lista e o papel', () => {
     const antes = JSON.stringify(privadaGravada(SOLAR)!.contrato);
     await post(`/jornada-solar/obra/${SOLAR}/papel`, { tipo: 'recibo', recibo: { pagamentos: [{ forma: 'pix', data: '2026-09-18', valor_centavos: 1_167_000 }] } }, GIOVANNA);
     expect(JSON.stringify(privadaGravada(SOLAR)!.contrato)).toBe(antes);
+  });
+});
+
+describe('o Book em PDF no servidor', () => {
+  const contrato = {
+    gerado_em: AGORA, por: 'giovanna', fonte: 'gerado' as const, versao_garantia: '2', garantia_modulos_anos: '25', garantia_inversor_anos: '10', garantia_instalacao_anos: '1',
+    garantia_instalacao_unidade: 'anos', garantia_resposta_dias: '2', empresa_nome: 'AIOROS LTDA', empresa_cnpj: '63.636.043/0001-88', empresa_telefone: '(34) 90000-0000',
+    cliente_nome: 'Marcos Vinícius Andrade', cliente_doc: '000.000.000-00', cliente_tipo: 'fisica', endereco_instalacao: 'Rua Exemplo, 100', cidade: 'Uberlândia', uf: 'MG',
+    kwp: '8,25', quantidade_modulos: '15', marca_modulos: 'JA Solar', quantidade_inversores: '1', marca_inversor: 'SAJ',
+  };
+  const preparar = (): void => {
+    semearJo(SOLAR, undefined, 7);
+    semearPrivada(SOLAR, (p) => {
+      p.contrato = contrato;
+      p.compra.itens = [
+        { id: 'i-1', origem: 'manual', tipo: 'modulo', descricao: 'Módulo', quantidade: 15, unidade: 'un', marca: 'JA Solar', modelo: 'JAM72S30', potencia_w: 550, potencia_kw: null, garantia_fabricacao_anos: 12, garantia_desempenho_anos: 25, garantia_anos: null, compra_id: null, fornecedor: 'Distribuidora', valor_centavos: 1_789_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
+        { id: 'i-2', origem: 'manual', tipo: 'inversor', descricao: 'Inversor', quantidade: 1, unidade: 'un', marca: 'SAJ', modelo: 'R5 8K', potencia_w: null, potencia_kw: 8, garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: 10, compra_id: null, fornecedor: 'Distribuidora', valor_centavos: 200_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
+      ];
+      p.entrega.monitoramento = { app: 'iSolarCloud', conta: 'cliente@exemplo.com', usina: 'Casa', online: true, serie: 'INV-8K-2610-4471', comissionamento: 'ok' };
+      p.entrega.termo = { assinado_em: '2026-10-30T15:00:00.000Z', nome: 'Marcos', arquivo_id: 'a-ass', chk: ['sim', 'sim', 'sim', 'sim', 'sim', 'na'], ressalva: '' };
+      p.entrega.responsavel = 'Diego';
+    });
+    anexos(SOLAR, [['f-1', 'ent_vista_geral'], ['f-2', 'ent_arranjo']]);
+  };
+  const URL_PDF = `/jornada-solar/obra/${SOLAR}/book/pdf`;
+  beforeEach(() => { h.pdfTam = []; h.pdfFechou = 0; h.pdfHtmls = []; h.pdfFalha = false; });
+
+  it('com trava, 409 com a lista e sem navegador aberto; o GET sem o PDF dá 404', async () => {
+    preparar();
+    semearPrivada(SOLAR, (p) => { p.contrato!.marca_inversor = 'Growatt'; });
+    const t = await post(URL_PDF, {}, DIEGO);
+    expect(t.status).toBe(409);
+    expect(t.body.trava).toEqual(['A marca do inversor da Compra (SAJ) é diferente da do contrato (Growatt).']);
+    expect(h.pdfHtmls).toHaveLength(0);
+    expect((await get(URL_PDF, DIEGO)).status).toBe(404);
+    expect((await post(`/jornada-solar/obra/${ALHEIA}/book/pdf`, {}, NILCE)).status).toBe(404);
+  });
+
+  it('sem trava: sobe o PDF em vendasolar/<card>.book.pdf, grava o book.json com o sha256 e o GET devolve o link; o HTML leva as fotos assinadas', async () => {
+    preparar();
+    h.pdfTam = [123_456];
+    const ok = await post(URL_PDF, {}, DIEGO);
+    expect(ok.status).toBe(200);
+    expect(ok.body.url).toContain(`vendasolar/${SOLAR}.book.pdf`);
+    expect(h.bucket.get(`vendasolar/${SOLAR}.book.pdf`)!.length).toBe(123_456);
+    const meta = JSON.parse(h.priv.get(`vendasolar/${SOLAR}.book.json`)!);
+    expect(meta).toMatchObject({ v: 1, por: 'diego', tamanho: 123_456, fotos: 2 });
+    expect(meta.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(h.pdfHtmls[0]).toContain('width:31%');
+    expect(h.pdfHtmls[0]).toContain('https://foto.test/vendasolar/601/');
+    expect(h.pdfHtmls[0]).toContain('TERMO DE GARANTIA DA SUA USINA SOLAR');
+    expect(h.pdfFechou).toBe(1);
+    const g = await get(URL_PDF, THIAGO);
+    expect(g.status).toBe(200);
+    expect(g.body).toMatchObject({ ok: true, por: 'diego' });
+    expect(g.text).not.toMatch(/vendasolar\/601\/0000/);
+  });
+
+  it('acima de 8 MB refaz com as fotos em 15%; ainda acima, 413 e nada é gravado; o navegador sempre fecha', async () => {
+    preparar();
+    h.pdfTam = [9 * 1024 * 1024, 5 * 1024 * 1024];
+    const refeito = await post(URL_PDF, {}, DIEGO);
+    expect(refeito.status).toBe(200);
+    expect(h.pdfHtmls).toHaveLength(2);
+    expect(h.pdfHtmls[1]).toContain('width:15%');
+    expect(h.pdfFechou).toBe(1);
+    h.bucket.clear(); h.priv.delete(`vendasolar/${SOLAR}.book.json`); h.pdfHtmls = []; h.pdfFechou = 0;
+    h.pdfTam = [9 * 1024 * 1024, 9 * 1024 * 1024];
+    const grande = await post(URL_PDF, {}, DIEGO);
+    expect(grande.status).toBe(413);
+    expect(grande.body.error).toBe('O Book ficou grande demais. Tire fotos do álbum do diário.');
+    expect(h.bucket.has(`vendasolar/${SOLAR}.book.pdf`)).toBe(false);
+    expect(h.priv.has(`vendasolar/${SOLAR}.book.json`)).toBe(false);
+    expect(h.pdfFechou).toBe(1);
+  });
+
+  it('navegador que não abre: 503 com a frase, nada gravado', async () => {
+    preparar();
+    h.pdfFalha = true;
+    const r = await post(URL_PDF, {}, DIEGO);
+    expect(r.status).toBe(503);
+    expect(r.body.error).toBe('Não consegui gerar o PDF agora. Tente de novo em 1 minuto.');
+    expect(h.priv.has(`vendasolar/${SOLAR}.book.json`)).toBe(false);
+  });
+});
+
+describe('o prêmio de quem indicou', () => {
+  const NOVA = 610;
+  const lanc = (auth: string, extra: Record<string, unknown> = {}, card = NOVA) =>
+    post(DIN(card, '/lancamento'), { id: novoId('pre'), tipo: 'saida', categoria: 'premio_indicacao', etapa: 2, valor_centavos: 15_000, data: '2026-11-04', ...extra }, auth);
+  beforeEach(() => {
+    h.agendamentos.push(cardBase(NOVA, { cliente_nome: 'Carla Andrade' }), cardBase(620, { cliente_nome: 'Marcos Vinícius Andrade' }));
+    semearJs(NOVA, 4);
+  });
+
+  it('quem não é a Giovanna nem o ADM leva 403; obra sem indicação leva 409', async () => {
+    expect((await lanc(NILCE)).status).toBe(403);
+    expect((await lanc(DIEGO)).status).toBe(403);
+    const sem = await lanc(GIOVANNA);
+    expect(sem.status).toBe(409);
+    expect(sem.body.error).toBe('sem_indicacao');
+  });
+
+  it('com a indicação assinada lança com comprovante, descrição escrita pelo servidor; o segundo prêmio dá 409', async () => {
+    expect(await gravarIndicacao(NOVA, 620)).toBe('gravou');
+    iaLe(15_000);
+    const { path: p } = await subir('premio', { card: NOVA, auth: GIOVANNA });
+    const id = novoId('pre');
+    const ok = await post(DIN(NOVA, '/lancamento'), { id, tipo: 'saida', categoria: 'premio_indicacao', etapa: 2, valor_centavos: 15_000, data: '2026-11-04', arquivo_path: p }, GIOVANNA);
+    expect(ok.status).toBe(200);
+    const gravada = h.linhas.get(`fin:${NOVA}:${id}`)!.value;
+    expect(gravada.descricao).toBe('Prêmio da indicação de Marcos');
+    expect(gravada.categoria).toBe('premio_indicacao');
+    const { path: p2 } = await subir('premio-2', { card: NOVA, auth: GIOVANNA });
+    const segundo = await post(DIN(NOVA, '/lancamento'), { id: novoId('pre'), tipo: 'saida', categoria: 'premio_indicacao', etapa: 2, valor_centavos: 15_000, data: '2026-11-04', arquivo_path: p2 }, THIAGO);
+    expect(segundo.status).toBe(409);
+    expect(segundo.body.error).toBe('premio_ja_lancado');
+  });
+
+  it('indicação forjada (sem assinatura) não vale; categoria nova está na lista do servidor', async () => {
+    h.linhas.set(`jornada_indicacao:${NOVA}`, { updated_at: 'x', value: { v: 1, card: NOVA, indicador: 620, em: AGORA, sig: 'f'.repeat(64) } });
+    expect((await lanc(GIOVANNA)).body.error).toBe('sem_indicacao');
+    const g = await get(DIN(NOVA), GIOVANNA);
+    expect(JSON.stringify(g.body.categorias)).toContain('premio_indicacao');
+  });
+});
+
+describe('o pós-venda: GET fase3 (só lê)', () => {
+  const F3 = (card: number) => `/jornada-solar/obra/${card}/fase3`;
+  const NOVA = 630;
+  beforeEach(() => {
+    limparCachePosVenda();
+    h.cad = { nome: 'Marcos Vinícius Andrade' };
+    h.agendamentos.push(cardBase(NOVA, { cliente_nome: 'Carla Andrade' }));
+  });
+
+  it('quem não vê a obra leva 404; antes da etapa 9 não há toques e a leitura não escreve nada', async () => {
+    expect((await get(F3(ALHEIA), NILCE)).status).toBe(404);
+    const antes = h.linhas.size;
+    const g = await get(F3(SOLAR), NILCE);
+    expect(g.status).toBe(200);
+    expect(g.body).toMatchObject({ ok: true, toques: [], proximo: null, premio: { lancado: false }, veio_de: null, pode: { premio: false } });
+    expect(g.body.grupos).toEqual({ venda: false, etapa: false, fila: false, liberacao: false, aniversario: false });
+    expect(h.linhas.size).toBe(antes);
+  });
+
+  it('na etapa 9: 3 toques com as situações desligado, depois sem_book, e sem_data quando a ficha não tem nascimento; o link é o do card', async () => {
+    semearJo(SOLAR, undefined, 9);
+    const g = await get(F3(SOLAR), NILCE);
+    expect(g.body.toques.map((t: any) => [t.n, t.tipo, t.situacao])).toEqual([[1, 'liberacao', 'desligado'], [2, 'aniv', 'desligado'], [3, 'usina', 'desligado']]);
+    expect(g.body.link).toMatch(/^https:\/\/solardoc\.app\/io\/indicacao\?i=601-[A-Za-z0-9_-]{10}$/);
+    expect(g.body.toques[0].texto).toContain('☀️ Marcos, a sua usina foi liberada pela Cemig.');
+    for (const gr of ['venda', 'etapa', 'fila'] as const) await gravarGrupo(gr, true, 'thiago', new Date('2026-11-01T00:00:00.000Z'));
+    await gravarGrupo('liberacao', true, 'thiago', new Date('2026-11-04T00:00:00.000Z'));
+    await gravarGrupo('aniversario', true, 'thiago', new Date('2026-11-04T00:00:00.000Z'));
+    const g2 = await get(F3(SOLAR), NILCE);
+    expect(g2.body.grupos).toMatchObject({ liberacao: true, aniversario: true });
+    expect(g2.body.toques.map((t: any) => [t.n, t.situacao])).toEqual([[1, 'sem_book'], [2, 'sem_data'], [3, 'sem_data']]);
+    // A leitura da ficha nunca vai ao system_state: nenhuma linha com a data de nascimento.
+    expect(JSON.stringify([...h.linhas.values()])).not.toMatch(/1985|12\/03/);
+  });
+
+  it('com o Book salvo e a ficha com nascimento, o toque 2 fica agendado (a data é a próxima ocorrência) e o 1 também', async () => {
+    semearJo(SOLAR, undefined, 9);
+    h.cad = { nome: 'Marcos Vinícius Andrade', nascimento: '12/03/1985' };
+    semearPrivada(SOLAR, (p) => { p.liberacao.passos.liberada = { data: '2026-11-04', arquivo_id: 'a-lib' }; });
+    h.priv.set(`vendasolar/${SOLAR}.book.json`, JSON.stringify({ v: 1, gerado_em: AGORA, por: 'diego', tamanho: 10, sha256: 'a'.repeat(64), fotos: 0 }));
+    h.bucket.set(`vendasolar/${SOLAR}.book.pdf`, Buffer.from('%PDF'));
+    for (const gr of ['venda', 'etapa', 'fila'] as const) await gravarGrupo(gr, true, 'thiago', new Date('2026-11-01T00:00:00.000Z'));
+    await gravarGrupo('liberacao', true, 'thiago', new Date('2026-11-04T00:00:00.000Z'));
+    const g = await get(F3(SOLAR), NILCE);
+    expect(g.body.book).toMatchObject({ por: 'diego' });
+    const t = g.body.toques;
+    expect(t[0]).toMatchObject({ n: 1, situacao: 'agendado', data: '2026-11-04' });
+    expect(t[1]).toMatchObject({ n: 2, tipo: 'aniv', data: '2027-03-12', situacao: 'desligado' });
+    expect(t[2]).toMatchObject({ n: 3, tipo: 'usina', data: '2027-11-04' });
+    expect(g.text).not.toContain('1985');
+  });
+
+  it('veio_de só com a indicação assinada (a forjada não vale); o prêmio aparece e o pode.premio é da Giovanna', async () => {
+    h.linhas.set(`jornada_indicacao:${NOVA}`, { updated_at: 'x', value: { v: 1, card: NOVA, indicador: SOLAR, em: AGORA, sig: 'f'.repeat(64) } });
+    semearJs(NOVA, 4);
+    expect((await get(F3(NOVA), GIOVANNA)).body.veio_de).toBeNull();
+    h.linhas.delete(`jornada_indicacao:${NOVA}`);
+    expect(await gravarIndicacao(NOVA, SOLAR)).toBe('gravou');
+    const g = await get(F3(NOVA), GIOVANNA);
+    expect(g.body.veio_de).toEqual({ card: SOLAR, codigo: null, nome: 'Cliente Inventado' });
+    expect(g.body.pode.premio).toBe(true);
+    expect(g.body.premio).toEqual({ lancado: false });
+    expect((await get(F3(NOVA), NILCE)).body.pode.premio).toBe(false);
+  });
+
+  it('o link do cliente lista as indicações dele com a situação certa', async () => {
+    semearJo(SOLAR, undefined, 9); semearJs(NOVA, 4);
+    expect(await gravarIndicacao(NOVA, SOLAR)).toBe('gravou');
+    const g = await get(F3(SOLAR), NILCE);
+    expect(g.body.indicacoes).toEqual([{ em: expect.any(String), card: NOVA, cliente: 'Carla Andrade', situacao: 'vendida', codigo: null, vendedor: 'nilce' }]);
+    expect(g.body.placar).toEqual({ indicacoes: 1, vendas: 1 });
+    expect(g.body.geral.indicacoes_mes).toBe(1);
   });
 });
 

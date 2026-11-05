@@ -119,6 +119,22 @@ export async function gravarJsonBruto(caminho: string, valor: unknown): Promise<
   if (error) throw new ErroCadastro('gravar');
 }
 
+/** Grava (sobrescreve) um arquivo BINÁRIO no bucket privado dos cadastros (o Book em PDF da Jornada, fase 3). O teto de tamanho é de quem chama. */
+export async function gravarArquivoBruto(caminho: string, corpo: Buffer, contentType: string): Promise<void> {
+  await garantirBucketCadastros();
+  const { error } = await supabase.storage.from(BUCKET_CADASTROS).upload(caminho, corpo, { contentType, upsert: true, cacheControl: '0' });
+  if (error) throw new ErroCadastro('gravar_arquivo');
+}
+
+/** URL assinada de um objeto do bucket dos cadastros, ou null se não assinou (objeto ausente ou erro). Só o código do erro sobe. */
+export async function assinarArquivoBruto(caminho: string, segundos: number): Promise<string | null> {
+  try {
+    await garantirBucketCadastros();
+    const { data, error } = await supabase.storage.from(BUCKET_CADASTROS).createSignedUrl(caminho, segundos);
+    return !error && data?.signedUrl ? data.signedUrl : null;
+  } catch { return null; }
+}
+
 /**
  * Ids de card que TÊM cadastro (`eletroposto/<id>.json`). Serve para a grade da ficha só baixar o que existe, em vez de um
  * download por venda. Avança pelo que veio e só uma página vazia encerra (o Storage pode cortar abaixo do limite pedido).

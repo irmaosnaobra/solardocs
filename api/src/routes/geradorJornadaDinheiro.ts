@@ -9,13 +9,14 @@ import {
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { comTrava } from '../services/gerador/cadastroVendaBanco';
 import { ehCardSolarVendido, lerCardsPorIds, lerLigacao, type Ligacao } from '../services/gerador/vendaSolarHub';
+import { lerIndicacaoDoCard } from '../services/gerador/indicacaoJornada';
 import { deduzirEtapa, veObra, type EstadoJornada } from '../services/gerador/jornadaSolar';
 import { lerJornadaComVersao, lerPrivadoJornada, ehRecusa } from '../services/gerador/jornadaSolarBanco';
 import { etapaAtualCompleta, materialDaCompra, pendenciasDaObra, type EstadoObra, type ObraPrivada } from '../services/gerador/jornadaObra';
 import { lerNota } from '../services/gerador/notaLeitura';
 import { lerObraComVersao, lerObraPrivada, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
 import {
-  AJUSTES_PADRAO, CATEGORIAS_OBRA, recortarLivro, veRetiradaDosSocios, categoriaObra, idDoEstorno, lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, regraDoVendedor, reaisBR,
+  AJUSTES_PADRAO, CATEGORIAS_OBRA, recortarLivro, veRetiradaDosSocios, categoriaObra, idDoEstorno, lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, regraDoVendedor, reaisBR, premioVivo,
   validarAjustes, type AjustesSolar, type Conferencia, type Livro, type LancamentoObra, type LinhaLivro, type LinhaRegra, type Pendencia,
 } from '../services/gerador/jornadaDinheiro';
 import {
@@ -118,6 +119,7 @@ export async function livroComUrls(d: DadosDinheiro, g: GuardaObra): Promise<Liv
 }
 
 const ehGiovOuAdm = (g: GuardaObra): boolean => g.adm || g.nome === 'giovanna';
+
 const ehSensivel = (l: Pick<LinhaLivro, 'tipo' | 'comissao' | 'grupo' | 'categoria'>): boolean =>
   l.tipo === 'entrada' || !!l.comissao || l.grupo === 'retirada' || l.categoria === 'comissao_venda';
 
@@ -309,6 +311,10 @@ async function gravarLancamento(p: PedidoGravacao): Promise<Saida> {
   const saida = await comTrava(`fin_conta:${g.id}`, g.nome, async (): Promise<Saida> => {
     const { estado } = await lerObraComVersao(g.id);
     if (estado?.fechada) return erro(409, 'conta_fechada', MSG_FECHADA);
+    // O prêmio da indicação entra UMA vez por obra: conferido aqui dentro da trava da conta, senão dois pedidos ao mesmo tempo passariam.
+    if (assinado.categoria === 'premio_indicacao' && premioVivo((await lerLancamentosDaObra(g.id)).lancamentos)) {
+      return erro(409, 'premio_ja_lancado', 'O prêmio desta indicação já foi lançado.');
+    }
     return reg ? await comTrava(`fin_sha:${reg.sha256.slice(0, 32)}`, g.nome, gravar) : await gravar();
   });
   if (saida.http !== 200) return saida;
@@ -434,6 +440,20 @@ export function mountJornadaDinheiro(router: Router): void {
       if (d.fechada) { res.status(409).json({ ok: false, error: 'conta_fechada', mensagem: MSG_FECHADA }); return; }
       if (b.categoria === 'comissao_venda' || b.categoria === 'retirada_socio') {
         res.status(400).json({ ok: false, error: 'so_pela_comissao', mensagem: 'Comissão se lança no bloco Comissões da etapa 2.' }); return;
+      }
+      if (b.categoria === 'premio_indicacao') {
+        if (b.tipo !== 'saida' || !ehGiovOuAdm(g)) {
+          res.status(403).json({ ok: false, error: 'so_giovanna', mensagem: 'Só a Giovanna e o Thiago lançam o prêmio.' }); return;
+        }
+        const ind = await lerIndicacaoDoCard(g.id);
+        if (!ind) { res.status(409).json({ ok: false, error: 'sem_indicacao', mensagem: 'Esta obra não veio de indicação.' }); return; }
+        if (premioVivo(d.lancamentos)) { res.status(409).json({ ok: false, error: 'premio_ja_lancado', mensagem: 'O prêmio desta indicação já foi lançado.' }); return; }
+        // A descrição pode vir vazia: o servidor escreve "Prêmio da indicação de <primeiro nome de quem indicou>" (o nome vem do card dele, nunca do corpo).
+        if (typeof b.descricao !== 'string' || !b.descricao.trim()) {
+          const cardInd = (await lerCardsPorIds([ind.indicador])).get(ind.indicador);
+          const primeiro = String(cardInd?.cliente_nome ?? '').replace(/[*_~]/g, '').trim().split(/\s+/)[0] ?? '';
+          b.descricao = primeiro ? `Prêmio da indicação de ${primeiro}` : 'Prêmio da indicação';
+        }
       }
       if (b.tipo === 'entrada' && !ehGiovOuAdm(g)) {
         res.status(403).json({ ok: false, error: 'so_giovanna', mensagem: 'Só a Giovanna e o Thiago lançam recebimento.' }); return;

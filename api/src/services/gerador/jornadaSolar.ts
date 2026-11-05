@@ -24,7 +24,7 @@ export const FALHAS_NUMERO: readonly FalhaNumero[] = ['trello', 'trello_grande',
 
 export const ACOES_HISTORICO = [
   'vendido', 'materializada', 'concluir', 'esperar', 'voltar', 'cancelar', 'descancelar', 'papel_contrato', 'papel_procuracao', 'papel_recibo',
-  'excedente', 'rateio', 'protocolo', 'engenheiro', 'trello', 'numero', 'numero_falhou',
+  'excedente', 'rateio', 'protocolo', 'engenheiro', 'trello', 'numero', 'numero_falhou', 'venda_completa',
 ] as const;
 export type AcaoHistorico = typeof ACOES_HISTORICO[number];
 
@@ -250,6 +250,14 @@ export interface EntradaItens {
 export function valorPagamentoFecha(v: PrivadoJornada['venda']): boolean {
   if (!v || !(v.valor_centavos > 0) || v.pagamento.length < 1) return false;
   return v.pagamento.reduce((a, p) => a + p.valor_centavos, 0) === v.valor_centavos;
+}
+
+/**
+ * O bloco Venda da etapa 1 está completo? É o mesmo `every` do bloco `venda` de `itensDaEtapa(1)` (proposta ligada, kit confirmado, valor e
+ * forma de pagamento que fecham, prazo prometido). O aviso de venda (Fase 3) nasce na primeira vez em que isto vira verdadeiro.
+ */
+export function blocoVendaCompleto(lig: { proposta: string | null }, privado: PrivadoJornada | null): boolean {
+  return !!lig.proposta && privado?.venda?.kit_confirmado === true && valorPagamentoFecha(privado.venda) && !!privado.venda.prazo_prometido.trim();
 }
 
 /** O excedente 'sim' fecha? Devolve o texto do que falta, ou null quando está tudo certo. */

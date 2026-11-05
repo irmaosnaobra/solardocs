@@ -67,8 +67,16 @@ export const CATEGORIAS_OBRA: readonly CategoriaObra[] = [
   sai('cartorio', 'Cartório', 'outros'),
   sai('imposto', 'Imposto', 'outros'),
   sai('outros', 'Outros (descrição obrigatória)', 'outros'),
+  sai('premio_indicacao', 'Prêmio de quem indicou', 'outros', 'giovanna_adm'),
   { tipo: 'saida', slug: 'retirada_socio', rotulo: 'Retirada do sócio', grupo: 'retirada', previsto: null, quem: 'rota' },
 ];
+
+/** Há prêmio de indicação vivo (não apagado, não estorno e não estornado) entre os lançamentos de uma obra? */
+export const premioVivo = (ls: readonly LancamentoObra[]): boolean => {
+  const vivos = ls.filter((l) => l.apagado === false);
+  const estornados = new Set(vivos.filter((l) => l.obra.estorno_de).map((l) => l.obra.estorno_de as string));
+  return vivos.some((l) => l.categoria === 'premio_indicacao' && !l.obra.estorno_de && !estornados.has(l.id));
+};
 
 export const categoriaObra = (tipo: unknown, slug: unknown): CategoriaObra | null =>
   CATEGORIAS_OBRA.find((c) => c.tipo === tipo && c.slug === slug) ?? null;

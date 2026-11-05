@@ -39,6 +39,7 @@ import { mountVendaSolar } from './geradorVendaSolar';
 import { mountJornadaSolar } from './geradorJornadaSolar';
 import { mountJornadaDinheiro } from './geradorJornadaDinheiro';
 import { mountJornadaObra } from './geradorJornadaObra';
+import { mountJornadaPosVenda } from './geradorJornadaPosVenda';
 import { mountPerfil } from './geradorPerfil';
 import { mountRedes } from './geradorRedes';
 import { mountSentinela } from './geradorSentinela';
@@ -1194,6 +1195,8 @@ mountJornadaSolar(router);
 mountJornadaDinheiro(router);
 // Jornada da obra, fase 2 (06/11/2026): etapas 4 a 8, nota lida por IA, termo de garantia e Book, cofre, agenda das equipes e fechamento da conta.
 mountJornadaObra(router);
+// Jornada da obra, fase 3 (05/11/2026): a leitura do pós-venda e dos avisos (só lê; nenhuma mensagem sai daqui).
+mountJornadaPosVenda(router);
 // Meu perfil: WhatsApp e foto de cada consultor (sócio edita o de qualquer um). O nome nunca muda.
 mountPerfil(router);
 // Automação como centro das redes, fase 1 (servidor): Reels, status da 5040 e caixa de comentários. Cada item nasce desligado.
