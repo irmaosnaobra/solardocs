@@ -62,6 +62,8 @@ export const MAX_ALTERACOES = 20;
 /** Teto do arquivo cru. O porquê está em routes/geradorDossie.ts: a Vercel
  *  corta o corpo em ~4,5 MB e o base64 infla o arquivo em 1/3. */
 export const MAX_BYTES_ARQUIVO = 3 * 1024 * 1024;
+/** Teto do XML da NF-e (Fase 4 da Jornada). Só a Compra da obra solar aceita XML. */
+export const MAX_BYTES_XML = 1_000_000;
 export const TIPOS_ARQUIVO = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
 
 export type TipoLancamento = 'entrada' | 'saida';

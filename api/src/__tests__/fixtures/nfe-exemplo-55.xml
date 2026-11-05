@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+    <infNFe Id="NFe31261011222333000181550010000012341123456788" versao="4.00">
+      <ide>
+        <cUF>31</cUF>
+        <cNF>12345678</cNF>
+        <natOp>VENDA DE MERCADORIA</natOp>
+        <mod>55</mod>
+        <serie>1</serie>
+        <nNF>1234</nNF>
+        <dhEmi>2026-10-16T10:30:00-03:00</dhEmi>
+        <dhSaiEnt>2026-10-16T10:30:00-03:00</dhSaiEnt>
+        <tpNF>1</tpNF>
+        <idDest>1</idDest>
+        <cMunFG>3170206</cMunFG>
+        <tpImp>1</tpImp>
+        <tpEmis>1</tpEmis>
+        <cDV>8</cDV>
+        <tpAmb>1</tpAmb>
+        <finNFe>1</finNFe>
+        <indFinal>1</indFinal>
+        <indPres>1</indPres>
+        <procEmi>0</procEmi>
+        <verProc>EMISSOR FICTICIO 1.0</verProc>
+      </ide>
+      <emit>
+        <CNPJ>11222333000181</CNPJ>
+        <xNome>Distribuidora Solar Ficticia &amp; Cia Ltda</xNome>
+        <xFant>Solar Ficticia</xFant>
+        <enderEmit>
+          <xLgr>Rua Inventada</xLgr>
+          <nro>100</nro>
+          <xBairro>Centro</xBairro>
+          <cMun>3170206</cMun>
+          <xMun>Uberlandia</xMun>
+          <UF>MG</UF>
+          <CEP>38400000</CEP>
+          <cPais>1058</cPais>
+          <xPais>BRASIL</xPais>
+        </enderEmit>
+        <IE>0000000000000</IE>
+        <CRT>3</CRT>
+      </emit>
+      <dest>
+        <CPF>12345678909</CPF>
+        <xNome>Cliente Ficticio</xNome>
+        <indIEDest>9</indIEDest>
+      </dest>
+      <det nItem="1">
+        <prod>
+          <cProd>MOD550</cProd>
+          <cEAN>SEM GTIN</cEAN>
+          <xProd>Modulo fotovoltaico 550 W</xProd>
+          <NCM>85414300</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>10.0000</qCom>
+          <vUnCom>650.0000000000</vUnCom>
+          <vProd>6500.00</vProd>
+          <cEANTrib>SEM GTIN</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>10.0000</qTrib>
+          <vUnTrib>650.0000000000</vUnTrib>
+          <vFrete>100.00</vFrete>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>6600.00</vBC><pICMS>18.00</pICMS><vICMS>1188.00</vICMS></ICMS00></ICMS>
+          <IPI><cEnq>999</cEnq><IPINT><CST>53</CST></IPINT></IPI>
+        </imposto>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>INV5K</cProd>
+          <cEAN>SEM GTIN</cEAN>
+          <xProd>Inversor on-grid 5 kW</xProd>
+          <NCM>85044090</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>1.0000</qCom>
+          <vUnCom>4200.0000000000</vUnCom>
+          <vProd>4200.00</vProd>
+          <cEANTrib>SEM GTIN</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>1.0000</qTrib>
+          <vUnTrib>4200.0000000000</vUnTrib>
+          <vFrete>50.00</vFrete>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>4250.00</vBC><pICMS>18.00</pICMS><vICMS>765.00</vICMS></ICMS00></ICMS>
+          <IPI><cEnq>999</cEnq><IPITrib><CST>50</CST><vBC>4200.00</vBC><pIPI>3.00</pIPI><vIPI>126.00</vIPI></IPITrib></IPI>
+        </imposto>
+      </det>
+      <det nItem="3">
+        <prod>
+          <cProd>CABO6</cProd>
+          <cEAN>SEM GTIN</cEAN>
+          <xProd>Cabo solar 6 mm preto</xProd>
+          <NCM>85444900</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>M</uCom>
+          <qCom>100.0000</qCom>
+          <vUnCom>4.3500000000</vUnCom>
+          <vProd>435.00</vProd>
+          <cEANTrib>SEM GTIN</cEANTrib>
+          <uTrib>M</uTrib>
+          <qTrib>100.0000</qTrib>
+          <vUnTrib>4.3500000000</vUnTrib>
+          <vDesc>15.00</vDesc>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>420.00</vBC><pICMS>18.00</pICMS><vICMS>75.60</vICMS></ICMS00></ICMS>
+          <IPI><cEnq>999</cEnq><IPINT><CST>53</CST></IPINT></IPI>
+        </imposto>
+      </det>
+      <total>
+        <ICMSTot>
+          <vBC>11270.00</vBC>
+          <vICMS>2028.60</vICMS>
+          <vICMSDeson>0.00</vICMSDeson>
+          <vFCP>0.00</vFCP>
+          <vBCST>0.00</vBCST>
+          <vST>0.00</vST>
+          <vFCPST>0.00</vFCPST>
+          <vFCPSTRet>0.00</vFCPSTRet>
+          <vProd>11135.00</vProd>
+          <vFrete>150.00</vFrete>
+          <vSeg>0.00</vSeg>
+          <vDesc>15.00</vDesc>
+          <vII>0.00</vII>
+          <vIPI>126.00</vIPI>
+          <vIPIDevol>0.00</vIPIDevol>
+          <vPIS>0.00</vPIS>
+          <vCOFINS>0.00</vCOFINS>
+          <vOutro>0.00</vOutro>
+          <vNF>11396.00</vNF>
+        </ICMSTot>
+      </total>
+      <transp><modFrete>0</modFrete></transp>
+      <cobr>
+        <fat><nFat>1234</nFat><vOrig>11396.00</vOrig><vDesc>0.00</vDesc><vLiq>11396.00</vLiq></fat>
+        <dup><nDup>001</nDup><dVenc>2026-11-16</dVenc><vDup>11396.00</vDup></dup>
+      </cobr>
+      <pag><detPag><tPag>15</tPag><vPag>11396.00</vPag></detPag></pag>
+      <infAdic><infCpl>Nota fiscal FICTICIA, feita para teste. Nao tem valor fiscal.</infCpl></infAdic>
+    </infNFe>
+    <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+      <SignedInfo>
+        <CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+        <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+        <Reference URI="#NFe31261011222333000181550010000012341123456788">
+          <Transforms>
+            <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+            <Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+          </Transforms>
+          <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+          <DigestValue>AAAAAAAAAAAAAAAAAAAAAAAAAAA=</DigestValue>
+        </Reference>
+      </SignedInfo>
+      <SignatureValue>AAAA</SignatureValue>
+      <KeyInfo><X509Data><X509Certificate>AAAA</X509Certificate></X509Data></KeyInfo>
+    </Signature>
+  </NFe>
+  <protNFe versao="4.00">
+    <infProt>
+      <tpAmb>1</tpAmb>
+      <verAplic>FICTICIO-1.0</verAplic>
+      <chNFe>31261011222333000181550010000012341123456788</chNFe>
+      <dhRecbto>2026-10-16T10:31:00-03:00</dhRecbto>
+      <nProt>131260000000001</nProt>
+      <digVal>AAAAAAAAAAAAAAAAAAAAAAAAAAA=</digVal>
+      <cStat>100</cStat>
+      <xMotivo>Autorizado o uso da NF-e</xMotivo>
+    </infProt>
+  </protNFe>
+</nfeProc>

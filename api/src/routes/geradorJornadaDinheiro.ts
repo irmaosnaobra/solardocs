@@ -25,8 +25,11 @@ import {
 } from '../services/gerador/jornadaDinheiroBanco';
 import { catalogoFinanceiro, ID_LANCAMENTO, VALOR_MAX_CENTAVOS } from '../services/gerador/financeiroCliente';
 import {
-  assinarComprovante, caminhoEhDoCard, gravarLeituraDoArquivo, lerLeituraDoArquivo, subirComprovante,
+  assinarComprovante, caminhoEhDoCard, decodificarBase64, gravarLeituraDoArquivo, lerLeituraDoArquivo, normalizarTipo, subirComprovante,
 } from '../services/gerador/financeiroArquivos';
+import * as leitorXml from '../services/gerador/nfeXml';
+import type { NotaXml } from '../services/gerador/nfeXml';
+import { logger } from '../utils/logger';
 import { lerComprovante } from '../services/gerador/financeiroLeitura';
 import { listaSocios, nomeSimples } from '../services/gerador/solarObras';
 
@@ -373,7 +376,22 @@ export function mountJornadaDinheiro(router: Router): void {
       const { estado: js } = await lerJornadaComVersao(g.id);
       // Obra cancelada só recebe comprovante (o do estorno com devolução); nota fiscal não.
       if (js?.cancelada && doc === 'nota') { res.status(409).json({ ok: false, error: 'cancelada', mensagem: MSG_CANCELADA }); return; }
-      const subida = await subirComprovante(g.id, { base64: b.base64, media_type: b.media_type, nome: b.nome });
+      // XML da NF-e: lido e validado ANTES de subir. O que não passa sai em 400, sem Storage e sem IA.
+      const tipoPedido = normalizarTipo(b.media_type);
+      const ehXml = tipoPedido === 'application/xml' || tipoPedido === 'text/xml';
+      if (ehXml && doc !== 'nota') { res.status(400).json({ ok: false, error: 'tipo_nao_aceito', mensagem: 'O XML só entra como nota fiscal.' }); return; }
+      let lidaXml: NotaXml | null = null;
+      if (ehXml) {
+        const bytes0 = decodificarBase64(b.base64);
+        if (!bytes0) { res.status(400).json({ ok: false, error: 'arquivo_invalido' }); return; }
+        const lx = leitorXml.lerNfeXml(bytes0, hojeBr());
+        if (!lx.ok) {
+          logger.warn('gerador-nota', 'xml da nota recusado', { motivo: lx.motivo, card: g.id });
+          res.status(400).json({ ok: false, error: `xml_${lx.motivo}`, mensagem: leitorXml.MENSAGEM_XML[lx.motivo] }); return;
+        }
+        lidaXml = lx.nota;
+      }
+      const subida = await subirComprovante(g.id, { base64: b.base64, media_type: b.media_type, nome: b.nome, aceitaXml: doc === 'nota' });
       if (!subida.ok) {
         const status = subida.erro === 'bucket_indisponivel' ? 503 : subida.erro === 'armazenamento_falhou' ? 502 : 400;
         res.status(status).json({ ok: false, error: subida.erro }); return;
@@ -386,7 +404,8 @@ export function mountJornadaDinheiro(router: Router): void {
       // Falha na leitura NÃO derruba a subida: o arquivo já está guardado e a pessoa preenche à mão.
       // O servidor SEMPRE lê: o `ler` do corpo é ignorado. Só o ADM pula (`ler: false`). IA fora: o lançamento salva como "não conferido".
       const pula = pulaALeitura(req);
-      if (!pula && doc === 'nota') {
+      if (lidaXml) { leitura = 'ok'; nota = { ...lidaXml }; }
+      else if (!pula && doc === 'nota') {
         try {
           const r = await lerNota({ bytes, media_type: arquivo.tipo, hojeBr: hojeBr() });
           if (!r.ok) leitura = 'falhou';

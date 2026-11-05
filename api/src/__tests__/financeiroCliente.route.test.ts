@@ -854,6 +854,8 @@ describe('POST /financeiro/:cardId/arquivo', () => {
     const grande = Buffer.concat([PNG, Buffer.alloc(3 * 1024 * 1024)]);
     const casos: Array<[Record<string, unknown>, string]> = [
       [{ base64: PNG.toString('base64'), media_type: 'image/gif' }, 'tipo_nao_aceito'],
+      [{ base64: Buffer.from('<?xml version="1.0"?><nfeProc/>').toString('base64'), media_type: 'application/xml' }, 'tipo_nao_aceito'],
+      [{ base64: Buffer.from('<?xml version="1.0"?><nfeProc/>').toString('base64'), media_type: 'text/xml' }, 'tipo_nao_aceito'],
       [{ base64: PNG.toString('base64'), media_type: 'text/html' }, 'tipo_nao_aceito'],
       [{ base64: PNG.toString('base64'), media_type: 'application/x-msdownload' }, 'tipo_nao_aceito'],
       [{ base64: PNG.toString('base64'), media_type: 'image/heic' }, 'heic_nao_suportado'],

@@ -11,7 +11,7 @@ import { createHash, randomUUID } from 'crypto';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { diaDeBrasilia } from '../agenda/viradaDoDia';
-import { MAX_BYTES_ARQUIVO, MAX_NOME_ARQUIVO, type ArquivoLancamento } from './financeiroCliente';
+import { MAX_BYTES_ARQUIVO, MAX_BYTES_XML, MAX_NOME_ARQUIVO, type ArquivoLancamento } from './financeiroCliente';
 
 const LOG = 'gerador-financeiro';
 export const BUCKET_FINANCEIRO = 'financeiro-clientes';
@@ -56,13 +56,19 @@ export function assinaturaConfere(bytes: Buffer, tipo: string): boolean {
     case 'image/png': return comeca(0x89, 0x50, 0x4e, 0x47);
     case 'image/webp':
       return bytes.length >= 12 && bytes.subarray(0, 4).toString('latin1') === 'RIFF' && bytes.subarray(8, 12).toString('latin1') === 'WEBP';
+    case 'application/xml': {
+      // Pula o BOM UTF-8 e os brancos ASCII; o primeiro byte que sobra tem de ser `<`.
+      let k = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0;
+      while (k < bytes.length && (bytes[k] === 0x20 || bytes[k] === 0x09 || bytes[k] === 0x0a || bytes[k] === 0x0d)) k++;
+      return k < bytes.length && bytes[k] === 0x3c;
+    }
     default: return false;
   }
 }
 
 /** `Buffer.from(s, 'base64')` NUNCA lança: pula o caractere inválido calado e
  *  devolve lixo. Por isso a forma é conferida antes de decodificar. */
-function decodificar(base64: unknown): Buffer | null {
+export function decodificarBase64(base64: unknown): Buffer | null {
   if (typeof base64 !== 'string') return null;
   // Tolera o prefixo de data URL (o FileReader do navegador entrega assim) e quebra de linha.
   const limpo = base64.replace(/^data:[^,]{0,100},/, '').replace(/\s+/g, '');
@@ -129,33 +135,37 @@ async function conferirBucket(storage: StorageFinanceiro, cardId: number): Promi
  */
 export async function subirComprovante(
   cardId: number,
-  entrada: { base64: unknown; media_type: unknown; nome?: unknown },
+  entrada: { base64: unknown; media_type: unknown; nome?: unknown; aceitaXml?: boolean },
   storage: StorageFinanceiro = storagePadrao(),
   agora: Date = new Date(),
 ): Promise<{ ok: true; arquivo: ComprovanteSubido } | { ok: false; erro: ErroUpload }> {
   const tipo = normalizarTipo(entrada.media_type);
   if (HEIC.includes(tipo)) return { ok: false, erro: 'heic_nao_suportado' };
-  const ext = EXTENSAO[tipo];
+  const ehXml = tipo === 'application/xml' || tipo === 'text/xml';
+  if (ehXml && !entrada.aceitaXml) return { ok: false, erro: 'tipo_nao_aceito' };
+  const tipoFinal = ehXml ? 'application/xml' : tipo;
+  const ext = ehXml ? 'xml' : EXTENSAO[tipo];
   if (!ext) return { ok: false, erro: 'tipo_nao_aceito' };
+  const teto = ehXml ? MAX_BYTES_XML : MAX_BYTES_ARQUIVO;
 
   // Grande demais já pelo tamanho do texto: nem decodifica.
-  if (typeof entrada.base64 === 'string' && entrada.base64.length > Math.ceil((MAX_BYTES_ARQUIVO * 4) / 3) + 1024) {
+  if (typeof entrada.base64 === 'string' && entrada.base64.length > Math.ceil((teto * 4) / 3) + 1024) {
     return { ok: false, erro: 'arquivo_grande' };
   }
-  const bytes = decodificar(entrada.base64);
+  const bytes = decodificarBase64(entrada.base64);
   if (!bytes) return { ok: false, erro: 'arquivo_invalido' };
-  if (bytes.length > MAX_BYTES_ARQUIVO) return { ok: false, erro: 'arquivo_grande' };
-  if (!assinaturaConfere(bytes, tipo)) return { ok: false, erro: 'arquivo_invalido' };
+  if (bytes.length > teto) return { ok: false, erro: 'arquivo_grande' };
+  if (!assinaturaConfere(bytes, tipoFinal)) return { ok: false, erro: 'arquivo_invalido' };
 
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   const mes = diaDeBrasilia(agora).slice(0, 7).replace('-', '');
   const path = `fin/${cardId}/${mes}/${randomUUID()}.${ext}`;
-  const nome = (typeof entrada.nome === 'string' ? entrada.nome.trim() : '').slice(0, MAX_NOME_ARQUIVO) || `comprovante.${ext}`;
+  const nome = (typeof entrada.nome === 'string' ? entrada.nome.trim() : '').slice(0, MAX_NOME_ARQUIVO) || (ehXml ? 'nota.xml' : `comprovante.${ext}`);
 
   const conferencia = await conferirBucket(storage, cardId);
   if (conferencia === 'publico' || conferencia === 'indeterminado') return { ok: false, erro: 'bucket_indisponivel' };
 
-  const subir = () => storage.from(BUCKET_FINANCEIRO).upload(path, bytes, { contentType: tipo, upsert: false });
+  const subir = () => storage.from(BUCKET_FINANCEIRO).upload(path, bytes, { contentType: tipoFinal, upsert: false });
   try {
     let { error } = await subir();
     if (error && bucketNaoExiste(error)) {
@@ -179,7 +189,7 @@ export async function subirComprovante(
     logger.error(LOG, 'upload do comprovante lançou erro', { card: cardId, erro: String(err?.message || err) });
     return { ok: false, erro: 'armazenamento_falhou' };
   }
-  return { ok: true, arquivo: { path, nome, tipo, tamanho: bytes.length, sha256, bytes } };
+  return { ok: true, arquivo: { path, nome, tipo: tipoFinal, tamanho: bytes.length, sha256, bytes } };
 }
 
 /** URL assinada, ou null se falhar (a tela mostra o lançamento sem o link). */

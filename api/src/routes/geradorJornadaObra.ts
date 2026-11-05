@@ -491,7 +491,7 @@ export function mountJornadaObra(router: Router): void {
       if (!podeSecao(g, f, 'compra') && !podeSecao(g, f, 'logistica')) { res.status(403).json({ ok: false, error: 'Você não pode anexar a nota agora.' }); return; }
       const compra = f.privada.compra.compras.find((c) => c.id === compraId);
       if (!compra) { res.status(400).json({ ok: false, error: 'compra_invalida', mensagem: 'Esta compra não existe.' }); return; }
-      if (!/^fin\/\d+\/\d{6}\/[0-9a-f-]{36}\.(jpg|png|webp|pdf)$/.test(caminho) || !caminho.startsWith(`fin/${g.id}/`)) {
+      if (!/^fin\/\d+\/\d{6}\/[0-9a-f-]{36}\.(jpg|png|webp|pdf|xml)$/.test(caminho) || !caminho.startsWith(`fin/${g.id}/`)) {
         res.status(400).json({ ok: false, error: 'comprovante_nao_encontrado', mensagem: 'Anexe a nota de novo.' }); return;
       }
       const reg = await lerLeituraDoArquivo(caminho);
@@ -537,10 +537,16 @@ export function mountJornadaObra(router: Router): void {
       const data = lida && typeof lida.data === 'string' ? lida.data : null;
       const total = lida && typeof lida.valor_total_centavos === 'number' ? lida.valor_total_centavos : null;
       const emitente = lida ? String(lida.emitente ?? '') : '';
+      const ehXml = lida?.origem === 'xml';
+      const nItens = ehXml && Number.isInteger(lida?.itens_na_nota) ? Number(lida?.itens_na_nota) : itens.length;
+      const num = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) ? v : null);
       const mensagem = lida && (emitente || total !== null)
-        ? `A nota foi lida: ${[emitente, data ? ddmm(data) : '', `${itens.length} ${itens.length === 1 ? 'item' : 'itens'}`, total !== null ? reaisBR(total) : ''].filter(Boolean).join(' · ')}`
+        ? `${ehXml ? 'O XML foi lido' : 'A nota foi lida'}: ${[emitente, data ? ddmm(data) : '', `${nItens} ${nItens === 1 ? 'item' : 'itens'}`, total !== null ? reaisBR(total) : ''].filter(Boolean).join(' · ')}`
         : 'A nota foi anexada. Não consegui ler os itens: digite à mão.';
-      res.json({ ok: true, lida: lida ? { emitente, data, n_itens: itens.length, valor_total_centavos: total, itens } : null, mensagem });
+      res.json({ ok: true, lida: lida ? {
+        emitente, data, n_itens: nItens, valor_total_centavos: total, itens, origem: ehXml ? 'xml' : 'ia',
+        soma_itens_centavos: num(lida.soma_itens_centavos), diferenca_centavos: num(lida.diferenca_centavos) ?? 0,
+      } : null, mensagem });
     } catch (err) { falhouJornada(res, 'nota', err); }
   });
 

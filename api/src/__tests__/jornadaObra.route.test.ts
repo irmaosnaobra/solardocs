@@ -626,6 +626,135 @@ describe('a reserva da chave de 44 dígitos (nfe_chave:)', () => {
   });
 });
 
+describe('o XML da nota', () => {
+  const XML = fs.readFileSync(path.join(__dirname, 'fixtures', 'nfe-exemplo-55.xml'));
+  const CH55 = '31261011222333000181550010000012341123456788';
+  const subirXml = (xml: Buffer | string, card: number, auth = THIAGO, extra: Record<string, unknown> = {}) =>
+    post(DIN(card, '/comprovante'), { base64: Buffer.from(xml).toString('base64'), media_type: 'application/xml', nome: 'nfe.xml', doc: 'nota', ...extra }, auth);
+  const trocaChave = (xml: string, nova: string): string => xml.split(CH55).join(nova);
+  beforeEach(() => {
+    semearJo(SOLAR); semearJo(ALHEIA);
+    for (const [card, id] of [[SOLAR, 'c-1'], [ALHEIA, 'c-9']] as const) {
+      semearPrivada(card, (p) => { p.compra.compras = [{ id, fornecedor: 'Elétrica Central', cidade: '', data: '2026-10-16', forma: 'cartao', nota_chega: 'anexada', nota: null }]; });
+    }
+  });
+  it('X1 o XML entra inteiro, sem IA, e a compra fica com a chave e a reserva', async () => {
+    const up = await subirXml(XML, SOLAR);
+    expect(up.status).toBe(200);
+    expect(up.body).toMatchObject({ leitura: 'ok', nota: { origem: 'xml', chave: CH55 } });
+    const caminho = up.body.arquivo.path as string;
+    expect(caminho).toMatch(/\.xml$/);
+    expect(up.body.arquivo.tipo).toBe('application/xml');
+    expect(h.iaChamadas).toBe(0);
+    expect(h.bucket.has(caminho)).toBe(true);
+    expect(h.bucket.has(`${caminho}.ia.json`)).toBe(true);
+    const n = await post(F2(SOLAR, '/nota'), { compra_id: 'c-1', arquivo_path: caminho }, THIAGO);
+    expect(n.status).toBe(200);
+    expect(n.body.mensagem).toBe('O XML foi lido: Distribuidora Solar Ficticia & Cia Ltda · 16/10 · 3 itens · R$ 11.396,00');
+    expect(n.body.lida).toMatchObject({ origem: 'xml', n_itens: 3, valor_total_centavos: 1_139_600, soma_itens_centavos: 1_139_600, diferenca_centavos: 0 });
+    expect(n.body.lida.itens.map((i: any) => [i.ncm, i.valor_total_centavos])).toEqual([['85414300', 660000], ['85044090', 437600], ['85444900', 42000]]);
+    expect(privadaGravada(SOLAR)!.compra.compras[0].nota!.chave).toBe(CH55);
+    expect(h.linhas.get(`${PREFIXO_RESERVA_NFE}${CH55}`)!.value.card_id).toBe(SOLAR);
+    expect(h.iaChamadas).toBe(0);
+  });
+  it('X2 a mesma nota em outra obra dá 409, pelo XML (sha) e pelo PDF (chave)', async () => {
+    const up = await subirXml(XML, SOLAR);
+    expect((await post(F2(SOLAR, '/nota'), { compra_id: 'c-1', arquivo_path: up.body.arquivo.path }, THIAGO)).status).toBe(200);
+    const outro = await subirXml(XML, ALHEIA);
+    expect(outro.status).toBe(200);
+    const r1 = await post(F2(ALHEIA, '/nota'), { compra_id: 'c-9', arquivo_path: outro.body.arquivo.path }, THIAGO);
+    expect(r1.status).toBe(409);
+    expect(r1.body.error).toBe('nota_repetida');
+    h.nota = notaLida(CH55);
+    const pdf = await subir('o mesmo documento em pdf', { card: ALHEIA, auth: THIAGO, doc: 'nota' });
+    const r2 = await post(F2(ALHEIA, '/nota'), { compra_id: 'c-9', arquivo_path: pdf.path }, THIAGO);
+    expect(r2.status).toBe(409);
+    expect(r2.body.error).toBe('nota_repetida');
+  });
+  it('X3 o caminho contrário: o PDF com a chave primeiro, o XML depois dá 409', async () => {
+    h.nota = notaLida(CH55);
+    const pdf = await subir('pdf primeiro', { card: SOLAR, auth: THIAGO, doc: 'nota' });
+    expect((await post(F2(SOLAR, '/nota'), { compra_id: 'c-1', arquivo_path: pdf.path }, THIAGO)).status).toBe(200);
+    const up = await subirXml(XML, ALHEIA);
+    expect(up.status).toBe(200);
+    const r = await post(F2(ALHEIA, '/nota'), { compra_id: 'c-9', arquivo_path: up.body.arquivo.path }, THIAGO);
+    expect(r.status).toBe(409);
+    expect(r.body.error).toBe('nota_repetida');
+  });
+  it('X4 a corrida XML x PDF com a mesma chave dá [200, 409]', async () => {
+    const up = await subirXml(XML, SOLAR);
+    h.nota = notaLida(CH55);
+    const pdf = await subir('pdf da corrida', { card: ALHEIA, auth: THIAGO, doc: 'nota' });
+    const [a, b] = await Promise.all([
+      post(F2(SOLAR, '/nota'), { compra_id: 'c-1', arquivo_path: up.body.arquivo.path }, THIAGO),
+      post(F2(ALHEIA, '/nota'), { compra_id: 'c-9', arquivo_path: pdf.path }, THIAGO),
+    ]);
+    expect([a.status, b.status].sort()).toEqual([200, 409]);
+    const vivos = [...h.linhas.entries()].filter(([k, l]) => k.startsWith('fin_nf:') && l.value.chave === CH55 && l.value.livre === false);
+    expect(vivos).toHaveLength(1);
+  });
+  it('X5 o XML que não passa sai em 400 antes do Storage e da IA', async () => {
+    const c57 = comDv(CH55.slice(0, 20) + '57' + CH55.slice(22, 43));
+    const m57 = trocaChave(XML.toString('utf8'), c57).replace('<mod>55</mod>', '<mod>57</mod>');
+    const xxe = '<?xml version="1.0"?><!DOCTYPE nfeProc [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>' + XML.toString('utf8').replace(/^<\?xml[^>]*>\s*/, '').replace('Solar Ficticia &amp;', 'Solar &xxe;');
+    const cortado = XML.subarray(0, Math.floor(XML.length / 2));
+    const antes = h.bucket.size;
+    const a = await subirXml(m57, SOLAR);
+    expect(a.status).toBe(400);
+    expect(a.body).toMatchObject({ error: 'xml_modelo_nao_aceito', mensagem: 'Só entra XML de NF-e (modelo 55) ou de NFC-e (modelo 65).' });
+    const b = await subirXml(xxe, SOLAR);
+    expect(b.status).toBe(400);
+    expect(b.body.error).toBe('xml_proibido');
+    const c = await subirXml(cortado, SOLAR);
+    expect(c.status).toBe(400);
+    expect(c.body.error).toBe('xml_malformado');
+    expect(h.bucket.size).toBe(antes);
+    expect(h.iaChamadas).toBe(0);
+  });
+  it('X6 o XML nunca vira comprovante de pagamento', async () => {
+    const a = await subirXml(XML, SOLAR, THIAGO, { doc: 'comprovante' });
+    expect(a.status).toBe(400);
+    expect(a.body).toMatchObject({ error: 'tipo_nao_aceito', mensagem: 'O XML só entra como nota fiscal.' });
+    const up = await subirXml(XML, SOLAR);
+    expect(up.status).toBe(200);
+    const l = await post(DIN(SOLAR, '/lancamento'), { id: novoId('sai'), tipo: 'saida', categoria: 'material', etapa: 4, valor_centavos: 1_139_600, data: '2026-11-04', forma: 'pix', compra_id: 'c-1', arquivo_path: up.body.arquivo.path }, THIAGO);
+    expect(l.status).toBe(400);
+    expect(l.body.error).toBe('comprovante_obrigatorio');
+  });
+  it('X7 os centavos do XML fecham com o guarda da compra: depois do pagamento, editar o texto de um item não dá "Os itens somam"', async () => {
+    const up = await subirXml(XML, SOLAR);
+    const n = await post(F2(SOLAR, '/nota'), { compra_id: 'c-1', arquivo_path: up.body.arquivo.path }, THIAGO);
+    expect(n.status).toBe(200);
+    const itens = n.body.lida.itens.map((i: any) => ({
+      id: null, origem: 'nota', tipo: 'outro', descricao: i.descricao, quantidade: i.quantidade, unidade: 'un', compra_id: 'c-1', fornecedor: n.body.lida.emitente,
+      valor_centavos: i.valor_total_centavos, data: '2026-10-16',
+    }));
+    const compras = privadaGravada(SOLAR)!.compra.compras;
+    const v0 = (await get(F2(SOLAR), THIAGO)).body.versoes.compra;
+    const p1 = await put(F2(SOLAR, '/compra'), { versao: v0, dados: { itens, compras } }, THIAGO);
+    expect(p1.status).toBe(200);
+    linha(SOLAR, 'saida', 'material', 4, '2026-10-20', 1_139_600, { compra_id: 'c-1' });
+    const gravados = privadaGravada(SOLAR)!.compra.itens.map((i) => ({ ...i }));
+    gravados[0].descricao = 'Modulo fotovoltaico 550 W (texto novo)';
+    const v1 = (await get(F2(SOLAR), THIAGO)).body.versoes.compra;
+    const p2 = await put(F2(SOLAR, '/compra'), { versao: v1, dados: { itens: gravados, compras: privadaGravada(SOLAR)!.compra.compras } }, THIAGO);
+    expect(p2.status).toBe(200);
+    expect(JSON.stringify(p2.body)).not.toContain('Os itens somam');
+  });
+  it('X8 o ADM com `ler: false` também tem o XML lido', async () => {
+    const up = await subirXml(XML, SOLAR, THIAGO, { ler: false });
+    expect(up.status).toBe(200);
+    expect(up.body).toMatchObject({ leitura: 'ok', nota: { origem: 'xml' } });
+  });
+  it('X9 `text/xml` entra: o caminho termina em .xml e o tipo gravado é application/xml', async () => {
+    const up = await subirXml(XML, SOLAR, THIAGO, { media_type: 'text/xml; charset=utf-8' });
+    expect(up.status).toBe(200);
+    const caminho = up.body.arquivo.path as string;
+    expect(caminho).toMatch(/\.xml$/);
+    expect(JSON.parse(h.bucket.get(`${caminho}.ia.json`)!.toString('utf8')).tipo).toBe('application/xml');
+  });
+});
+
 describe('concluir as etapas', () => {
   it('a etapa 4 só conclui com 100% do material (409 com `precisa: itens`); o Diego leva 403 na 4 (quem conclui é o Thiago)', async () => {
     semearJo(SOLAR);
