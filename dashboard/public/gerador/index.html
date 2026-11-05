@@ -42361,8 +42361,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
       pvAbrirCaixaVenda(ag);
       return;
     }
-    if (!crmAbrirCaixaDoCard('crm-det-venda')) return;
-    return;
+    // Fase 1 da Jornada (05/11/2026): o solar não pergunta mais o valor aqui. O valor e a forma entram na etapa 1 da obra.
   }
   // Mesma regra da agenda: SEM INTERESSE abre a pergunta do motivo, e so o segundo
   // toque grava. Com escape, porque o status terminal nao pode ficar mais dificil
@@ -42458,8 +42457,18 @@ async function crmAtualizarStatus(novoStatus, extra) {
   const histCrm = baseHistCrm ? `${linhaCrm}\n\n${baseHistCrm}` : linhaCrm;
   let posVendaFalhou = false;
   try {
-    await supaPatch(`agendamentos?id=eq.${ag.id}`,
-      { status: novoStatus, historico: histCrm, ...(extra || {}) });
+    // Fase 1 da Jornada (05/11/2026): o VENDIDO do solar tem um caminho só, o servidor. Ele grava o status, a linha do histórico
+    // e abre a etapa 1. Falhou, nada muda no card e o erro aparece (o catch de baixo).
+    if (novoStatus === 'fechou' && stDeCrm !== 'fechou' && !crmEhEletroposto(ag)) {
+      if (!window.Jornada || typeof Jornada.vendido !== 'function') throw new Error('A tela da obra não carregou. Atualize a página.');
+      const rv = await Jornada.vendido(ag.id, linhaCrm);
+      // O histórico em memória acompanha o que o servidor gravou: sem isto o próximo clique de status montaria a linha em cima
+      // do histórico velho e apagaria a do VENDIDO.
+      if (rv && typeof rv.historico === 'string') ag.historico = rv.historico;
+    } else {
+      await supaPatch(`agendamentos?id=eq.${ag.id}`,
+        { status: novoStatus, historico: histCrm, ...(extra || {}) });
+    }
     // ── A ETIQUETA QUE ESTÁ SAINDO É GUARDADA ANTES DE SER APAGADA ─────────
     //
     // Vai ANTES do PATCH de propósito: depois dele a etiqueta antiga já não
@@ -42558,10 +42567,6 @@ async function crmAtualizarStatus(novoStatus, extra) {
       }
     }
     ag.status = novoStatus;            // atualiza a linha em memória
-    // Gancho do VENDIDO (fase 2): só solar e só na TRANSIÇÃO. Venda antiga reeditada nunca gera cliente. Sem await: a Agenda nunca bloqueia.
-    if (novoStatus === 'fechou' && stDeCrm !== 'fechou' && !crmEhEletroposto(ag)) {
-      try { vendaSolarGarantirCliente(ag.id, 'status'); } catch (e) { /* o botão Criar cliente na planilha cobre */ }
-    }
     // Gancho da serie #E (etapa 4): so eletroposto, em todo VENDIDO gravado (o servidor e idempotente: devolve o codigo que o card ja tem).
     // Sem await e sem aviso: a Agenda nunca bloqueia, e a passada de pendentes da lista de clientes cobre a falha.
     if (novoStatus === 'fechou' && crmEhEletroposto(ag)) {
@@ -42573,6 +42578,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
     // e apagaria a deste.
     if (crmEhEletroposto(ag)) ag.historico = histCrm;
     crmDerivar(c);                     // recalcula etapa/coluna + selo do card
+    const vendidoSolarAgora = novoStatus === 'fechou' && stDeCrm !== 'fechou' && !crmEhEletroposto(ag);
     const labels = {
       agendado:         '📞 Marcado como Agendada',
       nao_atendeu:      '❌ Marcado como Não atendeu',
@@ -42593,7 +42599,8 @@ async function crmAtualizarStatus(novoStatus, extra) {
       apalavrado:       '🤞 APALAVRADO: sai do ciclo e volta na data',
       fechou:           '🏆 Marcado como VENDIDO',
     };
-    showToast((labels[novoStatus] || 'Status atualizado')
+    if (vendidoSolarAgora) showToast('Venda aberta. A etapa 1 é de ' + (ag.vendedor_nome || 'quem vendeu') + '. Abra em Solar, Clientes.');
+    else showToast((labels[novoStatus] || 'Status atualizado')
       + (extra && extra.ponto_relacao ? ' · ' + extra.ponto_relacao : ''));
     if (posVendaFalhou) showToast('O card virou vendido, mas não deu para guardar o modelo e o valor. Abra o card e informe de novo.');
     crmFecharDetalhe();
@@ -42601,6 +42608,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
     if (voltaParaVendas) { pvVoltar = null; pvAbrir(ag.id); }
   } catch (e) {
     document.getElementById('crm-det-erro').textContent = 'Erro ao atualizar status.';
+    if (novoStatus === 'fechou') showToast((e && e.message) || 'Não consegui marcar a venda agora. Tente de novo.');
     console.error(e);
   }
 }
@@ -44965,42 +44973,6 @@ async function vendaLigarPropostaAoCard(cardId, codigoProposta) {
   } catch (e) { console.warn('a proposta nao foi ligada ao card', e); }
 }
 
-/** GANCHO DO VENDIDO (fase 2): o card solar que virou VENDIDO ganha o cliente `#NNNN` na Planilha de clientes.
- *  Manda `novo: true` (o gancho SEMPRE numera, sem o portao de telefone) e `keepalive` (a Agenda pode navegar logo depois). Nunca lanca e
- *  ninguem espera por ele. Falha de rede, de login ou de numeracao tenta mais uma vez depois de 6 s e, se falhar de novo, o toast aponta o
- *  botao "Criar cliente na planilha". 400, 403, 404 e outros 409 ficam calados (404 e eletroposto ou card de outra pessoa).
- *  O toast tem uma vaga so e o do status acabou de sair: o do gancho espera ~2,8 s para nao ser engolido. */
-const VENDA_CLI_FALHA = 'Não consegui criar o cliente na planilha agora. Abra o card vendido e use o botão Criar cliente na planilha.';
-async function vendaSolarGarantirCliente(cardId, origem) {
-  const inicio = Date.now();
-  const avisar = (txt) => {
-    try { setTimeout(() => { try { showToast(txt); } catch (e) {} }, Math.max(0, 2800 - (Date.now() - inicio))); } catch (e) {}
-  };
-  try {
-    if (cardId == null || cardId === '') return;
-    const rota = '/gerador/vendas-solares/' + encodeURIComponent(String(cardId)) + '/cliente';
-    const chamar = () => vdcFetch(rota, 'POST', { novo: true }, 60000, { keepalive: true });
-    const refazer = (x) => x.status === 0 || x.status === 502 || x.status === 503 || (x.status === 409 && !!x.json && x.json.tentarDeNovo === true);
-    let r = await chamar();
-    if (refazer(r)) {
-      await new Promise((ok) => setTimeout(ok, 6000));
-      r = await chamar();
-    }
-    const j = r.json || {};
-    if (r.status === 200 && j.ok !== false) {
-      const cod = j.codigo ? (String(j.codigo).charAt(0) === '#' ? String(j.codigo) : '#' + String(j.codigo)) : '';
-      const aviso = typeof j.aviso === 'string' && j.aviso.trim() !== '';
-      if (j.criou === true) avisar(aviso ? 'Cliente ' + cod + ' criado. Veja o aviso na planilha de clientes.' : 'Cliente ' + cod + ' criado na planilha de clientes.');
-      else if (aviso) avisar('Veja o aviso do cliente ' + cod + ' na planilha de clientes.');
-      return;
-    }
-    // Sem token, login vencido, erro de numeracao, ou a segunda tentativa tambem falhou: o botao cobre.
-    if (r.status === 401 || r.status === 500 || refazer(r)) avisar(VENDA_CLI_FALHA);
-  } catch (e) {
-    avisar(VENDA_CLI_FALHA);
-  }
-}
-
 // ── SERIE #E DOS CLIENTES DE ELETROPOSTO (etapa 4) ─────────────────────────────
 // O codigo (#E001) e um campo A MAIS, so de leitura: o id do card continua sendo a chave de tudo. Quem numera e o servidor
 // (POST /gerador/clientes/eletroposto/:id/serie, idempotente, e a passada de pendentes na lista de clientes). Aqui so se guarda e se mostra.
@@ -45305,7 +45277,7 @@ async function confirmarVenda() {
         // ("Registrar o valor da venda") ou sem token, e o servidor responde `ja_ligada` calado se o card ja tem numero.
         if (escolhido && !jaEraVendido) {
           const ligou = vendaLigarPropostaAoCard(alvo.id, _vendaCodigo);
-          ligou.then(() => vendaSolarGarantirCliente(alvo.id, 'venda')).catch(() => {});
+          ligou.catch(() => {});
         }
       } else {
         const antes = alvo.status;
@@ -45315,19 +45287,24 @@ async function confirmarVenda() {
         // clique de status nao escreve nada, medido em 02/10.
         const linha = `[${ts} · ${consultor}] 🏆 Venda registrada: R$ ${fmt(valor)}`
           + ` (proposta ${_vendaCodigo}). O card estava em ${antes.toUpperCase()}.`;
-        await supaPatch(`agendamentos?id=eq.${alvo.id}`, {
+        // Fase 1 da Jornada (05/11/2026): card de solar vira VENDIDO só pelo servidor (o mesmo caminho do botão do card).
+        // O solar tem UM caminho só, o servidor: sem o jornada.js não grava (mesmo erro do CRM). O eletroposto segue como sempre.
+        if (!ehEpProposta) {
+          if (!window.Jornada || typeof Jornada.vendido !== 'function') throw new Error('A tela da obra não carregou. Atualize a página.');
+          await Jornada.vendido(alvo.id, linha);
+        } else await supaPatch(`agendamentos?id=eq.${alvo.id}`, {
           status: 'fechou',
           historico: alvo.historico ? `${linha}\n\n${alvo.historico}` : linha,
         });
         avisoCard = ` · card ${alvo.id} saiu de ${antes.toUpperCase()} pra VENDIDO`;
         cardEpVenda = alvo;
         // Varios cards do mesmo telefone e nenhum escolhido: nada liga e nada numera, o numero sai pelo botao do card.
-        if (!ligarAoCard && !ehEpProposta) avisoCard += ' · crie o cliente pelo botão no card';
+        if (!ligarAoCard && !ehEpProposta) avisoCard += ' · o número nasce na etapa 2 da obra';
         // So aqui: foi esta venda que fechou o card. UM card possivel, so solar, sem await.
         // Gancho do numero ENCADEADO: so comeca depois da ligacao da proposta terminar (com ou sem sucesso), para as duas gravacoes do mesmo card nao disputarem a trava.
         if (ligarAoCard) {
           const ligou = vendaLigarPropostaAoCard(alvo.id, _vendaCodigo);
-          ligou.then(() => vendaSolarGarantirCliente(alvo.id, 'venda')).catch(() => {});
+          ligou.catch(() => {});
         }
       }
     } catch (e) {

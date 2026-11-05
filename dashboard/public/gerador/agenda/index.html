@@ -1569,9 +1569,9 @@
          regra de "qual proposta e desse cliente" — a divergencia que custou caro
          neste repo. Entao o link leva o TELEFONE e quem resolve e la. -->
     <div id="d-venda" class="motivo-box" hidden>
-      <div class="motivo-tit">Card marcado como VENDIDO. Falta o valor.</div>
+      <div class="motivo-tit">Venda aberta. A etapa 1 começa agora.</div>
       <div class="motivo-grid">
-        <button type="button" class="motivo-btn" style="grid-column:span 2" onclick="abrirVendaNoGerador()">💰 Registrar o valor da venda</button>
+        <button type="button" class="motivo-btn" style="grid-column:span 2" onclick="abrirObraDoCard()">Abrir a obra</button>
         <button type="button" class="motivo-pular" onclick="fecharCaixaVenda()">Depois</button>
       </div>
     </div>
@@ -1738,6 +1738,57 @@ let abaAtiva = 'agendar';                    // 'agendar' | 'bloquear'
 // ganhou vale aqui também. Sem sessão cai na chave pública, que é o que segura a
 // tela de pé enquanto a RLS ainda está desligada.
 const SESSAO_KEY = 'irmaos-na-obra-sessao-v1';
+// Fase 1 da Jornada (05/11/2026): o VENDIDO do solar vai pelo servidor, com login. A Agenda fica aberta o dia todo e o token dura 1 hora: renova como agentes/index.html.
+window.agSessao = (function () {
+  function irParaLogin() { location.replace('/gerador'); }
+  function erro(tipo, extra) { var e = new Error(tipo); e.tipo = tipo; if (extra) for (var k in extra) e[k] = extra[k]; return e; }
+  function lerSessao() { try { return JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null'); } catch (e) { return null; } }
+  function sessaoViva(s) { return !!(s && s.access_token && Number(s.expira_em || 0) > Date.now()); }
+  var renovando = null;
+  function renovar(tokenUsado) {
+    if (renovando) return renovando;
+    var rodar = function () { return renovarAgora(tokenUsado); };
+    var p = (navigator.locks && navigator.locks.request) ? navigator.locks.request('gerador-sessao-renovar', rodar) : rodar();
+    renovando = Promise.resolve(p).then(function (v) { renovando = null; return v; }, function (e) { renovando = null; throw e; });
+    return renovando;
+  }
+  function renovarAgora(tokenUsado) {
+    var s = lerSessao();   // relida dentro da trava: outra aba pode ter renovado
+    if (!s || !s.refresh_token) { irParaLogin(); return Promise.reject(erro('login')); }
+    if (sessaoViva(s) && s.access_token !== tokenUsado) return Promise.resolve(s.access_token);
+    var meu = s.refresh_token;
+    return fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: meu })
+    }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (j) { return { r: r, j: j }; });
+    }, function () { throw erro('rede'); }).then(function (x) {
+      if (x.r.ok && x.j && x.j.access_token) {
+        try {
+          localStorage.setItem(SESSAO_KEY, JSON.stringify({
+            access_token: x.j.access_token,
+            refresh_token: x.j.refresh_token || meu,
+            expira_em: Date.now() + (Number(x.j.expires_in || 3600) - 300) * 1000
+          }));
+        } catch (e) {}
+        return x.j.access_token;
+      }
+      if (x.r.status >= 500 || x.r.status === 429) throw erro('rede');
+      var atual = lerSessao();
+      if (atual && atual.refresh_token !== meu && sessaoViva(atual)) return atual.access_token;
+      try { localStorage.removeItem(SESSAO_KEY); } catch (e) {}
+      irParaLogin();
+      throw erro('login');
+    });
+  }
+  function obterToken() {
+    var s = lerSessao();
+    if (!s || !s.access_token) { irParaLogin(); return Promise.reject(erro('login')); }
+    return sessaoViva(s) ? Promise.resolve(s.access_token) : renovar(null);
+  }
+  return { obterToken: obterToken, renovar: renovar };
+})();
 /**
  * ── TOKEN VENCIDO NÃO É TOKEN (05/10/2026) ─────────────────────────────────
  *
@@ -2901,12 +2952,6 @@ function abrirVendaNoGerador() {
   location.href = '/gerador/?venda_tel=' + encodeURIComponent(tel) + comCard;
 }
 
-/** GANCHO DO VENDIDO (fase 2): o card solar que virou VENDIDO ganha o cliente `#NNNN` na Planilha de clientes.
- *  Manda `novo: true` (sempre numera, sem o portao de telefone) e `keepalive`, porque "Registrar o valor da venda" navega para o /gerador logo
- *  depois e a pagina abortaria o pedido. Nunca lanca e ninguem espera por ele: a Agenda nunca bloqueia. Sem token valido, 401 e 500 mostram o
- *  toast que aponta o botao "Criar cliente na planilha"; rede, 502, 503 e 409 `tentarDeNovo` tentam de novo uma vez depois de 6 s; 400, 403,
- *  404 e outros 409 ficam calados. O toast tem uma vaga so e o do status acabou de sair: o do gancho espera ~2,8 s. */
-const CLIENTE_VENDA_FALHA = 'Não consegui criar o cliente na planilha agora. Abra o card vendido e use o botão Criar cliente na planilha.';
 /** Serie #E do eletroposto (etapa 4): pede ao servidor o codigo do card que acabou de ficar VENDIDO. Sem await de quem chama, sem aviso de erro:
  *  se falhar, a passada de pendentes na lista de clientes numera. `keepalive` porque a Agenda pode navegar logo em seguida. O id do card segue
  *  sendo a chave de tudo; o servidor revalida que o card e eletroposto e vendido. */
@@ -2939,51 +2984,32 @@ async function garantirSerieEpDoCard(idAlvo) {
   } catch (e) { /* a lista de clientes numera */ }
 }
 
-async function garantirClienteDoCard(idAlvo) {
-  const inicio = Date.now();
-  const avisar = (txt) => {
-    try { setTimeout(() => { try { showToast(txt); } catch (e) {} }, Math.max(0, 2800 - (Date.now() - inicio))); } catch (e) {}
+/** Fase 1 da Jornada: o VENDIDO do solar pelo servidor. Renova o token uma vez se o login venceu. Lança com o texto do erro. */
+async function vendidoNoServidor(idAlvo, linha) {
+  const rota = API_ESPERA + '/gerador/vendas-solares/' + encodeURIComponent(String(idAlvo)) + '/vendido';
+  // Prazo de 20 s, como o vdcFetch: estourou, o erro aparece e nada fica preso.
+  const chamar = async (tk) => {
+    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    const t = ctrl ? setTimeout(() => ctrl.abort(), 20000) : null;
+    try {
+      const r = await fetch(rota, { method: 'POST', headers: { 'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json' }, body: JSON.stringify({ linha }), cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+      let j = null; try { j = await r.json(); } catch (e) { j = null; }
+      return { status: r.status, json: j || {} };
+    } catch (e) {
+      throw new Error('Demorou demais para marcar a venda. Confira a conexão e tente de novo.');
+    } finally { if (t) clearTimeout(t); }
   };
-  try {
-    if (idAlvo == null || idAlvo === '') return;
-    const rota = API_ESPERA + '/gerador/vendas-solares/' + encodeURIComponent(String(idAlvo)) + '/cliente';
-    const chamar = async () => {
-      const tk = tokenDaSessao();
-      if (!tk) return { status: 401, json: null };
-      const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
-      const t = ctrl ? setTimeout(() => ctrl.abort(), 60000) : null;
-      try {
-        const r = await fetch(rota, {
-          method: 'POST', headers: { 'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json' }, body: '{"novo":true}',
-          keepalive: true, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined,
-        });
-        let j = null;
-        try { j = await r.json(); } catch (e) { j = null; }
-        return { status: r.status, json: j };
-      } catch (e) {
-        return { status: 0, json: null };
-      } finally {
-        if (t) clearTimeout(t);
-      }
-    };
-    const refazer = (x) => x.status === 0 || x.status === 502 || x.status === 503 || (x.status === 409 && !!x.json && x.json.tentarDeNovo === true);
-    let r = await chamar();
-    if (refazer(r)) {
-      await new Promise((ok) => setTimeout(ok, 6000));
-      r = await chamar();
-    }
-    const j = r.json || {};
-    if (r.status === 200 && j.ok !== false) {
-      const cod = j.codigo ? (String(j.codigo).charAt(0) === '#' ? String(j.codigo) : '#' + String(j.codigo)) : '';
-      const aviso = typeof j.aviso === 'string' && j.aviso.trim() !== '';
-      if (j.criou === true) avisar(aviso ? 'Cliente ' + cod + ' criado. Veja o aviso na planilha de clientes.' : 'Cliente ' + cod + ' criado na planilha de clientes.');
-      else if (aviso) avisar('Veja o aviso do cliente ' + cod + ' na planilha de clientes.');
-      return;
-    }
-    if (r.status === 401 || r.status === 500 || refazer(r)) avisar(CLIENTE_VENDA_FALHA);
-  } catch (e) {
-    avisar(CLIENTE_VENDA_FALHA);
-  }
+  let tk = await window.agSessao.obterToken();
+  let r = await chamar(tk);
+  if (r.status === 401 || (r.status === 403 && r.json.precisa === 'login')) { tk = await window.agSessao.renovar(tk); r = await chamar(tk); }
+  if (r.status === 200 && r.json.ok !== false) return r.json;
+  if (r.status === 401) throw new Error('Sua sessão terminou. Entre de novo no Gerador.');
+  throw new Error(typeof r.json.error === 'string' && r.json.error ? r.json.error : 'Não consegui marcar a venda agora. Tente de novo.');
+}
+
+function abrirObraDoCard() {
+  if (!detalheAtual || detalheAtual.id == null) return;
+  location.href = '/gerador/?obra=' + encodeURIComponent(String(detalheAtual.id));
 }
 
 function fecharCaixaVenda() {
@@ -3498,12 +3524,12 @@ async function atualizarStatus(novoStatus, extra) {
   const linhaSt = `[${tsSt} · ${autorSt}] 🏷️ Status: ${rot(stDe)} → ${rot(novoStatus)}${motivoTxt}${posseTxt}.`;
   const histSt = detalheAtual.historico ? `${linhaSt}\n\n${detalheAtual.historico}` : linhaSt;
   try {
-    await supaPatch(`agendamentos?id=eq.${idAlvo}`,
-      { status: novoStatus, historico: histSt, ...(extra || {}) });
-    // Gancho do VENDIDO (fase 2): so solar e so na TRANSICAO (venda antiga reeditada nunca gera cliente). Logo depois do PATCH, antes dos
-    // outros pedidos desta funcao: "Registrar o valor da venda" navega para o /gerador e nao pode deixar o gancho para tras. Sem await.
     if (novoStatus === 'fechou' && stDe !== 'fechou' && !cardEhEletroposto(detalheAtual)) {
-      try { garantirClienteDoCard(idAlvo); } catch (e) { /* o botao Criar cliente na planilha cobre */ }
+      // Fase 1 da Jornada (05/11/2026): o VENDIDO do solar é gravado pelo servidor (status, histórico e a etapa 1).
+      await vendidoNoServidor(idAlvo, linhaSt);
+    } else {
+      await supaPatch(`agendamentos?id=eq.${idAlvo}`,
+        { status: novoStatus, historico: histSt, ...(extra || {}) });
     }
     // Serie #E (etapa 4): so eletroposto, em todo VENDIDO gravado (o servidor e idempotente). NAO fica no `pvGuardar`: o "Depois" nao passa por ele. Sem await.
     if (novoStatus === 'fechou' && cardEhEletroposto(detalheAtual)) {
@@ -3628,6 +3654,7 @@ async function atualizarStatus(novoStatus, extra) {
     }
   } catch (e) {
     document.getElementById('d-erro').textContent = 'Erro ao atualizar status.';
+    if (novoStatus === 'fechou') showToast(e && e.message ? e.message : 'Não consegui marcar a venda agora. Tente de novo.');
     console.error(e);
   }
 }
