@@ -504,10 +504,10 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
   e({
     id: 'compra_cobranca', nome: 'Compra, ativação e cobrança', area: 'solardoc', canal: 'whatsapp', linha: 'solardoc',
     resumo: 'Mensagens de compra, Pix e cobrança do SolarDoc',
-    papel: 'Boas-vindas e link de senha de quem acabou de pagar, comprovante do Pix, recuperação de checkout, cobrança falha (D0 a D5), lembrete do VIP por Pix e os avisos de venda para o dono. Nascem de um evento de pagamento. O lembrete do VIP por Pix desliga com PIX_MENSAL_OFF.',
+    papel: 'Boas-vindas e link de senha de quem acabou de pagar, comprovante do Pix, recuperação de checkout, cobrança falha (D0 a D5), lembrete do VIP por Pix e os avisos de venda para o dono. Nascem de um evento de pagamento, menos o link de senha novo, que nasce do pedido de quem esqueceu a senha (no site ou com a Giovanna) e sai no WhatsApp da conta. O lembrete do VIP por Pix desliga com PIX_MENSAL_OFF.',
     regra: { tipo: 'sempre' }, fonte: 'services/dunningService.ts',
     robos: [
-      'solardoc_boas_vindas', 'solardoc_compra', 'solardoc_ativacao', 'dunning_d0', 'dunning_d5',
+      'solardoc_boas_vindas', 'solardoc_compra', 'solardoc_ativacao', 'solardoc_link_senha', 'dunning_d0', 'dunning_d5',
       'dunning_lembrete', 'dunning_recuperado', 'pix_comprovante_cliente', 'pix_comprovante_dono',
       'pix_vip_lembrete', 'trafego_confirmacao', 'recuperacao_checkout', 'venda_aviso', 'asaas_aviso', 'solardoc_aviso_grupo',
     ],

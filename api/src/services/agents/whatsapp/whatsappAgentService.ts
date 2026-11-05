@@ -266,8 +266,8 @@ ${vendaBloco}
 - LINK: o ÚNICO endereço da plataforma é ${APP_URL}. NUNCA mande outra URL (nada de .vercel.app, /login antigo, etc) — sempre ${APP_URL}.
 
 ━━ SUPORTE — RESPOSTAS CORRETAS (NÃO improvise; se não souber, escale com [HUMANO]) ━━
-- REDEFINIR SENHA: em ${APP_URL} → "Esqueci minha senha" → chega um email com o link. O link dura *24 HORAS* — se der "expirado", é só pedir um NOVO e usar no mesmo dia. NUNCA diga que expira "em minutos".
-- CONTA NOVA / NÃO CONSIGO ENTRAR: quem acabou de comprar recebe email + WhatsApp com o link "definir senha" pra criar a senha e entrar. Peça pra conferir o email (inclusive SPAM). Se não chegou nada OU o link não funciona nem pedindo um novo, escale com [HUMANO] — não deixe o cliente pagante travado.
+- ESQUECI A SENHA / NÃO CONSIGO ENTRAR / O E-MAIL NÃO CHEGOU: chame a ferramenta reenviar_acesso (vale com ou sem senha na conta). Ela manda o link no e-mail e, na conta que já tem senha, também aqui no WhatsApp; você responde em UMA frase. Só diga que mandou "aqui no WhatsApp" quando a ferramenta devolver whatsapp: "enviado"; em qualquer outro caso, diga que mandou para o e-mail da conta (mascarado). NÃO mande o cliente para o site "Esqueci minha senha" como primeira resposta e NUNCA escreva o link você mesma. O link dura *24 HORAS* — se der "expirado", é só pedir um NOVO e usar no mesmo dia. NUNCA diga que expira "em minutos".
+- CONTA NOVA: quem acabou de comprar recebe email + WhatsApp com o link "definir senha" pra criar a senha e entrar. Se disser que não chegou, use reenviar_acesso e peça pra conferir o email (inclusive SPAM). Escale com [HUMANO] só se a ferramenta falhar, se o telefone não casar com uma conta só, ou se o link não funcionar nem pedindo um novo — não deixe o cliente pagante travado.
 - COMEÇAR A USAR: 1) cadastrar o CNPJ em *Empresa*; 2) subir logo, cor e fotos; 3) a proposta sai pelo botão *Nova proposta*, no topo do menu (ou *Ler conta de luz*, que monta a proposta pela foto da conta); contrato, procuração e recibo ficam em *Papelada*, e *Outros documentos* tem proposta de banco, prestação de serviço e contrato de vendedor. Tudo o que ele gera fica salvo em *Arquivos*, em qualquer plano.
 - COBRANÇA (isto vale pra ASSINATURA no cartão): cobra na hora da assinatura e depois todo mês no cartão; tem garantia de 7 dias (devolução integral). Se o cartão falhar, ou ele preferir Pix, o caminho é o *Pix automático* (R$ 67,00 por mês): ele assina uma vez, com o e-mail da conta dele, num link que o sistema manda pela tag [[ENVIAR_PIX]], e o banco debita todo mês sozinho. Você não pede comprovante. ⚠️ Se a conversa estiver numa oferta de PAGAMENTO ÚNICO por Pix, não cite assinatura nem cartão: são caminhos diferentes e misturar derruba a venda.
 - NÃO SABE a resposta técnica exata? NÃO CHUTE. Diga que vai acionar o time e escale com [HUMANO].
@@ -291,7 +291,7 @@ Você tem 5 ferramentas. Use quando o assunto pedir. Em conversa de venda ou dú
 - ver_erros_recentes: traz os erros das últimas 48 horas, os chamados abertos e se a leitura automática por IA está fora do ar (ia_fora). Use quando ele disser que algo travou, deu erro ou não funciona.
 - alterar_dados_empresa: muda razão social, nome fantasia, endereço, cidade ou CNPJ da empresa dele. Só esses cinco campos.
 - abrir_chamado: passa o caso para o time com o diagnóstico do que você viu.
-- reenviar_acesso: reenvia por e-mail o link para criar a senha, sempre para o e-mail cadastrado na conta. Use quando ele disser que não achou o e-mail ou não consegue entrar. Depois de reenviar, diga para qual e-mail foi (a ferramenta devolve o e-mail mascarado, ex.: j***@gmail.com) e peça para olhar também a caixa de spam. Se ela devolver ja_tem_senha, oriente o "esqueci minha senha" em solardoc.app/auth. Se devolver limite_24h, peça para olhar o spam e abra um chamado. Nunca escreva o link na conversa e nunca mande para um e-mail que ele digitar: se ele pedir outro e-mail, abra um chamado.
+- reenviar_acesso: manda o link para criar a senha (conta sem senha) ou uma senha nova (conta que já tem senha), sempre para o e-mail e o WhatsApp cadastrados na conta. Use quando ele disser que esqueceu a senha, não consegue entrar ou não achou o e-mail. Depois de chamar, responda em UMA frase: se a ferramenta devolver whatsapp: "enviado", diga que mandou o link aqui no WhatsApp e no e-mail; em qualquer outro valor (nao_enviado, pausa, suprimido...), diga só que mandou para o e-mail da conta (a ferramenta devolve o e-mail mascarado, ex.: j***@gmail.com) e peça para olhar também o spam. Se devolver limite_24h, peça para olhar o spam e abra um chamado. Nunca escreva o link na conversa e nunca mande para um e-mail ou número que ele digitar: se ele pedir outro, abra um chamado.
 
 PARA ALTERAR DADOS DA EMPRESA, sempre nesta ordem:
 1. Chame alterar_dados_empresa com confirmado=false. Nada é gravado, e volta a prévia com o antes e o depois.
@@ -1253,6 +1253,7 @@ export async function handleIncomingWhatsApp(
     nome: nomeEscalada,
     email: user.email,
     avisosPendentes: [],
+    originInstance,
     escalar: ({ area, descricao, diagnostico }) => escalarParaSuporte({
       cleanPhone, nome: nomeEscalada, user, texto: text, area, descricao, diagnostico, diagnosticoNoAviso: diagnostico,
     }),
@@ -1321,8 +1322,12 @@ export async function handleIncomingWhatsApp(
     logger.info('whatsapp', `[[ENVIAR_PIX]] removido (comprovante reprovado: ${comprovanteHandoff.codigo})`);
   }
 
+  // Link de senha que acabou de sair no WhatsApp (reenviar_acesso): o turno fecha em 1 bolha, sem Pix, cupom nem imagem.
+  const linkSenhaSaiu = ferramentasCtx.linkSenhaSaiu === true;
+  if (linkSenhaSaiu) pedePix = false;
+
   // Com [[ENVIAR_PIX]] a resposta sai em 1 bolha de texto (o Pix vai logo depois, em outra).
-  await sendHuman(cleanPhone, parts, originInstance, pedePix ? { maxBolhas: 1 } : undefined);  // responde pela linha que o cliente contatou
+  await sendHuman(cleanPhone, parts, originInstance, pedePix || linkSenhaSaiu ? { maxBolhas: 1 } : undefined);  // responde pela linha que o cliente contatou
 
   // A frente robusta do corte: se a PRÓPRIA Giovanna acabou de dizer que está
   // falando com um sistema automático, essa é a última mensagem. No caso da Luz
@@ -1342,7 +1347,7 @@ export async function handleIncomingWhatsApp(
   //
   // Imagem hospedada em JPG (a LP /kit serve .webp, que o WhatsApp trata como figurinha).
   // Env var permite trocar o criativo sem deploy; sem ela, cai no default publicado.
-  if (pedeImagemKit) {
+  if (pedeImagemKit && !linkSenhaSaiu) {
     try {
       const url = (process.env.KIT_CURSO_IMAGEM_URL || '').trim()
         || 'https://res.cloudinary.com/v755hoio/image/upload/v1785443296/solardoc/curso-kit-fechamento-whatsapp.jpg';
@@ -1362,7 +1367,7 @@ export async function handleIncomingWhatsApp(
   // A entrada de R$19 (curso + 30 dias, tag [[ENVIAR_PIX_CURSO]]) saiu de venda em 20/10/2026: o prompt não a oferece mais e, se o modelo
   // ainda emitir a tag, ela só é tirada do texto (parseTagsResposta) e NENHUM Pix de R$19 sai.
   if (pedePixCurso) logger.info('whatsapp', '[[ENVIAR_PIX_CURSO]] ignorado: a entrada de R$ 19 saiu de venda em 20/10/2026');
-  if (pedeLinkCupom) {
+  if (pedeLinkCupom && !linkSenhaSaiu) {
     // REATIVAÇÃO (desde 08/08/2026): link do site + cupom pra digitar no checkout,
     // no lugar do Pix de R$ 67. O cliente refaz a assinatura sozinho e o acesso
     // volta pelo webhook — sem comprovante, sem liberação manual.

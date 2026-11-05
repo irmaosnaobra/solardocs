@@ -244,6 +244,7 @@ const BOT_SENT_PREFIXES = [
   'ativ_senha_sent:',
   'ativ_proposta_sent:',
   'depo_sent:',
+  'link_senha_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
@@ -291,6 +292,7 @@ export const PREFIXOS_AGENDA = [
   'ag5040_agenda_sent:',    // a bolha fixa de agenda da Duda (agendaEnvio.ts); NUNCA ag5040_sent:, que fica fora da lista
   'boasvindas_pix_sent:',   // boas-vindas do Pix automático na adesão (asaasWebhookService); evento P0, a pessoa acabou de pagar
   'ativ_senha_sent:',       // "pagou e ainda não criou a senha" (ativacaoPosVenda); transacional P3. NUNCA ativ_proposta_sent: nem depo_sent:, que são frios
+  'link_senha_sent:',       // link de senha pelo WhatsApp (linkDeSenha, resposta a pedido da pessoa); evento P0. NUNCA link_senha_conta:, que é só o teto por conta
 ] as const;
 
 // ─── TERCEIRO BALDE: as respostas das agentes da 5040 (21/10/2026) ───────────

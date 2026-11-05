@@ -213,6 +213,11 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   solardoc_ativacao: robo('evento_p0', ['services/agents/whatsapp/whatsappAgentService.ts', 'services/asaas/asaasWebhookService.ts'], {
     linha: 'solardoc', carimbos: [agenda('boasvindas_pix_sent:')], maxBolhas: 1,
   }),
+  // [04/11] Link de senha pelo WhatsApp (linkDeSenha.ts): resposta a um PEDIDO da pessoa (site ou Giovanna), a qualquer hora, 1 bolha, respeita a pausa humana.
+  // O carimbo link_senha_sent:<dia>:<n> é de agenda (a linha o conta; o frio não o soma). link_senha_conta:* (teto por conta) fica fora da linha.
+  solardoc_link_senha: robo('evento_p0', ['services/solardoc/linkDeSenha.ts'], {
+    linha: 'solardoc', carimbos: [agenda('link_senha_sent:')], maxBolhas: 1, respeitaPausa: true,
+  }),
   dunning_d0: robo('evento_p0', ['services/dunningService.ts'], { linha: 'solardoc' }),
   // Confirmação de que o pagamento entrou: chega pelo webhook a qualquer hora [crítica].
   dunning_recuperado: robo('evento_p0', ['services/dunningService.ts'], { linha: 'solardoc' }),

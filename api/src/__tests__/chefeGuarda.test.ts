@@ -396,6 +396,8 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/pesquisa/depoimentoWhatsApp.ts': { robos: ['depoimento_pedido'], classeMaxima: 'frio_p5' },
   // [04/11] Pós-venda da SolarDoc: "pagou e não criou a senha" (transacional P3) e "criou a senha e não fez a 1ª proposta" (frio P5).
   'services/solardoc/ativacaoPosVenda.ts': { robos: ['ativ_proposta', 'ativ_senha'], classeMaxima: 'transacional_agenda_p3' },
+  // [04/11] Link de senha pelo WhatsApp (site e Giovanna): evento P0, 1 bolha, a qualquer hora.
+  'services/solardoc/linkDeSenha.ts': { robos: ['solardoc_link_senha'], classeMaxima: 'evento_p0' },
   'services/solardoc/avisoGrupoSolardoc.ts': { robos: ['solardoc_aviso_grupo'], classeMaxima: 'aviso_interno_p2' },
   'services/solardoc/recuperacaoCarla.ts': { robos: ['quiz_recuperacao_5040'], classeMaxima: 'frio_receita_p4' },
   'services/solardoc/retomadaUsuarios.ts': { robos: ['carla_retomada_usuarios'], classeMaxima: 'frio_p5' },
@@ -1956,9 +1958,10 @@ describe('chefeGuarda: arquivo → robôs permitidos, com a classe máxima de ca
       'controllers/authController.ts', 'controllers/paymentsController.ts', 'controllers/trafegoController.ts',
       'routes/ioIndicacoes.ts', 'routes/webhook.ts', 'services/agents/whatsapp/pixComprovanteService.ts',
       'services/agents/whatsapp/whatsappAgentService.ts', 'services/asaas/asaasWebhookService.ts', 'services/dunningService.ts',
+      'services/solardoc/linkDeSenha.ts',
     ]);
-    // Três deles não estão em ARQUIVOS_MISTOS: só têm robô de evento.
-    expect(deClasse('evento_p0').filter(a => !(a in ARQUIVOS_MISTOS))).toEqual(['controllers/authController.ts', 'controllers/paymentsController.ts', 'controllers/trafegoController.ts']);
+    // Quatro deles não estão em ARQUIVOS_MISTOS: só têm robô de evento.
+    expect(deClasse('evento_p0').filter(a => !(a in ARQUIVOS_MISTOS))).toEqual(['controllers/authController.ts', 'controllers/paymentsController.ts', 'controllers/trafegoController.ts', 'services/solardoc/linkDeSenha.ts']);
     expect(deClasse('lembrete_p1')).toEqual([
       'services/agentes5040/agendaEnvio.ts', 'services/io/eletropostoAgenda.ts', 'services/io/eletropostoAlerta10min.ts', 'services/io/eletropostoCobraSim.ts',
       'services/io/solarAgendaGiovanna.ts', 'services/io/solarBoasVindas.ts',

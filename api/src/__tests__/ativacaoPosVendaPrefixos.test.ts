@@ -71,7 +71,7 @@ describe('pós-venda: a sonda (gravar `<prefixo>sonda` sobe a conta certa, apaga
     expect(await carimbosDaLinhaNaHora()).toBe(antes.linha);
   });
 
-  it.each(['boasvindas_pix_sent:', 'ativ_senha_sent:'])('%s sobe a linha inteira (teto transacional) e NÃO sobe o frio; apagar volta', async (prefixo) => {
+  it.each(['boasvindas_pix_sent:', 'ativ_senha_sent:', 'link_senha_sent:'])('%s sobe a linha inteira (teto transacional) e NÃO sobe o frio; apagar volta', async (prefixo) => {
     const { vagasDoFrioLinha, carimbosDaLinhaNaHora, dentroDoTetoHorarioLinha } = await carregar();
     const antes = { frio: (await vagasDoFrioLinha()).hora.usadas, linha: await carimbosDaLinhaNaHora() };
     grava(`${prefixo}sonda`);

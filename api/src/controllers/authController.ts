@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 import { z } from 'zod';
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
@@ -10,6 +9,8 @@ import { sendMetaEvent } from '../utils/metaPixel';
 import { sendPasswordResetEmail } from '../utils/mailer';
 import { sendWelcomeWhatsApp, sendPurchaseWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { sendWelcomeEmail, sendPurchaseEmail } from '../utils/mailer';
+import { linkVivoDeSenha, enviarLinkDeSenha, contaPaga, semSegredo } from '../services/solardoc/linkDeSenha';
+import { logger } from '../utils/logger';
 import { FREE_LIMIT } from '../services/planService';
 import { acessoDoUsuario } from '../services/kitIntegradorService';
 import { comprouAlgumProduto } from '../services/produtos/acessos';
@@ -557,42 +558,60 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
     // existe, então continua sem revelar se o e-mail está cadastrado.
     const user = await lerDoBanco(() => supabase
       .from('users')
-      .select('id')
+      .select('id, plano, billing_status, plano_expira_em')
       .eq('email', emailLc)
       .maybeSingle());
 
     // Resposta genérica para não revelar se o email existe
     if (!user) { res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções.' }); return; }
 
-    const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 horas (era 1h — cliente pagante travava em "link expirado")
-
-    console.log(`[ForgotPass] Gerando token para ${emailLc}`);
-
-    const { error: updateErr } = await supabase
-      .from('users')
-      .update({ reset_token: token, reset_token_expires: expires })
-      .eq('id', user.id);
-
-    if (updateErr) {
-      console.error('[ForgotPass] Erro ao atualizar token no banco:', updateErr);
-      // Sempre 503, seja qual for o erro. Um 500 aqui só aconteceria pra e-mail
-      // CADASTRADO (o não cadastrado já saiu com 200 acima), e a tela passaria a
-      // mostrar a diferença. A resposta depende do estado do banco, não do cadastro.
-      throw new BancoIndisponivel(updateErr);
+    // Link vivo: não gira o token se o anterior ainda vale (quem pede duas vezes recebe o MESMO link, e o
+    // e-mail antigo continua servindo). Qualquer falha aqui é 503, seja qual for o erro: um 500 só aconteceria
+    // pra e-mail CADASTRADO (o não cadastrado já saiu com 200 acima), e a tela passaria a mostrar a diferença.
+    // A resposta depende do estado do banco, não do cadastro.
+    let link: Awaited<ReturnType<typeof linkVivoDeSenha>>;
+    try {
+      link = await linkVivoDeSenha(user.id);
+    } catch (e) {
+      const causa = (e as { causa?: unknown } | null)?.causa ?? e;
+      console.error('[ForgotPass] Erro ao preparar o link de senha:', causa instanceof Error ? causa.message : causa);
+      throw new BancoIndisponivel(causa);
     }
 
-    const dashboardUrl = process.env.DASHBOARD_URL || 'https://solardocs-dashboard.vercel.app';
-    const resetUrl = `${dashboardUrl}/auth?mode=redefinir&token=${token}`;
-    
-    console.log(`[ForgotPass] Enviando e-mail para ${emailLc} com URL: ${resetUrl}`);
+    // Nunca logar a URL nem o token (o log da Vercel não é lugar de credencial).
+    console.log(`[ForgotPass] link ${link.reaproveitado ? 'reaproveitado' : 'gerado'} para ${emailLc}`);
 
-    try {
-      await sendPasswordResetEmail(emailLc, resetUrl);
+    // E-mail primeiro, com uma nova tentativa. Se falhar de novo, vai pro error_logs (sem token) e a resposta não muda.
+    let emailSaiu = false;
+    let erroEmail: unknown = null;
+    for (let tentativa = 0; tentativa < 2 && !emailSaiu; tentativa++) {
+      try {
+        await sendPasswordResetEmail(emailLc, link.url);
+        emailSaiu = true;
+      } catch (mailErr) {
+        erroEmail = mailErr;
+      }
+    }
+    if (emailSaiu) {
       console.log(`[ForgotPass] E-mail enviado com sucesso para ${emailLc}`);
-    } catch (mailErr) {
-      console.error('[ForgotPass] Erro fatal ao enviar e-mail:', mailErr);
-      // Não rethrow para manter a resposta genérica, mas logamos o erro
+    } else {
+      logger.error('forgot-password', 'e-mail de redefinição falhou', {
+        userId: user.id,
+        erro: semSegredo(erroEmail, link.url, link.token).slice(0, 300),
+      });
+    }
+
+    // Depois o WhatsApp da conta, esperado (na Vercel o trabalho depois do res.json pode ser cortado). Só para conta que PAGA
+    // (mesmo critério do followupService: plano pago com cobrança ativa/em teste, ou Pix com vigência): conta grátis, aberta por
+    // qualquer um com o e-mail de outra pessoa, não pode virar mensagem de WhatsApp. Quem não tem WhatsApp, está suprimido ou
+    // bateu no teto continua só com o e-mail; o resultado só vai pro log.
+    if (contaPaga(user as { plano?: string | null; billing_status?: string | null; plano_expira_em?: string | null })) {
+      try {
+        const status = await enviarLinkDeSenha(user.id, 'site', 'solardoc', link.url);
+        if (status !== 'enviado') console.log(`[ForgotPass] WhatsApp do link não saiu (${status}) para ${emailLc}`);
+      } catch {
+        console.log(`[ForgotPass] WhatsApp do link falhou para ${emailLc}`);
+      }
     }
 
     res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções.' });

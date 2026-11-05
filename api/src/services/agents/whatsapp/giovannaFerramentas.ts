@@ -4,6 +4,8 @@ import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
 import { cnpjValido, formatarCnpj, soDigitos } from '../../../utils/cnpj';
 import { mascararEmail } from '../../solardoc/ativacaoPosVendaTextos';
+import { enviarLinkDeSenha, linkVivoDeSenha, semSegredo } from '../../solardoc/linkDeSenha';
+import type { ZapiInstance } from '../zapiClient';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FERRAMENTAS DA GIOVANNA (atendente do SolarDoc para quem já tem conta).
@@ -23,9 +25,13 @@ import { mascararEmail } from '../../solardoc/ativacaoPosVendaTextos';
 //  • A escrita é idempotente pelo id da fila: a fila refaz a mensagem inteira
 //    quando o Claude cai no meio, e o cadastro não pode mudar nem avisar duas
 //    vezes.
-//  • Este módulo NÃO envia mensagem. Quem fala com o dono é o serviço, uma vez
-//    por turno (ctx.avisosPendentes), e quem abre o chamado é o serviço
-//    (ctx.escalar): um caminho de aviso só, sem ciclo de import.
+//  • Este módulo NÃO envia mensagem, com UMA exceção: o link de senha de quem esqueceu
+//    a senha (reenviar_acesso numa conta que já tem senha). Esse sai por
+//    services/solardoc/linkDeSenha.ts (enviarLinkDeSenha), que carrega as travas da linha:
+//    supressão, pausa humana, tetos por conta e do robô. O link nunca volta ao modelo nem
+//    vai para o log. Quem fala com o dono é o serviço, uma vez por turno
+//    (ctx.avisosPendentes), e quem abre o chamado é o serviço (ctx.escalar): um caminho de
+//    aviso só, sem ciclo de import.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface AlteracaoAviso {
@@ -52,6 +58,10 @@ export interface GiovannaCtx {
   escalar: (a: { area: string; descricao: string; diagnostico: string }) => Promise<{ aberto: boolean; jaTinha: boolean }>;
   /** O que mudou neste turno; o serviço manda UM aviso ao dono depois do laço. */
   avisosPendentes: AlteracaoAviso[];
+  /** A linha por onde o cliente falou (o link de senha sai por ela). Sem isto, vale a 'solardoc'. */
+  originInstance?: ZapiInstance;
+  /** Marcado pela ferramenta quando o link de senha SAIU no WhatsApp: o serviço fecha o turno em 1 bolha, sem Pix, cupom nem imagem. */
+  linkSenhaSaiu?: boolean;
 }
 
 // Uma reserva por PEDIDO dentro da mensagem: duas alterações diferentes no mesmo turno têm hashes
@@ -131,10 +141,12 @@ export const GIOVANNA_TOOLS: Anthropic.Tool[] = [
   {
     name: 'reenviar_acesso',
     description:
-      'Reenvia por E-MAIL o link para criar a senha (acesso) de quem pagou e não conseguiu entrar ou não achou o e-mail. ' +
-      'Vai SEMPRE para o e-mail cadastrado na conta, nunca para o WhatsApp nem para um e-mail digitado na conversa. ' +
-      'No máximo 3 reenvios por conta em 24 horas. Devolve o e-mail mascarado (ex.: j***@gmail.com) para você dizer para onde foi. ' +
-      'Se a conta já tem senha, não reenvia: devolve ja_tem_senha e você orienta o "esqueci minha senha" em solardoc.app/auth.',
+      'Manda o link para criar a senha (conta sem senha) ou uma senha NOVA (conta que já tem senha, quando ele esqueceu a senha) ' +
+      'de quem não consegue entrar ou não achou o e-mail. Use nos dois casos. ' +
+      'Vai SEMPRE para o e-mail cadastrado na conta e, na conta que já tem senha, também para o WhatsApp dela; nunca para um e-mail ou número digitado na conversa. ' +
+      'No máximo 3 reenvios por conta em 24 horas. Devolve o e-mail mascarado (ex.: j***@gmail.com) e o campo whatsapp: ' +
+      'só diga que mandou "aqui no WhatsApp" quando ele for "enviado"; em qualquer outro valor (nao_enviado, pausa, suprimido...) diga que mandou para o e-mail mascarado. ' +
+      'Você nunca escreve o link: o sistema já manda.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
 ];
@@ -761,12 +773,6 @@ async function reenviarAcesso(ctx: GiovannaCtx): Promise<Resultado> {
   const conta = u as { id: string; email: string | null; nome: string | null; plano: string | null; password_hash: string | null; reset_token: string | null; reset_token_expires: string | null } | null;
   if (!conta) return { ok: false, motivo: 'conta_nao_identificada' };
 
-  if (conta.password_hash) {
-    return {
-      ok: true, reenviado: false, motivo: 'ja_tem_senha',
-      aviso: 'Esta conta já tem senha, então não reenvio o link. Oriente o "esqueci minha senha" em solardoc.app/auth.',
-    };
-  }
   const email = String(conta.email ?? '').trim();
   if (!email || !email.includes('@')) return recusa('conta_sem_email', { aviso: 'A conta não tem e-mail válido. Abra um chamado.', ...ORIENTA_CHAMADO });
 
@@ -782,6 +788,9 @@ async function reenviarAcesso(ctx: GiovannaCtx): Promise<Resultado> {
   const agoraIso = new Date().toISOString();
   const { error: eC } = await supabase.from('system_state').insert({ key: chave, value: { em: agoraIso }, updated_at: agoraIso });
   if (eC) return falhaDeLeitura('reenviar_acesso_claim', eC, uid);
+
+  // Conta COM senha: o cliente esqueceu a senha. Link de redefinição (24 h) por e-mail E pelo WhatsApp da conta.
+  if (conta.password_hash) return redefinirSenha(ctx, uid, email, chave);
 
   try {
     // Link: reaproveita o vivo; senão gera um novo de 30 dias.
@@ -811,7 +820,47 @@ async function reenviarAcesso(ctx: GiovannaCtx): Promise<Resultado> {
     logger.error('giovanna-ferramentas', 'reenviar_acesso: o e-mail não saiu', { user_id: uid, erro: err instanceof Error ? err.message : String(err) });
     return recusa('email_nao_saiu', { aviso: 'O e-mail não saiu agora. Não diga que reenviou e abra um chamado.', ...ORIENTA_CHAMADO });
   }
-  return { ok: true, reenviado: true, email_mascarado: mascararEmail(email), aviso: 'Diga que reenviou para o e-mail mascarado e peça para olhar também a caixa de spam. Não escreva o link.' };
+  return {
+    ok: true, reenviado: true, email_mascarado: mascararEmail(email), whatsapp: 'nao_enviado',
+    aviso: 'Diga que reenviou para o e-mail mascarado e peça para olhar também a caixa de spam. Não diga que mandou no WhatsApp: nesta conta o link foi só por e-mail. Não escreva o link.',
+  };
+}
+
+/** Conta que já tem senha: link vivo de redefinição por e-mail e WhatsApp. O link NUNCA entra no resultado. */
+async function redefinirSenha(ctx: GiovannaCtx, uid: string, email: string, chave: string): Promise<Resultado> {
+  let emailSaiu = false;
+  let whatsapp: Awaited<ReturnType<typeof enviarLinkDeSenha>> = 'erro';
+  try {
+    const link = await linkVivoDeSenha(uid);
+    try {
+      const mailer = await import('../../../utils/mailer');
+      await mailer.sendPasswordResetEmail(email, link.url);
+      emailSaiu = true;
+    } catch (err) {
+      logger.error('giovanna-ferramentas', 'reenviar_acesso: o e-mail de redefinição não saiu', { user_id: uid, erro: semSegredo(err, link.url, link.token).slice(0, 200) });
+    }
+    whatsapp = await enviarLinkDeSenha(uid, 'giovanna', ctx.originInstance ?? 'solardoc', link.url);
+  } catch (err) {
+    logger.error('giovanna-ferramentas', 'reenviar_acesso: não consegui preparar o link de redefinição', { user_id: uid, erro: err instanceof Error ? err.message.slice(0, 200) : 'erro' });
+  }
+
+  if (whatsapp === 'enviado') ctx.linkSenhaSaiu = true;
+  if (!emailSaiu && whatsapp !== 'enviado') {
+    await supabase.from('system_state').delete().eq('key', chave);   // nada saiu: não gasta o teto da pessoa
+    return recusa('email_nao_saiu', { aviso: 'O link não saiu agora, nem no e-mail nem no WhatsApp. Não diga que enviou e abra um chamado.', ...ORIENTA_CHAMADO });
+  }
+  const aviso = whatsapp === 'enviado'
+    ? (emailSaiu
+      ? 'Não escreva o link: ele já saiu numa mensagem separada e no e-mail. Diga em uma frase que mandou o link aqui no WhatsApp e no e-mail (diga o e-mail mascarado).'
+      : 'Não escreva o link: ele já saiu numa mensagem separada aqui no WhatsApp, mas o e-mail falhou. Diga só que mandou aqui no WhatsApp.')
+    : 'O link saiu SÓ por e-mail; no WhatsApp não saiu. Não escreva o link nem diga que mandou aqui no WhatsApp: diga que mandou para o e-mail mascarado e peça para olhar também o spam.';
+  return {
+    ok: true, reenviado: true, tipo: 'redefinicao',
+    ...(emailSaiu ? { email_mascarado: mascararEmail(email) } : {}),
+    email: emailSaiu ? 'enviado' : 'falhou',
+    whatsapp,
+    aviso,
+  };
 }
 
 // ─── despacho ────────────────────────────────────────────────────────────────

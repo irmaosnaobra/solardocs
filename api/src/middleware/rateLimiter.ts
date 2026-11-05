@@ -201,3 +201,21 @@ export const nexusCnpjLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// "Esqueci minha senha" (POST /auth/forgot-password, 04/11/2026): cada pedido de conta real manda e-mail E WhatsApp, então a
+// rota ganhou teto próprio por IP: 10 a cada 15 min (o global, de 500, não protege a linha). A resposta é a mesma de sempre
+// (a mensagem não revela se o e-mail existe). O healthcheck da Carla (sdrB2bAgentService, verificar_status_plataforma)
+// posta aqui com `healthcheck@solardoc.app`, que NÃO é conta (0 em produção): fica fora do teto para o 429 não virar
+// "reset_senha: FALHA" no status da plataforma. É seguro, porque esse e-mail nunca chega ao envio. Nos testes o teto fica
+// desligado, exceto com FORGOT_LIMITE_NO_TESTE=1 (o teste do 429).
+export const EMAIL_DO_HEALTHCHECK = 'healthcheck@solardoc.app';
+export const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => 'forgot-password:' + ipKeyGenerator(req.ip ?? ''),
+  message: { error: 'Muitas tentativas. Tente novamente em 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => (process.env.NODE_ENV === 'test' && process.env.FORGOT_LIMITE_NO_TESTE !== '1')
+    || String((req.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase().trim() === EMAIL_DO_HEALTHCHECK,
+});

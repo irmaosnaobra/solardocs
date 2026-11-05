@@ -283,6 +283,28 @@ describe('POST /auth/forgot-password', () => {
     expect(res.status).toBe(200);
     expect(res.body.message).toMatch(/se o email estiver cadastrado/i);
   });
+
+  // Teto próprio da rota (04/11/2026): cada pedido de conta real manda e-mail E WhatsApp. 10 por 15 min por IP.
+  // Nos testes ele fica desligado; FORGOT_LIMITE_NO_TESTE=1 liga só aqui.
+  it('11º pedido do mesmo IP em 15 min leva 429; o healthcheck da Carla fica fora do teto', async () => {
+    process.env.FORGOT_LIMITE_NO_TESTE = '1';
+    try {
+      mockSingle.mockResolvedValue({ data: null, error: null, status: 200 });
+      for (let i = 0; i < 10; i++) {
+        const ok = await request(app).post('/auth/forgot-password').send({ email: `ninguem${i}@a.com` });
+        expect(ok.status).toBe(200);
+      }
+      const barrado = await request(app).post('/auth/forgot-password').send({ email: 'ninguem@a.com' });
+      expect(barrado.status).toBe(429);
+
+      // O healthcheck (sdrB2bAgentService) posta com este e-mail, que não é conta: segue 200 mesmo com o IP no teto.
+      const saude = await request(app).post('/auth/forgot-password').send({ email: 'healthcheck@solardoc.app' });
+      expect(saude.status).toBe(200);
+    } finally {
+      delete process.env.FORGOT_LIMITE_NO_TESTE;
+      mockSingle.mockReset();
+    }
+  });
 });
 
 // ─── GET /auth/me ────────────────────────────────────────────────────

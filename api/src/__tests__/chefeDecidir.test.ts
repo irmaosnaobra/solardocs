@@ -1162,7 +1162,10 @@ describe('decidir: propriedade com 2.000 estados sorteados (semente fixa)', () =
     decisoes.forEach((d, i) => {
       if (d.classe !== 'evento_p0') return;
       const o = oraculos[i]!;
+      // pausa_humana só vale para o robô P0 que declara respeitaPausa (hoje, o solardoc_link_senha): não é teto, é a pessoa já estar
+      // falando com um humano. Para qualquer outro P0 continua proibida.
       const permitidas = ['chave_repetida', 'freio_de_erro', 'teto_emergencia'];
+      if (CLASSE_POR_ROBO[casos[i]!.pedido.robo]?.respeitaPausa === true) permitidas.push('pausa_humana');
       expect([...o.travas.keys()].every(m => permitidas.includes(m))).toBe(true);
       if (o.travas.size === 0) { expect(d.acao).toBe('enviar_agora'); vistos++; }
     });

@@ -2,10 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../utils/supabase', async () => ({ supabase: (await import('./_bancoFalso')).supabase }));
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
-const emailsEnviados = vi.hoisted(() => [] as Array<{ via: 'cartao' | 'pix'; to: string; url: string }>);
+const emailsEnviados = vi.hoisted(() => [] as Array<{ via: 'cartao' | 'pix' | 'redefinicao'; to: string; url: string }>);
 vi.mock('../utils/mailer', () => ({
   sendCheckoutCompletionEmail: vi.fn(async (o: any) => { emailsEnviados.push({ via: 'cartao', to: o.to, url: o.resetUrl }); }),
   sendPixAutomaticoAcessoEmail: vi.fn(async (o: any) => { emailsEnviados.push({ via: 'pix', to: o.to, url: o.acessoUrl }); }),
+  sendPasswordResetEmail: vi.fn(async (to: string, url: string) => { emailsEnviados.push({ via: 'redefinicao', to, url }); }),
+}));
+// O envio pelo WhatsApp é testado em linkDeSenha.test.ts; aqui só o que a ferramenta faz com o resultado dele.
+const whatsappDoLink = vi.hoisted(() => ({ enviar: vi.fn() }));
+vi.mock('../services/solardoc/linkDeSenha', async (orig) => ({
+  ...(await orig<typeof import('../services/solardoc/linkDeSenha')>()),
+  enviarLinkDeSenha: whatsappDoLink.enviar,
 }));
 
 import { banco } from './_bancoFalso';
@@ -785,12 +792,13 @@ describe('reenviar_acesso', () => {
     const u = banco.linhas('users').find(r => r.id === UID)!;
     Object.assign(u, { email: 'joao@x.com', password_hash: null, reset_token: 'TOKEN-VIVO', reset_token_expires: new Date(Date.now() + 20 * 86_400_000).toISOString(), ...over });
   };
-  beforeEach(() => { emailsEnviados.length = 0; });
+  beforeEach(() => { emailsEnviados.length = 0; whatsappDoLink.enviar.mockReset(); whatsappDoLink.enviar.mockResolvedValue('enviado'); });
 
   it('conta sem senha reenvia para o e-mail DA CONTA (cartão), reaproveita o link vivo e devolve o e-mail mascarado', async () => {
     semSenha();
     const r = await rodar('reenviar_acesso', { email: 'outro@invasor.com' }, ctx({ email: 'outro@invasor.com' }));
-    expect(r).toMatchObject({ ok: true, reenviado: true, email_mascarado: 'j***@x.com' });
+    expect(r).toMatchObject({ ok: true, reenviado: true, email_mascarado: 'j***@x.com', whatsapp: 'nao_enviado' });
+    expect(r.aviso).toContain('Não diga que mandou no WhatsApp');
     expect(JSON.stringify(r)).not.toContain('TOKEN-VIVO');
     expect(emailsEnviados).toHaveLength(1);
     expect(emailsEnviados[0]).toMatchObject({ via: 'cartao', to: 'joao@x.com' });          // nunca o e-mail digitado
@@ -832,13 +840,93 @@ describe('reenviar_acesso', () => {
     expect((await rodar('reenviar_acesso', {}, ctx())).reenviado).toBe(true);
   });
 
-  it('conta que já tem senha devolve "já tem senha" e não manda nada', async () => {
-    semSenha({ password_hash: 'hash-qualquer' });
+  it('conta sem senha NÃO manda nada pelo WhatsApp (comportamento atual intacto)', async () => {
+    semSenha();
+    const c = ctx();
+    expect((await rodar('reenviar_acesso', {}, c)).reenviado).toBe(true);
+    expect(whatsappDoLink.enviar).not.toHaveBeenCalled();
+    expect(c.linkSenhaSaiu).toBeUndefined();
+  });
+
+  it('conta COM senha: link vivo de redefinição por e-mail E WhatsApp; o link nunca volta ao modelo', async () => {
+    semSenha({ password_hash: 'hash-qualquer', reset_token: null, reset_token_expires: null });
+    const c = ctx({ originInstance: 'io' });
+    const r = await rodar('reenviar_acesso', {}, c);
+    expect(r).toMatchObject({ ok: true, tipo: 'redefinicao', email_mascarado: 'j***@x.com', whatsapp: 'enviado' });
+    expect(r.aviso).toContain('Não escreva o link');
+    const u = banco.linhas('users').find(x => x.id === UID)!;
+    expect(u.reset_token).toBeTruthy();
+    expect(JSON.stringify(r)).not.toContain(String(u.reset_token));
+    expect(emailsEnviados).toHaveLength(1);
+    expect(emailsEnviados[0]).toMatchObject({ via: 'redefinicao', to: 'joao@x.com' });
+    expect(emailsEnviados[0]!.url).toMatch(/^https:\/\/solardoc\.app\/auth\?mode=redefinir&token=/);
+    const dias = (Date.parse(String(u.reset_token_expires)) - Date.now()) / 3_600_000;
+    expect(dias).toBeGreaterThan(23.9);
+    expect(dias).toBeLessThan(24.1);
+    expect(whatsappDoLink.enviar).toHaveBeenCalledWith(UID, 'giovanna', 'io', emailsEnviados[0]!.url);
+    expect(c.linkSenhaSaiu).toBe(true);
+    expect(banco.linhas('system_state').filter(x => String(x.key).startsWith(`giovanna_acesso:${UID}:`))).toHaveLength(1);
+  });
+
+  it('conta COM senha e link ainda vivo: reaproveita, não gira', async () => {
+    semSenha({ password_hash: 'h', reset_token: 'TOKEN-VIVO', reset_token_expires: new Date(Date.now() + 5 * 3_600_000).toISOString() });
+    await rodar('reenviar_acesso', {}, ctx());
+    expect(banco.linhas('users').find(x => x.id === UID)!.reset_token).toBe('TOKEN-VIVO');
+    expect(emailsEnviados[0]!.url.endsWith('TOKEN-VIVO')).toBe(true);
+  });
+
+  it('conta COM senha e WhatsApp que não saiu: vai só por e-mail, avisa o modelo e não fecha o turno em 1 bolha', async () => {
+    semSenha({ password_hash: 'h' });
+    whatsappDoLink.enviar.mockResolvedValue('pausa');
+    const c = ctx();
+    const r = await rodar('reenviar_acesso', {}, c);
+    expect(r).toMatchObject({ ok: true, tipo: 'redefinicao', whatsapp: 'pausa', email: 'enviado' });
+    expect(r.aviso).toContain('SÓ por e-mail');
+    expect(c.linkSenhaSaiu).toBeUndefined();
+  });
+
+  it('conta COM senha: e-mail e WhatsApp falharam juntos devolve email_nao_saiu e não gasta o teto', async () => {
+    semSenha({ password_hash: 'h' });
+    const { sendPasswordResetEmail } = await import('../utils/mailer');
+    vi.mocked(sendPasswordResetEmail).mockRejectedValueOnce(new Error('resend fora'));
+    whatsappDoLink.enviar.mockResolvedValue('erro');
     const r = await rodar('reenviar_acesso', {}, ctx());
-    expect(r).toMatchObject({ ok: true, reenviado: false, motivo: 'ja_tem_senha' });
-    expect(r.aviso).toContain('solardoc.app/auth');
-    expect(emailsEnviados).toHaveLength(0);
+    expect(r).toMatchObject({ ok: false, motivo: 'email_nao_saiu' });
     expect(banco.linhas('system_state').some(x => String(x.key).startsWith('giovanna_acesso:'))).toBe(false);
+  });
+
+  it('conta COM senha: só o WhatsApp saiu (e-mail falhou) gasta o teto e diz isso ao modelo', async () => {
+    semSenha({ password_hash: 'h' });
+    const { sendPasswordResetEmail } = await import('../utils/mailer');
+    vi.mocked(sendPasswordResetEmail).mockRejectedValueOnce(new Error('resend fora'));
+    const c = ctx();
+    const r = await rodar('reenviar_acesso', {}, c);
+    expect(r).toMatchObject({ ok: true, whatsapp: 'enviado', email: 'falhou' });
+    expect(r.email_mascarado).toBeUndefined();
+    expect(c.linkSenhaSaiu).toBe(true);
+  });
+
+  it('conta COM senha: erro do e-mail com o token no meio de uma mensagem longa vai pro log sem o token', async () => {
+    semSenha({ password_hash: 'h', reset_token: null, reset_token_expires: null });
+    const { sendPasswordResetEmail } = await import('../utils/mailer');
+    const { logger } = await import('../utils/logger');
+    vi.mocked(logger.error).mockClear();
+    vi.mocked(sendPasswordResetEmail).mockImplementationOnce(async (_to: string, url: string) => {
+      const token = url.split('token=')[1]!;
+      throw new Error(`${'a'.repeat(190)} ${token} ${'b'.repeat(100)}`);
+    });
+    await rodar('reenviar_acesso', {}, ctx());
+    const token = String(banco.linhas('users').find(x => x.id === UID)!.reset_token);
+    expect(vi.mocked(logger.error).mock.calls.length).toBeGreaterThan(0);
+    expect(JSON.stringify(vi.mocked(logger.error).mock.calls)).not.toContain(token.slice(0, 10));
+  });
+
+  it('conta COM senha respeita as travas: 2 contas no telefone e a 4ª vez em 24 h', async () => {
+    semSenha({ password_hash: 'h' });
+    expect(await rodar('reenviar_acesso', {}, ctx({ userIds: [UID, 'user-2'] }))).toMatchObject({ ok: false, motivo: 'mais_de_uma_conta' });
+    for (let i = 0; i < 3; i++) expect((await rodar('reenviar_acesso', {}, ctx())).tipo).toBe('redefinicao');
+    expect(await rodar('reenviar_acesso', {}, ctx())).toMatchObject({ ok: false, motivo: 'limite_24h' });
+    expect(whatsappDoLink.enviar).toHaveBeenCalledTimes(3);
   });
 
   it('e-mail que falha no envio não gasta o teto e a Giovanna é orientada a não dizer que reenviou', async () => {
