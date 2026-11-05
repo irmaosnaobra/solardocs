@@ -27,6 +27,8 @@ interface Company {
   cidade?: string;
   uf?: string;
   socio_adm?: string;
+  /** Só o modelo 4 (Completa + Banco) lê: dados para pagamento da empresa. */
+  dados_bancarios?: unknown;
   engenheiro_nome?: string;
   engenheiro_cpf?: string;
   engenheiro_crea?: string;
@@ -136,7 +138,7 @@ function gerarDoTemplate(
       // Modelo 1 (padrão) = "1 Página"; Modelo 2 = "Moderno"; Modelo 3 = o MESMO
       // Moderno com uma capa na frente. O 3 nao e' um template novo: chama o mesmo
       // corpo com a folha de rosto ligada, entao mexer no Moderno arruma os dois.
-      // Modelo 4 = "Completo": varias folhas A4 no visual do modelo 1. Como o 1, chama o Moderno so'
+      // Modelo 4 = "Completa + Banco": varias folhas A4 no visual do modelo 1. Como o 1, chama o Moderno so'
       // para preencher out.resumo (mesmos numeros do WhatsApp) e descarta o HTML dele.
       if (modelo === 4) {
         if (out) propostaSolarM1(company, client, fields, out);

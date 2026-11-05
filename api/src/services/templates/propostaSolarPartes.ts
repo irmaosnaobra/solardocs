@@ -137,7 +137,8 @@ export function dadosContato(company: CompanyProposta, f: Record<string, unknown
   return { mostraVendNome, vendedor, vendWhats, vendEmail, cnpjDoc, logo, displayNome };
 }
 
-export function cabecalhoModelo1(a: { logo: string; displayNome: string; hoje: string; clienteNome: string; enderecoCli: string; validadeCurto: string }): string {
+/** `clienteDoc` (só o modelo 4): linha CPF/CNPJ logo depois do nome, no mesmo estilo das outras. `html` já vem escapado de quem chama. Ausente, a saída é a de sempre. */
+export function cabecalhoModelo1(a: { logo: string; displayNome: string; hoje: string; clienteNome: string; enderecoCli: string; validadeCurto: string; clienteDoc?: { rotulo: string; html: string } }): string {
   return `<div class="head">
     <div class="brand">
       ${a.logo ? `<img src="${a.logo}" alt="${pEsc(a.displayNome)}"/>` : ''}
@@ -146,7 +147,8 @@ export function cabecalhoModelo1(a: { logo: string; displayNome: string; hoje: s
     <div class="ficha">
       <div class="t">Proposta Comercial</div>
       <div class="rowf"><span>Data</span><span class="num">${a.hoje}</span></div>
-      <div class="rowf"><span>Cliente</span><span>${pEsc(a.clienteNome || '—')}</span></div>
+      <div class="rowf"><span>Cliente</span><span>${pEsc(a.clienteNome || '—')}</span></div>${a.clienteDoc ? `
+      <div class="rowf"><span>${pEsc(a.clienteDoc.rotulo)}</span>${a.clienteDoc.html}</div>` : ''}
       ${a.enderecoCli ? `<div class="rowf end"><span>Endereço</span><span>${pEsc(a.enderecoCli)}</span></div>` : ''}
       <div class="valid">${pEsc(a.validadeCurto.toUpperCase())}</div>
     </div>

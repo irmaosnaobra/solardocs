@@ -5,6 +5,7 @@ import { ApiError } from '../utils/apiError';
 import { generateDocumentWithAI } from '../services/aiService';
 import { generateFromTemplate, propostaDiasValidade, type Client } from '../services/templateService';
 import { renovarUrlsPortfolio } from './portfolioController';
+import { normalizarAssinatura, normalizarCnpj, validarAssinatura } from '../utils/documentoBr';
 import { linkExpiraEm } from '../services/propostaLink';
 import { checkLimit, incrementUsed } from '../services/planService';
 import { acessoOffGrid } from '../services/offgrid/acesso';
@@ -84,9 +85,20 @@ async function injetarClienteFinal(
   };
 }
 
+/** Modelo 4 (Completa + Banco): o aceite precisa das duas assinaturas, válidas. Roda antes de gastar número e cota. */
+const MSG_SEM_ASSINATURA = 'Para gerar a Completa + Banco, preencha as assinaturas do cliente e da empresa.';
+function exigirAssinaturaModelo4(fields: Record<string, unknown>): void {
+  if (fields.assinatura === undefined || fields.assinatura === null) throw new ApiError(400, MSG_SEM_ASSINATURA);
+  const erro = validarAssinatura(fields.assinatura);
+  if (erro) throw new ApiError(400, erro);
+  // Guarda a versão limpa: documentos só com dígitos, textos aparados e no tamanho máximo.
+  fields.assinatura = normalizarAssinatura(fields.assinatura);
+}
+
 export async function generateDocument(req: Request, res: Response): Promise<void> {
   try {
     const body = generateSchema.parse(req.body);
+    if (body.tipo === 'propostaSolar' && body.modeloNumero === 4) exigirAssinaturaModelo4(body.fields);
 
     const aceitaAvulso = TIPOS_MODO_RAPIDO.includes(body.tipo);
     const usandoAvulso = aceitaAvulso && !!body.cliente_nome_avulso && !body.cliente_id && !body.terceiro_id;
@@ -212,6 +224,12 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // Modelo Completo: as galerias (obras, empresas, bancos) são reassinadas aqui, só pelo path,
     // antes de o template e o dados_json verem o objeto. Vale também no retry do número (abaixo),
     // que gera de novo a partir de body.fields.
+    // Completa + Banco: sem a chave fotos_obras no formulário, valem as fotos de obra do cadastro da empresa
+    // (só os paths; a reassinatura e o filtro por usuário são os de sempre). `[]` explícito = a pessoa tirou.
+    if (body.tipo === 'propostaSolar' && body.modeloNumero === 4 && !('fotos_obras' in body.fields)
+      && Array.isArray(company.fotos_obras) && company.fotos_obras.length > 0) {
+      body.fields = { ...body.fields, fotos_obras: company.fotos_obras };
+    }
     if (body.tipo === 'propostaSolar') body.fields = await renovarUrlsPortfolio(req.userId, body.fields);
     // Contrato solar novo sai com o texto de garantia de 11/2026. A marca é só do servidor:
     // o que o formulário mandar em versao_garantia é sobrescrito.
@@ -400,7 +418,6 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
   try {
     const { id } = req.params;
     const body = regenerateSchema.parse(req.body);
-
     const { data: doc, error: docErr } = await supabase
       .from('documents')
       .select('id, tipo, cliente_id, terceiro_id, cliente_nome, arquivo_url, dados_json, codigo_curto, created_at')
@@ -489,6 +506,28 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     // Reeditar não renumera: o cabeçalho e o link precisam bater com o que já foi enviado.
     const dadosAntigos = (doc.dados_json ?? {}) as Record<string, unknown>;
     let fields: Record<string, unknown> = { ...body.fields };
+    // Reedição do modelo 4. Assinatura nova ausente, nula ou vazia = não veio: se há uma SALVA, ela fica (no
+    // render e no dados_json gravado, em qualquer plano); sem salva, gera sem a folha de aceite.
+    // Se veio, vale a mesma regra do generate. Plano com limite não troca o cliente: com salva, o cliente do
+    // aceite é o SALVO (nome e CPF/CNPJ do formulário são ignorados); sem salva, o nome na assinatura tem
+    // que ser o do cliente desta proposta. A empresa e o local seguem o que veio.
+    if (body.modeloNumero === 4 && doc.tipo === 'propostaSolar') {
+      const salva = normalizarAssinatura(dadosAntigos.assinatura);
+      const nova = normalizarAssinatura(fields.assinatura);
+      if (!nova) {
+        if (salva) fields.assinatura = salva;
+        else delete fields.assinatura;
+      } else {
+        if (!podeTrocarCliente && salva) fields.assinatura = { ...nova, cliente: salva.cliente };
+        exigirAssinaturaModelo4(fields);
+        if (!podeTrocarCliente && !salva) {
+          const ass = fields.assinatura as { cliente: { nome: string } };
+          if (chaveCliente(ass.cliente.nome) !== chaveCliente(doc.cliente_nome)) {
+            throw new ApiError(400, 'No seu plano, o nome na assinatura tem que ser o mesmo cliente desta proposta.');
+          }
+        }
+      }
+    }
     // Número e data de emissão são coisa de proposta. Os outros tipos (contrato,
     // procuração, recibo...) guardam o dados_json exatamente como o formulário mandou.
     const ehProposta = doc.tipo === 'propostaSolar' || doc.tipo === 'propostaOffGrid';
@@ -1372,6 +1411,8 @@ const CLIENTE_ONLY = new Set<string>([
   'geracao_media_kwh', 'geracao_media', 'hsp', 'tarifa_kwh', 'investimento', 'preco_avista',
   'entrada_valor', 'entrada_modo', 'entrada_dias', 'pag_custom', 'tipo_telhado', 'iluminacao_publica',
   'bateria_capacidade_kwh', 'bateria_potencia_kw', 'bateria_ciclos', 'bateria_marca', 'bateria_garantia', 'bateria_tem',
+  // Aceite da Completa + Banco: nome e CPF/CNPJ do cliente de OUTRA proposta não podem nascer na próxima.
+  'assinatura', 'cpf_cnpj', 'tipo',
 ]);
 // emitido_em pertence ao doc reemitido, nunca ao próximo: prefill que o arrastasse
 // faria a proposta nova nascer com a data da anterior.
@@ -1406,6 +1447,9 @@ interface ClienteCadastro {
   endereco: string | null;
   cep?: string | null;
   tipo_telhado: string | null;
+  /** PF ou PJ, e o CPF/CNPJ: a Completa + Banco usa para preencher a assinatura do cliente. */
+  tipo?: string | null;
+  cpf_cnpj?: string | null;
   // Só existem depois da MIGRATION_clients_endereco_partes.sql (leitura tolerante).
   logradouro?: string | null;
   numero?: string | null;
@@ -1444,10 +1488,15 @@ function camposDoCadastro(c: ClienteCadastro): Record<string, unknown> {
   if (cep) out.cep = cep;
   const telhado = TIPOS_TELHADO_PROPOSTA.find((t) => nomeComparavel(t) === nomeComparavel(c.tipo_telhado));
   if (telhado) out.tipo_telhado = telhado;
+  const tipoCli = String(c.tipo || '').trim().toUpperCase();
+  if (tipoCli === 'PF' || tipoCli === 'PJ') out.tipo = tipoCli;
+  // PF: só dígitos. PJ: sem pontuação, mantendo as letras do CNPJ alfanumérico.
+  const doc = tipoCli === 'PJ' ? normalizarCnpj(c.cpf_cnpj) : String(c.cpf_cnpj || '').replace(/\D/g, '');
+  if (doc) out.cpf_cnpj = doc;
   return out;
 }
 
-const COLUNAS_CADASTRO_PREFILL = 'nome, cidade, uf, endereco, cep, tipo_telhado, created_at';
+const COLUNAS_CADASTRO_PREFILL = 'nome, cidade, uf, endereco, cep, tipo_telhado, tipo, cpf_cnpj, created_at';
 const COLUNAS_CADASTRO_PREFILL_COM_PARTES = `${COLUNAS_CADASTRO_PREFILL}, logradouro, numero, complemento, bairro`;
 
 /**
@@ -1512,6 +1561,17 @@ export async function propostaPrefill(req: Request, res: Response): Promise<void
     const hit = docs.find((d) => nomeComparavel(d.cliente_nome) === chave);
     if (hit?.dados_json) {
       cliente = limpaDados(hit.dados_json, false);
+      // O documento só vem do cadastro (abaixo) ou do dados_json.assinatura.cliente desta mesma proposta:
+      // tipo e cpf_cnpj soltos no dados_json não valem.
+      delete cliente.tipo;
+      delete cliente.cpf_cnpj;
+      // Cliente com proposta anterior também recebe o tipo e o CPF/CNPJ do cadastro.
+      const doCad = clientesCadastro.find((c) => nomeComparavel(c.nome) === chave);
+      if (doCad) {
+        const { tipo, cpf_cnpj } = camposDoCadastro(doCad);
+        if (tipo !== undefined) cliente.tipo = tipo;
+        if (cpf_cnpj !== undefined) cliente.cpf_cnpj = cpf_cnpj;
+      }
     } else {
       // Sem proposta anterior: vem do cadastro. Objeto vazio (e não null) quando o
       // cadastro só tem o nome, pra tela saber que o cliente existe.

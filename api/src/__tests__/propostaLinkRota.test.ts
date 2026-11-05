@@ -112,6 +112,19 @@ beforeEach(() => {
   h.push.mockResolvedValue({ enviados: 1, removidas: 0 });
 });
 
+describe('GET /p/:id mascara o CPF do cliente (Completa + Banco)', () => {
+  it('CPF sai com só os 6 dígitos do meio; o CNPJ sai inteiro', async () => {
+    h.doc = doc(rastreada(FUTURO), {
+      content: '<html><body>CPF <span class="dp">529.982.247-25</span> e CNPJ 11.222.333/0001-81 <span class="dp">529.982.247-25</span></body></html>',
+    });
+    const res = await abrir();
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('CPF <span class="dp">***.982.247-**</span>');
+    expect(res.text).not.toContain('529.982.247-25');
+    expect(res.text).toContain('CNPJ 11.222.333/0001-81');
+  });
+});
+
 describe('GET /p/:id com link rastreado', () => {
   it('aberta: serve a proposta, sem cache, grava o evento e avisa o dono', async () => {
     const res = await abrir({

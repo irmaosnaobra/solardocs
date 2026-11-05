@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/services/api';
 import InfoHint from '@/components/InfoHint/InfoHint';
+import GaleriaPortfolio, { type ImagemObra } from '../documentos/forms/GaleriaPortfolio';
+import { maskCpf, maskCnpj, soAlfanum, cnpjValido } from '@/utils/documento';
 import styles from './empresa.module.css';
 
 interface Company {
@@ -63,33 +65,54 @@ const emptyForm = {
   tecnico3_endereco: '',
 };
 
-function fmtCnpj(v: string) {
-  const d = v.replace(/\D/g, '').slice(0, 14);
-  return d.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
+const LIMITE_FOTOS_OBRAS = 6;
+
+type DadosBancarios = {
+  banco: string; agencia: string; conta: string; tipo_conta: '' | 'corrente' | 'poupanca';
+  titular: string; documento: string; pix: string;
+};
+const bancarioVazio: DadosBancarios = { banco: '', agencia: '', conta: '', tipo_conta: '', titular: '', documento: '', pix: '' };
+
+/** CPF ou CNPJ do titular. Com letra ou mais de 11 caracteres é CNPJ (o novo aceita letras). */
+function maskDocumento(v: string): string {
+  const d = soAlfanum(v);
+  return /[A-Z]/.test(d) || d.length > 11 ? maskCnpj(d) : maskCpf(d);
+}
+
+/** Foto de obra vinda do servidor: só item com `path`; `url` é a miniatura assinada. */
+function fotosDoServidor(v: unknown): ImagemObra[] {
+  if (!Array.isArray(v)) return [];
+  const out: ImagemObra[] = [];
+  for (const x of v) {
+    if (!x || typeof x !== 'object') continue;
+    const o = x as Record<string, unknown>;
+    if (typeof o.path !== 'string' || !o.path) continue;
+    out.push({
+      path: o.path,
+      ...(typeof o.url === 'string' && o.url ? { url: o.url } : {}),
+      ...(typeof o.legenda === 'string' ? { legenda: o.legenda } : {}),
+    });
+    if (out.length >= LIMITE_FOTOS_OBRAS) break;
+  }
+  return out;
+}
+
+function bancarioDoServidor(v: unknown): DadosBancarios {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return { ...bancarioVazio };
+  const o = v as Record<string, unknown>;
+  const t = (k: string) => (typeof o[k] === 'string' ? (o[k] as string) : '');
+  return {
+    banco: t('banco'), agencia: t('agencia'), conta: t('conta'),
+    tipo_conta: o.tipo_conta === 'corrente' || o.tipo_conta === 'poupanca' ? o.tipo_conta : '',
+    titular: t('titular'),
+    documento: maskDocumento(t('documento')),
+    pix: t('pix'),
+  };
 }
 
 function fmtCpf(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11);
   return d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-}
-
-/** Valida dígitos verificadores do CNPJ */
-function validaCnpjDigitos(cnpj: string): boolean {
-  const c = cnpj.replace(/\D/g, '');
-  if (c.length !== 14) return false;
-  if (/^(\d)\1{13}$/.test(c)) return false; // todos iguais
-
-  const calcDigit = (base: string, weights: number[]) => {
-    const sum = weights.reduce((acc, w, i) => acc + parseInt(base[i]) * w, 0);
-    const rest = sum % 11;
-    return rest < 2 ? 0 : 11 - rest;
-  };
-
-  return (
-    calcDigit(c, [5,4,3,2,9,8,7,6,5,4,3,2]) === parseInt(c[12]) &&
-    calcDigit(c, [6,5,4,3,2,9,8,7,6,5,4,3,2]) === parseInt(c[13])
-  );
 }
 
 type CnpjStatus = 'idle' | 'checking' | 'valid' | 'unverified' | 'invalid';
@@ -113,6 +136,13 @@ export default function EmpresaPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [form, setForm] = useState(emptyForm);
+  // Fotos e dados bancários ficam fora do `form` (que só tem texto). Só vão no
+  // salvamento se a pessoa mexeu: sem isso, quem nunca abriu estas seções mandaria
+  // `[]`/`null` e apagaria o que já estava guardado.
+  const [fotosObras, setFotosObras] = useState<ImagemObra[]>([]);
+  const [dadosBanc, setDadosBanc] = useState<DadosBancarios>({ ...bancarioVazio });
+  const fotosMexidas = useRef(false);
+  const bancoMexido = useRef(false);
 
   const [cnpjStatus, setCnpjStatus] = useState<CnpjStatus>('idle');
   const [cnpjError, setCnpjError] = useState('');
@@ -137,6 +167,8 @@ export default function EmpresaPage() {
       if (data.company) {
         const c = data.company;
         setCompany(c);
+        setFotosObras(fotosDoServidor(c.fotos_obras));
+        setDadosBanc(bancarioDoServidor(c.dados_bancarios));
         setForm({
           nome: c.nome || '', nome_fantasia: c.nome_fantasia || '', cnpj: c.cnpj || '', endereco: c.endereco || '', cidade: c.cidade || '',
           logo_base64: c.logo_base64 || '', cor_marca: c.cor_marca || '', cor_secundaria: c.cor_secundaria || '', socio_adm: c.socio_adm || '', whatsapp: c.whatsapp || '',
@@ -160,7 +192,7 @@ export default function EmpresaPage() {
         // CNPJ já salvo é considerado válido
         if (c.cnpj) {
           setCnpjStatus('valid');
-          validatedCnpjRef.current = c.cnpj.replace(/\D/g, '');
+          validatedCnpjRef.current = soAlfanum(c.cnpj);
         }
       } else {
         setEditing(true);
@@ -172,10 +204,15 @@ export default function EmpresaPage() {
     setForm(f => ({ ...f, [field]: value }));
   }
 
+  function setBanc<K extends keyof DadosBancarios>(k: K, v: DadosBancarios[K]) {
+    bancoMexido.current = true;
+    setDadosBanc(d => ({ ...d, [k]: v }));
+  }
+
   function handleCnpjChange(raw: string) {
-    const formatted = fmtCnpj(raw);
+    const formatted = maskCnpj(raw);
     set('cnpj', formatted);
-    const digits = formatted.replace(/\D/g, '');
+    const digits = soAlfanum(formatted);
     // Resetar status se o usuário alterou o CNPJ
     if (digits !== validatedCnpjRef.current) {
       setCnpjStatus('idle');
@@ -184,13 +221,13 @@ export default function EmpresaPage() {
   }
 
   async function handleCnpjBlur() {
-    const digits = form.cnpj.replace(/\D/g, '');
+    const digits = soAlfanum(form.cnpj);
 
     // Já validado e não mudou
     if (digits === validatedCnpjRef.current && cnpjStatus === 'valid') return;
     if (digits.length < 14) return;
 
-    if (!validaCnpjDigitos(digits)) {
+    if (!cnpjValido(digits)) {
       setCnpjStatus('invalid');
       setCnpjError('CNPJ inválido — verifique os dígitos informados.');
       return;
@@ -268,10 +305,28 @@ export default function EmpresaPage() {
       const isNew = !company;
       const eventId = `creg-${Date.now()}`;
       const method = isNew ? 'post' : 'put';
-      const { data } = await api[method]('/company', form, {
+      const payload: Record<string, unknown> = { ...form };
+      if (fotosMexidas.current) {
+        payload.fotos_obras = fotosObras
+          .filter(f => !!f.path)
+          .map(f => ({ path: f.path, ...(f.legenda?.trim() ? { legenda: f.legenda.trim() } : {}) }));
+      }
+      if (bancoMexido.current) {
+        const limpo: Record<string, string> = {};
+        for (const [k, v] of Object.entries(dadosBanc)) {
+          const t = String(v ?? '').trim();
+          if (t) limpo[k] = t;
+        }
+        payload.dados_bancarios = Object.keys(limpo).length > 0 ? limpo : null;
+      }
+      const { data } = await api[method]('/company', payload, {
         headers: isNew ? { 'x-meta-event-id': eventId } : {},
       });
       setCompany(data.company);
+      // O servidor devolve as fotos com a URL assinada nova.
+      if (Array.isArray(data.company?.fotos_obras)) setFotosObras(fotosDoServidor(data.company.fotos_obras));
+      fotosMexidas.current = false;
+      bancoMexido.current = false;
       // Continua no formulário editável após salvar (não volta pra view)
       setMessage({ type: 'success', text: 'Empresa salva com sucesso!' });
       setTimeout(() => setMessage(null), 3000);
@@ -659,6 +714,68 @@ export default function EmpresaPage() {
               <label className={styles.label}>Cidade (Foro)<InfoHint>Usada como foro em contratos.</InfoHint></label>
               <input type="text" value={form.cidade} onChange={e => set('cidade', e.target.value)}
                 placeholder="Ex: São Paulo/SP" className="input-field" />
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.card}>
+          <h2 className={styles.sectionTitle}>Fotos dos seus trabalhos <span className={styles.optional}>opcional</span></h2>
+          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
+            Até 6 fotos de obras prontas. Elas já entram na proposta Completa + Banco.
+          </p>
+          <GaleriaPortfolio
+            tipo="obra"
+            titulo="Fotos de obras"
+            max={LIMITE_FOTOS_OBRAS}
+            itens={fotosObras}
+            onChange={v => { fotosMexidas.current = true; setFotosObras(v); }}
+          />
+        </section>
+
+        <section className={styles.card}>
+          <h2 className={styles.sectionTitle}>Dados bancários <span className={styles.optional}>opcional</span></h2>
+          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
+            Saem na proposta Completa + Banco para o banco pagar a sua empresa.
+          </p>
+          <div className={styles.grid2}>
+            <div className={styles.field}>
+              <label className={styles.label}>Banco</label>
+              <input type="text" value={dadosBanc.banco} onChange={e => setBanc('banco', e.target.value)}
+                placeholder="Ex: Sicredi" className="input-field" maxLength={60} />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Tipo de conta</label>
+              <select value={dadosBanc.tipo_conta} onChange={e => setBanc('tipo_conta', e.target.value as DadosBancarios['tipo_conta'])} className="input-field">
+                <option value="">Selecione</option>
+                <option value="corrente">Corrente</option>
+                <option value="poupanca">Poupança</option>
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Agência</label>
+              <input type="text" inputMode="numeric" value={dadosBanc.agencia} onChange={e => setBanc('agencia', e.target.value)}
+                placeholder="Ex: 0001" className="input-field" maxLength={12} />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Conta</label>
+              <input type="text" value={dadosBanc.conta} onChange={e => setBanc('conta', e.target.value)}
+                placeholder="Ex: 12345-6" className="input-field" maxLength={20} />
+            </div>
+            <div className={styles.fieldFull}>
+              <label className={styles.label}>Titular</label>
+              <input type="text" value={dadosBanc.titular} onChange={e => setBanc('titular', e.target.value)}
+                placeholder="Nome de quem recebe" className="input-field" maxLength={120} />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>CPF ou CNPJ do titular</label>
+              <input type="text" value={dadosBanc.documento}
+                onChange={e => setBanc('documento', maskDocumento(e.target.value))}
+                placeholder="CPF ou CNPJ" className="input-field" maxLength={20} />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Chave Pix</label>
+              <input type="text" value={dadosBanc.pix} onChange={e => setBanc('pix', e.target.value)}
+                placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" className="input-field" maxLength={120} />
             </div>
           </div>
         </section>
