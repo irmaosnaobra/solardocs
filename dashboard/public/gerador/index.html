@@ -26493,7 +26493,7 @@ const CTR_AG_SOL_NAO = {
   modelo: 'O contrato solar é um só.',
   hibrido: 'O contrato solar não tem versão híbrida.',
   emitente: 'O contrato solar é sempre da AIOROS (Irmãos na Obra). O assistente não troca o emitente.',
-  cadastro: 'O cadastro do cliente do Fechamento solar entra pelo card vendido, não por aqui.',
+  cadastro: 'O cadastro do cliente entra pelo card vendido, não por aqui.',
 };
 
 // O que não sai daqui: os valores inteiros que o ctrHibSensivel junta, mais os pedaços de endereço
@@ -31099,6 +31099,7 @@ const solProt = v => typeof v === 'string' ? v.split('{{').join('{' + SOL_PUA + 
   : (v && typeof v === 'object') ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, solProt(x)])) : v;
 const ctrSolarC = (key, titulo, itens, extra) => { const its = itens.filter(Boolean); return Object.assign({ key, titulo, travada: its.some(it => it.travado), itens: its }, extra || {}); };
 const ctrSolarI = (key, html, extra) => html ? Object.assign({ key, html }, extra || {}) : null;
+const CTR_SOLAR_GRUPOS = { 'sol-partes': blocos => `<div class="sol-partes">\n      ${blocos.join('\n      ')}\n    </div>` };
 // Contrato novo é sempre solar_m1. O solar_m2 só aparece em pedido salvo de papel antigo (ctrSolarPedidoLegado o traduz).
 function ctrSolarTipo() { return 'solar_m1'; }
 // Pedido salvo do assistente em papel de antes de 21/10/2026: o contrato era outro (Padrão = solar_m2, Completo = solar_m1 com
@@ -31325,6 +31326,51 @@ function ctrNumerarSolar(modelo) {
   });
   return { pos, resolver, quebradas };
 }
+// O HTML das cláusulas do modelo já com os pedidos aplicados, um bloco por parágrafo, alínea ou tabela
+// (o título da cláusula vai grudado no primeiro bloco: título órfão no pé da folha não se manda).
+function ctrSolarClausulas(efet, versal, quadros) {
+  const e = solEsc;
+  const est = ctrSolarEstilos(efet);
+  const { resolver } = ctrNumerarSolar(est);
+  const out = [];
+  let n = 0;
+  est.forEach(c => {
+    if (!c.semNumero) n++;
+    const blocos = [];
+    const it = c.itens;
+    let letra = 0, num = 0, i = 0;
+    while (i < it.length) {
+      const x = it[i];
+      if (x.estilo === 'ul') {
+        const lis = [];
+        while (i < it.length && it[i].estilo === 'ul') { const t = resolver(it[i].html); if (t) lis.push(`<li>${t}</li>`); i++; }
+        if (lis.length) { const ul = `<ul class="sol-ul">${lis.join('')}</ul>`; if (blocos.length) blocos[blocos.length - 1] += ul; else blocos.push(ul); }
+        continue;
+      }
+      if (x.grupo) {
+        const g = [];
+        while (i < it.length && it[i].grupo === x.grupo) { const t = resolver(it[i].html); if (t) g.push(t); i++; }
+        if (g.length) blocos.push(CTR_SOLAR_GRUPOS[x.grupo] ? CTR_SOLAR_GRUPOS[x.grupo](g) : g.join(''));
+        continue;
+      }
+      i++;
+      const h = resolver(x.html);
+      if (!h) continue;
+      // O quadro (a tabela de pagamento) vai no MESMO bloco da frase que o apresenta: tabela órfã em folha nova não se manda.
+      const q = x.bloco && quadros ? (quadros[x.bloco] || '') : '';
+      if (x.estilo === 'li') blocos.push(`<p class="ep-ctr-li">${String.fromCharCode(97 + letra++)}) ${h}</p>${q}`);
+      else if (x.estilo === 'num') blocos.push(`<p class="ep-ctr-p">${n}.${++num}. ${h}</p>${q}`);
+      else if (x.estilo === 'nt') blocos.push(`<p class="ep-ctr-p sol-nt">${h}</p>${q}`);
+      else if (x.estilo === 'raw') blocos.push(h);
+      else blocos.push(`<p class="ep-ctr-p">${h}</p>${q}`);
+    }
+    if (!blocos.length) return;
+    if (!c.semTitulo) blocos[0] = `<div class="ep-ctr-cl">${n}. ${e(versal ? String(c.titulo).toUpperCase() : c.titulo)}</div>` + blocos[0];
+    out.push(...blocos);
+  });
+  return out.map(b => b.split(SOL_PUA).join(''));
+}
+
 // O contrato do Fechamento solar: cabeçalho, cláusulas do modelo (com os pedidos do assistente) e fecho.
 function fsCtrBlocosSolar(d) {
   const e = solEsc;
@@ -35876,8 +35922,8 @@ const VDC_CFG = {
   },
   vendasolar: {
     linha: 'vendasolar', campos: VDC_SOL_TODOS, rot: (k) => VDC_SOL_ROT[k] || '', grupos: VDC_SOL_GRUPOS, grupoDe: vdcGrupoSolar,
-    secoes: VDC_SOL_SECOES, outrosPorPadrao: true, msgSemNome: 'Marque pelo menos o nome do cliente para preencher o Fechamento.',
-    msgNaoPreencheu: 'Não consegui preencher o Fechamento agora.', ligacoes: true, rateio: true, linkTodos: false, papeis: true, trello: true,
+    secoes: VDC_SOL_SECOES, outrosPorPadrao: true, msgSemNome: 'Falta o nome do cliente. Complete a ficha na etapa 1.',
+    msgNaoPreencheu: 'Não consegui preencher os documentos agora.', ligacoes: true, rateio: true, linkTodos: false, papeis: true, trello: true,
     aplicar: () => {},
   },
 };
@@ -37681,7 +37727,7 @@ async function vdcPesSalvar(st, limpar) {
   const apagados = new Set(Object.keys(campos).filter(k => campos[k] === ''));
   if (apagados.size) { vdcPreencher(st, { limpar: apagados, tipoAntes }); return; }
   if (vdcV(st.cad, 'nome')) { vdcPreencher(st); return; }
-  st.msg = 'Dados salvos. Sem o nome do cliente, ' + (st.cfg.linha === 'vendasolar' ? 'o Fechamento' : 'os contratos') + ' não foram preenchidos.';
+  st.msg = 'Dados salvos. Sem o nome do cliente, ' + (st.cfg.linha === 'vendasolar' ? 'os documentos' : 'os contratos') + ' não foram preenchidos.';
   vdcPintar(st);
 }
 

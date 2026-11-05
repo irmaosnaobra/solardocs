@@ -178,6 +178,8 @@
     });
   }
   function abrirUrl(url) {
+    // Só abre endereço https: o que vier de outro jeito (javascript:, data:, http:) não passa.
+    if (typeof url !== 'string' || url.indexOf('https://') !== 0) { H().toast('Não deu para abrir o PDF.'); return; }
     try { window.open(url, '_blank', 'noopener'); } catch (e) { H().toast('Não consegui abrir o PDF. Tente de novo.'); }
   }
 
