@@ -5,13 +5,23 @@
 # Uso, de qualquer clone ou worktree, com os commits já feitos:
 #   bash scripts/publicar.sh
 # Sai 0 com o sha que entrou no main, ou 1 dizendo o que travou.
+# Fala direto com a API do GitHub (curl), sem o gh, que trava com a máquina
+# carregada. O token vem do GH_TOKEN ou da mesma credencial que o git push usa.
 set -euo pipefail
 
 REPO="irmaosnaobra/solardocs"
+API="https://api.github.com/repos/$REPO"
 ESPERA_MAX="${ESPERA_MAX:-1500}" # segundos
-CHECKS='["api — typecheck e testes","Varredura de segredos","dashboard — lint"]'
+CHECKS="api — typecheck e testes|Varredura de segredos|dashboard — lint"
 
-gh_() { timeout 90 gh "$@"; }
+TOKEN="${GH_TOKEN:-$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill 2>/dev/null | sed -n 's/^password=//p')}"
+if [ -z "$TOKEN" ]; then
+  echo "Sem credencial do GitHub. Rode um git push qualquer para o Git guardar a senha, ou exporte GH_TOKEN."
+  exit 1
+fi
+
+api() { curl -sS -m 60 --retry 3 --retry-all-errors -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" "$@"; }
+json() { python3 -c "import sys, json; d = json.load(sys.stdin); $1"; }
 
 git fetch -q origin main
 if ! git merge-base --is-ancestor origin/main HEAD; then
@@ -39,31 +49,38 @@ Publicado pelo scripts/publicar.sh. Entra sozinho no main quando o CI passar.
 🤖 Generated with [Claude Code](https://claude.com/claude-code)"
 
 git push -q origin "HEAD:refs/heads/$RAMO"
-URL="$(gh_ pr create -R "$REPO" --base main --head "$RAMO" --title "$TITULO" --body "$CORPO")"
-echo "PR: $URL"
-gh_ pr merge -R "$REPO" "$URL" --auto --rebase --delete-branch
+
+PEDIDO="$(TITULO="$TITULO" RAMO="$RAMO" CORPO="$CORPO" python3 -c "import json, os; print(json.dumps({'title': os.environ['TITULO'], 'head': os.environ['RAMO'], 'base': 'main', 'body': os.environ['CORPO']}))")"
+PR="$(api -X POST "$API/pulls" -d "$PEDIDO" | json "print(d['number'], d['node_id']) if 'number' in d else print('ERRO', d.get('message'), d.get('errors'))")"
+case "$PR" in ERRO*) echo "Não consegui abrir o PR: $PR"; exit 1;; esac
+NUM="${PR%% *}"
+NODE="${PR#* }"
+echo "PR: https://github.com/$REPO/pull/$NUM"
+
+MUTACAO="$(NODE="$NODE" python3 -c "import json, os; print(json.dumps({'query': 'mutation{enablePullRequestAutoMerge(input:{pullRequestId:\"%s\",mergeMethod:REBASE}){pullRequest{number}}}' % os.environ['NODE']}))")"
+AUTO="$(api https://api.github.com/graphql -d "$MUTACAO" | json "print('ok' if not d.get('errors') else d['errors'][0].get('message'))")"
+if [ "$AUTO" != ok ]; then
+  echo "O PR abriu, mas o merge automático não ligou: $AUTO"
+  exit 1
+fi
 
 INICIO="$(date +%s)"
 while :; do
-  ESTADO="$(gh_ pr view -R "$REPO" "$URL" --json state -q .state || echo ERRO)"
-  if [ "$ESTADO" = MERGED ]; then
-    echo "No main: $(gh_ pr view -R "$REPO" "$URL" --json mergeCommit -q .mergeCommit.oid)"
-    exit 0
-  fi
-  if [ "$ESTADO" = CLOSED ]; then
-    echo "O PR foi fechado sem entrar no main: $URL"
-    exit 1
-  fi
-  FALHA="$(gh_ pr view -R "$REPO" "$URL" --json statusCheckRollup -q "[.statusCheckRollup[] | select(.name as \$n | $CHECKS | index(\$n)) | select(.conclusion == \"FAILURE\" or .conclusion == \"CANCELLED\" or .conclusion == \"TIMED_OUT\") | .name] | join(\", \")" || true)"
+  ESTADO="$(api "$API/pulls/$NUM" | json "print('MERGED ' + d['merge_commit_sha'] if d.get('merged') else d['state'].upper())" || echo ERRO)"
+  case "$ESTADO" in
+    MERGED*) echo "No main: ${ESTADO#MERGED }"; exit 0;;
+    CLOSED) echo "O PR foi fechado sem entrar no main."; exit 1;;
+  esac
+  FALHA="$(api "$API/commits/$RAMO/check-runs" | CHECKS="$CHECKS" json "import os; q = os.environ['CHECKS'].split('|'); print(', '.join(c['name'] for c in d.get('check_runs', []) if c['name'] in q and c.get('conclusion') in ('failure', 'cancelled', 'timed_out')))" || true)"
   if [ -n "$FALHA" ]; then
     echo "O CI reprovou: $FALHA"
     echo "O PR continua aberto e com merge automático ligado. Corrija, faça commit e empurre para o mesmo ramo:"
     echo "  git push origin HEAD:refs/heads/$RAMO"
-    echo "Para desistir: gh pr close $URL --delete-branch"
+    echo "Para desistir, feche o PR $NUM no GitHub."
     exit 1
   fi
   if [ $(( $(date +%s) - INICIO )) -gt "$ESPERA_MAX" ]; then
-    echo "Passou de $ESPERA_MAX s esperando o CI. Veja o PR: $URL"
+    echo "Passou de $ESPERA_MAX s esperando o CI. Veja o PR $NUM."
     exit 1
   fi
   sleep 20
