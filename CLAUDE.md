@@ -133,6 +133,10 @@ Cada um destes já custou caro pelo menos uma vez.
   ficam no banco do Gerador (`gerador-propostas`), não no do SolarDoc, que nem
   tem pg_cron. Lá também roda o `purge-cron-log`, que todo dia às 03:17 UTC
   apaga o histórico do pg_cron com mais de 7 dias.
+- O `process-messages` roda a cada 3 minutos desde 05/11/2026 (era a cada 2),
+  para aliviar o disco do banco do Gerador. O chefe anti-ban aprovou: cada
+  rodada tem teto próprio, então não vira rajada. Não passe para 4 minutos: o
+  "oi" de 5 minutos da Giovanna ficaria com 3 chances só.
 - Hook de **pre-push** em `.githooks/pre-push`: roda o gitleaks só no intervalo que
   sobe (com `--redact`) e, se o intervalo mexe em `api/`, o `tsc --noEmit`. Recusa
   o push se um dos dois falhar. Sem gitleaks ou sem `api/node_modules` ele avisa e
