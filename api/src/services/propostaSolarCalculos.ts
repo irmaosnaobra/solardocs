@@ -277,9 +277,12 @@ export function anoCivil(d: Date): number {
   return parseInt(partes[partes.length - 1], 10);
 }
 
-export const FIO_B_INJETADA_PADRAO = 70;
+/** Simultaneidade padrão (30%): a parte que vai para a rede é 100 - simultaneidade (70%, o padrão de antes). */
+export const FIO_B_SIMULTANEIDADE_PADRAO = 30;
+export const FIO_B_INJETADA_PADRAO = 100 - FIO_B_SIMULTANEIDADE_PADRAO;
 export const MSG_FIO_B_TARIFA = 'Escreva o valor do Fio B da sua concessionária, em R$ por kWh.';
 export const MSG_FIO_B_PCT = 'A parte da geração que vai para a rede tem que ficar entre 1% e 100%.';
+export const MSG_FIO_B_SIMULT = 'A simultaneidade tem que ficar entre 0% e 100%.';
 
 /**
  * A mesma regra do formulário: com vírgula, o ponto é de milhar ("1.000,5" vale 1000,5); a vírgula vira ponto;
@@ -304,25 +307,35 @@ export function validarFioB(f: Record<string, unknown>): string | null {
   if (f.fio_b_mostrar !== true) return null;
   const tarifa = numeroFlex(f.fio_b_tarifa);
   if (!(tarifa >= 0.01 && tarifa <= 2)) return MSG_FIO_B_TARIFA;
-  if (veio(f.fio_b_injetada_pct)) {
+  if (veio(f.fio_b_simultaneidade_pct)) {
+    // Barra de 0% a 100%: inteira. 100% (nada vai para a rede) vale e dá custo de Fio B zero.
+    const s = numeroFlex(f.fio_b_simultaneidade_pct);
+    if (!(Number.isInteger(s) && s >= 0 && s <= 100)) return MSG_FIO_B_SIMULT;
+  } else if (veio(f.fio_b_injetada_pct)) {
+    // Propostas de antes da barra: a parte injetada direta (1% a 100%).
     const pct = numeroFlex(f.fio_b_injetada_pct);
     if (!(pct >= 1 && pct <= 100)) return MSG_FIO_B_PCT;
   }
   return null;
 }
 
-export interface FioBLido { tarifa: number; pct: number }
+/** `pct` = parte da geração que vai para a rede; `simultaneidade` = 100 - pct (a parte consumida na hora). */
+export interface FioBLido { tarifa: number; pct: number; simultaneidade: number }
 
 /** Os dados do Fio B, ou null se está desligado (ausente ou false) ou inválido (o controller já barra o inválido). */
 export function lerFioB(f: Record<string, unknown>): FioBLido | null {
   if (validarFioB(f) !== null || f.fio_b_mostrar !== true) return null;
-  const pct = veio(f.fio_b_injetada_pct) ? numeroFlex(f.fio_b_injetada_pct) : FIO_B_INJETADA_PADRAO;
-  return { tarifa: numeroFlex(f.fio_b_tarifa), pct };
+  // Simultaneidade vence; sem ela, vale a injetada de antes (simultaneidade = 100 - injetada); sem nenhuma, 30%.
+  let simultaneidade = FIO_B_SIMULTANEIDADE_PADRAO;
+  if (veio(f.fio_b_simultaneidade_pct)) simultaneidade = numeroFlex(f.fio_b_simultaneidade_pct);
+  else if (veio(f.fio_b_injetada_pct)) simultaneidade = 100 - numeroFlex(f.fio_b_injetada_pct);
+  return { tarifa: numeroFlex(f.fio_b_tarifa), pct: 100 - simultaneidade, simultaneidade };
 }
 
 export interface SerieFioB {
   tarifa: number;
   pct: number;
+  simultaneidade: number;
   anoInicial: number;
   /** Percentual do ano (15 a 100), 25 posições. */
   percentuais: number[];
@@ -344,5 +357,5 @@ export function serieFioB(a: { fio: FioBLido; geracaoMediaMensal: number; inflac
     // Em centavos: conta com solar + economia = conta de hoje, exato, no que a proposta imprime.
     custoMensal.push(Math.round(a.geracaoMediaMensal * (a.fio.pct / 100) * a.fio.tarifa * Math.pow(1 + a.inflacao, y - 1) * (pctAno / 100) * 100) / 100);
   }
-  return { tarifa: a.fio.tarifa, pct: a.fio.pct, anoInicial: a.anoInicial, percentuais, custoMensal };
+  return { tarifa: a.fio.tarifa, pct: a.fio.pct, simultaneidade: a.fio.simultaneidade, anoInicial: a.anoInicial, percentuais, custoMensal };
 }

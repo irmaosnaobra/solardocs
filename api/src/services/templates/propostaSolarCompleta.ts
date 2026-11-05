@@ -517,7 +517,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     ? `${sub('Fio B (Lei 14.300)')}
     <div class="fiob">
       <div class="ft">Quem instala a partir de 2023 paga uma parte do Fio B sobre a energia que vai para a rede. Essa parte sobe a cada ano até chegar a 100% em 2029.</div>
-      <div class="fn">${pEsc(`Nesta proposta: Fio B de ${brl(fioBSerie.tarifa)} por kWh sobre ${fmtNum(fioBSerie.pct)}% da geração.${mostraEconomia ? ' A economia desta proposta já desconta esse custo.' : ''}`)}</div>
+      <div class="fn">${pEsc(`Nesta proposta: Fio B de ${brl(fioBSerie.tarifa)} por kWh e simultaneidade de ${fmtNum(fioBSerie.simultaneidade)}%, então ${fioBSerie.pct > 0 ? `${fmtNum(fioBSerie.pct)}% da geração vai para a rede.` : 'nada vai para a rede e não há custo de Fio B.'}${mostraEconomia ? ' A economia desta proposta já desconta esse custo.' : ''}`)}</div>
       <div class="fgrid">${[0, 1, 2, 3].map((i) => `<div class="fy"><div class="a num">${fioBSerie.anoInicial + i}</div><div class="p num">${fioBSerie.percentuais[i]}%</div><div class="c num">${pEsc(`${brl(fioBSerie.custoMensal[i])} por mês`)}</div></div>`).join('')}</div>
     </div>`
     : '';

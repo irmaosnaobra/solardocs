@@ -45,6 +45,7 @@ export function Escolha({
   desc,
   numero = false,
   disabled = false,
+  selo,
 }: {
   on: boolean;
   onClick: () => void;
@@ -56,6 +57,8 @@ export function Escolha({
   /** Número em destaque (dias, quantidade) em vez de rótulo de texto. */
   numero?: boolean;
   disabled?: boolean;
+  /** Etiqueta pequena no canto do cartão (ex.: "Novo"). */
+  selo?: string;
 }) {
   return (
     <button
@@ -70,6 +73,7 @@ export function Escolha({
           <Check size={11} strokeWidth={3.5} />
         </span>
       )}
+      {selo && <span className={styles.selo}>{selo}</span>}
       {Icone && !numero && <Icone size={19} className={styles.icone} />}
       <strong>{titulo}</strong>
       {desc && <span>{desc}</span>}
