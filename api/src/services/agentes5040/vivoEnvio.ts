@@ -188,6 +188,9 @@ function pecaInvalida(peca: unknown): string | null {
   return 'peca_tipo';
 }
 
+/** O código serve como peça `pix` (BR Code inteiro e CRC certo)? A Carla só promete "o código vai aqui embaixo" se isto der true. */
+export const pixValidoComoPeca = (codigo: string): boolean => pecaInvalida({ tipo: 'pix', texto: codigo }) === null;
+
 // ── contagens e estado (system_state, sem dado pessoal) ──────────────────────
 
 /**

@@ -2,10 +2,10 @@ import { Router } from 'express';
 import { createCheckout, createPublicCheckout, stripeWebhook, getCheckoutInfo, createBillingPortal, getCupomInfo, getPixCheckoutInfo, getPixUrl } from '../controllers/paymentsController';
 import {
   criarPixRecorrenteHandler, statusPixRecorrenteHandler, cancelarPixRecorrenteHandler, asaasWebhookHandler,
-  criarPixPublicoHandler, statusPixPublicoHandler, criarPixAvulsoPublicoHandler, statusPixAvulsoPublicoHandler,
+  criarPixPublicoHandler, statusPixPublicoHandler, criarPixAvulsoPublicoHandler, statusPixAvulsoPublicoHandler, leadLpPublicoHandler,
 } from '../controllers/asaasPixController';
 import { authMiddleware } from '../middleware/auth';
-import { pixPublicoRateLimit, pixAvulsoRateLimit } from '../middleware/pixPublicoRateLimit';
+import { pixPublicoRateLimit, pixAvulsoRateLimit, pixLeadLpRateLimit } from '../middleware/pixPublicoRateLimit';
 
 const router = Router();
 
@@ -30,6 +30,8 @@ router.post('/pix-recorrente/cancelar', authMiddleware, cancelarPixRecorrenteHan
 // dentro do handler — sem a variável, responde 503 e ninguém entra por aqui.
 router.post('/pix-recorrente/publico', pixPublicoRateLimit, criarPixPublicoHandler);
 router.get('/pix-recorrente/publico/:id', statusPixPublicoHandler);
+// O WhatsApp da LP ANTES do "Gerar" (abandono). Mesmos números do rate limit de pagamento (5 por hora por IP), em balde próprio para não gastar o do /publico.
+router.post('/pix-recorrente/lead-lp', pixLeadLpRateLimit, leadLpPublicoHandler);
 // Pix AVULSO do quiz e da LP (código copia e cola de R$ 67, sem CPF). Balde de rate limit próprio (10/h por IP); trava PIX_AVULSO_FUNIL no handler.
 router.post('/pix-avulso/publico', pixAvulsoRateLimit, criarPixAvulsoPublicoHandler);
 router.get('/pix-avulso/publico/:id', statusPixAvulsoPublicoHandler);

@@ -316,7 +316,7 @@ describe('Carla na retomada: fatosDaRetomada', () => {
 
   it('o Pix é sempre o automático (03/11): peça pix_automatico, e-mail com o meio coberto, nada de código, Kiwify nem Pix avulso; a frase de renovar só com `pagou`; o cartão sai por entrar_no_app', () => {
     const gratis = fatosRet(conta());
-    expect(gratis).toContain('Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar). Nunca Pix avulso nem código.');
+    expect(gratis).toContain('Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar; o sistema manda o código da pessoa ou pede o CPF). Nunca Pix avulso nem escreva o código.');
     expect(gratis).toContain('exatamente assim: an***@exemplo.com.');
     expect(gratis).toContain('Peça para usar o mesmo e-mail da conta na página.');
     expect(gratis).not.toContain('ana@exemplo.com');

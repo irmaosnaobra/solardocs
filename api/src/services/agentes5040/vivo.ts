@@ -112,7 +112,9 @@ import {
 } from './turno';
 import { bolhaDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
 import { ACAO_ESTACIONAR, type CardResumo, type ContaRetomada, type ContextoLead, type Persona, type SaidaAgente } from './tipos';
-import { enviarResposta, type PecaEnvio, type PedidoEnvio, type ResultadoEnvio } from './vivoEnvio';
+import { enviarResposta, pixValidoComoPeca, type PecaEnvio, type PedidoEnvio, type ResultadoEnvio } from './vivoEnvio';
+import { resolverPixConversa, type ResultadoPixConversa } from '../solardoc/pixAutoCodigo';
+import { nomeDoPagamento as nomeLimpoDoPagamento } from '../solardoc/recuperacaoCarlaRegras';
 import { AVISO_IA_NA_PRIMEIRA_MSG, avisoDeApresentacao, comAvisoSeFaltar } from './avisoIA';
 
 /** Este lead já foi apresentado, ou o aviso de IA está desligado (então ninguém precisa dele)? Lê a chave na hora da chamada. */
@@ -1193,7 +1195,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       }
 
       // 12. fala comum ou despedida
-      const bolha = saida.bolhas[0]!;
+      let bolhaDaVez = saida.bolhas[0]!;   // a Carla pode trocá-la por um texto fixo do Pix (código, pedido de CPF)
       const segunda = saida.bolhas[1];
       let peca: PecaEnvio | undefined = saida.peca && (saida.peca.tipo === 'link' || saida.peca.tipo === 'pix') && segunda
         ? { tipo: saida.peca.tipo, texto: segunda } : undefined;
@@ -1206,7 +1208,14 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       if (dona === 'carla') {
         peca = undefined;
         if (!naoIncomodar) {
-          const pl = planejarCarla({ saida, posse, msgs: ctx0.msgs, fala: L, textosDoLead: textosDaFala });
+          // O marcador de Pix automático (peça pix_automatico) é resolvido AQUI, no servidor: código vivo reenviado, código novo, ou o pedido do CPF. Em rodada seca nada é criado.
+          // Código que o vivoEnvio recusaria (formato ou CRC) nunca vira promessa de "o código vai aqui embaixo": cai no link.
+          let pixConversa: ResultadoPixConversa | undefined;
+          if (saida.peca?.id === 'pix_automatico' && saida.peca.tipo === 'link') {
+            pixConversa = await resolverPixConversa({ tel, nome: ctx0.nome, textoDoLead: textosDaFala.join(' '), dry });
+            if (pixConversa.tipo === 'codigo' && !pixValidoComoPeca(pixConversa.codigo) && !dry) pixConversa = { tipo: 'link' };
+          }
+          const pl = planejarCarla({ saida, posse, msgs: ctx0.msgs, fala: L, textosDoLead: textosDaFala, pix: pixConversa, nomeDoLead: nomeLimpoDoPagamento(ctx0.nome) });
           if (!pl.ok) {
             if (volta === 0) return tratar(await pensar({ ...ctx, avisosDoSistema: [...(ctx.avisosDoSistema ?? []), pl.aviso] }), 1, oferta);
             await registrar(false, `carla_peca:${pl.motivo}`);
@@ -1215,6 +1224,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
           }
           planoC = pl;
           peca = pl.peca;
+          if (pl.bolha) bolhaDaVez = pl.bolha;
           // O registro da imagem vai para a posse ANTES do envio; se não gravou, a imagem não sai.
           if (pl.antes && !dry && !(await atualizarPosse(chave, pl.antes))) {
             await soltar();
@@ -1230,7 +1240,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       // No PEDIDO DE DEPOIMENTO (04/11/2026) a recusa só encerra a posse e NÃO silencia o número: o pagante segue com o suporte da Giovanna.
       if (naoIncomodar && !dry) await atualizarPosse(chave, { estado: doPedido ? 'encerrada' : 'nao_incomodar', ate_wa_id: L.id });
       const res: ResultadoEnvio = await enviarAoLead(chave, posse, {
-        dona, telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, ...(peca && !naoIncomodar ? { peca } : {}), dry,
+        dona, telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha: bolhaDaVez, ...(peca && !naoIncomodar ? { peca } : {}), dry,
       }, g.agoraEnvio());
       // O silêncio vem DEPOIS da despedida (o enviarResposta barraria uma fala a quem já está no opt-out).
       if (naoIncomodar && !dry && !doPedido) await silenciarContato(tel, 'opt_out', 'agentes5040-vivo');
@@ -1258,7 +1268,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       const extra = { ...base2, motivo: res.detalhe ? `${m}:${res.detalhe}` : m };
       switch (m) {
         case 'dry':
-          dec({ resultado: naoIncomodar ? 'despedida_sairia' : 'sairia', ...extra, motivo: null, sairia: [bolha, ...(peca && !naoIncomodar ? [peca.tipo === 'imagem' ? `[imagem ${peca.slug}]` : peca.texto] : [])] });
+          dec({ resultado: naoIncomodar ? 'despedida_sairia' : 'sairia', ...extra, motivo: null, sairia: [bolhaDaVez, ...(peca && !naoIncomodar ? [peca.tipo === 'imagem' ? `[imagem ${peca.slug}]` : peca.texto] : [])] });
           return 'seguir';
         case 'ja_respondido':
           if (!dry) await atualizarPosse(chave, { ate_wa_id: L.id });

@@ -30,6 +30,10 @@ export const CHAVE_PAUSA_QUIZ_REC = 'quiz_rec_pausa';
 export const CHAVE_LARGADA_REC = 'quiz_rec_largada';
 
 import { ehFeriadoBR } from '../../utils/feriadosBR';
+import { FOLGA_VENCIMENTO_MS, codigoReenviavel, ehCodigoPix, restanteDoCodigoMs, validadePorExtenso } from '../asaas/pixAutoValidade';
+import {
+  DEP_ALESSANDRO, DEP_VANDERLEI, montarTextoCodigoNovoDia2, montarTextoCodigoNovoHoje, montarTextoCodigoVivo,
+} from './recuperacaoTextos';
 
 export const ESPERA_MIN_MS = 15 * 60_000;
 /** A janela da Carla: 48 h de idade ÚTIL (sem domingo e feriado, ver `idadeUtilMs`). */
@@ -166,25 +170,22 @@ export const PAGTO_ESPERA_MS = 5 * 60_000;
 /** A marca vale por 120 h, como o teto de calendário da Carla. */
 export const PAGTO_VALE_MS = TETO_CALENDARIO_MS;
 /**
- * O código do contrato `pendente` vale 60 min no banco (a troca do contrato só acontece com 65 min, ver pixRecorrenteService). A recuperação:
- * menos de 55 min = textos A/B com o código; de 55 a 65 min = espera (nada sai nesta rodada); 65 min ou mais = texto C com o link, quando o
- * QR velho já não paga e o link gera um novo de verdade. Contrato que não está `pendente` vai direto ao link.
+ * O código do contrato `pendente` vale 24 h (QR de 86400 s). A data que decide é a REAL do Asaas (`pix_auto_exp`, ver pixAutoValidade.ts), nunca
+ * os 55 e 65 min de antes. Faltam 2 h ou mais na hora do envio = 'codigo' (vivo: manda o texto com o código gravado); faltam menos de 2 h, ou venceu há menos
+ * de 5 min = 'espera' (nada sai nesta rodada); venceu de vez (ou o contrato virou `expirado`) = 'vencido' (código novo, item B). Qualquer outro status
+ * (cancelado, recusado) = 'nada': a pessoa não é chamada. Contrato antigo, sem a data gravada, vale criação + 60 min, como o QR antigo.
  */
-export const PAGTO_CODIGO_VIVO_MS = 55 * 60_000;
-export const PAGTO_CODIGO_VENCIDO_MS = 65 * 60_000;
+export type FaseDoCodigo = 'codigo' | 'espera' | 'vencido' | 'nada';
 
-export type FaseDoCodigo = 'codigo' | 'espera' | 'link';
-
-/** Em que fase está o contrato. Sem `created_at` legível (ou `pendente` sem código para mandar antes dos 65 min) espera. */
-export function faseDoCodigo(c: { status: string; created_at: string | null; qr_payload: string | null }, agoraMs: number): FaseDoCodigo {
-  if (c.status !== 'pendente') return 'link';
-  const criado = Date.parse(String(c.created_at ?? ''));
-  if (!Number.isFinite(criado)) return 'espera';
-  const idade = agoraMs - criado;
-  if (idade >= PAGTO_CODIGO_VENCIDO_MS) return 'link';
-  // O código só vale como código se for um copia e cola de Pix de verdade (começa em 000201).
-  if (idade < PAGTO_CODIGO_VIVO_MS && String(c.qr_payload ?? '').startsWith('000201')) return 'codigo';
-  return 'espera';
+export function faseDoCodigo(
+  c: { status: string; created_at: string | null; qr_payload: string | null; expira_em?: string | null }, agoraMs: number,
+): FaseDoCodigo {
+  if (c.status === 'expirado') return 'vencido';
+  if (c.status !== 'pendente') return 'nada';
+  const restante = restanteDoCodigoMs({ created_at: c.created_at, expira_em: c.expira_em }, agoraMs);
+  if (restante === null) return 'espera';
+  if (codigoReenviavel({ created_at: c.created_at, expira_em: c.expira_em }, agoraMs) && ehCodigoPix(c.qr_payload)) return 'codigo';
+  return restante > -FOLGA_VENCIMENTO_MS ? 'espera' : 'vencido';
 }
 
 export interface MarcaPagto {
@@ -213,53 +214,19 @@ export function marcaDeLinha(key: string, value: unknown): MarcaPagto | null {
   };
 }
 
-/**
- * Depoimentos de clientes (04/11/2026, ordem do dono: convencer da qualidade da plataforma). Cada um é UMA frase literal: sem link, sem colchete e
- * sem travessão, senão o `textoDaCarla` reprova. Ficam na mesma bolha do texto que os leva.
- */
-export const DEP_VANDERLEI =
-  'O Vanderlei, da American Energy Solar, de Rondonópolis/MT, conta: "Entre todas que já usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais rapidamente."';
-export const DEP_ALESSANDRO =
-  'O Alessandro Goulart, da Força Solar, de Feliz/RS, conta: "Aqui, com quatro, cinco cliques eu consigo montar uma proposta."';
-export const DEP_GSI =
-  'A GSI Energia Solar, de Unaí/MG, conta: "Tenho me surpreendido positivamente com o nível de detalhes das propostas."';
+// Os depoimentos e todos os textos moram em recuperacaoTextos.ts (um lugar só para trocar).
+export { DEP_VANDERLEI, DEP_ALESSANDRO, DEP_GSI } from './recuperacaoTextos';
 
 /** Carimbo do 2º toque (um por pessoa, para sempre): `quiz_rec_sent2:<hmac>`. Nunca existe um 3º. */
 export const PREFIXO_CARIMBO2_REC = 'quiz_rec_sent2:';
 /** Claim do e-mail do dia seguinte: 1 por contrato. */
 export const PREFIXO_PAGTO_EMAIL2 = 'quiz_pagto_email2:';
 
-// Os textos do redator, aprovados. Só os colchetes mudam (e a frase dos números virou o depoimento do Alessandro, 04/11/2026).
-export const TEXTO_PAGTO_A =
-  'Oi, [nome], aqui é a Carla, da SolarDoc. Seu Pix da [empresa] ainda está valendo. ' + DEP_ALESSANDRO + ' É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. Vou te mandar o código aqui embaixo, é só copiar e colar no Pix copia e cola do seu banco.';
-export const TEXTO_PAGTO_B1 =
-  'Oi, [nome], aqui é a Carla, da SolarDoc. Seu Pix ainda está valendo. ' + DEP_ALESSANDRO + ' É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. Vou te mandar o código aqui embaixo, é só copiar e colar no Pix copia e cola do seu banco.';
-export const TEXTO_PAGTO_B2 = TEXTO_PAGTO_B1.replace('Oi, [nome], aqui é a Carla', 'Oi, aqui é a Carla');
-export const TEXTO_PAGTO_C1 =
-  '[saudacao], [nome], aqui é a Carla, da SolarDoc. O Pix que você gerou já venceu, mas é só abrir [link] e gerar outro, leva 1 minuto. É Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, e você cancela quando quiser pelo app do banco. ' + DEP_ALESSANDRO;
-export const TEXTO_PAGTO_C2 = TEXTO_PAGTO_C1.replace('[saudacao], [nome], aqui é a Carla', '[saudacao], aqui é a Carla');
-
 /** Link para gerar outro Pix. Sem `utm_term` vai sem ele. `meio` = whatsapp ou email. */
 export function linkDoPagamento(utmTerm: string | null | undefined, meio: 'whatsapp' | 'email'): string {
   const base = `https://solardoc.app/?pagar=pix&utm_source=recuperacao&utm_medium=${meio}`;
   const t = String(utmTerm ?? '').trim();
   return t ? `${base}&utm_term=${encodeURIComponent(t)}` : base;
-}
-
-// ── o 2º toque (04/11/2026) ─────────────────────────────────────────────────
-// Um só, no dia útil seguinte ao 1º, para quem recebeu o 1º toque, não pagou e não respondeu. Leva o link (o QR já venceu).
-export const TEXTO_TOQUE2_T1 =
-  'Oi, [nome], aqui é a Carla, da SolarDoc. [depoimento] Dá para gerar o Pix automático em 1 minuto em [link]. O banco debita sozinho e você cancela quando quiser pelo app do banco.';
-export const TEXTO_TOQUE2_T2 = TEXTO_TOQUE2_T1.replace('Oi, [nome], aqui é a Carla', 'Oi, aqui é a Carla');
-
-/**
- * O texto do 2º toque. O depoimento é o OUTRO do 1º toque: o 1º do pagamento usou o Alessandro, então o 2º usa o Vanderlei; o 1º da mensagem de
- * 15 min usou o Vanderlei, então o 2º usa o Alessandro. `primeiroTipo` desconhecido (carimbo antigo) vale a mensagem de 15 min.
- */
-export function montarTextoToque2(e: { nome: string | null; utmTerm: string | null; primeiroTipo: string | null | undefined }): string {
-  const dep = e.primeiroTipo === 'pagamento' ? DEP_VANDERLEI : DEP_ALESSANDRO;
-  const base = e.nome ? TEXTO_TOQUE2_T1.replace('[nome]', () => e.nome as string) : TEXTO_TOQUE2_T2;
-  return base.replace('[depoimento]', () => dep).replace('[link]', () => linkDoPagamento(e.utmTerm, 'whatsapp'));
 }
 
 /** Primeiro nome para o texto do pagamento: "Cliente" (o nome que o sistema põe quando não há) e nome ilegível valem sem nome. */
@@ -272,30 +239,40 @@ export function nomeDoPagamento(...candidatos: Array<string | null | undefined>)
 }
 
 export interface EntradaTextoPagto {
-  /** Fase `codigo` (menos de 55 min, com `qr_payload`): manda o código. Senão manda o link (fase `link`). */
-  codigoVivo: boolean;
-  qrPayload: string | null;
+  /** O código a mandar (copia e cola, começa em 000201). */
+  codigo: string;
+  /** 'vivo' = o código gravado do contrato (texto 1); 'novo' = o que o robô acabou de criar (2a no mesmo dia, 2b no 2º toque). */
+  origem: 'vivo' | 'novo';
+  /** 2º toque (dia seguinte)? Muda o depoimento e, no código novo, o texto (2b). */
+  dia2: boolean;
+  /** Tipo do carimbo do 1º toque (`pagamento` ou `diagnostico`): o 2º toque usa o depoimento que o 1º NÃO usou. Desconhecido vale a mensagem de 15 min. */
+  primeiroTipo?: string | null;
+  /** Até quando o código vale (ms), pela data REAL gravada. */
+  validadeMs: number;
+  agoraMs: number;
   nome: string | null;
   /** Empresa do lead do quiz, já limpa; null = a pessoa veio da LP (ou o lead do quiz não foi achado). */
   empresa: string | null;
-  utmTerm: string | null;
   /** Hora BRT (0 a 23) do envio: "Bom dia" só antes das 12h. */
   horaBrt: number;
 }
 
-export interface TextoPagto { texto: string; segundo: string | null; tipo: 'A' | 'B1' | 'B2' | 'C1' | 'C2' }
+export interface TextoPagto { texto: string; segundo: string; tipo: 'vivo' | 'novo_hoje' | 'novo_dia2' }
 
-/** O texto de quem chegou no pagamento: A, B1 ou B2 com o código logo depois (2ª mensagem), ou C1 ou C2 com o link. */
+/**
+ * O texto de quem chegou no pagamento: SEMPRE uma bolha com o código logo depois (2ª mensagem, só o `000201...`). Nunca o link, nunca 3 bolhas.
+ * 1º toque usa o Alessandro; o 2º toque usa o Vanderlei (o outro depoimento).
+ */
 export function montarTextoPagamento(e: EntradaTextoPagto): TextoPagto {
-  if (e.codigoVivo && e.qrPayload && e.qrPayload.startsWith('000201')) {
-    if (e.nome && e.empresa) return { tipo: 'A', texto: TEXTO_PAGTO_A.replace('[nome]', () => e.nome as string).replace('[empresa]', () => e.empresa as string), segundo: e.qrPayload };
-    if (e.nome) return { tipo: 'B1', texto: TEXTO_PAGTO_B1.replace('[nome]', () => e.nome as string), segundo: e.qrPayload };
-    return { tipo: 'B2', texto: TEXTO_PAGTO_B2, segundo: e.qrPayload };
+  // 1º toque do pagamento: Alessandro. O 2º toque leva o outro: Vanderlei se o 1º foi o do pagamento, Alessandro se foi a mensagem de 15 min (que usa o Vanderlei).
+  const depoimento = e.dia2 && e.primeiroTipo === 'pagamento' ? DEP_VANDERLEI : DEP_ALESSANDRO;
+  if (e.origem === 'vivo') {
+    return { tipo: 'vivo', segundo: e.codigo, texto: montarTextoCodigoVivo({ nome: e.nome, empresa: e.empresa, validade: validadePorExtenso(e.validadeMs, e.agoraMs), depoimento }) };
   }
-  const saudacao = e.horaBrt < 12 ? 'Bom dia' : 'Oi';
-  const link = linkDoPagamento(e.utmTerm, 'whatsapp');
-  const base = e.nome ? TEXTO_PAGTO_C1.replace('[nome]', () => e.nome as string) : TEXTO_PAGTO_C2;
-  return { tipo: e.nome ? 'C1' : 'C2', texto: base.replace('[saudacao]', () => saudacao).replace('[link]', () => link), segundo: null };
+  if (e.dia2) {
+    return { tipo: 'novo_dia2', segundo: e.codigo, texto: montarTextoCodigoNovoDia2({ nome: e.nome, depoimento, saudacao: e.horaBrt < 12 ? 'Bom dia' : 'Oi' }) };
+  }
+  return { tipo: 'novo_hoje', segundo: e.codigo, texto: montarTextoCodigoNovoHoje({ nome: e.nome, depoimento }) };
 }
 
 /** Empresa do lead do quiz para o texto A (uma linha, sem emoji nem link), ou null. */

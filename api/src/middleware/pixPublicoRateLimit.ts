@@ -118,3 +118,74 @@ export async function pixAvulsoRateLimit(
     pixAvulsoLimiterMemoria(req, res, next);
   }
 }
+
+// ── Lead da LP antes do "Gerar" (05/11/2026) ─────────────────────────────────
+// Os MESMOS números do rate limit de pagamento (5 por hora por IP), em balde PRÓPRIO: quem digita o WhatsApp não pode gastar o teto de quem vai gerar o Pix.
+const limitadorLeadLp = temUpstash
+  ? new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(5, '1 h'),
+      prefix: 'rl:pixleadlp',
+      analytics: false,
+    })
+  : null;
+
+export const pixLeadLpLimiterMemoria = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => 'pixleadlp:' + ipKeyGenerator(clientIp(req) || 'sem-ip'),
+  message: { error: 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Teto GLOBAL da rota (chefe anti-ban): 30 por hora no total, de qualquer IP. Um balde só, com a chave fixa 'global'.
+const TETO_GLOBAL_LEAD_LP_POR_HORA = 30;
+const limitadorLeadLpGlobal = temUpstash
+  ? new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(TETO_GLOBAL_LEAD_LP_POR_HORA, '1 h'),
+      prefix: 'rl:pixleadlpglobal',
+      analytics: false,
+    })
+  : null;
+
+export const pixLeadLpGlobalMemoria = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: TETO_GLOBAL_LEAD_LP_POR_HORA,
+  keyGenerator: () => 'pixleadlp-global',
+  message: { error: 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export async function pixLeadLpRateLimit(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // 1º o teto por IP, 2º o teto global; passando nos dois, a rota segue.
+  const global = (): void => {
+    if (!limitadorLeadLpGlobal) { pixLeadLpGlobalMemoria(req, res, next); return; }
+    limitadorLeadLpGlobal.limit('global').then(({ success, reset }) => {
+      if (!success) {
+        res.setHeader('Retry-After', String(Math.max(1, Math.ceil((reset - Date.now()) / 1000))));
+        res.status(429).json({ error: 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.' });
+        return;
+      }
+      next();
+    }).catch(() => pixLeadLpGlobalMemoria(req, res, next));
+  };
+  const porIp = (): void => {
+    pixLeadLpLimiterMemoria(req, res, global);
+  };
+  if (!limitadorLeadLp) { porIp(); return; }
+  try {
+    const { success, reset } = await limitadorLeadLp.limit(clientIp(req) || 'sem-ip');
+    if (!success) {
+      const esperaSegundos = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+      res.setHeader('Retry-After', String(esperaSegundos));
+      res.status(429).json({ error: 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.' });
+      return;
+    }
+    global();
+  } catch {
+    porIp();
+  }
+}

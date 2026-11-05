@@ -7,8 +7,11 @@
 // A peça sai do `peca.id` que o modelo declarou, NUNCA do texto da 2ª bolha:
 //   assinatura          -> link https://solardoc.app/assinar
 //   avulso:<id>         -> link da rota do avulso (LINKS_CARLA)
-//   pix_automatico      -> link https://solardoc.app/?pagar=pix, o Pix AUTOMÁTICO do Asaas (cobra na conta da pessoa; regra do dono
-//                          de 03/11/2026). Nunca Pix avulso, nunca código copia e cola, nunca e-mail na URL.
+//   pix_automatico      -> o Pix AUTOMÁTICO do Asaas (cobra na conta da pessoa; regra do dono de 03/11/2026). Desde 05/11/2026 o SERVIDOR resolve o
+//                          marcador (vivo.ts chama o resolverPixConversa e entrega o resultado em `pedido.pix`): código vivo reenviado, código novo, ou o pedido
+//                          do CPF. A bolha 1 vira o texto fixo do redator (1 bolha, "o código vai aqui embaixo") e a peça é o código sozinho (tipo pix).
+//                          Sem resultado (ou erro) cai no link https://solardoc.app/?pagar=pix, que também é o Pix automático. Nunca Pix avulso, nunca
+//                          e-mail na URL, nunca código escrito pelo modelo.
 //   depoimento:<slug>   -> imagem do card (até 3 por conversa, cada card 1 vez, nunca no 1º toque, o lead falou
 //                          entre duas imagens; o registro vai para a posse ANTES do envio)
 // Uma forma de pagamento por resposta (o contrato do vivoEnvio tem uma peça só). O mesmo link 1 vez por conversa,
@@ -27,6 +30,9 @@ import { estadoDaConversa, semAcento } from './trava';
 import { ehPosseDaRetomada, ehPosseDoPedidoDeDepoimento, type DadosPosse } from './posse';
 import type { MsgConversa, SaidaAgente } from './tipos';
 import type { PecaEnvio, ResultadoEnvio } from './vivoEnvio';
+import type { ResultadoPixConversa } from '../solardoc/pixAutoCodigo';
+import { montarTextoPedidoCpf, montarTextoPixAguarde, montarTextoPixJaPagou, montarTextoRespostaCodigo } from '../solardoc/recuperacaoTextos';
+import { horaCurtaBRT } from '../asaas/pixAutoValidade';
 
 /** Um número só para o limite de imagens: o mesmo que a trava e a persona usam (conhecimento/depoimentos.ts). */
 export const MAX_IMAGENS_POR_CONVERSA = MAX_DEPOIMENTOS_POR_CONVERSA;
@@ -61,8 +67,8 @@ const idDoModelo = (ref: string): string => (ref === 'pix' ? 'pix_automatico' : 
 export function avisosDaCarla(posse: DadosPosse, agora: Date = new Date()): string[] {
   const out: string[] = [];
   // O Pix é sempre o automático do Asaas (03/11/2026): um aviso só, sem modo. Na retomada, o e-mail (com o meio coberto) vem nos fatos da conta.
-  if (ehPosseDaRetomada(posse)) out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_automatico o sistema manda o link do Pix automático (https://solardoc.app/?pagar=pix), que cobra na conta dele. Esta pessoa já tem conta: na bolha 1 diga para usar na página o mesmo e-mail da conta (os fatos trazem o e-mail com o meio coberto) e que o acesso volta sozinho na conta dela quando o banco confirmar. Nunca diga que liberou.');
-  else out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_automatico o sistema manda o link do Pix automático (https://solardoc.app/?pagar=pix), que cobra na conta da pessoa todo mês e pede e-mail e CPF ou CNPJ. Na bolha 1 diga que o acesso abre sozinho quando o banco confirmar. Nunca diga que liberou.');
+  if (ehPosseDaRetomada(posse)) out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_automatico o sistema troca o link pelo código do Pix automático da pessoa (copia e cola, que cobra na conta dela); se faltar o CPF, o sistema pede o CPF no lugar. Se ela mandou o CPF agora, peça pix_automatico de novo. Esta pessoa já tem conta: o acesso volta sozinho na conta dela quando o banco confirmar. Nunca diga que liberou e nunca escreva o código você mesma.');
+  else out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_automatico o sistema troca o link pelo código do Pix automático da pessoa (copia e cola, que cobra na conta dela todo mês); se faltar o CPF, o sistema pede o CPF no lugar. Se ela mandou o CPF agora, peça pix_automatico de novo. O acesso abre sozinho quando o banco confirmar. Nunca diga que liberou e nunca escreva o código você mesma.');
   if (ehPosseDoPedidoDeDepoimento(posse)) out.push(PEDIDO_DEPOIMENTO_AVISO);
   if (posse.links.length) out.push(`AVISO DO SISTEMA: links que já saíram nesta conversa: ${posse.links.join(', ')}. Não mande o mesmo de novo, a não ser que ele peça.`);
   if (posse.planilha_prometida === true) out.push('AVISO DO SISTEMA: a promessa da planilha de eletroposto já foi feita nesta conversa. Não repita e não use prometer_planilha.');
@@ -78,6 +84,8 @@ export function avisosDaCarla(posse: DadosPosse, agora: Date = new Date()): stri
 
 export interface PlanoCarla {
   ok: true;
+  /** Troca a bolha 1 do modelo por um texto fixo (o do código, o do pedido de CPF). */
+  bolha?: string;
   peca?: PecaEnvio;
   /** Vai para a posse ANTES do envio (o registro da imagem). */
   antes?: Partial<DadosPosse>;
@@ -96,6 +104,10 @@ export interface PedidoPlano {
   fala: { id: number };
   /** Os textos do bloco de falas do lead. */
   textosDoLead: readonly string[];
+  /** Primeiro nome da pessoa para os textos fixos do Pix (null = sem nome). */
+  nomeDoLead?: string | null;
+  /** O que o servidor resolveu para o marcador `pix_automatico` (só presente quando o modelo pediu essa peça). Ausente = link. */
+  pix?: ResultadoPixConversa;
 }
 
 const semEfeito: PlanoCarla['depois'] = async () => ({});
@@ -200,7 +212,28 @@ export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
   }
 
   // ── Pix ─────────────────────────────────────────────────────────────────────
-  if (id === 'pix_automatico' && peca.tipo === 'link') return linkDe(LINKS_CARLA.pix_automatico!, 'pix_automatico');
+  if (id === 'pix_automatico' && peca.tipo === 'link') {
+    const r = p.pix;
+    const primeiroNome = p.nomeDoLead ?? null;
+    if (r?.tipo === 'codigo') {
+      return {
+        ok: true,
+        bolha: montarTextoRespostaCodigo(primeiroNome),
+        peca: { tipo: 'pix', texto: r.codigo },
+        depois: async (res, a) => {
+          if (!res.ok) return {};
+          if (res.pecaCaiu) return { peca_pendente: { tipo: 'pix', ref: 'pix_automatico', em: a.agora.toISOString() } };
+          if (res.enviadas === 2) return pend?.ref === 'pix_automatico' ? { peca_pendente: null } : {};
+          return {};
+        },
+      };
+    }
+    // Pedido do CPF é RESPOSTA ao que a pessoa escreveu (nunca toque): uma bolha, sem peça.
+    if (r?.tipo === 'pedir_cpf') return { ok: true, bolha: montarTextoPedidoCpf(primeiroNome), depois: semEfeito };
+    if (r?.tipo === 'ja_pagou') return { ok: true, bolha: montarTextoPixJaPagou(primeiroNome), depois: semEfeito };
+    if (r?.tipo === 'aguardar') return { ok: true, bolha: montarTextoPixAguarde({ nome: primeiroNome, hora: horaCurtaBRT(r.ateMs) }), depois: semEfeito };
+    return linkDe(LINKS_CARLA.pix_automatico!, 'pix_automatico');
+  }
 
   // ── depoimento (imagem) ─────────────────────────────────────────────────────
   if (id.startsWith('depoimento:') && peca.tipo === 'imagem') {

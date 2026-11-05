@@ -16,7 +16,28 @@ import { processarWebhookAsaas, AsaasWebhookBody } from '../services/asaas/asaas
 import { pixPublicoAtivo, pixAutoQuizAtivo, pixAutoLpAtivo, pixAvulsoFunilAtivo } from '../utils/pixInfo';
 import { criarPixAvulso, statusPixAvulso } from '../services/asaas/pixAvulsoService';
 import { gravarMarcaPagamento } from '../services/solardoc/marcaPagamentoQuiz';
-import { codigoDaLp, gravarLeadLp } from '../services/solardoc/leadLpSolardoc';
+import { contaEhDeClientePagante } from '../utils/clientePagante';
+import { celularBrCompleto, codigoDaLp, gravarLeadLp, gravarLeadLpAbandono, hashDoIp } from '../services/solardoc/leadLpSolardoc';
+
+/** O IP real do cliente (mesma regra do clientIp do rastreio: 1º do x-forwarded-for, depois x-real-ip, depois o socket). Só o HASH dele é gravado. */
+function ipDoRequest(req: Request): string {
+  const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  if (xff) return xff;
+  const xri = String(req.headers['x-real-ip'] || '').trim();
+  if (xri) return xri;
+  return (req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+}
+
+/**
+ * Só na RESPOSTA HTTP do /publico: 4xx de validação do Asaas (CPF recusado, cliente inválido) volta como 400 com a mensagem do Asaas, que a tela mostra para a pessoa corrigir.
+ * 408, 429 e 5xx seguem como o 502 genérico. O `asaasStatus` continua no erro original, que a recuperação lê por outro caminho.
+ */
+function traduzirErroDeValidacao(err: unknown): never {
+  const st = Number((err as { asaasStatus?: unknown } | null)?.asaasStatus);
+  const msg = String((err as { asaasMensagem?: unknown } | null)?.asaasMensagem ?? '').trim();
+  if (Number.isFinite(st) && st >= 400 && st < 500 && st !== 408 && st !== 429 && msg) throw new ApiError(400, msg);
+  throw err;
+}
 
 function responderErro(res: Response, err: unknown, contexto: string): void {
   const status = (err as { statusCode?: number; status?: number })?.statusCode
@@ -166,17 +187,7 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
  * `quiz_pagto:` e sem lead `lp_solardoc_pix`). Os outros links (recuperação, Giovanna, SDR, link do Pix, e-mail) também falam com prospect: aí decide a conta.
  */
 const UTM_SOURCE_DE_CLIENTE = new Set(['renovacao', 'dunning']);
-/** Plano vencido há até 30 dias ainda é cliente (está renovando); depois disso volta a ser prospect. */
-const CLIENTE_VENCIDO_TOLERANCIA_MS = 30 * 24 * 3600_000;
-
-/** A conta é de cliente PAGANTE? `plano` diferente de `free`, ou `plano_expira_em` maior ou igual a agora menos 30 dias. Conta grátis sem plano vigente é prospect. */
-export function contaEhDeClientePagante(u: { plano?: string | null; plano_expira_em?: string | null } | null | undefined, agoraMs: number = Date.now()): boolean {
-  if (!u) return false;
-  const plano = String(u.plano ?? '').trim().toLowerCase();
-  if (plano && plano !== 'free') return true;
-  const expira = Date.parse(String(u.plano_expira_em ?? ''));
-  return Number.isFinite(expira) && expira >= agoraMs - CLIENTE_VENCIDO_TOLERANCIA_MS;
-}
+export { contaEhDeClientePagante };
 
 /** Origem do quiz (trava PIX_AUTO_QUIZ) e da LP (trava PIX_AUTO_LP). Qualquer outro valor é ignorado. */
 const ORIGEM_QUIZ_SOLARDOC = 'quiz_solardoc';
@@ -253,7 +264,7 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
       atribuicao,
       // Quiz e LP: só Pix Automático. Se não der, erro claro, nunca cair em assinatura.
       ...(origem ? { exigirAutomatico: true } : {}),
-    });
+    }).catch(traduzirErroDeValidacao);
 
     const fone = soDigitos(whatsapp);
     if (dono && fone && !dono.whatsapp) {
@@ -293,7 +304,7 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
 
     res.json({
       ...criado,
-      ...(jaAtivo ? { qrPayload: null, qrImagemBase64: null } : {}),
+      ...(jaAtivo ? { qrPayload: null, qrImagemBase64: null, expiraEm: null } : {}),
       ...(codigoLp ? { codigo: codigoLp } : {}),
       temConta: Boolean(dono),
       instrucao: criado.modo === 'automatico'
@@ -302,6 +313,39 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
     });
   } catch (err) {
     responderErro(res, err, 'criar-publico');
+  }
+}
+
+// POST /payments/pix-recorrente/lead-lp — sem login. A LP manda o WhatsApp ANTES do "Gerar" (05/11/2026).
+// Corpo: { whatsapp, nome?, email?, sessao, utm_source?, utm_medium?, utm_campaign?, utm_content?, utm_term? }. Só celular brasileiro completo (DDD + 9 + 8 dígitos).
+// Responde { codigo }: o mesmo Código do wa.me que a LP já usa. 1 lead por `sessao` (o número novo substitui o anterior). Atrás de PIX_AUTO_LP e do rate limit
+// de pagamento. Nada é enviado aqui: a recuperação (Carla) lê o lead depois, 15 min depois, e só se a pessoa não gerou o Pix.
+export async function leadLpPublicoHandler(req: Request, res: Response): Promise<void> {
+  try {
+    if (!pixAutoLpAtivo()) throw new ApiError(503, 'Indisponível');
+    const corpo = (req.body ?? {}) as Record<string, unknown>;
+    if (!celularBrCompleto(corpo.whatsapp)) throw new ApiError(400, 'Informe o WhatsApp com DDD e o 9');
+    const lpSession = textoCurto(corpo.lp_session, 80);
+    const sessao = textoCurto(corpo.sessao, 80) ?? lpSession ?? '';
+    if (!/^[A-Za-z0-9_.:-]{8,80}$/.test(sessao)) throw new ApiError(400, 'Sessão inválida');
+    const mail = (textoCurto(corpo.email, 200) || '').toLowerCase();
+    const utm: Record<string, string | undefined> = {};
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'fbc', 'fbp'] as const) utm[k] = textoCurto(corpo[k], 200);
+
+    // Pix de teste e cliente pagante nunca viram lead de venda: devolve o código (o front precisa dele) e não grava nada.
+    const origemTeste = String(utm.utm_source ?? '').trim().toLowerCase() === 'raio-x-teste';
+    let jaECliente = UTM_SOURCE_DE_CLIENTE.has(String(utm.utm_source ?? '').trim().toLowerCase());
+    if (!jaECliente && EMAIL_RE.test(mail)) {
+      const { data: u } = await supabase.from('users').select('plano, plano_expira_em').eq('email', mail).maybeSingle();
+      jaECliente = contaEhDeClientePagante((u as { plano?: string | null; plano_expira_em?: string | null } | null) ?? null);
+    }
+    if (origemTeste || jaECliente) { res.json({ codigo: codigoDaLp(corpo.whatsapp as string) }); return; }
+
+    const codigo = await gravarLeadLpAbandono({ whatsapp: corpo.whatsapp as string, nome: textoCurto(corpo.nome, 120), email: mail || null, sessao, lpSession, utm, ipHash: hashDoIp(ipDoRequest(req)) });
+    if (!codigo) throw new ApiError(400, 'Informe o WhatsApp com DDD e o 9');
+    res.json({ codigo });
+  } catch (err) {
+    responderErro(res, err, 'lead-lp');
   }
 }
 

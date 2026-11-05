@@ -8,12 +8,17 @@ const h = vi.hoisted(() => ({
   gerador: null as any,
   enviar: vi.fn(),
   ficha: vi.fn(),
+  pix: { tipo: 'link' } as any,
+  pixPedidos: [] as unknown[][],
+  pixValido: ((_c: string) => true) as (c: string) => boolean,
 }));
 vi.mock('../utils/supabase', () => ({ supabase: new Proxy({}, { get: (_t, k) => h.principal.cliente[k as string] }) }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: new Proxy({}, { get: (_t, k) => h.gerador.cliente[k as string] }) }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('../utils/anthropicClient', () => ({ novoAnthropic: () => { throw new Error('chamada real à Anthropic em teste'); } }));
-vi.mock('../services/agentes5040/vivoEnvio', () => ({ enviarResposta: (...a: unknown[]) => h.enviar(...a) }));
+vi.mock('../services/agentes5040/vivoEnvio', () => ({ enviarResposta: (...a: unknown[]) => h.enviar(...a), pixValidoComoPeca: (c: string) => h.pixValido(c) }));
+// O Pix automático da conversa (05/11/2026): o servidor resolve o marcador pix_automatico. Padrão dos testes antigos: o link; os novos mudam h.pix.
+vi.mock('../services/solardoc/pixAutoCodigo', () => ({ resolverPixConversa: async (...a: unknown[]) => { h.pixPedidos.push(a); return h.pix; } }));
 vi.mock('../services/agentes5040/fichaEnvio', () => ({
   carregarTelefonesConsultores: async () => ({ ok: true, mapa: new Map([['diego', '34991360172']]) }),
   enviarFichaAoConsultor: (...a: unknown[]) => h.ficha(...a),
@@ -158,14 +163,14 @@ describe('retomada: a Carla atende quem tem conta quando a posse é da campanha'
     ia = modelo([{ bolhas: ['Quer ver como ficou?'] }]);
     await rodar();
     const corpo = mensagens(0);
-    expect(corpo).toContain('Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar). Nunca Pix avulso nem código.');
+    expect(corpo).toContain('Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar; o sistema manda o código da pessoa ou pede o CPF). Nunca Pix avulso nem escreva o código.');
     expect(corpo).toContain('exatamente assim: a***@exemplo.com.');
     expect(corpo).not.toContain('ana@exemplo.com');
     expect(corpo).not.toContain('Ele já pagou antes');
     expect(corpo).not.toContain('pix_kiwify');
     expect(corpo).not.toContain('foto do comprovante');
     expect(corpo).toContain('peça entrar_no_app');
-    expect(corpo).toContain('https://solardoc.app/?pagar=pix');
+    expect(corpo).toContain('o sistema troca o link pelo código do Pix automático da pessoa');
   });
 
   it('o Pix na retomada: a bolha 1 com o e-mail coberto passa na trava, a peça sai como link /?pagar=pix e sem e-mail na URL', async () => {
@@ -376,14 +381,15 @@ describe('avisosDaCarla: o Pix automático, na retomada e fora dela', () => {
       const avisos = avisosDaCarla(p, AGORA).filter(a => AVISO_PIX.test(a));
       expect(avisos).toHaveLength(1);
       expect(avisos[0]).toContain('pix_automatico');
-      expect(avisos[0]).toContain('https://solardoc.app/?pagar=pix');
-      expect(avisos[0]).not.toMatch(/link da assinatura|Kiwify|pix_kiwify|copia e cola|comprovante|\bmenu\b/i);
+      expect(avisos[0]).toContain('o sistema troca o link pelo código do Pix automático da pessoa');
+      expect(avisos[0]).toContain('se faltar o CPF, o sistema pede o CPF no lugar');
+      expect(avisos[0]).not.toMatch(/link da assinatura|Kiwify|pix_kiwify|comprovante|\bmenu\b/i);
     }
   });
 
-  it('na retomada o aviso manda usar o mesmo e-mail da conta; fora dela pede e-mail e CPF ou CNPJ na página', () => {
-    expect(avisosDaCarla(posseRet(), AGORA)[0]).toContain('na bolha 1 diga para usar na página o mesmo e-mail da conta');
-    expect(avisosDaCarla(posseNormal(), AGORA)[0]).toContain('pede e-mail e CPF ou CNPJ');
+  it('na retomada o aviso diz que o acesso volta na conta dela; fora dela, que cobra todo mês', () => {
+    expect(avisosDaCarla(posseRet(), AGORA)[0]).toContain('Esta pessoa já tem conta: o acesso volta sozinho na conta dela quando o banco confirmar');
+    expect(avisosDaCarla(posseNormal(), AGORA)[0]).toContain('cobra na conta dela todo mês');
   });
 
   it('os outros avisos (links já enviados, promessa da planilha) valem igual nas duas conversas', () => {

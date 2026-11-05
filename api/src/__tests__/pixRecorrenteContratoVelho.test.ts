@@ -17,10 +17,10 @@ vi.mock('../utils/supabase', () => ({
         select: () => q, or: () => q, in: () => q, order: () => q, limit: () => q, eq: () => q,
         maybeSingle: async () => (q.inserindo ? { data: { id: 'novo-id' }, error: null }
           : { data: tabela === 'asaas_pix_assinaturas' ? h.existente : null, error: null }),
-        update: (valor: Record<string, unknown>) => { h.atualizacoes.push({ tabela, valor }); return q; },
+        update: (valor: Record<string, unknown>) => { h.atualizacoes.push({ tabela, valor }); q.atualizando = true; return q; },
         insert: (valor: Record<string, unknown>) => { h.insercoes.push({ tabela, valor }); q.inserindo = true; return q; },
         upsert: async () => ({ error: null }),
-        then: (ok: (v: unknown) => unknown) => Promise.resolve({ data: null, error: null }).then(ok),
+        then: (ok: (v: unknown) => unknown) => Promise.resolve({ data: q.atualizando ? [{ id: 'velho-id' }] : null, error: null }).then(ok),
       };
       return q;
     },
@@ -53,7 +53,8 @@ const criar = () => criarPixRecorrente({
   userId: null, email: 'ana@exemplo.com', nome: 'Ana', cpfCnpj: '12345678901', whatsapp: '34999990000', planKey: 'ilimitado', exigirAutomatico: true,
 });
 
-beforeEach(() => { h.existente = null; h.atualizacoes = []; h.insercoes = []; h.chamadasAsaas = []; });
+// Estes contratos são de ANTES do corte do QR de 24 h (sem a chave pix_auto_exp): valem 60 min, como sempre.
+beforeEach(() => { process.env.PIX_QR24H_DESDE = '2099-01-01T00:00:00Z'; h.existente = null; h.atualizacoes = []; h.insercoes = []; h.chamadasAsaas = []; });
 
 describe('contratoPendenteVencido', () => {
   it('só o pendente AUTOMÁTICO com mais de 65 min pelo created_at (o QR dura 60 min)', () => {

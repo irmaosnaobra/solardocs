@@ -32,6 +32,10 @@ export function limparAtribuicao(a: AtribuicaoPixAuto | null | undefined): Atrib
 export const chavePixAutoQr = (conciliationIdentifier: string) => `pix_auto_qr:${conciliationIdentifier}`;
 /** contract_id → atribuição (origem, whatsapp, nome, lp_session, utm_*, fbc, fbp). */
 export const chavePixAutoAtrib = (contractId: string) => `pix_auto_atrib:${contractId}`;
+/** contract_id → { expira_em (ISO), segundos, fallback, em }: a validade REAL do código do 1º mês (ver pixAutoValidade.ts). Não é o `pix_auto_qr`, que é por conciliationIdentifier. */
+export const chavePixAutoExp = (contractId: string) => `pix_auto_exp:${contractId}`;
+/** hmac do telefone → { contractId, em }: o 1 código NOVO por conversa em 24 h (só insert). */
+export const chavePixAutoConv = (hmac: string) => `pix_auto_conv:${hmac}`;
 /** payment id do débito mensal → { authorization_id }. */
 export const chavePixAutoPag = (paymentId: string) => `pix_auto_pag:${paymentId}`;
 /** Claim só de inserção: 23505 = a adesão deste contrato já foi feita. */

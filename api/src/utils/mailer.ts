@@ -990,6 +990,28 @@ export async function sendPixEsperandoEmail(opts: { to: string; link: string }):
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
 
+// E-mail da noite COM O CÓDIGO (05/11/2026): o Pix que ainda vale vai dentro do e-mail (texto do redator, em recuperacaoTextos.ts). Quem monta assunto e corpo é
+// o chamador; aqui só vira HTML simples (o código em bloco para copiar) e vai junto o texto puro. Joga erro se o Resend recusar (o chamador solta o claim).
+export async function sendPixCodigoEmail(opts: { to: string; assunto: string; corpo: string; codigo: string }): Promise<void> {
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = esc(opts.corpo).split('\n\n').map(par => {
+    const limpo = par.trim();
+    if (limpo === esc(opts.codigo)) {
+      return `<p style="margin:0 0 16px;padding:14px;background:#f1f5f9;border-radius:8px;font-family:Consolas,monospace;font-size:13px;line-height:1.5;word-break:break-all;">${limpo}</p>`;
+    }
+    return `<p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#0f172a;">${limpo.replace(/\n/g, '<br>')}</p>`;
+  }).join('');
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: opts.to,
+    replyTo: REPLY_TO,
+    subject: opts.assunto,
+    html: `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;">${html}</div>`,
+    text: opts.corpo,
+  });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}
+
 // E-mail do DIA SEGUINTE (04/11/2026): quem gerou o Pix automático no quiz ou na LP e não pagou, 1 por contrato (claim quiz_pagto_email2:<contratoId> em quem
 // chama). Convence pela qualidade: números, o que a proposta entrega e 3 depoimentos literais. O Pix é o automático (R$ 67 por mês, no nome da AIOROS GROUP).
 // Joga erro se o Resend recusar (quem chama solta o claim e tenta na rodada seguinte).

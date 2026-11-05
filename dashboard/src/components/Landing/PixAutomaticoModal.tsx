@@ -2,7 +2,8 @@
 
 // Assinar no Pix automático, sem sair da LP. Mesma API, mesmos textos e mesma
 // lógica do quiz (/diagnostico) e da tela /pix-automatico: o POST cria o
-// contrato e devolve o código; a tela pergunta a cada 5 s se ficou ativo.
+// contrato e devolve o código; a tela pergunta a cada 5 s se ficou ativo (a cada
+// 15 s depois dos 10 primeiros minutos). A espera segue o expiraEm da resposta.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/services/api';
@@ -17,14 +18,50 @@ const PIX_JA = 'Já existe uma assinatura no Pix para este CPF ou e-mail. Use ou
 const PIX_CAMPOS = 'Confira o e-mail e o CPF ou CNPJ.';
 const PIX_DOC_ERRO = 'Esse CPF ou CNPJ não confere. Confira os números.';
 const PIX_FONE_ERRO = 'Confira o WhatsApp com DDD.';
-const MSG_WHATS = 'Oi! Vim pelo site da SolarDoc e quero assinar no Pix.';
-// Mesmo texto do MSG.pix(c) do quiz (/diagnostico). Sem código, vale o texto de sempre.
-const msgComCodigo = (c: string) => 'Quero saber como assinar o SolarDoc no Pix. Meu código é ' + c + '.';
+// Texto do botão "Falar com a Carla". Leva sempre o código; sem ele (a API não
+// devolveu nenhum), vai o mesmo texto sem a última frase.
+const msgCarla = (c: string) =>
+  'Oi, Carla! Gerei meu Pix da SolarDoc e quero ajuda para ativar.' + (c ? ' Código ' + c : '');
 const CODIGO_RE = /^SD-[A-Z0-9]{4,6}$/;
 
-const ESPERA_TRAVOU_MS = 3 * 60 * 1000;
-const ESPERA_MAX_MS = 60 * 60 * 1000;
+const ESPERA_MAX_MS = 60 * 60 * 1000; // vale quando a API não manda expiraEm
+const ESPERA_RAPIDA_MS = 10 * 60 * 1000; // 5 s nos primeiros 10 min
+const CONSULTA_LENTA_MS = 15 * 1000; // depois, a cada 15 s
 const COPIADO_MS = 3000;
+const SK_LEAD_SESSAO = 'sd-pix-lead-sessao';
+
+// Celular completo: DDD (11 a 99) + 9 + 8 dígitos. É o que a captura exige.
+const celularCompleto = (d: string) => /^\d{2}9\d{8}$/.test(d) && Number(d.slice(0, 2)) >= 11;
+
+// Id aleatório da sessão, guardado em sessionStorage. Sem storage, vale só nesta tela.
+let sessaoMemoria = '';
+function sessaoLead(): string {
+  const novo = () => 'pl_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  try {
+    let id = sessionStorage.getItem(SK_LEAD_SESSAO);
+    if (!id) { id = novo(); sessionStorage.setItem(SK_LEAD_SESSAO, id); }
+    return id;
+  } catch {
+    if (!sessaoMemoria) sessaoMemoria = novo();
+    return sessaoMemoria;
+  }
+}
+
+// Até quando o código vale, no horário de Brasília: "hoje às 14:30" ou "amanhã às 09:05".
+function validadeTexto(fimMs: number): string {
+  try {
+    const fuso = 'America/Sao_Paulo';
+    const dia = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { timeZone: fuso });
+    const hora = new Date(fimMs).toLocaleTimeString('pt-BR', { timeZone: fuso, hour: '2-digit', minute: '2-digit', hour12: false });
+    const dif = Math.round((Date.parse(dia(fimMs) + 'T00:00:00Z') - Date.parse(dia(Date.now()) + 'T00:00:00Z')) / 86400000);
+    if (dif === 0) return 'hoje às ' + hora;
+    if (dif === 1) return 'amanhã às ' + hora;
+    const [, m, d] = dia(fimMs).split('-');
+    return 'em ' + d + '/' + m + ' às ' + hora;
+  } catch {
+    return '';
+  }
+}
 
 interface Cobranca {
   id: string;
@@ -32,6 +69,8 @@ interface Cobranca {
   imagem: string;
   temConta: boolean;
   codigo: string; // SD-XXXX, quando a API devolve; '' se não
+  fimMs: number; // até quando esperar o pagamento (expiraEm da API, ou 60 min)
+  validade: string; // "hoje às 14:30"; '' quando a API não mandou expiraEm
 }
 
 interface Props {
@@ -54,7 +93,7 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
   const [cobranca, setCobranca] = useState<Cobranca | null>(null);
   const [pagou, setPagou] = useState(false);
   const [vencido, setVencido] = useState(false);
-  const [travou, setTravou] = useState(false);
+  const [leadCodigo, setLeadCodigo] = useState('');
   const [copiado, setCopiado] = useState(false);
   const [saindo, setSaindo] = useState(false);
 
@@ -62,8 +101,9 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
   const campoEmail = useRef<HTMLInputElement>(null);
   const jaMediu = useRef(false);
   const ocupado = useRef(false);
+  const leadFone = useRef(''); // último número enviado à captura (ou em voo)
 
-  const zapUrl = `${whatsappUrl}?text=${encodeURIComponent(cobranca?.codigo ? msgComCodigo(cobranca.codigo) : MSG_WHATS)}`;
+  const zapUrl = `${whatsappUrl}?text=${encodeURIComponent(msgCarla(cobranca?.codigo || leadCodigo))}`;
 
   // Abriu: mede uma vez (StrictMode monta duas vezes em dev), guarda quem abriu
   // para devolver o foco, trava a rolagem da página e leva o foco ao 1º campo.
@@ -82,7 +122,8 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
     };
   }, [origem]);
 
-  // Enquanto o pagamento não cai, pergunta a cada 5 s. Para no primeiro "ativo".
+  // Enquanto o pagamento não cai, pergunta a cada 5 s (a cada 15 s depois dos
+  // 10 primeiros minutos). Para no primeiro "ativo" ou quando o código vence.
   const consultar = useCallback(async (c: Cobranca) => {
     if (ocupado.current) return;
     ocupado.current = true;
@@ -102,9 +143,14 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
   const polling = cobranca !== null && !pagou && !vencido;
   useEffect(() => {
     if (!polling || !cobranca) return;
-    const fim = Date.now() + ESPERA_MAX_MS;
+    const inicio = Date.now();
+    const fim = cobranca.fimMs;
+    let ultima = 0;
     const iv = setInterval(() => {
-      if (Date.now() >= fim) { clearInterval(iv); setVencido(true); return; }
+      const agora = Date.now();
+      if (agora >= fim) { clearInterval(iv); setVencido(true); return; }
+      if (agora - inicio > ESPERA_RAPIDA_MS && agora - ultima < CONSULTA_LENTA_MS) return;
+      ultima = agora;
       void consultar(cobranca);
     }, 5000);
     return () => clearInterval(iv);
@@ -138,18 +184,10 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
     return () => document.removeEventListener('keydown', aoTeclar);
   }, [tentarFechar]);
 
-  // Passados 3 minutos sem pagar, oferece o WhatsApp (a consulta segue).
-  useEffect(() => {
-    if (!polling) { setTravou(false); return; }
-    const t = setTimeout(() => setTravou(true), ESPERA_TRAVOU_MS);
-    return () => clearTimeout(t);
-  }, [polling]);
-
   function recomecar() {
     setCobranca(null);
     setPagou(false);
     setVencido(false);
-    setTravou(false);
     setCopiado(false);
     setSaindo(false);
     setErro('');
@@ -158,6 +196,27 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
   function fbq(nome: string) {
     const w = window as FbqWindow;
     if (w.fbq) w.fbq('track', 'InitiateCheckout', { content_name: nome, value: 67, currency: 'BRL' });
+  }
+
+  // Saiu do campo do WhatsApp com celular completo: avisa a api, uma vez por número.
+  // Falha fica em silêncio: o formulário segue como se nada tivesse acontecido.
+  async function capturarLead() {
+    const fn = digitosFone(fone);
+    if (!celularCompleto(fn) || leadFone.current === fn) return;
+    leadFone.current = fn;
+    try {
+      const em = email.trim().toLowerCase();
+      const { data } = await api.post('/payments/pix-recorrente/lead-lp', {
+        whatsapp: '55' + fn,
+        ...(EMAIL_RE.test(em) ? { email: em } : {}),
+        sessao: sessaoLead(),
+        ...getCheckoutAttribution(),
+      });
+      if (leadFone.current !== fn) return; // o número mudou enquanto a resposta vinha
+      if (typeof data?.codigo === 'string' && CODIGO_RE.test(data.codigo)) setLeadCodigo(data.codigo);
+    } catch {
+      if (leadFone.current === fn) leadFone.current = ''; // tenta de novo na próxima saída do campo
+    }
   }
 
   async function gerar(ev: React.FormEvent) {
@@ -203,12 +262,17 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
         setErro(PIX_JA);
         return;
       }
+      // Sem expiraEm válido (ou já vencido pelo relógio daqui), mantém os 60 min de sempre.
+      const expira = typeof data.expiraEm === 'string' ? Date.parse(data.expiraEm) : NaN;
+      const comExpira = Number.isFinite(expira) && expira > Date.now() + 60 * 1000;
       setCobranca({
         id: String(data.id),
         payload: data.qrPayload,
         imagem: data.qrImagemBase64 || '',
         temConta: Boolean(data.temConta),
         codigo: typeof data.codigo === 'string' && CODIGO_RE.test(data.codigo) ? data.codigo : '',
+        fimMs: comExpira ? expira : Date.now() + ESPERA_MAX_MS,
+        validade: comExpira ? validadeTexto(expira) : '',
       });
       registrarEvento('pix_gerou', { tela: 'lp', modo: 'automatico', contrato: data.id, temConta: data.temConta });
       fbq('vip_pix_auto'); // só depois de chegar o id: um 400 com nova tentativa não conta duas vezes
@@ -287,6 +351,18 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
                 <button type="button" className={styles.btnPrincipal} onClick={copiar}>
                   {copiado ? 'Código copiado' : 'Copiar código Pix'}
                 </button>
+                {cobranca.validade && (
+                  <p className={styles.validade}>Este código vale até {cobranca.validade}</p>
+                )}
+                <a
+                  className={styles.btnSecundario}
+                  href={zapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => registrarEvento('pix_ajuda_whatsapp', { tela: 'lp', modo: 'automatico' })}
+                >
+                  Falar com a Carla no WhatsApp
+                </a>
                 <ol className={styles.passos}>
                   <li>Toque em Copiar código Pix.</li>
                   <li>No app do seu banco, escolha Pix copia e cola.</li>
@@ -306,20 +382,6 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
                   </>
                 )}
                 <p className={styles.espera} role="status">Esperando o pagamento.</p>
-                {travou && (
-                  <div className={styles.ajudaCarla}>
-                    <p>Ficou alguma dúvida? A Carla responde agora no WhatsApp.</p>
-                    <a
-                      className={styles.btnPrincipal}
-                      href={zapUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => registrarEvento('pix_ajuda_whatsapp', { tela: 'lp', modo: 'automatico' })}
-                    >
-                      Falar com a Carla agora
-                    </a>
-                  </div>
-                )}
               </>
             )}
             {erro && <p className={styles.erro} role="alert">{erro}</p>}
@@ -346,9 +408,12 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
               id="pix-fone" className={styles.campo} type="tel" inputMode="tel" autoComplete="tel-national"
               placeholder="(34) 99999-9999" maxLength={15} value={fone}
               onChange={(e) => { setFone(mascaraFone(e.target.value)); setErroFone(''); }}
+              onBlur={() => { void capturarLead(); }}
               aria-describedby="pix-fone-dica pix-fone-erro" aria-invalid={erroFone ? true : undefined}
             />
-            <p id="pix-fone-dica" className={styles.dica}>Com DDD.</p>
+            <p id="pix-fone-dica" className={styles.dica}>
+              Com DDD. A Carla, da SolarDoc, pode te chamar no WhatsApp para ajudar no pagamento.
+            </p>
             <p id="pix-fone-erro" className={styles.erro} role="alert">{erroFone}</p>
 
             <label className={styles.rotulo} htmlFor="pix-doc">CPF ou CNPJ de quem paga</label>

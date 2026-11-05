@@ -30,8 +30,11 @@ import { asaasFetch, asaasHabilitado, AsaasError } from './asaasClient';
 import { buscarCupomValido, aplicarCupom } from '../cuponsService';
 import { PLANOS } from '../../utils/planos';
 import {
-  limparAtribuicao, chavePixAutoQr, chavePixAutoAtrib, type AtribuicaoPixAuto,
+  limparAtribuicao, chavePixAutoQr, chavePixAutoAtrib, chavePixAutoExp, type AtribuicaoPixAuto,
 } from './pixAutoChaves';
+import {
+  QR_SEGUNDOS_PADRAO, QR_SEGUNDOS_FALLBACK, FOLGA_VENCIMENTO_MS, codigoVencidoParaTroca, expiracaoParaGravar, validadeDoCodigoMs,
+} from './pixAutoValidade';
 
 export type { AtribuicaoPixAuto } from './pixAutoChaves';
 
@@ -55,6 +58,8 @@ export interface PixRecorrenteCriado {
   qrPayload: string | null;      // copia-e-cola do primeiro pagamento
   qrImagemBase64: string | null; // PNG em base64 (sem o prefixo data:)
   status: string;
+  /** Até quando o código vale (ISO), pela data REAL do Asaas. null = contrato sem código a pagar (já ativo, ou trilho assinatura). */
+  expiraEm: string | null;
 }
 
 export async function gravarEstado(key: string, value: Record<string, unknown>, quando: string): Promise<void> {
@@ -141,7 +146,7 @@ interface AsaasAutorizacao {
 }
 
 async function criarAutorizacaoAutomatica(args: {
-  customerId: string; plano: string; valor: number; primeiroMes: number; contractId: string; nomePlano: string;
+  customerId: string; plano: string; valor: number; primeiroMes: number; contractId: string; nomePlano: string; segundos: number;
 }): Promise<AsaasAutorizacao> {
   return asaasFetch<AsaasAutorizacao>('/pix/automatic/authorizations', {
     method: 'POST',
@@ -166,11 +171,56 @@ async function criarAutorizacaoAutomatica(args: {
       // então o desconto de adesão não se repete.
       immediateQrCode: {
         originalValue: args.primeiroMes,
-        expirationSeconds: 3600,
+        expirationSeconds: args.segundos,
         description: `SolarDoc ${args.nomePlano}`.slice(0, 35),
       },
     },
   });
+}
+
+/**
+ * O QR de 24 h (86400 s). Erro de VALIDAÇÃO do Asaas (400 ou 422) por causa do valor: repete UMA vez com 3600, o mesmo contractId (o 4xx não
+ * cria a autorização). Timeout, 5xx, 401 e 403 NÃO repetem: a autorização pode ter sido criada, e repetir abriria uma segunda.
+ */
+async function criarAutorizacaoComFallback(args: {
+  customerId: string; plano: string; valor: number; primeiroMes: number; contractId: string; nomePlano: string;
+}): Promise<{ auth: AsaasAutorizacao; segundos: number }> {
+  try {
+    return { auth: await criarAutorizacaoAutomatica({ ...args, segundos: QR_SEGUNDOS_PADRAO }), segundos: QR_SEGUNDOS_PADRAO };
+  } catch (err) {
+    const status = Number((err as { status?: unknown } | null)?.status);
+    if (status !== 400 && status !== 422) throw err;
+    logger.warn('asaas-pix', `Asaas recusou o QR de 24 h (HTTP ${status}): repetindo uma vez com 1 h`);
+    return { auth: await criarAutorizacaoAutomatica({ ...args, segundos: QR_SEGUNDOS_FALLBACK }), segundos: QR_SEGUNDOS_FALLBACK };
+  }
+}
+
+/**
+ * Grava `pix_auto_exp:<contrato>` com UMA nova tentativa. Falhar aqui é grave e vai para o log: sem a chave o contrato só se protege pela regra do corte
+ * (criado depois do corte de 24 h vale 24 h), mas a data real do Asaas se perde.
+ */
+async function gravarValidadeDoQr(contractId: string, valor: Record<string, unknown>): Promise<boolean> {
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    try {
+      const { error } = await supabase.from('system_state').upsert({ key: chavePixAutoExp(contractId), value: valor }, { onConflict: 'key' });
+      if (!error) return true;
+      logger.error('asaas-pix', `pix_auto_exp do contrato ${contractId} NÃO gravou (tentativa ${tentativa})`, error);
+    } catch (err) {
+      logger.error('asaas-pix', `pix_auto_exp do contrato ${contractId} estourou (tentativa ${tentativa})`, err);
+    }
+  }
+  logger.error('asaas-pix', `pix_auto_exp do contrato ${contractId} PERDIDO depois de 2 tentativas: vale a regra do corte de 24 h`);
+  return false;
+}
+
+/** A validade gravada do contrato. 'ausente' = contrato antigo (sem a chave); 'erro' = não deu para ler (quem chama trata como NÃO vencido). */
+export async function lerExpiracaoDoContrato(contractId: string): Promise<{ estado: 'ok'; expira_em: string } | { estado: 'ausente' } | { estado: 'erro' }> {
+  try {
+    const { data, error } = await supabase.from('system_state').select('value').eq('key', chavePixAutoExp(contractId)).maybeSingle();
+    if (error) return { estado: 'erro' };
+    const v = (data as { value?: { expira_em?: unknown } } | null)?.value?.expira_em;
+    return typeof v === 'string' && v ? { estado: 'ok', expira_em: v } : { estado: 'ausente' };
+  } catch { return { estado: 'erro' }; }
 }
 
 // ── trilho 2: assinatura Asaas com Pix ───────────────────────────────────────
@@ -274,14 +324,33 @@ export async function criarPixRecorrente(args: {
     : await buscarAssinaturaAtivaSemConta(args.email, args.cpfCnpj);
   // Contrato `pendente` automático velho (mais de 65 min): o QR dele já não paga. Devolvê-lo daria à pessoa um QR morto. Vira `expirado` e nasce um novo.
   // Só o `pendente`: `ativo` e `inadimplente` seguem como sempre (pagou ou está pagando, nunca abre um segundo).
-  if (existente && contratoPendenteVencido(existente)) {
-    const { error: eExp } = await supabase.from('asaas_pix_assinaturas')
-      .update({ status: 'expirado', updated_at: new Date().toISOString() }).eq('id', existente.id).eq('status', 'pendente');
+  // A data é a REAL do Asaas (pix_auto_exp); contrato antigo (sem a chave) segue a regra velha de 60 min + folga. Leitura que falha vale NÃO vencido:
+  // devolver o QR vivo é seguro, expirar um contrato vivo deixaria dois QRs pagáveis.
+  let expiraEmExistente: string | null = null;
+  let leituraDaValidadeFalhou = false;
+  if (existente && existente.modo === 'automatico' && existente.status === 'pendente') {
+    const exp = await lerExpiracaoDoContrato(existente.contract_id);
+    if (exp.estado === 'ok') expiraEmExistente = exp.expira_em;
+    if (exp.estado === 'erro') leituraDaValidadeFalhou = true;
+  }
+  if (existente && !leituraDaValidadeFalhou && contratoPendenteVencido({ ...existente, expira_em: expiraEmExistente })) {
+    // `.select('id')`: só quem de fato mudou a linha (exatamente 1) abre o contrato novo. Duas chamadas ao mesmo tempo não criam dois.
+    const { data: mudou, error: eExp } = await supabase.from('asaas_pix_assinaturas')
+      .update({ status: 'expirado', updated_at: new Date().toISOString() }).eq('id', existente.id).eq('status', 'pendente').select('id');
     if (eExp) {
       logger.error('asaas-pix', `contrato pendente velho ${existente.contract_id} não virou expirado: devolvido como está`, eExp);
-    } else {
-      logger.info('asaas-pix', `contrato pendente de mais de ${CONTRATO_PENDENTE_VALE_MS / 60_000} min (${existente.contract_id}) virou expirado: abrindo um novo`);
+    } else if (Array.isArray(mudou) && mudou.length === 1) {
+      logger.info('asaas-pix', `contrato pendente com o código vencido (${existente.contract_id}) virou expirado: abrindo um novo`);
       existente = null;
+    } else {
+      // Perdeu a corrida (outra chamada já expirou, ou o contrato foi pago agora): não cria nada; devolve o que existe AGORA (o contrato novo da outra chamada, se nasceu).
+      logger.warn('asaas-pix', `contrato ${existente.contract_id} não foi expirado por esta chamada (corrida): devolvendo o que existe agora`);
+      const atual = args.userId ? await buscarAssinaturaAtiva(args.userId) : await buscarAssinaturaAtivaSemConta(args.email, args.cpfCnpj);
+      if (!atual) throw new ApiError(503, 'Tente de novo em instantes.');
+      existente = atual;
+      expiraEmExistente = null;
+      const novaExp = existente.modo === 'automatico' && existente.status === 'pendente' ? await lerExpiracaoDoContrato(existente.contract_id) : { estado: 'ausente' as const };
+      if (novaExp.estado === 'ok') expiraEmExistente = novaExp.expira_em;
     }
   }
   const atribuicao = limparAtribuicao(args.atribuicao);
@@ -305,6 +374,11 @@ export async function criarPixRecorrente(args: {
       qrPayload: existente.qr_payload ?? null,
       qrImagemBase64: null, // o QR só é entregue na criação; o copia-e-cola basta
       status: existente.status,
+      expiraEm: (() => {
+        if (existente.modo !== 'automatico' || existente.status !== 'pendente' || !existente.qr_payload) return null;
+        const v = validadeDoCodigoMs({ created_at: existente.created_at, expira_em: expiraEmExistente });
+        return v === null ? null : new Date(v).toISOString();
+      })(),
     };
   }
 
@@ -323,13 +397,20 @@ export async function criarPixRecorrente(args: {
   let qrImagem: string | null = null;
   let status = 'pendente';
   let conciliationId: string | null = null;
+  let expiraEm: string | null = null;
+  let segundosQr = QR_SEGUNDOS_PADRAO;
+  let expiraEmFallback = false;
 
   if (modoCfg === 'automatico' || modoCfg === 'auto' || args.exigirAutomatico) {
     try {
-      const auth = await criarAutorizacaoAutomatica({
+      const { auth, segundos } = await criarAutorizacaoComFallback({
         customerId, plano: info.plano, valor: info.valor, primeiroMes, contractId, nomePlano: info.nome,
       });
       modo = 'automatico';
+      segundosQr = segundos;
+      const exp = expiracaoParaGravar(auth.immediateQrCode?.expirationDate, Date.now(), segundos);
+      expiraEm = exp.expira_em;
+      expiraEmFallback = exp.fallback;
       authorizationId = auth.id;
       qrPayload = auth.payload ?? null;
       qrImagem = auth.encodedImage ?? null;
@@ -338,7 +419,8 @@ export async function criarPixRecorrente(args: {
     } catch (err) {
       if (args.exigirAutomatico) {
         logger.error('asaas-pix', `Pix Automático exigido e a autorização falhou (${(err as AsaasError)?.message})`, err);
-        throw new ApiError(502, 'O Pix automático não está disponível agora. Tente de novo em instantes.');
+        // O status do Asaas segue junto no erro: a recuperação separa 4xx (permanente) de 5xx e timeout (passageiro).
+        throw Object.assign(new ApiError(502, 'O Pix automático não está disponível agora. Tente de novo em instantes.'), { asaasStatus: Number((err as AsaasError)?.status) || 0, asaasMensagem: String((err as AsaasError)?.message ?? '') });
       }
       // Conta inelegível, Pix Automático não liberado, banco do pagador fora —
       // qualquer um desses cai na assinatura Pix, que sempre funciona. Só não cai
@@ -386,12 +468,15 @@ export async function criarPixRecorrente(args: {
       await gravarEstado(chavePixAutoQr(conciliationId), { contract_id: contractId, em: new Date().toISOString() }, 'criação');
     }
     if (atribuicao) await gravarEstado(chavePixAutoAtrib(contractId), atribuicao as Record<string, unknown>, 'criação');
+    // A validade REAL do código, por contrato (sem migration). Quem decide "vivo, espera ou vencido" lê daqui.
+    if (expiraEm) await gravarValidadeDoQr(contractId, { expira_em: expiraEm, segundos: segundosQr, fallback: expiraEmFallback, em: new Date().toISOString() });
   }
 
   return {
     id: (gravada as { id: string } | null)?.id ?? null,
     modo, contractId, plano: info.plano, valor: info.valor, primeiroMes,
     cupom: aplicado?.cupom.codigo ?? null, qrPayload, qrImagemBase64: qrImagem, status,
+    expiraEm: status === 'pendente' && qrPayload ? expiraEm : null,
   };
 }
 
@@ -410,20 +495,21 @@ export interface LinhaPixRecorrente {
 }
 
 /**
- * O QR do Pix Automático vale 3600 s (expirationSeconds). Só passando de 65 min (60 min de validade mais 5 de folga) o QR velho já não paga e o
- * contrato pode ser trocado por um novo; antes disso ele é devolvido como sempre, senão haveria dois QRs pagáveis e cobrança em dobro
- * (o webhook credita o QR velho pelo acharContratoPorQr).
+ * Contrato antigo (sem a data real gravada): o QR valia 3600 s, então só passando de 65 min (60 de validade mais 5 de folga) o contrato pode ser
+ * trocado por um novo. Com a data real (`pix_auto_exp`, QR de 24 h) vale a data do Asaas mais a mesma folga de 5 min. Antes disso o contrato é
+ * devolvido como sempre, senão haveria dois QRs pagáveis e cobrança em dobro (o webhook credita o QR velho pelo acharContratoPorQr).
  */
-export const CONTRATO_PENDENTE_VALE_MS = 65 * 60_000;
+export const CONTRATO_PENDENTE_VALE_MS = QR_SEGUNDOS_FALLBACK * 1000 + FOLGA_VENCIMENTO_MS;
 
 /**
- * Contrato `pendente` do trilho AUTOMÁTICO criado há mais de 65 min (pelo `created_at`). O trilho `assinatura` nunca vence por idade (a cobrança
- * dele segue pagável) e sem `created_at` legível não vence: nos dois casos o contrato é reaproveitado como antes.
+ * Contrato `pendente` do trilho AUTOMÁTICO com o código vencido (data real em `expira_em`; sem ela, criação + 60 min) e a folga. O trilho
+ * `assinatura` nunca vence por idade (a cobrança dele segue pagável) e sem data legível não vence: nos dois casos o contrato é reaproveitado.
  */
-export function contratoPendenteVencido(l: Pick<LinhaPixRecorrente, 'status' | 'created_at' | 'modo'>, agoraMs: number = Date.now()): boolean {
+export function contratoPendenteVencido(
+  l: Pick<LinhaPixRecorrente, 'status' | 'created_at' | 'modo'> & { expira_em?: string | null }, agoraMs: number = Date.now(),
+): boolean {
   if (l.status !== 'pendente' || l.modo !== 'automatico') return false;
-  const criado = Date.parse(String(l.created_at ?? ''));
-  return Number.isFinite(criado) && agoraMs - criado > CONTRATO_PENDENTE_VALE_MS;
+  return codigoVencidoParaTroca({ created_at: l.created_at, expira_em: l.expira_em }, agoraMs);
 }
 
 const COLS = 'id, user_id, email, modo, authorization_id, subscription_id, contract_id, plano, valor, primeiro_mes, cupom, status, qr_payload, ultimo_pagamento_em, proximo_vencimento, created_at';

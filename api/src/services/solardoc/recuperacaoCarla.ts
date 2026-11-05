@@ -47,7 +47,7 @@ import { CHAVE_LINHA_ERROS, CHAVE_LINHA_PAUSA, codigoDoErroDeEnvio, erroEhDoDest
 import { erroProvaQueNaoSaiu } from '../agentes5040/fichaEnvio';
 import { modoPix } from '../agentes5040/modoPix';
 import { chaveDoTelefone, codigoDoQuiz, normalizarTelefoneSd } from './quizSolardoc';
-import { FORM_ID_LP_PIX } from './leadLpSolardoc';
+import { ETAPA_LP_ABANDONO, FORM_ID_LP_PIX, PREFIXO_LP_SUBST } from './leadLpSolardoc';
 import { avisarDesistencia, avisarSemVaga, ehLeadDeTeste, fecharSemGrupo, PREFIXO_CLAIM_QUIZ, type ColetorSemGrupo, type ResultadoAviso } from './avisoGrupoSolardoc';
 import { comprouLead, comprouPorEmail, vendasRecentes, type VendasRecentes } from './compraQuizSolardoc';
 import { estadoRecuperacaoCarla, garantirLargada, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
@@ -55,9 +55,12 @@ import {
   FRASE_DO_MOTIVO, ESPERA_MIN_MS, TETO_CALENDARIO_MS, PREFIXO_CARIMBO_REC, PREFIXO_VEZ_REC, ROBO_QUIZ_REC,
   campoFd, chaveVezRec, MOTIVOS_PERMANENTES_REC, PREFIXO_PULOU_REC, diaBRT, foraDoTempo, horaBRT, motivoSemBanco, ordenarFila, semCnpj, textoDaCarla, PREFIXO_AINDA_REC,
   PAGTO_ESPERA_MS, PAGTO_VALE_MS, PREFIXO_CARIMBO2_REC, PREFIXO_PAGTO, PREFIXO_PAGTO_EMAIL, PREFIXO_PAGTO_EMAIL2,
-  empresaDoQuiz, faseDoCodigo, linkDoPagamento, marcaDeLinha, montarTextoPagamento, montarTextoToque2, nomeDoPagamento,
+  empresaDoQuiz, faseDoCodigo, linkDoPagamento, marcaDeLinha, montarTextoPagamento, nomeDoPagamento,
   type LeadRec, type MarcaPagto, type MotivoNaoChama, type TextoPagto,
 } from './recuperacaoCarlaRegras';
+import { montarEmailCodigo, montarTextoAbandonoLp } from './recuperacaoTextos';
+import { chavePixAutoExp } from '../asaas/pixAutoChaves';
+import { codigoReenviavel, ehCodigoPix, pagamentoValeDesde, validadeDoCodigoMs, validadePorExtenso } from '../asaas/pixAutoValidade';
 
 const LOG = 'quiz-rec';
 /** No máximo estes leads são avaliados (leituras) por rodada: a rodada cabe na função e não vira varredura. */
@@ -283,6 +286,21 @@ export interface DepsRec extends DepsAvaliar {
   lerEstados?(chaves: string[]): Promise<Map<string, { em: string | null; estado?: string; tipo?: string }> | null>;
   /** O e-mail do dia seguinte (assine no Pix automático). Erro LANÇA. */
   enviarEmailPix2?(para: string, link: string): Promise<void>;
+  /** O e-mail da noite COM O CÓDIGO (só quando o código ainda vale). Erro LANÇA. Sem esta dependência o e-mail segue só com o link. */
+  enviarEmailCodigo?(para: string, e: { assunto: string; corpo: string; codigo: string }): Promise<void>;
+  /** A pessoa pagou ALGUM contrato do mesmo CPF ou e-mail? Erro LANÇA. Sem ela não há código novo (B). */
+  jaPagouCpfOuEmail?(cpf: string, email: string, desdeIso?: string | null): Promise<boolean>;
+  /**
+   * Conta uma falha PERMANENTE do código novo (4xx do Asaas, mesmo_contrato...) desta pessoa e devolve quantas já são. Na 2ª a marca ganha o pulo. Sem esta
+   * dependência a falha só desfaz o claim (como as passageiras).
+   */
+  contarFalhaCodigoNovo?(hmac: string): Promise<number>;
+  /** Quantos abandonos da LP já saíram desde `desdeIso` (carimbo `quiz_rec_sent:` com tipo lp_abandono). null = leitura falhou. Sem ela o teto não se aplica. */
+  abandonosLpDesde?(desdeIso: string): Promise<number | null>;
+  /** Cria a autorização nova (CPF e e-mail do contrato antigo, só automático). LANÇA se não deu para ter um código novo e vivo. Sem ela não há código novo (B). */
+  gerarCodigoNovo?(a: { contractId: string; nome: string | null; tel: string }): Promise<{ contractId: string; qrPayload: string; expiraEm: string }>;
+  /** Aponta a marca `quiz_pagto:<hmac>` para o contrato novo, sem mexer em `em`. Melhor esforço. */
+  moverMarca?(hmac: string, antigo: string, novo: string): Promise<boolean>;
   /** Espera entre a 1ª mensagem e o código (2 a 5 s, como as respostas fazem). Opcional: os testes não esperam. */
   esperar?(ms: number): Promise<void>;
   /** Avisa o Thiago (e-mail de operação). Erro é engolido. Opcional. */
@@ -302,7 +320,12 @@ export interface DepsRec extends DepsAvaliar {
 }
 
 export interface DadosPagamento {
-  contrato: { status: string; created_at: string | null; qr_payload: string | null; ultimo_pagamento_em: string | null; ultimo_pagamento_id?: string | null; email: string | null } | null;
+  contrato: {
+    status: string; created_at: string | null; qr_payload: string | null; ultimo_pagamento_em: string | null; ultimo_pagamento_id?: string | null; email: string | null;
+    /** Validade REAL do código (`pix_auto_exp`); ausente/null = contrato antigo (criação + 60 min). */
+    expira_em?: string | null;
+    contract_id?: string | null; cpf_cnpj?: string | null;
+  } | null;
   whatsapp: string | null;
 }
 
@@ -384,16 +407,21 @@ const PAGTO_POR_RODADA = 4;
 /** E-mails do pagamento por rodada. */
 const EMAILS_POR_RODADA = 5;
 
-/** O contrato foi pago? `ativo` e `inadimplente` já pagaram alguma vez; `ultimo_pagamento_em` e `ultimo_pagamento_id` (o webhook grava este antes do `ativo`) também provam. */
+/**
+ * O contrato foi pago? `ativo`, ou um pagamento DEPOIS da criação do contrato (o webhook grava `ultimo_pagamento_id` antes do `ativo`, e conta). `inadimplente` e
+ * `cancelado` com pagamento antigo (de antes deste contrato) NÃO contam: o pulo permanente da marca só vale para quem pagou ESTA assinatura.
+ */
 export function contratoPago(c: NonNullable<DadosPagamento['contrato']>): boolean {
-  return c.status === 'ativo' || c.status === 'inadimplente' || !!c.ultimo_pagamento_em || !!c.ultimo_pagamento_id;
+  return pagamentoValeDesde(c, Date.parse(String(c.created_at ?? '')) || 0);
 }
 
 /** Um item da fila do pagamento: o lead do quiz (só quem fez o quiz vai ao WhatsApp) e o que a marca trouxe. */
 interface ItemPagto { lead: LeadRec; marca: MarcaPagto; quiz: LeadRec; dados: DadosPagamento; utmTerm: string | null; daLp: boolean }
 /** O 2º toque: o `em` do carimbo do 1º toque e o tipo dele (`pagamento` ou `diagnostico`) escolhem o depoimento. */
 interface ItemToque2 extends ItemPagto { carimboEm: string; primeiroTipo: string | undefined }
-interface ItemFila { lead: LeadRec; pagto?: ItemPagto; toque2?: ItemToque2 }
+/** Quem começou a assinar na LP, deixou o WhatsApp e NÃO gerou o Pix (form_id lp_solardoc_pix, Etapa abandono). */
+interface ItemLp { lead: LeadRec; utmTerm: string | null }
+interface ItemFila { lead: LeadRec; pagto?: ItemPagto; toque2?: ItemToque2; lp?: ItemLp }
 
 /** O que a rodada leu: TODAS as marcas vivas (120 h) e os leads do quiz por hmac. */
 interface PagtoRodada { marcas: MarcaPagto[]; doQuiz: Map<string, LeadRec>; /** hmacs cujo lead veio só da LP (lp_solardoc_pix) */ daLp: Set<string> }
@@ -473,7 +501,7 @@ async function lerFilaPagamento(d: DepsRec, agora: Date, p: PagtoRodada): Promis
   const agoraMs = agora.getTime();
   const prontas = p.marcas
     .filter(m => p.doQuiz.has(m.hmac) && agoraMs - Date.parse(m.em) >= PAGTO_ESPERA_MS)
-    .sort((a, b) => Date.parse(b.em) - Date.parse(a.em));   // quem acabou de chegar primeiro: a marca parada não trava as novas
+    .sort((a, b) => Date.parse(a.em) - Date.parse(b.em));   // quem VENCE ANTES primeiro (a marca mais antiga); marca em 'espera' não ocupa vaga, então não trava as outras
   if (!prontas.length) return { itens: [], hmacs };
   const tem = await d.existentes(prontas.flatMap(m => [`${PREFIXO_CARIMBO_REC}${m.hmac}`, `${PREFIXO_PULOU_REC}${m.hmac}`]));
   if (!tem) return { itens: [], hmacs };
@@ -488,10 +516,59 @@ async function lerFilaPagamento(d: DepsRec, agora: Date, p: PagtoRodada): Promis
     const quiz = p.doQuiz.get(m.hmac) as LeadRec;
     const tel = telefoneDaMarca(m, dados, quiz);
     if (!tel) { hmacs.delete(m.hmac); continue; }   // sem telefone que bata com o hmac: não dá para chamar por aqui
-    if (faseDoCodigo(dados.contrato, agoraMs) === 'espera') continue;   // entre 55 e 65 min o código está no fim: espera
+    const fase = faseDoCodigo(dados.contrato, agoraMs);
+    if (fase === 'espera' || fase === 'nada') continue;   // código nos últimos minutos (ou contrato que não se recupera): nada sai nesta rodada
     itens.push({ lead: quiz, marca: m, quiz, dados, utmTerm: utmTermDaMarca(m, quiz), daLp: p.daLp.has(m.hmac) });
   }
   return { itens, hmacs };
+}
+
+/** Quantos leads de abandono da LP entram por rodada (cada um custa uma avaliação; só UM envio sai por rodada de qualquer jeito). */
+const LP_POR_RODADA = 3;
+/** Teto de abandonos da LP em 24 h (chefe anti-ban): contados pelos carimbos `quiz_rec_sent:` com tipo lp_abandono. Cheio, o abandono fica fora da rodada e o resto da Carla segue. */
+export const TETO_ABANDONO_LP_24H = 10;
+
+/**
+ * O ABANDONO DA LP (05/11/2026): quem digitou o WhatsApp na LP (rota `lead-lp`, antes do "Gerar"), NÃO gerou o Pix, e ainda não foi chamado. Lê SÓ os leads
+ * `lp_solardoc_pix` com `Etapa = abandono`, de 15 min a 48 h úteis, gravados depois da largada. Fica de fora: quem tem a marca do pagamento (hmac ou sessão da LP:
+ * esse gerou o Pix e é do caminho do pagamento), quem já tem o carimbo (1 por pessoa somando quiz, LP e Pix), o pulo e o número SUBSTITUÍDO na mesma sessão
+ * (`lp_lead_subst:<hmac>`). Mais antigo primeiro. Leitura que falha = fila vazia (o abandono é o último a perder a vez).
+ */
+async function lerFilaLp(d: DepsRec, agora: Date, largadaMs: number, p: PagtoRodada, hmacsPagto: ReadonlySet<string>): Promise<ItemLp[]> {
+  if (!d.leadsLp) return [];
+  const agoraMs = agora.getTime();
+  // O teto de 24 h vem primeiro: leitura que falha vale teto cheio (abandono fora da rodada), nunca o contrário.
+  let vagas = LP_POR_RODADA;
+  if (d.abandonosLpDesde) {
+    const usados = await d.abandonosLpDesde(new Date(agoraMs - 24 * 3600_000).toISOString());
+    if (usados === null || usados >= TETO_ABANDONO_LP_24H) return [];
+    vagas = Math.min(vagas, TETO_ABANDONO_LP_24H - usados);
+  }
+  const desde = Math.max(largadaMs, agoraMs - TETO_CALENDARIO_MS);
+  const lidos = await d.leadsLp(new Date(desde).toISOString(), new Date(agoraMs - ESPERA_MIN_MS).toISOString());
+  if (!lidos) return [];
+  const sessoesComPix = new Set(p.marcas.map(m => m.lp_session).filter((x): x is string => !!x));
+  const candidatos = lidos.filter(l => {
+    const h = hmacDoLeadRec(l);
+    if (!h || campoFd(l.field_data, 'Etapa') !== ETAPA_LP_ABANDONO || ehLeadDeTeste(l.field_data) || foraDoTempo(l, agoraMs) !== null) return false;
+    if (hmacsPagto.has(h)) return false;
+    const sessao = campoFd(l.field_data, 'lp_session');
+    return !(sessao && sessoesComPix.has(sessao));
+  });
+  if (!candidatos.length) return [];
+  const tem = await d.existentes(candidatos.flatMap(l => {
+    const h = hmacDoLeadRec(l) as string;
+    return [`${PREFIXO_CARIMBO_REC}${h}`, `${PREFIXO_PULOU_REC}${h}`, `${PREFIXO_LP_SUBST}${h}`, `${PREFIXO_PAGTO}${h}`];
+  }));
+  if (!tem) return [];
+  return candidatos
+    .filter(l => {
+      const h = hmacDoLeadRec(l) as string;
+      return !tem.has(`${PREFIXO_CARIMBO_REC}${h}`) && !tem.has(`${PREFIXO_PULOU_REC}${h}`) && !tem.has(`${PREFIXO_LP_SUBST}${h}`) && !tem.has(`${PREFIXO_PAGTO}${h}`);
+    })
+    .sort((a, b) => (Date.parse(String(a.created_time ?? '')) || 0) - (Date.parse(String(b.created_time ?? '')) || 0))
+    .slice(0, vagas)
+    .map(lead => ({ lead, utmTerm: campoFd(lead.field_data, 'utm_term') || null }));
 }
 
 /**
@@ -538,14 +615,27 @@ async function emailDoPagamento(d: DepsRec, agora: Date, r: RelatorioRec, p: Pag
       const chaveEmail = `${PREFIXO_PAGTO_EMAIL}${m.contratoId}`;
       const claim = await d.claim(chaveEmail, agora);
       if (claim !== 'ok') continue;
-      // Depois do claim e antes de enviar: pagou nesse meio tempo?
+      // Depois do claim e antes de enviar: pagou nesse meio tempo? (E o código ainda vale? O e-mail da noite leva o código se vale; vencido, vai o de hoje com o link.)
+      let codigoVivo: { codigo: string; validade: string } | null = null;
       try {
         const fresco = await d.lerPagamento(m.contratoId);
         const vendas2 = await d.vendas(Date.now());
         if (!fresco || !fresco.contrato || await pagouPelaMarca(d, m, fresco, vendas2)) { await d.apagarClaim(chaveEmail); continue; }
+        const c = fresco.contrato;
+        const validade = validadeDoCodigoMs({ created_at: c.created_at, expira_em: c.expira_em });
+        if (d.enviarEmailCodigo && c.status === 'pendente' && ehCodigoPix(c.qr_payload) && validade !== null
+          && codigoReenviavel({ created_at: c.created_at, expira_em: c.expira_em }, agoraMs)) {
+          codigoVivo = { codigo: c.qr_payload as string, validade: validadePorExtenso(validade, agoraMs) };
+        }
       } catch { await d.apagarClaim(chaveEmail); continue; }
       try {
-        await d.enviarEmailPix(m.email as string, linkDoPagamento(utmTerm, 'email'));
+        const link = linkDoPagamento(utmTerm, 'email');
+        if (codigoVivo && d.enviarEmailCodigo) {
+          const nomeEmail = nomeDoPagamento(quiz?.nome, m.nome);
+          await d.enviarEmailCodigo(m.email as string, { ...montarEmailCodigo({ nome: nomeEmail, validade: codigoVivo.validade, codigo: codigoVivo.codigo, link }), codigo: codigoVivo.codigo });
+        } else {
+          await d.enviarEmailPix(m.email as string, link);
+        }
         enviados++;
         r.decisoes.push({ hmac8: m.hmac.slice(0, 8), resultado: 'email_pix', motivo: null });
       } catch (e) {
@@ -735,10 +825,12 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
     const pagto = await lerFilaPagamento(d, agora, pagtoR as PagtoRodada);
     const lida = await lerFila(d, agora, largada, { excluir: pagto.hmacs });
     if (!lida) return { ...r, ok: false, motivo: 'leitura_da_fila_falhou' };
-    // O 2º toque fica no FIM da fila, na mesma vez de 10 min: o lead novo e o 1º toque do pagamento passam na frente.
+    // Ordem do robô (uma vez só por rodada): 1º toque do Pix (quem vence antes), mensagem de 15 min, abandono da LP e, por último, o 2º toque.
+    const lpItens = await lerFilaLp(d, agora, largada, pagtoR as PagtoRodada, pagto.hmacs);
     const toque2 = await lerToque2(d, agora, pagtoR as PagtoRodada);
     const itens: ItemFila[] = [
       ...pagto.itens.map(p => ({ lead: p.lead, pagto: p })), ...lida.fila.map(l => ({ lead: l })),
+      ...lpItens.map(l => ({ lead: l.lead, lp: l })),
       ...toque2.map(t => ({ lead: t.lead, toque2: t })),
     ];
     r.candidatos = itens.length;
@@ -748,7 +840,9 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
     try { vendas = await d.vendas(agora.getTime()); } catch { return { ...r, ok: false, motivo: 'erro_compras' }; }
     const ctx: ContextoAvaliar = { agoraMs: agora.getTime(), largadaMs: largada, vendas };
 
-    for (const { lead, pagto: pg, toque2: t2 } of itens) {
+    // Uma falha na criação do código novo adia as demais nesta rodada (o Asaas fora do ar não é martelado por item).
+    let codigoNovoFalhou = false;
+    for (const { lead, pagto: pg, toque2: t2, lp } of itens) {
       const pp = pg ?? t2;   // o item do pagamento (1º toque) ou o do 2º toque
       if (r.avaliados >= AVALIACOES_POR_RODADA) { soma(r.puladas, 'limite_por_rodada'); break; }
       r.avaliados++;
@@ -760,10 +854,10 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       };
 
       // O grupo só é avisado do 1º toque de quem fez o quiz: o 2º toque e o lead da LP (sem diagnóstico) não geram aviso.
-      const avisaGrupo = !t2 && !pg?.daLp;
+      const avisaGrupo = !t2 && !pg?.daLp && !lp;
 
       // 5. antes do claim: compra, posse, já falou, pausa humana e supressão; depois o phone-exists
-      const av = await avaliarLead(lead, t2 ? { ...ctx, viaPagamento: true, segundoToque: { emMs: Date.parse(t2.carimboEm) } } : pg ? { ...ctx, viaPagamento: true } : ctx, d);
+      const av = await avaliarLead(lead, t2 ? { ...ctx, viaPagamento: true, segundoToque: { emMs: Date.parse(t2.carimboEm) } } : (pg || lp) ? { ...ctx, viaPagamento: true } : ctx, d);
       if (!av.ok) {
         nota('pulou', av.motivo);
         if (MOTIVOS_PERMANENTES_REC.has(av.motivo)) { try { await d.marcarPulo?.(`${PREFIXO_PULOU_REC}${hmac}`, av.motivo, agora); } catch { /* sem a marca ele só é reavaliado */ } }
@@ -778,7 +872,7 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       }
       // O caminho do pagamento monta o texto DEPOIS do claim, com o contrato relido (a idade do código decide entre código e link).
       const pixPorAqui = campoFd(lead.field_data, 'pagamento') === 'pix' && modoPix() !== 'indisponivel';
-      const texto = pp ? null : textoDaCarla(lead, { pixPorAqui });
+      const texto = (pp || lp) ? null : textoDaCarla(lead, { pixPorAqui });
       if (texto && !texto.ok) { nota('pulou', texto.motivo); continue; }
       const existe = await d.telefoneExiste(av.tel);
       if (existe === 'erro') { nota('parou', 'phone_exists_falhou'); break; }
@@ -830,44 +924,79 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
         }
       } catch { reler = 'leitura_falhou'; }
       // Pagamento: depois do claim e ANTES de enviar, lê de novo se a pessoa pagou (contrato, venda e e-mail) e fixa o texto pelo contrato de agora.
+      // O texto SEMPRE leva o código (vivo ou novo): 1 bolha, e o código sozinho na 2ª mensagem. Código vivo = faltam 2 h ou mais (data real do Asaas); vencido = código novo (B).
       let textoPg: TextoPagto | null = null;
-      let textoT2: string | null = null;
+      let textoLp: string | null = null;
       if (!reler && pp) {
         try {
           const fresco = await d.lerPagamento?.(pp.marca.contratoId);
           if (!fresco || !fresco.contrato) reler = 'pagamento_falhou';
           else {
             const vendas2 = await d.vendas(agoraEnvio.getTime());
-            const lp = campoFd(lead.field_data, 'lp_session') || pp.marca.lp_session || '';
-            if (await pagouPelaMarca(d, pp.marca, fresco, vendas2) || await d.compra(vendas2, lp, chaveDoTelefone(av.tel))) reler = 'pagou';
-            else if (t2) {
-              // O QR do 1º toque já venceu: o 2º toque leva o link, com o depoimento que o 1º não usou.
-              textoT2 = montarTextoToque2({ nome: nomeDoPagamento(t2.quiz.nome, t2.marca.nome), utmTerm: t2.utmTerm, primeiroTipo: t2.primeiroTipo });
-            } else if (pg) {
+            const lpSessao = campoFd(lead.field_data, 'lp_session') || pp.marca.lp_session || '';
+            if (await pagouPelaMarca(d, pp.marca, fresco, vendas2) || await d.compra(vendas2, lpSessao, chaveDoTelefone(av.tel))) reler = 'pagou';
+            else {
               const c = fresco.contrato;
-              // Menos de 55 min = código; 65 min ou mais = link; no meio o código está no fim e a rodada espera (o claim volta).
-              const fase = faseDoCodigo(c, agoraEnvio.getTime());
-              if (fase === 'espera') reler = 'aguardando_codigo';
-              else {
-                textoPg = montarTextoPagamento({
-                  codigoVivo: fase === 'codigo',
-                  qrPayload: c.qr_payload,
-                  nome: nomeDoPagamento(pg.quiz.nome, pg.marca.nome),
-                  empresa: empresaDoQuiz(pg.quiz.field_data),
-                  utmTerm: pg.utmTerm,
-                  horaBrt: horaDeBRT(agoraEnvio),
-                });
+              const agoraMsEnvio = agoraEnvio.getTime();
+              const fase = faseDoCodigo(c, agoraMsEnvio);
+              const nomeP = nomeDoPagamento(pp.quiz.nome, pp.marca.nome);
+              const empresaP = empresaDoQuiz(pp.quiz.field_data);
+              const base = { dia2: !!t2, primeiroTipo: t2?.primeiroTipo, agoraMs: agoraMsEnvio, nome: nomeP, empresa: empresaP, horaBrt: horaDeBRT(agoraEnvio) };
+              if (fase === 'espera') reler = 'aguardando_codigo';   // nos últimos minutos do código: o claim volta e a rodada seguinte decide
+              else if (fase === 'nada') reler = 'contrato_sem_recuperacao';
+              else if (fase === 'codigo') {
+                textoPg = montarTextoPagamento({ ...base, origem: 'vivo', codigo: c.qr_payload as string, validadeMs: validadeDoCodigoMs({ created_at: c.created_at, expira_em: c.expira_em }) as number });
+              } else if (codigoNovoFalhou) {
+                reler = 'codigo_novo_adiado';
+              } else if (!d.gerarCodigoNovo || !d.jaPagouCpfOuEmail || !c.cpf_cnpj || !c.contract_id) {
+                reler = 'codigo_novo_indisponivel';
+              } else if (await d.jaPagouCpfOuEmail(c.cpf_cnpj, c.email ?? pp.marca.email ?? '', c.created_at)) {
+                // Estado primeiro, mensagem depois: pagou outro contrato do mesmo CPF ou e-mail. Sai da fila.
+                await pularMarca(d, hmac, 'pagou', agora);
+                reler = 'pagou';
+              } else {
+                // B: a autorização NOVA nasce aqui, depois do claim, da posse e da releitura. Falha do Asaas = releitura: desfaz claim e posse, não sai nada e NÃO conta erro de linha.
+                try {
+                  const novo = await d.gerarCodigoNovo({ contractId: c.contract_id, nome: nomeP, tel: av.tel });
+                  try { await d.moverMarca?.(hmac, pp.marca.contratoId, novo.contractId); } catch { /* a próxima rodada acha o contrato vivo pelo CPF */ }
+                  textoPg = montarTextoPagamento({ ...base, origem: 'novo', codigo: novo.qrPayload, validadeMs: Date.parse(novo.expiraEm) });
+                } catch (err) {
+                  logger.error(LOG, `código novo de ${hmac8} não saiu (${String((err as Error)?.message ?? err).slice(0, 40)})`);
+                  reler = 'codigo_novo_falhou';
+                  if ((err as { permanente?: unknown } | null)?.permanente === true) {
+                    // 4xx do Asaas e erro que não se resolve: conta por pessoa e, na 2ª falha, a marca ganha o pulo (não vira um laço de rodadas). Não adia as outras pessoas.
+                    let n = 0;
+                    try { n = (await d.contarFalhaCodigoNovo?.(hmac)) ?? 0; } catch { n = 0; }
+                    if (n >= 2) { await pularMarca(d, hmac, 'codigo_novo_falhou', agora); reler = 'codigo_novo_pulado'; }
+                  } else {
+                    codigoNovoFalhou = true;   // 5xx e timeout: o Asaas está mal, não é martelado de novo nesta rodada
+                  }
+                }
               }
             }
           }
         } catch { reler = 'pagamento_falhou'; }
+      }
+      // Abandono da LP: só quem NÃO gerou o Pix. Relê a marca do pagamento (e o carimbo) agora, depois do claim.
+      if (!reler && lp) {
+        try {
+          const tem = await d.existentes([`${PREFIXO_PAGTO}${hmac}`, `${PREFIXO_LP_SUBST}${hmac}`]);
+          if (!tem) reler = 'leitura_falhou';
+          else if (tem.has(`${PREFIXO_PAGTO}${hmac}`)) reler = 'gerou_pix';
+          else if (tem.has(`${PREFIXO_LP_SUBST}${hmac}`)) reler = 'numero_substituido';
+          else {
+            textoLp = montarTextoAbandonoLp({
+              nome: nomeDoPagamento(lead.nome), saudacao: horaDeBRT(agoraEnvio) < 12 ? 'Bom dia' : 'Oi', link: linkDoPagamento(lp.utmTerm, 'whatsapp'),
+            });
+          }
+        } catch { reler = 'leitura_falhou'; }
       }
       if (reler) { await desfazer(); nota('abortou', `releitura_${reler}`); continue; }
 
       // O sendFrio devolve false (calado) quando há pausa humana: o aviso "falou às" só sai depois de um envio que de fato foi feito.
       let saiu = false;
       try {
-        saiu = await d.enviar(av.tel, textoT2 ?? (textoPg ? textoPg.texto : (texto as { texto: string }).texto));
+        saiu = await d.enviar(av.tel, textoLp ?? (textoPg ? textoPg.texto : (texto as { texto: string }).texto));
       } catch (err) {
         const cod = codigoDoErroDeEnvio(err);
         logger.error(LOG, `envio ${hmac8} falhou (${cod})`);
@@ -898,7 +1027,7 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       }
       // Envio provado: o carimbo ganha o estado 'enviado', que é o que deixa o tick escrever "A Carla falou às".
       // `tipo` diz ao 2º toque qual depoimento o 1º usou (pagamento = Alessandro, diagnostico = Vanderlei).
-      await d.marcarClaim(chaveClaim, { em, estado: 'enviado', tipo: t2 ? 'toque2' : pg ? 'pagamento' : 'diagnostico' });
+      await d.marcarClaim(chaveClaim, { em, estado: 'enviado', tipo: t2 ? 'toque2' : pg ? 'pagamento' : lp ? 'lp_abandono' : 'diagnostico' });
       await d.envioOk(agoraEnvio);
       // O código do Pix vai sozinho, na mensagem seguinte, e só porque a primeira saiu. Se esta falhar a primeira já foi: o claim fica como 'enviado'.
       if (textoPg?.segundo) {
@@ -1056,8 +1185,16 @@ export function depsReais(): DepsRec {
     async lerPagamento(contratoId) {
       try {
         const { data, error } = await supabase.from('asaas_pix_assinaturas')
-          .select('status, created_at, qr_payload, ultimo_pagamento_em, ultimo_pagamento_id, email').eq('contract_id', contratoId).maybeSingle();
+          .select('contract_id, status, created_at, qr_payload, ultimo_pagamento_em, ultimo_pagamento_id, email, cpf_cnpj').eq('contract_id', contratoId).maybeSingle();
         if (error) return null;
+        // A validade REAL do código (pix_auto_exp). Leitura que falha = null (tenta na rodada seguinte): sem a data não se decide entre vivo, espera e vencido.
+        let expiraEm: string | null = null;
+        if (data) {
+          const { data: ex, error: eEx } = await supabase.from('system_state').select('value').eq('key', chavePixAutoExp(contratoId)).maybeSingle();
+          if (eEx) return null;
+          const v = (ex as { value?: { expira_em?: unknown } } | null)?.value?.expira_em;
+          expiraEm = typeof v === 'string' && v ? v : null;
+        }
         // O WhatsApp mora na atribuição do contrato (a marca só leva o hmac); a leitura dela que falhar vale "sem telefone".
         let whatsapp: string | null = null;
         try {
@@ -1065,10 +1202,47 @@ export function depsReais(): DepsRec {
           const w = (atr as { value?: { whatsapp?: unknown } } | null)?.value?.whatsapp;
           whatsapp = typeof w === 'string' && w.trim() ? w.trim() : null;
         } catch { whatsapp = null; }
-        return { contrato: (data as DadosPagamento['contrato']) ?? null, whatsapp };
+        return { contrato: data ? { ...(data as NonNullable<DadosPagamento['contrato']>), expira_em: expiraEm } : null, whatsapp };
       } catch { return null; }
     },
     compraPorEmail: (vendas, email) => comprouPorEmail(vendas, email),
+    async jaPagouCpfOuEmail(cpf, email, desdeIso) {
+      const { pagouCpfOuEmail } = await import('./pixAutoCodigo');
+      return pagouCpfOuEmail(cpf, email, desdeIso);
+    },
+    async contarFalhaCodigoNovo(hmac) {
+      // Contador por pessoa em system_state (`quiz_rec_cn_falha:<hmac>` = { n }): 1ª falha insere, as seguintes somam.
+      const chave = `quiz_rec_cn_falha:${hmac}`;
+      const iso = new Date().toISOString();
+      const { error } = await supabase.from('system_state').insert({ key: chave, value: { n: 1, em: iso }, updated_at: iso });
+      if (!error) return 1;
+      if ((error as { code?: string }).code !== '23505') return 0;
+      const { data } = await supabase.from('system_state').select('value').eq('key', chave).maybeSingle();
+      const n = (Number((data as { value?: { n?: number } } | null)?.value?.n ?? 0) || 0) + 1;
+      await supabase.from('system_state').update({ value: { n, em: iso }, updated_at: iso }).eq('key', chave);
+      return n;
+    },
+    async abandonosLpDesde(desdeIso) {
+      try {
+        const { count, error } = await supabase.from('system_state').select('key', { count: 'exact', head: true })
+          .like('key', `${PREFIXO_CARIMBO_REC}%`).eq('value->>tipo', 'lp_abandono').gte('updated_at', desdeIso);
+        return error ? null : (count ?? 0);
+      } catch { return null; }
+    },
+    async gerarCodigoNovo({ contractId, nome, tel }) {
+      const m = await import('./pixAutoCodigo');
+      const antigo = await m.lerContratoBase(contractId);
+      if (!antigo) throw new Error('contrato_sumiu');
+      return m.gerarCodigoNovo({ antigo, nome, tel });
+    },
+    async moverMarca(hmac, antigo, novo) {
+      const { moverMarcaDePagamento } = await import('./pixAutoCodigo');
+      return moverMarcaDePagamento(hmac, antigo, novo);
+    },
+    async enviarEmailCodigo(para, e) {
+      const { sendPixCodigoEmail } = await import('../../utils/mailer');
+      await sendPixCodigoEmail({ to: para, ...e });
+    },
     esperar: (ms) => new Promise<void>(ok => setTimeout(ok, ms)),
     async avisarThiago(texto) {
       const { sendOpsAlert } = await import('../../utils/mailer');

@@ -8,12 +8,17 @@ const h = vi.hoisted(() => ({
   enviar: vi.fn(),
   ficha: vi.fn(),
   cooldown: false,
+  pix: { tipo: 'link' } as any,
+  pixPedidos: [] as unknown[][],
+  pixValido: ((_c: string) => true) as (c: string) => boolean,
 }));
 vi.mock('../utils/supabase', () => ({ supabase: new Proxy({}, { get: (_t, k) => h.principal.cliente[k as string] }) }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: new Proxy({}, { get: (_t, k) => h.gerador.cliente[k as string] }) }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('../utils/anthropicClient', () => ({ novoAnthropic: () => { throw new Error('chamada real à Anthropic em teste'); } }));
-vi.mock('../services/agentes5040/vivoEnvio', () => ({ enviarResposta: (...a: unknown[]) => h.enviar(...a) }));
+vi.mock('../services/agentes5040/vivoEnvio', () => ({ enviarResposta: (...a: unknown[]) => h.enviar(...a), pixValidoComoPeca: (c: string) => h.pixValido(c) }));
+// O Pix automático da conversa (05/11/2026): o servidor resolve o marcador pix_automatico. Padrão dos testes antigos: o link; os novos mudam h.pix.
+vi.mock('../services/solardoc/pixAutoCodigo', () => ({ resolverPixConversa: async (...a: unknown[]) => { h.pixPedidos.push(a); return h.pix; } }));
 vi.mock('../services/agentes5040/fichaEnvio', () => ({
   carregarTelefonesConsultores: async () => ({ ok: true, mapa: new Map([['diego', '34991360172']]) }),
   enviarFichaAoConsultor: (...a: unknown[]) => h.ficha(...a),
@@ -93,6 +98,7 @@ const link = (id: string, bolha1 = 'Segue o link.'): Saida => ({ bolhas: [bolha1
 const imagem = (slug: string, bolha1 = 'Escolhi esse porque é da sua região.'): Saida => ({ bolhas: [bolha1], extra: { peca: { tipo: 'imagem', id: `depoimento:${slug}` } } });
 
 beforeEach(() => {
+  h.pix = { tipo: 'link' }; h.pixValido = () => true; h.pixPedidos = [];
   banco = novoBanco(); gerador = novoBanco();
   h.principal = banco; h.gerador = gerador;
   // O envio falso: com peça, duas mensagens saíram; sem peça, uma.
@@ -145,6 +151,81 @@ describe('Carla: link de assinatura, Pix e avulsos', () => {
     expect(pedidos()[0].peca).toEqual({ tipo: 'link', texto: 'https://solardoc.app/?pagar=pix' });
     expect(posseDe().links).toEqual(['https://solardoc.app/?pagar=pix']);
     expect(chavesDoEstado().some(k => k.startsWith('pix_solicitado:'))).toBe(false);
+  });
+
+  describe('Pix automático na conversa (05/11/2026): o servidor troca o link pelo código', () => {
+    const CODIGO = '000201260400147BRNOVO5204000053039865802BR5913AIOROS GROUP6009UBERLANDIA62070503***6304BEEF';
+    const codigo = (novo = true) => ({ tipo: 'codigo', codigo: CODIGO, validadeMs: Date.now() + 20 * 3_600_000, novo });
+    beforeEach(() => { h.pix = { tipo: 'link' }; h.pixValido = () => true; h.pixPedidos = []; });
+
+    it('código: a bolha 1 vira o texto fixo (1 bolha, termina em "o código vai aqui embaixo") e a peça é o código sozinho (tipo pix)', async () => {
+      semear(); ia = modelo([link('pix_automatico', 'Segue o Pix automático.')]); h.pix = codigo();
+      await rodar();
+      const p = pedidos()[0];
+      expect(p.peca).toEqual({ tipo: 'pix', texto: CODIGO });
+      expect(p.bolha).toMatch(/^Fechado(, \p{Lu}\p{L}*)?\. É o Pix automático de R\$ 67 por mês, e você cancela quando quiser pelo app do banco\. O código vai aqui embaixo\.$/u);
+      expect(p.bolha.length).toBeLessThanOrEqual(160);
+      expect(p.bolha).not.toMatch(/[—–]|https?:/);
+      expect(h.pixPedidos).toHaveLength(1);
+      expect((h.pixPedidos[0]![0] as { tel: string }).tel).toBeTruthy();
+      expect(posseDe().links).toEqual([]);   // o código não é link: nada a deduplicar
+    });
+
+    it('código vivo reenviado (pedido repetido) sai igual: o resolver devolve o mesmo e a peça é a mesma', async () => {
+      semear(); ia = modelo([link('pix_automatico', 'Segue.')]); h.pix = codigo(false);
+      await rodar();
+      expect(pedidos()[0].peca).toEqual({ tipo: 'pix', texto: CODIGO });
+    });
+
+    it('sem CPF: a resposta é o pedido do CPF (1 bolha, sem peça, nada de link nem código)', async () => {
+      semear(); ia = modelo([link('pix_automatico', 'Segue o Pix automático.')]); h.pix = { tipo: 'pedir_cpf' };
+      await rodar();
+      const p = pedidos()[0];
+      expect(p.peca).toBeUndefined();
+      expect(p.bolha).toMatch(/[Oo] Pix automático pede o CPF de quem paga, e eu ainda não tenho o seu\. Me manda aqui, por favor\? Assim eu gero o código\.$/);
+      expect(p.bolha.length).toBeLessThanOrEqual(160);
+    });
+
+    it('já pagou: o texto do redator (pagamento entrou, SolarDoc liberada), 1 bolha, sem peça', async () => {
+      semear(); ia = modelo([link('pix_automatico', 'Segue.')]); h.pix = { tipo: 'ja_pagou' };
+      await rodar();
+      const p = pedidos()[0];
+      expect(p.peca).toBeUndefined();
+      expect(p.bolha).toMatch(/^Boa notícia(, \p{Lu}\p{L}*)?: seu pagamento já entrou e a SolarDoc já está liberada na sua conta\. É só entrar em https:\/\/solardoc\.app com o seu e-mail\.$/u);
+      expect(p.bolha.length).toBeLessThanOrEqual(160);
+    });
+
+    it('código vivo com menos de 30 min: diz até que horas vale (hora de Brasília), sem peça e sem pedir código novo', async () => {
+      semear(); ia = modelo([link('pix_automatico', 'Segue.')]);
+      h.pix = { tipo: 'aguardar', ateMs: Date.parse('2026-11-05T18:40:00.000Z') };   // 15h40 em Brasília
+      await rodar();
+      const p = pedidos()[0];
+      expect(p.peca).toBeUndefined();
+      expect(p.bolha).toContain('só até 15h40.');
+      expect(p.bolha).toMatch(/me chama aqui depois desse horário que eu mando um novo\.$/);
+      expect(p.bolha).not.toMatch(/já te mandei|chamo o time/);
+      expect(p.bolha.length).toBeLessThanOrEqual(160);
+    });
+
+    it('código que o vivoEnvio recusaria (formato ou CRC): nunca promete "o código vai aqui embaixo", cai no link do Pix automático', async () => {
+      semear(); ia = modelo([link('pix_automatico', 'Segue o Pix automático.')]); h.pix = codigo(); h.pixValido = () => false;
+      await rodar();
+      expect(pedidos()[0].peca).toEqual({ tipo: 'link', texto: 'https://solardoc.app/?pagar=pix' });
+      expect(pedidos()[0].bolha).toBe('Segue o Pix automático.');
+    });
+
+    it('o resolver falhou e devolveu link: o link do Pix automático de sempre', async () => {
+      semear(); ia = modelo([link('pix_automatico', 'Segue o Pix automático.')]); h.pix = { tipo: 'link' };
+      await rodar();
+      expect(pedidos()[0].peca).toEqual({ tipo: 'link', texto: 'https://solardoc.app/?pagar=pix' });
+    });
+
+    it('a peça do código caiu no teto (só a bolha saiu): pendência de peça tipo pix, e o aviso aparece no turno seguinte', async () => {
+      semear(); ia = modelo([link('pix_automatico', 'Segue.')]); h.pix = codigo();
+      h.enviar.mockImplementation(async (p: any) => ({ ok: true, enviadas: 1, carimbos: [`ag5040_sent:${p.waIdAlvo}:1`], pecaCaiu: 'teto' }));
+      await rodar();
+      expect(posseDe().peca_pendente).toMatchObject({ tipo: 'pix', ref: 'pix_automatico' });
+    });
   });
 
   it('o id antigo pix_kiwify e a peça tipo pix (código) não existem mais: recusa, nada de código sai', async () => {

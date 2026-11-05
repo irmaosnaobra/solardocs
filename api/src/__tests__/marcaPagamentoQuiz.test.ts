@@ -68,6 +68,9 @@ vi.mock('../services/asaas/pixRecorrenteService', () => ({
 }));
 
 import { gravarMarcaPagamento, hmacDoPagamento } from '../services/solardoc/marcaPagamentoQuiz';
+
+/** Quantas MARCAS do pagamento foram gravadas. */
+const nMarcas = (): number => [...h.linhas.keys()].filter(k => k.startsWith('quiz_pagto:')).length;
 import { gravarLeadLp, FORM_ID_LP_PIX } from '../services/solardoc/leadLpSolardoc';
 import { codigoDoQuiz } from '../services/solardoc/quizSolardoc';
 import { criarPixPublicoHandler, contaEhDeClientePagante } from '../controllers/asaasPixController';
@@ -115,7 +118,7 @@ describe('gravarMarcaPagamento', () => {
     expect(hmacDoPagamento('3498123456')).toBe(hmacDoPagamento('5534998123456'));
     await gravarMarcaPagamento({ ...base, whatsapp: '3498123456' });
     await gravarMarcaPagamento({ ...base, origem: 'lp_solardoc', whatsapp: '5534998123456' });
-    expect(h.linhas.size).toBe(1);
+    expect(nMarcas()).toBe(1);
   });
 
   it('o mesmo contrato de novo não anda a hora (a espera de 5 min não recomeça); outro contrato troca a marca', async () => {
@@ -130,7 +133,7 @@ describe('gravarMarcaPagamento', () => {
   it('sem telefone legível não grava', async () => {
     expect(await gravarMarcaPagamento({ ...base, whatsapp: '123' })).toBe(false);
     expect(await gravarMarcaPagamento({ ...base, whatsapp: null })).toBe(false);
-    expect(h.linhas.size).toBe(0);
+    expect(nMarcas()).toBe(0);
   });
 
   it('a marca fica FORA de BOT_SENT_PREFIXES (não é envio)', () => {
@@ -162,17 +165,17 @@ describe('POST /pix/publico grava a marca', () => {
     h.criarPixRecorrente.mockResolvedValue(criado('ativo'));
     const r = await request(app()).post('/pix/publico').send({ ...corpo, origem: 'quiz_solardoc' });
     expect(r.status).toBe(200);
-    expect(h.linhas.size).toBe(0);
+    expect(nMarcas()).toBe(0);
   });
 
   it('Pix de teste (utm_source = raio-x-teste) não grava marca', async () => {
     h.criarPixRecorrente.mockResolvedValue(criado('pendente'));
     const r = await request(app()).post('/pix/publico').send({ ...corpo, origem: 'lp_solardoc', utm_source: 'raio-x-teste' });
     expect(r.status).toBe(200);
-    expect(h.linhas.size).toBe(0);
+    expect(nMarcas()).toBe(0);
     const normal = await request(app()).post('/pix/publico').send({ ...corpo, origem: 'lp_solardoc', utm_source: 'facebook' });
     expect(normal.status).toBe(200);
-    expect(h.linhas.size).toBe(1);
+    expect(nMarcas()).toBe(1);
   });
 
   it('sem origem de funil (PIX_PUBLICO_ATIVO puro) não grava marca', async () => {
@@ -180,7 +183,7 @@ describe('POST /pix/publico grava a marca', () => {
     h.criarPixRecorrente.mockResolvedValue(criado('pendente'));
     const r = await request(app()).post('/pix/publico').send(corpo);
     expect(r.status).toBe(200);
-    expect(h.linhas.size).toBe(0);
+    expect(nMarcas()).toBe(0);
   });
 });
 
@@ -242,8 +245,8 @@ describe('só cliente PAGANTE deixa de ser lead de venda (a conta grátis é pro
     expect(r.status).toBe(200);
     return r;
   };
-  const gravou = (): boolean => h.linhas.size === 1 && h.leadsInseridos.length === 1;
-  const naoGravou = (): boolean => h.linhas.size === 0 && h.leadsInseridos.length === 0;
+  const gravou = (): boolean => nMarcas() === 1 && h.leadsInseridos.length === 1;
+  const naoGravou = (): boolean => nMarcas() === 0 && h.leadsInseridos.length === 0;
 
   it('conta GRÁTIS que fez o quiz e gerou o Pix ganha a marca e o lead', async () => {
     h.dono = { plano: 'free', plano_expira_em: null };
