@@ -41,6 +41,7 @@ import geradorRoutes from './routes/gerador';
 import instagramRoutes from './routes/instagram';
 import ioLinksRoutes from './routes/ioLinks';
 import ioIndicacoesRoutes from './routes/ioIndicacoes';
+import indicacaoLinkRoutes from './routes/indicacaoLink';
 import ioEletropostoRoutes from './routes/ioEletroposto';
 import eletropostoEstudoPublicoRoutes from './routes/eletropostoEstudoPublico';
 import ioSolarRoutes from './routes/ioSolar';
@@ -143,6 +144,8 @@ app.use('/gerador', geradorRoutes);
 app.use('/instagram', instagramRoutes);
 app.use('/io-links', ioLinksRoutes);
 app.use('/io-indicacoes', ioIndicacoesRoutes);
+// Jornada da obra solar, fase 3 (05/11/2026): o link de indicação do cliente. Público; NÃO manda mensagem (não importa o zapiClient).
+app.use('/indicacao-link', indicacaoLinkRoutes);
 // Estudo do local: antes do router do eletroposto, que não conhece /estudo.
 app.use('/io/eletroposto/estudo', eletropostoEstudoPublicoRoutes);
 app.use('/io/eletroposto', ioEletropostoRoutes);

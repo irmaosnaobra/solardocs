@@ -16,6 +16,7 @@
 // cliente ou conversa.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { chaveVazia, mensagensAssinadas } from '../gerador/jornadaMensagensChave';
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
@@ -891,7 +892,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
 async function lerChavesDoBanco(): Promise<ChavesDoBanco> {
   try {
     const { data, error } = await supabase
-      .from('system_state').select('key, value').in('key', ['recepcao_io:ativa', 'inv_agente_off', 'inv_agente_disjuntor', 'ag5040_interruptores', 'quiz_rec_pausa', 'usu_rec_pausa']);
+      .from('system_state').select('key, value').in('key', ['recepcao_io:ativa', 'inv_agente_off', 'inv_agente_disjuntor', 'ag5040_interruptores', 'quiz_rec_pausa', 'usu_rec_pausa', 'jornada_solar_mensagens']);
     if (error) throw error;
     const linhas = (data ?? []) as Array<{ key: string; value: unknown }>;
     const recepcao = linhas.find(r => r.key === 'recepcao_io:ativa')?.value as { ativa?: unknown } | null | undefined;
@@ -911,9 +912,15 @@ async function lerChavesDoBanco(): Promise<ChavesDoBanco> {
     // Pausa da retomada dos usuários (retomadaUsuariosEstado.ts): a mesma regra, outra chave.
     const pausaRet = linhas.find(r => r.key === 'usu_rec_pausa');
     const retomadaUsuariosPausa = pausaRet ? pausaDoValor(pausaRet.value, Date.now()) : false;
-    return { recepcaoAtiva: recepcao?.ativa === true, helenaOff, helenaDisjuntor, interruptores, quizRecPausa, retomadaUsuariosPausa };
+    // Jornada da obra solar, fase 3: a chave assinada; linha com assinatura inválida vale tudo desligado (null).
+    const linhaJornada = linhas.find(r => r.key === 'jornada_solar_mensagens');
+    const msgs = linhaJornada ? mensagensAssinadas(linhaJornada.value) : chaveVazia();
+    const jornadaMensagens = msgs
+      ? { venda: msgs.grupos.venda.ligado, etapa: msgs.grupos.etapa.ligado, fila: msgs.grupos.fila.ligado, liberacao: msgs.grupos.liberacao.ligado, aniversario: msgs.grupos.aniversario.ligado }
+      : null;
+    return { recepcaoAtiva: recepcao?.ativa === true, helenaOff, helenaDisjuntor, interruptores, quizRecPausa, retomadaUsuariosPausa, jornadaMensagens };
   } catch (err) {
     logger.error('central-agentes', 'ler chaves do banco falhou', err);
-    return { recepcaoAtiva: null, helenaOff: null, helenaDisjuntor: null, interruptores: null, quizRecPausa: null, retomadaUsuariosPausa: null };
+    return { recepcaoAtiva: null, helenaOff: null, helenaDisjuntor: null, interruptores: null, quizRecPausa: null, retomadaUsuariosPausa: null, jornadaMensagens: null };
   }
 }

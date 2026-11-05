@@ -66,7 +66,9 @@ export type RegraDaChave =
   /** A Carla do quiz do SolarDoc: nasce LIGADA; a env QUIZ_RECUPERACAO_LIGADA='0' ou a chave quiz_rec_pausa no banco desligam. */
   | { tipo: 'banco_quiz_rec' }
   /** A retomada da Carla (quem tem conta e não paga): nasce LIGADA; CARLA_RETOMADA_USUARIOS_OFF='1' ou a chave usu_rec_pausa no banco desligam. */
-  | { tipo: 'banco_retomada_usuarios' };
+  | { tipo: 'banco_retomada_usuarios' }
+  /** Jornada da obra solar, fase 3: JORNADA_MSG_OFF=1 desliga os cinco; a chave assinada `jornada_solar_mensagens` liga um grupo por vez (nasce tudo desligado). */
+  | { tipo: 'banco_jornada'; grupos: readonly ('venda' | 'etapa' | 'fila' | 'liberacao' | 'aniversario')[] };
 
 export interface EntradaDoCatalogo {
   id: string;
@@ -360,6 +362,20 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: ['solar_quiz_aviso', 'solar_quiz_lembrete', 'solar_quiz_lista_manha'],
   }),
   e({
+    id: 'jornada_avisos_equipe', nome: 'Cobrança da obra solar', area: 'avisos', canal: 'whatsapp', linha: 'io',
+    resumo: 'Avisa a venda, a etapa da vez e a fila das 08:00',
+    papel: 'Aviso de venda para a equipe quando o bloco Venda fica completo, "É sua" para o dono da etapa que abriu, "Esperando" quando alguém pausa a cobrança, e às 08:00, de segunda a sábado, uma mensagem por pessoa com a fila inteira. A fila do Thiago leva as obras paradas com a equipe, o que falta nelas e, na segunda, o placar da semana; a da Giovanna e a do Thiago levam o dinheiro pendente. Só o que foi gravado por gente depois de ligar dispara. Não fala com cliente nenhum.',
+    regra: { tipo: 'banco_jornada', grupos: ['venda', 'etapa', 'fila'] }, fonte: 'services/io/jornadaAvisoEquipe.ts',
+    robos: ['jornada_venda_aviso', 'jornada_etapa_aviso', 'jornada_fila_manha'],
+  }),
+  e({
+    id: 'jornada_pos_venda', nome: 'Pós-venda da obra solar', area: 'solar', canal: 'whatsapp', linha: 'io',
+    resumo: 'Manda o Book na liberação e os parabéns de aniversário',
+    papel: 'Na liberação da usina, manda ao cliente o Book da obra em PDF com o obrigado e o link de indicação, das 9h às 20h de segunda a sábado. No aniversário do cliente e no aniversário da usina, um parabéns frio com o mesmo link, que sai atrasado por até 2 dias e depois desiste. Só obra com a liberação gravada depois de ligar.',
+    regra: { tipo: 'banco_jornada', grupos: ['liberacao', 'aniversario'] }, fonte: 'services/io/jornadaLiberacao.ts',
+    robos: ['jornada_liberacao', 'jornada_aniversario'],
+  }),
+  e({
     id: 'sentinela_ferramentas', nome: 'Sentinela das ferramentas', area: 'avisos', canal: 'whatsapp', linha: 'io',
     resumo: 'Avisa o dono antes de ferramenta paga vencer ou zerar',
     papel: 'Toda manhã às 7h20 (Brasília) confere as ferramentas pagas (Meta, Z-API, Anthropic, OpenAI) e o calendário de vencimentos que o sócio mantém. Manda UMA mensagem ao dono só quando algo vence em até 7 dias (30 para domínio), já venceu ou falhou, e fica calada quando está tudo em dia. No mesmo aviso vai o resumo da Giovanna em dia útil. Não fala com cliente nenhum.',
@@ -567,6 +583,8 @@ export interface ChavesDoBanco {
   quizRecPausa?: boolean | null;
   /** `usu_rec_pausa` pausada agora (a retomada da Carla). `null` = erro de leitura (o robô trata como desligado). Ausente = não lida. */
   retomadaUsuariosPausa?: boolean | null;
+  /** `jornada_solar_mensagens` (assinada): quais grupos estão ligados. `null` = erro de leitura ou assinatura inválida (tudo desligado). Ausente = não lida. */
+  jornadaMensagens?: Partial<Record<'venda' | 'etapa' | 'fila' | 'liberacao' | 'aniversario', boolean>> | null;
 }
 
 export interface EstadoCalculado {
@@ -595,6 +613,7 @@ export function chaveDaRegra(regra: RegraDaChave): string | undefined {
     case 'banco_helena': return 'inv_agente_off';
     case 'banco_quiz_rec': return 'QUIZ_RECUPERACAO_LIGADA ou quiz_rec_pausa';
     case 'banco_retomada_usuarios': return 'CARLA_RETOMADA_USUARIOS_OFF ou usu_rec_pausa';
+    case 'banco_jornada': return 'JORNADA_MSG_OFF ou jornada_solar_mensagens';
   }
 }
 
@@ -664,6 +683,14 @@ export function estadoDaRegra(regra: RegraDaChave, env: NodeJS.ProcessEnv, banco
       if (banco.retomadaUsuariosPausa === true) return { selo: 'pausado', chave, motivo: 'Pausada pela chave usu_rec_pausa no banco' };
       if (banco.retomadaUsuariosPausa === null) return { selo: 'pausado', chave, motivo: 'Não consegui ler a chave no banco: o robô trata como desligado nesse caso' };
       return { selo: 'ligado', chave };
+    }
+    case 'banco_jornada': {
+      if ((env.JORNADA_MSG_OFF ?? '').trim() === '1') return { selo: 'desligado', chave, motivo: 'JORNADA_MSG_OFF=1 está armada na Vercel' };
+      if (!banco.jornadaMensagens) return { selo: 'desligado', chave, motivo: 'Não consegui ler a chave no banco: as mensagens ficam desligadas nesse caso' };
+      const ligados = regra.grupos.filter((g) => banco.jornadaMensagens?.[g] === true);
+      if (ligados.length === regra.grupos.length) return { selo: 'ligado', chave };
+      if (ligados.length > 0) return { selo: 'pausado', chave, motivo: `Ligadas: ${ligados.join(', ')}` };
+      return { selo: 'desligado', chave, motivo: 'Nasce desligada: o Thiago liga em Clientes, Ajustes do Solar, depois da sonda' };
     }
     case 'banco_helena': {
       if ((env.INVESTIDOR_AGENTE_OFF ?? '').trim() === '1') {

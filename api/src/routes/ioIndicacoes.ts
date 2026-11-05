@@ -21,7 +21,7 @@ function clean(v: unknown): string {
 // Normaliza telefone BR pra formato WhatsApp (DDI 55 + DDD + número). Conservador:
 // só conserta o que dá pra inferir com segurança; o que vier estranho fica como veio
 // (e guardamos o raw sempre). Mesma filosofia da normalização do LimpaPro.
-function normalizePhone(raw: string): string {
+export function normalizePhone(raw: string): string {
   let d = raw.replace(/\D/g, '');
   if (!d) return '';
   // tira zeros de operadora/tronco na frente

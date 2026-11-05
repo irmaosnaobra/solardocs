@@ -245,6 +245,10 @@ const BOT_SENT_PREFIXES = [
   'ativ_proposta_sent:',
   'depo_sent:',
   'link_senha_sent:',
+  // [05/11] Jornada da obra solar, fase 3: `jornada_lib_sent:<card>` = a liberação com o Book (jornadaLiberacao, transacional P3).
+  // Também em PREFIXOS_AGENDA. `jornada_pos_sent:<card>:<aniv|usina>:<ano>` = os aniversários (jornadaAniversario, frio P5), FORA de PREFIXOS_AGENDA.
+  'jornada_lib_sent:',
+  'jornada_pos_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
@@ -292,6 +296,7 @@ export const PREFIXOS_AGENDA = [
   'ag5040_agenda_sent:',    // a bolha fixa de agenda da Duda (agendaEnvio.ts); NUNCA ag5040_sent:, que fica fora da lista
   'boasvindas_pix_sent:',   // boas-vindas do Pix automático na adesão (asaasWebhookService); evento P0, a pessoa acabou de pagar
   'ativ_senha_sent:',       // "pagou e ainda não criou a senha" (ativacaoPosVenda); transacional P3. NUNCA ativ_proposta_sent: nem depo_sent:, que são frios
+  'jornada_lib_sent:',      // a liberação da obra com o Book (jornadaLiberacao); transacional P3. NUNCA jornada_pos_sent:, que é frio
   'link_senha_sent:',       // link de senha pelo WhatsApp (linkDeSenha, resposta a pedido da pessoa); evento P0. NUNCA link_senha_conta:, que é só o teto por conta
 ] as const;
 
@@ -309,7 +314,8 @@ export const PREFIXOS_AGENDA = [
 // cartão, cada envio físico. É a segunda parte do mesmo balde: entra no espaçamento da linha e na conta de "abaixo de
 // 40 na hora" do próprio módulo, e fica fora do teto do frio e do transacional.
 // 24/10/2026: os avisos do quiz solar à equipe (solarQuizAviso.ts) deixam `solar_quiz_env:` aqui, como a ficha ao consultor.
-export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:'] as const;
+// 05/11/2026: os avisos da Jornada à equipe (jornadaAvisoEquipe.ts) deixam `jornada_env:` aqui, como os do quiz.
+export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:', 'jornada_env:'] as const;
 
 /** Janela do espaçamento contra o balde das respostas das agentes (env só para afrouxar/apertar sem deploy). */
 const espacamentoRespostaMs = (): number => Number(process.env.ESPACAMENTO_RESPOSTA_MS || 2 * 60 * 1000);

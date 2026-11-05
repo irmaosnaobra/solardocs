@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { marcarVendaCompleta } from '../services/gerador/jornadaVendaCompleta';
 import { exigeConsultor } from './geradorDossie';
 import { semCache, lerDocs, dossieDaVendaSolar, type Ctx } from './geradorClientesDocs';
 import { acessoVendaSolar } from './geradorClientes';
@@ -586,6 +587,8 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
         .update({ vendido: true, valor_vendido: valor / 100, forma_pagamento: formaDoEspelho(pagamento.map((p) => p.forma)) }).eq('codigo', l.lig.proposta);
       if (error) { logErro('espelho na proposta', { codigo: 'espelho' }); aviso = 'Salvei o valor, mas não consegui atualizar a proposta ligada.'; }
     }
+    // Fase 3: o bloco Venda pode ter ficado completo agora (grava `venda_completa` uma vez só; nunca lança).
+    await marcarVendaCompleta(g.id, g.nome);
     res.json({ ok: true, venda: novo.venda, ...(aviso ? { aviso } : {}) });
   } catch (err) {
     falhou(res, 'venda', err);
@@ -629,6 +632,7 @@ async function rotaProposta(req: Request, res: Response): Promise<void> {
       invalidarCachesHub();
       return { status: 200, corpo: { ok: true, proposta: codigo } };
     });
+    if (saida.status === 200) await marcarVendaCompleta(g.id, g.nome);
     res.status(saida.status).json(saida.corpo);
   } catch (err) {
     falhou(res, 'proposta', err);

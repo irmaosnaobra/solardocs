@@ -52,6 +52,7 @@ import { runSolarBoasVindasTick, runSolarQuizLeadsTick } from '../services/io/so
 import { runSolardocQuizDesistenciaTick } from '../services/solardoc/desistenciaQuizTick';
 import { runQuizRecuperacaoTick } from '../services/solardoc/recuperacaoCarla';
 import { runRetomadaUsuariosTick } from '../services/solardoc/retomadaUsuarios';
+import { runJornadaMensagensTick } from '../services/io/jornadaMensagensTick';
 import { runPesquisasTick } from '../services/pesquisa';
 import { runSolarAgenteQuizTick } from '../services/io/solarAgenteQuiz';
 import { rodarInvestidorAgente, previaInvestidorAgente, definirChaveDesligar } from '../services/io/investidorAgente';
@@ -470,6 +471,9 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // vez de 10 min por insert (o pg_cron e o Actions chamam esta rota em paralelo) e no máximo 1 envio por rodada; o espaçamento da linha
     // segura o segundo envio colado. Só aqui, fora do /master (CARLA_RETOMADA_USUARIOS_OFF=1 desliga).
     const retomadaUsuarios = await runRetomadaUsuariosTick().catch((err) => ({ error: String(err) }));
+    // Jornada da obra solar, fase 3 (05/11/2026): as mensagens da equipe e do pós-venda. DEPOIS dos outros ticks, sozinho, no máximo 1 envio
+    // por rodada (vez por INSERT jornada_vez:, porque o pg_cron e o Actions chamam em paralelo). Nasce desligado: jornada_solar_mensagens; JORNADA_MSG_OFF=1.
+    const jornadaMensagens = await runJornadaMensagensTick().catch((err) => ({ error: String(err) }));
     // Schedule do SERVIDOR para o card do quiz que a página não contou (SAIU SEM MARCAR e card da Duda), 29/10/2026. Por último, DEPOIS de todo
     // tick de WhatsApp: uma chamada lenta ao Graph (até 8 s de orçamento) nunca segura uma mensagem. Só aqui, fora do /master (CAPI_CARD_OFF=1 desliga).
     const capiCardNovo = await runCapiCardNovo().catch((err) => ({ error: String(err) }));
@@ -486,6 +490,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     resultados['solardoc_quiz_desistencia'] = desistenciaSolardoc;
     resultados['quiz_recuperacao_carla'] = recuperacaoCarla;
     resultados['carla_retomada_usuarios'] = retomadaUsuarios;
+    resultados['jornada_mensagens'] = jornadaMensagens;
     resultados['capi_card_novo'] = capiCardNovo;
     res.json({
       ok: true,

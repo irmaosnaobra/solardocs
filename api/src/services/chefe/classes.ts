@@ -324,6 +324,13 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   resumo_dia: robo('aviso_interno_p2', ['routes/cron.ts'], { linha: 'solardoc' }),
   fila_alerta: robo('aviso_interno_p2', ['services/agents/whatsapp/filaAlerta.ts'], { linha: 'solardoc' }),
 
+  // [05/11] Jornada da obra solar, fase 3 (veredito do chefe-antiban de 05/11/2026): avisos à equipe pela 5040, 1 bolha, 1 envio
+  // por rodada (vez por INSERT jornada_vez:), trava = carimbo jornada_env: por INSERT antes do envio, 12 por hora por pessoa, sem
+  // janela (equipe). Nascem desligados (jornada_solar_mensagens, assinada; JORNADA_MSG_OFF=1 desliga os cinco).
+  jornada_venda_aviso: robo('aviso_interno_p2', ['services/io/jornadaAvisoEquipe.ts'], { nasceDeEvento: true, maxBolhas: 1 }),
+  jornada_etapa_aviso: robo('aviso_interno_p2', ['services/io/jornadaAvisoEquipe.ts'], { nasceDeEvento: true, maxBolhas: 1 }),
+  jornada_fila_manha: robo('aviso_interno_p2', ['services/io/jornadaAvisoEquipe.ts'], { maxBolhas: 1 }),
+
   // ── P3 · transacional do dia (agenda; vira P1 com prazo perto) ─────────────
   // Confirmação de backlog, bom dia, diário; e os lembretes de 1h e 5 min e a
   // ficha fresca, que chegam aqui com prazo e saem como P1. A pausa segue o HEAD
@@ -368,6 +375,13 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // podeFalarComLead). Prioridade abaixo da agenda do dia.
   ep_reagenda_auto: robo('transacional_agenda_p3', ['services/io/eletropostoReagendaAuto.ts'], {
     carimbos: [agenda('ep_agenda_sent:')], subprioridade: 2, agenda: true, cadenciaPropria: true,
+  }),
+
+  // [05/11] Jornada, 7.7: o Book em PDF com o texto na legenda (sendDocument), transacional, das 9h às 20h de segunda a sábado
+  // (escrito no código), teto transacional da linha, espaçamento, supressão, mudo e pausa humana antes. Só com a liberação gravada
+  // e o PDF salvo. Carimbo de agenda: a linha conta, o frio não soma.
+  jornada_liberacao: robo('transacional_agenda_p3', ['services/io/jornadaLiberacao.ts'], {
+    carimbos: [agenda('jornada_lib_sent:')], respeitaPausa: true, maxBolhas: 1, subprioridade: 4,
   }),
 
   // ── P4 · frio de receita ───────────────────────────────────────────────────
@@ -447,6 +461,11 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // do frio. Fica depois do lote manual: é o que menos urge no frio.
   status_5040: robo('frio_p5', ['services/gerador/redes/statusIo.ts'], {
     carimbos: [frio('status_io_sent:')], subprioridade: 7,
+  }),
+  // [05/11] Jornada, 7.8 e 7.9: aniversário do cliente e da usina, frio, sendFrio, portão do frio com robo, 1 por rodada,
+  // atrasado até 2 dias e depois desiste, nunca retroativo.
+  jornada_aniversario: robo('frio_p5', ['services/io/jornadaAniversario.ts'], {
+    carimbos: [frio('jornada_pos_sent:')], maxBolhas: 1, subprioridade: 6,
   }),
 });
 

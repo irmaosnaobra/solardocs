@@ -85,7 +85,7 @@ describe('prefixos derivados = conta do lineThrottle.ts de hoje', () => {
   for (const desvio of [false, true]) {
     it(`divergência explícita (desvio ${desvio ? 'LIGADO' : 'desligado'}): o terceiro balde existe no lineThrottle e NÃO no espelho do chefe`, async () => {
       const head = await contaDoHead(desvio);
-      const balde = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:'];
+      const balde = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:', 'jornada_env:'];
       // No lineThrottle: só no espaçamento (consulta de 2 min). Fora da linha, do frio e da agenda, da hora e do dia.
       expect(ordenado(head.balde)).toEqual(ordenado(balde));
       for (const p of balde) {
@@ -156,7 +156,7 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
     // mudar quem fala com humano dentro da conversa: passa pela DIVERGENCIAS.
     const naoFrios = robos.filter(([, r]) => r.classe !== 'frio_p5' && r.classe !== 'frio_receita_p4');
     expect(naoFrios.filter(([, r]) => r.respeitaPausa).map(([n]) => n).sort())
-      .toEqual(['ativ_senha', 'carla_vivo_5040', 'duda_agenda_5040', 'duda_recepcao', 'duda_vivo_5040', 'ep_cobra_sim', 'giovanna_agenda', 'giovanna_reativa', 'helena_vivo_5040', 'investidor_agente_respostas', 'solar_agente_quiz', 'solar_boas_vindas', 'solardoc_link_senha']);
+      .toEqual(['ativ_senha', 'carla_vivo_5040', 'duda_agenda_5040', 'duda_recepcao', 'duda_vivo_5040', 'ep_cobra_sim', 'giovanna_agenda', 'giovanna_reativa', 'helena_vivo_5040', 'investidor_agente_respostas', 'jornada_liberacao', 'solar_agente_quiz', 'solar_boas_vindas', 'solardoc_link_senha']);
   });
 
   it('evento nasce de evento e sai em 1 bolha; só reativo tem 2 bolhas', () => {
