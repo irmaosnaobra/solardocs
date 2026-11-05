@@ -26,6 +26,8 @@ export interface ObraBruta {
   consultor: string;
   origem: string;
   valorVenda: number;
+  /** Coluna FORMA DE PAGTO (dinheiro: só sócio vê). Opcional porque o cache e as fixtures antigas não têm. */
+  formaPagto?: string;
   recebidoReal: number;
   recebimento: string;       // texto cru: Quitado / Não Quitado / vazio
   liberadoTxt: string;       // texto cru: Liberado / Não liberado
@@ -40,6 +42,8 @@ export interface ObraBruta {
   fimInstalacao: string;
   qtdPlaca: string;
   modeloPlaca: string;
+  /** Coluna POT PLACA (watts por placa). Opcional pelo mesmo motivo. */
+  potPlaca?: string;
   statusPlaca: string;
   qtdInv: string;
   modeloInversor: string;
@@ -132,10 +136,10 @@ export function nomeSimples(s: unknown): string {
 
 export interface Colunas {
   cliente: number; homologacao: number; consultor: number; origem: number;
-  valorVenda: number; recebidoReal: number; recebimento: number; liberado: number;
+  valorVenda: number; formaPagto: number; recebidoReal: number; recebimento: number; liberado: number;
   depoimento: number; telefone: number; endereco: number; cidade: number; uf: number;
   entregaMaterial: number; previsaoMontagem: number; inicioInstalacao: number; fimInstalacao: number;
-  qtdPlaca: number; modeloPlaca: number; statusPlaca: number;
+  qtdPlaca: number; modeloPlaca: number; potPlaca: number; statusPlaca: number;
   qtdInv: number; modeloVoltagem: number; modeloInversor: number; statusInversor: number;
   tipoEstrutura: number; statusEstrutura: number;
   cadastroTrello: number; parecerAcesso: number; pedidoVistoria: number; liberacaoVistoria: number;
@@ -195,13 +199,13 @@ export function resolverColunas(cabecalho: string[]): Colunas {
   return {
     cliente: um('NOME CLIENTE'), homologacao: um('NOME HOMOLOGACAO'),
     consultor: um('CONSULTOR'), origem: um('ORIGEM DO LEAD'),
-    valorVenda: um('VALOR DA VENDA'), recebidoReal: um('RECEBIDO REAL'),
+    valorVenda: um('VALOR DA VENDA'), formaPagto: um('FORMA DE PAGTO'), recebidoReal: um('RECEBIDO REAL'),
     recebimento: um('RECEBIMENTO'), liberado: um('SISTEMA LIBERADO PELA CONCESSIONARIA'),
     depoimento: um('DEPOIMENTO INSTAGRAM'), telefone: um('CONTATO'),
     endereco: um('ENDERECO'), cidade: um('CIDADE'), uf: um('UF'),
     entregaMaterial: um('ENTREGA DO MATERIAL'), previsaoMontagem: um('PREVISAO DE MONTAGEM'),
     inicioInstalacao: ocorrenciaRe(k, RE_INICIO_INSTALACAO), fimInstalacao: um('DATA FINAL INSTALACAO'),
-    qtdPlaca: um('QTD PLACA'), modeloPlaca: um('MODELO PLACA'), statusPlaca: statusApos(k, 'POT PLACA'),
+    qtdPlaca: um('QTD PLACA'), modeloPlaca: um('MODELO PLACA'), potPlaca: um('POT PLACA'), statusPlaca: statusApos(k, 'POT PLACA'),
     qtdInv: um('QTD INV'), modeloVoltagem: um('MODELO E VOLTAGEM DO INVERSOR'),
     modeloInversor: um('MODELO INVERSOR'), statusInversor: statusApos(k, 'MODELO INVERSOR'),
     tipoEstrutura: um('TIPO ESTRUTURA'), statusEstrutura: statusApos(k, 'TIPO ESTRUTURA'),
@@ -251,14 +255,14 @@ export function lerPlanilha(csv: string, aviso?: (faltando: string[]) => void): 
       codigo: cod[0],
       cliente: t(c.cliente), homologacao: t(c.homologacao),
       consultor: t(c.consultor), origem: t(c.origem),
-      valorVenda: parseReais(t(c.valorVenda)), recebidoReal: parseReais(t(c.recebidoReal)),
+      valorVenda: parseReais(t(c.valorVenda)), formaPagto: t(c.formaPagto), recebidoReal: parseReais(t(c.recebidoReal)),
       recebimento: t(c.recebimento), liberadoTxt: t(c.liberado), depoimentoTxt: t(c.depoimento),
       telefone: t(c.telefone), endereco: t(c.endereco), cidade: t(c.cidade), uf: t(c.uf),
       entregaMaterial: t(c.entregaMaterial),
       previsaoMontagem: ouReserva(c.previsaoMontagem, c.previsaoReserva),
       inicioInstalacao: ouReserva(c.inicioInstalacao, c.inicioReserva),
       fimInstalacao: ouReserva(c.fimInstalacao, c.fimReserva),
-      qtdPlaca: t(c.qtdPlaca), modeloPlaca: t(c.modeloPlaca), statusPlaca: t(c.statusPlaca),
+      qtdPlaca: t(c.qtdPlaca), modeloPlaca: t(c.modeloPlaca), potPlaca: t(c.potPlaca), statusPlaca: t(c.statusPlaca),
       qtdInv: t(c.qtdInv), modeloInversor: t(c.modeloInversor) || t(c.modeloVoltagem),
       statusInversor: t(c.statusInversor),
       tipoEstrutura: t(c.tipoEstrutura), statusEstrutura: t(c.statusEstrutura),

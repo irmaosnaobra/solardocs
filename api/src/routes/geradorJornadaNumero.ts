@@ -8,6 +8,7 @@ import { lerDocsComVersao } from '../services/gerador/docsClienteBanco';
 import { lerJornadaComVersao, mudarJornada, ehRecusa } from '../services/gerador/jornadaSolarBanco';
 import { deduzirEtapa, estadoMaterializado, type AcaoHistorico, type EstadoJornada } from '../services/gerador/jornadaSolar';
 import { ehAdm, nomeSimples } from '../services/gerador/solarObras';
+import { MSG_FINALIZADA, obraFinalizada } from '../services/gerador/jornadaCorte';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,7 +39,7 @@ function depsDoAlocador(): DepsAlocador {
 
 export type ResultadoNumero =
   | { ok: true; codigo: string; acao: 'ja_ligada' | 'criou' | 'adotou_trello'; aviso?: string; mesmoTelefone?: MesmoTelefone; planilhaFora?: true }
-  | { ok: false; motivo: 'assinatura' | 'cancelada' | 'confirmar'; candidatos?: unknown[]; ocultas?: number; semPlanilha?: true }
+  | { ok: false; motivo: 'assinatura' | 'cancelada' | 'confirmar' | 'finalizada'; candidatos?: unknown[]; ocultas?: number; semPlanilha?: true }
   | { ok: false; motivo: MotivoErroAlocador };
 
 /**
@@ -74,6 +75,8 @@ export async function tentarNumeroDaJornada(
   // 1. Já tem número: nada a fazer.
   const { lig } = await lerLigacao(card.id);
   if (lig.venda) return { ok: true, codigo: lig.venda, acao: 'ja_ligada' };
+  // 1b. Venda finalizada não aloca número (continua com "*"): antes de qualquer leitura do Trello e de qualquer escrita de estado.
+  if (await obraFinalizada(card.id)) return { ok: false, motivo: 'finalizada' };
   // 2. Venda cancelada nunca gasta número: conferida ANTES de tudo.
   const { estado } = await lerJornadaComVersao(card.id);
   if (estado?.cancelada) return { ok: false, motivo: 'cancelada' };
@@ -105,6 +108,7 @@ export async function tentarNumeroDaJornada(
 export async function guardarTrelloNaJornada(cardId: number, url: string, nome: string, card: CardVendido): Promise<void> {
   const m = /^https:\/\/trello\.com\/c\/[A-Za-z0-9]{6,12}(?:\/.*)?$/.exec(url.trim());
   if (!m) return;
+  if (await obraFinalizada(cardId)) return;   // venda finalizada: nenhum estado novo, nem do Trello
   const limpa = url.trim().replace(/^(https:\/\/trello\.com\/c\/[A-Za-z0-9]{6,12}).*$/, '$1');
   const { reg } = await lerDocsComVersao('vendasolar', String(cardId));
   const slots = new Set(reg.arquivos.map((a) => a.slot));
@@ -122,6 +126,7 @@ export async function guardarTrelloNaJornada(cardId: number, url: string, nome: 
 export function responderNumero409(res: Response, r: Extract<ResultadoNumero, { ok: false }>, adm: boolean): boolean {
   if (r.motivo === 'assinatura') { res.status(409).json({ ok: false, precisa: 'assinatura', error: MSG_ASSINATURA }); return true; }
   if (r.motivo === 'cancelada') { res.status(409).json({ ok: false, precisa: 'cancelada', error: MSG_CANCELADA }); return true; }
+  if (r.motivo === 'finalizada') { res.status(409).json({ ok: false, precisa: 'finalizada', error: MSG_FINALIZADA }); return true; }
   if (r.motivo === 'confirmar') {
     res.status(409).json({
       ok: false, precisa: 'confirmar', error: MSG_CONFIRMAR_NUMERO,

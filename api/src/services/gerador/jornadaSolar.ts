@@ -24,7 +24,7 @@ export const FALHAS_NUMERO: readonly FalhaNumero[] = ['trello', 'trello_grande',
 
 export const ACOES_HISTORICO = [
   'vendido', 'materializada', 'concluir', 'esperar', 'voltar', 'cancelar', 'descancelar', 'papel_contrato', 'papel_procuracao', 'papel_recibo',
-  'excedente', 'rateio', 'protocolo', 'engenheiro', 'trello', 'numero', 'numero_falhou', 'venda_completa',
+  'excedente', 'rateio', 'protocolo', 'engenheiro', 'trello', 'numero', 'numero_falhou', 'venda_completa', 'trazida',
 ] as const;
 export type AcaoHistorico = typeof ACOES_HISTORICO[number];
 
@@ -73,6 +73,8 @@ export interface PrivadoJornada {
   } | null;
   cancelamento: { motivo: string; em: string; por: string } | null;
   descancelamentos: Array<{ motivo: string; em: string; por: string }>;
+  /** "Trazer para a jornada" (venda finalizada que o ADM reabriu): o motivo de cada vez. */
+  trazidas: Array<{ motivo: string; em: string; por: string }>;
 }
 
 // ── Etapas e donos ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -88,6 +90,9 @@ export const CONCLUI_ETAPA: Record<number, readonly string[] | 'vendedor'> = { .
 /** Donos de etapa em TODAS as obras: veem todas (SPEC 15, 18.1 item 1). */
 export const DONOS_FIXOS: ReadonlySet<string> = new Set(['giovanna', 'thiago', 'diego']);
 export const ETAPAS_DA_FASE_1 = [1, 2, 3] as const;
+
+/** Quem NÃO é gente no histórico: a leitura (materialização), a sonda e o vazio. Os robôs e o corte da Jornada usam a mesma lista. */
+export const POR_QUE_NAO_E_GENTE: ReadonlySet<string> = new Set(['leitura', 'sonda', '']);
 
 const minusc = (s: unknown): string => String(s ?? '').trim().toLowerCase();
 
