@@ -249,6 +249,12 @@ describe('a segunda leitura (só com `reforco`)', () => {
     expect(chamadas[1].corpo.messages[0].content[1].text).toMatch(/VALOR.*DATA.*QUEM RECEBEU/);
     expect(chamadas[1].corpo.messages[0].content[0].type).toBe('document');
   });
+  it('a primeira leitura CORTADA (max_tokens) é refeita pela segunda com o dobro de folga (4000 -> 8000)', async () => {
+    const { cliente, chamadas } = clienteFalso([respondeu(bruta(), 'max_tokens'), respondeu(bruta())]);
+    const r = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE, reforco: true }, cliente);
+    expect(r.ok && r.sugestao.valor_centavos).toBe(123456);
+    expect(chamadas.map((c) => c.corpo.max_tokens)).toEqual([4000, 8000]);
+  });
   it('baixa confiança ou sem valor dispara a segunda; fica a segunda se achou o valor', async () => {
     const baixa = clienteFalso([respondeu(bruta({ confianca: 'baixa' })), respondeu(bruta({ valor: 99.9, confianca: 'alta' }))]);
     const r1 = await lerComprovante({ bytes: PNG, media_type: 'image/png', hojeBr: HOJE, reforco: true }, baixa.cliente);

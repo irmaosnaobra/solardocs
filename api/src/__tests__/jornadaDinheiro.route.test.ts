@@ -1161,22 +1161,28 @@ describe('comprovante livre: a saída pode ficar sem comprovante', () => {
     expect(fins()).toEqual([]);
   });
 
-  it('comissão e retirada também podem ser pagas sem comprovante; a retirada só aparece para quem a vê', async () => {
+  it('comissão e retirada dos sócios SEM comprovante são recusadas (o "sem comprovante" vale só para GASTO); com comprovante, passam', async () => {
     iaLe(1_167_000);
     const { path: pe } = await subir('entrada para liberar a comissao', { auth: GIOVANNA });
     expect((await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(pe), GIOVANNA)).status).toBe(200);
+    const antes = fins().length;
     const venda5 = await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'nilce', papel: 'venda', data: '2026-10-02', forma: 'pix' }, GIOVANNA);
-    expect(venda5.status).toBe(200);
-    expect(venda5.body.lancamento).toMatchObject({ sem_comprovante: true, conferencia: 'sem_comprovante' });
+    expect(venda5.status).not.toBe(200);
+    expect(venda5.body.ok).toBe(false);
     const socio = await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'thiago', papel: 'socio', data: '2026-10-02', forma: 'pix' }, GIOVANNA);
-    expect(socio.status).toBe(200);
-    expect(socio.body.livro.fechamento.faltam).toContain('Falta comprovante: 2 lançamentos.');
-    // A Nilce não vê a retirada: para ela falta 1 só, e nenhum campo deixa deduzir a outra.
-    const nilce = await get(dinheiro(SOLAR), NILCE);
-    expect(nilce.body.livro.fechamento.faltam).toContain('Falta comprovante: 1 lançamento.');
-    expect(nilce.body.livro.retirada).toBeUndefined();
-    expect(nilce.body.livro.linhas.every((x: any) => x.grupo !== 'retirada')).toBe(true);
-    expect(nilce.body.livro.fechamento.comprovantes).toEqual({ com: 1, total: 2 });
+    expect(socio.status).not.toBe(200);
+    expect(socio.body.ok).toBe(false);
+    expect(fins().length).toBe(antes);   // nada foi gravado
+    const { path: pc } = await subir('comissao da nilce com comprovante', { auth: GIOVANNA });
+    expect((await post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome: 'nilce', papel: 'venda', data: '2026-10-02', forma: 'pix', arquivo_path: pc }, GIOVANNA)).status).toBe(200);
+  });
+
+  it('escolher o valor que a IA leu (digitou 26.000, escolheu o lido, 25.000) NÃO marca `divergente`: a linha bate', async () => {
+    iaLe(25_000);
+    const { path: p } = await subir('comprovante lido 25000');
+    const l = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(p, { valor_centavos: 25_000, valor_digitado_centavos: 26_000 }));
+    expect(l.status).toBe(200);
+    expect(l.body.lancamento).toMatchObject({ valor_centavos: 25_000, conferencia: 'bateu', divergencia: null });
   });
 
   describe('anexar depois', () => {
@@ -1310,6 +1316,17 @@ describe('comprovante livre: a saída pode ficar sem comprovante', () => {
   });
 
   describe('Fechar sem comprovante (só o ADM, com motivo)', () => {
+    it('obra cancelada: o ADM não dispensa (409)', async () => {
+      const sem = await lancarSem();
+      const e = estadoMaterializado(SOLAR, 'Nilce', 4, AGORA);
+      const nn = normalizarJornada(SOLAR, { ...e, origem: 'vendido', vendido_em: AGORA, vendido_por: 'nilce', cancelada: { em: AGORA, por: 'thiago', etapa: 4, com_numero: false } })!;
+      h.linhas.set(`jornada_solar:${SOLAR}`, { updated_at: 'j1', value: jsonb({ ...nn, sig: assinarJornada(SOLAR, nn) }) });
+      const r = await post(dinheiro(SOLAR, '/dispensar'), { id: sem.body.lancamento.id, motivo: 'Pagou em dinheiro' }, THIAGO);
+      expect(r.status).toBe(409);
+      expect(r.body.error).toBe('cancelada');
+      expect(gravado()[0].obra.dispensa).toBeUndefined();
+    });
+
     it('só o ADM; motivo de 3 a 300 caracteres; grava em `alteracoes`, reassina e libera o fechamento daquela linha', async () => {
       const l = await lancarSem();
       const id = l.body.lancamento.id as string;
@@ -1371,24 +1388,24 @@ describe('comprovante livre: a saída pode ficar sem comprovante', () => {
       expect((ent.categorias ?? []).map((c) => c.slug)).toEqual(expect.arrayContaining(['entrada', 'parcela']));
     });
 
-    it('a pessoa escolhe qual vale: o valor do corpo e o `valor_digitado_centavos`; nos dois casos fica `divergente` para o ADM', async () => {
+    it('a pessoa escolhe qual vale: escolher o valor que a IA leu BATE; manter o digitado (diferente do lido) fica `divergente` para o ADM', async () => {
       iaLe(25_000);
       const a = await subir('escolheu o valor da IA');
-      // Escolheu o que a IA leu (25.000), digitando 26.000 antes.
+      // Escolheu o que a IA leu (25.000), digitando 26.000 antes: não é divergência.
       const x = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(a.path, { valor_centavos: 25_000, valor_digitado_centavos: 26_000 }));
       expect(x.status).toBe(200);
-      expect(x.body.lancamento).toMatchObject({ valor_centavos: 25_000, conferencia: 'divergente', divergencia: { lido_centavos: 25_000, digitado_centavos: 26_000 } });
+      expect(x.body.lancamento).toMatchObject({ valor_centavos: 25_000, conferencia: 'bateu', divergencia: null });
       expect(x.body.livro.gasto).toBe(25_000);
+      expect(x.body.livro.fechamento.faltam.join('|')).not.toContain('não conferido');
       // Manteve o que digitou (26.000).
       const b = await subir('manteve o valor digitado');
       const y = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(b.path, { valor_centavos: 26_000, valor_digitado_centavos: 26_000, data: '2026-11-03' }));
       expect(y.status).toBe(200);
       expect(y.body.lancamento).toMatchObject({ valor_centavos: 26_000, conferencia: 'divergente', divergencia: { lido_centavos: 25_000, digitado_centavos: 26_000 } });
-      // Dois divergentes: o fechamento fala em 2 e só o ADM zera, um por vez.
-      expect(y.body.livro.fechamento.faltam).toContain('2 lançamentos não conferidos pela IA. O Thiago confere.');
+      expect(y.body.livro.fechamento.faltam.join('|')).toContain('não conferido');
       expect(y.body.livro.fechamento.pode_fechar).toBe(false);
-      expect((await post(dinheiro(SOLAR, '/conferir'), { id: x.body.lancamento.id }, DIEGO)).status).toBe(403);
-      expect((await post(dinheiro(SOLAR, '/conferir'), { id: x.body.lancamento.id }, THIAGO)).status).toBe(200);
+      expect((await post(dinheiro(SOLAR, '/conferir'), { id: y.body.lancamento.id }, DIEGO)).status).toBe(403);
+      expect((await post(dinheiro(SOLAR, '/conferir'), { id: x.body.lancamento.id }, THIAGO)).status).toBe(409);   // a que bateu não espera conferência
       const fim = await post(dinheiro(SOLAR, '/conferir'), { id: y.body.lancamento.id }, THIAGO);
       expect(fim.status).toBe(200);
       expect(fim.body.livro.fechamento.faltam.join('|')).not.toContain('não conferido');

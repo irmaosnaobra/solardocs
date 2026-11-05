@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
   tique: 0,
   insertsDoCorte: 0,
   tentativasDoCorte: 0,
+  falhaEstado: false,
 }));
 
 const jsonb = (v: unknown): unknown => {
@@ -90,6 +91,7 @@ vi.mock('../utils/supabase', () => ({
           return chain;
         },
         insert: async (l: { key: string; value: unknown; updated_at?: string }) => {
+          if (h.falhaEstado && l.key.startsWith('jornada_solar:')) return { error: { code: 'XX000' } };
           if (l.key === 'jornada_corte') h.tentativasDoCorte++;
           if (h.linhas.has(l.key)) return { error: { code: '23505' } };
           if (l.key === 'jornada_corte') h.insertsDoCorte++;
@@ -152,7 +154,9 @@ import { alocarCodigoSolar } from '../services/gerador/vendaSolarCodigo';
 import { assinarJornada, normalizarJornada, reiniciarLogsDaJornada } from '../services/gerador/jornadaSolarBanco';
 import { estadoMaterializado, type EstadoJornada } from '../services/gerador/jornadaSolar';
 import { assinarLigacao, invalidarCachesHub, reiniciarLogsDoHub } from '../services/gerador/vendaSolarHub';
-import { ehFinalizada, lerCorte, reiniciarCorte, CHAVE_CORTE } from '../services/gerador/jornadaCorte';
+import { ehFinalizada, lerCorte, reiniciarCorte, dataDoVendidoDoCard, CHAVE_CORTE } from '../services/gerador/jornadaCorte';
+import { lancamentoObraParaGravar, montarLancamentoObra } from '../services/gerador/jornadaDinheiro';
+import { chaveLancamento } from '../services/gerador/financeiroCliente';
 import { dadosDaPlanilha } from '../services/gerador/jornadaFinalizada';
 import { montarObra } from '../services/gerador/solarObras';
 import { lerTudo } from '../services/io/jornadaMensagensBase';
@@ -231,7 +235,7 @@ beforeEach(() => {
     cardBase(404, { cliente_nome: 'Carlos Dias', vendedor_nome: 'Carla' }), cardBase(405, { status: 'agendado', cliente_nome: 'Venda Nova' }),
   ];
   h.propostas = [];
-  h.linhas = new Map(); h.priv = new Map(); h.obrasPlanilha = []; h.planilhaCai = false; h.tique = 0; h.insertsDoCorte = 0; h.tentativasDoCorte = 0;
+  h.linhas = new Map(); h.priv = new Map(); h.obrasPlanilha = []; h.planilhaCai = false; h.tique = 0; h.insertsDoCorte = 0; h.tentativasDoCorte = 0; h.falhaEstado = false;
   h.aloc.chamadas = [];
   delete process.env.JORNADA_FINALIZADAS_OFF;
   process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste';
@@ -264,16 +268,29 @@ describe('o corte', () => {
     await Promise.all(Array.from({ length: 10 }, () => lerCorte()));
     expect(h.tentativasDoCorte).toBe(1);
   });
-  it('corte com assinatura errada não vale (o sistema recusa em vez de refazer o corte)', async () => {
-    h.linhas.set(CHAVE_CORTE, { updated_at: 'c', value: { v: 1, em: '2020-01-01T00:00:00.000Z', sig: 'f'.repeat(64) } });
-    await expect(lerCorte()).rejects.toMatchObject({ codigo: 'corte_invalido' });
+  it('corte ilegível: a jornada se comporta como DESLIGADA (ninguém é finalizada), sem 503, e só o código vai ao log', async () => {
+    h.linhas.set(CHAVE_CORTE, { updated_at: 'c', value: 'lixo' });
+    expect(await lerCorte()).toBe(0);
     expect(h.tentativasDoCorte).toBe(0);
     const l = await get('/jornada-solar/lista', THIAGO);
-    expect(l.status).toBe(503);
+    expect(l.status).toBe(200);
+    expect(l.body.contagem.finalizadas).toBe(0);
+    const erros = vi.mocked(console.error).mock.calls.map((c) => c.join(' ')).join(' | ');
+    expect(erros).toMatch(/corte_invalido/);
+    expect(erros).not.toMatch(/lixo/);
+    expect((await post('/jornada-solar/obra/401/trazer', { motivo: 'Cliente pediu revisão' }, THIAGO)).status).toBe(409);   // não é finalizada: já está na jornada
+  });
+  it('o corte é uma data ISO simples, gravada sem segredo; o corte antigo, com assinatura, vale pela data dele', async () => {
+    delete process.env.VINCULO_SOLAR_SECRET;
+    expect(await lerCorte()).toBe(Date.parse(CORTE));
+    expect(h.linhas.get(CHAVE_CORTE)!.value).toBe(CORTE);
+    reiniciarCorte();
+    h.linhas.set(CHAVE_CORTE, { updated_at: 'c', value: { v: 1, em: '2020-01-01T00:00:00.000Z', sig: 'f'.repeat(64) } });
+    expect(await lerCorte()).toBe(Date.parse('2020-01-01T00:00:00.000Z'));
   });
   it('JORNADA_FINALIZADAS_OFF=1 desliga a regra: ninguém é finalizada e o corte nem é lido', async () => {
     process.env.JORNADA_FINALIZADAS_OFF = '1';
-    expect(ehFinalizada(null, null, 0)).toBe(false);
+    expect(ehFinalizada(null, null, 0, { vendidoMs: 1 })).toBe(false);
     expect(await lerCorte()).toBe(0);
     expect(h.tentativasDoCorte).toBe(0);
   });
@@ -281,20 +298,33 @@ describe('o corte', () => {
 
 describe('quem é finalizada (a conta pura)', () => {
   const corte = Date.parse(CORTE);
-  it('sem estado, é finalizada; só leitura antes do corte, também', () => {
-    expect(ehFinalizada(null, null, corte)).toBe(true);
-    expect(ehFinalizada(estadoMaterializado(1, 'nilce', 2, ANTES), null, corte)).toBe(true);
+  const ANT = { vendidoMs: Date.parse(ANTES) };
+  const DEP = { vendidoMs: Date.parse(DEPOIS) };
+  it('sem estado, é finalizada SÓ se a data da venda é anterior ao corte; só leitura antes do corte, também', () => {
+    expect(ehFinalizada(null, null, corte, ANT)).toBe(true);
+    expect(ehFinalizada(estadoMaterializado(1, 'nilce', 2, ANTES), null, corte, ANT)).toBe(true);
+    // Venda nova sem estado (a criação do estado falhou): a data é depois do corte, ou nem se sabe a data. Continua ativa.
+    expect(ehFinalizada(null, null, corte, DEP)).toBe(false);
+    expect(ehFinalizada(null, null, corte, { vendidoMs: corte })).toBe(false);
+    expect(ehFinalizada(null, null, corte, { vendidoMs: null })).toBe(false);
+    expect(ehFinalizada(null, null, corte)).toBe(false);
+    // O estado só de leitura de uma venda NOVA (materializado depois do corte, sem `vendido_em`) também continua ativo.
+    expect(ehFinalizada(estadoMaterializado(1, 'nilce', 1, DEPOIS), null, corte, DEP)).toBe(false);
+    // Obra com dinheiro vivo lançado não é finalizada.
+    expect(ehFinalizada(null, null, corte, { ...ANT, comDinheiro: true })).toBe(false);
+    // Corte 0 (desligado ou ilegível): ninguém.
+    expect(ehFinalizada(null, null, 0, ANT)).toBe(false);
   });
   it('evento de gente ATÉ o corte mantém ativa; DEPOIS do corte não reabre; número, venda completa e sonda não contam', () => {
     const com = (por: string, acao: any, em: string): EstadoJornada => {
       const e = estadoMaterializado(1, 'nilce', 2, ANTES); e.historico.push({ em, por, acao, etapa: 1 }); return e;
     };
-    expect(ehFinalizada(com('nilce', 'concluir', ANTES), null, corte)).toBe(false);
-    expect(ehFinalizada(com('nilce', 'concluir', DEPOIS), null, corte)).toBe(true);
-    expect(ehFinalizada(com('nilce', 'numero', ANTES), null, corte)).toBe(true);
-    expect(ehFinalizada(com('nilce', 'venda_completa', ANTES), null, corte)).toBe(true);
-    expect(ehFinalizada(com('sonda', 'concluir', ANTES), null, corte)).toBe(true);
-    expect(ehFinalizada(com('', 'concluir', ANTES), null, corte)).toBe(true);
+    expect(ehFinalizada(com('nilce', 'concluir', ANTES), null, corte, ANT)).toBe(false);
+    expect(ehFinalizada(com('nilce', 'concluir', DEPOIS), null, corte, ANT)).toBe(true);
+    expect(ehFinalizada(com('nilce', 'numero', ANTES), null, corte, ANT)).toBe(true);
+    expect(ehFinalizada(com('nilce', 'venda_completa', ANTES), null, corte, ANT)).toBe(true);
+    expect(ehFinalizada(com('sonda', 'concluir', ANTES), null, corte, ANT)).toBe(true);
+    expect(ehFinalizada(com('', 'concluir', ANTES), null, corte, ANT)).toBe(true);
   });
   it('vendido depois do corte, ou com a marca trazida, é ativa; o horário é comparado como data, não como texto', () => {
     const e = estadoMaterializado(1, 'nilce', 1, DEPOIS); e.vendido_em = DEPOIS;
@@ -303,7 +333,7 @@ describe('quem é finalizada (a conta pura)', () => {
     expect(ehFinalizada(t, null, corte)).toBe(false);
     // Mesmo instante em formatos diferentes (+00:00 do banco, Z do JS).
     const f = estadoMaterializado(1, 'nilce', 1, ANTES); f.historico.push({ em: '2026-11-05T15:00:00.000Z', por: 'nilce', acao: 'concluir', etapa: 1 });
-    expect(ehFinalizada(f, null, Date.parse('2026-11-05T12:00:00-03:00'))).toBe(false);
+    expect(ehFinalizada(f, null, Date.parse('2026-11-05T12:00:00-03:00'), ANT)).toBe(false);
   });
 });
 
@@ -321,7 +351,7 @@ describe('a lista e o filtro Finalizadas', () => {
     expect(a.body.contagem).toMatchObject({ finalizadas: 2, ativas: 1 });
     // O corte ficou gravado na primeira leitura.
     expect(h.insertsDoCorte).toBe(1);
-    expect(Date.parse(h.linhas.get(CHAVE_CORTE)!.value.em)).toBe(Date.parse(CORTE));
+    expect(Date.parse(h.linhas.get(CHAVE_CORTE)!.value)).toBe(Date.parse(CORTE));
 
     // Depois do corte: a venda nova entra na jornada (etapa 1 aberta, da Nilce); a antiga continua finalizada.
     vi.setSystemTime(new Date(DEPOIS));
@@ -515,9 +545,16 @@ describe('nenhum robô enxerga a finalizada', () => {
     const ligados = Object.fromEntries(GRUPOS_MSG.map((g) => [g, '2026-11-01T00:00:00.000Z'])) as any;
     expect(leitura!.obras.flatMap((o) => eventosDoCard({ card: o.card, js: o.js, jo: o.jo, vendedor: o.vendedor }, new Date(CORTE), ligados))).toEqual([]);
   });
-  it('sem conseguir ler o corte, o robô não vê nada (leitura nula: ninguém envia)', async () => {
-    h.linhas.set(CHAVE_CORTE, { updated_at: 'c', value: { v: 1, em: '2020-01-01T00:00:00.000Z', sig: '0'.repeat(64) } });
+  it('sem conseguir ler o BANCO do corte, o robô não vê nada (leitura nula: ninguém envia)', async () => {
+    const { supabase } = await import('../utils/supabase');
+    vi.spyOn(supabase as any, 'from').mockImplementation(() => { throw Object.assign(new Error('fora'), { code: 'PGRST000' }); });
     expect(await lerTudo()).toBeNull();
+  });
+  it('com o corte ilegível o robô se comporta como desligado: enxerga a venda que tem estado, sem derrubar nada', async () => {
+    h.linhas.set(CHAVE_CORTE, { updated_at: 'c', value: 'lixo' });
+    semearLeitura(401);
+    const leitura = await lerTudo();
+    expect(leitura!.obras.map((o) => o.card)).toEqual([401]);
   });
 });
 
@@ -586,5 +623,90 @@ describe('Trazer para a jornada', () => {
     await post('/jornada-solar/obra/401/trazer', { motivo: 'Cliente pediu revisão' }, THIAGO);
     const novas = [...h.linhas.keys()].filter((k) => !antes.includes(k)).sort();
     expect(novas).toEqual(['jornada_corte', 'jornada_solar:401']);
+  });
+});
+
+// ── Achados da revisão (05/11/2026): venda nova sem estado, dinheiro vivo e a data do Vendido ───────────────────────────────────────────
+
+/** Um gasto lançado (assinado) na obra, como o do `lancamento`; `estorno_de` no `extra` faz a linha de estorno. */
+const semearGasto = (card: number, id: string, extra: Record<string, unknown> = {}): void => {
+  const m = montarLancamentoObra({
+    id, tipo: 'saida', categoria: 'material', etapa: 2, valor_centavos: 10_000, data: '2026-11-01', descricao: 'Material', conferencia: 'sem_comprovante', arquivo: null, ...extra,
+  }, { cardId: card, autor: 'nilce', agoraIso: ANTES, hojeBr: '2026-11-05' });
+  if (!m.ok) throw new Error(`lançamento de teste inválido: ${m.erro}`);
+  h.linhas.set(chaveLancamento(card, id), { updated_at: 'f', value: jsonb(lancamentoObraParaGravar(card, m.lancamento)) });
+};
+const linhaVendido = (dia: string, hora: string): string => `[${dia} ${hora} · Nilce] 🏷️ Status: AGENDADO → VENDIDO.`;
+
+describe('a data do Vendido, lida do histórico do card', () => {
+  it('a linha não tem ano: o ano sobe quando dia/mês volta, e vale a linha VENDIDO mais nova, no horário de Brasília', () => {
+    const h1 = `${linhaVendido('05/01', '10h00')}\n\n[02/12 09h00 · Nilce] 🏷️ Status: NOVO → AGENDADO.`;
+    expect(dataDoVendidoDoCard(h1, '2025-12-01T10:00:00.000Z', Date.parse(CORTE))).toBe(Date.UTC(2026, 0, 5, 13, 0));
+    expect(dataDoVendidoDoCard(linhaVendido('06/11', '09h00'), '2026-03-01T10:00:00.000Z', Date.parse(DEPOIS))).toBe(Date.UTC(2026, 10, 6, 12, 0));
+    // "VENDIDO → CANCELADO" não é a venda; sem linha de venda, vale o created_at.
+    expect(dataDoVendidoDoCard('[03/04 10h00 · Nilce] 🏷️ Status: VENDIDO → CANCELADO.', '2026-03-01T10:00:00.000Z', Date.parse(CORTE))).toBe(Date.parse('2026-03-01T10:00:00.000Z'));
+    expect(dataDoVendidoDoCard('', null, Date.parse(CORTE))).toBeNull();
+  });
+});
+
+describe('venda nova sem estado não vira finalizada calada', () => {
+  it('na lista: card vendido depois do corte (linha VENDIDO do histórico, ou criado depois) continua ativo; o antigo é finalizado', async () => {
+    await iniciar();
+    h.agendamentos.push(
+      cardBase(406, { cliente_nome: 'Vendeu Hoje', historico: linhaVendido('06/11', '09h00') }),   // lead antigo, vendido depois do corte
+      cardBase(407, { cliente_nome: 'Lead Novo', created_at: DEPOIS }),                            // criado depois do corte, sem linha
+      cardBase(408, { cliente_nome: 'Vendeu Antes', historico: linhaVendido('10/04', '10h00') }),  // vendido antes do corte
+    );
+    vi.setSystemTime(new Date('2026-11-07T10:00:00.000Z'));
+    const b = await get('/jornada-solar/lista');
+    expect(b.status).toBe(200);
+    const por = (c: number) => b.body.linhas.find((l: any) => l.card === c);
+    expect(por(406)).toMatchObject({ grupo: 'ativas', finalizada: false });
+    expect(por(407)).toMatchObject({ grupo: 'ativas', finalizada: false });
+    expect(por(408)).toMatchObject({ grupo: 'finalizadas', finalizada: true });
+    expect(por(401)).toMatchObject({ grupo: 'finalizadas' });   // o antigo sem linha: created_at de março
+  });
+  it('o estado só de leitura (sem vendido_em) de uma venda NOVA continua ativo na lista e na guarda de escrita', async () => {
+    await iniciar();
+    h.agendamentos.push(cardBase(409, { cliente_nome: 'Vendeu Depois', historico: linhaVendido('06/11', '09h00') }));
+    vi.setSystemTime(new Date(DEPOIS));
+    gravarEstado(409, estadoMaterializado(409, 'Nilce', 2, DEPOIS));
+    const l = await get('/jornada-solar/lista');
+    expect(l.body.linhas.find((x: any) => x.card === 409)).toMatchObject({ grupo: 'ativas', finalizada: false });
+    expect((await post('/guarda/409', {})).status).toBe(200);
+  });
+  it('Vendido com a criação do estado falhando: 200, mas `jornada:false` e um `aviso` para quem clicou; o card segue ativo', async () => {
+    await iniciar();
+    vi.setSystemTime(new Date(DEPOIS));
+    h.falhaEstado = true;
+    const v = await post('/vendas-solares/405/vendido', {});
+    expect(v.status).toBe(200);
+    expect(v.body).toMatchObject({ ok: true, status: 'fechou', jornada: false });
+    expect(String(v.body.aviso)).toMatch(/jornada não abriu/);
+    expect(h.linhas.has('jornada_solar:405')).toBe(false);
+    h.falhaEstado = false;
+    vi.setSystemTime(new Date('2026-11-07T10:00:00.000Z'));
+    const l = await get('/jornada-solar/lista');
+    expect(l.body.linhas.find((x: any) => x.card === 405)).toMatchObject({ grupo: 'ativas', finalizada: false });
+    expect((await post('/guarda/405', {})).status).toBe(200);
+  });
+});
+
+describe('dinheiro vivo lançado é trabalho de gente', () => {
+  it('a obra com gasto lançado antes do corte continua ativa (lista, guarda de escrita e robô); sem o gasto, é finalizada', async () => {
+    semearGasto(402, 'gasto-0001');
+    const l = await get('/jornada-solar/lista');
+    expect(l.body.linhas.find((x: any) => x.card === 402)).toMatchObject({ grupo: 'ativas', finalizada: false });
+    expect(l.body.linhas.find((x: any) => x.card === 401)).toMatchObject({ grupo: 'finalizadas' });
+    // `anexar`, `dispensar` e `conferir` passam pela guarda: com dinheiro vivo não ficam presos no 409.
+    expect((await post('/guarda/402', {})).status).toBe(200);
+    expect((await post('/guarda/401', {})).status).toBe(409);
+  });
+  it('gasto ESTORNADO não conta: a obra volta a ser finalizada', async () => {
+    semearGasto(402, 'gasto-0001');
+    semearGasto(402, 'est-000001', { estorno_de: 'gasto-0001', motivo_estorno: 'Erro', conferencia: 'estorno' });
+    const l = await get('/jornada-solar/lista');
+    expect(l.body.linhas.find((x: any) => x.card === 402)).toMatchObject({ grupo: 'finalizadas' });
+    expect((await post('/guarda/402', {})).status).toBe(409);
   });
 });

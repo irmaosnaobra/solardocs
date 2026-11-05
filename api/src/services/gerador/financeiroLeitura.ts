@@ -227,6 +227,10 @@ export interface EntradaLeitura {
   reforco?: boolean;
 }
 
+/** Teto de saída da 1ª leitura e da 2ª (a de reforço, esforço alto: o raciocínio gasta mais; a 1ª que veio `cortada` é refeita com folga de 2x). */
+const MAX_TOKENS = 4000;
+const MAX_TOKENS_REFORCO = 8000;
+
 /** Uma chamada à IA (com a troca de modelo que já existia) e a conferência do que voltou. Nunca lança. */
 async function umaLeitura(
   ia: ClienteLeitura, arquivo: Anthropic.ContentBlockParam, hojeBr: string, categorias: ReadonlyArray<CategoriaPedida> | undefined, forte: boolean, t0: number,
@@ -242,7 +246,7 @@ async function umaLeitura(
       // chamada do `stream()`: os dois ficam dentro do mesmo try.
       const stream = ia.messages.stream({
         model: modelos[i],
-        max_tokens: 4000,
+        max_tokens: forte ? MAX_TOKENS_REFORCO : MAX_TOKENS,
         output_config: { effort: forte ? 'high' : 'low', format: FORMATO_LEITURA },
         system: SISTEMA_LEITURA,
         messages: [{ role: 'user', content: [arquivo, { type: 'text', text: pedido }] }],

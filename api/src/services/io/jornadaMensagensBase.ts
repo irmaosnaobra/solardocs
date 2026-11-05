@@ -15,7 +15,7 @@ import { prefixosTotalDaLinha } from '../agents/whatsapp/lineThrottle';
 import { TEL_AVISO } from './solarEquipe';
 import { PREFIXO_ENV, PREFIXO_VEZ, minutoDaVez, semComprovanteDoLivro, type DinheiroObra, type ObraFila } from './jornadaMensagensPuro';
 import { lerTodasJornadas, lerPrivadoJornada } from '../gerador/jornadaSolarBanco';
-import { ehFinalizada, lerCorte } from '../gerador/jornadaCorte';
+import { ehFinalizada, lerContextoDasVendas, lerCorte } from '../gerador/jornadaCorte';
 import { lerObraPrivada, lerTodasObras } from '../gerador/jornadaObraBanco';
 import { ehCardSolarVendido, lerCardsPorIds, lerTodasLigacoes, type Ligacao } from '../gerador/vendaSolarHub';
 import type { CardVendido } from '../gerador/fichaEletroposto';
@@ -135,12 +135,13 @@ export async function lerTudo(): Promise<Leitura | null> {
     const [jornadas, obras, ligs, corte] = await Promise.all([lerTodasJornadas(), lerTodasObras(), lerTodasLigacoes(), lerCorte()]);
     const ids = [...new Set([...jornadas.keys(), ...obras.keys()])];
     const cards = await lerCardsPorIds(ids);
+    const contextoDe = await lerContextoDasVendas(ids, jornadas, corte);
     const saida: ObraFila[] = [];
     for (const id of ids) {
       const card = cards.get(id);
       if (!card || !ehCardSolarVendido(card) || String(card.cliente_telefone ?? '').replace(/\D/g, '').endsWith(TELEFONE_DA_SONDA)) continue;
       // Venda FINALIZADA fica fora de todo robô (fila das 08:00, "É sua", escalada, placar, aviso de venda, aniversários, liberação): nada a cobrar nem a anunciar.
-      if (ehFinalizada(jornadas.get(id) ?? null, obras.get(id) ?? null, corte)) continue;
+      if (ehFinalizada(jornadas.get(id) ?? null, obras.get(id) ?? null, corte, contextoDe(id))) continue;
       saida.push(obraDe(id, card, jornadas.get(id) ?? null, obras.get(id) ?? null, ligs.get(id)));
     }
     return { obras: saida.sort((a, b) => a.card - b.card), cards, ligs };
