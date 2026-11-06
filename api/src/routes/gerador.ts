@@ -41,6 +41,7 @@ import { mountJornadaDinheiro } from './geradorJornadaDinheiro';
 import { mountJornadaObra } from './geradorJornadaObra';
 import { mountJornadaPosVenda } from './geradorJornadaPosVenda';
 import { mountJornadaMensagens } from './geradorJornadaMensagens';
+import { mountJornadaFicha } from './geradorJornadaFicha';
 import { mountPerfil } from './geradorPerfil';
 import { mountRedes } from './geradorRedes';
 import { mountSentinela } from './geradorSentinela';
@@ -1200,6 +1201,7 @@ mountJornadaObra(router);
 mountJornadaPosVenda(router);
 // Jornada da obra, fase 3 (05/11/2026): ligar e desligar as mensagens (um grupo por vez, só o ADM) e a sonda com o transporte falso.
 mountJornadaMensagens(router);
+mountJornadaFicha(router);
 // Meu perfil: WhatsApp e foto de cada consultor (sócio edita o de qualquer um). O nome nunca muda.
 mountPerfil(router);
 // Automação como centro das redes, fase 1 (servidor): Reels, status da 5040 e caixa de comentários. Cada item nasce desligado.
