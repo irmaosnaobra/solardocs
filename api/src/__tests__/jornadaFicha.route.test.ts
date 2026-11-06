@@ -361,8 +361,13 @@ describe('3. a Giovanna não vê a linha da planilha', () => {
     expect(txt).not.toContain('Rua A, 100');
     expect(txt).not.toContain('Cemig');
     expect(g.body.ficha.campos['venda.valor_centavos'].fonte).toBe('obra');
-    expect(g.body.ficha.documentos_fora).toHaveLength(1);
-    expect(g.body.ficha.documentos_fora[0].url).toBeNull();
+    // Quem não vê a linha não recebe nem a presença do arquivo da planilha; o Thiago (sócio) recebe.
+    expect(g.body.ficha.documentos_fora).toEqual([]);
+    expect(txt).not.toContain('foto.test');
+    const t = await get(FICHA(SOLAR), THIAGO);
+    expect(t.body.ficha.documentos_fora).toHaveLength(1);
+    expect(t.body.ficha.documentos_fora[0]).toMatchObject({ slot: 'fachada', fonte: 'planilha' });
+    expect(t.body.ficha.documentos_fora[0].url).toContain('https://foto.test/');
     const n = await get(FICHA(SOLAR), NILCE);
     expect(n.body.ficha.campos['uc.endereco_ponto']).toMatchObject({ valor: 'Rua A, 100', fonte: 'planilha' });
     expect(n.body.ficha.campos['uc.concessionaria']).toMatchObject({ valor: 'Cemig', fonte: 'planilha' });

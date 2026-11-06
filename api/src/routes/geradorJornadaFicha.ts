@@ -73,7 +73,8 @@ async function rotaFicha(req: Request, res: Response): Promise<void> {
       entradas: d.veDinheiro
         ? d.livro.linhas.filter((l) => l.tipo === 'entrada' && !l.estornada && !l.estorno_de && !l.devolucao).map((l) => ({ forma: l.forma, valor_centavos: l.valor_centavos }))
         : null,
-      docsPlanilha: arqPl.map((a) => ({ slot: a.slot, em: a.em, url: urls.get(a.caminho) ?? null })),
+      // Quem não vê a linha da planilha não recebe nem a presença do arquivo (o portão da etapa 1 segue contando o slot por dentro).
+      docsPlanilha: vista ? arqPl.map((a) => ({ slot: a.slot, em: a.em, url: urls.get(a.caminho) ?? null })) : [],
     };
     res.json({ ok: true, card: g.id, ficha: montarFicha(entrada) });
   } catch (err) {
