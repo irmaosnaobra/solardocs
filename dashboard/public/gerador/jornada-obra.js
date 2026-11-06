@@ -1098,12 +1098,16 @@
   function extraVistoria(esq, d) {
     var f2 = O().fase2; if (!f2) return; injetarCss(); var h = H();
     var pode = podeSecao(f2, 'vistoria'); var v = clone(dados(f2).vistoria) || {};
+    var sg = (H().sugs && H().sugs('vistoria')) || {};
     ['telhado', 'entrada', 'inversor'].forEach(function (k) { v[k] = v[k] || {}; }); v.adeq = v.adeq || [];
     var box = el('details', 'jor-bloco'); box.appendChild(el('summary', 'jor-vdc-sum', 'Relatório de vistoria'));
     var ins = {};
     function lin(grupo, chave, rot, tipo) {
-      var obj = grupo ? v[grupo] : v; var i = entrada(tipo || 'text', obj[chave] || '', rot); i.disabled = !pode; ins[(grupo || '') + '.' + chave] = i;
-      i.addEventListener('input', function () { obj[chave] = i.value; }); return campo(rot, i);
+      var obj = grupo ? v[grupo] : v; var s = sg[(grupo ? grupo + '.' : '') + chave];
+      if (s && !String(obj[chave] || '').trim()) obj[chave] = String(s.valor); else s = null;
+      var i = entrada(tipo || 'text', obj[chave] || '', rot); i.disabled = !pode; ins[(grupo || '') + '.' + chave] = i;
+      i.addEventListener('input', function () { obj[chave] = i.value; });
+      var lb = campo(rot, i); if (s && H().veio) lb.appendChild(H().veio(s, i)); return lb;
     }
     var g0 = el('div', 'jor-ob-par'); add(g0, lin('', 'data', 'Data da vistoria', 'date'), lin('', 'quem', 'Quem vistoriou'), lin('', 'acomp', 'Acompanhou no local')); box.appendChild(g0);
     box.appendChild(el('div', 'jor-ob-grupo', 'Telhado'));
@@ -1134,7 +1138,7 @@
       var cli = cliDe(cad, d); var t = v.telhado || {}, e = v.entrada || {}, iv = v.inversor || {};
       var fotos = (v.fotos && v.fotos.length ? v.fotos.map(function (f) { return { src: urlDe(f.arquivo_id), leg: f.leg || 'Foto', txt: f.txt || '' }; }) : [['fachada', 'Fachada'], ['padrao', 'Padrão de entrada'], ['disjuntor', 'Disjuntor'], ['medidor', 'Medidor']].map(function (x) { return { src: urlDoSlot(x[0]), leg: x[1], txt: '' }; })).filter(function (f) { return f.src; });
       var dd = {
-        cli: cli, emp: solEmp(), data: v.data || (typeof solHoje === 'function' ? solHoje() : hoje()), quem: v.quem || '', acomp: v.acomp || '', local: '', kwp: (d.proposta && d.proposta.kwp) ? String(d.proposta.kwp).replace('.', ',') : '', nmod: '', uc: cad ? (typeof vdcV === 'function' ? vdcV(cad, 'unidade_consumidora') : '') : '', conc: cad ? (typeof vdcV === 'function' ? vdcV(cad, 'concessionaria') : '') : '',
+        cli: cli, emp: solEmp(), data: v.data || (typeof solHoje === 'function' ? solHoje() : hoje()), quem: v.quem || '', acomp: v.acomp || '', local: (cad && typeof vdcV === 'function' ? vdcV(cad, 'endereco_ponto') : '') || ((H().ficha && H().ficha() && H().ficha().campos && H().ficha().campos['uc.endereco_ponto']) ? String(H().ficha().campos['uc.endereco_ponto'].valor) : ''), kwp: (d.proposta && d.proposta.kwp) ? String(d.proposta.kwp).replace('.', ',') : '', nmod: '', uc: cad ? (typeof vdcV === 'function' ? vdcV(cad, 'unidade_consumidora') : '') : '', conc: cad ? (typeof vdcV === 'function' ? vdcV(cad, 'concessionaria') : '') : '',
         tel: cli.tel, concl: v.concl, adeq: v.adeq || [], obs: v.obs || '',
         telhado: [['Tipo', t.tipo || ''], ['Estado', t.estado || ''], ['Orientação da água', t.orient || ''], ['Inclinação', t.incl ? numTxt(t.incl) + ' graus' : ''], ['Área útil livre', t.area ? numTxt(t.area) + ' m²' : ''], ['Sombreamento', t.sombra || ''], ['Estrutura de apoio', t.estr || ''], ['Acesso', t.acesso || '']],
         entrada: [['Padrão', e.padrao || ''], ['Tensão', e.tensao || ''], ['Disjuntor geral', e.disj ? numTxt(e.disj) + ' A' : ''], ['Padrão apto a receber', e.apto || ''], ['Aterramento', e.aterr || ''], ['Espaço no quadro', e.quadro || '']],
@@ -1151,19 +1155,41 @@
   function extraBanco(esq, d) {
     var f2 = O().fase2; if (!f2) return; injetarCss(); var h = H();
     var pode = podeSecao(f2, 'banco'); var bk = clone(dados(f2).banco) || {};
+    var sg = (H().sugs && H().sugs('banco')) || {};
     var vendaOk = !!(d.venda && d.venda.valor_centavos > 0);
     var bloc = el('div', 'jor-bloco'); var t = el('div', 'jor-bloco-t'); t.appendChild(el('span', '', 'Proposta de banco' + (bk.banco ? ' · para o ' + bk.banco : ''))); bloc.appendChild(t);
     var falta = [];
     function atualiza() { falta = []; if (!(bk.banco || '').trim()) falta.push('o banco'); if (!(bk.agencia || '').trim()) falta.push('a agência'); if (!(bk.conta || '').trim()) falta.push('a conta'); if (!vendaOk) falta.push('o valor vendido'); aviso.textContent = falta.length ? 'Falta ' + falta.join(', ') + '.' : ''; gerar.disabled = falta.length > 0; }
     var box = el('details'); box.appendChild(el('summary', 'jor-vdc-sum', 'Preencher a proposta de banco'));
-    function lin(chave, rot, tipo) { var i = entrada(tipo || 'text', bk[chave] || '', rot); i.disabled = !pode; i.addEventListener('input', function () { bk[chave] = i.value; atualiza(); }); return campo(rot, i); }
+    function lin(chave, rot, tipo) {
+      var s = sg[chave]; if (s && !String(bk[chave] || '').trim()) bk[chave] = String(s.valor); else s = null;
+      var i = entrada(tipo || 'text', bk[chave] || '', rot); i.disabled = !pode; i.addEventListener('input', function () { bk[chave] = i.value; atualiza(); });
+      var lb = campo(rot, i); if (s && H().veio) lb.appendChild(H().veio(s, i)); return lb;
+    }
     function reais0(chave, rot) { var i = entrada('text', Number(bk[chave]) > 0 ? txtCents(bk[chave]) : '', rot); i.inputMode = 'decimal'; i.disabled = !pode; i.addEventListener('input', function () { var v = h.cents(i.value); bk[chave] = (typeof v === 'number' && v > 0) ? v : null; }); return campo(rot + ' (R$, opcional)', i); }
     var g = el('div', 'jor-ob-par'); add(g, lin('banco', 'Banco'), lin('agencia', 'Agência'), lin('conta', 'Conta corrente'), lin('validade', 'Validade (dias)'), lin('prazo', 'Prazo de entrega'), lin('origem', 'Origem dos recursos'), lin('nota', 'Nota da entrada'), lin('desc', 'Descrição do sistema'), lin('ger', 'Geração (kWh/mês)'), reais0('eq_centavos', 'Equipamento'), reais0('mo_centavos', 'Mão de obra')); box.appendChild(g);
     var det = el('details'); det.appendChild(el('summary', 'jor-vdc-sum', 'Titular do financiamento (opcional)')); var fin = bk.fin || {};
-    var gf = el('div', 'jor-ob-par');
+    var gf = el('div', 'jor-ob-par'); var abrirFin = false;
+    // Preencher: o titular do financiamento do cadastro (quando já se sabe quem é). Qualificação e endereço saem montados como nos papéis.
+    var q = {}; ['nacionalidade', 'estado_civil', 'profissao', 'orgao_emissor'].forEach(function (k) { var s = sg['fin.qualif.' + k]; if (s) q[k] = String(s.valor); });
+    var en = {}; ['endereco', 'bairro', 'cidade', 'uf'].forEach(function (k) { var s = sg['fin.end.' + k]; if (s) en[k] = String(s.valor); });
+    var sQualif = null, sEnd = null;
+    if (!String(fin.qualif || '').trim() && (q.nacionalidade || q.estado_civil || q.profissao) && typeof solQualifPf === 'function') {
+      fin.qualif = solQualifPf({ nac: q.nacionalidade || '', ec: q.estado_civil || '', prof: q.profissao || '', rg: String(fin.rg || (sg['fin.rg'] && sg['fin.rg'].valor) || ''), orgao: q.orgao_emissor || '' });
+      sQualif = sg['fin.qualif.nacionalidade'] || sg['fin.qualif.estado_civil'] || sg['fin.qualif.profissao'];
+    }
+    if (!String(fin.end || '').trim() && en.endereco) {
+      fin.end = (typeof solEnd === 'function') ? solEnd(en.endereco, en.bairro || '', en.cidade || '', en.uf || '') : [en.endereco, en.bairro, en.cidade, en.uf].filter(Boolean).join(', ');
+      sEnd = sg['fin.end.endereco'];
+    }
     [['nome', 'Nome'], ['doc', 'CPF ou CNPJ'], ['rg', 'RG'], ['qualif', 'Qualificação'], ['end', 'Endereço'], ['cep', 'CEP'], ['tel', 'Telefone'], ['email', 'E-mail']].forEach(function (x) {
-      var i = entrada('text', fin[x[0]] || '', 'Titular: ' + x[1]); i.disabled = !pode; i.addEventListener('input', function () { fin[x[0]] = i.value; bk.fin = fin; }); gf.appendChild(campo(x[1], i));
+      var s = x[0] === 'qualif' ? sQualif : (x[0] === 'end' ? sEnd : sg['fin.' + x[0]]);
+      if (x[0] !== 'qualif' && x[0] !== 'end') { if (s && !String(fin[x[0]] || '').trim()) fin[x[0]] = String(s.valor); else s = null; }
+      if (s) { abrirFin = true; bk.fin = fin; }
+      var i = entrada('text', fin[x[0]] || '', 'Titular: ' + x[1]); i.disabled = !pode; i.addEventListener('input', function () { fin[x[0]] = i.value; bk.fin = fin; });
+      var lb = campo(x[1], i); if (s && H().veio) lb.appendChild(H().veio(s, i)); gf.appendChild(lb);
     });
+    if (abrirFin) det.open = true;
     det.appendChild(gf); box.appendChild(det);
     var aviso = el('p', 'jor-erro'); aviso.setAttribute('role', 'status'); var gerar = btn('Gerar', 'jor-btn-pri', function () { gerarBanco(d, bk, f2, aviso); });
     var ac = el('div', 'jor-din-acoes'); if (pode) ac.appendChild(botaoSalvar('Salvar', 'banco', function () { return bk; }, 'Proposta de banco salva.')); ac.appendChild(gerar);
