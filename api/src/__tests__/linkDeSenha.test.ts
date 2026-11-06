@@ -341,8 +341,9 @@ describe('semSegredo e contaPaga', () => {
     [{ plano: 'free', billing_status: 'active' }, false],
     [{ plano: 'pro', billing_status: 'suspended' }, false],
     [{ plano: 'free', billing_status: null }, false],
-    [{ plano: 'free', billing_status: null, plano_expira_em: new Date(Date.now() + dia).toISOString() }, true],
-    [{ plano: 'free', billing_status: null, plano_expira_em: new Date(Date.now() - dia).toISOString() }, false],
+    // Datas a partir do AGORA congelado: Date.now() aqui roda na coleta, com o relógio real.
+    [{ plano: 'free', billing_status: null, plano_expira_em: new Date(AGORA.getTime() + dia).toISOString() }, true],
+    [{ plano: 'free', billing_status: null, plano_expira_em: new Date(AGORA.getTime() - dia).toISOString() }, false],
     [null, false],
   ])('contaPaga %j = %s', (u, esperado) => {
     expect(contaPaga(u as any)).toBe(esperado);
