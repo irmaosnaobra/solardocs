@@ -869,7 +869,10 @@ describe('valorDaVenda: o valor da venda, e na dúvida o ticket', () => {
   it('a obra (Jornada) vence o código da planilha e a proposta; abaixo do piso é ticket; acima do teto é o teto; sem planilha lida é ticket', () => {
     const extra = { planilha: { ok: true as const, teto: 33000, vendas: [venda(65, 18500)] }, codigosDoCard: new Map([[5, [65]]]), valorDaProposta: new Map([[5, 18000]]) };
     expect(valorDaVenda(card(5), fontes({ ...extra, valorDaJornada: new Map([[5, 21000]]) }))).toEqual({ valor: 21000, origem: 'jornada' });
-    expect(valorDaVenda(card(5), fontes({ ...extra, valorDaJornada: new Map([[5, 145]]) }))).toEqual(ticket);
+    // abaixo do piso a obra não vira ticket: passa para a planilha (e, sem ela, para a proposta)
+    expect(valorDaVenda(card(5), fontes({ ...extra, valorDaJornada: new Map([[5, 145]]) }))).toEqual({ valor: 18500, origem: 'planilha_codigo' });
+    expect(valorDaVenda(card(5), fontes({ planilha: { ok: true, teto: 33000, vendas: [] }, valorDaProposta: new Map([[5, 18000]]), valorDaJornada: new Map([[5, 145]]) }))).toEqual({ valor: 18000, origem: 'proposta' });
+    expect(valorDaVenda(card(5), fontes({ valorDaJornada: new Map([[5, 145]]) }))).toEqual(ticket);
     expect(valorDaVenda(card(5), fontes({ ...extra, valorDaJornada: new Map([[5, 380000]]) }))).toEqual({ valor: 33000, origem: 'jornada' });
     expect(valorDaVenda(card(5), fontes({ ...extra, planilha: null, valorDaJornada: new Map([[5, 21000]]) }))).toEqual(ticket);
     expect(valorDaVenda(card(5), fontes({ ...extra, valorDaJornada: new Map([[6, 21000]]) }))).toEqual({ valor: 18500, origem: 'planilha_codigo' });

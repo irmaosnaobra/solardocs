@@ -423,7 +423,8 @@ export function valorDaVenda(card: AgCard, f: FontesDeValor): { valor: number; o
 
   // 0. a obra: quando existe, vem antes da planilha e da proposta. Passa pelo mesmo piso e teto (sem planilha lida não há teto: ticket, como sempre).
   const daJornada = f.valorDaJornada?.get(card.id);
-  if (daJornada !== undefined) return aceita(daJornada) ? { ...limitado(daJornada), origem: 'jornada' } : doTicket;
+  // Abaixo do piso (valor digitado sem o milhar) a obra não vale: segue para a planilha e a proposta, que têm o mesmo piso.
+  if (daJornada !== undefined && aceita(daJornada)) return { ...limitado(daJornada), origem: 'jornada' };
 
   // 1. o mesmo código
   const codigos = [...new Set(f.codigosDoCard.get(card.id) ?? [])];

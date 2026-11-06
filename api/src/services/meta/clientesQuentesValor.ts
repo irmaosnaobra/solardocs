@@ -28,7 +28,9 @@ async function valoresDaJornada(cardIds: readonly number[]): Promise<Map<number,
   for (let k = 0; k < ids.length; k += LOTE_JORNADA) {
     await Promise.all(ids.slice(k, k + LOTE_JORNADA).map(async (id) => {
       try {
-        const v = (await lerPrivadoJornada(id))?.venda?.valor_centavos;
+        const priv = await lerPrivadoJornada(id);
+        if (priv?.cancelamento) return; // venda cancelada na obra: não vale como valor da venda
+        const v = priv?.venda?.valor_centavos;
         if (typeof v === 'number' && Number.isInteger(v) && v > 0) out.set(id, v / 100);
       } catch (e) {
         logger.warn('clientes-quentes', 'valor da obra indisponível para um card', String((e as Error)?.message || e));
