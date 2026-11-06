@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { BANCOS_IDS, BANCOS_FIXOS, bancosEscolhidos } from '../services/templates/bancosLogos';
 
 describe('bancosEscolhidos', () => {
-  it('undefined e null devolvem os 8 na ordem fixa', () => {
-    expect(bancosEscolhidos(undefined)).toHaveLength(8);
+  it('undefined e null devolvem os 12 na ordem fixa', () => {
+    expect(bancosEscolhidos(undefined)).toHaveLength(12);
     expect(bancosEscolhidos(undefined)).toEqual([...BANCOS_IDS]);
     expect(bancosEscolhidos(null)).toEqual([...BANCOS_IDS]);
   });
@@ -16,10 +16,14 @@ describe('bancosEscolhidos', () => {
     expect(bancosEscolhidos(['itau', 'xx', 'itau', 'bb'])).toEqual(['bb', 'itau']);
   });
 
-  it('outro tipo devolve os 8', () => {
-    expect(bancosEscolhidos('itau')).toHaveLength(8);
-    expect(bancosEscolhidos(42)).toHaveLength(8);
-    expect(bancosEscolhidos({})).toHaveLength(8);
+  it('aceita os ids novos e mantém a ordem fixa', () => {
+    expect(bancosEscolhidos(['btg', '77sol', 'itau', 'solagora', 'solfacil'])).toEqual(['itau', 'solfacil', 'solagora', '77sol', 'btg']);
+  });
+
+  it('outro tipo devolve os 12', () => {
+    expect(bancosEscolhidos('itau')).toHaveLength(12);
+    expect(bancosEscolhidos(42)).toHaveLength(12);
+    expect(bancosEscolhidos({})).toHaveLength(12);
   });
 });
 

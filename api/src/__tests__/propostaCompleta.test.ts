@@ -80,8 +80,8 @@ describe('modelo 4 Completo: folhas', () => {
     const vazio = render({ bancos_parceiros: antigo, bancos_logos: [], pag_vista: false, pag_cartao: false, pag_fin: false }).html;
     expect(vazio).not.toContain('Bancos que financiam o seu sistema');
     expect(secoesTab(vazio)).not.toContain('Investimento e formas de pagamento');
-    // Com os 8 padrão, o mesmo "Sicredi" só nome não vira um nono cartão.
-    expect((render({ bancos_parceiros: antigo }).html.match(/<div class="bk[ "]/g) || []).length).toBe(8);
+    // Com todos os bancos fixos padrão, o mesmo "Sicredi" só nome não vira um nono cartão.
+    expect((render({ bancos_parceiros: antigo }).html.match(/<div class="bk[ "]/g) || []).length).toBe(BANCOS_IDS.length);
   });
 
   it('mesmos tokens do modelo 1: fonte, cores, acento', () => {
@@ -144,7 +144,7 @@ describe('modelo 4 Completo: imagens e escape', () => {
     expect(html).toContain('&lt;script&gt;alert(2)&lt;/script&gt;');
   });
 
-  it('respeita os limites: 12 obras, 12 empresas, 8 bancos fixos (parceiros ignorados)', () => {
+  it('respeita os limites: 12 obras, 12 empresas, todos os bancos fixos (parceiros ignorados)', () => {
     const { html } = render({
       fotos_obras: fotosObra(15),
       empresas_atendidas: Array.from({ length: 15 }, (_, i) => ({ url: HTTPS, nome: `Empresa ${i + 1}` })),
@@ -154,7 +154,7 @@ describe('modelo 4 Completo: imagens e escape', () => {
     expect(html).not.toContain('Obra 13');
     expect(html).toContain('Empresa 12<');
     expect(html).not.toContain('Empresa 13');
-    expect((html.match(/<div class="bk[ "]/g) || []).length).toBe(8);
+    expect((html.match(/<div class="bk[ "]/g) || []).length).toBe(BANCOS_IDS.length);
     expect(html).not.toContain('Banco 1<');
   });
 
@@ -396,7 +396,7 @@ describe('modelos 1, 2 e 3 seguem byte a byte (trechos do origin/main)', () => {
 });
 
 // ─── Completa + Banco: bancos fixos, composição, dados bancários e aceite ──────────────────────
-import { BANCOS_FIXOS } from '../services/templates/bancosLogos';
+import { BANCOS_FIXOS, BANCOS_IDS } from '../services/templates/bancosLogos';
 
 describe('modelo 4 Completa + Banco', () => {
   const secoes = (h: string) => (h.match(/<div class="tab">[^<]+<\/div>/g) || []).map((x) => x.replace(/<[^>]+>/g, ''));
@@ -407,8 +407,8 @@ describe('modelo 4 Completa + Banco', () => {
   const empBanc: any = { ...company, cidade: 'Uberlândia-MG', dados_bancarios: { banco: 'Banco Exemplo', agencia: '0001', conta: '12345-6', tipo_conta: 'poupanca', titular: 'Sol Forte', pix: 'pix@exemplo.com' } };
   const logos = (h: string) => (h.match(/<div class="bk fx">/g) || []).length;
 
-  it('bancos_logos ausente = os 8 logos; [] = nenhum e a seção some sem outro conteúdo na folha', () => {
-    expect(logos(render({}).html)).toBe(8);
+  it('bancos_logos ausente = todos os logos fixos; [] = nenhum e a seção some sem outro conteúdo na folha', () => {
+    expect(logos(render({}).html)).toBe(BANCOS_IDS.length);
     expect(render({}).html).toContain(`alt="${BANCOS_FIXOS.sicredi.nome}"`);
     expect(logos(render({ bancos_logos: ['itau', 'bb'] }).html)).toBe(2);
     const vazio = render({ pag_vista: false, pag_cartao: false, pag_fin: false, bancos_logos: [] }).html;
@@ -419,7 +419,7 @@ describe('modelo 4 Completa + Banco', () => {
 
   it('só os fixos: os enviados (bancos_parceiros) nunca entram', () => {
     const { html } = render({ bancos_parceiros: Array.from({ length: 6 }, (_, i) => ({ nome: `Banco ${i + 1}` })) });
-    expect(logos(html)).toBe(8);
+    expect(logos(html)).toBe(BANCOS_IDS.length);
     expect(html).not.toContain('Banco 1<');
   });
 

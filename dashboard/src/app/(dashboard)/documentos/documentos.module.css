@@ -295,8 +295,16 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr)); /* 12 bancos = 3 fileiras de 4 */
   gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .bancoGrade { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .bancoGrade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .opcaoCaixa {

@@ -83,6 +83,10 @@ const BANCOS_LOGOS = [
   { id: 'sicoob', nome: 'Sicoob' },
   { id: 'bradesco', nome: 'Bradesco' },
   { id: 'itau', nome: 'Itaú' },
+  { id: 'solfacil', nome: 'Solfácil' },
+  { id: 'solagora', nome: 'SolAgora' },
+  { id: '77sol', nome: '77Sol' },
+  { id: 'btg', nome: 'BTG Pactual' },
 ] as const;
 type BancoId = (typeof BANCOS_LOGOS)[number]['id'];
 const TODOS_BANCOS: BancoId[] = BANCOS_LOGOS.map(b => b.id);
