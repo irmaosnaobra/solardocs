@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
+import helmet from 'helmet';
 import request from 'supertest';
 import JSZip from 'jszip';
 
@@ -11,6 +12,8 @@ import JSZip from 'jszip';
 // documento pessoal fora do link público e do ZIP público, o rodapé do PDF, a lista de compras no relatório e no nome do PDF, e o PDF em 302.
 
 const h = vi.hoisted(() => ({
+  // Lido por cspImagensStorage() quando a rota pública é montada.
+  supabaseUrl: (process.env.SUPABASE_URL = 'https://projetoteste.supabase.co'),
   objetos: new Map<string, Buffer>(),
   removidos: [] as string[],
   navegador: { abriu: 0, fechou: 0, html: '' as string, falha: false, opcoes: null as unknown },
@@ -695,6 +698,30 @@ describe('relatório público /v/:id', () => {
     expect(r.text).toContain('<title>Vistoria: Maria Souza</title>');
     expect(r.text).not.toMatch(EMOJI);
     expect(r.text).not.toMatch(/[—–]/);
+  });
+  it("CSP: img-src ganha o host do Supabase (da env); default-src e script-src seguem 'self'; só o img-src muda frente ao helmet", async () => {
+  const diretivas = (cab: string) => Object.fromEntries(
+    cab.split(';').map((d) => d.trim()).filter(Boolean).map((d) => { const [nome, ...resto] = d.split(/\s+/); return [nome, resto.join(' ')]; }),
+  ) as Record<string, string>;
+    poeVistoria({});
+    const res = await request(app).get(`/v/${ID}`);
+    expect(res.status).toBe(200);
+    const csp = res.headers['content-security-policy'] as string;
+    const d = diretivas(csp);
+    expect(d['img-src']).toBe("'self' data: https://projetoteste.supabase.co");
+    expect(d['default-src']).toBe("'self'");
+    expect(d['script-src']).toBe("'self'");
+    expect(csp).not.toMatch(/img-src[^;]*\shttps:(\s|;|$)/);
+    const comHelmet = express();
+    comHelmet.use(helmet());
+    comHelmet.get('/outra', (_q, rr) => { rr.send('ok'); });
+    comHelmet.use('/v', publicVistoriaRoutes);
+    const padrao = diretivas((await request(comHelmet).get('/outra')).headers['content-security-policy'] as string);
+    const pub = diretivas((await request(comHelmet).get(`/v/${ID}`)).headers['content-security-policy'] as string);
+    expect(padrao['img-src']).toBe("'self' data:");
+    const { 'img-src': _a, ...restoPadrao } = padrao;
+    const { 'img-src': _b, ...restoPub } = pub;
+    expect(restoPub).toEqual(restoPadrao);
   });
   it('vistoria em andamento continua pública', async () => {
     poeVistoria({ status: 'em_andamento' });

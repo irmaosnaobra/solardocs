@@ -3,7 +3,7 @@ import express from 'express';
 import request from 'supertest';
 
 const h = vi.hoisted(() => ({
-  // Lido por cspPaginaProposta() quando a rota é montada.
+  // Lido por cspImagensStorage() quando a rota é montada.
   supabaseUrl: (process.env.SUPABASE_URL = 'https://projetoteste.supabase.co'),
   doc: null as Record<string, unknown> | null,
   company: null as Record<string, unknown> | null,

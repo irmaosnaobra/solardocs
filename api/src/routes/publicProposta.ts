@@ -1,5 +1,4 @@
-import { Router, Request, Response, RequestHandler } from 'express';
-import helmet from 'helmet';
+import { Router, Request, Response } from 'express';
 import { createHash } from 'crypto';
 import { supabase } from '../utils/supabase';
 import { stripPrint } from '../utils/printHtml';
@@ -9,7 +8,7 @@ import { paginaVencida } from '../services/propostaVencida';
 import { enviarPushAoUsuario } from '../services/pushUsuario';
 import { propostaPdfLimiter } from '../middleware/rateLimiter';
 import { gerarPdfDeHtml } from '../controllers/pdfController';
-import { hostDoSupabase } from '../utils/redePdf';
+import { cspImagensStorage } from '../middleware/cspImagensStorage';
 
 const router = Router();
 
@@ -173,21 +172,6 @@ export function comBotaoPdf(html: string, id: string): string {
   return i >= 0 ? html.slice(0, i) + bloco + html.slice(i) : html + bloco;
 }
 
-/**
- * CSP da página pública da proposta. É a CSP padrão do helmet (a do app), trocando SÓ o `img-src`: sem isso o
- * navegador bloqueia toda imagem do Storage (fotos de obra, do telhado, empresas atendidas), que vêm por URL
- * assinada em https://{projeto}.supabase.co. Fica o host exato do SUPABASE_URL, nunca `https:` genérico; sem a
- * variável, a CSP do app segue como está. As outras rotas não mudam.
- */
-export function cspPaginaProposta(env: NodeJS.ProcessEnv = process.env): RequestHandler {
-  const host = hostDoSupabase(env);
-  if (!host) return (_req, _res, next) => next();
-  return helmet.contentSecurityPolicy({
-    useDefaults: true,
-    directives: { 'img-src': ["'self'", 'data:', `https://${host}`] },
-  });
-}
-
 // GET /p/:id — serve a proposta solar publicamente (sem auth).
 // Aceita id em 3 formatos:
 //  - {slug}.{YYYYNNNN} — novo padrão, ex: irmaosnaobra.20260001 (preferido)
@@ -196,7 +180,7 @@ export function cspPaginaProposta(env: NodeJS.ProcessEnv = process.env): Request
 // Pega o HTML do Storage e devolve com Content-Type correto.
 // Só funciona pra proposta ('propostaSolar' e 'propostaOffGrid') — os outros
 // tipos são contrato/procuração e não têm por que ficar num link público.
-router.get('/:id', cspPaginaProposta(), async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', cspImagensStorage(), async (req: Request, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id || '');
 

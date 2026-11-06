@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 import { abrirNavegador } from '../controllers/pdfController';
+import { cspImagensStorage } from '../middleware/cspImagensStorage';
 import { montarZipDaVistoria, slugify, withSignedUrls } from './vistorias';
 import { Extras, lerCompras, lerExtras, urlsDasAssinaturas } from '../services/vistoria/extras';
 import { comprasVisiveis, type Compras } from '../services/vistoria/compras';
@@ -68,7 +69,7 @@ async function montarEntrada(
   };
 }
 
-router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', cspImagensStorage(), async (req: Request, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id || '');
     if (!UUID_RE.test(id)) {

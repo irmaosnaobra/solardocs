@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 import { abrirNavegador } from '../controllers/pdfController';
+import { cspImagensStorage } from '../middleware/cspImagensStorage';
 import { codigoLegivel } from '../services/manutencao/relatorio';
 import {
   BUCKET, UUID_RE, LinhaManutencao, assinaturasDe, assinarCaminho, tabelaAusente, urlsAssinadas,
@@ -61,7 +62,7 @@ async function entrada(l: LinhaManutencao, marca: MarcaEmpresa | null): Promise<
   };
 }
 
-router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', cspImagensStorage(), async (req: Request, res: Response): Promise<void> => {
   try {
     const c = await carregar(req, res);
     if (!c.ok) return;
