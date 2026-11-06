@@ -309,7 +309,7 @@ let metaEventoOk = true;
 let planilhaOk = true;
 let publicosExistentes: Array<{ id: string; name: string }> = [];
 let paginar = false;
-let fontesFalsas = { codigosDoCard: new Map<number, number[]>(), valorDaProposta: new Map<number, number>() };
+let fontesFalsas = { codigosDoCard: new Map<number, number[]>(), valorDaProposta: new Map<number, number>(), valorDaJornada: new Map<number, number>() };
 let fontesTravadas = false;
 vi.mock('../services/meta/clientesQuentesValor', () => ({ lerFontesDeValor: () => (fontesTravadas ? new Promise(() => {}) : Promise.resolve(fontesFalsas)) }));
 
@@ -383,7 +383,7 @@ beforeEach(() => {
   for (const k of Object.keys(tabelas)) delete tabelas[k];
   inserts.length = 0; upserts.length = 0; chamadas.length = 0; estado = {}; falhaUpsert = false; falhaInsert = false; semOrdem.length = 0;
   usersreplaceOk = true; metaEventoOk = true; planilhaOk = true; publicosExistentes = []; paginar = false;
-  fontesFalsas = { codigosDoCard: new Map(), valorDaProposta: new Map() }; fontesTravadas = false;
+  fontesFalsas = { codigosDoCard: new Map(), valorDaProposta: new Map(), valorDaJornada: new Map() }; fontesTravadas = false;
   process.env.META_SYSTEM_USER_TOKEN = 'tok_falso';
   delete process.env.CLIENTE_QUENTE_OFF; delete process.env.PUBLICO_QUENTE_OFF;
   vi.stubGlobal('fetch', vi.fn(fetchFalso));
@@ -866,6 +866,15 @@ describe('valorDaVenda: o valor da venda, e na dúvida o ticket', () => {
     const f = fontes({ planilha: { ok: true, teto: 33000, vendas }, codigosDoCard: new Map([[5, [65]], [6, [66]]]) });
     expect(valorDaVenda(card(6, { cliente_nome: 'Cristiano Silva' }), f)).toEqual({ valor: 9000, origem: 'planilha_codigo' });
   });
+  it('a obra (Jornada) vence o código da planilha e a proposta; abaixo do piso é ticket; acima do teto é o teto; sem planilha lida é ticket', () => {
+    const extra = { planilha: { ok: true as const, teto: 33000, vendas: [venda(65, 18500)] }, codigosDoCard: new Map([[5, [65]]]), valorDaProposta: new Map([[5, 18000]]) };
+    expect(valorDaVenda(card(5), fontes({ ...extra, valorDaJornada: new Map([[5, 21000]]) }))).toEqual({ valor: 21000, origem: 'jornada' });
+    expect(valorDaVenda(card(5), fontes({ ...extra, valorDaJornada: new Map([[5, 145]]) }))).toEqual(ticket);
+    expect(valorDaVenda(card(5), fontes({ ...extra, valorDaJornada: new Map([[5, 380000]]) }))).toEqual({ valor: 33000, origem: 'jornada' });
+    expect(valorDaVenda(card(5), fontes({ ...extra, planilha: null, valorDaJornada: new Map([[5, 21000]]) }))).toEqual(ticket);
+    expect(valorDaVenda(card(5), fontes({ ...extra, valorDaJornada: new Map([[6, 21000]]) }))).toEqual({ valor: 18500, origem: 'planilha_codigo' });
+    expect(valorDaVenda(card(5), fontes(extra))).toEqual({ valor: 18500, origem: 'planilha_codigo' });
+  });
   it('acima do teto vale o teto (planilha e proposta)', () => {
     const f = fontes({ planilha: { ok: true, teto: 33000, vendas: [venda(65, 380000)] }, codigosDoCard: new Map([[5, [65]]]) });
     expect(valorDaVenda(card(5), f)).toEqual({ valor: 33000, origem: 'planilha_codigo' });
@@ -999,6 +1008,16 @@ describe('Purchase do solar com o valor real', () => {
     expect(r.eventos.enviados).toBe(1);
     expect(venda().custom_data.value).toBe(13010);
     expect(dedup()[0]).toMatchObject({ lead_id: 'ag_3', event_name: 'Purchase', valor: 13010, origem: 'quente:solar:fechou:planilha_codigo' });
+  });
+  it('valor gravado na obra (Jornada): vence a planilha e a proposta, e a origem sai no dedup', async () => {
+    comPurchase();
+    tabelas.agendamentos = [ag(3, 'fechou')];
+    fontesFalsas.codigosDoCard.set(3, [2]);
+    fontesFalsas.valorDaProposta.set(3, 18200);
+    fontesFalsas.valorDaJornada.set(3, 21000);
+    await run();
+    expect(venda().custom_data.value).toBe(21000);
+    expect(dedup()[0]).toMatchObject({ valor: 21000, origem: 'quente:solar:fechou:jornada' });
   });
   it('proposta ligada: o valor da proposta', async () => {
     comPurchase();

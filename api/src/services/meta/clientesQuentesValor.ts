@@ -9,17 +9,38 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { lerTodasLigacoes } from '../gerador/vendaSolarHub';
+import { lerPrivadoJornada } from '../gerador/jornadaSolarBanco';
 import { numeroDoCodigoSolar } from './clientesQuentesPuro';
 
 export interface FontesLidas {
   codigosDoCard: Map<number, number[]>;
   valorDaProposta: Map<number, number>;
+  valorDaJornada: Map<number, number>;
 }
 
 const LOTE = 150; // o `.in()` vai na URL do PostgREST
 
+const LOTE_JORNADA = 5;
+/** O valor gravado na obra (centavos -> reais), de 5 em 5 cards. Card que falha fica sem (vale a próxima fonte). Nunca lança. */
+async function valoresDaJornada(cardIds: readonly number[]): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  const ids = [...new Set(cardIds)];
+  for (let k = 0; k < ids.length; k += LOTE_JORNADA) {
+    await Promise.all(ids.slice(k, k + LOTE_JORNADA).map(async (id) => {
+      try {
+        const v = (await lerPrivadoJornada(id))?.venda?.valor_centavos;
+        if (typeof v === 'number' && Number.isInteger(v) && v > 0) out.set(id, v / 100);
+      } catch (e) {
+        logger.warn('clientes-quentes', 'valor da obra indisponível para um card', String((e as Error)?.message || e));
+      }
+    }));
+  }
+  return out;
+}
+
 export async function lerFontesDeValor(cardIds: readonly number[]): Promise<FontesLidas> {
-  const vazio: FontesLidas = { codigosDoCard: new Map(), valorDaProposta: new Map() };
+  const valorDaJornada = await valoresDaJornada(cardIds);
+  const vazio: FontesLidas = { codigosDoCard: new Map(), valorDaProposta: new Map(), valorDaJornada };
   try {
     const ligs = await lerTodasLigacoes();
     const codigosDoCard = new Map<number, number[]>();
@@ -55,7 +76,7 @@ export async function lerFontesDeValor(cardIds: readonly number[]): Promise<Font
         if (v && v.length === 1 && Number.isFinite(v[0]) && v[0] > 0) valorDaProposta.set(id, v[0]);
       }
     }
-    return { codigosDoCard, valorDaProposta };
+    return { codigosDoCard, valorDaProposta, valorDaJornada };
   } catch (e) {
     logger.warn('clientes-quentes', 'fontes do valor da venda indisponíveis, o Purchase sai com o ticket', String((e as Error)?.message || e));
     return vazio;

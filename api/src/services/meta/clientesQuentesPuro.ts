@@ -345,6 +345,7 @@ export function listaEletroposto(a: { cards: AgCard[]; parceria: Parceria[]; ehE
 // Meta errado, e o ticket é o que sempre foi.
 //
 // Ordem de confiança (a primeira que casa SEM ambiguidade vence):
+//   0. a obra (Jornada, 06/11/2026): o valor que o vendedor confirmou na etapa 1 (`privado.venda.valor_centavos`), pelo mesmo piso e teto;
 //   1. planilha, pelo MESMO código: o `#NNNN` da ligação assinada do card (`venda_solar:<card>`) tem uma única linha, com valor > 0;
 //   2. a proposta ligada ao card (`propostas.valor_vendido`, a que o consultor marcou como vendida): existe na hora do `fechou`,
 //      quando a linha da planilha costuma chegar atrasada;
@@ -357,7 +358,7 @@ export function listaEletroposto(a: { cards: AgCard[]; parceria: Parceria[]; ehE
 /** A venda da planilha só vale para o telefone se for dos últimos N dias (a do card que acabou de fechar). */
 export const JANELA_VENDA_RECENTE_DIAS = 60;
 
-export type OrigemDoValor = 'planilha_codigo' | 'proposta' | 'planilha_telefone' | 'ticket';
+export type OrigemDoValor = 'jornada' | 'planilha_codigo' | 'proposta' | 'planilha_telefone' | 'ticket';
 
 export interface FontesDeValor {
   /** O ticket do solar de hoje (média da planilha). O do eletroposto é TICKET_ELETRO. */
@@ -369,6 +370,8 @@ export interface FontesDeValor {
   codigosDoCard: ReadonlyMap<number, readonly number[]>;
   /** card -> `valor_vendido` da proposta ligada (a proposta só ligada a este card, marcada como vendida). */
   valorDaProposta: ReadonlyMap<number, number>;
+  /** card -> valor da venda gravado na obra (etapa 1 da Jornada), em REAIS. Vem antes de tudo. */
+  valorDaJornada?: ReadonlyMap<number, number>;
   /** Todos os cards, só para saber se o telefone tem mais de um card fechado. */
   cards: readonly AgCard[];
   agora?: number;
@@ -417,6 +420,10 @@ export function valorDaVenda(card: AgCard, f: FontesDeValor): { valor: number; o
   const piso = pisoDoValor(teto, f.ticket);
   const aceita = (v: unknown): v is number => finitoPositivo(v) && v >= piso;
   const limitado = (v: number) => ({ valor: Math.round(Math.min(v, teto)) });
+
+  // 0. a obra: quando existe, vem antes da planilha e da proposta. Passa pelo mesmo piso e teto (sem planilha lida não há teto: ticket, como sempre).
+  const daJornada = f.valorDaJornada?.get(card.id);
+  if (daJornada !== undefined) return aceita(daJornada) ? { ...limitado(daJornada), origem: 'jornada' } : doTicket;
 
   // 1. o mesmo código
   const codigos = [...new Set(f.codigosDoCard.get(card.id) ?? [])];
