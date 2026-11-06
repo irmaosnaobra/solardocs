@@ -165,6 +165,7 @@ import { alocarCodigoSolar } from '../services/gerador/vendaSolarCodigo';
 import { assinarJornada, normalizarJornada, reiniciarLogsDaJornada } from '../services/gerador/jornadaSolarBanco';
 import { estadoMaterializado, type EstadoJornada } from '../services/gerador/jornadaSolar';
 import { invalidarCachesHub, reiniciarLogsDoHub } from '../services/gerador/vendaSolarHub';
+import { formaDoEspelho } from '../services/gerador/jornadaFicha';
 
 const r = Router();
 mountVendaSolar(r);
@@ -356,6 +357,56 @@ describe('venda e proposta', () => {
     const { lerLigacao } = await import('../services/gerador/vendaSolarHub');
     expect((await lerLigacao(304)).lig.proposta).toBe('P1');
     expect((await post('/jornada-solar/obra/305/proposta', { codigo: 'P1' })).status).toBe(409);
+  });
+  it('preencher: a venda gravada antes da proposta vai para ela ao ligar (valor em reais e a forma do modal antigo)', async () => {
+    semear(304);
+    expect((await put('/jornada-solar/obra/304/venda', PAGAMENTO)).status).toBe(200);
+    expect(h.propostas.find((p) => p.codigo === 'P1')).toMatchObject({ vendido: false });
+    expect(h.propostas.find((p) => p.codigo === 'P1')!.valor_vendido).toBeUndefined();
+    const ok = await post('/jornada-solar/obra/304/proposta', { codigo: 'P1' });
+    expect(ok.status).toBe(200);
+    expect(h.propostas.find((p) => p.codigo === 'P1')).toMatchObject({ vendido: true, valor_vendido: 38900, forma_pagamento: formaDoEspelho(['pix', 'financiamento']) });
+    expect(h.propostas.find((p) => p.codigo === 'P1')!.forma_pagamento).toBe('financiamento');
+  });
+  it('preencher: valor e forma que já estavam na proposta (Histórico) nunca são sobrescritos ao ligar', async () => {
+    semear(304);
+    h.propostas.find((p) => p.codigo === 'P1')!.valor_vendido = 500;
+    h.propostas.find((p) => p.codigo === 'P1')!.forma_pagamento = 'cartao';
+    expect((await put('/jornada-solar/obra/304/venda', PAGAMENTO)).status).toBe(200);
+    expect((await post('/jornada-solar/obra/304/proposta', { codigo: 'P1' })).status).toBe(200);
+    expect(h.propostas.find((p) => p.codigo === 'P1')).toMatchObject({ vendido: true, valor_vendido: 500, forma_pagamento: 'cartao' });
+  });
+  it('preencher: o arquivo que a Planilha (#NNNN) já tem conta no portão da etapa 1, com a origem; contrato e procuração não contam', async () => {
+    semear(304);
+    const { assinarLigacao } = await import('../services/gerador/vendaSolarHub');
+    const lig = { proposta: null, venda: '#0057', por: 'nilce', em: AGORA };
+    h.linhas.set('venda_solar:304', { updated_at: 'v', value: { ...lig, sig: assinarLigacao(304, lig) } });
+    h.linhas.set('docs_cliente:solar:0057', {
+      updated_at: 'd',
+      value: { arquivos: ['fachada', 'contrato_assinado'].map((s, i) => ({ id: `p${i}`, slot: s, caminho: `solar/0057/${U(i + 1)}.pdf`, mime: 'application/pdf', bytes: 10, em: AGORA, por: 'x' })), alteracoes: [], apagados: [] },
+    });
+    const res = await obra(304);
+    expect(res.status).toBe(200);
+    const item = (n: number, chave: string) => res.body.etapas[n - 1].itens.find((i: any) => i.chave === chave);
+    expect(item(1, 'fachada').feito).toBe(true);
+    expect(item(2, 'contrato_assinado').feito).toBe(false);
+    expect(res.body.origem_slots).toEqual({ fachada: 'planilha' });
+    expect(res.body.slots.contrato_assinado).toBe(false);
+    // Com a mesma foto também no card, o card é a origem e nada aparece em `origem_slots`.
+    anexos(304, ['fachada']);
+    const comCard = await obra(304);
+    expect(comCard.body.origem_slots).toEqual({});
+    expect(comCard.body.slots.fachada).toBe(true);
+  });
+  it('preencher: o link do Trello do dossiê da proposta aparece quando a obra não tem URL, com a origem e o mesmo tem_cartao', async () => {
+    semear(304);
+    h.propostas.find((p) => p.codigo === 'P1')!.dados = { tab: { mod: 'Canadian CS7N', pot: 590 }, dossie: { trello: { card_id: 'abc', card_url: 'https://trello.com/c/abc' } } };
+    const { assinarLigacao } = await import('../services/gerador/vendaSolarHub');
+    const lig = { proposta: 'P1', venda: null, por: 'nilce', em: AGORA };
+    h.linhas.set('venda_solar:304', { updated_at: 'v', value: { ...lig, sig: assinarLigacao(304, lig) } });
+    const res = await obra(304);
+    expect(res.status).toBe(200);
+    expect(res.body.trello).toMatchObject({ url: 'https://trello.com/c/abc', fonte: 'dossie', rotulo: 'dossiê da proposta', tem_cartao: false, criado_em: null, por: null });
   });
 });
 

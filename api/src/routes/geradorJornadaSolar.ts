@@ -9,7 +9,8 @@ import { tentarNumeroDaJornada, baseDaJornada, responderNumero409 } from './gera
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { generateFromTemplate } from '../services/templateService';
 import { limparHtmlPapel } from '../services/gerador/htmlPapelSeguro';
-import { codigoDeRota, nomesParecidos } from '../services/gerador/docsCliente';
+import { codigoDeRota, nomesParecidos, SLOT_DO_DOSSIE_NA_VENDASOLAR } from '../services/gerador/docsCliente';
+import { formaDoEspelho, trelloDaFicha } from '../services/gerador/jornadaFicha';
 import { lerCadastroVisto, tipoDoCadastro, type Cadastro } from '../services/gerador/cadastroVenda';
 import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
 import { ErroDocs, lerPropostaResumo, lerSlotsDosCards } from '../services/gerador/docsClienteBanco';
@@ -136,6 +137,8 @@ interface Leitura {
   slots: Set<string>;
   /** Só os slots do próprio card (o número nasce dos papéis anexados AQUI). */
   slotsDoCard: Set<string>;
+  /** Preencher: o depósito de cada slot que não está no card. */
+  origem: Map<string, 'dossie' | 'planilha'>;
   tem_cartao: boolean;
   proposta: Awaited<ReturnType<typeof lerProposta>>;
 }
@@ -149,8 +152,30 @@ async function ler(g: Guarda, comProposta = true): Promise<Leitura> {
   const slotsDoCard = new Set(docs.reg.arquivos.map((a) => a.slot));
   const slots = new Set(slotsDoCard);
   for (const a of dv?.arquivos ?? []) slots.add(a.slot);
+  // Preencher: de onde veio cada slot que NÃO está no card (a etapa 1 mostra "Veio de" já no primeiro desenho, sem esperar o quadro).
+  // O que a Planilha (#NNNN) já tem conta no portão da etapa 1. `slotsDoCard` não muda.
+  const origem = new Map<string, 'dossie' | 'planilha'>();
+  for (const a of dv?.arquivos ?? []) if (!slotsDoCard.has(a.slot)) origem.set(a.slot, 'dossie');
+  for (const a of await arquivosDaPlanilha(g.ctx, lig.venda)) { if (!slots.has(a.slot)) origem.set(a.slot, 'planilha'); slots.add(a.slot); }
   const proposta = comProposta && lig.proposta ? await lerProposta(lig.proposta).catch((e) => { logErro('proposta', e); return null; }) : null;
-  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, tem_cartao: !!lig.trello_card, proposta };
+  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, origem, tem_cartao: !!lig.trello_card, proposta };
+}
+
+/**
+ * Preencher (06/11/2026): os arquivos que a Planilha de clientes já tem para esta venda (linha `solar`, pelo #NNNN da ligação), com o slot da venda
+ * solar (o mesmo mapa do dossiê: documento, conta de luz e as 4 fotos). Contrato e procuração NÃO entram: o número nasce só dos papéis do card.
+ * Falha de leitura = nenhum (o portão segue com o card e o dossiê).
+ */
+export async function arquivosDaPlanilha(ctx: Ctx, venda: string | null): Promise<Array<{ slot: string; em: string; caminho: string }>> {
+  const codigo = venda ? codigoDeRota('solar', venda) : null;
+  if (!codigo) return [];
+  try {
+    const { reg } = await lerDocs({ ...ctx, linha: 'solar', codigo });
+    return reg.arquivos.flatMap((a) => {
+      const slot = SLOT_DO_DOSSIE_NA_VENDASOLAR[a.slot];
+      return slot ? [{ slot, em: a.em, caminho: a.caminho }] : [];
+    });
+  } catch (err) { logErro('arquivos da planilha', err); return []; }
 }
 
 const vendedorDe = (card: CardVendido, estado: EstadoJornada | null): string => nomeSimples(card.vendedor_nome) || estado?.vendedor || '';
@@ -417,7 +442,7 @@ async function rotaLista(req: Request, res: Response): Promise<void> {
 
 // ── Rota 3 · A obra ───────────────────────────────────────────────────────────────────────────────────────────────────
 
-const RE_CODIGO_PROPOSTA = /^[A-Za-z0-9._-]{1,40}$/;
+export const RE_CODIGO_PROPOSTA = /^[A-Za-z0-9._-]{1,40}$/;
 
 async function candidatasDaObra(g: Guarda, l: Leitura, todas: ReadonlyMap<number, Ligacao>) {
   const desde = new Date(Date.now() - 180 * 86_400_000).toISOString();
@@ -464,7 +489,7 @@ export async function etapaDaPlanilha(codigo: string): Promise<{ etapaPlanilha?:
 const MSG_OCULTA = 'Os dados da planilha desta venda são de quem vendeu e dos sócios.';
 
 /** A linha da planilha deste código (já com a troca de consultor da Gestão de clientes). Casa SÓ pelo código; nunca por nome nem por telefone. */
-async function linhaDaPlanilha(codigo: string | null): Promise<{ fora: boolean; achou: { bruta: ObraBruta; m: ObraMontada } | null }> {
+export async function linhaDaPlanilha(codigo: string | null): Promise<{ fora: boolean; achou: { bruta: ObraBruta; m: ObraMontada } | null }> {
   if (!codigo) return { fora: false, achou: null };
   try {
     const pl = await planilha(false);
@@ -566,13 +591,17 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
         beneficiarias: bens.map((b) => ({ uc: b.uc, titular: b.titular, mesmo_titular: !!b.titular && nomeCmp(b.titular) === nomeCmp(titularGeradora) })),
       },
       rateio: { linhas: rat, total: totalDoRateio(rat), marca: marcaDoRateio(l.cad) },
-      trello: { url: l.estado?.etapas[3].trello?.url ?? null, criado_em: l.estado?.etapas[3].trello?.criado_em ?? null, por: l.estado?.etapas[3].trello?.por ?? null, tem_cartao: l.tem_cartao },
+      trello: {
+        ...trelloDaFicha(l.estado, l.proposta?.dossie.trello ?? null, l.lig.trello_card),
+        criado_em: l.estado?.etapas[3].trello?.criado_em ?? null, por: l.estado?.etapas[3].trello?.por ?? null,
+      },
       protocolo: l.estado?.etapas[3].protocolo ?? null, engenheiro: l.estado?.etapas[3].engenheiro ?? null,
       excedente: l.estado?.etapas[1].excedente ?? null,
       papeis: l.estado?.etapas[2].papeis ?? { contrato: null, procuracao: null, recibo: null },
       rateio_conferido: l.estado?.etapas[3].rateio ?? null,
       slots: Object.fromEntries(['fachada', 'padrao', 'disjuntor', 'medidor', 'conta_luz', 'documento_titular', 'documento_titular_uc', 'contrato_assinado', 'procuracao',
         'art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso'].map((s) => [s === 'documento_titular' ? 'documento' : s, l.slots.has(s)])),
+      origem_slots: Object.fromEntries(l.origem),
       cancelamento: l.privado?.cancelamento ?? null,
       aviso: pos.trilho === 'sem_trilho' ? 'Não deu para saber a etapa desta venda pelo que existe hoje.' : null,
     });
@@ -641,13 +670,6 @@ async function rotaTrazer(req: Request, res: Response): Promise<void> {
 
 // ── Rota 4 · O valor da venda ─────────────────────────────────────────────────────────────────────────────────────────
 
-const formaDoEspelho = (formas: FormaPagamento[]): string => {
-  if (formas.includes('financiamento')) return 'financiamento';
-  if (formas.every((f) => f === 'cartao')) return 'cartao';
-  if (formas.every((f) => f === 'boleto')) return 'boleto';
-  if (formas.every((f) => f === 'pix' || f === 'ted' || f === 'dinheiro')) return 'vista';
-  return 'misto';
-};
 const inteiroPositivo = (v: unknown, max: number): number | null => (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= max ? v : null);
 
 async function rotaVenda(req: Request, res: Response): Promise<void> {
@@ -740,10 +762,17 @@ async function rotaProposta(req: Request, res: Response): Promise<void> {
       }
       if (quemUsa(todas, g.id, 'proposta', codigo) !== null) return { status: 409, corpo: { ok: false, error: 'Esta proposta já está ligada a outra venda.' } };
       const vendidoEm = l.estado?.vendido_em ? diaDeBrasilia(l.estado.vendido_em) : hojeDeBrasilia();
-      const { data: antes } = await supabaseGerador.from('propostas').select('vendido_em').eq('codigo', codigo).maybeSingle();
-      const jaTem = String((antes as { vendido_em?: unknown } | null)?.vendido_em ?? '');
+      const { data: antes } = await supabaseGerador.from('propostas').select('vendido_em, valor_vendido, forma_pagamento').eq('codigo', codigo).maybeSingle();
+      const ant = antes as { vendido_em?: unknown; valor_vendido?: unknown; forma_pagamento?: unknown } | null;
+      const jaTem = String(ant?.vendido_em ?? '');
+      // Preencher (06/11/2026): a venda já combinada na obra vai para a proposta que acabou de ser ligada (o mesmo espelho do PUT /venda).
+      // Só o que a proposta ainda não tem: valor ou forma que alguém gravou no Histórico ficam.
+      const vv = l.privado?.venda ?? null;
+      const espelho: Record<string, unknown> = {};
+      if (vv && vv.valor_centavos > 0 && ant?.valor_vendido == null) espelho.valor_vendido = vv.valor_centavos / 100;
+      if (vv && vv.pagamento.length && (ant?.forma_pagamento == null || ant?.forma_pagamento === '')) espelho.forma_pagamento = formaDoEspelho(vv.pagamento.map((p) => p.forma));
       const { error } = await supabaseGerador.from('propostas')
-        .update({ vendido: true, vendido_por: vendedorDe(g.card, l.estado) || g.nome, ...(jaTem ? {} : { vendido_em: vendidoEm }) }).eq('codigo', codigo);
+        .update({ vendido: true, vendido_por: vendedorDe(g.card, l.estado) || g.nome, ...(jaTem ? {} : { vendido_em: vendidoEm }), ...espelho }).eq('codigo', codigo);
       if (error) throw new ErroHub('marcar_vendida');
       const novo: Ligacao = {
         proposta: codigo, venda: lig.venda, por: lig.venda && lig.por === POR_GERADOR ? POR_GERADOR : g.nome, em: new Date().toISOString(),
