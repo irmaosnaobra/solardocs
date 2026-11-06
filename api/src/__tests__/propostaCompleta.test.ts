@@ -437,23 +437,25 @@ describe('modelo 4 Completa + Banco', () => {
     expect(sem).not.toContain('1 inversor');
   });
 
-  it('dados bancários: só as linhas que existem; some com mostrar_dados_bancarios false ou sem dados completos', () => {
-    const { html } = render({}, 4, empBanc);
+  it('dados bancários: opção desligada por padrão; só true mostra, e só as linhas que existem', () => {
+    expect(render({}, 4, empBanc).html).not.toContain('Dados para pagamento');
+    expect(render({ mostrar_dados_bancarios: false }, 4, empBanc).html).not.toContain('Dados para pagamento');
+    expect(render({ mostrar_dados_bancarios: 'true' }, 4, empBanc).html).not.toContain('Dados para pagamento');
+    const { html } = render({ mostrar_dados_bancarios: true }, 4, empBanc);
     expect(html).toContain('Dados para pagamento');
     expect(html).toContain('12345-6 poupança');
     expect(html).toContain('Chave Pix');
     expect(html).not.toContain('CPF/CNPJ do titular');
-    expect(render({ mostrar_dados_bancarios: false }, 4, empBanc).html).not.toContain('Dados para pagamento');
-    const so = render({}, 4, { ...company, dados_bancarios: { banco: 'X', agencia: '1' } }).html;
+    const so = render({ mostrar_dados_bancarios: true }, 4, { ...company, dados_bancarios: { banco: 'X', agencia: '1' } }).html;
     expect(so).not.toContain('Dados para pagamento');
-    const pix = render({}, 4, { ...company, dados_bancarios: { pix: 'a@b.com' } }).html;
+    const pix = render({ mostrar_dados_bancarios: true }, 4, { ...company, dados_bancarios: { pix: 'a@b.com' } }).html;
     expect(pix).toContain('Chave Pix');
     expect(pix).not.toContain('<span class="lab">Banco</span>');
     expect(pix).not.toContain('<span class="lab">Agência</span>');
   });
 
   it('aceite: última folha, com nome, CPF formatado, local e data; rodapé grande só nela', () => {
-    const { html } = render({ assinatura: ASSIN_PF }, 4, empBanc);
+    const { html } = render({ assinatura: ASSIN_PF, mostrar_dados_bancarios: true }, 4, empBanc);
     expect(paginas(html)).toBe(5);
     const secs = secoes(html);
     expect(secs[secs.length - 1]).toBe('Aceite da proposta');
@@ -490,12 +492,12 @@ describe('modelo 4 Completa + Banco', () => {
   });
 
   it('dados bancários: o CPF e o CNPJ do titular e a chave Pix saem inteiros', () => {
-    const cpf = render({}, 4, { ...company, dados_bancarios: { pix: '529.982.247-25', documento: '529.982.247-25' } }).html;
+    const cpf = render({ mostrar_dados_bancarios: true }, 4, { ...company, dados_bancarios: { pix: '529.982.247-25', documento: '529.982.247-25' } }).html;
     expect(cpf).toContain('<span class="lab">CPF/CNPJ do titular</span><span class="val">529.982.247-25</span>');
     expect(cpf).toContain('<span class="lab">Chave Pix</span><span class="val">529.982.247-25</span>');
     expect(cpf).not.toContain('class="dp"');
     expect(cpf).not.toContain('***');
-    const cnpj = render({}, 4, { ...company, dados_bancarios: { pix: 'a@b.com', documento: '11.222.333/0001-81' } }).html;
+    const cnpj = render({ mostrar_dados_bancarios: true }, 4, { ...company, dados_bancarios: { pix: 'a@b.com', documento: '11.222.333/0001-81' } }).html;
     expect(cnpj).toContain('<span class="val">11.222.333/0001-81</span>');
   });
 
@@ -580,7 +582,7 @@ describe('modelo 4 Completa + Banco', () => {
 
   it('texto do usuário no aceite e nos dados bancários sai escapado', () => {
     const a = { ...ASSIN_PF, empresa: { ...ASSIN_PF.empresa, razao_social: 'A <b>B</b> Ltda' } };
-    const { html } = render({ assinatura: a }, 4, { ...empBanc, dados_bancarios: { pix: '<i>x</i>' } });
+    const { html } = render({ assinatura: a, mostrar_dados_bancarios: true }, 4, { ...empBanc, dados_bancarios: { pix: '<i>x</i>' } });
     expect(html).not.toContain('<b>B</b>');
     expect(html).not.toContain('<i>x</i>');
     expect(html).toContain('A &lt;b&gt;B&lt;/b&gt; Ltda');

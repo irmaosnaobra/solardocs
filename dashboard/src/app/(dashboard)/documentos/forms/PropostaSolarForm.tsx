@@ -182,7 +182,7 @@ function simultaneidadeDe(obj: Record<string, unknown> | null | undefined, padra
 /** Só dígitos, vírgula e ponto. */
 const soDecimal = (v: string) => v.replace(/[^\d.,]/g, '').slice(0, 8);
 
-/** `mostrar_dados_bancarios`: só booleano de verdade vale; ausente fica como está. */
+/** `mostrar_dados_bancarios`: só booleano de verdade vale; ausente cai no padrão dado (desligado). */
 const boolOu = (v: unknown, padrao: boolean) => (typeof v === 'boolean' ? v : padrao);
 
 const initialFields = {
@@ -229,7 +229,7 @@ const initialFields = {
   // Proposta Completa + Banco (modelo 4). Bancos que financiam (ids fixos, os 8
   // marcados), dados bancários da empresa e bloco de assinaturas.
   bancos_logos: [...TODOS_BANCOS] as BancoId[],
-  mostrar_dados_bancarios: true,
+  mostrar_dados_bancarios: false, // opção: só liga quando a proposta assinada vai ao banco do cliente
   // Fio B (só Completa + Banco), desligado por padrão. Texto como digitado; vira número no envio.
   fio_b_mostrar: false,
   fio_b_tarifa: '',
@@ -749,7 +749,8 @@ export default function PropostaSolarPage() {
             // A assinatura traz nome e CPF do cliente da última proposta: nunca entra numa proposta
             // nova (os padrões vêm da empresa). Os bancos que financiam começam sempre com os 8.
             if (CHAVES_SO_DA_ASSINATURA.has(k)) continue;
-            if (k === 'mostrar_dados_bancarios' && typeof v !== 'boolean') continue;
+            // Cada proposta decide se leva os dados bancários: o kit nunca carrega esse campo.
+            if (k === 'mostrar_dados_bancarios') continue;
             // Fio B é da empresa/concessionária, não do cliente: o kit pode levar.
             if (k === 'fio_b_mostrar') { if (typeof v === 'boolean' && !camposTocados.current.has(k)) merged[k] = v; continue; }
             if (k === 'fio_b_tarifa') {
@@ -804,7 +805,7 @@ export default function PropostaSolarPage() {
         inversores: normalizarInversores(dados),
         ...normalizarPortfolio(dados),
         bancos_logos: normalizarBancosLogos(dadosBrutos.bancos_logos, TODOS_BANCOS),
-        mostrar_dados_bancarios: boolOu(dadosBrutos.mostrar_dados_bancarios, true),
+        mostrar_dados_bancarios: boolOu(dadosBrutos.mostrar_dados_bancarios, false),
         fio_b_mostrar: boolOu(dadosBrutos.fio_b_mostrar, false),
         fio_b_tarifa: fioBTexto(dadosBrutos.fio_b_tarifa, ''),
         fio_b_simultaneidade_pct: simultaneidadeDe(dadosBrutos, '30'),
@@ -920,7 +921,7 @@ export default function PropostaSolarPage() {
             inversores: temDadoInversor(c) ? normalizarInversores(c) : f.inversores,
             ...normalizarPortfolio(c, f),
             bancos_logos: normalizarBancosLogos(bruto.bancos_logos, f.bancos_logos),
-            mostrar_dados_bancarios: boolOu(bruto.mostrar_dados_bancarios, f.mostrar_dados_bancarios),
+            mostrar_dados_bancarios: f.mostrar_dados_bancarios, // cada proposta decide: não vem da última do cliente
             assinatura: { ...f.assinatura, cliente: cli },
           } as typeof f;
         });
@@ -1323,6 +1324,7 @@ export default function PropostaSolarPage() {
         garantia_inversor: primeiroInv.garantia,
       };
       if (modelo === 4) {
+        camposEnvio.mostrar_dados_bancarios = fields.mostrar_dados_bancarios === true;
         // Número de verdade no envio. Desligado: só `fio_b_mostrar: false`, sem os outros.
         if (fields.fio_b_mostrar) {
           camposEnvio.fio_b_mostrar = true;
@@ -1834,18 +1836,20 @@ export default function PropostaSolarPage() {
             </ul>
 
             <h3 className={styles.subtituloBloco}>Dados bancários</h3>
-            {empresaDef && !empresaDef.temBanco ? (
-              <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.5 }}>
+            <label className={`${styles.opcaoCaixa} ${fields.mostrar_dados_bancarios ? styles.opcaoCaixaOn : ''}`}>
+              <input type="checkbox" checked={fields.mostrar_dados_bancarios} onChange={e => setField('mostrar_dados_bancarios', e.target.checked)} />
+              <span className={styles.opcaoTexto}>Incluir os dados bancários da empresa</span>
+            </label>
+            <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)', margin: '8px 0 0', lineHeight: 1.5 }}>
+              Ligue quando for mandar esta proposta assinada ao banco do cliente. Ela já vai com a conta da sua empresa, sem precisar de outro documento.
+            </p>
+            {fields.mostrar_dados_bancarios && empresaDef && !empresaDef.temBanco && (
+              <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)', margin: '8px 0 0', lineHeight: 1.5 }}>
                 Cadastre os dados bancários na tela Empresa.{' '}
                 <Link href="/empresa" style={{ color: 'var(--color-primary)', fontWeight: 700, textDecoration: 'underline' }}>
                   Abrir a tela Empresa
                 </Link>
               </p>
-            ) : (
-              <label className={`${styles.opcaoCaixa} ${fields.mostrar_dados_bancarios ? styles.opcaoCaixaOn : ''}`}>
-                <input type="checkbox" checked={fields.mostrar_dados_bancarios} onChange={e => setField('mostrar_dados_bancarios', e.target.checked)} />
-                <span className={styles.opcaoTexto}>Mostrar os dados bancários da empresa</span>
-              </label>
             )}
           </div>
         )}
