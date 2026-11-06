@@ -363,8 +363,9 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
   const bancos: Array<ItemBancoT & { fixo?: boolean }> = bancosEscolhidos(f.bancos_logos)
     .map((id) => ({ nome: BANCOS_FIXOS[id].nome, src: BANCOS_FIXOS[id].img, fixo: true }))
     .slice(0, MAX_BANCOS_FOLHA);
+  // Opção desligada por padrão: só `true` explícito mostra o bloco (ausente = sem bloco).
   const dadosBanc = normalizarDadosBancarios(company.dados_bancarios);
-  const mostraDadosBanc = f.mostrar_dados_bancarios !== false && dadosBancariosCompletos(dadosBanc);
+  const mostraDadosBanc = f.mostrar_dados_bancarios === true && dadosBancariosCompletos(dadosBanc);
   const assin = normalizarAssinatura(f.assinatura);
   const temAceite = !!assin && !!assin.cliente.nome && !!assin.empresa.razao_social;
 
