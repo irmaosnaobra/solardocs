@@ -64,6 +64,11 @@ describe('lerFontesDeValor', () => {
     const f = await ler([1, 2, 3, 4]);
     expect([...f.valorDaJornada.entries()]).toEqual([[1, 38900]]);
   });
+  it('venda cancelada na obra: o valor dela fica de fora', async () => {
+    obras = new Map([[1, { venda: { valor_centavos: 3890000 }, cancelamento: { motivo: 'Desistiu', em: 'x', por: 'thiago' } }], [2, { venda: { valor_centavos: 1500000 }, cancelamento: null }]]);
+    const f = await ler([1, 2]);
+    expect([...f.valorDaJornada.entries()]).toEqual([[2, 15000]]);
+  });
   it('card cuja leitura da obra lança: os outros seguem', async () => {
     obras = new Map<number, any>([[1, new Error('bucket fora')], [2, { venda: { valor_centavos: 1500000 } }], [3, { venda: { valor_centavos: 2000000 } }]]);
     const f = await ler([1, 2, 3]);
