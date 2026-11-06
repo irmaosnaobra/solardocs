@@ -540,6 +540,13 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
     }
     const pos = posicaoDe(l, planilhaEtapa, planilhaFora);
     const pode = podeDe(g, l, pos);
+    // Quem não vê a linha da planilha (a Giovanna, por exemplo) não recebe de onde veio o arquivo: o portão conta o slot, mas a origem 'planilha' não sai.
+    let origemSlots = [...l.origem];
+    if (origemSlots.some(([, o]) => o === 'planilha')) {
+      const pl = await linhaDaPlanilha(l.lig.venda);
+      const vePlanilha = !!pl.achou && !!dadosDaPlanilha(pl.achou.bruta, pl.achou.m, g.nome);
+      if (!vePlanilha) origemSlots = origemSlots.filter(([, o]) => o !== 'planilha');
+    }
     const vend = vendedorDe(g.card, l.estado);
     const todas = pode.ligar_proposta && !l.lig.proposta ? await lerTodasLigacoes() : new Map<number, Ligacao>();
     const candidatas = pode.ligar_proposta && !l.lig.proposta ? await candidatasDaObra(g, l, todas).catch((e) => { logErro('candidatas', e); return []; }) : [];
@@ -601,7 +608,7 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       rateio_conferido: l.estado?.etapas[3].rateio ?? null,
       slots: Object.fromEntries(['fachada', 'padrao', 'disjuntor', 'medidor', 'conta_luz', 'documento_titular', 'documento_titular_uc', 'contrato_assinado', 'procuracao',
         'art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso'].map((s) => [s === 'documento_titular' ? 'documento' : s, l.slots.has(s)])),
-      origem_slots: Object.fromEntries(l.origem),
+      origem_slots: Object.fromEntries(origemSlots),
       cancelamento: l.privado?.cancelamento ?? null,
       aviso: pos.trilho === 'sem_trilho' ? 'Não deu para saber a etapa desta venda pelo que existe hoje.' : null,
     });

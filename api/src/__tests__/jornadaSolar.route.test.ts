@@ -385,6 +385,7 @@ describe('venda e proposta', () => {
       updated_at: 'd',
       value: { arquivos: ['fachada', 'contrato_assinado'].map((s, i) => ({ id: `p${i}`, slot: s, caminho: `solar/0057/${U(i + 1)}.pdf`, mime: 'application/pdf', bytes: 10, em: AGORA, por: 'x' })), alteracoes: [], apagados: [] },
     });
+    h.obrasPlanilha = [obraPlanilha({ codigo: '#0057', consultor: 'Nilce' })];
     const res = await obra(304);
     expect(res.status).toBe(200);
     const item = (n: number, chave: string) => res.body.etapas[n - 1].itens.find((i: any) => i.chave === chave);
@@ -397,6 +398,25 @@ describe('venda e proposta', () => {
     const comCard = await obra(304);
     expect(comCard.body.origem_slots).toEqual({});
     expect(comCard.body.slots.fachada).toBe(true);
+  });
+  it('preencher: quem não vê a linha da planilha (a Giovanna) tem o portão contado, mas não recebe a origem "planilha"; o Thiago recebe', async () => {
+    semear(304);
+    const { assinarLigacao } = await import('../services/gerador/vendaSolarHub');
+    const lig = { proposta: null, venda: '#0057', por: 'nilce', em: AGORA };
+    h.linhas.set('venda_solar:304', { updated_at: 'v', value: { ...lig, sig: assinarLigacao(304, lig) } });
+    h.linhas.set('docs_cliente:solar:0057', {
+      updated_at: 'd',
+      value: { arquivos: [{ id: 'p0', slot: 'fachada', caminho: `solar/0057/${U(1)}.pdf`, mime: 'application/pdf', bytes: 10, em: AGORA, por: 'x' }], alteracoes: [], apagados: [] },
+    });
+    h.obrasPlanilha = [obraPlanilha({ codigo: '#0057', consultor: 'Nilce' })];
+    const g = await obra(304, GIOVANNA);
+    expect(g.status).toBe(200);
+    expect(g.body.slots.fachada).toBe(true);
+    expect(g.body.etapas[0].itens.find((i: any) => i.chave === 'fachada').feito).toBe(true);
+    expect(g.body.origem_slots).toEqual({});
+    expect(JSON.stringify(g.body)).not.toContain('"planilha"');
+    const t = await obra(304, THIAGO);
+    expect(t.body.origem_slots).toEqual({ fachada: 'planilha' });
   });
   it('preencher: o link do Trello do dossiê da proposta aparece quando a obra não tem URL, com a origem e o mesmo tem_cartao', async () => {
     semear(304);
