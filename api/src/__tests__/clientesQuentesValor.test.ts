@@ -5,6 +5,7 @@ let ligacoes: Map<number, { proposta: string | null; venda: string | null; por: 
 let propostas: any[] = [];
 let ligacoesFalham = false;
 let propostasFalham = false;
+let obras: Map<number, any> = new Map();
 
 vi.mock('../services/gerador/vendaSolarHub', () => ({
   lerTodasLigacoes: async () => { if (ligacoesFalham) throw new Error('banco fora'); return ligacoes; },
@@ -20,12 +21,15 @@ vi.mock('../utils/supabaseGerador', () => ({
     }),
   },
 }));
+vi.mock('../services/gerador/jornadaSolarBanco', () => ({
+  lerPrivadoJornada: async (id: number) => { const o = obras.get(id); if (o instanceof Error) throw o; return o ?? null; },
+}));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 
 const lig = (venda: string | null, proposta: string | null = null) => ({ venda, proposta, por: 'gerador', em: '2026-11-01T10:00:00Z' });
 const prop = (codigo: string, valor: number | null, over: Record<string, unknown> = {}) => ({ codigo, vendido: true, valor_vendido: valor, tipo: null, ...over });
 
-beforeEach(() => { ligacoes = new Map(); propostas = []; ligacoesFalham = false; propostasFalham = false; });
+beforeEach(() => { ligacoes = new Map(); propostas = []; ligacoesFalham = false; propostasFalham = false; obras = new Map(); });
 
 async function ler(ids: number[]) {
   const m = await import('../services/meta/clientesQuentesValor');
@@ -53,6 +57,24 @@ describe('lerFontesDeValor', () => {
     expect(f.codigosDoCard.size + f.valorDaProposta.size).toBe(0);
     ligacoesFalham = false; propostasFalham = true;
     f = await ler([3]);
+    expect(f.codigosDoCard.size + f.valorDaProposta.size).toBe(0);
+  });
+  it('o valor da obra: centavos viram reais; venda nula ou zerada fica de fora', async () => {
+    obras = new Map([[1, { venda: { valor_centavos: 3890000 } }], [2, { venda: null }], [3, null], [4, { venda: { valor_centavos: 0 } }]]);
+    const f = await ler([1, 2, 3, 4]);
+    expect([...f.valorDaJornada.entries()]).toEqual([[1, 38900]]);
+  });
+  it('card cuja leitura da obra lança: os outros seguem', async () => {
+    obras = new Map<number, any>([[1, new Error('bucket fora')], [2, { venda: { valor_centavos: 1500000 } }], [3, { venda: { valor_centavos: 2000000 } }]]);
+    const f = await ler([1, 2, 3]);
+    expect([...f.valorDaJornada.entries()]).toEqual([[2, 15000], [3, 20000]]);
+  });
+  it('ligações caindo: volta o valor da obra cheio e as outras fontes vazias', async () => {
+    obras = new Map([[7, { venda: { valor_centavos: 4200000 } }]]);
+    ligacoes = new Map([[7, lig('#0065', 'P-1')]]); propostas = [prop('P-1', 18200)];
+    ligacoesFalham = true;
+    const f = await ler([7]);
+    expect([...f.valorDaJornada.entries()]).toEqual([[7, 42000]]);
     expect(f.codigosDoCard.size + f.valorDaProposta.size).toBe(0);
   });
 });

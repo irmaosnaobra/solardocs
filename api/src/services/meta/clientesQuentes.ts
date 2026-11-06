@@ -156,7 +156,7 @@ async function aplicarValorDaVenda(lote: Candidato[], cards: AgCard[], planilha:
   try {
     // A leitura roda ANTES da conferência do ORCAMENTO_MS e não tem timeout próprio: sem este limite ela seguraria o master.
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const vazio: Awaited<ReturnType<typeof lerFontesDeValor>> = { codigosDoCard: new Map(), valorDaProposta: new Map() };
+    const vazio: Awaited<ReturnType<typeof lerFontesDeValor>> = { codigosDoCard: new Map(), valorDaProposta: new Map(), valorDaJornada: new Map() };
     const fontes = await Promise.race([
       lerFontesDeValor(compras.map(c => c.ag.id)),
       new Promise<typeof vazio>(resolve => {
@@ -169,7 +169,7 @@ async function aplicarValorDaVenda(lote: Candidato[], cards: AgCard[], planilha:
     for (const c of compras) {
       const r = valorDaVenda(c.ag, {
         ticket: planilha.ticket, ehEletro: ehOrigemEletroposto, planilha,
-        codigosDoCard: fontes.codigosDoCard, valorDaProposta: fontes.valorDaProposta, cards,
+        codigosDoCard: fontes.codigosDoCard, valorDaProposta: fontes.valorDaProposta, valorDaJornada: fontes.valorDaJornada, cards,
       });
       c.valor = r.valor;
       if (r.origem !== 'ticket') c.origemValor = r.origem;
