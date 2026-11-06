@@ -8088,6 +8088,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <label>Valor de fechamento (R$) *</label>
       <input type="number" id="venda-valor" step="0.01" min="0" inputmode="decimal">
     </div>
+    <p id="venda-veio" class="dossie-aviso" style="display:none"></p>
     <div class="field">
       <label>Data do fechamento *</label>
       <input type="date" id="venda-data">
@@ -34777,6 +34778,16 @@ function vdcCarregar(st) {
   vdcPintar(st);
   // As ligações do solar chegam por conta própria: o cadastro e os documentos não esperam por elas.
   if (st.cfg.ligacoes) vdcCarregarVinc(st);
+  // Preencher (06/11/2026): na venda solar, a ficha consolidada chega por conta própria (o cadastro e os documentos não esperam por ela).
+  // Chegar depois é seguro: o preenchimento só acontece no clique de "Editar dados". Sem ela, o quadro é o de sempre.
+  st.ficha = null;
+  if (st.cfg.linha === 'vendasolar') {
+    vdcFetch('/gerador/jornada-solar/obra/' + encodeURIComponent(st.id) + '/ficha', 'GET', undefined, 8000).then((f) => {
+      if (vdcEst !== st) return;
+      st.ficha = (f && f.status === 200 && f.json && f.json.ok !== false && f.json.ficha && f.json.ficha.v === 1) ? f.json.ficha : null;
+      if (st.ficha && !st.carregando) { vdcPintarPessoas(st); vdcPintarTrello(st); }   // sem forçar: quem está digitando não perde o foco
+    });
+  }
   Promise.all([vdcChamar(st, 'GET', '/cadastro'), vdcChamar(st, 'GET', '/docs')]).then(([c, d]) => {
     if (vdcEst !== st) return;      // abriu outro card no meio: a resposta não é dele
     st.carregando = false;
@@ -35544,6 +35555,11 @@ function vdcPintarTrello(st) {
   else if (T.fase === 'escolha' && T.cands) N.appendChild(vdcTrPainelEscolha(st));
   else if (T.fase === 'resultado' && T.res) N.appendChild(vdcTrPainelResultado(st));
   else {
+    const tf = st.ficha && st.ficha.trello;
+    if (tf && tf.url && vdcUrlHttps(tf.url)) {
+      N.appendChild(vdcTrLink(tf.url, tf.fonte === 'dossie' ? 'Abrir o cartão antigo no Trello' : 'Abrir card no Trello'));
+      N.appendChild(vdcTrEl('p', 'vdc-nota', 'Veio de: ' + tf.rotulo));
+    }
     const b = vdcTrBotao('vdc-btn', T.ocupado === 'previa' ? 'Preparando…' : 'Criar card no Trello', 'trello-criar', () => vdcTrPrevia(st), !!T.ocupado || st.carregando);
     b.dataset.vdcFoco = 'abrir';
     N.appendChild(b);
@@ -36265,12 +36281,18 @@ const VDC_DICAS = {
 };
 const VDC_MSG_AVISO_DOCS = 'Os documentos mudaram de pessoa. Os dados lidos antes continuam no cadastro: leia os documentos de novo ou edite os dados de quem mudou.';
 /** As pessoas (grupos do cadastro) que já têm algum dado. O rateio tem editor próprio; papel "mesma pessoa do contratante" não tem dado. */
+/** Preencher: a sugestão da ficha para um campo VAZIO do cadastro da venda solar, ou null. */
+function vdcSugDe(st, k) {
+  if (!st || !st.cfg || st.cfg.linha !== 'vendasolar' || !st.ficha || !st.ficha.sugestoes || !st.ficha.sugestoes.cadastro) return null;
+  const s = st.ficha.sugestoes.cadastro[k];
+  return s && s.valor != null && String(s.valor).trim() && !vdcV(st.cad, k) ? s : null;
+}
 function vdcPessoasLista(st) {
   if (!st.cad) return [];
   return st.cfg.grupos.filter((g) => {
     if (g.id === 'benef') return false;
     if (st.cfg.papeis && g.decisao && vdcDecisao(st.cad, g.decisao) === 'contratante') return false;
-    return g.campos.some(([k]) => vdcV(st.cad, k));
+    return g.campos.some(([k]) => vdcV(st.cad, k) || !!vdcSugDe(st, k));
   });
 }
 function vdcPintarPessoas(st) {
@@ -36322,13 +36344,14 @@ function vdcLinhaPessoa(st, g) {
   const feitos = g.campos.filter(([k]) => vdcV(st.cad, k)).length;
   const kNome = g.campos.map(([k]) => k).find(k => /(^|_)nome$/.test(k) && vdcV(st.cad, k));
   const m = document.createElement('span'); m.className = 'vdc-pes-m';
-  m.textContent = (kNome ? vdcV(st.cad, kNome) + ' · ' : '') + feitos + (feitos === 1 ? ' campo preenchido' : ' campos preenchidos');
+  m.textContent = (kNome ? vdcV(st.cad, kNome) + ' · ' : '') + feitos + (feitos === 1 ? ' campo preenchido' : ' campos preenchidos') + (g.campos.some(([k]) => vdcSugDe(st, k)) ? ' · com dados para conferir' : '');
   t.appendChild(m);
   const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn'; b.textContent = 'Editar dados'; b.setAttribute('data-vdc-acao', 'pessoa-editar');
   b.dataset.vdcPfoco = 'ed:' + g.id; b.setAttribute('aria-label', 'Editar dados: ' + g.t); b.disabled = !!(st.lendo || st.gravando);
   b.addEventListener('click', () => {
-    const vals = {}; g.campos.forEach(([k]) => { vals[k] = vdcV(st.cad, k); });
-    st.pesEdit = { g: g.id, vals, erros: {}, msg: '', gravando: false };
+    const vals = {}, auto = {};
+    g.campos.forEach(([k]) => { vals[k] = vdcV(st.cad, k); const s = vals[k] ? null : vdcSugDe(st, k); if (s) { vals[k] = String(s.valor); auto[k] = String(s.rotulo || ''); } });
+    st.pesEdit = { g: g.id, vals, auto, erros: {}, msg: '', gravando: false };
     st.pesFocoApos = 'in:' + g.id; st.pesForcar = true; vdcPintarPessoas(st);
   });
   c.append(t, b); box.appendChild(c);
@@ -36347,12 +36370,16 @@ function vdcFormPessoa(st, g, e) {
     const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'vdc-in'; inp.autocomplete = 'off'; inp.value = e.vals[k] == null ? '' : e.vals[k];
     inp.setAttribute('data-vdc-pes-campo', k); inp.disabled = ocupado;
     if (primeiro) { inp.dataset.vdcPfoco = 'in:' + g.id; primeiro = false; }
-    inp.addEventListener('input', () => { e.vals[k] = inp.value; });
+    inp.addEventListener('input', () => {
+      e.vals[k] = inp.value;
+      if (e.auto && e.auto[k]) { delete e.auto[k]; const x = lb.querySelector('[data-vdc-veio]'); if (x) x.remove(); }
+    });
     inp.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter') { ev.preventDefault(); vdcPesSalvar(st, false); }
       else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); vdcPesCancelar(st, g); }   // só fecha o editor: o card não fecha
     });
     lb.append(sp, inp);
+    if (e.auto && e.auto[k]) { const vd = document.createElement('span'); vd.className = 'vdc-nota'; vd.setAttribute('data-vdc-veio', k); vd.textContent = 'Veio de: ' + e.auto[k]; lb.appendChild(vd); }
     if (VDC_DICAS[k]) { const d = document.createElement('span'); d.className = 'vdc-nota'; d.textContent = VDC_DICAS[k]; lb.appendChild(d); }
     if (e.erros[k]) { const er = document.createElement('span'); er.className = 'vdc-erro'; er.textContent = e.erros[k]; lb.appendChild(er); }
     grade.appendChild(lb);
@@ -42210,6 +42237,23 @@ function abrirModalVenda(codigo, cardId) {
   // valor sobe o teclado bem por cima do dossie.
   if (!r.vendido) setTimeout(() => document.getElementById('venda-valor').focus(), 50);
   vendaAvisarDobra(r);
+  vendaPreencherDaObra(codigo, r);
+}
+/** Preencher (06/11/2026): proposta SOLAR sem valor de venda e ligada a uma obra: valor e forma vêm da obra. Nunca troca o que a pessoa digitou. Nunca a nota. */
+async function vendaPreencherDaObra(codigo, r) {
+  const veio = document.getElementById('venda-veio');
+  if (veio) { veio.style.display = 'none'; veio.textContent = ''; }
+  const ehEp = r.tipo === 'eletroposto' || (r.dados && r.dados.produto === 'eletroposto');
+  if (ehEp || r.valor_vendido != null || typeof vdcFetch !== 'function') return;
+  const inV = document.getElementById('venda-valor'), inP = document.getElementById('venda-pagamento');
+  if (!inV || !inP) return;
+  const v0 = inV.value, p0 = inP.value;
+  const res = await vdcFetch('/gerador/jornada-solar/proposta/' + encodeURIComponent(codigo) + '/venda', 'GET');
+  if (_vendaCodigo !== codigo || !res || res.status !== 200 || !res.json || res.json.ok === false || !res.json.venda) return;
+  const v = res.json.venda; let mexeu = false;
+  if (inV.value === v0 && Number(v.valor_centavos) > 0) { inV.value = (Number(v.valor_centavos) / 100).toFixed(2); mexeu = true; }
+  if (inP.value === p0 && !p0 && v.forma && Array.from(inP.options).some((o) => o.value === v.forma)) { inP.value = v.forma; mexeu = true; }
+  if (mexeu && veio) { veio.textContent = 'Veio de: ' + (v.rotulo || 'obra') + ', em Clientes.'; veio.style.display = ''; }
 }
 
 function fecharModalVenda() {

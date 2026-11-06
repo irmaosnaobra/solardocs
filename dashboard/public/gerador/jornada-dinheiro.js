@@ -437,11 +437,11 @@
 
     function campo(rot, ctrl, chave) {
       var l = h.el('label', '', rot);
-      var tag = h.el('span', 'jor-auto', 'Automático'); tag.hidden = true; tag.setAttribute('data-auto', chave || '');
+      var tag = h.el('span', 'jor-auto', 'Automático'); tag.hidden = true; tag.style.display = 'none'; tag.setAttribute('data-auto', chave || '');
       l.appendChild(tag); l.appendChild(ctrl); refs[chave] = tag;
       return l;
     }
-    function marcarAuto(chave, ativa) { if (refs[chave]) refs[chave].hidden = !ativa; }
+    function marcarAuto(chave, ativa, texto) { var t = refs[chave]; if (!t) return; t.hidden = !ativa; t.style.display = ativa ? '' : 'none'; t.textContent = texto || 'Automático'; }
     function valorCent() { var v = h.cents(refs.valor_in.value); return (typeof v === 'number' && isFinite(v) && v > 0) ? v : 0; }
 
     /** Só o recebimento exige o arquivo. Gasto, comissão e retirada salvam sem ele e ficam pendentes ("Sem comprovante"). */
@@ -536,6 +536,8 @@
         est.salvando = false;
         if (r.status === 200 && r.json.ok !== false) {
           if (r.json.livro) din.livro = r.json.livro;
+          // Preencher: o recebimento sugerido acabou de entrar. Até a obra ser relida, o próximo diálogo abre sem sugestão.
+          var fx = h.ficha && h.ficha(); if (fx && fx.sugestoes) fx.sugestoes.recebimento = {};
           est.salvou = true; est.id = novoId(); est.escolha = null;
           concluido(r.json.lancamento || null);
           return;
@@ -601,6 +603,13 @@
         p[1].addEventListener('input', function () { est.tocado[p[0]] = true; marcarAuto(p[0], false); refresh(); });
         p[1].addEventListener('change', function () { est.tocado[p[0]] = true; marcarAuto(p[0], false); refresh(); });
       });
+      // Preencher: o próximo pagamento do combinado da venda (menos o que já entrou) abre no recebimento. A leitura do comprovante continua mandando.
+      if (tipo === 'entrada' && !com && !o.valor_sugerido) {
+        var sr = (h.sugs && h.sugs('recebimento')) || {};
+        if (sr.valor_centavos && !refs.valor_in.value) { refs.valor_in.value = txtCents(sr.valor_centavos.valor); marcarAuto('valor', true, 'Veio de: ' + sr.valor_centavos.rotulo); }
+        if (sr.forma && FORMAS.some(function (f) { return f[0] === sr.forma.valor; })) { refs.forma_in.value = String(sr.forma.valor); marcarAuto('forma', true, 'Veio de: ' + sr.forma.rotulo); }
+        if (sr.categoria && !o.categoria && cats.some(function (ct) { return ct[1] === sr.categoria.valor; })) { refs.cat_in.value = String(sr.categoria.valor); marcarAuto('categoria', true, 'Veio de: ' + sr.categoria.rotulo); }
+      }
       // 3. Mensagens
       refs.frase = h.el('p', 'jor-aviso'); refs.erro = h.el('p', 'jor-erro'); refs.erro.setAttribute('role', 'alert'); refs.aviso = h.el('p', 'jor-aviso'); refs.extra = h.el('div', 'jor-din-acoes');
       refs.aviso.setAttribute('role', 'status');

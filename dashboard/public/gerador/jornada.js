@@ -9,7 +9,7 @@
   'use strict';
 
   var L = { dados: null, aba: 'ativas', filtro: 'todas', busca: '', consultor: '', carregando: false, erro: '', menu: null };
-  var O = { card: null, dados: null, fase2: null, fase3: null, dinheiro: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0 };
+  var O = { card: null, dados: null, fase2: null, fase3: null, dinheiro: null, ficha: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0 };
 
   // ── Rede ───────────────────────────────────────────────────────────────────
   function api(rota, metodo, corpo, ms) {
@@ -488,7 +488,7 @@
   // ── A obra ──────────────────────────────────────────────────────────────────
   function sairDaObra() {
     if (O.vdcNo && typeof vdcFechar === 'function') { try { vdcFechar(O.vdcNo); } catch (e) { /* já fechado */ } }
-    O.vdcChave = ''; O.vdcNo = null; O.vdcDet = null; O.vdcPainel = 0; O.obraNo = null; O.fase2 = null; O.dinheiro = null;
+    O.vdcChave = ''; O.vdcNo = null; O.vdcDet = null; O.vdcPainel = 0; O.obraNo = null; O.fase2 = null; O.dinheiro = null; O.ficha = null;
     if (O.debounce) { clearTimeout(O.debounce); O.debounce = 0; }
   }
 
@@ -510,8 +510,10 @@
   function carregarObra() {
     var seq = ++O.seq; var card = O.card;
     var base = '/gerador/jornada-solar/obra/' + encodeURIComponent(card);
-    return Promise.all([api(base, 'GET'), api(base + '/fase2', 'GET'), api(base + '/dinheiro', 'GET'), api(base + '/fase3', 'GET')]).then(function (rs3) {
+    return Promise.all([api(base, 'GET'), api(base + '/fase2', 'GET'), api(base + '/dinheiro', 'GET'), api(base + '/fase3', 'GET'), api(base + '/ficha', 'GET', undefined, 6000)]).then(function (rs3) {
       var r = rs3[0], rf = rs3[1], rd = rs3[2], r3 = rs3[3];
+      // Preencher (06/11/2026): a ficha consolidada. Sem ela (rota fora, 404, 503) os formulários abrem como sempre.
+      var rfi = rs3[4]; O.ficha = (rfi && rfi.status === 200 && rfi.json && rfi.json.ok !== false && rfi.json.ficha && rfi.json.ficha.v === 1) ? rfi.json.ficha : null;
       if (seq !== O.seq || card !== O.card || !O.obraNo) return;
       // Falha só do fase2 ou do dinheiro não derruba a obra: o bloco diz que não leu e oferece Tentar de novo.
       var f2ok = rf.status === 200 && rf.json && rf.json.ok !== false && Array.isArray(rf.json.etapas);
@@ -638,10 +640,24 @@
       return g.day + '/' + g.month + ' às ' + g.hour + ':' + g.minute;
     } catch (e) { return ''; }
   }
-  /** O arquivo que o quadro de documentos já leu para este item (nome, data e miniatura). Sem o quadro carregado, devolve null. */
+  /**
+   * O arquivo deste item. Quem diz de onde ele veio é o servidor (origem_slots da obra): dossiê da proposta ou Planilha (#NNNN) são só
+   * leitura, com o link quando ele já chegou (o do dossiê vem do quadro; o da Planilha, da ficha). O resto é do card.
+   */
   function arquivoDoSlot(chave) {
+    var org = (O.dados && O.dados.origem_slots && O.dados.origem_slots[chave]) || '';
     var st = (typeof vdcEst !== 'undefined') ? vdcEst : null;
-    if (!st || String(st.id) !== String(O.card) || !st.docs || !Array.isArray(st.docs.arquivos)) return null;
+    var temSt = !!(st && String(st.id) === String(O.card) && st.docs);
+    if (org === 'dossie') {
+      var dd = (temSt && st.docs.dossie && Array.isArray(st.docs.dossie.arquivos)) ? st.docs.dossie.arquivos.filter(function (a) { return a && a.slot === chave; }) : [];
+      return { url: dd.length ? (dd[dd.length - 1].url || '') : '', em: '', fora: 'dossiê da proposta' };
+    }
+    if (org === 'planilha') {
+      var fo = (O.ficha && Array.isArray(O.ficha.documentos_fora)) ? O.ficha.documentos_fora.filter(function (a) { return a && a.slot === chave; }) : [];
+      var y = fo.length ? fo[fo.length - 1] : null;
+      return { url: (y && y.url) || '', em: (y && y.em) || '', fora: 'planilha' };
+    }
+    if (!temSt || !Array.isArray(st.docs.arquivos)) return null;
     var l = st.docs.arquivos.filter(function (a) { return a && a.slot === chave; });
     return l.length ? l[l.length - 1] : null;
   }
@@ -670,6 +686,17 @@
       return lab;
     }
     if (tem) {
+      var fora = arquivoDoSlot(chave);
+      if (fora && fora.fora) {
+        // Já existe em outro depósito: mostra, só leitura. Ninguém sobe de novo.
+        var ok2 = el('div', 'jor-anexo-ok'); var mini2 = el('span', 'jor-anexo-mini');
+        if (fora.url && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(fora.url))) { var im2 = el('img'); im2.src = fora.url; im2.alt = ''; im2.loading = 'lazy'; mini2.appendChild(im2); } else mini2.appendChild(icone('ok'));
+        ok2.appendChild(mini2);
+        var leg2 = el('span', 'jor-anexo-leg'); leg2.appendChild(el('b', '', 'Anexado')); var dt2 = fora.em ? dataBr(fora.em) : ''; if (dt2) leg2.appendChild(el('small', '', dt2));
+        leg2.appendChild(veio({ rotulo: fora.fora })); ok2.appendChild(leg2);
+        if (fora.url && /^https:\/\//.test(fora.url)) { var ab2 = el('a', 'jor-anexo-trocar', 'Abrir'); ab2.href = fora.url; ab2.target = '_blank'; ab2.rel = 'noopener noreferrer'; ok2.appendChild(ab2); }
+        linha.appendChild(ok2); return linha;
+      }
       var ok = el('div', 'jor-anexo-ok');
       var mini = el('span', 'jor-anexo-mini'); var arq = arquivoDoSlot(chave);
       if (arq && arq.url && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(arq.nome || arq.url))) { var im = el('img'); im.src = arq.url; im.alt = ''; im.loading = 'lazy'; mini.appendChild(im); } else mini.appendChild(icone('ok'));
@@ -929,6 +956,14 @@
   function subTitulo(txt, etiq) { var t = el('div', 'jor-sub-t'); t.appendChild(el('span', '', txt)); if (etiq) t.appendChild(etiq); return t; }
 
   /** O formulário do bloco "Você confirma". O formato do PUT /venda é o mesmo de sempre: valor, kit, prazo, nota, desconto e de 1 a 6 formas de pagamento. */
+  /** Preencher: as sugestões da ficha para um formulário (sempre um objeto). */
+  function sugs(form) { var f = O.ficha && O.ficha.sugestoes; return (f && f[form]) || {}; }
+  /** A marca discreta "Veio de: <fonte>". Sai no primeiro toque da pessoa no campo. */
+  function veio(s, inp) {
+    var m = el('span', 'jor-auto', 'Veio de: ' + String((s && s.rotulo) || ''));
+    if (inp) inp.addEventListener('input', function () { if (m.parentNode) m.parentNode.removeChild(m); }, { once: true });
+    return m;
+  }
   function formVenda(pai, d, onSalvo, et) {
     var v = d.venda || { valor_centavos: 0, pagamento: [], desconto_centavos: null, prazo_prometido: '', nota: '', kit_confirmado: false };
     var f = el('div'); var info = el('p', 'jor-erro'); info.setAttribute('role', 'status');
@@ -942,13 +977,22 @@
     var nota = el('textarea', 'jor-ta'); nota.maxLength = 500; nota.setAttribute('aria-label', 'Nota da negociação'); nota.value = v.nota || '';
     var etPrazo = etq('Falta', 'av'); var trava = el('span', 'jor-nota', 'Trava a etapa.'); trava.style.margin = '0';
     var etValor = etq('Falta', 'av');
+    // Preencher: sem venda gravada, o que já existe (proposta, ou planilha para quem a vê) abre no campo vazio, com a marca.
+    var sv = d.venda ? {} : sugs('venda');
+    function pre(inp, s, txt) { if (!s || inp.value) return null; inp.value = txt; return veio(s, inp); }
+    var mValor = pre(valor, sv.valor_centavos, sv.valor_centavos ? (Number(sv.valor_centavos.valor) / 100).toFixed(2).replace('.', ',') : '');
+    var mPrazo = pre(prazo, sv.prazo_prometido, sv.prazo_prometido ? String(sv.prazo_prometido.valor).slice(0, 200) : '');
+    var mNota = pre(nota, sv.nota, sv.nota ? String(sv.nota.valor).slice(0, 500) : '');
+    var rotValor = el('span'); rotValor.appendChild(etValor); if (mValor) rotValor.appendChild(mValor);
     function marcaFaltas() {
-      var pv = !prazo.value.trim(); prazo.classList.toggle('falta', pv); etPrazo.hidden = !pv; trava.hidden = !pv;
-      var vv = !(cents(valor.value) > 0); valor.classList.toggle('falta', vv); etValor.hidden = !vv;
+      // A etiqueta tem display próprio (inline-flex) que vence o atributo hidden: some pelo style.display também.
+      function mostra(x, on) { x.hidden = !on; x.style.display = on ? '' : 'none'; }
+      var pv = !prazo.value.trim(); prazo.classList.toggle('falta', pv); mostra(etPrazo, pv); mostra(trava, pv);
+      var vv = !(cents(valor.value) > 0); valor.classList.toggle('falta', vv); mostra(etValor, vv);
     }
     var grade = el('div', 'jor-campos');
-    add(grade, campoRot('Kit vendido', lk, etKit), campoRot('Valor vendido', valor, etValor), campoRot('Desconto dado', desc),
-      campoRot('Prazo prometido ao cliente', prazo, (function () { var s = el('span'); s.appendChild(etPrazo); s.appendChild(document.createTextNode(' ')); s.appendChild(trava); return s; })(), true));
+    add(grade, campoRot('Kit vendido', lk, etKit), campoRot('Valor vendido', valor, rotValor), campoRot('Desconto dado', desc),
+      campoRot('Prazo prometido ao cliente', prazo, (function () { var s = el('span'); s.appendChild(etPrazo); s.appendChild(document.createTextNode(' ')); s.appendChild(trava); if (mPrazo) s.appendChild(mPrazo); return s; })(), true));
     var pgBox = el('div'); var linhas = [];
     function addLinha(p) {
       var row = el('div', 'jor-pg');
@@ -961,7 +1005,9 @@
       var ref = { fs: fs, vl: vl, ob: ob }; linhas.push(ref);
       [fs, vl, ob].forEach(function (x) { x.addEventListener('input', recalc); });
     }
-    (v.pagamento.length ? v.pagamento : [null]).forEach(addLinha);
+    var FORMAS_OK = ['pix', 'ted', 'boleto', 'cartao', 'financiamento', 'dinheiro'];
+    var pgSug = !v.pagamento.length && sv.forma && sv.valor_centavos && FORMAS_OK.indexOf(String(sv.forma.valor)) >= 0 ? [{ forma: String(sv.forma.valor), valor_centavos: Number(sv.valor_centavos.valor), obs: '' }] : null;
+    (v.pagamento.length ? v.pagamento : (pgSug || [null])).forEach(addLinha);
     var mais = btn('Mais uma forma', '', function () { if (linhas.length < 6) { addLinha(null); recalc(); } });
     var salvar = btn('Salvar', 'jor-btn-pri', function () {
       salvar.disabled = true; info.textContent = '';
@@ -984,7 +1030,10 @@
     valor.addEventListener('input', recalc); prazo.addEventListener('input', marcaFaltas);
     recalc();
     void et;
-    add(f, grade, subTitulo('Forma de pagamento'), pgBox, mais, subTitulo('Nota da negociação'), nota, info, el('div', 'jor-sub-t'), salvar);
+    // Duas fontes que discordam: a de baixo aparece como nota (só quem vê as duas recebe a "alt").
+    var cv = O.ficha && O.ficha.campos && O.ficha.campos['venda.valor_centavos'];
+    var difere = (cv && cv.alt && typeof cv.alt.valor === 'number') ? el('p', 'jor-nota', 'A ' + cv.alt.rotulo + ' diz ' + reais(cv.alt.valor) + '.') : null;
+    add(f, grade, difere, subTitulo('Forma de pagamento', pgSug ? veio(sv.forma) : null), pgBox, mais, subTitulo('Nota da negociação', mNota), nota, info, el('div', 'jor-sub-t'), salvar);
     pai.appendChild(f);
   }
 
@@ -1069,7 +1118,10 @@
     // 3. Documentos
     var b3 = el('div', 'jor-bloco'); b3.appendChild(blocoTitulo('Documentos', itensDoBloco(et, 'documentos')));
     var gd = el('div', 'jor-fotos');
-    [['conta_luz', 'Conta de luz', 'Conta de luz', !!d.slots.conta_luz], ['documento_titular', 'CNH ou documento com foto', 'CNH ou documento com foto', !!d.slots.documento]].forEach(function (x) {
+    // A caixa olha os dois documentos que o portão aceita (o do contratante e o do titular da homologação).
+    var temDoc = !!(d.slots.documento || d.slots.documento_titular_uc);
+    var chDoc = d.slots.documento ? 'documento_titular' : (d.slots.documento_titular_uc ? 'documento_titular_uc' : 'documento_titular');
+    [['conta_luz', 'Conta de luz', 'Conta de luz', !!d.slots.conta_luz], [chDoc, 'CNH ou documento com foto', 'CNH ou documento com foto', temDoc]].forEach(function (x) {
       var cf = el('div', 'jor-foto');
       var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', x[1])); tp.appendChild(etq(x[3] ? 'Anexada' : 'Falta', x[3] ? 'ok' : 'av')); cf.appendChild(tp);
       cf.appendChild(anexo(x[0], x[2], x[3], { compacto: true })); gd.appendChild(cf);
@@ -1313,12 +1365,18 @@
       esq.appendChild(ra);
     }
     var tr = el('div', 'jor-bloco'); tr.appendChild(el('div', 'jor-bloco-t', 'Cartão no Trello'));
-    if (d.trello.url) {
+    if (d.trello.url && d.trello.fonte !== 'dossie') {
       tr.appendChild(el('p', 'jor-ok', 'Criado em ' + ddmm(String(d.trello.criado_em).slice(0, 10)) + ' por ' + nomeBonito(d.trello.por)));
       var a = el('a', 'jor-btn', 'Abrir card no Trello'); a.href = d.trello.url; a.target = '_blank'; a.rel = 'noopener'; tr.appendChild(a);
     } else if (d.trello.tem_cartao) {
       tr.appendChild(el('p', 'jor-nota', 'Cartão criado. Envie de novo para guardar o link.'));
     } else {
+      if (d.trello.url) {
+        // O cartão antigo, do dossiê da proposta: aparece, mas não conclui a etapa (ela pede o cartão padrão).
+        var aa = el('a', 'jor-btn', 'Abrir o cartão antigo no Trello'); aa.href = d.trello.url; aa.target = '_blank'; aa.rel = 'noopener'; tr.appendChild(aa);
+        tr.appendChild(veio({ rotulo: d.trello.rotulo }));
+        tr.appendChild(el('p', 'jor-nota', 'Este é o cartão do dossiê da proposta. Crie o cartão padrão para concluir a etapa.'));
+      }
       var bt = btn('Criar cartão no Trello', 'jor-btn-pri', function () {
         abrirQuadro();
         if (typeof vdcEst !== 'undefined' && vdcEst && typeof window.vdcTrPrevia === 'function') window.vdcTrPrevia(vdcEst);
@@ -1370,6 +1428,7 @@
     api: api, el: el, add: add, btn: btn, icone: icone, ddmm: ddmm, reais: reais, rs: rs, cents: cents, nomeBonito: nomeBonito, plural: plural, esc: esc,
     anexo: anexo, blocoTitulo: blocoTitulo, comReserva: comReserva, etq: etq, quando: quando, cidadeUF: cidadeUF, campoRot: campoRot, subTitulo: subTitulo, dialogo: dialogo, dialogoMotivo: dialogoMotivo, fecharDlg: fecharDlg, toast: toast, releia: releia, imprimir: imprimir,
     empresaDoAparelho: empresaDoAparelho, msgDe: msgDe, corpo: corpo, abrirLista: abrirLista, desenhar: desenharObra, recarregar: function () { return carregarObra(); },
+    ficha: function () { return O.ficha; }, sugs: sugs, veio: veio,
     atual: atualEtapa, O: function () { return O; },
   };
   window.Jornada = { abrirLista: abrirLista, abrirObra: abrirObra, vendido: vendido, h: H, etapas: {}, extras: {}, dinheiro: null };
