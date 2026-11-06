@@ -515,11 +515,14 @@ export default function PropostaSolarPage() {
   const [clienteNome, setClienteNome] = useState('');
   const [cidadeUf, setCidadeUf] = useState('');
   const [fields, setFields] = useState(initialFields);
-  // Modelo da proposta: 1 = "1 Página" (padrão) · 2 = "Moderno" (completo)
+  // Modelo da proposta: 4 = "Completa + Banco" (padrão de toda proposta nova) · 1 = "1 Página"
+  // · 2 = "Moderno" (completo)
   // · 3 = o MESMO Moderno com uma folha de rosto na frente (pedido do Eduardo
   // Boso, 21/08/2026: "falta uma capa na proposta"). O 3 nao muda o 2 — quem
   // ja' manda o Moderno continua mandando exatamente o mesmo PDF.
-  const [modelo, setModelo] = useState<1 | 2 | 3 | 4>(1);
+  // Proposta nova abre sempre no 4. Só o rascunho (que guarda o modelo) e a edição de proposta
+  // antiga (que traz o modelo dela) mudam isso.
+  const [modelo, setModelo] = useState<1 | 2 | 3 | 4>(4);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   // Corrigindo uma proposta JÁ emitida: volta pro form com tudo preenchido e o
@@ -638,6 +641,8 @@ export default function PropostaSolarPage() {
       temRascunho.current = true;
       const d = JSON.parse(raw);
       if (d.clienteNome) setClienteNome(d.clienteNome);
+      // O modelo que a pessoa escolheu no rascunho continua.
+      if (d.modelo === 1 || d.modelo === 2 || d.modelo === 3 || d.modelo === 4) setModelo(d.modelo);
       if (d.cidadeUf) setCidadeUf(d.cidadeUf);
       if (d.fields) {
         // Rascunho antigo não tem os campos da Completa + Banco: valem os padrões de agora.
@@ -668,11 +673,11 @@ export default function PropostaSolarPage() {
     if (!draftLoaded.current) return;
     const t = setTimeout(() => {
       try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({ clienteNome, cidadeUf, fields }));
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ clienteNome, cidadeUf, fields, modelo }));
       } catch { /* quota/privado — ignora */ }
     }, 600);
     return () => clearTimeout(t);
-  }, [clienteNome, cidadeUf, fields]);
+  }, [clienteNome, cidadeUf, fields, modelo]);
 
   function limparRascunho() {
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignora */ }
@@ -1174,6 +1179,7 @@ export default function PropostaSolarPage() {
   function novaProposta() {
     setGenerated(null);
     setEditando(false);
+    setModelo(4); // proposta nova abre sempre na Completa + Banco
     setError('');
     setFaltando(new Set());
     setClienteNome('');
@@ -1726,7 +1732,7 @@ export default function PropostaSolarPage() {
                 icone={FileText}
                 onClick={() => setModelo(1)}
                 titulo="1 Página"
-                desc="A4 compacto — padrão"
+                desc="A4 compacto"
               />
               <Escolha
                 on={modelo === 2}
