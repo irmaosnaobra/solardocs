@@ -43,7 +43,7 @@
 
 import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { jaTratada, marcarTratada, lerTratadas, emAlmoco, ajustarInstante, esperaParaMinutoBom, registrarFalhaCaixa, aposEnvioConfirmado, enviosConfirmados, planoDigitacao, duracaoRolagemMs, passosRolagem, cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio, decidirRampa, diaAnteriorUtil, limitesDoDia, relogioBRT, RAMPA_INICIAL, tetoManualInstagram, parseHistorico, diaDeIso, maxInstagramEfetivo, historicoPrecisaSincronizar } from './ritmo.mjs';
+import { podeVoltar, freioPendente, registrarFreio, registrarVolta, liberarPeloDono, contarEnvioDeProva, provaAtiva, avisoDoEstado, jaVoltouDepoisDoFreio, ARQ_LIBERAR_NOME, PROVA_ENVIOS, jaTratada, marcarTratada, lerTratadas, emAlmoco, ajustarInstante, esperaParaMinutoBom, registrarFalhaCaixa, aposEnvioConfirmado, enviosConfirmados, planoDigitacao, duracaoRolagemMs, passosRolagem, cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio, decidirRampa, diaAnteriorUtil, limitesDoDia, relogioBRT, RAMPA_INICIAL, tetoManualInstagram, parseHistorico, diaDeIso, maxInstagramEfetivo, historicoPrecisaSincronizar } from './ritmo.mjs';
 import { escolherAbertura, escolherVersao, chavesUsadas, totalDoContentRange, usaAberturaNova } from './abertura.mjs';
 
 const ARG = process.argv.slice(2);
@@ -331,8 +331,10 @@ function lerBloqueio() {
 function gravarBloqueio(motivo, perfis) {
   try {
     const agoraIso = new Date().toISOString();
+    // O histórico PRIMEIRO (freios[], parado no 3º freio em 7 dias), mesclado com o que já existe: se a escrita do
+    // arquivo falhar, o robô continua sabendo que há um freio pendente.
+    gravarHistorico(registrarFreio(lerHistorico(), agoraIso));
     writeFileSync(ARQ_BLOQUEIO, JSON.stringify({ desde: agoraIso, motivo, perfis: [...perfis], rebaixado: false }, null, 2));
-    gravarHistorico({ ultimo: agoraIso, dia: diaDeIso(agoraIso), rebaixado: false });
   } catch (e) { log('NÃO consegui gravar ' + ARQ_BLOQUEIO + ': ' + e.message + ' (o bloqueio segue só na memória)'); }
 }
 const ARQ_RAMPA = fileURLToPath(new URL(`./rampa-${CANAL}.json`, import.meta.url));
@@ -381,7 +383,8 @@ async function garantirRebaixe(forcar = false) {
   const bl = lerBloqueio();
   let h = lerHistorico();
   if (historicoPrecisaSincronizar(bl, h)) {            // arquivo de bloqueio criado à mão (ou mais novo que o histórico)
-    gravarHistorico({ ultimo: bl.desde || new Date().toISOString(), dia: diaDeIso(bl.desde || new Date().toISOString()), rebaixado: bl.rebaixado === true });
+    // MESCLA com o histórico existente (freios, voltas, testes, parado): um arquivo de bloqueio criado à mão não zera a contagem.
+    gravarHistorico({ ...(h || {}), ultimo: bl.desde || new Date().toISOString(), dia: diaDeIso(bl.desde || new Date().toISOString()), rebaixado: bl.rebaixado === true, prova: null });
     h = lerHistorico();
   }
   if (!h || h.rebaixado === true) return true;
@@ -1275,7 +1278,8 @@ async function rampaDoDia() {
     const incertosOntem = toquesOntem.length - env.length;
     const d = decidirRampa({
       hoje, marca,
-      ultimoBloqueioDia: (lerHistorico() || {}).dia || null,
+      // O dia do bloqueio E o dia da volta nunca contam como dia cheio (mesmo que ninguém tenha gravado a marca da rampa).
+      ultimoBloqueioDia: [(lerHistorico() || {}).dia, diaDeIso(((lerHistorico() || {}).voltas || []).slice(-1)[0])].filter(Boolean).sort().pop() || null,
       atualizadoDia: r.atualizado_em ? relogioBRT(new Date(r.atualizado_em)).dia : null,
       atualManual: r.teto_manual, enviadosDiaAnterior: env.length,
       bloqueado: bloqueioAtivo() || !rebaixeOk, maxIg: CFG.tetoIgMax,
@@ -1366,6 +1370,40 @@ async function resolverPendente() {
   return true;
 }
 
+/** Falha de caixa do Instagram no contador de perfis distintos. Nos envios de PROVA (3 primeiros depois da volta) 1 falha já liga. */
+const registrarFalhaIG = (perfil, motivo) => registrarFalhaCaixa(caixaNaoAbriuEm, perfil, motivo, { prova: provaAtiva(lerHistorico()) });
+
+// ── VOLTA AUTOMÁTICA (regras do chefe-antiban, 09/11/2026) ───────────────────
+// A flag bloqueadaParaNovas só vira false AQUI, no começo da volta do laço (antes de rampaDoDia e de travas), e só
+// quando o arquivo de bloqueio sumiu, o histórico prova o teto 5 e a volta foi autorizada (ver podeVoltar em ritmo.mjs).
+const ARQ_LIBERAR = fileURLToPath(new URL(`./${ARQ_LIBERAR_NOME}`, import.meta.url));
+/** O dono criou LIBERAR-INSTAGRAM.txt: vale para QUALQUER estado travado. Teto 5 explícito, zera a contagem, conta como volta. */
+async function liberarPeloDonoAgora() {
+  const agoraIso = new Date().toISOString();
+  log(`${ARQ_LIBERAR_NOME} encontrado: o dono liberou o Instagram.`);
+  try { await patchRampa(RAMPA_INICIAL, `LIBERADO PELO DONO em ${agoraIso.slice(0, 10)}: volta em ${RAMPA_INICIAL}/dia, rampa recomeça, 3 envios de prova.`); }
+  catch (e) { log('  não consegui devolver o teto a 5 (' + e.message + '). Mantenho tudo e tento de novo na próxima volta.'); return false; }
+  const h = registrarVolta({ ...liberarPeloDono(lerHistorico(), agoraIso), rebaixado: true, rebaixadoEm: agoraIso }, agoraIso);
+  gravarHistorico(h);
+  rmSync(ARQ_BLOQUEIO, { force: true });
+  rmSync(ARQ_LIBERAR, { force: true });
+  return true;
+}
+async function verificarVolta() {
+  if (CANAL !== 'instagram' || DRY || !bloqueadaParaNovas) return;
+  try {
+    if (existsSync(ARQ_LIBERAR) && !(await liberarPeloDonoAgora())) return;
+    const d = podeVoltar({ bloqueio: lerBloqueio(), historico: lerHistorico() });
+    if (!d.volta) return;
+    caixaNaoAbriuEm.clear();
+    caixaNaoAbriu = 0;                                   // o contador de perfis distintos recomeça vazio
+    gravarMarcaRampa(relogioBRT().dia, RAMPA_INICIAL, true);   // o dia da volta nunca conta como dia cheio
+    bloqueadaParaNovas = false;                          // a ÚNICA linha que baixa a flag
+    log(`VOLTOU SOZINHO: o bloqueio saiu, o teto é ${RAMPA_INICIAL}/dia, a rampa recomeça e os ${PROVA_ENVIOS} primeiros envios são de prova.`);
+    await bater({ fazendo: 'VOLTOU SOZINHO' });
+  } catch (e) { log('verificação da volta falhou (sigo parada): ' + e.message); }
+}
+
 /** Liga o freio (bloqueio de conversa nova) quando o contador de perfis distintos chegou ao limite. */
 async function aplicarFreio(freio) {
   if (!freio || !freio.liga || bloqueadaParaNovas) return;
@@ -1375,11 +1413,12 @@ async function aplicarFreio(freio) {
   log(`${n} perfis distintos seguidos: a caixa não abriu ou o texto ficou na caixa.`);
   log('Insistir nisso transforma bloqueio brando em bloqueio duro. PAREI de abordar.');
   log('Responder quem já respondeu continua normal: aquilo vai pela API da Meta.');
-  await bater({ fazendo: 'PARADA: Instagram bloqueou conversa nova',
-                ultimo_erro: `caixa não abriu ou texto ficou na caixa em ${n} perfis seguidos` });
   bloqueadaParaNovas = true;
   gravarBloqueio(`caixa não abriu ou texto ficou na caixa em ${n} perfis distintos seguidos`, caixaNaoAbriuEm);
   await rebaixarRampa();
+  // O pulso mostra o estado FIXO (avisoDoEstado: "TRAVOU DE NOVO:" depois de uma volta, "PARADO ATÉ VOCÊ LIBERAR:" no 3º freio em 7 dias).
+  await bater({ fazendo: 'PARADA: Instagram bloqueou conversa nova',
+                ultimo_erro: `caixa não abriu ou texto ficou na caixa em ${n} perfis seguidos` });
 }
 
 // ═══ UMA ABORDAGEM ═══════════════════════════════════════════════════════════
@@ -1487,6 +1526,11 @@ async function umaAbordagem() {
         if (aposEnvioConfirmado(caixaNaoAbriuEm, { conversaAntiga: r.conversaAntiga })) caixaNaoAbriu = 0;
         else if (caixaNaoAbriuEm.size) log(`  conversa já existia (ou não deu para medir): o contador de bloqueio fica em ${caixaNaoAbriuEm.size}`);
       } else { caixaNaoAbriu = 0; caixaNaoAbriuEm.clear(); }
+      if (CANAL === 'instagram') {
+        // Envios de PROVA: só os confirmados em conversa NOVA contam; o 3º devolve o limite a 3 perfis.
+        const h0 = lerHistorico(), h1 = contarEnvioDeProva(h0, { conversaAntiga: r.conversaAntiga }, new Date().toISOString());
+        if (h1 !== h0) { gravarHistorico(h1); log(h1.prova.ativa ? `  envio de prova confirmado: ${h1.prova.confirmados}/${PROVA_ENVIOS}` : `  os ${PROVA_ENVIOS} envios de prova passaram: o freio volta a pedir 3 perfis distintos`); }
+      }
       await gravarToque(c.id, null, pid, 'enviei', obsToque);
       log('  ✓ enviado');
       return 'enviou';
@@ -1521,7 +1565,7 @@ async function umaAbordagem() {
     // para sozinha, avisa no pulso, e espera alguém conferir.
     // 09/11/2026: "texto ficou na caixa / não saiu" é o MESMO sintoma (a restrição deixa o texto na caixa)
     // e conta no mesmo contador, antes de o freio ligar (em 06/11 três deles passaram como "incerto").
-    const freio = CANAL === 'instagram' ? registrarFalhaCaixa(caixaNaoAbriuEm, c.instagram, r.motivo) : { conta: false };
+    const freio = CANAL === 'instagram' ? registrarFalhaIG(c.instagram, r.motivo) : { conta: false };
     if (freio.conta) {
       // Conta PERFIS DISTINTOS, que é o que a regra diz. O mesmo @ falhando três
       // vezes não prova bloqueio da conta: prova que aquele perfil não abre.
@@ -1590,7 +1634,8 @@ let alvoAtual = null;
 /** Ms que faltavam para o piso quando umaAbordagem devolveu 'piso'. */
 let pisoFaltaMs = 0;
 // Na partida, o arquivo bloqueio-<canal>.json (se existir) já deixa o canal bloqueado para conversa NOVA.
-let bloqueadaParaNovas = lerBloqueio().bloqueado;
+// Também começa parada se o histórico tem um freio gravado cuja volta não foi autorizada (arquivo apagado à mão não basta).
+let bloqueadaParaNovas = lerBloqueio().bloqueado || (CANAL === 'instagram' && freioPendente(lerHistorico()));
 // Sessão do WhatsApp na última conferência: true, false ou null (não deu pra afirmar).
 let zapLogado = null;
 
@@ -1599,6 +1644,11 @@ let zapLogado = null;
 let chromeMudo = 0;
 
 async function bater(campos) {
+  // Estados FIXOS para o cron do servidor: "VOLTOU SOZINHO:", "TRAVOU DE NOVO:", "PARADO ATÉ VOCÊ LIBERAR:" (ver avisoDoEstado).
+  if (CANAL === 'instagram') {
+    const aviso = avisoDoEstado({ bloqueado: bloqueioAtivo(), historico: lerHistorico(), agoraMs: Date.now() });
+    if (aviso) campos = { ...campos, fazendo: aviso.slice(0, 240) };
+  }
   try {
     await fetch(`${CFG.supa}/prospeccao_pulso?id=eq.${PULSO_ID}`, {
       method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
@@ -1812,6 +1862,8 @@ async function modoContinuo() {
       const agoraMs = Date.now();
       const h = new Date().getHours();
       ciclo++;
+      // A flag do bloqueio só cai AQUI, no começo da volta (antes do Chrome, do pulso, da rampa e de travas), nunca no meio de uma abordagem.
+      await verificarVolta();
 
       // ANTES de qualquer trabalho. Se a volta estourar depois daqui, o pulso
       // já disse que ela estava viva e o catch grava o erro por cima.
@@ -1939,7 +1991,7 @@ async function modoContinuo() {
               if (alvoAtual) await gravarIncerto(alvoAtual.id, alvoAtual.pid, alvoAtual.obsIncerto);   // se falhar 3x, vira pendência e para tudo
               // O incerto que nasce de EXCEÇÃO também conta no freio (mesmo contador de perfis distintos).
               if (CANAL === 'instagram' && alvoAtual && alvoAtual.instagram) {
-                try { await aplicarFreio(registrarFalhaCaixa(caixaNaoAbriuEm, alvoAtual.instagram, 'não saiu')); }
+                try { await aplicarFreio(registrarFalhaIG(alvoAtual.instagram, 'não saiu')); }
                 catch (e2) { log('  não consegui aplicar o freio: ' + e2.message); }
               }
               tentouEnviar = false;

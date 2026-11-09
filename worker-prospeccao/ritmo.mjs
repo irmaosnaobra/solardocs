@@ -380,10 +380,11 @@ const MOTIVO_FREIO = /caixa de DM não abriu|ficou na caixa|não saiu/i;
 /** Este motivo de falha conta para o freio? */
 export const contaParaFreio = motivo => MOTIVO_FREIO.test(String(motivo || ''));
 /** Registra a falha no Set de perfis (MUTA o Set). Devolve { conta, perfis, liga }. */
-export function registrarFalhaCaixa(perfis, perfil, motivo) {
+export function registrarFalhaCaixa(perfis, perfil, motivo, { prova = false } = {}) {
   const conta = contaParaFreio(motivo);
   if (conta && perfil) perfis.add(String(perfil));
-  return { conta, perfis: perfis.size, liga: perfis.size >= LIMITE_PERFIS_FREIO };
+  // Nos envios de PROVA (os 3 primeiros depois de uma volta automática) UMA falha já liga o freio, sem esperar 3 perfis.
+  return { conta, perfis: perfis.size, liga: perfis.size >= LIMITE_PERFIS_FREIO || (prova === true && conta) };
 }
 /** Depois de um envio confirmado. Só conversa NOVA (false) limpa o Set (MUTA). Devolve true se limpou. */
 export function aposEnvioConfirmado(perfis, { conversaAntiga } = {}) {
@@ -488,8 +489,14 @@ export function parseHistorico(texto) {
   if (texto === null || texto === undefined) return null;
   try {
     const j = JSON.parse(texto);
-    return { ultimo: j.ultimo || null, dia: j.dia || null, rebaixado: j.rebaixado === true, corrompido: false };
-  } catch { return { ultimo: null, dia: null, rebaixado: false, corrompido: true }; }
+    const lista = v => (Array.isArray(v) ? v.filter(x => typeof x === 'string') : []);
+    return {
+      ultimo: j.ultimo || null, dia: j.dia || null, rebaixado: j.rebaixado === true, rebaixadoEm: j.rebaixadoEm || null, corrompido: false,
+      freios: lista(j.freios), voltas: lista(j.voltas), parado: j.parado === true,
+      testes: Array.isArray(j.testes) ? j.testes.filter(t => t && typeof t.arroba === 'string' && typeof t.em === 'string').map(t => ({ arroba: t.arroba, em: t.em, limpo: t.limpo === true })) : [],
+      prova: j.prova && typeof j.prova === 'object' ? { ativa: j.prova.ativa === true, confirmados: Number(j.prova.confirmados) || 0, desde: j.prova.desde || null } : null,
+    };
+  } catch { return { ultimo: null, dia: null, rebaixado: false, rebaixadoEm: null, corrompido: true, freios: [], voltas: [], parado: false, testes: [], prova: null }; }
 }
 /** Dia (AAAA-MM-DD, Brasília) de um instante ISO. */
 export const diaDeIso = iso => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? null : relogioBRT(d).dia; };
@@ -504,4 +511,140 @@ export function historicoPrecisaSincronizar(bloqueio, historico) {
   if (!historico) return true;
   if (bloqueio.desde && historico.ultimo && Date.parse(bloqueio.desde) > Date.parse(historico.ultimo)) return true;
   return false;
+}
+
+// ── VOLTA AUTOMÁTICA DO INSTAGRAM (09/11/2026, aprovada pelo chefe-antiban) ───
+// Tudo vive em historico-bloqueio-<canal>.json (disco, nunca em memória): freios[] e voltas[] (ISO), testes[]
+// ({ arroba, em, limpo }), prova ({ ativa, confirmados }) e parado. Regras:
+//  1. a flag de bloqueio só cai quando o arquivo de bloqueio sumiu E o histórico prova o teto rebaixado a 5 (podeVoltar);
+//  2. 1ª volta da semana: 1 teste limpo + 24 h do freio; 2ª: 2 testes limpos seguidos + 48 h; testes em @ DIFERENTES;
+//  3. os 3 primeiros envios depois da volta são de prova (1 falha liga o freio na hora);
+//  4. no máximo 2 voltas em 7 dias; o 3º freio em 7 dias deixa PARADO até o dono liberar (arquivo LIBERAR-INSTAGRAM.txt);
+//  5. avisos fixos no pulso (avisoDoEstado): "VOLTOU SOZINHO", "TRAVOU DE NOVO", "PARADO ATÉ VOCÊ LIBERAR".
+export const JANELA_VOLTAS_DIAS = 7;
+export const MAX_VOLTAS_7D = 2;
+export const FREIOS_PARA_PARAR = 3;
+export const PROVA_ENVIOS = 3;
+export const AVISO_VOLTOU_MIN = 40;           // o "VOLTOU SOZINHO" fica no pulso por 40 min (o cron roda de 15 em 15)
+export const ARQ_LIBERAR_NOME = 'LIBERAR-INSTAGRAM.txt';
+export const AVISO_VOLTOU = 'VOLTOU SOZINHO';
+export const AVISO_TRAVOU = 'TRAVOU DE NOVO';
+export const AVISO_PARADO = 'PARADO ATÉ VOCÊ LIBERAR';
+const HORA_MS = 3600_000;
+const msDe = iso => { const t = Date.parse(iso); return Number.isFinite(t) ? t : NaN; };
+/** Itens (ISO) dos últimos `dias` dias corridos. */
+export const recentes = (lista, agoraMs, dias = JANELA_VOLTAS_DIAS) =>
+  (Array.isArray(lista) ? lista : []).filter(iso => { const t = msDe(iso); return Number.isFinite(t) && agoraMs - t <= dias * 86400_000 && t <= agoraMs + 60_000; });
+/** O 3º freio (contando este) dentro de 7 dias corridos deixa o robô parado até o dono liberar. */
+export const freiosParam = (freios, agoraMs) => recentes(freios, agoraMs).length >= FREIOS_PARA_PARAR;
+
+/** Quantos testes limpos e quantas horas desde o freio a PRÓXIMA volta exige. null = já houve 2 voltas em 7 dias. */
+export function exigenciaDaVolta(historico, agoraMs) {
+  const v = recentes(historico && historico.voltas, agoraMs).length;
+  if (v >= MAX_VOLTAS_7D) return null;
+  return v === 0 ? { testes: 1, horas: 24, volta: 1 } : { testes: 2, horas: 48, volta: 2 };
+}
+/** Horas desde o último freio (NaN se não há). */
+const horasDesdeFreio = (h, agoraMs) => (h && h.ultimo ? (agoraMs - msDe(h.ultimo)) / HORA_MS : NaN);
+
+/** Já passou o tempo mínimo desde o freio para valer a pena TESTAR (não visita perfil à toa)? */
+export function planoDeTeste({ historico, agoraMs }) {
+  const h = historico;
+  if (!h || h.corrompido || !h.ultimo) return { testar: false, motivo: 'sem histórico legível do freio' };
+  if (h.parado) return { testar: false, motivo: 'PARADO até o dono liberar (arquivo ' + ARQ_LIBERAR_NOME + ')' };
+  const ex = exigenciaDaVolta(h, agoraMs);
+  if (!ex) return { testar: false, motivo: 'já houve ' + MAX_VOLTAS_7D + ' voltas em 7 dias: só o dono libera' };
+  const horas = horasDesdeFreio(h, agoraMs);
+  if (!(horas >= ex.horas)) return { testar: false, motivo: `faltam ${Math.ceil(ex.horas - (Number.isFinite(horas) ? horas : 0))} h para a ${ex.volta}ª volta (exige ${ex.horas} h desde o freio)`, exigencia: ex };
+  return { testar: true, exigencia: ex };
+}
+/** @ normalizado: minúscula, sem @. */
+const norm = a => String(a || '').replace(/^@/, '').trim().toLowerCase();
+/** Primeiro da fila cujo @ não está entre os últimos 10 testes. null = ninguém novo. */
+export function escolherAlvoTeste(fila, historico) {
+  const ultimos = new Set(((historico && historico.testes) || []).slice(-10).map(t => norm(t.arroba)));
+  const c = (Array.isArray(fila) ? fila : []).find(x => norm(x && x.instagram) && !ultimos.has(norm(x.instagram)));
+  return c ? c.instagram : null;
+}
+/** Grava um teste (limpo ou não) no histórico, com o @ e a hora. Mantém os últimos 30. */
+export function registrarTeste(historico, { arroba, limpo, agoraIso }) {
+  const h = historico || {};
+  return { ...h, testes: [...(h.testes || []), { arroba: norm(arroba), em: agoraIso, limpo: limpo === true }].slice(-30) };
+}
+/**
+ * Pode destravar AGORA? Contando do freio: 1ª volta = 1 teste limpo + 24 h; 2ª = 2 testes limpos SEGUIDOS + 48 h;
+ * os testes são em @ diferentes e posteriores ao freio. Devolve { destravar, motivo }.
+ */
+export function avaliarDestrave({ historico, agoraMs }) {
+  const plano = planoDeTeste({ historico, agoraMs });
+  if (!plano.testar) return { destravar: false, motivo: plano.motivo };
+  const h = historico, ex = plano.exigencia;
+  const doFreio = (h.testes || []).filter(t => msDe(t.em) > msDe(h.ultimo));
+  const ultimos = doFreio.slice(-ex.testes);
+  if (ultimos.length < ex.testes) return { destravar: false, motivo: `${ultimos.filter(t => t.limpo).length}/${ex.testes} teste(s) limpo(s) desde o freio` };
+  if (!ultimos.every(t => t.limpo)) return { destravar: false, motivo: 'o teste mais recente falhou: exige ' + ex.testes + ' limpo(s) seguido(s)' };
+  if (new Set(ultimos.map(t => norm(t.arroba))).size < ex.testes) return { destravar: false, motivo: 'os testes limpos precisam ser em @ diferentes' };
+  return { destravar: true, motivo: `${ex.testes} teste(s) limpo(s) seguido(s) em @ diferentes e ${ex.horas} h desde o freio`, exigencia: ex };
+}
+/** Registra a volta: entra em voltas[] e abre a PROVA (3 envios). */
+export function registrarVolta(historico, agoraIso) {
+  const h = historico || {};
+  const agoraMs = msDe(agoraIso);
+  return { ...h, voltas: [...recentes(h.voltas, agoraMs, 14), agoraIso], prova: { ativa: true, confirmados: 0, desde: agoraIso } };
+}
+/** A última volta é posterior ao último freio (a volta deste freio já foi registrada)? */
+export function jaVoltouDepoisDoFreio(h) {
+  const v = h && Array.isArray(h.voltas) && h.voltas.length ? msDe(h.voltas[h.voltas.length - 1]) : NaN;
+  return Number.isFinite(v) && (!h.ultimo || v > msDe(h.ultimo));
+}
+/**
+ * REGRA 1: a flag de memória só cai quando o arquivo de bloqueio SUMIU e o histórico prova o teto rebaixado a 5
+ * DEPOIS do último bloqueio, e o robô não está PARADO. Arquivo presente (inclusive criado à mão) = continua parado.
+ */
+export function podeVoltar({ bloqueio, historico }) {
+  if (bloqueio && bloqueio.bloqueado) return { volta: false, motivo: 'o arquivo de bloqueio ainda existe' };
+  const h = historico;
+  if (!h || h.corrompido) return { volta: false, motivo: 'sem histórico legível do bloqueio' };
+  if (h.parado) return { volta: false, motivo: 'PARADO até o dono liberar' };
+  if (h.rebaixado !== true) return { volta: false, motivo: 'sem a prova do teto rebaixado a 5' };
+  if (h.rebaixadoEm && h.ultimo && msDe(h.rebaixadoEm) < msDe(h.ultimo)) return { volta: false, motivo: 'o rebaixe é anterior ao último bloqueio' };
+  // O sumiço do arquivo sozinho não basta: a volta tem que ter sido AUTORIZADA (teste limpo + 24 h/48 h, no testar-bloqueio)
+  // ou liberada pelo dono. Sem isto, apagar o arquivo à mão pularia as regras de teste.
+  if (h.freios && h.freios.length && !jaVoltouDepoisDoFreio(h)) return { volta: false, motivo: 'a volta ainda não foi autorizada (teste limpo + 24 h/48 h) nem liberada pelo dono' };
+  return { volta: true };
+}
+/** Há um freio gravado pelo robô cuja volta ainda não foi autorizada? (vale mesmo se o arquivo de bloqueio sumiu) */
+export const freioPendente = h => Boolean(h && !h.corrompido && Array.isArray(h.freios) && h.freios.length && !jaVoltouDepoisDoFreio(h));
+/** Envio confirmado: só em conversa NOVA (false) conta para a prova; a 3ª encerra a prova (limite volta a 3 perfis). */
+export function contarEnvioDeProva(historico, { conversaAntiga }, agoraIso) {
+  const h = historico;
+  if (!h || !h.prova || h.prova.ativa !== true || conversaAntiga !== false) return h;
+  const confirmados = (h.prova.confirmados || 0) + 1;
+  return { ...h, prova: confirmados >= PROVA_ENVIOS ? { ativa: false, confirmados, desde: h.prova.desde, fim: agoraIso } : { ...h.prova, confirmados } };
+}
+export const provaAtiva = h => Boolean(h && h.prova && h.prova.ativa === true);
+/** O freio ligou: guarda no histórico (freios[], parado) e encerra a prova. */
+export function registrarFreio(historico, agoraIso) {
+  const h = historico || {};
+  const agoraMs = msDe(agoraIso);
+  const freios = [...recentes(h.freios, agoraMs, 14), agoraIso];
+  return { ...h, ultimo: agoraIso, dia: diaDeIso(agoraIso), rebaixado: false, rebaixadoEm: null, freios, parado: freiosParam(freios, agoraMs), prova: null };
+}
+/** O dono liberou (arquivo LIBERAR-INSTAGRAM.txt): zera a contagem e o parado. */
+export const liberarPeloDono = (historico, agoraIso) => ({ ...(historico || {}), parado: false, freios: [], voltas: [], liberadoEm: agoraIso });
+/**
+ * Texto FIXO do pulso para o cron do servidor (prefixos: "VOLTOU SOZINHO", "TRAVOU DE NOVO", "PARADO ATÉ VOCÊ LIBERAR").
+ * null = nenhum dos três estados (o laço escreve o "fazendo" de sempre).
+ */
+export function avisoDoEstado({ bloqueado, historico, agoraMs }) {
+  const h = historico;
+  if (!h || h.corrompido) return null;
+  if (bloqueado && (h.parado || exigenciaDaVolta(h, agoraMs) === null)) return `${AVISO_PARADO}: ${recentes(h.freios, agoraMs).length} freio(s) e ${recentes(h.voltas, agoraMs).length} volta(s) em 7 dias. Crie o arquivo ${ARQ_LIBERAR_NOME} na pasta worker-prospeccao para liberar.`;
+  const voltas = recentes(h.voltas, agoraMs);
+  if (bloqueado && voltas.length && !jaVoltouDepoisDoFreio(h)) return `${AVISO_TRAVOU}: o freio ligou de novo depois da volta de ${voltas[voltas.length - 1]} (${voltas.length} volta(s) em 7 dias). Parado até o teste limpo (24 h/48 h).`;
+  const ult = h.voltas && h.voltas.length ? msDe(h.voltas[h.voltas.length - 1]) : NaN;
+  if (!bloqueado && Number.isFinite(ult) && agoraMs - ult <= AVISO_VOLTOU_MIN * 60_000) {
+    return `${AVISO_VOLTOU}: o Instagram deixou abrir conversa nova de novo. Teto 5/dia e os ${PROVA_ENVIOS} primeiros envios são de prova (1 falha para tudo na hora).`;
+  }
+  return null;
 }

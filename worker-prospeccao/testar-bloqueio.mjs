@@ -18,8 +18,17 @@
    Roda pela tarefa do Windows as 07h e as 18h.
    ───────────────────────────────────────────────────────────────────────────── */
 
-import { rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { parseBloqueio, parseHistorico, freioPendente, planoDeTeste, escolherAlvoTeste, registrarTeste, avaliarDestrave, registrarVolta, avisoDoEstado, diaDeIso } from './ritmo.mjs';
+
+// Regras da VOLTA AUTOMÁTICA (chefe-antiban, 09/11/2026), todas em ritmo.mjs e testadas em teste-ritmo.mjs:
+//   1ª volta da semana = 1 teste limpo + 24 h desde o freio; 2ª = 2 testes limpos SEGUIDOS + 48 h; 3ª = só o dono.
+//   Os testes são em @ DIFERENTES (não repete o @ dos últimos testes) e cada um fica no histórico com o @ e a hora.
+const ARQ_BLOQUEIO = fileURLToPath(new URL('./bloqueio-instagram.json', import.meta.url));
+const ARQ_HISTORICO = fileURLToPath(new URL('./historico-bloqueio-instagram.json', import.meta.url));
+const lerHistoricoArq = () => { try { return parseHistorico(readFileSync(ARQ_HISTORICO, 'utf8')); } catch { return null; } };
+const gravarHistoricoArq = h => writeFileSync(ARQ_HISTORICO, JSON.stringify(h, null, 2));
 
 const CFG = {
   cdp: process.env.CHROME_CDP || 'http://127.0.0.1:9222',
@@ -104,24 +113,42 @@ async function compositorAbre(handle) {
 }
 
 async function main() {
-  // Um alvo que a agente ainda NAO tocou. Testar em quem ja recebeu mensagem
-  // daria falso positivo: la a conversa existe e o compositor abre sempre.
-  const fila = await ler('prospeccao_fila_worker?select=instagram&instagram=not.is.null&instagram=neq.&limit=1');
-  const alvo = fila[0]?.instagram;
-  if (!alvo) { log('nao ha perfil novo na fila pra testar.'); return; }
+  // SEM bloqueio, nada a testar: antes isto rodava as 07h e as 18h mesmo livre e devolvia o teto a 5 duas vezes por dia.
+  let h = lerHistoricoArq();
+  if (!existsSync(ARQ_BLOQUEIO) && !freioPendente(h)) { log('sem bloqueio-instagram.json e sem freio pendente: nada a testar.'); return; }
+  if (!h) {   // arquivo de bloqueio sem histórico (robô parado): reconstrói a base a partir do bloqueio
+    const b = parseBloqueio(readFileSync(ARQ_BLOQUEIO, 'utf8'));
+    const desde = b.desde || new Date().toISOString();
+    h = { ...parseHistorico('{}'), ultimo: desde, dia: diaDeIso(desde), rebaixado: false };
+  }
+  // Ainda não é hora (24 h / 48 h desde o freio), PARADO até o dono liberar, ou 2 voltas em 7 dias: não visita perfil à toa.
+  const plano = planoDeTeste({ historico: h, agoraMs: Date.now() });
+  if (!plano.testar) { log('sem teste agora: ' + plano.motivo); return; }
 
-  log(`testando o compositor em @${alvo} (perfil nunca contactado)`);
+  // Um alvo que a agente ainda NAO tocou E que NAO foi um dos ultimos testes: testar em quem ja recebeu mensagem
+  // daria falso positivo (la a conversa existe e o compositor abre sempre), e repetir o @ nao prova nada novo.
+  const fila = await ler('prospeccao_fila_worker?select=instagram&instagram=not.is.null&instagram=neq.&limit=30');
+  const alvo = escolherAlvoTeste(fila, h);
+  if (!alvo) { log('nao ha perfil novo (diferente dos ultimos testes) na fila pra testar.'); return; }
+
+  log(`testando o compositor em @${alvo} (perfil nunca contactado, diferente dos ultimos testes)`);
   const r = await compositorAbre(alvo);
 
   if (r.erro) { log('nao deu pra testar: ' + r.erro); return; }
+
+  // Cada teste (limpo ou nao) fica no historico com o @ e a hora: "2 limpos seguidos" depende disso.
+  h = registrarTeste(h, { arroba: alvo, limpo: !!r.abriu, agoraIso: new Date().toISOString() });
+  try { gravarHistoricoArq(h); } catch (e) { log('nao consegui gravar o teste no historico: ' + e.message + ' (sem registro nao destravo)'); return; }
 
   if (!r.abriu) {
     log('AINDA BLOQUEADO. A caixa nao abriu. Sigo esperando, sem bater.');
     return;
   }
+  const av = avaliarDestrave({ historico: h, agoraMs: Date.now() });
+  if (!av.destravar) { log('teste limpo registrado, mas ainda nao destravo: ' + av.motivo); return; }
 
   // ── destravou ──────────────────────────────────────────────────────────────
-  log('DESTRAVOU! A caixa de mensagem voltou a abrir em perfil novo.');
+  log('DESTRAVOU! A caixa de mensagem voltou a abrir em perfil novo (' + av.motivo + ').');
   // SEMPRE volta o teto_manual a 5, qualquer que fosse o valor. Ele NUNCA pode ficar nulo: nulo cai na rampa
   // da VIEW (25 a 100), que e o ritmo que ja derrubou a conta. A partir de 5, a rampa do worker sobe +1 por dia cheio, ate 10.
   const rampa = await ler(`prospeccao_rampa?select=teto_manual&consultor=eq.${encodeURIComponent(CFG.consultor)}`);
@@ -144,17 +171,21 @@ async function main() {
   log(`teto devolvido: ${CFG.tetoAoVoltar} por dia (era ${antes})`);
   // So agora, com o PATCH gravado (rr.ok), o arquivo de bloqueio sai. O historico NAO se apaga: ele guarda o dia do bloqueio
   // (que nunca conta como dia cheio) e a prova do rebaixe.
+  // A volta e REGISTRADA no historico (voltas[] e a PROVA dos 3 primeiros envios) ANTES de apagar o bloqueio: e o que
+  // autoriza o worker vivo a baixar a flag (podeVoltar) e o que conta "no maximo 2 voltas em 7 dias".
+  const agoraIso = new Date().toISOString();
+  const hVolta = registrarVolta({ ...h, rebaixado: true, rebaixadoEm: agoraIso }, agoraIso);
+  try { gravarHistoricoArq(hVolta); }
+  catch (e) { log('nao consegui gravar a volta no historico: ' + e.message + '. MANTIVE bloqueio-instagram.json.'); return; }
   try {
-    const hArq = fileURLToPath(new URL('./historico-bloqueio-instagram.json', import.meta.url));
-    try { const h = JSON.parse(readFileSync(hArq, 'utf8')); writeFileSync(hArq, JSON.stringify({ ...h, rebaixado: true, rebaixadoEm: new Date().toISOString() }, null, 2)); } catch { /* sem historico ainda */ }
-    rmSync(fileURLToPath(new URL('./bloqueio-instagram.json', import.meta.url)), { force: true });
-    log('bloqueio-instagram.json apagado: o worker pode voltar a abordar no proximo reinicio, partindo de 5.');
+    rmSync(ARQ_BLOQUEIO, { force: true });
+    log('bloqueio-instagram.json apagado: o worker vivo volta sozinho no comeco da proxima volta do laco (teto 5, 3 envios de prova).');
   } catch (e) { log('nao consegui apagar bloqueio-instagram.json: ' + e.message); }
 
   // O cron de 15 em 15 min le isto e avisa no WhatsApp dele.
   await fetch(`${CFG.supa}/prospeccao_pulso?id=eq.1`, {
     method: 'PATCH', headers: H,
-    body: JSON.stringify({ fazendo: `DESTRAVOU em ${new Date().toLocaleString('pt-BR')}` }),
+    body: JSON.stringify({ fazendo: avisoDoEstado({ bloqueado: false, historico: hVolta, agoraMs: Date.now() }) || 'VOLTOU SOZINHO: o Instagram deixou abrir conversa nova de novo.' }),
   }).catch(() => { });
   log('marquei o pulso; o aviso sai no WhatsApp dele em ate 15 min.');
 }

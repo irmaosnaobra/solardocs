@@ -15,6 +15,9 @@ import {
   registrarFalhaCaixa, aposEnvioConfirmado, enviosConfirmados, contaParaFreio, ehIncerto, LIMITE_PERFIS_FREIO,
   planoDigitacao, duracaoRolagemMs, passosRolagem,
   chaveTratada, lerTratadas, jaTratada, marcarTratada, TRATADAS_DIAS,
+  exigenciaDaVolta, planoDeTeste, escolherAlvoTeste, registrarTeste, avaliarDestrave, registrarVolta, jaVoltouDepoisDoFreio,
+  podeVoltar, freioPendente, contarEnvioDeProva, provaAtiva, registrarFreio, freiosParam, liberarPeloDono, avisoDoEstado,
+  PROVA_ENVIOS, ARQ_LIBERAR_NOME,
 } from './ritmo.mjs';
 import { spawnSync } from 'node:child_process';
 
@@ -355,7 +358,7 @@ console.log('\nbloqueio: rebaixe com prova, dia do bloqueio, teto de ontem');
   ok(/criado_em: criadoEm/.test(wsrc2) && /new Date\(p\.ms\)\.toISOString\(\)/.test(wsrc2), 'worker.mjs: o incerto pendente gravado depois leva a data em que a DM saiu');
   const ts2 = readFileSync(fileURLToPath(new URL('./testar-bloqueio.mjs', import.meta.url)), 'utf8').split(String.fromCharCode(13, 10)).join(String.fromCharCode(10));
   const iPatch = ts2.indexOf("method: 'PATCH', headers: H,\n    body: JSON.stringify({\n      teto_manual");
-  const iRm = ts2.indexOf("rmSync(fileURLToPath(new URL('./bloqueio-instagram.json'");
+  const iRm = ts2.indexOf('rmSync(ARQ_BLOQUEIO');
   const iOk = ts2.indexOf('if (!rr.ok) {');
   ok(iPatch > 0 && iOk > iPatch && iRm > iOk && /if \(!rr\.ok\) \{[\s\S]{0,400}return;/.test(ts2.replace(/\r\n/g, '\n')), 'testar-bloqueio.mjs: PATCH primeiro; se falhar, mantém o arquivo e sai; só com rr.ok apaga');
   ok(/historico-bloqueio-instagram\.json/.test(ts2) && !/rmSync\(fileURLToPath\(new URL\('\.\/historico/.test(ts2), 'testar-bloqueio.mjs: o histórico não é apagado no destrave');
@@ -402,7 +405,7 @@ ok(/if \(desfecho === 'enviou' \|\| desfecho === 'incerto'\) proximaAbordagem = 
 ok(!/Number\(process\.env\.(HORA_INI|HORA_FIM|MIN_SEG)/.test(src), 'worker.mjs: nenhuma env lida direto para janela ou piso');
 ok(/podeEnviar\(new Date\(\), CFG\)/.test(src), 'worker.mjs: usa podeEnviar');
 ok(!/10 \+ Math\.floor\(10 \* \(\(Date\.now\(\) % 997\)/.test(src) && /respiroAposFalha\(\(Date\.now\(\) % 997\) \/ 997\)/.test(src), 'worker.mjs: o respiro após falha é o de 300-600 s (respiroAposFalha), não 10-20 s');
-ok(/let bloqueadaParaNovas = lerBloqueio\(\)\.bloqueado;/.test(src) && /gravarBloqueio\(/.test(src), 'worker.mjs: o bloqueio nasce do arquivo na partida e é gravado quando o detector dispara');
+ok(/let bloqueadaParaNovas = lerBloqueio\(\)\.bloqueado/.test(src) && /gravarBloqueio\(/.test(src), 'worker.mjs: o bloqueio nasce do arquivo na partida e é gravado quando o detector dispara');
 ok(/teto: teto\[0\]\?\.teto,\s/.test(src) && !/teto\[0\]\?\.teto \?\? 5/.test(src), 'worker.mjs: sem linha de teto não vira 5');
 ok(/await decidirAgora\(\);\s*\n\s*if \(!dec\.enviar\)/.test(src), 'worker.mjs: umaAbordagem chama decidirAbordagem a cada abordagem (piso lido do banco e do arquivo)');
 ok(/if \(!r\.ok\) throw new Error\(`prospeccao_toques/.test(src), 'worker.mjs: gravarToque lança em 4xx/5xx');
@@ -570,7 +573,7 @@ console.log('\nfreio: "ficou na caixa" conta, e só conversa nova zera');
   ok(aposEnvioConfirmado(c, { conversaAntiga: null }) === false && c.size === 2, 'conversa que não deu para medir (null) também não zera');
   ok(aposEnvioConfirmado(c, {}) === false && c.size === 2, 'sem a medida: não zera');
   ok(aposEnvioConfirmado(c, { conversaAntiga: false }) === true && c.size === 0, 'envio confirmado numa conversa NOVA zera o contador');
-  ok(/registrarFalhaCaixa\(caixaNaoAbriuEm, c\.instagram, r\.motivo\)/.test(textoWorker) && /aposEnvioConfirmado\(caixaNaoAbriuEm, \{ conversaAntiga: r\.conversaAntiga \}\)/.test(textoWorker), 'worker.mjs: usa as duas regras (contar a falha, zerar só com conversa nova)');
+  ok(/registrarFalhaIG\(c\.instagram, r\.motivo\)/.test(textoWorker) && /aposEnvioConfirmado\(caixaNaoAbriuEm, \{ conversaAntiga: r\.conversaAntiga \}\)/.test(textoWorker), 'worker.mjs: usa as duas regras (contar a falha, zerar só com conversa nova)');
   ok(/const conversaAntiga = \(linhas1 > 0 \|\| linhas2 > 0\) \? true\s*\n\s*: \(linhas1 === 0 && linhas2 === 0\) \? false : null;/.test(textoWorker) && /await dorme\(1500\);\s*\n\s*const linhas1 = await contarLinhas\(\);\s*\n\s*await dorme\(1000\);\s*\n\s*const linhas2/.test(textoWorker) && /\{ ok: true, conversaAntiga \} : \{ ok: false, motivo: 'texto ficou na caixa/.test(textoWorker), 'worker.mjs: o envio mede a conversa antes de digitar e devolve conversaAntiga');
   ok(!/caixaNaoAbriu = 0;\s*\/\/ uma que sai limpa zera a suspeita/.test(textoWorker), 'worker.mjs: o envio confirmado não zera mais sem olhar a conversa');
 }
@@ -621,6 +624,181 @@ console.log('\nresposta automática já tratada (não consulta a API de novo)');
   ok(Object.keys(marcarTratada(lerTratadas(arq, T), 'c9', 'y', T + 8 * 86400_000)).length === 1, 'ao marcar, o que passou de 7 dias sai do arquivo');
   ok(Object.keys(lerTratadas('lixo{', T)).length === 0 && Object.keys(lerTratadas('[1,2]', T)).length === 0 && Object.keys(lerTratadas('{"a":"x"}', T)).length === 0, 'arquivo ilegível ou com valor inválido = vazio (sem quebrar)');
   ok(/if \(jaTratada\(lerTratadasArq\(\), c\.contato_id, hist\[hist\.length - 1\]\.texto\)\) \{ semNovidade\+\+; continue; \}/.test(textoWorker) && (textoWorker.match(/marcarTratadaArq\(c\.contato_id/g) || []).length === 2 && /Respostas automáticas já tratadas/.test(textoWorker), 'worker.mjs: modoResponder e responderZap pulam a mensagem já tratada ANTES da API e marcam quando vem nao_enviar');
+}
+
+console.log('\n--- 09/11/2026: volta automática do Instagram ---');
+{
+  const IMP = {};   // só para agrupar
+  const T0 = em('2026-11-10T10:00:00').getTime();
+  const iso = ms => new Date(ms).toISOString();
+  const H = ms => ms * 3600_000;
+  const base = (extra = {}) => parseHistorico(JSON.stringify({ ultimo: iso(T0), dia: '2026-11-10', rebaixado: true, rebaixadoEm: iso(T0 + 60_000), freios: [iso(T0)], ...extra }));
+  const limpo = (arroba, ms) => ({ arroba, em: iso(ms), limpo: true });
+  const falho = (arroba, ms) => ({ arroba, em: iso(ms), limpo: false });
+
+  console.log('\nregra 2: 1ª volta = 1 teste limpo + 24 h; 2ª = 2 testes limpos seguidos + 48 h; @ diferentes');
+  {
+    ok(exigenciaDaVolta(base(), T0 + H(30)).testes === 1 && exigenciaDaVolta(base(), T0 + H(30)).horas === 24, '1ª volta da semana: 1 teste limpo e 24 h');
+    ok(exigenciaDaVolta(base({ voltas: [iso(T0 - 2 * 86400_000)] }), T0).testes === 2 && exigenciaDaVolta(base({ voltas: [iso(T0 - 2 * 86400_000)] }), T0).horas === 48, '2ª volta na mesma semana: 2 testes limpos e 48 h');
+    ok(exigenciaDaVolta(base({ voltas: [iso(T0 - 86400_000), iso(T0 - 2 * 86400_000)] }), T0) === null, 'já houve 2 voltas em 7 dias: não há 3ª automática');
+    ok(exigenciaDaVolta(base({ voltas: [iso(T0 - 8 * 86400_000), iso(T0 - 9 * 86400_000)] }), T0).testes === 1, 'voltas de 8 e 9 dias atrás não contam: volta a ser a 1ª');
+    // 24 h
+    ok(!planoDeTeste({ historico: base(), agoraMs: T0 + H(23) }).testar && /faltam 1 h/.test(planoDeTeste({ historico: base(), agoraMs: T0 + H(23) }).motivo), '1ª volta: com 23 h do freio ainda não testa');
+    ok(planoDeTeste({ historico: base(), agoraMs: T0 + H(24) }).testar, '1ª volta: com 24 h do freio já testa');
+    const h1 = base({ testes: [limpo('a1', T0 + H(25))] });
+    ok(avaliarDestrave({ historico: h1, agoraMs: T0 + H(25) }).destravar, '1ª volta: 1 teste limpo depois de 24 h destrava');
+    ok(!avaliarDestrave({ historico: h1, agoraMs: T0 + H(23) }).destravar, '1ª volta: teste limpo com menos de 24 h do freio NÃO destrava');
+    ok(!avaliarDestrave({ historico: base({ testes: [falho('a1', T0 + H(25))] }), agoraMs: T0 + H(25) }).destravar, 'teste que falhou não destrava');
+    ok(!avaliarDestrave({ historico: base({ testes: [limpo('a0', T0 - H(5))] }), agoraMs: T0 + H(25) }).destravar, 'teste limpo ANTERIOR ao freio não conta');
+    ok(!avaliarDestrave({ historico: base(), agoraMs: T0 + H(25) }).destravar, 'sem nenhum teste não destrava');
+    // 48 h, 2 testes, seguidos, @ diferentes
+    const v = [iso(T0 - 2 * 86400_000)];
+    ok(!planoDeTeste({ historico: base({ voltas: v }), agoraMs: T0 + H(47) }).testar && planoDeTeste({ historico: base({ voltas: v }), agoraMs: T0 + H(48) }).testar, '2ª volta: só testa a partir de 48 h do freio');
+    ok(!avaliarDestrave({ historico: base({ voltas: v, testes: [limpo('a1', T0 + H(49))] }), agoraMs: T0 + H(49) }).destravar, '2ª volta: 1 teste limpo só não basta');
+    ok(!avaliarDestrave({ historico: base({ voltas: v, testes: [limpo('a1', T0 + H(49)), limpo('a1', T0 + H(61))] }), agoraMs: T0 + H(61) }).destravar, '2ª volta: 2 testes limpos no MESMO @ não valem');
+    ok(!avaliarDestrave({ historico: base({ voltas: v, testes: [limpo('a1', T0 + H(49)), limpo('A1', T0 + H(61))] }), agoraMs: T0 + H(61) }).destravar, 'o @ é comparado sem diferença de maiúscula');
+    ok(avaliarDestrave({ historico: base({ voltas: v, testes: [limpo('a1', T0 + H(49)), limpo('a2', T0 + H(61))] }), agoraMs: T0 + H(61) }).destravar, '2ª volta: 2 testes limpos seguidos em @ diferentes destravam');
+    ok(!avaliarDestrave({ historico: base({ voltas: v, testes: [limpo('a1', T0 + H(49)), falho('a2', T0 + H(61)), limpo('a3', T0 + H(73))] }), agoraMs: T0 + H(73) }).destravar, '2ª volta: um teste que falhou no meio quebra a sequência (limpo, falho, limpo não vale)');
+    ok(avaliarDestrave({ historico: base({ voltas: v, testes: [falho('a0', T0 + H(49)), limpo('a1', T0 + H(61)), limpo('a2', T0 + H(73))] }), agoraMs: T0 + H(73) }).destravar, 'falho, limpo, limpo: os dois últimos seguidos valem');
+    ok(!avaliarDestrave({ historico: base({ voltas: [iso(T0 - 86400_000), iso(T0 - 2 * 86400_000)], testes: [limpo('a1', T0 + H(60)), limpo('a2', T0 + H(72))] }), agoraMs: T0 + H(72) }).destravar, 'depois de 2 voltas em 7 dias nenhum teste destrava');
+    ok(!avaliarDestrave({ historico: base({ parado: true, testes: [limpo('a1', T0 + H(30))] }), agoraMs: T0 + H(30) }).destravar && !planoDeTeste({ historico: base({ parado: true }), agoraMs: T0 + H(30) }).testar, 'PARADO: nem testa nem destrava');
+    ok(!planoDeTeste({ historico: parseHistorico('{lixo'), agoraMs: T0 }).testar && !planoDeTeste({ historico: null, agoraMs: T0 }).testar, 'histórico ilegível ou ausente: não testa');
+  }
+
+  console.log('\n@ diferentes nos testes (e cada teste fica gravado com o @ e a hora)');
+  {
+    const fila = [{ instagram: 'Solar_A' }, { instagram: 'solar_b' }, { instagram: 'solar_c' }];
+    ok(escolherAlvoTeste(fila, base()) === 'Solar_A', 'sem testes antes: o primeiro da fila');
+    ok(escolherAlvoTeste(fila, base({ testes: [limpo('solar_a', T0 + H(25))] })) === 'solar_b', 'não repete o @ do último teste (sem diferença de maiúscula, com ou sem @)');
+    ok(escolherAlvoTeste(fila, base({ testes: [limpo('@solar_a', 1), limpo('solar_b', 2)] })) === 'solar_c', 'pula os dois @ já testados');
+    ok(escolherAlvoTeste(fila, base({ testes: [limpo('solar_a', 1), limpo('solar_b', 2), limpo('solar_c', 3)] })) === null, 'fila inteira já testada: ninguém novo');
+    ok(escolherAlvoTeste([{ instagram: '' }, {}, null], base()) === null && escolherAlvoTeste(null, base()) === null, 'fila vazia ou ilegível: null');
+    const antigos = Array.from({ length: 10 }, (_, k) => limpo('x' + k, k + 1));
+    ok(escolherAlvoTeste([{ instagram: 'x0' }], base({ testes: antigos })) === null && escolherAlvoTeste([{ instagram: 'x0' }], base({ testes: [...antigos, limpo('novo', 99)] })) === 'x0', 'só os 10 últimos testes impedem repetir');
+    const h = registrarTeste(base(), { arroba: '@Solar_Z', limpo: true, agoraIso: iso(T0 + H(25)) });
+    ok(h.testes.length === 1 && h.testes[0].arroba === 'solar_z' && h.testes[0].em === iso(T0 + H(25)) && h.testes[0].limpo === true, 'registrarTeste grava o @, a hora e se foi limpo');
+    ok(registrarTeste(h, { arroba: 'q', limpo: false, agoraIso: iso(T0 + H(26)) }).testes[1].limpo === false, 'teste que falhou também fica gravado');
+    const lido = parseHistorico(JSON.stringify(h));
+    ok(lido.testes.length === 1 && lido.testes[0].arroba === 'solar_z', 'os testes sobrevivem à leitura do arquivo (parseHistorico)');
+    ok(Array.from({ length: 40 }).reduce((acc, _, k) => registrarTeste(acc, { arroba: 'z' + k, limpo: true, agoraIso: iso(k) }), base()).testes.length === 30, 'o histórico guarda no máximo os 30 últimos testes');
+  }
+
+  console.log('\nregra 3: os 3 primeiros envios depois da volta são de prova');
+  {
+    const volta = registrarVolta(base(), iso(T0 + H(30)));
+    ok(provaAtiva(volta) && volta.prova.confirmados === 0 && volta.voltas.length === 1 && PROVA_ENVIOS === 3, 'registrarVolta abre a prova com 0/3 e anota a volta');
+    const m = 'texto ficou na caixa — não saiu';
+    ok(registrarFalhaCaixa(new Set(), 'p1', m, { prova: provaAtiva(volta) }).liga, 'em prova: 1 "ficou na caixa" liga o freio NA HORA');
+    ok(registrarFalhaCaixa(new Set(), 'p1', 'texto ficou na caixa — não saiu', { prova: true }).liga && registrarFalhaCaixa(new Set(), 'p1', 'x não saiu', { prova: true }).liga && registrarFalhaCaixa(new Set(), 'p1', 'caixa de DM não abriu (em x)', { prova: true }).liga, 'em prova: "ficou na caixa", "não saiu" e "caixa de DM não abriu" ligam com 1 perfil');
+    ok(!registrarFalhaCaixa(new Set(), 'p1', 'perfil não carregou', { prova: true }).liga, 'em prova, falha que não é de caixa (perfil não carregou) não liga');
+    ok(!registrarFalhaCaixa(new Set(), 'p1', m).liga && !registrarFalhaCaixa(new Set(), 'p1', m, { prova: false }).liga, 'fora da prova 1 perfil não liga (continuam 3 perfis distintos)');
+    let h = volta;
+    h = contarEnvioDeProva(h, { conversaAntiga: true }, iso(T0 + H(31)));
+    ok(h.prova.confirmados === 0, 'envio confirmado em conversa ANTIGA não conta para a prova');
+    h = contarEnvioDeProva(h, { conversaAntiga: null }, iso(T0 + H(31)));
+    ok(h.prova.confirmados === 0, 'conversa que não deu para medir (null) também não conta');
+    h = contarEnvioDeProva(h, { conversaAntiga: false }, iso(T0 + H(32)));
+    h = contarEnvioDeProva(h, { conversaAntiga: false }, iso(T0 + H(33)));
+    ok(h.prova.ativa && h.prova.confirmados === 2, '2 envios confirmados em conversa nova: a prova segue (2/3)');
+    ok(registrarFalhaCaixa(new Set(), 'p9', m, { prova: provaAtiva(h) }).liga, 'com 2/3 ainda é prova: 1 falha liga');
+    h = contarEnvioDeProva(h, { conversaAntiga: false }, iso(T0 + H(34)));
+    ok(!h.prova.ativa && h.prova.confirmados === 3, 'o 3º envio confirmado em conversa nova encerra a prova');
+    ok(!registrarFalhaCaixa(new Set(), 'p9', m, { prova: provaAtiva(h) }).liga, 'depois da prova o limite volta a 3 perfis distintos');
+    ok(contarEnvioDeProva(h, { conversaAntiga: false }, iso(T0)) === h && contarEnvioDeProva(null, { conversaAntiga: false }, iso(T0)) === null, 'sem prova ativa nada muda');
+    ok(provaAtiva(parseHistorico(JSON.stringify(volta))), 'a prova sobrevive à leitura do arquivo (reinício do robô)');
+  }
+
+  console.log('\nregra 4: no máximo 2 voltas em 7 dias; o 3º freio em 7 dias PARA até o dono liberar');
+  {
+    const d = n => iso(T0 - n * 86400_000);
+    let h = registrarFreio(null, d(5));
+    ok(h.freios.length === 1 && !h.parado && h.rebaixado === false && h.prova === null, '1º freio: não para');
+    h = registrarFreio(h, d(3));
+    ok(h.freios.length === 2 && !h.parado, '2º freio em 7 dias: não para');
+    h = registrarFreio(h, d(1));
+    ok(h.freios.length === 3 && h.parado === true, '3º freio dentro de 7 dias: PARADO');
+    ok(!registrarFreio(registrarFreio(registrarFreio(null, d(9)), d(3)), d(1)).parado, 'freio de 9 dias atrás não conta: 3 freios só com 2 dentro de 7 dias não para');
+    ok(freiosParam([d(6), d(2), d(0)], T0) && !freiosParam([d(8), d(2), d(0)], T0), 'freiosParam: 3 dentro de 7 dias para; 8 dias atrás não conta');
+    ok(registrarFreio(registrarVolta(base(), iso(T0)), iso(T0 + H(3))).prova === null, 'um freio novo encerra a prova');
+    // a contagem é do DISCO
+    const disco = parseHistorico(JSON.stringify(h));
+    ok(disco.parado === true && disco.freios.length === 3, 'freios e parado são gravados no historico-bloqueio e voltam na leitura (nada em memória)');
+    ok(parseHistorico(JSON.stringify(registrarVolta(registrarVolta(base(), d(2)), d(1)))).voltas.length === 2, 'as voltas também voltam na leitura');
+    // dono libera
+    const lib = liberarPeloDono(h, iso(T0));
+    ok(lib.parado === false && lib.freios.length === 0 && lib.voltas.length === 0 && lib.liberadoEm === iso(T0), 'o dono libera: zera parado, freios e voltas');
+    ok(ARQ_LIBERAR_NOME === 'LIBERAR-INSTAGRAM.txt', 'o arquivo de liberação é LIBERAR-INSTAGRAM.txt');
+  }
+
+  console.log('\nregra 1 e 6: a flag só cai com o arquivo sumido, rebaixe provado e volta autorizada');
+  {
+    const BL = parseBloqueio('{"desde":"2026-11-10T13:00:00.000Z"}');
+    const SEM = parseBloqueio(null);
+    const autorizada = base({ voltas: [iso(T0 + H(30))] });
+    ok(!podeVoltar({ bloqueio: BL, historico: autorizada }).volta, 'arquivo de bloqueio presente: não volta');
+    ok(!podeVoltar({ bloqueio: parseBloqueio('{}'), historico: autorizada }).volta && !podeVoltar({ bloqueio: parseBloqueio('lixo{'), historico: autorizada }).volta, 'arquivo criado à mão (vazio ou ilegível) PARA na hora e segura a flag');
+    ok(podeVoltar({ bloqueio: SEM, historico: autorizada }).volta, 'arquivo sumiu + rebaixe provado + volta autorizada: volta');
+    ok(!podeVoltar({ bloqueio: SEM, historico: base({ voltas: [iso(T0 + H(30))], rebaixado: false }) }).volta, 'sem a prova do teto rebaixado a 5: não volta');
+    ok(!podeVoltar({ bloqueio: SEM, historico: base({ voltas: [iso(T0 + H(30))], rebaixadoEm: iso(T0 - 1000) }) }).volta, 'rebaixe anterior ao último bloqueio: não volta');
+    ok(!podeVoltar({ bloqueio: SEM, historico: base() }).volta, 'arquivo apagado à mão SEM volta autorizada (teste limpo + 24 h/48 h): não volta');
+    ok(!podeVoltar({ bloqueio: SEM, historico: base({ voltas: [iso(T0 + H(30))], parado: true }) }).volta, 'PARADO: não volta nem com tudo certo');
+    ok(!podeVoltar({ bloqueio: SEM, historico: null }).volta && !podeVoltar({ bloqueio: SEM, historico: parseHistorico('{lixo') }).volta, 'sem histórico legível: não volta');
+    ok(podeVoltar({ bloqueio: SEM, historico: parseHistorico('{"ultimo":"2026-09-11T10:00:00Z","dia":"2026-09-11","rebaixado":true}') }).volta, 'histórico do formato antigo (sem freios[]) continua voltando como antes');
+    ok(freioPendente(base()) && !freioPendente(autorizada) && !freioPendente(null) && !freioPendente(parseHistorico('{"rebaixado":true}')), 'freioPendente: freio gravado sem volta posterior; histórico antigo não conta');
+    ok(jaVoltouDepoisDoFreio(autorizada) && !jaVoltouDepoisDoFreio(base()) && !jaVoltouDepoisDoFreio(base({ voltas: [iso(T0 - H(5))] })), 'jaVoltouDepoisDoFreio compara a última volta com o último freio');
+
+    // texto do worker: a flag só cai em verificarVolta, chamada uma vez, no começo da volta
+    const w = textoWorker;
+    ok((w.match(/bloqueadaParaNovas = false/g) || []).length === 1, 'worker.mjs: existe UMA só linha que baixa a flag');
+    const ini = w.indexOf('async function verificarVolta()');
+    const fim = w.indexOf('/** Liga o freio (bloqueio de conversa nova)');
+    ok(ini > 0 && fim > ini && w.slice(ini, fim).includes('bloqueadaParaNovas = false') && w.slice(ini, fim).includes('podeVoltar({ bloqueio: lerBloqueio(), historico: lerHistorico() })'), 'worker.mjs: essa linha está dentro de verificarVolta, atrás de podeVoltar');
+    ok((w.match(/await verificarVolta\(\)/g) || []).length === 1, 'worker.mjs: verificarVolta é chamada uma só vez');
+    const iCiclo = w.indexOf('ciclo++;'), iVolta = w.indexOf('await verificarVolta();'), iChrome = w.indexOf('if (!await chromeVivo())'), iRampa = w.indexOf('await rampaDoDia();   // 1 vez por dia'), iTravas = w.indexOf('const t = await travas();');
+    ok(iCiclo > 0 && iVolta > iCiclo && iVolta < iChrome && iVolta < iRampa && iVolta < iTravas, 'worker.mjs: a flag zera no COMEÇO da volta do laço, logo depois de ciclo++, antes do Chrome, da rampa e de travas()');
+    ok(/const bloqueioAtivo = \(\) => bloqueadaParaNovas \|\| lerBloqueio\(\)\.bloqueado;/.test(w), 'worker.mjs: bloqueioAtivo continua olhando o arquivo: o arquivo criado à mão para na hora');
+    ok(/let bloqueadaParaNovas = lerBloqueio\(\)\.bloqueado \|\| \(CANAL === 'instagram' && freioPendente\(lerHistorico\(\)\)\);/.test(w), 'worker.mjs: reiniciar o processo não fura a regra (freio pendente no histórico começa parado)');
+    ok(/gravarHistorico\(registrarFreio\(lerHistorico\(\), agoraIso\)\);\s*\n\s*writeFileSync\(ARQ_BLOQUEIO/.test(w), 'worker.mjs: o freio grava o histórico (freios[], parado) ANTES do arquivo de bloqueio');
+    ok(/\.\.\.\(h \|\| \{\}\), ultimo: bl\.desde/.test(w), 'worker.mjs: o histórico sincronizado com um bloqueio feito à mão MESCLA (não apaga freios, voltas, testes)');
+    ok(/caixaNaoAbriuEm\.clear\(\);\s*\n\s*caixaNaoAbriu = 0;[^\n]*\n\s*gravarMarcaRampa\(relogioBRT\(\)\.dia, RAMPA_INICIAL, true\);[^\n]*\n\s*bloqueadaParaNovas = false;/.test(w), 'worker.mjs: ao voltar zera o contador de perfis, marca o dia da volta (não conta como cheio) e só então baixa a flag');
+    ok(/diaDeIso\(\(\(lerHistorico\(\) \|\| \{\}\)\.voltas \|\| \[\]\)\.slice\(-1\)\[0\]\)/.test(w), 'worker.mjs: a rampa também trata o dia da volta como dia que não conta (sem depender da marca local)');
+    ok((w.match(/registrarFalhaIG\(/g) || []).length === 2 && !/registrarFalhaCaixa\(caixaNaoAbriuEm/.test(w.replace(/const registrarFalhaIG[^\n]*\n/, '')), 'worker.mjs: o retorno normal e o catch de exceção usam a falha com prova');
+    ok(/h1 = contarEnvioDeProva\(h0, \{ conversaAntiga: r\.conversaAntiga \}/.test(w), 'worker.mjs: envio confirmado conta para a prova só por conversaAntiga');
+    ok(/existsSync\(ARQ_LIBERAR\) && !\(await liberarPeloDonoAgora\(\)\)/.test(w) && /await patchRampa\(RAMPA_INICIAL, `LIBERADO PELO DONO/.test(w), 'worker.mjs: o arquivo de liberação vale para qualquer estado travado e devolve o teto a 5 explicitamente');
+    ok(readFileSync(fileURLToPath(new URL('./.gitignore', import.meta.url)), 'utf8').includes('LIBERAR-INSTAGRAM.txt'), '.gitignore: LIBERAR-INSTAGRAM.txt é estado local');
+  }
+
+  console.log('\nregra 5: avisos fixos no pulso');
+  {
+    const agora = T0 + H(40);
+    const h3 = registrarFreio(registrarFreio(registrarFreio(null, iso(T0 - 4 * 86400_000)), iso(T0 - 2 * 86400_000)), iso(T0));
+    const pa = avisoDoEstado({ bloqueado: true, historico: h3, agoraMs: agora });
+    ok(pa.startsWith('PARADO ATÉ VOCÊ LIBERAR:') && pa.includes('LIBERAR-INSTAGRAM.txt'), 'PARADO ATÉ VOCÊ LIBERAR: no 3º freio em 7 dias, com o nome do arquivo');
+    const hv = registrarVolta(base(), iso(T0 + H(30)));
+    ok(avisoDoEstado({ bloqueado: false, historico: hv, agoraMs: T0 + H(30) + 30 * 60_000 }).startsWith('VOLTOU SOZINHO:'), 'VOLTOU SOZINHO: nos 40 minutos depois da volta');
+    ok(avisoDoEstado({ bloqueado: false, historico: hv, agoraMs: T0 + H(30) + 41 * 60_000 }) === null, 'depois de 40 minutos o aviso de volta sai (o laço volta ao texto de sempre)');
+    const ht = registrarFreio(hv, iso(T0 + H(34)));
+    const tt = avisoDoEstado({ bloqueado: true, historico: ht, agoraMs: T0 + H(35) });
+    ok(tt.startsWith('TRAVOU DE NOVO:'), 'TRAVOU DE NOVO: freio depois de uma volta, enquanto durar o bloqueio');
+    ok(avisoDoEstado({ bloqueado: true, historico: ht, agoraMs: T0 + 6 * 86400_000 }).startsWith('TRAVOU DE NOVO:'), 'TRAVOU DE NOVO continua fixo no pulso por dias (não some em 40 min)');
+    ok(avisoDoEstado({ bloqueado: true, historico: base(), agoraMs: T0 + H(5) }) === null, '1º freio da semana, sem volta antes: sem aviso novo (continua o "PARADA: ..." de sempre)');
+    ok(avisoDoEstado({ bloqueado: true, historico: base({ voltas: [iso(T0 - 86400_000), iso(T0 - 2 * 86400_000)] }), agoraMs: T0 + H(5) }).startsWith('PARADO ATÉ VOCÊ LIBERAR:'), 'bloqueado depois de 2 voltas em 7 dias (ninguém mais destrava sozinho): PARADO ATÉ VOCÊ LIBERAR');
+    ok(avisoDoEstado({ bloqueado: false, historico: base(), agoraMs: T0 }) === null && avisoDoEstado({ bloqueado: true, historico: parseHistorico('{lixo'), agoraMs: T0 } ) === null && avisoDoEstado({ bloqueado: true, historico: null, agoraMs: T0 }) === null, 'sem estado especial ou histórico ilegível: nenhum aviso');
+    ok(/avisoDoEstado\(\{ bloqueado: bloqueioAtivo\(\), historico: lerHistorico\(\), agoraMs: Date\.now\(\) \}\);\s*\n\s*if \(aviso\) campos = \{ \.\.\.campos, fazendo: aviso\.slice\(0, 240\) \}/.test(textoWorker), 'worker.mjs: toda batida do pulso do Instagram carrega o aviso fixo (o "fazendo" do laço não o apaga)');
+  }
+
+  console.log('\ntestar-bloqueio.mjs (lido como texto: nunca é executado aqui)');
+  {
+    const ts = readFileSync(fileURLToPath(new URL('./testar-bloqueio.mjs', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
+    ok(/if \(!existsSync\(ARQ_BLOQUEIO\) && !freioPendente\(h\)\) \{ log\('sem bloqueio-instagram\.json/.test(ts), 'testar-bloqueio: sem bloqueio e sem freio pendente sai cedo (antes devolvia o teto a 5 duas vezes por dia)');
+    ok(/planoDeTeste\(\{ historico: h, agoraMs: Date\.now\(\) \}\);\s*\n\s*if \(!plano\.testar\)/.test(ts) && ts.indexOf('planoDeTeste(') < ts.indexOf('compositorAbre(alvo)'), 'testar-bloqueio: só visita perfil depois de 24 h/48 h do freio e fora do PARADO');
+    ok(/escolherAlvoTeste\(fila, h\)/.test(ts) && /limit=30/.test(ts) && !/limit=1'\)/.test(ts), 'testar-bloqueio: escolhe um @ diferente dos últimos testes (não pega mais sempre o 1º da fila)');
+    ok(/registrarTeste\(h, \{ arroba: alvo, limpo: !!r\.abriu/.test(ts) && ts.indexOf('registrarTeste(') < ts.indexOf('avaliarDestrave('), 'testar-bloqueio: grava cada teste (limpo ou não) no histórico com o @ e a hora');
+    ok(/avaliarDestrave\(\{ historico: h, agoraMs: Date\.now\(\) \}\);\s*\n\s*if \(!av\.destravar\)/.test(ts) && ts.indexOf('avaliarDestrave(') < ts.indexOf('method: \'PATCH\', headers: H'), 'testar-bloqueio: só destrava (PATCH do teto) quando a regra de 1 ou 2 testes + 24 h/48 h fecha');
+    const iVolta = ts.indexOf('registrarVolta('), iRm = ts.indexOf('rmSync(ARQ_BLOQUEIO'), iOk = ts.indexOf('if (!rr.ok) {');
+    ok(iVolta > iOk && iRm > iVolta, 'testar-bloqueio: PATCH ok, depois grava a volta no histórico, só então apaga o bloqueio');
+    ok(/fazendo: avisoDoEstado\(/.test(ts) && /VOLTOU SOZINHO/.test(ts), 'testar-bloqueio: o pulso do destrave também sai como "VOLTOU SOZINHO: ..."');
+  }
 }
 
 console.log(`\n${n - falhas}/${n} verificações ok${falhas ? ` · ${falhas} FALHOU` : ''}`);
