@@ -529,6 +529,7 @@ export const AVISO_VOLTOU_MIN = 40;           // o "VOLTOU SOZINHO" fica no puls
 export const ARQ_LIBERAR_NOME = 'LIBERAR-INSTAGRAM.txt';
 export const AVISO_VOLTOU = 'VOLTOU SOZINHO';
 export const AVISO_TRAVOU = 'TRAVOU DE NOVO';
+export const AVISO_TRAVOU_1 = 'TRAVOU';   // 1º freio, sem volta anterior em 7 dias. CUIDADO: "TRAVOU DE NOVO:" também começa com TRAVOU; quem lê o prefixo testa o mais longo primeiro (ou use "TRAVOU:" com os dois-pontos)
 export const AVISO_PARADO = 'PARADO ATÉ VOCÊ LIBERAR';
 const HORA_MS = 3600_000;
 const msDe = iso => { const t = Date.parse(iso); return Number.isFinite(t) ? t : NaN; };
@@ -610,7 +611,7 @@ export function podeVoltar({ bloqueio, historico }) {
   if (h.rebaixadoEm && h.ultimo && msDe(h.rebaixadoEm) < msDe(h.ultimo)) return { volta: false, motivo: 'o rebaixe é anterior ao último bloqueio' };
   // O sumiço do arquivo sozinho não basta: a volta tem que ter sido AUTORIZADA (teste limpo + 24 h/48 h, no testar-bloqueio)
   // ou liberada pelo dono. Sem isto, apagar o arquivo à mão pularia as regras de teste.
-  if (h.freios && h.freios.length && !jaVoltouDepoisDoFreio(h)) return { volta: false, motivo: 'a volta ainda não foi autorizada (teste limpo + 24 h/48 h) nem liberada pelo dono' };
+  if (h.ultimo && !jaVoltouDepoisDoFreio(h)) return { volta: false, motivo: 'a volta ainda não foi autorizada (teste limpo + 24 h/48 h) nem liberada pelo dono' };
   return { volta: true };
 }
 /** Há um freio gravado pelo robô cuja volta ainda não foi autorizada? (vale mesmo se o arquivo de bloqueio sumiu) */
@@ -628,7 +629,33 @@ export function registrarFreio(historico, agoraIso) {
   const h = historico || {};
   const agoraMs = msDe(agoraIso);
   const freios = [...recentes(h.freios, agoraMs, 14), agoraIso];
-  return { ...h, ultimo: agoraIso, dia: diaDeIso(agoraIso), rebaixado: false, rebaixadoEm: null, freios, parado: freiosParam(freios, agoraMs), prova: null };
+  // PARADO no 3º freio em 7 dias OU quando já houve 2 voltas em 7 dias (ninguém mais destrava sozinho): o estado e o aviso batem.
+  const parado = freiosParam(freios, agoraMs) || recentes(h.voltas, agoraMs).length >= MAX_VOLTAS_7D;
+  return { ...h, ultimo: agoraIso, dia: diaDeIso(agoraIso), rebaixado: false, rebaixadoEm: null, freios, parado, prova: null };
+}
+/**
+ * Histórico ANTIGO (anterior à volta automática): tem ultimo e rebaixado, mas nenhuma lista freios/voltas. Semeia UMA vez
+ * freios=[ultimo] e, se o rebaixe foi depois do freio e o canal NÃO está bloqueado agora, voltas=[rebaixadoEm]
+ * (a volta de fato aconteceu: o dia dela não conta como dia cheio e a janela de 7 dias passa a valer).
+ * Devolve { h, semeou }. Depois de semeado, freios[] não está mais vazio e não semeia de novo.
+ */
+export function semearHistoricoAntigo(historico, { bloqueado = false } = {}) {
+  const h = historico;
+  if (!h || h.corrompido || !h.ultimo) return { h, semeou: false };
+  if ((h.freios && h.freios.length) || (h.voltas && h.voltas.length)) return { h, semeou: false };
+  const novo = { ...h, freios: [h.ultimo] };
+  if (!bloqueado && h.rebaixado === true && h.rebaixadoEm && msDe(h.rebaixadoEm) > msDe(h.ultimo)) novo.voltas = [h.rebaixadoEm];
+  return { h: novo, semeou: true };
+}
+/**
+ * Histórico ausente, ilegível ou sem ultimo COM arquivo de bloqueio presente: reconstrói a base a partir do bloqueio
+ * (desde) para o testar-bloqueio conseguir contar 24 h/48 h. Ilegível parte de um histórico vazio.
+ */
+export function reconstruirHistorico(historico, bloqueio, agoraIso) {
+  const h = historico && !historico.corrompido ? historico : parseHistorico('{}');
+  if (h.ultimo) return h;
+  const desde = (bloqueio && bloqueio.desde) || agoraIso;
+  return { ...h, ultimo: desde, dia: diaDeIso(desde), rebaixado: false, rebaixadoEm: null };
 }
 /** O dono liberou (arquivo LIBERAR-INSTAGRAM.txt): zera a contagem e o parado. */
 export const liberarPeloDono = (historico, agoraIso) => ({ ...(historico || {}), parado: false, freios: [], voltas: [], liberadoEm: agoraIso });
@@ -638,10 +665,15 @@ export const liberarPeloDono = (historico, agoraIso) => ({ ...(historico || {}),
  */
 export function avisoDoEstado({ bloqueado, historico, agoraMs }) {
   const h = historico;
+  // Bloqueado com histórico ilegível ou sem o dia do freio: ninguém sabe contar 24 h/48 h, então fica PARADO e avisa.
+  if (bloqueado && h && (h.corrompido || !h.ultimo)) return `${AVISO_PARADO}: o histórico do bloqueio (historico-bloqueio-instagram.json) está ilegível ou sem a data do freio. Crie o arquivo ${ARQ_LIBERAR_NOME} na pasta worker-prospeccao para liberar (ou rode testar-bloqueio, que reconstrói a base).`;
   if (!h || h.corrompido) return null;
-  if (bloqueado && (h.parado || exigenciaDaVolta(h, agoraMs) === null)) return `${AVISO_PARADO}: ${recentes(h.freios, agoraMs).length} freio(s) e ${recentes(h.voltas, agoraMs).length} volta(s) em 7 dias. Crie o arquivo ${ARQ_LIBERAR_NOME} na pasta worker-prospeccao para liberar.`;
+  // PARADO só enquanto a volta deste freio NÃO foi registrada: entre o testar gravar a 2ª volta e o laço baixar a flag não é PARADO.
+  if (bloqueado && !jaVoltouDepoisDoFreio(h) && (h.parado || exigenciaDaVolta(h, agoraMs) === null)) return `${AVISO_PARADO}: ${recentes(h.freios, agoraMs).length} freio(s) e ${recentes(h.voltas, agoraMs).length} volta(s) em 7 dias. Crie o arquivo ${ARQ_LIBERAR_NOME} na pasta worker-prospeccao para liberar.`;
   const voltas = recentes(h.voltas, agoraMs);
   if (bloqueado && voltas.length && !jaVoltouDepoisDoFreio(h)) return `${AVISO_TRAVOU}: o freio ligou de novo depois da volta de ${voltas[voltas.length - 1]} (${voltas.length} volta(s) em 7 dias). Parado até o teste limpo (24 h/48 h).`;
+  // 1º freio (nenhuma volta nos últimos 7 dias): "TRAVOU:". Já cobertos acima: PARADO e TRAVOU DE NOVO.
+  if (bloqueado && voltas.length === 0) return `${AVISO_TRAVOU_1}: o Instagram parou de deixar abrir conversa nova (1º freio, sem volta nos últimos 7 dias). Parado até o teste limpo (24 h).`;
   const ult = h.voltas && h.voltas.length ? msDe(h.voltas[h.voltas.length - 1]) : NaN;
   if (!bloqueado && Number.isFinite(ult) && agoraMs - ult <= AVISO_VOLTOU_MIN * 60_000) {
     return `${AVISO_VOLTOU}: o Instagram deixou abrir conversa nova de novo. Teto 5/dia e os ${PROVA_ENVIOS} primeiros envios são de prova (1 falha para tudo na hora).`;
