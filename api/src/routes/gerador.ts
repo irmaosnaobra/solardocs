@@ -9,7 +9,7 @@ import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { montarBusca } from '../services/io/prospeccaoBriefService';
 import { montarCentralAgentes } from '../services/io/centralAgentes';
 import { criarCacheDeMontagem } from '../services/io/centralAgentesCache';
-import { decidirResposta, bolhasParaEnvio } from '../services/io/prospeccaoResposta';
+import { decidirResposta, bolhasParaEnvio, gravarMensagemRecebida } from '../services/io/prospeccaoResposta';
 import { montarFunil } from '../services/io/prospeccaoFunil';
 import { listarCerebros, salvarCerebro, restaurarCerebro, conversarComAgente, ehCerebroValido } from '../services/io/cerebroAgentes';
 import {
@@ -904,6 +904,19 @@ router.post('/prospeccao/responder', async (req: Request, res: Response) => {
     }
     const v = await decidirResposta({ empresa, cidade, produto_id, historico, contato_id, canal });
     if (!v) { res.status(503).json({ error: 'ia indisponivel' }); return; }
+    // Resposta automática de perfil: 200 com nao_enviar=true, bolhas e envio vazios.
+    // Nada sai e NENHUM toque deve ser gravado (o contato não pode travar). Só a
+    // mensagem recebida vai para prospeccao_conversas. Status fora de 2xx faria o
+    // worker tentar de novo a cada volta e pagar IA a cada tentativa.
+    if (v.nao_enviar) {
+      // Só no WhatsApp: no Instagram o webhook já gravou a mensagem recebida.
+      if (canal === 'whatsapp') {
+        const ultima = [...historico].reverse().find((h: any) => h?.de === 'lead');
+        await gravarMensagemRecebida(contato_id, canal, String(ultima?.texto || ''));
+      }
+      res.json({ ...v, bolhas: [], material: [], mandar_link: false, envio: [] });
+      return;
+    }
     res.json({ ...v, envio: bolhasParaEnvio(v, contato_id, canal) });
   } catch (err: any) {
     logger.error('gerador', 'prospeccao/responder falhou', err);
