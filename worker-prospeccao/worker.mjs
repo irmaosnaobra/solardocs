@@ -43,7 +43,7 @@
 
 import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { semearHistoricoAntigo, podeVoltar, freioPendente, registrarFreio, registrarVolta, liberarPeloDono, contarEnvioDeProva, provaAtiva, avisoDoEstado, jaVoltouDepoisDoFreio, ARQ_LIBERAR_NOME, PROVA_ENVIOS, jaTratada, marcarTratada, lerTratadas, emAlmoco, ajustarInstante, esperaParaMinutoBom, registrarFalhaCaixa, aposEnvioConfirmado, enviosConfirmados, planoDigitacao, duracaoRolagemMs, passosRolagem, cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio, decidirRampa, diaAnteriorUtil, limitesDoDia, relogioBRT, RAMPA_INICIAL, tetoManualInstagram, parseHistorico, diaDeIso, maxInstagramEfetivo, historicoPrecisaSincronizar } from './ritmo.mjs';
+import { motivoVaiParaQuarentena, parseQuarentena, foraDaQuarentena, registrarFalhaQuarentena, marcarEnvioConfirmado, tirarDaQuarentena, QUARENTENA_DIAS, semearHistoricoAntigo, podeVoltar, freioPendente, registrarFreio, registrarVolta, liberarPeloDono, contarEnvioDeProva, provaAtiva, avisoDoEstado, jaVoltouDepoisDoFreio, ARQ_LIBERAR_NOME, PROVA_ENVIOS, jaTratada, marcarTratada, lerTratadas, emAlmoco, ajustarInstante, esperaParaMinutoBom, registrarFalhaCaixa, aposEnvioConfirmado, enviosConfirmados, planoDigitacao, duracaoRolagemMs, passosRolagem, cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio, decidirRampa, diaAnteriorUtil, limitesDoDia, relogioBRT, RAMPA_INICIAL, tetoManualInstagram, parseHistorico, diaDeIso, maxInstagramEfetivo, historicoPrecisaSincronizar } from './ritmo.mjs';
 import { escolherAbertura, escolherVersao, chavesUsadas, totalDoContentRange, usaAberturaNova } from './abertura.mjs';
 
 const ARG = process.argv.slice(2);
@@ -1412,6 +1412,27 @@ async function verificarVolta() {
   } catch (e) { log('verificação da volta falhou (sigo parada): ' + e.message); }
 }
 
+// ── QUARENTENA DE @ (quando a caixa de DM não abre) ─────────────────────────
+const ARQ_QUARENTENA = fileURLToPath(new URL(`./quarentena-${CANAL}.json`, import.meta.url));
+const lerQuarentena = () => { try { return parseQuarentena(readFileSync(ARQ_QUARENTENA, 'utf8')); } catch { return {}; } };
+function gravarQuarentena(mapa) {
+  try { writeFileSync(ARQ_QUARENTENA, JSON.stringify(mapa, null, 2)); return true; }
+  catch (e) { log('NÃO consegui gravar ' + ARQ_QUARENTENA + ': ' + e.message + ' (o @ pode voltar à fila)'); return false; }
+}
+/** "Caixa de DM não abriu" em um @: 14 dias fora da fila; a 2ª falha COM envio confirmado em conversa nova entre as duas tira o @ de vez (o problema é do perfil). */
+async function quarentenaDoPerfil(c) {
+  const r = registrarFalhaQuarentena(lerQuarentena(), c.instagram, new Date().toISOString());
+  gravarQuarentena(r.mapa);
+  if (r.acao === 'remover') {
+    // Mesmo sinal de "procuramos, não serve": @ vazio (não NULL). A empresa fica na base. NÃO grava toque.
+    const p = await fetch(`${CFG.supa}/prospeccao_contatos?id=eq.${c.id}`, {
+      method: 'PATCH', headers: H, body: JSON.stringify({ instagram: '', instagram_em: new Date().toISOString() }),
+    }).catch(() => null);
+    if (p && p.ok) { gravarQuarentena(tirarDaQuarentena(r.mapa, c.instagram)); log(`  @${c.instagram}: caixa não abriu de novo mesmo com envio confirmado entre as falhas — o problema é do perfil. Apaguei o @ (a empresa fica na base).`); }
+    else log(`  @${c.instagram}: não consegui apagar o @ no banco; segue ${QUARENTENA_DIAS} dias em quarentena.`);
+  } else log(`  @${c.instagram} em quarentena por ${QUARENTENA_DIAS} dias (${r.contagem}ª falha de caixa).`);
+}
+
 /** Liga o freio (bloqueio de conversa nova) quando o contador de perfis distintos chegou ao limite. */
 async function aplicarFreio(freio) {
   if (!freio || !freio.liga || bloqueadaParaNovas) return;
@@ -1476,7 +1497,8 @@ async function umaAbordagem() {
     ler('prospeccao_produtos?select=*&ativo=eq.true&order=ordem.asc'),
   ]);
 
-  const alvos = fila.filter(alvoDoCanal)
+  // A quarentena (14 dias) sai da fila ANTES de cortar os 40 primeiros candidatos: senão os mesmos @ ficam no topo para sempre.
+  const alvos = (CANAL === 'instagram' ? foraDaQuarentena(fila, lerQuarentena()) : fila).filter(alvoDoCanal)
     .filter(x => !caixaNaoAbriuEm.has(x.instagram) && !pularNaSessao.has(x.id) && !recusadosFila.has(x.id));
   if (!alvos.length) {
     log(CANAL === 'instagram'
@@ -1534,6 +1556,11 @@ async function umaAbordagem() {
         if (aposEnvioConfirmado(caixaNaoAbriuEm, { conversaAntiga: r.conversaAntiga })) caixaNaoAbriu = 0;
         else if (caixaNaoAbriuEm.size) log(`  conversa já existia (ou não deu para medir): o contador de bloqueio fica em ${caixaNaoAbriuEm.size}`);
       } else { caixaNaoAbriu = 0; caixaNaoAbriuEm.clear(); }
+      if (CANAL === 'instagram' && r.conversaAntiga === false) {
+        // Envio confirmado em conversa NOVA entre duas falhas de caixa: se o mesmo @ falhar de novo, o problema é do perfil.
+        const q0 = lerQuarentena();
+        if (Object.values(q0).some(e => !e.envioDesde)) gravarQuarentena(marcarEnvioConfirmado(q0));
+      }
       if (CANAL === 'instagram') {
         // Envios de PROVA: só os confirmados em conversa NOVA contam; o 3º devolve o limite a 3 perfis.
         const h0 = lerHistorico(), h1 = contarEnvioDeProva(h0, { conversaAntiga: r.conversaAntiga }, new Date().toISOString());
@@ -1573,6 +1600,7 @@ async function umaAbordagem() {
     // para sozinha, avisa no pulso, e espera alguém conferir.
     // 09/11/2026: "texto ficou na caixa / não saiu" é o MESMO sintoma (a restrição deixa o texto na caixa)
     // e conta no mesmo contador, antes de o freio ligar (em 06/11 três deles passaram como "incerto").
+    if (CANAL === 'instagram' && motivoVaiParaQuarentena(r.motivo)) await quarentenaDoPerfil(c);   // só "caixa de DM não abriu"; a falha CONTINUA contando no freio e na prova (abaixo)
     const freio = CANAL === 'instagram' ? registrarFalhaIG(c.instagram, r.motivo) : { conta: false };
     if (freio.conta) {
       // Conta PERFIS DISTINTOS, que é o que a regra diz. O mesmo @ falhando três
