@@ -22,3 +22,5 @@ historico-bloqueio-*.json
 respostas-automaticas-*.json
 # O dono cria este arquivo para liberar o Instagram parado (estado local; o robo apaga ao ler).
 LIBERAR-INSTAGRAM.txt
+# @ em quarentena (caixa de DM nao abriu): 14 dias fora da fila fria e do teste de destrave (estado local).
+quarentena-*.json

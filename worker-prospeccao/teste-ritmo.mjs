@@ -19,6 +19,7 @@ import {
   podeVoltar, freioPendente, contarEnvioDeProva, provaAtiva, registrarFreio, freiosParam, liberarPeloDono, avisoDoEstado,
   PROVA_ENVIOS, ARQ_LIBERAR_NOME, AVISO_TRAVOU_1,
   semearHistoricoAntigo, reconstruirHistorico, recentes,
+  motivoVaiParaQuarentena, parseQuarentena, emQuarentena, foraDaQuarentena, registrarFalhaQuarentena, marcarEnvioConfirmado, tirarDaQuarentena,
 } from './ritmo.mjs';
 import { spawnSync } from 'node:child_process';
 
@@ -797,7 +798,7 @@ console.log('\n--- 09/11/2026: volta automática do Instagram ---');
     const ts = readFileSync(fileURLToPath(new URL('./testar-bloqueio.mjs', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
     ok(/if \(!existsSync\(ARQ_BLOQUEIO\) && !freioPendente\(h\)\) \{ log\('sem bloqueio-instagram\.json/.test(ts), 'testar-bloqueio: sem bloqueio e sem freio pendente sai cedo (antes devolvia o teto a 5 duas vezes por dia)');
     ok(/planoDeTeste\(\{ historico: h, agoraMs: Date\.now\(\) \}\);\s*\n\s*if \(!plano\.testar\)/.test(ts) && ts.indexOf('planoDeTeste(') < ts.indexOf('compositorAbre(alvo)'), 'testar-bloqueio: só visita perfil depois de 24 h/48 h do freio e fora do PARADO');
-    ok(/escolherAlvoTeste\(fila, h\)/.test(ts) && /limit=30/.test(ts) && !/limit=1'\)/.test(ts), 'testar-bloqueio: escolhe um @ diferente dos últimos testes (não pega mais sempre o 1º da fila)');
+    ok(/escolherAlvoTeste\(fila, h, lerQuarentenaArq\(\)\)/.test(ts) && /limit=30/.test(ts) && !/limit=1'\)/.test(ts), 'testar-bloqueio: escolhe um @ diferente dos últimos testes (não pega mais sempre o 1º da fila)');
     ok(/registrarTeste\(h, \{ arroba: alvo, limpo: !!r\.abriu/.test(ts) && ts.indexOf('registrarTeste(') < ts.indexOf('avaliarDestrave('), 'testar-bloqueio: grava cada teste (limpo ou não) no histórico com o @ e a hora');
     ok(/avaliarDestrave\(\{ historico: h, agoraMs: Date\.now\(\) \}\);\s*\n\s*if \(!av\.destravar\)/.test(ts) && ts.indexOf('avaliarDestrave(') < ts.indexOf('method: \'PATCH\', headers: H'), 'testar-bloqueio: só destrava (PATCH do teto) quando a regra de 1 ou 2 testes + 24 h/48 h fecha');
     const iVolta = ts.indexOf('registrarVolta('), iRm = ts.indexOf('rmSync(ARQ_BLOQUEIO'), iOk = ts.indexOf('if (!rr.ok) {');
@@ -879,6 +880,70 @@ console.log('\najustes do revisor: PARADO falso, parado coerente, histórico ile
   ok(semearHistoricoAntigo(null).semeou === false && semearHistoricoAntigo(parseHistorico('{lixo')).semeou === false && semearHistoricoAntigo(parseHistorico('{"rebaixado":true}')).semeou === false, '6: ausente, ilegível ou sem ultimo: não semeia');
   ok(/const s = semearHistoricoAntigo\(h, \{ bloqueado: existsSync\(ARQ_BLOQUEIO\) \}\);\s*\n\s*if \(s\.semeou\) \{[^\n]*gravarHistorico\(s\.h\); return s\.h; \}/.test(w), '6: worker.mjs semeia ao ler o histórico e grava a semente');
   ok(/semearHistoricoAntigo\(parseHistorico\(readFileSync\(ARQ_HISTORICO/.test(ts), '6: testar-bloqueio também lê o histórico já semeado');
+}
+
+console.log('\nquarentena de @ (caixa de DM não abriu)');
+{
+  const T0 = em('2026-11-09T12:00:00').getTime();
+  const iso = ms => new Date(ms).toISOString();
+  const D = n => 86400_000 * n;
+  const ts = readFileSync(fileURLToPath(new URL('./testar-bloqueio.mjs', import.meta.url)), 'utf8');
+
+  // regra 1: só "caixa de DM não abriu" entra
+  ok(motivoVaiParaQuarentena('caixa de DM não abriu (em https://www.instagram.com/h3solar/). Tela dizia: "..."'), '1: "caixa de DM não abriu" entra em quarentena');
+  ok(!motivoVaiParaQuarentena('texto ficou na caixa — não saiu') && !motivoVaiParaQuarentena('x não saiu') && !motivoVaiParaQuarentena('perfil não carregou') && !motivoVaiParaQuarentena('perfil não existe mais (ou foi renomeado)') && !motivoVaiParaQuarentena(undefined), '1: "ficou na caixa", "não saiu" e "perfil não carregou" NÃO entram');
+  ok(/if \(CANAL === 'instagram' && motivoVaiParaQuarentena\(r\.motivo\)\) await quarentenaDoPerfil\(c\);/.test(textoWorker), '1: worker.mjs só chama a quarentena para "caixa de DM não abriu"');
+
+  // regra 3: 14 dias; 2ª falha com envio entre as falhas tira de vez; sem envio, mais 14 dias
+  let q = {};
+  const f1 = registrarFalhaQuarentena(q, '@H3Solar', iso(T0));
+  ok(f1.acao === 'quarentena' && f1.contagem === 1 && f1.mapa.h3solar.envioDesde === false && f1.mapa.h3solar.ultima === iso(T0), '3: 1ª falha: quarentena, contagem 1, @ normalizado (minúscula, sem @)');
+  ok(Object.keys(q).length === 0, '3: o mapa recebido não é mutado');
+  ok(emQuarentena(f1.mapa, 'h3solar', T0 + D(13)) && emQuarentena(f1.mapa, '@H3SOLAR', T0 + D(1)) && !emQuarentena(f1.mapa, 'h3solar', T0 + D(14)) && !emQuarentena(f1.mapa, 'outro', T0), '3: fica 14 dias em quarentena (13 dias ainda, 14 dias já sai), só o próprio @');
+  // saída A: houve envio confirmado em conversa nova entre as falhas
+  const comEnvio = marcarEnvioConfirmado(f1.mapa);
+  ok(comEnvio.h3solar.envioDesde === true && f1.mapa.h3solar.envioDesde === false, '3: envio confirmado em conversa nova marca o @ (sem mutar o original)');
+  const f2a = registrarFalhaQuarentena(comEnvio, 'h3solar', iso(T0 + D(15)));
+  ok(f2a.acao === 'remover' && f2a.contagem === 2, '3A: falhou de novo COM envio confirmado entre as falhas: remover (o problema é do perfil)');
+  ok(!('h3solar' in tirarDaQuarentena(f2a.mapa, '@h3solar')), '3A: depois do PATCH o @ sai do arquivo');
+  // saída B: nenhum envio confirmado entre as falhas
+  const f2b = registrarFalhaQuarentena(f1.mapa, 'h3solar', iso(T0 + D(15)));
+  ok(f2b.acao === 'quarentena' && f2b.contagem === 2 && f2b.mapa.h3solar.ultima === iso(T0 + D(15)) && emQuarentena(f2b.mapa, 'h3solar', T0 + D(28)) && !emQuarentena(f2b.mapa, 'h3solar', T0 + D(29)), '3B: falhou de novo SEM envio entre as falhas: mais 14 dias (contados da nova falha)');
+  const f3 = registrarFalhaQuarentena(marcarEnvioConfirmado(f2b.mapa), 'h3solar', iso(T0 + D(30)));
+  ok(f3.acao === 'remover' && f3.contagem === 3, '3: o envio confirmado vale também na 3ª falha');
+  ok(registrarFalhaQuarentena(f1.mapa, 'detronicenergia', iso(T0)).mapa.h3solar.contagem === 1, '3: falha de um @ não mexe no outro');
+  ok(/instagram: '', instagram_em: new Date\(\)\.toISOString\(\) \}\),\s*\n\s*\}\)\.catch\(\(\) => null\);/.test(textoWorker) && /gravarQuarentena\(tirarDaQuarentena\(r\.mapa, c\.instagram\)\)/.test(textoWorker), '3: worker.mjs apaga o @ no banco (instagram = vazio, a empresa fica) e só então tira do arquivo');
+  const corpoQuarentena = textoWorker.slice(textoWorker.indexOf('async function quarentenaDoPerfil'), textoWorker.indexOf('/** Liga o freio (bloqueio de conversa nova)'));
+  ok(!/gravarToque/.test(corpoQuarentena), '3: a quarentena NÃO grava toque');
+  ok(/r\.conversaAntiga === false\) \{[\s\S]{0,300}marcarEnvioConfirmado\(q0\)/.test(textoWorker), '3: só envio confirmado em conversa NOVA (conversaAntiga false) marca "houve envio entre as falhas"');
+  // regra 4: a falha continua contando no freio e na prova
+  ok(/await quarentenaDoPerfil\(c\);[^\n]*\n\s*const freio = CANAL === 'instagram' \? registrarFalhaIG\(c\.instagram, r\.motivo\)/.test(textoWorker), '4: a falha continua passando por registrarFalhaIG (freio de 3 perfis distintos e prova)');
+
+  // arquivo ilegível = vazio
+  ok(Object.keys(parseQuarentena('lixo{')).length === 0 && Object.keys(parseQuarentena('')).length === 0 && Object.keys(parseQuarentena(null)).length === 0 && Object.keys(parseQuarentena('[1,2]')).length === 0 && Object.keys(parseQuarentena('"x"')).length === 0, 'arquivo ilegível, vazio ou fora do formato = vazio');
+  ok(Object.keys(parseQuarentena('{"a":{"ultima":"nao-e-data"},"b":5,"c":{"ultima":"2026-11-09T12:00:00Z","contagem":"x"}}')).join() === 'c' && parseQuarentena('{"c":{"ultima":"2026-11-09T12:00:00Z","contagem":"x"}}').c.contagem === 1, 'entrada sem data válida é ignorada; contagem inválida vira 1');
+  ok(parseQuarentena(JSON.stringify(f2b.mapa)).h3solar.contagem === 2 && parseQuarentena(JSON.stringify(f2b.mapa)).h3solar.envioDesde === false, 'o que o worker grava volta na leitura');
+  ok(/const lerQuarentena = \(\) => \{ try \{ return parseQuarentena\(readFileSync\(ARQ_QUARENTENA, 'utf8'\)\); \} catch \{ return \{\}; \} \};/.test(textoWorker) && /const lerQuarentenaArq = \(\) => \{ try \{ return parseQuarentena\(readFileSync\(ARQ_QUARENTENA, 'utf8'\)\); \} catch \{ return \{\}; \} \};/.test(ts), 'worker.mjs e testar-bloqueio.mjs leem o arquivo e tratam erro como vazio');
+
+  // regra 5: testar-bloqueio
+  const fila = [{ instagram: 'h3solar' }, { instagram: 'detronicenergia' }, { instagram: 'ensolarenergiaefuturo' }, { instagram: 'novo_a' }, { instagram: 'novo_b' }];
+  const quar = { h3solar: { ultima: iso(T0), contagem: 1, envioDesde: false }, detronicenergia: { ultima: iso(T0 - D(40)), contagem: 2, envioDesde: false }, ensolarenergiaefuturo: { ultima: iso(T0), contagem: 1, envioDesde: false } };
+  ok(escolherAlvoTeste(fila, null, quar) === 'novo_a', '5: nunca escolhe @ em quarentena, nem o de quarentena vencida (há falha no arquivo): vai ao primeiro nunca tentado');
+  ok(escolherAlvoTeste(fila.slice(0, 3), null, quar) === null, '5: se só há @ com falha no arquivo, não testa (null)');
+  ok(escolherAlvoTeste(fila, { testes: [{ arroba: 'novo_a', em: iso(T0), limpo: true }] }, quar) === 'novo_b', '5: também respeita os 10 últimos testes');
+  ok(escolherAlvoTeste(fila, null) === 'h3solar' && escolherAlvoTeste(fila, null, {}) === 'h3solar', '5: sem quarentena o comportamento anterior não muda');
+  ok(/escolherAlvoTeste\(fila, h, lerQuarentenaArq\(\)\)/.test(ts), '5: testar-bloqueio passa a quarentena para a escolha do @');
+
+  // regra 7: quarentena aplicada ANTES de cortar os 40
+  const longa = [...Array.from({ length: 45 }, (_, k) => ({ id: 'q' + k, instagram: 'preso' + k })), ...Array.from({ length: 155 }, (_, k) => ({ id: 'n' + k, instagram: 'livre' + k }))];
+  const presos = Object.fromEntries(Array.from({ length: 45 }, (_, k) => ['preso' + k, { ultima: iso(T0), contagem: 1, envioDesde: false }]));
+  ok(longa.slice(0, 40).every(x => x.instagram.startsWith('preso')), '7: (cenário) os 40 primeiros candidatos são todos @ presos');
+  const livres = foraDaQuarentena(longa, presos, T0 + D(1));
+  ok(livres.length === 155 && livres.slice(0, 40).every(x => x.instagram.startsWith('livre')), '7: com o filtro ANTES do corte, os 40 candidatos são todos livres');
+  ok(foraDaQuarentena(longa, presos, T0 + D(15)).length === 200 && foraDaQuarentena(null, presos).length === 0, '7: depois de 14 dias os @ voltam à fila; fila ilegível = vazia');
+  const iFiltro = textoWorker.indexOf('foraDaQuarentena(fila, lerQuarentena())'), iCorte = textoWorker.indexOf('alvos.slice(0, 40)');
+  ok(iFiltro > 0 && iCorte > iFiltro, '7: worker.mjs aplica a quarentena na lista de alvos antes do alvos.slice(0, 40)');
+  ok(readFileSync(fileURLToPath(new URL('./.gitignore', import.meta.url)), 'utf8').includes('quarentena-*.json'), '.gitignore: quarentena-*.json é estado local');
 }
 
 console.log(`\n${n - falhas}/${n} verificações ok${falhas ? ` · ${falhas} FALHOU` : ''}`);

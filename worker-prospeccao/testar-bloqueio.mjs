@@ -20,13 +20,15 @@
 
 import { rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { semearHistoricoAntigo, reconstruirHistorico, parseBloqueio, parseHistorico, freioPendente, planoDeTeste, escolherAlvoTeste, registrarTeste, avaliarDestrave, registrarVolta, avisoDoEstado, diaDeIso } from './ritmo.mjs';
+import { parseQuarentena, semearHistoricoAntigo, reconstruirHistorico, parseBloqueio, parseHistorico, freioPendente, planoDeTeste, escolherAlvoTeste, registrarTeste, avaliarDestrave, registrarVolta, avisoDoEstado, diaDeIso } from './ritmo.mjs';
 
 // Regras da VOLTA AUTOMÁTICA (chefe-antiban, 09/11/2026), todas em ritmo.mjs e testadas em teste-ritmo.mjs:
 //   1ª volta da semana = 1 teste limpo + 24 h desde o freio; 2ª = 2 testes limpos SEGUIDOS + 48 h; 3ª = só o dono.
 //   Os testes são em @ DIFERENTES (não repete o @ dos últimos testes) e cada um fica no histórico com o @ e a hora.
 const ARQ_BLOQUEIO = fileURLToPath(new URL('./bloqueio-instagram.json', import.meta.url));
 const ARQ_HISTORICO = fileURLToPath(new URL('./historico-bloqueio-instagram.json', import.meta.url));
+const ARQ_QUARENTENA = fileURLToPath(new URL('./quarentena-instagram.json', import.meta.url));
+const lerQuarentenaArq = () => { try { return parseQuarentena(readFileSync(ARQ_QUARENTENA, 'utf8')); } catch { return {}; } };   // ilegível = vazio
 const lerHistoricoArq = () => {
   try { return semearHistoricoAntigo(parseHistorico(readFileSync(ARQ_HISTORICO, 'utf8')), { bloqueado: existsSync(ARQ_BLOQUEIO) }).h; }
   catch { return null; }
@@ -132,8 +134,9 @@ async function main() {
   // Um alvo que a agente ainda NAO tocou E que NAO foi um dos ultimos testes: testar em quem ja recebeu mensagem
   // daria falso positivo (la a conversa existe e o compositor abre sempre), e repetir o @ nao prova nada novo.
   const fila = await ler('prospeccao_fila_worker?select=instagram&canal=eq.nunca_tocado&instagram=not.is.null&instagram=neq.&limit=30');
-  const alvo = escolherAlvoTeste(fila, h);
-  if (!alvo) { log('nao ha perfil novo (diferente dos ultimos testes) na fila pra testar.'); return; }
+  // Nunca testa @ em quarentena (nem vencida): só @ nunca tentados e fora dos 10 últimos testes. Sem candidato, não testa.
+  const alvo = escolherAlvoTeste(fila, h, lerQuarentenaArq());
+  if (!alvo) { log('nao ha perfil novo (nunca tentado, fora da quarentena e dos ultimos testes) na fila pra testar.'); return; }
 
   log(`testando o compositor em @${alvo} (perfil nunca contactado, diferente dos ultimos testes)`);
   const r = await compositorAbre(alvo);

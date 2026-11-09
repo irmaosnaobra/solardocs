@@ -562,8 +562,10 @@ export function planoDeTeste({ historico, agoraMs }) {
 /** @ normalizado: minúscula, sem @. */
 const norm = a => String(a || '').replace(/^@/, '').trim().toLowerCase();
 /** Primeiro da fila cujo @ não está entre os últimos 10 testes. null = ninguém novo. */
-export function escolherAlvoTeste(fila, historico) {
+export function escolherAlvoTeste(fila, historico, quarentena = {}) {
   const ultimos = new Set(((historico && historico.testes) || []).slice(-10).map(t => norm(t.arroba)));
+  // Prefere @ NUNCA tentados: quem tem qualquer falha no arquivo de quarentena (mesmo vencida) não serve de teste.
+  for (const a of Object.keys(quarentena || {})) ultimos.add(norm(a));
   const c = (Array.isArray(fila) ? fila : []).find(x => norm(x && x.instagram) && !ultimos.has(norm(x.instagram)));
   return c ? c.instagram : null;
 }
@@ -679,4 +681,67 @@ export function avisoDoEstado({ bloqueado, historico, agoraMs }) {
     return `${AVISO_VOLTOU}: o Instagram deixou abrir conversa nova de novo. Teto 5/dia e os ${PROVA_ENVIOS} primeiros envios são de prova (1 falha para tudo na hora).`;
   }
   return null;
+}
+
+// ── QUARENTENA DE @ (09/11/2026, aprovada pelo chefe-antiban) ────────────────
+// Quando "caixa de DM não abriu" num perfil, nada era gravado e os mesmos @ ficavam no topo da fila para sempre
+// (ligando freio falso e sendo escolhidos pelo testar-bloqueio). Agora o @ fica 14 dias fora da fila fria e do teste
+// de destrave, num arquivo local único por conta (quarentena-<canal>.json, lido pelo worker e pelo testar-bloqueio):
+//   { "<@ em minúscula, sem @>": { "ultima": ISO da última falha, "contagem": n, "envioDesde": true|false } }
+// "envioDesde" = houve envio CONFIRMADO em conversa NOVA depois da última falha. Falhou de novo (depois dos 14 dias) COM
+// envio entre as duas falhas = o problema é do PERFIL: o worker tira o @ de vez (instagram = '' no banco, sem gravar toque).
+// Sem envio entre as falhas: mais 14 dias. Só "caixa de DM não abriu" entra; "ficou na caixa", "não saiu" (já viram
+// toque incerto) e "perfil não carregou" não entram. Arquivo ilegível = vazio.
+export const QUARENTENA_DIAS = 14;
+const arrobaDe = a => String(a || '').replace(/^@/, '').trim().toLowerCase();
+/** Só a falha "caixa de DM não abriu" vai para a quarentena. */
+export const motivoVaiParaQuarentena = motivo => /caixa de DM não abriu/i.test(String(motivo || ''));
+/** Texto do arquivo -> mapa { arroba: { ultima, contagem, envioDesde } }. Ilegível, ausente ou fora do formato = {}. */
+export function parseQuarentena(texto) {
+  let j;
+  try { j = texto ? JSON.parse(texto) : {}; } catch { return {}; }
+  const mapa = {};
+  if (!j || typeof j !== 'object' || Array.isArray(j)) return mapa;
+  for (const [k, v] of Object.entries(j)) {
+    const a = arrobaDe(k);
+    if (a && v && typeof v === 'object' && Number.isFinite(Date.parse(v.ultima))) {
+      mapa[a] = { ultima: new Date(v.ultima).toISOString(), contagem: Math.max(1, Number(v.contagem) || 1), envioDesde: v.envioDesde === true };
+    }
+  }
+  return mapa;
+}
+/** Este @ está em quarentena AGORA (última falha há menos de 14 dias)? */
+export function emQuarentena(mapa, arroba, agoraMs = Date.now()) {
+  const e = mapa && mapa[arrobaDe(arroba)];
+  if (!e) return false;
+  const t = Date.parse(e.ultima);
+  return Number.isFinite(t) && agoraMs - t < QUARENTENA_DIAS * 86400_000;
+}
+/** Tira da fila os @ em quarentena. Roda ANTES de cortar os 40 primeiros candidatos. */
+export const foraDaQuarentena = (fila, mapa, agoraMs = Date.now()) =>
+  (Array.isArray(fila) ? fila : []).filter(x => !emQuarentena(mapa, x && x.instagram, agoraMs));
+/**
+ * Registra a falha "caixa de DM não abriu" de um @. Devolve { mapa, acao, contagem }:
+ *  - acao 'quarentena': 1ª falha, ou 2ª sem envio confirmado em conversa nova entre as duas (mais 14 dias);
+ *  - acao 'remover': 2ª+ falha com envio confirmado em conversa nova entre elas (o problema é do perfil).
+ * Não muta o mapa recebido.
+ */
+export function registrarFalhaQuarentena(mapa, arroba, agoraIso) {
+  const a = arrobaDe(arroba);
+  const antes = (mapa || {})[a];
+  const acao = antes && antes.envioDesde === true ? 'remover' : 'quarentena';
+  const contagem = antes ? antes.contagem + 1 : 1;
+  return { mapa: { ...(mapa || {}), [a]: { ultima: agoraIso, contagem, envioDesde: false } }, acao, contagem };
+}
+/** Um envio CONFIRMADO em conversa NOVA aconteceu: marca todos os @ em quarentena (envio entre as falhas). */
+export function marcarEnvioConfirmado(mapa) {
+  const novo = {};
+  for (const [a, e] of Object.entries(mapa || {})) novo[a] = { ...e, envioDesde: true };
+  return novo;
+}
+/** Tira um @ do mapa (depois do PATCH que apagou o @ no banco). */
+export function tirarDaQuarentena(mapa, arroba) {
+  const novo = { ...(mapa || {}) };
+  delete novo[arrobaDe(arroba)];
+  return novo;
 }
