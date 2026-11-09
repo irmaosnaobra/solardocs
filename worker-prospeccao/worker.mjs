@@ -43,7 +43,7 @@
 
 import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { podeVoltar, freioPendente, registrarFreio, registrarVolta, liberarPeloDono, contarEnvioDeProva, provaAtiva, avisoDoEstado, jaVoltouDepoisDoFreio, ARQ_LIBERAR_NOME, PROVA_ENVIOS, jaTratada, marcarTratada, lerTratadas, emAlmoco, ajustarInstante, esperaParaMinutoBom, registrarFalhaCaixa, aposEnvioConfirmado, enviosConfirmados, planoDigitacao, duracaoRolagemMs, passosRolagem, cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio, decidirRampa, diaAnteriorUtil, limitesDoDia, relogioBRT, RAMPA_INICIAL, tetoManualInstagram, parseHistorico, diaDeIso, maxInstagramEfetivo, historicoPrecisaSincronizar } from './ritmo.mjs';
+import { semearHistoricoAntigo, podeVoltar, freioPendente, registrarFreio, registrarVolta, liberarPeloDono, contarEnvioDeProva, provaAtiva, avisoDoEstado, jaVoltouDepoisDoFreio, ARQ_LIBERAR_NOME, PROVA_ENVIOS, jaTratada, marcarTratada, lerTratadas, emAlmoco, ajustarInstante, esperaParaMinutoBom, registrarFalhaCaixa, aposEnvioConfirmado, enviosConfirmados, planoDigitacao, duracaoRolagemMs, passosRolagem, cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio, decidirRampa, diaAnteriorUtil, limitesDoDia, relogioBRT, RAMPA_INICIAL, tetoManualInstagram, parseHistorico, diaDeIso, maxInstagramEfetivo, historicoPrecisaSincronizar } from './ritmo.mjs';
 import { escolherAbertura, escolherVersao, chavesUsadas, totalDoContentRange, usaAberturaNova } from './abertura.mjs';
 
 const ARG = process.argv.slice(2);
@@ -349,12 +349,18 @@ async function patchRampa(tetoManual, obs) {
 const ARQ_HISTORICO = fileURLToPath(new URL(`./historico-bloqueio-${CANAL}.json`, import.meta.url));
 /** Histórico do último bloqueio: NÃO se apaga no destrave. */
 function lerHistorico() {
-  try { return parseHistorico(readFileSync(ARQ_HISTORICO, 'utf8')); }
+  let h;
+  try { h = parseHistorico(readFileSync(ARQ_HISTORICO, 'utf8')); }
   catch (e) { return e && e.code === 'ENOENT' ? null : parseHistorico('{ilegível'); }
+  // Histórico ANTIGO (sem freios/voltas): semeia UMA vez freios=[ultimo] e voltas=[rebaixadoEm] e grava.
+  const s = semearHistoricoAntigo(h, { bloqueado: existsSync(ARQ_BLOQUEIO) });
+  if (s.semeou) { log('histórico do bloqueio no formato antigo: semeei freios/voltas a partir de ultimo e rebaixadoEm.'); gravarHistorico(s.h); return s.h; }
+  return h;
 }
+/** true se gravou. */
 function gravarHistorico(h) {
-  try { writeFileSync(ARQ_HISTORICO, JSON.stringify(h, null, 2)); }
-  catch (e) { log('NÃO consegui gravar ' + ARQ_HISTORICO + ': ' + e.message + ' (sem histórico o teto fica em 5 por segurança)'); }
+  try { writeFileSync(ARQ_HISTORICO, JSON.stringify(h, null, 2)); return true; }
+  catch (e) { log('NÃO consegui gravar ' + ARQ_HISTORICO + ': ' + e.message + ' (sem histórico o teto fica em 5 por segurança)'); return false; }
 }
 function lerMarcaRampa() {
   try { return JSON.parse(readFileSync(ARQ_RAMPA, 'utf8')); } catch { return null; }
@@ -1384,13 +1390,15 @@ async function liberarPeloDonoAgora() {
   try { await patchRampa(RAMPA_INICIAL, `LIBERADO PELO DONO em ${agoraIso.slice(0, 10)}: volta em ${RAMPA_INICIAL}/dia, rampa recomeça, 3 envios de prova.`); }
   catch (e) { log('  não consegui devolver o teto a 5 (' + e.message + '). Mantenho tudo e tento de novo na próxima volta.'); return false; }
   const h = registrarVolta({ ...liberarPeloDono(lerHistorico(), agoraIso), rebaixado: true, rebaixadoEm: agoraIso }, agoraIso);
-  gravarHistorico(h);
+  // Só apaga o bloqueio e o LIBERAR se o histórico (com a volta e a prova) gravou: sem ele a flag não baixaria e o dono ficaria sem saída.
+  if (!gravarHistorico(h)) { log('  não consegui gravar a volta no histórico. Mantenho o bloqueio e o ' + ARQ_LIBERAR_NOME + ' e tento de novo na próxima volta.'); return false; }
   rmSync(ARQ_BLOQUEIO, { force: true });
   rmSync(ARQ_LIBERAR, { force: true });
   return true;
 }
 async function verificarVolta() {
-  if (CANAL !== 'instagram' || DRY || !bloqueadaParaNovas) return;
+  // bloqueioAtivo() (flag OU arquivo): o LIBERAR vale também para um bloqueio que existe só como arquivo feito à mão.
+  if (CANAL !== 'instagram' || DRY || !bloqueioAtivo()) return;
   try {
     if (existsSync(ARQ_LIBERAR) && !(await liberarPeloDonoAgora())) return;
     const d = podeVoltar({ bloqueio: lerBloqueio(), historico: lerHistorico() });
@@ -1460,7 +1468,7 @@ async function umaAbordagem() {
   const qFila = CANAL === 'whatsapp'
     ? 'prospeccao_fila_worker?select=*&canal=eq.nunca_tocado&or=(instagram.is.null,instagram.eq.)'
       + '&whatsapp_invalido_em=is.null&telefone=like.55__9*&limit=200'
-    : 'prospeccao_fila_worker?select=*&limit=200';
+    : 'prospeccao_fila_worker?select=*&canal=eq.nunca_tocado&instagram=not.is.null&instagram=neq.&limit=200';   // filtra NO BANCO: a view poe os sem_retorno na frente e os 40 candidatos eram todos ja tocados
   const [fila, scripts, alegacoes, produtos] = await Promise.all([
     ler(qFila),
     ler('prospeccao_scripts?select=*'),

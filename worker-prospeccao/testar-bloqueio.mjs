@@ -20,14 +20,17 @@
 
 import { rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseBloqueio, parseHistorico, freioPendente, planoDeTeste, escolherAlvoTeste, registrarTeste, avaliarDestrave, registrarVolta, avisoDoEstado, diaDeIso } from './ritmo.mjs';
+import { semearHistoricoAntigo, reconstruirHistorico, parseBloqueio, parseHistorico, freioPendente, planoDeTeste, escolherAlvoTeste, registrarTeste, avaliarDestrave, registrarVolta, avisoDoEstado, diaDeIso } from './ritmo.mjs';
 
 // Regras da VOLTA AUTOMÁTICA (chefe-antiban, 09/11/2026), todas em ritmo.mjs e testadas em teste-ritmo.mjs:
 //   1ª volta da semana = 1 teste limpo + 24 h desde o freio; 2ª = 2 testes limpos SEGUIDOS + 48 h; 3ª = só o dono.
 //   Os testes são em @ DIFERENTES (não repete o @ dos últimos testes) e cada um fica no histórico com o @ e a hora.
 const ARQ_BLOQUEIO = fileURLToPath(new URL('./bloqueio-instagram.json', import.meta.url));
 const ARQ_HISTORICO = fileURLToPath(new URL('./historico-bloqueio-instagram.json', import.meta.url));
-const lerHistoricoArq = () => { try { return parseHistorico(readFileSync(ARQ_HISTORICO, 'utf8')); } catch { return null; } };
+const lerHistoricoArq = () => {
+  try { return semearHistoricoAntigo(parseHistorico(readFileSync(ARQ_HISTORICO, 'utf8')), { bloqueado: existsSync(ARQ_BLOQUEIO) }).h; }
+  catch { return null; }
+};
 const gravarHistoricoArq = h => writeFileSync(ARQ_HISTORICO, JSON.stringify(h, null, 2));
 
 const CFG = {
@@ -116,10 +119,11 @@ async function main() {
   // SEM bloqueio, nada a testar: antes isto rodava as 07h e as 18h mesmo livre e devolvia o teto a 5 duas vezes por dia.
   let h = lerHistoricoArq();
   if (!existsSync(ARQ_BLOQUEIO) && !freioPendente(h)) { log('sem bloqueio-instagram.json e sem freio pendente: nada a testar.'); return; }
-  if (!h) {   // arquivo de bloqueio sem histórico (robô parado): reconstrói a base a partir do bloqueio
-    const b = parseBloqueio(readFileSync(ARQ_BLOQUEIO, 'utf8'));
-    const desde = b.desde || new Date().toISOString();
-    h = { ...parseHistorico('{}'), ultimo: desde, dia: diaDeIso(desde), rebaixado: false };
+  if (!h || h.corrompido || !h.ultimo) {   // histórico ausente, ilegível ou sem a data do freio: reconstrói a base a partir do bloqueio
+    let b = null;
+    try { b = parseBloqueio(readFileSync(ARQ_BLOQUEIO, 'utf8')); } catch { /* sem arquivo: usa agora */ }
+    h = reconstruirHistorico(h, b, new Date().toISOString());
+    log('historico do bloqueio ausente/ilegivel: reconstruido a partir do bloqueio-instagram.json (desde ' + h.ultimo + ').');
   }
   // Ainda não é hora (24 h / 48 h desde o freio), PARADO até o dono liberar, ou 2 voltas em 7 dias: não visita perfil à toa.
   const plano = planoDeTeste({ historico: h, agoraMs: Date.now() });

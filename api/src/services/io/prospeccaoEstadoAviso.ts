@@ -18,10 +18,13 @@
 
 import { logger } from '../../utils/logger';
 
-export type IdEstadoRobo = 'voltou' | 'travou' | 'parado';
+export type IdEstadoRobo = 'voltou' | 'travou_1' | 'travou' | 'parado';
 
 export const ESTADOS_ROBO: ReadonlyArray<{ id: IdEstadoRobo; prefixo: string }> = [
   { id: 'voltou', prefixo: 'VOLTOU SOZINHO:' },
+  // "TRAVOU:" (1º freio) e "TRAVOU DE NOVO:" começam igual: o prefixo vai INTEIRO, com os dois-pontos,
+  // e a busca testa o mais longo primeiro, então um nunca é confundido com o outro.
+  { id: 'travou_1', prefixo: 'TRAVOU:' },
   { id: 'travou', prefixo: 'TRAVOU DE NOVO:' },
   { id: 'parado', prefixo: 'PARADO ATÉ VOCÊ LIBERAR:' },
 ];
@@ -31,7 +34,8 @@ export interface EstadoRobo { id: IdEstadoRobo; prefixo: string; detalhe: string
 /** Lê o estado do campo `fazendo`: só vale o prefixo exato, no começo. */
 export function estadoDoRobo(fazendo: unknown): EstadoRobo | null {
   const f = String(fazendo ?? '').normalize('NFC').trim();
-  for (const e of ESTADOS_ROBO) {
+  const maisLongoPrimeiro = [...ESTADOS_ROBO].sort((a, b) => b.prefixo.length - a.prefixo.length);
+  for (const e of maisLongoPrimeiro) {
     if (f.startsWith(e.prefixo)) return { ...e, detalhe: f.slice(e.prefixo.length).trim() };
   }
   return null;
@@ -47,6 +51,12 @@ export function textoDoAviso(e: EstadoRobo, nome: string): { linhas: string[]; a
     return {
       assunto: `A agente de prospecção do ${nome} voltou sozinha`,
       linhas: [`A agente de prospecção do ${nome} voltou sozinha a abordar.`, ...extra, 'Você não precisa fazer nada.'],
+    };
+  }
+  if (e.id === 'travou_1') {
+    return {
+      assunto: `O robô do ${nome} travou e parou de abordar`,
+      linhas: [`O robô do ${nome} travou e parou de abordar. Ele tenta voltar sozinho depois de 24h.`, ...extra],
     };
   }
   if (e.id === 'travou') {

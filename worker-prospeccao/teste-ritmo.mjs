@@ -17,7 +17,8 @@ import {
   chaveTratada, lerTratadas, jaTratada, marcarTratada, TRATADAS_DIAS,
   exigenciaDaVolta, planoDeTeste, escolherAlvoTeste, registrarTeste, avaliarDestrave, registrarVolta, jaVoltouDepoisDoFreio,
   podeVoltar, freioPendente, contarEnvioDeProva, provaAtiva, registrarFreio, freiosParam, liberarPeloDono, avisoDoEstado,
-  PROVA_ENVIOS, ARQ_LIBERAR_NOME,
+  PROVA_ENVIOS, ARQ_LIBERAR_NOME, AVISO_TRAVOU_1,
+  semearHistoricoAntigo, reconstruirHistorico, recentes,
 } from './ritmo.mjs';
 import { spawnSync } from 'node:child_process';
 
@@ -743,7 +744,7 @@ console.log('\n--- 09/11/2026: volta automática do Instagram ---');
     ok(!podeVoltar({ bloqueio: SEM, historico: base() }).volta, 'arquivo apagado à mão SEM volta autorizada (teste limpo + 24 h/48 h): não volta');
     ok(!podeVoltar({ bloqueio: SEM, historico: base({ voltas: [iso(T0 + H(30))], parado: true }) }).volta, 'PARADO: não volta nem com tudo certo');
     ok(!podeVoltar({ bloqueio: SEM, historico: null }).volta && !podeVoltar({ bloqueio: SEM, historico: parseHistorico('{lixo') }).volta, 'sem histórico legível: não volta');
-    ok(podeVoltar({ bloqueio: SEM, historico: parseHistorico('{"ultimo":"2026-09-11T10:00:00Z","dia":"2026-09-11","rebaixado":true}') }).volta, 'histórico do formato antigo (sem freios[]) continua voltando como antes');
+    ok(podeVoltar({ bloqueio: SEM, historico: semearHistoricoAntigo(parseHistorico('{"ultimo":"2026-09-11T10:00:00Z","dia":"2026-09-11","rebaixado":true,"rebaixadoEm":"2026-09-11T10:05:00Z"}'), { bloqueado: false }).h }).volta, 'histórico do formato antigo, depois de semeado (freios e voltas a partir de ultimo e rebaixadoEm), continua voltando');
     ok(freioPendente(base()) && !freioPendente(autorizada) && !freioPendente(null) && !freioPendente(parseHistorico('{"rebaixado":true}')), 'freioPendente: freio gravado sem volta posterior; histórico antigo não conta');
     ok(jaVoltouDepoisDoFreio(autorizada) && !jaVoltouDepoisDoFreio(base()) && !jaVoltouDepoisDoFreio(base({ voltas: [iso(T0 - H(5))] })), 'jaVoltouDepoisDoFreio compara a última volta com o último freio');
 
@@ -781,9 +782,13 @@ console.log('\n--- 09/11/2026: volta automática do Instagram ---');
     const tt = avisoDoEstado({ bloqueado: true, historico: ht, agoraMs: T0 + H(35) });
     ok(tt.startsWith('TRAVOU DE NOVO:'), 'TRAVOU DE NOVO: freio depois de uma volta, enquanto durar o bloqueio');
     ok(avisoDoEstado({ bloqueado: true, historico: ht, agoraMs: T0 + 6 * 86400_000 }).startsWith('TRAVOU DE NOVO:'), 'TRAVOU DE NOVO continua fixo no pulso por dias (não some em 40 min)');
-    ok(avisoDoEstado({ bloqueado: true, historico: base(), agoraMs: T0 + H(5) }) === null, '1º freio da semana, sem volta antes: sem aviso novo (continua o "PARADA: ..." de sempre)');
+    const t1 = avisoDoEstado({ bloqueado: true, historico: base(), agoraMs: T0 + H(5) });
+    ok(t1.startsWith('TRAVOU:') && !t1.startsWith('TRAVOU DE NOVO') && AVISO_TRAVOU_1 === 'TRAVOU', '4º estado: 1º freio, sem volta anterior em 7 dias, sai como "TRAVOU:" (nunca "TRAVOU DE NOVO")');
+    ok(avisoDoEstado({ bloqueado: true, historico: base({ voltas: [iso(T0 - 9 * 86400_000)] }), agoraMs: T0 + H(5) }).startsWith('TRAVOU:'), 'volta de 9 dias atrás não conta: o freio ainda é o 1º e sai "TRAVOU:"');
+    ok(avisoDoEstado({ bloqueado: true, historico: base({ voltas: [iso(T0 - 2 * 86400_000)] }), agoraMs: T0 + H(5) }).startsWith('TRAVOU DE NOVO:'), 'freio depois de uma volta em 7 dias continua "TRAVOU DE NOVO:"');
+    ok(['VOLTOU SOZINHO', 'TRAVOU DE NOVO', 'TRAVOU', 'PARADO ATÉ VOCÊ LIBERAR'].every(pfx => avisoDoEstado({ bloqueado: pfx !== 'VOLTOU SOZINHO', historico: pfx === 'VOLTOU SOZINHO' ? hv : pfx === 'TRAVOU DE NOVO' ? ht : pfx === 'TRAVOU' ? base() : h3, agoraMs: pfx === 'VOLTOU SOZINHO' ? T0 + H(30) + 60_000 : pfx === 'TRAVOU DE NOVO' ? T0 + H(35) : pfx === 'TRAVOU' ? T0 + H(5) : agora }).startsWith(pfx + ':')), 'os 4 estados saem com o prefixo exato e dois-pontos; quem lê testa o mais longo primeiro (TRAVOU DE NOVO antes de TRAVOU)');
     ok(avisoDoEstado({ bloqueado: true, historico: base({ voltas: [iso(T0 - 86400_000), iso(T0 - 2 * 86400_000)] }), agoraMs: T0 + H(5) }).startsWith('PARADO ATÉ VOCÊ LIBERAR:'), 'bloqueado depois de 2 voltas em 7 dias (ninguém mais destrava sozinho): PARADO ATÉ VOCÊ LIBERAR');
-    ok(avisoDoEstado({ bloqueado: false, historico: base(), agoraMs: T0 }) === null && avisoDoEstado({ bloqueado: true, historico: parseHistorico('{lixo'), agoraMs: T0 } ) === null && avisoDoEstado({ bloqueado: true, historico: null, agoraMs: T0 }) === null, 'sem estado especial ou histórico ilegível: nenhum aviso');
+    ok(avisoDoEstado({ bloqueado: false, historico: base(), agoraMs: T0 }) === null && avisoDoEstado({ bloqueado: true, historico: parseHistorico('{lixo'), agoraMs: T0 } ).startsWith('PARADO ATÉ VOCÊ LIBERAR:') && avisoDoEstado({ bloqueado: true, historico: null, agoraMs: T0 }) === null, 'sem estado especial: nenhum aviso; bloqueado com histórico ilegível: PARADO; sem histórico: nenhum');
     ok(/avisoDoEstado\(\{ bloqueado: bloqueioAtivo\(\), historico: lerHistorico\(\), agoraMs: Date\.now\(\) \}\);\s*\n\s*if \(aviso\) campos = \{ \.\.\.campos, fazendo: aviso\.slice\(0, 240\) \}/.test(textoWorker), 'worker.mjs: toda batida do pulso do Instagram carrega o aviso fixo (o "fazendo" do laço não o apaga)');
   }
 
@@ -799,6 +804,81 @@ console.log('\n--- 09/11/2026: volta automática do Instagram ---');
     ok(iVolta > iOk && iRm > iVolta, 'testar-bloqueio: PATCH ok, depois grava a volta no histórico, só então apaga o bloqueio');
     ok(/fazendo: avisoDoEstado\(/.test(ts) && /VOLTOU SOZINHO/.test(ts), 'testar-bloqueio: o pulso do destrave também sai como "VOLTOU SOZINHO: ..."');
   }
+}
+
+console.log('\nfila fria do Instagram filtrada no banco');
+{
+  ok(/: 'prospeccao_fila_worker\?select=\*&canal=eq\.nunca_tocado&instagram=not\.is\.null&instagram=neq\.&limit=200';/.test(textoWorker), 'worker.mjs: a abordagem fria do Instagram busca só nunca_tocado com @ (a view põe os sem_retorno na frente)');
+  ok(/ler\('prospeccao_fila_worker\?select=\*&limit=200'\),/.test(textoWorker), 'worker.mjs: a consulta do modoResponder continua sem filtro (depende dos sem_retorno)');
+}
+
+console.log('\najustes do revisor: PARADO falso, parado coerente, histórico ilegível, volta sempre registrada, LIBERAR, semeadura');
+{
+  const T0 = em('2026-11-10T10:00:00').getTime();
+  const iso = ms => new Date(ms).toISOString();
+  const H = ms => ms * 3600_000;
+  const D = n => iso(T0 - n * 86400_000);
+  const base = (extra = {}) => parseHistorico(JSON.stringify({ ultimo: iso(T0), dia: '2026-11-10', rebaixado: true, rebaixadoEm: iso(T0 + 60_000), freios: [iso(T0)], ...extra }));
+  const SEM = parseBloqueio(null);
+
+  // 1. PARADO falso depois da 2ª volta
+  const h2v = base({ voltas: [D(2), iso(T0 + H(50))] });   // 2ª volta gravada pelo testar depois do freio
+  ok(!(avisoDoEstado({ bloqueado: true, historico: h2v, agoraMs: T0 + H(50) + 60_000 }) || '').startsWith('PARADO'), '1: entre o testar gravar a 2ª volta e o laço baixar a flag NÃO sai PARADO');
+  ok(avisoDoEstado({ bloqueado: true, historico: base({ voltas: [D(2), D(1)] }), agoraMs: T0 + H(5) }).startsWith('PARADO ATÉ VOCÊ LIBERAR:'), '1: 2 voltas em 7 dias e o freio é posterior às voltas: PARADO continua valendo');
+  ok(avisoDoEstado({ bloqueado: true, historico: base({ parado: true }), agoraMs: T0 + H(5) }).startsWith('PARADO ATÉ VOCÊ LIBERAR:'), '1: parado=true e nenhuma volta depois do freio: PARADO');
+
+  // 2. registrarFreio grava parado também com 2 voltas em 7 dias
+  ok(registrarFreio(base({ voltas: [D(3), D(2)], freios: [D(3)] }), iso(T0)).parado === true, '2: freio depois de 2 voltas em 7 dias grava parado (estado e aviso batem)');
+  ok(registrarFreio(base({ voltas: [D(3)], freios: [D(3)] }), iso(T0)).parado === false, '2: com 1 volta só não para');
+  ok(registrarFreio(base({ voltas: [D(9), D(8)], freios: [] }), iso(T0)).parado === false, '2: voltas de 8 e 9 dias atrás não contam');
+  const pf = registrarFreio(base({ voltas: [D(3), D(2)], freios: [D(3)] }), iso(T0));
+  ok(avisoDoEstado({ bloqueado: true, historico: pf, agoraMs: T0 + H(1) }).startsWith('PARADO ATÉ VOCÊ LIBERAR:') && planoDeTeste({ historico: pf, agoraMs: T0 + H(60) }).testar === false, '2: o aviso PARADO e o testar-bloqueio (que não destrava) concordam');
+
+  // 3. histórico ilegível ou sem data do freio, com o arquivo de bloqueio presente
+  const BL = parseBloqueio('{"desde":"2026-11-09T09:00:00.000Z"}');
+  const ruim = parseHistorico('{lixo');
+  ok(avisoDoEstado({ bloqueado: true, historico: ruim, agoraMs: T0 }).startsWith('PARADO ATÉ VOCÊ LIBERAR:'), '3: bloqueado com histórico ilegível: PARADO (não fica mais sem aviso)');
+  ok(avisoDoEstado({ bloqueado: true, historico: parseHistorico('{"rebaixado":true}'), agoraMs: T0 }).startsWith('PARADO ATÉ VOCÊ LIBERAR:'), '3: bloqueado com histórico sem a data do freio: PARADO');
+  ok(avisoDoEstado({ bloqueado: true, historico: null, agoraMs: T0 }) === null && avisoDoEstado({ bloqueado: false, historico: ruim, agoraMs: T0 }) === null, '3: sem histórico (o robô sincroniza) ou sem bloqueio: nenhum aviso');
+  for (const [nome, hh] of [['ilegível', ruim], ['sem data do freio', parseHistorico('{"rebaixado":true}')], ['ausente', null]]) {
+    const re = reconstruirHistorico(hh, BL, iso(T0));
+    ok(re.ultimo === '2026-11-09T09:00:00.000Z' && re.dia === '2026-11-09' && re.rebaixado === false && !re.corrompido, `3: histórico ${nome} é reconstruído a partir do bloqueio (desde)`);
+  }
+  ok(reconstruirHistorico(null, null, iso(T0)).ultimo === iso(T0) && reconstruirHistorico(base(), BL, iso(T0)) === base() || reconstruirHistorico(base(), BL, iso(T0)).ultimo === iso(T0), '3: sem bloqueio legível usa agora; histórico bom não é mexido');
+  ok(planoDeTeste({ historico: reconstruirHistorico(ruim, BL, iso(T0)), agoraMs: em('2026-11-10T10:00:00').getTime() }).testar === true, '3: depois de reconstruído o testar-bloqueio consegue contar as 24 h');
+  const ts = readFileSync(fileURLToPath(new URL('./testar-bloqueio.mjs', import.meta.url)), 'utf8');
+  ok(/if \(!h \|\| h\.corrompido \|\| !h\.ultimo\) \{/.test(ts) && /reconstruirHistorico\(h, b, /.test(ts), '3: testar-bloqueio reconstrói para histórico ausente, ilegível OU sem data do freio');
+
+  // 4. podeVoltar exige volta registrada sempre que ultimo for posterior à última volta
+  ok(!podeVoltar({ bloqueio: SEM, historico: base({ freios: [] }) }).volta, '4: lista de freios vazia mas ultimo posterior à última volta: NÃO volta sem teste');
+  ok(!podeVoltar({ bloqueio: SEM, historico: parseHistorico('{"ultimo":"2026-11-06T10:00:00Z","dia":"2026-11-06","rebaixado":true,"rebaixadoEm":"2026-11-06T10:01:00Z"}') }).volta, '4: histórico antigo cru (sem freios nem voltas) não volta sem volta registrada');
+  ok(podeVoltar({ bloqueio: SEM, historico: base({ freios: [], voltas: [iso(T0 + H(30))] }) }).volta, '4: com a volta registrada depois do freio volta');
+  ok(!podeVoltar({ bloqueio: SEM, historico: base({ freios: [], voltas: [D(1)] }) }).volta, '4: volta ANTERIOR ao último freio não vale');
+
+  // 5. LIBERAR com bloqueio só em arquivo, e só apaga se o histórico gravou
+  const w = textoWorker;
+  ok(/if \(CANAL !== 'instagram' \|\| DRY \|\| !bloqueioAtivo\(\)\) return;\s*\n\s*try \{\s*\n\s*if \(existsSync\(ARQ_LIBERAR\)/.test(w), '5: verificarVolta usa bloqueioAtivo() (flag OU arquivo): o LIBERAR vale com a flag falsa e o bloqueio feito à mão');
+  ok(/if \(!gravarHistorico\(h\)\) \{[^\n]*return false; \}\s*\n\s*rmSync\(ARQ_BLOQUEIO, \{ force: true \}\);\s*\n\s*rmSync\(ARQ_LIBERAR, \{ force: true \}\);/.test(w), '5: liberarPeloDonoAgora só apaga o bloqueio e o LIBERAR se o histórico gravou');
+  ok(/function gravarHistorico\(h\) \{\s*\n\s*try \{ writeFileSync\(ARQ_HISTORICO, JSON\.stringify\(h, null, 2\)\); return true; \}/.test(w) && /catch \(e\) \{ log\('NÃO consegui gravar ' \+ ARQ_HISTORICO[^\n]*return false; \}/.test(w), '5: gravarHistorico devolve true/false');
+  ok((w.match(/bloqueadaParaNovas = false/g) || []).length === 1, '5: continua existindo uma só linha que baixa a flag');
+
+  // 6. semeadura do histórico antigo
+  const real = parseHistorico('{"ultimo":"2026-11-06T19:34:00.000Z","dia":"2026-11-06","rebaixado":true,"rebaixadoEm":"2026-11-09T12:44:00.000Z"}');
+  const s1 = semearHistoricoAntigo(real, { bloqueado: false });
+  ok(s1.semeou === true && s1.h.freios.length === 1 && s1.h.freios[0] === '2026-11-06T19:34:00.000Z' && s1.h.voltas.length === 1 && s1.h.voltas[0] === '2026-11-09T12:44:00.000Z', '6: histórico antigo (ultimo 06/11, rebaixado 09/11 12:44Z) semeia freios=[ultimo] e voltas=[rebaixadoEm]');
+  const agoraSemente = em('2026-11-09T14:00:00').getTime();
+  ok(jaVoltouDepoisDoFreio(s1.h) && !freioPendente(s1.h) && podeVoltar({ bloqueio: SEM, historico: s1.h }).volta, '6: depois de semeado a volta conta como registrada e o robô segue');
+  ok(recentes(s1.h.voltas, agoraSemente).length === 1 && recentes(s1.h.freios, agoraSemente).length === 1 && exigenciaDaVolta(s1.h, agoraSemente).volta === 2, '6: a janela de 7 dias já vale: o próximo freio de hoje exige a 2ª volta (2 testes e 48 h)');
+  ok(diaDeIso(s1.h.voltas[s1.h.voltas.length - 1]) === '2026-11-09', '6: o dia da volta (09/11) é o que a rampa não conta como dia cheio');
+  ok(semearHistoricoAntigo(s1.h, { bloqueado: false }).semeou === false, '6: semeia UMA vez só (depois de semeado não semeia de novo)');
+  ok(semearHistoricoAntigo(base(), { bloqueado: false }).semeou === false && semearHistoricoAntigo(base({ freios: [], voltas: [iso(T0 + H(30))] }), { bloqueado: false }).semeou === false, '6: histórico do formato novo não é semeado');
+  const s2 = semearHistoricoAntigo(real, { bloqueado: true });
+  ok(s2.semeou && s2.h.freios.length === 1 && !s2.h.voltas.length && freioPendente(s2.h), '6: com o arquivo de bloqueio presente semeia só o freio (não inventa uma volta)');
+  const s3 = semearHistoricoAntigo(parseHistorico('{"ultimo":"2026-11-06T19:34:00.000Z","dia":"2026-11-06","rebaixado":false}'), { bloqueado: false });
+  ok(s3.semeou && s3.h.freios.length === 1 && !s3.h.voltas.length, '6: sem a prova do rebaixe só semeia o freio');
+  ok(semearHistoricoAntigo(null).semeou === false && semearHistoricoAntigo(parseHistorico('{lixo')).semeou === false && semearHistoricoAntigo(parseHistorico('{"rebaixado":true}')).semeou === false, '6: ausente, ilegível ou sem ultimo: não semeia');
+  ok(/const s = semearHistoricoAntigo\(h, \{ bloqueado: existsSync\(ARQ_BLOQUEIO\) \}\);\s*\n\s*if \(s\.semeou\) \{[^\n]*gravarHistorico\(s\.h\); return s\.h; \}/.test(w), '6: worker.mjs semeia ao ler o histórico e grava a semente');
+  ok(/semearHistoricoAntigo\(parseHistorico\(readFileSync\(ARQ_HISTORICO/.test(ts), '6: testar-bloqueio também lê o histórico já semeado');
 }
 
 console.log(`\n${n - falhas}/${n} verificações ok${falhas ? ` · ${falhas} FALHOU` : ''}`);

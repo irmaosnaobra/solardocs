@@ -56,6 +56,9 @@ describe('os três estados do robô', () => {
   it('só os prefixos exatos, no começo, são reconhecidos', () => {
     expect(estadoDoRobo('VOLTOU SOZINHO: o Instagram abriu')?.id).toBe('voltou');
     expect(estadoDoRobo('TRAVOU DE NOVO: de novo')?.id).toBe('travou');
+    expect(estadoDoRobo('TRAVOU: primeiro freio')?.id).toBe('travou_1');
+    expect(estadoDoRobo('TRAVOU DE NOVO:')?.id).toBe('travou');          // não é confundido com TRAVOU:
+    expect(estadoDoRobo('TRAVOU')).toBeNull();
     expect(estadoDoRobo('PARADO ATÉ VOCÊ LIBERAR: três travas')?.id).toBe('parado');
     expect(estadoDoRobo('DESTRAVOU')).toBeNull();
     expect(estadoDoRobo('parado até você liberar: x')).toBeNull();
@@ -64,7 +67,7 @@ describe('os três estados do robô', () => {
   });
 
   it('o texto: uma linha clara, no PARADO diz o que fazer, sem travessão e sem emoji', () => {
-    for (const f of ['VOLTOU SOZINHO: ok — voltou', 'TRAVOU DE NOVO: x', 'PARADO ATÉ VOCÊ LIBERAR: y']) {
+    for (const f of ['VOLTOU SOZINHO: ok — voltou', 'TRAVOU: x', 'TRAVOU DE NOVO: x', 'PARADO ATÉ VOCÊ LIBERAR: y']) {
       const { linhas, assunto } = textoDoAviso(estadoDoRobo(f)!, 'Instagram');
       const todo = [assunto, ...linhas].join('\n');
       expect(todo).not.toMatch(/[—–]/);
@@ -84,6 +87,19 @@ describe('os três estados do robô', () => {
     expect(h.email).not.toHaveBeenCalled();               // só o PARADO vai por e-mail
 
     pulso('TRAVOU DE NOVO: travou');                      // trocou de estado: avisa de novo
+    await chamar(); await chamar();
+    expect(h.zap).toHaveBeenCalledTimes(2);
+    expect(h.zap.mock.calls[1][1]).toContain('travou de novo');
+  });
+
+  it('TRAVOU (1º freio) avisa uma vez, com o texto do 1º freio, e TRAVOU DE NOVO é outro aviso', async () => {
+    pulso('TRAVOU: primeiro freio');
+    await chamar(); await chamar();
+    expect(h.zap).toHaveBeenCalledTimes(1);
+    expect(h.zap.mock.calls[0][1]).toContain('O robô do Instagram travou e parou de abordar. Ele tenta voltar sozinho depois de 24h.');
+    expect(h.zap.mock.calls[0][1]).not.toContain('de novo');
+    expect(h.email).not.toHaveBeenCalled();
+    pulso('TRAVOU DE NOVO: segundo freio');
     await chamar(); await chamar();
     expect(h.zap).toHaveBeenCalledTimes(2);
     expect(h.zap.mock.calls[1][1]).toContain('travou de novo');
