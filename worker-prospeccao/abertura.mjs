@@ -65,7 +65,10 @@ const SEPARADORES = [' - ', ' – ', ' — ', ' | ', '|', ' · ', ': ', ' / '];
 /** Marcas, emojis e invisíveis que não entram na frase. */
 const LIXO_VISUAL = /[®™©]|[\p{Extended_Pictographic}\u{FE0E}\u{FE0F}\u{200D}\u{20E3}\u{1F3FB}-\u{1F3FF}]/gu;
 /** Sufixos jurídicos no fim do nome (LTDA, EIRELI, EPP, MEI, S/A, S.A.; ME e SA só em maiúscula, para não comer palavra). */
-const SUFIXO_JURIDICO = /(?:[\s,.;-]+)(?:ltda|eireli|epp|mei|s\/a|s\.a)\.?$|(?:[\s,.;-]+)(?:ME|SA)\.?$/i;
+const SUFIXO_JURIDICO = /(?:[\s,.;-]+)(?:ltda|eireli|epp|mei|s\/a|s\.a)\.?$/i;
+const SUFIXO_JURIDICO_MAIUSC = /(?:[\s,.;-]+)(?:ME|SA)\.?$/;   // sem /i: "Casa da Sa" e "Energize Me" ficam
+/** O nome inteiro é só um sufixo jurídico ("Ltda", "S/A"): não é nome. */
+const SO_SUFIXO = /^(?:ltda|eireli|epp|mei|me|sa|s\/a|s\.a)\.?$/i;
 /** Nome que COMEÇA com termo genérico do ramo ("Energia solar em Goiânia", "Energia Solar Fotovoltaica"): não é nome de empresa. */
 const COMECA_GENERICO = /^(?:energias?\s+(?:solar(?:es)?|fotovoltaic[ao]s?|renov[aá]ve(?:l|is))|solar\s+(?:fotovoltaic\w*|em|de|para)\b|(?:sistemas?|projetos?|instala[cç](?:[aã]o|[oõ]es)|usinas?|placas?|pain[ée]is|paineis)\s+(?:de\s+)?(?:energia|solar|fotovolt\w*))/i;
 export const NOME_MAX_CHARS = 24;
@@ -88,12 +91,12 @@ export function nomeCurto(empresa) {
   n = cortaNoPrimeiroSeparador(' ' + n, SEPARADORES).trim();   // o espaço na frente faz "- slogan" (separador no começo) virar nome vazio
   n = n.replace(LIXO_VISUAL, '').replace(/\s+/g, ' ').trim();
   for (let i = 0; i < 3; i++) {   // "Solar Norte Ltda ME": tira um sufixo por volta
-    const sem = n.replace(SUFIXO_JURIDICO, '').trim();
+    const sem = n.replace(SUFIXO_JURIDICO, '').replace(SUFIXO_JURIDICO_MAIUSC, '').trim();
     if (sem === n) break;
     n = sem;
   }
   n = n.replace(/^[\s,.;:–—|/·-]+|[\s,.;:–—|/·-]+$/g, '').trim();
-  if (!n || n.length > NOME_MAX_CHARS || n.split(' ').length > NOME_MAX_PALAVRAS || COMECA_GENERICO.test(n)) return null;
+  if (!n || SO_SUFIXO.test(n) || n.length > NOME_MAX_CHARS || n.split(' ').length > NOME_MAX_PALAVRAS || COMECA_GENERICO.test(n)) return null;
   return n;
 }
 
