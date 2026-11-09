@@ -11,6 +11,10 @@ import {
   respiroAposFalha, parseBloqueio, RESPIRO_MIN_SEG,
   decidirRampa, diaAnteriorUtil, ehDomingo, limitesDoDia, tetoManualInstagram, TETO_INSTAGRAM, RAMPA_INICIAL,
   parseHistorico, maxInstagramEfetivo, historicoPrecisaSincronizar, diaDeIso,
+  relogioBRT, emAlmoco, segUteisAte, ajustarInstante, esperaParaMinutoBom, inicioDoDia, ESPERA_MAX_SEG,
+  registrarFalhaCaixa, aposEnvioConfirmado, enviosConfirmados, contaParaFreio, ehIncerto, LIMITE_PERFIS_FREIO,
+  planoDigitacao, duracaoRolagemMs, passosRolagem,
+  chaveTratada, lerTratadas, jaTratada, marcarTratada, TRATADAS_DIAS,
 } from './ritmo.mjs';
 import { spawnSync } from 'node:child_process';
 
@@ -402,7 +406,7 @@ ok(/let bloqueadaParaNovas = lerBloqueio\(\)\.bloqueado;/.test(src) && /gravarBl
 ok(/teto: teto\[0\]\?\.teto,\s/.test(src) && !/teto\[0\]\?\.teto \?\? 5/.test(src), 'worker.mjs: sem linha de teto não vira 5');
 ok(/await decidirAgora\(\);\s*\n\s*if \(!dec\.enviar\)/.test(src), 'worker.mjs: umaAbordagem chama decidirAbordagem a cada abordagem (piso lido do banco e do arquivo)');
 ok(/if \(!r\.ok\) throw new Error\(`prospeccao_toques/.test(src), 'worker.mjs: gravarToque lança em 4xx/5xx');
-ok(/'enviei', `worker \$\{CANAL\} incerto`/.test(src), 'worker.mjs: envio incerto grava toque com a marca incerto');
+ok(/const obs = obsIncerto \|\| `worker \$\{CANAL\} incerto`;[\s\S]{0,200}'enviei', obs, true\)/.test(src), 'worker.mjs: envio incerto grava toque com a marca incerto (e as peças da abertura no Instagram)');
 {
   const idx = [...src.matchAll(/await enviarWhatsApp\(/g)].map(m => m.index);
   const conferes = idx.map(i => src.lastIndexOf('await contaDoChipOk()', i));
@@ -413,6 +417,211 @@ ok(/if \(MODO === 'responder'\) \{[\s\S]{0,400}podeEnviar\(new Date\(\), CFG\)[\
 ok(/pularNaSessao\.add\(alvoAtual\.id\);\s*\n\s*if \(alvoAtual\) await gravarIncerto/.test(src), 'worker.mjs: o catch põe alvoAtual.id em pularNaSessao antes de gravarIncerto');
 ok(/tentouEnviar = false;\s*\n\s*alvoAtual = null;[\s\S]{0,400}\/\/ 1ª coisa: tentar gravar um toque pendente/.test(src), 'worker.mjs: umaAbordagem zera tentouEnviar e alvoAtual e resolve a pendência primeiro');
 ok(!/ciclo % 20 === 0\) \{\s*\n\s*const s = await sessaoZap/.test(src), 'worker.mjs: a conta do chip não é mais conferida só a cada 20 voltas');
+
+
+console.log('\n--- 09/11/2026: ritmo humano, freio e rampa honesta ---');
+const textoWorker = readFileSync(fileURLToPath(new URL('./worker.mjs', import.meta.url)), 'utf8');
+
+console.log('\nespera de 45 a 75 min, com o piso sempre por último');
+{
+  ok(ESPERA_MAX_SEG === 4500 && padrao.tetoEspera === 4500 && padrao.maxSeg === 4500 && padrao.minSeg === 2700, 'padrão: espera de 2700 a 4500 s (45 a 75 min)');
+  const manha = em('2026-11-05T08:30:00');
+  const folgado = [0, 0.25, 0.5, 0.75, 0.999].map(sorteio => calcularEspera({ agora: manha, cfg: padrao, restam: 5, sorteio }));
+  ok(folgado[0] === 2700 && folgado[4] >= 4490 && folgado[4] <= 4500 && folgado.every(e => e >= 2700 && e <= 4500), 'dia folgado: o sorteio cobre de 45 a 75 min (' + folgado.join(', ') + ')');
+  ok(new Set(folgado).size === 5, 'sorteios diferentes dão esperas diferentes (sem metrônomo)');
+  const aperta = [0, 0.5, 0.999].map(sorteio => calcularEspera({ agora: em('2026-11-05T20:00:00'), cfg: padrao, restam: 9, sorteio }));
+  ok(aperta.every(e => e === 2700), 'dia apertado (20h, 9 restando): sempre 2700 s');
+  const meio = [0, 0.999].map(sorteio => calcularEspera({ agora: em('2026-11-05T14:00:00'), cfg: padrao, restam: 10, sorteio }));
+  ok(meio[0] === 2700 && meio[1] === 2700, 'à tarde com 10 restando (42 min de ideal): encolhe para 2700');
+  const justo = calcularEspera({ agora: em('2026-11-05T13:30:00'), cfg: padrao, restam: 8, sorteio: 0.999 });
+  ok(justo > 2700 && justo <= 3375, 'sobra pouco (7,5 h úteis para 8): o teto do sorteio é o ideal (56 min), não os 75: deu ' + justo);
+  let menor = Infinity;
+  for (const cfg of [padrao, cfgDe({ MIN_SEG: '10', MAX_SEG: '20', TETO_ESPERA: '30' })]) {
+    for (const hh of ['08:00', '09:13', '11:40', '12:10', '13:30', '15:00', '20:30']) {
+      for (const restam of [0, 1, 3, 10, 40]) {
+        for (const sorteio of [0, 0.1, 0.5, 0.9, 0.999, NaN, undefined]) {
+          const agora = em('2026-11-05T' + hh + ':00');
+          const e = calcularEspera({ agora, cfg, restam, sorteio, jitter: 0.75 });
+          menor = Math.min(menor, e);
+          const alvo = ajustarInstante(agora.getTime() + e * 1000, 0.3);
+          menor = Math.min(menor, (alvo - agora.getTime()) / 1000);
+        }
+      }
+    }
+  }
+  ok(menor >= 2700, 'nenhuma espera nem instante-alvo (com almoço e minuto ajustados) abaixo de 2700 s; menor: ' + menor);
+  ok(/Math\.max\(cfg\.minSeg, bruto\)/.test(readFileSync(fileURLToPath(new URL('./ritmo.mjs', import.meta.url)), 'utf8')), 'ritmo.mjs: o Math.max(minSeg) continua sendo a última operação de calcularEspera');
+  ok(/sorteio: Math\.random\(\) \}\);/.test(textoWorker), 'worker.mjs: a espera do laço é sorteada');
+}
+
+console.log('\nalmoço de 12h00 às 13h30 (BRT), descontado do tempo útil');
+{
+  ok(!emAlmoco(em('2026-11-05T11:59:59')) && emAlmoco(em('2026-11-05T12:00:00')) && emAlmoco(em('2026-11-05T13:29:59')) && !emAlmoco(em('2026-11-05T13:30:00')), 'almoço vale de 12h00 a 13h29 e acaba às 13h30');
+  ok(emAlmoco(new Date('2026-11-05T15:00:00Z')) && !emAlmoco(new Date('2026-11-05T11:00:00Z')), 'o relógio da máquina em UTC é lido em Brasília (15:00Z = 12:00 BRT)');
+  const fim = em('2026-11-05T21:00:00');
+  ok(segUteisAte(em('2026-11-05T08:00:00'), fim) === 13 * 3600 - 5400, 'de 8h às 21h: 13 h menos 1h30 de almoço');
+  ok(segUteisAte(em('2026-11-05T12:30:00'), fim) === 8.5 * 3600 - 3600, 'começando no meio do almoço (12h30) desconta só o que falta dele (1 h)');
+  ok(segUteisAte(em('2026-11-05T14:00:00'), fim) === 7 * 3600, 'depois do almoço nada é descontado');
+  const d = (hh, extra = {}) => decidirAbordagem({ agora: em('2026-11-05T' + hh), cfg: padrao, restam: 5, banco: { ok: true, ms: null }, arquivo: arquivoUltimo(null), ...extra });
+  ok(!d('12:00:00').enviar && d('12:00:00').motivo === 'almoco', 'decidirAbordagem: 12h00 é almoço, não envia');
+  ok(!d('13:29:59').enviar && d('13:29:59').motivo === 'almoco', 'decidirAbordagem: 13h29 ainda é almoço');
+  ok(d('13:30:00').enviar && d('11:59:59').enviar, 'decidirAbordagem: 11h59 e 13h30 liberam');
+  ok(podeEnviar(em('2026-11-05T12:30:00'), padrao), 'o podeEnviar não muda (o responder do WhatsApp continua na janela de 8h-21h)');
+  const ra = relogioBRT(new Date(ajustarInstante(em('2026-11-05T12:20:00').getTime(), 0)));
+  ok(ra.hora === 13 && ra.min === 31, 'alvo às 12h20 vai para 13h31 (13h30 empurrado 1 min para sair do minuto 0): ' + ra.hora + ':' + ra.min);
+  ok(/\['piso', 'almoco', 'inicio'\]\.includes\(dec\.motivo\)/.test(textoWorker), 'worker.mjs: almoço e início do dia esperam como o piso (sem abrir perfil)');
+}
+
+console.log('\nprimeiro envio do dia entre 8h10 e 9h30, minuto nunca 0/5');
+{
+  let todosDentro = true, nenhum05 = true; const difere = new Set();
+  for (let i = 0; i < 400; i++) {
+    const dia = new Date(Date.UTC(2026, 10, 1 + (i % 60))).toISOString().slice(0, 10);
+    const ms = inicioDoDia(dia, 'irmaosnaobra__' + (i % 7));
+    const r = relogioBRT(new Date(ms)); const m = r.hora * 60 + r.min;
+    if (r.dia !== dia || m < 8 * 60 + 10 || m >= 9 * 60 + 30) todosDentro = false;
+    if (r.min % 5 === 0) nenhum05 = false;
+    difere.add(m);
+  }
+  ok(todosDentro, 'em 400 sorteios, o 1º envio cai sempre entre 8h10 e 9h29');
+  ok(nenhum05, 'o minuto do 1º envio nunca termina em 0 ou 5');
+  ok(difere.size > 20, 'o horário varia de um dia para outro (' + difere.size + ' minutos diferentes)');
+  ok(inicioDoDia('2026-11-10', 'x') === inicioDoDia('2026-11-10', 'x'), 'o horário do dia é estável (reinício no meio da manhã não sorteia outro)');
+  const ini = inicioDoDia('2026-11-10', 'irmaosnaobra__');
+  const dec = (ms, extra = {}) => decidirAbordagem({ agora: new Date(ms), cfg: padrao, restam: 10, sorteioDia: 'irmaosnaobra__', banco: { ok: true, ms: null }, arquivo: arquivoUltimo(null), ...extra });
+  ok(!dec(em('2026-11-10T08:00:00').getTime()).enviar && dec(em('2026-11-10T08:00:00').getTime()).motivo === 'inicio', 'sem envio hoje, às 8h00 não manda');
+  ok(!dec(ini - 1000).enviar && dec(ini - 1000).motivo === 'inicio', '1 s antes do horário sorteado não manda');
+  ok(dec(ini).enviar, 'no horário sorteado manda');
+  const ontem = em('2026-11-09T15:00:00').getTime();
+  ok(dec(em('2026-11-10T08:00:00').getTime(), { banco: { ok: true, ms: ontem } }).motivo === 'inicio', 'o último envio foi ONTEM: hoje ainda é o 1º do dia');
+  ok(dec(em('2026-11-10T09:45:00').getTime(), { banco: { ok: true, ms: em('2026-11-10T08:50:00').getTime() } }).enviar, 'já enviou hoje (8h50): a regra do 1º envio não atrapalha, vale o piso');
+  ok(dec(em('2026-11-10T08:00:00').getTime(), { sorteioDia: undefined }).enviar, 'sem sorteioDia a regra fica desligada (WhatsApp e testes antigos)');
+  ok(/sorteioDia: CANAL === 'instagram' \? CFG\.consultor : undefined/.test(textoWorker), 'worker.mjs: o Instagram passa o sorteioDia para decidirAbordagem');
+}
+
+console.log('\nminuto final nunca em 0 ou 5 (só para frente)');
+{
+  let ok05 = true, soFrente = true, ate4 = true;
+  const base = em('2026-11-05T09:00:00').getTime();
+  for (let seg = 0; seg < 3600; seg += 7) {
+    for (const f of [0, 0.3, 0.6, 0.999]) {
+      const ms = base + seg * 1000;
+      const aj = ajustarInstante(ms, f);
+      if (relogioBRT(new Date(aj)).min % 5 === 0) ok05 = false;
+      if (aj < ms) soFrente = false;
+      if (aj - ms > 4 * 60_000) ate4 = false;
+    }
+  }
+  ok(ok05, 'o instante-alvo ajustado nunca termina em 0 ou 5');
+  ok(soFrente, 'nunca empurra para trás');
+  ok(ate4, 'empurra no máximo 4 min');
+  ok(ajustarInstante(em('2026-11-05T09:07:20').getTime(), 0.5) === em('2026-11-05T09:07:20').getTime(), 'minuto 7 fica como está');
+  ok(ajustarInstante(em('2026-11-05T09:10:20').getTime(), 0) === em('2026-11-05T09:11:20').getTime(), 'minuto 10 vai 1 min para a frente (frac 0)');
+  ok(ajustarInstante(em('2026-11-05T09:15:20').getTime(), 0.999) === em('2026-11-05T09:19:20').getTime(), 'minuto 15 vai 4 min para a frente (frac 0.999)');
+  ok(esperaParaMinutoBom(em('2026-11-05T09:07:20').getTime(), 0.5) === 0, 'antes do Enter: minuto 7 envia já');
+  const e = esperaParaMinutoBom(em('2026-11-05T09:20:30').getTime(), 0.5);
+  ok(e >= 60_000 && e <= 240_000 && relogioBRT(new Date(em('2026-11-05T09:20:30').getTime() + e)).min % 5 !== 0, 'antes do Enter: minuto 20 espera de 1 a 4 min e cai em minuto bom');
+  let todos = true;
+  for (let m = 0; m < 60; m++) for (const f of [0, 0.5, 0.999]) {
+    const ms = em('2026-11-05T10:' + String(m).padStart(2, '0') + ':10').getTime();
+    if (relogioBRT(new Date(ms + esperaParaMinutoBom(ms, f))).min % 5 === 0) todos = false;
+  }
+  ok(todos, 'esperaParaMinutoBom: nos 60 minutos da hora, o Enter nunca cai em 0 ou 5');
+  ok(/esperaParaMinutoBom\(Date\.now\(\), Math\.random\(\)\);\s*\n\s*const quando = new Date\(Date\.now\(\) \+ esp\);\s*\n\s*if \(!podeEnviar\(quando, CFG\) \|\| emAlmoco\(quando\)\) \{/.test(textoWorker), 'worker.mjs: a janela e o almoço são conferidos SEMPRE no instante do Enter (fora do if da espera)');
+  ok(/esperaParaMinutoBom\(Date\.now\(\), Math\.random\(\)\);[\s\S]{0,1200}await aba\.enviar\('Input\.dispatchKeyEvent', \{ type: 'keyDown', key: 'Enter'/.test(textoWorker), 'worker.mjs: a espera do minuto 0/5 vem logo antes do Enter');
+  ok(/proximaAbordagem = ajustarInstante\(proximaAbordagem, Math\.random\(\)\)/.test(textoWorker), 'worker.mjs: o alvo do próximo envio sai do almoço e do minuto 0/5');
+}
+
+console.log('\ndigitação e rolagem humanas');
+{
+  let sem = 4242; const rnd = () => (sem = (sem * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const plano = planoDigitacao(400, rnd);
+  ok(plano.length === 400 && plano.every(p => p.atraso >= 60 && p.atraso <= 220), 'atraso por caractere sempre de 60 a 220 ms');
+  const pausas = plano.map((p, i) => ({ ...p, i })).filter(p => p.pausa > 0);
+  ok(pausas.length >= 8 && pausas.every(p => p.pausa >= 1000 && p.pausa <= 3000), 'pausas longas de 1 a 3 s (' + pausas.length + ' em 400 caracteres)');
+  const dist = pausas.slice(1).map((p, k) => p.i - pausas[k].i);
+  ok(dist.every(x => x >= 15 && x <= 40), 'uma pausa a cada 15 a 40 caracteres');
+  ok(new Set(plano.map(p => p.atraso)).size > 50, 'o atraso varia de verdade');
+  let dentro = true;
+  for (let i = 0; i < 300; i++) { const x = duracaoRolagemMs(rnd); if (x < 4000 || x > 12000) dentro = false; }
+  ok(dentro, 'a rolagem dura de 4 a 12 s');
+  const tot = duracaoRolagemMs(rnd); const ps = passosRolagem(tot, rnd);
+  ok(ps.reduce((s, p) => s + p.pausaMs, 0) === tot && ps.length >= 3, 'os passos de rolagem somam exatamente a duração sorteada (' + ps.length + ' passos)');
+  ok(/await aba\.digitarHumano\(msg\);/.test(textoWorker) && /abrirConversa\(aba, handle, 'instagram', \{ rolar: true \}\)/.test(textoWorker) && /if \(rolar\) await aba\.rolarPerfil\(\);/.test(textoWorker), 'worker.mjs: o envio frio do Instagram rola o perfil e digita no ritmo humano');
+  ok(/async digitar\(texto\) \{\s*\n\s*for \(const ch of texto\) \{\s*\n\s*await this\.enviar\('Input\.insertText', \{ text: ch \}\);\s*\n\s*await dorme\(18 \+/.test(textoWorker), 'worker.mjs: o digitar antigo (WhatsApp, bolhas) continua como era');
+}
+
+console.log('\nfreio: "ficou na caixa" conta, e só conversa nova zera');
+{
+  ok(contaParaFreio('caixa de DM não abriu (em x). Tela dizia: "..."') && contaParaFreio('texto ficou na caixa — não saiu') && contaParaFreio('x não saiu'), 'os dois sintomas contam: caixa não abriu e texto que ficou na caixa');
+  ok(!contaParaFreio('perfil não carregou') && !contaParaFreio('perfil não existe mais (ou foi renomeado)') && !contaParaFreio('a espera do minuto 0/5 passaria da janela; nada saiu') && !contaParaFreio(undefined), 'perfil que não carrega ou não existe não conta');
+  const perfis = new Set();
+  const m = 'texto ficou na caixa — não saiu';
+  ok(!registrarFalhaCaixa(perfis, 'a', m).liga && !registrarFalhaCaixa(perfis, 'a', m).liga, 'o MESMO perfil duas vezes conta uma só');
+  ok(!registrarFalhaCaixa(perfis, 'b', m).liga, '2 perfis distintos: ainda não liga');
+  const r3 = registrarFalhaCaixa(perfis, 'c', m);
+  ok(r3.liga && r3.perfis === 3 && LIMITE_PERFIS_FREIO === 3, '3 perfis distintos com "ficou na caixa": LIGA o freio');
+  const mix = new Set();
+  registrarFalhaCaixa(mix, 'p1', 'caixa de DM não abriu (em x)');
+  registrarFalhaCaixa(mix, 'p2', 'texto ficou na caixa — não saiu');
+  ok(registrarFalhaCaixa(mix, 'p3', 'caixa de DM não abriu (em y)').liga, 'caixa não abriu + ficou na caixa + caixa não abriu: o mesmo contador, liga no 3º');
+  const c = new Set(['a', 'b']);
+  ok(aposEnvioConfirmado(c, { conversaAntiga: true }) === false && c.size === 2, 'envio confirmado numa conversa ANTIGA não zera o contador');
+  ok(aposEnvioConfirmado(c, { conversaAntiga: null }) === false && c.size === 2, 'conversa que não deu para medir (null) também não zera');
+  ok(aposEnvioConfirmado(c, {}) === false && c.size === 2, 'sem a medida: não zera');
+  ok(aposEnvioConfirmado(c, { conversaAntiga: false }) === true && c.size === 0, 'envio confirmado numa conversa NOVA zera o contador');
+  ok(/registrarFalhaCaixa\(caixaNaoAbriuEm, c\.instagram, r\.motivo\)/.test(textoWorker) && /aposEnvioConfirmado\(caixaNaoAbriuEm, \{ conversaAntiga: r\.conversaAntiga \}\)/.test(textoWorker), 'worker.mjs: usa as duas regras (contar a falha, zerar só com conversa nova)');
+  ok(/const conversaAntiga = \(linhas1 > 0 \|\| linhas2 > 0\) \? true\s*\n\s*: \(linhas1 === 0 && linhas2 === 0\) \? false : null;/.test(textoWorker) && /await dorme\(1500\);\s*\n\s*const linhas1 = await contarLinhas\(\);\s*\n\s*await dorme\(1000\);\s*\n\s*const linhas2/.test(textoWorker) && /\{ ok: true, conversaAntiga \} : \{ ok: false, motivo: 'texto ficou na caixa/.test(textoWorker), 'worker.mjs: o envio mede a conversa antes de digitar e devolve conversaAntiga');
+  ok(!/caixaNaoAbriu = 0;\s*\/\/ uma que sai limpa zera a suspeita/.test(textoWorker), 'worker.mjs: o envio confirmado não zera mais sem olhar a conversa');
+}
+
+console.log('\nenvio incerto não conta como confirmado (rampa e dia limpo)');
+{
+  const tq = (obs, resultado = 'enviei') => ({ resultado, obs });
+  ok(ehIncerto('worker instagram incerto v=A s=1 a=1 p=1') && ehIncerto('worker instagram incerto pendente') && !ehIncerto('worker instagram v=A s=1 a=1 p=1') && !ehIncerto(null), 'ehIncerto reconhece a marca');
+  const dia06 = [tq('worker instagram incerto'), tq('worker instagram incerto v=A s=3 a=2 p=1'), tq('worker instagram incerto v=B s=3 a=1 p=4')];
+  ok(enviosConfirmados(dia06) === 0, '06/11: 3 toques incertos = ZERO confirmados (o log dizia "3 envios")');
+  ok(enviosConfirmados([...dia06, tq('worker instagram v=A s=1 a=1 p=1'), tq('worker instagram v=B s=4 a=3 p=2'), tq('x', 'respondeu')]) === 2, 'só os sem a marca contam (2), e resultado diferente de enviei fica de fora');
+  ok(enviosConfirmados(null) === 0 && enviosConfirmados([]) === 0, 'lista ilegível ou vazia = 0');
+  const base = { hoje: '2026-11-10', marca: { dia: '2026-11-09', teto: 5, bloqueio: false }, atualizadoDia: null, atualManual: 5, bloqueado: false };
+  const ontem = [...Array(3)].map(() => tq('worker instagram v=A s=1 a=1 p=1')).concat([tq('worker instagram incerto v=A s=1 a=1 p=2'), tq('worker instagram incerto v=B s=1 a=1 p=2')]);
+  ok(decidirRampa({ ...base, enviadosDiaAnterior: ontem.length }).gravar === true, 'contando tudo (5 de 5) a rampa SUBIRIA (o erro antigo)');
+  ok(!decidirRampa({ ...base, enviadosDiaAnterior: enviosConfirmados(ontem) }).gravar, 'contando só os confirmados (3 de 5) a rampa NÃO sobe');
+  ok(decidirRampa({ ...base, enviadosDiaAnterior: enviosConfirmados([...ontem, tq('worker instagram v=A s=2 a=2 p=2'), tq('worker instagram v=B s=2 a=2 p=2')]) }).novo === 6, '5 confirmados de 5: sobe para 6');
+  ok(/select=id,resultado,obs[^`]*resultado=eq\.enviei/.test(textoWorker) && /enviosConfirmados\(toquesOntem\)/.test(textoWorker) && /enviadosDiaAnterior: env\.length/.test(textoWorker), 'worker.mjs: rampaDoDia lê o obs e conta só confirmados');
+  const pend = arquivoUltimo('{"ms":1,"pendente_gravar":{"id":"x","ms":5,"obs":"worker instagram incerto v=A s=1 a=1 p=1"}}').pendente;
+  ok(pend && pend.obs === 'worker instagram incerto v=A s=1 a=1 p=1', 'a pendência guarda o obs do contrato (arquivoUltimo repassa)');
+  ok(arquivoUltimo('{"ms":1,"pendente_gravar":{"id":"x","ms":5}}').pendente.obs === null, 'pendência antiga, sem obs, continua legível');
+  ok(/gravarIncerto\(alvoAtual\.id, alvoAtual\.pid, alvoAtual\.obsIncerto\)/.test(textoWorker) && /alvoAtual = \{ id: c\.id, pid, obsIncerto, instagram: /.test(textoWorker) && /p\.obs \|\| `worker \$\{CANAL\} incerto pendente`/.test(textoWorker), 'worker.mjs: todo caminho de incerto (retorno, catch do laço, pendência) leva o obs com as peças');
+}
+
+console.log('\nbusca de @ por /web/search saiu de vez');
+{
+  ok(!/web\/search|topsearch/.test(textoWorker), 'worker.mjs: nenhuma chamada à busca de @ (web/search, topsearch)');
+  ok(!/reabastecer\(|descobrir\(|sobramBuscas|gastarBusca/.test(textoWorker), 'worker.mjs: reabastecer, descobrir e o orçamento de busca não existem mais');
+  ok(!/vou procurar mais endereço/.test(textoWorker), 'worker.mjs: o log da fila vazia não promete mais procurar @');
+  ok(/escolherMensagem\(c, scripts, alegacoes, pid, preco\);\s*\n\s*if \(!escolhida\) \{ log\(`PULOU/.test(textoWorker) && (textoWorker.match(/await escolherMensagem\(/g) || []).length === 2, 'worker.mjs: os dois caminhos (contínuo e avulso) montam a mensagem por escolherMensagem');
+  ok(/fazBloqueia\(alegacoes, pid\)/.test(textoWorker) && /const bloqueia = fazBloqueia\(alegacoes, produtoId\);/.test(textoWorker), 'worker.mjs: a trava de alegações vale para a abertura nova e para os scripts do WhatsApp');
+}
+
+console.log('\nresposta automática já tratada (não consulta a API de novo)');
+{
+  const T = em('2026-11-10T10:00:00').getTime();
+  let mapa = lerTratadas(null, T);
+  ok(!jaTratada(mapa, 'c1', 'Obrigado pelo contato! Em breve retornamos.'), 'sem marca: não está tratada');
+  mapa = marcarTratada(mapa, 'c1', 'Obrigado pelo contato! Em breve retornamos.', T);
+  ok(jaTratada(mapa, 'c1', 'Obrigado pelo contato! Em breve retornamos.'), 'depois de marcar: a mesma última mensagem do mesmo contato está tratada');
+  ok(jaTratada(mapa, 'c1', '  Obrigado pelo contato!   Em breve retornamos. '), 'espaços a mais não mudam a chave');
+  ok(!jaTratada(mapa, 'c1', 'Oi, quanto custa?'), 'mensagem NOVA do lead libera de novo');
+  ok(!jaTratada(mapa, 'c2', 'Obrigado pelo contato! Em breve retornamos.'), 'o mesmo texto em OUTRO contato não vale');
+  ok(chaveTratada('c1', 'x') === chaveTratada('c1', 'x') && chaveTratada('c1', 'x') !== chaveTratada('c1', 'y'), 'a chave é estável e depende do texto');
+  const arq = JSON.stringify(mapa);
+  ok(jaTratada(lerTratadas(arq, T + 6 * 86400_000), 'c1', 'Obrigado pelo contato! Em breve retornamos.'), 'no 6º dia a marca ainda vale (lida do arquivo)');
+  ok(!jaTratada(lerTratadas(arq, T + (TRATADAS_DIAS * 86400_000) + 1000), 'c1', 'Obrigado pelo contato! Em breve retornamos.') && TRATADAS_DIAS === 7, 'depois de 7 dias a marca é podada');
+  ok(Object.keys(marcarTratada(lerTratadas(arq, T), 'c9', 'y', T + 8 * 86400_000)).length === 1, 'ao marcar, o que passou de 7 dias sai do arquivo');
+  ok(Object.keys(lerTratadas('lixo{', T)).length === 0 && Object.keys(lerTratadas('[1,2]', T)).length === 0 && Object.keys(lerTratadas('{"a":"x"}', T)).length === 0, 'arquivo ilegível ou com valor inválido = vazio (sem quebrar)');
+  ok(/if \(jaTratada\(lerTratadasArq\(\), c\.contato_id, hist\[hist\.length - 1\]\.texto\)\) \{ semNovidade\+\+; continue; \}/.test(textoWorker) && (textoWorker.match(/marcarTratadaArq\(c\.contato_id/g) || []).length === 2 && /Respostas automáticas já tratadas/.test(textoWorker), 'worker.mjs: modoResponder e responderZap pulam a mensagem já tratada ANTES da API e marcam quando vem nao_enviar');
+}
 
 console.log(`\n${n - falhas}/${n} verificações ok${falhas ? ` · ${falhas} FALHOU` : ''}`);
 process.exit(falhas ? 1 : 0);

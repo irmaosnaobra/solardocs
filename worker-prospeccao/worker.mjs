@@ -43,7 +43,8 @@
 
 import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio, decidirRampa, diaAnteriorUtil, limitesDoDia, relogioBRT, RAMPA_INICIAL, tetoManualInstagram, parseHistorico, diaDeIso, maxInstagramEfetivo, historicoPrecisaSincronizar } from './ritmo.mjs';
+import { jaTratada, marcarTratada, lerTratadas, emAlmoco, ajustarInstante, esperaParaMinutoBom, registrarFalhaCaixa, aposEnvioConfirmado, enviosConfirmados, planoDigitacao, duracaoRolagemMs, passosRolagem, cfgDe, podeEnviar, calcularEspera, tetoEfetivo, avaliarToques, contaProibida, arquivoUltimo, faltaPiso, decidirAbordagem, canalValido, restamComPendente, gravarComRetentativa, respiroAposFalha, parseBloqueio, decidirRampa, diaAnteriorUtil, limitesDoDia, relogioBRT, RAMPA_INICIAL, tetoManualInstagram, parseHistorico, diaDeIso, maxInstagramEfetivo, historicoPrecisaSincronizar } from './ritmo.mjs';
+import { escolherAbertura, escolherVersao, chavesUsadas, totalDoContentRange, usaAberturaNova } from './abertura.mjs';
 
 const ARG = process.argv.slice(2);
 const DRY   = ARG.includes('--dry');
@@ -197,6 +198,29 @@ class Aba {
       await this.enviar('Input.insertText', { text: ch });
       await dorme(18 + Math.floor(45 * ((Date.now() % 97) / 97)));
     }
+  }
+
+  /** Digitação do envio FRIO do Instagram: atraso variável por caractere (60 a 220 ms) e uma pausa
+   *  mais longa (1 a 3 s) de vez em quando (a cada 15 a 40 caracteres). Os planos vêm de ritmo.mjs. */
+  async digitarHumano(texto) {
+    const chars = [...texto];
+    const plano = planoDigitacao(chars.length);
+    for (let i = 0; i < chars.length; i++) {
+      await this.enviar('Input.insertText', { text: chars[i] });
+      await dorme(plano[i].atraso + plano[i].pausa);
+    }
+  }
+
+  /** Rola o perfil por 4 a 12 s (sorteados) antes de abrir a conversa, e volta ao topo. */
+  async rolarPerfil() {
+    const total = duracaoRolagemMs();
+    for (const p of passosRolagem(total)) {
+      await this.js(`window.scrollBy({ top: ${p.dy}, behavior: 'smooth' })`).catch(() => {});
+      await dorme(p.pausaMs);
+    }
+    await this.js(`window.scrollTo({ top: 0, behavior: 'smooth' })`).catch(() => {});
+    await dorme(600);
+    return total;
   }
 
   /** Fecha a aba do worker — mas NUNCA a ultima do navegador. Fechar a ultima
@@ -387,8 +411,8 @@ const bloqueioAtivo = () => bloqueadaParaNovas || lerBloqueio().bloqueado;
 // 1ª coisa de cada umaAbordagem é tentar gravar. Enquanto houver pendência, NINGUÉM é abordado.
 let pendenteGravar = null;
 function pendenteAtual() { return pendenteGravar || lerArquivoUltimo().pendente || null; }
-function registrarPendente(id, pid) {
-  pendenteGravar = { id, pid: pid ?? null, ms: Date.now() };
+function registrarPendente(id, pid, obs = null) {
+  pendenteGravar = { id, pid: pid ?? null, ms: Date.now(), obs };
   try {
     const a = lerBrutoArquivo() || {};
     writeFileSync(ARQ_ULTIMO, JSON.stringify({ ...a, ms: Math.max(Number(a.ms) || 0, pendenteGravar.ms), canal: CANAL, pendente_gravar: pendenteGravar }));
@@ -434,12 +458,16 @@ async function gravarToque(contatoId, listaId, produtoId, resultado, obs, semMar
 const CTX = c => Number(c.avaliacoes || 0) >= 20 ? 'movimentada'
               : (c.site || '').trim() ? 'com_site' : 'padrao';
 
+/** A trava de alegações: true = este texto NÃO pode sair. Vale para QUALQUER mensagem, de qualquer canal. */
+const fazBloqueia = (alegacoes, produtoId) => t => alegacoes.some(a => {
+  if (a.verificada || !a.gatilho) return false;
+  if (a.produto_id && a.produto_id !== produtoId) return false;
+  try { return new RegExp(a.gatilho, 'i').test(t); } catch { return false; }
+});
+
+// WhatsApp (chip): continua nos scripts do banco. O Instagram NÃO passa por aqui: ver escolherMensagem.
 function montarMensagem(c, scripts, alegacoes, produtoId, preco) {
-  const bloqueia = t => alegacoes.some(a => {
-    if (a.verificada || !a.gatilho) return false;
-    if (a.produto_id && a.produto_id !== produtoId) return false;
-    try { return new RegExp(a.gatilho, 'i').test(t); } catch { return false; }
-  });
+  const bloqueia = fazBloqueia(alegacoes, produtoId);
   const doProduto = scripts.filter(s => s.produto_id === produtoId && (s.tipo || 'abertura') === 'abertura');
   const ctx = CTX(c);
   let pool = doProduto.filter(s => (s.contexto || 'padrao') === ctx);
@@ -474,6 +502,53 @@ function montarMensagem(c, scripts, alegacoes, produtoId, preco) {
     .replaceAll('{preco}', preco);
 }
 
+// ── ABERTURA DO INSTAGRAM (peças, ver abertura.mjs) ──────────────────────────
+/** Total de toques "worker instagram ... v=<versao> s=" da conta, pelo BANCO (count exato, sem puxar linhas: o PostgREST corta em 1000). */
+async function contarToquesDaVersao(versao) {
+  const q = `${CFG.supa}/prospeccao_toques?select=id&consultor=eq.${encodeURIComponent(CFG.consultor)}&resultado=eq.enviei&produto_id=eq.solardoc`
+    + `&obs=like.*${encodeURIComponent(`v=${versao} s=`)}*&limit=1`;
+  const r = await fetch(q, { headers: { ...H, Prefer: 'count=exact' } });
+  // O total vem no content-range, seja qual for o status (conjunto vazio pode responder "*/0", até com 416).
+  const total = totalDoContentRange(r.headers.get('content-range'));
+  if (total === null) throw new Error(`contagem v=${versao}: sem total legível (status ${r.status})`);
+  return total;
+}
+/** A versão com MENOS toques vai agora. Banco falhou: A. Nada de contador em memória. */
+async function versaoAgora() {
+  try {
+    const [a, b] = await Promise.all([contarToquesDaVersao('A'), contarToquesDaVersao('B')]);
+    return escolherVersao(a, b);
+  } catch (e) { log('  não consegui contar as versões da abertura (' + e.message + '): vai a A'); return 'A'; }
+}
+/** Combinações (v+s+a+p) que já saíram HOJE nesta conta, lidas dos obs do banco. */
+async function combosDeHoje() {
+  try {
+    const { ini, fim } = limitesDoDia(relogioBRT().dia);
+    const t = await ler(`prospeccao_toques?select=obs&consultor=eq.${encodeURIComponent(CFG.consultor)}&resultado=eq.enviei&produto_id=eq.solardoc`
+      + `&criado_em=gte.${ini}&criado_em=lt.${fim}&obs=like.${encodeURIComponent('worker instagram')}*`);
+    return chavesUsadas(t.map(x => x.obs));
+  } catch (e) { log('  não consegui ler as aberturas de hoje (' + e.message + '): sorteio sem o filtro do dia'); return new Set(); }
+}
+
+/**
+ * A mensagem de UMA abordagem + os obs do toque. Devolve { msg, obs, obsIncerto } ou null (tudo barrado pela trava).
+ * Instagram + produto solardoc: abertura montada de peças, em UM balão, versão A/B pela contagem do banco, sem repetir no dia.
+ * Outro produto ou WhatsApp: scripts do banco, como sempre.
+ */
+async function escolherMensagem(c, scripts, alegacoes, pid, preco) {
+  // A abertura nova é do SolarDoc no Instagram. Qualquer outro produto (ou o WhatsApp) segue EXATAMENTE o caminho antigo:
+  // scripts do banco filtrados por produto_id, montarMensagem e o obs simples.
+  if (!usaAberturaNova(CANAL, pid)) {
+    const msg = montarMensagem(c, scripts, alegacoes, pid, preco);
+    return msg ? { msg, obs: `worker ${CANAL}`, obsIncerto: `worker ${CANAL} incerto` } : null;
+  }
+  const [versao, usadas] = await Promise.all([versaoAgora(), combosDeHoje()]);
+  const ab = escolherAbertura({ empresa: c.empresa, cidade: c.cidade, hora: relogioBRT().hora, versao, usadas, bloqueia: fazBloqueia(alegacoes, pid) });
+  if (!ab) return null;
+  if (ab.repetida) log('  todas as combinações da versão já saíram hoje; repito uma');
+  return { msg: ab.texto, obs: ab.obs, obsIncerto: ab.obsIncerto };
+}
+
 // ═══ ENVIO ═══════════════════════════════════════════════════════════════════
 async function enviarWhatsApp(aba, tel, msg) {
   const erro = await abrirConversa(aba, tel, 'whatsapp');
@@ -491,21 +566,59 @@ async function enviarWhatsApp(aba, tel, msg) {
   return r;
 }
 
+/** Esvazia a caixa de DM (Ctrl+A, Backspace). Melhor esforço: só roda quando NADA foi enviado. */
+async function limparCaixaIG(aba) {
+  try {
+    await aba.js(`(document.querySelector('div[role="textbox"],textarea[placeholder]')).focus()`);
+    for (const type of ['keyDown', 'keyUp']) await aba.enviar('Input.dispatchKeyEvent', { type, key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2 });
+    for (const type of ['keyDown', 'keyUp']) await aba.enviar('Input.dispatchKeyEvent', { type, key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
+  } catch { /* sem limpar: o rascunho fica numa conversa que não vai ser enviada */ }
+}
+
 async function enviarInstagram(aba, handle, msg) {
   // Mesma porta de entrada do modo responder: um lugar só pra consertar quando
   // o Instagram mexer no layout, e o mesmo diagnóstico útil nos dois caminhos.
-  const erro = await abrirConversa(aba, handle, 'instagram');
+  // Só o envio frio rola o perfil (4 a 12 s) antes de abrir a conversa.
+  const erro = await abrirConversa(aba, handle, 'instagram', { rolar: true });
   if (erro) return { ok: false, motivo: erro };
+  // Conversa ANTIGA? Mede ANTES de digitar: linhas de mensagem já na thread. Só uma conversa NOVA
+  // (0 linhas) prova que o Instagram deixou abrir conversa nova. Não conseguiu medir = null = tratada como antiga.
+  // O histórico pode carregar DEPOIS da caixa: espera 1,5 s (como o lerConversa) e só aceita "0 linhas" se
+  // uma 2ª leitura, 1 s depois, também der 0. Qualquer linha em qualquer leitura = antiga; ilegível = null.
+  const contarLinhas = () => aba.js(`[...document.querySelectorAll('div[role="row"]')].filter(r => (r.innerText || '').trim().length > 0).length`).catch(() => null);
+  await dorme(1500);
+  const linhas1 = await contarLinhas();
+  await dorme(1000);
+  const linhas2 = await contarLinhas();
+  const conversaAntiga = (linhas1 > 0 || linhas2 > 0) ? true
+    : (linhas1 === 0 && linhas2 === 0) ? false : null;
+  log(`  conversa antiga: ${conversaAntiga}`);
   await aba.js(`(document.querySelector('div[role="textbox"],textarea[placeholder]')).focus()`);
   await dorme(700);
-  await aba.digitar(msg);
+  await aba.digitarHumano(msg);
   await dorme(900);
+  // Nunca em minuto terminado em 0 ou 5: espera 1 a 4 min PARA FRENTE (nunca para trás). Se a espera
+  // empurrar para fora da janela ou para o almoço, NÃO envia e limpa a caixa (nada saiu).
+  // A janela (8h-21h, seg-sáb) e o almoço são conferidos SEMPRE no instante do Enter: perfil, rolagem e
+  // digitação somam minutos, e uma tentativa começada às 11h59 ou 20h59 chegaria ao Enter já fora.
+  const esp = esperaParaMinutoBom(Date.now(), Math.random());
+  const quando = new Date(Date.now() + esp);
+  if (!podeEnviar(quando, CFG) || emAlmoco(quando)) {
+    await limparCaixaIG(aba);
+    return { ok: false, motivo: 'no instante do Enter já estaria fora da janela ou no almoço; nada saiu', conversaAntiga };
+  }
+  if (esp > 0) {
+    log(`  minuto terminado em 0 ou 5: espero ${Math.round(esp / 1000)} s antes do Enter`);
+    await dorme(esp);
+  }
+  // O piso conta a partir do Enter, não de quando a tentativa começou (perfil, rolagem, digitação e espera somam minutos).
+  gravarArquivoUltimo(Date.now());
   await aba.enviar('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
   await aba.enviar('Input.dispatchKeyEvent', { type: 'keyUp',   key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
   await dorme(2500);
   const vazia = await aba.js(
     `((document.querySelector('div[role="textbox"],textarea[placeholder]')?.innerText || '')).trim().length === 0`);
-  return vazia ? { ok: true } : { ok: false, motivo: 'texto ficou na caixa — não saiu' };
+  return vazia ? { ok: true, conversaAntiga } : { ok: false, motivo: 'texto ficou na caixa — não saiu', conversaAntiga };
 }
 
 // ═══ OUVIDO: ler a conversa ══════════════════════════════════════════════════
@@ -540,7 +653,7 @@ const ESTADO_ZAP = `(() => {
   return null;
 })()`;
 
-async function abrirConversa(aba, alvo, canal) {
+async function abrirConversa(aba, alvo, canal, { rolar = false } = {}) {
   if (canal === 'instagram') {
     await aba.ir('https://www.instagram.com/' + alvo + '/');
     if (!await aba.esperar('!!document.querySelector("main")', 25000)) return 'perfil não carregou';
@@ -549,6 +662,9 @@ async function abrirConversa(aba, alvo, canal) {
     const sumiu = await aba.js('/desculpe|sorry|not available|nao esta disponivel/i'
       + '.test((document.querySelector("main")?.innerText || "").slice(0, 400))');
     if (sumiu) return 'perfil não existe mais (ou foi renomeado)';
+
+    // Antes de abrir a conversa, gente olha o perfil: rola por 4 a 12 s (sorteados). Só no envio frio.
+    if (rolar) await aba.rolarPerfil();
 
     // O rotulo do botao muda com idioma, com tema e com o Instagram mudando de
     // ideia. Duas passadas: primeiro o texto exato, depois um "contém". Se as
@@ -844,6 +960,14 @@ const LER_MSGS_ZAP = '(() => {'
 // cai aqui é conferido de novo na volta seguinte, pelo endereço direto.
 const retentarZap = new Set();
 
+// Respostas automáticas já tratadas (a API devolveu nao_enviar): não consulta de novo a mesma última mensagem.
+const ARQ_TRATADAS = fileURLToPath(new URL(`./respostas-automaticas-${CANAL}.json`, import.meta.url));
+const lerTratadasArq = () => { try { return lerTratadas(readFileSync(ARQ_TRATADAS, 'utf8')); } catch { return {}; } };
+function marcarTratadaArq(contatoId, texto) {
+  try { writeFileSync(ARQ_TRATADAS, JSON.stringify(marcarTratada(lerTratadasArq(), contatoId, texto))); }
+  catch (e) { log('NÃO consegui gravar ' + ARQ_TRATADAS + ': ' + e.message + ' (a API pode ser consultada de novo)'); }
+}
+
 async function abrirLinhaZap(aba, chave) {
   const pos = await aba.js(`(() => {
     const lista = document.querySelector('#pane-side, [aria-label="Chat list"], [aria-label="Lista de conversas"]');
@@ -919,6 +1043,13 @@ async function responderZap() {
       continue;
     }
 
+    // Última mensagem dele já foi tratada como resposta automática: não gasta modelo de novo.
+    if (jaTratada(lerTratadasArq(), c.contato_id, hist[hist.length - 1].texto)) {
+      retentarZap.delete(k);
+      await fecharConversaZap(aba);
+      continue;
+    }
+
     let v = null;
     try {
       const r = await fetch(API + '/gerador/prospeccao/responder', {
@@ -941,6 +1072,14 @@ async function responderZap() {
     console.log('  -> ' + v.intencao + ' / ' + v.resultado + (v.escalar ? ' · ESCALAR' : '')
       + (material.length ? ' · material: ' + material.join(',') : '') + (v.mandar_link ? ' · manda link' : ''));
     (v.bolhas || []).forEach(b => console.log('  | ' + b));
+    // Resposta automática de perfil: a API manda nao_enviar. Não envia, NÃO grava toque (o contato não trava).
+    if (v.nao_enviar === true) {
+      log('  ' + c.empresa + ': resposta automática de perfil; segui sem responder (sem toque gravado).');
+      if (!DRY) marcarTratadaArq(c.contato_id, hist[hist.length - 1].texto);
+      retentarZap.delete(k);
+      await fecharConversaZap(aba);
+      continue;
+    }
     if (DRY) { retentarZap.delete(k); await fecharConversaZap(aba); continue; }
 
     // A MESMA ORDEM DO INSTAGRAM (planoDeEnvio): fala, prova, link. Prova antes
@@ -1034,6 +1173,8 @@ async function modoResponder() {
       falhas++; log('  x ' + c.empresa + ': ' + (erro || 'conversa vazia')); continue;
     }
     if (hist[hist.length - 1].de !== 'lead') { semNovidade++; continue; }
+    // Última mensagem dele já foi tratada como resposta automática: não gasta modelo de novo.
+    if (jaTratada(lerTratadasArq(), c.contato_id, hist[hist.length - 1].texto)) { semNovidade++; continue; }
 
     let v = null;
     try {
@@ -1051,6 +1192,13 @@ async function modoResponder() {
     console.log('  -> ' + v.intencao + ' / ' + v.resultado
       + (v.escalar ? ' · ESCALAR' : '') + (v.mandar_link ? ' · manda link' : ''));
     (v.envio || []).forEach(b => console.log('  | ' + b));
+
+    // Resposta automática de perfil: a API manda nao_enviar. Não envia, NÃO grava toque (o contato não trava).
+    if (v.nao_enviar === true) {
+      log('  ' + c.empresa + ': resposta automática de perfil; segui sem responder (sem toque gravado).');
+      if (!DRY) marcarTratadaArq(c.contato_id, hist[hist.length - 1].texto);
+      continue;
+    }
 
     if (DRY) { respondidas++; continue; }
 
@@ -1120,7 +1268,11 @@ async function rampaDoDia() {
     if (!r) { log('rampa do dia: sem linha em prospeccao_rampa, não mexo.'); return; }
     const anterior = diaAnteriorUtil(hoje);
     const { ini, fim } = limitesDoDia(anterior);
-    const env = await ler(`prospeccao_toques?select=id&consultor=eq.${encodeURIComponent(CFG.consultor)}&resultado=eq.enviei&criado_em=gte.${ini}&criado_em=lt.${fim}`);
+    // Só envio CONFIRMADO conta para o dia cheio: o toque "incerto" (texto que ficou na caixa) entra no teto e no
+    // piso, mas não prova que o Instagram deixou enviar (06/11: o log dizia 3 envios num dia com zero confirmado).
+    const toquesOntem = await ler(`prospeccao_toques?select=id,resultado,obs&consultor=eq.${encodeURIComponent(CFG.consultor)}&resultado=eq.enviei&criado_em=gte.${ini}&criado_em=lt.${fim}`);
+    const env = { length: enviosConfirmados(toquesOntem) };
+    const incertosOntem = toquesOntem.length - env.length;
     const d = decidirRampa({
       hoje, marca,
       ultimoBloqueioDia: (lerHistorico() || {}).dia || null,
@@ -1128,9 +1280,9 @@ async function rampaDoDia() {
       atualManual: r.teto_manual, enviadosDiaAnterior: env.length,
       bloqueado: bloqueioAtivo() || !rebaixeOk, maxIg: CFG.tetoIgMax,
     });
-    log(`rampa do dia: ${d.motivo}${d.gravar ? ' -> teto_manual ' + d.novo : ''} (ontem útil ${anterior}: ${env.length} envios).`);
+    log(`rampa do dia: ${d.motivo}${d.gravar ? ' -> teto_manual ' + d.novo : ''} (ontem útil ${anterior}: ${env.length} confirmados, ${incertosOntem} incertos que não contam).`);
     if (d.gravar) {
-      await patchRampa(d.novo, `RAMPA AUTOMATICA: ${anterior} saiu ${env.length}/${r.teto_manual}. Hoje ${d.novo}/dia (de ${RAMPA_INICIAL} a ${CFG.tetoIgMax}, 45 min de piso, envio ${CFG.horaIni}h-${CFG.horaFim}h).`);
+      await patchRampa(d.novo, `RAMPA AUTOMATICA: ${anterior} saiu ${env.length} confirmados/${r.teto_manual}. Hoje ${d.novo}/dia (de ${RAMPA_INICIAL} a ${CFG.tetoIgMax}, 45 min de piso, envio ${CFG.horaIni}h-${CFG.horaFim}h).`);
     }
     if (d.marcar) gravarMarcaRampa(hoje, Math.min(Number(d.novo ?? tetoManualInstagram(r.teto_manual)), CFG.tetoIgMax));   // o teto em vigor HOJE: amanhã é com ele que o dia é medido
   } catch (e) { log('rampa do dia falhou, sigo com o teto que está: ' + e.message); }
@@ -1168,6 +1320,8 @@ async function decidirAgora(restam) {
     agora: new Date(), cfg: CFG, restam,
     banco: await ultimoEnvioNoBanco(), arquivo: lerArquivoUltimo(), pendente: pendenteAtual(),
     bloqueio: { bloqueado: bloqueioAtivo() },
+    // Instagram: o 1º envio do dia só depois de um horário sorteado entre 8h10 e 9h30 (estável por dia e conta).
+    sorteioDia: CANAL === 'instagram' ? CFG.consultor : undefined,
   });
 }
 /** Ms que faltam para o piso (ignora janela e teto). */
@@ -1185,13 +1339,14 @@ async function contaDoChipOk() {
 }
 
 /** Envio incerto ("não saiu", ou estourou depois de tentar): grava como enviado, com a marca incerto, para contar no teto, no piso e na fila única. */
-async function gravarIncerto(contatoId, produtoId) {
+async function gravarIncerto(contatoId, produtoId, obsIncerto = null) {
   if (DRY || !contatoId) return true;
+  const obs = obsIncerto || `worker ${CANAL} incerto`;   // Instagram: "worker instagram incerto v=.. s=.. a=.. p=.." (contrato em abertura.mjs)
   const ok = await gravarComRetentativa(
-    () => gravarToque(contatoId, null, produtoId, 'enviei', `worker ${CANAL} incerto`, true),
+    () => gravarToque(contatoId, null, produtoId, 'enviei', obs, true),
     { vezes: 3, esperaMs: 1500, dorme });
   if (!ok) {
-    registrarPendente(contatoId, produtoId);
+    registrarPendente(contatoId, produtoId, obs);
     log('  NÃO consegui gravar o toque em 3 tentativas. PARO de abordar (Instagram e chip) até um toque gravar.');
     await bater({ fazendo: 'PARADA: envio saiu mas o toque não gravou no banco', ultimo_erro: 'toque pendente de gravar' });
   }
@@ -1203,12 +1358,28 @@ async function resolverPendente() {
   const p = pendenteAtual();
   if (!p) return true;
   try {
-    await gravarToque(p.id, null, p.pid, 'enviei', `worker ${CANAL} incerto pendente`, true,
+    await gravarToque(p.id, null, p.pid, 'enviei', p.obs || `worker ${CANAL} incerto pendente`, true,
       Number.isFinite(p.ms) ? new Date(p.ms).toISOString() : null);
   } catch (e) { log('  o toque pendente ainda não gravou (' + e.message + '); sigo parada de abordar'); return false; }
   limparPendente();
   log('  o toque pendente gravou. Volto a abordar.');
   return true;
+}
+
+/** Liga o freio (bloqueio de conversa nova) quando o contador de perfis distintos chegou ao limite. */
+async function aplicarFreio(freio) {
+  if (!freio || !freio.liga || bloqueadaParaNovas) return;
+  const n = caixaNaoAbriuEm.size;
+  log('');
+  log('O INSTAGRAM PAROU DE DEIXAR ABRIR CONVERSA NOVA.');
+  log(`${n} perfis distintos seguidos: a caixa não abriu ou o texto ficou na caixa.`);
+  log('Insistir nisso transforma bloqueio brando em bloqueio duro. PAREI de abordar.');
+  log('Responder quem já respondeu continua normal: aquilo vai pela API da Meta.');
+  await bater({ fazendo: 'PARADA: Instagram bloqueou conversa nova',
+                ultimo_erro: `caixa não abriu ou texto ficou na caixa em ${n} perfis seguidos` });
+  bloqueadaParaNovas = true;
+  gravarBloqueio(`caixa não abriu ou texto ficou na caixa em ${n} perfis distintos seguidos`, caixaNaoAbriuEm);
+  await rebaixarRampa();
 }
 
 // ═══ UMA ABORDAGEM ═══════════════════════════════════════════════════════════
@@ -1239,8 +1410,10 @@ async function umaAbordagem() {
       pisoFaltaMs = dec.esperaMs;
       log(dec.motivo === 'piso'
         ? `piso de ${Math.round(CFG.minSeg / 60)} min: faltam ${Math.ceil(dec.esperaMs / 60000)} min para a próxima abordagem.`
+        : dec.motivo === 'almoco' ? `pausa de almoço (até as 13h30): faltam ${Math.ceil(dec.esperaMs / 60000)} min.`
+        : dec.motivo === 'inicio' ? `o 1º envio de hoje só depois do horário sorteado (8h10 a 9h30): faltam ${Math.ceil(dec.esperaMs / 60000)} min.`
         : 'fora da janela de envio — não abordo.');
-      return dec.motivo === 'piso' ? 'piso' : 'vazio';
+      return ['piso', 'almoco', 'inicio'].includes(dec.motivo) ? 'piso' : 'vazio';
     }
   }
   // O WhatsApp filtra no banco: a view entrega 200 por vez, e sem o filtro os
@@ -1260,7 +1433,7 @@ async function umaAbordagem() {
     .filter(x => !caixaNaoAbriuEm.has(x.instagram) && !pularNaSessao.has(x.id) && !recusadosFila.has(x.id));
   if (!alvos.length) {
     log(CANAL === 'instagram'
-      ? 'ninguém com @ na fila agora — vou procurar mais endereço'
+      ? 'ninguém com @ na fila agora (o robô só aborda quem já tem @ na base)'
       : 'ninguém na fila agora');
     return 'vazio';
   }
@@ -1277,8 +1450,9 @@ async function umaAbordagem() {
   const pid = c.produto_da_lista || (produtos[0] && produtos[0].id);
   const prod = produtos.find(p => p.id === pid);
   const preco = prod ? `R$ ${Number(prod.preco).toLocaleString('pt-BR')}` : '';
-  const msg = montarMensagem(c, scripts, alegacoes, pid, preco);
-  if (!msg) { log(`PULOU ${c.empresa} — todo script de ${pid} está bloqueado pela trava`); return 'falhou'; }
+  const escolhida = await escolherMensagem(c, scripts, alegacoes, pid, preco);
+  if (!escolhida) { log(`PULOU ${c.empresa} — toda abertura de ${pid} está bloqueada pela trava`); return 'falhou'; }
+  const { msg, obs: obsToque, obsIncerto } = escolhida;
 
   const destino = CANAL === 'instagram' ? '@' + c.instagram : c.telefone;
   console.log(`\n─── ${c.empresa} · ${c.cidade || ''} · ${destino} · ${CTX(c)} ───`);
@@ -1302,15 +1476,18 @@ async function umaAbordagem() {
     // A hora da tentativa vai para o disco ANTES de digitar. Sem conseguir gravar, não envia.
     prevArq = lerArquivoUltimo();
     if (!gravarArquivoUltimo(Date.now())) return 'vazio';
-    alvoAtual = { id: c.id, pid };
+    alvoAtual = { id: c.id, pid, obsIncerto, instagram: CANAL === 'instagram' ? c.instagram : null };
     tentouEnviar = true;   // daqui em diante a DM pode ter saído, mesmo que a função estoure
     const r = CANAL === 'instagram'
       ? await enviarInstagram(aba, c.instagram, msg)
       : await enviarWhatsApp(aba, c.telefone, msg);
     if (r.ok) {
-      caixaNaoAbriu = 0;   // uma que sai limpa zera a suspeita
-      caixaNaoAbriuEm.clear();
-      await gravarToque(c.id, null, pid, 'enviei', `worker ${CANAL}`);
+      // Só envio numa conversa NOVA zera a suspeita: numa conversa antiga o compositor abre mesmo com a restrição.
+      if (CANAL === 'instagram') {
+        if (aposEnvioConfirmado(caixaNaoAbriuEm, { conversaAntiga: r.conversaAntiga })) caixaNaoAbriu = 0;
+        else if (caixaNaoAbriuEm.size) log(`  conversa já existia (ou não deu para medir): o contador de bloqueio fica em ${caixaNaoAbriuEm.size}`);
+      } else { caixaNaoAbriu = 0; caixaNaoAbriuEm.clear(); }
+      await gravarToque(c.id, null, pid, 'enviei', obsToque);
       log('  ✓ enviado');
       return 'enviou';
     }
@@ -1320,7 +1497,7 @@ async function umaAbordagem() {
     if (!/perfil não carregou|deslogado/.test(r.motivo || '')) pularNaSessao.add(c.id);
     // "Não saiu" não prova que não saiu (Rei da Energia, EJS Solar): conta como envio para o piso.
     const incerto = /não saiu|ficou na caixa/.test(r.motivo || '');
-    if (incerto) await gravarIncerto(c.id, pid);     // conta no teto, no piso e na fila única
+    if (incerto) await gravarIncerto(c.id, pid, obsIncerto);     // conta no teto, no piso e na fila única (mas NÃO como envio confirmado na rampa)
     else restaurarArquivoUltimo(prevArq);             // comprovadamente nada saiu: o marcador volta ao que era
 
     // Falha passageira (página não carregou, rede caiu) NÃO vira toque: quem
@@ -1342,23 +1519,14 @@ async function umaAbordagem() {
     //
     // Insistir num bloqueio brando é o que o torna duro. Três seguidas e ela
     // para sozinha, avisa no pulso, e espera alguém conferir.
-    if (CANAL === 'instagram' && /caixa de DM não abriu/.test(r.motivo)) {
+    // 09/11/2026: "texto ficou na caixa / não saiu" é o MESMO sintoma (a restrição deixa o texto na caixa)
+    // e conta no mesmo contador, antes de o freio ligar (em 06/11 três deles passaram como "incerto").
+    const freio = CANAL === 'instagram' ? registrarFalhaCaixa(caixaNaoAbriuEm, c.instagram, r.motivo) : { conta: false };
+    if (freio.conta) {
       // Conta PERFIS DISTINTOS, que é o que a regra diz. O mesmo @ falhando três
       // vezes não prova bloqueio da conta: prova que aquele perfil não abre.
-      caixaNaoAbriuEm.add(c.instagram);
       caixaNaoAbriu = caixaNaoAbriuEm.size;
-      if (caixaNaoAbriu >= 3 && !bloqueadaParaNovas) {
-        log('');
-        log('O INSTAGRAM PAROU DE DEIXAR ABRIR CONVERSA NOVA.');
-        log(`${caixaNaoAbriu} perfis seguidos: o botão existe, o clique funciona, o compositor não abre.`);
-        log('Insistir nisso transforma bloqueio brando em bloqueio duro. PAREI de abordar.');
-        log('Responder quem já respondeu continua normal: aquilo vai pela API da Meta.');
-        await bater({ fazendo: 'PARADA: Instagram bloqueou conversa nova',
-                      ultimo_erro: `compositor não abre em ${caixaNaoAbriu} perfis seguidos` });
-        bloqueadaParaNovas = true;
-        gravarBloqueio(`compositor não abre em ${caixaNaoAbriu} perfis distintos seguidos`, caixaNaoAbriuEm);
-        await rebaixarRampa();
-      }
+      await aplicarFreio(freio);
     }
     if (CANAL === 'instagram' && /não existe mais/.test(r.motivo)) {
       await fetch(`${CFG.supa}/prospeccao_contatos?id=eq.${c.id}`, {
@@ -1385,25 +1553,6 @@ async function umaAbordagem() {
     // A aba fixa do WhatsApp fica. Fechar e reabrir é recarregar o aplicativo.
     if (aba && aba !== abaZap) await aba.fechar();
   }
-}
-
-/**
- * Põe a aba DENTRO do instagram.com antes de qualquer busca.
- *
- * Aba nova nasce em about:blank, e de lá um fetch('/web/search/...') não tem
- * contra o que resolver: o Chrome devolve "Failed to parse URL" e a busca morre
- * calada. Foi o que derrubou o reabastecimento e a varredura de cidade em
- * 11/09, com a agente achando que tinha procurado.
- *
- * Não adianta usar o endereço completo: o cookie da sessão só viaja se a
- * requisição sair de uma página do próprio instagram.com. O que resolve é
- * ESTAR lá.
- */
-async function garantirInstagram(aba) {
-  const onde = await aba.js('location.origin').catch(() => null);
-  if (onde === 'https://www.instagram.com') return true;
-  await aba.ir('https://www.instagram.com/');
-  return await aba.esperar("location.origin === 'https://www.instagram.com'", 20000);
 }
 
 // ═══ PULSO ═══════════════════════════════════════════════════════════════════
@@ -1573,358 +1722,10 @@ async function sessaoViva() {
   }
 }
 
-// ═══ ORÇAMENTO DE BUSCA ══════════════════════════════════════════════════════
-// Buscar na lupa é leitura, muito mais barato que mandar DM — mas não é de
-// graça. A conta é a principal (@irmaosnaobra__), semana 1 da rampa, e uma
-// rajada de busca derruba um perfil do mesmo jeito que uma rajada de mensagem.
-//
-// "Nunca ociosa" quer dizer SEMPRE TER O QUE FAZER, não fazer o máximo de
-// requisição por minuto. Sem este teto, o loop de 2min30 dispararia ~120
-// buscas por hora, que é ritmo de robô e não de gente trabalhando.
-// 12/h, e nao 30. Em 11/09 as 15h a conta ja estava devolvendo HTTP 429 no
-// perfil e 0 resultado na busca: a 30/h a gente estava raspando o teto do que o
-// Instagram entrega, e insistir num endpoint que ja respondeu 429 e o caminho
-// mais curto entre "limitado" e "bloqueado".
-//
-// Isto NAO limita o envio. O envio tem teto proprio (prospeccao_teto_hoje) e
-// passa por outro caminho. Aqui e so a lupa.
-const BUSCAS_HORA = Number(process.env.BUSCAS_HORA || 12);
-let janelaBusca = [];
-// Busca que volta vazia seguidamente nao e falta de empresa, e o Instagram
-// fechando a torneira. Cada vazia seguida cobra um minuto extra de silencio,
-// ate 30: recuar sozinho e o que evita que limite vire bloqueio.
-let vaziasSeguidas = 0;
-function sobramBuscas() {
-  const corte = Date.now() - 3600_000;
-  janelaBusca = janelaBusca.filter(t => t > corte);
-  const sobra = Math.max(0, BUSCAS_HORA - janelaBusca.length);
-  if (!vaziasSeguidas) return sobra;
-  // Depois de N vazias seguidas, so volta a buscar se a ultima tiver N minutos.
-  const ultima = janelaBusca[janelaBusca.length - 1] || 0;
-  const descanso = Math.min(30, vaziasSeguidas) * 60_000;
-  return (Date.now() - ultima) < descanso ? 0 : sobra;
-}
-const gastarBusca = () => janelaBusca.push(Date.now());
-
-// ═══ REABASTECER ═════════════════════════════════════════════════════════════
-// A fila tem 469 empresas mas só ~100 com @. Sem isto a agente seca em dias e
-// para sozinha — com 369 alvos parados na base esperando um handle.
-//
-// Procura o @ pela lupa do próprio Instagram, com a conta logada, DENTRO do
-// tempo ocioso entre uma abordagem e outra. Buscar é muito mais leve que mandar
-// DM (é leitura), mas não é de graça: por isso vai devagar, poucas por rodada.
-//
-// Só aceita perfil que compartilhe uma palavra DISTINTIVA com o nome da empresa.
-// "solar", "energia", "engenharia" e mais 20 não contam — senão "Solar Brasil"
-// casaria com @solarpiracanjuba e a DM iria pro perfil errado, que é pior que
-// não mandar.
-const GENERICAS = new Set(['solar','energia','energias','solares','fotovoltaica','fotovoltaico',
-  'sol','soll','renovavel','renovaveis','engenharia','ltda','me','eireli','comercio','servicos','servico',
-  'service','services','e','de','do','da','em','the','sistemas','solucoes','solucao','tecnologia',
-  'eletrica','eletricas','eletrico','eletricos','quadros','brasil','grupo','cia','express',
-  'automacao','residencial',
-  'comercial','industrial','instalacao','instalacoes','projetos','projeto','consultoria',
-  'assessoria','representacoes','distribuidora','oficial','ltd','sa','mei','epp']);
-const normNome = x => String(x || '').toLowerCase().normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
-const distintivas = n => normNome(n).split(' ').filter(t => t.length >= 3 && !GENERICAS.has(t));
-
-// Perfil que claramente e outra coisa. A academia entrou aqui por merito
-// proprio: "JE Energia Solar - Jaragua Goias" casou com
-// @academiagavioes24h_jaragua pela palavra "jaragua", que e a CIDADE.
-const OUTRO_RAMO = new RegExp(['academia','crossfit','barbearia','salao','estetica','petshop',
-  'pizzaria','lanchonete','restaurante','igreja','escola','colegio','futebol','moda','boutique',
-  'imobiliaria','advocacia','odonto','clinica','farmacia','mercado','supermercado','padaria',
-  'auto ?pecas','borracharia','hotel','pousada','emporio','adega','mercearia','acougue',
-  'sorveteria','cafeteria','doceria','floricultura','otica','joalheria','papelaria'].join('|'));
-
-/**
- * Este perfil e MESMO desta empresa?
- *
- * Erra pra menos de proposito. Mandar oferta de sistema de proposta pra uma
- * academia nao e so desperdicio: e a pessoa errada recebendo venda fria, que e
- * exatamente o que gera denuncia e derruba conta.
- *
- * O que nao vale como prova:
- * · palavra generica do ramo (solar, energia, engenharia, service, express...)
- * · o nome da CIDADE — ela ja esta na consulta, entao casar por ela nao diz
- *   nada sobre ser a empresa certa
- * · uma palavra so, quando a empresa tem varias — "Solar Brasil" nao pode virar
- *   @solarpiracanjuba
- */
-function casaPerfil(empresa, u, cidade) {
-  // A cidade sai do jogo por PREFIXO, não por igualdade. A ficha abrevia
-  // ("Sen. Canedo") e o nome da empresa escreve por extenso ("Senador Canedo"):
-  // comparando palavra com palavra, "senador" sobrevivia e casava com
-  // @emporioveiga.canedo, que e um emporio. Errar pra menos aqui e de proposito.
-  const doLugar = distintivas(cidade || '');
-  const daCidade = t => doLugar.some(c => t === c || t.startsWith(c) || c.startsWith(t));
-  const alvo = distintivas(empresa).filter(t => !daCidade(t));
-  if (!alvo.length) return null;
-
-  const txt = normNome(u.username + ' ' + (u.full_name || ''));
-  if (OUTRO_RAMO.test(txt)) return null;
-
-  const junto = txt.replace(/ /g, '');
-  const bate = alvo.filter(t => txt.includes(t) || junto.includes(t));
-  if (!bate.length) return null;
-
-  // Prova exigida, em ordem de forca:
-  //   duas palavras batendo      coincidencia dupla nao acontece
-  //   uma palavra de 6+ letras   especifica o bastante sozinha
-  //   nome de UMA palavra so     mas com 5+ letras
-  //
-  // O piso de 5 letras no caso de uma palavra existe por causa de "Sol Energia
-  // Solar": tirando o generico sobra so "sol", e "sol" casa com metade do
-  // mercado. Foi assim que @ecosenergiasolar.rioverde virou essa empresa.
-  // Empresa cujo nome inteiro e generico nao tem como ser identificada, e o
-  // certo e NAO adivinhar.
-  const forte = bate.length >= 2
-    || bate.some(t => t.length >= 6)
-    || (alvo.length === 1 && bate[0].length >= 5);
-  if (!forte) return null;
-
-  return { forca: bate.length / alvo.length, palavras: bate };
-}
-
-/** Uma rodada curta de busca de @. Devolve quantos achou. */
-async function reabastecer(aba, quantos = 4) {
-  const cabem = Math.min(quantos, sobramBuscas());
-  if (cabem <= 0) return 0;
-  if (!await garantirInstagram(aba)) { log('  não consegui abrir o Instagram pra procurar @'); return 0; }
-  // SÓ quem nunca foi procurado. O @ vazio quer dizer "já procurei e não achei",
-  // e voltar nele toda rodada gastaria a busca do dia relendo as mesmas empresas
-  // sem chance — o comentário do vazio dizia isso, a consulta não cumpria.
-  const semArroba = await ler('prospeccao_contatos?select=id,empresa,cidade'
-    + '&classe=in.(integradora,misto)&instagram=is.null&limit=' + cabem);
-  if (!semArroba.length) return 0;
-
-  // O mesmo @ nao pode virar duas empresas. Aconteceu hoje com
-  // @ecopowerenergia, atribuido a dois contatos diferentes: a segunda empresa
-  // ficaria com o endereco da primeira e receberia mensagem que nao e dela.
-  const usados = new Set((await ler('prospeccao_contatos?select=instagram&instagram=not.is.null&limit=20000'))
-    .map(x => String(x.instagram || '').toLowerCase()).filter(Boolean));
-
-  let achou = 0;
-  for (const c of semArroba) {
-    const termo = [c.empresa, c.cidade].filter(Boolean).join(' ');
-    let r = null;
-    try {
-      r = await aba.js(`(async () => {
-        try {
-          const q = await fetch('/web/search/topsearch/?context=blended&query='
-            + encodeURIComponent(${JSON.stringify(termo)}), { headers: { 'X-IG-App-ID': '936619743392459' } });
-          if (!q.ok) return { erro: 'HTTP ' + q.status };
-          const j = await q.json();
-          return { users: (j.users || []).slice(0, 8).map(u => ({
-            username: u.user && u.user.username, full_name: u.user && u.user.full_name })).filter(u => u.username) };
-        } catch (e) { return { erro: String(e && e.message || e) }; }
-      })()`);
-    } catch (e) { r = { erro: e.message }; }
-    gastarBusca();
-
-    if (r?.erro) { vaziasSeguidas++; log(`  busca de @ reclamou (${r.erro}) — paro de procurar nesta rodada`); break; }
-    if (!(r?.users || []).length) {
-      vaziasSeguidas++;
-      log(`  a lupa voltou vazia (${vaziasSeguidas}ª seguida) — freio de ${Math.min(30, vaziasSeguidas)} min`);
-      break;
-    }
-    vaziasSeguidas = 0;
-
-    const cand = (r?.users || []).map(u => ({ u, m: casaPerfil(c.empresa, u, c.cidade) }))
-      .filter(x => x.m && !usados.has(String(x.u.username).toLowerCase()))
-      .sort((a, b) => b.m.forca - a.m.forca)[0];
-
-    // '' = procuramos e nao serve. Sem isso a mesma empresa seria procurada
-    // pra sempre, gastando busca toda rodada.
-    const valor = cand ? cand.u.username : '';
-    await fetch(`${CFG.supa}/prospeccao_contatos?id=eq.${c.id}`, {
-      method: 'PATCH', headers: H,
-      body: JSON.stringify({ instagram: valor, instagram_em: new Date().toISOString() }),
-    }).catch(() => {});
-    if (cand) { usados.add(String(cand.u.username).toLowerCase()); achou++;
-      log(`  achei @${cand.u.username} — ${c.empresa} (casou em: ${cand.m.palavras.join(', ')})`); }
-    await dorme(4000 + Math.floor(5000 * ((Date.now() % 1009) / 1009)));
-  }
-  return achou;
-}
-
-// ═══ DESCOBRIR ═══════════════════════════════════════════════════════════════
-// Quando não sobra empresa sem @ pra procurar, ela vai atrás de empresa que a
-// gente NUNCA viu — varrendo "energia solar <cidade>" município por município.
-// A lista de municípios vem do IBGE na hora; o rastro do que já foi varrido
-// fica em prospeccao_varredura, senão ela recomeçaria por Abaetetuba a cada
-// reinício e nunca sairia de lá.
-// Um termo por rodada, e a cidade só está esgotada quando TODOS passaram.
-//
-// Antes eram dois termos e a cidade ia pro arquivo morto. São Paulo saiu com 10
-// perfis e nunca mais seria visitada, sendo que lá tem milhar de integradora: a
-// lupa do Instagram devolve ~10 por consulta, então uma consulta só arranha.
-// Termo diferente devolve gente diferente, e é por isso que a chave em
-// prospeccao_varredura inclui o termo.
-const TERMOS_BUSCA = [
-  'energia solar', 'energia fotovoltaica', 'placa solar', 'painel solar',
-  'energia solar residencial', 'fotovoltaico', 'solar engenharia', 'usina solar',
-];
-// Medido em 11/09 na conta logada: a busca devolve no MÁXIMO 5 perfis, e o nome
-// da cidade puxa entidade famosa. "energia solar São Paulo" trouxe São Paulo FC,
-// Paulo César e a BandNews São Paulo, sobrando 1 vaga de 5 pra empresa de solar.
-// "solar Campinas" trouxe 5 empresas em 5.
-//
-// Por isso o termo cru "solar" saiu daqui: sozinho ele é o que mais colide com
-// gente famosa. Quanto mais específico o termo, menos vaga a fama rouba.
-// Consequência: cidade gigante rende MENOS por consulta que cidade média, ao
-// contrário do que a ordem por população faz supor. A ordem continua certa
-// (mercado grande vale mais), mas o ganho por busca lá é pequeno.
-// Precisa cheirar a solar E não cheirar a nenhuma destas. Curso, distribuidora,
-// fábrica e aquecedor de piscina entram na busca e não compram SolarDoc.
-const CHEIRA_SOLAR = /(solar|fotovolt|energia)/;
-const NAO_SERVE = new RegExp(['curso','treinamento','aula','professor','mentoria','ensino',
-  'distribuidora','atacado','importadora','fabrica','fabricante','industria','consorcio',
-  'financiamento','credito','seguro','imobiliaria','aquecedor','aquecimento','boiler',
-  'piscina','oficial','noticias','portal','revista','blog'].join('|'));
-
-let CIDADES = null;   // cache por execução: 5.571 municípios não mudam no turno
-
-/**
- * Os municípios do Brasil, DO MAIOR PRO MENOR.
- *
- * A ordem importa mais que parece. A listagem crua do IBGE vem em ordem de
- * código, que começa em Rondônia — ela varreria Alta Floresta D'Oeste, Cabixi e
- * Cerejeiras por semanas antes de chegar em São Paulo. Empresa de solar mora
- * onde mora gente: ordenando por população ela começa em São Paulo, Rio,
- * Brasília e Salvador e desce a cauda, então o melhor lead aparece no primeiro
- * dia e não no centésimo.
- */
-async function municipios() {
-  if (CIDADES) return CIDADES;
-  try {
-    const r = await fetch('https://servicodados.ibge.gov.br/api/v3/agregados/6579'
-      + '/periodos/2021/variaveis/9324?localidades=N6[all]');
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const series = (await r.json())[0].resultados[0].series;
-    CIDADES = series.map(x => {
-      const [nome, uf] = String(x.localidade.nome).split(' - ');
-      return { nome, uf, pop: Number(Object.values(x.serie)[0]) || 0 };
-    }).filter(c => c.nome && c.uf).sort((a, b) => b.pop - a.pop);
-    return CIDADES;
-  } catch (e) {
-    // Sem população ela ainda trabalha — só na ordem burra do IBGE. Ordem ruim
-    // é muito melhor que parar, que é o que ela nunca pode fazer.
-    log('não consegui a população do IBGE (' + e.message + ') — vou na ordem crua');
-    const r = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios');
-    if (!r.ok) throw new Error('IBGE respondeu ' + r.status);
-    CIDADES = (await r.json()).map(m => ({
-      nome: m.nome, pop: 0,
-      uf: m.microrregiao?.mesorregiao?.UF?.sigla || m['regiao-imediata']?.['regiao-intermediaria']?.UF?.sigla,
-    })).filter(c => c.uf);
-    return CIDADES;
-  }
-}
-
-/** Varre UMA cidade ainda não varrida. Devolve quantas empresas novas gravou. */
-async function descobrir(aba) {
-  if (sobramBuscas() <= 0) return 0;   // uma rodada = uma busca; sem orçamento, não começa
-  if (!await garantirInstagram(aba)) { log('  não consegui abrir o Instagram pra varrer cidade'); return 0; }
-
-  const todas  = await municipios();
-  const feitas = await ler('prospeccao_varredura?select=cidade,uf,termo&limit=50000');
-  const jaFoi  = new Set(feitas.map(v => (v.cidade + '|' + v.uf + '|' + (v.termo || '')).toLowerCase()));
-
-  // Cidade grande primeiro, e dentro dela um termo por vez. Assim São Paulo é
-  // visitada 8 vezes com consultas diferentes antes de Cabixi ser visitada uma.
-  let alvo = null, termo = null;
-  for (const c of todas) {
-    const falta = TERMOS_BUSCA.find(t => !jaFoi.has((c.nome + '|' + c.uf + '|' + t).toLowerCase()));
-    if (falta) { alvo = c; termo = falta; break; }
-  }
-  if (!alvo) { log(`os ${todas.length} municípios já foram varridos com os ${TERMOS_BUSCA.length} termos.`); return 0; }
-
-  // A lista de destino é a mesma da operação: contato descoberto entra na fila
-  // no mesmo lugar dos outros, sem lista paralela pra ninguém esquecer dela.
-  const listas = await ler('prospeccao_listas?select=id,nome&status=eq.ativa&produto_id=eq.solardoc&limit=1');
-  const listaId = listas[0]?.id;
-  if (!listaId) { log('nenhuma lista ativa pra receber os descobertos'); return 0; }
-
-  // Quem já está na base não volta como novidade. O índice único é sobre
-  // lower(instagram), e o PostgREST não sabe resolver expressão em on_conflict
-  // ("column \"lower\" does not exist", 400) — então a comparação é feita aqui,
-  // e o índice fica só como última linha de defesa contra corrida.
-  const conhecidos = new Set((await ler('prospeccao_contatos?select=instagram&instagram=not.is.null&limit=20000'))
-    .map(c => String(c.instagram || '').toLowerCase()).filter(Boolean));
-
-  let novos = 0, achados = 0, limpas = 0;
-  {
-    const busca = `${termo} ${alvo.nome}`;
-    let r = null;
-    try {
-      r = await aba.js(`(async () => {
-        try {
-          const q = await fetch('/web/search/topsearch/?context=blended&query='
-            + encodeURIComponent(${JSON.stringify(busca)}),
-            { headers: { 'X-IG-App-ID': '936619743392459' } });
-          if (!q.ok) return { erro: 'HTTP ' + q.status };
-          const j = await q.json();
-          return { users: (j.users || []).map(u => ({
-            username: u.user && u.user.username, full_name: u.user && u.user.full_name,
-            verificado: !!(u.user && u.user.is_verified) })).filter(u => u.username) };
-        } catch (e) { return { erro: String(e && e.message || e) }; }
-      })()`);
-    } catch (e) { r = { erro: e.message }; }
-    gastarBusca();
-
-    if (r?.erro) {
-      vaziasSeguidas++;
-      log(`  busca reclamou (${r.erro}) — deixo ${alvo.nome} pra próxima`);
-    } else {
-      limpas++;
-      const quantos = (r?.users || []).length;
-      if (quantos === 0) {
-        vaziasSeguidas++;
-        log(`  a busca voltou vazia (${vaziasSeguidas}ª seguida) — vou pisar no freio ${Math.min(30, vaziasSeguidas)} min`);
-      } else vaziasSeguidas = 0;
-    }
-
-    for (const u of r?.users || []) {
-      achados++;
-      const arroba = String(u.username).toLowerCase();
-      if (arroba.length < 4 || u.verificado || conhecidos.has(arroba)) continue;
-      const txt = normNome(u.username + ' ' + (u.full_name || ''));
-      if (!CHEIRA_SOLAR.test(txt) || NAO_SERVE.test(txt)) continue;
-
-      const res = await fetch(`${CFG.supa}/prospeccao_contatos`, {
-        method: 'POST', headers: { ...H, Prefer: 'return=representation' },
-        body: JSON.stringify([{
-          lista_id: listaId,
-          empresa: String(u.full_name || u.username).slice(0, 120),
-          cidade: alvo.nome, uf: alvo.uf,
-          instagram: u.username, instagram_em: new Date().toISOString(),
-          classe: 'integradora',
-          classe_motivo: `descoberta na busca do Instagram por "${busca}"`,
-        }]),
-      }).catch(() => null);
-      conhecidos.add(arroba);
-      if (res?.ok) { novos++; log(`  nova: @${u.username} — ${u.full_name || ''} (${alvo.nome}/${alvo.uf})`); }
-      else if (res && res.status !== 409) log(`  não gravei @${u.username}: HTTP ${res.status}`);
-    }
-    await dorme(4000 + Math.floor(6000 * ((Date.now() % 1009) / 1009)));
-  }
-
-  // SÓ risca a cidade da lista se a busca REALMENTE rodou. Marcar como varrida
-  // depois de um 429 queimaria o município pra sempre — e o propósito desta
-  // tabela é justamente não perder o lugar, não perder a cidade.
-  if (!limpas) { log(`  ${alvo.nome}/${alvo.uf} não foi varrida (busca falhou) — tento de novo depois`); return 0; }
-
-  await fetch(`${CFG.supa}/prospeccao_varredura`, {
-    method: 'POST', headers: { ...H, Prefer: 'return=minimal' },
-    body: JSON.stringify({ cidade: alvo.nome, uf: alvo.uf, termo,
-                           encontrados: achados, novos }),
-  }).catch(() => {});
-  const resta = TERMOS_BUSCA.length - 1 - TERMOS_BUSCA.indexOf(termo);
-  log(`varri ${alvo.nome}/${alvo.uf} por "${termo}": ${achados} perfis, ${novos} nova(s)`
-    + (resta ? ` · faltam ${resta} termo(s) nesta cidade` : ' · cidade esgotada'));
-  return novos;
-}
+// ═══ BUSCA DE @ — REMOVIDA EM 09/11/2026 ═════════════════════════════════════
+// A busca de @ pela lupa do Instagram dá 404 desde 13/10 e rodava o dia todo, abrindo uma aba do
+// Instagram a cada volta. Saiu de vez: o robô só aborda contato que JÁ TEM @ na base. Quem quiser
+// colher @ novo roda, à mão, colher-instagram.mjs (site da empresa), fora do robô.
 
 // ═══ MODO CONTÍNUO ═══════════════════════════════════════════════════════════
 // Um dia inteiro de trabalho sem ninguém dar comando. Alterna abordar e
@@ -2135,7 +1936,12 @@ async function modoContinuo() {
               desfecho = 'incerto';
               // SEMPRE, antes de qualquer outra coisa: este contato sai da frente da fila.
               if (alvoAtual) pularNaSessao.add(alvoAtual.id);
-              if (alvoAtual) await gravarIncerto(alvoAtual.id, alvoAtual.pid);   // se falhar 3x, vira pendência e para tudo
+              if (alvoAtual) await gravarIncerto(alvoAtual.id, alvoAtual.pid, alvoAtual.obsIncerto);   // se falhar 3x, vira pendência e para tudo
+              // O incerto que nasce de EXCEÇÃO também conta no freio (mesmo contador de perfis distintos).
+              if (CANAL === 'instagram' && alvoAtual && alvoAtual.instagram) {
+                try { await aplicarFreio(registrarFalhaCaixa(caixaNaoAbriuEm, alvoAtual.instagram, 'não saiu')); }
+                catch (e2) { log('  não consegui aplicar o freio: ' + e2.message); }
+              }
               tentouEnviar = false;
               alvoAtual = null;
             }
@@ -2192,36 +1998,30 @@ async function modoContinuo() {
             // mensagem e o intervalo encurta até dar.
             // +-25% pra não sair de metrônomo. O piso (2700 s) é a operação mais
             // externa em calcularEspera(): nenhum teto de espera o fura.
-            const jitter = 0.75 + 0.5 * ((Date.now() % 1013) / 1013);
-            espera = calcularEspera({ agora: new Date(), cfg: CFG, restam: t2.restam, jitter });
+            // Espera SORTEADA de 45 a 75 min; com o dia apertado o sorteio encolhe para perto de 45
+            // (calcularEspera espalha pelo resto do dia útil, sem o almoço).
+            espera = calcularEspera({ agora: new Date(), cfg: CFG, restam: t2.restam, sorteio: Math.random() });
           }
           // A ESPERA TEM QUE SER APLICADA. Até 05/11/2026 ela só ia para o log: a
           // variável proximaAbordagem não recebia o valor, e em 09/10 saíram 12 DMs
           // em 41 min com o log dizendo "próxima em 94 min".
           proximaAbordagem = Date.now() + espera * 1000;
+          // Quando a espera é de envio (não de falha), o alvo sai do almoço e de minuto 0/5 (sempre PARA FRENTE: o piso só cresce).
+          if (desfecho === 'enviou' || desfecho === 'incerto') {
+            proximaAbordagem = ajustarInstante(proximaAbordagem, Math.random());
+            espera = Math.ceil((proximaAbordagem - Date.now()) / 1000);
+          }
           log(`${t2.usados}/${t2.teto} abordagens · ${t2.respostas} respostas hoje`
-            + ` · próxima abordagem em ${Math.round(espera / 60)} min`);
+            + ` · próxima abordagem em ${Math.round(espera / 60)} min`
+            + (desfecho === 'incerto' ? ' (o toque incerto conta no teto e no piso, mas não como envio confirmado)' : ''));
           ultimoErro = null;   // uma volta inteira sem tropeço limpa o histórico
           await bater({ ciclo, enviados_hoje: t2.usados, ultimo_erro: null,
             fazendo: `mandei ${t2.usados}/${t2.teto}, próxima em ${Math.round(espera / 60)} min` });
         }
       }
 
-      // ── 3. CONSTRUIR A LISTA — todo tempo ocioso vira lista ───────────────
-      // Roda SEMPRE, não só quando a fila está curta. Duas frentes, nessa ordem:
-      //   1) achar o @ de empresa que já está na base (mais barato, mais certeiro)
-      //   2) quando não sobra nenhuma, ir atrás de empresa que nunca vimos
-      // Assim ela nunca fica sem o que fazer entre 07h e 23h59, e nunca seca.
-      if (CANAL === 'instagram' && !DRY) {
-        let aba = null;
-        try {
-          aba = await Aba.abrir(CFG.cdp);
-          const achou = await reabastecer(aba, 5);
-          if (achou) log(`achei @ de ${achou} empresa(s) que já estavam na base`);
-          else await descobrir(aba);
-        } catch (e) { log('construção da lista falhou: ' + e.message); }
-        finally { if (aba) await aba.fechar(); }
-      }
+      // ── 3. (sem busca de @) ───────────────────────────────────────────────
+      // Antes aqui o robô procurava @ pela lupa e varria cidades. Saiu em 09/11/2026 (ver "BUSCA DE @").
 
       // ── 4. dorme pouco e volta ────────────────────────────────────────────
       // Chegou aqui sem cair no catch = volta limpa, então o erro é história.
@@ -2326,8 +2126,9 @@ async function main() {
     const pid = c.produto_da_lista || (produtos[0] && produtos[0].id);
     const prod = produtos.find(p => p.id === pid);
     const preco = prod ? `R$ ${Number(prod.preco).toLocaleString('pt-BR')}` : '';
-    const msg = montarMensagem(c, scripts, alegacoes, pid, preco);
-    if (!msg) { log(`PULOU ${c.empresa} — todo script de ${pid} está bloqueado pela trava de alegação`); continue; }
+    const escolhida = await escolherMensagem(c, scripts, alegacoes, pid, preco);
+    if (!escolhida) { log(`PULOU ${c.empresa} — toda abertura de ${pid} está bloqueada pela trava de alegação`); continue; }
+    const { msg, obs: obsToque, obsIncerto } = escolhida;
 
     const destino = CANAL === 'instagram' ? '@' + c.instagram : c.telefone;
     console.log(`\n─── ${c.empresa} · ${c.cidade || ''} · ${destino} · ${CTX(c)} ───`);
@@ -2351,17 +2152,17 @@ async function main() {
     if (r.ok) {
       enviados++;
       try {
-        await gravarToque(c.id, null, pid, 'enviei', `worker ${CANAL}`);
+        await gravarToque(c.id, null, pid, 'enviei', obsToque);
       } catch (e) {
         // A DM saiu e o toque não gravou: vira pendência, para o teto e a fila única enxergarem.
         log(`  ! toque não gravou (${e?.message || e}); registrando como incerto`);
-        await gravarIncerto(c.id, pid);
+        await gravarIncerto(c.id, pid, obsIncerto);
       }
       log(`  ✓ enviado (${enviados})`);
     } else {
       falhas++;
       log(`  ✗ ${r.motivo}`);
-      if (/não saiu|ficou na caixa/.test(r.motivo || '')) await gravarIncerto(c.id, pid);
+      if (/não saiu|ficou na caixa/.test(r.motivo || '')) await gravarIncerto(c.id, pid, obsIncerto);
       else restaurarArquivoUltimo(prevArq);
       // Falha NÃO vira toque: gravar "enviei" pra mensagem que não saiu faria a
       // pessoa sumir da fila sem nunca ter sido falada.

@@ -18,3 +18,5 @@ bloqueio-*.json
 rampa-*.json
 # Dia e prova de rebaixe do ultimo bloqueio (nao se apaga no destrave).
 historico-bloqueio-*.json
+# Últimas mensagens de lead tratadas como resposta automática (estado local, podado em 7 dias).
+respostas-automaticas-*.json

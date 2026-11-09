@@ -20,6 +20,11 @@ export const RAMPA_INICIAL = 5;       // onde a rampa começa, volta depois de b
 export const TETO_CHIP = 10;          // WhatsApp do chip
 export const DIAS_ENTRE_CANAIS = 14;  // o 2º canal só entra 14 dias depois do 1º toque
 export const MAX_TOQUES_60D = 3;      // somando os canais
+export const ESPERA_MAX_SEG = 4500;   // espera sorteada entre envios: de 45 min (piso) a 75 min
+export const ALMOCO_INI_MIN = 12 * 60;        // pausa de almoço SEM ENVIO: 12h00 ...
+export const ALMOCO_FIM_MIN = 13 * 60 + 30;   // ... até 13h30 (BRT)
+export const PRIMEIRO_INI_MIN = 8 * 60 + 10;  // o 1º envio do dia cai entre 8h10 ...
+export const PRIMEIRO_FIM_MIN = 9 * 60 + 30;  // ... e 9h30 (BRT)
 
 /** Número da env; vazio, NaN ou infinito caem no padrão (nunca em 0). */
 const num = (v, padrao) => {
@@ -38,22 +43,29 @@ export function cfgDe(env = {}) {
   const horaIni = Math.min(24, Math.max(JANELA_INI, Math.round(num(env.HORA_INI, JANELA_INI))));
   const horaFim = Math.max(0, Math.min(JANELA_FIM, Math.round(num(env.HORA_FIM, JANELA_FIM))));
   const minSeg = Math.max(PISO_SEG, num(env.MIN_SEG, PISO_SEG));
-  const maxSeg = Math.max(minSeg, num(env.MAX_SEG, 3600));
-  const tetoEspera = Math.max(minSeg, num(env.TETO_ESPERA, 3600));
+  const maxSeg = Math.max(minSeg, num(env.MAX_SEG, ESPERA_MAX_SEG));
+  const tetoEspera = Math.max(minSeg, num(env.TETO_ESPERA, ESPERA_MAX_SEG));
   // Teto do Instagram: a env só DESCE (1 a 10), nunca passa de 10.
   const tetoInstagramMax = Math.max(1, Math.min(TETO_INSTAGRAM, Math.round(num(env.TETO_INSTAGRAM_MAX, TETO_INSTAGRAM))));
   // Janela invertida ou vazia: fecha (ini = fim), nunca abre.
   return { horaIni: Math.min(horaIni, horaFim), horaFim, minSeg, maxSeg, tetoEspera, tetoInstagramMax };
 }
 
-/** Hora cheia (0-23), dia da semana (0 = domingo) e data (AAAA-MM-DD) em Brasília. */
+/** Hora cheia (0-23), minuto (0-59), dia da semana (0 = domingo) e data (AAAA-MM-DD) em Brasília. */
 export function relogioBRT(d = new Date()) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
     timeZone: FUSO, hourCycle: 'h23', weekday: 'short', year: 'numeric',
-    month: '2-digit', day: '2-digit', hour: '2-digit',
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
   }).formatToParts(d).map(x => [x.type, x.value]));
   const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday);
-  return { hora: Number(p.hour) % 24, dow, dia: `${p.year}-${p.month}-${p.day}` };
+  return { hora: Number(p.hour) % 24, min: Number(p.minute) % 60, dow, dia: `${p.year}-${p.month}-${p.day}` };
+}
+
+/** Está na pausa de almoço (12h00 a 13h29 BRT)? Não envia. Fica FORA do podeEnviar de propósito: o responder do WhatsApp também usa o podeEnviar. */
+export function emAlmoco(d = new Date()) {
+  const { hora, min } = relogioBRT(d);
+  const m = hora * 60 + min;
+  return m >= ALMOCO_INI_MIN && m < ALMOCO_FIM_MIN;
 }
 
 /** Pode ENVIAR agora? Segunda a sábado, de horaIni (inclusive) a horaFim (exclusive). */
@@ -63,18 +75,76 @@ export function podeEnviar(d = new Date(), cfg = cfgDe({})) {
   return hora >= cfg.horaIni && hora < cfg.horaFim;
 }
 
+/** Segundos de TEMPO ÚTIL entre `agora` e `fim`: o almoço (12h00-13h30 do dia de `agora`) não conta. */
+export function segUteisAte(agora, fim) {
+  const { dia } = relogioBRT(agora);
+  const aIni = new Date(`${dia}T${String(Math.floor(ALMOCO_INI_MIN / 60)).padStart(2, '0')}:${String(ALMOCO_INI_MIN % 60).padStart(2, '0')}:00-03:00`);
+  const aFim = new Date(`${dia}T${String(Math.floor(ALMOCO_FIM_MIN / 60)).padStart(2, '0')}:${String(ALMOCO_FIM_MIN % 60).padStart(2, '0')}:00-03:00`);
+  const comeco = Math.max(agora.getTime(), aIni.getTime());
+  const termino = Math.min(fim.getTime(), aFim.getTime());
+  const almoco = Math.max(0, termino - comeco);
+  return Math.floor((fim.getTime() - agora.getTime() - almoco) / 1000);
+}
+
 /**
  * Espera até o próximo envio, em segundos. O Math.max(minSeg) é a operação MAIS
  * EXTERNA: nenhum teto de espera, nenhuma conta de "sobra pouco" fura o piso.
- * `jitter` entra de fora (0.75 a 1.25) para o teste ser determinístico.
+ *
+ * A espera é SORTEADA (uniforme) entre o piso (45 min) e um teto que é o menor entre o
+ * máximo (75 min) e o "ideal" (tempo útil que sobra do dia, sem o almoço, dividido pelo que
+ * falta do teto). Dia folgado: de 45 a 75 min. Dia apertado: o sorteio encolhe para perto
+ * dos 45 min. `sorteio` (0 a 1) entra de fora para o teste ser determinístico; sem ele,
+ * deriva do `jitter` antigo (0.75 a 1.25).
  */
-export function calcularEspera({ agora = new Date(), cfg, restam, jitter = 1 }) {
+export function calcularEspera({ agora = new Date(), cfg, restam, jitter = 1, sorteio }) {
   const { dia } = relogioBRT(agora);
   const fim = new Date(`${dia}T${String(cfg.horaFim).padStart(2, '0')}:00:00-03:00`);
-  const sobramSeg = Math.max(60, Math.floor((fim - agora) / 1000));
+  const sobramSeg = Math.max(60, segUteisAte(agora, fim));
   const ideal = Math.floor(sobramSeg / Math.max(1, restam));
-  const bruto = Math.min(cfg.tetoEspera, Math.floor(ideal * jitter));
+  const teto = Math.max(cfg.minSeg, Math.min(cfg.tetoEspera, ideal));
+  const f0 = Number.isFinite(sorteio) ? sorteio : (jitter - 0.75) / 0.5;
+  const frac = Math.min(1, Math.max(0, Number.isFinite(f0) ? f0 : 0));
+  const bruto = cfg.minSeg + Math.floor(frac * (teto - cfg.minSeg));
   return Math.max(cfg.minSeg, bruto);
+}
+
+/** Minutos (0-59) de um instante, em Brasília. */
+const minutoBRT = ms => relogioBRT(new Date(ms)).min;
+
+/**
+ * Instante-alvo do próximo envio, ajustado para parecer gente: se cair no almoço, vai para as 13h30;
+ * se o minuto terminar em 0 ou 5, empurra de 1 a 4 min PARA FRENTE (nunca para trás, então o piso
+ * de 45 min só aumenta). `frac` (0 a 1) vem de fora.
+ */
+export function ajustarInstante(ms, frac = 0.5) {
+  let t = ms;
+  const f = Math.min(0.999999, Math.max(0, Number.isFinite(frac) ? frac : 0));
+  if (emAlmoco(new Date(t))) {
+    const r = relogioBRT(new Date(t));
+    const m = r.hora * 60 + r.min;
+    t += ((ALMOCO_FIM_MIN - m) * 60 - (Math.floor(t / 1000) % 60)) * 1000;   // 13h30m00s
+  }
+  if (minutoBRT(t) % 5 === 0) t += (1 + Math.floor(f * 4)) * 60_000;
+  return t;
+}
+
+/** Quanto esperar (ms) ANTES de apertar o Enter para o minuto não terminar em 0 ou 5. 0 = pode agora. */
+export function esperaParaMinutoBom(agoraMs, frac = 0.5) {
+  if (minutoBRT(agoraMs) % 5 !== 0) return 0;
+  const f = Math.min(0.999999, Math.max(0, Number.isFinite(frac) ? frac : 0));
+  return (1 + Math.floor(f * 4)) * 60_000;
+}
+
+/**
+ * Início do dia: instante (ms) do 1º envio, entre 8h10 e 9h30 BRT. Determinístico por dia e conta
+ * (hash), então um reinício no meio da manhã não sorteia outro horário. Minuto nunca terminado em 0 ou 5.
+ */
+export function inicioDoDia(dia, sal = '') {
+  const h = createHash('sha256').update(`${dia}|${sal}`).digest();
+  const cand = [];
+  for (let m = PRIMEIRO_INI_MIN + 1; m < PRIMEIRO_FIM_MIN; m++) if (m % 5) cand.push(m);
+  const m = cand[h.readUInt32BE(0) % cand.length];
+  return new Date(`${dia}T00:00:00-03:00`).getTime() + (m * 60 + (h[4] % 60)) * 1000;
 }
 
 /**
@@ -182,7 +252,7 @@ export function arquivoUltimo(texto) {
   try {
     const j = JSON.parse(texto);
     const p = j && j.pendente_gravar && j.pendente_gravar.id ? j.pendente_gravar : null;
-    const pendente = p ? { id: p.id, pid: p.pid ?? null, ms: Number(p.ms) } : null;
+    const pendente = p ? { id: p.id, pid: p.pid ?? null, ms: Number(p.ms), obs: typeof p.obs === 'string' ? p.obs : null } : null;
     const ms = Number.isFinite(Number(j.ms)) ? Number(j.ms) : (pendente && Number.isFinite(pendente.ms) ? pendente.ms : NaN);
     return Number.isFinite(ms) ? { ok: true, ms, pendente } : { ok: false, ms: null, pendente };
   } catch { return { ok: false, ms: null, pendente: null }; }
@@ -199,10 +269,12 @@ export function faltaPiso({ agoraMs, cfg, banco, arquivo, pendente }) {
 }
 
 /**
- * Pode ENVIAR agora? Ordem: janela, piso, teto. `restam` indefinido = não confere o teto.
- * Devolve { enviar, motivo: 'janela'|'piso'|'teto'|null, esperaMs }.
+ * Pode ENVIAR agora? Ordem: bloqueio, pendência, janela, almoço, piso, início do dia, teto.
+ * `restam` indefinido = não confere o teto. `sorteioDia` (texto: ex. o consultor) liga a regra do
+ * 1º envio do dia (entre 8h10 e 9h30, ver inicioDoDia); indefinido = regra desligada (testes antigos).
+ * Devolve { enviar, motivo: 'bloqueio'|'pendente'|'janela'|'almoco'|'piso'|'inicio'|'teto'|null, esperaMs }.
  */
-export function decidirAbordagem({ agora = new Date(), cfg, restam, banco, arquivo, pendente, bloqueio }) {
+export function decidirAbordagem({ agora = new Date(), cfg, restam, banco, arquivo, pendente, bloqueio, sorteioDia }) {
   // Bloqueio de conversa nova (arquivo bloqueio-<canal>.json ou detector em memória): frio 0.
   if (bloqueio && bloqueio.bloqueado) return { enviar: false, motivo: 'bloqueio', esperaMs: 3600_000 };
   // ENVIO PENDENTE DE GRAVAR (a DM saiu, mas o toque não entrou no banco): ninguém mais é abordado
@@ -210,8 +282,24 @@ export function decidirAbordagem({ agora = new Date(), cfg, restam, banco, arqui
   const pend = pendente || (arquivo && arquivo.pendente) || null;
   if (pend) return { enviar: false, motivo: 'pendente', esperaMs: 120_000 };
   if (!podeEnviar(agora, cfg)) return { enviar: false, motivo: 'janela', esperaMs: 600_000 };
+  if (emAlmoco(agora)) {
+    const r = relogioBRT(agora);
+    return { enviar: false, motivo: 'almoco', esperaMs: Math.max(60_000, ((ALMOCO_FIM_MIN - (r.hora * 60 + r.min)) * 60) * 1000) };
+  }
   const falta = faltaPiso({ agoraMs: agora.getTime(), cfg, banco, arquivo, pendente: pend });
   if (falta > 0) return { enviar: false, motivo: 'piso', esperaMs: falta };
+  if (sorteioDia !== undefined) {
+    // 1º envio do dia: só depois do horário sorteado (8h10-9h30). "Já enviou hoje" = a maior hora
+    // conhecida (banco, arquivo, pendência) cai no dia de hoje em Brasília.
+    const horas = [banco, arquivo].filter(f => f && f.ok && Number.isFinite(f.ms)).map(f => f.ms);
+    if (pend && Number.isFinite(pend.ms)) horas.push(pend.ms);
+    const hoje = relogioBRT(agora).dia;
+    const jaHoje = horas.length > 0 && relogioBRT(new Date(Math.max(...horas))).dia === hoje;
+    if (!jaHoje) {
+      const ini = inicioDoDia(hoje, sorteioDia);
+      if (agora.getTime() < ini) return { enviar: false, motivo: 'inicio', esperaMs: Math.max(60_000, ini - agora.getTime()) };
+    }
+  }
   if (restam !== undefined && !(restam > 0)) return { enviar: false, motivo: 'teto', esperaMs: 600_000 };
   return { enviar: true, motivo: null, esperaMs: 0 };
 }
@@ -256,6 +344,89 @@ export function parseBloqueio(texto) {
     const j = JSON.parse(texto);
     return { bloqueado: true, desde: j.desde || null, motivo: j.motivo || null, perfis: Array.isArray(j.perfis) ? j.perfis : [], rebaixado: j.rebaixado === true, corrompido: false };
   } catch { return { bloqueado: true, desde: null, motivo: 'arquivo de bloqueio ilegível', perfis: [], rebaixado: false, corrompido: true }; }
+}
+
+// ── RESPOSTA AUTOMÁTICA JÁ TRATADA (responder) ───────────────────────────────
+// Quando a API devolve nao_enviar (resposta automática de perfil), o worker não envia nem grava toque. Para
+// não pagar o modelo de novo a cada volta com a MESMA última mensagem, a marca (contato + hash do texto) fica
+// num arquivo local por canal ({ chave: ms }), podada após 7 dias. Mensagem nova do lead = outra chave = libera.
+export const TRATADAS_DIAS = 7;
+/** Chave da última mensagem do lead num contato. */
+export const chaveTratada = (contatoId, texto) =>
+  `${contatoId}|${createHash('sha256').update(String(texto ?? '').replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16)}`;
+/** Texto do arquivo (null = não existe, ilegível = vazio) -> mapa { chave: ms }, já sem o que passou de 7 dias. */
+export function lerTratadas(texto, agoraMs = Date.now()) {
+  let j = {};
+  try { j = texto ? JSON.parse(texto) : {}; } catch { j = {}; }
+  const mapa = {};
+  for (const [k, ms] of Object.entries(j && typeof j === 'object' ? j : {})) {
+    if (Number.isFinite(ms) && agoraMs - ms <= TRATADAS_DIAS * 86400_000) mapa[k] = ms;
+  }
+  return mapa;
+}
+/** Esta última mensagem do lead já recebeu nao_enviar? */
+export const jaTratada = (mapa, contatoId, texto) => Object.prototype.hasOwnProperty.call(mapa || {}, chaveTratada(contatoId, texto));
+/** Devolve o mapa com a mensagem marcada (e podado). */
+export const marcarTratada = (mapa, contatoId, texto, agoraMs = Date.now()) =>
+  ({ ...lerTratadas(JSON.stringify(mapa || {}), agoraMs), [chaveTratada(contatoId, texto)]: agoraMs });
+
+// ── FREIO POR PERFIS DISTINTOS (Instagram) ───────────────────────────────────
+// O freio liga com 3 PERFIS DISTINTOS em que a conversa nova não funcionou: a caixa de DM não abriu
+// OU o texto "ficou na caixa / não saiu". Os dois sintomas contam no MESMO contador. Um envio
+// confirmado só zera o contador se a conversa era NOVA (conversaAntiga === false): numa conversa
+// que já existia o compositor abre mesmo com a restrição (13/09), então não prova nada.
+export const LIMITE_PERFIS_FREIO = 3;
+const MOTIVO_FREIO = /caixa de DM não abriu|ficou na caixa|não saiu/i;
+/** Este motivo de falha conta para o freio? */
+export const contaParaFreio = motivo => MOTIVO_FREIO.test(String(motivo || ''));
+/** Registra a falha no Set de perfis (MUTA o Set). Devolve { conta, perfis, liga }. */
+export function registrarFalhaCaixa(perfis, perfil, motivo) {
+  const conta = contaParaFreio(motivo);
+  if (conta && perfil) perfis.add(String(perfil));
+  return { conta, perfis: perfis.size, liga: perfis.size >= LIMITE_PERFIS_FREIO };
+}
+/** Depois de um envio confirmado. Só conversa NOVA (false) limpa o Set (MUTA). Devolve true se limpou. */
+export function aposEnvioConfirmado(perfis, { conversaAntiga } = {}) {
+  if (conversaAntiga !== false) return false;   // antiga ou não medida: não prova que a restrição passou
+  perfis.clear();
+  return true;
+}
+/** O toque é um envio INCERTO (a marca "incerto" no obs)? */
+export const ehIncerto = obs => /\bincerto\b/i.test(String(obs || ''));
+/** Quantos toques 'enviei' são CONFIRMADOS (sem a marca incerto): é o que a rampa e o "dia limpo" contam. */
+export const enviosConfirmados = toques => (Array.isArray(toques) ? toques : [])
+  .filter(t => t && t.resultado === 'enviei' && !ehIncerto(t.obs)).length;
+
+// ── DIGITAÇÃO E ROLAGEM HUMANAS (só no envio frio do Instagram) ──────────────
+export const TECLA_MIN_MS = 60, TECLA_MAX_MS = 220;          // atraso por caractere
+export const PAUSA_CADA_MIN = 15, PAUSA_CADA_MAX = 40;       // a cada 15-40 caracteres ...
+export const PAUSA_MIN_MS = 1000, PAUSA_MAX_MS = 3000;       // ... uma pausa de 1 a 3 s
+export const ROLAR_MIN_MS = 4000, ROLAR_MAX_MS = 12000;      // rolar o perfil antes de escrever
+const entre = (min, max, rnd) => min + Math.floor(Math.min(0.999999, Math.max(0, rnd())) * (max - min + 1));
+/** Atrasos de digitação: um item por caractere, { atraso, pausa } (pausa 0 = sem pausa longa). `rnd` devolve 0 a 1. */
+export function planoDigitacao(n, rnd = Math.random) {
+  const plano = [];
+  let ate = entre(PAUSA_CADA_MIN, PAUSA_CADA_MAX, rnd);
+  for (let i = 0; i < n; i++) {
+    let pausa = 0;
+    if (--ate <= 0) { pausa = entre(PAUSA_MIN_MS, PAUSA_MAX_MS, rnd); ate = entre(PAUSA_CADA_MIN, PAUSA_CADA_MAX, rnd); }
+    plano.push({ atraso: entre(TECLA_MIN_MS, TECLA_MAX_MS, rnd), pausa });
+  }
+  return plano;
+}
+/** Duração da rolagem do perfil, de 4000 a 12000 ms. */
+export const duracaoRolagemMs = (rnd = Math.random) => entre(ROLAR_MIN_MS, ROLAR_MAX_MS, rnd);
+/** Passos de rolagem [{ dy, pausaMs }] cujas pausas SOMAM exatamente `totalMs`. */
+export function passosRolagem(totalMs, rnd = Math.random) {
+  const passos = [];
+  let resta = totalMs;
+  while (resta > 0) {
+    const pausaMs = Math.min(resta, entre(600, 1800, rnd));
+    const dy = (rnd() < 0.8 ? 1 : -1) * entre(120, 520, rnd);
+    passos.push({ dy, pausaMs });
+    resta -= pausaMs;
+  }
+  return passos;
 }
 
 // ── RAMPA DO INSTAGRAM (de 7e99c97b, como função pura) ───────────────────────
