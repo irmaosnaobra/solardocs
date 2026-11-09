@@ -60,11 +60,60 @@ export const saudacoesDaHora = hora => [1, 2, saudacaoDoPeriodo(Number(hora))];
 /** Texto de empresa/cidade pronto para entrar na frase: sem chaves, espaços aparados. Vazio = campo vazio. */
 const limpo = v => String(v ?? '').replace(/[{}]/g, ' ').replace(/\s+/g, ' ').trim();
 
+/** Separadores que encerram o NOME (o que vem depois é slogan/descrição do perfil). O mais cedo na frase vence. */
+const SEPARADORES = [' - ', ' – ', ' — ', ' | ', '|', ' · ', ': ', ' / '];
+/** Marcas, emojis e invisíveis que não entram na frase. */
+const LIXO_VISUAL = /[®™©]|[\p{Extended_Pictographic}\u{FE0E}\u{FE0F}\u{200D}\u{20E3}\u{1F3FB}-\u{1F3FF}]/gu;
+/** Sufixos jurídicos no fim do nome (LTDA, EIRELI, EPP, MEI, S/A, S.A.; ME e SA só em maiúscula, para não comer palavra). */
+const SUFIXO_JURIDICO = /(?:[\s,.;-]+)(?:ltda|eireli|epp|mei|s\/a|s\.a)\.?$|(?:[\s,.;-]+)(?:ME|SA)\.?$/i;
+/** Nome que COMEÇA com termo genérico do ramo ("Energia solar em Goiânia", "Energia Solar Fotovoltaica"): não é nome de empresa. */
+const COMECA_GENERICO = /^(?:energias?\s+(?:solar(?:es)?|fotovoltaic[ao]s?|renov[aá]ve(?:l|is))|solar\s+(?:fotovoltaic\w*|em|de|para)\b|(?:sistemas?|projetos?|instala[cç](?:[aã]o|[oõ]es)|usinas?|placas?|pain[ée]is|paineis)\s+(?:de\s+)?(?:energia|solar|fotovolt\w*))/i;
+export const NOME_MAX_CHARS = 24;
+export const NOME_MAX_PALAVRAS = 4;
+
+const cortaNoPrimeiroSeparador = (texto, separadores) => {
+  let fim = texto.length;
+  for (const s of separadores) { const i = texto.indexOf(s); if (i >= 0 && i < fim) fim = i; }
+  return texto.slice(0, fim);
+};
+
+/**
+ * Nome curto da empresa para a frase, ou null (a mensagem usa a versão SEM nome, "vocês").
+ * O nome do perfil costuma vir com slogan ("H3 Solar - Excelência em Energia Solar"): corta no primeiro separador,
+ * tira ® ™ © e emojis, tira sufixo jurídico e espaços. Só LIMPA: não muda maiúsculas.
+ * null quando sobra vazio, com mais de 24 caracteres ou mais de 4 palavras, ou quando começa com termo genérico.
+ */
+export function nomeCurto(empresa) {
+  let n = limpo(empresa);
+  n = cortaNoPrimeiroSeparador(' ' + n, SEPARADORES).trim();   // o espaço na frente faz "- slogan" (separador no começo) virar nome vazio
+  n = n.replace(LIXO_VISUAL, '').replace(/\s+/g, ' ').trim();
+  for (let i = 0; i < 3; i++) {   // "Solar Norte Ltda ME": tira um sufixo por volta
+    const sem = n.replace(SUFIXO_JURIDICO, '').trim();
+    if (sem === n) break;
+    n = sem;
+  }
+  n = n.replace(/^[\s,.;:–—|/·-]+|[\s,.;:–—|/·-]+$/g, '').trim();
+  if (!n || n.length > NOME_MAX_CHARS || n.split(' ').length > NOME_MAX_PALAVRAS || COMECA_GENERICO.test(n)) return null;
+  return n;
+}
+
+const UFS = 'AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO';
+/** Cidade para a frase: sem "- UF", "/UF", ", Estado", "(UF)" nem UF solta no fim. null se sobra vazio ou comprido demais. */
+export function nomeCidade(cidade) {
+  let c = limpo(cidade);
+  c = cortaNoPrimeiroSeparador(c, [' - ', ' – ', ' — ', ' | ', '|', ' / ', '/', ',', '(']);
+  c = c.replace(LIXO_VISUAL, '').replace(/\s+/g, ' ').trim();
+  c = c.replace(new RegExp(`\\s+(?:${UFS})$`), '').replace(/^[\s,.;:–—|/·-]+|[\s,.;:–—|/·-]+$/g, '').trim();
+  if (!c || c.length > 30 || c.split(' ').length > 5) return null;
+  return c;
+}
+
 /** Monta a mensagem de UMA combinação. Campo vazio usa a versão "sem". Nunca sai "{" nem "}". */
 export function montarTexto({ v, s, a, p, empresa, cidade }) {
   const par = PERGUNTAS[v] && PERGUNTAS[v][p];
   if (!par || !SAUDACOES[s] || !APRESENTACOES[a]) return null;
-  const campo = limpo(v === 'A' ? empresa : cidade);
+  // Nome curto (sem slogan do perfil) ou null: null cai na versão SEM nome ("vocês").
+  const campo = v === 'A' ? nomeCurto(empresa) : nomeCidade(cidade);
   const pergunta = campo
     ? par[0].replace(v === 'A' ? '{empresa}' : '{cidade}', campo)
     : par[1];
