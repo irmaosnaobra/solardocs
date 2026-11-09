@@ -73,13 +73,26 @@ button{font:inherit;color:inherit}
 .cta:hover{transform:translateY(-2px);box-shadow:0 24px 56px var(--acao-sombra)}
 .micro{margin:8px 0 0;text-align:center;font-size:.85rem;color:var(--mudo)}
 .acao{margin:18px 0 8px}
-/* Vídeo de vendas, em pé */
-.vsl{position:relative;width:100%;max-width:420px;margin:12px auto 4px;aspect-ratio:9/16;border-radius:16px;overflow:hidden;background:#000;border:1px solid var(--borda)}
-.vsl video{display:block;width:100%;height:100%;object-fit:cover;background:#000}
-.vsl-play{position:absolute;inset:0;display:grid;place-items:center;width:100%;border:0;background:rgba(2,6,23,.28);cursor:pointer;padding:0}
-.vsl-play[hidden]{display:none}
-.vsl-play span{display:grid;place-items:center;width:84px;height:84px;border-radius:50%;background:var(--acao-grad);box-shadow:0 12px 36px rgba(0,0,0,.5)}
-.vsl-play svg{width:34px;height:34px;fill:var(--sobre-acao);margin-left:5px}
+/* Player de VSL: autoplay mudo, camadas por cima, sem controles nativos e barra de progresso inteligente */
+.vsl{position:relative;width:100%;max-width:420px;margin:12px auto 4px;aspect-ratio:9/16;border-radius:16px;overflow:hidden;background:#000;border:1px solid var(--borda);-webkit-tap-highlight-color:transparent}
+.vsl video{display:block;width:100%;height:100%;object-fit:cover;background:#000;cursor:pointer}
+.cam{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%;border:0;background:rgba(2,6,23,.58);cursor:pointer;padding:20px;text-align:center;z-index:2}
+.cam[hidden]{display:none}
+.cam .ic{display:grid;place-items:center;width:84px;height:84px;border-radius:50%;background:var(--acao-grad);box-shadow:0 12px 36px rgba(0,0,0,.5)}
+.cam .ic svg{width:40px;height:40px;fill:var(--sobre-acao);stroke:var(--sobre-acao)}
+.cam .ic svg.tri{width:34px;height:34px;margin-left:5px;stroke:none}
+.cam b{font-size:1.3rem;line-height:1.2;font-weight:800}
+.cam span.sub{font-size:1rem;font-weight:700;color:var(--acao-claro)}
+.cam .cta{max-width:300px}
+.cam .alt{background:transparent;border:2px solid var(--borda-forte);color:var(--texto);box-shadow:none}
+.cam .alt:hover{border-color:var(--acao);transform:none;box-shadow:none}
+.vsl-barra{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.14);pointer-events:none;z-index:3}
+.vsl-barra i{display:block;height:100%;width:0;background:#F59E0B;transition:width .5s linear}
+.acao[hidden],.rodape[hidden]{display:none}
+.acao.entra,.rodape.entra{animation:sobe .6s ease-out both}
+.acao.entra .cta{animation:brilho 1.6s ease-out .5s 2}
+@keyframes sobe{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes brilho{0%,100%{box-shadow:0 16px 44px var(--acao-sombra),inset 0 1px 0 rgba(255,255,255,.3)}50%{box-shadow:0 0 0 7px rgba(245,158,11,.3),0 16px 44px var(--acao-sombra),inset 0 1px 0 rgba(255,255,255,.3)}}
 /* Faixa do fim do vídeo */
 .faixa{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:420px;margin:10px auto 0;padding:12px 14px;border:1.5px solid var(--acao-borda);border-radius:14px;background:var(--acao-suave)}
 .faixa span{min-width:0;font-weight:700;overflow-wrap:anywhere}
@@ -93,10 +106,14 @@ button{font:inherit;color:inherit}
 <div class="coluna">
 <h1 class="titulo">Proposta, contrato e procuração com a sua logo</h1>
 <p class="ajuda">Assista ao vídeo e veja como a SolarDoc entra na sua rotina.</p>
-<div class="vsl" id="vsl"><video id="vsl-v" playsinline preload="metadata" poster="https://res.cloudinary.com/v755hoio/video/upload/so_2,q_auto,w_720/v1794263556/solardoc/vsl-cvt1.jpg" src="https://res.cloudinary.com/v755hoio/video/upload/v1794263556/solardoc/vsl-cvt1.mp4"></video>
-<button type="button" class="vsl-play" id="vsl-play" data-a="play" aria-label="Assistir ao vídeo"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></span></button></div>
+<div class="vsl" id="vsl"><video id="vsl-v" autoplay muted playsinline preload="auto" disablepictureinpicture controlslist="nodownload noremoteplayback" poster="https://res.cloudinary.com/v755hoio/video/upload/so_2,q_auto,w_720/v1794263556/solardoc/vsl-cvt1.jpg" src="https://res.cloudinary.com/v755hoio/video/upload/v1794263556/solardoc/vsl-cvt1.mp4"></video>
+<button type="button" class="cam" id="cam-som" data-a="som" aria-label="Ligar o som e ver do início"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" stroke-linejoin="round"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12" fill="none" stroke-width="2" stroke-linecap="round"/></svg></span><b>Seu vídeo já começou</b><span class="sub">Toque para ouvir</span></button>
+<button type="button" class="cam" id="cam-play" data-a="tocar" aria-label="Assistir ao vídeo com som" hidden><span class="ic"><svg class="tri" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></span><b>Assistir ao vídeo</b></button>
+<button type="button" class="cam" id="cam-pausa" data-a="retomar" aria-label="Continuar assistindo" hidden><span class="ic"><svg class="tri" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></span><b>Continuar assistindo</b></button>
+<div class="cam" id="cam-retoma" role="group" aria-label="Você já começou a assistir" hidden><b>Você já começou a assistir</b><button type="button" class="cta" data-a="continuar">Continuar de onde parei</button><button type="button" class="cta alt" data-a="inicio">Assistir do início</button></div>
+<div class="vsl-barra" aria-hidden="true"><i id="vsl-barra-i"></i></div></div>
 <div class="faixa" id="faixa" role="status" hidden><span>Abrindo a página de assinatura...</span><button type="button" data-a="ficar">Ficar aqui</button></div>
-<div class="acao"><button type="button" class="cta" id="btn-lp" data-a="lp">Quero assinar por R$ 67</button><p class="micro">Cartão ou Pix automático. 7 dias de garantia.</p></div>
+<div class="acao" id="acao" hidden><button type="button" class="cta" id="btn-lp" data-a="lp">Quero assinar por R$ 67</button><p class="micro">Cartão ou Pix automático. 7 dias de garantia.</p></div>
 <noscript><p class="ajuda">Para assistir ao vídeo, ative o JavaScript do navegador.</p></noscript>
 </div>
 </div>
@@ -177,6 +194,14 @@ window.SDR = { api: API, sid: sid, utm: function () { return utm; }, meta: metaI
 const $ = (id) => document.getElementById(id);
 const SDR = window.SDR;
 const ESPERA_FIM = 5000;
+const DURACAO_PADRAO = 412;     /* segundos: vale quando o navegador não informa a duração */
+const CTA_ANTES_DO_FIM = 40;    /* o botão da LP só aparece nos últimos 40 s */
+const TRAVA_MS = 10000, SEM_PLAY_MS = 30000;   /* vídeo parado 10 s sem andar, ou autoplay barrado 30 s sem play */
+const MIN_ASSISTIDO = 5;        /* segundos de reprodução real nesta visita antes de contar vsl_25/50/75 */
+const SK_POS = 'sd_vsl_pos', SK_CTA = 'sd_vsl_cta';
+const lerLS = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const gravarLS = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento: a página segue funcionando */ } };
+const apagarLS = (k) => { try { localStorage.removeItem(k); } catch (e) { /* idem */ } };
 
 /* Destino: a LP da raiz, na seção de planos (id="planos" em Landing.tsx), com a query ORIGINAL da chegada.
    A query é guardada na 1ª chegada da sessão; o sd_dest sai, porque /?sd_dest=quiz redireciona para o /diagnostico. */
@@ -211,52 +236,179 @@ function irLP(origem) {
 
 const v = $('vsl-v');
 const feitos = {};
-const marco = (nome) => { if (feitos[nome]) return; feitos[nome] = 1; SDR.evento(nome, {}); };
+const marco = (nome, dados) => { if (feitos[nome]) return; feitos[nome] = 1; SDR.evento(nome, dados || {}); };
+const duracao = () => (isFinite(v.duration) && v.duration > 0 ? v.duration : DURACAO_PADRAO);
+
+/* Camadas do player. estado: mudo (autoplay mudo), bloqueado (navegador barrou o autoplay), som, pausado, pergunta (retomada), fim */
+const cam = { som: $('cam-som'), play: $('cam-play'), pausa: $('cam-pausa'), retoma: $('cam-retoma') };
+let estado = 'mudo';
+function camadas(qual) { Object.keys(cam).forEach((k) => { cam[k].hidden = k !== qual; }); }
+
+/* Barra de progresso: 1 - (1 - p)^2 anda rápido no começo e devagar no fim. Não é clicável. */
+const barra = $('vsl-barra-i');
+function pintaBarra() {
+  const p = Math.min(1, Math.max(0, v.currentTime / duracao()));
+  barra.style.width = ((1 - Math.pow(1 - p, 2)) * 100).toFixed(2) + '%';
+}
+
+/* Botão da LP e botão fixo: escondidos até 40 s antes do fim */
+const alvo = $('btn-lp'), rod = $('rodape'), acao = $('acao');
+let ctaVisivel = false, alvoNaTela = false;
+function atualizaRodape() { rod.hidden = !ctaVisivel || alvoNaTela; }
+/* motivo: tempo (40 s antes do fim), erro (o vídeo falhou), travou (parado 10 s sem andar) ou sem_play (autoplay barrado e ninguém tocou em 30 s) */
+function mostrarCta(motivo, restaurado) {
+  if (ctaVisivel) return;
+  ctaVisivel = true;
+  acao.hidden = false;
+  if (!restaurado) { acao.classList.add('entra'); rod.classList.add('entra'); }
+  gravarLS(SK_CTA, '1');
+  marco('vsl_cta_mostrou', restaurado ? { motivo, restaurado: true } : { motivo });
+  atualizaRodape();
+}
+if (typeof IntersectionObserver !== 'undefined') {
+  new IntersectionObserver((es) => { es.forEach((e) => { alvoNaTela = e.isIntersecting; atualizaRodape(); }); }, { root: $('corpo'), threshold: 0.6 }).observe(alvo);
+}
+if (lerLS(SK_CTA) === '1') mostrarCta('tempo', true);
+
+/* Continuar de onde parou */
+let ultimoSalvo = 0;
+function salvaPos() {
+  const t = v.currentTime;
+  if (!(t > 0) || v.ended) return;
+  ultimoSalvo = t;
+  gravarLS(SK_POS, String(Math.floor(t)));
+}
+const posSalva = Number(lerLS(SK_POS)) || 0;
+let retomar = posSalva > 20 && posSalva < DURACAO_PADRAO - 3;
+
+/* Toque que liga o som: volta ao 0 (autoplay mudo) ou segue do ponto atual (retomada) */
+function ligarSom(de) {
+  if (typeof de === 'number') v.currentTime = de;
+  v.muted = false; v.volume = 1;
+  estado = 'som';
+  camadas('');
+  const p = v.play();
+  if (p && p.then) p.then(somAceito, () => { estado = 'bloqueado'; camadas('play'); armaSemPlay(); });
+  pintaBarra();
+}
+/* O play com som foi aceito: só agora saem o ViewContent do pixel e o vsl_som */
+function somAceito() {
+  if (v.muted) return;
+  if (!feitos.vc) { feitos.vc = 1; SDR.fb('track', 'ViewContent', { content_name: 'vsl_solardoc' }); }
+  marco('vsl_som');
+}
+/* Autoplay barrado e ninguém deu play em 30 s: o botão da LP aparece. Pausa feita pela pessoa (estado pausado) não entra aqui. */
+let semPlay = 0;
+function armaSemPlay() {
+  if (semPlay) clearTimeout(semPlay);
+  semPlay = setTimeout(() => { semPlay = 0; if (estado === 'bloqueado') mostrarCta('sem_play'); }, SEM_PLAY_MS);
+}
+function bloqueado() { if (estado !== 'mudo') return; estado = 'bloqueado'; camadas('play'); armaSemPlay(); }
+let iniciou = false;
+function iniciar() {
+  iniciou = true;
+  if (retomar) { estado = 'pergunta'; camadas('retoma'); try { v.pause(); } catch (e) { /* segue */ } return; }
+  camadas('som');
+  const p = v.play(); if (p && p.catch) p.catch(bloqueado);
+  setTimeout(() => { if (v.paused && estado === 'mudo' && !v.ended) bloqueado(); }, 2500);
+}
+
+/* Posição guardada perto do fim não vale: começa do zero. Roda quando a duração chega, ou já, se o vídeo veio do cache. */
+function checaRetomada() {
+  if (!retomar || !(posSalva >= duracao() - 3)) return;
+  retomar = false; apagarLS(SK_POS);
+  if (iniciou) { estado = 'mudo'; v.currentTime = 0; iniciar(); }
+}
+v.addEventListener('loadedmetadata', checaRetomada);
+if (v.readyState >= 1) checaRetomada();
 v.addEventListener('play', () => {
-  if (!feitos.vsl_play) SDR.fb('track', 'ViewContent', { content_name: 'vsl_solardoc' });
-  marco('vsl_play'); v.controls = true;
-  const b = $('vsl-play'); if (b) b.hidden = true;
+  if (estado === 'pergunta') { try { v.pause(); } catch (e) { /* segue */ } return; }  /* o autoplay não pode andar atrás da pergunta */
+  marco('vsl_play');
+  if (estado === 'pausado') estado = 'som';
+  if (estado === 'bloqueado' && v.muted) { estado = 'mudo'; camadas('som'); }   /* o vídeo andou mudo: a camada do som volta */
+  else { cam.pausa.hidden = true; cam.play.hidden = true; }
   cancelaFaixa();
 });
-/* Cada marco usa >=: um salto de busca dispara os que ficaram para trás, uma vez só */
+v.addEventListener('pause', () => {
+  if (estado === 'som' && !v.ended) { estado = 'pausado'; camadas('pausa'); }
+});
+/* Falha do vídeo: sem caminho para a LP a pessoa ficaria presa. O botão aparece quando o vídeo dá erro, ou fica 10 s parado esperando dados. */
+v.addEventListener('error', () => mostrarCta('erro'));
+let travaTimer = 0, travaT = 0;
+function limpaTrava() { if (travaTimer) { clearTimeout(travaTimer); travaTimer = 0; } }
+function armaTrava() {
+  if (travaTimer) return;
+  travaT = v.currentTime;
+  travaTimer = setTimeout(() => {
+    travaTimer = 0;
+    if (!v.ended && Math.abs(v.currentTime - travaT) < 0.5 && estado !== 'pausado' && estado !== 'pergunta') mostrarCta('travou');  /* pausa da própria pessoa não conta */
+  }, TRAVA_MS);
+}
+v.addEventListener('waiting', armaTrava);
+v.addEventListener('stalled', armaTrava);
+['playing', 'pause', 'ended'].forEach((n) => v.addEventListener(n, limpaTrava));
+/* Sem nenhum dado depois de 10 s (requisição pendurada nem sempre dispara waiting): conta como travado */
+setTimeout(() => { if (v.readyState === 0 && !v.error) mostrarCta('travou'); }, TRAVA_MS);
+v.addEventListener('playing', () => { if (!v.muted) somAceito(); });
+/* Os marcos contam pelo tempo REAL do vídeo, não pela barra, e só depois de MIN_ASSISTIDO s de reprodução contínua nesta visita
+   (quem retoma do meio não dispara os marcos que já tinha passado). Cada um usa >=. */
+let assistido = 0, ultimoT = 0;
+v.addEventListener('seeking', () => { ultimoT = v.currentTime; });
 v.addEventListener('timeupdate', () => {
-  if (!v.duration || !isFinite(v.duration)) return;
-  const p = v.currentTime / v.duration * 100;
-  if (p >= 25) marco('vsl_25');
-  if (p >= 50) marco('vsl_50');
-  if (p >= 75) marco('vsl_75');
+  pintaBarra();
+  const d = duracao(), t = v.currentTime, p = t / d * 100;
+  const dt = t - ultimoT; ultimoT = t;
+  if (dt > 0 && dt < 1.5) assistido += dt;
+  if (travaTimer && Math.abs(t - travaT) >= 0.5) limpaTrava();
+  if (assistido >= MIN_ASSISTIDO) {
+    if (p >= 25) marco('vsl_25');
+    if (p >= 50) marco('vsl_50');
+    if (p >= 75) marco('vsl_75');
+  }
+  if (t >= d - CTA_ANTES_DO_FIM) mostrarCta('tempo');
+  if (Math.abs(t - ultimoSalvo) >= 5) salvaPos();
 });
 /* Arrastar a barra depois do fim cancela a ida automática */
 v.addEventListener('seeking', cancelaFaixa);
 let ficou = false;
 v.addEventListener('ended', () => {
-  marco('vsl_25'); marco('vsl_50'); marco('vsl_75'); marco('vsl_fim');
+  estado = 'fim'; camadas('');
+  apagarLS(SK_POS); ultimoSalvo = 0;
+  barra.style.width = '100%';
+  mostrarCta('tempo');
+  if (assistido >= MIN_ASSISTIDO) { marco('vsl_25'); marco('vsl_50'); marco('vsl_75'); }
+  marco('vsl_fim');
   if (ficou) return; /* Quem tocou "Ficar aqui" não é levado de novo */
   const fx = $('faixa'); if (fx) fx.hidden = false;
   if (espera) clearTimeout(espera);
   espera = setTimeout(() => { espera = 0; irLP('fim_video'); }, ESPERA_FIM);
 });
-function tocarVideo() {
-  v.muted = false; v.volume = 1;
-  try { const p = v.play(); if (p && p.catch) p.catch(() => { const b = $('vsl-play'); if (b) b.hidden = false; v.controls = true; }); } catch (e) { v.controls = true; }
-}
-
-/* Botão fixo do rodapé: só aparece depois que o botão principal sai da tela */
-const alvo = $('btn-lp'), rod = $('rodape');
-if (typeof IntersectionObserver !== 'undefined') {
-  new IntersectionObserver((es) => { es.forEach((e) => { rod.hidden = e.isIntersecting; }); }, { root: $('corpo'), threshold: 0.6 }).observe(alvo);
-}
+/* Um toque no vídeo pausa; depois do fim, toca de novo */
+v.addEventListener('click', () => {
+  if (estado === 'som' && !v.paused) v.pause();
+  else if (estado === 'fim') { estado = 'som'; v.muted = false; v.volume = 1; v.currentTime = 0; v.play(); }
+});
+/* Sem busca pelo teclado: só com o foco dentro do player */
+$('vsl').addEventListener('keydown', (e) => {
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', 'j', 'J', 'l', 'L', 'k', 'K'].indexOf(e.key) >= 0 || /^[0-9]$/.test(e.key)) e.preventDefault();
+});
+window.addEventListener('pagehide', salvaPos);
 
 $('app').addEventListener('click', (e) => {
   const t = e.target.closest('[data-a]');
   if (!t) return;
   const a = t.getAttribute('data-a');
-  if (a === 'play') tocarVideo();
+  if (a === 'som') ligarSom(0);
+  else if (a === 'tocar') ligarSom();
+  else if (a === 'retomar') { estado = 'som'; v.play(); }
+  else if (a === 'continuar') { SDR.evento('vsl_retomou', { de: Math.floor(posSalva) }); retomar = false; ligarSom(posSalva); }
+  else if (a === 'inicio') { retomar = false; apagarLS(SK_POS); ligarSom(0); }
   else if (a === 'lp') irLP(t.id === 'btn-fixo' ? 'rodape' : 'botao');
   else if (a === 'ficar') { ficou = true; cancelaFaixa(); }
 });
 /* Voltou da LP pelo botão do navegador: a página pode vir do cache com a faixa ligada */
 window.addEventListener('pageshow', (e) => { if (e.persisted) cancelaFaixa(); });
+iniciar();
 })();
 </script>
 </body>
