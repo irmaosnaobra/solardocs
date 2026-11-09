@@ -76,6 +76,7 @@ import { slotDoSegredo, deveAvisarSlot } from '../utils/cronSegredo';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { supabase } from '../utils/supabase';
+import { avisarTrocaDeEstado } from '../services/io/prospeccaoEstadoAviso';
 import { rodarAvisosProspeccao } from '../services/io/prospeccaoAviso';
 import { avancarPendentes } from '../services/gerador/redes/publicador';
 import { rodarSentinelaFerramentas, depsRodadaReais } from '../services/agentes5040/sentinelaRodada';
@@ -842,6 +843,20 @@ router.get('/prospeccao-pulso', async (req: Request, res: Response) => {
           try { await sendWhatsApp(NOTIFY, texto.join('\n'), 'io'); }
           catch (err) { logger.error('cron', 'nao consegui avisar do destrave', err); }
         }
+      }
+
+      // OS TRÊS ESTADOS DO ROBÔ ("VOLTOU SOZINHO:", "TRAVOU DE NOVO:", "PARADO ATÉ VOCÊ LIBERAR:").
+      // O bater reaplica o estado em toda batida, então o aviso é só na TROCA de estado (o último
+      // avisado fica no system_state). WhatsApp pelo mesmo caminho de cima; o PARADO vai também por
+      // e-mail de sistema ao dono (sendOpsAlert). Só o Instagram tem esses estados.
+      if (canal === 'instagram') {
+        try {
+          await avisarTrocaDeEstado(canal, nome, data.fazendo, {
+            supabase,
+            enviarWhatsApp: (texto) => sendWhatsApp(NOTIFY, texto, 'io'),
+            enviarEmail: async (assunto, html) => { const { sendOpsAlert } = await import('../utils/mailer'); await sendOpsAlert(assunto, html); },
+          });
+        } catch (err) { logger.error('cron', 'prospeccao: aviso de troca de estado falhou', err); }
       }
 
       canais.push({
