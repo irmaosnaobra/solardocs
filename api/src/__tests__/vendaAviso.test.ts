@@ -71,6 +71,11 @@ vi.mock('../utils/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
+// O aviso ao Diego (08/11/2026) tem teste próprio em avisosDeVendaDiego.test.ts. Aqui ele é espiado: estes testes
+// continuam provando o caminho do Thiago, que não pode mudar.
+const diego = vi.hoisted(() => ({ avisar: vi.fn(async (_t: string, _o: string) => 'enviado' as const) }));
+vi.mock('../services/avisoVendaDiego', () => ({ avisarDiegoDaVenda: diego.avisar }));
+
 import {
   avisarVendaAoDono, textoAvisoVenda, historicoDoCliente,
   avisarRenovacaoAoDono, textoAvisoRenovacao,
@@ -85,7 +90,7 @@ const venda = (over: Partial<Parameters<typeof textoAvisoVenda>[0]> = {}) => ({
 
 beforeEach(() => {
   sales.length = 0; enviados.length = 0; emails.length = 0; systemState.clear();
-  falharWhats = false; falharLeitura = false;
+  falharWhats = false; falharLeitura = false; diego.avisar.mockClear();
   sales.push({ id: 'venda-1', aviso_dono_em: null });
 });
 
@@ -208,6 +213,20 @@ describe('aviso de venda no WhatsApp do dono', () => {
     const r = await avisarVendaAoDono(null, venda());
     expect(r).toBe('enviado');
     expect(enviados).toHaveLength(1);
+  });
+
+  it('o Diego recebe o MESMO texto da venda, uma vez; a reentrega não repete', async () => {
+    await avisarVendaAoDono('venda-1', venda());
+    await avisarVendaAoDono('venda-1', venda());   // reentrega: duplicado
+    expect(diego.avisar).toHaveBeenCalledTimes(1);
+    expect(diego.avisar).toHaveBeenCalledWith(enviados[0].texto, 'venda');
+    expect(enviados).toHaveLength(1);              // o do Thiago segue igual
+  });
+
+  it('linha caída: o Thiago cai pro e-mail e o Diego ainda é chamado', async () => {
+    falharWhats = true;
+    expect(await avisarVendaAoDono('venda-1', venda())).toBe('email');
+    expect(diego.avisar).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -392,6 +411,9 @@ describe('aviso de renovação', () => {
     expect(await avisarRenovacaoAoDono('in_2', renov())).toBe('enviado');
     expect(await avisarRenovacaoAoDono('in_2', renov())).toBe('duplicado');
     expect(enviados).toHaveLength(1);
+    // o Diego também só recebe uma vez, e o texto é o da renovação
+    expect(diego.avisar).toHaveBeenCalledTimes(1);
+    expect(diego.avisar).toHaveBeenCalledWith(enviados[0].texto, 'renovação');
   });
 
   it('a trava é por FATURA — o mês seguinte avisa normalmente', async () => {

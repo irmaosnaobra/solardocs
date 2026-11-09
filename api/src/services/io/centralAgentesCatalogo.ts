@@ -133,7 +133,7 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
   e({
     id: 'entrada_io_digest', nome: 'Resumo da entrada da 5040', area: 'atendimento', canal: 'whatsapp', linha: 'io',
     resumo: 'Manda às 12h e 18h quem escreveu na 5040 hoje',
-    papel: 'Duas vezes por dia, às 12h e às 18h (Brasília), o Thiago e o Diego recebem a lista de quem escreveu na 5040, separando quem já está no CRM de quem é gente nova. É recibo, não resposta. Cada turno sai uma vez por dia.',
+    papel: 'Duas vezes por dia, às 12h e às 18h (Brasília), a Giovanna e o Diego recebem a lista de quem escreveu na 5040, separando quem já está no CRM de quem é gente nova. É recibo, não resposta. Cada turno sai uma vez por dia.',
     regra: { tipo: 'sempre' }, fonte: 'services/io/entradaIoDigest.ts',
     robos: ['entrada_io_digest'],
   }),
@@ -158,7 +158,7 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
   e({
     id: 'solar_respostas', nome: 'Recado das respostas do solar', area: 'solar', canal: 'whatsapp', linha: 'io',
     resumo: 'Cliente respondeu: vira recado para o consultor dono',
-    papel: 'Quando o cliente responde as boas-vindas, o recado com o que ele escreveu vai para o consultor dono da ficha, com cópia para o Thiago. Foto da conta de luz, áudio e vídeo são encaminhados para o WhatsApp do consultor, não só contados.',
+    papel: 'Quando o cliente responde as boas-vindas, o recado com o que ele escreveu vai só para a Giovanna e a Nilce, seja quem for o dono da ficha. Foto da conta de luz, áudio e vídeo são encaminhados para o WhatsApp do consultor, não só contados.',
     // solarRespostas.ts:284 também para com SOLAR_BOASVINDAS_OFF (importa o `desligado` dele).
     regra: { ...off1('SOLAR_RESPOSTAS_OFF'), tambem: [{ env: 'SOLAR_BOASVINDAS_OFF', valor: '1', trim: true }] },
     fonte: 'services/io/solarRespostas.ts',
@@ -280,8 +280,8 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
   }),
   e({
     id: 'ep_top_pontos', nome: 'Top 20 pontos do dia', area: 'eletroposto', canal: 'whatsapp', linha: 'io',
-    resumo: 'Manda ao meio-dia os 20 melhores pontos para a equipe',
-    papel: 'Ao meio-dia de Brasília ranqueia todo ponto com endereço (reunião, parceria e nota 1) e manda a lista para o Thiago e o Diego.',
+    resumo: 'Manda na sexta às 18h os 20 melhores pontos',
+    papel: 'Toda sexta, às 18h de Brasília (até 20h, se o disparo atrasar), ranqueia todo ponto com endereço (reunião, parceria e nota 1) e manda a lista para o Thiago e o Diego, uma vez por semana.',
     regra: off1('EP_TOP_OFF'), fonte: 'services/io/eletropostoTopPontos.ts',
     robos: [],
   }),
@@ -350,7 +350,7 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
   e({
     id: 'sentinela_vacuo', nome: 'Sentinela do vácuo', area: 'avisos', canal: 'whatsapp', linha: 'io',
     resumo: 'Cobra o dono quando alguém escreve e fica sem resposta',
-    papel: 'Quem escreveu para a linha e ficou sem resposta vira UM resumo para o dono do produto, com três níveis de cobrança. Não fala com cliente nenhum: cobra a equipe.',
+    papel: 'Quem escreveu para a linha e ficou sem resposta vira UM resumo para o dono do produto (Nilce no solar, Giovanna e Diego no eletroposto, Giovanna no resto), com três níveis de cobrança. Não fala com cliente nenhum: cobra a equipe.',
     regra: off1('VACUO_OFF'), fonte: 'services/io/sentinelaVacuo.ts',
     robos: ['sentinela_vacuo'],
   }),
@@ -406,7 +406,7 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
   e({
     id: 'agenda_proxima', nome: 'Próxima agenda', area: 'avisos', canal: 'whatsapp', linha: 'io',
     resumo: 'Manda 3 vezes ao dia a agenda do próximo dia útil',
-    papel: 'Às 9h, 16h e 20h (Brasília) o Thiago e o Diego recebem a lista geral dos clientes marcados no próximo dia que tem agenda. Hoje nunca entra.',
+    papel: 'Às 9h, 16h e 20h (Brasília) o Diego recebe a lista geral dos clientes marcados no próximo dia que tem agenda. Hoje nunca entra.',
     regra: { tipo: 'sempre' }, fonte: 'services/agenda/agendaProximaDigest.ts',
     robos: ['agenda_proxima_digest'],
   }),

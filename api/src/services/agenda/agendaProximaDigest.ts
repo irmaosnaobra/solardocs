@@ -3,8 +3,8 @@ import { sendWhatsApp } from '../agents/zapiClient';
 import { logger } from '../../utils/logger';
 
 /**
- * Digest "Próxima agenda" — 3× por dia (09h, 16h e 20h BRT) manda pro Thiago e
- * pro Diego a lista GERAL (time inteiro) dos clientes marcados no PRÓXIMO dia
+ * Digest "Próxima agenda" — 3× por dia (09h, 16h e 20h BRT) manda pro Diego
+ * (o Thiago saiu em 08/11/2026) a lista GERAL (time inteiro) dos clientes marcados no PRÓXIMO dia
  * que tem agenda.
  *
  * "Próximo dia com agenda" = a primeira data (fuso de São Paulo) DEPOIS de hoje
@@ -20,10 +20,8 @@ import { logger } from '../../utils/logger';
 const ZAPI_INSTANCE = 'io' as const;
 const BRT_TZ = 'America/Sao_Paulo';
 
-// Só o Thiago e o Diego — mesma dupla dos alertas da LP do eletroposto
-// (routes/ioEletroposto.ts) e do repasse.
+// Só o Diego desde 08/11/2026 (o Thiago saiu deste aviso por ordem do dono).
 const DESTINATARIOS: Array<{ nome: string; whatsapp: string }> = [
-  { nome: 'Thiago', whatsapp: '34991360223' },
   { nome: 'Diego',  whatsapp: '34991360172' },
 ];
 
@@ -274,7 +272,7 @@ export async function enviarAgendaProxima(opts?: { dry?: boolean }): Promise<{
       await sendWhatsApp(alvo.whatsapp, msg, ZAPI_INSTANCE);
       enviados++;
     } catch (e) {
-      // Best-effort: a Z-API falhar pro Thiago não pode impedir o envio pro Diego.
+      // Best-effort: a Z-API falhar pra um destinatário não pode impedir o envio ao seguinte.
       logger.error('agenda-proxima', 'falha ao enviar digest', { alvo: alvo.nome, erro: String(e) });
       erros++;
     }

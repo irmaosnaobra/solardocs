@@ -724,7 +724,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ],
       destaque: [0, 1],
       toques: [
-        { titulo: 'Resposta do cliente', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro cliente: é o recado com o que a pessoa escreveu, indo pro consultor DONO da ficha (e cópia pro Thiago). A foto da conta de luz, o áudio e o vídeo são ENCAMINHADOS pro WhatsApp dele, não só contados.' },
+        { titulo: 'Resposta do cliente', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro cliente: é o recado com o que a pessoa escreveu, indo só pra Giovanna e pra Nilce, seja quem for o dono da ficha. A foto da conta de luz, o áudio e o vídeo são ENCAMINHADOS pro WhatsApp dele, não só contados.' },
       ],
     },
     roteamento_solar: {

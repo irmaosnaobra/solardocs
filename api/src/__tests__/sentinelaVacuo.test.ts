@@ -387,10 +387,10 @@ describe('a bolha de entrega da recepção não conta como resposta', () => {
 
     const r = await runSentinelaVacuo();
 
-    // Uma conversa parada, e ela é de eletroposto: o recado vai pro Thiago E pro
-    // Diego, que são os dois donos do produto. Por isso dois envios pra uma parada.
+    // Uma conversa parada, e ela é de eletroposto: o recado vai pra Giovanna E pro
+    // Diego, que são os donos do produto (o Thiago saiu em 08/11/2026). Por isso dois envios pra uma parada.
     expect(r.paradas).toBe(1);
-    expect(r.avisados.sort()).toEqual(['diego', 'thiago']);
+    expect(r.avisados.sort()).toEqual(['diego', 'giovanna']);
     expect(enviados).toHaveLength(2);
   });
 
@@ -507,7 +507,6 @@ describe('represa da varredura', () => {
 
 describe('dono do card da agenda', () => {
   const GIOVANNA = '34993396255';
-  const THIAGO = '34991360223';
   const TEL = '5534999990070';                       // 55 + 34 + 9 + 99990070
   const emDias = (d: number) => new Date(Date.now() + d * 86400_000).toISOString();
   const card = (extra: Record<string, unknown> = {}) => ({
@@ -531,20 +530,52 @@ describe('dono do card da agenda', () => {
     expect(enviados.map(e => e.phone)).toEqual([GIOVANNA]);
   });
 
-  it('nível 3: Giovanna e Thiago, sem repetir nome', async () => {
-    agenda.cards = [card({ vendedor_nome: 'Thiago' }), card({ vendedor_nome: 'Giovanna', quando: emDias(1) })];
+  it('nível 3: a Giovanna sobe junto do dono do card (Diego)', async () => {
+    agenda.cards = [card({ vendedor_nome: 'Diego' })];
     db.wa = [msg(TEL, false, Date.parse('2026-09-10T13:00:00Z'))];
     const r = await runSentinelaVacuo();
-    expect(r.avisados.sort()).toEqual(['giovanna', 'thiago']);
+    expect(r.avisados.sort()).toEqual(['diego', 'giovanna']);
     expect(enviados).toHaveLength(2);
   });
 
-  it('nível 3 com card do próprio Thiago: um recado só', async () => {
-    agenda.cards = [card({ vendedor_nome: 'Thiago' })];
+  it('nível 3 com card da própria Giovanna: um recado só, sem repetir nome', async () => {
+    agenda.cards = [card({ vendedor_nome: 'Giovanna' })];
     db.wa = [msg(TEL, false, Date.parse('2026-09-10T13:00:00Z'))];
     const r = await runSentinelaVacuo();
-    expect(r.avisados).toEqual(['thiago']);
+    expect(r.avisados).toEqual(['giovanna']);
     expect(enviados).toHaveLength(1);
+    expect(enviados[0].phone).toBe(GIOVANNA);
+    expect(enviados[0].texto).toContain('Giovanna, tem 1 pessoa esperando');
+  });
+
+  it('card de reunião do Thiago vai para a Giovanna, em qualquer nível, e ela recebe um recado só', async () => {
+    agenda.cards = [card({ vendedor_nome: 'Thiago' })];
+    db.wa = [msg(TEL, false, seis())];                                   // nível 1
+    expect((await runSentinelaVacuo()).avisados).toEqual(['giovanna']);
+    expect(enviados.map(e => e.phone)).toEqual([GIOVANNA]);
+
+    enviados.length = 0; db.state = [];
+    db.wa = [msg(TEL, false, Date.parse('2026-09-10T13:00:00Z'))];       // nível 3 (sobe a Giovanna: sem repetir)
+    expect((await runSentinelaVacuo()).avisados).toEqual(['giovanna']);
+    expect(enviados).toHaveLength(1);
+    expect(enviados.map(e => e.phone)).not.toContain('34991360223');
+  });
+
+  it('sem card, nenhum aviso vai para o Thiago, mesmo no nível 3', async () => {
+    agenda.cards = [];
+    db.wa = [msg(TEL, false, Date.parse('2026-09-10T13:00:00Z'))];
+    await runSentinelaVacuo();
+    expect(enviados.length).toBeGreaterThan(0);
+    expect(enviados.map(e => e.phone)).not.toContain('34991360223');
+  });
+
+  it('a cobrança é por conversa e nível: a segunda rodada não repete para a Giovanna', async () => {
+    agenda.cards = [card({ vendedor_nome: 'Giovanna' })];
+    db.wa = [msg(TEL, false, Date.parse('2026-09-10T13:00:00Z'))];
+    await runSentinelaVacuo();
+    const antes = enviados.length;
+    await runSentinelaVacuo();
+    expect(enviados).toHaveLength(antes);
   });
 
   it.each([
@@ -553,12 +584,12 @@ describe('dono do card da agenda', () => {
     ['card velho demais (fora da janela)', { quando: '2026-08-20T17:00:00.000Z' }],
     ['card distante demais (fora da janela)', { quando: '2026-12-31T17:00:00.000Z' }],
     ['vendedor desconhecido', { vendedor_nome: 'Fulano' }],
-  ])('ignora o card: %s (destino de hoje, Thiago)', async (_nome, extra) => {
+  ])('ignora o card: %s (destino de hoje, Giovanna)', async (_nome, extra) => {
     agenda.cards = [card(extra as Record<string, unknown>)];
     db.wa = [msg(TEL, false, seis())];
     const r = await runSentinelaVacuo();
-    expect(r.avisados).toEqual(['thiago']);
-    expect(enviados.map(e => e.phone)).toEqual([THIAGO]);
+    expect(r.avisados).toEqual(['giovanna']);
+    expect(enviados.map(e => e.phone)).toEqual([GIOVANNA]);
     expect(enviados[0].texto).toContain('Sem produto definido');
   });
 
@@ -575,7 +606,7 @@ describe('dono do card da agenda', () => {
     db.wa = [msg(TEL, false, seis())];
     const r = await runSentinelaVacuo();
     expect(r.cobrancas).toBe(1);
-    expect(r.avisados).toEqual(['thiago']);
+    expect(r.avisados).toEqual(['giovanna']);
     expect(logger.warn).toHaveBeenCalled();
   });
 
@@ -584,7 +615,7 @@ describe('dono do card da agenda', () => {
     agenda.cards = [card()];
     db.wa = [msg(TEL, false, seis())];
     const r = await runSentinelaVacuo();
-    expect(r.avisados).toEqual(['thiago']);
+    expect(r.avisados).toEqual(['giovanna']);
   });
 
   it("produto 'outro' com card de eletroposto: o rótulo vira Eletroposto", async () => {
@@ -619,7 +650,7 @@ describe('dono do card da agenda', () => {
   it('mesmos 8 dígitos finais em outro DDD não casa', async () => {
     agenda.cards = [card({ cliente_telefone: '11999990070' })];
     db.wa = [msg(TEL, false, seis())];
-    expect((await runSentinelaVacuo()).avisados).toEqual(['thiago']);
+    expect((await runSentinelaVacuo()).avisados).toEqual(['giovanna']);
   });
 
   it('dry devolve porDono (só números) e não envia nada', async () => {
@@ -627,7 +658,7 @@ describe('dono do card da agenda', () => {
     db.wa = [msg(TEL, false, seis()), msg('5534999990071', false, seis())];
     const r = await runSentinelaVacuo({ dry: true });
     expect(r.motivo).toBe('cobraria_agora');
-    expect(r.porDono).toEqual({ giovanna: 1, thiago: 1 });
+    expect(r.porDono).toEqual({ giovanna: 2 });
     expect(enviados).toHaveLength(0);
     expect(sendWhatsApp).not.toHaveBeenCalled();
     expect(db.state).toHaveLength(0);
@@ -664,9 +695,9 @@ describe('dono do card da agenda', () => {
     const r = await p;
 
     expect(r.paradas).toBe(6);
-    expect(r.avisados.sort()).toEqual(['giovanna', 'thiago']);   // 5 com dono do card, 1 no destino de hoje
+    expect(r.avisados).toEqual(['giovanna']);   // 5 com dono do card + 1 no destino de hoje, tudo dela
     const doCard = enviados.find(e => e.phone === GIOVANNA)!;
-    expect(doCard.texto).toContain('5 pessoas esperando');
+    expect(doCard.texto).toContain('6 pessoas esperando');
     const aviso = vi.mocked(logger.warn).mock.calls.map(c => String(c[1])).find(m => m.includes('sem consulta'));
     expect(aviso).toContain('1 de 6 telefone(s) ficaram sem consulta');
   });

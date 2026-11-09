@@ -14,7 +14,7 @@
     { "path": "/cron/master", "schedule": "17 * * * *" },
     { "path": "/cron/eletroposto-estudo", "schedule": "*/5 * * * *" },
     { "path": "/cron/eletroposto-agenda", "schedule": "*/5 * * * *" },
-    { "path": "/cron/eletroposto-top-pontos", "schedule": "0 15 * * *" },
+    { "path": "/cron/eletroposto-top-pontos", "schedule": "0 21 * * 5" },
     { "path": "/cron/io-broadcast-tick", "schedule": "*/5 * * * *" },
     { "path": "/cron/eletroposto-reagenda-auto", "schedule": "*/5 * * * *" },
     { "path": "/cron/investidor-agente", "schedule": "*/5 * * * *" },

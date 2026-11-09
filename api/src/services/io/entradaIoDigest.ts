@@ -7,12 +7,12 @@
 // dias parados durante o apagão.
 //
 // Isto não é um robô que responde: é um RECIBO. Duas vezes por dia (12h e 18h
-// BRT) o Thiago e o Diego recebem a lista de quem escreveu, separando quem já
+// BRT) a Giovanna e o Diego (o Thiago saiu em 08/11/2026) recebem a lista de quem escreveu, separando quem já
 // está no CRM de quem é gente nova. Duas mensagens por dia na linha, pra dois
 // contatos salvos — não é o tipo de tráfego que queima número.
 //
 // Dedup por dia+turno+destinatário em `system_state` (chefe-antiban, 05/11/2026): o claim é um INSERT (`reservarChave`) ANTES do envio, então
-// duas rodadas juntas (Vercel + GitHub Actions) nunca mandam duas vezes. Cada rodada manda para UM destinatário só (o primeiro da EQUIPE sem
+// duas rodadas juntas (Vercel + GitHub Actions) nunca mandam duas vezes. Cada rodada manda para UM destinatário só (o primeiro destinatário do aviso sem
 // chave); o segundo sai na rodada seguinte (de hora em hora), nunca colado no primeiro. O turno vale por até TURNO_ATRASO_H horas depois da hora.
 // A chave antiga `entrada_io_digest:<dia>:<turno>` (sem destinatário) conta como "os dois já atendidos".
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,6 +22,23 @@ import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { EQUIPE } from '../../routes/ioEletroposto';
 import { reservarChave } from '../agentes5040/cota';
+import { carregarTelefonesConsultores, telefoneDoConsultor } from '../agentes5040/fichaEnvio';
+
+/**
+ * Quem recebe a ENTRADA DO 5040: Giovanna e Diego. Lista PRÓPRIA do aviso: a `EQUIPE` global
+ * (Thiago e Diego) segue valendo para o Top 20 e os outros alertas. O telefone da Giovanna vem
+ * da tabela `consultores` (com a reserva de `telefoneDoConsultor`), nunca de número novo no código.
+ * Sem o telefone dela, o aviso segue só para o Diego e o erro fica no log.
+ */
+async function destinatariosDoAviso(): Promise<Record<string, string>> {
+  const t = await carregarTelefonesConsultores();
+  const tel = telefoneDoConsultor(t.ok ? t.mapa : new Map(), 'Giovanna');
+  const lista: Record<string, string> = {};
+  if (tel) lista.giovanna = tel;
+  else logger.error('entrada-io', 'telefone da Giovanna não encontrado: aviso segue só para o Diego');
+  if (EQUIPE.diego) lista.diego = EQUIPE.diego;
+  return lista;
+}
 
 /** Horas (BRT) em que o recibo sai. */
 const TURNOS = [12, 18];
@@ -60,7 +77,7 @@ export async function runEntradaIoDigest(opts: { dry?: boolean; forcar?: boolean
   const turno = [...TURNOS].reverse().find(t => hora >= t && hora <= t + TURNO_ATRASO_H) ?? (opts.forcar ? hora : undefined);
   if (turno === undefined) return { enviado: false, motivo: 'fora_do_turno' };
   const chave = chaveTurno(turno);
-  const destinatarios = Object.entries(EQUIPE);
+  const destinatarios = Object.entries(await destinatariosDoAviso());
   let pendente: string | null = null;
 
   if (!opts.dry && !opts.forcar) {
@@ -140,7 +157,7 @@ export async function runEntradaIoDigest(opts: { dry?: boolean; forcar?: boolean
   if (claim === 'ja_existe') return { enviado: false, motivo: 'ja_enviado_neste_turno' };
   if (claim === 'erro') { logger.error('entrada-io', `claim do recibo falhou pra ${nome}`); return { enviado: false, motivo: 'erro_claim' }; }
   try {
-    await sendWhatsApp(EQUIPE[nome]!, texto, 'io');
+    await sendWhatsApp(destinatarios.find(([n]) => n === nome)![1], texto, 'io');
   } catch (e) {
     logger.error('entrada-io', `recibo falhou pra ${nome}`, e);
   }

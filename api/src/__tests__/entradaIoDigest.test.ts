@@ -5,7 +5,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Duas rodadas juntas dão um recibo só; a 2ª pessoa sai na rodada seguinte, nunca colada na 1ª.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const h = vi.hoisted(() => ({ envios: [] as Array<{ tel: string; instancia: string }>, erro: false }));
+const h = vi.hoisted(() => ({ envios: [] as Array<{ tel: string; instancia: string }>, erro: false, tabela: { ok: true } as { ok: boolean } }));
+const TEL_GIOVANNA = '34900000009';
 
 vi.mock('../utils/supabase', async () => ({ supabase: (await import('./_bancoFalso')).supabase }));
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
@@ -15,7 +16,11 @@ vi.mock('../services/agents/zapiClient', () => ({
     if (h.erro) throw new Error('Z-API 500');
   }),
 }));
-vi.mock('../routes/ioEletroposto', () => ({ EQUIPE: { thiago: '34991360223', diego: '34991360172' } }));
+vi.mock('../routes/ioEletroposto', () => ({ EQUIPE: { thiago: '34900000001', diego: '34900000002' } }));
+vi.mock('../services/agentes5040/fichaEnvio', () => ({
+  carregarTelefonesConsultores: vi.fn(async () => (h.tabela.ok ? { ok: true, mapa: new Map([['giovanna', '34900000009']]) } : { ok: false, codigo: 'x' })),
+  telefoneDoConsultor: (mapa: Map<string, string>, nome: string) => mapa.get(nome.toLowerCase()) ?? null,
+}));
 
 import { banco } from './_bancoFalso';
 import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
@@ -26,7 +31,7 @@ const chaves = () => banco.linhas('system_state').filter(r => String(r.key).star
 
 beforeEach(() => {
   banco.reset();
-  h.envios.length = 0; h.erro = false;
+  h.envios.length = 0; h.erro = false; h.tabela.ok = true;
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(BRT('12:17'));
   banco.poe('sdr_message_dedup', { phone: '5511999990001', processed_at: BRT('11:00').toISOString() });
@@ -37,9 +42,9 @@ describe('recibo da entrada da 5040', () => {
   it('duas rodadas juntas no mesmo turno dão UM recibo só', async () => {
     const [a, b] = await Promise.all([runEntradaIoDigest(), runEntradaIoDigest()]);
     expect(h.envios).toHaveLength(1);
-    expect(h.envios[0]).toEqual({ tel: '34991360223', instancia: 'io' });
+    expect(h.envios[0]).toEqual({ tel: TEL_GIOVANNA, instancia: 'io' });
     expect([a.enviado, b.enviado].filter(Boolean)).toHaveLength(1);
-    expect(chaves()).toEqual(['entrada_io_digest:2026-11-05:12:thiago']);
+    expect(chaves()).toEqual(['entrada_io_digest:2026-11-05:12:giovanna']);
   });
 
   it('a 2ª pessoa só sai na rodada seguinte, e cada destinatário recebe uma vez no turno', async () => {
@@ -51,7 +56,7 @@ describe('recibo da entrada da 5040', () => {
     vi.setSystemTime(BRT('13:17'));
     const r = await runEntradaIoDigest();
     expect(r.destinatario).toBe('diego');
-    expect(h.envios.map(e => e.tel)).toEqual(['34991360223', '34991360172']);
+    expect(h.envios.map(e => e.tel)).toEqual([TEL_GIOVANNA, '34900000002']);
 
     vi.setSystemTime(BRT('14:17'));
     expect((await runEntradaIoDigest()).motivo).toBe('ja_enviado_neste_turno');
@@ -82,7 +87,7 @@ describe('recibo da entrada da 5040', () => {
     vi.setSystemTime(BRT('12:40'));
     await runEntradaIoDigest();   // ainda espaçando
     expect(h.envios).toHaveLength(1);
-    expect(chaves()).toEqual(['entrada_io_digest:2026-11-05:12:thiago']);
+    expect(chaves()).toEqual(['entrada_io_digest:2026-11-05:12:giovanna']);
   });
 
   it('forcar às 12h05 manda para a equipe toda e grava a chave antiga: a rodada das 12h17 e as seguintes não reenviam', async () => {
@@ -95,6 +100,19 @@ describe('recibo da entrada da 5040', () => {
     vi.setSystemTime(BRT('13:17'));
     expect((await runEntradaIoDigest()).motivo).toBe('ja_enviado_neste_turno');
     expect(h.envios).toHaveLength(2);
+  });
+
+  it('o Thiago não recebe: só Giovanna e Diego, nesta ordem', async () => {
+    await runEntradaIoDigest({ forcar: true });
+    expect(h.envios.map(e => e.tel)).toEqual([TEL_GIOVANNA, '34900000002']);
+    expect(h.envios.map(e => e.tel)).not.toContain('34900000001');
+  });
+
+  it('sem o telefone da Giovanna (nem na reserva), o aviso segue só para o Diego', async () => {
+    h.tabela.ok = false;
+    const r = await runEntradaIoDigest();
+    expect(r.destinatario).toBe('diego');
+    expect(h.envios.map(e => e.tel)).toEqual(['34900000002']);
   });
 
   it('dry não reserva chave nem envia', async () => {

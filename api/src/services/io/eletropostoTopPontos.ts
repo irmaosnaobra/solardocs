@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// TOP 20 PONTOS DO DIA, no WhatsApp do Thiago e do Diego, ao meio-dia.
+// TOP 20 PONTOS, no WhatsApp do Thiago e do Diego, UMA VEZ POR SEMANA: sexta, 18h de Brasília.
 //
 // Ordem do Thiago (16/09/2026): "cria uma automação dos top 20 melhores pontos,
-// todos os dias ao meio dia nós recebemos o top do WhatsApp". Entra todo mundo que
+// todos os dias ao meio dia nós recebemos o top do WhatsApp". Desde 08/11/2026 o
+// dono quer só na sexta às 18h (o tick segura o dia e a hora; ver `naJanelaDaSexta`). Entra todo mundo que
 // tem ENDEREÇO, venha de onde vier, e sai ranqueado pela nota.
 //
 // ── As três fontes ──
@@ -23,7 +24,7 @@
 //
 // ── O que ela não faz ──
 // Não manda nada para o lead. Não muda status, nota nem agenda. Não repete: o
-// carimbo do dia mora no system_state, então rodar duas vezes não manda duas.
+// carimbo da sexta mora no system_state, então rodar duas vezes não manda duas.
 //
 // Kill-switch: EP_TOP_OFF=1.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -369,15 +370,34 @@ const diaBRT = (agoraMs: number): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' })
     .format(new Date(agoraMs));
 
+/** Janela de envio: sexta, de 18:00 até 19:59 de Brasília (tolera o atraso do cron). */
+export const TOP_SEXTA_HORA_INICIO = 18;
+export const TOP_SEXTA_HORA_FIM = 20;
+
+/**
+ * Sexta, 18h a 20h em America/Sao_Paulo. O relógio do servidor é UTC, então dia da
+ * semana e hora saem do Intl com fuso explícito, nunca de getDay/getHours locais.
+ */
+export function naJanelaDaSexta(agoraMs: number): boolean {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date(agoraMs));
+  const dia = p.find(x => x.type === 'weekday')?.value;
+  const hora = Number(p.find(x => x.type === 'hour')?.value);
+  return dia === 'Fri' && hora >= TOP_SEXTA_HORA_INICIO && hora < TOP_SEXTA_HORA_FIM;
+}
+
 export async function runEletropostoTopPontosTick(opts: { dry?: boolean; agora?: number } = {}): Promise<ResultadoTop> {
   if (desligado()) return { enviados: 0, erros: 0, total: 0, motivo: 'desligado' };
 
   const agora = opts.agora ?? Date.now();
+  // A prévia (dry) funciona em qualquer dia e hora: não envia nem carimba.
+  if (!opts.dry && !naJanelaDaSexta(agora)) return { enviados: 0, erros: 0, total: 0, motivo: 'fora_da_janela_da_sexta' };
+  // A trava é da SEMANA: só existe uma sexta por semana, então a data da sexta (BRT) é a chave da semana.
   const chave = `${EP_TOP_PREFIX}${diaBRT(agora)}`;
 
   if (!opts.dry) {
     const { data: ja } = await supabase.from('system_state').select('key').eq('key', chave).maybeSingle();
-    if (ja) return { enviados: 0, erros: 0, total: 0, motivo: 'ja_enviado_hoje' };
+    if (ja) return { enviados: 0, erros: 0, total: 0, motivo: 'ja_enviado_nesta_semana' };
   }
 
   const top = await montarTopPontos();

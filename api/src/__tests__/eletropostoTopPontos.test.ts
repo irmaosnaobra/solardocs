@@ -71,7 +71,7 @@ vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), erro
 
 import { montarTopPontos, textoTopPontos, runEletropostoTopPontosTick } from '../services/io/eletropostoTopPontos';
 
-const AGORA = Date.parse('2026-09-16T15:00:00Z');   // meio-dia de Brasília
+const AGORA = Date.parse('2026-09-18T21:05:00Z');   // sexta 18:05 de Brasília (2026-09-18 é sexta)
 
 const OBS_POSTO = [
   'LP ELETROPOSTO · Dono de posto de combustível',
@@ -187,7 +187,7 @@ describe('mensagem', () => {
     const top = await montarTopPontos();
     const texto = textoTopPontos(top, AGORA);
 
-    expect(texto).toContain('*TOP 2 PONTOS · 16/09*');
+    expect(texto).toContain('*TOP 2 PONTOS · 18/09*');
     expect(texto).toContain('Nota = local (70%) e mercado da cidade (30%).');
     expect(texto).toContain('*1.');
     expect(texto).toContain(`https://solardoc.app/_api/io/eletroposto/estudo/${'b'.repeat(64)}`);
@@ -237,21 +237,71 @@ describe('mensagem', () => {
   });
 });
 
-describe('o tick do meio-dia', () => {
-  it('manda para o Thiago e para o Diego e carimba o dia', async () => {
+describe('o tick da sexta às 18h', () => {
+  it('manda para o Thiago e para o Diego e carimba a semana', async () => {
     h.reunioes = [reuniao()];
     const r = await runEletropostoTopPontosTick({ agora: AGORA });
     expect(r).toMatchObject({ enviados: 2, erros: 0, total: 1 });
     expect(h.enviados.map(e => e.numero)).toEqual(['34900000001', '34900000002']);
-    expect(h.carimbos.has('ep_top_pontos:2026-09-16')).toBe(true);
+    expect(h.carimbos.has('ep_top_pontos:2026-09-18')).toBe(true);
   });
 
-  it('não repete no mesmo dia', async () => {
+  it('não repete na mesma semana: a 2ª chamada da sexta às 19h não sai', async () => {
     h.reunioes = [reuniao()];
     await runEletropostoTopPontosTick({ agora: AGORA });
-    const r2 = await runEletropostoTopPontosTick({ agora: AGORA + 3600_000 });
-    expect(r2.motivo).toBe('ja_enviado_hoje');
+    const r2 = await runEletropostoTopPontosTick({ agora: AGORA + 3600_000 });   // sexta 19:05
+    expect(r2.motivo).toBe('ja_enviado_nesta_semana');
     expect(h.enviados).toHaveLength(2);
+  });
+
+  describe('janela: só sexta, de 18h a 20h de Brasília', () => {
+    // Relógio falso em UTC; Brasília = UTC-3. 2026-09-17 é quinta, 18 sexta, 19 sábado.
+    const casos: Array<[string, string, boolean]> = [
+      ['quinta 18h', '2026-09-17T21:00:00Z', false],
+      ['sexta 17h59', '2026-09-18T20:59:00Z', false],
+      ['sexta 18h00', '2026-09-18T21:00:00Z', true],
+      ['sexta 18h05', '2026-09-18T21:05:00Z', true],
+      ['sexta 19h59', '2026-09-18T22:59:00Z', true],
+      ['sexta 20h00', '2026-09-18T23:00:00Z', false],
+      ['sábado 18h', '2026-09-19T21:00:00Z', false],
+      ['sábado 00h30 BRT (sexta à noite em UTC)', '2026-09-19T03:30:00Z', false],
+      ['meio-dia da sexta (o horário antigo)', '2026-09-18T15:00:00Z', false],
+    ];
+    it.each(casos)('%s', async (_nome, iso, deveSair) => {
+      h.reunioes = [reuniao()];
+      const r = await runEletropostoTopPontosTick({ agora: Date.parse(iso) });
+      if (deveSair) {
+        expect(r.enviados).toBe(2);
+        expect(h.enviados).toHaveLength(2);
+      } else {
+        expect(r.motivo).toBe('fora_da_janela_da_sexta');
+        expect(h.enviados).toHaveLength(0);
+        expect(h.carimbos.size).toBe(0);
+      }
+    });
+
+    it('sequência da semana: quinta não, sexta 17h59 não, 18h05 sim, 19h não repete, sábado não', async () => {
+      h.reunioes = [reuniao()];
+      const quando = ['2026-09-17T21:00:00Z', '2026-09-18T20:59:00Z', '2026-09-18T21:05:00Z', '2026-09-18T22:00:00Z', '2026-09-19T21:00:00Z'];
+      const motivos: Array<string | undefined> = [];
+      for (const q of quando) motivos.push((await runEletropostoTopPontosTick({ agora: Date.parse(q) })).motivo);
+      expect(motivos).toEqual(['fora_da_janela_da_sexta', 'fora_da_janela_da_sexta', undefined, 'ja_enviado_nesta_semana', 'fora_da_janela_da_sexta']);
+      expect(h.enviados).toHaveLength(2);
+    });
+
+    it('na sexta seguinte sai de novo (a trava é da semana)', async () => {
+      h.reunioes = [reuniao()];
+      await runEletropostoTopPontosTick({ agora: AGORA });
+      const r = await runEletropostoTopPontosTick({ agora: AGORA + 7 * 86400_000 });
+      expect(r.enviados).toBe(2);
+      expect(h.enviados).toHaveLength(4);
+    });
+
+    it('dry funciona em qualquer dia e hora', async () => {
+      h.reunioes = [reuniao()];
+      const r = await runEletropostoTopPontosTick({ agora: Date.parse('2026-09-16T15:00:00Z'), dry: true });
+      expect(r.motivo).toBe('dry');
+    });
   });
 
   it('envio falhou: não carimba, e a próxima rodada tenta de novo', async () => {
@@ -298,5 +348,15 @@ describe('o tick do meio-dia', () => {
       expect(e.numero).not.toContain('988887777');
       expect(e.numero).not.toContain('966665555');
     }
+  });
+});
+
+describe('quem chama a rota', () => {
+  it('o cron da Vercel dispara só na sexta, às 18h de Brasília (21h UTC), dentro da janela do tick', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const cfg = JSON.parse(readFileSync(join(__dirname, '..', '..', 'vercel.json'), 'utf8')) as { crons: Array<{ path: string; schedule: string }> };
+    const deTop = cfg.crons.filter(c => c.path.startsWith('/cron/eletroposto-top-pontos'));
+    expect(deTop.map(c => c.schedule).sort()).toEqual(['0 21 * * 5']);
   });
 });

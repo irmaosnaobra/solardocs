@@ -60,6 +60,18 @@ export interface AsaasWebhookBody {
 
 const COLS = 'id, user_id, email, modo, authorization_id, subscription_id, contract_id, plano, valor, primeiro_mes, cupom, status, qr_payload, ultimo_pagamento_em, ultimo_pagamento_id, proximo_vencimento';
 
+/** Venda e renovação do Pix: o aviso ao Thiago de sempre e, desde 08/11/2026, o mesmo ao Diego, depois e isolado (nunca lança). */
+async function avisarVendaDoPix(texto: string): Promise<void> {
+  await avisarThiago(texto);
+  // O import fica DENTRO do try: falha ao carregar o módulo do Diego nunca afeta o aviso ao Thiago, que já saiu.
+  try {
+    const { avisarDiegoDaVenda } = await import('../avisoVendaDiego');
+    await avisarDiegoDaVenda(texto, 'pix');
+  } catch (err) {
+    logger.error('asaas-webhook', 'aviso ao Diego falhou (o do Thiago já saiu)', err);
+  }
+}
+
 async function avisarThiago(texto: string): Promise<void> {
   try {
     const { sendWhatsApp } = await import('../agents/zapiClient');
@@ -498,7 +510,7 @@ async function creditarPagamento(
     }
   }
 
-  await avisarThiago([
+  await avisarVendaDoPix([
     primeiroPagamento ? '🟢 *Nova assinatura no Pix recorrente*' : '💰 *Renovação no Pix recorrente*',
     '',
     `Cliente: ${linha.email}`,
@@ -914,7 +926,7 @@ async function creditarAvulsoCorpo(
 
   await marcarAvulso(id, reg, { status: 'pago', pago_em: new Date().toISOString(), payment_id: pagamentoId, valor_pago: valorPago });
 
-  await avisarThiago([
+  await avisarVendaDoPix([
     '🟢 *Nova assinatura no Pix (código)*',
     '',
     `Cliente: ${email}`,

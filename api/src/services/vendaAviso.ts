@@ -23,6 +23,7 @@ import { sendWhatsApp } from './agents/zapiClient';
 import { sendOpsAlert } from '../utils/mailer';
 import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
+import { avisarDiegoDaVenda } from './avisoVendaDiego';
 import { decisaoMeta, ehVendaDeTeste, JANELA_DUPLICADA_MS, OrigemVenda, TEXTO_MOTIVO, TEXTO_ORIGEM } from './salesLedger';
 
 const DONO_PHONE = (process.env.VENDA_AVISO_PHONE || '34991360223').trim();
@@ -314,14 +315,16 @@ export async function avisarVendaAoDono(
 
   // O aviso INDIVIDUAL ao Thiago nunca é dispensado (decisão do dono, 24/10/2026): o do grupo de vendas é UM A MAIS e
   // sai depois, isolado (nunca atrasa nem derruba o do Thiago).
-  const resultado = await avisarThiagoDaVenda(v);
+  const texto = textoAvisoVenda(v);
+  const resultado = await avisarThiagoDaVenda(v, texto);
+  // Desde 08/11/2026 o Diego recebe o mesmo aviso, depois do do Thiago e isolado (nunca lança).
+  await avisarDiegoDaVenda(texto, 'venda');
   await avisarGrupoDaVenda(saleId, v);
   return resultado;
 }
 
 /** O aviso de sempre ao Thiago (WhatsApp, e e-mail se a linha cair). */
-async function avisarThiagoDaVenda(v: VendaAviso): Promise<'enviado' | 'email'> {
-  const texto = textoAvisoVenda(v);
+async function avisarThiagoDaVenda(v: VendaAviso, texto: string): Promise<'enviado' | 'email'> {
   try {
     await sendWhatsApp(DONO_PHONE, texto, 'solardoc');
     return 'enviado';
@@ -438,6 +441,13 @@ export async function avisarRenovacaoAoDono(
   }
 
   const texto = textoAvisoRenovacao(v);
+  // Desde 08/11/2026 o Diego recebe o mesmo aviso. Sai DEPOIS do do Thiago (e do e-mail de resgate, se ele falhar) e isolado.
+  const resultado = await avisarThiagoDaRenovacao(v, texto);
+  await avisarDiegoDaVenda(texto, 'renovação');
+  return resultado;
+}
+
+async function avisarThiagoDaRenovacao(v: RenovacaoAviso, texto: string): Promise<'enviado' | 'email'> {
   try {
     await sendWhatsApp(DONO_PHONE, texto, 'solardoc');
     return 'enviado';

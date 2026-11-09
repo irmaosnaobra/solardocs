@@ -959,8 +959,9 @@ router.get('/eletroposto-estudo', async (req: Request, res: Response) => {
 });
 
 // ── Top 20 pontos do dia (eletroposto) ──────────────────────────────────────
-// Meio-dia de Brasília, pelo cron da Vercel. Ranqueia TODO ponto com endereço
-// (reunião, parceria e NOTA 1) e manda a lista para o Thiago e o Diego.
+// Sexta às 18h de Brasília (cron da Vercel "0 21 * * 5" UTC). O tick só envia sexta de 18h a
+// 20h BRT e uma vez por semana, então um atraso do cron dentro da janela não atrapalha. Ranqueia TODO ponto com endereço (reunião, parceria e NOTA 1) e manda a
+// lista para o Thiago e o Diego.
 //   ?dry=1  monta e devolve a prévia sem enviar e sem carimbar o dia
 // A prévia sai sem nome, sem telefone e sem endereço: esta rota pode ser chamada
 // de um workflow, e log de workflow neste repo é público.
