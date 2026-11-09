@@ -131,7 +131,7 @@ async function main() {
 
   // Um alvo que a agente ainda NAO tocou E que NAO foi um dos ultimos testes: testar em quem ja recebeu mensagem
   // daria falso positivo (la a conversa existe e o compositor abre sempre), e repetir o @ nao prova nada novo.
-  const fila = await ler('prospeccao_fila_worker?select=instagram&instagram=not.is.null&instagram=neq.&limit=30');
+  const fila = await ler('prospeccao_fila_worker?select=instagram&canal=eq.nunca_tocado&instagram=not.is.null&instagram=neq.&limit=30');
   const alvo = escolherAlvoTeste(fila, h);
   if (!alvo) { log('nao ha perfil novo (diferente dos ultimos testes) na fila pra testar.'); return; }
 
