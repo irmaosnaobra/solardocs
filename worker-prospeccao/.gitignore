@@ -20,3 +20,5 @@ rampa-*.json
 historico-bloqueio-*.json
 # Últimas mensagens de lead tratadas como resposta automática (estado local, podado em 7 dias).
 respostas-automaticas-*.json
+# O dono cria este arquivo para liberar o Instagram parado (estado local; o robo apaga ao ler).
+LIBERAR-INSTAGRAM.txt

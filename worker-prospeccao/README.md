@@ -311,6 +311,49 @@ agência que fez os dois sites, não o negócio.
 
 ---
 
+## Instagram travou: quando o robô volta sozinho (e quando espera você)
+
+Quando 3 perfis diferentes mostram que o Instagram não deixa abrir conversa nova
+(a caixa não abre, ou o texto "ficou na caixa / não saiu"), o robô **para** e
+cria o `bloqueio-instagram.json`. Desde 09/11/2026 ele pode voltar sozinho, mas
+só com estas regras (aprovadas pelo chefe anti-ban):
+
+1. **Teste em perfil novo.** O `testar-bloqueio.mjs` (tarefa das 07h e 18h) abre
+   um perfil nunca contactado e vê se a caixa abre. Ele não repete o @ dos
+   últimos testes e anota cada teste (o @ e a hora) no
+   `historico-bloqueio-instagram.json`. Sem bloqueio, ele nem testa.
+2. **Tempo e testes mínimos, contando do freio.**
+   - 1ª volta da semana: 1 teste limpo e pelo menos 24 h desde o freio.
+   - 2ª volta na mesma semana: 2 testes limpos seguidos, em @ diferentes, e
+     pelo menos 48 h desde o freio.
+3. **Volta sempre com teto 5.** A rampa recomeça, o dia da volta não conta como
+   dia cheio e o contador de perfis começa vazio.
+4. **Os 3 primeiros envios depois da volta são de prova.** Nesses, UMA falha
+   ("ficou na caixa", "não saiu" ou "caixa de DM não abriu") já para o robô na
+   hora. Depois de 3 envios confirmados em conversa nova, volta a valer o limite
+   de 3 perfis.
+5. **No máximo 2 voltas automáticas em 7 dias.** No 3º freio dentro de 7 dias o
+   robô fica **parado até você liberar**. A contagem fica gravada no
+   `historico-bloqueio-instagram.json` (não se perde se o robô reiniciar).
+
+**Como liberar à mão** (qualquer estado travado): crie um arquivo vazio chamado
+`LIBERAR-INSTAGRAM.txt` na pasta `worker-prospeccao`. O robô vivo vê o arquivo
+no começo da próxima volta, apaga o arquivo, devolve o teto a 5, zera a conta de
+freios e volta com os 3 envios de prova. Apagar só o `bloqueio-instagram.json`
+**não** basta: o robô guarda o freio no histórico e continua parado.
+
+Um `bloqueio-instagram.json` criado à mão continua parando o robô na hora.
+
+**O que aparece no pulso** (campo `fazendo`, para o aviso do servidor):
+
+| Começa com | Quando |
+|---|---|
+| `VOLTOU SOZINHO:` | o robô voltou depois de um teste limpo (fica ~40 min) |
+| `TRAVOU DE NOVO:` | o freio ligou outra vez depois de uma volta (fica enquanto durar) |
+| `PARADO ATÉ VOCÊ LIBERAR:` | 3 freios em 7 dias (ou 2 voltas em 7 dias): só `LIBERAR-INSTAGRAM.txt` solta |
+
+---
+
 ## Acompanhar
 
 **https://solardoc.app/gerador/radar/** — atualiza a cada 20 segundos.
