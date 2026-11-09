@@ -19,11 +19,15 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { decidirResposta, planoDeEnvio, MATERIAL } from './prospeccaoResposta';
 import { sendDM } from '../instagram/igClient';
+import { carimbarEnvioIg } from '../instagram/igLivro';
 
 const LOG = 'prospeccao-ig';
 const GRAPH = 'https://graph.instagram.com/v25.0';
 
 const desligado = () => (process.env.PROSPECCAO_IA_OFF || '').trim() === 'true';
+
+/** Espera sorteada entre duas mensagens do mesmo turno: de 2 a 6 s. Só ENTRE mensagens, nunca depois da última. */
+export const esperaEntreMensagensMs = () => 2000 + Math.floor(Math.random() * 4001);
 
 /** Quem é esse IGSID? Primeiro no banco; só chama a Meta se for desconhecido. */
 async function acharContato(igsid: string, token: string) {
@@ -63,11 +67,52 @@ async function guardar(contatoId: string, de: 'nos' | 'lead', texto: string, mid
   return !error;
 }
 
+// O link do diagnóstico (quiz) tem sempre este trecho. Marca a "saída do link" no histórico.
+const FRAGMENTO_LINK = 'solardoc.app/diagnostico';
+const JANELA_LINK_MS = 2 * 60 * 1000;
+
+/**
+ * Reserva a saída do link: grava a mensagem de saída em prospeccao_conversas (sem DDL, com um
+ * `mid` próprio) e relê os links gravados nos últimos 2 minutos. Só segue quem ficou em PRIMEIRO.
+ * Devolve o `mid` da reserva (para desfazer se o envio falhar) ou null se outra chamada chegou antes.
+ */
+export async function reservarEnvioLink(contatoId: string, texto: string): Promise<string | null> {
+  const mid = `link:${contatoId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+  const { error } = await supabaseGerador.from('prospeccao_conversas')
+    .insert({ contato_id: contatoId, canal: 'instagram', de: 'nos', texto: texto.slice(0, 2000), mid });
+  if (error) { logger.error(LOG, 'reservar o link falhou', error); return null; }   // sem a trava, não envia
+  const desde = new Date(Date.now() - JANELA_LINK_MS).toISOString();
+  const { data, error: e2 } = await supabaseGerador.from('prospeccao_conversas')
+    .select('mid, texto, criado_em').eq('contato_id', contatoId).eq('de', 'nos')
+    .gte('criado_em', desde).order('criado_em', { ascending: true }).limit(50);
+  if (e2) { logger.error(LOG, 'reler o link falhou', e2); await marcarLinkNaoEnviado(mid); return null; }
+  const links = ((data ?? []) as Array<{ mid?: string | null; texto?: string; criado_em?: string }>)
+    .filter(l => String(l.texto || '').includes(FRAGMENTO_LINK))
+    .sort((a, b) => String(a.criado_em).localeCompare(String(b.criado_em)) || String(a.mid).localeCompare(String(b.mid)));
+  if (links[0]?.mid === mid) return mid;
+  await marcarLinkNaoEnviado(mid);
+  return null;
+}
+
+/** A reserva não virou envio (perdeu a corrida ou o envio falhou): APAGA a própria linha, pelo mid, para
+ *  que ela não conte como "link já enviado". Se o delete falhar, registra no log. */
+async function marcarLinkNaoEnviado(mid: string) {
+  const { error } = await supabaseGerador.from('prospeccao_conversas').delete().eq('mid', mid);
+  if (error) logger.error(LOG, `apagar a reserva do link (${mid}) falhou`, error);
+}
+
+// Restos de versões anteriores: esta marca nunca vai para a IA.
+const MARCA_LINK_NAO_ENVIADO = '[link não enviado]';
+
+// As 20 MAIS RECENTES, em ordem de conversa. Ler em ordem crescente com limite
+// devolveria as 20 mais antigas, e "a última fala nossa foi a oferta?" erraria
+// em conversa longa.
 async function historico(contatoId: string) {
   const { data } = await supabaseGerador.from('prospeccao_conversas')
     .select('de, texto').eq('contato_id', contatoId)
-    .order('criado_em', { ascending: true }).limit(20);
-  return (data ?? []).map(m => ({ de: m.de as 'nos' | 'lead', texto: m.texto }));
+    .order('criado_em', { ascending: false }).limit(20);
+  return (data ?? []).filter(m => m.texto !== MARCA_LINK_NAO_ENVIADO)
+    .map(m => ({ de: m.de as 'nos' | 'lead', texto: m.texto })).reverse();
 }
 
 /**
@@ -101,24 +146,55 @@ export async function tratarRespostaProspeccao(
   });
   if (!v) { logger.error(LOG, `IA não respondeu sobre ${c.empresa} — fica pro humano`); return true; }
 
+  // Resposta automática do perfil: a mensagem recebida já foi guardada lá em cima
+  // (guardar). Não envia nada e NÃO grava toque: qualquer resultado diferente de
+  // "enviei" trava o contato para sempre no robô, e quem escreveu foi um robô.
+  if (v.nao_enviar) {
+    logger.info(LOG, `${c.empresa}: resposta automática do perfil — não respondo e não gravo toque`);
+    return true;
+  }
+
   // FALA, PROVA, LINK — nesta ordem, sempre. A primeira mensagem prometeu
   // material; aqui a promessa é paga. A imagem vai por sendDM direto porque o
   // `enviar` que o webhook passa só sabe texto, e trocar a assinatura dele
   // mexeria em todo o fluxo de comentário→DM por causa da prospecção.
   const plano = planoDeEnvio(v, c.id, 'instagram');
+  let n = 0;
+  let linkSaiu = false;
   for (const passo of plano) {
+    // Gente não manda duas mensagens no mesmo segundo: de 2 a 6 s ENTRE elas,
+    // sorteado. Não espera depois da última.
+    if (n > 0) await new Promise(r => setTimeout(r, esperaEntreMensagensMs()));
+    n++;
+    const ehLink = passo.tipo === 'texto' && passo.texto.includes(FRAGMENTO_LINK);
+    let midLink: string | null = null;
     try {
+      if (ehLink && passo.tipo === 'texto') {
+        // Corrida do link duplo: grava a saída do link ANTES de enviar e relê. Se outra
+        // chamada já gravou um link nos últimos 2 minutos, este não sai.
+        midLink = await reservarEnvioLink(c.id, passo.texto);
+        if (!midLink) { logger.warn(LOG, `${c.empresa}: link já enviado há pouco por outra chamada — não envio de novo`); continue; }
+      }
       if (passo.tipo === 'texto') {
         await enviar(igsid, passo.texto);
-        await guardar(c.id, 'nos', passo.texto, null);
+        // A oferta fixa fica gravada como fala nossa com o texto exato: é assim
+        // que o código reconhece, no turno seguinte, que o "sim" é à oferta.
+        // O link já foi gravado na reserva, acima.
+        if (!ehLink) await guardar(c.id, 'nos', passo.texto, null);
+        else linkSaiu = true;
       } else {
         await sendDM(igUserId, igsid, { image: { url: passo.url } }, token);
         await guardar(c.id, 'nos', `[imagem] ${MATERIAL[passo.chave].nome}`, null);
       }
-      // Gente não manda três mensagens no mesmo segundo. Imagem demora mais
-      // porque a Meta busca o arquivo antes de entregar.
-      await new Promise(r => setTimeout(r, passo.tipo === 'imagem' ? 2600 : 1500));
+      // Toda mensagem que saiu pela página conta no teto de 180/h do igEngine:
+      // mesmo livro `ig_sent:`, uma chave única por mensagem.
+      // O upsert não lança: o erro vem em { error }. Registra e segue, sem derrubar o envio.
+      try {
+        const r = await carimbarEnvioIg(`prosp:${c.id}:${Date.now()}:${n}`);
+        if (r?.error) console.warn(`[${LOG}] carimbo ig_sent falhou para ${c.empresa} (${c.id}): ${String(r.error.message || r.error)}`);
+      } catch (e) { console.warn(`[${LOG}] carimbo ig_sent explodiu para ${c.empresa} (${c.id}):`, e); }
     } catch (err) {
+      if (midLink) await marcarLinkNaoEnviado(midLink);
       // Uma imagem que não sobe NÃO pode engolir o link que vem depois: a
       // pessoa pediu pra ver e ficaria sem nada. Só texto que falha interrompe.
       logger.error(LOG, `envio pra ${c.empresa} falhou (${passo.tipo})`, err);
@@ -132,9 +208,10 @@ export async function tratarRespostaProspeccao(
     contato_id: c.id, lista_id: c.lista_id, produto_id: 'solardoc',
     consultor: process.env.PROSPECCAO_CONSULTOR || 'irmaosnaobra__',
     resultado: v.resultado, valor: 0,
-    obs: `IA(ig): ${v.intencao}${v.escalar ? ' · PRECISA DE HUMANO' : ''}`
+    obs: (`IA(ig): ${v.intencao}${v.escalar ? ' · PRECISA DE HUMANO' : ''}`
+      + `${v.oferta ? ' · oferta' : ''}${linkSaiu ? ' · link' : ''}`
       + `${v.material?.length ? ' · material: ' + v.material.join(',') : ''}`
-      + `: ${v.motivo}`.slice(0, 400),
+      + `: ${v.motivo}`).slice(0, 400),
   });
 
   if (v.resultado === 'nao_perturbar') {

@@ -31,7 +31,9 @@ export interface Etapa {
   sub?: string;
   de?: string;            // de onde sai o número, pra tela não precisar adivinhar
 }
-export interface Funil { produto: string; titulo: string; etapas: Etapa[]; obs?: string }
+/** A resposta por versão da pergunta fria. `null` = não deu para medir (nunca 0 disfarçado). */
+export interface VersaoFunil { versao: 'A' | 'B'; recebeu: number | null; responderam: number | null }
+export interface Funil { produto: string; titulo: string; etapas: Etapa[]; obs?: string; versoes?: VersaoFunil[] }
 
 async function contar(
   cliente: typeof supabase, tabela: string, f: (q: any) => any,
@@ -43,16 +45,72 @@ async function contar(
   } catch (err) { logger.error(LOG, `contar ${tabela} explodiu`, err); return null; }
 }
 
+/** O PostgREST corta em 1000 linhas e ignora o .limit(): lê em páginas de 1000, em ordem estável, até vir página curta. */
+async function lerPaginado<T>(montar: () => any): Promise<{ data: T[]; error: any }> {
+  const todas: T[] = [];
+  for (let de = 0; de < 200_000; de += 1000) {
+    const { data, error } = await montar().order('id', { ascending: true }).range(de, de + 999);
+    if (error) return { data: [], error };
+    const pagina = (data ?? []) as T[];
+    todas.push(...pagina);
+    if (pagina.length < 1000) break;
+  }
+  return { data: todas, error: null };
+}
+
+/** Toque de resposta automática de perfil (intenção "ambiguo", gravada em toques antigos). Não é gente respondendo.
+ *  Casa o formato "IA(ig): ambiguo" / "IA(zap): ambiguo", não a palavra solta no motivo. */
+export const ehToqueAutomatico = (obs: string | null | undefined, criadoEm?: string | null): boolean =>
+  /IA\([a-z]+\):\s*ambiguo\b/i.test(String(obs || '')) && foiAntesDoRamoAutomatico(criadoEm);
+
+// Até 09/11/2026 a IA marcava como "ambiguo" a resposta automática de perfil e isso virava toque. Desde
+// 10/11/2026 (00:00 de Brasília) a resposta automática tem ramo próprio e NÃO grava toque: o "ambiguo" que
+// chega daqui para frente é gente ("quem é?") e conta como resposta. Por isso o filtro só vale para toques
+// criados antes desta data. Toque sem data legível é tratado como antigo.
+export const RAMO_AUTOMATICO_DESDE = Date.parse('2026-11-10T00:00:00-03:00');
+const foiAntesDoRamoAutomatico = (criadoEm?: string | null): boolean => {
+  const t = criadoEm ? Date.parse(String(criadoEm)) : NaN;
+  return Number.isNaN(t) || t < RAMO_AUTOMATICO_DESDE;
+};
+
 /** Contatos DISTINTOS com um desfecho — não toques. Três follow-ups no mesmo
- *  contato são um lead no funil, não três. */
-async function contatosCom(resultados: string[], produtoId?: string): Promise<number | null> {
+ *  contato são um lead no funil, não três. `semAutomatica` descarta o TOQUE de
+ *  resposta automática (obs NULL, de marcação manual, continua valendo). */
+async function contatosCom(resultados: string[], produtoId?: string, semAutomatica = false): Promise<number | null> {
   try {
-    let q = supabaseGerador.from('prospeccao_toques').select('contato_id').in('resultado', resultados);
-    if (produtoId) q = q.eq('produto_id', produtoId);
-    const { data, error } = await q.limit(20000);
+    const { data: linhas, error } = await lerPaginado<{ contato_id: string; obs?: string | null; criado_em?: string | null }>(() => {
+      let q = supabaseGerador.from('prospeccao_toques').select('contato_id, obs, criado_em').in('resultado', resultados);
+      if (produtoId) q = q.eq('produto_id', produtoId);
+      return q;
+    });
     if (error) { logger.error(LOG, 'contatosCom', error); return null; }
-    return new Set((data ?? []).map(r => r.contato_id)).size;
+    return new Set(linhas.filter(r => !semAutomatica || !ehToqueAutomatico(r.obs, r.criado_em)).map(r => r.contato_id)).size;
   } catch (err) { logger.error(LOG, 'contatosCom explodiu', err); return null; }
+}
+
+/** Quem recebeu a pergunta fria A ou B e quantos responderam de gente. Mesma conta da etapa
+ *  "Respondeu" (respondeu, interessado ou vendeu, sem resposta automática); sem_interesse não entra.
+ *  "Recebeu" é o toque `enviei` com obs "worker instagram v=A|B", sem "incerto". */
+async function respostaPorVersao(): Promise<VersaoFunil[] | null> {
+  try {
+    const { data: linhas, error } = await lerPaginado<{ contato_id: string; resultado: string; obs?: string | null; criado_em?: string | null }>(
+      () => supabaseGerador.from('prospeccao_toques').select('contato_id, resultado, obs, criado_em').eq('produto_id', 'solardoc'));
+    if (error) { logger.error(LOG, 'respostaPorVersao', error); return null; }
+    const recebeu: Record<'A' | 'B', Set<string>> = { A: new Set(), B: new Set() };
+    for (const t of linhas) {
+      if (t.resultado !== 'enviei') continue;
+      const m = String(t.obs || '').match(/^worker instagram v=([AB])\b/);
+      if (m) recebeu[m[1] as 'A' | 'B'].add(t.contato_id);
+    }
+    const gente = new Set(linhas
+      .filter(t => ['respondeu', 'interessado', 'vendeu'].includes(t.resultado) && !ehToqueAutomatico(t.obs, t.criado_em))
+      .map(t => t.contato_id));
+    return (['A', 'B'] as const).map(versao => ({
+      versao,
+      recebeu: recebeu[versao].size,
+      responderam: [...recebeu[versao]].filter(id => gente.has(id)).length,
+    }));
+  } catch (err) { logger.error(LOG, 'respostaPorVersao explodiu', err); return null; }
 }
 
 /** Sessões que chegaram na LP vindas da prospecção, e o que fizeram lá. */
@@ -92,18 +150,20 @@ export async function montarFunil(dias = 90): Promise<{ gerado_em: string; funis
 
   const [
     baseAlvo, semSite, recebeu, responderam, interessados, lp, vendasProsp,
-    siteInteresse, siteVendeu,
+    siteInteresse, siteVendeu, versoes,
   ] = await Promise.all([
     contar(supabaseGerador as any, 'prospeccao_contatos', (q: any) => q.in('classe', ['integradora', 'misto'])),
     contar(supabaseGerador as any, 'prospeccao_contatos',
       (q: any) => q.in('classe', ['integradora', 'misto']).or('site.is.null,site.eq.')),
-    contatosCom(['enviei', 'respondeu', 'interessado', 'vendeu', 'sem_interesse', 'nao_perturbar']),
-    contatosCom(['respondeu', 'interessado', 'vendeu']),
-    contatosCom(['interessado', 'vendeu']),
+    // Funil do SolarDoc: só toques de produto_id=solardoc (antes somava eletroposto e limpapro).
+    contatosCom(['enviei', 'respondeu', 'interessado', 'vendeu', 'sem_interesse', 'nao_perturbar'], 'solardoc'),
+    contatosCom(['respondeu', 'interessado', 'vendeu'], 'solardoc', true),
+    contatosCom(['interessado', 'vendeu'], 'solardoc'),
     ladoDaLp(desde),
     contar(supabase as any, 'sales', (q: any) => q.eq('utm_source', UTM_SOURCE).gte('created_at', desde)),
     contatosCom(['interessado', 'vendeu'], 'site'),
     contatosCom(['vendeu'], 'site'),
+    respostaPorVersao(),
   ]);
 
   const solardoc: Funil = {
@@ -112,7 +172,7 @@ export async function montarFunil(dias = 90): Promise<{ gerado_em: string; funis
     etapas: [
       { nome: 'Leads na base',        valor: baseAlvo,            de: 'integradoras e mistas classificadas' },
       { nome: 'Recebeu mensagem',     valor: recebeu,             de: 'contatos com toque registrado' },
-      { nome: 'Respondeu',            valor: responderam,         de: 'respondeu, interessado ou comprou' },
+      { nome: 'Respondeu',            valor: responderam,         de: 'respondeu, interessado ou comprou (resposta automática não conta)' },
       { nome: 'Demonstrou interesse', valor: interessados,        de: 'pediu preço ou pediu pra ver' },
       { nome: 'Clicou no link',       valor: lp ? lp.empresas : null,
         sub: lp ? `${lp.sessoes} aberturas` : undefined, de: 'empresas distintas em page_visits' },
@@ -121,6 +181,7 @@ export async function montarFunil(dias = 90): Promise<{ gerado_em: string; funis
       { nome: 'Comprou',              valor: vendasProsp,         de: 'venda com utm_source=prospeccao' },
     ],
     obs: 'A agente vende sozinha: da primeira mensagem ao checkout, sem consultor no meio.',
+    versoes: versoes ?? undefined,
   };
 
   const site: Funil = {

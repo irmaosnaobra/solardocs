@@ -41,6 +41,7 @@ import {
   GateEstado, GateEtapa, GateAcao, gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta,
   etapaDepois, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS, repetiriaOToque, conviteSeguir,
 } from './igGate';
+import { carimbarEnvioIg } from './igLivro';
 import { classificarFalha } from './igFalha';
 import { classificarHostil } from './igHostil';
 import { responderComIa, conversaAtiva } from './igIa';
@@ -770,7 +771,7 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
         // "me chama no direct" público pra quem provavelmente JÁ recebeu).
         await supabase.from('ig_queue').update({ status: 'incerto', erro: incerto.slice(0, 300) }).eq('id', item.id);
         // Conta no teto anti-ban: pro Instagram, provavelmente saiu mesmo.
-        await supabase.from('system_state').upsert({ key: 'ig_sent:' + item.id, value: '1', updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        await carimbarEnvioIg(item.id);
         await logEvent('incerto', item.id, { tipo: item.tipo, recipient: item.recipient, erro: incerto.slice(0, 300) });
         incertos++;
         // O lembrete continua agendado: ele exige janela de 24h aberta, então só
@@ -782,7 +783,7 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
 
       // message_id é a prova de que a Meta criou a mensagem (200 sozinho não é).
       await supabase.from('ig_queue').update({ status: 'sent', message_id: resp?.message_id || resp?.id || null, resposta: resp || null }).eq('id', item.id);
-      await supabase.from('system_state').upsert({ key: 'ig_sent:' + item.id, value: '1', updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      await carimbarEnvioIg(item.id);
       await logEvent('sent', item.id, { tipo: item.tipo, recipient: item.recipient, message_id: resp?.message_id || null });
       enviados++;
       // Só agora avisa publicamente "olha no direct" — a DM realmente saiu.
