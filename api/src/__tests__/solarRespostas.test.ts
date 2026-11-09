@@ -42,6 +42,10 @@ vi.mock('../utils/supabaseGerador', () => ({
       const q: any = {
         select() { return q; }, in() { return q; }, eq() { return q; },
         not() { return q; }, gte() { return q; },
+        // `carregarTelefonesConsultores` espera a consulta sem `.limit()`.
+        then(ok: any, er: any) {
+          return Promise.resolve({ data: tabela === 'consultores' ? consultores : fichas, error: null }).then(ok, er);
+        },
         limit() {
           return Promise.resolve({ data: tabela === 'consultores' ? consultores : fichas, error: null });
         },
@@ -79,7 +83,7 @@ const envOriginal = { ...process.env };
 beforeEach(() => {
   state.clear(); avisos.length = 0; midias.length = 0; falharMidia = false;
   fichas = [ficha()]; inbound = [msg()];
-  consultores = [{ nome: 'Nilce', whatsapp: '5534991516846' }];
+  consultores = [{ nome: 'Nilce', whatsapp: '5534991516846' }, { nome: 'Giovanna', whatsapp: '5534900000009' }];
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
 afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.resetModules(); });
@@ -89,13 +93,32 @@ async function tick(opts: any = {}) {
 }
 
 describe('pra quem vai o recado', () => {
-  it('vai pro consultor dono da ficha, com cópia pro dono', async () => {
+  it('vai só pra Giovanna e pra Nilce, um envio por pessoa (a Nilce é a dona da ficha: não repete); o Thiago não recebe', async () => {
     const r = await tick();
     expect(r.avisados).toBe(1);
-    expect(avisos.map(a => a.phone)).toEqual(['5534991516846', '5534991360223']);
+    expect(avisos.map(a => a.phone)).toEqual(['5534900000009', '5534991516846']);
+    expect(avisos.map(a => a.phone)).not.toContain('5534991360223');
     expect(avisos[0]!.texto).toContain('Irineu de Almeida');
     expect(avisos[0]!.texto).toContain('480 kWh');
     expect(avisos[0]!.texto).toContain('Nilce');
+  });
+
+  it('ficha de outro consultor (Diego): ele NÃO recebe; só a Giovanna e a Nilce', async () => {
+    consultores.push({ nome: 'Diego', whatsapp: '5534900000002' });
+    fichas = [ficha({ vendedor_nome: 'Diego' })];
+    await tick();
+    expect(avisos.map(a => a.phone)).toEqual(['5534900000009', '5534991516846']);
+  });
+
+  it('ficha da própria Giovanna: um recado só para ela, mais a Nilce', async () => {
+    fichas = [ficha({ vendedor_nome: 'Giovanna' })];
+    await tick();
+    expect(avisos.map(a => a.phone)).toEqual(['5534900000009', '5534991516846']);
+  });
+
+  it('destinatarios(): só os fixos, sem repetir número', async () => {
+    const { destinatarios } = await import('../services/io/solarRespostas');
+    expect(destinatarios(['5534900000009', '5534991516846', '34900000009'])).toEqual(['5534900000009', '5534991516846']);
   });
 
   it('avisa uma vez só', async () => {
@@ -113,8 +136,8 @@ describe('tudo que o cliente manda chega no consultor', () => {
   it('a foto da conta de luz é ENCAMINHADA, não só contada', async () => {
     inbound = [foto()];
     const r = await tick();
-    expect(r.encaminhadas).toBe(2);                       // consultor + dono
-    expect(midias.map(m => m.phone)).toEqual(['5534991516846', '5534991360223']);
+    expect(r.encaminhadas).toBe(2);                       // Nilce (dona) + Giovanna
+    expect(midias.map(m => m.phone)).toEqual(['5534900000009', '5534991516846']);
     expect(midias[0]).toMatchObject({ tipo: 'imagem', url: 'https://z.api/conta-de-luz.jpg' });
     // A legenda diz de quem é: o consultor recebe arquivo de vários clientes no
     // mesmo dia, e foto de conta sem nome não serve pra nada.
@@ -165,7 +188,7 @@ describe('tudo que o cliente manda chega no consultor', () => {
     const { sendWhatsApp } = await import('../services/agents/zapiClient');
     (sendWhatsApp as any).mockImplementationOnce(async () => { throw new Error('fora'); });
     await tick();
-    expect(midias.map(m => m.phone)).toEqual(['5534991360223']);
+    expect(midias.map(m => m.phone)).toEqual(['5534991516846']);
   });
 });
 

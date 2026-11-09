@@ -129,6 +129,9 @@ vi.mock('../services/agents/whatsapp/pixComprovanteService', () => ({
     return { ...u, criadaAgora: true };
   }),
 }));
+// O aviso ao Diego (08/11/2026) tem teste próprio em avisosDeVendaDiego.test.ts; aqui ele é espiado.
+const avisoDiego = vi.hoisted(() => vi.fn(async (_t: string, _o: string) => 'enviado' as const));
+vi.mock('../services/avisoVendaDiego', () => ({ avisarDiegoDaVenda: avisoDiego }));
 vi.mock('../services/dunningService', () => ({ cancelStripeSubsForEmail: vi.fn(async () => 0) }));
 vi.mock('../services/agents/zapiClient', () => ({
   sendWhatsApp: vi.fn(async (_p: string, texto: string) => { H.whats.push(texto); }),
@@ -267,6 +270,7 @@ beforeEach(() => {
   vi.mocked(dispararPurchasePixQuiz).mockClear();
   vi.mocked(sendPurchaseForSale).mockClear();
   vi.mocked(avisarCompra).mockClear();
+  avisoDiego.mockClear();
   vi.mocked(cancelStripeSubsForEmail).mockClear();
   vi.mocked(getOrCreatePixUser).mockClear();
 });
@@ -390,6 +394,9 @@ describe('Pix Automático com cobrança imediata: o pagamento acha o contrato pe
     expect(H.whats[0]).toContain('Conta criada agora');
     expect(H.whats[0]).toContain('NÃO saiu');
     expect(H.whats[0]).not.toContain('TOKEN-SECRETO-123');
+    // o Diego recebe o mesmo aviso, uma vez
+    expect(avisoDiego).toHaveBeenCalledTimes(1);
+    expect(avisoDiego).toHaveBeenCalledWith(H.whats[0], 'pix');
   });
 
   it('(5c) e-mail ok: um aviso só, sem a linha de falha; E2E já usado não manda WhatsApp nenhum', async () => {
@@ -840,6 +847,7 @@ describe('Pix avulso do funil: webhook', () => {
     expect(H.liberacoes).toEqual(['u1']);
     expect(H.vendas).toHaveLength(1);
     expect(H.whats.filter((w) => w.includes('Nova assinatura no Pix (código)'))).toHaveLength(1);
+    expect(avisoDiego).toHaveBeenCalledTimes(1);   // CONFIRMED + RECEIVED do mesmo pagamento: um aviso ao Diego só
     expect(H.whats[0]).toContain('cliente@teste.com');
     expect(estado()).toMatchObject({ status: 'pago', payment_id: 'pay_av' });
     expect(estado().pago_em).toBeTruthy();

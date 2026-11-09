@@ -135,12 +135,17 @@ describe('o eletroposto continua com o roteamento de antes', () => {
     expect(dur({ quando: '2026-10-26T14:15:00-03:00', created_by: 'lp_eletroposto', vendedor_nome: 'Diego' })).toBe(15);
   });
 
-  it('a tabela de destino do eletroposto na recepção e na sentinela segue Thiago e Diego', () => {
-    for (const arq of ['recepcaoIo.ts', 'sentinelaVacuo.ts']) {
-      const src = readFileSync(join(SRC, 'services', 'io', arq), 'utf8');
-      expect(src).toMatch(/eletroposto:\s*\['thiago', 'diego'\]/);
-      expect(src).toMatch(/solar:\s*\['nilce'\]/);
-      expect(src).toMatch(/solardoc:\s*\['thiago'\]/);
-    }
+  it('a tabela de destino da recepção segue Thiago e Diego', () => {
+    const src = readFileSync(join(SRC, 'services', 'io', 'recepcaoIo.ts'), 'utf8');
+    expect(src).toMatch(/eletroposto:\s*\['thiago', 'diego'\]/);
+    expect(src).toMatch(/solar:\s*\['nilce'\]/);
+    expect(src).toMatch(/solardoc:\s*\['thiago'\]/);
+  });
+
+  it('a tabela de destino da sentinela (desde 08/11/2026): Giovanna e Diego no eletroposto, Giovanna no resto', () => {
+    const src = readFileSync(join(SRC, 'services', 'io', 'sentinelaVacuo.ts'), 'utf8');
+    expect(src).toMatch(/eletroposto:\s*\['giovanna', 'diego'\]/);
+    expect(src).toMatch(/solar:\s*\['nilce'\]/);
+    expect(src).toMatch(/solardoc:\s*\['giovanna'\]/);
   });
 });

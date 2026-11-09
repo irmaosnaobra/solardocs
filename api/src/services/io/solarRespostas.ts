@@ -10,11 +10,9 @@
 // pedir (é a mesma lição do eletropostoRespostas.ts, escrita depois do mesmo erro).
 //
 // ── Pra quem vai o recado ──
-// Pro CONSULTOR DONO da ficha, não pra uma lista fixa. Toda ficha de solar já
-// nasce com `vendedor_nome` (rodízio Thiago→Diego→Nilce, ou o dono do telefone),
-// e o WhatsApp sai da tabela `consultores`. O Thiago recebe cópia porque o pedido
-// dele é "sempre nos mantém informado" — e porque, se a ficha estiver sem
-// consultor com número cadastrado, alguém precisa ficar com a bola.
+// Desde 08/11/2026 (ordem do dono) o recado vai SÓ para a Giovanna e a Nilce, seja
+// quem for o dono da ficha. O telefone sai da tabela `consultores` (com a reserva de
+// `telefoneDoConsultor`). Um envio por pessoa, sem repetir número.
 //
 // ── O que ele lê ──
 // `wa_mensagens` (Supabase solardoc-pro): a fila normalizada do webhook da linha,
@@ -43,6 +41,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp, sendImage, sendDocument, sendAudio, sendVideo } from '../agents/zapiClient';
+import { carregarTelefonesConsultores, telefoneDoConsultor } from '../agentes5040/fichaEnvio';
 import { EQUIPE } from '../../routes/ioSolar';
 import { SOLAR_ORIGENS, desligado as boasVindasDesligado } from './solarBoasVindas';
 import { caminhoDaFicha } from '../agenda/solarRota';
@@ -250,27 +249,20 @@ export type ResultadoSolarRespostas = {
 const zero = (motivo?: string): ResultadoSolarRespostas =>
   ({ avisados: 0, encaminhadas: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
-/** nome do consultor → WhatsApp dele. */
-async function carregarConsultores(): Promise<Map<string, string>> {
-  const mapa = new Map<string, string>();
-  try {
-    const { data, error } = await supabaseGerador.from('consultores').select('nome, whatsapp').limit(100);
-    if (error) throw error;
-    for (const c of data ?? []) {
-      if (c?.nome && c?.whatsapp) mapa.set(String(c.nome), String(c.whatsapp));
-    }
-  } catch (err) {
-    logger.error('solar-respostas', 'ler consultores falhou — recado vai só pro dono', err);
-  }
-  return mapa;
+/** Telefones fixos do recado (Giovanna e Nilce), pela tabela `consultores` com a reserva de `telefoneDoConsultor`. */
+async function carregarFixos(): Promise<string[]> {
+  const t = await carregarTelefonesConsultores();
+  if (!t.ok) logger.warn('solar-respostas', `ler a tabela de consultores falhou (${t.codigo}) — Giovanna e Nilce pela reserva`);
+  const mapa = t.ok ? t.mapa : new Map<string, string>();
+  return ['Giovanna', 'Nilce'].map(n => telefoneDoConsultor(mapa, n) || '').filter(Boolean);
 }
 
-/** Consultor dono + o dono da operação, sem repetir número. Nunca devolve vazio:
- *  recado que não tem pra quem ir é resposta perdida. */
-export function destinatarios(consultorTel: string | null | undefined): string[] {
+/** Só Giovanna e Nilce (ordem do dono, 08/11/2026), sem repetir número e sem olhar o dono da ficha. Nunca devolve
+ *  vazio: recado que não tem pra quem ir é resposta perdida (último recurso: o dono da operação). */
+export function destinatarios(fixos: string[] = []): string[] {
   const chave = (t: string) => t.replace(/\D/g, '').replace(/^55/, '').slice(-8);
-  const dono = EQUIPE.thiago;
-  const lista = [String(consultorTel || '').trim(), dono].filter(Boolean);
+  const lista = fixos.map(t => String(t || '').trim()).filter(Boolean);
+  if (!lista.length) lista.push(EQUIPE.thiago);
   const vistos = new Set<string>();
   return lista.filter(t => {
     const k = chave(t);
@@ -377,7 +369,7 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
   }
   if (porFicha.size === 0) return zero('ninguem_respondeu');
 
-  const telPorConsultor = await carregarConsultores();
+  const fixos = await carregarFixos();
 
   // 4) Avisa.
   let avisados = 0, encaminhadas = 0, erros = 0;
@@ -387,7 +379,7 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
     if (avisados >= MAX_AVISOS_POR_TICK) break;
     const ficha = [...porChave.values()].find(f => f.id === id)!;
     const recado = montarRecado(ficha, lista);
-    const para = destinatarios(telPorConsultor.get(String(ficha.vendedor_nome || '')));
+    const para = destinatarios(fixos);
 
     if (opts.dry) {
       previa.push({ id, cliente: String(ficha.cliente_nome || '—'), para, mensagens: lista.length, recado });

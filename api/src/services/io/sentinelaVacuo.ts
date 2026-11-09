@@ -56,17 +56,17 @@ const CONSULTOR: Record<string, { nome: string; phone: string }> = {
   giovanna: { nome: 'Giovanna', phone: '34993396255' },
 };
 
-/** Mesma tabela da recepção: solar é da Nilce (desde 24/10/2026), eletroposto é dos dois donos,
- *  o resto é backoffice do Thiago. Duplicada aqui de propósito — a recepção não
+/** Solar é da Nilce (desde 24/10/2026), eletroposto é da Giovanna e do Diego, o resto
+ *  é backoffice da Giovanna (desde 08/11/2026 o Thiago saiu desta cobrança). Duplicada aqui de propósito — a recepção não
  *  exporta, e fazer ela exportar arrastaria o módulo inteiro pra dentro do cron. */
 const DESTINO: Record<string, string[]> = {
   solar:       ['nilce'],
-  eletroposto: ['thiago', 'diego'],
-  solardoc:    ['thiago'],
-  bike:        ['thiago'],
-  curso:       ['thiago'],
-  cliente:     ['thiago'],
-  outro:       ['thiago'],
+  eletroposto: ['giovanna', 'diego'],
+  solardoc:    ['giovanna'],
+  bike:        ['giovanna'],
+  curso:       ['giovanna'],
+  cliente:     ['giovanna'],
+  outro:       ['giovanna'],
 };
 
 const ROTULO: Record<string, string> = {
@@ -89,7 +89,7 @@ export interface Nivel { n: number; horas: number; sobe: string[] }
 export const NIVEIS: Nivel[] = [
   { n: 1, horas: Number(process.env.VACUO_NIVEL1_H || 3),  sobe: [] },            // o dono do produto
   { n: 2, horas: Number(process.env.VACUO_NIVEL2_H || 8),  sobe: [] },            // o dono de novo
-  { n: 3, horas: Number(process.env.VACUO_NIVEL3_H || 24), sobe: ['thiago'] },    // e agora o Thiago junto
+  { n: 3, horas: Number(process.env.VACUO_NIVEL3_H || 24), sobe: ['giovanna'] },  // e agora a Giovanna junto (dedup por Set se já era dela)
 ];
 
 const JANELA_INICIO_H = Number(process.env.VACUO_INICIO_H || 9);
@@ -167,7 +167,7 @@ const trecho = (t: unknown, max = 90): string => {
  *
  * A ordem importa: a triagem da recepção é a fonte mais confiável (a pessoa
  * acabou de dizer o que quer), depois a ficha do CRM, e por último o default de
- * backoffice. Conversa sem produto NÃO é descartada — vai pro Thiago, porque o
+ * backoffice. Conversa sem produto NÃO é descartada — vai pra Giovanna, porque o
  * problema que este serviço resolve é justamente ninguém ficar sem dono.
  */
 function produtoDe(
@@ -299,9 +299,12 @@ export async function buscarDonosDosCards(telefones: string[]): Promise<Map<stri
 /** Rótulo de produto e donos de uma conversa. Com card ativo, o dono da reunião
  *  vem no lugar do destino do produto; o `sobe` do nível continua somando. */
 function resolverDonos(produto: string, nivel: Nivel, card?: DonoDoCard): { produto: string; donos: string[] } {
-  if (!card) return { produto, donos: [...new Set([...(DESTINO[produto] || ['thiago']), ...nivel.sobe])] };
+  // O Thiago não recebe mais nenhum resumo da sentinela (08/11/2026), nem quando o card é dele: vira Giovanna, e o Set
+  // tira a repetição quando ela já era destino do mesmo card no mesmo ciclo.
+  const semThiago = (ds: string[]): string[] => [...new Set(ds.map(d => (d === 'thiago' ? 'giovanna' : d)))];
+  if (!card) return { produto, donos: semThiago([...(DESTINO[produto] || ['giovanna']), ...nivel.sobe]) };
   const rotulo = produto === 'outro' && card.createdBy.toLowerCase().includes('eletroposto') ? 'eletroposto' : produto;
-  return { produto: rotulo, donos: [...new Set([card.dono, ...nivel.sobe])] };
+  return { produto: rotulo, donos: semThiago([card.dono, ...nivel.sobe]) };
 }
 
 export function montarResumo(dono: string, itens: ConversaParada[]): string {
