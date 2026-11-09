@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import {
   SAUDACOES, APRESENTACOES, PERGUNTAS, saudacoesDaHora, saudacaoDoPeriodo, montarTexto, obsDe, lerObs, chaveDe,
-  combosDaVersao, escolherVersao, chavesUsadas, escolherAbertura, totalDoContentRange, usaAberturaNova,
+  combosDaVersao, escolherVersao, chavesUsadas, escolherAbertura, totalDoContentRange, usaAberturaNova, nomeCurto, nomeCidade,
 } from './abertura.mjs';
 import { relogioBRT } from './ritmo.mjs';
 
@@ -167,6 +167,64 @@ console.log('\nabertura nova só para o SolarDoc no Instagram');
   const w = readFileSync(fileURLToPath(new URL('./worker.mjs', import.meta.url)), 'utf8');
   ok(/if \(!usaAberturaNova\(CANAL, pid\)\) \{\s*\n\s*const msg = montarMensagem\(c, scripts, alegacoes, pid, preco\);\s*\n\s*return msg \? \{ msg, obs: .worker \$\{CANAL\}., obsIncerto: .worker \$\{CANAL\} incerto. \} : null;/.test(w), 'worker.mjs: outro produto cai em montarMensagem com os scripts do banco e o obs simples, como no origin/main');
   ok(w.split('resultado=eq.enviei&produto_id=eq.solardoc').length - 1 === 2, 'worker.mjs: a contagem A/B e os obs do dia só olham toques do produto solardoc');
+}
+
+console.log('\nnome curto da empresa e da cidade (sem slogan do perfil)');
+{
+  const casos = [
+    ['H3 Solar - Excelência em Energia Solar', 'H3 Solar'],
+    ['Imperio Solar® - Energias Renováveis', 'Imperio Solar'],
+    ['Intti | Energia Solar Fotovoltaica para Residência, Empresa, Agronegócio e Usina de Investimento', 'Intti'],
+    ['Energia solar em Goiânia - Solai Brasil Technology', null],
+    ['SolarCorp Energia', 'SolarCorp Energia'],
+    ['Alfa|Energia Solar', 'Alfa'],
+    ['Beta – Energia Limpa', 'Beta'],
+    ['Gama — Solar', 'Gama'],
+    ['Delta · Solar', 'Delta'],
+    ['Épsilon: Energia Solar', 'Épsilon'],
+    ['Zeta / Energia', 'Zeta'],
+    ['Sol Norte Ltda', 'Sol Norte'],
+    ['Sol Norte LTDA ME', 'Sol Norte'],
+    ['Sol Norte Eireli', 'Sol Norte'],
+    ['Sol Norte S/A', 'Sol Norte'],
+    ['Sol Norte S.A.', 'Sol Norte'],
+    ['Sol Norte, Ltda.', 'Sol Norte'],
+    ['Brilho ☀️ Solar ⚡', 'Brilho Solar'],
+    ['Solar™ Max©', 'Solar Max'],
+    ['  Solar   Norte  ', 'Solar Norte'],
+    ['SOLAR NORTE', 'SOLAR NORTE'],
+    ['solar norte', 'solar norte'],
+    ['Energia Solar Fotovoltaica', null],
+    ['Energia Solar Brasil', null],
+    ['Energias Renováveis do Norte', null],
+    ['Sistemas de Energia Solar', null],
+    ['Nome Muito Grande Demais Para Frase', null],
+    ['Uma Duas Tres Quatro Cinco', null],
+    ['Abcdefghij Klmnopqrstuvwx', null],
+    ['Abcdefghij Klmnopqrstuvw', 'Abcdefghij Klmnopqrstuvw'],
+    ['Uma Duas Tres Quatro', 'Uma Duas Tres Quatro'],
+    ['®', null], ['  ', null], ['', null], [null, null], [undefined, null], ['- Só slogan', null],
+  ];
+  for (const [entrada, esperado] of casos) ok(nomeCurto(entrada) === esperado, `nomeCurto(${JSON.stringify(entrada && entrada.length > 45 ? entrada.slice(0, 45) + '...' : entrada)}) = ${JSON.stringify(esperado)}`);
+
+  ok(nomeCidade('Fortaleza - CE') === 'Fortaleza' && nomeCidade('Fortaleza/CE') === 'Fortaleza' && nomeCidade('Fortaleza, CE') === 'Fortaleza' && nomeCidade('Fortaleza – Ceará') === 'Fortaleza', 'cidade: "Fortaleza - CE", "/CE", ", CE" e "– Ceará" viram "Fortaleza"');
+  ok(nomeCidade('Goiânia, Goiás') === 'Goiânia' && nomeCidade('São Paulo (SP)') === 'São Paulo' && nomeCidade('Rio de Janeiro RJ') === 'Rio de Janeiro', 'cidade: estado por extenso, (UF) e UF solta no fim saem');
+  ok(nomeCidade('Sen. Canedo') === 'Sen. Canedo' && nomeCidade('Ji-Paraná') === 'Ji-Paraná' && nomeCidade('São José dos Campos') === 'São José dos Campos', 'cidade: nome com ponto, hífen sem espaço e várias palavras ficam como estão');
+  ok(nomeCidade('') === null && nomeCidade(null) === null && nomeCidade('- CE') === null && nomeCidade('Uma Duas Tres Quatro Cinco Seis') === null, 'cidade vazia, só estado ou comprida demais: null');
+
+  // a frase: usa o nome curto, ou cai na versão SEM nome
+  const t1 = montarTexto({ v: 'A', s: 1, a: 1, p: 3, empresa: 'H3 Solar - Excelência em Energia Solar', cidade: 'Fortaleza - CE' });
+  ok(t1 === 'Oi, aqui é da equipe do SolarDoc. Chutando, quantas horas por mês a H3 Solar gasta com proposta, tempo que podia ir pra fechar mais cliente?', 'a frase da versão A usa "a H3 Solar", sem o slogan');
+  const t2 = montarTexto({ v: 'A', s: 1, a: 1, p: 3, empresa: 'Energia solar em Goiânia - Solai Brasil Technology', cidade: 'Goiânia' });
+  ok(t2 === 'Oi, aqui é da equipe do SolarDoc. Chutando, quantas horas por mês vocês gastam com proposta, tempo que podia ir pra fechar mais cliente?', 'nome genérico: a mensagem usa a versão SEM nome ("vocês")');
+  const t3 = montarTexto({ v: 'B', s: 2, a: 2, p: 1, empresa: 'X', cidade: 'Fortaleza - CE' });
+  ok(t3 === 'Olá, sou da equipe do SolarDoc. Aí em Fortaleza, a proposta de vocês chega ao cliente antes ou depois da do concorrente?', 'a frase da versão B usa "Fortaleza", sem o "- CE"');
+  ok(montarTexto({ v: 'B', s: 2, a: 2, p: 1, empresa: 'X', cidade: '- CE' }) === 'Olá, sou da equipe do SolarDoc. A proposta de vocês chega ao cliente antes ou depois da do concorrente?', 'cidade que sobra vazia: versão SEM cidade');
+  let vaza = 0;
+  for (const e of ['H3 Solar - Excelência em Energia Solar', 'Intti | Energia Solar Fotovoltaica para Residência, Empresa, Agronegócio e Usina de Investimento', 'Imperio Solar® - Energias Renováveis', 'Energia solar em Goiânia - Solai Brasil Technology']) {
+    for (const v of ['A', 'B']) for (const c of combosDaVersao(v, 10)) { const t = montarTexto({ ...c, empresa: e, cidade: 'Fortaleza - CE' }); if (/ - |\||®|Excelência|Fotovoltaica para|Renováveis|- CE/.test(t)) vaza++; }
+  }
+  ok(vaza === 0, 'nenhuma das 4 empresas com slogan, em nenhuma das 96 combinações, vaza slogan, |, ® ou "- CE" para a mensagem');
 }
 
 console.log(`\n${n - falhas}/${n} verificações ok${falhas ? ` · ${falhas} FALHOU` : ''}`);
