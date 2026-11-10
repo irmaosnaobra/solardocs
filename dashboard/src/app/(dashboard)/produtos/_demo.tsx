@@ -34,7 +34,7 @@ export function DemoOffGrid() {
     <div className={styles.demo} aria-label="Demonstração: do aparelho marcado até o preço do kit">
       <div className={styles.demoTopo}>
         <span className={styles.demoPonto} />
-        <span>Kit Off-Grid</span>
+        <span>Venda Off-Grid</span>
       </div>
 
       <div className={styles.demoPalco}>

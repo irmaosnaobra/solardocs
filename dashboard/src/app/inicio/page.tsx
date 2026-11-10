@@ -379,7 +379,7 @@ export default function InicioPage() {
             {paraLiberar.length > 0 && (
               <section className="ini-secao" aria-labelledby="ini-liberar-titulo">
                 <div className="ini-secaoTopo">
-                  <h2 id="ini-liberar-titulo" className="ini-titulo">Para liberar</h2>
+                  <h2 id="ini-liberar-titulo" className="ini-titulo">Para crescer</h2>
                   {mostrarLoja && (
                     <Link
                       id="ini-liberar-ver"

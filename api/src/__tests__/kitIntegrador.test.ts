@@ -798,7 +798,7 @@ describe('processarEventoKit — compra avulsa das ferramentas', () => {
 
     expect(r.ok).toBe(true);
     expect(db.entitlements[0].produto).toBe('inventario');
-    expect(enviadosFerramenta[0].produtoNome).toBe('Inventário da Empresa');
+    expect(enviadosFerramenta[0].produtoNome).toBe('Estoque em Dia');
   });
 
   it('reentrega do mesmo pedido não duplica a posse', async () => {

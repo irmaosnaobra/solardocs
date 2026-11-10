@@ -146,8 +146,8 @@ async function barrarSemAcessoOffGrid(userId: string | undefined, res: Response,
   res.status(402).json({ error: motivo, trancado: true, preco_addon: OFFGRID_ADDON_PRECO, tabela_versao: TABELA_VERSAO, motivo });
   return true;
 }
-const MOTIVO_OFFGRID_GERAR = 'A proposta off-grid faz parte do acesso ao Kit Off-Grid.';
-const MOTIVO_OFFGRID_EDITAR = 'Editar a proposta off-grid faz parte do acesso ao Kit Off-Grid.';
+const MOTIVO_OFFGRID_GERAR = 'A proposta off-grid faz parte do acesso à Venda Off-Grid.';
+const MOTIVO_OFFGRID_EDITAR = 'Editar a proposta off-grid faz parte do acesso à Venda Off-Grid.';
 
 const MAX_ITENS_OFFGRID = 20;
 const MAX_APARELHOS_OFFGRID = 60;

@@ -55,7 +55,7 @@ export async function orcarOffGrid(req: Request, res: Response): Promise<void> {
         trancado: true,
         preco_addon: OFFGRID_ADDON_PRECO,
         tabela_versao: TABELA_VERSAO,
-        motivo: 'O orçamento do kit faz parte do acesso ao Kit Off-Grid.',
+        motivo: 'O orçamento do kit faz parte do acesso à Venda Off-Grid.',
       });
       return;
     }
@@ -134,7 +134,7 @@ export async function criarPedidoOffGrid(req: Request, res: Response): Promise<v
     // pode pular o acesso.
     const acesso = await acessoOffGrid(req.userId);
     if (!acesso.liberado) {
-      throw new ApiError(402, `O pedido de kit faz parte do acesso ao Kit Off-Grid (R$ ${OFFGRID_ADDON_PRECO}).`);
+      throw new ApiError(402, `O pedido de kit faz parte do acesso à Venda Off-Grid (R$ ${OFFGRID_ADDON_PRECO}).`);
     }
 
     const { data: company } = await supabase
