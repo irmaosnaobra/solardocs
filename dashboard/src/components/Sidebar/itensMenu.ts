@@ -87,11 +87,11 @@ export const ITENS_MENU: ItemMenu[] = [
   // ficam aqui, nas posições que tinham na lista de 29/10, e o Kit Off-Grid e o LimpaPro somem
   // (`soBastidor`). O Off-Grid leva `produto` só para ganhar o cadeado: quem não tem cai em
   // /off-grid, a própria ferramenta (ver `hrefVendaDoProduto`).
-  { id: 'off-grid', grupo: 'principal', href: '/off-grid', icon: PlugZap, label: 'Kit Off-Grid', produto: 'offgrid', soBastidor: true, fixoNoLiberar: true },
-  { id: 'inventario', grupo: 'principal', href: '/inventario', icon: Boxes, label: 'Inventário', produto: 'inventario', fixoNoLiberar: true },
+  { id: 'off-grid', grupo: 'principal', href: '/off-grid', icon: PlugZap, label: 'Venda Off-Grid', produto: 'offgrid', soBastidor: true, fixoNoLiberar: true },
+  { id: 'inventario', grupo: 'principal', href: '/inventario', icon: Boxes, label: 'Estoque em Dia', produto: 'inventario', fixoNoLiberar: true },
   { id: 'manutencao', grupo: 'principal', href: '/manutencao', icon: Wrench, label: 'Manutenção' },
   // Também fixos em "Para liberar" (ver o bloco acima).
-  { id: 'kit-fecha-vendas', grupo: 'principal', href: '/cursos/kit-fechamento', icon: GraduationCap, label: 'Kit Fecha Vendas', produto: 'curso-fechamento', fixoNoLiberar: true },
+  { id: 'kit-fecha-vendas', grupo: 'principal', href: '/cursos/kit-fechamento', icon: GraduationCap, label: 'Fecha Vendas', produto: 'curso-fechamento', fixoNoLiberar: true },
   { id: 'limpapro', grupo: 'principal', href: '/lp/limpapro', icon: Sparkles, label: 'LimpaPro', produto: 'curso-limpapro', soBastidor: true, fixoNoLiberar: true },
 
   // A loja fecha o grupo "Para liberar": é "ver todos os que faltam", não uma ferramenta.

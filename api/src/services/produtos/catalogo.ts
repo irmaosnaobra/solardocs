@@ -59,7 +59,7 @@ export interface Produto {
 export const PRODUTOS: Produto[] = [
   {
     id: 'offgrid',
-    nome: 'Dimensionamento Off-Grid',
+    nome: 'Venda Off-Grid',
     tipo: 'ferramenta',
     preco: 97,
     naAssinatura: false,
@@ -93,7 +93,7 @@ export const PRODUTOS: Produto[] = [
   },
   {
     id: 'inventario',
-    nome: 'Inventário da Empresa',
+    nome: 'Estoque em Dia',
     tipo: 'ferramenta',
     preco: 67,
     // Ver a nota da precificação: exclusiva do anual desde 17/08/2026.
@@ -106,7 +106,7 @@ export const PRODUTOS: Produto[] = [
   },
   {
     id: 'curso-fechamento',
-    nome: 'Kit Fecha Vendas',
+    nome: 'Fecha Vendas',
     tipo: 'curso',
     preco: 27,
     naAssinatura: true,

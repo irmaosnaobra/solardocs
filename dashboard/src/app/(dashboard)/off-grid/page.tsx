@@ -383,7 +383,7 @@ export default function OffGridPage() {
         // Sem o acesso: mostra a oferta (não um aviso mudo) e trava o botão até o acesso chegar.
         setAcesso('trancado');
         if (x.response.data?.preco_addon) setPrecoAddon(x.response.data.preco_addon);
-        setOferta(x.response.data?.motivo || x.response.data?.error || 'A proposta off-grid faz parte do acesso ao Off-grid.');
+        setOferta(x.response.data?.motivo || x.response.data?.error || 'A proposta off-grid faz parte do acesso à Venda Off-Grid.');
       } else {
         setMsg({ txt: x.response?.data?.error || 'Não foi possível gerar a proposta.', ok: false });
       }
@@ -467,7 +467,7 @@ export default function OffGridPage() {
     <div className="og-wrap og2-wrap">
       <header className="og2-topo">
         <div>
-          <h1>Off-grid</h1>
+          <h1>Venda Off-Grid</h1>
           <p>Monte o kit e a proposta em 3 passos.</p>
         </div>
         {acesso === 'trancado' && <span className="og2-badge">Teste grátis</span>}

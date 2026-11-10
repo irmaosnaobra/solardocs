@@ -116,8 +116,8 @@ describe('POST /documents/generate: proposta off-grid só com o acesso Off-Grid,
     expect(res.status).toBe(402);
     expect(res.body).toMatchObject({
       trancado: true, preco_addon: 97, tabela_versao: expect.any(String),
-      motivo: 'A proposta off-grid faz parte do acesso ao Kit Off-Grid.',
-      error: 'A proposta off-grid faz parte do acesso ao Kit Off-Grid.',
+      motivo: 'A proposta off-grid faz parte do acesso à Venda Off-Grid.',
+      error: 'A proposta off-grid faz parte do acesso à Venda Off-Grid.',
     });
     expect(h.rpc).not.toHaveBeenCalled();
     expect(generateFromTemplate).not.toHaveBeenCalled();
@@ -275,7 +275,7 @@ describe('POST /documents/:id/regenerate: proposta off-grid', () => {
       h.user = { plano, is_admin: false };
       const res = await post();
       expect(res.status).toBe(402);
-      expect(res.body).toMatchObject({ trancado: true, preco_addon: 97, motivo: 'Editar a proposta off-grid faz parte do acesso ao Kit Off-Grid.' });
+      expect(res.body).toMatchObject({ trancado: true, preco_addon: 97, motivo: 'Editar a proposta off-grid faz parte do acesso à Venda Off-Grid.' });
     }
     expect(h.updates.filter((u) => u.tabela === 'documents')).toHaveLength(0);
     expect(generateFromTemplate).not.toHaveBeenCalled();
@@ -333,8 +333,8 @@ describe('POST /documents/save: a proposta off-grid não passa por aqui sem o ac
     expect(res.status).toBe(402);
     expect(res.body).toMatchObject({
       trancado: true, preco_addon: 97,
-      motivo: 'A proposta off-grid faz parte do acesso ao Kit Off-Grid.',
-      error: 'A proposta off-grid faz parte do acesso ao Kit Off-Grid.',
+      motivo: 'A proposta off-grid faz parte do acesso à Venda Off-Grid.',
+      error: 'A proposta off-grid faz parte do acesso à Venda Off-Grid.',
     });
     expect(h.inserts).toHaveLength(0);
   });

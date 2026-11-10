@@ -273,7 +273,7 @@ function InventarioPageInterna() {
           <div className="inv-hero-l">
             <div className="inv-hero-ic"><Boxes size={22} /></div>
             <div>
-              <h1>Inventário</h1>
+              <h1>Estoque em Dia</h1>
               <p>Controle de patrimônio, ferramentas e estoque da sua empresa</p>
             </div>
           </div>
@@ -300,7 +300,7 @@ function InventarioPageInterna() {
             >
               <GraduationCap size={18} />
               <span className="inv-guia-tit">
-                Como usar o Inventário
+                Como usar o Estoque em Dia
                 <em>{quaseVazio ? 'cinco passos — dá pra começar em um minuto' : 'os cinco passos, se precisar relembrar'}</em>
               </span>
               <ChevronDown size={17} className={tutorialAberto ? 'inv-guia-chev on' : 'inv-guia-chev'} />

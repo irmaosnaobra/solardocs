@@ -528,7 +528,7 @@ export async function sendInventoryLowStockEmail(
   const html = `
 <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
   <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:30px 36px;">
-    <p style="margin:0;color:#0f172a;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro · Inventário</p>
+    <p style="margin:0;color:#0f172a;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro · Estoque em Dia</p>
     <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Hora de repor o estoque</h1>
   </div>
   <div style="padding:32px 36px;">

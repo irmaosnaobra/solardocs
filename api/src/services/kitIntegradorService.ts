@@ -322,9 +322,9 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   // assinatura — é compra separada, e por isso o assinante que compra também
   // recebe (ao contrário do bump de VIP, que colide com plano pago).
   const FERRAMENTAS: Record<string, string> = {
-    offgrid: 'Dimensionamento Off-Grid',
+    offgrid: 'Venda Off-Grid',
     precificacao: 'Precificação Profissional',
-    inventario: 'Inventário da Empresa',
+    inventario: 'Estoque em Dia',
   };
   if (FERRAMENTAS[evt.item]) {
     // Off-grid tem uma regra a mais (o crédito do primeiro pedido de kit), então

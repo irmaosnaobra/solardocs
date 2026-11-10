@@ -388,7 +388,7 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
         {paraLiberar.length > 0 && (
           <>
             <div className={styles.navDivider}>
-              <span className={styles.navDividerLabel}>Para liberar</span>
+              <span className={styles.navDividerLabel}>Para crescer</span>
             </div>
             <div className={styles.navSection}>
               {paraLiberar.map(renderItem)}
