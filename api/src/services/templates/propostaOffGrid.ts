@@ -13,6 +13,10 @@
  * Página 2 — "quanto tempo aguenta sem sol", que é a página que fecha a venda.
  */
 
+import { pBRL, parseBRL } from '../propostaSolarBase';
+import { valorParcelaCartao, valorParcelaFin, FIN_PRAZOS } from '../propostaSolarCalculos';
+import { tempoOffGrid } from './propostaOffGridCompleta';
+
 interface Company {
   nome: string;
   cnpj: string;
@@ -90,6 +94,77 @@ function paleta(hexRaw: string): { c1: string; c2: string; c3: string } {
 }
 
 interface ItemCliente { nome: string; qtd: number; garantia?: number }
+
+// ── Resumo neutro (modo próprio ou formas de pagamento novas) ────────────────
+// Mesma leitura do modelo 2 (propostaOffGridCompleta.ts), para o resumo do WhatsApp e o PDF dizerem a mesma parcela.
+// Copiada aqui porque o modelo 2 não exporta estes helpers.
+const MAX_VALOR_RESUMO = 10_000_000;
+
+/** Valor em reais: número ou texto brasileiro ("78.900,50"). Negativo, zero, NaN ou acima de R$ 10 milhões vira 0. */
+function moedaResumo(v: unknown): number {
+  let x: number;
+  if (typeof v === 'number') x = v;
+  else {
+    const t = String(v ?? '').replace(/[R$\s]/g, '');
+    x = t.includes(',') || /^\d{1,3}(\.\d{3})+$/.test(t) ? parseBRL(t) : parseFloat(t);
+  }
+  return isFinite(x) && x > 0 && x <= MAX_VALOR_RESUMO ? x : 0;
+}
+
+/** Taxa que não é número entre 0 e 100 sai, e o helper cai no padrão (como no modelo 2). */
+function comTaxasSegurasResumo(f: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...f };
+  for (const k of Object.keys(out)) {
+    if (!/^taxa_(cartao|fin)_\d+$/.test(k)) continue;
+    const t = parseFloat(String(out[k] ?? '').replace(',', '.'));
+    if (!(t > 0 && t <= 100)) delete out[k];
+  }
+  return out;
+}
+
+/** Chegou qualquer `pag_*` (ou `preco_avista`): as parcelas saem dos helpers solares, igual ao PDF do modelo 2. */
+function temFormasDePagamento(f: Record<string, unknown>): boolean {
+  return Object.keys(f).some((k) => k.startsWith('pag_') && f[k] !== undefined)
+    || (f.preco_avista !== undefined && f.preco_avista !== null && f.preco_avista !== '');
+}
+
+/** Linhas de pagamento do resumo neutro, com as MESMAS parcelas da folha de pagamento do modelo 2. */
+function linhasPagamentoResumo(f: Record<string, unknown>): string[] {
+  const investimento = moedaResumo(f.investimento);
+  const fPag = comTaxasSegurasResumo(f);
+  const precoAvistaIn = moedaResumo(f.preco_avista);
+  const precoAvista = precoAvistaIn > 0 && precoAvistaIn < investimento ? precoAvistaIn : 0;
+  const cartaoAtivos = Array.from({ length: 21 }, (_, i) => i + 1).filter((k) => f[`pag_cartao_${k}`] === true);
+  const finAtivos = FIN_PRAZOS.filter((k) => f[`pag_fin_${k}`] === true);
+  const cartao = f.pag_cartao !== false && investimento > 0
+    ? cartaoAtivos.map((k) => ({ k, v: valorParcelaCartao(fPag, investimento, k) })).filter((x) => isFinite(x.v) && x.v > 0) : [];
+  const fin = f.pag_fin !== false && investimento > 0
+    ? finAtivos.map((k) => ({ k, v: valorParcelaFin(fPag, investimento, k) })).filter((x) => isFinite(x.v) && x.v > 0) : [];
+  const linhas: string[] = [];
+  if (f.pag_vista !== false && precoAvista > 0) linhas.push(`À vista: ${pBRL(precoAvista)}`);
+  if (cartao.length) linhas.push('Cartão de crédito:', ...cartao.map((x) => `* ${x.k}x de ${pBRL(x.v)}`));
+  if (fin.length) linhas.push('Financiamento:', ...fin.map((x) => `* ${x.k}x de ${pBRL(x.v)}`));
+  // Entrada + saldo: mesmas regras do PDF do modelo 2 (liga, entrada maior que 0 e menor que o preço).
+  const entradaValor = moedaResumo(f.entrada_valor);
+  if (f.pag_entrada === true && investimento > 0 && entradaValor > 0 && entradaValor < investimento) {
+    const modo = String(f.entrada_modo || 'dias');
+    const diasRaw = parseInt(String(f.entrada_dias || '30'), 10);
+    const dias = diasRaw > 0 && diasRaw <= 365 ? diasRaw : 30;
+    const prazo = modo === 'contrato' ? 'na assinatura do contrato'
+      : modo === 'entrega' ? 'na entrega do material'
+      : modo === 'montagem' ? 'na montagem do sistema'
+      : modo === 'liberacao' ? 'na liberação do sistema'
+      : `em ${dias} dia${dias === 1 ? '' : 's'}`;
+    linhas.push(`Entrada de ${pBRL(entradaValor)} e restante de ${pBRL(investimento - entradaValor)} ${prazo}`);
+  }
+  // Condição livre: texto puro (sem tag HTML), espaços normalizados, no máximo 500 caracteres, como no PDF.
+  const livre = String(f.pag_custom || '').replace(/<[^>]*>/g, ' ').replace(/[<>]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (livre) {
+    const texto = livre.length > 500 ? `${livre.slice(0, 500).replace(/\s+\S*$/, '')}…` : livre;
+    linhas.push(`Condição especial: ${texto}`);
+  }
+  return linhas;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -182,7 +257,29 @@ export function propostaOffGrid(
 
   // Resumo pro WhatsApp: os MESMOS números do PDF, no formato que o vendedor
   // cola na conversa. O controller devolve isto como `resumo_whatsapp`.
-  if (out) {
+  const modoProprio = f.modo_equipamento === 'proprio';
+  const pagNovo = temFormasDePagamento(f);
+  if (out && (modoProprio || pagNovo)) {
+    // Neutro: sem marca e sem química de bateria (o integrador pode usar o kit dele), sem travessão. Com formas de
+    // pagamento novas, as parcelas vêm dos helpers (as do PDF); sem elas, os textos prontos de sempre.
+    out.resumo = [
+      `*Sistema off-grid para ${client.nome}*`,
+      ``,
+      `Geração: ${dec(kwp, 2)} kWp (${qtdModulos} módulos)`,
+      `Bateria: ${dec(bancoKwh, 2)} kWh (${dec(bancoUtil, 2)} kWh utilizáveis)`,
+      `Inversor: ${dec(inversorKw, 1)} kW ${inversorSaida}`,
+      ``,
+      // Resumo neutro nunca leva travessão: autonomia zero omite a linha em vez de imprimir "—".
+      autEss > 0 ? `*Aguenta ${tempoOffGrid(autEss)} sem sol nenhum* com o essencial ligado` : '',
+      autTudo > 0 ? `Com a casa inteira: ${tempoOffGrid(autTudo)}` : '',
+      chuvaInfinita ? 'Chovendo o dia todo: o essencial se mantém' : autChuva > 0 ? `Chovendo o dia todo: ${tempoOffGrid(autChuva)}` : '',
+      ``,
+      `Investimento: ${brl(pagNovo ? moedaResumo(f.investimento) : investimento)}`,
+      ...(pagNovo ? linhasPagamentoResumo(f) : [parcelaFin, parcelaCartao]),
+      prazoEntrega ? `Entrega em ${prazoEntrega}` : '',
+      `Proposta válida até ${validade}`,
+    ].filter(Boolean).join('\n');
+  } else if (out) {
     out.resumo = [
       `*Sistema off-grid — ${client.nome}*`,
       ``,

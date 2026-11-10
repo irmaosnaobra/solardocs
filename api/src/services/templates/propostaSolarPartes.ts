@@ -138,14 +138,14 @@ export function dadosContato(company: CompanyProposta, f: Record<string, unknown
 }
 
 /** `clienteDoc` (só o modelo 4): linha CPF/CNPJ logo depois do nome, no mesmo estilo das outras. `html` já vem escapado de quem chama. Ausente, a saída é a de sempre. */
-export function cabecalhoModelo1(a: { logo: string; displayNome: string; hoje: string; clienteNome: string; enderecoCli: string; validadeCurto: string; clienteDoc?: { rotulo: string; html: string } }): string {
+export function cabecalhoModelo1(a: { logo: string; displayNome: string; hoje: string; clienteNome: string; enderecoCli: string; validadeCurto: string; clienteDoc?: { rotulo: string; html: string }; subtitulo?: string; tituloFicha?: string }): string {
   return `<div class="head">
     <div class="brand">
       ${a.logo ? `<img src="${a.logo}" alt="${pEsc(a.displayNome)}"/>` : ''}
-      <div class="mk">${pEsc(a.displayNome || 'Sua Marca')}<small>ENERGIA SOLAR</small></div>
+      <div class="mk">${pEsc(a.displayNome || 'Sua Marca')}<small>${pEsc(a.subtitulo || 'ENERGIA SOLAR')}</small></div>
     </div>
     <div class="ficha">
-      <div class="t">Proposta Comercial</div>
+      <div class="t">${pEsc(a.tituloFicha || 'Proposta Comercial')}</div>
       <div class="rowf"><span>Data</span><span class="num">${a.hoje}</span></div>
       <div class="rowf"><span>Cliente</span><span>${pEsc(a.clienteNome || '—')}</span></div>${a.clienteDoc ? `
       <div class="rowf"><span>${pEsc(a.clienteDoc.rotulo)}</span>${a.clienteDoc.html}</div>` : ''}

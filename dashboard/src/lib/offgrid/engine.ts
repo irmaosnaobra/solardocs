@@ -96,6 +96,41 @@ export interface Aviso {
   texto: string;
 }
 
+/**
+ * O que o dimensionamento EXIGE do kit, sem arredondar: são os valores que
+ * dimensionar() já calculava como locais. Serve pra avaliar um kit que o
+ * integrador trouxe (ver kitProprio.ts) contra a mesma régua do kit do catálogo.
+ * Só leitura: nenhuma conta do motor depende destes campos.
+ */
+export interface RequisitosOffGrid {
+  /** kWh/dia AC, como o motor usa na conta (3 casas). */
+  consumoTotalDiaKwh: number;
+  consumoEssencialDiaKwh: number;
+  /** O que o banco precisa segurar por dia: essencial ou a casa toda. */
+  baseAutonomiaKwhDia: number;
+  diasAutonomia: number;
+  /** W contínuos com simultaneidade + pico momentâneo. */
+  demandaPicoW: number;
+  /** Só a parte contínua (soma × simultaneidade), sem o pico momentâneo. */
+  cargaContinuaW: number;
+  surtoNecessarioW: number;
+  /** W que o inversor precisa entregar: o maior entre a demanda e (contínua + surto/sobrecarga). */
+  inversorRequeridoW: number;
+  /** Sobrecarga de partida que o motor admite no inversor (2x). */
+  sobrecargaInversor: number;
+  hspProjeto: number;
+  hspAnual: number;
+  hspPiorMes: number;
+  prEfetivo: number;
+  fatorRecarga: number;
+  /** kWp mínimo (bruto, antes de arredondar em placas) pra fechar a conta. */
+  kwpBrutoNecessario: number;
+  /** Quantas placas do MÓDULO DO CATÁLOGO (MODULO.wp) o kWp bruto pede. */
+  modulosMinimosCatalogo: number;
+  /** kWh NOMINAIS de banco necessários (já com DoD de projeto e perdas AC→DC). */
+  bancoNecessarioKwh: number;
+}
+
 export interface ResultadoOffGrid {
   // Consumo
   consumoTotalDia: number;      // kWh/dia AC
@@ -158,6 +193,9 @@ export interface ResultadoOffGrid {
   avisos: Aviso[];
   /** kWp por kWh de banco — sanidade contra o que o mercado vende. */
   razaoKwpKwh: number;
+
+  /** Exigências do dimensionamento (aditivo). Ver RequisitosOffGrid. */
+  requisitos?: RequisitosOffGrid;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -620,6 +658,26 @@ export function dimensionar(e: EntradaOffGrid): ResultadoOffGrid {
 
     avisos,
     razaoKwpKwh: round(kwp / Math.max(0.01, bancoNominal)),
+
+    requisitos: {
+      consumoTotalDiaKwh: totalDia,
+      consumoEssencialDiaKwh: essencialDia,
+      baseAutonomiaKwhDia: baseAutonomia,
+      diasAutonomia: e.diasAutonomia,
+      demandaPicoW: demandaPico,
+      cargaContinuaW: cargaContinua,
+      surtoNecessarioW: surtoNecessario,
+      inversorRequeridoW: wRequerido,
+      sobrecargaInversor: CONST.SOBRECARGA_INVERSOR,
+      hspProjeto,
+      hspAnual,
+      hspPiorMes: hspPior,
+      prEfetivo,
+      fatorRecarga,
+      kwpBrutoNecessario: kwpBruto,
+      modulosMinimosCatalogo: modulosMinimo,
+      bancoNecessarioKwh: bancoNecessario,
+    },
   };
 }
 

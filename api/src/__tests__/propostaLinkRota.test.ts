@@ -306,10 +306,45 @@ describe('GET /p/:id com link rastreado', () => {
     expect(h.push).not.toHaveBeenCalled();
   });
 
-  it('proposta off-grid segue sem rastreio', async () => {
+  // Desde a proposta off-grid Completa (modelo 2), a off-grid tem o mesmo link rastreado da solar (modelos 1 e 2).
+  it('proposta off-grid rastreada: serve, grava a abertura e avisa o dono, como a solar', async () => {
     h.doc = doc(rastreada(FUTURO), { tipo: 'propostaOffGrid' });
     const res = await abrir();
+    expect(res.status).toBe(200);
     expect(res.text).toContain('PROPOSTA ORIGINAL');
+    expect(res.headers['cache-control']).toBe('private, no-store');
+    expect(h.eventos).toHaveLength(1);
+    expect(h.eventos[0]).toMatchObject({ user_id: 'user-1', feature: 'proposta_link', event_type: 'aberta' });
+    expect(h.push).toHaveBeenCalledTimes(1);
+  });
+
+  it('proposta off-grid rastreada: robô, dono, recarga em 10 min, HEAD e prefetch não contam', async () => {
+    h.doc = doc(rastreada(FUTURO), { tipo: 'propostaOffGrid' });
+    await abrir({ 'User-Agent': WHATSAPP });
+    await abrir({ Cookie: 'solardoc_token=dono' });
+    await abrir({ 'Sec-Purpose': 'prefetch' });
+    await request(app).head(`/p/${DOC_ID}`).set({ 'User-Agent': IPHONE });
+    expect(h.eventos).toHaveLength(0);
+    h.duplicado = true; // mesmo aparelho na janela de 10 min
+    await abrir();
+    expect(h.eventos).toHaveLength(0);
+    expect(h.push).not.toHaveBeenCalled();
+  });
+
+  it('proposta off-grid vencida mostra a página de vencimento e grava aberta_vencida', async () => {
+    h.doc = doc(rastreada(PASSADO), { tipo: 'propostaOffGrid' });
+    const res = await abrir();
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain('PROPOSTA ORIGINAL');
+    expect(res.text).toContain('Esta proposta venceu em 10/10/2026.');
+    expect(h.eventos[0]).toMatchObject({ feature: 'proposta_link', event_type: 'aberta_vencida' });
+  });
+
+  it('proposta off-grid antiga (sem link_rastreado) segue como sempre: sem evento e sem vencer', async () => {
+    h.doc = doc({ link_expira_em: PASSADO }, { tipo: 'propostaOffGrid' });
+    const res = await abrir();
+    expect(res.text).toContain('PROPOSTA ORIGINAL');
+    expect(res.headers['cache-control']).toBe('public, max-age=60, s-maxage=60');
     expect(h.eventos).toHaveLength(0);
   });
 
