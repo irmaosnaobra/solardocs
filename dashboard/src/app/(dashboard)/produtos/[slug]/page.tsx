@@ -3,24 +3,34 @@
 import { use, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { produtoPorSlug } from '@/lib/produtos';
+import { produtoDaLojaPorSlug } from '@/lib/loja/catalogo';
+import { PAGINAS_DE_VENDA } from '@/lib/loja/paginasVenda';
+import PaginaVenda from './PaginaVenda';
 
 /**
- * ROTA ANTIGA da mini LP. Hoje a página de venda é UMA só: a pública, em
- * `/lp/<slug>` — é ela que o anúncio abre e é pra ela que o cadeado leva.
+ * `/produtos/<slug>`: a página de venda interna dos produtos da loja "Para crescer" (Estoque em Dia, Fecha Vendas e
+ * LimpaPro). O cadeado do menu, o "Ver ..." da loja e o "Veja também" levam para cá.
  *
- * Esta rota continua existindo só pra não quebrar link já mandado (e-mail,
- * WhatsApp, print de conversa). Manda pra LP preservando `?ver=oferta`, que é
- * a prévia usada por quem já tem o produto.
+ * O resto continua como era, para não quebrar link já mandado (e-mail, WhatsApp, print de conversa):
+ * - Venda Off-Grid: a venda mora dentro da própria ferramenta, que é aberta para testar (`/off-grid`).
+ * - Qualquer outro produto do catálogo (Precificação): repassa para `/lp/<slug>`, preservando `?ver=oferta`.
+ * - Slug que não existe: volta para a loja.
  */
-export default function ProdutoRedirect({ params }: { params: Promise<{ slug: string }> }) {
+export default function ProdutoPagina({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const loja = produtoDaLojaPorSlug(slug);
+  const pagina = loja ? PAGINAS_DE_VENDA[loja.id] : undefined;
   const router = useRouter();
   const previa = useSearchParams().get('ver') === 'oferta' ? '?ver=oferta' : '';
-  const existe = !!produtoPorSlug(slug);
+  const destino = pagina ? null
+    : loja ? loja.hrefVer
+    : produtoPorSlug(slug) ? `/lp/${slug}${previa}`
+    : '/produtos';
 
   useEffect(() => {
-    router.replace(existe ? `/lp/${slug}${previa}` : '/produtos');
-  }, [router, slug, previa, existe]);
+    if (destino) router.replace(destino);
+  }, [router, destino]);
 
-  return null;
+  if (!loja || !pagina) return null;
+  return <PaginaVenda produto={loja} pagina={pagina} />;
 }

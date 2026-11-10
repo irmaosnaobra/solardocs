@@ -50,6 +50,11 @@ function descreverErro(status: number, body: unknown): string {
   return `HTTP ${status}`;
 }
 
+/** O path vai para o log: `cpfCnpj=` aparece inteiro na busca de cliente, entao so os 3 primeiros e os 2 ultimos digitos ficam. */
+export function pathParaLog(path: string): string {
+  return path.replace(/(cpfCnpj=)(\d{3})\d+(\d{2})/gi, '$1$2***$3');
+}
+
 export async function asaasFetch<T = unknown>(
   path: string,
   init: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {},
@@ -80,7 +85,7 @@ export async function asaasFetch<T = unknown>(
 
     if (!res.ok) {
       const msg = descreverErro(res.status, json);
-      logger.error('asaas', `${init.method ?? 'GET'} ${path} falhou — ${msg}`, json);
+      logger.error('asaas', `${init.method ?? 'GET'} ${pathParaLog(path)} falhou — ${msg}`, json);
       throw new AsaasError(res.status, msg, json);
     }
     return json as T;

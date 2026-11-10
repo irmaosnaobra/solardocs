@@ -2,7 +2,8 @@
 
 import Image from 'next/image';
 import { Lock, Check } from 'lucide-react';
-import { brl, linkCheckout } from './util';
+import { brl } from './util';
+import VejaTambem from '@/components/Loja/VejaTambem';
 
 /**
  * Página de venda curta do Off-grid. Aparece no passo 3 para quem ainda não tem o acesso (no lugar do antigo cartão
@@ -17,14 +18,16 @@ const FOLHAS = [
 ];
 
 export default function OfertaAddon({
-  preco, email, motivo,
+  preco, motivo, abrir,
 }: {
   preco: number;
-  email: string | null;
   /** Frase do servidor quando veio de um 402 ao gerar. */
   motivo?: string;
+  /** Abre o checkout Pix (CPF, QR e liberação sozinha). O modal mora na página, que não desmonta quando o acesso libera. */
+  abrir: (produto: string) => void;
 }) {
   return (
+    <>
     <section className="og-card og-trancado og2-venda" aria-labelledby="og2-venda-t">
       <div className="og-trancado-selo"><Lock size={13} /> Acesso ao Off-grid</div>
       <h3 id="og2-venda-t">Libere o preço do kit e a proposta pronta</h3>
@@ -62,10 +65,12 @@ export default function OfertaAddon({
         <li><strong>Os {brl(preco)} voltam</strong> como desconto no primeiro kit da casa.</li>
         <li>7 dias de garantia.</li>
       </ul>
-      <a className="og-btn og-btn-primary" href={linkCheckout(email)} target="_blank" rel="noopener noreferrer">
+      <button type="button" className="og-btn og-btn-primary" onClick={() => abrir('offgrid')}>
         <Check size={16} /> Liberar o Off-grid por {brl(preco)}
-      </a>
-      <p className="og-hint og2-centro">Depois de pagar, volte para esta aba: o acesso entra sozinho.</p>
+      </button>
+      <p className="og-hint og2-centro">Pague por Pix sem sair desta tela: o acesso libera sozinho.</p>
     </section>
+    <VejaTambem atual="offgrid" onLiberar={abrir} />
+    </>
   );
 }

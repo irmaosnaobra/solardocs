@@ -21,18 +21,6 @@ export function tempoHumano(dias: number): string {
 }
 
 /**
- * Checkout do add-on. Vem do env porque o produto é criado na Kiwify pelo dono. O e-mail da conta vai junto para o
- * checkout casar a compra com quem está logado.
- */
-const LINK_CHECKOUT_ADDON =
-  process.env.NEXT_PUBLIC_OFFGRID_CHECKOUT_URL || 'https://pay.kiwify.com.br/Je9pKBV';
-
-export function linkCheckout(email: string | null): string {
-  if (!email) return LINK_CHECKOUT_ADDON;
-  return `${LINK_CHECKOUT_ADDON}${LINK_CHECKOUT_ADDON.includes('?') ? '&' : '?'}email=${encodeURIComponent(email)}`;
-}
-
-/**
  * O dinheiro vem do SERVIDOR (POST /offgrid/orcar). O dimensionamento roda no navegador e é aberto para todo mundo; o
  * preço da casa não desce para quem não tem acesso.
  */

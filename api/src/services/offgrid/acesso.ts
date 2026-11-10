@@ -11,7 +11,7 @@
  */
 
 import { supabase } from '../../utils/supabase';
-import { acessos, concederAcesso } from '../produtos/acessos';
+import { acessos, concederAcesso, ErroDeBanco } from '../produtos/acessos';
 
 /** Preço do add-on, em reais. Também usado na tela de oferta. */
 export const OFFGRID_ADDON_PRECO = 97;
@@ -74,18 +74,38 @@ export async function acessoOffGrid(userId: string | undefined): Promise<AcessoO
  * webhook), a data e o crédito continuam os da PRIMEIRA compra — senão uma
  * reentrega renovaria um crédito já usado.
  */
-export async function liberarOffGrid(userId: string, credito = OFFGRID_ADDON_PRECO): Promise<boolean> {
-  const { data: atual } = await supabase
+export async function liberarOffGrid(
+  userId: string,
+  credito = OFFGRID_ADDON_PRECO,
+  /**
+   * `garantirPosse` (compra por Pix no app): quando `offgrid_desde` ja existe mas a posse (entitlement) falta ou
+   * venceu, grava/reativa o entitlement em vez de sair sem fazer nada, e erro de banco vira excecao. Desligado por
+   * padrao: a Kiwify segue como era.
+   */
+  opts: { garantirPosse?: boolean } = {},
+): Promise<boolean> {
+  const { data: atual, error: erroLeitura } = await supabase
     .from('users').select('offgrid_desde').eq('id', userId).single();
-  if (atual?.offgrid_desde) return false;
+  // Nunca regravar o credito de R$ 97 sem ter conseguido ler o estado: sem a leitura, `atual` e null e o codigo
+  // abaixo trataria a conta como "nunca comprou".
+  if (erroLeitura && opts.garantirPosse) throw new ErroDeBanco('users', erroLeitura);
+  if (atual?.offgrid_desde) {
+    if (opts.garantirPosse) {
+      await concederAcesso({ userId, produto: 'offgrid', origem: 'compra', reativarVencido: true, lancarErro: true });
+    }
+    return false;
+  }
 
   // Grava nos dois lugares: o entitlement é a fonte do gate, e a coluna carrega
   // o crédito do primeiro pedido (que é regra só deste produto).
-  await concederAcesso({ userId, produto: 'offgrid', origem: 'compra' });
+  await concederAcesso(opts.garantirPosse
+    ? { userId, produto: 'offgrid', origem: 'compra', reativarVencido: true, lancarErro: true }
+    : { userId, produto: 'offgrid', origem: 'compra' });
   const { error } = await supabase
     .from('users')
     .update({ offgrid_desde: new Date().toISOString(), offgrid_credito: credito })
     .eq('id', userId);
+  if (error && opts.garantirPosse) throw new ErroDeBanco('users', error);
   return !error;
 }
 
