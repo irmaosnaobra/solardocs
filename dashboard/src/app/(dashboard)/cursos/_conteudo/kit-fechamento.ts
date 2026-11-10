@@ -1,12 +1,15 @@
-// Curso 1 — Kit de Fechamento do Integrador.
+// Curso 1 — Fecha Vendas (nome antigo: Kit de Fechamento do Integrador).
 // Declara só MÓDULOS e LIÇÕES: trilha, XP, níveis, conquistas e telas vêm da
 // casca (cursos.config.ts). Ver COMO-ADICIONAR-CURSO.md para criar o próximo.
 
 // Importa da CASCA (curso-tipos), nunca do registro — senão vira ciclo.
 import { XP_POR_TIPO as XP, type Curso, type ModuloCurso, type TipoLicao } from './curso-tipos';
-import { OBJECOES, TOTAL_OBJECOES } from './objecoes';
-import { PROSPECCAO } from './prospeccao';
-import { POS_VENDA } from './posvenda';
+import { OBJECOES, TOTAL_OBJECOES, porExtenso } from './objecoes';
+import { PROSPECCAO, TOTAL_MENSAGENS } from './prospeccao';
+import { POS_VENDA, GARANTIAS } from './posvenda';
+import { ROTEIRO, CINCO_PERGUNTAS } from './roteiro';
+import { ESTRUTURA_CUSTO } from './precificacao';
+import { CHECKLIST_PJ } from './bonus-pj';
 
 // Módulos normais. O bônus entra depois, porque o requisito dele precisa saber
 // quantas lições existem aqui — e esse número tem que sair da conta, não da
@@ -42,7 +45,7 @@ const MODULOS: ModuloCurso[] = [
     licoes: [
       {
         id: 'roteiro:etapas',
-        titulo: 'As 6 etapas da visita',
+        titulo: `As ${ROTEIRO.length} etapas da visita`,
         resumo: 'De qualificar por telefone ao pós-assinatura, com a armadilha de cada etapa',
         minutos: 9,
         xp: XP.leitura,
@@ -50,8 +53,8 @@ const MODULOS: ModuloCurso[] = [
       },
       {
         id: 'roteiro:perguntas',
-        titulo: 'As 5 perguntas para o cliente fazer',
-        resumo: 'A lista que você entrega para ele comparar orçamentos — inclusive o seu',
+        titulo: `As ${CINCO_PERGUNTAS.perguntas.length} perguntas para o cliente fazer`,
+        resumo: 'A lista que você entrega para ele comparar orçamentos, inclusive o seu',
         minutos: 4,
         xp: XP.ferramenta,
         tipo: 'ferramenta',
@@ -71,7 +74,7 @@ const MODULOS: ModuloCurso[] = [
       {
         id: 'preco:custo',
         titulo: 'Para onde vai cada real',
-        resumo: 'As 8 linhas de custo do projeto e a faixa de referência de cada uma',
+        resumo: `As ${ESTRUTURA_CUSTO.length} linhas de custo do projeto e a faixa de referência de cada uma`,
         minutos: 6,
         xp: XP.leitura,
         tipo: 'leitura',
@@ -79,7 +82,7 @@ const MODULOS: ModuloCurso[] = [
       {
         id: 'preco:regras',
         titulo: 'Quatro regras que protegem a margem',
-        resumo: 'O que fazer quando o cliente pede desconto — sem sair do seu bolso',
+        resumo: 'O que fazer quando o cliente pede desconto, sem sair do seu bolso',
         minutos: 5,
         xp: XP.leitura,
         tipo: 'leitura',
@@ -152,8 +155,8 @@ const MODULOS: ModuloCurso[] = [
       },
       {
         id: 'posvenda:garantias',
-        titulo: 'As três garantias, separadas',
-        resumo: 'O que é do fabricante, o que é da assistência e o que é seu — no papel',
+        titulo: `As ${porExtenso(GARANTIAS.itens.length)} garantias, separadas`,
+        resumo: 'O que é do fabricante, o que é da assistência e o que é seu, no papel',
         minutos: 5,
         xp: XP.leitura,
         tipo: 'leitura',
@@ -173,7 +176,7 @@ const BONUS_PJ: ModuloCurso = {
   slug: 'bonus-pj',
   numero: MODULOS.length + 1,
   titulo: 'Bônus: o projeto que vale por três',
-  subtitulo: 'Vender para empresa — ticket maior, mesmo esforço de visita',
+  subtitulo: 'Vender para empresa: ticket maior, mesmo esforço de visita',
   icone: 'TrendingUp',
   cor: '#ffd166',
   bonusXp: 300,
@@ -188,7 +191,7 @@ const BONUS_PJ: ModuloCurso = {
     {
       id: 'empresa',
       label: 'Cadastrar sua empresa',
-      dica: 'CNPJ e logo — é o que assina seus documentos',
+      dica: 'CNPJ e logo: é o que assina seus documentos',
       href: '/empresa',
     },
     {
@@ -208,7 +211,7 @@ const BONUS_PJ: ModuloCurso = {
     {
       id: 'bonus:prospeccao-pj',
       titulo: 'Quem decide e como chegar nele',
-      resumo: 'Achar quem assina antes de gastar a visita — e ler a conta de empresa direito',
+      resumo: 'Achar quem assina antes de gastar a visita, e ler a conta de empresa direito',
       minutos: 9,
       xp: XP.leitura,
       tipo: 'leitura',
@@ -224,7 +227,7 @@ const BONUS_PJ: ModuloCurso = {
     {
       id: 'bonus:checklist-pj',
       titulo: 'Checklist da visita PJ',
-      resumo: 'Os 10 itens que separam a proposta que fecha da que fica "em análise"',
+      resumo: `Os ${CHECKLIST_PJ.length} itens que separam a proposta que fecha da que fica "em análise"`,
       minutos: 5,
       xp: XP.ferramenta,
       tipo: 'ferramenta',
@@ -234,9 +237,21 @@ const BONUS_PJ: ModuloCurso = {
 
 export const KIT_FECHAMENTO: Curso = {
   slug: 'kit-fechamento',
-  nome: 'Kit de Fechamento do Integrador',
-  descricao:
-    'Da primeira mensagem para um lead frio até a indicação depois da obra pronta. Cada lição termina com uma fala pronta que você usa na próxima visita.',
+  nome: 'Fecha Vendas',
+  descricao: 'Respostas prontas para quando o cliente trava a venda.',
   niveis: ['Aprendiz', 'Vendedor', 'Fechador', 'Mestre do Fechamento'],
   modulos: [...MODULOS, BONUS_PJ],
+};
+
+/**
+ * Os números que a tela mostra, todos calculados do conteúdo. Ninguém escreve
+ * "18 lições" ou "32 objeções" à mão: a conta sai daqui.
+ */
+export const CONTAGENS = {
+  /** Lições dos módulos normais (o bônus fica de fora). */
+  licoes: TOTAL_LICOES,
+  modulos: MODULOS.length,
+  licoesBonus: BONUS_PJ.licoes.length,
+  objecoes: TOTAL_OBJECOES,
+  mensagens: TOTAL_MENSAGENS,
 };

@@ -20,8 +20,13 @@ copia CSS.**
    nomes por curso.
 5. **XP por tipo de lição é fixo:** leitura 100 · ferramenta 120 · prática 150.
    Bônus de módulo entre 200 e 250.
-6. **Canvas escuro.** O app é claro; o curso é escuro de propósito — entrar nele é
-   sair da ferramenta e entrar no treinamento.
+6. **Tema claro do app.** O curso usa só os tokens de `globals.css` (desde
+   10/11/2026 não há mais canvas escuro). Cartão branco, laranja da marca, alvo
+   de toque de 44 px, `:focus-visible` em tudo que clica.
+7. **Número de tela sai da conta.** Lições, objeções e mensagens são calculadas do
+   conteúdo (veja `CONTAGENS` em `kit-fechamento.ts`), nunca escritas à mão.
+8. **Lição tem endereço próprio:** `/cursos/<slug>?licao=<modulo:licao>`.
+9. **Texto visível sem travessão** (— ou –): vírgula, ponto ou dois-pontos.
 
 ## Passo a passo
 

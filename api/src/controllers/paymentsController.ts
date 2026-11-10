@@ -1089,8 +1089,8 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
       // ═══════════════════ CURSO DA OFERTA "VIP COM O CURSO JUNTO" ═══════════
       // Só quem veio pela oferta `vip_curso` recebe — o carimbo está no metadata
       // porque vip_curso e o VIP comum compartilham o price, e planByPrice() não
-      // os separa. VIP vindo da LP continua sem o curso (nunca foi prometido a
-      // ele): pra esse, a tela do curso leva à página de venda.
+      // os separa. VIP vindo da LP não ganha o pedido do curso (posse para sempre);
+      // desde 10/11/2026 ele abre o curso enquanto a assinatura estiver ativa.
       //
       // Aditivo e à prova de erro, como os blocos vizinhos: se falhar, o
       // pagamento e o Purchase seguem intactos e o cliente é recuperável pelo log.

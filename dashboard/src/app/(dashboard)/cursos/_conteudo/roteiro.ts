@@ -21,16 +21,16 @@ export const ROTEIRO: PassoRoteiro[] = [
     objetivo:
       'Não gastar meio dia de carro com quem não vai comprar. Visita é o recurso mais caro que você tem.',
     acoes: [
-      'Pergunte o valor médio da conta de luz dos últimos 3 meses (não o do mês passado — conta de verão engana).',
+      'Pergunte o valor médio da conta de luz dos últimos 3 meses (não o do mês passado: conta de verão engana).',
       'Pergunte se o imóvel é próprio e se o titular da conta é quem está falando com você.',
       'Pergunte o tipo de telhado: cerâmica, fibrocimento, metálico ou laje.',
       'Pergunte quando ele pretende instalar: este mês, este semestre ou "só olhando".',
-      'Peça a foto da conta pelo WhatsApp antes da visita — você já chega com o dimensionamento pronto.',
+      'Peça a foto da conta pelo WhatsApp antes da visita. Você já chega com o dimensionamento pronto.',
     ],
     fala:
       'Antes de eu marcar a visita, me manda uma foto da sua conta de luz? Assim eu já chego com o projeto dimensionado em vez de gastar seu tempo tirando medida no escuro.',
     armadilha:
-      'Marcar visita sem ver a conta. Você chega, faz cara de cálculo, promete mandar depois — e perde o momento de maior interesse do cliente, que é enquanto você está lá.',
+      'Marcar visita sem ver a conta. Você chega, faz cara de cálculo, promete mandar depois, e perde o momento de maior interesse do cliente, que é enquanto você está lá.',
   },
   {
     id: 'chegada',
@@ -57,12 +57,12 @@ export const ROTEIRO: PassoRoteiro[] = [
     acoes: [
       'Fotografe: telhado inteiro, estrutura por dentro, padrão de entrada, disjuntor geral e o local do inversor.',
       'Meça a área útil e verifique a orientação (norte é o ideal no Brasil; leste/oeste perde pouco).',
-      'Observe sombreamento em pelo menos dois horários — ou pergunte sobre árvores e prédios vizinhos.',
+      'Observe sombreamento em pelo menos dois horários, ou pergunte sobre árvores e prédios vizinhos.',
       'Cheque o padrão de entrada: monofásico, bifásico ou trifásico. Isso muda o projeto e às vezes exige troca de padrão.',
       'Narre em voz alta o que está vendo, mesmo o que está bom.',
     ],
     fala:
-      'Vou te falando o que estou vendo: a estrutura está boa, a orientação é [direção] — vamos perder uns [X]% em relação ao norte puro, o que já entra no meu cálculo. O padrão de entrada é [tipo] e serve. Vou fotografar tudo e as fotos vão junto da proposta.',
+      'Vou te falando o que estou vendo: a estrutura está boa, a orientação é [direção]. Vamos perder uns [X]% em relação ao norte puro, o que já entra no meu cálculo. O padrão de entrada é [tipo] e serve. Vou fotografar tudo e as fotos vão junto da proposta.',
     armadilha:
       'Fazer a vistoria sozinho e em silêncio. O cliente não vê valor no que não acompanha, e depois compara sua proposta com a de quem nem subiu no telhado.',
   },
@@ -80,7 +80,7 @@ export const ROTEIRO: PassoRoteiro[] = [
       'Entregue impresso. Papel na mão do cliente vale mais que PDF no WhatsApp.',
     ],
     fala:
-      'São três números que importam. Hoje: R$ [A] por mês. Depois: R$ [B] por mês. Retorno: [C] meses. Todo o resto que está aqui — marca, garantia, prazo — serve para sustentar esses três.',
+      'São três números que importam. Hoje: R$ [A] por mês. Depois: R$ [B] por mês. Retorno: [C] meses. Todo o resto que está aqui (marca, garantia, prazo) serve para sustentar esses três.',
     armadilha:
       'Apresentar dez páginas de dados técnicos. Quanto mais complexa a proposta, mais o cliente decide pelo preço, porque é a única coisa que ele consegue comparar.',
   },
@@ -93,7 +93,7 @@ export const ROTEIRO: PassoRoteiro[] = [
       'Pergunte se ficou alguma dúvida antes de falar de pagamento.',
       'Ofereça duas datas de obra em vez de perguntar se ele quer fechar.',
       'Se ele hesitar, use o script "última dúvida" do Módulo 1.',
-      'Se não fechar hoje, saia com data e hora marcadas para a próxima conversa — no calendário, na frente dele.',
+      'Se não fechar hoje, saia com data e hora marcadas para a próxima conversa: no calendário, na frente dele.',
     ],
     fala:
       'Ficou alguma dúvida? [pausa] Então me diz: obra na semana de [data A] ou de [data B]? Eu reservo a agenda e o equipamento com a assinatura, e o pagamento segue o cronograma que combinamos.',
@@ -110,7 +110,7 @@ export const ROTEIRO: PassoRoteiro[] = [
       'Mande no mesmo dia uma mensagem com o cronograma completo, etapa por etapa.',
       'Avise em cada etapa, mesmo quando não houver novidade.',
       'No dia da homologação, mande foto do protocolo.',
-      'Uma semana depois de ligar o sistema, peça o depoimento — é o melhor momento, o cliente está encantado com a primeira conta baixa.',
+      'Uma semana depois de ligar o sistema, peça o depoimento. É o melhor momento, o cliente está encantado com a primeira conta baixa.',
     ],
     fala:
       'Te mandei o cronograma completo. Vou te avisar em cada etapa, mesmo que seja para dizer que está tudo correndo normal. Você não vai precisar me caçar para saber o que está acontecendo.',
@@ -119,15 +119,18 @@ export const ROTEIRO: PassoRoteiro[] = [
   },
 ];
 
+const PERGUNTAS_DO_CLIENTE = [
+  'Qual a marca e a potência dos módulos e do inversor? (marca genérica ou "similar" é sinal de alerta)',
+  'A garantia de instalação está escrita no contrato, com prazo e escopo? Posso ver a cláusula?',
+  'Quem faz o projeto elétrico e a homologação na concessionária, e isso está incluso no preço?',
+  'Qual a geração estimada em kWh por mês e qual o software usado para calcular?',
+  'Me passa o endereço e o contato de dois clientes que vocês instalaram nos últimos seis meses.',
+];
+
+// O número no título sai da lista: se a lista mudar, o título acompanha.
 export const CINCO_PERGUNTAS = {
-  titulo: 'As 5 perguntas para o cliente fazer em todos os orçamentos',
+  titulo: `As ${PERGUNTAS_DO_CLIENTE.length} perguntas para o cliente fazer em todos os orçamentos`,
   intro:
-    'Entregue esta lista ao cliente que quer comparar propostas — inclusive para usar contra a sua. Quem tem proposta honesta ganha com a comparação; quem inflou o orçamento trava na pergunta 2.',
-  perguntas: [
-    'Qual a marca e a potência dos módulos e do inversor? (marca genérica ou "similar" é sinal de alerta)',
-    'A garantia de instalação está escrita no contrato, com prazo e escopo? Posso ver a cláusula?',
-    'Quem faz o projeto elétrico e a homologação na concessionária, e isso está incluso no preço?',
-    'Qual a geração estimada em kWh por mês e qual o software usado para calcular?',
-    'Me passa o endereço e o contato de dois clientes que vocês instalaram nos últimos seis meses.',
-  ],
+    'Entregue esta lista ao cliente que quer comparar propostas, inclusive para usar contra a sua. Quem tem proposta honesta ganha com a comparação; quem inflou o orçamento trava na pergunta 2.',
+  perguntas: PERGUNTAS_DO_CLIENTE,
 };
