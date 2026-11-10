@@ -37,9 +37,10 @@ export const KIT_BUMP_TRIAL_DIAS = 30;
  *                    não trial. Carimba plano_expira_em (ver concederEntrada30Dias).
  *  - `mes_pix`     — "SolarDoc — 1 mês", R$67. É o trilho de Pix da recuperação de
  *                    checkout abandonado (a maioria não tem/não passa cartão).
- *                    MESMO acesso da entrada, SEM o curso: o Kit de Fechamento é
- *                    produto pago à parte, e dar de brinde aqui repetiria o erro
- *                    que a nota do pixRecoveryAgentService já registra. */
+ *                    MESMO acesso da entrada. Desde 10/11/2026 o plano pago abre
+ *                    o Fecha Vendas enquanto vigente (assinaturaAbreCurso), então
+ *                    este mês também abre o curso por 30 dias; o que NÃO acontece é
+ *                    o curso ficar para sempre, como na compra do kit (item 'kit'). */
 export type ItemKit = 'kit' | 'bump_vip' | 'entrada_30d' | 'mes_pix' | 'offgrid' | 'precificacao' | 'inventario';
 
 // ── Identificação do produto ────────────────────────────────────────────────
@@ -401,7 +402,8 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   }
 
   // 3c) MÊS AVULSO no Pix (R$67) — o trilho de quem abandonou o checkout da
-  //     Stripe e não vai pagar no cartão. Mesmo acesso da entrada, SEM o curso.
+  //     Stripe e não vai pagar no cartão. Mesmo acesso da entrada. O curso abre por 30 dias pelo
+  //     plano pago (assinaturaAbreCurso, 10/11/2026), sem pedido do kit.
   //     `bumpAplicado` fica INTOCADO de propósito: este pedido não é order bump
   //     de checkout nenhum, e a coluna alimenta a taxa de attach do kit no /admin.
   //     A idempotência não depende dela — quem carimba é `trial_vip_ate`, abaixo.
@@ -752,9 +754,10 @@ async function concederEntrada30Dias(userId: string, email: string, chave?: Chav
 
 /**
  * Um mês pago de acesso completo. `comCurso` é a ÚNICA diferença entre a entrada
- * de R$19 (que vende o curso junto) e o mês avulso de R$67 do Pix — e é uma
- * diferença de produto, não de implementação: liberar o curso no mês avulso daria
- * de graça o que o Kit de Fechamento cobra.
+ * de R$19 (que vende o curso junto, para sempre, via pedido do kit) e o mês avulso
+ * de R$67 do Pix (sem pedido do kit). Desde 10/11/2026 o mês avulso TAMBÉM abre o
+ * Fecha Vendas enquanto durar, porque o plano é pago (assinaturaAbreCurso); o que
+ * `comCurso` decide é só se a posse do curso fica depois dos 30 dias.
  */
 async function concederMesPago(
   userId: string,

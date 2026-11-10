@@ -91,7 +91,7 @@ export default function Avaliacao({
           <strong>Obrigado pela avaliação!</strong>
           <span>
             {autoriza
-              ? 'Seu comentário pode aparecer na nossa página — a gente revisa antes de publicar.'
+              ? 'Seu comentário pode aparecer na nossa página. A gente revisa antes de publicar.'
               : 'Sua nota fica só com a gente e ajuda a melhorar o material.'}
           </span>
         </div>

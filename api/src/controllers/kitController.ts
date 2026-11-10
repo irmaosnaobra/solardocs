@@ -2,79 +2,88 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { acessoDoUsuario } from '../services/kitIntegradorService';
+import { assinaturaAbreCurso } from '../services/produtos/acessos';
 
-// Kit de Fechamento do Integrador — leitura do acesso e progresso do comprador.
+// Fecha Vendas (antes Kit de Fechamento do Integrador) — leitura do acesso e progresso do comprador.
 // A aba /materiais do dashboard consome estes dois endpoints.
+
+type AcessoDoCurso = {
+  user: { email: string; plano: string | null; pack_trial_until: string | null };
+  acesso: Awaited<ReturnType<typeof acessoDoUsuario>>;
+  liberado: boolean;
+  motivoAcesso: 'compra' | 'assinatura' | 'vitalicio' | null;
+};
+
+/**
+ * Quem pode abrir o Fecha Vendas, decidido AQUI e não na tela. UMA checagem só: o `GET /kit/meu-acesso` e o
+ * `POST /kit/progresso` usam esta mesma função. Devolve null se a conta não existe.
+ *
+ * ASSINATURA PAGA LIBERA DE NOVO (10/11/2026). Em 30/07/2026 (commits c8ef92a6 e 61797094) o curso virou
+ * produto à parte e a assinatura deixou de abrir. Por que travou: decisão comercial (vender o curso avulso) e
+ * um furo, o 7 dias grátis da Stripe: cancelar no dia 6 e sair com o curso. A decisão comercial mudou: o menu
+ * e a página de venda dizem que o curso vem em qualquer assinatura paga, e o curso dizia o contrário, trancando
+ * quem assina. O furo do trial CONTINUA fechado: só abre a assinatura paga e ATIVA (plano diferente de free,
+ * dentro da validade, billing_status fora de trialing/suspended/unpaid/canceled), a MESMA função do menu
+ * (acessos.ts). Cancelada (suspended) ou vencida volta a trancar; a compra avulsa não depende dela.
+ *
+ * 1. COMPRA (itens.length > 0): vale pra sempre. Inclui quem levou só o order bump: ele fica 'ilimitado' por
+ *    30 dias e temKit=false, então um gate por plano tiraria o curso dele no dia 31 depois de ter pago.
+ * 2. ASSINATURA PAGA E ATIVA: enquanto vigente.
+ * 3. VITALÍCIO: o grandfather da virada de 30/07. Segue valendo. Se a migration (curso_vitalicio) ainda NÃO
+ *    rodou, o Postgres devolve 42703 e a coluna é ignorada: deploy antes da migration não machuca.
+ *
+ * kit_progresso NÃO libera nada. Foi tentador usar "já tem progresso" como prova de que a pessoa estudava,
+ * mas qualquer usuário logado gravaria uma linha e se daria o curso de graça. Quem estudava de verdade foi
+ * carimbado pelo backfill B da migration, uma foto do passado que ninguém consegue forjar depois.
+ */
+async function acessoDoCurso(userId: string): Promise<AcessoDoCurso | null> {
+  const COLUNAS = 'email, plano, pack_trial_until, curso_vitalicio, plano_expira_em, billing_status';
+  let { data: user, error: eUser } = await supabase
+    .from('users').select(COLUNAS).eq('id', userId).maybeSingle();
+  const semColuna = !!eUser && (eUser.code === '42703' || /curso_vitalicio/.test(eUser.message || ''));
+  if (semColuna) {
+    ({ data: user } = await supabase
+      .from('users').select('email, plano, pack_trial_until, plano_expira_em, billing_status').eq('id', userId).maybeSingle());
+  } else if (eUser) {
+    throw eUser;
+  }
+  if (!user) return null;
+
+  const acesso = await acessoDoUsuario(userId, user.email);
+  const comprou = acesso.itens.length > 0;
+  const vitalicio = (user as { curso_vitalicio?: boolean }).curso_vitalicio === true;
+  const assinando = assinaturaAbreCurso(user as {
+    plano?: string | null; plano_expira_em?: string | null; billing_status?: string | null;
+  });
+  return {
+    user, acesso,
+    liberado: comprou || assinando || vitalicio,
+    motivoAcesso: comprou ? 'compra' : assinando ? 'assinatura' : vitalicio ? 'vitalicio' : null,
+  };
+}
 
 // GET /kit/meu-acesso — o que este usuário comprou e o que já consumiu.
 export async function meuAcesso(req: Request, res: Response): Promise<void> {
   try {
-    // `curso_vitalicio` (MIGRATION_curso_vitalicio.sql) é o grandfather de quem
-    // já tinha o curso pelo plano. Se a migration ainda NÃO rodou, o Postgres
-    // devolve 42703 (coluna inexistente) — aí caímos no comportamento antigo em
-    // vez de trancar a base inteira. Deploy antes da migration não machuca: o
-    // curso simplesmente continua liberado pra assinante até o SQL rodar.
-    const COLUNAS = 'email, plano, pack_trial_until, curso_vitalicio';
-    let { data: user, error: eUser } = await supabase
-      .from('users').select(COLUNAS).eq('id', req.userId).maybeSingle();
-    const semColuna = !!eUser && (eUser.code === '42703' || /curso_vitalicio/.test(eUser.message || ''));
-    if (semColuna) {
-      ({ data: user } = await supabase
-        .from('users').select('email, plano, pack_trial_until').eq('id', req.userId).maybeSingle());
-    } else if (eUser) {
-      throw eUser;
-    }
-
-    if (!user) {
+    const r = await acessoDoCurso(req.userId);
+    if (!r) {
       res.status(404).json({ error: 'Usuário não encontrado' });
       return;
     }
-
-    const acesso = await acessoDoUsuario(req.userId, user.email);
 
     const { data: prog } = await supabase
       .from('kit_progresso')
       .select('modulo, concluido_em')
       .eq('user_id', req.userId);
 
-    // Quem pode abrir o curso — decidido AQUI, não na tela.
-    //
-    // ASSINATURA NÃO LIBERA MAIS (30/07/2026): o curso virou produto à parte,
-    // quem quiser compra. A campanha "o curso entra junto no VIP" foi removida
-    // junto — não sobrou promessa de inclusão em nenhuma tela.
-    //
-    // 1. COMPRA (itens.length > 0): vale pra sempre. Inclui quem levou só o
-    //    order bump: ele fica 'ilimitado' por 30 dias e temKit=false, então um
-    //    gate por plano tiraria o curso dele no dia 31 depois de ter pago.
-    // 2. VITALÍCIO: o grandfather da virada. A migration carimbou quem tinha o
-    //    curso naquele dia — assinante pagante e quem já estava estudando —
-    //    inclusive quem assinou POR CAUSA da campanha antiga. Tirar deles seria
-    //    quebrar promessa já paga. Quem está nos 7 dias grátis NÃO entrou.
-    // 3. LEGADO: a migration ainda não rodou — mantém a regra antiga em vez de
-    //    trancar todo mundo. Some sozinho quando o SQL subir.
-    //
-    // kit_progresso NÃO libera nada. Foi tentador usar "já tem progresso" como
-    // prova de que a pessoa estudava, mas POST /kit/progresso não checa acesso:
-    // qualquer usuário logado gravaria uma linha e se daria o curso de graça.
-    // Quem estudava de verdade foi carimbado pelo backfill B da migration — uma
-    // foto do passado, que ninguém consegue forjar depois.
-    //
     // A tela continua desenhando o cadeado, mas quem decide é o servidor: assim a
     // regra muda num lugar só e não depende de o front estar atualizado.
-    const comprou = acesso.itens.length > 0;
-    const vitalicio = (user as { curso_vitalicio?: boolean }).curso_vitalicio === true;
-    const legado = semColuna && (user.plano === 'pro' || user.plano === 'ilimitado');
-    const liberado = comprou || vitalicio || legado;
-
     res.json({
-      ...acesso,
-      liberado,
-      motivoAcesso: comprou ? 'compra'
-        : vitalicio ? 'vitalicio'
-        : legado ? 'legado'
-        : null,
-      plano: user.plano,
-      packTrialUntil: user.pack_trial_until,
+      ...r.acesso,
+      liberado: r.liberado,
+      motivoAcesso: r.motivoAcesso,
+      plano: r.user.plano,
+      packTrialUntil: r.user.pack_trial_until,
       progresso: (prog || []).map((p: { modulo: string }) => p.modulo),
     });
   } catch (err) {
@@ -230,19 +239,30 @@ export async function marcarProgresso(req: Request, res: Response): Promise<void
     }
     const { modulo, concluido = true } = parsed.data;
 
-    if (concluido) {
-      await supabase
+    // Sem acesso ao curso não grava nem apaga progresso: antes qualquer usuário logado escrevia aqui.
+    const r = await acessoDoCurso(req.userId);
+    if (!r?.liberado) {
+      res.status(403).json({ error: 'Sem acesso ao curso' });
+      return;
+    }
+
+    const { error } = concluido
+      ? await supabase
         .from('kit_progresso')
-        .upsert({ user_id: req.userId, modulo }, { onConflict: 'user_id,modulo' });
-    } else {
-      await supabase.from('kit_progresso').delete().eq('user_id', req.userId).eq('modulo', modulo);
+        .upsert({ user_id: req.userId, modulo }, { onConflict: 'user_id,modulo' })
+      : await supabase.from('kit_progresso').delete().eq('user_id', req.userId).eq('modulo', modulo);
+
+    if (error) {
+      // Antes devolvia 204 mesmo com erro e a tela fingia que salvou. Agora o erro chega à tela.
+      console.error('marcarProgresso error:', error);
+      res.status(500).json({ error: 'Não deu para salvar o progresso' });
+      return;
     }
 
     res.status(204).end();
   } catch (err) {
-    // Progresso é conveniência: nunca derruba a leitura do material.
     console.error('marcarProgresso error:', err);
-    res.status(204).end();
+    res.status(500).json({ error: 'Não deu para salvar o progresso' });
   }
 }
 

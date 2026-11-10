@@ -12,51 +12,51 @@ export const ESTRUTURA_CUSTO: LinhaCusto[] = [
   {
     item: 'Kit (módulos + inversor)',
     descricao: 'Equipamento principal, cotado com o distribuidor.',
-    faixa: '50–60%',
+    faixa: '50 a 60%',
     atencao:
       'Trave a cotação por escrito com validade em dias. Câmbio e frete mudam e comem margem entre a proposta e a compra.',
   },
   {
     item: 'Estrutura de fixação',
     descricao: 'Perfis, ganchos, parafusos e acessórios conforme o tipo de telhado.',
-    faixa: '4–8%',
+    faixa: '4 a 8%',
     atencao: 'Telha de fibrocimento e metálica usam kits diferentes. Orçar errado aqui é prejuízo certo.',
   },
   {
     item: 'Material elétrico (CA/CC)',
     descricao: 'Cabos, conectores, string box, disjuntores, DPS, aterramento e eletrodutos.',
-    faixa: '5–10%',
+    faixa: '5 a 10%',
     atencao: 'A distância entre o telhado e o quadro é o que mais varia. Meça na vistoria, não estime.',
   },
   {
     item: 'Mão de obra de instalação',
     descricao: 'Equipe, dias de obra, andaime/plataforma quando necessário.',
-    faixa: '8–15%',
+    faixa: '8 a 15%',
     atencao: 'Calcule por dia de equipe, não por kWp. Telhado alto, íngreme ou com acesso difícil custa mais.',
   },
   {
     item: 'Projeto e homologação',
     descricao: 'ART do responsável técnico, projeto elétrico, protocolo e acompanhamento na distribuidora.',
-    faixa: '3–6%',
+    faixa: '3 a 6%',
     atencao: 'Inclua o retrabalho: parecer com exigência é rotina, não exceção.',
   },
   {
     item: 'Deslocamento e logística',
     descricao: 'Frete do kit, combustível, pedágio, hospedagem em obra fora da cidade.',
-    faixa: '2–5%',
+    faixa: '2 a 5%',
     atencao: 'Obra a mais de 100 km precisa de linha própria no orçamento, senão sai do seu bolso.',
   },
   {
     item: 'Impostos e taxa de cartão/financiamento',
     descricao: 'Regime tributário da sua empresa e custo do meio de pagamento.',
-    faixa: '6–12%',
+    faixa: '6 a 12%',
     atencao:
-      'Se o cliente parcela no cartão, a taxa sai da sua margem — coloque na conta antes de dar desconto.',
+      'Se o cliente parcela no cartão, a taxa sai da sua margem: coloque na conta antes de dar desconto.',
   },
   {
     item: 'Margem líquida',
     descricao: 'O que sobra para a empresa depois de tudo acima.',
-    faixa: '12–25%',
+    faixa: '12 a 25%',
     atencao:
       'Abaixo de 12% você está trabalhando para o distribuidor. Uma obra com problema apaga a margem de três.',
   },
@@ -66,7 +66,7 @@ export const REGRAS_DE_MARGEM = [
   {
     titulo: 'Nunca dê desconto sem tirar escopo',
     texto:
-      'Desconto puro sai inteiro da sua margem. Se precisar baixar o preço, tire algo junto: reduza a potência, mude a marca do inversor, retire o seguro do primeiro ano. O cliente entende trocar preço por escopo; o que ele não esquece é ter conseguido desconto — e vai pedir de novo na próxima.',
+      'Desconto puro sai inteiro da sua margem. Se precisar baixar o preço, tire algo junto: reduza a potência, mude a marca do inversor, retire o seguro do primeiro ano. O cliente entende trocar preço por escopo; o que ele não esquece é ter conseguido desconto, e vai pedir de novo na próxima.',
   },
   {
     titulo: 'Reajuste o orçamento por distância, não por simpatia',

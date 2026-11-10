@@ -25,7 +25,7 @@ export const PJ_PROSPECCAO: PassoPJ[] = [
       'Em comércio pequeno e médio: o dono decide, e ele costuma estar no balcão em algum horário do dia. Pergunte qual.',
       'Em empresa com sócios: quem decide é quem cuida do financeiro, não quem cuida da operação.',
       'Em indústria ou rede: existe processo de compra. Peça para falar com quem aprova investimento (CAPEX), não com manutenção.',
-      'Anote o nome de quem te atendeu — ele vira sua ponte, não seu obstáculo.',
+      'Anote o nome de quem te atendeu: ele vira sua ponte, não seu obstáculo.',
     ],
     fala:
       'Bom dia! Eu trabalho com energia solar para empresas aqui em [cidade]. Não quero tomar seu tempo: quem é a pessoa que olha os custos fixos daqui? É com ela que eu preciso falar cinco minutos.',
@@ -41,7 +41,7 @@ export const PJ_PROSPECCAO: PassoPJ[] = [
     acoes: [
       'Peça 12 meses de conta, não uma. Empresa tem sazonalidade forte.',
       'Identifique o grupo tarifário: baixa tensão (B) ou alta tensão (A) muda o projeto e a economia.',
-      'Em grupo A, veja demanda contratada e consumo em ponta — o solar não resolve demanda, e prometer isso é enganar o cliente.',
+      'Em grupo A, veja demanda contratada e consumo em ponta. O solar não resolve demanda, e prometer isso é enganar o cliente.',
       'Pergunte se há expansão prevista: máquina nova, turno extra, galpão a mais. Sistema subdimensionado vira reclamação em um ano.',
     ],
     fala:
@@ -52,18 +52,18 @@ export const PJ_PROSPECCAO: PassoPJ[] = [
   {
     id: 'proposta-empresario',
     fase: 'Apresentação',
-    titulo: 'Empresário não compra economia — compra retorno',
+    titulo: 'Empresário não compra economia, compra retorno',
     texto:
       'Para o dono da casa, o argumento é a conta que sobe todo ano. Para o dono da empresa, é comparação de investimento: onde mais ele colocaria esse dinheiro e com que retorno.',
     acoes: [
-      'Mostre o payback em meses e o que acontece depois dele — os anos de energia que ele não paga são o lucro do investimento.',
+      'Mostre o payback em meses e o que acontece depois dele: os anos de energia que ele não paga são o lucro do investimento.',
       'Traduza a economia mensal em algo da operação dele: "isso paga um funcionário", "isso é o aluguel de meio galpão".',
       'Fale do custo fixo: energia é uma das três maiores despesas fixas de comércio, e a única que dá para converter em ativo.',
-      'Se a empresa é PJ com apuração no lucro real, mencione depreciação — e mande ele confirmar com o contador dele, não invente número tributário.',
+      'Se a empresa é PJ com apuração no lucro real, mencione depreciação, e mande ele confirmar com o contador dele, não invente número tributário.',
       'Leve a proposta impressa E gere o contrato na hora se ele decidir. Empresário decide rápido quando o documento já está pronto.',
     ],
     fala:
-      'Sua conta hoje é R$ [valor] por mês, R$ [ano] por ano — dinheiro que sai e não vira nada. O sistema custa R$ [preço] e se paga em [X] meses. Do mês [X+1] em diante, esse valor deixa de ser despesa. É o único custo fixo do seu negócio que você consegue transformar em patrimônio.',
+      'Sua conta hoje é R$ [valor] por mês, R$ [ano] por ano: dinheiro que sai e não vira nada. O sistema custa R$ [preço] e se paga em [X] meses. Do mês [X+1] em diante, esse valor deixa de ser despesa. É o único custo fixo do seu negócio que você consegue transformar em patrimônio.',
     armadilha:
       'Apresentar TIR e VPL para quem não pediu. Se ele for de números, ele pede; se não for, você complicou uma conta que era simples.',
   },
@@ -75,9 +75,9 @@ export const PJ_PROSPECCAO: PassoPJ[] = [
       'Venda PJ trava por burocracia, não por preço. Quem chega com contrato pronto, dados corretos e cronograma escrito fecha enquanto o concorrente ainda está "montando a documentação".',
     acoes: [
       'Confirme razão social, CNPJ e quem assina pela empresa antes de gerar o documento.',
-      'Gere o contrato aqui na plataforma com os dados da SUA empresa e os dele — em minutos, não em dias.',
+      'Gere o contrato aqui na plataforma com os dados da SUA empresa e os dele, em minutos, não em dias.',
       'Deixe explícito no contrato: prazo de obra, condição de pagamento, escopo de instalação e garantia.',
-      'Combine a data da obra na mesma conversa. Empresa tem operação para não parar — data marcada é o que destrava.',
+      'Combine a data da obra na mesma conversa. Empresa tem operação para não parar: data marcada é o que destrava.',
     ],
     fala:
       'Se estiver certo para você, eu já gero o contrato agora com os dados da [empresa] e a gente marca a obra para a semana de [data]. Precisa só do CNPJ e de quem assina.',

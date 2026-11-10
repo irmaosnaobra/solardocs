@@ -3,11 +3,12 @@
 // Renderiza o conteúdo de UMA lição a partir do id ('modulo:licao').
 // O texto vem dos arquivos de _conteudo — este componente só decide o formato.
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Building2, Calculator } from 'lucide-react';
 import styles from '../curso.module.css';
-import { OBJECOES } from '../_conteudo/objecoes';
+import { OBJECOES, porExtenso } from '../_conteudo/objecoes';
+import Destaque from './Destaque';
+import ObjecaoCartao from './ObjecaoCartao';
 import { ROTEIRO, CINCO_PERGUNTAS } from '../_conteudo/roteiro';
 import { ESTRUTURA_CUSTO, REGRAS_DE_MARGEM, CHECKLIST_ORCAMENTO } from '../_conteudo/precificacao';
 import { PROSPECCAO } from '../_conteudo/prospeccao';
@@ -23,15 +24,9 @@ export default function ConteudoLicao({ id }: { id: string }) {
     return (
       <div className={styles.leitura}>
         <p className={styles.intro}>{grupo.descricao}</p>
-        {grupo.itens.map((o, i) => (
-          <article key={o.id} className={styles.cardConteudo}>
-            <span className={styles.contador}>{i + 1} de {grupo.itens.length}</span>
-            <p className={styles.gatilho}>&ldquo;{o.gatilho}&rdquo;</p>
-            <Bloco rotulo="O que ele quer dizer" texto={o.traducao} />
-            <Bloco rotulo="Erro comum" texto={o.erro} tom="erro" />
-            <Destaque rotulo="Fala pronta" texto={o.script} copiar />
-            <Destaque rotulo="No WhatsApp" texto={o.whatsapp} tom="zap" copiar />
-          </article>
+        <p className={styles.contador}>{grupo.itens.length} {grupo.itens.length === 1 ? 'objeção' : 'objeções'}. Toque na frase do cliente para abrir a resposta.</p>
+        {grupo.itens.map((o) => (
+          <ObjecaoCartao key={o.id} o={o} comErro />
         ))}
       </div>
     );
@@ -41,7 +36,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
     return (
       <div className={styles.leitura}>
         <p className={styles.intro}>
-          Seis etapas, na ordem. Em cada uma: o objetivo, o que fazer, a fala pronta e a armadilha que
+          {porExtenso(ROTEIRO.length, true)} etapas, na ordem. Em cada uma: o objetivo, o que fazer, a fala pronta e a armadilha que
           mata a venda naquele ponto.
         </p>
         {ROTEIRO.map((p, i) => (
@@ -113,7 +108,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
     return (
       <div className={styles.leitura}>
         <p className={styles.intro}>
-          Quatro decisões que separam quem termina o mês com margem de quem termina com cliente satisfeito
+          {porExtenso(REGRAS_DE_MARGEM.length, true)} decisões que separam quem termina o mês com margem de quem termina com cliente satisfeito
           e caixa no vermelho.
         </p>
         {REGRAS_DE_MARGEM.map((r) => (
@@ -134,7 +129,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
           <h3 className={styles.missaoTitulo}>Refaça o seu último orçamento na calculadora</h3>
           <p className={styles.texto}>
             Pegue o orçamento que você mandou por último e lance os custos na calculadora da plataforma.
-            Ela devolve o preço de venda já com imposto, taxa de pagamento, comissão e a sua margem — e
+            Ela devolve o preço de venda já com imposto, taxa de pagamento, comissão e a sua margem, e
             mostra quanto sobrou de verdade naquele projeto.
           </p>
           <Link href="/precificacao" className={styles.missaoCta}>
@@ -156,7 +151,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
       {
         href: '/documentos?tipo=contrato-solar',
         titulo: 'Contrato de instalação',
-        texto: 'Escopo, prazo, pagamento e a cláusula de garantia de instalação — a que responde "e se sua empresa fechar".',
+        texto: 'Escopo, prazo, pagamento e a cláusula de garantia de instalação, a que responde "e se sua empresa fechar".',
       },
       {
         href: '/documentos?tipo=procuracao',
@@ -166,7 +161,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
       {
         href: '/vistoria',
         titulo: 'Termo de vistoria',
-        texto: 'Registra o estado do telhado antes da obra — é o que te protege quando aparece goteira depois.',
+        texto: 'Registra o estado do telhado antes da obra. É o que te protege quando aparece goteira depois.',
       },
     ];
     return (
@@ -176,7 +171,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
           <h3 className={styles.missaoTitulo}>Emita um documento com a sua marca hoje</h3>
           <p className={styles.texto}>
             Esta é a única lição que você não termina lendo. Cadastre o CNPJ e a logo da sua empresa e gere
-            um dos três documentos abaixo — em 10 minutos você tem na mão o que o cliente assina.
+            um dos {porExtenso(docs.length)} documentos abaixo. Em 10 minutos você tem na mão o que o cliente assina.
           </p>
           <Link href="/empresa" className={styles.missaoCta}>
             <Building2 size={16} /> Cadastrar minha empresa
@@ -206,7 +201,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
             <span className={styles.contador}>{i + 1} de {bloco.mensagens.length}</span>
             <h3 className={styles.etapaTitulo}>{m.situacao}</h3>
             <Bloco rotulo="Quando usar" texto={m.quando} />
-            <Destaque rotulo="Mensagem" texto={m.texto} copiar />
+            <Destaque rotulo="Mensagem" texto={m.texto} tom="zap" copiar zap />
             <Bloco rotulo="Por que funciona" texto={m.porque} />
           </article>
         ))}
@@ -218,7 +213,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
     return (
       <div className={styles.leitura}>
         <p className={styles.intro}>
-          O que acontece depois do sim define se você vendeu uma vez ou três. Cinco janelas, cada uma com
+          O que acontece depois do sim define se você vendeu uma vez ou três. {porExtenso(POS_VENDA.length, true)} janelas, cada uma com
           o que fazer, a mensagem pronta e o risco de pular.
         </p>
         {POS_VENDA.map((e, i) => (
@@ -233,7 +228,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
             <ul className={styles.lista}>
               {e.oQueFazer.map((a, j) => <li key={j}>{a}</li>)}
             </ul>
-            {e.mensagem && <Destaque rotulo="Mensagem pronta" texto={e.mensagem} copiar />}
+            {e.mensagem && <Destaque rotulo="Mensagem pronta" texto={e.mensagem} tom="zap" copiar zap />}
             <Bloco rotulo="Risco de pular esta etapa" texto={e.risco} tom="erro" />
           </article>
         ))}
@@ -248,7 +243,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
         <p className={styles.intro}>
           {id === 'bonus:prospeccao-pj'
             ? 'Uma venda comercial dá o mesmo trabalho de visita que uma residencial e vale três. O que muda é quem decide e como se lê a conta.'
-            : 'Dono de empresa não compra economia: compra retorno. E trava por burocracia, não por preço — quem chega com o contrato pronto fecha antes.'}
+            : 'Dono de empresa não compra economia: compra retorno. E trava por burocracia, não por preço: quem chega com o contrato pronto fecha antes.'}
         </p>
         {passos.map((p) => (
           <article key={p.id} className={styles.cardConteudo}>
@@ -271,7 +266,7 @@ export default function ConteudoLicao({ id }: { id: string }) {
       <div className={styles.leitura}>
         <p className={styles.intro}>
           Leve isto na primeira visita comercial. Cada item que falta é uma chance de a decisão escorregar
-          para a próxima reunião — e reunião adiada em empresa costuma virar reunião esquecida.
+          para a próxima reunião, e reunião adiada em empresa costuma virar reunião esquecida.
         </p>
         <div className={styles.cardConteudo}>
           <h3 className={styles.etapaTitulo} style={{ marginBottom: 14 }}>Checklist da visita PJ</h3>
@@ -316,39 +311,6 @@ function Bloco({ rotulo, texto, tom }: { rotulo: string; texto: string; tom?: 'e
     <div className={styles.linha}>
       <span className={tom === 'erro' ? styles.rotuloErro : styles.rotulo}>{rotulo}</span>
       <p className={styles.texto}>{texto}</p>
-    </div>
-  );
-}
-
-function Destaque({
-  rotulo, texto, tom, copiar,
-}: { rotulo: string; texto: string; tom?: 'zap'; copiar?: boolean }) {
-  // O aviso de "copiado" não é enfeite: o integrador está com o cliente esperando
-  // resposta. Sem retorno na tela ele clica de novo, não sabe se pegou, e cola
-  // duas vezes no WhatsApp.
-  const [copiado, setCopiado] = useState(false);
-
-  function copiarTexto() {
-    navigator.clipboard?.writeText(texto).then(() => {
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
-    }).catch(() => {});
-  }
-  return (
-    <div className={tom === 'zap' ? styles.zap : styles.script}>
-      <div className={styles.destaqueTopo}>
-        <span className={tom === 'zap' ? styles.rotuloZap : styles.rotuloScript}>{rotulo}</span>
-        {copiar && (
-          <button
-            className={copiado ? `${styles.btnCopiar} ${styles.btnCopiado}` : styles.btnCopiar}
-            onClick={copiarTexto}
-            type="button"
-          >
-            {copiado ? 'copiado!' : 'copiar'}
-          </button>
-        )}
-      </div>
-      <p className={styles.destaqueTexto}>{texto}</p>
     </div>
   );
 }

@@ -609,9 +609,12 @@ describe('acessoDoUsuario', () => {
 });
 
 // ── Quem abre o curso (GET /kit/meu-acesso) ─────────────────────────────────
-// Desde 30/07/2026 assinatura NÃO libera o curso: ele é produto à parte. Estes
-// testes existem porque uma regressão aqui não quebra nada visível — só entrega
-// o curso de graça pra base inteira, calada.
+// De 30/07 a 10/11/2026 a assinatura NÃO liberava o curso. Em 10/11/2026 a regra
+// voltou: a assinatura PAGA (plano diferente de free, dentro da validade, fora
+// dos 7 dias grátis) abre o Fecha Vendas, como o menu e a página de venda dizem.
+// Free sem compra segue trancado. Estes testes existem porque uma regressão aqui
+// não quebra nada visível: entrega o curso de graça, ou tranca quem pagou, calada.
+// A matriz completa (vencida, trial, compra) está em cursoFechaVendasAcesso.test.ts.
 describe('meuAcesso — gate do curso', () => {
   function res() {
     const out: { status: number; body: any } = { status: 200, body: null };
@@ -636,15 +639,16 @@ describe('meuAcesso — gate do curso', () => {
     return id;
   }
 
-  it('assinante VIP sem compra NÃO abre o curso', async () => {
+  it('assinante VIP sem compra abre o curso, pela assinatura', async () => {
     const { body } = await abrir(usuario('ilimitado'));
-    expect(body.liberado).toBe(false);
-    expect(body.motivoAcesso).toBe(null);
+    expect(body.liberado).toBe(true);
+    expect(body.motivoAcesso).toBe('assinatura');
   });
 
-  it('assinante PRO sem compra NÃO abre o curso', async () => {
+  it('assinante PRO sem compra abre o curso, pela assinatura', async () => {
     const { body } = await abrir(usuario('pro'));
-    expect(body.liberado).toBe(false);
+    expect(body.liberado).toBe(true);
+    expect(body.motivoAcesso).toBe('assinatura');
   });
 
   it('free sem compra NÃO abre o curso', async () => {
@@ -673,8 +677,8 @@ describe('meuAcesso — gate do curso', () => {
     expect(body.liberado).toBe(false);
   });
 
-  it('nem para assinante: progresso sem a flag continua trancado', async () => {
-    const id = usuario('ilimitado');
+  it('progresso gravado não libera quem não assina e não comprou', async () => {
+    const id = usuario('free');
     db.users.find((u) => u.id === id)!.curso_vitalicio = false;
     db.kit_progresso.push({ user_id: id, modulo: 'obj-1', concluido_em: new Date().toISOString() });
     const { body } = await abrir(id);
@@ -684,19 +688,21 @@ describe('meuAcesso — gate do curso', () => {
   // Quem tinha o curso pelo plano, abriu, leu, e nunca clicou em "concluir lição"
   // não tem linha de progresso nenhuma. É o grosso dos assinantes — e é por isso
   // que o grandfather é coluna carimbada pela migration, não dedução.
-  it('assinante grandfathered SEM lição concluída mantém o acesso', async () => {
-    const id = usuario('ilimitado');
+  it('grandfathered que deixou de assinar SEM lição concluída mantém o acesso', async () => {
+    const id = usuario('free');
     db.users.find((u) => u.id === id)!.curso_vitalicio = true;
     const { body } = await abrir(id);
     expect(body.liberado).toBe(true);
     expect(body.motivoAcesso).toBe('vitalicio');
   });
 
-  it('assinante novo (curso_vitalicio false) continua trancado', async () => {
-    const id = usuario('ilimitado');
-    db.users.find((u) => u.id === id)!.curso_vitalicio = false;
-    const { body } = await abrir(id);
-    expect(body.liberado).toBe(false);
+  it('assinante com curso_vitalicio false abre pela assinatura, e free com a flag falsa continua trancado', async () => {
+    const assinante = usuario('ilimitado');
+    db.users.find((u) => u.id === assinante)!.curso_vitalicio = false;
+    expect((await abrir(assinante)).body.liberado).toBe(true);
+    const gratis = usuario('free');
+    db.users.find((u) => u.id === gratis)!.curso_vitalicio = false;
+    expect((await abrir(gratis)).body.liberado).toBe(false);
   });
 });
 

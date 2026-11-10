@@ -42,6 +42,39 @@ export interface Acessos {
   origem: Record<string, 'compra' | 'cortesia' | 'admin' | 'assinatura'>;
 }
 
+/**
+ * Assinatura PAGA e dentro da validade: plano diferente de free e, se há data de expiração (entrada de 30
+ * dias, Pix), ainda não vencida. Fonte única: o menu (`acessos()`) e o curso (`/kit/meu-acesso`) usam esta.
+ */
+export function assinaturaVigente(u: { plano?: string | null; plano_expira_em?: string | null }): boolean {
+  const plano = String(u.plano || 'free');
+  const expira = u.plano_expira_em ? new Date(u.plano_expira_em).getTime() : null;
+  return plano !== 'free' && (expira === null || expira > Date.now());
+}
+
+/**
+ * billing_status em que a assinatura NÃO abre o curso:
+ *  - 'trialing': 7 dias grátis da Stripe (ou trial do Pack). O plano é pago, mas nada foi pago: cancelar no
+ *    dia 6 e sair com o curso foi o furo que a trava de 30/07/2026 (commit 61797094) fechou.
+ *  - 'suspended': assinatura cancelada. No `customer.subscription.deleted` o webhook grava 'suspended' e
+ *    DEIXA `plano` como estava (pro/ilimitado) e `plano_expira_em` nulo, então só o plano não mostra o
+ *    cancelamento. Pagamento por Pix depois disso zera o status para 'active' (concederMesPago).
+ *  - 'unpaid', 'canceled', 'cancelled': nenhum código grava hoje, mas são os nomes que a Stripe usa para
+ *    assinatura encerrada. Negados por segurança, para um status novo nunca abrir o curso por engano.
+ * 'past_due' segue entrando: a pessoa pagou, só falhou uma cobrança depois (dunning de 7 dias).
+ */
+const STATUS_QUE_NAO_ABRE_CURSO = new Set(['trialing', 'suspended', 'unpaid', 'canceled', 'cancelled']);
+
+/**
+ * A assinatura abre o Fecha Vendas? Só a PAGA e ATIVA: vigente e com billing_status fora de
+ * STATUS_QUE_NAO_ABRE_CURSO.
+ */
+export function assinaturaAbreCurso(u: {
+  plano?: string | null; plano_expira_em?: string | null; billing_status?: string | null;
+}): boolean {
+  return assinaturaVigente(u) && !STATUS_QUE_NAO_ABRE_CURSO.has(String(u.billing_status ?? '').toLowerCase());
+}
+
 const VAZIO: Acessos = {
   produtos: new Set(), plano: 'free', assinante: false, isAdmin: false, origem: {},
 };
@@ -50,7 +83,7 @@ export async function acessos(userId: string | undefined): Promise<Acessos> {
   if (!userId) return { ...VAZIO, produtos: new Set(), origem: {} };
 
   const [{ data: user }, entRes, contaRes] = await Promise.all([
-    supabase.from('users').select('plano, is_admin, plano_expira_em').eq('id', userId).single(),
+    supabase.from('users').select('plano, is_admin, plano_expira_em, billing_status').eq('id', userId).single(),
     supabase.from('entitlements').select('produto, origem, expira_em').eq('user_id', userId),
     // E-mail e WhatsApp da conta (para achar a compra do Kit e a do LimpaPro) saem de uma consulta À PARTE da primeira, de propósito: se ela falhar (coluna que não existe
     // numa migration atrasada), a conta continua existindo e só aquele pedaço fica de fora. Se estivessem no
@@ -71,8 +104,8 @@ export async function acessos(userId: string | undefined): Promise<Acessos> {
   const isAdmin = !!user.is_admin;
   // Assinatura com data de expiração (a entrada de 30 dias usa isso) só vale
   // enquanto não venceu.
-  const expira = user.plano_expira_em ? new Date(user.plano_expira_em).getTime() : null;
-  const assinante = plano !== 'free' && (expira === null || expira > Date.now());
+  const assinante = assinaturaVigente(user);
+  const abreCurso = assinaturaAbreCurso(user);
 
   const produtos = new Set<string>();
   const origem: Acessos['origem'] = {};
@@ -98,6 +131,7 @@ export async function acessos(userId: string | undefined): Promise<Acessos> {
 
   if (assinante) {
     for (const id of produtosDaAssinatura()) {
+      if (id === 'curso-fechamento' && !abreCurso) continue;   // trial não paga: ver assinaturaAbreCurso
       if (!produtos.has(id)) origem[id] = 'assinatura';
       produtos.add(id);
     }
