@@ -265,7 +265,7 @@ const pagou = (over: Partial<ContaRetomada> = {}) => conta({ segmento: 'ex_assin
 const incerto = (over: Partial<ContaRetomada> = {}) => conta({ segmento: 'ex_assinante', grupo: 'incerto', saiu_em: '2026-08-01T12:00:00.000Z', forma_antiga: 'pix', ...over });
 
 describe('Carla na retomada: fatosDaRetomada', () => {
-  it('imprime a mensagem enviada, a situação da conta, o último documento, o CNPJ, o pagamento e o bloco do Para liberar', () => {
+  it('imprime a mensagem enviada, a situação da conta, o último documento, o CNPJ, o pagamento e o bloco do Para crescer', () => {
     const f = fatosRet(conta());
     expect(f).toContain('Esta pessoa já tem conta no SolarDoc e a conversa começou pela nossa mensagem de retomada (04/11/2026): "Oi, Ana. Aqui é a Carla, da SolarDoc. Quer ver o que tem de novo?".');
     expect(f).toContain('Situação da conta: grátis desde 10/06/2026, nunca assinou. Plano ativo agora: não.');
@@ -274,8 +274,8 @@ describe('Carla na retomada: fatosDaRetomada', () => {
     expect(f).toContain('Nunca diga que liberou: o acesso volta sozinho na conta dele depois que o pagamento é conferido.');
     expect(f).toContain('Pagamento: nunca a peça assinatura. Cartão: peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade.');
     expect(f).toContain('Sem prazo, sem urgência, sem desconto e sem a promessa da planilha nesta conversa. Reembolso, cobrança, reclamação ou acesso: suporte_giovanna.');
-    expect(f).toContain(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam em Para liberar, vendidos à parte: ${PARA_LIBERAR.join(', ')}. Assinar não libera nenhum deles.`);
-    for (const nome of ['Kit Off-Grid', 'Inventário', 'Precificação', 'Kit Fecha Vendas', 'LimpaPro']) expect(f).toContain(nome);
+    expect(f).toContain(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam em Para crescer, vendidos à parte: ${PARA_LIBERAR.join(', ')}. Assinar não libera nenhum deles.`);
+    for (const nome of ['Venda Off-Grid', 'Estoque em Dia', 'Precificação', 'Fecha Vendas', 'LimpaPro']) expect(f).toContain(nome);
   });
 
   it('sem documento: "nenhum"; sem CNPJ: "não"; datas em DD/MM/AAAA de Brasília (a virada do dia vale a de lá)', () => {
@@ -405,7 +405,7 @@ describe('Carla na retomada: fatosDaRetomada', () => {
     expect(SISTEMA_FIXO_CARLA).toContain('QUEM JÁ TEM CONTA (os fatos trazem "Situação da conta")');
     expect(SISTEMA_FIXO_CARLA).toContain('Nunca use a peça assinatura: ela cria outra conta e outra cobrança.');
     expect(SISTEMA_FIXO_CARLA).toContain('peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade');
-    expect(SISTEMA_FIXO_CARLA).toContain(`nunca diga que R$ ${PLANO_MENSAL.valor} dá a plataforma inteira: o que fica em Para liberar é vendido à parte.`);
+    expect(SISTEMA_FIXO_CARLA).toContain(`nunca diga que R$ ${PLANO_MENSAL.valor} dá a plataforma inteira: o que fica em Para crescer é vendido à parte.`);
     expect(SISTEMA_FIXO_CARLA).toContain('- entrar_no_app: https://solardoc.app/auth (só para quem já tem conta; os fatos dizem)');
     expect(LINKS_CARLA.entrar_no_app).toBe('https://solardoc.app/auth');
   });

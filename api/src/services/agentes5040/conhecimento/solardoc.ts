@@ -54,10 +54,10 @@ export const PROMESSA_PLANILHA_ELETROPOSTO =
   'Logo teremos a planilha de eletroposto, e quem fechar hoje terá acesso a ela.';
 
 /**
- * O que NÃO vem no plano mensal: fica em "Para liberar" e é vendido à parte. Os rótulos do app. A retomada dos usuários (03/11/2026) cita
+ * O que NÃO vem no plano mensal: fica em "Para crescer" e é vendido à parte. Os rótulos do app. A retomada dos usuários (03/11/2026) cita
  * esta lista; ela NÃO entra em textoConhecimentoSolarDoc() porque o teste proíbe o LimpaPro ali.
  */
-export const PARA_LIBERAR: readonly string[] = ['Kit Off-Grid', 'Inventário', 'Precificação', 'Kit Fecha Vendas', 'LimpaPro'];
+export const PARA_LIBERAR: readonly string[] = ['Venda Off-Grid', 'Estoque em Dia', 'Precificação', 'Fecha Vendas', 'LimpaPro'];
 
 /**
  * As novidades que a Carla pode afirmar a quem voltou (texto do redator, 31/10/2026). Entram SÓ as que o orquestrador confirmou NO AR
@@ -80,7 +80,7 @@ export function textoRetomadaSolarDoc(): string[] {
     l.push('NOVIDADES DA PLATAFORMA (só estas, uma por vez, sem inventar outra):');
     for (const n of NOVIDADES_SOLARDOC) l.push(`- ${n}`);
   }
-  l.push(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam em Para liberar, vendidos à parte: ${PARA_LIBERAR.join(', ')}. Assinar não libera nenhum deles.`);
+  l.push(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam em Para crescer, vendidos à parte: ${PARA_LIBERAR.join(', ')}. Assinar não libera nenhum deles.`);
   return l;
 }
 

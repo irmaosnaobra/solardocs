@@ -425,8 +425,8 @@ describe('trava: Carla e a plataforma inteira pelo plano (03/11/2026)', () => {
     }
   });
 
-  it('o que fica em Para liberar dito como à parte passa: a frase com preço e sem "plataforma inteira"', () => {
-    expect(c(['O Kit Off-Grid fica em Para liberar e é vendido à parte.'])).toEqual([]);
+  it('o que fica em Para crescer dito como à parte passa: a frase com preço e sem "plataforma inteira"', () => {
+    expect(c(['A Venda Off-Grid fica em Para crescer e é vendido à parte.'])).toEqual([]);
   });
 
   it('vale também depois de um ponto: só a frase que mistura as duas coisas reprova', () => {
