@@ -19,6 +19,7 @@ import { enviarQuizMeta, navegadorDe, eventIdDe, idDoTelefone } from '../utils/c
 import { PONTOS_QUIZ_BOM } from '../services/meta/clientesQuentesPuro';
 import { registrarSchedulePagina } from '../services/meta/capiPagina';
 import { campoCapiDe } from '../services/meta/capiNavegador';
+import { adIdDeUtmContent, gravarRastreioCard, rastreioDaRequisicao } from '../services/rastreio/gravarRastreioCard';
 import { DONA_SOLAR, PONTOS_CURIOSO, MARCA_QUIZ, decidirCaminho, pontuar, acharCidadeRaio, kwhDaFaixa } from '../services/agenda/solarRota';
 import {
   limparRespostas, limparRespostasExtra, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
@@ -311,8 +312,13 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
       temperatura: b.temperatura === 'quente' ? 'quente' : 'morno',
       observacao: String(b.observacao || '').slice(0, 4000),
       created_by: 'lp_solar',
+      // A origem do anúncio (10/11/2026): as UTMs do corpo e o id do anúncio (utm_content só com dígitos).
+      ...utmDe(b),
+      ...(adIdDeUtmContent(b.utm_content) ? { ad_id: adIdDeUtmContent(b.utm_content) } : {}),
     }).select('id').single();
     if (error) throw error;
+    // fbc, fbp, IP e navegador vão para a tabela fechada agendamento_rastreio. Nunca lança.
+    await gravarRastreioCard(data?.id, rastreioDaRequisicao(req, b));
     // A página legada (simulador) dispara o fbq Schedule sem event_id, e esta rota nunca mandou nada ao Meta: a linha de dedup diz ao
     // tick capi_card_novo que o navegador já contou este card (29/10/2026). Nunca lança, espera no máximo 800 ms.
     await registrarSchedulePagina({ cardId: data?.id, telefone: tel, nome, semEventId: true }, 'io-solar-agendar');
@@ -601,6 +607,7 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
     const resultado = await gravarCardAgora({
       dono: DONA_SOLAR, nome: e.nome, tel: e.tel, cidade: cidadeGravada(e, dec), observacao,
       src: /^[a-z0-9_-]{1,20}$/.test(src) ? src : null, utm: utmDe(b), createdBy: teste ? 'lp_solar_teste' : 'lp_solar',
+      ...(teste ? {} : { rastreio: rastreioDaRequisicao(req, b) }),
     }, agoraMs);
     if (resultado.status === 'erro') throw resultado.erro;
     // 'sem_horario': 24 minutos ocupados seguidos.
@@ -706,7 +713,7 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
       observacao: montarObservacao(e.resp, dec, endereco, semHorario, { respostas: e.extra, diag }),
       src: /^[a-z0-9_-]{1,20}$/.test(src) ? src : null,
       utm: utmDe(b),
-      ...(teste ? { createdBy: 'lp_solar_teste' as const } : {}),
+      ...(teste ? { createdBy: 'lp_solar_teste' as const } : { rastreio: rastreioDaRequisicao(req, b) }),
     });
     // 'horario_tomado' = o índice (vendedor, quando) recusou: alguém marcou no mesmo instante.
     if (gravado.status === 'horario_tomado') { res.status(409).json({ ok: false, error: 'horario tomado', caminho: dec.caminho, dias }); return; }
@@ -733,7 +740,7 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
     const pagina = registrarSchedulePagina({ cardId: data.id, telefone: e.tel, nome: e.nome, semEventId: !eventId }, 'io-solar-quiz');
     const capi = eventId ? enviarQuizMeta({
       produto: 'solar', nome: 'Schedule', origem: 'website', eventId,
-      pessoa: { telefone: e.tel, nome: e.nome, cidade: dec.cidade?.nome ?? e.resp.cidade, uf: dec.cidade?.uf },
+      pessoa: { telefone: e.tel, nome: e.nome, cidade: dec.cidade?.nome ?? e.resp.cidade, uf: dec.cidade?.uf, cep: endereco?.cep },
       navegador: navegadorDe(req, b), urlDaPagina: 'https://solardoc.app/io/solar',
     }, 'io-solar-quiz') : Promise.resolve();
 

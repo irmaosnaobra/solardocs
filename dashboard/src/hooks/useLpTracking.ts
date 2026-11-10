@@ -18,6 +18,9 @@ const SK_SCROLL_REACHED = 'sd_lp_scroll_max';
 const SK_UTMS = 'sd_lp_utms';   // UTMs persistidos no 1º acesso (sobrevivem à navegação interna)
 const SK_FBC = 'sd_lp_fbc';     // _fbc (clique do anúncio) persistido
 const SK_FBP = 'sd_lp_fbp';     // _fbp (browser) persistido
+const SK_FBCLID = 'sd_lp_fbclid';   // fbclid persistido (reserva, quando /lib/origem.js não carregou)
+const SK_LANDING = 'sd_lp_landing'; // 1ª URL da sessão
+const SK_REFERRER = 'sd_lp_referrer'; // referrer da 1ª página da sessão
 
 function getCookie(name: string): string {
   if (typeof document === 'undefined') return '';
@@ -42,8 +45,48 @@ function extractMetaClickIds(): Record<string, string> {
     else { const s = sessionStorage.getItem(SK_FBC); if (s) out.fbc = s; }
     if (fbp) { out.fbp = fbp; sessionStorage.setItem(SK_FBP, fbp); }
     else { const s = sessionStorage.getItem(SK_FBP); if (s) out.fbp = s; }
+    if (fbclid) { out.fbclid = fbclid; sessionStorage.setItem(SK_FBCLID, fbclid); }
+    else { const s = sessionStorage.getItem(SK_FBCLID); if (s) out.fbclid = s; }
   } catch { /* sessionStorage/cookie indisponível — segue sem */ }
   return out;
+}
+
+// Reserva de landing_url e referrer: guarda os da 1ª página da sessão (no checkout, a página
+// atual já não é a de entrada). Só vale quando o /lib/origem.js não respondeu.
+function extractLanding(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const out: Record<string, string> = {};
+  try {
+    let landing = sessionStorage.getItem(SK_LANDING);
+    if (!landing) { landing = (window.location.href || '').slice(0, 500); if (landing) sessionStorage.setItem(SK_LANDING, landing); }
+    if (landing) out.landing_url = landing;
+    let ref = sessionStorage.getItem(SK_REFERRER);
+    if (ref === null) { ref = (document.referrer || '').slice(0, 500); sessionStorage.setItem(SK_REFERRER, ref); }
+    if (ref) out.referrer = ref;
+  } catch { /* sessionStorage indisponível — segue sem */ }
+  return out;
+}
+
+// Origem completa vinda do /lib/origem.js (utm_*, fbclid, fbc, fbp, landing_url, referrer; 90 dias).
+// Se o script não carregou ou lançou erro, devolve {} e vale a lógica local acima.
+export function origemDoScript(): Record<string, string> {
+  const out: Record<string, string> = {};
+  try {
+    const w = window as unknown as { ioOrigem?: { paraEnvio?: () => Record<string, unknown> } };
+    const o = typeof w.ioOrigem?.paraEnvio === 'function' ? w.ioOrigem.paraEnvio() : null;
+    if (o && typeof o === 'object') {
+      for (const [k, v] of Object.entries(o)) {
+        if (typeof v === 'string' && v.trim()) out[k] = v.trim().slice(0, 500);
+      }
+    }
+  } catch { /* rastreio nunca derruba a tela */ }
+  return out;
+}
+
+// Id do InitiateCheckout: o navegador manda no fbq (eventID) e, no checkout público, o mesmo id
+// em ic_event_id, para o Meta juntar o evento do pixel e o do servidor numa conta só.
+export function novoIcEventId(): string {
+  return 'ic_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
 }
 
 function uuid(): string {
@@ -98,7 +141,7 @@ export function getCheckoutAttribution(): Record<string, string> {
     const sid = sessionStorage.getItem(SK_SESSION);
     if (sid) out.lp_session = sid;
   } catch {}
-  Object.assign(out, extractUtms(), extractMetaClickIds());
+  Object.assign(out, extractUtms(), extractMetaClickIds(), extractLanding(), origemDoScript());
   return out;
 }
 
@@ -137,6 +180,7 @@ export function useLpTracking() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     sessionId.current = getOrCreateSession();
+    extractLanding(); // grava a página de entrada antes de qualquer navegação interna
 
     // Evita re-envio quando o user recarrega a página (já é a mesma session)
     try {
@@ -144,9 +188,14 @@ export function useLpTracking() {
     } catch {}
 
     const utms = extractUtms();
+    // fbc, fbp e fbclid vão no beacon (o servidor da /_t/v já os aceita). Reserva local + /lib/origem.js.
+    const { fbc, fbp, fbclid } = { ...extractMetaClickIds(), ...origemDoScript() };
     api.post('/_t/v', {
       session_id: sessionId.current,
       ...utms,
+      ...(fbc ? { fbc } : {}),
+      ...(fbp ? { fbp } : {}),
+      ...(fbclid ? { fbclid } : {}),
       referrer: document.referrer || null,
       landing_url: window.location.href,
     })

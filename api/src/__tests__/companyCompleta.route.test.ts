@@ -57,6 +57,7 @@ vi.mock('../utils/jwt', () => ({
 vi.mock('../middleware/clerkAuth', () => ({ clerkAtivo: false, resolverUsuarioDoClerk: async () => null }));
 
 import companyRoutes from '../routes/company';
+import { sendMetaEvent } from '../utils/metaPixel';
 
 const app = express();
 app.use(express.json());
@@ -172,5 +173,16 @@ describe('POST /company aceita as duas colunas', () => {
     });
     expect(res.status).toBe(201);
     expect(h.gravado[0]).toMatchObject({ user_id: 'user-123', fotos_obras: [{ path: MEU }], dados_bancarios: { pix: 'chave' } });
+  });
+
+  it('a criação da empresa manda o evento personalizado EmpresaCriada com o event_id do navegador, nunca CompleteRegistration', async () => {
+    h.linha = null as unknown as Record<string, unknown>;
+    vi.mocked(sendMetaEvent).mockClear();
+    const res = await request(app).post('/company').set('Authorization', AUTH).set('x-meta-event-id', 'ev-empresa-1')
+      .send({ nome: 'Sol Forte', cnpj: '11.222.333/0001-81' });
+    expect(res.status).toBe(201);
+    const nomes = vi.mocked(sendMetaEvent).mock.calls.map((c) => c[0]);
+    expect(nomes).toEqual(['EmpresaCriada']);
+    expect(vi.mocked(sendMetaEvent).mock.calls[0][1]).toMatchObject({ eventId: 'ev-empresa-1' });
   });
 });

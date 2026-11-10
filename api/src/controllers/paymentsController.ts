@@ -6,6 +6,8 @@ import { processarEventoPlugcash } from '../services/plugcashService';
 import { sendDunningDay0, sendDunningRecovered } from '../services/dunningService';
 import { emailsDaConta } from '../services/stripeContaLink';
 import { sendCheckoutCompletionEmail } from '../utils/mailer';
+import { sendMetaEvent } from '../utils/metaPixel';
+import { cookieMeta, separarNome } from '../utils/metaCapi';
 import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { upsertSale, sendPurchaseForSale, classificarOrigem } from '../services/salesLedger';
 import { avisarVendaAoDono, avisarRenovacaoAoDono, historicoDoCliente } from '../services/vendaAviso';
@@ -614,6 +616,40 @@ export function destinoDeSaida(args: {
 // A pessoa escolhe o plano na LP e vai DIRETO pro Stripe (coleta email + cartão,
 // 7 dias grátis). Só depois de aprovar o cartão ela cria a conta no cadastro
 // (com o email do session_id). Sem free: quem não passa daqui não tem conta.
+// ── InitiateCheckout do servidor (par do pixel do navegador) ─────────────────
+// A LP gera um id, dispara fbq('track','InitiateCheckout', ..., { eventID }) e manda o MESMO id em `ic_event_id`.
+// O Meta junta os dois pela chave (event_name + event_id) e conta um só. Sem `ic_event_id` não manda nada.
+// Mesma função e mesmo external_id do Lead do cadastro (authController): sendMetaEvent, external_id = hash do e-mail.
+// Não aguardado e com catch: o Meta fora do ar não pode atrasar nem quebrar o checkout.
+const IC_EVENT_ID_RE = /^[A-Za-z0-9_.:-]{1,100}$/;
+
+function dispararInitiateCheckout(req: Request, planInfo: { plano: string; valor: number }): void {
+  try {
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const id = b.ic_event_id;
+    if (typeof id !== 'string' || !IC_EVENT_ID_RE.test(id)) return;
+    const txt = (v: unknown, max: number): string | undefined =>
+      typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : undefined;
+    const nome = separarNome(txt(b.nome ?? b.name, 200));
+    const landing = txt(b.landing_url, 500);
+    const ua = req.headers?.['user-agent'];
+    void Promise.resolve(sendMetaEvent('InitiateCheckout', {
+      eventId:    id,
+      email:      txt(b.email, 200),
+      phone:      txt(b.telefone ?? b.whatsapp ?? b.phone, 40),
+      firstName:  nome.fn || undefined,
+      lastName:   nome.ln || undefined,
+      country:    'br',
+      fbc:        cookieMeta(b.fbc) ?? undefined,
+      fbp:        cookieMeta(b.fbp) ?? undefined,
+      ip:         req.ip,
+      userAgent:  typeof ua === 'string' ? ua : undefined,
+      sourceUrl:  landing && /^https?:\/\//i.test(landing) ? landing : undefined,
+      customData: { value: planInfo.valor, currency: 'BRL', content_name: planInfo.plano },
+    })).catch(() => { /* Meta fora do ar: o checkout segue */ });
+  } catch { /* nunca quebra o checkout */ }
+}
+
 /** Único valor de `origem` que o checkout público aceita no body. */
 export const ORIGEM_QUIZ_SOLARDOC = 'quiz_solardoc';
 
@@ -756,6 +792,7 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       },
     });
 
+    dispararInitiateCheckout(req, planInfo);
     res.json({ url: session.url, cancelUrl, cupom: aplicado?.cupom.codigo ?? null, primeiroMes: aplicado?.primeiroMes ?? null });
   } catch (err) {
     console.error('createPublicCheckout error:', err);

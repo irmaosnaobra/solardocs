@@ -70,6 +70,7 @@ import { runWinback } from '../services/winbackService';
 import { runCapiLeads } from '../services/agenda/capiLeadsService';
 import { runCapiLeadQualificado } from '../services/agenda/capiLeadQualificadoService';
 import { runClientesQuentes } from '../services/meta/clientesQuentes';
+import { medirQualidadeSemanal, conferirMetaVsBanco } from '../services/meta/medidorQualidade';
 import { runCapiCardNovo } from '../services/meta/capiCardNovo';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
@@ -1480,6 +1481,20 @@ router.get('/clientes-quentes', async (req: Request, res: Response) => {
   }
 });
 
+// Medidor dos pixels do Meta (só GET no Meta). ?dry=1 pula horário e trava, não grava e não avisa.
+// /cron/meta-qualidade: nota de correspondência semanal (segunda, 12:00 UTC em diante).
+// /cron/meta-conferencia: Meta x banco (compras e agendamentos dos 7 dias completos), diária, depois das 11:00 UTC.
+router.get('/meta-qualidade', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  const dry = req.query.dry === '1' || req.query.dry === 'true';
+  res.json({ ok: true, ...(await medirQualidadeSemanal({ dry })) });
+});
+router.get('/meta-conferencia', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  const dry = req.query.dry === '1' || req.query.dry === 'true';
+  res.json({ ok: true, ...(await conferirMetaVsBanco({ dry })) });
+});
+
 // Digest de estoque baixo do Inventário (aba grátis). GATED: rodar manual /
 // ?dry=1 primeiro pra conferir volume; só entra no master depois de adoção.
 // O badge in-app já é o alerta sempre-ligado — o email é reforço opcional.
@@ -1597,6 +1612,8 @@ router.get('/master', async (req: Request, res: Response) => {
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
     ['capi-lead-qualificado',       () => runCapiLeadQualificado()], // solar >700 kWh que orçou → Meta aprende o perfil do cliente bom (CAPI_QUALIFICADO_OFF desliga)
     ['clientes-quentes',            () => runClientesQuentes()],     // Meta aprende os melhores clientes: público com valor (1x/dia) + evento ao avançar card (CLIENTE_QUENTE_OFF / PUBLICO_QUENTE_OFF desligam)
+    ['meta-qualidade',              () => medirQualidadeSemanal()],  // Meta: nota dos 3 pixels, segunda 12:00 UTC em diante (1x/semana ISO); aviso por e-mail se evento chave < 8 (MEDIDOR_META_OFF=1 desliga)
+    ['meta-conferencia',            () => conferirMetaVsBanco()],    // Meta x banco: compras e agendamentos dos últimos 7 dias, 1x/dia depois das 11:00 UTC; aviso se divergir 30%+ (MEDIDOR_META_OFF=1 desliga)
     ['zapi-health',                 () => runZapiHealthCheck()],   // monitor: linha IO caída → 1 email pro Thiago (2 checagens seguidas). Toda a mensageria depende dela.
     ['sonda-documentos',            () => runSondaDocumentos()],   // monitor: assinante apanhando no documento (3× o mesmo doc em 30min, PDF que falhou, revisão barrada). Só avisa — não mexe em documento de ninguém.
     ['entrada-io-digest',           () => runEntradaIoDigest()],       // 12h e 18h: quem escreveu no 5040 hoje (ninguém responde por robô nessa linha)

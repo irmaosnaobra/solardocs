@@ -14,6 +14,7 @@
 
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { estaBloqueado } from '../agents/whatsapp/silenciar';
+import { adIdDeUtmContent, gravarRastreioCard, type DadosRastreio } from '../rastreio/gravarRastreioCard';
 
 /** Só os donos que a LP do eletroposto distribui. */
 export const DONOS_EP = ['Thiago', 'Diego'];
@@ -45,13 +46,20 @@ export function donoDaVez(total: number | null | undefined): string {
  *
  * Erro de gravação SOBE com o código do banco: 23505 é o índice de horário
  * (`agendamentos_vq_naosolar_uniq`), ou seja, alguém pegou aquele horário.
+ *
+ * Origem do lead (10/11/2026): quando o utm_content da ficha é um id de anúncio (só dígitos, 10 a 20), o card leva também
+ * `ad_id`. O `rastreio` (fbc, fbp, IP, navegador) vai para agendamento_rastreio depois do card; nunca lança.
  */
 export async function gravarCardEletroposto(
   ficha: Record<string, unknown>,
+  rastreio?: DadosRastreio,
 ): Promise<{ id: number | null; bloqueado: boolean }> {
   if (await estaBloqueado(String(ficha.cliente_telefone ?? ''))) return { id: null, bloqueado: true };
+  const adId = ficha.ad_id ? null : adIdDeUtmContent(ficha.utm_content);
   const { data, error } = await supabaseGerador
-    .from('agendamentos').insert(ficha).select('id').single();
+    .from('agendamentos').insert(adId ? { ...ficha, ad_id: adId } : ficha).select('id').single();
   if (error) throw error;
-  return { id: (data?.id as number | undefined) ?? null, bloqueado: false };
+  const id = (data?.id as number | undefined) ?? null;
+  if (rastreio) await gravarRastreioCard(id, rastreio);
+  return { id, bloqueado: false };
 }

@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/services/api';
-import { getCheckoutAttribution, registrarEvento } from '@/hooks/useLpTracking';
+import { getCheckoutAttribution, registrarEvento, novoIcEventId } from '@/hooks/useLpTracking';
 import { digitosFone, docValido, foneValido, mascaraDoc, mascaraFone, soDigitos } from './pixDoc';
 import styles from './PixAutomaticoModal.module.css';
 
@@ -195,7 +195,7 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
 
   function fbq(nome: string) {
     const w = window as FbqWindow;
-    if (w.fbq) w.fbq('track', 'InitiateCheckout', { content_name: nome, value: 67, currency: 'BRL' });
+    if (w.fbq) w.fbq('track', 'InitiateCheckout', { content_name: nome, value: 67, currency: 'BRL' }, { eventID: novoIcEventId() });
   }
 
   // Saiu do campo do WhatsApp com celular completo: avisa a api, uma vez por número.

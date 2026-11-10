@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import api from '@/services/api';
-import { getCheckoutAttribution } from '@/hooks/useLpTracking';
+import { getCheckoutAttribution, novoIcEventId } from '@/hooks/useLpTracking';
 import { pixRecorrenteLigado } from '@/components/LinkPagarPix/LinkPagarPix';
 import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import styles from './assinar.module.css';
@@ -53,8 +53,10 @@ export default function AssinarCliente() {
     setIndo(true);
     setErro(null);
     try {
+      // Mesmo id no pixel (eventID) e no servidor (ic_event_id): o Meta conta um InitiateCheckout só.
+      const icEventId = novoIcEventId();
       (window as unknown as { fbq?: (...a: unknown[]) => void }).fbq?.(
-        'track', 'InitiateCheckout', { value: primeiroMes ?? 0, currency: 'BRL', content_name: 'assinar_link' },
+        'track', 'InitiateCheckout', { value: primeiroMes ?? 0, currency: 'BRL', content_name: 'assinar_link' }, { eventID: icEventId },
       );
       // Esta tela é o destino dos toques (link da Giovanna, recuperação): sem
       // repassar as UTMs da URL, a venda chegava no ledger sem rastro nenhum e
@@ -63,6 +65,7 @@ export default function AssinarCliente() {
       const { data } = await api.post('/payments/public-checkout', {
         plan: plano,
         ...(comCupom ? { cupom: cupom?.codigo } : {}),
+        ic_event_id: icEventId,
         ...getCheckoutAttribution(),
       });
       if (data?.url) { marcarSaidaProCheckout(data.cancelUrl); window.location.href = data.url; return; }

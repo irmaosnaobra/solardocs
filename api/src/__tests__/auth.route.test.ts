@@ -16,7 +16,8 @@ vi.mock('../utils/supabase', () => ({
       // orgânico segue exigindo CNPJ, que é o que estes testes cobrem.
       order:  vi.fn().mockReturnThis(),
       limit:  mockLimit,
-      insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnThis(), single: mockSingle }),
+      // mockInsert grava o que o register insere em users (teste de atribuição).
+      insert: (...args: unknown[]) => { mockInsert(...args); return { select: vi.fn().mockReturnThis(), single: mockSingle }; },
       // update().eq() precisa resolver numa Promise (o register chama .then()
       // pra registrar whatsapp_welcome_sent_at). eq isolado pra não afetar o
       // eq de topo usado pela cadeia SELECT.
@@ -67,6 +68,7 @@ vi.mock('../services/agents/whatsapp/whatsappAgentService', () => ({
 }));
 
 import app from '../app';
+import { sendMetaEvent } from '../utils/metaPixel';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -92,6 +94,101 @@ describe('POST /auth/register', () => {
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('token');
     expect(res.body.user).toMatchObject({ email: 'a@a.com', plano: 'free' });
+  });
+
+  // Atribuição do navegador (10/11/2026): utm_*, fbc, fbp, fbclid, landing_url, referrer e a sessão da LP
+  // vão do corpo para users. Trim, 500 caracteres no máximo, vazio fica de fora.
+  it('grava a atribuição do corpo em users (trim, limite de 500, vazio fora)', async () => {
+    mockLimit.mockResolvedValue({ data: [], error: null });
+    mockSingle
+      .mockResolvedValueOnce({ data: null })
+      .mockResolvedValueOnce({ data: { id: 'uid-at', email: 'at@a.com', plano: 'free', limite_documentos: 10, documentos_usados: 0, created_at: new Date().toISOString() }, error: null });
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({
+        email: 'at@a.com', password: 'senha123', nome: 'Ana Souza', whatsapp: WHATSAPP_OK, cnpj: CNPJ_VALIDO,
+        utm_source: '  facebook ', utm_content: 'x'.repeat(600), utm_medium: '   ', utm_term: 42,
+        fbc: 'fb.1.1.abc', fbp: 'fb.1.2.def', fbclid: 'abc', landing_url: 'https://solardoc.app/?utm_source=facebook',
+        referrer: '', attribution_session_id: 'sess-1',
+      });
+
+    expect(res.status).toBe(201);
+    const linha = mockInsert.mock.calls[0][0] as Record<string, unknown>;
+    expect(linha).toMatchObject({
+      email: 'at@a.com', utm_source: 'facebook', fbc: 'fb.1.1.abc', fbp: 'fb.1.2.def', fbclid: 'abc',
+      landing_url: 'https://solardoc.app/?utm_source=facebook', attribution_session_id: 'sess-1',
+    });
+    expect((linha.utm_content as string).length).toBe(500);
+    expect(linha).not.toHaveProperty('utm_medium');
+    expect(linha).not.toHaveProperty('utm_term');
+    expect(linha).not.toHaveProperty('referrer');
+    expect(typeof linha.attribution_captured_at).toBe('string');
+  });
+
+  it('cadastra normalmente sem nenhum campo de atribuição (nenhuma coluna nova no insert)', async () => {
+    mockLimit.mockResolvedValue({ data: [], error: null });
+    mockSingle
+      .mockResolvedValueOnce({ data: null })
+      .mockResolvedValueOnce({ data: { id: 'uid-sa', email: 'sa@a.com', plano: 'free', limite_documentos: 10, documentos_usados: 0, created_at: new Date().toISOString() }, error: null });
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ email: 'sa@a.com', password: 'senha123', nome: 'Sem Atrib', whatsapp: WHATSAPP_OK, cnpj: CNPJ_VALIDO });
+
+    expect(res.status).toBe(201);
+    const linha = mockInsert.mock.calls[0][0] as Record<string, unknown>;
+    for (const k of ['utm_source', 'fbc', 'fbp', 'fbclid', 'landing_url', 'referrer', 'attribution_session_id', 'attribution_captured_at']) {
+      expect(linha).not.toHaveProperty(k);
+    }
+  });
+
+  it('coluna de atribuição ausente no banco: refaz o insert sem ela e o cadastro segue', async () => {
+    mockLimit.mockResolvedValue({ data: [], error: null });
+    mockSingle
+      .mockResolvedValueOnce({ data: null })
+      .mockResolvedValueOnce({ data: null, error: { code: '42703', message: 'column fbc does not exist' } })
+      .mockResolvedValueOnce({ data: { id: 'uid-rt', email: 'rt@a.com', plano: 'free', limite_documentos: 10, documentos_usados: 0, created_at: new Date().toISOString() }, error: null });
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ email: 'rt@a.com', password: 'senha123', nome: 'Retry Teste', whatsapp: WHATSAPP_OK, cnpj: CNPJ_VALIDO, fbc: 'fb.1.1.abc' });
+
+    expect(res.status).toBe(201);
+    // o insert em company (CNPJ) usa o mesmo mock: só conta as linhas de users
+    const users = mockInsert.mock.calls.map(c => c[0] as Record<string, unknown>).filter(l => 'password_hash' in l);
+    expect(users).toHaveLength(2);
+    expect(users[0]).toHaveProperty('fbc');
+    expect(users[1]).not.toHaveProperty('fbc');
+  });
+
+  // EMQ do CompleteRegistration (10/11/2026): o gêmeo do servidor leva telefone e nome, o external_id é o mesmo do Lead
+  // (o email) e o event_id é o do navegador (RegisterForm), para o Meta juntar a mesma pessoa e deduplicar.
+  it('CompleteRegistration sai com o mesmo event_id e o mesmo external_id do Lead, mais telefone, nome e país', async () => {
+    mockLimit.mockResolvedValue({ data: [], error: null });
+    mockSingle
+      .mockResolvedValueOnce({ data: null })
+      .mockResolvedValueOnce({ data: { id: 'uid-2', email: 'maria@a.com', plano: 'free', limite_documentos: 10, documentos_usados: 0, created_at: new Date().toISOString() }, error: null });
+
+    const res = await request(app)
+      .post('/auth/register')
+      .set('X-Meta-Event-Id', 'evt-1234-abcd')
+      .send({ email: 'Maria@a.com', password: 'senha123', nome: 'Maria José da Silva', whatsapp: WHATSAPP_OK, cnpj: CNPJ_VALIDO });
+    expect(res.status).toBe(201);
+
+    const chamadas = vi.mocked(sendMetaEvent).mock.calls;
+    const lead = chamadas.find(c => c[0] === 'Lead')!;
+    const cr = chamadas.find(c => c[0] === 'CompleteRegistration')!;
+    expect(lead).toBeTruthy();
+    expect(cr).toBeTruthy();
+    expect(cr[1]).toMatchObject({
+      eventId: 'evt-1234-abcd', email: 'maria@a.com', phone: WHATSAPP_OK,
+      firstName: 'maria', lastName: 'silva', externalId: 'maria@a.com', country: 'br',
+    });
+    // O Lead não passa externalId: o metaPixel usa o email. O do CR é o próprio email: mesmo esquema, mesmo hash.
+    expect(lead[1]).toMatchObject({ eventId: 'evt-1234-abcd', email: 'Maria@a.com' }); // o sha256 do metaPixel baixa a caixa: mesmo hash do CR
+    expect(lead[1]!.externalId).toBeUndefined();
+    expect(cr[1]!.eventId).toBe(lead[1]!.eventId);
   });
 
   // Fluxo free orgânico SEM CNPJ → barrado pelo schema (gate de onboarding).

@@ -201,6 +201,11 @@ export default function RootLayout({
             });
           } catch(e) {}
         `}</Script>
+        {/* Origem (UTM, fbclid, fbc, fbp) e correspondência avançada: scripts estáticos de
+            public/lib, carregados ANTES do pixel. Quem usa (useLpTracking, RegisterForm)
+            checa se window.ioOrigem / window.ioMatch existem e segue sem eles se não. */}
+        <Script id="io-origem" src="/lib/origem.js" strategy="afterInteractive" />
+        <Script id="io-meta-am" src="/lib/meta-am.js" strategy="afterInteractive" />
         {/* lazyOnload, não afterInteractive: os 164KB do fbevents disputam main thread
             com a pintura do H1 e custam ~15 pontos de PageSpeed mobile.
             Contrapartida: o pixel só inicializa no idle pós-load, então quem clica no
