@@ -115,6 +115,11 @@ export interface ProdutoLoja {
    * tem é mandado pra lá; sem isto, "Abrir" cairia numa rota que não existe.
    */
   abrirExterno?: string;
+  /**
+   * Produto que JÁ abre dentro do app (o LimpaPro, em /limpapro). Quem já tem é mandado pra cá, no lugar de abrirExterno.
+   * abrirExterno continua valendo só para a página pública, onde a pessoa ainda não tem conta.
+   */
+  abrirNoApp?: string;
   cor: string;
 }
 
@@ -590,6 +595,7 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     // A área do aluno é `/membros` — conferido no ar, o <title> de cada uma diz
     // qual é qual. Sem a barra, quem já comprou clicava em "Abrir LimpaPro" e
     // caía na oferta do que acabou de pagar.
+    abrirNoApp: '/limpapro',
     abrirExterno: process.env.NEXT_PUBLIC_LIMPAPRO_APP_URL || 'https://limpapro.solardoc.app/membros',
     // O checkout de verdade é o mesmo que a LP do limpapro.solardoc.app usa.
     // Sem ele, o botão "Comprar" abria uma conversa no WhatsApp em vez de

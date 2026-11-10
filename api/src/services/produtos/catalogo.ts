@@ -124,7 +124,7 @@ export const PRODUTOS: Produto[] = [
     tipo: 'curso',
     preco: 47,
     naAssinatura: false,
-    rota: '/cursos/limpapro',
+    rota: '/limpapro',
     envIds: 'LIMPAPRO_KIWIFY_PRODUCT_IDS',
     regexNome: /limpa\s*pro/i,
     // Funil próprio, com membros casados por TELEFONE em limpapro_membros e
