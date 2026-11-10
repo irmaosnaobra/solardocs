@@ -1,7 +1,7 @@
 /**
- * KIT INICIAL — o inventário de exemplo
+ * KIT INICIAL: o estoque de exemplo
  *
- * Tela de inventário vazia não ensina nada: a pessoa vê quatro caixas em branco
+ * Tela de estoque vazia não ensina nada: a pessoa vê quatro caixas em branco
  * e uma lista suspensa, e não sabe o que a ferramenta faz. Isto aqui preenche
  * um inventário PLAUSÍVEL num toque, pra ela ver a coisa montada — com marca,
  * quantidade, valor e estoque mínimo preenchidos, que é justamente a parte que
@@ -60,28 +60,4 @@ export const KIT_INICIAL: ItemKit[] = [
 
   // ── Escritório ──
   { local: 'Escritório', nome: 'Notebook', marca: '', unidade: 'un', quantidade: 1, valor_unitario: 3500, estoque_minimo: 0 },
-];
-
-/** Passos do tutorial. Curtos de propósito: tela de trabalho não é manual. */
-export const PASSOS_USO: { titulo: string; texto: string }[] = [
-  {
-    titulo: 'Escolha o local e o material',
-    texto: 'Cada caixa é um lugar da sua operação. Abra "Adicionar material" e a lista já vem pronta com o que costuma ter ali — ou digite um item que não está na lista.',
-  },
-  {
-    titulo: 'Preencha marca, quantidade e valor',
-    texto: 'O valor é o que você pagou por unidade. O patrimônio total lá em cima soma tudo sozinho, e é esse número que serve pro contador e pro seguro.',
-  },
-  {
-    titulo: 'Estoque mínimo é o que avisa',
-    texto: 'Diga o mínimo que não pode faltar. Quando a quantidade encostar nele, a linha fica vermelha e aparece o aviso no topo — antes de você descobrir na obra.',
-  },
-  {
-    titulo: 'Entrada e saída, não digitação',
-    texto: 'As duas setas ao lado de cada item lançam movimento: chegou material, seta pra baixo; saiu pra obra, seta pra cima. Corrigir o número na mão apaga a história do item.',
-  },
-  {
-    titulo: 'Imprimir vira documento',
-    texto: 'O botão Imprimir gera um PDF com tudo separado por local e os totais — é o que você manda pra contabilidade ou anexa numa apólice.',
-  },
 ];
