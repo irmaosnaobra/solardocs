@@ -63,6 +63,8 @@ const MIN = 60_000;
 const HORA = 60 * MIN;
 const DIA = 24 * HORA;
 export const JANELA_TOQUE_RECENTE_MS = 14 * DIA;
+/** A recepção de usuários novos falou com a conta há menos disto: a Carla da retomada pula. */
+export const JANELA_RECEPCAO_RECENTE_MS = 14 * DIA;
 /** Quem cancelou há menos que isto espera: a retomada não chega logo depois do D1 a D5 do dunning (chefe-antiban, 05/11/2026). */
 export const JANELA_SAIU_HA_POUCO_MS = 14 * DIA;
 export const JANELA_FALA_RECENTE_MS = 24 * HORA;
@@ -251,6 +253,8 @@ export interface ExtrasRet {
   toquesCurso19: number;
   /** `nexus_convite_email:<user_id>.updated_at`. null = sem convite. */
   nexusConviteEmMs: number | null;
+  /** O instante (ms) do último `recep_sent:<user_id>:rN` (a recepção de usuários novos falou com a conta). Ausente ou null = nunca. */
+  recepcaoEnviadaEmMs?: number | null;
   jaNaCampanha: boolean;
   marcaFora: MarcaForaRet | null;
   /** Existe ao menos 1 linha em `documents` com o user_id da conta (qualquer data). Entra no critério de "usou". Ausente = não. */
@@ -277,7 +281,7 @@ export type MotivoDeFora =
   | 'sem_telefone' | 'sem_segredo' | 'telefone_fora_do_padrao' | 'admin_ou_teste' | 'linha_nossa' | 'paga_hoje' | 'opt_out'
   | 'saiu_ha_pouco' | 'kit_integrador' | 'plugcash'
   | 'depois_da_largada' | 'data_ilegivel' | 'telefone_em_mais_de_uma_conta' | 'mudo_antigo' | 'ja_na_campanha' | 'email_nexus_24h'
-  | 'respondeu_pesquisa_saida' | 'email_saida_hoje'
+  | 'respondeu_pesquisa_saida' | 'email_saida_hoje' | 'recepcao_14d'
   | `fora_marcado:${string}`;
 
 export interface ItemDaFila {
@@ -456,6 +460,8 @@ export function classificarUsuario(u: UsuarioRet, x: ExtrasRet, ctx: ContextoCla
     }
   }
   if (x.nexusConviteEmMs !== null && ctx.agoraMs - x.nexusConviteEmMs < JANELA_NEXUS_MS) return { ok: false, motivo: 'email_nexus_24h' };
+  // A recepção de usuários novos (09/11/2026) falou com a conta há menos de 14 dias: a retomada da Carla espera (o mesmo prazo do toque recente).
+  if (x.recepcaoEnviadaEmMs != null && ctx.agoraMs - x.recepcaoEnviadaEmMs < JANELA_RECEPCAO_RECENTE_MS) return { ok: false, motivo: 'recepcao_14d' };
 
   const s = segmentoDaConta(u, x, ctx.agoraMs);
   const grupo = grupoDoTexto(s.segmento, provaDePagamento(x.vendas));

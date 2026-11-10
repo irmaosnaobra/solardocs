@@ -29,7 +29,7 @@
 
 import { supabase } from '../utils/supabase';
 import { sendConfiancaEmail, CONFIANCA_TOQUES } from '../utils/mailer';
-import { EMAIL_TETO_POR_RODADA, recebeuEmailRecente } from './followupService';
+import { EMAIL_TETO_POR_RODADA, recebeuEmailRecente, idsComEmailDaRecepcaoRecente, pulaPorEmailDaRecepcao } from './followupService';
 import { logger } from '../utils/logger';
 
 /** Dias desde a primeira compra em que cada toque vence. */
@@ -88,13 +88,14 @@ export async function runConfiancaNutricao(opts: { seco?: boolean } = {}): Promi
 
   const { data: candidatos } = await supabase
     .from('users')
-    .select('id, email, nome, plano, email_opt_out, confianca_count, confianca_last_sent_at, followup_email_last_sent_at, upgrade_nudge_last_sent_at, contract_reminder_last_sent_at')
+    .select('id, email, nome, plano, created_at, email_opt_out, confianca_count, confianca_last_sent_at, followup_email_last_sent_at, upgrade_nudge_last_sent_at, contract_reminder_last_sent_at')
     .neq('plano', 'free')
     .lt('confianca_count', CONFIANCA_TOQUES);
 
   if (!candidatos?.length) return { enviados: 0, previstos: 0, semAncora: 0, seco };
 
   const ancoras = await ancorasPorEmail();
+  const daRecepcao = await idsComEmailDaRecepcaoRecente((candidatos as Array<Record<string, any>>).map(u => u.id));
 
   let enviados = 0;
   let semAncora = 0;
@@ -130,7 +131,7 @@ export async function runConfiancaNutricao(opts: { seco?: boolean } = {}): Promi
 
     // Não empilha dois e-mails nossos no mesmo dia — a trava é compartilhada com
     // as outras cadências (ver recebeuEmailRecente no followupService).
-    if (recebeuEmailRecente(u)) continue;
+    if (recebeuEmailRecente(u) || pulaPorEmailDaRecepcao(u, daRecepcao)) continue;
 
     fila.push({ userId: u.id, email, nome: u.nome ?? null, toque: proximo, diasDeCasa });
   }

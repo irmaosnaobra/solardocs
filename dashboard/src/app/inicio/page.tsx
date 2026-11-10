@@ -11,6 +11,8 @@ import { useNexusPortal } from '@/hooks/useNexusPortal';
 import { produtoPorId } from '@/lib/produtos';
 import Logo from '@/components/Logo/Logo';
 import NexusBanner from '@/components/NexusBanner/NexusBanner';
+import PrimeirosPassos from '@/components/PrimeirosPassos/PrimeirosPassos';
+import { usuarioComum } from '@/utils/usuarioComum';
 import {
   novaPropostaItem, lerContaItem, lojaItem, nexusItem, papeladaItems, outrosDocsItems,
   hrefVendaDoProduto, organizarMenu, type ItemMenu,
@@ -55,9 +57,11 @@ interface Pessoa {
   id: string | null;
   nome: string | null;
   admin: boolean;
+  /** Usuário comum (não admin, não comprador avulso): o único que vê o quadro "Primeiros passos". */
+  comum: boolean;
 }
 
-const SEM_PESSOA: Pessoa = { id: null, nome: null, admin: false };
+const SEM_PESSOA: Pessoa = { id: null, nome: null, admin: false, comum: false };
 
 // Só imagem de verdade vira <img>: data URI de imagem ou endereço http(s).
 const LOGO_VALIDA = /^(data:image\/|https?:\/\/)/i;
@@ -149,6 +153,10 @@ export default function InicioPage() {
   const [pessoa, setPessoa] = useState<Pessoa | null>(null);
   const [logoQuebrada, setLogoQuebrada] = useState(false);
   const [maisAberto, setMaisAberto] = useState(false);
+  // O quadro "Primeiros passos" substitui os cartões de cadastro e de marca. Se a primeira carga dele falhar, os
+  // cartões antigos voltam: sem isso, quem não tem empresa ficaria sem nenhum convite para cadastrar.
+  const [quadroFalhou, setQuadroFalhou] = useState(false);
+  const aoFalharQuadro = useCallback(() => setQuadroFalhou(true), []);
   const { itens: recentes, pronto: recentesProntos, reserva: reservaRecentes, buscar: buscarRecentes } = useRecentes();
 
   // Quem decide o cadeado é o servidor (uma chamada, cacheada no módulo), como no menu lateral. O admin vem
@@ -183,6 +191,7 @@ export default function InicioPage() {
           id: u?.id ? String(u.id) : null,
           nome: primeiroNome(u?.nome),
           admin: !!u?.is_admin,
+          comum: usuarioComum(u),
         });
       })
       .catch(() => { setPessoa(SEM_PESSOA); });
@@ -273,6 +282,9 @@ export default function InicioPage() {
   const saudacao = pessoa === null ? '' : pessoa.nome ? `Olá, ${pessoa.nome}` : 'Olá';
   // Sem logo ou sem cor, o convite discreto pra personalizar. Some quando as duas estão preenchidas.
   const faltaMarca = temEmpresa && (semLogo || !paleta.personalizada);
+  // Usuário comum tem o quadro no lugar dos cartões de cadastro e de marca; fechado ou com tudo pronto, eles não voltam.
+  const cartoesAntigos = !pessoa?.comum || quadroFalhou;
+  const quadro = <PrimeirosPassos mostrar={!!pessoa?.comum} userId={pessoa?.id} onFalhou={aoFalharQuadro} />;
 
   // As Ferramentas: a lista principal do menu, mais o Parceiro NEXUS quando o portal está no ar.
   const ferramentas = nexusLigado ? [...principal, nexusItem] : principal;
@@ -306,6 +318,8 @@ export default function InicioPage() {
       <div className="ini-corpo">
         {temEmpresa ? (
           <main>
+            {quadro}
+
             {/* As duas ações principais */}
             <div className="ini-acoes">
               {[novaPropostaItem, lerContaItem].map((item) => <Acao key={item.id} item={item} />)}
@@ -383,7 +397,7 @@ export default function InicioPage() {
               </section>
             )}
 
-            {faltaMarca && (
+            {faltaMarca && cartoesAntigos && (
               <section className="ini-cartao ini-cartaoMarca" aria-labelledby="ini-marca-titulo">
                 <div>
                   <h2 id="ini-marca-titulo" className="ini-cartaoTitulo">Deixe o app com a sua marca</h2>
@@ -396,11 +410,14 @@ export default function InicioPage() {
         ) : (
           <>
             <main>
-              <section className="ini-cartao ini-cartaoCadastro" aria-labelledby="ini-cadastro-titulo">
-                <h2 id="ini-cadastro-titulo" className="ini-cartaoTitulo">Cadastre a sua empresa e o app fica com a sua cara</h2>
-                <p className="ini-cartaoTexto">A sua logo e a sua cor aqui, nas propostas e nos relatórios.</p>
-                <Link href="/empresa" className="ini-botao">Cadastrar empresa</Link>
-              </section>
+              {quadro}
+              {cartoesAntigos && (
+                <section className="ini-cartao ini-cartaoCadastro" aria-labelledby="ini-cadastro-titulo">
+                  <h2 id="ini-cadastro-titulo" className="ini-cartaoTitulo">Cadastre a sua empresa e o app fica com a sua cara</h2>
+                  <p className="ini-cartaoTexto">A sua logo e a sua cor aqui, nas propostas e nos relatórios.</p>
+                  <Link href="/empresa" className="ini-botao">Cadastrar empresa</Link>
+                </section>
+              )}
             </main>
             {convite}
           </>

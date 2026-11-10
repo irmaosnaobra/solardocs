@@ -15,6 +15,11 @@ vi.mock('../services/solardoc/ativacaoPosVenda', () => ({
   rodarAtivacaoPosVenda: vi.fn(async () => { ordem.log.push('ativacao:ini'); return { senha: { enviados: 0 }, proposta: { enviados: 0 } }; }),
 }));
 
+vi.mock('../services/solardoc/recepcaoNovoUsuario', () => ({
+  rodarRecepcaoWhatsApp: vi.fn(async () => { ordem.log.push('recepcao-whatsapp:ini'); return { enviados: 0, pulados: 0, erros: 0 }; }),
+  rodarRecepcaoEmail: vi.fn(async () => { ordem.log.push('recepcao-email:ini'); return { enviados: 0, pulados: 0, erros: 0 }; }),
+}));
+
 // ─── mocks antes do import de app ───────────────────────────────────
 vi.mock('../utils/supabase', () => ({
   supabase: {
@@ -186,11 +191,11 @@ describe('rotas desligadas: 410 com o segredo, 401 sem ele', () => {
     const res = await request(app).get('/cron/master').set('Authorization', `Bearer ${CRON_SECRET}`);
     expect(res.status).toBe(200);
     const nomes = (res.body.results as Array<{ task: string }>).map(r => r.task);
-    expect(nomes.slice(-4)).toEqual(['dunning', 'pix-vip-reminder', 'ativacao-pos-venda', 'pesquisa-satisfacao']);   // a pesquisa (frio) foi para o emSequencia, depois dos robôs de receita (05/11/2026)
+    expect(nomes.slice(-6)).toEqual(['dunning', 'pix-vip-reminder', 'ativacao-pos-venda', 'recepcao-whatsapp', 'recepcao-email', 'pesquisa-satisfacao']);   // a recepção de usuários novos (WhatsApp e depois e-mail) vem logo depois do pós-venda (09/11/2026)   // a pesquisa (frio) foi para o emSequencia, depois dos robôs de receita (05/11/2026)
     expect(nomes.filter(n => n === 'pesquisa-satisfacao')).toHaveLength(1);   // e só 1 vez na lista (não ficou também no allSettled)
     expect(nomes.filter(n => n === 'dunning')).toHaveLength(1);
     // O dunning começa e termina antes de o lembrete começar, e os dois depois da recuperação de checkout (que fica no allSettled).
-    expect(ordem.log.slice(-4)).toEqual(['dunning:ini', 'dunning:fim', 'pix:ini', 'ativacao:ini']);   // a ativação do pós-venda é a última do frio
+    expect(ordem.log.slice(-6)).toEqual(['dunning:ini', 'dunning:fim', 'pix:ini', 'ativacao:ini', 'recepcao-whatsapp:ini', 'recepcao-email:ini']);   // o pós-venda e, logo depois, a recepção (WhatsApp e e-mail)
     // E ela NÃO está no allSettled nem no recoverOrphanCheckouts: só roda depois do lembrete do Pix.
     expect(ordem.log.indexOf('ativacao:ini')).toBeGreaterThan(ordem.log.indexOf('pix:ini'));
     expect(ordem.log.filter(l => l === 'ativacao:ini')).toHaveLength(1);

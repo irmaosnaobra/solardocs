@@ -29,6 +29,7 @@ import { horaBRT } from '../agentes5040/relogio';
 import { chavesExistentes } from '../agentes5040/cota';
 import { novaRodadaPortao, tomarChaveFria, soltarChaveFria } from '../recuperacaoCheckoutPortao';
 import { ehContaDeTeste } from './retomadaUsuariosRegras';
+import { chavesRecepSentDe } from './recepcaoNovoUsuarioTextos';
 
 import {
   chaveAtivSenha, chaveAtivProposta, nomeParaSaudar, textoSenhaNaoCriada, textoPrimeiraProposta,
@@ -65,12 +66,12 @@ export function dentroDaJanelaDaSenha(agora: Date | number): boolean {
 }
 
 const soDigitos = (v: unknown): string => String(v ?? '').replace(/\D/g, '');
-const telefoneValido = (v: unknown): string | null => {
+export const telefoneValido = (v: unknown): string | null => {
   const d = soDigitos(v);
   return d.length >= 10 && d.length <= 13 ? d : null;
 };
 
-const tsMs = (v: unknown): number => {
+export const tsMs = (v: unknown): number => {
   if (!v) return 0;
   const s = String(v);
   const iso = /[zZ]|[+-]\d{2}:?\d{2}$/.test(s) ? s.replace(' ', 'T') : s.replace(' ', 'T') + 'Z';
@@ -269,7 +270,7 @@ export async function enviarSenhaNaoCriada(agoraDate: Date = new Date()): Promis
 interface VendaPaga { email: string | null; card_passed_at: string | null }
 interface UsuarioPagante { id: string; email: string; nome: string | null; whatsapp: string | null; whatsapp_opt_out: boolean | null; is_admin: boolean | null }
 
-async function fezProposta(userIds: string[]): Promise<Set<string> | null> {
+export async function fezProposta(userIds: string[]): Promise<Set<string> | null> {
   const fez = new Set<string>();
   for (let i = 0; i < userIds.length; i += 100) {
     const { data, error } = await supabase.from('documents').select('user_id').eq('tipo', 'propostaSolar').in('user_id', userIds.slice(i, i + 100));
@@ -308,13 +309,20 @@ export async function enviarPrimeiraProposta(agoraDate: Date = new Date()): Prom
   const fizeram = await fezProposta(pagantes.map(u => u.id));
   if (!fizeram) return { ...r, erros: 1, motivo: 'leitura_falhou' };
   let jaTomadas: Set<string>;
-  try { jaTomadas = await chavesExistentes(pagantes.map(u => chaveAtivProposta(u.id))); }
+  // Quem já levou um lembrete da recepção de usuários novos (`recep_sent:<id>:r1|r2|r3`, chaves exatas) não leva este convite: a mesma pessoa
+  // não recebe dois robôs falando da 1ª proposta no mesmo mês.
+  let daRecepcao: Set<string>;
+  try {
+    jaTomadas = await chavesExistentes(pagantes.map(u => chaveAtivProposta(u.id)));
+    daRecepcao = await chavesExistentes(pagantes.flatMap(u => chavesRecepSentDe(u.id)));
+  }
   catch { return { ...r, erros: 1, motivo: 'leitura_falhou' }; }
+  const levouRecepcao = (id: string): boolean => chavesRecepSentDe(id).some(k => daRecepcao.has(k));
 
   // Portão da linha (janela da Base, linha pausada, supressão, mudo, pausa humana, teto frio com `robo` e espaçamento).
   const portao = novaRodadaPortao(() => new Date(agora), { robo: ROBO_ATIV_PROPOSTA });
   for (const u of pagantes) {
-    if (fizeram.has(u.id) || jaTomadas.has(chaveAtivProposta(u.id))) { r.pulados++; continue; }
+    if (fizeram.has(u.id) || jaTomadas.has(chaveAtivProposta(u.id)) || levouRecepcao(u.id)) { r.pulados++; continue; }
     const tel = telefoneValido(u.whatsapp)!;
     const v = await portao.avaliar(tel);
     if (!v.ok) { r.pulados++; if (!r.motivo) r.motivo = v.motivo; continue; }

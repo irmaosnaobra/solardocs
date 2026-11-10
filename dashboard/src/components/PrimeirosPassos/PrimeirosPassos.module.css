@@ -1,0 +1,149 @@
+/* Quadro "Primeiros passos". Só tokens do tema (styles/globals.css): nada de cor escrita à mão, para valer
+   igual no app e na tela clara do /inicio. A altura de linha é explícita porque o /inicio força "normal". */
+.quadro {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--sombra-card);
+  padding: 20px 22px;
+  margin-bottom: 20px;
+  width: 100%;
+  min-width: 0;
+  line-height: 1.5;
+  color: var(--color-text);
+  text-align: left;
+}
+
+.pronto {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-border);
+}
+
+.topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.topoTextos { min-width: 0; flex: 1 1 auto; }
+.titulo { margin: 0; font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--color-text); }
+.texto { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--color-text-muted); }
+
+.progresso { flex: 0 0 auto; width: 150px; }
+.progressoNum { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 700; color: var(--color-text); text-align: right; }
+.barra { height: 8px; border-radius: 999px; background: var(--color-surface-2); border: 1px solid var(--color-border); overflow: hidden; }
+.barraCheia { height: 100%; border-radius: 999px; background: var(--color-primary); transition: width 0.3s; }
+
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.passo {
+  display: flex;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--color-border);
+}
+.passoExtra { border-top-style: dashed; }
+.marca { flex: 0 0 26px; margin-top: 1px; }
+.corpo { min-width: 0; flex: 1 1 auto; }
+.passoTitulo { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.35; color: var(--color-text); }
+.porque { margin: 2px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--color-text-muted); }
+.feito { margin: 6px 0 0; font-size: 13.5px; font-weight: 700; color: var(--ink-green); }
+.contagem { margin: 6px 0 0; font-size: 13.5px; font-weight: 700; color: var(--ink-amber); }
+
+.como {
+  margin: 10px 0 12px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+.como li { padding-left: 2px; overflow-wrap: anywhere; }
+
+.zap { display: flex; flex-direction: column; gap: 10px; max-width: 340px; }
+.zapRotulo {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.erro { margin: 8px 0 0; font-size: 13px; font-weight: 600; color: var(--ink-red); }
+
+.btn, .btnSec {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: center;
+}
+.btn { background: var(--color-primary); color: #0f172a; border: 1px solid var(--color-primary); }
+.btn:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btnSec { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border-strong); }
+.btnSec:hover { background: var(--color-surface-2); }
+.btnLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 2px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-orange);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.btn:focus-visible, .btnSec:focus-visible, .btnLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.automatico {
+  margin-top: 4px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+}
+.autoTitulo { margin: 0; font-size: 14.5px; font-weight: 800; color: var(--color-text); }
+.autoTexto { margin: 4px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--color-text); }
+
+.ajuda {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.ajudaTexto { margin: 0; font-size: 13.5px; color: var(--color-text-muted); flex: 1 1 240px; }
+
+.rodape { display: flex; justify-content: flex-end; margin-top: 8px; }
+
+.prontoTopo { display: flex; gap: 12px; align-items: flex-start; }
+
+@media (max-width: 640px) {
+  .quadro { padding: 16px; }
+  .topo { flex-direction: column; gap: 12px; }
+  .progresso { width: 100%; }
+  .progressoNum { text-align: left; }
+  .btn, .btnSec { width: 100%; }
+  .zap { max-width: none; }
+  .ajuda { flex-direction: column; align-items: stretch; }
+  .rodape { justify-content: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barraCheia { transition: none; }
+}

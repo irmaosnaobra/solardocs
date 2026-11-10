@@ -249,6 +249,11 @@ const BOT_SENT_PREFIXES = [
   // Também em PREFIXOS_AGENDA. `jornada_pos_sent:<card>:<aniv|usina>:<ano>` = os aniversários (jornadaAniversario, frio P5), FORA de PREFIXOS_AGENDA.
   'jornada_lib_sent:',
   'jornada_pos_sent:',
+  // [09/11] Recepção de usuários novos da SolarDoc (solardoc/recepcaoNovoUsuario.ts, robô solardoc_novo_usuario, frio P5): `recep_sent:<userId>:r1|r2|r3`,
+  // um carimbo por toque (claim por insert ANTES do envio). Toque que a pessoa não pediu: pesa no orçamento FRIO e no espaçamento desde o 1º dia, e fica
+  // FORA de PREFIXOS_AGENDA. `recep_pulo:` (toque pulado, nada saiu), `recep_email:` (e-mail, não passa pela linha) e `recep_sonda_*` NÃO entram.
+  // A sonda grava `recep_sent:sonda:<ts>` (sem telefone) e apaga na hora.
+  'recep_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de

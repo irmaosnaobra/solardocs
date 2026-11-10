@@ -133,4 +133,31 @@ export const pushApi = {
   cancelar: (endpoint: string) => api.delete('/push/inscricao', { data: { endpoint } }),
 };
 
+// Quadro "Primeiros passos" (recepção do usuário novo). `proximo` e `feitos` contam só os 4 passos principais;
+// o passo `whatsapp` só aparece na tela quando `feito` é falso.
+export type PassoId = 'empresa' | 'logo' | 'fotos' | 'proposta' | 'whatsapp';
+
+export interface PassoEstado {
+  id: PassoId;
+  feito: boolean;
+  /** Só no passo `fotos`. */
+  qtd?: number;
+  minimo?: number;
+}
+
+export interface PrimeirosPassosEstado {
+  passos: PassoEstado[];
+  proximo: 'empresa' | 'logo' | 'fotos' | 'proposta' | null;
+  feitos: number;
+  total: number;
+  tudoPronto: boolean;
+  pago: boolean;
+}
+
+export const primeirosPassosApi = {
+  get: () => api.get<PrimeirosPassosEstado>('/primeiros-passos', { timeout: 12000 }),
+  salvarWhatsapp: (whatsapp: string) =>
+    api.put<{ ok: boolean; whatsapp: string }>('/primeiros-passos/whatsapp', { whatsapp }),
+};
+
 export default api;
