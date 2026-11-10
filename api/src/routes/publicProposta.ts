@@ -33,6 +33,9 @@ const COLUNAS_DOC = 'id, tipo, arquivo_url, content, user_id, created_at, client
 
 type Dados = Record<string, unknown>;
 
+/** Proposta com link rastreado, botão de PDF e PDF público: a solar e a off-grid (todos os modelos). */
+const TIPOS_PROPOSTA_PUBLICA = ['propostaSolar', 'propostaOffGrid'];
+
 /** Valor do formulário: vazio e o marcador '___' (campo não preenchido) viram ''. */
 function campo(v: unknown): string {
   const s = String(v ?? '').trim();
@@ -186,7 +189,7 @@ router.get('/:id', cspImagensStorage(), async (req: Request, res: Response): Pro
 
     const doc = await localizarDoc(id);
 
-    if (!doc || (doc.tipo !== 'propostaSolar' && doc.tipo !== 'propostaOffGrid')) {
+    if (!doc || !TIPOS_PROPOSTA_PUBLICA.includes(doc.tipo)) {
       res.status(404).type('text/html').send(`<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Proposta não encontrada</title>
@@ -199,14 +202,14 @@ router.get('/:id', cspImagensStorage(), async (req: Request, res: Response): Pro
       return;
     }
 
-    // Link rastreado: só proposta solar emitida depois do rastreio (link_rastreado no dados_json).
+    // Link rastreado: só proposta (solar ou off-grid) emitida depois do rastreio (link_rastreado no dados_json).
     // Documento antigo segue servido como sempre, sem evento e sem vencer.
     const dados: Dados = {
       link_rastreado: doc.link_rastreado === true || doc.link_rastreado === 'true',
       link_expira_em: doc.link_expira_em, codigo: doc.codigo,
       vendedor_nome: doc.vendedor_nome, vendedor_whatsapp: doc.vendedor_whatsapp, cliente_nome: doc.cliente_dados,
     };
-    const rastreado = doc.tipo === 'propostaSolar' && dados.link_rastreado === true;
+    const rastreado = TIPOS_PROPOSTA_PUBLICA.includes(doc.tipo) && dados.link_rastreado === true;
     const expiraEm = rastreado && typeof dados.link_expira_em === 'string' ? dados.link_expira_em : null;
     const vencido = rastreado && linkVencido(expiraEm);
 
@@ -260,8 +263,8 @@ router.get('/:id', cspImagensStorage(), async (req: Request, res: Response): Pro
       return;
     }
     let html = htmlPublico(bruto);
-    // Proposta solar (todos os modelos): botão "Baixar PDF" injetado só na página servida.
-    if (doc.tipo === 'propostaSolar') html = comBotaoPdf(html, id);
+    // Proposta solar e off-grid (todos os modelos): botão "Baixar PDF" injetado só na página servida.
+    if (TIPOS_PROPOSTA_PUBLICA.includes(doc.tipo)) html = comBotaoPdf(html, id);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     // 60s e não 300: o consultor pode reeditar a proposta depois de já ter aberto o
@@ -293,7 +296,7 @@ router.get('/:id/pdf', propostaPdfLimiter, async (req: Request, res: Response): 
   try {
     const id = String(req.params.id || '');
     const doc = await localizarDoc(id);
-    if (!doc || doc.tipo !== 'propostaSolar') {
+    if (!doc || !TIPOS_PROPOSTA_PUBLICA.includes(doc.tipo)) {
       res.status(404).type('text/plain').send('Proposta não encontrada.');
       return;
     }

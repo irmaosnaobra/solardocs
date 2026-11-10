@@ -10,7 +10,8 @@ import { validarFioB } from '../services/propostaSolarCalculos';
 import { validarFioBNaProposta } from '../services/propostaSolarFioBCheck';
 import { linkExpiraEm } from '../services/propostaLink';
 import { checkLimit, incrementUsed } from '../services/planService';
-import { acessoOffGrid } from '../services/offgrid/acesso';
+import { acessoOffGrid, OFFGRID_ADDON_PRECO } from '../services/offgrid/acesso';
+import { TABELA_VERSAO } from '../services/offgrid/precario';
 import { injectPrint } from '../utils/printHtml';
 import { examinarRevisao, ehDesenhado } from '../services/documentos/saudeDocumento';
 import { logger } from '../utils/logger';
@@ -109,6 +110,88 @@ function exigirAssinaturaModelo4(fields: Record<string, unknown>): void {
   fields.assinatura = normalizarAssinatura(fields.assinatura);
 }
 
+// ─── Proposta off-grid ────────────────────────────────────────────────────────────────────────
+
+/** Modelo 2 do off-grid ("Completa"): usa as galerias (fotos de obra) e o aceite, como o modelo 4 do solar. */
+function ehOffGridCompleta(tipo: string, modelo: number): boolean {
+  return tipo === 'propostaOffGrid' && modelo === 2;
+}
+
+/** Quem reassina as fotos de obra pelo path do usuário: solar modelo 4 e off-grid modelo 2. */
+function usaGaleriaCompleta(tipo: string, modelo: number): boolean {
+  return (tipo === 'propostaSolar' && modelo === 4) || ehOffGridCompleta(tipo, modelo);
+}
+
+/** Tipos com link rastreado (/p/:id grava abertura e vence) e botão de PDF. */
+const TIPOS_COM_LINK_RASTREADO = ['propostaSolar', 'propostaOffGrid'];
+
+/**
+ * Validade do link rastreado. O modelo 1 do off-grid imprime a validade presa entre 1 e 180 dias (o 2 imprime a que veio,
+ * como o solar): o link vence junto com a data impressa, nunca depois dela.
+ */
+function linkExpiraEmDaProposta(tipo: string, modelo: number, fields: Record<string, unknown>, base: string): string | null {
+  if (tipo !== 'propostaOffGrid' || modelo === 2) return linkExpiraEm(fields, base);
+  const x = parseFloat(String(fields.validade_dias ?? '').replace(',', '.'));
+  const dias = Math.max(1, Math.min(180, Math.round(Number.isFinite(x) ? x : 7)));
+  return linkExpiraEm({ ...fields, validade_dias: dias }, base);
+}
+
+/**
+ * Proposta off-grid só para quem tem o acesso Off-Grid (add-on comprado, entitlement não vencido ou admin), em QUALQUER
+ * plano. Responde 402 no formato do /offgrid/orcar (trancado, preco_addon, tabela_versao, motivo) e devolve true se
+ * respondeu; `error` leva o mesmo texto para a tela, que mostra só ele.
+ */
+async function barrarSemAcessoOffGrid(userId: string | undefined, res: Response, motivo: string): Promise<boolean> {
+  if ((await acessoOffGrid(userId)).liberado) return false;
+  res.status(402).json({ error: motivo, trancado: true, preco_addon: OFFGRID_ADDON_PRECO, tabela_versao: TABELA_VERSAO, motivo });
+  return true;
+}
+const MOTIVO_OFFGRID_GERAR = 'A proposta off-grid faz parte do acesso ao Kit Off-Grid.';
+const MOTIVO_OFFGRID_EDITAR = 'Editar a proposta off-grid faz parte do acesso ao Kit Off-Grid.';
+
+const MAX_ITENS_OFFGRID = 20;
+const MAX_APARELHOS_OFFGRID = 60;
+const MAX_TEXTO_OFFGRID = 2000;
+/** Chaves de texto livre que o integrador digita (o template já escapa e corta o resto). */
+const CHAVES_TEXTO_OFFGRID = ['pag_custom', 'endereco', 'prazo_entrega', 'observacao', 'observacoes', 'parcela_cartao', 'parcela_financiamento', 'inversor_saida'];
+
+/** Guarda leve do payload da proposta off-grid: 400 com lista grande demais ou texto livre longo demais. */
+function exigirPayloadOffGridEnxuto(fields: Record<string, unknown>): void {
+  if (Array.isArray(fields.itens_cliente) && fields.itens_cliente.length > MAX_ITENS_OFFGRID) {
+    throw new ApiError(400, `A lista de itens da proposta passa de ${MAX_ITENS_OFFGRID}. Junte itens parecidos.`);
+  }
+  if (Array.isArray(fields.aparelhos) && fields.aparelhos.length > MAX_APARELHOS_OFFGRID) {
+    throw new ApiError(400, `A lista de aparelhos passa de ${MAX_APARELHOS_OFFGRID}.`);
+  }
+  for (const k of CHAVES_TEXTO_OFFGRID) {
+    const v = fields[k];
+    if (typeof v === 'string' && v.length > MAX_TEXTO_OFFGRID) {
+      throw new ApiError(400, `O texto "${k}" passa de ${MAX_TEXTO_OFFGRID} caracteres.`);
+    }
+  }
+}
+
+/** A assinatura "veio"? Ausente, nula, vazia ou objeto vazio = não veio. */
+function assinaturaVeio(v: unknown): boolean {
+  if (v === undefined || v === null || v === '') return false;
+  if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length === 0) return false;
+  return true;
+}
+
+/**
+ * Off-grid modelo 2: o aceite é OPCIONAL (sem assinatura a folha de aceite não sai). Se veio, tem que ser válida (400 com a
+ * frase da tela) e fica gravada na versão limpa, igual ao modelo 4 do solar.
+ */
+function exigirAssinaturaOpcional(fields: Record<string, unknown>): void {
+  if (!assinaturaVeio(fields.assinatura)) { delete fields.assinatura; return; }
+  if (!normalizarAssinatura(fields.assinatura)) {
+    throw new ApiError(400, 'Preencha as assinaturas do cliente e da empresa, ou deixe a assinatura em branco.');
+  }
+  const erro = validarAssinatura(fields.assinatura);
+  if (erro) throw new ApiError(400, erro);
+  fields.assinatura = normalizarAssinatura(fields.assinatura);
+}
+
 /**
  * Fotos de obra do modelo 4: as PRÓPRIAS da proposta (dados_json.fotos_obras) primeiro, depois as da empresa
  * (company.fotos_obras), sem repetir path, no máximo 12. `[]` não "tira" nada: as da empresa sempre entram.
@@ -149,6 +232,12 @@ async function galeriasModelo4(
 export async function generateDocument(req: Request, res: Response): Promise<void> {
   try {
     const body = generateSchema.parse(req.body);
+    // Off-grid: o acesso vem primeiro (quem não tem recebe 402, não 400), depois o payload e o aceite, tudo antes de gastar número e cota.
+    if (body.tipo === 'propostaOffGrid') {
+      if (await barrarSemAcessoOffGrid(req.userId, res, MOTIVO_OFFGRID_GERAR)) return;
+      exigirPayloadOffGridEnxuto(body.fields);
+      if (body.modeloNumero === 2) exigirAssinaturaOpcional(body.fields);
+    }
     if (body.tipo === 'propostaSolar' && body.modeloNumero === 4) {
       exigirAssinaturaModelo4(body.fields);
       exigirFioBValido(body.fields);
@@ -181,17 +270,10 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // Sidebar já tranca visualmente, mas o endpoint precisa garantir.
     const { data: planUser } = await supabase
       .from('users').select('plano, is_admin').eq('id', req.userId).single();
-    if (planUser && !planUser.is_admin && planUser.plano === 'free' && body.tipo !== 'propostaSolar') {
-      // A proposta off-grid não é degrau de plano: é add-on comprado à parte.
-      // Quem pagou por ela gera, seja free ou assinante — cobrar duas vezes pela
-      // mesma coisa é o jeito mais rápido de virar reembolso.
-      const liberadoPorAddon = body.tipo === 'propostaOffGrid'
-        && (await acessoOffGrid(req.userId)).liberado;
-      if (!liberadoPorAddon) {
-        throw new ApiError(402, body.tipo === 'propostaOffGrid'
-          ? 'A proposta off-grid faz parte do acesso ao Kit Off-Grid.'
-          : 'Faça upgrade pra gerar esse tipo de documento. O plano gratuito libera só o Gerador de Proposta.');
-      }
+    // A proposta off-grid não é degrau de plano: é add-on comprado à parte, e o acesso dela já foi
+    // conferido lá no topo para QUALQUER plano (free ou assinante). Aqui sobra o degrau dos outros tipos.
+    if (planUser && !planUser.is_admin && planUser.plano === 'free' && body.tipo !== 'propostaSolar' && body.tipo !== 'propostaOffGrid') {
+      throw new ApiError(402, 'Faça upgrade pra gerar esse tipo de documento. O plano gratuito libera só o Gerador de Proposta.');
     }
 
     // Fetch client or terceiro and map to unified entity
@@ -237,7 +319,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // emitido_em só existe pra congelar a data de uma reemissão (ver regenerate).
     // Doc novo nasce hoje — e o prefill do kit/cliente pode arrastar o campo antigo.
     delete body.fields.emitido_em;
-    // Link rastreado: o prefill pode arrastar a validade de OUTRA proposta. Só a propostaSolar recebe de novo, logo antes de salvar.
+    // Link rastreado: o prefill pode arrastar a validade de OUTRA proposta. Só propostaSolar e propostaOffGrid recebem de novo, logo antes de salvar.
     delete body.fields.link_rastreado;
     delete body.fields.link_expira_em;
 
@@ -264,17 +346,16 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       } catch (err) {
         logger.error('documents', 'falha gerando slug/codigo_curto, proposta sai sem número', err);
       }
-      // O template off-grid não imprime número; só a propostaSolar leva o campo.
-      if (body.tipo === 'propostaSolar') {
-        if (codigoCurto) {
-          codigo = codigoCurto;
-          body.fields = { ...body.fields, codigo };
-        } else {
-          // O prefill por cliente devolve o dados_json da proposta anterior, com o
-          // número dela. Sem número novo o campo sai: sem número é melhor que com
-          // o número de outra proposta.
-          delete body.fields.codigo;
-        }
+      // O número entra no dados_json de toda proposta (o link, o PDF e o aviso de abertura o usam); só o modelo 2 do
+      // off-grid o imprime, o modelo 1 ignora o campo.
+      if (codigoCurto) {
+        codigo = codigoCurto;
+        body.fields = { ...body.fields, codigo };
+      } else {
+        // O prefill por cliente devolve o dados_json da proposta anterior, com o
+        // número dela. Sem número novo o campo sai: sem número é melhor que com
+        // o número de outra proposta.
+        delete body.fields.codigo;
       }
     }
 
@@ -284,7 +365,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // Completa + Banco: o dados_json guarda só as fotos próprias; o template recebe as próprias primeiro e depois as da
     // empresa (a reassinatura e o filtro por usuário são os de sempre). `[]` não tira as da empresa.
     let fotosParaTemplate: unknown = null;
-    if (body.tipo === 'propostaSolar' && body.modeloNumero === 4) {
+    if (usaGaleriaCompleta(body.tipo, body.modeloNumero)) {
       const g = await galeriasModelo4(req.userId, body.fields, company.fotos_obras);
       body.fields = g.guardado;
       fotosParaTemplate = g.paraTemplate.fotos_obras;
@@ -331,11 +412,11 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       }
     }
 
-    // Link rastreado (só propostaSolar): aviso de abertura no celular e vencimento do link.
+    // Link rastreado (propostaSolar e propostaOffGrid): aviso de abertura no celular e vencimento do link.
     // A validade é a da proposta, contada de hoje (a emissão é agora).
     let linkExpiraEmGerado: string | null = null;
-    if (body.tipo === 'propostaSolar') {
-      linkExpiraEmGerado = linkExpiraEm(body.fields, new Date().toISOString());
+    if (TIPOS_COM_LINK_RASTREADO.includes(body.tipo)) {
+      linkExpiraEmGerado = linkExpiraEmDaProposta(body.tipo, body.modeloNumero, body.fields, new Date().toISOString());
       body.fields.link_rastreado = true;
       if (linkExpiraEmGerado) body.fields.link_expira_em = linkExpiraEmGerado;
     }
@@ -368,7 +449,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // o número que colidiu, que é o de OUTRA proposta do mesmo integrador.
     let conteudoMudou = false;
     const reimprimirNumero = (novo: string | null) => {
-      if (body.tipo !== 'propostaSolar' || !codigo) return;
+      if (!TIPOS_COM_LINK_RASTREADO.includes(body.tipo) || !codigo) return;
       codigo = novo;
       if (novo) body.fields = { ...body.fields, codigo: novo };
       else delete body.fields.codigo;
@@ -505,12 +586,14 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
       throw new ApiError(400, 'Cadastre sua empresa (CNPJ obrigatório) antes de gerar documentos');
     }
 
-    // Mesmo portão do generate: free só mexe em proposta.
+    // Mesmo portão do generate: free só mexe em proposta. A off-grid exige o acesso Off-Grid em QUALQUER plano.
+    if (doc.tipo === 'propostaOffGrid') {
+      if (await barrarSemAcessoOffGrid(req.userId, res, MOTIVO_OFFGRID_EDITAR)) return;
+      exigirPayloadOffGridEnxuto(body.fields);
+    }
     const { data: planUser } = await supabase
       .from('users').select('plano, is_admin').eq('id', req.userId).single();
-    const offgridLiberado = doc.tipo === 'propostaOffGrid'
-      && (await acessoOffGrid(req.userId)).liberado;
-    if (planUser && !planUser.is_admin && planUser.plano === 'free' && doc.tipo !== 'propostaSolar' && !offgridLiberado) {
+    if (planUser && !planUser.is_admin && planUser.plano === 'free' && doc.tipo !== 'propostaSolar' && doc.tipo !== 'propostaOffGrid') {
       throw new ApiError(402, 'Faça upgrade pra editar esse tipo de documento. O plano gratuito libera só o Gerador de Proposta.');
     }
 
@@ -572,16 +655,22 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     // Se veio, vale a mesma regra do generate. Plano com limite não troca o cliente: com salva, o cliente do
     // aceite é o SALVO (nome e CPF/CNPJ do formulário são ignorados); sem salva, o nome na assinatura tem
     // que ser o do cliente desta proposta. A empresa e o local seguem o que veio.
-    if (body.modeloNumero === 4 && doc.tipo === 'propostaSolar') {
-      exigirFioBValido(fields);
+    // Off-grid modelo 2 passa pelo mesmo bloco (assinatura opcional, com a trava de cota), sem o Fio B, que é só do solar.
+    const ehSolar4 = body.modeloNumero === 4 && doc.tipo === 'propostaSolar';
+    const ehOffGrid2 = ehOffGridCompleta(doc.tipo, body.modeloNumero);
+    if (ehSolar4 || ehOffGrid2) {
+      if (ehSolar4) exigirFioBValido(fields);
       const salva = normalizarAssinatura(dadosAntigos.assinatura);
       const nova = normalizarAssinatura(fields.assinatura);
       if (!nova) {
+        // Off-grid: assinatura que veio mas não é lida (lixo) não some calada, é 400.
+        if (ehOffGrid2 && assinaturaVeio(fields.assinatura)) exigirAssinaturaOpcional(fields);
         if (salva) fields.assinatura = salva;
         else delete fields.assinatura;
       } else {
         if (!podeTrocarCliente && salva) fields.assinatura = { ...nova, cliente: salva.cliente };
-        exigirAssinaturaModelo4(fields);
+        if (ehSolar4) exigirAssinaturaModelo4(fields);
+        else exigirAssinaturaOpcional(fields);
         if (!podeTrocarCliente && !salva) {
           const ass = fields.assinatura as { cliente: { nome: string } };
           if (chaveCliente(ass.cliente.nome) !== chaveCliente(doc.cliente_nome)) {
@@ -658,7 +747,7 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     // Galerias do modelo Completo: URL nova a partir do path (nunca a que veio do cliente).
     // Modelo 4: gravado = só as fotos próprias; o template recebe as próprias primeiro e depois as da empresa de HOJE.
     let fotosParaTemplate: unknown = null;
-    if (doc.tipo === 'propostaSolar' && body.modeloNumero === 4) {
+    if (usaGaleriaCompleta(doc.tipo, body.modeloNumero)) {
       const g = await galeriasModelo4(req.userId, fields, company.fotos_obras);
       fields = g.guardado;
       fotosParaTemplate = g.paraTemplate.fotos_obras;
@@ -670,8 +759,8 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     delete fields.link_rastreado;
     delete fields.link_expira_em;
     let linkExpiraEmNovo: string | null = null;
-    if (doc.tipo === 'propostaSolar') {
-      linkExpiraEmNovo = linkExpiraEm(fields, new Date().toISOString());
+    if (TIPOS_COM_LINK_RASTREADO.includes(doc.tipo)) {
+      linkExpiraEmNovo = linkExpiraEmDaProposta(doc.tipo, body.modeloNumero, fields, new Date().toISOString());
       fields.link_rastreado = true;
       if (linkExpiraEmNovo) fields.link_expira_em = linkExpiraEmNovo;
     }
@@ -922,6 +1011,10 @@ export async function getDocumentForEdit(req: Request, res: Response): Promise<v
 export async function saveDocument(req: Request, res: Response): Promise<void> {
   try {
     const body = saveSchema.parse(req.body);
+
+    // Off-grid: o save não é porta dos fundos do generate. Sem o acesso (add-on, entitlement ou admin) é o mesmo 402,
+    // antes de gastar cota e de gravar qualquer coisa.
+    if (body.tipo === 'propostaOffGrid' && await barrarSemAcessoOffGrid(req.userId, res, MOTIVO_OFFGRID_GERAR)) return;
 
     // Salvar um documento pronto é emitir documento: gasta cota como o generate. Até
     // 28/10/2026 esta rota gravava sem checar nem contar, e dava para emitir sem limite.

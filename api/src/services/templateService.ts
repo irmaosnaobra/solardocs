@@ -1,6 +1,7 @@
 import { getRef, geracaoMensal, MESES_ABREV } from './propostaSolarData';
 import { enderecoCompleto } from './enderecoCliente';
 import { propostaOffGrid } from './templates/propostaOffGrid';
+import { propostaOffGridCompleta } from './templates/propostaOffGridCompleta';
 import { inversoresDaProposta, totalKwInversores, type InversorProposta } from './inversoresProposta';
 import { propostaSolarCompleta } from './templates/propostaSolarCompleta';
 import {
@@ -133,6 +134,12 @@ function gerarDoTemplate(
     case 'propostaOffGrid':
       // Sistema isolado. Os números vêm PRONTOS do motor do front — o template
       // não recalcula nada (senão a autonomia impressa diverge da tela).
+      // Modelo 2 = "Off-grid Completa": várias folhas A4 no visual da Completa + Banco. Como o modelo 4 do solar,
+      // chama o modelo 1 só para preencher out.resumo (mesmos números do WhatsApp) e descarta o HTML dele.
+      if (modelo === 2) {
+        propostaOffGrid(company, client, fields, out);
+        return propostaOffGridCompleta(company, client, fields);
+      }
       return propostaOffGrid(company, client, fields, out);
     case 'propostaSolar':
       // Modelo 1 (padrão) = "1 Página"; Modelo 2 = "Moderno"; Modelo 3 = o MESMO

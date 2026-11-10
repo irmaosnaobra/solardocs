@@ -221,6 +221,17 @@ describe('GET /p/:id/pdf', () => {
     expect(h.gerar).not.toHaveBeenCalled();
   });
 
+  it('proposta off-grid: o PDF público sai como o da solar, grava pdf_baixado e respeita o vencimento', async () => {
+    h.doc = doc({ tipo: 'propostaOffGrid' });
+    const res = await baixar();
+    expect(res.status).toBe(302);
+    expect(h.gerar).toHaveBeenCalledTimes(1);
+    expect(h.eventos).toHaveLength(1);
+    expect(h.eventos[0]).toMatchObject({ feature: 'proposta_link', event_type: 'pdf_baixado' });
+    h.doc = doc({ tipo: 'propostaOffGrid', link_expira_em: '2026-10-10T23:59:59-03:00' });
+    expect((await baixar()).status).toBe(410);
+  });
+
   it('link vencido: 410, sem PDF', async () => {
     h.doc = doc({ link_expira_em: '2026-10-10T23:59:59-03:00' });
     const res = await baixar();
@@ -259,9 +270,11 @@ describe('Botão "Baixar PDF" na página pública', () => {
     expect(h.doc?.content).toBe(HTML);
   });
 
-  it('proposta off-grid não ganha o botão', async () => {
+  it('proposta off-grid (modelos 1 e 2) ganha o mesmo botão que a solar', async () => {
     h.doc = doc({ tipo: 'propostaOffGrid', link_rastreado: null });
-    expect((await abrir()).text).not.toContain('Baixar PDF');
+    const res = await abrir();
+    expect(res.text).toContain('Baixar PDF');
+    expect(res.text).toContain(`href="/p/${DOC_ID}/pdf"`);
   });
 
   it('abertura: a contagem e a repetição olham só aberta e aberta_vencida (o download não mexe nelas)', async () => {

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=794, user-scalable=yes"/>
+<title>Sistema Off-Grid — Maria Aparecida Souza</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{ --c1:#0b3d2e; --c2:#41685c; --c3:#eef1f0; --ink:#161A22; --muted:#5C6470; --line:#E4E8F0; --row:#F5F7FA; }
+@page{ size:A4; margin:0; }
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ font-family:'Inter',system-ui,sans-serif; color:var(--ink); background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.pg{ width:794px; height:1123px; padding:30px 40px 70px; position:relative; page-break-after:always; overflow:hidden; }
+.pg:last-child{ page-break-after:auto; }
+
+/* ── Cabeçalho ── */
+.top{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding-bottom:10px; border-bottom:3px solid var(--c1); }
+.brand{ display:flex; align-items:center; gap:12px; }
+.brand img{ max-height:40px; max-width:132px; object-fit:contain; }
+.brand .bn{ font-size:17px; font-weight:900; letter-spacing:-0.02em; color:var(--c1); }
+.brand .bc{ font-size:10px; color:var(--muted); margin-top:2px; }
+.top .meta{ text-align:right; font-size:10px; color:var(--muted); line-height:1.6; }
+.top .meta strong{ display:block; font-size:12px; color:var(--ink); }
+
+/* ── Título ── */
+.hero{ margin:15px 0 12px; }
+.hero .kicker{ font-size:10.5px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--c2); }
+.hero h1{ font-size:23px; font-weight:900; letter-spacing:-0.03em; line-height:1.12; margin-top:5px; }
+.hero p{ font-size:11.5px; color:var(--muted); line-height:1.5; margin-top:6px; max-width:600px; }
+
+/* ── Cliente ── */
+.cli{ display:flex; gap:0; background:var(--row); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+.cli div{ flex:1; padding:8px 12px; border-right:1px solid #fff; }
+.cli div:last-child{ border-right:none; }
+.cli span{ display:block; font-size:9px; font-weight:800; letter-spacing:0.07em; text-transform:uppercase; color:var(--muted); }
+.cli strong{ font-size:12.5px; font-weight:700; }
+
+/* ── Destaques ── */
+.big{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
+.big .b{ background:var(--c3); border:1px solid var(--line); border-radius:10px; padding:8px 8px; text-align:center; }
+.big .b em{ display:block; font-style:normal; font-size:19px; font-weight:900; color:var(--c1); letter-spacing:-0.02em; line-height:1.1; }
+.big .b span{ display:block; font-size:9.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:5px; }
+
+/* ── Seções ── */
+h2{ font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:0.09em; color:var(--c1); margin:0 0 7px; padding-bottom:5px; border-bottom:1px solid var(--line); }
+.sec{ margin-bottom:12px; }
+
+/* ── Itens ── */
+.it{ display:grid; grid-template-columns:30px 1fr 124px; align-items:center; gap:8px; padding:4px 9px; font-size:10.5px; border-radius:5px; }
+.it:nth-child(odd){ background:var(--row); }
+.it .q{ font-weight:900; color:var(--c1); }
+.it .nm{ font-weight:600; line-height:1.35; }
+.it .gr{ font-size:9.5px; font-weight:700; color:var(--muted); text-align:right; }
+
+/* ── Ficha técnica ── */
+.tec{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.tec div{ background:var(--row); border-radius:7px; padding:6px 10px; }
+.tec span{ display:block; font-size:9px; font-weight:800; letter-spacing:0.05em; text-transform:uppercase; color:var(--muted); }
+.tec strong{ font-size:11.5px; font-weight:800; }
+
+/* ── Investimento ── */
+.inv{ background:linear-gradient(135deg,var(--c1),var(--c2)); border-radius:12px; padding:13px 20px; color:#fff; display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.inv .lb{ font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; opacity:0.85; }
+.inv .vl{ font-size:27px; font-weight:900; letter-spacing:-0.03em; line-height:1.1; margin-top:2px; }
+.inv .sub{ font-size:10px; opacity:0.85; margin-top:5px; line-height:1.5; }
+.inv .right{ text-align:right; font-size:10px; line-height:1.7; opacity:0.9; }
+
+/* ── Página 2: autonomia ── */
+.aut-hero{ background:#161A22; border-radius:12px; padding:15px 20px; color:#fff; margin-bottom:12px; }
+.aut-hero .k{ font-size:10px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:#8A93A0; }
+.aut-hero .v{ display:flex; align-items:baseline; gap:10px; margin-top:8px; }
+.aut-hero .v em{ font-style:normal; font-size:34px; font-weight:900; letter-spacing:-0.03em; color:#fff; line-height:1; }
+.aut-hero .v span{ font-size:13px; font-weight:700; color:#C7CDD6; }
+.aut-hero p{ font-size:10.5px; color:#A8B1BD; line-height:1.5; margin-top:7px; }
+
+.cen{ display:grid; grid-template-columns:1fr 120px; gap:10px; align-items:center; padding:8px 13px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px; }
+.cen h3{ font-size:12.5px; font-weight:800; }
+.cen p{ font-size:10px; color:var(--muted); line-height:1.45; margin-top:2px; }
+.cen .val{ text-align:right; font-size:16px; font-weight:900; color:var(--c1); letter-spacing:-0.02em; }
+
+.nota{ background:var(--c3); border-left:3px solid var(--c1); border-radius:0 8px 8px 0; padding:8px 12px; font-size:10px; line-height:1.5; color:var(--ink); }
+.nota strong{ font-weight:800; }
+
+.dupla{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* ── Página 3: comparativo ── */
+.opc{ border:1px solid var(--line); border-radius:9px; padding:9px 13px; margin-bottom:6px; }
+.opc-win{ border-color:var(--c1); border-width:2px; background:var(--c3); }
+.opc-h{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.opc-h h3{ font-size:13px; font-weight:800; line-height:1.3; }
+.opc-total{ text-align:right; font-size:17px; font-weight:900; letter-spacing:-0.02em; white-space:nowrap; line-height:1.1; }
+.opc-win .opc-total{ color:var(--c1); }
+.opc-total em{ display:block; font-style:normal; font-size:9px; font-weight:700; color:var(--muted); letter-spacing:0; margin-top:2px; }
+.opc-linhas{ margin-top:5px; }
+.opc-linhas div{ display:flex; justify-content:space-between; gap:10px; font-size:9.5px; padding:1px 0; color:var(--muted); }
+.opc-linhas b{ font-weight:700; color:var(--ink); }
+.opc-pk{ margin-top:5px; padding-top:4px; border-top:1px solid var(--line); font-size:9.5px; color:var(--muted); }
+.opc-pk strong{ color:var(--ink); font-weight:800; }
+.opc-obs{ font-size:8.5px; color:var(--muted); line-height:1.4; margin-top:3px; }
+
+/* ── Rodapé ── */
+.rod{ position:absolute; left:40px; right:40px; bottom:18px; padding-top:8px; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-end; gap:14px; }
+.rod .e{ font-size:9.5px; color:var(--muted); line-height:1.6; }
+.rod .e strong{ display:block; font-size:11.5px; color:var(--ink); font-weight:800; }
+.rod .pg-n{ font-size:9px; font-weight:800; color:var(--muted); letter-spacing:0.08em; }
+</style></head>
+<body>
+
+<!-- ══════════════ PÁGINA 1 ══════════════ -->
+<div class="pg">
+  <div class="top">
+    <div class="brand">
+      
+      <div>
+        <div class="bn">Sol Forte Energia</div>
+        <div class="bc">CNPJ 11.222.333/0001-81</div>
+      </div>
+    </div>
+    <div class="meta">
+      <strong>Proposta de sistema off-grid</strong>
+      Emitida em 05/11/2026<br/>Válida até 12/11/2026
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="kicker">Energia própria, sem depender da rede</div>
+    <h1>Um sistema que gera, guarda e entrega energia<br/>por 2 dias seguidos sem sol</h1>
+    <p>
+      Off-grid é diferente do sistema comum ligado na rua: aqui a energia que sobra do dia fica guardada
+      em bateria pra ser usada à noite e nos dias fechados. Esta proposta mostra exatamente quanto tempo
+      o seu sistema aguenta — com número, não com promessa.
+    </p>
+  </div>
+
+  <div class="cli">
+    <div><span>Cliente</span><strong>Maria Aparecida Souza</strong></div>
+    <div><span>Local da instalação</span><strong>Araguari · MG</strong></div>
+    <div><span>Consumo previsto</span><strong>9,4 kWh por dia · 282 kWh/mês</strong></div>
+  </div>
+
+  <div class="big">
+    <div class="b"><em>4,4 kWp</em><span>Geração solar</span></div>
+    <div class="b"><em>15,36 kWh</em><span>Bateria de lítio</span></div>
+    <div class="b"><em>5 kW</em><span>Inversor 220V</span></div>
+    <div class="b"><em>2</em><span>dias sem sol</span></div>
+  </div>
+
+  <div class="sec">
+    <h2>O que está incluso</h2>
+    <div class="it"><span class="q">8×</span><span class="nm">Módulo fotovoltaico 550 W</span><span class="gr">12 anos de garantia</span></div><div class="it"><span class="q">1×</span><span class="nm">Inversor híbrido 5 kW 48V</span><span class="gr">5 anos de garantia</span></div><div class="it"><span class="q">3×</span><span class="nm">Bateria de lítio 48V 100Ah</span><span class="gr">5 anos de garantia</span></div><div class="it"><span class="q">1×</span><span class="nm">Estrutura de fixação do arranjo</span><span class="gr"></span></div><div class="it"><span class="q">1×</span><span class="nm">String box CC, DPS e cabos solares</span><span class="gr"></span></div>
+  </div>
+
+  <div class="sec">
+    <h2>Ficha técnica</h2>
+    <div class="tec">
+      <div><span>Arranjo solar</span><strong>8 módulos · 4,4 kWp</strong></div>
+      <div><span>Área de telhado</span><strong>20,8 m²</strong></div>
+      <div><span>Banco de baterias</span><strong>3× · 15,36 kWh · 48V</strong></div>
+      <div><span>Energia utilizável</span><strong>12,29 kWh por ciclo</strong></div>
+      <div><span>Inversor</span><strong>5 kW · 220V</strong></div>
+      <div><span>Sol na região</span><strong>5,3 h/dia (média)</strong></div>
+      <div><span>Geração no mês pior</span><strong>16,2 kWh/dia</strong></div>
+      <div><span>Geração média</span><strong>590 kWh/mês</strong></div>
+      <div><span>Química da bateria</span><strong>LiFePO4 · 6.000 ciclos</strong></div>
+      <div><span>Uso do banco por dia</span><strong>60% de um ciclo</strong></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Investimento</h2>
+    <div class="inv">
+      <div>
+        <div class="lb">Sistema completo, instalado</div>
+        <div class="vl">R$ 78.900</div>
+        <div class="sub"><strong>ou 60x de R$ 2.020 no financiamento</strong> &nbsp;·&nbsp; ou 12x de R$ 7.142 no cartão</div>
+        <div class="sub">Equipamentos, estrutura, proteções, instalação e comissionamento.</div>
+      </div>
+      <div class="right">
+        Entrega dos equipamentos<br/><strong>20 dias úteis</strong><br/><br/>
+        Proposta válida até<br/><strong>12/11/2026</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="rod">
+    <div class="e">
+      <strong>Sol Forte Energia</strong>
+      Carlos Pereira · (34) 99999-0000
+      <br/>Uberlândia — MG
+    </div>
+    <div class="pg-n">1 / 3</div>
+  </div>
+</div>
+
+<!-- ══════════════ PÁGINA 2 — AUTONOMIA ══════════════ -->
+<div class="pg">
+  <div class="top">
+    <div class="brand">
+      
+      <div><div class="bn">Sol Forte Energia</div></div>
+    </div>
+    <div class="meta"><strong>Maria Aparecida Souza</strong>Autonomia do sistema</div>
+  </div>
+
+  <div class="hero" style="margin-bottom:16px">
+    <div class="kicker">A pergunta que todo mundo faz</div>
+    <h1>Quanto tempo a bateria aguenta sem sol?</h1>
+  </div>
+
+  <div class="aut-hero">
+    <div class="k">Com o essencial ligado</div>
+    <div class="v"><em>2 dias e 2h</em><span>sem nenhum sol</span></div>
+    <p>
+      O banco tem 15,36 kWh, dos quais <strong style="color:#fff">12,29 kWh são utilizáveis</strong>.
+      Os outros 3,07 kWh ficam guardados de propósito: o inversor corta antes de zerar a
+      bateria, e é isso que faz um banco de lítio durar mais de 10 anos em vez de 3.
+    </p>
+  </div>
+
+  <div class="sec">
+    <h2>Os três cenários, com número</h2>
+
+    <div class="cen">
+      <div>
+        <h3>Só o essencial — geladeira, luz, água e internet</h3>
+        <p>7,1 kWh por dia. É o que não pode faltar em casa nenhuma.</p>
+      </div>
+      <div class="val">2 dias e 2h</div>
+    </div>
+
+    <div class="cen">
+      <div>
+        <h3>A casa inteira ligada, como num dia comum</h3>
+        <p>9,4 kWh por dia, incluindo tudo que está na lista da página 1.</p>
+      </div>
+      <div class="val">1 dia e 14h</div>
+    </div>
+
+    <div class="cen">
+      <div>
+        <h3>Chovendo o dia inteiro</h3>
+        <p>
+          Painel no temporal não para: ainda entrega cerca de 2,2 kWh por dia (10% a 25%
+          de um dia de sol). A bateria só cobre a diferença — por isso dura bem mais que no cenário de
+          escuridão total.
+        </p>
+      </div>
+      <div class="val" >4 dias e 7h</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Depois que o sol volta</h2>
+    <div class="dupla">
+      <div class="tec" style="grid-template-columns:1fr">
+        <div>
+          <span>Banco cheio de novo em</span>
+          <strong>1 dia e 10h de sol</strong>
+        </div>
+      </div>
+      <div class="tec" style="grid-template-columns:1fr">
+        <div>
+          <span>Dimensionado pelo</span>
+          <strong>mês de menos sol (4,4 h/dia)</strong>
+        </div>
+      </div>
+    </div>
+    <div class="nota" style="margin-top:10px">
+      O sistema foi calculado pelo <strong>mês de menos sol do ano</strong>, não pela média. Isso significa que ele fecha a conta em junho também — o mês em que a maioria dos sistemas mal dimensionados deixa o cliente na mão.
+      Por isso a geração média do ano (590 kWh/mês) fica acima do consumo (282 kWh/mês): no verão sobra de propósito, e é essa sobra que enche a bateria de volta depois dos dias fechados. Num sistema isolado não existe rede pra compensar o mês fraco — ou sobra no verão, ou falta no inverno.
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>O que não entra num sistema off-grid</h2>
+    <div class="nota">
+      Chuveiro elétrico, torneira elétrica, forno elétrico e secadora de roupa <strong>não fazem parte
+      deste projeto</strong>. Um único banho de 15 minutos no chuveiro elétrico consome cerca de 1,4 kWh —
+      o equivalente a um terço de uma bateria inteira. A saída é aquecimento a gás ou solar, e isso está
+      combinado nesta proposta. Sistema off-grid dimensionado com chuveiro elétrico é sistema que falha
+      na primeira semana.
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Normas e responsabilidade técnica</h2>
+    <div class="nota">
+      Instalação conforme <strong>ABNT NBR 16690</strong> (arranjos fotovoltaicos), <strong>NBR 5410</strong>
+      (instalações de baixa tensão) e <strong>NBR 5419</strong> (proteção contra descargas atmosféricas),
+      com equipamentos certificados pelo Inmetro. Sistema isolado <strong>não precisa de homologação na
+      concessionária</strong> — não há conexão com a rede, e portanto não há prazo de parecer de acesso
+      nem fila de aprovação.
+    </div>
+  </div>
+
+  <div class="rod">
+    <div class="e">
+      <strong>Sol Forte Energia</strong>
+      Carlos Pereira · (34) 99999-0000
+      
+    </div>
+    <div class="pg-n">2 / 3</div>
+  </div>
+</div>
+
+
+<!-- ══════════════ PÁGINA 3 — O QUE ISSO SUBSTITUI ══════════════ -->
+<div class="pg">
+  <div class="top">
+    <div class="brand">
+      
+      <div><div class="bn">Sol Forte Energia</div></div>
+    </div>
+    <div class="meta"><strong>Maria Aparecida Souza</strong>Comparativo de 10 anos</div>
+  </div>
+
+  <div class="hero" style="margin-bottom:16px">
+    <div class="kicker">A conta que ninguém faz</div>
+    <h1>Energia própria custa menos<br/>que continuar sem ela</h1>
+    <p>
+      Um sistema isolado não disputa com o telhado do vizinho ligado na rua. Ele disputa com
+      puxar 800 m de rede da concessionária
+      ou com queimar diesel num gerador. Abaixo, as três contas somadas em 10 anos.
+    </p>
+  </div>
+
+  <div class="sec">
+    
+    <div class="opc ">
+      <div class="opc-h">
+        <h3>Puxar a rede (800 m)</h3>
+        <div class="opc-total">R$ 175.200<em>em 10 anos</em></div>
+      </div>
+      <div class="opc-linhas">
+        <div><span>Obra da rede</span><b>R$ 96.000</b></div><div><span>Conta de luz em 10 anos</span><b>R$ 79.200</b></div>
+      </div>
+      <div class="opc-pk">
+        Entrada de R$ 96.000 · depois R$ 310 por mês · <strong>R$ 1,71 por kWh</strong>
+        <em style="font-style:normal;color:var(--muted)"> (tudo somado, obra inclusa, dividido pela energia dos 10 anos)</em>
+      </div>
+      <p class="opc-obs">Valores da concessionária podem variar.</p>
+    </div>
+    <div class="opc ">
+      <div class="opc-h">
+        <h3>Gerador a diesel</h3>
+        <div class="opc-total">R$ 156.000<em>em 10 anos</em></div>
+      </div>
+      <div class="opc-linhas">
+        <div><span>Gerador</span><b>R$ 18.000</b></div><div><span>Combustível e revisão</span><b>R$ 138.000</b></div>
+      </div>
+      <div class="opc-pk">
+        Entrada de R$ 18.000 · depois R$ 1.150 por mês · <strong>R$ 1,52 por kWh</strong>
+        <em style="font-style:normal;color:var(--muted)"> (tudo somado, obra inclusa, dividido pela energia dos 10 anos)</em>
+      </div>
+      <p class="opc-obs">Considera 4 horas por dia de funcionamento.</p>
+    </div>
+    <div class="opc opc-win">
+      <div class="opc-h">
+        <h3>Sistema off-grid</h3>
+        <div class="opc-total">R$ 89.700<em>em 10 anos</em></div>
+      </div>
+      <div class="opc-linhas">
+        <div><span>Sistema instalado</span><b>R$ 78.900</b></div><div><span>Manutenção em 10 anos</span><b>R$ 10.800</b></div>
+      </div>
+      <div class="opc-pk">
+        Entrada de R$ 78.900 · depois R$ 90 por mês · <strong>R$ 0,87 por kWh</strong>
+        <em style="font-style:normal;color:var(--muted)"> (tudo somado, obra inclusa, dividido pela energia dos 10 anos)</em>
+      </div>
+      <p class="opc-obs">Sem conta de luz e sem combustível.</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>O que isso significa</h2>
+    <div class="nota">
+      Em 10 anos, o sistema off-grid deixa <strong>R$ 85.500</strong> no bolso em relação a puxar a rede — 800 m de obra mais a conta de luz todo mês. Contra o gerador a diesel, a diferença é de <strong>R$ 66.300</strong> no mesmo período, e o investimento se paga em <strong>74 meses</strong> só de combustível economizado — sem contar o barulho, o diesel pra buscar e a revisão pra marcar. O ponto de virada é <strong>410 m</strong> de rede: acima dessa distância, o sistema próprio sai na frente.
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Ficha de instalação</h2>
+    <div class="tec">
+      <div><span>Ligação dos módulos</span><strong>4 em série × 2 strings</strong></div>
+      <div><span>Tensão na manhã fria</span><strong>207 V</strong></div>
+      <div><span>Tensão na tarde quente</span><strong>142 V</strong></div>
+      <div><span>Corrente do arranjo</span><strong>26 A</strong></div>
+      <div><span>Banco</span><strong>48V · 15,36 kWh</strong></div>
+      <div><span>Proteções</span><strong>String box CC, DPS e aterramento</strong></div>
+    </div>
+    <div class="nota" style="margin-top:10px">
+      As tensões são as duas pontas do ano: a manhã mais fria (quando a tensão sobe e não pode passar do
+      limite do inversor) e a tarde mais quente (quando ela cai e precisa continuar na faixa de trabalho).
+      O arranjo já está fechado com <strong>strings iguais</strong>, do jeito que o equipamento pede.
+    </div>
+  </div>
+
+  <div class="rod">
+    <div class="e">
+      <strong>Sol Forte Energia</strong>
+      Carlos Pereira · (34) 99999-0000
+    </div>
+    <div class="pg-n">3 / 3</div>
+  </div>
+</div>
+
+</body></html>
+<!--RESUMO-->
+*Sistema off-grid — Maria Aparecida Souza*
+Geração: 4,4 kWp (8 módulos)
+Bateria: 15,36 kWh de lítio (12,29 kWh utilizáveis)
+Inversor: 5 kW 220V
+*Aguenta 2 dias e 2h sem sol nenhum* com o essencial ligado
+Com a casa inteira: 1 dia e 14h
+Chovendo o dia todo: 4 dias e 7h
+Investimento: R$ 78.900
+ou 60x de R$ 2.020 no financiamento
+12x de R$ 7.142 no cartão
+Entrega em 20 dias úteis
+Proposta válida até 12/11/2026

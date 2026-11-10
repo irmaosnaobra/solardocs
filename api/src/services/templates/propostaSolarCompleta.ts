@@ -108,7 +108,7 @@ export function lerBancos(v: unknown): ItemBancoT[] {
 
 // ─── CSS próprio do Completo (em cima do CSS do modelo 1) ────────────────────
 
-const CSS_COMPLETO = `
+export const CSS_COMPLETO = `
 /* Completo: várias folhas A4. A altura mínima fica em 1122px (A4 = 1122,5px) para a folha
    não vazar 0,5px e gerar uma página em branco entre duas folhas. */
 .page{ width:794px; min-height:1122px; margin:0 auto; background:#fff; display:flex; flex-direction:column; page-break-after:always; break-after:page; }
@@ -234,8 +234,8 @@ const ORCAMENTO = 1040;
 
 // Cronograma do projeto: texto e desenhos fixos do servidor (sem dado do usuário), por isso entram sem escape.
 // Os desenhos são SVG em linha, no traço da cor da marca (classe .ln, variáveis --c1 e --accent).
-const svgIcone = (miolo: string) => `<svg viewBox="0 0 64 64" width="60" height="60" aria-hidden="true" focusable="false">${miolo}</svg>`;
-const ETAPAS_CRONOGRAMA = [
+export const svgIcone = (miolo: string) => `<svg viewBox="0 0 64 64" width="60" height="60" aria-hidden="true" focusable="false">${miolo}</svg>`;
+export const ETAPAS_CRONOGRAMA = [
   {
     t: 'Projeto',
     d: 'O engenheiro dimensiona o sistema pela sua conta de luz e pelo seu telhado. Depois desenha o projeto elétrico e emite a ART, o registro da responsabilidade técnica.',
@@ -295,18 +295,18 @@ function linhaComp(label: string, marca: string, desc: string): string {
   return `<div class="r"><span class="lab">${pEsc(label)}${marca ? ` <em class="mkq">${pEsc(marca)}</em>` : ''}</span><span class="inc qt">${pEsc(desc)}</span></div>`;
 }
 
-function dataPorExtenso(d: Date): string {
+export function dataPorExtenso(d: Date): string {
   return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 /** "CPF 529.982.247-25" (PF) ou "CNPJ 11.222.333/0001-81" (PJ), inteiro. */
-function docClienteHtml(c: Assinatura['cliente']): string {
+export function docClienteHtml(c: Assinatura['cliente']): string {
   if (!c.documento) return '';
   return c.tipo === 'PJ' ? `CNPJ ${pEsc(formatarCnpj(c.documento))}` : `CPF ${pEsc(formatarCpf(c.documento))}`;
 }
 
 /** Linha do cabeçalho da folha 1: rótulo à esquerda e número à direita, inteiro. */
-function docClienteCabecalho(c: Assinatura['cliente']): { rotulo: string; html: string } | undefined {
+export function docClienteCabecalho(c: Assinatura['cliente']): { rotulo: string; html: string } | undefined {
   if (!c.documento) return undefined;
   return c.tipo === 'PJ'
     ? { rotulo: 'CNPJ', html: `<span class="num">${pEsc(formatarCnpj(c.documento))}</span>` }
