@@ -166,6 +166,37 @@ async function comprovanteRecenteDoUsuario(userId: string | null | undefined): P
   }
 }
 
+/**
+ * Pix do quiz: grava na linha de `sales` o que o pixel do quiz fez, para o re-drive (`reDrivePendingPurchases`, de hora em
+ * hora) não mandar o MESMO Purchase de novo com outro event_id (`asaas:<contrato>`): o Meta contava 2 compras, de 01 a
+ * 09/11/2026. `enviado` fecha a linha (meta_response_ok, meta_purchase_sent_at) com o id `pix_<hash>` usado no envio. Qualquer
+ * outro motivo (falhou, timeout, duplicado, erro) só grava o `meta_event_id`: o re-drive confere o claim e, se não foi
+ * enviado, manda com o MESMO id. Nunca grava `meta_response_ok = false`. Nunca lança.
+ */
+async function registrarPurchasePixQuizNaVenda(saleId: string | null, chave: string, motivo: string): Promise<void> {
+  if (!saleId) return;
+  try {
+    const { idDoEventoPix } = await import('../solardoc/purchasePixQuiz');
+    const chaveLimpa = String(chave ?? '').trim();
+    if (!chaveLimpa) return;
+    const idEvento = idDoEventoPix(chaveLimpa);
+    const agora = new Date().toISOString();
+    // `teste` (lead de teste do quiz) fecha a linha sem Purchase: senão o re-drive mandaria o que o quiz recusou.
+    const patch: Record<string, unknown> = motivo === 'enviado'
+      ? { meta_response_ok: true, meta_skip_motivo: null, meta_purchase_sent_at: agora, meta_event_id: idEvento, updated_at: agora }
+      : motivo === 'teste'
+        ? { meta_response_ok: true, meta_skip_motivo: 'teste', meta_purchase_sent_at: agora, meta_event_id: idEvento, updated_at: agora }
+        : motivo === 'sem_claim'
+          ? {}
+          : { meta_event_id: idEvento, updated_at: agora };
+    if (!Object.keys(patch).length) return;
+    const { error } = await supabase.from('sales').update(patch).eq('id', saleId);
+    if (error) logger.error('asaas-webhook', `não marquei o Purchase do pixel do quiz na venda ${saleId} (o re-drive pode reenviar)`, error);
+  } catch (err) {
+    logger.error('asaas-webhook', `não marquei o Purchase do pixel do quiz na venda ${saleId} (o re-drive pode reenviar)`, err);
+  }
+}
+
 const soDigitos = (v: string | null | undefined) => String(v ?? '').replace(/\D/g, '');
 
 async function contratoPor(coluna: 'contract_id' | 'authorization_id', valor: string): Promise<LinhaPixRecorrente | null> {
@@ -431,6 +462,10 @@ async function creditarPagamento(
       nomeDoCliente = atrib?.nome ?? a.nome ?? null;
       whatsDoCliente = atrib?.whatsapp ?? a.whatsapp ?? null;
       const pago = valorPago;
+      // Venda do quiz: o id do Purchase do pixel do quiz (mesma chave que `dispararPurchasePixQuiz` usa) vai na linha JÁ
+      // no upsert, antes do disparo. Se o re-drive passar dentro dos 8 s do envio, usa o MESMO id e o Meta deduplica.
+      const chavePixQuiz = String(e2eKey ?? '').trim() || `asaas:${linha.contract_id}`;
+      const idPixQuiz = ehQuiz ? (await import('../solardoc/purchasePixQuiz')).idDoEventoPix(chavePixQuiz) : null;
 
       const saleId = await upsertSale({
         // Chave estável e única por contrato: reentrega do webhook cai no mesmo
@@ -455,6 +490,7 @@ async function creditarPagamento(
         fbc: atrib?.fbc ?? null,
         fbp: atrib?.fbp ?? null,
         card_passed_at: new Date().toISOString(),
+        meta_event_id: idPixQuiz,
       });
 
       // Meta (CAPI). A própria função só recusa teste e cobrança repetida do mesmo
@@ -478,6 +514,7 @@ async function creditarPagamento(
           telefone: whatsDoCliente ?? '', email: linha.email, nome: nomeDoCliente, valor: pago,
           chaveE2e: e2eKey, dedupKey: `asaas:${linha.contract_id}`, quando: new Date(),
         });
+        await registrarPurchasePixQuizNaVenda(saleId, chavePixQuiz, motivo);
         logger.info('asaas-webhook', `Purchase do Pix automático no pixel do quiz: ${motivo}`);
       } else if (saleId) {
         await sendPurchaseForSale(saleId).catch((e) =>
@@ -880,6 +917,9 @@ async function creditarAvulsoCorpo(
   try {
     const { upsertSale, sendPurchaseForSale } = await import('../salesLedger');
     const { sendUtmifyOrder } = await import('../utmifyOrders');
+    // Venda do quiz: o id do Purchase do pixel do quiz vai na linha JÁ no upsert (ver o Pix automático).
+    const chavePixQuiz = String(e2eKey ?? '').trim() || `asaas_avulso:${id}`;
+    const idPixQuiz = origemQuiz ? (await import('../solardoc/purchasePixQuiz')).idDoEventoPix(chavePixQuiz) : null;
     const saleId = await upsertSale({
       checkout_session_id: `asaas_avulso:${id}`,
       email, nome, phone: whatsapp || null,
@@ -889,6 +929,7 @@ async function creditarAvulsoCorpo(
       utm_content: atrib.utm_content ?? null, utm_term: atrib.utm_term ?? null,
       attribution_session_id: atrib.lp_session ?? null, fbc: atrib.fbc ?? null, fbp: atrib.fbp ?? null,
       card_passed_at: new Date().toISOString(),
+      meta_event_id: idPixQuiz,
     });
 
     const jaContado = await comprovanteRecenteDoUsuario(userId);
@@ -906,6 +947,7 @@ async function creditarAvulsoCorpo(
         telefone: whatsapp, email, nome, valor: valorPago,
         chaveE2e: e2eKey, dedupKey: `asaas_avulso:${id}`, quando: new Date(),
       });
+      await registrarPurchasePixQuizNaVenda(saleId, chavePixQuiz, motivo);
       logger.info('asaas-webhook', `Purchase do Pix avulso no pixel do quiz: ${motivo}`);
     } else if (saleId) {
       await sendPurchaseForSale(saleId).catch((e) =>
