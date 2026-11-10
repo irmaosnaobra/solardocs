@@ -106,7 +106,7 @@ button{font:inherit;color:inherit}
 <div class="coluna">
 <h1 class="titulo">Proposta, contrato e procuração com a sua logo</h1>
 <p class="ajuda">Assista ao vídeo e veja como a SolarDoc entra na sua rotina.</p>
-<div class="vsl" id="vsl"><video id="vsl-v" autoplay muted playsinline preload="auto" disablepictureinpicture controlslist="nodownload noremoteplayback" poster="https://res.cloudinary.com/v755hoio/video/upload/so_2,q_auto,w_720/v1794263556/solardoc/vsl-cvt1.jpg" src="https://res.cloudinary.com/v755hoio/video/upload/v1794263556/solardoc/vsl-cvt1.mp4"></video>
+<div class="vsl" id="vsl"><video id="vsl-v" autoplay muted playsinline preload="auto" disablepictureinpicture controlslist="nodownload noremoteplayback" poster="https://res.cloudinary.com/v755hoio/video/upload/so_2,q_auto,w_720/v1794277895/solardoc/vsl-cvt1-editado.jpg" src="https://res.cloudinary.com/v755hoio/video/upload/v1794277895/solardoc/vsl-cvt1-editado.mp4"></video>
 <button type="button" class="cam" id="cam-som" data-a="som" aria-label="Ligar o som e ver do início"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" stroke-linejoin="round"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12" fill="none" stroke-width="2" stroke-linecap="round"/></svg></span><b>Seu vídeo já começou</b><span class="sub">Toque para ouvir</span></button>
 <button type="button" class="cam" id="cam-play" data-a="tocar" aria-label="Assistir ao vídeo com som" hidden><span class="ic"><svg class="tri" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></span><b>Assistir ao vídeo</b></button>
 <button type="button" class="cam" id="cam-pausa" data-a="retomar" aria-label="Continuar assistindo" hidden><span class="ic"><svg class="tri" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></span><b>Continuar assistindo</b></button>
@@ -194,11 +194,11 @@ window.SDR = { api: API, sid: sid, utm: function () { return utm; }, meta: metaI
 const $ = (id) => document.getElementById(id);
 const SDR = window.SDR;
 const ESPERA_FIM = 5000;
-const DURACAO_PADRAO = 412;     /* segundos: vale quando o navegador não informa a duração */
+const DURACAO_PADRAO = 379;     /* segundos: vale quando o navegador não informa a duração */
 const CTA_ANTES_DO_FIM = 40;    /* o botão da LP só aparece nos últimos 40 s */
 const TRAVA_MS = 10000, SEM_PLAY_MS = 30000;   /* vídeo parado 10 s sem andar, ou autoplay barrado 30 s sem play */
 const MIN_ASSISTIDO = 5;        /* segundos de reprodução real nesta visita antes de contar vsl_25/50/75 */
-const SK_POS = 'sd_vsl_pos', SK_CTA = 'sd_vsl_cta';
+const SK_POS = 'sd_vsl2_pos', SK_CTA = 'sd_vsl2_cta';
 const lerLS = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const gravarLS = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento: a página segue funcionando */ } };
 const apagarLS = (k) => { try { localStorage.removeItem(k); } catch (e) { /* idem */ } };
