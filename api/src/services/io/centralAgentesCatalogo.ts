@@ -550,6 +550,13 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: ['ativ_senha', 'ativ_proposta'],
   }),
   e({
+    id: 'recepcao_novo_usuario', nome: 'Giovanna, recepção dos usuários novos', area: 'solardoc', canal: 'whatsapp', linha: 'solardoc',
+    resumo: 'Guia o usuário novo até a 1ª proposta, em WhatsApp e e-mail',
+    papel: 'Nos 15 primeiros dias da conta, até 3 lembretes da Giovanna pelo WhatsApp (com 20, 68 e 164 horas de conta) e até 3 e-mails, sempre sobre o próximo passo que falta: dados da empresa, logo, fotos das obras e 1ª proposta. Uma bolha por mensagem, sem link, uma por toque e por pessoa, das 9h às 20h de segunda a sábado, na vaga do envio frio da 5040, um envio por rodada. Antes de falar confere a conversa da linha: toque nosso em 48 horas ou fala da pessoa em 24 horas adia, e 3 toques sem resposta encerram. O e-mail sai até 10 por rodada e pula quem é grátis e ainda sem empresa, que já recebe a cadência de CNPJ. O WhatsApp só envia depois da sonda automática (recep_sonda_ok). RECEPCAO_OFF=1 desliga os dois.',
+    regra: { tipo: 'desliga', env: 'RECEPCAO_OFF', valor: '1' }, fonte: 'services/solardoc/recepcaoNovoUsuario.ts',
+    robos: ['solardoc_novo_usuario'],
+  }),
+  e({
     id: 'depoimento_pedido', nome: 'Carla, pedido de depoimento', area: 'solardoc', canal: 'whatsapp', linha: 'io',
     resumo: 'Pede o depoimento de quem usa muito a SolarDoc',
     papel: 'Pede o depoimento, uma bolha e sem link, de quem paga e já fez 20 ou mais propostas solares em 30 dias. Uma vez por pessoa, das 9h às 20h de segunda a sábado, na vaga do envio frio da 5040, um envio por rodada. DEPOIMENTO_PEDIDO_OFF=1 desliga.',

@@ -27,7 +27,8 @@ export function mascararEmail(email: string | null | undefined): string {
   return `${e.slice(0, 1)}***${e.slice(arroba)}`;
 }
 
-const abertura = (nome: string | null | undefined, quem: string): string => {
+/** Abertura da Giovanna (também usada pela recepção de usuários novos, recepcaoNovoUsuario). */
+export const abertura = (nome: string | null | undefined, quem: string): string => {
   const n = nomeParaSaudar(nome);
   return n ? `Oi, ${n}, aqui é a Giovanna, ${quem}.` : `Oi, aqui é a Giovanna, ${quem}.`;
 };

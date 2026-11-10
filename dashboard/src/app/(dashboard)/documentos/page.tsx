@@ -3,6 +3,9 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import api from '@/services/api';
+import { useDashboard } from '@/contexts/DashboardContext';
+import PrimeirosPassos from '@/components/PrimeirosPassos/PrimeirosPassos';
+import { usuarioComum } from '@/utils/usuarioComum';
 import ContratoSolarForm from './forms/ContratoSolarForm';
 import ProcuracaoForm from './forms/ProcuracaoForm';
 import ReciboForm from './forms/ReciboForm';
@@ -184,6 +187,9 @@ function CompanyRequiredGate({ tipo, children }: { tipo: string | null; children
 
 function WelcomeBanner() {
   const router = useRouter();
+  const { user } = useDashboard();
+  // Quem pagou (qualquer plano diferente de free) lê "Assinatura ativada!"; o plano grátis lê a boas-vindas.
+  const pagou = !!user && user.plano !== 'free';
   const [hasCompany, setHasCompany] = useState<boolean | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -224,10 +230,10 @@ function WelcomeBanner() {
         }}>✓</div>
         <div style={{ flex: '1 1 280px', lineHeight: 1.5 }}>
           <div style={{ fontWeight: 800, fontSize: 15.5, color: 'var(--color-text)', marginBottom: 2 }}>
-            Assinatura ativada! Seu acesso já está liberado.
+            {pagou ? 'Assinatura ativada! Seu acesso já está liberado.' : 'Bem-vindo à SolarDoc! Sua conta está pronta.'}
           </div>
           <div style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
-            Dá uma olhada nos modelos abaixo. Quando quiser emitir, é só cadastrar sua empresa pra documentos saírem com sua marca.
+            Para emitir sua primeira proposta, comece pelos dados da empresa. Você cadastra uma vez e depois entra tudo sozinho.
           </div>
         </div>
         <button
@@ -239,7 +245,7 @@ function WelcomeBanner() {
             cursor: 'pointer', whiteSpace: 'nowrap',
           }}
         >
-          Cadastrar empresa →
+          Cadastrar minha empresa →
         </button>
       </div>
     </div>
@@ -247,6 +253,7 @@ function WelcomeBanner() {
 }
 
 function DocumentosContent() {
+  const { user } = useDashboard();
   const searchParams = useSearchParams();
   const tipo = searchParams.get('tipo');
   const isWelcome = searchParams.get('welcome') === '1';
@@ -265,9 +272,14 @@ function DocumentosContent() {
     }
   })();
 
+  // O quadro "Primeiros passos" fica no topo das duas telas (grade de modelos e formulário): quase todo mundo
+  // entra por ?tipo=proposta, não pela grade.
+  const quadro = <PrimeirosPassos mostrar={usuarioComum(user)} userId={user?.id} soSemProposta />;
+
   if (!formByType) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>{quadro}</div>
         {isWelcome && <WelcomeBanner />}
         <h2 style={{ marginBottom: '2rem', fontSize: '1.4rem' }}>O que deseja gerar agora?</h2>
         <div style={{
@@ -314,9 +326,12 @@ function DocumentosContent() {
   }
 
   return (
-    <CompanyRequiredGate tipo={tipo}>
-      {formByType}
-    </CompanyRequiredGate>
+    <>
+      {quadro}
+      <CompanyRequiredGate tipo={tipo}>
+        {formByType}
+      </CompanyRequiredGate>
+    </>
   );
 }
 

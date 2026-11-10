@@ -4,6 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/services/api';
 import InfoHint from '@/components/InfoHint/InfoHint';
+import PrimeirosPassos from '@/components/PrimeirosPassos/PrimeirosPassos';
+import { useDashboard } from '@/contexts/DashboardContext';
+import { usuarioComum } from '@/utils/usuarioComum';
 import GaleriaPortfolio, { type ImagemObra } from '../documentos/forms/GaleriaPortfolio';
 import { maskCpf, maskCnpj, soAlfanum, cnpjValido } from '@/utils/documento';
 import styles from './empresa.module.css';
@@ -129,6 +132,7 @@ function InfoRow({ label, value }: { label: string; value?: string }) {
 
 export default function EmpresaPage() {
   const router = useRouter();
+  const { user } = useDashboard();
   const [company, setCompany] = useState<Company | null>(null);
   // Empresa abre SEMPRE no formulário editável (sem etapa de "Editar")
   const [editing, setEditing] = useState(true);
@@ -340,6 +344,8 @@ export default function EmpresaPage() {
 
       // Notifica o layout para desbloquear a sidebar
       window.dispatchEvent(new CustomEvent('company-saved'));
+      // O quadro "Primeiros passos" recarrega o que falta (empresa, logo e fotos salvam por aqui).
+      window.dispatchEvent(new Event('primeiros-passos:atualizar'));
 
       // Fluxo VSL: free cadastrou empresa pela 1ª vez → direto pro gerador.
       if (isNew && welcomePlan === 'free') {
@@ -352,6 +358,15 @@ export default function EmpresaPage() {
       setSaving(false);
     }
   }
+
+  // Vindo do quadro "Primeiros passos" (/empresa#empresa-fotos): a página só monta o formulário depois de
+  // carregar, então a rolagem até a seção espera o `loading` virar falso.
+  useEffect(() => {
+    if (loading || typeof window === 'undefined') return;
+    const id = window.location.hash.replace('#', '');
+    if (!id) return;
+    document.getElementById(id)?.scrollIntoView({ block: 'start' });
+  }, [loading]);
 
   if (loading) return <div className={styles.loading}>Carregando...</div>;
 
@@ -483,6 +498,8 @@ export default function EmpresaPage() {
         )}
       </div>
 
+      <PrimeirosPassos mostrar={usuarioComum(user)} userId={user?.id} />
+
       {isWelcome && welcomePlan === 'free' && (
         <div style={{
           background: 'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(245,158,11,0.10))',
@@ -556,10 +573,10 @@ export default function EmpresaPage() {
 
       <form onSubmit={handleSubmit} className={styles.form}>
 
-        <section className={styles.card}>
+        <section className={styles.card} id="empresa-dados">
           <h2 className={styles.sectionTitle}>Dados da Empresa</h2>
           <div className={styles.grid2}>
-            <div className={styles.fieldFull}>
+            <div className={styles.fieldFull} id="empresa-logo">
               <label className={styles.label}>Logo da empresa</label>
 
               {logoError && (
@@ -718,7 +735,7 @@ export default function EmpresaPage() {
           </div>
         </section>
 
-        <section className={styles.card}>
+        <section className={styles.card} id="empresa-fotos">
           <h2 className={styles.sectionTitle}>Fotos dos seus trabalhos <span className={styles.optional}>opcional</span></h2>
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
             Elas já entram na proposta Completa + Banco. Mande 6, 9 ou 12 fotos. A proposta mostra sempre fileiras completas de 3.

@@ -4,6 +4,7 @@ import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, 
 import { enviarOpenerRecuperacao } from './agents/whatsapp/pixRecoveryAgentService';
 import { cedeAAgente, lerPosse } from './agentes5040/posse';
 import { contasPagasSemSenha, IDADE_MAX_EMAIL_MS, ESPERA_SENHA_MS, ESPERA_EMAIL_CARTAO_MS } from './solardoc/ativacaoPosVenda';
+import { chaveRecepEmail, TOQUES as TOQUES_RECEPCAO } from './solardoc/recepcaoNovoUsuarioTextos';
 import { novaRodadaPortao, tomarToqueRecuperacao, soltarToqueRecuperacao, marcarToqueEnviado, marcarToqueFalhou, lerFalhasWhats, contarFalhaWhats, FALHAS_PARA_SO_EMAIL } from './recuperacaoCheckoutPortao';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
@@ -25,6 +26,51 @@ const MIN_GAP_MS = 23 * 60 * 60 * 1000;
 // 10 por cadência escoa a fila em ~13 horas em vez de um minuto. Quem não coube
 // não é perdido, é o primeiro da próxima rodada.
 export const EMAIL_TETO_POR_RODADA = 10;
+
+/** Conta criada há menos de 15 dias: a única que pode ter e-mail da recepção de usuários novos (`recep_email:`). */
+export function contaDaJanelaDaRecepcao(u: Record<string, unknown>, agora: number = Date.now()): boolean {
+  const nasceu = tsMs(u.created_at);
+  return nasceu > 0 && agora - nasceu < 15 * DAY_MS;
+}
+
+/**
+ * Lê `recep_email:<id>:e1|e2|e3` (chaves EXATAS, `.in`) e devolve as contas que têm algum. `desdeMs` limita pela hora do claim (`updated_at`); sem ele,
+ * vale qualquer data. null = a leitura falhou (quem chama NÃO pode tratar como "ninguém").
+ */
+async function idsComEmailDaRecepcao(ids: readonly string[], desdeMs: number | null): Promise<Set<string> | null> {
+  const achados = new Set<string>();
+  const lista = [...new Set(ids.filter(Boolean))];
+  try {
+    for (let i = 0; i < lista.length; i += 30) {
+      const lote = new Set(lista.slice(i, i + 30));
+      let q = supabase.from('system_state').select('key, updated_at').in('key', [...lote].flatMap(id => TOQUES_RECEPCAO.map(t => chaveRecepEmail(id, t))));
+      if (desdeMs !== null) q = q.gte('updated_at', new Date(desdeMs).toISOString());
+      const { data, error } = await q;
+      if (error) { console.error('leitura dos e-mails da recepção falhou'); return null; }
+      for (const l of (data ?? []) as Array<{ key: string; updated_at: string | null }>) {
+        if (desdeMs !== null && tsMs(l.updated_at) < desdeMs) continue;
+        const id = l.key.slice('recep_email:'.length).split(':')[0] ?? '';
+        if (lote.has(id)) achados.add(id);
+      }
+    }
+  } catch { console.error('leitura dos e-mails da recepção lançou'); return null; }
+  return achados;
+}
+
+/**
+ * Quais destas contas levaram e-mail da RECEPÇÃO de usuários novos nas últimas 23 h (pela hora do claim). As cadências que usam `recebeuEmailRecente`
+ * conferem este conjunto também: a recepção não tem coluna própria em `users` (sem migration, e gravar numa das 4 colunas existentes mudaria o passo
+ * da cadência dona dela). null = a leitura falhou: use `pulaPorEmailDaRecepcao`, que nesse caso pula só as contas da janela de 15 dias.
+ */
+export function idsComEmailDaRecepcaoRecente(ids: readonly string[], agora: number = Date.now()): Promise<Set<string> | null> {
+  return idsComEmailDaRecepcao(ids, agora - MIN_GAP_MS);
+}
+
+/** A conta deve ser pulada por causa do e-mail da recepção? Com a leitura falha (`recentes` null), só as contas com menos de 15 dias. */
+export function pulaPorEmailDaRecepcao(u: Record<string, unknown>, recentes: Set<string> | null, agora: number = Date.now()): boolean {
+  if (recentes === null) return contaDaJanelaDaRecepcao(u, agora);
+  return recentes.has(String(u.id));
+}
 
 /** Timestamp do Postgres → ms. Aceita timestamptz ("...+00") e timestamp seco. */
 function tsMs(v: unknown): number {
@@ -234,12 +280,17 @@ export async function runNoContractsEmailReminder(): Promise<{ sent: number; ski
 
   let sent = 0;
   let skipped = 0;
+  const daRecepcao = await idsComEmailDaRecepcaoRecente(candidates.map((u: any) => u.id));
+  const daRecepcaoNovos = await idsComEmailDaRecepcao(candidates.filter((u: any) => contaDaJanelaDaRecepcao(u, now.getTime())).map((u: any) => u.id), null);
 
   for (const u of candidates) {
     if (sent >= EMAIL_TETO_POR_RODADA) { skipped++; continue; } // resto vai na próxima rodada (de hora em hora)
     if (!u.email) { skipped++; continue; }
     if (u.email_opt_out) { skipped++; continue; }
-    if (recebeuEmailRecente(u)) { skipped++; continue; }        // já levou outro e-mail nosso hoje
+    if (recebeuEmailRecente(u) || pulaPorEmailDaRecepcao(u, daRecepcao)) { skipped++; continue; }        // já levou outro e-mail nosso hoje
+    // Conta com menos de 15 dias que a recepção de usuários novos já atendeu (qualquer `recep_email`, de qualquer data) espera. Quem ficou fora da
+    // recepção (NEXUS, avulso, sem senha) segue com o lembrete do 7º dia. Leitura falha: pula as contas dessa janela.
+    if (contaDaJanelaDaRecepcao(u, now.getTime()) && (daRecepcaoNovos === null || daRecepcaoNovos.has(u.id))) { skipped++; continue; }
 
     const count = (u.contract_reminder_count as number | null) ?? 0;
     if (count >= MAX_REMINDERS) { skipped++; continue; }
@@ -711,7 +762,7 @@ export async function runUpgradeNudge(): Promise<{ sent: number; skipped: number
 
   const { data: users } = await supabase
     .from('users')
-    .select('id, email, nome, plano, email_opt_out, followup_abandoned, upgrade_nudge_count, upgrade_nudge_last_sent_at, followup_email_last_sent_at, contract_reminder_last_sent_at')
+    .select('id, email, nome, plano, created_at, email_opt_out, followup_abandoned, upgrade_nudge_count, upgrade_nudge_last_sent_at, followup_email_last_sent_at, contract_reminder_last_sent_at')
     .eq('plano', 'free');
   if (!users || users.length === 0) return { sent: 0, skipped: 0, eligiveis: 0 };
 
@@ -731,6 +782,7 @@ export async function runUpgradeNudge(): Promise<{ sent: number; skipped: number
 
   const now = new Date();
   let sent = 0, skipped = 0, eligiveis = 0;
+  const daRecepcao = await idsComEmailDaRecepcaoRecente(ids);
 
   for (const u of freeComCnpj) {
     const nDocs = docCount.get(u.id) ?? 0;
@@ -742,7 +794,7 @@ export async function runUpgradeNudge(): Promise<{ sent: number; skipped: number
     eligiveis++; // conta o público REAL — teto e trava de 24h não encolhem a fila, só adiam
 
     if (sent >= EMAIL_TETO_POR_RODADA) { skipped++; continue; } // resto vai na próxima rodada
-    if (recebeuEmailRecente(u)) { skipped++; continue; }         // já levou outro e-mail nosso hoje
+    if (recebeuEmailRecente(u) || pulaPorEmailDaRecepcao(u, daRecepcao)) { skipped++; continue; }         // já levou outro e-mail nosso hoje
 
     const count = (u.upgrade_nudge_count as number | null) ?? 0;
     if (count >= UPGRADE_NUDGE_MAX) { skipped++; continue; } // já recebeu os 3 toques

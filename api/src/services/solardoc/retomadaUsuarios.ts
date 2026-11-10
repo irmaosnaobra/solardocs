@@ -784,6 +784,20 @@ async function lerExtras(candidatos: readonly UsuarioRet[], agora: Date): Promis
     }
   }
 
+  // A recepção de usuários novos (09/11/2026): o instante do último `recep_sent:<id>:rN` de cada conta. Chaves EXATAS (`.in`), nunca like: o `_` do
+  // like é curinga. A data é o `updated_at` do claim (reservarChave grava a hora do claim).
+  const recepcao = new Map<string, number>();
+  for (const lote of emLotes(ids, 30)) {
+    const chaves = lote.flatMap(id => [1, 2, 3].map(n => `recep_sent:${id}:r${n}`));
+    const { data, error } = await supabase.from('system_state').select('key, updated_at').in('key', chaves);
+    if (error) throw new Error('ler os lembretes da recepção falhou');
+    for (const l of (data ?? []) as Array<{ key: string; updated_at: string }>) {
+      const t = tempoDe(l.updated_at);
+      const id = l.key.slice('recep_sent:'.length).split(':')[0] ?? '';
+      if (t !== null && id && t > (recepcao.get(id) ?? -Infinity)) recepcao.set(id, t);
+    }
+  }
+
   // A entrevista de saída (04/11/2026): quem já respondeu o formulário e quem recebeu o e-mail de saída HOJE (dia de Brasília). Só o grupo
   // `pagou` usa; as duas leituras são por prefixo (uma linha por resposta/e-mail enviado, poucas centenas no máximo).
   const respondeuSaida = new Set<string>();
@@ -821,6 +835,7 @@ async function lerExtras(candidatos: readonly UsuarioRet[], agora: Date): Promis
       temDocumento: comDocumento.has(u.id),
       toquesCurso19: curso.get(u.id) ?? 0,
       nexusConviteEmMs: nexus.get(u.id) ?? null,
+      recepcaoEnviadaEmMs: recepcao.get(u.id) ?? null,
       jaNaCampanha: !!h && jaFoi.has(`${PREFIXO_CARIMBO_RET}${h}`),
       marcaFora: h ? (marcas.get(h) ?? null) : null,
       respondeuSaida: respondeuSaida.has(u.id),

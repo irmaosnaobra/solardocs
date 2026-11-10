@@ -10,6 +10,7 @@ import { dentroDaJanelaDiurna } from '../services/agents/whatsapp/lineThrottle';
 import { dentroDoTetoCarla } from '../services/agents/whatsapp/carlaThrottle';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
 import { rodarAtivacaoPosVenda } from '../services/solardoc/ativacaoPosVenda';
+import { rodarRecepcaoWhatsApp, rodarRecepcaoEmail } from '../services/solardoc/recepcaoNovoUsuario';
 import { runConfiancaNutricao } from '../services/confiancaService';
 import { runConfiancaWhatsApp } from '../services/confiancaWhatsAppService';
 import { runLimpaproRecoveryConsumer, runLimpaproRecoverySeeds, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, seedLimpaproGrupoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
@@ -1622,6 +1623,10 @@ router.get('/master', async (req: Request, res: Response) => {
     // [04/11/2026] Pós-venda da SolarDoc (2a: cobra a senha, transacional; 2b: convida à 1ª proposta, frio): por último dos frios de receita, para o
     // espaçamento ver o carimbo do dunning e do lembrete do Pix. ATIVACAO_POS_VENDA_OFF=1 corta os dois. O pedido de depoimento roda depois, no runPesquisasTick.
     ['ativacao-pos-venda', () => rodarAtivacaoPosVenda()],
+    // [09/11/2026] Recepção de usuários novos (WhatsApp frio, 1 por rodada, depois o e-mail, até 10): logo DEPOIS do pós-venda, para o espaçamento da linha ver o
+    // carimbo dele. Só o WhatsApp passa pelo portão da linha. RECEPCAO_OFF=1 corta os dois; o WhatsApp também espera a sonda (recep_sonda_ok).
+    ['recepcao-whatsapp', () => rodarRecepcaoWhatsApp()],
+    ['recepcao-email', () => rodarRecepcaoEmail()],
     // [05/11/2026, chefe-antiban] Pesquisa de satisfação (frio): saiu do allSettled; vai depois dos robôs de receita para o espaçamento ver o carimbo deles. 1 msg/tick; para com PESQUISA_WHATSAPP_OFF=1
     ['pesquisa-satisfacao', () => dispararPesquisaSatisfacao()],
   ];

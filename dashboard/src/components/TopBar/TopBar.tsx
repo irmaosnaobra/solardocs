@@ -6,9 +6,8 @@ import { useRouter } from 'next/navigation';
 import { FolderOpen, HelpCircle, User, Building2, LogOut, Smartphone, TrendingUp } from 'lucide-react';
 import { removeToken } from '@/services/auth';
 import { logMenu } from '@/utils/logMenu';
+import { WA_SUPORTE } from '@/utils/suporte';
 import styles from './TopBar.module.css';
-
-const WA_SUPORTE = 'https://wa.me/5534998165040?text=' + encodeURIComponent('Olá! Preciso de ajuda com o SolarDoc.');
 
 interface TopBarProps {
   userEmail?: string;

@@ -122,11 +122,13 @@ export function nomeDoPerfilNasMsgs(msgs: readonly MsgConversa[]): string | null
 }
 
 /**
- * A conversa de UM contato na linha IO, mais antiga primeiro. `ate` (ISO) corta no replay.
+ * A conversa de UM contato na linha IO (ou na instância de `opts.instanciaId`), mais antiga primeiro. `ate` (ISO) corta no replay.
  * Nunca lança: falha vira { msgs: [], completa: false }.
  */
-export async function lerConversa(chave: string, opts: { ate?: string } = {}): Promise<ConversaLida> {
-  const inst = instanciaIO();
+export async function lerConversa(chave: string, opts: { ate?: string; instanciaId?: string } = {}): Promise<ConversaLida> {
+  // `instanciaId` (opcional) lê a conversa de OUTRA instância da Z-API (a recepção de usuários novos lê a linha da SolarDoc). Quem chama resolve o id;
+  // vazio = sem instância = conversa não lida. Sem o parâmetro, o comportamento é o de sempre (linha IO).
+  const inst = opts.instanciaId !== undefined ? (opts.instanciaId.trim() || null) : instanciaIO();
   if (!inst || !chaveValida(chave)) return { msgs: [], completa: false };
   try {
     let alvos: string[];

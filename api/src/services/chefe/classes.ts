@@ -431,6 +431,12 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   ativ_proposta: robo('frio_p5', ['services/solardoc/ativacaoPosVenda.ts'], {
     carimbos: [frio('ativ_proposta_sent:')], linha: 'solardoc', maxBolhas: 1, subprioridade: 5,
   }),
+  // [09/11] Recepção de usuários novos da SolarDoc (solardoc/recepcaoNovoUsuario.ts): até 3 lembretes por conta nos 15 primeiros dias (20 h, 68 h e 164 h),
+  // 1 bolha de até 900 sem link, 1 envio por rodada, claim recep_sent:<userId>:rN por insert antes do envio, portão da linha com robo, conversa da linha
+  // SolarDoc lida antes e sonda automática (recep_sonda_ok) antes do 1º envio. RECEPCAO_OFF=1 desliga.
+  solardoc_novo_usuario: robo('frio_p5', ['services/solardoc/recepcaoNovoUsuario.ts'], {
+    carimbos: [frio('recep_sent:')], linha: 'solardoc', maxBolhas: 1, subprioridade: 5,
+  }),
   // [04/11] Pedido de depoimento da SolarDoc (services/pesquisa/depoimentoWhatsApp.ts, outro executor): frio, 1 bolha, carimbo depo_sent:<userId>.
   depoimento_pedido: robo('frio_p5', ['services/pesquisa/depoimentoWhatsApp.ts'], {
     carimbos: [frio('depo_sent:')], maxBolhas: 1, subprioridade: 5,

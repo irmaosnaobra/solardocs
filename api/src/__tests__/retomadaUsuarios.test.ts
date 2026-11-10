@@ -359,6 +359,14 @@ describe('exclusões: cada motivo com a sua causa', () => {
     expect(marcaDoMotivo('email_nexus_24h', AGORA.getTime())).toBeNull();
   });
 
+  it('a recepção de usuários novos falou com a conta há menos de 14 dias: a Carla pula (não marca); passados os 14 dias, entra (09/11/2026)', () => {
+    expect(motivoDe(usuario(), extras({ recepcaoEnviadaEmMs: AGORA.getTime() - 13 * 24 * HORA }))).toBe('recepcao_14d');
+    expect(motivoDe(usuario(), extras({ recepcaoEnviadaEmMs: AGORA.getTime() - 15 * 24 * HORA }))).toBe('ok');
+    expect(motivoDe(usuario(), extras({ recepcaoEnviadaEmMs: null }))).toBe('ok');
+    expect(motivoDe(usuario(), EXTRAS_VAZIOS)).toBe('ok');
+    expect(marcaDoMotivo('recepcao_14d', AGORA.getTime())).toBeNull();
+  });
+
   it('o primeiro motivo da ordem vale quando há vários', () => {
     const tudo = usuario({ plano: 'ilimitado', whatsapp_opt_out: true, created_at: ISO(LARGADA + 1000), is_admin: true });
     expect(motivoDe(tudo)).toBe('admin_ou_teste');

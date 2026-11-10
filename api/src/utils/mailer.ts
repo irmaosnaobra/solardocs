@@ -2,6 +2,8 @@ import { Resend } from 'resend';
 import { unsubToken } from '../controllers/unsubscribeController';
 import { pixBlocoEmailHtml } from './pixInfo';
 import { DEPOIMENTOS, blocoDepoimentoHtml, Depoimento } from './depoimentos';
+import { conteudoEmailRecepcao, type ConteudoEmail, type ToqueRecep } from '../services/solardoc/recepcaoNovoUsuarioTextos';
+import type { ResultadoPassos } from '../services/solardoc/primeirosPassos';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -284,6 +286,53 @@ export async function sendUpgradeNudgeEmail(email: string, userId: string, toque
   const firstName = (nome || '').trim().split(/\s+/)[0] || 'Olá';
   const { subject, html } = builder(firstName, docsFeitos);
   await sendMarketingEmail({ to: email, userId, subject, html });
+}
+
+// ─── RECEPÇÃO DE USUÁRIOS NOVOS (09/11/2026) ────────────────────────────────
+// Até 3 e-mails nos 15 primeiros dias da conta (E1 1 dia, E2 3 dias, E3 7 dias), sempre sobre o próximo passo que falta. O conteúdo (texto aprovado,
+// botões e destinos) mora em solardoc/recepcaoNovoUsuarioTextos.ts; aqui só o desenho (molde do UPGRADE_NUDGE, sem emoji) e o envio por
+// sendMarketingEmail (rodapé de descadastro e List-Unsubscribe).
+function escRecepcao(t: string): string {
+  return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function htmlRecepcao(c: ConteudoEmail): string {
+  const bloco = (b: ConteudoEmail['blocos'][number]): string => {
+    if (b.tipo === 'p') return `<p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 18px;">${escRecepcao(b.texto)}</p>`;
+    if (b.tipo === 'passos') {
+      return `<p style="color:#fbbf24;font-weight:800;font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px;">${escRecepcao(b.titulo)}</p>`
+        + `<ol style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;padding-left:22px;">${b.itens.map(i => `<li>${escRecepcao(i)}</li>`).join('')}</ol>`;
+    }
+    const linhas = b.itens.map(i => {
+      const cor = i.rotulo === 'Feito' ? '#22c55e' : '#f59e0b';
+      return `<tr><td style="padding:10px 12px 10px 0;vertical-align:top;white-space:nowrap;"><span style="display:inline-block;background:${cor};color:#0f172a;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;">${i.rotulo}</span></td>`
+        + `<td style="padding:10px 0;color:#e2e8f0;font-size:14.5px;line-height:1.6;"><strong style="color:#f8fafc;">${escRecepcao(i.titulo)}:</strong> ${escRecepcao(i.descricao)}</td></tr>`;
+    }).join('');
+    return `<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:8px 20px;margin:0 0 20px;"><table role="presentation" style="width:100%;border-collapse:collapse;">${linhas}</table></div>`;
+  };
+  return `
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escRecepcao(c.preheader)}</div>
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:30px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">${escRecepcao(c.assunto)}</h1>
+  </div>
+  <div style="padding:32px 36px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${escRecepcao(c.saudacao)}</p>
+    ${c.blocos.map(bloco).join('')}
+    <div style="text-align:center;margin:22px 0 8px;">
+      <a href="${escRecepcao(c.botao.url)}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:16px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">${escRecepcao(c.botao.texto)}</a>
+    </div>
+  </div>
+</div>`;
+}
+
+/** Um e-mail da recepção. false = não havia o que dizer (E1 ou E2 sem próximo passo): nada saiu. Erro do Resend LANÇA. */
+export async function sendRecepcaoEmail(opts: { to: string; userId: string; nome: string | null; toque: ToqueRecep; passos: ResultadoPassos }): Promise<boolean> {
+  const c = conteudoEmailRecepcao(opts.toque, opts.nome, opts.passos);
+  if (!c) return false;
+  await sendMarketingEmail({ to: opts.to, userId: opts.userId, subject: c.assunto, html: htmlRecepcao(c) });
+  return true;
 }
 
 // ─── CADÊNCIA DE CONFIANÇA (assinante novo, dias 1/3/7/14/30) ───────────────

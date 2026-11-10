@@ -340,3 +340,7 @@
     width: 100%;
   }
 }
+
+/* O quadro "Primeiros passos" rola até estas seções (#empresa-dados, #empresa-logo, #empresa-fotos): a margem
+   deixa o título da seção fora de baixo da barra do topo. */
+.card, .fieldFull { scroll-margin-top: 72px; }

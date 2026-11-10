@@ -399,6 +399,8 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/pesquisa/depoimentoWhatsApp.ts': { robos: ['depoimento_pedido'], classeMaxima: 'frio_p5' },
   // [04/11] Pós-venda da SolarDoc: "pagou e não criou a senha" (transacional P3) e "criou a senha e não fez a 1ª proposta" (frio P5).
   'services/solardoc/ativacaoPosVenda.ts': { robos: ['ativ_proposta', 'ativ_senha'], classeMaxima: 'transacional_agenda_p3' },
+  // [09/11] Recepção de usuários novos da SolarDoc (frio, 1 bolha).
+  'services/solardoc/recepcaoNovoUsuario.ts': { robos: ['solardoc_novo_usuario'], classeMaxima: 'frio_p5' },
   // [04/11] Link de senha pelo WhatsApp (site e Giovanna): evento P0, 1 bolha, a qualquer hora.
   'services/solardoc/linkDeSenha.ts': { robos: ['solardoc_link_senha'], classeMaxima: 'evento_p0' },
   'services/solardoc/avisoGrupoSolardoc.ts': { robos: ['solardoc_aviso_grupo'], classeMaxima: 'aviso_interno_p2' },

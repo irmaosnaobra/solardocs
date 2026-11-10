@@ -7,6 +7,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import authRoutes from './routes/auth';
 import companyRoutes from './routes/company';
+import primeirosPassosRoutes from './routes/primeirosPassos';
 import clientsRoutes from './routes/clients';
 import terceirosRoutes from './routes/terceiros';
 import inventoryRoutes from './routes/inventory';
@@ -105,6 +106,7 @@ app.get('/', (_req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/company', companyRoutes);
+app.use('/primeiros-passos', primeirosPassosRoutes);
 app.use('/clients', clientsRoutes);
 app.use('/terceiros', terceirosRoutes);
 app.use('/inventory', inventoryRoutes);
