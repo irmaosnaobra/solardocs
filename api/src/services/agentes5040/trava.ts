@@ -393,13 +393,13 @@ function regrasCarla(t: string, link: string): string[] {
   if (/\bcupom\b|\bcupons\b|\bcoupon\b|\bacesso19\b/.test(t + ' ' + link)) m.push('Carla falou de cupom');
   if (/\banual\b|\banuais\b|\bplano anual\b/.test(t + ' ' + link)) m.push('Carla falou de plano anual');
   if (/\bdevolv(?:i|emos|eu)\b|\bestorn\w+|\breembolsei\b|\breembolsamos\b/.test(t)) m.push('Carla disse que devolveu o dinheiro (reembolso é da Giovanna)');
-  // A plataforma inteira pelo plano (03/11/2026, regra do dono de 30 e 31/10): Kit Off-Grid, Inventário, Precificação, Kit Fecha Vendas e
-  // LimpaPro ficam em "Para liberar" e são vendidos à parte. Olha frase por frase: só reprova quando a MESMA frase fala de "plataforma inteira"
+  // A plataforma inteira pelo plano (03/11/2026, regra do dono de 30 e 31/10): Venda Off-Grid, Estoque em Dia, Precificação, Fecha Vendas e
+  // LimpaPro ficam em "Para crescer" e são vendidos à parte. Olha frase por frase: só reprova quando a MESMA frase fala de "plataforma inteira"
   // e de preço ou plano. "Toda a plataforma funciona no celular" passa e não gasta reescrita nem passagem ao humano.
   for (const frase of t.split(/[.!?\n]+/)) {
     if (/\bplataforma (?:inteira|toda|completa)\b|\btoda a plataforma\b/.test(frase)
       && /r\$|\b67\b|\bplano\b|\bassinatura\b|\bassinar\b|\bmensalidade\b/.test(frase)) {
-      m.push('Carla prometeu a plataforma inteira pelo plano (o que fica em Para liberar é vendido à parte)');
+      m.push('Carla prometeu a plataforma inteira pelo plano (o que fica em Para crescer é vendido à parte)');
       break;
     }
   }

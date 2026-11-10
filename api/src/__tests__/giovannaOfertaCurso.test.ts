@@ -19,7 +19,7 @@ import { buildSystemPrompt, semCupomDe19 } from '../services/agents/whatsapp/wha
 // A Giovanna não pode mais oferecê-la a ninguém, nem como primeira oferta ao grátis nem como saída do inadimplente. O prompt é código, e
 // regressão em prompt não quebra build: este teste trava o comportamento. O envio do Pix de R$ 19 também saiu (giovannaAgenteLaco.test.ts).
 //
-// Também travados aqui: ela nunca nega ser IA (regra do dono de 20/10), o preço é único e o que fica em "Para liberar" é vendido à parte,
+// Também travados aqui: ela nunca nega ser IA (regra do dono de 20/10), o preço é único e o que fica em "Para crescer" é vendido à parte,
 // e o caminho de começar a usar é o do menu de hoje.
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -53,9 +53,9 @@ describe('FREE: a entrada de R$19 não existe mais', () => {
     expect(p).toContain(process.env.DASHBOARD_URL || 'https://solardoc.app');
   });
 
-  it('o que fica em Para liberar é vendido à parte, e a assinatura não promete toda a plataforma', () => {
-    expect(p).toMatch(/Para liberar/);
-    for (const nome of ['Kit Off-Grid', 'Inventário', 'Precificação', 'Kit Fecha Vendas', 'LimpaPro']) expect(p, nome).toContain(nome);
+  it('o que fica em Para crescer é vendido à parte, e a assinatura não promete toda a plataforma', () => {
+    expect(p).toMatch(/Para crescer/);
+    for (const nome of ['Venda Off-Grid', 'Estoque em Dia', 'Precificação', 'Fecha Vendas', 'LimpaPro']) expect(p, nome).toContain(nome);
     expect(p).toMatch(/vendido à parte e não vem na assinatura/);
     expect(p).not.toMatch(/toda expansão da plataforma/i);
   });
@@ -170,9 +170,9 @@ describe('regras que não podem se perder', () => {
     expect(prompt({ plano: 'pro', billing_status: 'past_due' })).not.toMatch(/você é a Giovanna, humana/);
   });
 
-  it('o menu de hoje: Nova proposta, Ler conta de luz, Papelada, Arquivos e Para liberar; nada de Escanear Conta', () => {
+  it('o menu de hoje: Nova proposta, Ler conta de luz, Papelada, Arquivos e Para crescer; nada de Escanear Conta', () => {
     const p = prompt({ plano: 'free' });
-    for (const trecho of ['Nova proposta', 'Ler conta de luz', 'Papelada', 'Arquivos', 'Para liberar', 'Outros documentos']) {
+    for (const trecho of ['Nova proposta', 'Ler conta de luz', 'Papelada', 'Arquivos', 'Para crescer', 'Outros documentos']) {
       expect(p, trecho).toContain(trecho);
     }
     expect(p).not.toContain('Escanear Conta');

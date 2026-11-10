@@ -46,18 +46,18 @@ describe('conhecimento: SolarDoc bate com o catálogo', () => {
   });
 });
 
-describe('conhecimento: a retomada dos usuários (novidades e Para liberar, 03/11/2026)', () => {
+describe('conhecimento: a retomada dos usuários (novidades e Para crescer, 03/11/2026)', () => {
   const valoresEmReais = (t: string): number[] => [...t.matchAll(/R\$\s*(\d+(?:[.,]\d+)?)/g)].map(m => Number(m[1]!.replace(',', '.')));
 
-  it('o Para liberar tem os 5 nomes do app, o LimpaPro inclusive (que o texto geral proíbe)', () => {
-    expect([...PARA_LIBERAR]).toEqual(['Kit Off-Grid', 'Inventário', 'Precificação', 'Kit Fecha Vendas', 'LimpaPro']);
+  it('o Para crescer tem os 5 nomes do app, o LimpaPro inclusive (que o texto geral proíbe)', () => {
+    expect([...PARA_LIBERAR]).toEqual(['Venda Off-Grid', 'Estoque em Dia', 'Precificação', 'Fecha Vendas', 'LimpaPro']);
     expect(textoConhecimentoSolarDoc()).not.toMatch(/LimpaPro/i);          // o teste de sempre segue valendo
   });
 
-  it('textoRetomadaSolarDoc diz que o Para liberar é vendido à parte e que assinar não libera nenhum deles, com o preço da constante', () => {
+  it('textoRetomadaSolarDoc diz que o Para crescer é vendido à parte e que assinar não libera nenhum deles, com o preço da constante', () => {
     const linhas = textoRetomadaSolarDoc();
     const para = linhas.find(l => l.startsWith('Não vêm no plano'))!;
-    expect(para).toBe(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam em Para liberar, vendidos à parte: Kit Off-Grid, Inventário, Precificação, Kit Fecha Vendas, LimpaPro. Assinar não libera nenhum deles.`);
+    expect(para).toBe(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam em Para crescer, vendidos à parte: Venda Off-Grid, Estoque em Dia, Precificação, Fecha Vendas, LimpaPro. Assinar não libera nenhum deles.`);
     expect(linhas.join('\n')).not.toMatch(/\bmenu\b/i);
   });
 

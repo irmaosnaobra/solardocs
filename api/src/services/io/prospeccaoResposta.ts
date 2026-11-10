@@ -40,7 +40,7 @@ const desligado = () => (process.env.PROSPECCAO_IA_OFF || '').trim() === 'true';
 // chega aberta na conversa e responde "vocês são bons mesmo?" antes da pessoa
 // precisar querer saber.
 //
-// NÃO entram aqui a Precificação nem o Inventário: desde 17/08 são exclusivos
+// NÃO entram aqui a Precificação nem o Estoque em Dia: desde 17/08 são exclusivos
 // do plano anual. Usar como prova do plano mensal é vender o que o cliente não
 // vai receber, e ele descobre no cadeado.
 // ─────────────────────────────────────────────────────────────────────────────
