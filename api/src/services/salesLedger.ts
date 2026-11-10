@@ -2,6 +2,11 @@ import { supabase } from '../utils/supabase';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { logger } from '../utils/logger';
 
+// Igual a PREFIXO_CLAIM_PURCHASE_PIX (solardoc/purchasePixQuiz). Escrito aqui para não
+// carregar o módulo do quiz (grupo, WhatsApp, mailer) em todo lugar que usa o ledger.
+// O teste purchasePixQuizDobro trava a igualdade.
+export const PREFIXO_CLAIM_PIX_NO_LEDGER = 'meta_purchase_pix:';
+
 const APP_URL = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
 
 export interface SaleInput {
@@ -29,6 +34,8 @@ export interface SaleInput {
    *  resolver (digitado no checkout, lookup na Stripe falhou) e o desconto não. */
   comDesconto?: boolean;
   card_passed_at?: string | null;
+  /** Pix do quiz: o `pix_<hash>` que o pixel do quiz vai usar, gravado ANTES do envio (o re-drive usa o mesmo id). */
+  meta_event_id?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -181,6 +188,7 @@ export async function upsertSale(s: SaleInput): Promise<string | null> {
   put('fbc', s.fbc);
   put('fbp', s.fbp);
   put('card_passed_at', s.card_passed_at);
+  put('meta_event_id', s.meta_event_id);
 
   // A origem é derivada, e obedece à MESMA regra das outras colunas aqui: só
   // entra no patch quando veio sinal. Uma re-entrega do webhook sem metadata
@@ -299,13 +307,43 @@ export async function sendPurchaseForSale(saleId: string): Promise<boolean> {
     return true;
   }
 
+  // Pix automático/avulso do quiz: o caminho do pixel do quiz (`dispararPurchasePixQuiz`) já pode ter mandado este Purchase
+  // com o event_id `pix_<hash>`, e o webhook deixa esse id em `meta_event_id`. Se o claim diz `enviado`, a venda está
+  // contada e o re-drive NÃO manda de novo (era o Purchase em dobro de 01 a 09/11/2026). Senão manda com o MESMO id,
+  // e o Meta deduplica (mesmo pixel SolarDoc) caso o primeiro tenha chegado depois do teto de 8 s.
+  const idPix = String(sale.meta_event_id || '').startsWith('pix_') ? String(sale.meta_event_id) : null;
+  if (idPix) {
+    const { data: claim } = await supabase.from('system_state').select('value').eq('key', `${PREFIXO_CLAIM_PIX_NO_LEDGER}${idPix}`).maybeSingle();
+    const estadoClaim = claim?.value as { estado?: string; em?: string } | null;
+    // Envio do pixel do quiz em andamento (claim `novo` de menos de 2 min; o teto dele é 8 s): espera a próxima rodada
+    // em vez de mandar junto. Claim `novo` velho é envio que morreu no meio: aí manda, com o MESMO id.
+    const emAndamento = estadoClaim?.estado === 'novo'
+      && Date.now() - new Date(String(estadoClaim.em ?? '')).getTime() < 2 * 60 * 1000;
+    if (emAndamento) {
+      logger.info('sales', `Purchase adiado: o pixel do quiz está mandando ${idPix} agora (venda ${saleId})`);
+      return false;
+    }
+    if (estadoClaim?.estado === 'enviado') {
+      await supabase.from('sales').update({
+        meta_response_ok:      true,
+        meta_skip_motivo:      null,
+        meta_purchase_sent_at: sale.meta_purchase_sent_at || new Date().toISOString(),
+        meta_event_id:         idPix,
+        updated_at:            new Date().toISOString(),
+      }).eq('id', saleId);
+      logger.info('sales', `Purchase NÃO reenviado: o pixel do quiz já mandou ${idPix} (venda ${saleId})`);
+      return true;
+    }
+  }
+  const eventId = idPix ?? sale.checkout_session_id;
+
   const nome = (sale.nome || '').trim();
   const first = nome.split(/\s+/)[0] || undefined;
   const last  = nome.split(/\s+/).slice(1).join(' ') || undefined;
   const nav = await navegadorDaSessao(sale.attribution_session_id);
 
   const res = await sendMetaEvent('Purchase', {
-    eventId:    sale.checkout_session_id,
+    eventId,
     email:      sale.email || undefined,
     phone:      sale.phone || undefined,
     firstName:  first,
@@ -327,7 +365,7 @@ export async function sendPurchaseForSale(saleId: string): Promise<boolean> {
     meta_response_ok:      res.ok,
     meta_skip_motivo:      null,
     meta_purchase_sent_at: new Date().toISOString(),
-    meta_event_id:         sale.checkout_session_id,
+    meta_event_id:         eventId,
     meta_attempts:         (sale.meta_attempts ?? 0) + 1,
     updated_at:            new Date().toISOString(),
   }).eq('id', saleId);
