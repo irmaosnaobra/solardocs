@@ -1,0 +1,69 @@
+/* Loja "Para crescer": cartão de produto, "Veja também" e a grade. Tokens do globals.css, tema claro. */
+
+.grade { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 680px) { .grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1180px) { .grade { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.cartao {
+  display: flex; flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--sombra-card);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.imagem {
+  position: relative; display: block;
+  aspect-ratio: 16 / 10;
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+  overflow: hidden;
+}
+.imagem img { object-fit: cover; object-position: top; }
+
+.corpo { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px 16px; flex: 1; }
+.corpo h3 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--color-text); }
+.corpo p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--color-text-muted); }
+
+.preco { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.preco strong { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; color: var(--ink-amber); }
+.preco small { font-size: 12px; font-weight: 600; color: var(--color-text-dim); }
+
+.selo {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  font-size: 12px; font-weight: 800;
+  color: var(--ink-green);
+  background: color-mix(in srgb, var(--ink-green) 10%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--ink-green) 28%, var(--color-surface));
+  border-radius: 999px;
+}
+
+.acoes { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 6px; }
+
+.btn {
+  width: 100%; min-height: 46px;
+  padding: 12px 14px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: inherit; font-size: 14px; font-weight: 800; text-align: center;
+  border-radius: var(--radius-md);
+  border: 1.5px solid transparent;
+  cursor: pointer; text-decoration: none;
+}
+.btnPrim { background: var(--color-primary); color: var(--color-surface); }
+.btnPrim:hover { background: var(--color-primary-hover); }
+.btnSec { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border-strong); }
+.btnSec:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+/* Esqueleto enquanto o servidor diz o que a pessoa já tem. Nunca mostra preço nem "compre" antes da resposta. */
+.esqueleto { height: 360px; background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: var(--radius-lg); animation: respira 1.4s ease-in-out infinite; }
+@keyframes respira { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .esqueleto { animation: none; } }
+
+/* ── Veja também ── */
+.veja { margin-top: 32px; }
+.veja h2 { margin: 0 0 4px; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+.veja > p { margin: 0 0 14px; font-size: 13.5px; color: var(--color-text-muted); }

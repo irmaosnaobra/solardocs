@@ -50,10 +50,9 @@ export default function Cadeado({
         <p className={styles.promessa}>{p.promessa}</p>
 
         <div className={styles.acoes}>
-          {/* Vai direto pra LP publica (/lp/), como o cadeado do menu. A rota
-              antiga ainda redireciona pra la', mas mandar direto poupa um salto
-              — e a pagina de venda e' uma so'. */}
-          <Link href={`/lp/${p.slug}`} className={styles.btnPrimary}>
+          {/* Para a página de venda de DENTRO do app, a mesma do cadeado do menu: ali a pessoa compra por Pix
+              sem sair. Quem não tem página interna (Precificação) é repassado para a /lp/ pela própria rota. */}
+          <Link href={`/produtos/${p.slug}`} className={styles.btnPrimary}>
             Ver o que tem dentro
           </Link>
           {p.experimentar && (

@@ -28,6 +28,7 @@ import MeuEquipamento from './_componentes/MeuEquipamento';
 import FormasPagamento from './_componentes/FormasPagamento';
 import MaisOpcoes, { type OpcoesProposta } from './_componentes/MaisOpcoes';
 import OfertaAddon from './_componentes/OfertaAddon';
+import { useCheckoutPix } from '@/components/CheckoutPix/useCheckoutPix';
 import { brl, nb, tempoHumano, TODOS_BANCOS, type Orcamento, type DocGerado } from './_componentes/util';
 import './offgrid.css';
 import './offgrid-passos.css';
@@ -47,8 +48,7 @@ const errosDe = (err: unknown) =>
 
 export default function OffGridPage() {
   const [e, setE] = useState<EntradaOffGrid>(entradaPadrao);
-  // E-mail da conta pro checkout casar a compra com quem está logado.
-  const { email: emailConta, carregando: acessosCarregando, bastidor } = useAcessos();
+  const { carregando: acessosCarregando, bastidor } = useAcessos();
   const router = useRouter();
   useEffect(() => {
     if (!acessosCarregando && !bastidor) router.replace('/dashboard');
@@ -71,6 +71,9 @@ export default function OffGridPage() {
   // O orçamento falhou por outro motivo que não o 402 (rede, servidor): sem isso o botão ficaria em "Confirmando..." para sempre.
   const [falhaAcesso, setFalhaAcesso] = useState(false);
   const [releitura, setReleitura] = useState(0);
+  // O checkout mora AQUI, fora do `(trancado || oferta)`: quando o Pix cai o acesso libera e a oferta desmonta, e o modal
+  // tem que sobreviver para mostrar "Pagamento confirmado" e o upsell. Ao confirmar, relê o acesso e solta o cadeado.
+  const { abrir: abrirCheckout, modal: modalCheckout } = useCheckoutPix(() => setReleitura((n) => n + 1));
   const [txtKit, setTxtKit] = useState({ inst: '', extras: '', margem: String(entradaPadrao().margemPct) });
 
   // ── Meu equipamento ──
@@ -543,7 +546,7 @@ export default function OffGridPage() {
             erroAceite={erroAceite} clienteNome={cli.nome} clienteDoc={cli.doc} precoOffGrid={precoBase}
           />
 
-          {(trancado || oferta) && <OfertaAddon preco={precoAddon} email={emailConta} motivo={oferta ?? undefined} />}
+          {(trancado || oferta) && <OfertaAddon preco={precoAddon} motivo={oferta ?? undefined} abrir={abrirCheckout} />}
 
           {msg && <div className={`og-msg ${msg.ok ? 'og-msg-ok' : 'og-msg-erro'} og2-msg`} role={msg.ok ? 'status' : 'alert'}>{msg.txt}</div>}
 
@@ -640,6 +643,7 @@ export default function OffGridPage() {
           </div>
         </div>
       )}
+      {modalCheckout}
     </div>
   );
 }

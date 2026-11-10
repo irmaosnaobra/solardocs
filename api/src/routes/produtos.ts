@@ -4,6 +4,7 @@ import { acessos } from '../services/produtos/acessos';
 import { PRODUTOS } from '../services/produtos/catalogo';
 import { supabase } from '../utils/supabase';
 import { noBastidor } from '../services/produtos/bastidor';
+import { criarPixProdutoHandler, statusPixProdutoHandler, cpfPixProdutoHandler } from '../controllers/produtoPixController';
 
 const router = Router();
 router.use(authMiddleware);
@@ -49,5 +50,10 @@ router.get('/acessos', async (req: Request, res: Response): Promise<void> => {
     });
   }
 });
+
+// Compra por Pix dentro do app (cobranca do Asaas no CPF da pessoa). O webhook do Asaas libera; a tela tambem consulta.
+router.post('/pix', criarPixProdutoHandler);
+router.get('/pix/:cobrancaId', statusPixProdutoHandler);
+router.get('/cpf', cpfPixProdutoHandler);
 
 export default router;

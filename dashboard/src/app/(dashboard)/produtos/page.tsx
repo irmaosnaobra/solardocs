@@ -2,22 +2,24 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { Check, Lock, Wrench, GraduationCap, ArrowRight, Repeat } from 'lucide-react';
-import { PRODUTOS_LOJA } from '@/lib/produtos';
-import { useAcessos } from '@/hooks/useAcessos';
-import styles from './produtos.module.css';
 import { useRouter } from 'next/navigation';
+import { Check, ArrowRight, Repeat, ShoppingBag } from 'lucide-react';
+import { useAcessos } from '@/hooks/useAcessos';
+import { PRODUTOS_DA_LOJA, estadoLiberado } from '@/lib/loja/catalogo';
+import CartaoProduto from '@/components/Loja/CartaoProduto';
+import lojaStyles from '@/components/Loja/Loja.module.css';
+import { useCheckoutPix } from '@/components/CheckoutPix/useCheckoutPix';
+import styles from './produtos.module.css';
 
 /**
- * A loja — e a casa de quem comprou avulso.
+ * A loja "Para crescer": os 4 produtos que se compram por Pix sem sair do app.
  *
- * Quem chega pela Kiwify sem assinar aterrissa aqui: em cima, o que ele comprou
- * (pra abrir), embaixo, o resto (pra conhecer). É de propósito que a primeira
- * coisa seja o que ele JÁ TEM — quem acabou de pagar precisa ver a compra, não
- * uma vitrine de coisas trancadas.
+ * Em cima, o que a pessoa AINDA NÃO TEM (é onde ela decide comprar); embaixo, o que já é dela. Quem tem por posse, por
+ * assinatura ou pelo plano anual não vê preço nem botão de compra, vê só "Abrir". O estado vem de /produtos/acessos
+ * (`useAcessos`) e muda sozinho quando o Pix cai.
  */
 
-/** O que a assinatura entrega ALÉM das ferramentas — senão o card parece cobrança repetida. */
+/** O que a assinatura entrega ALÉM das ferramentas: senão o cartão parece cobrança repetida. */
 const ASSINATURA_EXTRAS = [
   'Gerador de Proposta sem limite mensal',
   'Contrato Solar, Procuração, Recibo, Proposta de Banco e mais 4 documentos',
@@ -27,128 +29,78 @@ const ASSINATURA_EXTRAS = [
 ];
 
 export default function LojaPage() {
-  const { carregando, tem, origem, assinante, bastidor } = useAcessos();
+  const { carregando, tem, origem, plano, assinante, bastidor } = useAcessos();
   const router = useRouter();
+  const { abrir, modal } = useCheckoutPix();
+
   // Lançamento restrito: quem não está na lista não abre a loja nem por URL.
   useEffect(() => {
     if (!carregando && !bastidor) router.replace('/dashboard');
   }, [carregando, bastidor, router]);
-  const brl = (n: number) => 'R$ ' + n.toLocaleString('pt-BR');
 
-  const meus = carregando ? [] : PRODUTOS_LOJA.filter((p) => tem(p.id));
-  const faltam = carregando ? PRODUTOS_LOJA : PRODUTOS_LOJA.filter((p) => !tem(p.id));
-
-  const grupos = [
-    { tipo: 'ferramenta' as const, titulo: 'Ferramentas', icone: Wrench,
-      desc: 'O que você usa no dia de trabalho — orçar, precificar, dimensionar e controlar.' },
-    { tipo: 'curso' as const, titulo: 'Cursos', icone: GraduationCap,
-      desc: 'O que fazer com a ferramenta na mão: vender mais e abrir serviço novo.' },
-  ];
-
-  const rodapeDoCard = (p: (typeof PRODUTOS_LOJA)[number], liberado: boolean) => {
-    const via = origem[p.id];
-    if (liberado) {
-      return via === 'assinatura' ? 'Incluso na sua assinatura'
-        : via === 'cortesia' ? 'Liberado pra você'
-        : via === 'admin' ? 'Acesso de administrador'
-        : 'Comprado — acesso vitalício';
-    }
-    return p.naAssinatura
-      ? (assinante ? 'Incluso na assinatura' : 'Compra única ou pela assinatura')
-      // Ferramenta do plano anual: quem está aqui sem ela ou é mensal ou é free.
-      // Nos dois casos o caminho é comprar avulso ou trocar de ciclo — e dizer
-      // "pela assinatura" mandaria o mensalista procurar o que ele não tem.
-      : p.noPlanoAnual ? 'Compra única ou no plano anual'
-      : 'Compra única';
-  };
+  const acessos = { tem, origem, plano, assinante };
+  const liberados = carregando ? [] : PRODUTOS_DA_LOJA.filter((p) => tem(p.id));
+  const faltam = carregando ? [] : PRODUTOS_DA_LOJA.filter((p) => !tem(p.id));
 
   return (
     <div className={styles.loja}>
       <div className={styles.lojaHero}>
-        <h1>Ferramentas e cursos</h1>
-        <p>
-          Tudo que existe dentro do SolarDoc. Cada um funciona sozinho e é seu pra sempre — ou assine
-          e leve o pacote inteiro.
-        </p>
+        <h1>Para crescer</h1>
+        <p>Ferramentas e cursos para o seu negócio de energia solar. Compre sem sair da plataforma, com Pix.</p>
       </div>
 
-      {/* ── O que já é dele ── */}
-      {meus.length > 0 && (
-        <div className={styles.lojaSecao}>
-          <div className={styles.lojaSecaoTopo}>
-            <Check size={16} />
-            <div>
-              <h2>Seus produtos</h2>
-              <span>Liberados na sua conta. É só abrir.</span>
-            </div>
-          </div>
-          <div className={styles.lojaGrid}>
-            {meus.map((p) => (
-              <Link key={p.id} href={p.abrirExterno || p.rota} className={`${styles.card} ${styles.cardMeu}`}
-                style={{ ['--cor' as string]: p.cor }}
-                {...(p.abrirExterno ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
-                <div className={styles.cardTopo}>
-                  <span className={styles.cardNome}>{p.nome}</span>
-                  <span className={styles.cardOk}><Check size={12} /> seu</span>
-                </div>
-                <p className={styles.cardPromessa}>{p.promessa}</p>
-                <div className={styles.cardAbrir}>
-                  Abrir <ArrowRight size={14} />
-                </div>
-                <div className={styles.cardRodape}>{rodapeDoCard(p, true)}</div>
-              </Link>
-            ))}
-          </div>
+      {carregando && (
+        <div className={lojaStyles.grade} aria-busy="true" aria-label="Carregando a loja">
+          {PRODUTOS_DA_LOJA.map((p) => <div key={p.id} className={lojaStyles.esqueleto} />)}
         </div>
       )}
 
-      {/* ── O que ele ainda pode pegar ── */}
-      {grupos.map((g) => {
-        const doGrupo = faltam.filter((p) => p.tipo === g.tipo);
-        if (!doGrupo.length) return null;
-        return (
-          <div key={g.tipo} className={styles.lojaSecao}>
-            <div className={styles.lojaSecaoTopo}>
-              <g.icone size={16} />
-              <div>
-                <h2>{meus.length > 0 ? `Outras ${g.titulo.toLowerCase()}` : g.titulo}</h2>
-                <span>{g.desc}</span>
-              </div>
-            </div>
-            <div className={styles.lojaGrid}>
-              {/* Mesma regra do cadeado: a loja manda pra LP pública. */}
-              {doGrupo.map((p) => (
-                <Link key={p.id} href={`/lp/${p.slug}`} className={styles.card}
-                  style={{ ['--cor' as string]: p.cor }}>
-                  <div className={styles.cardTopo}>
-                    <span className={styles.cardNome}>{p.nome}</span>
-                    {!carregando && <span className={styles.cardLock}><Lock size={11} /> {brl(p.preco)}</span>}
-                  </div>
-                  <p className={styles.cardPromessa}>{p.promessa}</p>
-                  <div className={styles.cardRodape}>{rodapeDoCard(p, false)}</div>
-                </Link>
-              ))}
+      {faltam.length > 0 && (
+        <section className={styles.lojaSecao} aria-labelledby="loja-faltam">
+          <div className={styles.lojaSecaoTopo}>
+            <ShoppingBag size={16} aria-hidden="true" />
+            <div>
+              <h2 id="loja-faltam">O que você ainda não tem</h2>
+              <span>Um pagamento por Pix, sem mensalidade. O acesso libera na hora.</span>
             </div>
           </div>
-        );
-      })}
+          <div className={lojaStyles.grade}>
+            {faltam.map((p) => <CartaoProduto key={p.id} produto={p} onLiberar={abrir} />)}
+          </div>
+        </section>
+      )}
+
+      {liberados.length > 0 && (
+        <section className={styles.lojaSecao} aria-labelledby="loja-liberados">
+          <div className={styles.lojaSecaoTopo}>
+            <Check size={16} aria-hidden="true" />
+            <div>
+              <h2 id="loja-liberados">Já liberado</h2>
+              <span>Está na sua conta. É só abrir.</span>
+            </div>
+          </div>
+          <div className={lojaStyles.grade}>
+            {liberados.map((p) => <CartaoProduto key={p.id} produto={p} liberado={estadoLiberado(p.id, acessos)} />)}
+          </div>
+        </section>
+      )}
 
       {/* ── A plataforma inteira ── */}
-      {!assinante && (
+      {!carregando && !assinante && (
         <div className={styles.assinatura}>
           <div>
             <div className={styles.assinaturaSelo}>
-              <Repeat size={12} /> Mensalidade — não é compra única
+              <Repeat size={12} aria-hidden="true" /> Mensalidade, não é compra única
             </div>
             <h2>A plataforma SolarDoc inteira</h2>
             <p>
-              As compras acima são suas pra sempre, uma a uma. A assinatura é o outro caminho: paga por
-              mês e usa <strong>tudo</strong> — inclusive o que faz o trabalho do dia inteiro, não só as
+              As compras acima são suas enquanto a sua conta existir, uma a uma. A assinatura é o outro caminho: paga por
+              mês e usa <strong>tudo</strong>, inclusive o que faz o trabalho do dia inteiro, não só as
               ferramentas soltas.
             </p>
             <ul>
               {ASSINATURA_EXTRAS.map((f) => (
-                <li key={f}><Check size={14} /> <span>{f}</span></li>
+                <li key={f}><Check size={14} aria-hidden="true" /> <span>{f}</span></li>
               ))}
             </ul>
           </div>
@@ -158,12 +110,14 @@ export default function LojaPage() {
               <span>por mês</span>
             </div>
             <Link href="/minha-conta" className={styles.assinaturaBtn}>
-              Ver a assinatura <ArrowRight size={15} />
+              Ver a assinatura <ArrowRight size={15} aria-hidden="true" />
             </Link>
             <p>Cancela quando quiser. O que você comprou avulso continua seu.</p>
           </div>
         </div>
       )}
+
+      {modal}
     </div>
   );
 }

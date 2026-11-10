@@ -92,7 +92,7 @@ export const ITENS_MENU: ItemMenu[] = [
   { id: 'manutencao', grupo: 'principal', href: '/manutencao', icon: Wrench, label: 'Manutenção' },
   // Também fixos em "Para liberar" (ver o bloco acima).
   { id: 'kit-fecha-vendas', grupo: 'principal', href: '/cursos/kit-fechamento', icon: GraduationCap, label: 'Fecha Vendas', produto: 'curso-fechamento', fixoNoLiberar: true },
-  { id: 'limpapro', grupo: 'principal', href: '/lp/limpapro', icon: Sparkles, label: 'LimpaPro', produto: 'curso-limpapro', soBastidor: true, fixoNoLiberar: true },
+  { id: 'limpapro', grupo: 'principal', href: '/limpapro', icon: Sparkles, label: 'LimpaPro', produto: 'curso-limpapro', soBastidor: true, fixoNoLiberar: true },
 
   // A loja fecha o grupo "Para liberar": é "ver todos os que faltam", não uma ferramenta.
   { id: 'loja', grupo: 'loja', href: '/produtos', icon: LayoutGrid, label: 'Ver todos os produtos' },
@@ -128,16 +128,13 @@ export const nexusItem: ItemMenu = {
  * Para onde o cadeado de um produto leva. Sempre para onde ele vende, nunca para um beco.
  *
  * 1. Ferramenta aberta de propósito (`experimentar`, hoje só o Kit Off-Grid): a própria ferramenta.
- *    Dimensionar e ver a autonomia é de graça lá dentro, o preço fica trancado e o botão "Liberar
- *    meu acesso" monta o checkout com o `?email=` da conta. A página de venda estática dele
- *    (/dimensionamento) tem os links da Kiwify sem o `?email=`: quem paga lá com outro e-mail cria
- *    uma conta duplicada.
- * 2. Produto com página de venda própria (`lpPropria`): `/produtos/<slug>`. Hoje essa rota só
- *    repassa para `/lp/<slug>`, que repassa para a página de venda estática do produto, fora do
- *    app (/calculadora e /inventario-empresarial). Os botões de compra delas também são links
- *    fixos para a Kiwify, sem o `?email=`; isso já era assim para esses produtos e não muda aqui.
- *    No servidor de desenvolvimento essas páginas dão 404, porque o dev do Next não serve o índice
- *    do diretório. No ar, conferido em 30/10/2026, terminam em 200.
+ *    Dimensionar e ver a autonomia é de graça lá dentro, o preço fica trancado e o botão "Liberar o
+ *    Off-grid" abre o checkout Pix do app, que cobra no CPF da pessoa e solta o acesso sozinho.
+ * 2. Produto com página de venda própria (`lpPropria`): `/produtos/<slug>`. Estoque em Dia, Fecha Vendas e
+ *    LimpaPro têm página de venda INTERNA ali (src/app/(dashboard)/produtos/[slug]), com o checkout Pix do app e
+ *    "Veja também". Os outros (Precificação) seguem repassando para `/lp/<slug>`, que repassa para a página de venda
+ *    estática do produto, fora do app (/calculadora). As páginas `/lp/*` e os links da Kiwify continuam existindo para
+ *    quem vem de anúncio e de fora, sem conta.
  * 3. Sem página própria: a página de venda pública, `/lp/<slug>`, a mesma que o anúncio abre.
  */
 export function hrefVendaDoProduto(prod: Pick<ProdutoLoja, 'slug' | 'lpPropria' | 'experimentar'>): string {

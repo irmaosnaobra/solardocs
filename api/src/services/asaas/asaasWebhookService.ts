@@ -1016,6 +1016,21 @@ export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ trat
     logger.error('asaas-webhook', `não gravei o evento ${eventId} (segue o processamento)`, dupErr);
   }
 
+  // ── Produto da loja "Para crescer" (Pix dentro do app) ANTES de tudo ────────
+  // externalReference `prod:<produto>:<cobranca>:<usuario>`. Sem este desvio, o pagamento cairia no fallback por
+  // customer do trilho de assinatura (o mesmo CPF pode ter contrato) e creditaria o mes do plano. Carregado sob
+  // demanda: o caminho do plano nao importa o modulo de produtos.
+  if (String(b.payment?.externalReference ?? '').startsWith('prod:')) {
+    try {
+      const { tratarWebhookProduto } = await import('../produtos/produtoPix');
+      return await tratarWebhookProduto(evento, b.payment);
+    } catch (err) {
+      // Devolve o 500 pro Asaas reenviar: tira a marca de "evento ja visto", senao a reentrega morreria em 'evento repetido'.
+      await supabase.from('asaas_webhook_events').delete().eq('event_id', eventId);
+      throw err;
+    }
+  }
+
   // ── PlugCash ANTES da assinatura ───────────────────────────────────────────
   // Venda de produto (curso pago por Pix/cartão no link do Asaas) não tem
   // contrato em `asaas_pix_assinaturas`: `acharContrato` devolveria null e o

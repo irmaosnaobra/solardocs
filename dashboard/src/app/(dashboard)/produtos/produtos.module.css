@@ -19,31 +19,6 @@
 .lojaSecaoTopo h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text); margin: 0; }
 .lojaSecaoTopo span { font-size: 12.5px; color: var(--color-text-dim); line-height: 1.5; }
 
-.lojaGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-
-.card {
-  display: block;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-left: 3px solid var(--cor, var(--color-primary));
-  border-radius: var(--radius-lg);
-  padding: 16px 18px;
-  text-decoration: none;
-  color: inherit;
-  box-shadow: var(--sombra-card);
-}
-.card:hover { border-color: var(--cor, var(--color-primary)); box-shadow: 0 4px 16px rgba(11, 18, 32, 0.07); }
-.cardTopo { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 7px; }
-.cardNome { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
-.cardOk, .cardLock {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
-}
-.cardOk { background: #ECFDF5; color: var(--ink-green); border: 1px solid #A7F3D0; }
-.cardLock { background: var(--color-surface-2); color: var(--color-text-dim); border: 1px solid var(--color-border-strong); }
-.cardPromessa { font-size: 12.5px; line-height: 1.55; color: var(--color-text-muted); margin: 0 0 10px; }
-.cardRodape { font-size: 11px; font-weight: 700; color: var(--color-text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
-
 /* ── MINI LP ── */
 .lp { max-width: 100%; padding: 8px 0 60px; }
 .voltar {
@@ -204,14 +179,6 @@
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%; background: var(--color-surface-2);
   font-size: 11px; font-weight: 800; color: var(--color-text-dim);
-}
-
-/* ── CARD DE PRODUTO QUE JÁ É DELE ── */
-.cardMeu { border-color: var(--cor, var(--color-primary)); }
-.cardAbrir {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 12.5px; font-weight: 800; color: var(--cor, var(--color-primary));
-  margin-bottom: 8px;
 }
 
 /* ── A PLATAFORMA INTEIRA (assinatura) ── */

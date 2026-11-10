@@ -171,6 +171,16 @@ export async function temAcesso(userId: string | undefined, produtoId: string): 
   return a.produtos.has(produtoId);
 }
 
+/** Erro de leitura/gravacao com o `code` do Postgres/PostgREST (quem chama com `lancarErro` classifica: schema x rede). */
+export class ErroDeBanco extends Error {
+  constructor(onde: string, error: { message?: string; code?: string }) {
+    super(`${onde}: ${error.message ?? 'erro'}`);
+    this.name = 'ErroDeBanco';
+    this.code = error.code;
+  }
+  code?: string;
+}
+
 /**
  * Concede acesso comprado. Idempotente: reentrega de webhook não cria linha
  * nova nem reinicia nada.
@@ -181,14 +191,30 @@ export async function concederAcesso(opts: {
   origem?: 'compra' | 'cortesia' | 'admin';
   orderId?: string | null;
   obs?: string | null;
+  /**
+   * Compra nova sobre uma posse VENCIDA (`expira_em` no passado): reativa a linha (tira o vencimento) em vez de
+   * devolver false para sempre. Fica desligado por padrao: a Kiwify segue como era.
+   */
+  reativarVencido?: boolean;
+  /** Erro ao ler ou gravar vira excecao em vez de `false` (quem chama distingue "ja tinha" de "nao gravou"). */
+  lancarErro?: boolean;
 }): Promise<boolean> {
-  const { data: existente } = await supabase
+  const { data: existente, error: erroLeitura } = await supabase
     .from('entitlements')
-    .select('id')
+    .select('id, expira_em')
     .eq('user_id', opts.userId)
     .eq('produto', opts.produto)
     .maybeSingle();
-  if (existente) return false;
+  if (erroLeitura && opts.lancarErro) throw new ErroDeBanco('entitlements', erroLeitura);
+  if (existente) {
+    const venceu = !!existente.expira_em && new Date(existente.expira_em).getTime() < Date.now();
+    if (!(venceu && opts.reativarVencido)) return false;
+    const { error: erroReativar } = await supabase.from('entitlements')
+      .update({ expira_em: null, origem: opts.origem || 'compra', order_id: opts.orderId || null })
+      .eq('id', existente.id);
+    if (erroReativar && opts.lancarErro) throw new ErroDeBanco('entitlements', erroReativar);
+    return !erroReativar;
+  }
 
   const { error } = await supabase.from('entitlements').insert({
     user_id: opts.userId,
@@ -197,6 +223,7 @@ export async function concederAcesso(opts: {
     order_id: opts.orderId || null,
     obs: opts.obs || null,
   });
+  if (error && opts.lancarErro) throw new ErroDeBanco('entitlements', error);
   return !error;
 }
 

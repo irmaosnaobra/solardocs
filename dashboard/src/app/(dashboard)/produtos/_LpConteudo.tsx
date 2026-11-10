@@ -10,14 +10,11 @@ import { DemoOffGrid } from './_demo';
 import styles from './produtos.module.css';
 
 /**
- * O CORPO DA PÁGINA DE VENDA — um só, servido em dois lugares.
+ * O CORPO DA PÁGINA DE VENDA PÚBLICA, servido em `/lp/[slug]`, para quem chega de anúncio ou de fora, sem conta
+ * nenhuma. Os botões de compra daqui seguem na Kiwify, de propósito.
  *
- * Dentro do app (`/produtos/[slug]`), pra quem já tem conta e clicou no cadeado.
- * E como LP pública (`/lp/[slug]`), pra quem chega de anúncio sem conta nenhuma.
- *
- * Ter dois arquivos com a mesma oferta é o jeito garantido de um mudar e o outro
- * não: o preço sobe num, a promessa muda no outro, e ninguém percebe até um
- * cliente reclamar. É a mesma página nas duas portas.
+ * Dentro do app a venda é outra: `/produtos/[slug]` (Estoque em Dia, Fecha Vendas e LimpaPro) tem página interna com o
+ * checkout Pix do app. Os textos das duas são mantidos separados, então preço e promessa mudam nos dois lugares.
  */
 export function LpConteudo({
   p, liberado, carregando, email, assinante, previa = false, slug, dentroDoApp = true,
