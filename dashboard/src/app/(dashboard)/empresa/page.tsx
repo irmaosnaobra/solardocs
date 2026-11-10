@@ -335,11 +335,12 @@ export default function EmpresaPage() {
       setMessage({ type: 'success', text: 'Empresa salva com sucesso!' });
       setTimeout(() => setMessage(null), 3000);
 
-      // Meta pixel client-side — apenas no primeiro cadastro (dedup com CAPI via eventId)
+      // Meta pixel client-side — apenas no primeiro cadastro da empresa (dedup com CAPI via eventId). É evento personalizado:
+      // o CompleteRegistration fica só no cadastro do usuário (authController + RegisterForm), senão contava 2 por pessoa.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- O pixel do Meta fica no window e não tem tipo.
       if (isNew && typeof window !== 'undefined' && (window as any).fbq) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- O pixel do Meta fica no window e não tem tipo.
-        (window as any).fbq('track', 'CompleteRegistration', {}, { eventID: eventId });
+        (window as any).fbq('trackCustom', 'EmpresaCriada', {}, { eventID: eventId });
       }
 
       // Notifica o layout para desbloquear a sidebar

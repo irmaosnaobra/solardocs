@@ -22,6 +22,7 @@ import { MARCA_QUIZ, MARCA_SAIU, ehCardSaiu, ehCardMudo, semMarcaSaiu } from '..
 import { ymdBRT, quandoDoAgora } from '../io/solarQuiz';
 import { telKeySolar } from '../io/solarTelefone';
 import { aindaLivreSolar, vagasSolar, type FaixaSolar } from './agendaSolarVagas';
+import { adIdDeUtmContent, gravarRastreioCard, type DadosRastreio } from '../rastreio/gravarRastreioCard';
 
 export { vagasSolar, consultoraDaFaixa, aindaLivreSolar, type FaixaSolar } from './agendaSolarVagas';
 
@@ -39,6 +40,12 @@ export interface FichaSolar {
   utm?: Record<string, string>;
   /** Só a sonda do quiz (24/10/2026): 'lp_solar_teste' nasce com tudo carimbado e é cancelada logo depois. Padrão: 'lp_solar'. */
   createdBy?: 'lp_solar' | 'lp_solar_teste';
+  /** Origem do card (10/11/2026). Sem ela o gatilho do banco põe created_by. A agente da 5040 manda 'whatsapp' ou 'whatsapp_anuncio'. */
+  origem?: string;
+  /** Id do anúncio da Meta (só dígitos, 10 a 20). Sem ele, sai do utm_content quando este é um id. Nunca é o ctwaClid. */
+  adId?: string | null;
+  /** fbc, fbp, IP, navegador etc. da requisição: vão para agendamento_rastreio depois do card (nunca lança). */
+  rastreio?: DadosRastreio;
 }
 
 /** Caminho da rota do quiz: nada é conferido aqui (a rota já leu a agenda na hora). */
@@ -112,6 +119,7 @@ export async function gravarCardSolar(
   }
   const agoraMs = Date.now();
   const agoraIso = new Date(agoraMs).toISOString();
+  const adId = adIdDeUtmContent(f.adId) ?? adIdDeUtmContent(f.utm?.utm_content);
   // Caminho da agente: card de HOJE criado antes das 11h (Brasília) já nasce com o bom dia carimbado. A janela do bom dia
   // (7h às 11h, solarAgendaGiovanna) está aberta e ele sairia por cima da confirmação. A rota do quiz não entra aqui.
   const bomDiaJaDado = !!faixa && ymdBRT(Date.parse(f.quando)) === ymdBRT(agoraMs) && new Date(agoraMs - 3 * 3_600_000).getUTCHours() < 11;
@@ -126,6 +134,8 @@ export async function gravarCardSolar(
     created_by: f.createdBy === 'lp_solar_teste' ? 'lp_solar_teste' : 'lp_solar',
     ...(f.src ? { src: f.src } : {}),
     ...(f.utm ?? {}),
+    ...(f.origem ? { origem: f.origem } : {}),
+    ...(adId ? { ad_id: adId } : {}),
     // Da agente as boas-vindas nascem NULAS: quem carimba é marcarBoasVindasEnviada, depois que a confirmação saiu.
     ...(faixa ? { boas_vindas_at: null } : {}),
     ...(opts.modo === 'mudo' ? { boas_vindas_at: agoraIso, lembrete_5min_at: agoraIso, bomdia_at: agoraIso }
@@ -140,6 +150,8 @@ export async function gravarCardSolar(
     if ((error as { code?: string }).code === '23505') return { status: 'horario_tomado' };
     return { status: 'erro', erro: error };
   }
+  // A origem do lead (fbc, IP, navegador) vai para a tabela fechada; a agenda nunca falha por causa dela.
+  if (f.rastreio) await gravarRastreioCard((data as CardGravado | null)?.id, f.rastreio);
   return { status: 'ok', card: data as CardGravado };
 }
 

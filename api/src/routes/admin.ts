@@ -1524,6 +1524,12 @@ router.post('/pix-liberar', async (req: Request, res: Response): Promise<void> =
           purchase = await dispararPurchasePixQuiz({
             telefone: String(u.whatsapp ?? '').replace(/\D/g, ''), email: u.email,
             valor: VALOR_RENOVACAO_PIX * n, dedupKey: `admin:${u.id}:${hoje}`, quando: new Date(agora),
+            // Venda no ledger (10/11/2026): linha em `sales` já marcada como enviada com o id do claim. Sem UTMify
+            // (esta liberação nunca mandou pedido, e upsertSale não chama a UTMify).
+            venda: {
+              checkoutSessionId: `admin_pix:${u.id}:${hoje}`, userId: u.id,
+              criar: { plano: 'ilimitado', produto: 'SolarDoc VIP (Pix liberado no admin)' },
+            },
           });
         }
       } catch (err) {

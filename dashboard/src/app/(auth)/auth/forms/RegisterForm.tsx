@@ -6,12 +6,29 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/services/api';
 import { setToken, setUser } from '@/services/auth';
 import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
+import { getCheckoutAttribution } from '@/hooks/useLpTracking';
 import styles from './login.module.css';
 import SocialProofPopup from './SocialProofPopup';
 
 // Preço único: nenhum degrau nomeado no cadastro. O `?plano=` da URL segue
 // existindo (o success_url da Stripe emite `plano=vip`), mas é só roteamento —
 // o cliente lê "assinatura", não "VIP".
+
+const PIXEL_ID = '824905216831401';
+
+// Atribuição que vai no corpo do /auth/register (utm_*, fbc, fbp, fbclid, landing_url, referrer e a
+// sessão da LP). Rastreio nunca derruba o cadastro: qualquer erro devolve {}.
+function atribuicaoDoCadastro(): Record<string, string> {
+  const out: Record<string, string> = {};
+  try {
+    const a = getCheckoutAttribution();
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbc', 'fbp', 'fbclid', 'landing_url', 'referrer']) {
+      if (a[k]) out[k] = a[k];
+    }
+    if (a.lp_session) out.attribution_session_id = a.lp_session; // mesmo id que o checkout manda como lp_session
+  } catch { /* segue sem atribuição */ }
+  return out;
+}
 
 // Máscara (XX) XXXXX-XXXX. WhatsApp BR sempre 11 dígitos (DDD + 9 dígitos).
 function maskWhatsapp(v: string): string {
@@ -197,13 +214,27 @@ function RegisterContent() {
         fromCheckout: !!sessionId, // veio do Stripe → backend exige plano detectado
         session: sessionId || undefined, // matching autoritativo (plano vem da session, não do email)
         origem: refOrigem || undefined,  // 'pack-solar' etc — atribuição de origem
+        ...atribuicaoDoCadastro(),
       }, {
         headers: { 'X-Meta-Event-Id': eventId },
       });
       setToken(data.token);
       setUser(data.user);
-      const w = window as unknown as { fbq?: (...a: unknown[]) => void };
+      const w = window as unknown as {
+        fbq?: (...a: unknown[]) => void;
+        ioMatch?: (pixelId: string, d: { tel?: string; email?: string; externalId?: string }) => Promise<unknown>;
+      };
       if (w.fbq) {
+        // Correspondência avançada (telefone, e-mail, external_id = e-mail) antes dos dois eventos.
+        // Espera no máximo 300 ms: o cadastro não pode atrasar por rastreamento.
+        try {
+          if (typeof w.ioMatch === 'function') {
+            await Promise.race([
+              w.ioMatch(PIXEL_ID, { tel: waDigits || undefined, email: email.trim(), externalId: 'email' }),
+              new Promise((r) => setTimeout(r, 300)),
+            ]);
+          }
+        } catch { /* segue como hoje */ }
         w.fbq('track', 'Lead', {}, { eventID: eventId });
         w.fbq('track', 'CompleteRegistration', {}, { eventID: eventId });
       }

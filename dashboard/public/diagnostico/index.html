@@ -33,6 +33,8 @@ function ehTeste(){
   return daUrl || guardado;
 }
 </script>
+<!-- Origem do visitante (utm, fbclid, fbc, fbp): antes do pixel e do beacon. Se não carregar, a página segue como antes. -->
+<script src="/lib/origem.js"></script>
 <!-- Meta Pixel do SolarDoc (824905216831401). PageView ao abrir; os demais eventos saem do script da página. Fora no acesso de teste. -->
 <script>
 if (!ehTeste()) {
@@ -45,6 +47,7 @@ fbq('init', '824905216831401');
 fbq('track', 'PageView');
 }
 </script>
+<!-- Correspondência avançada (ph, em, external_id) para o Lead: window.ioMatch(pixelId, {...}) --><script src="/lib/meta-am.js"></script>
 <noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=824905216831401&ev=PageView&noscript=1"/></noscript>
 <style>
 /* Marca SolarDoc, um visual só, escuro como a landing (Landing.module.css:35-60): fundo azul-marinho, faixas #1E293B, ação em degradê âmbar, laranja #F26513 no .App e nos rótulos, Nunito Sans */
@@ -741,6 +744,8 @@ function post(path, body) {
 if (!ss(SK_VISIT)) {
   var v = { session_id: sid, landing_url: location.href, referrer: document.referrer || null };
   UTM_KEYS.forEach(function (k) { if (utm[k]) v[k] = utm[k]; });
+  /* origem.js: utm, fbclid, fbc, fbp, landing_url e referrer do último clique; sd_lp_* acima ficam como reserva */
+  try { var pe = (window.ioOrigem && window.ioOrigem.paraEnvio && window.ioOrigem.paraEnvio()) || {}; for (var pk in pe) { if (Object.prototype.hasOwnProperty.call(pe, pk) && pe[pk]) v[pk] = pe[pk]; } } catch (e) { /* sem origem.js: segue com o que já tinha */ }
   post('/_t/v', v);
   ss(SK_VISIT, '1');
 }
@@ -1204,6 +1209,7 @@ function respostasParaApi() {
   });
   return out;
 }
+function origemEnvio() { try { return (window.ioOrigem && window.ioOrigem.paraEnvio && window.ioOrigem.paraEnvio()) || {}; } catch (e) { return {}; } }
 async function chamar(caminho, corpo, ms) {
   const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const t = setTimeout(() => { if (ctl) ctl.abort(); }, ms);
@@ -1226,7 +1232,7 @@ async function enviarLead() {
     let cod = '';
     try {
       const m = SDR.meta();
-      const r = await chamar('/solardoc/quiz', { nome: (R.nome || '').trim(), whatsapp: R.whats, empresa: (R.empresa || '').trim(), uf: R.uf || '', cidade: R.cidade || '', respostas: resp, utm: SDR.utm(), fbp: m.fbp || '', fbc: m.fbc || '', lp_session: SDR.sid, event_id: E.eventId, url: location.href }, 8000);
+      const r = await chamar('/solardoc/quiz', Object.assign({}, origemEnvio(), { nome: (R.nome || '').trim(), whatsapp: R.whats, empresa: (R.empresa || '').trim(), uf: R.uf || '', cidade: R.cidade || '', respostas: resp, utm: SDR.utm(), fbp: m.fbp || '', fbc: m.fbc || '', lp_session: SDR.sid, event_id: E.eventId, url: location.href }), 8000);
       if (r.ok && r.json && r.json.ok && /^SD-[A-Z0-9]{4,6}$/.test(r.json.codigo || '')) cod = r.json.codigo;
       else erro('whatsapp', 'api_' + r.status);
     } catch (err) { erro('whatsapp', 'api_falhou'); }
@@ -1235,7 +1241,16 @@ async function enviarLead() {
   /* Deixar o WhatsApp não é ir assinar: o destino 'plano' só vira cartao, pix etc. no toque do botão final */
   S.fimK = 'plano';
   SDR.evento('quiz_fim', { destino: 'plano' });
-  if (!E.fez.lead) { E.fez.lead = 1; fb('track', 'Lead', { content_name: 'diagnostico_solardoc' }, { eventID: E.eventId }); }
+  if (!E.fez.lead) {
+    E.fez.lead = 1;
+    /* Correspondência avançada (ph + external_id = sha256 do telefone, o mesmo do Lead do servidor). Espera no máximo 300 ms; sem ioMatch, dispara como antes. */
+    try {
+      if (!ehTeste() && typeof window.ioMatch === 'function') {
+        await Promise.race([window.ioMatch(824905216831401, { tel: R.whats, externalId: 'tel' }), new Promise((ok) => setTimeout(ok, 300))]);
+      }
+    } catch (e) { /* segue sem a correspondência */ }
+    fb('track', 'Lead', { content_name: 'diagnostico_solardoc' }, { eventID: E.eventId });
+  }
   S.enviando = false;
   avancar();
 }
@@ -1244,9 +1259,11 @@ async function enviarLead() {
 async function assinarCartao() {
   if (S.pagando) return;
   S.pagando = true;
-  fb('track', 'InitiateCheckout', { content_name: 'vip', value: 67, currency: 'BRL' });
+  /* Mesmo id no pixel e no servidor (ic_event_id): o Meta conta um InitiateCheckout só */
+  const icId = 'ic_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  fb('track', 'InitiateCheckout', { content_name: 'vip', value: 67, currency: 'BRL' }, { eventID: icId });
   document.querySelectorAll('[data-a="btn"][data-k="cartao"]').forEach((b) => { b.disabled = true; b.textContent = 'Abrindo o pagamento'; });
-  const corpo = Object.assign({ plan: 'vip' }, SDR.utm(), { lp_session: SDR.sid }, SDR.meta(), { origem: 'quiz_solardoc' });
+  const corpo = Object.assign({ plan: 'vip' }, SDR.utm(), origemEnvio(), { lp_session: SDR.sid }, SDR.meta(), { origem: 'quiz_solardoc', ic_event_id: icId });
   try {
     const r = await chamar('/payments/public-checkout', corpo, 20000);
     if (r.ok && r.json && r.json.url) {

@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
 
+<!-- Origem do visitante (utm, fbclid, fbc, fbp): antes do pixel e do beacon -->
+<script src="/lib/origem.js"></script>
 <!-- ============ META PIXEL (Funil B - B2C, ID 446093469730871) ============ -->
 <script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -20,6 +22,7 @@ fbq('init', '446093469730871');
 fbq('track', 'PageView');
 fbq('track', 'ViewContent', { content_name: 'LP_VSL_Solar' });
 </script>
+<script src="/lib/meta-am.js"></script>
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></noscript>
 
@@ -594,6 +597,13 @@ src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></n
     const fd = new FormData(e.target);
     const data = Object.fromEntries(fd.entries());
 
+    // Correspondência avançada (ph + external_id = sha256 do telefone). Espera no máximo 300 ms; sem ioMatch ou sem telefone, segue como antes.
+    try {
+      if (typeof window.ioMatch === 'function' && data.whatsapp) {
+        await Promise.race([window.ioMatch(446093469730871, { tel: data.whatsapp, externalId: 'tel' }), new Promise((ok) => setTimeout(ok, 300))]);
+      }
+    } catch (_) {}
+
     // Track Lead conversion
     if (typeof fbq !== 'undefined') {
       fbq('track', 'Lead', {
@@ -610,6 +620,29 @@ src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></n
     window.location.href = `https://wa.me/5534999999999?text=${msg}`;
   });
 </script>
+
+  <script>
+  // Visita da /io/oferta no banco (/_t/v), com a origem do último clique. Nunca derruba a página.
+  (() => {
+    try {
+      const KEY = 'io_of_session', SENT = 'io_of_visit_sent';
+      let sid = '';
+      try { sid = sessionStorage.getItem(KEY) || ''; } catch (_) {}
+      if (!sid) {
+        sid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID()
+          : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16); });
+        try { sessionStorage.setItem(KEY, sid); } catch (_) {}
+      }
+      try { if (sessionStorage.getItem(SENT)) return; } catch (_) {}
+      const api = window.location.hostname !== 'localhost' ? '/_api' : 'http://localhost:3001';
+      let origem = {};
+      try { origem = (window.ioOrigem && window.ioOrigem.paraEnvio && window.ioOrigem.paraEnvio()) || {}; } catch (_) { origem = {}; }
+      const corpo = Object.assign({ session_id: sid, landing_url: location.href, referrer: document.referrer || null }, origem);
+      fetch(api + '/_t/v', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), keepalive: true }).catch(() => {});
+      try { sessionStorage.setItem(SENT, '1'); } catch (_) {}
+    } catch (_) {}
+  })();
+  </script>
 
   <script src="/lib/telemetria.js" defer></script>
 </body>

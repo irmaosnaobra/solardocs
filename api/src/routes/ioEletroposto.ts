@@ -25,6 +25,7 @@ import { registrarSchedulePagina } from '../services/meta/capiPagina';
 // O rodízio e o gravador do card saíram daqui para um serviço (10/10/2026): a
 // agente de investidores grava o mesmo card e não pode importar a rota.
 import { cidadeParaGravar } from '../services/io/cidadeCanonica';
+import { rastreioDaRequisicao } from '../services/rastreio/gravarRastreioCard';
 import { DONOS_EP, ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from '../services/io/eletropostoCard';
 // A marca da etiqueta de negócio do card (`etiqueta_card:<id>`), a mesma que o
 // /gerador grava: desde 13/10/2026 o card da LP já nasce com ela.
@@ -890,7 +891,7 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
   // gravador que a agente de investidores usa). A ordem é a de antes: primeiro o
   // bloqueio, depois o insert.
   try {
-    const gravado = await gravarCardEletroposto(ficha);
+    const gravado = await gravarCardEletroposto(ficha, rastreioDaRequisicao(req, b));
     if (gravado.bloqueado) {
       logger.info('io-eletroposto-agendar', `${tel} esta FORA DO PADRAO: ficha nao criada`);
       res.json({ ok: true, id: null });

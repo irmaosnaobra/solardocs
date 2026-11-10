@@ -202,6 +202,9 @@
 
   @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 </style>
+<!-- Origem (utm, fbclid, fbc, fbp) e correspondência avançada do pixel: antes do pixel, caminho absoluto. Se faltar, a página segue como antes. -->
+<script src="/lib/origem.js"></script>
+<script src="/lib/meta-am.js"></script>
 </head>
 <body>
 <div class="app">
@@ -230,7 +233,15 @@ fbq('track', 'PageView');
 // Só evento PERSONALIZADO e o Schedule. NADA de 'Lead' padrão: este pixel
 // também recebe o Lead do simulador do SolarDoc (api/src/routes/quiz.ts), e um
 // Lead daqui ensinaria as campanhas do SolarDoc com o público errado.
-function track(tag){ try{ fbq('trackCustom','LPsolar_'+tag); }catch(e){} }
+// lpTag: grava a etapa no nosso banco (lp_events, ep_evento), só a tag, nada pessoal.
+// window.lpEvt só existe depois do último script da página: antes disso vai para a fila que ele descarrega.
+function lpTag(tag){
+  try{
+    var d = { lp: 'solar', tag: String(tag) };
+    if (window.lpEvt) window.lpEvt('ep_evento', d); else (window.__lpFila = window.__lpFila || []).push(['ep_evento', d]);
+  }catch(e){}
+}
+function track(tag){ lpTag(tag); try{ fbq('trackCustom','LPsolar_'+tag); }catch(e){} }
 </script>
 <noscript><img height="1" width="1" style="display:none" alt=""
 src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></noscript>
@@ -275,6 +286,7 @@ function metaCookies(){
     const fbp = ck('_fbp'); if (fbp) o.fbp = fbp;
     let fbc = ck('_fbc');
     if (!fbc){ try{ fbc = sessionStorage.getItem('sq_fbc') || ''; }catch(e){} }
+    if (!fbc){ try{ if (window.ioOrigem) fbc = String(window.ioOrigem.paraEnvio().fbc || ''); }catch(e){} }
     if (!fbc){
       const id = (new URLSearchParams(location.search).get('fbclid') || '').trim();
       if (id){ fbc = 'fb.1.' + Date.now() + '.' + id.slice(0, 300); try{ sessionStorage.setItem('sq_fbc', fbc); }catch(e){} }
@@ -744,7 +756,7 @@ function proximo(id){ const v = visiveis(), i = v.findIndex(p => p.id === id); r
 function avancar(){
   track('quiz_' + atual);
   const nx = proximo(atual); hist.push(atual);
-  if (nx) atual = nx; else { fase = 'resultado'; track('quiz_resultado'); }
+  if (nx) atual = nx; else { fase = 'resultado'; trackTel('quiz_resultado'); }
   render();
 }
 function voltar(){
@@ -771,8 +783,26 @@ function continuar(){
 
 // ── Servidor ──────────────────────────────────────────────────────────────────
 function corpoBase(){
-  return Object.assign({ respostas: respostasLimpas(), nome: NOME.trim(), tel: telBanco(), src: SRC || undefined }, UTM, metaCookies());
+  // Origem guardada (ioOrigem) entra por baixo: o que a página já manda (UTM da sessão, fbc/fbp) prevalece.
+  let orig = {}; try{ if (window.ioOrigem) orig = window.ioOrigem.paraEnvio() || {}; }catch(e){}
+  return Object.assign({}, orig, { respostas: respostasLimpas(), nome: NOME.trim(), tel: telBanco(), src: SRC || undefined }, UTM, metaCookies());
 }
+// Correspondência avançada (ph, external_id) antes do evento do pixel. O evento sai em no máximo 300 ms, com ou sem ela.
+const PIXEL_SOLAR = 446093469730871;
+function comMatch(disparar){
+  let feito = false;
+  const ir = () => { if (feito) return; feito = true; try{ disparar(); }catch(e){} };
+  try{
+    if (typeof window.ioMatch === 'function' && telOk()){
+      Promise.race([ window.ioMatch(PIXEL_SOLAR, { tel: telBanco(), externalId: 'tel' }), new Promise(r => setTimeout(r, 300)) ]).then(ir, ir);
+      setTimeout(ir, 320);
+      return;
+    }
+  }catch(e){}
+  ir();
+}
+// Evento personalizado do pixel que depende do telefone: grava a etapa já, e o pixel depois do ioMatch.
+function trackTel(tag){ lpTag(tag); comMatch(() => fbq('trackCustom', 'LPsolar_' + tag)); }
 async function postar(caminho, corpoReq){
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 15000);
   try{
@@ -784,7 +814,7 @@ async function postar(caminho, corpoReq){
 const novoEventId = () => { try{ return 'agd_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }catch(e){ return ''; } };
 function schedule(evId){
   // O servidor manda o mesmo Schedule pela API de Conversões; o Meta junta os dois pelo event_id.
-  try { fbq('track', 'Schedule', { content_name: 'Ligacao Solar' }, evId ? { eventID: evId } : undefined); } catch(e){}
+  comMatch(() => fbq('track', 'Schedule', { content_name: 'Ligacao Solar' }, evId ? { eventID: evId } : undefined));
 }
 function botao(id, rot, desligado){ const b = $(id); if (!b) return; if (rot != null) b.textContent = rot; b.disabled = !!desligado; }
 
@@ -792,7 +822,7 @@ function botao(id, rot, desligado){ const b = $(id); if (!b) return; if (rot != 
 // chama de novo (voltar e avançar refaz a vitrine e o "agora").
 async function verDiagnostico(){
   if (ocupado) return;
-  track('quiz_whatsapp');
+  trackTel('quiz_whatsapp');
   ocupado = true; botao('btnTel', 'Montando o seu diagnóstico...', true);
   try{
     const { status, j } = await postar('/io/solar/quiz', corpoBase());
@@ -801,10 +831,10 @@ async function verDiagnostico(){
     srv = j;
     // Descartado: mostra o diagnóstico com o fecho, sem pixel e sem nada que prometa contato. Fica "sem card" de propósito: o aviso de saída também não vale.
     if (j.descartado === true){ hist.push('whatsapp'); fase = 'resultado'; render(); return; }
-    track('quiz_whatsapp_ok');
+    trackTel('quiz_whatsapp_ok');
     if (j.jaMarcado){ cardMarcado = true; return fimDoQuiz('ja_marcado'); }
     if (j.semVitrine){ cardMarcado = true; return fimDoQuiz('sem_vitrine'); }
-    hist.push('whatsapp'); fase = 'resultado'; track('quiz_resultado'); render();
+    hist.push('whatsapp'); fase = 'resultado'; trackTel('quiz_resultado'); render();
   }catch(e){
     ocupado = false; botao('btnTel', 'Ver meu diagnóstico', false);
     erro('Não consegui montar o seu diagnóstico agora. Tente de novo em instantes.');
@@ -977,7 +1007,9 @@ render();
   const params = new URLSearchParams(location.search); const utms = {};
   ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(k => { const v = params.get(k); if (v) utms[k] = v; });
   function send(path, body) { try { fetch(url + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), keepalive: true }).catch(()=>{}); } catch (_) {} }
-  try { if (!sessionStorage.getItem(SENT)) { send('/_t/v', { session_id: sid, landing_url: location.href, referrer: document.referrer || null, ...utms }); sessionStorage.setItem(SENT, '1'); } } catch (_) {}
+  // Origem guardada (ioOrigem) entra por baixo: a UTM da URL, o landing_url e o referrer de agora prevalecem; a guardada vale quando a URL não tem.
+  let orig = {}; try { if (window.ioOrigem) orig = window.ioOrigem.paraEnvio() || {}; } catch (_) {}
+  try { if (!sessionStorage.getItem(SENT)) { send('/_t/v', Object.assign({}, orig, { session_id: sid, landing_url: location.href, referrer: document.referrer || orig.referrer || null }, utms)); sessionStorage.setItem(SENT, '1'); } } catch (_) {}
   function evt(type, data) { send('/_t/e', { session_id: sid, event_type: type, event_data: data || null }); }
   window.lpEvt = evt;
   (window.__lpFila || []).splice(0).forEach(([t, d]) => evt(t, d));

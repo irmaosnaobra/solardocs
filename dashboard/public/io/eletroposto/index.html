@@ -771,6 +771,9 @@
   .cf .ic.ic-ig svg{stroke:#D06BE8}
   #seguir-bg .cf p{font-size:16px;color:var(--cream)}
 </style>
+<!-- Rastreamento completo: origem (utm, fbclid, fbc, fbp) e correspondencia avancada. Antes do pixel. -->
+<script src="/lib/origem.js"></script>
+<script src="/lib/meta-am.js"></script>
 </head>
 <body>
 
@@ -2267,7 +2270,11 @@ function metaCookies(){
   return o;
 }
 function utmPrimeiroToque(){
-  return Object.assign({}, utmSomente(), metaCookies());
+  // origem.js entra como reserva (fbclid, landing_url, referrer, utm guardada em cookie):
+  // o que esta pagina ja mandava (utmSomente + metaCookies) continua valendo por cima.
+  let orig = {};
+  try { if (window.ioOrigem && window.ioOrigem.paraEnvio) orig = window.ioOrigem.paraEnvio() || {}; } catch(_){}
+  return Object.assign({}, orig, utmSomente(), metaCookies());
 }
 
 // Grava a ficha PELA API. Antes era um INSERT direto no PostgREST com a chave
@@ -5493,6 +5500,16 @@ async function gravarAgendamento(){
     // Ficha de conferência (nome começando com "teste") não dispara: o servidor
     // já pula o gêmeo dela, e o pixel não pode aprender com a gente mesmo.
     if(!/^\s*teste/i.test(nome)){
+      // Correspondencia avancada (telefone + external_id) antes do Schedule, sem atrasar:
+      // no maximo 300 ms de espera, e o evento sai de qualquer jeito.
+      try{
+        if(typeof window.ioMatch === 'function'){
+          await Promise.race([
+            Promise.resolve(window.ioMatch('26788759654130722', { tel: tel, externalId: 'tel' })).catch(function(){}),
+            new Promise(function(r){ setTimeout(r, 300); })
+          ]);
+        }
+      }catch(e){}
       try{ fbq('track','Schedule',{content_name:'Reuniao Eletroposto', content_category:perfil}, evId ? {eventID:evId} : undefined); }catch(e){}
     }
     try{ window.quizFim('reuniao', 'schedule'); }catch(e){}
@@ -5941,10 +5958,11 @@ rotBody.addEventListener('keydown', e => {
     let sid = '';
     try { sid = sessionStorage.getItem(KEY) || ''; if (!sid) { sid = uuid(); sessionStorage.setItem(KEY, sid); } } catch (_) { sid = uuid(); }
     const url = (typeof window !== 'undefined' && window.location.hostname !== 'localhost') ? '/_api' : 'http://localhost:3001';
+    let orig = {}; try { if (window.ioOrigem && window.ioOrigem.paraEnvio) orig = window.ioOrigem.paraEnvio() || {}; } catch (_) {}
     const params = new URLSearchParams(location.search); const utms = {};
     ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(k => { const v = params.get(k); if (v) utms[k] = v; });
     function send(path, body) { try { fetch(url + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), keepalive: true }).catch(()=>{}); } catch (_) {} }
-    try { if (!sessionStorage.getItem(SENT)) { send('/_t/v', { session_id: sid, landing_url: location.href, referrer: document.referrer || null, ...utms }); sessionStorage.setItem(SENT, '1'); } } catch (_) {}
+    try { if (!sessionStorage.getItem(SENT)) { send('/_t/v', { ...orig, session_id: sid, landing_url: location.href, referrer: document.referrer || orig.referrer || null, ...utms }); sessionStorage.setItem(SENT, '1'); } } catch (_) {}
     function evt(type, data) { send('/_t/e', { session_id: sid, event_type: type, event_data: data || null }); }
     // o lpFunil() do quiz escreve por aqui (ver FUNIL DO QUIZ NO NOSSO BANCO)
     window.lpEvt = evt;

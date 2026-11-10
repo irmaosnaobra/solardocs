@@ -20,12 +20,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght,SOFT@9..144,600..800,30..100&display=swap" rel="stylesheet">
 
+<!-- Origem do visitante (utm, fbclid, fbc, fbp): antes do pixel e dos beacons -->
+<script src="/lib/origem.js"></script>
 <!-- Meta Pixel -->
 <script>
   !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
   fbq('init', '446093469730871');
   fbq('track', 'PageView');
 </script>
+<script src="/lib/meta-am.js"></script>
 <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></noscript>
 <!-- /Meta Pixel -->
 
@@ -2586,11 +2589,14 @@
 
     try {
       if (!sessionStorage.getItem(SENT)) {
+        let origem = {};
+        try { origem = (window.ioOrigem && window.ioOrigem.paraEnvio && window.ioOrigem.paraEnvio()) || {}; } catch (_) { origem = {}; }
         send('/_t/v', {
           session_id: sid,
           landing_url: location.href,
           referrer: document.referrer || null,
           ...utms,
+          ...origem,
         });
         sessionStorage.setItem(SENT, '1');
       }
@@ -2641,6 +2647,16 @@
       if (typeof window.fbq === 'function') {
         try { window.fbq('track', name, params); } catch (_) {}
       }
+      // Grava o evento do pixel também no banco (/_t/e). `send` mora em outro bloco: usa sendBeacon, mesma sessão. Sem dado pessoal.
+      try {
+        const sid = sessionStorage.getItem('io_sd_session');
+        if (sid && navigator.sendBeacon) {
+          const base = window.location.hostname !== 'localhost' ? '/_api' : 'http://localhost:3001';
+          navigator.sendBeacon(base + '/_t/e', new Blob([JSON.stringify({
+            session_id: sid, event_type: 'ep_evento', event_data: { lp: 'io', tag: String(name) }
+          })], { type: 'application/json' }));
+        }
+      } catch (_) {}
     };
 
     // Lead: qualquer clique em link WhatsApp
@@ -2684,6 +2700,13 @@
       else {
         const saved = sessionStorage.getItem('io_utm');
         if (saved) Object.assign(utm, JSON.parse(saved));
+      }
+    } catch (_) {}
+    // ainda vazio: usa o último clique guardado pelo origem.js (utm_* e fbclid)
+    try {
+      if (!Object.keys(utm).length && window.ioOrigem && window.ioOrigem.get) {
+        const o = window.ioOrigem.get() || {};
+        ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','fbclid'].forEach(k => { if (o[k]) utm[k] = o[k]; });
       }
     } catch (_) {}
     if (!Object.keys(utm).length) return;

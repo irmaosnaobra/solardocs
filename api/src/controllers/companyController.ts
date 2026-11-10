@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { BancoIndisponivel, lerDoBanco, responder503 } from '../utils/dbTransitorio';
 import { sendMetaEvent } from '../utils/metaPixel';
+import { separarNome } from '../utils/metaCapi';
 import { cnpjValido } from '../utils/cnpj';
 import { colunaAusente } from '../services/vistoria/extras';
 import { fotosObrasComUrl, sanitizarFotosObras } from './portfolioController';
@@ -128,7 +129,7 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
     // Registra dia do followup em que o usuário converteu (se estava na sequência)
     const { data: user } = await supabase
       .from('users')
-      .select('email, created_at, followup_day_recovered')
+      .select('email, nome, whatsapp, created_at, followup_day_recovered')
       .eq('id', req.userId)
       .single();
 
@@ -140,9 +141,19 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
       }
     }
 
-    sendMetaEvent('CompleteRegistration', {
+    // Evento PERSONALIZADO `EmpresaCriada` (o CompleteRegistration fica só no cadastro do usuário: aqui contava a mesma pessoa duas vezes).
+    // Mesmos dados do Lead do cadastro (external_id = email), mais telefone, nome e cidade da empresa: o Meta só nota a
+    // correspondência se o evento levar o que o cadastro já tem. event_id continua o do navegador (x-meta-event-id).
+    const nomeMeta = separarNome(user?.nome);
+    sendMetaEvent('EmpresaCriada', {
       eventId:   req.headers['x-meta-event-id'] as string | undefined,
       email:     user?.email,
+      phone:     user?.whatsapp || undefined,
+      firstName: nomeMeta.fn || undefined,
+      lastName:  nomeMeta.ln || undefined,
+      externalId: user?.email || undefined,
+      city:      body.cidade || undefined,
+      country:   'br',
       ip:        req.ip,
       userAgent: req.headers['user-agent'],
     });

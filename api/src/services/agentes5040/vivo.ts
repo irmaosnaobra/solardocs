@@ -79,6 +79,7 @@ import { gravarMidiaCache, gravarTurno, lerMidiaCache, lerTurnos, type TurnoGrav
 import { lerCards, lerConversa, montarContexto } from './contexto';
 import { clienteComCota, disjuntorAberto, liberarChave, reservarChave, type EstadoCota } from './cota';
 import { anuncioDaMensagem } from './anuncioDoLead';
+import { origemDoCardDaAgente } from '../rastreio/origemCard';
 import { lerCandidatas, ultimoBlocoDoLead, type Candidata } from './ensaio';
 import {
   blocoSeguro, fichaDeCampos, montarFicha, produtoDoCard, quandoBR, textoDaMensagem, type CardDaFicha,
@@ -1152,7 +1153,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       // 9b. a Duda marca, remarca, liga agora e passa o suporte (B1d-2c); a Carla passa o suporte (ficha à Giovanna, B3b)
       if ((dona === 'duda' && ACOES_DA_DUDA_COM_AGENDA.includes(saida.acao)) || (dona === 'carla' && saida.acao === 'suporte_giovanna')) {
         const A: ContextoAcao = {
-          g, chave, tel, L, posse, hmac, ctx0, oferta: ofertaDaVez, dadosAnt, resultado, saida, base2, dec, registrar, soltar,
+          g, chave, tel, L, posse, hmac, ctx0, anuncioId: anuncio.anuncio?.adId ?? null, oferta: ofertaDaVez, dadosAnt, resultado, saida, base2, dec, registrar, soltar,
           refazer: async (aviso: string, n = 4): Promise<Seguir> => {
             if (volta === 1) return A.humano(`ferramenta:${saida.acao}`, 'segunda_tentativa');
             const alvo = ofertaDaVez.alvo ?? alvoDaAgenda(cardSolarDoCtx(ctx0), kwhDoLead({ ...dadosAnt, ...saida.dados }, resultado.valoresDaPessoa));
@@ -1525,6 +1526,8 @@ interface ContextoAcao {
   /** hmacDe(chave), inteiro. */
   hmac: string;
   ctx0: ContextoLead;
+  /** O id do anúncio de onde a conversa veio (anuncioDaMensagem), ou null. Vira ad_id e origem do card novo. Nunca o ctwaClid. */
+  anuncioId?: string | null;
   /** As vagas que foram aos fatos DESTA tentativa: é com elas que a escolha da IA é casada. */
   oferta: Oferta;
   dadosAnt: Record<string, string>;
@@ -1691,6 +1694,7 @@ async function acaoMarcar(A: ContextoAcao): Promise<Seguir> {
     const gr = await gravarCardSolar({
       dono: alvo.dono, quando: iso, nome: String(ctx0.nome ?? '').trim() || 'Cliente', tel,
       cidade: cidadeDoLead(saida.dados, dadosAnt), observacao: observacaoDoCardDaDuda(kwh),
+      ...origemDoCardDaAgente(A.anuncioId),
     }, { faixa: 'novo' });
     if (gr.status === 'horario_tomado' || gr.status === 'horario_fora_da_grade') return A.refazer(AVISO_HORARIO);
     if (gr.status === 'erro') return A.humano('ferramenta:marcar_horario', 'gravar:erro');
@@ -1792,6 +1796,7 @@ async function acaoLigarAgora(A: ContextoAcao): Promise<Seguir> {
     const gr = await gravarCardSolar({
       dono: alvo.dono, quando: agoraE.toISOString(), nome: String(ctx0.nome ?? '').trim() || 'Cliente', tel,
       cidade: cidadeDoLead(saida.dados, dadosAnt), observacao: observacaoDoCardDaDuda(kwh),
+      ...origemDoCardDaAgente(A.anuncioId),
     }, { ligarAgora: true });
     if (gr.status !== 'ok') return A.humano('ferramenta:ligar_agora', `gravar:${gr.status}`);
     cardId = gr.card.id;

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLpTracking, getCheckoutAttribution } from '@/hooks/useLpTracking';
+import { useLpTracking, getCheckoutAttribution, novoIcEventId } from '@/hooks/useLpTracking';
 import api from '@/services/api';
 import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import { VSL } from './vsl';
@@ -402,6 +402,8 @@ export default function Landing() {
   async function goToCheckout(label: string, plano: 'vip' | 'vip_anual' = 'vip') {
     const ehAnual = plano === 'vip_anual';
     trackEvent('cta_click', { label });
+    // Mesmo id no pixel (eventID) e no servidor (ic_event_id): o Meta conta um InitiateCheckout só.
+    const icEventId = novoIcEventId();
     if (typeof window !== 'undefined' && window.fbq) {
       // `value` é o que a Meta vai otimizar. No anual tem que ser 564 (o que
       // entra), não os 47 da vitrine — senão o algoritmo trata a melhor venda
@@ -410,7 +412,7 @@ export default function Landing() {
         content_name: ehAnual ? 'vip_anual' : 'vip',
         value: ehAnual ? PRICE_ANUAL : PRICE,
         currency: 'BRL',
-      });
+      }, { eventID: icEventId });
     }
     setCheckoutLoading(true);
     try {
@@ -418,6 +420,7 @@ export default function Landing() {
       // O backend grava no metadata do Stripe → receita atribuída à campanha.
       const { data } = await api.post('/payments/public-checkout', {
         plan: plano,
+        ic_event_id: icEventId,
         ...getCheckoutAttribution(),
       });
       if (data?.url) {

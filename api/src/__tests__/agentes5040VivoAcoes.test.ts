@@ -19,7 +19,10 @@ const h = vi.hoisted(() => ({
   silenciar: vi.fn(),
   cooldown: false,
   teste: false as boolean | null,
+  /** O anúncio de origem da conversa (anuncioDaMensagem). Padrão: sem anúncio. */
+  anuncio: { ok: true, anuncio: null } as { ok: boolean; anuncio: { adId: string | null; produto: string | null } | null },
 }));
+vi.mock('../services/agentes5040/anuncioDoLead', () => ({ anuncioDaMensagem: async () => h.anuncio }));
 vi.mock('../utils/supabase', () => ({ supabase: new Proxy({}, { get: (_t, k) => h.principal.cliente[k as string] }) }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: new Proxy({}, { get: (_t, k) => h.gerador.cliente[k as string] }) }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
@@ -134,7 +137,7 @@ const pedidoDaChamada = (n: number): string => JSON.stringify(ia.chamadas[n]!.bo
 beforeEach(() => {
   banco = novoBanco(); gerador = novoBanco();
   h.principal = banco; h.gerador = gerador;
-  h.cooldown = false; h.teste = false;
+  h.cooldown = false; h.teste = false; h.anuncio = { ok: true, anuncio: null };
   h.enviar.mockReset().mockImplementation(async (p: any) => (p.dry ? { ok: false, motivo: 'dry' } : { ok: true, enviadas: 1, carimbos: [`ag5040_sent:${p.waIdAlvo}:1`] }));
   h.ficha.mockReset().mockResolvedValue(undefined);
   h.teto.mockReset().mockResolvedValue('ok');
@@ -268,6 +271,23 @@ describe('marcar_horario', () => {
     expect(posseDe()).toMatchObject({ estado: 'viva', ate_wa_id: 10, respostas: 1 });
     expect(r.decisoes[0]).toMatchObject({ acao: 'marcar_horario', resultado: 'marcou' });
     expect(h.entregarFila).not.toHaveBeenCalled();                              // a fila tem rota e relógio próprios
+  });
+
+  it('origem do card (10/11/2026): conversa que veio de anúncio grava origem whatsapp_anuncio e ad_id; sem anúncio, origem whatsapp (e nunca ctwaClid)', async () => {
+    h.anuncio = { ok: true, anuncio: { adId: '120210000000012345', produto: 'solar' } };
+    semearLead(); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(h.gravar).toHaveBeenCalledTimes(1);
+    expect(h.gravar.mock.calls[0]![0]).toMatchObject({ origem: 'whatsapp_anuncio', adId: '120210000000012345' });
+    expect(JSON.stringify(h.gravar.mock.calls)).not.toMatch(/ctwa/i);
+
+    banco = novoBanco(); gerador = novoBanco(); h.principal = banco; h.gerador = gerador;
+    h.gravar.mockClear(); h.anuncio = { ok: true, anuncio: null };
+    semearLead(); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(h.gravar).toHaveBeenCalledTimes(1);
+    expect(h.gravar.mock.calls[0]![0]).toMatchObject({ origem: 'whatsapp' });
+    expect(h.gravar.mock.calls[0]![0].adId).toBeUndefined();
   });
 
   it('a faixa de kWh não decide mais a consultora: R$ 700 e R$ 1.500 são da Nilce', async () => {

@@ -1,3 +1,5 @@
+import { semAcento, normCidade, normUf, normCep, normEmail } from './metaCapi';
+
 const PIXEL_ID     = '824905216831401';
 const ACCESS_TOKEN = process.env.META_PIXEL_TOKEN || '';
 const API_URL      = `https://graph.facebook.com/v19.0/${PIXEL_ID}/events`;
@@ -92,11 +94,18 @@ function normalizePhoneDigits(phone: string): string {
   return d;
 }
 
+// Nome do jeito que o Meta compara: minúsculo, sem acento e sem pontuação.
+const normNome = (s: unknown): string => semAcento(s).replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
+
 interface MetaUserData {
   em?: string[];
   ph?: string[];
   fn?: string[];
   ln?: string[];
+  ct?: string[];
+  st?: string[];
+  zp?: string[];
+  country?: string[];
   external_id?: string[];
   fbc?: string;
   fbp?: string;
@@ -134,6 +143,10 @@ export async function sendMetaEvent(
     firstName?:  string;
     lastName?:   string;
     externalId?: string;   // se ausente e houver email, usa o email como external_id
+    city?:       string;   // "São Paulo", "São Paulo - SP", "São Paulo-SP": vira ct (minúsculo, sem acento, sem espaço)
+    state?:      string;   // UF de 2 letras; se ausente, tenta tirar do fim de `city`
+    zip?:        string;   // CEP: vira zp só com dígitos
+    country?:    string;   // 'br': vira country (hash)
     fbc?:        string;
     fbp?:        string;
     ip?:         string;
@@ -147,13 +160,23 @@ export async function sendMetaEvent(
 
   try {
     const user_data: MetaUserData = {};
-    if (opts.email)     user_data.em = [await sha256(opts.email)];
+    if (opts.email)     user_data.em = [await sha256(normEmail(opts.email) ?? opts.email)];
     if (opts.phone) {
       const ph = normalizePhoneDigits(opts.phone);
       if (ph) user_data.ph = [await sha256(ph)];
     }
-    if (opts.firstName) user_data.fn = [await sha256(opts.firstName)];
-    if (opts.lastName)  user_data.ln = [await sha256(opts.lastName)];
+    const fn = normNome(opts.firstName);
+    const ln = normNome(opts.lastName);
+    if (fn)             user_data.fn = [await sha256(fn)];
+    if (ln)             user_data.ln = [await sha256(ln)];
+    const ct = normCidade(opts.city);
+    if (ct)             user_data.ct = [await sha256(ct)];
+    const st = normUf(opts.state) || normUf(opts.city);
+    if (st)             user_data.st = [await sha256(st)];
+    const zp = normCep(opts.zip);
+    if (zp)             user_data.zp = [await sha256(zp)];
+    const country = semAcento(opts.country).replace(/[^a-z]/g, '');
+    if (country)        user_data.country = [await sha256(country)];
     const extId = opts.externalId || opts.email;
     if (extId)          user_data.external_id = [await sha256(extId)];
     if (opts.fbc)       user_data.fbc = opts.fbc;

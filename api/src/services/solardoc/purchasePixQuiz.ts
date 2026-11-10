@@ -9,24 +9,35 @@
 //   - claim só de inserção em system_state (banco principal): um Pix, um Purchase;
 //   - nunca lança e nunca passa de 8 s: o pagamento já foi liberado e não espera nem quebra por causa disto.
 
-import { createHash } from 'crypto';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { enviarEventoMeta, cookieMeta, type EventoMeta, type NavegadorMeta, type ResultadoMeta } from '../../utils/metaCapi';
 import { lerLeadDoQuiz, campoDe, ehLeadDeTeste, type LeadQuizLinha } from './avisoGrupoSolardoc';
+import {
+  idDoEventoPix, PREFIXO_CLAIM_PURCHASE_PIX, camposDoVinculo, ligarVendaAoClaim,
+  type VinculoClaim, type ClaimEnviado,
+} from './purchasePixVinculo';
+import type { SaleInput } from '../salesLedger';
 
+// O id e o prefixo moram em purchasePixVinculo (módulo leve); daqui seguem exportados.
+export { idDoEventoPix, PREFIXO_CLAIM_PURCHASE_PIX };
 export const URL_PURCHASE_PIX_QUIZ = 'https://solardoc.app/diagnostico';
-export const PREFIXO_CLAIM_PURCHASE_PIX = 'meta_purchase_pix:';
 export const TETO_PURCHASE_PIX_MS = 8000;
 /** Prazo (desde o início) para o Meta responder: estoura antes do teto, para o claim sair de `novo` e ficar `falhou`. */
 export const PRAZO_ENVIO_PURCHASE_PIX_MS = 6000;
 
-/** `pix_` + os 32 primeiros hex do sha256 (UTF-8) da chave inteira do system_state (`pix_e2e:<21>:<valor>`) ou, sem E2E, do dedupKey. */
-export const idDoEventoPix = (chave: string): string =>
-  'pix_' + createHash('sha256').update(chave, 'utf8').digest('hex').slice(0, 32);
-
 export type MotivoPurchasePix =
   | 'enviado' | 'falhou' | 'nao_e_quiz' | 'teste' | 'duplicado' | 'sem_id' | 'sem_claim' | 'timeout' | 'erro';
+
+/**
+ * A venda do ledger que anda junto com este Purchase. `checkoutSessionId` é a chave da linha em `sales`.
+ * Com `criar`, a linha é criada (upsertSale) quando o claim está `enviado` e já nasce marcada como enviada, com o id do
+ * claim: é o caso do Pix por comprovante e do /pix-liberar, que antes mandavam Purchase sem linha em `sales`.
+ */
+export interface VendaDoPurchasePix extends VinculoClaim {
+  checkoutSessionId: string;
+  criar?: { plano: string; produto: string } | null;
+}
 
 export interface EntradaPurchasePix {
   telefone: string;
@@ -38,6 +49,8 @@ export interface EntradaPurchasePix {
   dedupKey?: string | null;
   /** Hora da liberação. */
   quando?: Date | number | null;
+  /** Venda do ledger ligada a este Purchase (ver VendaDoPurchasePix). Sem ela, nada de `sales` é tocado. */
+  venda?: VendaDoPurchasePix | null;
 }
 
 export interface DepsPurchasePix {
@@ -45,6 +58,12 @@ export interface DepsPurchasePix {
   /** 'ok' gravou, 'duplicado' já existia, 'erro' não gravou. */
   claim: (chave: string, valor: Record<string, unknown>) => Promise<'ok' | 'duplicado' | 'erro'>;
   marcar: (chave: string, valor: Record<string, unknown>) => Promise<void>;
+  /** Lê o valor do claim (estado e hora). null = não existe. */
+  lerClaim: (chave: string) => Promise<{ estado?: string; em?: string } | null>;
+  /** Claim `enviado`: marca (e, com `criar`, cria) a linha `sales` com o id do claim. Nunca lança. */
+  ligarVenda: (a: { checkoutSessionId: string; claim: ClaimEnviado; criar: SaleInput | null }) => Promise<void>;
+  /** Cria (upsert por checkout_session_id: nunca 2 linhas) a linha `sales` SEM marcá-la como enviada. Nunca lança. */
+  criarVenda: (criar: SaleInput) => Promise<void>;
   navegador: (lpSession: string) => Promise<{ userAgent: string | null; ip: string | null }>;
   enviar: (ev: EventoMeta) => Promise<ResultadoMeta>;
   agora: () => Date;
@@ -63,6 +82,26 @@ const depsPadrao: DepsPurchasePix = {
   marcar: async (chave, valor) => {
     const { error } = await supabase.from('system_state').update({ value: valor, updated_at: new Date().toISOString() }).eq('key', chave);
     if (error) logger.warn('purchase-pix-quiz', 'marcar o resultado do claim falhou', { erro: error.message });
+  },
+  lerClaim: async chave => {
+    const { data } = await supabase.from('system_state').select('value').eq('key', chave).maybeSingle();
+    return (data as { value?: { estado?: string; em?: string } | null } | null)?.value ?? null;
+  },
+  ligarVenda: async ({ checkoutSessionId, claim, criar }) => {
+    try {
+      if (criar) { const { upsertSale } = await import('../salesLedger'); await upsertSale(criar); }
+      await ligarVendaAoClaim(checkoutSessionId, claim);
+    } catch (err) {
+      logger.warn('purchase-pix-quiz', 'ligar a venda ao claim do Pix falhou (o Purchase já foi)', { erro: String(err) });
+    }
+  },
+  criarVenda: async criar => {
+    try {
+      const { upsertSale } = await import('../salesLedger');
+      await upsertSale(criar);
+    } catch (err) {
+      logger.warn('purchase-pix-quiz', 'criar a linha da venda do Pix falhou (o Purchase segue)', { erro: String(err) });
+    }
   },
   navegador: async lpSession => {
     if (!/^[\w.:-]{1,100}$/.test(lpSession)) return { userAgent: null, ip: null };
@@ -93,13 +132,48 @@ async function executar(e: EntradaPurchasePix, d: DepsPurchasePix): Promise<Moti
   const eventId = idDoEventoPix(chave);
   const chaveClaim = `${PREFIXO_CLAIM_PURCHASE_PIX}${eventId}`;
 
-  const c = await d.claim(chaveClaim, { estado: 'novo', em: d.agora().toISOString() });
-  if (c === 'duplicado') return 'duplicado';
-  if (c === 'erro') return 'sem_claim';
-
   const fd = lead?.field_data ?? [];
   const lpSession = campoDe(fd, 'lp_session');
   let nav: NavegadorMeta = lead ? { fbc: cookieMeta(campoDe(fd, 'fbc')), fbp: cookieMeta(campoDe(fd, 'fbp')) } : {};
+  const quandoMs = e.quando instanceof Date ? e.quando.getTime() : typeof e.quando === 'number' ? e.quando : d.agora().getTime();
+
+  // A venda do ledger que anda com este Purchase (1 Pix = 1 evento = 1 linha em `sales`, com o MESMO id).
+  const venda = e.venda?.checkoutSessionId ? e.venda : null;
+  const extras = venda ? camposDoVinculo(venda, e.chaveE2e) : {};
+  const criar = (): SaleInput | null => venda?.criar ? {
+    checkout_session_id: venda.checkoutSessionId, email: e.email ?? null, nome: e.nome || lead?.nome || null,
+    phone: e.telefone || null, plano: venda.criar.plano, produto: venda.criar.produto, valor: e.valor, status: 'paid',
+    fbc: nav.fbc ?? null, fbp: nav.fbp ?? null, attribution_session_id: lpSession || null,
+    card_passed_at: new Date(quandoMs).toISOString(),
+    // Nasce com o id do claim: o re-drive do ledger confere o claim (`enviado`: fecha a linha; `novo` recente: espera;
+    // `falhou` ou `novo` velho: reenvia com o MESMO id). `meta_response_ok` não é tocado aqui: o banco o cria `false`.
+    meta_event_id: eventId,
+  } : null;
+  const criarPendente = async (): Promise<void> => {
+    const nova = criar();
+    if (nova) await d.criarVenda(nova);
+  };
+  const ligar = async (claim: ClaimEnviado): Promise<void> => {
+    if (venda) await d.ligarVenda({ checkoutSessionId: venda.checkoutSessionId, claim, criar: criar() });
+  };
+
+  const c = await d.claim(chaveClaim, { estado: 'novo', em: d.agora().toISOString(), ...extras });
+  if (c === 'duplicado') {
+    // O claim já existia (outro caminho mandou este mesmo Pix). Se ele FOI enviado, a venda tem que sair marcada com o id
+    // dele: sem isso o re-drive do ledger a mandaria de novo, com outro id.
+    if (venda) {
+      try {
+        const st = await d.lerClaim(chaveClaim);
+        if (st?.estado === 'enviado') await ligar({ eventId, em: String(st.em || d.agora().toISOString()) });
+        // Claim `novo` (outro envio em andamento) ou `falhou`: a linha nasce mesmo assim, pendente (meta_response_ok = false,
+        // sem hora de envio), e o re-drive reenvia com o mesmo id se for o caso. O upsert por checkout_session_id evita linha dobrada.
+        else await criarPendente();
+      } catch { /* o Purchase não depende disto */ }
+    }
+    return 'duplicado';
+  }
+  if (c === 'erro') return 'sem_claim';
+
   if (lpSession) {
     try {
       const v = await d.navegador(lpSession);
@@ -107,7 +181,10 @@ async function executar(e: EntradaPurchasePix, d: DepsPurchasePix): Promise<Moti
     } catch { /* opcional */ }
   }
 
-  const quandoMs = e.quando instanceof Date ? e.quando.getTime() : typeof e.quando === 'number' ? e.quando : d.agora().getTime();
+  // A linha `sales` nasce ANTES do envio, pendente: se o Meta recusar ou o prazo estourar, o re-drive do ledger a reenvia com o
+  // MESMO id. Com o envio certo, `ligar` a marca como enviada (mesma linha: o upsert é por checkout_session_id).
+  await criarPendente();
+
   let ok = false;
   let erro: string | undefined;
   try {
@@ -126,9 +203,11 @@ async function executar(e: EntradaPurchasePix, d: DepsPurchasePix): Promise<Moti
   } catch (err) {
     erro = (err as Error)?.message || String(err);
   }
-  const resultado: Record<string, unknown> = { estado: ok ? 'enviado' : 'falhou', em: d.agora().toISOString() };
+  const resultado: Record<string, unknown> = { estado: ok ? 'enviado' : 'falhou', em: d.agora().toISOString(), ...extras };
   if (!ok) { resultado.erro = String(erro ?? '').slice(0, 200); logger.warn('purchase-pix-quiz', `Purchase recusado: ${resultado.erro}`); }
   try { await d.marcar(chaveClaim, resultado); } catch { /* o claim já existe: não reenvia */ }
+  // Enviado: a linha `sales` do mesmo pagamento (se houver, ou se for para criar) sai marcada com o id e a hora do claim.
+  if (ok) await ligar({ eventId, em: String(resultado.em) });
   return ok ? 'enviado' : 'falhou';
 }
 

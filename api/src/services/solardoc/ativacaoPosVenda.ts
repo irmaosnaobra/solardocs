@@ -15,6 +15,7 @@
 //   máximo 2 proativas por pessoa, a 2a (senha) e a 2b (1ª proposta): cada robô tem 1 claim por userId e para sempre.
 //   Opt-out, supressão e mudo cortam. Conta de admin ou de teste (ehContaDeTeste) nunca recebe a 2a nem a 2b.
 //   A 2a só sai com pagamento DE VERDADE: venda em `sales` com `card_passed_at` (cartão) ou contrato do Pix automático `ativo`.
+//   As vendas `pix:` (Pix por comprovante) e `admin_pix:` (`/pix-liberar`) agora têm linha em `sales` e contam como pagamento aqui.
 //   Conta liberada à mão, com plano pago e sem pagamento, não recebe.
 //
 // Este módulo NÃO liga o confiancaService nem o confiancaWhatsAppService (bloqueados pelo chefe).

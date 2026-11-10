@@ -6,6 +6,7 @@ import { supabase } from '../utils/supabase';
 import { BancoIndisponivel, falhaDoBanco, lerDoBanco, responder503 } from '../utils/dbTransitorio';
 import { signToken } from '../utils/jwt';
 import { sendMetaEvent } from '../utils/metaPixel';
+import { separarNome } from '../utils/metaCapi';
 import { sendPasswordResetEmail } from '../utils/mailer';
 import { sendWelcomeWhatsApp, sendPurchaseWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { sendWelcomeEmail, sendPurchaseEmail } from '../utils/mailer';
@@ -67,6 +68,29 @@ function attributionPatchFromSession(
   if (typeof lp === 'string' && lp.trim()) { patch.attribution_session_id = lp.trim(); hasAttr = true; }
   if (hasAttr) patch.attribution_captured_at = new Date().toISOString();
   return patch;
+}
+
+// Atribuição que o NAVEGADOR manda no corpo do /auth/register (utm_*, fbc, fbp,
+// fbclid, landing_url, referrer, attribution_session_id). Cada campo: string com
+// trim, no máximo 500 caracteres; vazio ou tipo errado fica de fora (vira null).
+// Nunca lança: o cadastro não pode cair por causa de rastreamento.
+const CAMPOS_ATRIBUICAO_CORPO = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
+  'fbc', 'fbp', 'fbclid', 'landing_url', 'referrer', 'attribution_session_id',
+] as const;
+
+export function atribuicaoDoCorpo(corpo: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  try {
+    const c = (corpo && typeof corpo === 'object' ? corpo : {}) as Record<string, unknown>;
+    for (const k of CAMPOS_ATRIBUICAO_CORPO) {
+      const v = c[k];
+      if (typeof v !== 'string') continue;
+      const t = v.trim().slice(0, 500);
+      if (t) out[k] = t;
+    }
+  } catch { /* corpo estranho: segue sem atribuição */ }
+  return out;
 }
 
 async function detectPlanFromSession(sessionId: string): Promise<{ plano: string; limite: number; email: string | null; attribution: Record<string, string> } | null> {
@@ -368,18 +392,40 @@ export async function register(req: Request, res: Response): Promise<void> {
     const limite_documentos = stripePlan?.limite ?? FREE_LIMIT;
 
     const dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: user, error } = await supabase
+    // Atribuição do navegador (corpo) entra POR BAIXO: o que veio do metadata da Stripe
+    // (`attribution`) nunca é sobrescrito. attribution_captured_at só nasce se nada o trouxe.
+    const atribCorpo = atribuicaoDoCorpo(corpo);
+    const atribInsert: Record<string, string> = { ...atribCorpo, ...attribution };
+    if (Object.keys(atribCorpo).length && !atribInsert.attribution_captured_at) {
+      atribInsert.attribution_captured_at = new Date().toISOString();
+    }
+    const montarInsert = (atrib: Record<string, string>) => ({
+      email: emailLc, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null, ...atrib,
+      // Comprador do kit que chega aqui ANTES do webhook (Pix confirmado
+      // rápido, ou reentrega atrasada da Kiwify): sem este carimbo ele
+      // ficaria sem origem, e é justamente o caminho principal agora que a
+      // página de obrigado manda direto pro cadastro.
+      ...(compradorKit ? { origem_aquisicao: 'kit-integrador' } : {}),
+    });
+    const colunasUser = 'id, email, nome, plano, limite_documentos, documentos_usados, created_at';
+    let { data: user, error } = await supabase
       .from('users')
-      .insert({ email: emailLc, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null, ...attribution,
-        // Comprador do kit que chega aqui ANTES do webhook (Pix confirmado
-        // rápido, ou reentrega atrasada da Kiwify): sem este carimbo ele
-        // ficaria sem origem, e é justamente o caminho principal agora que a
-        // página de obrigado manda direto pro cadastro.
-        ...(compradorKit ? { origem_aquisicao: 'kit-integrador' } : {}) })
-      .select('id, email, nome, plano, limite_documentos, documentos_usados, created_at')
+      .insert(montarInsert(atribInsert))
+      .select(colunasUser)
       .single();
 
-    if (error) throw error;
+    // Rede de segurança: se uma coluna de atribuição do navegador ainda não existir no banco
+    // (migration atrasada), cadastra sem ela em vez de derrubar o registro.
+    if (error && Object.keys(atribCorpo).length && (error.code === '42703' || error.code === 'PGRST204')) {
+      console.error('[register] coluna de atribuição ausente em users; cadastrando sem a atribuição do navegador:', error.message);
+      ({ data: user, error } = await supabase
+        .from('users')
+        .insert(montarInsert(attribution))
+        .select(colunasUser)
+        .single());
+    }
+
+    if (error || !user) throw error ?? new Error('insert users sem retorno');
 
     // Cria empresa imediatamente se CNPJ veio do cadastro (fluxo simplificado).
     // Se não vier, fluxo continua: user cadastra empresa depois em /empresa.
@@ -407,6 +453,20 @@ export async function register(req: Request, res: Response): Promise<void> {
         email:     body.email,
         ip:        req.ip,
         userAgent: req.headers['user-agent'],
+      });
+      // CompleteRegistration: o navegador (RegisterForm) dispara os dois com o MESMO eventID. O gêmeo do servidor leva o que o
+      // cadastro tem (email, telefone, nome) e o external_id igual ao do Lead (o email), para o Meta juntar a mesma pessoa.
+      const nomeMeta = separarNome(body.nome);
+      sendMetaEvent('CompleteRegistration', {
+        eventId:    req.headers['x-meta-event-id'] as string | undefined,
+        email:      emailLc,
+        phone:      body.whatsapp || undefined,
+        firstName:  nomeMeta.fn || undefined,
+        lastName:   nomeMeta.ln || undefined,
+        externalId: emailLc,
+        country:    'br',
+        ip:         req.ip,
+        userAgent:  req.headers['user-agent'],
       });
     }
 

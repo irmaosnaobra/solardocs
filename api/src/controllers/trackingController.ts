@@ -1,12 +1,16 @@
 import { Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 
+/** fbc, fbp e fbclid: texto aparado, até 500 caracteres; vazio ou não-texto vira null. */
+const idDoMeta = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 500) : null);
+
 export async function trackVisit(req: Request, res: Response): Promise<void> {
   try {
     const {
       session_id,
       utm_source, utm_medium, utm_campaign, utm_content, utm_term,
       referrer, landing_url,
+      fbc, fbp, fbclid,
     } = req.body as Record<string, string>;
 
     const ip =
@@ -25,6 +29,9 @@ export async function trackVisit(req: Request, res: Response): Promise<void> {
       utm_term:     utm_term     || null,
       referrer:     referrer     || null,
       landing_url:  landing_url  || null,
+      fbc:          idDoMeta(fbc),
+      fbp:          idDoMeta(fbp),
+      fbclid:       idDoMeta(fbclid),
       user_agent,
       ip,
     });

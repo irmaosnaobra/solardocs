@@ -190,6 +190,17 @@ export function origemDoEvento(classe: ClasseDoCard, capi: DadosCapi | null): Ev
   return capi?.client_user_agent ? 'website' : 'system_generated';
 }
 
+/** Primeiro valor preenchido do field_data cujo nome casa com `nome` (lead de formulário do Meta traz `email` e `zip_code`). Interno (`_`) nunca. */
+export function valorDoCampo(fd: unknown, nome: RegExp): string | undefined {
+  for (const c of Array.isArray(fd) ? fd : []) {
+    const k = String((c as { name?: unknown } | null)?.name ?? '').trim();
+    if (!k || k.startsWith('_') || !nome.test(k)) continue;
+    const v = (c as { values?: unknown[] }).values?.[0];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return undefined;
+}
+
 /** O evento Schedule do servidor para um card. `eventTime` é o created_at do card (UTC real em `agendamentos`). */
 export function montarEventoCardNovo(e: Envio, agoraMs: number): EventoMeta {
   const capi = lerCapi(e.lead.field_data);
@@ -200,6 +211,9 @@ export function montarEventoCardNovo(e: Envio, agoraMs: number): EventoMeta {
     telefonesExtras: [...variantesDoFone(e.foneLead), ...variantesDoFone(e.card.cliente_telefone)],
     nome: e.card.cliente_nome || e.lead.nome,
     cidade: e.card.cidade || e.lead.cidade,
+    // O quiz não pede e-mail nem CEP: só entram se o lead os trouxe (formulário do Meta, ficha). Sem isto, ficam de fora.
+    email: valorDoCampo(e.lead.field_data, /^e-?mail$/i),
+    cep: valorDoCampo(e.lead.field_data, /^(cep|zip(_?code)?|post(al)?_?code)$/i),
   };
   return {
     produto: ehOrigemEletroposto(e.card.created_by) ? 'eletroposto' : 'solar',

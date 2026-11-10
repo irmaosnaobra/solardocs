@@ -274,6 +274,9 @@
     .btn{font-size:16.5px;padding:20px 20px}
   }
 </style>
+<!-- Rastreamento completo: origem (utm, fbclid, fbc, fbp) e correspondencia avancada. Antes do pixel. -->
+<script src="/lib/origem.js"></script>
+<script src="/lib/meta-am.js"></script>
 </head>
 <body>
 
@@ -807,7 +810,31 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 var API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
 
-function ev(tag){ try{ if(window.fbq) fbq('trackCustom','EP_'+tag); }catch(e){} }
+function ev(tag){
+  try{ if(window.fbq) fbq('trackCustom','EP_'+tag); }catch(e){}
+  // Mesmo evento no nosso banco (lp_events), na sessao da visita. So a tag e a LP: nada pessoal.
+  // Antes do bloco de rastreamento do fim da pagina subir, espera na fila.
+  try{
+    var d = { lp: 'eletroposto_parceria', tag: tag };
+    if(window.lpEvt) window.lpEvt('ep_evento', d); else (window.__lpFila = window.__lpFila || []).push(['ep_evento', d]);
+  }catch(e){}
+}
+// Correspondencia avancada antes do evento de conversao, sem segurar o formulario:
+// espera no maximo 300 ms pelo hash e o evento sai de qualquer jeito.
+function evComMatch(tag, tel){
+  var saiu = false;
+  function sai(){ if(saiu) return; saiu = true; ev(tag); }
+  try{
+    if(typeof window.ioMatch === 'function'){
+      Promise.race([
+        Promise.resolve(window.ioMatch('26788759654130722', { tel: tel, externalId: 'tel' })).catch(function(){}),
+        new Promise(function(r){ setTimeout(r, 300); })
+      ]).then(sai, sai);
+      return;
+    }
+  }catch(e){}
+  sai();
+}
 
 /* ── quem chegou aqui ──────────────────────────────────────────────────────
    `ep_lead` é escrito pela LP no instante em que a nota sai. Vem por
@@ -908,6 +935,8 @@ function registrar(lado, corpo){
   var body = {}; for (var k in corpo) body[k] = corpo[k];
   var u = utm(); for (var j in u) body[j] = u[j];
   var mc = metaCookies(); for (var m in mc) body[m] = mc[m];
+  // origem.js como reserva (fbclid, landing_url, referrer): nao sobrescreve o que ja foi montado
+  try { var og = (window.ioOrigem && window.ioOrigem.paraEnvio) ? window.ioOrigem.paraEnvio() : {}; for (var q in og) if (body[q] == null || body[q] === '') body[q] = og[q]; } catch(_){}
   body.lado = lado;
   var abortou = false;
   var ctrl = window.AbortController ? new AbortController() : null;
@@ -1021,7 +1050,7 @@ function enviar(e, lado){
   var sub = document.getElementById('sub-' + lado);
   var rotulo = sub.textContent;
   sub.disabled = true; sub.textContent = 'Enviando…';
-  ev('parceria_cadastro_' + lado);
+  evComMatch('parceria_cadastro_' + lado, corpo.telefone);
 
   // ESPERA a gravação. Sem grupo pra entrar, "recebemos" só pode aparecer
   // depois que o cadastro existe de verdade — senão a pessoa sai da página
@@ -1123,6 +1152,42 @@ fbq('init','26788759654130722');fbq('track','PageView');
 </script>
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=26788759654130722&ev=PageView&noscript=1"/></noscript>
+
+<!-- Tracking page_visits (mesmo beacon da LP /io/eletroposto): visita + eventos EP_* em lp_events -->
+<script>
+(function () {
+  try {
+    var KEY = 'io_sd_session', SENT = 'io_sd_visit_sent';
+    function uuid() {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; var v = c === 'x' ? r : (r & 0x3) | 0x8; return v.toString(16); });
+    }
+    var sid = '';
+    try { sid = sessionStorage.getItem(KEY) || ''; if (!sid) { sid = uuid(); sessionStorage.setItem(KEY, sid); } } catch (_) { sid = uuid(); }
+    var url = window.location.hostname !== 'localhost' ? '/_api' : 'http://localhost:3001';
+    var orig = {}; try { if (window.ioOrigem && window.ioOrigem.paraEnvio) orig = window.ioOrigem.paraEnvio() || {}; } catch (_) {}
+    var params = new URLSearchParams(location.search); var utms = {};
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach(function (k) { var v = params.get(k); if (v) utms[k] = v; });
+    function send(path, body) {
+      var txt = JSON.stringify(body), ok = false;
+      try { if (navigator.sendBeacon) ok = navigator.sendBeacon(url + path, new Blob([txt], { type: 'application/json' })); } catch (_) {}
+      if (!ok) { try { fetch(url + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: txt, keepalive: true }).catch(function () {}); } catch (_) {} }
+    }
+    try {
+      if (!sessionStorage.getItem(SENT)) {
+        var v = {}; for (var k in orig) v[k] = orig[k];
+        v.session_id = sid; v.landing_url = location.href; v.referrer = document.referrer || orig.referrer || null;
+        for (var u in utms) v[u] = utms[u];
+        send('/_t/v', v); sessionStorage.setItem(SENT, '1');
+      }
+    } catch (_) {}
+    function evt(type, data) { send('/_t/e', { session_id: sid, event_type: type, event_data: data || null }); }
+    // o ev() da pagina escreve por aqui
+    window.lpEvt = evt;
+    try { (window.__lpFila || []).splice(0).forEach(function (x) { evt(x[0], x[1]); }); } catch (_) {}
+  } catch (_) {}
+})();
+</script>
 
 </body>
 </html>

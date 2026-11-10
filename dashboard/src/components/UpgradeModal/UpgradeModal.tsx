@@ -4,6 +4,7 @@ import { useState } from 'react';
 import api from '@/services/api';
 import LinkPagarPix from '@/components/LinkPagarPix/LinkPagarPix';
 import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
+import { novoIcEventId } from '@/hooks/useLpTracking';
 import styles from './UpgradeModal.module.css';
 
 interface UpgradeModalProps {
@@ -44,7 +45,7 @@ export default function UpgradeModal({ onClose, plano }: UpgradeModalProps) {
     setLoading(planKey);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- O pixel do Meta fica no window e não tem tipo.
-      (window as any).fbq?.('track', 'InitiateCheckout', { value, currency: 'BRL', content_name: name });
+      (window as any).fbq?.('track', 'InitiateCheckout', { value, currency: 'BRL', content_name: name }, { eventID: novoIcEventId() });
       const { data } = await api.post('/payments/create-checkout', { plan: planKey });
       if (data.upgraded) {
         // Continua existindo pra quem assina por um preço antigo (27/47/49):

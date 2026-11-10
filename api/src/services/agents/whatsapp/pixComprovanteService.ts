@@ -672,9 +672,16 @@ export async function avisarCompraNoGrupo(
         logger.info('pix-comprovante', `Purchase do Pix no pixel SolarDoc: ja_cliente (${user.billing_status ?? 'sem status'}) — renovação, não manda`);
       } else {
         const { dispararPurchasePixQuiz } = await import('../../solardoc/purchasePixQuiz');
+        // Venda no ledger (10/11/2026): o Purchase saía sem linha em `sales` (o banco contava venda de menos). A linha nasce
+        // junto, já marcada como enviada com o id do claim, então o re-drive nunca manda um segundo Purchase. Não vai ao
+        // UTMify: este caminho nunca mandou (só o Asaas e o cartão mandam), e upsertSale não chama a UTMify.
+        const chaveVenda = String(pag.e2eKey ?? '').trim() || String(pag.dedupKey ?? '').trim();
         const motivo = await dispararPurchasePixQuiz({
           telefone: cleanPhone, email: user.email, valor,
           chaveE2e: pag.e2eKey, dedupKey: pag.dedupKey, quando: new Date(),
+          venda: chaveVenda
+            ? { checkoutSessionId: `pix:${chaveVenda}`, userId: user.id, criar: { plano: 'ilimitado', produto: 'SolarDoc VIP (Pix por comprovante)' } }
+            : null,
         });
         purchase = motivo;
         logger.info('pix-comprovante', `Purchase do Pix no pixel SolarDoc: ${motivo}`);

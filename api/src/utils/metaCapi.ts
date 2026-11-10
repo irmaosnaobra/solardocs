@@ -75,6 +75,18 @@ export function normUf(s: unknown): string {
   return m ? m[1] : '';
 }
 
+/** CEP no formato do Meta (zp): só dígitos. Vazio vira null: hash de string vazia casa com ninguém. */
+export function normCep(s: unknown): string | null {
+  const d = String(s ?? '').replace(/\D/g, '');
+  return d.length >= 5 ? d : null;
+}
+
+/** E-mail no formato do Meta (em): minúsculo e sem espaço nenhum. Sem arroba, null. */
+export function normEmail(s: unknown): string | null {
+  const e = String(s ?? '').replace(/\s+/g, '').toLowerCase();
+  return /^[^@]+@[^@]+$/.test(e) ? e : null;
+}
+
 export interface PessoaMeta {
   telefone?: unknown;
   /** Outros telefones da MESMA pessoa (a variante com ou sem o 9, o do card). Entram no `ph`; o `external_id` sai só de `telefone`. */
@@ -83,6 +95,8 @@ export interface PessoaMeta {
   email?: unknown;
   cidade?: unknown;
   uf?: unknown;
+  /** CEP, com ou sem hífen. Vira `zp` só com dígitos. Opcional: quem não tem não manda. */
+  cep?: unknown;
 }
 
 /** O que vem do navegador, quando o evento nasce de uma página. Vai em texto puro. */
@@ -110,8 +124,8 @@ export function userData(p: PessoaMeta, nav: NavegadorMeta = {}): Record<string,
   }
   if (phs.size) u.ph = [...phs];
   if (fone) u.external_id = [sha256(fone)];
-  const email = String(p.email ?? '').trim().toLowerCase();
-  if (email.includes('@')) u.em = [sha256(email)];
+  const email = normEmail(p.email);
+  if (email) u.em = [sha256(email)];
   const { fn, ln } = separarNome(p.nome);
   if (fn) u.fn = [sha256(fn)];
   if (ln) u.ln = [sha256(ln)];
@@ -119,6 +133,8 @@ export function userData(p: PessoaMeta, nav: NavegadorMeta = {}): Record<string,
   if (ct) u.ct = [sha256(ct)];
   const st = normUf(p.uf) || normUf(p.cidade);
   if (st) u.st = [sha256(st)];
+  const zp = normCep(p.cep);
+  if (zp) u.zp = [sha256(zp)];
   u.country = [sha256('br')];
   if (nav.fbc) u.fbc = String(nav.fbc).slice(0, 500);
   if (nav.fbp) u.fbp = String(nav.fbp).slice(0, 500);
