@@ -1,5 +1,5 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
-import { clientIp } from '../controllers/trackingGeradorController';
+import { clientIp } from '../utils/clientIp';
 
 /** A caixa de entrada da linha 5040 (/gerador/caixa/*) consulta a cada poucos segundos e tem limite próprio (abaixo). */
 export const ehRotaDaCaixa = (url: string | undefined): boolean => String(url ?? '').startsWith('/gerador/caixa/');

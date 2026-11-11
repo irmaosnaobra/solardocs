@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { supabaseGerador } from '../utils/supabaseGerador';
+import { clientIp } from '../utils/clientIp';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 
 // Geo via ip-api.com (free tier, 45 req/min sem chave). Sem IP -> sem geo.
@@ -29,14 +30,8 @@ function detectDispositivo(ua: string): string {
   return 'desktop';
 }
 
-export function clientIp(req: Request): string {
-  // Vercel injeta X-Forwarded-For. Pega o primeiro IP da lista (cliente real).
-  const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  if (xff) return xff;
-  const xri = String(req.headers['x-real-ip'] || '').trim();
-  if (xri) return xri;
-  return (req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
-}
+// O IP real mora em utils/clientIp (sem dependências); reexportado aqui para quem já importava daqui.
+export { clientIp };
 
 // 'abertura_expirada' é a abertura de um link que já venceu: o cliente ainda
 // está olhando, só não vê mais os valores. Fica fora de 'abertura' de propósito —
