@@ -453,14 +453,53 @@ describe('contrato de sociedade (50/50 e cotas): versão "O básico" de 22/10/20
 
 describe('contratos do /gerador: tabela de pagamento', () => {
   const L = (...a: any[]) => SB.ctrPagLinha(...a);
-  it('aporte 72.500 com sinal 10.000 no cartão em 10x: restante 62.500, parcela 6.937,50, total 69.375,00', () => {
+  it('aporte 72.500 com sinal 10.000 no cartão em 10x: restante 62.500, parcela 7.027,50, total 70.275,00', () => {
     const saldo = 72500 - 10000;
     const linhas = SB.ctrPagModelo('cartao10', saldo);
     const pc = SB.ctrPagCalc(linhas, saldo);
     expect(pc.linhas[0].valor).toBe('62.500,00');
+    expect(pc.contas[0].parcelaCent).toBe(7027.5);
+    expect(pc.contas[0].total).toBe(70275);
+    expect(SB.ctrPagTrava('socio50', linhas, saldo)).toBe('');
+  });
+  it('papel antigo restaurado em 10x fecha em 11%; trocado para 18x, a linha volta à tabela e fecha em 31,832%', () => {
+    const saldo = 62500;
+    const salvo = { tocado: true, linhas: SB.ctrPagModelo('cartao10', saldo) };
+    const rest = SB.ctrPagRestaurar(salvo);
+    expect(rest.linhas[0].acr).toBe('11');
+    expect(rest.linhas[0].acrAuto).toBe(10);
+    expect(SB.ctrPagCalc(rest.linhas, saldo).contas[0].acr).toBe(11);
+    rest.linhas[0].parc = '18';
+    const c18 = SB.ctrPagCalc(rest.linhas, saldo).contas[0];
+    expect(c18.acr).toBe(31.832);
+    expect(c18.origem).toBe('tabela');
+    expect(c18.parcelaCent).toBe(Math.round(saldo * 1.31832 / 18 * 100) / 100);
+    // volta para 10x: a marca ainda vale, e a linha fecha de novo em 11%
+    rest.linhas[0].parc = '10';
+    expect(SB.ctrPagCalc(rest.linhas, saldo).contas[0].acr).toBe(11);
+    // acréscimo digitado à mão não é lido como da tabela salva: a marca saiu e o valor vale em qualquer parcela
+    delete rest.linhas[0].acrAuto; rest.linhas[0].acr = '7'; rest.linhas[0].parc = '18';
+    expect(SB.ctrPagCalc(rest.linhas, saldo).contas[0].acr).toBe(7);
+  });
+  it('contrato salvo em 10x antes de 11/11/2026 (snapshot sem taxasCartao, acr vazio) reabre fechando em 11%', () => {
+    const saldo = 62500;
+    const salvo = { tocado: true, linhas: SB.ctrPagModelo('cartao10', saldo) };
+    expect(salvo.linhas[0].acr).toBe('');
+    const pc = SB.ctrPagCalc(SB.ctrPagRestaurar(salvo).linhas, saldo);
     expect(pc.contas[0].parcelaCent).toBe(6937.5);
     expect(pc.contas[0].total).toBe(69375);
-    expect(SB.ctrPagTrava('socio50', linhas, saldo)).toBe('');
+    expect(pc.contas[0].acr).toBe(11);
+  });
+  it('contrato salvo com taxasCartao no snapshot reabre com a taxa guardada; com a tabela de hoje, a linha segue lendo a tabela', () => {
+    const saldo = 62500;
+    const salvo = { tocado: true, linhas: SB.ctrPagModelo('cartao10', saldo) };
+    const pc = SB.ctrPagCalc(SB.ctrPagRestaurar(salvo, { 10: 12.44, 18: 31.832 }).linhas, saldo);
+    expect(pc.contas[0].parcelaCent).toBe(7027.5);
+    expect(pc.contas[0].total).toBe(70275);
+    expect(pc.contas[0].acr).toBe(12.44);
+    expect(SB.ctrPagRestaurar(salvo, { 10: 12.44, 18: 31.832 }).linhas[0].acr).toBe('');
+    const guardado = SB.ctrPagCalc(SB.ctrPagRestaurar(salvo, { 10: 11, 18: 31.832 }).linhas, saldo);
+    expect(guardado.contas[0].parcelaCent).toBe(6937.5);
   });
   it('soma diferente do saldo bloqueia, com a mensagem da tela', () => {
     const msg = SB.ctrPagTrava('socio50', [L('Cartão de crédito', 72000, 10, 0, 'Na assinatura')], 62500);

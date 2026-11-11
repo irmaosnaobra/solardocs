@@ -2318,7 +2318,7 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const economiaMensal = Math.max(0, contaHoje - taxaMinima);
 
   // Parcela representativa: financiamento mais longo ativo; senão cartão mais longo ativo.
-  const TAXA_CARTAO_DEF: Record<number, number> = { 1:3.99,2:5.30,3:5.99,4:6.68,5:7.35,6:8.02,7:9.47,8:10.13,9:10.78,10:11.43,11:12.06,12:12.70,13:13.32,14:13.94,15:14.56,16:15.17,17:15.77,18:16.37,19:16.97,20:17.57,21:18.17 };
+  const TAXA_CARTAO_DEF: Record<number, number> = { 1:3.99,2:6.57,3:7.24,4:7.86,5:8.50,6:9.13,7:10.25,8:11.01,9:11.72,10:12.44,11:13.23,12:13.65,13:14.80,14:15.43,15:16.39,16:17.24,17:18.05,18:18.98,19:20.31,20:21.81,21:23.17 };
   const finTaxa = (n: number) => { const v = parseFloat(String(f[`taxa_fin_${n}`] || '').replace(',', '.')); return v > 0 ? v : 2.20; };
   const cartaoTaxa = (n: number) => { const v = parseFloat(String(f[`taxa_cartao_${n}`] || '').replace(',', '.')); return v > 0 ? v : (TAXA_CARTAO_DEF[n] ?? 0); };
   let parcelaLabel = '';

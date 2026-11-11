@@ -5730,15 +5730,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="orc-note">Acompanha o total sozinho. Digite outro valor para dar desconto à vista — <button type="button" class="orc-link" onclick="orcVistaReset()">voltar ao total</button>.</div>
         </div>
 
-        <!-- Entrada + cartão: entrada em R$ e o restante parcelado (18x / 22,5% de padrão, tudo editável) -->
+        <!-- Entrada + cartão: entrada em R$ e o restante parcelado (18x / 18,98% de padrão, tudo editável) -->
         <div class="orc-pg-cond" id="orc-pg-entrada" style="display:none">
-          <div class="orc-note" style="margin-top:14px;margin-bottom:10px"><b>Entrada + cartão.</b> O cliente paga a entrada e o que sobra vai no cartão. O juro é o acréscimo <b>total</b> embutido na parcela — <b>não aparece pro cliente</b>. Padrão: 18x com 22,5%.</div>
+          <div class="orc-note" style="margin-top:14px;margin-bottom:10px"><b>Entrada + cartão.</b> O cliente paga a entrada e o que sobra vai no cartão. O juro é o acréscimo <b>total</b> embutido na parcela — <b>não aparece pro cliente</b>. Padrão: 18x com 18,98%.</div>
           <div class="eletro-field"><label>Entrada</label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-ent-valor" inputmode="decimal" step="0.01" min="0" value="0" oninput="orcCalc()"></div></div>
           <div class="eletro-field"><label>Parcelas no cartão</label>
             <div class="eletro-inp has-suf"><input type="number" id="orc-ent-parc" inputmode="numeric" step="1" min="1" max="48" value="18" oninput="orcCalc()"><span class="suf">x</span></div></div>
           <div class="eletro-field"><label>Juros (acréscimo total)</label>
-            <div class="eletro-inp has-suf"><input type="number" id="orc-ent-juros" inputmode="decimal" step="0.5" min="0" value="22.5" oninput="orcCalc()"><span class="suf">%</span></div></div>
+            <div class="eletro-inp has-suf"><input type="number" id="orc-ent-juros" inputmode="decimal" step="0.01" min="0" value="18.98" oninput="orcCalc()"><span class="suf">%</span></div></div>
           <div class="orc-ent-prev" id="orc-ent-preview">—</div>
         </div>
 
@@ -15893,7 +15893,7 @@ function eletroWhatsApp() {
 //
 // O card de pagamento da aba Orcamento nasce com so' "A vista" marcado. O
 // Basico, que sai do Simulador e nao tem card, sempre imprimiu a condicao
-// PADRAO DA CASA cravada no codigo (a vista + 18x com 22,5% + financiamento).
+// PADRAO DA CASA cravada no codigo (a vista + 18x com 18,98% + financiamento).
 // Os dois discordavam: com o card no estado em que ele nasce, o Orcamento da
 // aba imprimia uma linha e o Basico imprimia tres.
 //
@@ -18781,12 +18781,15 @@ function socPreset(qual) {
 // A taxa do cartão mora numa tabela só: acréscimo TOTAL (em %) por número de parcelas, só o que a casa usa em contrato.
 // O contrato (tabela de pagamento do /gerador) e a Sociedade em PDF leem daqui. Parcelamento no cartão fora desta
 // tabela só vale com a parcela digitada (campo "Parcela negociada" da linha).
-const CTR_TAXA_CARTAO = { 10: 11, 18: 31.832 };
+// O 10x é o acréscimo da My Gateway Elo (taxa 11,06% vira 12,44%) desde 11/11/2026; o 18x continua o do anúncio, de propósito acima da maquininha.
+const CTR_TAXA_CARTAO = { 10: 12.44, 18: 31.832 };
+// A tabela com que os contratos salvos até 11/11/2026 foram feitos (ctrPagRestaurar).
+const CTR_TAXA_CARTAO_ATE_11_11 = { 10: 11, 18: 31.832 };
 // Fator = 1 + taxa/100, arredondado: 1 + 31.832/100 em ponto flutuante não dá exatamente 1,31832.
 const ctrFatorCartao = n => Math.round((1 + CTR_TAXA_CARTAO[n] / 100) * 1e8) / 1e8;
 const SOC_FATOR_10X = ctrFatorCartao(10);
 const SOC_FATOR_18X = ctrFatorCartao(18);
-/** O acrescimo do cartao como o cliente le': "11%" e "31,8%", nunca "1,31832". */
+/** O acrescimo do cartao como o cliente le': "12,4%" e "31,8%", nunca "1,31832". */
 const socAcrescimo = fator => String(Math.round((fator - 1) * 1000) / 10).replace('.', ',') + '%';
 function socPagLinhas(aporte) {
   const v = Math.max(0, Number(aporte) || 0);
@@ -19456,13 +19459,13 @@ function orcCalc() {
 }
 
 // ═══ ENTRADA + CARTÃO ═══
-// Padrão da casa: 18x com 22,5% de acréscimo. Os dois campos são editáveis.
+// Padrão da casa: 18x com 18,98% de acréscimo. Os dois campos são editáveis.
 // O juro aqui é o acréscimo TOTAL sobre o que sobrou depois da entrada (a mesma
 // lógica do fator 1,18 que já era usado no 21x), não juro ao mês. E ele NÃO passa
 // pela ORC_TAXA_CARTAO: aquela tabela arredonda a taxa antes de embutir, então
-// 22,5 digitado viraria 23% na parcela sem o consultor perceber.
+// 18,98 digitado viraria 19% na parcela sem o consultor perceber.
 const ORC_ENTRADA_PARC = 18;      // parcelas padrão
-const ORC_ENTRADA_JUROS = 22.5;   // acréscimo total padrão, em %
+const ORC_ENTRADA_JUROS = 18.98;   // acréscimo total padrão, em %
 const orcNum = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; };
 // Dinheiro escrito como no Brasil, para os campos de texto (09/10/2026). Função
 // declarada, e não const, para existir desde o primeiro desenho da tela.
@@ -19552,7 +19555,7 @@ function orcPgLer(total) {
     vista: on('orc-pg-ck-avista'),
     vistaValor: vistaValor > 0 ? vistaValor : null,
     // cartaoNs morreu com a grade de parcelas; vai vazio pra que orçamento novo
-    // nunca misture a tabela antiga com os 22,5% do campo.
+    // nunca misture a tabela antiga com os 18,98% do campo.
     cartaoNs: [],
     entrada: on('orc-pg-ck-entrada') ? { valor: e.entrada, parcelas: e.parcelas, juros: e.juros } : null,
     fin: on('orc-pg-ck-fin') ? { valor: f.entrada, parcelas: f.parcelas, parcela: f.parcela } : null,
@@ -19563,7 +19566,7 @@ function orcPgLer(total) {
 // (ex: 3,99 → 4; 5,30 → 5) e NÃO aparece pro cliente — só embute no valor da parcela.
 //
 // ⚠ APOSENTADA na tela (05/08/2026). A grade de 1x a 21x saiu do card de pagamento:
-// a casa passou a trabalhar com uma condição só, 18x com 22,5%, editável no campo.
+// a casa passou a trabalhar com uma condição só, 18x com 18,98%, editável no campo.
 // A tabela e o orcParcelaCartao ficam de pé porque orçamento gerado ANTES disso já
 // está na mão do cliente com `cartaoNs` no payload — sem eles, reabrir aquele link
 // mostraria o rodapé sem a condição que o cliente leu.
@@ -24130,14 +24133,17 @@ function ctrPagQuando(l) {
   return ctrPagCartao(l && l.forma) ? CTR_PAG_QUANDO_CARTAO : '';
 }
 // A conta de UMA linha, sem tela e sem estado. Acréscimo é o TOTAL sobre a parte paga naquela forma (a mesma lógica do
-// 18x/22,5% do Orçamento), não juro ao mês. `incompleto` diz por que a linha não fecha (o Gerar não passa com ela).
+// 18x/18,98% do Orçamento), não juro ao mês. `incompleto` diz por que a linha não fecha (o Gerar não passa com ela).
+const ctrPagAcrVisivel = l => (l.acrAuto != null && String(l.acrAuto) !== String(Math.max(1, Math.round(orcNum(l.parc) || 1)))) ? '' : String(l.acr == null ? '' : l.acr);
 function ctrPagConta(l) {
   const valor = ctrMoeda(l.valor);
   const parc = Math.max(1, Math.round(orcNum(l.parc) || 1));
   const fin = /financ/i.test(l.forma || '');
   const parcValor = ctrMoeda(l.parcValor);
-  const acrDigitado = String(l.acr == null ? '' : l.acr).trim() !== '';
-  let acr = Math.max(0, orcNum(l.acr)), parcela = valor * (1 + acr / 100) / parc, origem = 'digitado', incompleto = '';
+  // acrAuto: o acréscimo veio da tabela de quando o papel foi salvo (ctrPagRestaurar). Trocou o nº de parcelas, ele não vale mais.
+  const acrTxt = ctrPagAcrVisivel(l);
+  const acrDigitado = acrTxt.trim() !== '';
+  let acr = Math.max(0, orcNum(acrTxt)), parcela = valor * (1 + acr / 100) / parc, origem = 'digitado', incompleto = '';
   if (!fin && parc > 1) {
     if (parcValor > 0) {
       parcela = Math.round(parcValor * 100) / 100;
@@ -24180,11 +24186,20 @@ function ctrPagCondicaoTotal(l) {
   return ctrPagTxtTotal(c);
 }
 // Papel reaberto do histórico. A linha antiga (sem a chave `resto`) sem acréscimo digitado valia 0%: ela vira '0' para não
-// ganhar a taxa da tabela (10x 11%, 18x 31,832%) nem travar 6x/12x. Preço já ofertado não muda. Não há exceção para
+// ganhar a taxa da tabela (10x 12,44%, 18x 31,832%) nem travar 6x/12x. Preço já ofertado não muda. Não há exceção para
 // "papel antigo": quem gera de novo passa pela mesma trava de qualquer contrato.
-function ctrPagRestaurar(sp) {
+// Linha de cartão salva SEM acréscimo digitado lia a tabela da casa: ao reabrir, ela fica com a taxa do dia em que foi salva
+// (a do snapshot, ou a de até 11/11/2026 se o snapshot não trouxe), e só quando difere da tabela de hoje.
+function ctrPagRestaurar(sp, taxasSalvas) {
   const p = JSON.parse(JSON.stringify(sp));
   p.linhas.forEach(l => { if (!('resto' in l) && String(l.acr == null ? '' : l.acr).trim() === '') l.acr = '0'; });
+  p.linhas.forEach(l => {
+    if (String(l.acr == null ? '' : l.acr).trim() !== '' || String(l.parcValor == null ? '' : l.parcValor).trim() !== '' || !ctrPagCartao(l.forma)) return;
+    const parc = Math.max(1, Math.round(orcNum(l.parc) || 1));
+    if (parc <= 1 || CTR_TAXA_CARTAO[parc] == null) return;
+    const salva = (taxasSalvas && taxasSalvas[parc] != null) ? taxasSalvas[parc] : CTR_TAXA_CARTAO_ATE_11_11[parc];
+    if (salva != null && salva !== CTR_TAXA_CARTAO[parc]) { l.acr = String(salva).replace('.', ','); l.acrAuto = parc; }
+  });
   return p;
 }
 // Forma de pagamento escrita só em texto (Observações do pagamento ou "Como o cliente vai pagar"), sem tabela.
@@ -24335,6 +24350,7 @@ function ctrPagRowUi(row, l) {
   const v = row.querySelector('input[data-k="valor"]');
   if (v) { v.readOnly = !!l.resto; if (l.resto && v.value !== l.valor) v.value = l.valor; }
   const a = row.querySelector('input[data-k="acr"]');
+  if (a && a !== document.activeElement) a.value = ctrPagAcrVisivel(l);
   if (a) a.placeholder = c.origem === 'tabela' ? ctrPct2(c.acr) + ' (tabela)' : c.origem === 'parcela' ? ctrPct2(c.acr) + ' (da parcela)' : '0';
   const q = row.querySelector('input[data-k="quando"]'); if (q) q.placeholder = ctrPagCartao(l.forma) ? CTR_PAG_QUANDO_CARTAO + ' (padrão do cartão)' : 'Quando se paga';
   const b = row.querySelector('.ctr-pag-resto'); if (b) b.style.display = l.resto ? '' : 'none';
@@ -24353,7 +24369,7 @@ function ctrPagRender() {
       <label class="ctr-pf"><span>Valor (R$)</span><input type="text" class="num" inputmode="decimal" value="${ctrAttr(l.valor)}" data-k="valor" oninput="ctrPagCampo(this)" placeholder="0,00"></label>
       <label class="ctr-pf"><span>Parcelas</span><input type="number" class="num" inputmode="numeric" min="1" value="${ctrAttr(l.parc)}" data-k="parc" oninput="ctrPagCampo(this)"></label>
       <label class="ctr-pf"><span>Parcela negociada (R$)</span><input type="text" class="num" inputmode="decimal" value="${ctrAttr(l.parcValor)}" data-k="parcValor" oninput="ctrPagCampo(this)" placeholder="Só se digitada"></label>
-      <label class="ctr-pf"><span>Acréscimo %</span><input type="text" class="num" inputmode="decimal" value="${ctrAttr(l.acr)}" data-k="acr" oninput="ctrPagCampo(this)" placeholder="0"></label>
+      <label class="ctr-pf"><span>Acréscimo %</span><input type="text" class="num" inputmode="decimal" value="${ctrAttr(ctrPagAcrVisivel(l))}" data-k="acr" oninput="ctrPagCampo(this)" placeholder="0"></label>
       <label class="ctr-pf ctr-pf-quando"><span>Vencimento</span><input type="text" list="ctr-dl-quando" value="${ctrAttr(l.quando)}" data-k="quando" oninput="ctrPagCampo(this)" placeholder="${ctrPagCartao(l.forma) ? CTR_PAG_QUANDO_CARTAO + ' (padrão do cartão)' : 'Quando se paga'}"></label>
       <label class="ctr-pf ctr-pf-obs"><span>Observação (opcional)</span><input type="text" value="${ctrAttr(l.obs)}" data-k="obs" oninput="ctrPagCampo(this)" placeholder="Ex.: bandeira do cartão, banco do financiamento, nº de boletos"></label>
     </div>`).join('')
@@ -24366,6 +24382,7 @@ function ctrPagCampo(inp) {
   const l = row && ctrPag.linhas[Number(row.dataset.i)];
   if (!l) return;
   l[inp.dataset.k] = inp.value;
+  if (inp.dataset.k === 'acr') delete l.acrAuto;   // digitado à mão: deixa de ser a taxa da tabela salva
   ctrPag.tocado = true;
   ctrPagSync();      // mexeu numa linha: o restante acompanha
   ctrPagRowsUi();
@@ -29724,7 +29741,7 @@ function orcSnapTake() {
     ctrPrazoProjeto: v('ctr-prazo-projeto'), ctrPrazoObra: v('ctr-prazo-obra'), ctrGarantia: v('ctr-garantia'),
     // 05/10/2026: pagamento e escopo viraram LISTAS. Vão inteiros (cópia), com
     // o "tocado" junto: reabrir a 2ª via devolve a tabela que foi assinada.
-    ctrPag: JSON.parse(JSON.stringify(ctrPag)), ctrEsc: JSON.parse(JSON.stringify(ctrEsc)),
+    ctrPag: JSON.parse(JSON.stringify(ctrPag)), taxasCartao: { ...CTR_TAXA_CARTAO }, ctrEsc: JSON.parse(JSON.stringify(ctrEsc)),
     ctrPagObs: v('ctr-pag-obs'), ctrPagDados: v('ctr-pag-dados'),
     ctrSinal: v('ctr-sinal'), ctrSinalTocado: document.getElementById('ctr-sinal')?.dataset.tocado === '1',
     ctrTotal: v('ctr-total'), ctrTotalTocado: document.getElementById('ctr-total')?.dataset.tocado === '1',
@@ -29781,7 +29798,7 @@ function orcSnapApply(s, tipo) {
   set('orc-frete', s.frete); set('orc-desc', s.desc); set('orc-obs', s.obs); set('orc-parc-data', s.parcData);
   setck('orc-pg-ck-avista', s.pgA); setck('orc-pg-ck-fin', s.pgF);
   // Entrada + cartão e entrada + financiamento. Orçamento salvo antes destes campos
-  // não traz nada: o set() ignora null e os defaults (18x/22,5% e 96x) ficam de pé.
+  // não traz nada: o set() ignora null e os defaults (18x/18,98% e 96x) ficam de pé.
   // s.pgC/s.cart (a grade velha de 1x–21x) não são reaplicados: a grade não existe
   // mais na tela, e o consultor remarca a condição no campo.
   setck('orc-pg-ck-entrada', s.pgE);
@@ -29895,7 +29912,7 @@ function orcSnapApply(s, tipo) {
   set('ctr-prazo-credito', s.ctrPrazoCredito); set('ctr-prazo-corrigir', s.ctrPrazoCorrigir); set('ctr-prazo-aviso', s.ctrPrazoAviso);
   set('ctr-testemunhas', s.ctrTestemunhas); set('ctr-mostra-pct', s.ctrMostraPct);
   ctrEsc = s.ctrEsc ? Object.assign(ctrEscNovo(), JSON.parse(JSON.stringify(s.ctrEsc))) : ctrEscNovo();
-  if (s.ctrPag && Array.isArray(s.ctrPag.linhas)) ctrPag = ctrPagRestaurar(s.ctrPag);
+  if (s.ctrPag && Array.isArray(s.ctrPag.linhas)) ctrPag = ctrPagRestaurar(s.ctrPag, s.taxasCartao);
   // Contrato salvo antes da lista: a forma de pagamento era UM texto. Ele volta
   // inteiro nas observações e a lista fica vazia — sem forma na lista, as
   // observações SÃO a cláusula 3.3, palavra por palavra como foi assinada.

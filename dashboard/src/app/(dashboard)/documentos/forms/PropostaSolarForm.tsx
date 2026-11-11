@@ -273,7 +273,7 @@ const initialFields = {
   pag_vista: true,
   pag_cartao: true,
   // Cartão de crédito: 1x a 21x. Defaults marcados: 6x, 12x, 18x, 21x.
-  // Taxas Elo padrão (editáveis pelo consultor por proposta).
+  // Taxas padrão: My Gateway, Elo, repassando ao cliente (11/11/2026); editáveis pelo consultor por proposta.
   pag_cartao_1: false,
   pag_cartao_2: false,
   pag_cartao_3: false,
@@ -299,26 +299,26 @@ const initialFields = {
   // taxa se lê como dez mil. Os dois leitores da API (templateService) já
   // normalizam vírgula antes do parseFloat, e o parseTaxa daqui também.
   taxa_cartao_1: '3,99',
-  taxa_cartao_2: '5,30',
-  taxa_cartao_3: '5,99',
-  taxa_cartao_4: '6,68',
-  taxa_cartao_5: '7,35',
-  taxa_cartao_6: '8,02',
-  taxa_cartao_7: '9,47',
-  taxa_cartao_8: '10,13',
-  taxa_cartao_9: '10,78',
-  taxa_cartao_10: '11,43',
-  taxa_cartao_11: '12,06',
-  taxa_cartao_12: '12,70',
-  taxa_cartao_13: '13,32',
-  taxa_cartao_14: '13,94',
-  taxa_cartao_15: '14,56',
-  taxa_cartao_16: '15,17',
-  taxa_cartao_17: '15,77',
-  taxa_cartao_18: '16,37',
-  taxa_cartao_19: '16,97',
-  taxa_cartao_20: '17,57',
-  taxa_cartao_21: '18,17',
+  taxa_cartao_2: '6,57',
+  taxa_cartao_3: '7,24',
+  taxa_cartao_4: '7,86',
+  taxa_cartao_5: '8,50',
+  taxa_cartao_6: '9,13',
+  taxa_cartao_7: '10,25',
+  taxa_cartao_8: '11,01',
+  taxa_cartao_9: '11,72',
+  taxa_cartao_10: '12,44',
+  taxa_cartao_11: '13,23',
+  taxa_cartao_12: '13,65',
+  taxa_cartao_13: '14,80',
+  taxa_cartao_14: '15,43',
+  taxa_cartao_15: '16,39',
+  taxa_cartao_16: '17,24',
+  taxa_cartao_17: '18,05',
+  taxa_cartao_18: '18,98',
+  taxa_cartao_19: '20,31',
+  taxa_cartao_20: '21,81',
+  taxa_cartao_21: '23,17',
   pag_fin: true,
   // Financiamento: 36x/48x/60x/72x/84x. Default marcados: 36x e 48x.
   // Taxa mensal editável (default 2,2% a.m. — Price com 120 dias de carência).
@@ -1018,7 +1018,7 @@ export default function PropostaSolarPage() {
     setFields(f => (f.area_m2 === valor ? f : { ...f, area_m2: valor }));
   }, [areaSugerida]);
 
-  // Parcelas no cartão — taxa total Elo padrão (editável por proposta).
+  // Parcelas no cartão — taxa total My Gateway Elo, 11/11/2026 (editável por proposta).
   // Fórmula: valor parcela = (investimento × (1 + taxa%)) / N
   const invNum = (() => {
     const v = parseBRL(fields.investimento);

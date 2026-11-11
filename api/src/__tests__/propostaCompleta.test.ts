@@ -173,7 +173,7 @@ describe('modelo 4 Completo: pagamentos e números', () => {
     expect(html).not.toContain('6× de');
     expect(html).toContain('60× de');
     expect(html).not.toContain('36× de');
-    expect(html).toContain(`R$${NB}2.715`); // mesma parcela do modelo Moderno (resumo: 12x R$ 2.715,00)
+    expect(html).toContain(`R$${NB}2.738`); // mesma parcela do modelo Moderno (resumo: 12x R$ 2.738,00)
     expect(html).toContain('Cartão de crédito');
     expect(html).toContain('Financiamento bancário');
     expect(html).toContain('120 dias de carência');
@@ -327,7 +327,7 @@ describe('modelo 4 Completo: folhas leves, textos e entrada', () => {
 
 describe('módulo de cálculos', () => {
   it('parcelas: cartão com taxa padrão e Price com 4 meses de carência', () => {
-    expect(valorParcelaCartao({}, 28900, 12)).toBe(Math.ceil((28900 * 1.127) / 12));
+    expect(valorParcelaCartao({}, 28900, 12)).toBe(Math.ceil((28900 * 1.1365) / 12));
     expect(valorParcelaCartao({ taxa_cartao_12: '10' }, 28900, 12)).toBe(Math.ceil((28900 * 1.1) / 12));
     expect(valorParcelaCartao({}, 0, 12)).toBe(0);
     const i = 0.022;
@@ -376,7 +376,7 @@ describe('modelos 1, 2 e 3 seguem byte a byte (trechos do origin/main)', () => {
     expect(html).toContain('<rect x="48" y="24" width="39.166666666666664" height="166" rx="3" fill="url(#g1)"/>');
     expect(html).toContain('<path d="M 70.0 226.2 L 95.4 222.3 L 120.8 218.0 L 146.3 213.6');
     expect(html).toContain(`<div class="breakdown-val">R$${NB}6.096</div>`);
-    expect(html).toContain(`<div class="invest-cartao-value">12× de R$${NB}2.715</div>`);
+    expect(html).toContain(`<div class="invest-cartao-value">12× de R$${NB}2.738</div>`);
   });
 
   it('modelo 3: o mesmo corpo do 2, com a capa', () => {
@@ -391,7 +391,7 @@ describe('modelos 1, 2 e 3 seguem byte a byte (trechos do origin/main)', () => {
     const r = render(full, 1).out.resumo as string;
     expect(r).toContain('* 12x Canadian 550W + 1x Growatt 5K\n* 6,6 kWp · gera ~803 kWh/mês');
     expect(r).toContain('Investimento: R$ 28.900,00');
-    expect(r).toContain('* 12x: R$ 2.715,00/mês');
+    expect(r).toContain('* 12x: R$ 2.738,00/mês');
     expect(r).toContain('🏦 Financiamento (120 dias de carência):');
   });
 });

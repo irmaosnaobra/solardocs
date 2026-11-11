@@ -8,12 +8,15 @@ import { pmtPriceCarencia, pNum } from './propostaSolarBase';
 
 // ─── Parcelas ────────────────────────────────────────────────────────────────
 
-// Tabela Elo padrão (usada quando o tenant não envia taxa customizada).
+// Tabela padrão (usada quando o tenant não envia taxa customizada).
+// Fonte: maquininha My Gateway, bandeira Elo, repassando taxas ao cliente (simulador de 11/11/2026).
+// O número é o acréscimo t/(1-t) da taxa t da maquininha, arredondado para cima no centésimo.
+// 1x ficou 3,99 porque não veio no simulador.
 export const TAXA_CARTAO_DEFAULT: Record<number, number> = {
-  1: 3.99, 2: 5.30, 3: 5.99, 4: 6.68, 5: 7.35, 6: 8.02, 7: 9.47,
-  8: 10.13, 9: 10.78, 10: 11.43, 11: 12.06, 12: 12.70, 13: 13.32,
-  14: 13.94, 15: 14.56, 16: 15.17, 17: 15.77, 18: 16.37,
-  19: 16.97, 20: 17.57, 21: 18.17,
+  1: 3.99, 2: 6.57, 3: 7.24, 4: 7.86, 5: 8.50, 6: 9.13, 7: 10.25,
+  8: 11.01, 9: 11.72, 10: 12.44, 11: 13.23, 12: 13.65, 13: 14.80,
+  14: 15.43, 15: 16.39, 16: 17.24, 17: 18.05, 18: 18.98,
+  19: 20.31, 20: 21.81, 21: 23.17,
 };
 
 // Financiamento Price com 120 dias (4 meses) de carência. Taxa mensal padrão de 2,2%.
