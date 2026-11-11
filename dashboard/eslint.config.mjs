@@ -1,6 +1,15 @@
+import { readFileSync } from "node:fs";
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+
+// Arquivos que já passavam de 350 linhas antes da trava. Não acrescente arquivo novo
+// na lista: divida o arquivo.
+const baseline = JSON.parse(
+  readFileSync(new URL("./eslint-max-lines-baseline.json", import.meta.url), "utf8"),
+);
+// Caminho vira padrão de glob: `[slug]`, `(grupo)` e afins precisam de barra para valer como texto.
+const arquivosBaseline = baseline.files.map((f) => f.replace(/[()[\]{}!*?]/g, "\\$&"));
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -11,6 +20,19 @@ const eslintConfig = defineConfig([
     files: ["scripts/**/*.{js,cjs}"],
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
+  // Trava de tamanho: arquivo novo acima de 350 linhas falha o lint.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: { "max-lines": ["error", { max: 350 }] },
+  },
+  {
+    files: ["src/**/__tests__/**", "src/**/*.test.{ts,tsx}", "src/**/*.spec.{ts,tsx}"],
+    rules: { "max-lines": "off" },
+  },
+  // ESLint recusa `files` vazio, então a lista só entra quando tem arquivo.
+  ...(arquivosBaseline.length
+    ? [{ files: arquivosBaseline, rules: { "max-lines": "off" } }]
+    : []),
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

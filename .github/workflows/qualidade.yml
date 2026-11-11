@@ -31,6 +31,12 @@ jobs:
       - name: tsc --noEmit
         run: npx tsc --noEmit
 
+      # BLOQUEIA arquivo novo acima de 350 linhas em api/src. Os arquivos que já
+      # passavam disso estão na lista de exceção eslint-max-lines-baseline.json:
+      # não acrescente arquivo lá, divida o arquivo.
+      - name: eslint
+        run: npx eslint .
+
       # BLOQUEIA desde 03/11/2026: a suíte inteira está verde (367 arquivos, 11.010
       # testes), então vermelho aqui é regressão nova. Tempo estourado em máquina
       # carregada tem folga em api/vitest.config.ts; não afrouxe asserção.
