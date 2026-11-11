@@ -28,10 +28,12 @@ contrato. Eles são a memória escrita do projeto, não sobra.
 |---|---|---|
 | Typecheck (bloqueia o CI) | `api/` | `npx tsc --noEmit` |
 | Testes | `api/` | `npx vitest run` |
+| Lint (bloqueia o CI) | `api/` | `npm run lint` (só a trava de 350 linhas) |
+| Promessa sem `await` (só mede) | `api/` | `npm run lint:promessas` |
 | Build | `api/` | `npm run build` (gera `dist/`) |
 | Dev | `api/` | `npm run dev` |
 | Build | `dashboard/` | `npm run build` |
-| Lint | `dashboard/` | `npm run lint` |
+| Lint (bloqueia o CI) | `dashboard/` | `npm run lint` |
 | Dev | `dashboard/` | `npm run dev` |
 | Publicar no `main` | raiz do repo | `bash scripts/publicar.sh` |
 
@@ -97,6 +99,12 @@ Cada um destes já custou caro pelo menos uma vez.
   que vira PDF não entram na reforma.
 - **Asset de landing sempre com caminho absoluto.** O servidor tira a barra
   final e o `./asset.js` resolve um nível acima, deixando a página muda.
+- **Arquivo de código tem no máximo 350 linhas** (desde 11/11/2026). O lint da
+  `api` e do `dashboard` barra arquivo novo acima disso e arquivo pequeno que
+  passe do limite, e o CI recusa o PR. Os arquivos que já eram grandes estão em
+  `eslint-max-lines-baseline.json`, em cada pasta. Não acrescente arquivo nessa
+  lista: divida o arquivo. Ao editar um arquivo da lista, vale dividi-lo e
+  tirá-lo de lá.
 - **Supabase é um projeto só, sem staging.** Toda migration e todo
   `execute_sql` batem em produção. `DROP` e `TRUNCATE` são bloqueados por hook;
   `DELETE` com `WHERE` passa normalmente. E arquivo `MIGRATION_*.sql` no repo não
@@ -156,5 +164,6 @@ Cada um destes já custou caro pelo menos uma vez.
 
 ## Pendências
 
-Nenhuma aberta (05/11/2026). O eslint do `dashboard` está com 0 erro e 57 avisos
-e agora derruba o CI: erro novo de lint trava a publicação.
+Nenhuma aberta (11/11/2026). O eslint do `dashboard` está com 0 erro e 56 avisos
+e derruba o CI: erro novo de lint trava a publicação. Desde 11/11 o lint da
+`api` também roda no CI, só com a trava de 350 linhas.
