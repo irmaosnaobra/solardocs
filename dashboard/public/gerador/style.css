@@ -1327,6 +1327,34 @@
     box-shadow: 0 4px 12px rgba(30, 58, 138, .25);
   }
   .btn-link:hover { box-shadow: 0 6px 18px rgba(30, 58, 138, .35); }
+  /* ASSINATURA NO ORÇAMENTO (opcional, padrão Não). Fundo e texto vêm sempre do MESMO par de tokens do io2 (--n-sf/--n-tx),
+     com o claro de fallback no visual antigo: nunca texto claro sobre fundo claro, em nenhum visual nem tema. */
+  .assin-orc {
+    grid-column: 1 / -1;
+    background: var(--n-sf, #ffffff);
+    color: var(--n-tx, #1f2937);
+    border: 1px solid var(--n-bd, #dde3ec);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .assin-orc-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 18px; }
+  .assin-orc-rot { font-size: 14px; font-weight: 700; }
+  .assin-orc-op { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .assin-orc-op input { width: 18px; height: 18px; margin: 0; accent-color: var(--io-azul, #1d4ed8); }
+  .assin-orc-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .assin-orc-campos[hidden] { display: none; }
+  .assin-orc .field label { color: inherit; margin-bottom: 0; }
+  .assin-orc-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; min-height: 16px; }
+  .assin-orc .field input {
+    background: var(--n-sf, #ffffff);
+    color: var(--n-tx, #222222);
+    border: 1px solid var(--io-borda-campo, #7d8ca3);
+  }
+  .assin-orc .field input:focus { border-color: var(--io-azul-tx, #1d4ed8); }
+  .assin-orc .field input[aria-invalid="true"] { border-color: var(--io-er-tx, #b91c1c); }
+  .assin-orc-erro { font-size: 12px; font-weight: 700; color: var(--io-er-tx, #b91c1c); text-align: right; }
+  .assin-orc-nota { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--n-tx2, #44546a); }
+  @media (max-width: 540px) { .assin-orc-campos { grid-template-columns: 1fr; } }
   .acoes.acoes-3 { grid-template-columns: 1fr 1fr 1fr; }
   @media (max-width: 700px) {
     .acoes.acoes-3 { grid-template-columns: 1fr; }

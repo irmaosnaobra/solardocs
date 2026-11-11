@@ -5085,6 +5085,25 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button class="btn-wpp" onclick="copiarWhatsApp()">📱 Copiar pra WhatsApp</button>
       <button class="btn-pdf" onclick="orcSolarImprimir()">📄 Orçamento em PDF</button>
       <button class="btn-link" onclick="orcSolarLink()">🔗 Link do orçamento</button>
+      <!-- Assinatura no orçamento: opcional, padrão Não. Com Sim, o nome e o CPF/CNPJ do cliente vão SÓ no PDF (POST); nunca são gravados. -->
+      <div class="assin-orc" id="assin-orc">
+        <div class="assin-orc-linha" role="radiogroup" aria-labelledby="assin-orc-rot">
+          <span class="assin-orc-rot" id="assin-orc-rot">Assinatura no orçamento</span>
+          <label class="assin-orc-op"><input type="radio" name="assin-orc" value="nao" checked onchange="orcAssinMudou()"> Não</label>
+          <label class="assin-orc-op"><input type="radio" name="assin-orc" value="sim" onchange="orcAssinMudou()"> Sim</label>
+        </div>
+        <div class="assin-orc-campos" id="assin-orc-campos" hidden>
+          <div class="field">
+            <div class="assin-orc-cab"><label for="assin-orc-nome">Nome completo do cliente</label><span class="assin-orc-erro" id="assin-orc-nome-erro" role="alert"></span></div>
+            <input id="assin-orc-nome" type="text" maxlength="120" autocomplete="off" oninput="orcAssinErro('nome','')">
+          </div>
+          <div class="field">
+            <div class="assin-orc-cab"><label for="assin-orc-doc">CPF ou CNPJ</label><span class="assin-orc-erro" id="assin-orc-doc-erro" role="alert"></span></div>
+            <input id="assin-orc-doc" type="text" maxlength="18" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="000.000.000-00" oninput="orcAssinMascara(this)">
+          </div>
+          <p class="assin-orc-nota">A assinatura sai só no PDF. O link e o texto do WhatsApp seguem sem ela.</p>
+        </div>
+      </div>
     </div>
 
     <div class="botoes-rodape" id="btn-nova">
@@ -8520,6 +8539,20 @@ const SESSAO_KEY = 'irmaos-na-obra-sessao-v1';
 let sessaoAtual = null;
 try { sessaoAtual = JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null'); } catch (e) {}
 
+// Cookie que avisa o servidor que há consultor logado neste aparelho. O pixel do orçamento oficial (/orcamento/CODIGO/o.gif)
+// não registra a abertura de quem vende: o cookie vai junto no pedido (mesmo domínio, via rewrite). O ?p= já fazia isso pelo
+// localStorage. Liga no login e no carregamento com sessão; apaga ao sair.
+function geradorCookieConsultor(ligado) {
+  try {
+    document.cookie = ligado
+      ? 'gerador_consultor=1; Path=/; Max-Age=31536000; SameSite=Lax; Secure'
+      : 'gerador_consultor=; Path=/; Max-Age=0; SameSite=Lax; Secure';
+  } catch (e) {}
+}
+window.addEventListener('DOMContentLoaded', () => {
+  try { if (localStorage.getItem('irmaos-na-obra-auth-v1')) geradorCookieConsultor(true); } catch (e) {}
+});
+
 function authGuardar(s) {
   sessaoAtual = {
     access_token: s.access_token,
@@ -10078,6 +10111,7 @@ function renderProposta(d, viaLink) {
 
   // Modo "via link" (cliente abrindo) — esconde TUDO exceto o orçamento
   document.querySelector('.acoes').style.display = viaLink ? 'none' : '';
+  if (!viaLink) orcAssinReset(d);   // assinatura no orçamento: sempre abre em "Não"
   document.getElementById('btn-nova').style.display = viaLink ? 'none' : '';
 
   // Trocar telas
@@ -11130,6 +11164,8 @@ function renderHistoricoTbody() {
     // um zero, e a coluna Produto diz de qual dos dois a linha é.
     const ehEp = r.tipo === 'eletroposto' || (r.dados && r.dados.produto === 'eletroposto');
     const soSolar = v => ehEp ? `<span style="color:${corMuted}">—</span>` : (v || '-');
+    // Orçamento oficial (papel da Completa) só para solar com o kit gravado: o resto segue no ?p=.
+    const oficialLinha = !ehEp && orcOficialOk(r.dados);
 
     return `
     <tr>
@@ -11155,7 +11191,8 @@ function renderHistoricoTbody() {
       <td class="valor-cell">${valorCell}</td>
       <td>
         <div class="acoes-mini">
-          <button class="copiar" onclick="copiarLinkCodigo('${escapeHtml(r.codigo)}')" title="Copiar link">🔗</button>
+          <button class="copiar" onclick="copiarLinkCodigo('${escapeHtml(r.codigo)}', ${oficialLinha ? 'true' : 'false'})" title="${oficialLinha ? 'Copiar o link do orçamento' : 'Copiar link'}">🔗</button>
+          ${!oficialLinha ? '' : `<button onclick="orcAbrirPdfOficial('${escapeHtml(r.codigo)}')" title="Abrir o orçamento em PDF">📄</button>`}
           <button class="editar" onclick="editarProposta('${escapeHtml(r.codigo)}')" title="Editar">✏️</button>
           <button class="historico-link" onclick="abrirHistoricoLink('${escapeHtml(r.codigo)}')" title="Histórico do link (quem abriu, quando, de onde)">📊</button>
           <button onclick="abrirProposta('${escapeHtml(r.codigo)}')">Abrir</button>
@@ -30941,7 +30978,8 @@ function qlCalcular(ent) {
     }
     const preco = Number(main.pv) || Number(main.po) || 0;
     lista.push({
-      key: k, faixa, codigo: main.codigo, nome: main.cliente_nome || '', cidade: main.cliente_cidade || '', uf: main.cliente_uf || '',
+      key: k, faixa, codigo: main.codigo, nome: main.cliente_nome || '',
+      oficial: orcOficialOk({ produto: main.produto, item: { n: main.itn }, tab: { pot: main.tpot }, precoOrcamento: main.po }), cidade: main.cliente_cidade || '', uf: main.cliente_uf || '',
       consultor: main.consultor_nome || '', kwp: Number(main.kwp) || 0, preco,
       telefone: qlTelNacional(main.tel) || qlTelNacional(main.tel2),
       criadoEm: qlMs(main.created_at), expiraEm: exp, enviadoWpp: Number(main.enviado_wpp) || 0,
@@ -31009,7 +31047,7 @@ function qlMontarTexto(c, agora) {
   try { quem = (crmConsultorLogado() || getConsultorAtual() || '').trim(); } catch (e) { quem = ''; }
   quem = qlPrimeiro(quem || c.consultor) || 'a equipe';
   const vars = {
-    primeiroNome: qlPrimeiro(c.nome) || 'tudo bem', consultor: quem, link: linkPublicoProposta(c.codigo),
+    primeiroNome: qlPrimeiro(c.nome) || 'tudo bem', consultor: quem, link: c.oficial ? orcOficialUrl(c.codigo) : linkPublicoProposta(c.codigo),   // orçamento oficial (papel da Completa, abertura pelo pixel) quando a proposta tem o kit gravado; solar antigo segue no ?p=
     kwp: c.kwp ? String(+c.kwp.toFixed(2)).replace('.', ',') : '', venceEm,
   };
   return SOL_TEXTOS[base + '_' + ab].replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
@@ -31039,7 +31077,7 @@ async function qlLerTudo(consulta) {
 async function qlLerDados(dias) {
   const desde = new Date(Date.now() - dias * QL_DIA).toISOString();
   const props = await qlLerTudo('propostas?select=codigo,tipo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,ultimo_acesso,enviado_wpp,vendido,expira_em,'
-    + 'produto:dados->>produto,tel:dados->>telefoneDigitos,tel2:dados->>telefone,pv:dados->>precoVista,po:dados->>precoOrcamento'
+    + 'produto:dados->>produto,tel:dados->>telefoneDigitos,tel2:dados->>telefone,pv:dados->>precoVista,po:dados->>precoOrcamento,itn:dados->item->>n,tpot:dados->tab->>pot'
     + '&created_at=gte.' + encodeURIComponent(desde) + '&order=created_at.desc,codigo.desc');
   const solares = props.filter(p => p && p.codigo && fsEhSolar({ tipo: p.tipo, produto: p.produto }));
   // Os acessos só dos orçamentos que ainda estão em jogo, e os cards só dos
@@ -41884,8 +41922,10 @@ function exportarHistoricoCSV() {
   showToast(`📥 ${rows.length} proposta${rows.length !== 1 ? 's' : ''} exportada${rows.length !== 1 ? 's' : ''}`);
 }
 
-function copiarLinkCodigo(codigo) {
-  const link = linkPublicoProposta(codigo);   // o mesmo link que a aba Quem ligar manda no WhatsApp
+function copiarLinkCodigo(codigo, oficial) {
+  // Solar com o kit gravado: o link do orçamento oficial (o mesmo do botão "Link do orçamento"). Eletroposto e solar
+  // antigo seguem com o ?p= de sempre.
+  const link = oficial ? orcOficialUrl(codigo) : linkPublicoProposta(codigo);
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(link).then(
       () => showToast(`🔗 Link ${codigo} copiado!`),
@@ -43146,8 +43186,166 @@ function orcSolarDocHTML(d) {
   });
 }
 
+// ORÇAMENTO OFICIAL (desde 10/11/2026): o MESMO papel da Completa + Banco da SolarDoc, com a empresa e as fotos de obra,
+// montado no servidor a partir da proposta gravada (api /gerador/completa/:codigo, que o solardoc.app repassa em /orcamento/).
+// Link e PDF saem do mesmo código, então o que o cliente lê é sempre o que está gravado agora. Os links antigos
+// (?p=CODIGO&v=orc e /orc/CODIGO) seguem abrindo o orçamento de 1 página como antes.
+// O orçamento oficial só existe para proposta solar com o kit e o preço gravados. É o MESMO critério do servidor
+// (orcamentoOficialDisponivel, api/src/services/geradorPropostaCompleta.ts); um teste compara os dois. Proposta solar antiga que
+// não passa nele segue no link ?p=, porque a rota nova devolve 404 para ela.
+// <orcOficialOk>
+function orcOficialOk(d) {
+  const n = v => { const x = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(x) ? x : 0; };
+  if (!d || typeof d !== 'object' || d.produto === 'eletroposto') return false;
+  const item = (d.item && typeof d.item === 'object' && !Array.isArray(d.item)) ? d.item : null;
+  const tab = (d.tab && typeof d.tab === 'object' && !Array.isArray(d.tab)) ? d.tab : null;
+  return !!item && !!tab && n(item.n) > 0 && n(tab.pot) > 0 && n(d.precoOrcamento) > 0;
+}
+// </orcOficialOk>
+
+function orcOficialUrl(codigo, pdf) {
+  return `${window.location.origin}/orcamento/${encodeURIComponent(codigo)}${pdf ? '/pdf' : ''}`;
+}
+
+// Abre o PDF do orçamento oficial de uma proposta já gravada. A aba abre AGORA, no toque: o navegador barra janela
+// aberta depois de um await (era o que acontecia no celular).
+function orcAbrirPdfOficial(codigo, aba) {
+  const url = orcOficialUrl(codigo, true);
+  if (aba && !aba.closed) { aba.location.href = url; return; }
+  window.open(url, '_blank');
+}
+
+// ── Assinatura no orçamento (opcional, padrão Não) ─────────────────────────────────────────────────────────────────────
+// Não: o papel sai SEM folha de aceite, em todo lugar. Sim: só o botão "Orçamento em PDF" sai COM a folha, com o nome e o
+// CPF/CNPJ digitados aqui. O documento NUNCA é gravado: nem na proposta (o banco do Gerador é sem RLS e o código é sequencial),
+// nem no localStorage, nem em log. Ele só vai no corpo de um POST (api /gerador/completa/CODIGO/pdf-assinado, só consultor logado), que devolve a URL do PDF.
+// As validações são as do servidor (api/src/utils/documentoBr.ts + cnpj.ts): CPF de 11 dígitos; CNPJ de 14 posições, com letras
+// permitidas nas 12 primeiras (CNPJ alfanumérico).
+function orcDocNorm(v) { return String(v == null ? '' : v).toUpperCase().replace(/[^0-9A-Z]/g, ''); }
+function orcCpfOk(raw) {
+  if (!/^\d{11}$/.test(raw) || /^(\d)\1{10}$/.test(raw)) return false;
+  const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += parseInt(raw[i], 10) * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+  return dv(9) === parseInt(raw[9], 10) && dv(10) === parseInt(raw[10], 10);
+}
+function orcCnpjOk(raw) {
+  if (!/^[0-9A-Z]{12}[0-9]{2}$/.test(raw) || /^(.)\1{13}$/.test(raw)) return false;
+  const dv = pesos => { const s = pesos.reduce((a, p, i) => a + (raw.charCodeAt(i) - 48) * p, 0); const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  return dv([5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === parseInt(raw[12], 10) && dv([6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === parseInt(raw[13], 10);
+}
+// 'pf' (CPF válido), 'pj' (CNPJ válido) ou null.
+function orcDocTipo(v) {
+  const raw = orcDocNorm(v);
+  if (orcCpfOk(raw)) return 'pf';
+  return orcCnpjOk(raw) ? 'pj' : null;
+}
+// Máscara enquanto digita: até 11 dígitos = CPF (000.000.000-00); letras ou 12+ posições = CNPJ (00.000.000/0000-00).
+function orcAssinMascara(el) {
+  const raw = orcDocNorm(el.value).slice(0, 14);
+  let m;
+  if (raw.length <= 11 && /^\d*$/.test(raw)) {
+    m = raw.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+  } else {
+    m = raw.replace(/^(.{2})(.)/, '$1.$2').replace(/^(.{2})\.(.{3})(.)/, '$1.$2.$3').replace(/^(.{2})\.(.{3})\.(.{3})(.)/, '$1.$2.$3/$4').replace(/^(.{2})\.(.{3})\.(.{3})\/(.{4})(.)/, '$1.$2.$3/$4-$5');
+  }
+  el.value = m;
+  orcAssinErro('doc', '');
+}
+function orcAssinErro(qual, msg) {
+  const e = document.getElementById('assin-orc-' + qual + '-erro');
+  const i = document.getElementById('assin-orc-' + (qual === 'nome' ? 'nome' : 'doc'));
+  if (e) e.textContent = msg || '';
+  if (i) { if (msg) i.setAttribute('aria-invalid', 'true'); else i.removeAttribute('aria-invalid'); }
+}
+function orcAssinSim() {
+  const r = document.querySelector('input[name="assin-orc"]:checked');
+  return !!r && r.value === 'sim';
+}
+function orcAssinMudou() {
+  const sim = orcAssinSim();
+  const campos = document.getElementById('assin-orc-campos');
+  if (campos) campos.hidden = !sim;
+  if (!sim) { const doc = document.getElementById('assin-orc-doc'); if (doc) doc.value = ''; orcAssinErro('nome', ''); orcAssinErro('doc', ''); }
+  else { const n = document.getElementById('assin-orc-nome'); if (n) n.focus(); }
+}
+// Ao abrir a proposta (nova ou do histórico): volta para Não, nome da proposta pré-preenchido, documento sempre vazio.
+function orcAssinReset(d) {
+  const caixa = document.getElementById('assin-orc');
+  if (!caixa) return;
+  caixa.style.display = orcOficialOk(d) ? '' : 'none';   // o orçamento antigo de 1 página não tem folha de aceite
+  const nao = document.querySelector('input[name="assin-orc"][value="nao"]');
+  if (nao) nao.checked = true;
+  const nome = document.getElementById('assin-orc-nome');
+  if (nome) nome.value = String((d && d.nome) || '').trim().slice(0, 120);
+  const doc = document.getElementById('assin-orc-doc');
+  if (doc) doc.value = '';
+  orcAssinErro('nome', ''); orcAssinErro('doc', '');
+  orcAssinMudou();
+}
+// null = Não (sem folha de aceite); { nome, documento } = Sim e válido; false = Sim e inválido (o erro já está ao lado do campo).
+function orcAssinLer() {
+  if (!orcAssinSim()) return null;
+  const nome = String(document.getElementById('assin-orc-nome').value || '').replace(/\s+/g, ' ').trim();
+  const doc = String(document.getElementById('assin-orc-doc').value || '');
+  let ok = true;
+  if (nome.length < 2) { orcAssinErro('nome', 'Escreva o nome do cliente.'); ok = false; } else orcAssinErro('nome', '');
+  if (!orcDocTipo(doc)) { orcAssinErro('doc', doc.trim() ? 'CPF ou CNPJ inválido.' : 'Escreva o CPF ou CNPJ.'); ok = false; } else orcAssinErro('doc', '');
+  if (!ok) { const p = document.querySelector('#assin-orc [aria-invalid="true"]'); if (p) p.focus(); return false; }
+  return { nome, documento: orcDocNorm(doc) };
+}
+// PDF COM folha de aceite: a aba já está aberta (no toque); o POST leva o nome e o documento no CORPO, com o token DO CONSULTOR
+// (a rota exige login: o PDF assinado tem o CPF do cliente), e a aba segue para a URL que a api devolve. Sem sessão, sessão
+// vencida ou falha: fecha a aba e diz o motivo. O mesmo desenho das outras rotas com exigeConsultor: 401 renova uma vez e repete.
+async function orcAbrirPdfAssinado(codigo, aba, ass) {
+  const falha = (msg) => { if (aba && !aba.closed) aba.close(); showToast('❌ ' + msg, 5000); };
+  let msg = 'Não consegui gerar o PDF assinado. Tente de novo.';
+  try {
+    await authRenovarSePreciso();
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      const tok = sessaoAtual && sessaoAtual.access_token;
+      if (!tok) { falha('Entre com sua conta de novo para gerar o PDF assinado.'); return; }
+      const r = await fetch(`${CTR_IA_API}/gerador/completa/${encodeURIComponent(codigo)}/pdf-assinado`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, cache: 'no-store', credentials: 'omit',
+        body: JSON.stringify({ nome: ass.nome, documento: ass.documento }),
+      });
+      if (r.status === 401 && tentativa === 0 && await authRenovar()) continue;
+      const j = await r.json().catch(() => null);
+      if (r.ok && j && typeof j.url === 'string' && /^https:\/\//.test(j.url)) {
+        if (aba && !aba.closed) aba.location.href = j.url; else window.open(j.url, '_blank');
+        return;
+      }
+      if (r.status === 401 || r.status === 403) { falha('Sua sessão venceu. Entre com sua conta de novo para gerar o PDF assinado.'); return; }
+      if (j && typeof j.erro === 'string' && j.erro) msg = j.erro;
+      break;
+    }
+  } catch (e) { /* sem rede: segue a mensagem padrão (nada de nome ou documento no console) */ }
+  falha(msg);
+}
+
 // Botão "Orçamento em PDF" da tela da proposta.
-function orcSolarImprimir() {
+async function orcSolarImprimir() {
+  if (!dadosAtual) { showToast('Gere a proposta primeiro'); return; }
+  if (!orcOficialOk(dadosAtual)) { orcSolarImprimirAntigo(); return; }
+  const ass = orcAssinLer();   // Sim com dado inválido: o erro já aparece ao lado do campo, e nada é aberto
+  if (ass === false) return;
+  const aba = window.open('', '_blank');
+  showToast('⏳ Gerando o PDF... pode levar alguns segundos');
+  let codigo;
+  try {
+    codigo = await garantirCodigo();
+  } catch (e) {
+    console.error(e);
+    if (aba && !aba.closed) aba.close();
+    // Sem gravar a proposta não há papel oficial: cai no orçamento de 1 página montado aqui no aparelho.
+    showToast('⚠️ Não consegui gravar a proposta. Abrindo o orçamento de 1 página.');
+    orcSolarImprimirAntigo();
+    return;
+  }
+  if (ass) await orcAbrirPdfAssinado(codigo, aba, ass);
+  else orcAbrirPdfOficial(codigo, aba);
+}
+
+// O orçamento de 1 página montado no navegador (passa pela prévia "Editar texto"). Só entra quando a proposta não grava.
+function orcSolarImprimirAntigo() {
   if (!dadosAtual) { showToast('Gere a proposta primeiro'); return; }
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
@@ -43163,16 +43361,15 @@ function orcSolarImprimir() {
   });
 }
 
-// Link do orçamento solar. NÃO cria registro novo: é a mesma proposta no banco,
-// só com &v=orc pra abrir no desenho de 1 página. O rastreio de abertura e a
-// contagem de acessos são os mesmos da proposta — um cliente, um código.
+// Link do orçamento solar. NÃO cria registro novo: é a mesma proposta no banco; o servidor monta o papel oficial na hora
+// de abrir. A abertura do cliente é registrada por um pixel da própria página (GET /orcamento/CODIGO/o.gif), na mesma lógica do /_api/gerador/track.
 async function orcSolarLink() {
   if (!dadosAtual) { showToast('Gere a proposta primeiro'); return; }
   showToast('⏳ Gerando link...');
   try {
     const codigo = await garantirCodigo();
     supaRpc('marcar_enviado_link', { p_codigo: codigo }).catch(e => console.error(e));
-    const link = orcLinkPublico(codigo);
+    const link = orcOficialOk(dadosAtual) ? orcOficialUrl(codigo) : orcLinkPublico(codigo);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try { await navigator.clipboard.writeText(link); showToast('🔗 Link do orçamento copiado!'); return; } catch (e) {}
     }
@@ -43278,8 +43475,9 @@ async function copiarWhatsApp() {
     supaRpc('marcar_enviado_wpp',  { p_codigo: codigo }).catch(e => console.error(e));
     supaRpc('marcar_enviado_link', { p_codigo: codigo }).catch(e => console.error(e));
 
-    const baseUrl = window.location.origin + window.location.pathname;
-    const link = `${baseUrl}?p=${codigo}`;
+    // O link do fim é o do orçamento oficial (Completa + Banco), o mesmo do botão "Link do orçamento".
+    // Proposta solar antiga, sem o kit gravado, segue no ?p= (a rota nova devolve 404 para ela).
+    const link = orcOficialOk(d) ? orcOficialUrl(codigo) : `${window.location.origin}${window.location.pathname}?p=${codigo}`;
 
     // Proposta completa + o link da proposta no final
     const txt = `${montarTextoProposta(d)}
@@ -43370,6 +43568,7 @@ async function fazerLogin(ev) {
   try {
     authGuardar(sessao);
     localStorage.setItem(AUTH_KEY, JSON.stringify({ consultor, ts: Date.now() }));
+    geradorCookieConsultor(true);
     // Mantém PREFS_KEY em sincronia (consultor selecionado no form interno).
     const raw = localStorage.getItem(PREFS_KEY);
     const prefs = raw ? JSON.parse(raw) : {};
@@ -43415,6 +43614,7 @@ function sairGerador() {
 // O mesmo "sair", sem a pergunta (o aviso de sessão caída do Início usa esta: cancelar o confirm o deixaria preso).
 function sairGeradorJa() {
   try { localStorage.removeItem(AUTH_KEY); authLimpar(); } catch (e) {}
+  geradorCookieConsultor(false);
   document.documentElement.dataset.mode = 'login';
   window.__inEntradaLimpa = !location.search && !location.hash;
   const ls = document.getElementById('login-senha');

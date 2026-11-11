@@ -1,4 +1,5 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { clientIp } from '../controllers/trackingGeradorController';
 
 /** A caixa de entrada da linha 5040 (/gerador/caixa/*) consulta a cada poucos segundos e tem limite próprio (abaixo). */
 export const ehRotaDaCaixa = (url: string | undefined): boolean => String(url ?? '').startsWith('/gerador/caixa/');
@@ -220,6 +221,18 @@ export const forgotPasswordLimiter = rateLimit({
     || String((req.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase().trim() === EMAIL_DO_HEALTHCHECK,
 });
 
+// Pixel de abertura e redirect do WhatsApp do orçamento oficial (GET /gerador/completa/:codigo/o.gif e /w). Passou do teto, a
+// rota NÃO é barrada: responde o gif / faz o redirect do mesmo jeito, só que sem registrar nada (res.locals.limitado).
+export const orcamentoEventoLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 60,
+  standardHeaders: false,
+  legacyHeaders: false,
+  // IP REAL do cliente: pela reescrita do dashboard o req.ip pode ser o do proxy, e todo visitante dividiria o teto.
+  keyGenerator: (req) => 'orc-ev:' + ipKeyGenerator(clientIp(req) || 'sem-ip'),
+  handler: (_req, res, next) => { res.locals.limitado = true; next(); },
+});
+
 // PDF da proposta no link público (GET /p/:id/pdf): abre o Chromium na primeira vez de cada versão, então o teto
 // por IP é apertado. Quem baixa de boa fé baixa uma ou duas vezes.
 export const propostaPdfLimiter = rateLimit({
@@ -228,4 +241,6 @@ export const propostaPdfLimiter = rateLimit({
   message: 'Muitos downloads em pouco tempo. Tente de novo em alguns minutos.',
   standardHeaders: true,
   legacyHeaders: false,
+  // IP REAL do cliente: atrás do rewrite do dashboard o req.ip pode ser o do proxy, e todo visitante dividiria o mesmo teto.
+  keyGenerator: (req) => 'pdf:' + ipKeyGenerator(clientIp(req) || 'sem-ip'),
 });

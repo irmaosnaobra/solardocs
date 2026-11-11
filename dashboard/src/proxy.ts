@@ -7,6 +7,7 @@ import type { NextRequest } from 'next/server';
 // '/kit' = LP de venda do Kit de Fechamento (public/kit/index.html). É página de
 // venda para quem AINDA não tem conta — sem isto o proxy manda o visitante do
 // anúncio direto pro login e a isca não vende nada.
+// '/orcamento/' é o orçamento oficial do /gerador (HTML e PDF, o mesmo papel da Completa + Banco): quem abre é o cliente, sem conta.
 // '/orc/' é o link do orçamento que o consultor manda pro cliente — quem abre
 // não tem conta nenhuma. Sem estar aqui, o proxy devolve 307 pro /auth e o
 // crawler do WhatsApp lê a tela de login em vez das og: tags do produto.
@@ -48,7 +49,7 @@ import type { NextRequest } from 'next/server';
 // `/inventario-empresarial` não colide com a ferramenta `/inventario`: o
 // startsWith é do mais específico pro mais curto, e '/inventario' não está na
 // lista justamente porque é rota logada.
-const PUBLIC_PATHS = ['/lp/', '/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/m/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/dimensionamento', '/calculadora', '/inventario-empresarial', '/oferta', '/eletroposto', '/diagnostico', '/vsl', '/ponto-certo', '/plugcash', '/assinar', '/quase-la', '/pix-automatico', '/pesquisa', '/lib', '/bike', '/kilova', '/nexus', '/nexusev', '/irmaosnaobra', '/robots.txt', '/sitemap.xml'];
+const PUBLIC_PATHS = ['/lp/', '/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/m/', '/orc/', '/orcamento/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/dimensionamento', '/calculadora', '/inventario-empresarial', '/oferta', '/eletroposto', '/diagnostico', '/vsl', '/ponto-certo', '/plugcash', '/assinar', '/quase-la', '/pix-automatico', '/pesquisa', '/lib', '/bike', '/kilova', '/nexus', '/nexusev', '/irmaosnaobra', '/robots.txt', '/sitemap.xml'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;

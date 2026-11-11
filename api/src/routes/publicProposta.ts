@@ -80,7 +80,7 @@ async function ehODono(req: Request, userId: string | null): Promise<boolean> {
 }
 
 /** Prefetch e pré-renderização do navegador não são um cliente olhando. */
-function ehPrefetch(req: Request): boolean {
+export function ehPrefetch(req: Request): boolean {
   const h = `${req.headers['sec-purpose'] ?? ''} ${req.headers['purpose'] ?? ''}`.toLowerCase();
   return /prefetch|prerender|preview/.test(h);
 }
@@ -161,11 +161,11 @@ function htmlPublico(html: string): string {
  * Botão "Baixar PDF" injetado na página servida (o HTML guardado e o template não mudam). Fica fixo no canto, fora
  * da área impressa (@media print esconde), e a cor vem da cor da marca da proposta quando o modelo a define (--c1).
  */
-export function comBotaoPdf(html: string, id: string): string {
+export function comBotaoPdf(html: string, id: string, hrefPdf?: string): string {
   // Relativo (mesmo domínio do link do cliente, que é solardoc.app/p/...): o cookie de login do dono só vai junto
   // no mesmo domínio, e é ele que impede o dono de receber o aviso do próprio download. O dashboard repassa
   // /p/:id/pdf para a api (rewrite), como já faz com /p/:id.
-  const href = `/p/${encodeURIComponent(id)}/pdf`;
+  const href = hrefPdf || `/p/${encodeURIComponent(id)}/pdf`;
   const bloco = `<style>.sd-pdf{position:fixed;right:16px;bottom:16px;z-index:2147483000;display:inline-flex;align-items:center;gap:8px;`
     + `padding:12px 18px;border-radius:999px;background:var(--c1,#0F172A);color:#fff;font:700 14px/1 -apple-system,Segoe UI,Roboto,Arial,sans-serif;`
     + `text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.28)}.sd-pdf:hover{filter:brightness(1.1)}`
