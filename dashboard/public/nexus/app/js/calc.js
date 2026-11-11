@@ -23,7 +23,7 @@
   // ===== Constantes (nome e valor iguais aos do /gerador quando existem la) =====
   var EL_TAXA_DESC = 14.25;            // taxa de desconto do VPL, em % a.a. (fixa no /gerador)
   var ORC_ENTRADA_PARC = 18;           // cartao: parcelas padrao (igual ao /gerador)
-  var CARTAO_ACRESCIMO_PADRAO = 0;     // cartao: acrescimo TOTAL padrao, em %. No /gerador (ORC_ENTRADA_JUROS) e' 22,5; aqui
+  var CARTAO_ACRESCIMO_PADRAO = 0;     // cartao: acrescimo TOTAL padrao, em %. No /gerador (ORC_ENTRADA_JUROS) e' 18,98; aqui
                                        // o padrao e' sem acrescimo (decisao do dono, 21/10), editavel
   var ORC_FIN_PARC = 96;               // financiamento: "ate 96x"
   var FIN_CARENCIA_DIAS = 120;         // financiamento: carencia, em dias (= 4 meses de 30 dias)

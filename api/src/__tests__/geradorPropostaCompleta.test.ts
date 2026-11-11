@@ -462,8 +462,8 @@ describe('o papel que sai', () => {
       investimento: '28.900,00', pag_cartao_12: true, pag_fin_60: true, validade_dias: '5',
     };
     const x = texto(generateFromTemplate('propostaSolar', empresaRow as never, { nome: 'Cliente Exemplo' } as never, f, 4));
-    // Cartão 12x pela tabela da SolarDoc (12,70%): 28.900 x 1,127 / 12 = 2.714,2 -> teto 2.715. Não é a tabela do /gerador.
-    expect(x).toMatch(/12× de R\$ 2\.715/);
+    // Cartão 12x pela tabela da SolarDoc (13,65%): 28.900 x 1,1365 / 12 = 2.737,1 -> teto 2.738. Não é a tabela do /gerador.
+    expect(x).toMatch(/12× de R\$ 2\.738/);
     expect(x).toContain('VÁLIDO POR 5 DIAS · ATÉ 20/10/2026');
   });
 });
