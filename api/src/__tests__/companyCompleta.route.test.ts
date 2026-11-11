@@ -46,7 +46,7 @@ vi.mock('../utils/supabase', () => ({
   },
 }));
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
-vi.mock('../utils/metaPixel', () => ({ sendMetaEvent: vi.fn() }));
+vi.mock('../utils/metaPixel', () => ({ sendMetaEvent: vi.fn().mockResolvedValue({ ok: true, status: 200 }) }));
 vi.mock('../utils/jwt', () => ({
   signToken: vi.fn().mockReturnValue('mock-token'),
   verifyToken: vi.fn((t: string) => {

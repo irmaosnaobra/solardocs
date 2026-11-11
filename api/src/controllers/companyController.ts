@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { BancoIndisponivel, lerDoBanco, responder503 } from '../utils/dbTransitorio';
+import { waitUntil } from '../utils/waitUntil';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { separarNome } from '../utils/metaCapi';
 import { cnpjValido } from '../utils/cnpj';
@@ -145,7 +146,7 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
     // Mesmos dados do Lead do cadastro (external_id = email), mais telefone, nome e cidade da empresa: o Meta só nota a
     // correspondência se o evento levar o que o cadastro já tem. event_id continua o do navegador (x-meta-event-id).
     const nomeMeta = separarNome(user?.nome);
-    sendMetaEvent('EmpresaCriada', {
+    waitUntil(sendMetaEvent('EmpresaCriada', {
       eventId:   req.headers['x-meta-event-id'] as string | undefined,
       email:     user?.email,
       phone:     user?.whatsapp || undefined,
@@ -156,7 +157,7 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
       country:   'br',
       ip:        req.ip,
       userAgent: req.headers['user-agent'],
-    });
+    }).catch((err) => console.error('[meta] EmpresaCriada:', err)));
 
     res.status(201).json({ company: await comUrlsDasFotos(req.userId, data) });
   } catch (err: unknown) {

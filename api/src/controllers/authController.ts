@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { BancoIndisponivel, falhaDoBanco, lerDoBanco, responder503 } from '../utils/dbTransitorio';
 import { signToken } from '../utils/jwt';
+import { waitUntil } from '../utils/waitUntil';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { separarNome } from '../utils/metaCapi';
 import { sendPasswordResetEmail } from '../utils/mailer';
@@ -448,16 +449,16 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     // Meta CAPI — Lead (server-side, deduplica com pixel client)
     if (!origemNexus) {
-      sendMetaEvent('Lead', {
+      waitUntil(sendMetaEvent('Lead', {
         eventId:   req.headers['x-meta-event-id'] as string | undefined,
         email:     body.email,
         ip:        req.ip,
         userAgent: req.headers['user-agent'],
-      });
+      }).catch((err) => console.error('[meta] Lead:', err)));
       // CompleteRegistration: o navegador (RegisterForm) dispara os dois com o MESMO eventID. O gêmeo do servidor leva o que o
       // cadastro tem (email, telefone, nome) e o external_id igual ao do Lead (o email), para o Meta juntar a mesma pessoa.
       const nomeMeta = separarNome(body.nome);
-      sendMetaEvent('CompleteRegistration', {
+      waitUntil(sendMetaEvent('CompleteRegistration', {
         eventId:    req.headers['x-meta-event-id'] as string | undefined,
         email:      emailLc,
         phone:      body.whatsapp || undefined,
@@ -467,7 +468,7 @@ export async function register(req: Request, res: Response): Promise<void> {
         country:    'br',
         ip:         req.ip,
         userAgent:  req.headers['user-agent'],
-      });
+      }).catch((err) => console.error('[meta] CompleteRegistration:', err)));
     }
 
     // Boas-vindas: WhatsApp (Giovanna) + email (Resend).
