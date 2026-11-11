@@ -226,6 +226,15 @@ export const CSS_COMPLETO = `
 .cta .ph{ margin-top:8px; font-size:15px; font-weight:800; letter-spacing:.3px; }
 `;
 
+// CSS só da Completa solar (o Off-Grid lê CSS_COMPLETO e não leva nada daqui): bancos em 6 colunas com tile baixo
+// (`.bgrid.b6`) e número de colunas das obras por variável (`--oc`, 3 por padrão).
+const CSS_SOLAR_BANCOS = `.bgrid.b6{ grid-template-columns:repeat(6,1fr); gap:6px; }
+.bgrid.b6 .bk.fx{ padding:8px 8px; min-height:58px; }
+.bgrid.b6 .bk.fx .lg{ height:34px; width:100%; }
+.bgrid.b6 .bk.fx img{ max-width:100%; max-height:34px; width:100%; height:34px; object-fit:contain; }
+.ogrid{ grid-template-columns:repeat(var(--oc,3),1fr); }
+`;
+
 // ─── Peças do modelo 4 ───────────────────────────────────────────────────────
 
 const MAX_BANCOS_FOLHA = 12;
@@ -618,7 +627,12 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     if (dadosBanc.documento) linhasDadosBanc.push(l('CPF/CNPJ do titular', dadosBanc.documento));
     if (dadosBanc.pix) linhasDadosBanc.push(l('Chave Pix', dadosBanc.pix));
   }
-  const corpoF3 = `<div class="sec">
+  // Os bancos: 6 por fileira (12 bancos = 2 fileiras). Entram na folha 3 e, quando a confiança não cabe junto
+  // dela, vão para a folha das obras (decidido mais abaixo), sempre com o mesmo subtítulo.
+  const bancosHtml = bancos.length ? `${sub('Bancos que financiam o seu sistema')}
+    <div class="bgrid b6">${bancos.map((b) => `<div class="bk fx"><div class="lg"><img src="${pEsc(b.src)}" alt="${pEsc(b.nome)}"/></div></div>`).join('')}</div>` : '';
+  const estBancos = bancos.length ? 36 + Math.ceil(bancos.length / 6) * 64 : 0;
+  const montarCorpoF3 = (comBancos: boolean) => `<div class="sec">
     ${tileInvestimento}
     ${dois.length ? `<div class="dois" style="margin-top:10px${dois.length === 1 ? ';grid-template-columns:1fr' : ''}">${dois.join('')}</div>` : ''}
     ${parcelasCartao.length ? `${sub('Cartão de crédito', 'Sem entrada')}
@@ -627,43 +641,70 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     <div class="pgrid">${parcelasFin.map((x) => `<div class="pt"><span class="n">${x.n}× de</span><span class="v num">${pBRL(x.v)}</span></div>`).join('')}</div>` : ''}
     ${pagCustom ? `${sub('Condição especial')}
     <div class="hi"><div class="v t">${pEsc(pagCustom)}</div><div class="s">A combinar com o vendedor</div></div>` : ''}
-    ${bancos.length ? `${sub('Bancos que financiam o seu sistema')}
-    <div class="bgrid">${bancos.map((b) => `<div class="bk fx"><div class="lg"><img src="${pEsc(b.src)}" alt="${pEsc(b.nome)}"/></div></div>`).join('')}</div>` : ''}
+    ${comBancos ? bancosHtml : ''}
     ${mostraDadosBanc && dadosBanc ? `${sub('Dados para pagamento')}
     <div class="rows dpag">${linhasDadosBanc.join('\n      ')}</div>` : ''}
   </div>`;
-  const estF3 = 55 + (tileInvestimento ? 85 : 0) + (dois.length ? 100 : 0)
+  // Altura da folha 3 sem os bancos; com eles soma estBancos.
+  const estF3Sem = 55 + (tileInvestimento ? 85 : 0) + (dois.length ? 100 : 0)
     + (parcelasCartao.length ? 36 + Math.ceil(parcelasCartao.length / 3) * 36 : 0)
     + (parcelasFin.length ? 36 + Math.ceil(parcelasFin.length / 3) * 36 : 0)
-    + (pagCustom ? 120 : 0) + (bancos.length ? 36 + Math.ceil(bancos.length / 4) * 78 : 0)
+    + (pagCustom ? 120 : 0)
     + (linhasDadosBanc.length ? 36 + linhasDadosBanc.length * 34 : 0);
+  const estF3Cheia = estF3Sem + estBancos;
+  // A folha 3 tem algo além dos bancos? Só então eles podem sair dela sem deixá-la vazia.
+  const f3TemOutraCoisa = estF3Sem > 55;
 
   // ═══ Folha 4: Local da instalação (foto do telhado) e Quem já confia na gente (obras e empresas) ═══
   // Obras: só entram a partir de 6 fotos, e sempre em fileiras completas de 3 (6, 9 ou 12). As que sobram
   // ficam salvas na empresa e só não saem no PDF.
   const nObras = obrasTodas.length >= 6 ? Math.floor(Math.min(obrasTodas.length, 12) / 3) * 3 : 0;
   const obras = obrasTodas.slice(0, nObras);
-  const temConfianca = obras.length > 0 || empresas.length > 0;
-  const temFolha4 = temConfianca || !!fotoTelhado;
-  const linhasObras = Math.ceil(obras.length / 3);
   const linhasEmpresas = Math.ceil(empresas.length / 4);
+  const estEmpresas = empresas.length ? 36 + linhasEmpresas * 104 + 14 : 0;
+  const estObrasDe = (oc: number, oh: number) => 36 + Math.ceil(obras.length / oc) * (oh + 40) + 14;
+
+  // Tentativa 1: a confiança (faixa, obras e empresas) na MESMA folha do investimento e dos bancos. Vale a
+  // combinação que cabe em ORCAMENTO com a maior área de foto (largura relativa x altura); 4 colunas só com 12 fotos.
+  type ComboObra = { oc: number; oh: number; rel: number };
+  const COMBOS_JUNTA: ComboObra[] = [
+    ...[150, 122, 110, 96].map((oh) => ({ oc: 3, oh, rel: 1 })),
+    ...(obras.length === 12 ? [146, 130, 120, 110, 100].map((oh) => ({ oc: 4, oh, rel: 0.72 })) : []),
+  ];
+  const estJunta = (c: ComboObra) => estF3Cheia + 55 + estObrasDe(c.oc, c.oh) + estEmpresas;
+  const comboJunta: ComboObra | null = temFolha3 && obras.length > 0
+    ? COMBOS_JUNTA.filter((c) => estJunta(c) <= ORCAMENTO)
+      .reduce<ComboObra | null>((melhor, c) => (!melhor || c.oh * c.rel > melhor.oh * melhor.rel ? c : melhor), null)
+    : null;
+  const juntou = comboJunta !== null;
+  const confObras = juntou || obras.length > 0;
+  const temConfianca = confObras || empresas.length > 0;
+  const secObras = (oc: number, oh: number, comBancos: boolean) => `<div class="sec">${comBancos ? `${bancosHtml}
+    ` : ''}${sub('Obras realizadas')}
+    <div class="ogrid" style="--oh:${oh}px${oc !== 3 ? `;--oc:${oc}` : ''}">${obras.map((o) => `<div class="ob"><img src="${pEsc(o.src)}" alt="${pEsc(o.legenda || 'Obra realizada')}"/>${o.legenda.trim() ? `<div class="cap">${pEsc(o.legenda)}</div>` : ''}</div>`).join('')}</div></div>`;
+  const secEmpresas = () => `<div class="sec">${sub('Empresas atendidas')}
+    <div class="egrid">${empresas.map((e) => `<div class="em"><div class="lg"><img src="${pEsc(e.src)}" alt="${pEsc(e.nome || 'Empresa atendida')}"/></div>${e.nome ? `<div class="nm">${pEsc(e.nome)}</div>` : ''}</div>`).join('')}</div></div>`;
+  // Juntou: a folha 4 só tem o telhado (se houver). Senão leva o telhado e a confiança, como sempre.
+  const confNaF4 = !juntou && temConfianca;
+  const temFolha4 = confNaF4 || !!fotoTelhado;
   // Altura das fotos (px) por combinação, da mais folgada para a mais compacta: a primeira em que tudo
   // cabe numa folha só vale; se nenhuma serve, vale a folgada e o que sobra vai para a folha seguinte.
   const COMBOS_F4: Array<{ tel: number; obra: number }> = [
     { tel: 232, obra: 150 }, { tel: 190, obra: 150 }, { tel: 190, obra: 122 }, { tel: 150, obra: 110 }, { tel: 150, obra: 96 },
   ];
   type PecaF4 = { tipo: 'telhado' | 'obras' | 'empresas'; est: number };
-  const pecasF4 = (c: { tel: number; obra: number }): PecaF4[] => [
+  const pecasF4 = (c: { tel: number; obra: number }, bancosNaObra: boolean): PecaF4[] => [
     ...(fotoTelhado ? [{ tipo: 'telhado' as const, est: 55 + c.tel + 14 }] : []),
-    ...(obras.length ? [{ tipo: 'obras' as const, est: 36 + linhasObras * (c.obra + 40) + 14 }] : []),
-    ...(empresas.length ? [{ tipo: 'empresas' as const, est: 36 + linhasEmpresas * 104 + 14 }] : []),
+    // Com os bancos na folha das obras, a peça das obras já carrega a altura deles.
+    ...(confNaF4 && obras.length ? [{ tipo: 'obras' as const, est: (bancosNaObra ? estBancos : 0) + estObrasDe(3, c.obra) }] : []),
+    ...(confNaF4 && empresas.length ? [{ tipo: 'empresas' as const, est: estEmpresas }] : []),
   ];
   // Empacota as peças em folhas (a faixa "Quem já confia na gente" custa 55 na primeira peça de confiança de cada folha).
-  const empacotarF4 = (c: { tel: number; obra: number }): PecaF4[][] => {
+  const empacotarF4 = (c: { tel: number; obra: number }, bancosNaObra: boolean): PecaF4[][] => {
     const folhasF4: PecaF4[][] = [];
     let atual: PecaF4[] = [];
     let usado = 0;
-    for (const pc of pecasF4(c)) {
+    for (const pc of pecasF4(c, bancosNaObra)) {
       const confiancaNova = pc.tipo !== 'telhado' && !atual.some((x) => x.tipo !== 'telhado');
       const custo = pc.est + (confiancaNova ? 55 : 0);
       if (atual.length && usado + custo > ORCAMENTO) { folhasF4.push(atual); atual = []; usado = 0; }
@@ -675,9 +716,18 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     return folhasF4;
   };
   // Vale a combinação que dá MENOS folhas; no empate, a de fotos mais altas (a primeira da lista).
-  const comboF4 = COMBOS_F4.reduce((melhor, c) => (empacotarF4(c).length < empacotarF4(melhor).length ? c : melhor), COMBOS_F4[0]);
+  const melhorComboF4 = (bancosNaObra: boolean) => COMBOS_F4.reduce((melhor, c) => (empacotarF4(c, bancosNaObra).length < empacotarF4(melhor, bancosNaObra).length ? c : melhor), COMBOS_F4[0]);
+  // Tentativa 2: nenhuma combinação coube junto do investimento. Duas opções: (a) os bancos ficam na folha 3, no formato
+  // compacto, e as obras são empacotadas como sempre; (b) os bancos vão para a folha das obras, logo acima de "Obras
+  // realizadas", como uma peça só com elas. Vale a que dá MENOS folhas no total; no empate, a (b), bancos junto das fotos.
+  const podeMoverBancos = temFolha3 && obras.length > 0 && !juntou && bancos.length > 0 && f3TemOutraCoisa;
+  const bancosNaObras = podeMoverBancos
+    && (estF3Cheia > ORCAMENTO || empacotarF4(melhorComboF4(true), true).length <= empacotarF4(melhorComboF4(false), false).length);
+  const corpoF3 = montarCorpoF3(!bancosNaObras);
+  const estF3 = bancosNaObras ? estF3Sem : estF3Cheia;
+  const comboF4 = melhorComboF4(bancosNaObras);
   const paginasF4 = temFolha4
-    ? empacotarF4(comboF4).map((pecas) => {
+    ? empacotarF4(comboF4, bancosNaObras).map((pecas) => {
       let html = '';
       let est = 0;
       let confiancaAberta = false;
@@ -687,22 +737,24 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
   <div class="sec"><img class="tel" style="height:${comboF4.tel}px" src="${pEsc(fotoTelhado)}" alt="Local da instalação"/></div>
   `;
         } else {
-          if (!confiancaAberta) { html += `${band('Quem já confia na gente')}\n  `; confiancaAberta = true; est += 55; }
-          if (pc.tipo === 'obras') {
-            html += `<div class="sec">${sub('Obras realizadas')}
-    <div class="ogrid" style="--oh:${comboF4.obra}px">${obras.map((o) => `<div class="ob"><img src="${pEsc(o.src)}" alt="${pEsc(o.legenda || 'Obra realizada')}"/>${o.legenda.trim() ? `<div class="cap">${pEsc(o.legenda)}</div>` : ''}</div>`).join('')}</div></div>
+          if (!confiancaAberta) { html += `${band('Quem já confia na gente')}
+  `; confiancaAberta = true; est += 55; }
+          html += `${pc.tipo === 'obras' ? secObras(3, comboF4.obra, bancosNaObras) : secEmpresas()}
   `;
-          } else {
-            html += `<div class="sec">${sub('Empresas atendidas')}
-    <div class="egrid">${empresas.map((e) => `<div class="em"><div class="lg"><img src="${pEsc(e.src)}" alt="${pEsc(e.nome || 'Empresa atendida')}"/></div>${e.nome ? `<div class="nm">${pEsc(e.nome)}</div>` : ''}</div>`).join('')}</div></div>
-  `;
-          }
         }
         est += pc.est;
       }
       return { html: html.trimEnd(), est };
     })
     : [];
+  // Folha 3 com a confiança embaixo (combinação escolhida acima).
+  const confJuntaHtml = comboJunta
+    ? `
+  ${band('Quem já confia na gente')}
+  ${secObras(comboJunta.oc, comboJunta.oh, false)}${empresas.length ? `
+  ${secEmpresas()}` : ''}`
+    : '';
+  const estF3Final = comboJunta ? estJunta(comboJunta) : estF3;
 
   // ═══ Folha 5: Garantias e próximos passos (com o rodapé grande) ═══
   const vendWhats = contato.vendWhats;
@@ -801,7 +853,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
   const geracaoSecao = `${bandaF2}\n  ${corpoF2}`;
   const estGeracao = 38 + 17 + 36 + 290 + (fioBSerie ? 190 : 0);
   const seguintes: Array<{ html: string; est: number }> = [
-    ...(temFolha3 ? [{ html: `${band('Investimento e formas de pagamento')}\n  ${corpoF3}`, est: estF3 }] : []),
+    ...(temFolha3 ? [{ html: `${band('Investimento e formas de pagamento')}\n  ${corpoF3}${confJuntaHtml}`, est: estF3Final }] : []),
     ...paginasF4,
     ...(folhaCronograma ? [{ html: folhaCronograma, est: estCronograma + 55 }] : []),
     { html: `${band('Garantias e próximos passos')}\n  ${corpoF5}`, est: estF5 },
@@ -831,7 +883,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
 <style>
 ${cssRaizModelo1(cores)}
 ${CSS_MODELO1}
-${CSS_COMPLETO}</style></head><body>
+${CSS_COMPLETO}${CSS_SOLAR_BANCOS}</style></head><body>
 ${folhas}
 </body></html>`;
 }

@@ -53,7 +53,7 @@ export function userIdDaEmpresa(env: NodeJS.ProcessEnv = process.env): string {
 const SITE = (process.env.GERADOR_BASE_URL || 'https://solardoc.app/gerador').replace(/\/+$/, '').replace(/\/gerador$/, '');
 
 /** Sobe 1 quando o desenho do papel mudar (template, mapeador): invalida todos os PDFs guardados de uma vez. */
-export const PDF_LAYOUT_VERSAO = 2;
+export const PDF_LAYOUT_VERSAO = 3;
 const BUCKET_PDF = 'documentos';
 const PREFIXO_PDF = 'propostas-pdf/gerador';
 // PDF ASSINADO (leva o CPF do cliente): pasta PLANA, só <codigo>-<uuid>.pdf. Cada POST apaga os do mesmo código e tudo com mais de 1 dia.

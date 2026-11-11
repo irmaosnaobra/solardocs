@@ -311,7 +311,8 @@ describe('modelo 4 Completo: folhas leves, textos e entrada', () => {
     const todos = render({ pag_cartao_12: true, foto_telhado_b64: PNG, fotos_obras: fotosObra(6) }).html;
     expect(secoes(todos)).toEqual(expect.arrayContaining(['Local da instalação', 'Quem já confia na gente']));
     expect(paginas(todos)).toBe(6);
-    expect(todos.indexOf('Local da instalação')).toBeLessThan(todos.indexOf('Quem já confia na gente'));
+    // A confiança agora divide a folha do investimento (quando cabe); a foto do telhado segue na folha dela, logo depois.
+    expect(todos.indexOf('Local da instalação')).toBeGreaterThan(todos.indexOf('Quem já confia na gente'));
   });
 
   it('item de galeria sem url (assinatura falhou) não aparece no HTML', () => {
