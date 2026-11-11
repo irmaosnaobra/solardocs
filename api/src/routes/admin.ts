@@ -10,6 +10,7 @@ import { jornadaLimpapro } from '../controllers/limpaproJornadaController';
 import { getMetaAds } from '../controllers/metaAdsController';
 import { listarOrdens, marcarFeita, setModo, tickOrdens } from '../services/metaOrdensService';
 import { supabase } from '../utils/supabase';
+import { logger } from '../utils/logger';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { temChaveDeBootstrap } from '../utils/bootstrapKey';
 import { etiquetaDeLead, ETIQUETAS_ORDEM } from '../services/agenda/origemEtiqueta';
@@ -729,6 +730,67 @@ router.get('/hub-gerador', async (req: Request, res: Response): Promise<void> =>
     res.json({ produto, total: rows.length, por_status: porStatus, com_temperatura: comTemp, leads });
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// ── Produtos da loja (offgrid, precificacao, inventario) — READ-ONLY ────────────
+// Lê `entitlements` (compra avulsa, cortesia, liberação manual). Não tem coluna de
+// valor: a tabela não guarda preço. Acesso expirado não conta como ativo.
+// Os cursos ficam de fora de propósito: o acesso do Kit vem de kit_pedidos e o do LimpaPro de limpapro_*.
+const PRODUTOS_LOJA = ['offgrid', 'precificacao', 'inventario'];
+router.get('/produtos-loja', async (req: Request, res: Response): Promise<void> => {
+  const produto = String(req.query.produto ?? '');
+  if (!PRODUTOS_LOJA.includes(produto)) { res.status(400).json({ error: 'produto inválido' }); return; }
+  try {
+    const agora = new Date().toISOString();
+    const desde30 = new Date(Date.now() - 30 * 86400_000).toISOString();
+    const ativos = `expira_em.is.null,expira_em.gt.${agora}`;
+
+    const [totalQ, recentesQ, itensQ] = await Promise.all([
+      supabase.from('entitlements').select('id', { count: 'exact', head: true })
+        .eq('produto', produto).or(ativos),
+      supabase.from('entitlements').select('id', { count: 'exact', head: true })
+        .eq('produto', produto).or(ativos).gte('desde', desde30),
+      supabase.from('entitlements').select('user_id, origem, desde, expira_em')
+        .eq('produto', produto).or(ativos).order('desde', { ascending: false }).limit(20),
+    ]);
+    const falha = totalQ.error || recentesQ.error || itensQ.error;
+    if (falha) {
+      logger.error('admin-produtos-loja', `leitura de entitlements falhou (${produto})`, falha);
+      res.status(500).json({ error: 'Erro ao ler produtos da loja' });
+      return;
+    }
+
+    const linhas = (itensQ.data ?? []) as Array<{ user_id: string; origem: string; desde: string; expira_em: string | null }>;
+    const ids = Array.from(new Set(linhas.map((l) => l.user_id)));
+    const donos = new Map<string, { nome: string | null; email: string | null }>();
+    if (ids.length) {
+      const { data: us, error: erroUsers } = await supabase.from('users').select('id, nome, email').in('id', ids);
+      if (erroUsers) {
+        logger.error('admin-produtos-loja', `leitura de users falhou (${produto})`, erroUsers);
+        res.status(500).json({ error: 'Erro ao ler produtos da loja' });
+        return;
+      }
+      for (const u of (us ?? []) as Array<{ id: string; nome: string | null; email: string | null }>) {
+        donos.set(u.id, { nome: u.nome ?? null, email: u.email ?? null });
+      }
+    }
+
+    res.json({
+      produto,
+      total: totalQ.count ?? 0,
+      ultimos30: recentesQ.count ?? 0,
+      itens: linhas.map((l) => ({
+        user_id: l.user_id,
+        nome: donos.get(l.user_id)?.nome ?? null,
+        email: donos.get(l.user_id)?.email ?? null,
+        origem: l.origem,
+        desde: l.desde,
+      })),
+    });
+  } catch (err) {
+    logger.error('admin-produtos-loja', `falha inesperada (${produto})`, err);
+    res.status(500).json({ error: 'Erro ao ler produtos da loja' });
   }
 });
 
