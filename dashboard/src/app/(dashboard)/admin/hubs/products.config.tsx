@@ -6,16 +6,16 @@
 // Alinhado ao mapa aprovado 26/jul (memória admin-solardoc-hubs-produto).
 // ─────────────────────────────────────────────────────────────────────────────
 import type { ComponentType } from 'react';
-import FunilLimpaproPanel from '../_components/FunilLimpaproPanel';
-import MembrosLimpaproPanel from '../_components/MembrosLimpaproPanel';
 import FunilSolarDocPanel from '../_components/FunilSolarDocPanel';
 import MembrosPanel from '../_components/MembrosPanel';
 // Fase 1 — painéis próprios do hub (reuso de endpoints existentes)
 import AgentePanel from './_panels/AgentePanel';
 import ReceitaPanel from './_panels/ReceitaPanel';
 import LpVendaPanel from './_panels/LpVendaPanel';
-// LP do LimpaPro: jornada real do lead (secao `raw` dos eventos 'sessao')
-import LpLimpaproPanel from './_panels/LpLimpaproPanel';
+// Hub "Produtos": LimpaPro (8 sub-abas), sub-abas reutilizáveis e compras da loja
+import LimpaproProdutoPanel from './_panels/LimpaproProdutoPanel';
+import SubAbas from './_panels/SubAbas';
+import ProdutoLojaPanel from './_panels/ProdutoLojaPanel';
 // Fase 2 — Followup + Conversas (endpoint /admin/hub-followup)
 import FollowupPanel from './_panels/FollowupPanel';
 import ConversasPanel from './_panels/ConversasPanel';
@@ -61,19 +61,6 @@ export interface Product {
 }
 
 export const PRODUCTS: Product[] = [
-  {
-    id: 'limpapro', nome: 'LimpaPro', emoji: '🧴', cor: '#2C9C67',
-    tabs: [
-      { key: 'visao',     label: 'Visão Geral',      status: 'pronto',    Comp: () => <VisaoGeralPanel produto="limpapro" /> },
-      { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: FunilLimpaproPanel },
-      { key: 'membros',   label: 'Membros',          status: 'pronto',    Comp: MembrosLimpaproPanel },
-      { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: LpLimpaproPanel },
-      { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="limpapro" /> },
-      { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="bia" /> },
-      { key: 'conversas', label: 'Conversas',        status: 'pronto',    Comp: () => <ConversasPanel produto="limpapro" /> },
-      { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="limpapro" /> },
-    ],
-  },
   {
     id: 'solardoc', nome: 'SolarDoc', emoji: '☀️', cor: '#B4801E',
     tabs: [
@@ -131,4 +118,28 @@ export const PRODUCTS: Product[] = [
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="eletroposto" /> },
     ],
   },
+  // Hub dos produtos menores da loja (desde 11/11/2026): uma aba por produto. O LimpaPro
+  // saiu da frente e mora aqui. O Kit e os Comentários também seguem no hub SolarDoc
+  // (o Kit é isca do SolarDoc); aqui só aparecem de novo.
+  {
+    id: 'produtos', nome: 'Produtos', emoji: '▦', cor: '#6E6A86',
+    tabs: [
+      { key: 'limpapro',     label: 'LimpaPro',        status: 'pronto', Comp: LimpaproProdutoPanel },
+      { key: 'fecha-vendas', label: 'Kit Fecha Vendas', status: 'pronto', Comp: KitFechaVendasPanel },
+      { key: 'offgrid',      label: 'Off-Grid',        status: 'pronto', Comp: () => <ProdutoLojaPanel produto="offgrid" /> },
+      { key: 'precificacao', label: 'Precificação',    status: 'pronto', Comp: () => <ProdutoLojaPanel produto="precificacao" /> },
+      { key: 'inventario',   label: 'Inventário',      status: 'pronto', Comp: () => <ProdutoLojaPanel produto="inventario" /> },
+    ],
+  },
 ];
+
+function KitFechaVendasPanel() {
+  return (
+    <SubAbas
+      abas={[
+        { key: 'funil',       label: 'Funil',                 Comp: KitPanel },
+        { key: 'comentarios', label: 'Comentários do Curso',  Comp: ComentariosCursoPanel },
+      ]}
+    />
+  );
+}
