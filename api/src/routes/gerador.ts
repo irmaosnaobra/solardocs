@@ -43,6 +43,7 @@ import { mountJornadaPosVenda } from './geradorJornadaPosVenda';
 import { mountJornadaMensagens } from './geradorJornadaMensagens';
 import { mountJornadaFicha } from './geradorJornadaFicha';
 import { mountPerfil } from './geradorPerfil';
+import { mountOrcamentoCompleto } from './geradorOrcamentoCompleto';
 import { mountRedes } from './geradorRedes';
 import { mountSentinela } from './geradorSentinela';
 import { mountEnsaio5040 } from './geradorEnsaio5040';
@@ -87,6 +88,10 @@ const router = Router();
 // é pesada (Puppeteer), mas controller verifica existência da proposta antes
 // de levantar o browser.
 router.get('/pdf/:codigo', generateGeradorPdf);
+
+// Orçamento oficial do solar no papel da Completa + Banco (HTML e PDF públicos, o cliente não tem login). O dashboard repassa
+// solardoc.app/orcamento/:codigo e /orcamento/:codigo/pdf para estas rotas.
+mountOrcamentoCompleto(router);
 
 // 07/10/2026: sairam POST /apresentacao e /apresentacao/extrair junto com a aba
 // Apresentacao do /gerador, a pedido do dono. Eram rotas abertas, sem login, que

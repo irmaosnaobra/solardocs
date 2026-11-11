@@ -313,6 +313,40 @@ export function docClienteCabecalho(c: Assinatura['cliente']): { rotulo: string;
     : { rotulo: 'CPF', html: `<span class="num">${pEsc(formatarCpf(c.documento))}</span>` };
 }
 
+/** Mapa {prazo: valor} de parcelas já calculadas por quem manda (o /gerador). Só entra número finito e maior que zero. */
+function parcelasProntas(v: unknown): Record<number, number> {
+  const out: Record<number, number> = {};
+  if (!ehObjeto(v)) return out;
+  for (const [k, val] of Object.entries(v)) {
+    const n = parseInt(k, 10);
+    const x = typeof val === 'number' ? val : Number.NaN;
+    if (n > 0 && Number.isFinite(x) && x > 0) out[n] = x;
+  }
+  return out;
+}
+
+/**
+ * Validade impressa. Igual à do modelo de sempre (propostaValidade). A exceção é `validade_ate_iso` (só o /gerador manda):
+ * o instante exato em que o link vence, "sexta às 18h". Aí a data impressa é essa, sem "por N dias" que desmentiria a data.
+ * `ate` é a data de vencimento nos dois casos (a folha de aceite imprime a mesma).
+ */
+function validadeDoCompleta(f: Record<string, unknown>): { dias: number; curto: string; longo: string; ate: Date } {
+  const base = propostaValidade(f);
+  const bruto = typeof f.validade_ate_iso === 'string' ? f.validade_ate_iso.trim() : '';
+  const ateFixa = bruto ? new Date(bruto) : null;
+  if (!ateFixa || Number.isNaN(ateFixa.getTime())) {
+    return { ...base, ate: new Date(propostaEmissao(f).getTime() + base.dias * 86400000) };
+  }
+  const tz = { timeZone: 'America/Sao_Paulo' };
+  const hora = ateFixa.toLocaleTimeString('pt-BR', { ...tz, hour: '2-digit', minute: '2-digit' }).replace(':00', 'h');
+  return {
+    dias: base.dias,
+    curto: `Válido até ${ateFixa.toLocaleDateString('pt-BR', tz)}`,
+    longo: `Válido até ${ateFixa.toLocaleDateString('pt-BR', { ...tz, day: '2-digit', month: 'long', year: 'numeric' })}, às ${hora}`,
+    ate: ateFixa,
+  };
+}
+
 // ─── O template ──────────────────────────────────────────────────────────────
 
 export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteProposta, f: Record<string, unknown>): string {
@@ -351,8 +385,14 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     return nome && anos > 0 ? [{ nome, anos }] : [];
   });
   const prazoDias = parseInt(String(f.prazo_instalacao_dias || '45'), 10) || 45;
-  const inflacaoPct = parseFloat(String(f.inflacao_aa || '6').replace(',', '.')) || 6;
-  const inflacaoTaxaMinPct = parseFloat(String(f.taxa_minima_inflacao_aa || '6').replace(',', '.')) || 6;
+  // `inflacao_zero_vale` (só o /gerador manda): 0% digitado vale 0%. Sem ele, 0 segue virando o padrão de 6%, como sempre.
+  const zeroVale = f.inflacao_zero_vale === true;
+  const pctDe = (v: unknown): number => {
+    const n = parseFloat(String(v || '6').replace(',', '.'));
+    return zeroVale && Number.isFinite(n) ? n : (n || 6);
+  };
+  const inflacaoPct = pctDe(f.inflacao_aa);
+  const inflacaoTaxaMinPct = pctDe(f.taxa_minima_inflacao_aa);
   const tipoTelhado = (str(f.tipo_telhado) === '___' ? (client.tipo_telhado || '') : String(f.tipo_telhado)).trim();
   const enderecoCli = (str(f.endereco) === '___' ? (client.endereco || '') : String(f.endereco || client.endereco || '')).trim();
   const fotoTelhado = srcImagemSegura(str(f.foto_telhado_b64) === '___' ? '' : f.foto_telhado_b64);
@@ -414,10 +454,14 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     : `em ${entradaDias} dia${entradaDias === 1 ? '' : 's'}`;
   const pagCustom = String(f.pag_custom || '').trim();
 
+  // Parcela pronta (só o /gerador manda): o valor já calculado lá, com a tabela de cartão e o financiamento deles.
+  // Ausente, vale a conta de sempre (taxa_cartao_* e taxa_fin_*), e a proposta da SolarDoc sai byte a byte igual.
+  const prontasCartao = parcelasProntas(f.parcelas_cartao_prontas);
+  const prontasFin = parcelasProntas(f.parcelas_fin_prontas);
   const parcelasCartao = cartaoOn && investimento > 0
-    ? cartaoAtivos.map((n) => ({ n, v: valorParcelaCartao(f, investimento, n) })).filter((x) => x.v > 0) : [];
+    ? cartaoAtivos.map((n) => ({ n, v: prontasCartao[n] ?? valorParcelaCartao(f, investimento, n) })).filter((x) => x.v > 0) : [];
   const parcelasFin = finOn && investimento > 0
-    ? finAtivos.map((n) => ({ n, v: valorParcelaFin(f, investimento, n) })).filter((x) => x.v > 0) : [];
+    ? finAtivos.map((n) => ({ n, v: prontasFin[n] ?? valorParcelaFin(f, investimento, n) })).filter((x) => x.v > 0) : [];
   // Parcela de destaque no topo do financeiro: financiamento mais longo; senão o cartão mais longo.
   const parcelaLabel = parcelasFin.length
     ? `ou ${parcelasFin[parcelasFin.length - 1].n}× de ${brl(parcelasFin[parcelasFin.length - 1].v)}`
@@ -430,7 +474,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
   function brl(n: number): string { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   function n1(n: number): string { return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
   const hoje = propostaEmissao(f).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-  const validade = propostaValidade(f);
+  const validade = validadeDoCompleta(f);
   const marcaMod = [marcaModulo, potenciaModulo > 0 ? `${potenciaModulo}W` : ''].filter(Boolean).join(' · ');
   const cap1 = (t: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
   const anosTxt = (n: number) => `${n} ${n === 1 ? 'ano' : 'anos'}`;
@@ -646,7 +690,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
           if (!confiancaAberta) { html += `${band('Quem já confia na gente')}\n  `; confiancaAberta = true; est += 55; }
           if (pc.tipo === 'obras') {
             html += `<div class="sec">${sub('Obras realizadas')}
-    <div class="ogrid" style="--oh:${comboF4.obra}px">${obras.map((o) => `<div class="ob"><img src="${pEsc(o.src)}" alt="${pEsc(o.legenda || 'Obra realizada')}"/><div class="cap">${pEsc(o.legenda)}</div></div>`).join('')}</div></div>
+    <div class="ogrid" style="--oh:${comboF4.obra}px">${obras.map((o) => `<div class="ob"><img src="${pEsc(o.src)}" alt="${pEsc(o.legenda || 'Obra realizada')}"/>${o.legenda.trim() ? `<div class="cap">${pEsc(o.legenda)}</div>` : ''}</div>`).join('')}</div></div>
   `;
           } else {
             html += `<div class="sec">${sub('Empresas atendidas')}
@@ -726,7 +770,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     const descMod = descModulos(qtdModulos, marcaModulo, potenciaModulo);
     const sistema = kwp > 0 ? `${pKwp(kwp)} kWp${descMod ? ` com ${descMod}` : ''}` : '';
     const descInv = invLista.map((i) => descInversor(i.qtd, i.marca, i.potenciaKw)).filter(Boolean).join(', ');
-    const ateData = new Date(propostaEmissao(f).getTime() + validade.dias * 86400000);
+    const ateData = validade.ate;
     const validadeTxt = Number.isNaN(ateData.getTime()) ? '' : `Até ${ateData.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
     const linhasResumo = [
       codigoProp ? lr('Proposta', codigoProp) : '',

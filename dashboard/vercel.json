@@ -9,6 +9,10 @@
     { "source": "/p/:id/pdf", "destination": "https://api.solardoc.app/p/:id/pdf" },
     { "source": "/p/:id", "destination": "https://api.solardoc.app/p/:id" },
     { "source": "/orc/:codigo", "destination": "https://api.solardoc.app/orc/:codigo" },
+    { "source": "/orcamento/:codigo/pdf", "destination": "https://api.solardoc.app/gerador/completa/:codigo/pdf" },
+    { "source": "/orcamento/:codigo/w", "destination": "https://api.solardoc.app/gerador/completa/:codigo/w" },
+    { "source": "/orcamento/:codigo/o.gif", "destination": "https://api.solardoc.app/gerador/completa/:codigo/o.gif" },
+    { "source": "/orcamento/:codigo", "destination": "https://api.solardoc.app/gerador/completa/:codigo" },
     { "source": "/v/:path*", "destination": "https://api.solardoc.app/v/:path*" },
     { "source": "/m/:path*", "destination": "https://api.solardoc.app/m/:path*" }
   ],
