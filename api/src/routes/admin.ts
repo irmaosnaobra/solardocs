@@ -6,6 +6,7 @@ import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, 
 import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas, getLimpaproMembros } from '../controllers/limpaproController';
 import { getPixFunil } from '../controllers/pixFunilController';
 import { getVslRetencao } from '../controllers/vslController';
+import { periodoLoja, resumoLojaPix } from '../services/produtos/lojaPixAdmin';
 import { jornadaLimpapro } from '../controllers/limpaproJornadaController';
 import { getMetaAds } from '../controllers/metaAdsController';
 import { listarOrdens, marcarFeita, setModo, tickOrdens } from '../services/metaOrdensService';
@@ -1397,6 +1398,17 @@ router.get('/conversas-limpapro', getLimpaproConversas);
 router.get('/membros-limpapro', getLimpaproMembros);
 router.get('/revenue',        getRevenue);
 router.get('/billing',        getBilling);
+// Loja no Pix (Asaas): cobranças geradas e pagas por produto + as últimas 20. SÓ LEITURA, sem CPF
+// nem e-mail (a conta mora em services/produtos/lojaPixAdmin.ts).
+router.get('/loja-pix', async (req: Request, res: Response): Promise<void> => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json(await resumoLojaPix(periodoLoja(req.query.period)));
+  } catch (err) {
+    console.error('loja-pix error:', err);
+    res.status(500).json({ error: 'Erro ao ler a loja no Pix' });
+  }
+});
 
 // ── Leads por Origem (etiqueta) ──────────────────────────────────────────────
 // Fonte única: os agendamentos do GERADOR (é onde TODO lead cai — Meta, LP,

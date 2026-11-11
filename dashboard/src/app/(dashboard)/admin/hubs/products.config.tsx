@@ -1,46 +1,46 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CONFIG-DRIVEN dos Hubs de Produto (/admin/hubs) — Fase 0.
+// CONFIG-DRIVEN dos Hubs de Produto (/admin/hubs).
 // Cada produto declara suas abas na MESMA ordem/padrão. Aba com `Comp` renderiza um
 // painel real (reuso do que já existe); sem `Comp` mostra placeholder "construir".
-// Adicionar produto/aba = editar SÓ este arquivo — a tela (ProductHub) se monta sozinha.
-// Alinhado ao mapa aprovado 26/jul (memória admin-solardoc-hubs-produto).
+// Adicionar produto/aba = editar SÓ este arquivo, a tela (ProductHub) se monta sozinha.
+//
+// Estado de 11/11/2026: cada hub mostra só o que é usado hoje.
+//   SolarDoc: duas agentes (Giovanna no suporte, Carla nas vendas pela linha 5040). A VSL, o
+//             Pix automático e a Loja têm aba própria. Os comentários do curso moram na Loja.
+//   Solar: só a Nilce, humana, atende. Não há robô de followup nem agente.
+//   Eletroposto: sem agente (a Helena está pausada). O Ponto Certo já mostra a fila dos dois lados.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { ComponentType } from 'react';
 import FunilLimpaproPanel from '../_components/FunilLimpaproPanel';
 import MembrosLimpaproPanel from '../_components/MembrosLimpaproPanel';
 import FunilSolarDocPanel from '../_components/FunilSolarDocPanel';
 import MembrosPanel from '../_components/MembrosPanel';
-// Fase 1 — painéis próprios do hub (reuso de endpoints existentes)
+// Pix automático: quantos chegam na tela de Pix e quantos saem pagando (/admin/pix-funil)
+import PixFunilPanel from '../_components/PixFunilPanel';
 import AgentePanel from './_panels/AgentePanel';
 import ReceitaPanel from './_panels/ReceitaPanel';
 import LpVendaPanel from './_panels/LpVendaPanel';
 // LP do LimpaPro: jornada real do lead (secao `raw` dos eventos 'sessao')
 import LpLimpaproPanel from './_panels/LpLimpaproPanel';
-// Fase 2 — Followup + Conversas (endpoint /admin/hub-followup)
+// Followup + Conversas (endpoint /admin/hub-followup)
 import FollowupPanel from './_panels/FollowupPanel';
 import ConversasPanel from './_panels/ConversasPanel';
-// Fase 3 — Visão Geral / Pulso (agrega endpoints existentes)
+// Visão Geral / Pulso (agrega endpoints existentes)
 import VisaoGeralPanel from './_panels/VisaoGeralPanel';
-// Fase 4 — Config & Alertas (read-only) + Funil/Leads de Solar/Eletroposto (Gerador)
+// Config & Alertas (read-only) + Funil/Leads de Solar/Eletroposto (Gerador)
 import ConfigAlertasPanel from './_panels/ConfigAlertasPanel';
 import GeradorFunilPanel from './_panels/GeradorFunilPanel';
 import GeradorLeadsPanel from './_panels/GeradorLeadsPanel';
-// Fase 5 (resíduos) — LP de Solar/Eletroposto (page_visits via beacon novo)
+// LP de Solar/Eletroposto (page_visits via beacon)
 import IoLpPanel from './_panels/IoLpPanel';
-// Quiz: quem cai no link do eletroposto vê só o quiz. Em que pergunta desiste?
+// Quiz: quem cai no link do quiz vê só o quiz. Em que pergunta desiste?
 import QuizEletropostoPanel from './_panels/QuizEletropostoPanel';
-// Kit de Fechamento (isca R$27 → plataforma) — funil da isca até virar assinante
-import KitPanel from './_panels/KitPanel';
-// Banco de comentários do curso — o que vira depoimento na LP sai daqui
-import ComentariosCursoPanel from './_panels/ComentariosCursoPanel';
-// Nota 1: quem a LP do eletroposto recusa vai pra oferta de entrada — chegou lá?
-import Nota1Panel from './_panels/Nota1Panel';
-// Conexão: quem tem o ponto × quem tem o capital, pra alguém casar os dois na mão
-import ConexaoPanel from './_panels/ConexaoPanel';
-// Ponto Certo: o investidor recusado por falta de local — chegou no material?
+// VSL: retenção do vídeo (a curva de quantos ainda assistem no segundo X)
+import VslPanel from './_panels/VslPanel';
+// Loja de produtos no Pix (Asaas) + moderação dos comentários do curso
+import LojaPanel from './_panels/LojaPanel';
+// Ponto Certo: o investidor recusado por falta de local, chegou no material?
 import PontoCertoPanel from './_panels/PontoCertoPanel';
-// Atendente de anuncio: o system prompt do WhatsApp que nasce do anuncio (editavel sem deploy)
-import AtendentePanel from './_panels/AtendentePanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -83,12 +83,15 @@ export const PRODUCTS: Product[] = [
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: LpVendaPanel },
       // Quiz /diagnostico (24/10/2026): o mesmo painel do quiz solar, lendo /admin/solardoc/quiz-funil.
       { key: 'quiz',      label: 'Quiz',              status: 'pronto',   Comp: () => <QuizEletropostoPanel produto="solardoc" /> },
+      // VSL /vsl: a página manda `lp: 'solardoc_vsl'` nos eventos, e o vslController mapeia isso para '/vsl'.
+      { key: 'vsl',       label: 'VSL',               status: 'pronto',   Comp: () => <VslPanel lp="solardoc_vsl" /> },
+      // Pix automático: quantos chegam na tela de Pix e quantos saem pagando.
+      { key: 'pix',       label: 'Pix automático',    status: 'pronto',   Comp: PixFunilPanel },
       { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solardoc" /> },
-      { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="giovanna" /> },
-      // 'parcial' de proposito: o texto esta pronto e editavel, mas nenhuma linha le ele ainda.
-      { key: 'atendente', label: 'Atendente',        status: 'parcial',   Comp: AtendentePanel, nota: 'System prompt do lead de anuncio — guardado e editavel, ainda nao ligado a nenhuma linha.' },
-      { key: 'kit',       label: 'Kit / Isca R$27',  status: 'pronto',    Comp: KitPanel },
-      { key: 'comentarios', label: 'Comentários do Curso', status: 'pronto', Comp: ComentariosCursoPanel },
+      // As duas agentes da SolarDoc: Giovanna (suporte) e Carla (vendas pela linha 5040), uma embaixo da outra.
+      { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent={['giovanna', 'carla']} /> },
+      // Loja "Para crescer" no Pix (Asaas, desde 10/11/2026) + moderação dos comentários do curso.
+      { key: 'loja',      label: 'Loja',              status: 'pronto',   Comp: LojaPanel },
       { key: 'receita',   label: 'Receita/ROAS',     status: 'pronto',    Comp: ReceitaPanel },
       { key: 'conversas', label: 'Conversas',        status: 'pronto',    Comp: () => <ConversasPanel produto="solardoc" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="solardoc" /> },
@@ -103,8 +106,6 @@ export const PRODUCTS: Product[] = [
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: () => <IoLpPanel match="/io/solar" /> },
       // Quiz solar (07/10/2026): o mesmo painel do quiz do eletroposto, lendo /admin/solar/quiz-funil.
       { key: 'quiz',      label: 'Quiz',              status: 'pronto',   Comp: () => <QuizEletropostoPanel produto="solar" /> },
-      { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solar" /> },
-      { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="luma" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="solar" /> },
     ],
   },
@@ -116,18 +117,10 @@ export const PRODUCTS: Product[] = [
       { key: 'membros',   label: 'Leads',            status: 'pronto',    Comp: () => <GeradorLeadsPanel produto="eletroposto" /> },
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: () => <IoLpPanel match="/io/eletroposto" /> },
       { key: 'quiz',      label: 'Quiz',              status: 'pronto',   Comp: QuizEletropostoPanel },
-      // Fica no hub do ELETROPOSTO porque é daqui que o lead sai (a LP recusa),
-      // mesmo com a oferta e os eventos morando no banco do SolarDoc.
-      { key: 'nota1',     label: 'Nota 1 / Material', status: 'pronto',   Comp: Nota1Panel },
-      // Desde 17/08 o NOTA 1 cai na página das duas portas, não na de material:
-      // é aqui que os dois lados do negócio ficam visíveis pra alguém conectar.
-      { key: 'conexao',   label: 'Conexão',          status: 'pronto',   Comp: ConexaoPanel },
-      // Desde 01/09 o lado do CAPITAL não para na tela de cadastro recebido: é
-      // levado pra /ponto-certo. Esta aba mede esse caminho ponta a ponta — e é
-      // a única que enxerga a fila dos dois lados sem recorte de período.
+      // Desde 01/09 o lado do CAPITAL não para na tela de cadastro recebido: é levado pra
+      // /ponto-certo. Esta aba mede esse caminho ponta a ponta e é a única que enxerga a fila
+      // dos dois lados (quem tem o ponto e quem tem o capital) sem recorte de período.
       { key: 'pontocerto', label: 'Ponto Certo',     status: 'pronto',   Comp: PontoCertoPanel },
-      { key: 'followup',  label: 'Followup',         status: 'construir', nota: 'Só alerta à equipe hoje.', Comp: () => <FollowupPanel produto="eletroposto" /> },
-      { key: 'agente',    label: 'Agente',           status: 'parcial',   Comp: () => <AgentePanel agent="none" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="eletroposto" /> },
     ],
   },

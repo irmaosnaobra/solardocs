@@ -45,6 +45,9 @@ interface BillingResponse {
   // vendas (card-pass = venda) — batem 1:1 com a Stripe
   vendas: number;
   vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number; 'VIP ANUAL': number };
+  // Pix automático vivo e o total sem repetir quem tem cartão e Pix. null = a api não conseguiu ler o Pix.
+  pix_automatico_vivos?: number | null;
+  total_pagando?: number | null;
   vendas_por_origem?: {
     anuncio: number; followup: number; direto: number;
     sem_classificacao: number; no_meta: number;
@@ -205,6 +208,16 @@ export default function MembrosPanel() {
     return { stripe, pix, atraso, cancelou30d, total: stripe + pix };
   }, [billing]);
 
+  // Planos que não vendem mais: um cartão só, sem a linha que está zerada.
+  const planosAntigos = useMemo(() => {
+    const v = billing?.vendas_por_produto;
+    return ([
+      ['PRO R$ 27/mês', v?.PRO ?? 0],
+      ['VIP Promo R$ 49/mês', v?.['VIP PROMO'] ?? 0],
+      ['VIP Anual R$ 564/ano', v?.['VIP ANUAL'] ?? 0],
+    ] as Array<[string, number]>).filter(([, n]) => n > 0);
+  }, [billing]);
+
   // Filtro + busca
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -279,36 +292,57 @@ export default function MembrosPanel() {
         </div>
       ) : (
         <>
-          {/* VENDAS (cartão passou = venda) — bate 1:1 com a Stripe. É o número principal. */}
+          {/* VENDAS: o cartão (passou = venda) bate 1:1 com a Stripe; o Pix automático vem do Asaas. */}
           {billing && (
             <>
-              <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 12 }}>
-                <div className={styles.card} style={{ borderColor: 'var(--color-primary)', borderWidth: 2, borderStyle: 'solid' }}>
-                  <div className={styles.cardLabel}>Vendas (cartão passou)</div>
+              {/* QUEM PAGA HOJE: cartão (Stripe) + Pix automático (Asaas). Antes o cartão principal
+                  contava só a Stripe e quem paga por Pix ficava de fora. O total só aparece quando
+                  a api conseguiu ler o Pix, e já descontando quem tem os dois. */}
+              <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', marginTop: 12 }}>
+                <div className={styles.card} style={billing.total_pagando == null ? { borderColor: 'var(--color-primary)', borderWidth: 2, borderStyle: 'solid' } : undefined}>
+                  <div className={styles.cardLabel}>Cartão (Stripe)</div>
                   <div className={styles.cardValue} style={{ color: 'var(--color-primary)' }}>{billing.vendas ?? 0}</div>
                   <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
                     Assinantes vivos na Stripe: trial + ativos{(billing.past_due ?? 0) > 0 ? ` + ${billing.past_due} em atraso` : ''}
                   </div>
                 </div>
+                {billing.pix_automatico_vivos != null && (
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Pix automático</div>
+                    <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{billing.pix_automatico_vivos}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                      Pessoas com o débito autorizado: em dia ou tentando de novo
+                    </div>
+                  </div>
+                )}
+                {billing.total_pagando != null && (
+                  <div className={styles.card} style={{ borderColor: 'var(--color-primary)', borderWidth: 2, borderStyle: 'solid' }}>
+                    <div className={styles.cardLabel}>Assinantes vivos (cartão + Pix)</div>
+                    <div className={styles.cardValue} style={{ color: 'var(--color-primary)' }}>{billing.total_pagando}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                      Cartão: trial, ativos e em atraso. Pix automático: ativo e inadimplente. Quem está nos dois conta uma vez.
+                    </div>
+                  </div>
+                )}
                 <div className={styles.card}>
-                  <div className={styles.cardLabel}>PRO</div>
-                  <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{billing.vendas_por_produto?.PRO ?? 0}</div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>R$ 27/mês</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardLabel}>VIP</div>
+                  <div className={styles.cardLabel}>VIP R$ 67/mês, à venda</div>
                   <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{billing.vendas_por_produto?.VIP ?? 0}</div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>R$ 67/mês</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>Assinantes de cartão neste plano</div>
                 </div>
                 <div className={styles.card}>
-                  <div className={styles.cardLabel}>VIP PROMO</div>
-                  <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{billing.vendas_por_produto?.['VIP PROMO'] ?? 0}</div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>R$ 49/mês</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardLabel}>VIP ANUAL</div>
-                  <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{billing.vendas_por_produto?.['VIP ANUAL'] ?? 0}</div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>R$ 564/ano · entra R$ 47 no MRR</div>
+                  <div className={styles.cardLabel}>Planos antigos (não vendem mais)</div>
+                  {planosAntigos.length > 0 ? (
+                    <div style={{ display: 'grid', gap: 6, marginTop: 4 }}>
+                      {planosAntigos.map(([rotulo, n]) => (
+                        <div key={rotulo} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 }}>
+                          <span style={{ color: 'var(--color-text-muted)' }}>{rotulo}</span>
+                          <strong>{n}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 4 }}>Nenhum assinante.</div>
+                  )}
                 </div>
               </div>
 
@@ -423,16 +457,14 @@ export default function MembrosPanel() {
               <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{kpis.free}</div>
             </div>
             <div className={styles.card}>
-              <div className={styles.cardLabel}>Assinantes ativos</div>
-              <div className={styles.cardValue} style={{ color: 'var(--color-primary)' }}>
-                {billing ? assinantes.total : '—'}
+              <div className={styles.cardLabel}>Saíram em 30 dias</div>
+              <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>
+                {billing ? assinantes.cancelou30d : '—'}
               </div>
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
                 {billing
-                  ? <>Stripe {assinantes.stripe} · Pix {assinantes.pix}
-                      {assinantes.atraso > 0 && <> · {assinantes.atraso} em atraso</>}
-                      {assinantes.cancelou30d > 0 && <> · {assinantes.cancelou30d} saíram em 30d</>}</>
-                  : 'carregando da Stripe…'}
+                  ? <>Cancelaram no cartão e não voltaram{assinantes.atraso > 0 && <>. {assinantes.atraso} só em atraso</>}</>
+                  : 'Carregando da Stripe…'}
               </div>
             </div>
             <div className={styles.card}>

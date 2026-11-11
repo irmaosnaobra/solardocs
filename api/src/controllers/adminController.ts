@@ -883,6 +883,11 @@ type BillingPayload = {
   // ── VENDAS (cartão passou = venda, como o dono quer) — bate 1:1 com a Stripe ──
   vendas: number;               // TODO card-pass vivo (trialing + active + past_due)
   vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number; 'VIP ANUAL': number };
+  // Pix AUTOMÁTICO vivo (asaas_pix_assinaturas, mesmo critério do lembrete de Pix): PESSOAS, não contratos.
+  // `vendas` só enxerga a Stripe, então quem paga por Pix fica de fora dela. `total_pagando` = cartão +
+  // Pix automático sem repetir quem está nos dois. null = a leitura do Pix falhou (o painel esconde).
+  pix_automatico_vivos: number | null;
+  total_pagando: number | null;
   // Quem fechou a venda, 30 dias (ledger `sales`). `no_meta` = quantas foram
   // contadas como Purchase no pixel — as de follow-up e recompra ficam de fora.
   vendas_por_origem: {
@@ -913,6 +918,61 @@ type BillingPayload = {
   moeda: 'BRL';
   atualizado_em: string;
 };
+
+/**
+ * Pix automático VIVO: mesmo critério do lembrete (pixVipReminderService): asaas_pix_assinaturas com modo
+ * 'automatico' e status 'ativo' ou 'inadimplente'. Conta PESSOAS: contratos ligados pelo mesmo user_id ou pelo
+ * mesmo e-mail contam uma vez (o contrato do quiz nasce sem conta, só com e-mail). `soPix` = quantas delas NÃO têm cartão vivo na Stripe (casa por user_id ou e-mail), para o total não
+ * contar duas vezes quem tem os dois. null se a leitura falhar: o painel esconde em vez de mostrar zero.
+ */
+export async function contarPixAutomatico(
+  cartaoUserIds: Set<string>, cartaoEmails: Set<string>,
+): Promise<{ vivos: number; soPix: number } | null> {
+  const contratos: Array<{ user_id: string | null; email: string }> = [];
+  const PAGINA = 1000;
+  try {
+    for (let de = 0; ; de += PAGINA) {
+      const { data, error } = await supabase
+        .from('asaas_pix_assinaturas')
+        .select('user_id, email')
+        .eq('modo', 'automatico')
+        .in('status', ['ativo', 'inadimplente'])
+        .range(de, de + PAGINA - 1);
+      if (error) return null;
+      for (const c of (data ?? []) as Array<{ user_id: string | null; email: string | null }>) {
+        const email = String(c.email ?? '').trim().toLowerCase();
+        if (c.user_id || email) contratos.push({ user_id: c.user_id, email });
+      }
+      if ((data?.length ?? 0) < PAGINA) break;
+    }
+  } catch { return null; }
+
+  // Uma pessoa = contratos ligados pelo user_id OU pelo e-mail (o mesmo e-mail em dois contratos, ou o mesmo
+  // user_id, vira um grupo só). União simples sobre as chaves.
+  const pai = new Map<string, string>();
+  const raiz = (k: string): string => {
+    let r = k;
+    while ((pai.get(r) ?? r) !== r) r = pai.get(r)!;
+    pai.set(k, r);
+    return r;
+  };
+  const juntar = (a: string, b: string): void => { pai.set(raiz(a), raiz(b)); };
+  for (const c of contratos) {
+    const ks = [c.user_id ? `u:${c.user_id}` : '', c.email ? `e:${c.email}` : ''].filter(Boolean);
+    for (const k of ks) if (!pai.has(k)) pai.set(k, k);
+    if (ks.length === 2) juntar(ks[0], ks[1]);
+  }
+  const grupos = new Map<string, boolean>(); // raiz -> alguém do grupo também tem cartão?
+  for (const c of contratos) {
+    const r = raiz(c.user_id ? `u:${c.user_id}` : `e:${c.email}`);
+    const temCartao = (!!c.user_id && cartaoUserIds.has(c.user_id)) || (!!c.email && cartaoEmails.has(c.email));
+    grupos.set(r, (grupos.get(r) ?? false) || temCartao);
+  }
+  let soPix = 0;
+  for (const temCartao of grupos.values()) if (!temCartao) soPix++;
+  return { vivos: grupos.size, soPix };
+
+}
 
 let _billingCache: { at: number; data: BillingPayload } | null = null;
 const BILLING_TTL_MS = 60_000;
@@ -1016,6 +1076,10 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
     // proximas_cobrancas NÃO é deduplicado de propósito: se há 3 subs, 3 cobranças
     // vão cair de verdade (sinal pra cancelar as duplicadas na Stripe).
     const seenVendaCliente = new Set<string>();
+    // Quem tem cartão vivo, por user_id (metadata da sub, gravada no checkout) e por e-mail: serve para
+    // não contar de novo, no total, quem também tem contrato de Pix automático.
+    const cartaoUserIds = new Set<string>();
+    const cartaoEmails  = new Set<string>();
     // Base em PESSOAS (mesma chave de dedup das vendas): é o número que o painel
     // mostra como "assinantes ativos". Sem isso o card contaria as duplicatas.
     const pessoasAtivas    = new Set<string>();
@@ -1055,6 +1119,9 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
         // Card-pass vivo = VENDA (as 3 fases que preservam o cartão capturado).
         // Deduplicado por cliente (email) → a mesma pessoa com N subs conta 1 venda.
         if (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due') {
+          const metaUser = (s.metadata as Record<string, string> | null | undefined)?.userId;
+          if (metaUser) cartaoUserIds.add(String(metaUser));
+          if (custEmail) cartaoEmails.add(custEmail.trim().toLowerCase());
           const dedupKey = (custEmail || cliente || s.id).toLowerCase();
           if (!seenVendaCliente.has(dedupKey)) {
             seenVendaCliente.add(dedupKey);
@@ -1105,6 +1172,8 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
       assinantesPix = count ?? 0;
     } catch { /* best-effort: Pix zerado não pode derrubar o painel inteiro */ }
 
+    const pix = await contarPixAutomatico(cartaoUserIds, cartaoEmails);
+
     // Quem está em dunning já foi contado se tiver OUTRA sub viva (caso real:
     // duplicata em atraso ao lado da assinatura boa). Aqui só quem está SÓ em atraso.
     const soEmAtraso   = [...pessoasAtraso].filter(e => !pessoasAtivas.has(e)).length;
@@ -1150,6 +1219,8 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
       vendas:               nVendas,
       vendas_por_produto:   vendasPorProduto,
       vendas_por_origem:    vendasPorOrigem,
+      pix_automatico_vivos: pix ? pix.vivos : null,
+      total_pagando:        pix ? nVendas + pix.soPix : null,
       past_due:             nPastDue,
       proximas_cobrancas:   proximas,
       checkouts_abandonados: checkoutsAbandonados,
