@@ -8918,6 +8918,8 @@ let modo = 'kwh';
 let dadosAtual = null;
 let editandoCodigo = null;
 let originalDataEmissao = null;
+// Edição: o que a proposta salva tinha de parcelas do cartão e o preço sobre o qual foram calculadas (gerar() reaproveita se o preço não mudou).
+let parcelasSalvasEdicao = null;
 let _bypassDuplicateCheck = false;
 
 function normalizeTelefone(t) {
@@ -9196,14 +9198,20 @@ function pmtPriceCarencia(pv, i, n, carenciaMeses) {
 
 // ============= TABELA DE CARTÃO (MyGateway 2026, coluna da direita) =============
 // Acréscimo total sobre o valor do investimento por número de parcelas.
-//
-// 20/08/2026: +1 PONTO PERCENTUAL em todas as 21 linhas, ordem do Thiago. A 1x foi de
-// 4,39% para 5,39% e a 21x de 18,28% para 19,28%. NÃO é mais a coluna publicada pelo
-// gateway — quem for conferir contra a planilha do MyGateway vai achar 1 ponto de
-// diferença em cada linha, e isso é de propósito. A 21x é a parcela que vem marcada
-// por padrão (CARTAO_PARCELAS_DEFAULT), então isso muda o número de capa de toda
-// proposta nova.
+// Fonte: maquininha My Gateway, bandeira Elo, repassando taxas ao cliente (simulador de 11/11/2026).
+// O número é o acréscimo t/(1-t) da taxa t da maquininha, arredondado para cima no centésimo.
+// O +1 ponto percentual de 20/08/2026 saiu: a conversão já cobre o custo real da maquininha.
+// O 1x não veio no simulador e fica 5,39%.
 const TABELA_CARTAO = {
+  1: 0.0539, 2: 0.0657, 3: 0.0724, 4: 0.0786, 5: 0.0850,
+  6: 0.0913, 7: 0.1025, 8: 0.1101, 9: 0.1172, 10: 0.1244,
+  11: 0.1323, 12: 0.1365, 13: 0.1480, 14: 0.1543, 15: 0.1639,
+  16: 0.1724, 17: 0.1805, 18: 0.1898, 19: 0.2031, 20: 0.2181,
+  21: 0.2317
+};
+// A tabela com que as propostas foram feitas até 11/11/2026: a coluna da maquininha da época + 1 ponto percentual.
+// Proposta já salva que redesenha sem `parcelasCartao` lê esta, para o valor não mudar depois de enviado.
+const TABELA_CARTAO_ATE_11_11 = {
   1: 0.0539, 2: 0.0709, 3: 0.0765, 4: 0.0815, 5: 0.0869,
   6: 0.0919, 7: 0.1009, 8: 0.1069, 9: 0.1125, 10: 0.1179,
   11: 0.1239, 12: 0.1269, 13: 0.1355, 14: 0.1399, 15: 0.1469,
@@ -9214,15 +9222,28 @@ const TABELA_CARTAO = {
 // as demais (6x–20x) continuam visíveis pra marcar quando o consultor quiser.
 const CARTAO_PARCELAS_DEFAULT = [21];
 
-function calcParcelaCartao(base, n) {
-  const acresc = TABELA_CARTAO[n];
+function calcParcelaCartao(base, n, tabela = TABELA_CARTAO) {
+  const acresc = tabela[n];
   if (base <= 0 || acresc == null) return 0;
   return (base * (1 + acresc)) / n;
 }
-function calcTodasParcelas(base) {
+function calcTodasParcelas(base, tabela = TABELA_CARTAO) {
   const out = {};
-  for (const n in TABELA_CARTAO) out[n] = calcParcelaCartao(base, Number(n));
+  for (const n in tabela) out[n] = calcParcelaCartao(base, Number(n), tabela);
   return out;
+}
+// As parcelas do cartão que o gerar() grava. Proposta nova: tabela atual. Edição de proposta já salva: se ela guardou as
+// parcelas E o preço sobre o qual foram calculadas, e o preço de agora é o mesmo (tolerância de 1 centavo), as parcelas
+// salvas ficam (o cliente já viu esses valores). Preço diferente, ou sem o que provar a base, recalcula pela tabela atual.
+function resolverParcelasCartao(precoOrcamento, editando, salvas) {
+  const mantem = !!(editando && salvas && Math.abs(salvas.precoOrcamento - precoOrcamento) <= 0.01);
+  const parcelasCartao = mantem ? { ...salvas.parcelasCartao } : calcTodasParcelas(precoOrcamento);
+  const pega = (salvo, n) => (mantem && salvo != null ? salvo : parcelasCartao[n]);
+  return {
+    parcelasCartao,
+    parc10x: pega(salvas && salvas.parc10x, 10), parc12x: pega(salvas && salvas.parc12x, 12), parc18x: pega(salvas && salvas.parc18x, 18),
+    recalculadasNaEdicao: !!editando && !mantem,
+  };
 }
 // Lê pagOpts em formato novo OU antigo ({ p10, p12, p18 }) → array de parcelas.
 function parcelasDoPagOpts(po) {
@@ -9374,7 +9395,7 @@ function renderPagamentoCard(d) {
   const pOrc = d.precoOrcamento || 0;
 
   // Mapa de parcelas — usa pré-calculadas se disponível, senão recalcula sobre o investimento.
-  const parcMap = d.parcelasCartao || calcTodasParcelas(pOrc);
+  const parcMap = d.parcelasCartao || calcTodasParcelas(pOrc, TABELA_CARTAO_ATE_11_11);
   // Retro-compat: propostas antigas têm só parc10x/12x/18x
   if (!d.parcelasCartao && d.parc10x != null) parcMap[10] = d.parc10x;
   if (!d.parcelasCartao && d.parc12x != null) parcMap[12] = d.parc12x;
@@ -9732,12 +9753,15 @@ async function gerar() {
   // À vista = valor do investimento (sem desconto). Pago no ato do contrato.
   const precoVista = precoOrcamento;
 
-  // Tabela completa do cartão (1x..21x) — acréscimo sobre o valor do investimento
-  const parcelasCartao = calcTodasParcelas(precoOrcamento);
+  // Tabela completa do cartão (1x..21x) — acréscimo sobre o valor do investimento.
+  // Edição: proposta já enviada com o MESMO preço mantém as parcelas que o cliente viu (a tabela do cartão mudou
+  // em 11/11/2026 e corrigir um telefone não pode mexer no valor). Preço diferente, ou proposta sem parcelas
+  // guardadas, recalcula pela tabela atual.
+  const parcCartao = resolverParcelasCartao(precoOrcamento, !!editandoCodigo, parcelasSalvasEdicao);
+  const parcelasRecalculadasNaEdicao = parcCartao.recalculadasNaEdicao;
+  const parcelasCartao = parcCartao.parcelasCartao;
   // Retro-compat: mantém campos antigos pra propostas que ainda usem essas chaves.
-  const parc10x = parcelasCartao[10];
-  const parc12x = parcelasCartao[12];
-  const parc18x = parcelasCartao[18];
+  const { parc10x, parc12x, parc18x } = parcCartao;
 
   // Financiamento Price com 120 dias (4 meses) de carência sobre o orçamento
   const FIN_RATE = 0.022;
@@ -9875,9 +9899,12 @@ async function gerar() {
       showToast('⏳ Atualizando proposta...');
       await atualizarPropostaSupabase(editandoCodigo, dadosAtual);
       dadosAtual.codigo = editandoCodigo;
-      showToast(`✅ Proposta ${editandoCodigo} atualizada!`);
+      showToast(parcelasRecalculadasNaEdicao
+        ? 'Proposta atualizada. As parcelas do cartão foram recalculadas com a tabela atual.'
+        : `✅ Proposta ${editandoCodigo} atualizada!`);
       editandoCodigo = null;
       originalDataEmissao = null;
+      parcelasSalvasEdicao = null;
       const banner = document.getElementById('edit-banner');
       if (banner) banner.style.display = 'none';
       const btnGerar = document.querySelector('#formSection .btn-principal');
@@ -18772,24 +18799,22 @@ function socPreset(qual) {
 // Os fatores sao de cartao e ficam nomeados aqui, em vez de espalhados no HTML,
 // porque o dia em que a maquininha mudar, muda num lugar so'.
 //
-// O 18x veio DE TRAS PRA FRENTE (decisao do dono, 30/09/2026). O anuncio promete
-// "18x de R$ 3.662" sobre a cota de R$ 50 mil, e o fator de 1,20 que estava aqui
-// entregava R$ 3.333,33 — o cara clicava por um numero e recebia a proposta com
-// outro. Perguntado qual dos dois lados cedia, ele respondeu 3.662, entao o fator
-// e' o que se ajusta: 3.662 x 18 / 50.000 = 1,31832, e a conta fecha no centavo.
-// Mexer nele mexe em TODA cota — num aporte de R$ 75 mil o 18x vira R$ 5.493.
+// Ate 11/11/2026 o 18x era de tras pra frente (decisao do dono, 30/09/2026): o anuncio prometia
+// "18x de R$ 3.662" sobre a cota de R$ 50 mil, fator 1,31832. Por ordem do dono de 11/11/2026 o
+// 18x e' o da maquininha (My Gateway, Elo): 18,98%, e a cota de R$ 50 mil em 18x sai a R$ 3.305.
+// Mexer nele mexe em TODA cota.
 // A taxa do cartão mora numa tabela só: acréscimo TOTAL (em %) por número de parcelas, só o que a casa usa em contrato.
 // O contrato (tabela de pagamento do /gerador) e a Sociedade em PDF leem daqui. Parcelamento no cartão fora desta
 // tabela só vale com a parcela digitada (campo "Parcela negociada" da linha).
-// O 10x é o acréscimo da My Gateway Elo (taxa 11,06% vira 12,44%) desde 11/11/2026; o 18x continua o do anúncio, de propósito acima da maquininha.
-const CTR_TAXA_CARTAO = { 10: 12.44, 18: 31.832 };
+// 10x e 18x são o acréscimo da My Gateway Elo desde 11/11/2026 (taxa 11,06% vira 12,44%; 18x: 15,95% vira 18,98%).
+const CTR_TAXA_CARTAO = { 10: 12.44, 18: 18.98 };
 // A tabela com que os contratos salvos até 11/11/2026 foram feitos (ctrPagRestaurar).
 const CTR_TAXA_CARTAO_ATE_11_11 = { 10: 11, 18: 31.832 };
 // Fator = 1 + taxa/100, arredondado: 1 + 31.832/100 em ponto flutuante não dá exatamente 1,31832.
 const ctrFatorCartao = n => Math.round((1 + CTR_TAXA_CARTAO[n] / 100) * 1e8) / 1e8;
 const SOC_FATOR_10X = ctrFatorCartao(10);
 const SOC_FATOR_18X = ctrFatorCartao(18);
-/** O acrescimo do cartao como o cliente le': "12,4%" e "31,8%", nunca "1,31832". */
+/** O acrescimo do cartao como o cliente le': "12,4%" e "19%", nunca "1,1898". */
 const socAcrescimo = fator => String(Math.round((fator - 1) * 1000) / 10).replace('.', ',') + '%';
 function socPagLinhas(aporte) {
   const v = Math.max(0, Number(aporte) || 0);
@@ -24186,12 +24211,16 @@ function ctrPagCondicaoTotal(l) {
   return ctrPagTxtTotal(c);
 }
 // Papel reaberto do histórico. A linha antiga (sem a chave `resto`) sem acréscimo digitado valia 0%: ela vira '0' para não
-// ganhar a taxa da tabela (10x 12,44%, 18x 31,832%) nem travar 6x/12x. Preço já ofertado não muda. Não há exceção para
+// ganhar a taxa da tabela (10x 12,44%, 18x 18,98%) nem travar 6x/12x. Preço já ofertado não muda. Não há exceção para
 // "papel antigo": quem gera de novo passa pela mesma trava de qualquer contrato.
 // Linha de cartão salva SEM acréscimo digitado lia a tabela da casa: ao reabrir, ela fica com a taxa do dia em que foi salva
 // (a do snapshot, ou a de até 11/11/2026 se o snapshot não trouxe), e só quando difere da tabela de hoje.
 function ctrPagRestaurar(sp, taxasSalvas) {
   const p = JSON.parse(JSON.stringify(sp));
+  // Marca de taxa salva que não vale mais (o nº de parcelas mudou depois): a linha volta a ser de acréscimo vazio.
+  p.linhas.forEach(l => {
+    if (l.acrAuto != null && String(l.acrAuto) !== String(Math.max(1, Math.round(orcNum(l.parc) || 1)))) { l.acr = ''; delete l.acrAuto; }
+  });
   p.linhas.forEach(l => { if (!('resto' in l) && String(l.acr == null ? '' : l.acr).trim() === '') l.acr = '0'; });
   p.linhas.forEach(l => {
     if (String(l.acr == null ? '' : l.acr).trim() !== '' || String(l.parcValor == null ? '' : l.parcValor).trim() !== '' || !ctrPagCartao(l.forma)) return;
@@ -24294,9 +24323,9 @@ function ctrPagModelo(tipo, saldo) {
     return [L('Pix', a, 1, 0, 'Na assinatura do contrato'),
             L('Boleto bancário', ctrCent(saldo - a), 6, 0, 'Mensais, a primeira 30 dias após a assinatura', '', R)];
   }
-  // As condições da COTA (decisão do dono, 29/09/2026): os mesmos fatores do
-  // cartão da Sociedade em PDF e do anúncio, agora na tabela CTR_TAXA_CARTAO. O 18x
-  // sobre R$ 50 mil fecha em R$ 3.662,00, o número que o anúncio promete. A linha
+  // As condições da COTA: os mesmos fatores do cartão da Sociedade em PDF, na tabela
+  // CTR_TAXA_CARTAO (a da maquininha, desde 11/11/2026: o 18x sobre R$ 50 mil fecha em R$ 3.305,00;
+  // até 11/11 era 31,832% e R$ 3.662,00, o que o anúncio prometia). A linha
   // sai SEM acréscimo digitado: a taxa vem da tabela, num lugar só.
   // Compra e venda de equipamento: sinal no pedido e saldo antes de o
   // equipamento sair do estoque, com o percentual da condição da aba Venda de
@@ -43093,6 +43122,10 @@ async function editarProposta(codigo) {
     // Estado de edição
     editandoCodigo = codigo;
     originalDataEmissao = d.dataEmissao || row.created_at;
+    // Só vale se a proposta guardou as parcelas E o preço sobre o qual foram calculadas (a prova de que a base é a mesma).
+    parcelasSalvasEdicao = (d.parcelasCartao && typeof d.parcelasCartao === 'object' && Number(d.precoOrcamento) > 0)
+      ? { precoOrcamento: Number(d.precoOrcamento), parcelasCartao: { ...d.parcelasCartao }, parc10x: d.parc10x, parc12x: d.parc12x, parc18x: d.parc18x }
+      : null;
     document.getElementById('edit-codigo').textContent = codigo;
     document.getElementById('edit-banner').style.display = '';
     const btnGerar = document.querySelector('#formSection .btn-principal');
@@ -43110,6 +43143,7 @@ function cancelarEdicao() {
   if (!editandoCodigo) return;
   editandoCodigo = null;
   originalDataEmissao = null;
+  parcelasSalvasEdicao = null;
   const banner = document.getElementById('edit-banner');
   if (banner) banner.style.display = 'none';
   const btnGerar = document.querySelector('#formSection .btn-principal');
@@ -43402,7 +43436,7 @@ function montarBlocoPagamentoWpp(d) {
   const po = d.pagOpts || { vista:true, cartao:{ativo:true,parcelas:[10,12,18]}, fin:{ativo:false} };
   const pv = d.precoVista || 0;
   const pOrc = d.precoOrcamento || 0;
-  const parcMap = d.parcelasCartao || calcTodasParcelas(pOrc);
+  const parcMap = d.parcelasCartao || calcTodasParcelas(pOrc, TABELA_CARTAO_ATE_11_11);
   if (!d.parcelasCartao && d.parc10x != null) parcMap[10] = d.parc10x;
   if (!d.parcelasCartao && d.parc12x != null) parcMap[12] = d.parc12x;
   if (!d.parcelasCartao && d.parc18x != null) parcMap[18] = d.parc18x;

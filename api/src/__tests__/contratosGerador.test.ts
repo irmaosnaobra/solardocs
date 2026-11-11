@@ -462,7 +462,7 @@ describe('contratos do /gerador: tabela de pagamento', () => {
     expect(pc.contas[0].total).toBe(70275);
     expect(SB.ctrPagTrava('socio50', linhas, saldo)).toBe('');
   });
-  it('papel antigo restaurado em 10x fecha em 11%; trocado para 18x, a linha volta à tabela e fecha em 31,832%', () => {
+  it('papel antigo restaurado em 10x fecha em 11%; trocado para 18x, a linha volta à tabela de hoje e fecha em 18,98%', () => {
     const saldo = 62500;
     const salvo = { tocado: true, linhas: SB.ctrPagModelo('cartao10', saldo) };
     const rest = SB.ctrPagRestaurar(salvo);
@@ -471,9 +471,9 @@ describe('contratos do /gerador: tabela de pagamento', () => {
     expect(SB.ctrPagCalc(rest.linhas, saldo).contas[0].acr).toBe(11);
     rest.linhas[0].parc = '18';
     const c18 = SB.ctrPagCalc(rest.linhas, saldo).contas[0];
-    expect(c18.acr).toBe(31.832);
+    expect(c18.acr).toBe(18.98);
     expect(c18.origem).toBe('tabela');
-    expect(c18.parcelaCent).toBe(Math.round(saldo * 1.31832 / 18 * 100) / 100);
+    expect(c18.parcelaCent).toBe(Math.round(saldo * 1.1898 / 18 * 100) / 100);
     // volta para 10x: a marca ainda vale, e a linha fecha de novo em 11%
     rest.linhas[0].parc = '10';
     expect(SB.ctrPagCalc(rest.linhas, saldo).contas[0].acr).toBe(11);
@@ -489,6 +489,68 @@ describe('contratos do /gerador: tabela de pagamento', () => {
     expect(pc.contas[0].parcelaCent).toBe(6937.5);
     expect(pc.contas[0].total).toBe(69375);
     expect(pc.contas[0].acr).toBe(11);
+  });
+  it('snapshot antigo restaurado em 10x, trocado para 18x e salvo com taxasCartao {10: 12.44, 18: 31.832} reabre fechando em 31,832%', () => {
+    const saldo = 62500;
+    const rest = SB.ctrPagRestaurar({ tocado: true, linhas: SB.ctrPagModelo('cartao10', saldo) });
+    expect(rest.linhas[0].acrAuto).toBe(10);
+    rest.linhas[0].parc = '18';
+    const salvo = JSON.parse(JSON.stringify(rest));
+    const reaberto = SB.ctrPagRestaurar(salvo, { 10: 12.44, 18: 31.832 });
+    const c = SB.ctrPagCalc(reaberto.linhas, saldo).contas[0];
+    expect(c.acr).toBe(31.832);
+    expect(reaberto.linhas[0].acrAuto).toBe(18);
+    expect(c.parcelaCent).toBe(Math.round(saldo * 1.31832 / 18 * 100) / 100);
+  });
+  it('contrato novo em 18x lê a tabela da maquininha: cota de 50 mil fecha em R$ 3.305,00 (18,98%)', () => {
+    const pc = SB.ctrPagCalc(SB.ctrPagModelo('cartao18', 50000), 50000);
+    expect(pc.contas[0].acr).toBe(18.98);
+    expect(pc.contas[0].parcelaCent).toBe(3305);
+  });
+  it('contrato salvo em 18x até 11/11/2026 (snapshot sem taxasCartao) reabre a 31,832%', () => {
+    const saldo = 50000;
+    const salvo = { tocado: true, linhas: SB.ctrPagModelo('cartao18', saldo) };
+    const rest = SB.ctrPagRestaurar(salvo);
+    expect(SB.ctrPagCalc(rest.linhas, saldo).contas[0].acr).toBe(31.832);
+    expect(SB.ctrPagCalc(rest.linhas, saldo).contas[0].parcelaCent).toBe(3662);
+  });
+  it('proposta solar do /gerador: a nova lê a tabela da maquininha; a salva sem parcelasCartao segue com a de até 11/11/2026', () => {
+    const nova = SB.calcTodasParcelas(28900);
+    expect(Math.round(nova[12] * 100) / 100).toBe(Math.round(28900 * 1.1365 / 12 * 100) / 100);
+    expect(Math.round(nova[21] * 100) / 100).toBe(Math.round(28900 * 1.2317 / 21 * 100) / 100);
+    const base = { precoVista: 28900, precoOrcamento: 28900, pagOpts: { vista: true, cartao: { ativo: true, parcelas: [12, 21] }, fin: { ativo: false } } };
+    const antigo = String(SB.montarBlocoPagamentoWpp(base));
+    const fmt = (v: number) => (Math.round(v) >= 1000 ? Math.round(v).toLocaleString('pt-BR') : String(Math.round(v))) + ',00';
+    expect(antigo).toContain('12x: R$ ' + fmt(28900 * 1.1269 / 12));
+    expect(antigo).toContain('21x: R$ ' + fmt(28900 * 1.1928 / 21));
+    const guardado = String(SB.montarBlocoPagamentoWpp({ ...base, parcelasCartao: { 12: 2000, 21: 1500 } }));
+    expect(guardado).toContain('12x: R$ ' + fmt(2000));
+  });
+  it('edição de proposta solar: mesmo preço mantém as parcelas salvas; preço diferente ou sem parcelas salvas recalcula; proposta nova não muda', () => {
+    // Proposta enviada antes de 11/11/2026, com a tabela de então (guardada em parcelasCartao).
+    const antigas = SB.calcTodasParcelas(28900, { 12: 0.1269, 21: 0.1928 });
+    const salvas = { precoOrcamento: 28900, parcelasCartao: antigas, parc10x: 111, parc12x: antigas[12], parc18x: 333 };
+    const igual = SB.resolverParcelasCartao(28900, true, salvas);
+    expect(igual.parcelasCartao[21]).toBe(antigas[21]);
+    expect(igual.parc10x).toBe(111);
+    expect(igual.parc18x).toBe(333);
+    expect(igual.recalculadasNaEdicao).toBe(false);
+    // tolerância de centavo
+    expect(SB.resolverParcelasCartao(28900.01, true, salvas).recalculadasNaEdicao).toBe(false);
+    // preço diferente: tabela atual, e o toast de "recalculadas"
+    const outro = SB.resolverParcelasCartao(30000, true, salvas);
+    expect(outro.recalculadasNaEdicao).toBe(true);
+    expect(outro.parcelasCartao[21]).toBeCloseTo(30000 * 1.2317 / 21, 6);
+    expect(outro.parc12x).toBeCloseTo(30000 * 1.1365 / 12, 6);
+    // proposta salva sem parcelasCartao (ou sem o preço): recalcula
+    const sem = SB.resolverParcelasCartao(28900, true, null);
+    expect(sem.recalculadasNaEdicao).toBe(true);
+    expect(sem.parcelasCartao[21]).toBeCloseTo(28900 * 1.2317 / 21, 6);
+    // proposta nova (sem edição): tabela atual, sem aviso, mesmo que haja sobra de edição na memória
+    const nova = SB.resolverParcelasCartao(28900, false, salvas);
+    expect(nova.recalculadasNaEdicao).toBe(false);
+    expect(nova.parcelasCartao[21]).toBeCloseTo(28900 * 1.2317 / 21, 6);
+    expect(nova.parc12x).toBe(nova.parcelasCartao[12]);
   });
   it('contrato salvo com taxasCartao no snapshot reabre com a taxa guardada; com a tabela de hoje, a linha segue lendo a tabela', () => {
     const saldo = 62500;

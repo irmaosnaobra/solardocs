@@ -62,8 +62,9 @@ export interface CamposOrcamento {
 // modelo 4 que o dono emite na SolarDoc ("Sócio administrador").
 export const CARGO_ASSINANTE = 'Sócio administrador';
 
-// Acréscimo do cartão por nº de parcelas: CÓPIA de TABELA_CARTAO do dashboard/public/gerador/index.html. Só serve para
-// proposta antiga que não guardou `parcelasCartao`; a nova sempre guarda e vale o que está guardado.
+// Acréscimo do cartão por nº de parcelas: CÓPIA de TABELA_CARTAO_ATE_11_11 do dashboard/public/gerador/index.html (a tabela
+// com que as propostas foram feitas até 11/11/2026; os valores NÃO mudam com a tabela nova). Só serve para proposta antiga
+// que não guardou `parcelasCartao`; a nova sempre guarda e vale o que está guardado.
 const TABELA_CARTAO: Record<number, number> = {
   1: 0.0539, 2: 0.0709, 3: 0.0765, 4: 0.0815, 5: 0.0869,
   6: 0.0919, 7: 0.1009, 8: 0.1069, 9: 0.1125, 10: 0.1179,
