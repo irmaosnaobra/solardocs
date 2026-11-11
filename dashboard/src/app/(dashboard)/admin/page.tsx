@@ -16,7 +16,7 @@ export default function AdminPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>Painel SolarDoc</h1>
-        <p className={styles.subtitle}>Cada produto, um hub — funil, membros, página de venda, followup, agente e config.</p>
+        <p className={styles.subtitle}>Cada produto, um hub: funil, membros, página de venda, follow-up, agente e config.</p>
       </div>
       <ProductHubView />
     </div>

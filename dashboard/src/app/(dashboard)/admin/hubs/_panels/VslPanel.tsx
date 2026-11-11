@@ -25,6 +25,8 @@ interface Retencao {
   cliqueCta: number; cliqueSemPlay: number; pularam: number; completaram: number; cliqueSegundo: number | null;
   assistidoMedio: number | null; assistidoMediano: number | null;
   duracao: number | null; bucket: number | null; curva: Ponto[];
+  // Só a /vsl da SolarDoc: a página manda marcos soltos (play, 25%, 50%, 75%, fim), sem os baldes da curva.
+  marcos?: Array<{ rotulo: string; sessoes: number; pct_das_visitas: number }>;
 }
 
 const PERIODS = [
@@ -96,6 +98,8 @@ export default function VslPanel({ lp }: { lp: string }) {
           Não consegui ler <code>/admin/vsl</code> — sem resposta do endpoint. Os números
           continuam sendo gravados; é a leitura que está fora.
         </p>
+      ) : dados?.marcos ? (
+        <Escada dados={dados} loading={loading} onAtualizar={() => load(period)} />
       ) : plays === 0 ? (
         <p className={styles.empty} style={{ margin: 0 }}>
           {loading ? 'Carregando…' : 'Nenhum play registrado no período.'}
@@ -235,6 +239,43 @@ export default function VslPanel({ lp }: { lp: string }) {
         </>
       )}
     </div>
+  );
+}
+
+// Escada de marcos da /vsl: visitas e, para cada marco que a página dispara, quantas sessões chegaram lá.
+// Sem curva, sem clique no botão e sem "pular": a página não manda esses dados.
+function Escada({ dados, loading, onAtualizar }: { dados: Retencao; loading: boolean; onAtualizar: () => void }) {
+  const marcos = dados.marcos ?? [];
+  const passos = [{ rotulo: 'Visitas', sessoes: dados.visitas, pct_das_visitas: dados.visitas > 0 ? 100 : 0 }, ...marcos];
+  if (loading && dados.visitas === 0) return <p className={styles.empty} style={{ margin: 0 }}>Carregando…</p>;
+  if (passos.every((m) => m.sessoes === 0)) {
+    return <p className={styles.empty} style={{ margin: 0 }}>Nenhuma visita registrada no período.</p>;
+  }
+  return (
+    <>
+      <div style={{ display: 'grid', gap: 10, margin: '14px 0 10px' }}>
+        {passos.map((m) => (
+          <div key={m.rotulo} style={{ display: 'grid', gridTemplateColumns: '72px 1fr 150px', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontWeight: 600 }}>{m.rotulo}</span>
+            <div style={{ background: 'var(--color-surface-2)', borderRadius: 6, height: 14, overflow: 'hidden' }}>
+              <div style={{ width: `${Math.min(100, m.pct_das_visitas)}%`, height: '100%', background: 'var(--color-primary)' }} />
+            </div>
+            <span style={{ textAlign: 'right', fontSize: 13.5 }}>
+              <strong>{m.sessoes.toLocaleString('pt-BR')}</strong>
+              <span style={{ color: 'var(--color-text-muted)' }}> · {m.pct_das_visitas}% das visitas</span>
+            </span>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+          Sessões únicas que chegaram a cada marco do vídeo. A página não manda a curva segundo a segundo.
+        </span>
+        <button className={styles.periodBtn} disabled={loading} onClick={onAtualizar} style={{ marginLeft: 'auto' }}>
+          {loading ? 'Atualizando…' : '↻ Atualizar'}
+        </button>
+      </div>
+    </>
   );
 }
 
