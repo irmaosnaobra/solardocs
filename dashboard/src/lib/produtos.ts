@@ -123,8 +123,6 @@ export interface ProdutoLoja {
   cor: string;
 }
 
-const WHATS = 'https://wa.me/5534991360223?text=';
-
 /**
  * A MESMA garantia em todos os produtos de compra avulsa. É o prazo do Código
  * de Defesa do Consumidor (art. 49) pra compra pela internet: existe com ou sem

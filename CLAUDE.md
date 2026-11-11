@@ -164,6 +164,8 @@ Cada um destes já custou caro pelo menos uma vez.
 
 ## Pendências
 
-Nenhuma aberta (11/11/2026). O eslint do `dashboard` está com 0 erro e 56 avisos
-e derruba o CI: erro novo de lint trava a publicação. Desde 11/11 o lint da
+Nenhuma aberta (11/11/2026). O eslint do `dashboard` está com 0 erro e 0 aviso
+e derruba o CI: erro novo de lint trava a publicação. A regra
+`@next/next/no-img-element` está desligada de propósito (motivo no
+`eslint.config.mjs`). Desde 11/11 o lint da
 `api` também roda no CI, só com a trava de 350 linhas.

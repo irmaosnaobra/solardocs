@@ -156,7 +156,6 @@ export default function Assinatura({
 
       {url ? (
         <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="mnt-assinImg" src={url} alt={rotulo} />
           <p className="mnt-assinNome">
             <Check size={16} strokeWidth={3} /> {textos?.salva ? `${textos.salva.replace(/\.$/, '')}${nome ? `: ${nome}` : '.'}` : `Assinatura salva${nome ? `: ${nome}` : ''}`}

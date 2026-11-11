@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import api from '@/services/api';
 import styles from './home.module.css';
-import { toBrasilia, fmtDateBR } from '@/utils/brasilia';
+import { fmtDateBR } from '@/utils/brasilia';
 import { formatPlanName, firstName } from '@/utils/plan';
 import Skeleton, { SkeletonStats } from '@/components/Skeleton/Skeleton';
 

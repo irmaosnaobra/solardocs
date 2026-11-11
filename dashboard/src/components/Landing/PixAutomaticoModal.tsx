@@ -372,7 +372,6 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
                 <textarea id="pix-codigo" className={styles.codigo} readOnly rows={4} value={cobranca.payload} />
                 {imgOk && (
                   <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       className={styles.qr}
                       src={`data:image/png;base64,${cobranca.imagem}`}

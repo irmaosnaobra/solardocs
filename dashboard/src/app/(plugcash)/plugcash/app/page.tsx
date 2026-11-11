@@ -6,10 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { isAuthenticated } from '@/services/auth';
 import {
-  plugcashApi, money, duracao, MOTIVO_LABEL,
+  plugcashApi, money, MOTIVO_LABEL,
   type MeResposta, type Curso,
 } from '@/services/plugcash';
-import { Marca, Cadeado, Check } from '../Marca';
+import { Marca, Cadeado } from '../Marca';
 import { Chrome } from '../Chrome';
 import styles from '../pc.module.css';
 

@@ -299,7 +299,6 @@ export default function InicioPage() {
           {logo && !logoQuebrada ? (
             <span className="ini-logo">
               {/* O nome da empresa já está no título ao lado: a logo é só enfeite para quem lê a tela. */}
-              {/* eslint-disable-next-line @next/next/no-img-element -- logo em data URI: o next/image não otimiza */}
               <img src={logo} alt="" onError={() => setLogoQuebrada(true)} />
             </span>
           ) : marcaDaEmpresa ? (
