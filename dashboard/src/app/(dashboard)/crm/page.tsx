@@ -104,9 +104,6 @@ const POLL_INTERVAL_MS = 30_000;
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
-}
 
 // Phone pode vir com sufixo "#0042" pra leads de venda múltipla. Strip pra exibir.
 function stripPhoneSuffix(p: string): string {
@@ -846,7 +843,6 @@ export default function CrmPage() {
   }, [sdrLeads, busca, filters]);
 
   const algumFiltroAtivo = filters.agendados !== 'all' || filters.origem !== 'all' || filters.takeover !== 'all' || filters.consultor !== 'all';
-  const totalPlat = Object.values(platCols).reduce((a, c) => a + c.length, 0);
   const q = busca.toLowerCase().trim();
 
   return (

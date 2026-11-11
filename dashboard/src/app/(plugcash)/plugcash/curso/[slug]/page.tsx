@@ -105,7 +105,6 @@ function Venda() {
               </div>
             ) : curso.thumb_url ? (
               <div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={curso.thumb_url} alt=""
                      style={{ width: '100%', borderRadius: 20, display: 'block',
                               border: '1px solid #262626' }} />

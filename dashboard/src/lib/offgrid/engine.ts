@@ -446,7 +446,6 @@ export function dimensionar(e: EntradaOffGrid): ResultadoOffGrid {
   // Recarga: o que sobra da geração depois de atender o consumo do dia volta pro
   // banco. Se não sobrar nada, o sistema não se recupera — vira aviso.
   const sobraDia = geracaoDiaPior - totalDia;
-  const recargaDias = sobraDia > 0 ? (bancoUtilizavel * e.diasAutonomia) / sobraDia / e.diasAutonomia : 0;
   const recargaReal = sobraDia > 0 ? bancoUtilizavel / sobraDia : 0;
 
   const tensao = banco.bateria.volts;

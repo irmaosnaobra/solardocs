@@ -101,7 +101,6 @@ export default function LimpaProPage() {
     return (
       <div className="lp-wrap">
         <div className="lp-venda">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/limpapro/limpapro-curso.webp" alt="" />
           <h1>LimpaPro</h1>
           <p>Aprenda a limpar placa solar e cobrar por isso. Esta conta ainda não tem o curso.</p>
@@ -140,7 +139,6 @@ export default function LimpaProPage() {
             </Link>
           )}
         </div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/limpapro/limpapro-curso.webp" alt="" />
       </section>
 

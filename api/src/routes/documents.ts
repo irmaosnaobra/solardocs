@@ -8,12 +8,12 @@ import { authMiddleware } from '../middleware/auth';
 const router = Router();
 
 // Aceita token via query param para download direto no celular
-function downloadAuth(req: Request, res: Response, next: NextFunction): void {
+async function downloadAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   // 1. Header já presente (fetch com Authorization)
   if (req.headers.authorization?.startsWith('Bearer ')) {
-    // authMiddleware virou async (checa Clerk antes do JWT); quem responde é ele,
-    // aqui só paramos. O void deixa explícito que a promise é dele, não nossa.
-    void authMiddleware(req, res, next);
+    // authMiddleware é async (checa Clerk antes do JWT) e é ele quem responde em caso de erro;
+    // o await segura a promise dele dentro desta função, igual ao ramo do token na query.
+    await authMiddleware(req, res, next);
     return;
   }
 
@@ -30,7 +30,7 @@ function downloadAuth(req: Request, res: Response, next: NextFunction): void {
   if (token) {
     req.headers.authorization = `Bearer ${token}`;
   }
-  authMiddleware(req, res, next);
+  await authMiddleware(req, res, next);
 }
 
 router.post('/generate', authMiddleware, generateDocument);

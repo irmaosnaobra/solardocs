@@ -53,6 +53,10 @@ const eslintConfig = defineConfig([
     // ha .js solto servido estatico que tambem nao e codigo de app.
     "public/**",
   ]),
+  // Desligada em 11/11/2026: trocar os <img> por next/image mexe no visual e na lista de domínios de imagem, com ganho pequeno numa área logada.
+  {
+    rules: { "@next/next/no-img-element": "off" },
+  },
 ]);
 
 export default eslintConfig;

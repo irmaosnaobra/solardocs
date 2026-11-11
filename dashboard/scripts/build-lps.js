@@ -1747,7 +1747,7 @@ ${!d.medir ? '' : `
 // ── gera ──
 const so = process.argv[2];
 let sharp = null;
-try { sharp = require('c:/Users/55349/Desktop/CLAUDE/dashboard/node_modules/sharp'); } catch (e) { }
+try { sharp = require('c:/Users/55349/Desktop/CLAUDE/dashboard/node_modules/sharp'); } catch { }
 
 (async () => {
   for (const d of PAGINAS) {

@@ -474,7 +474,6 @@ function Fluxo({ produto, usarSalvo, vivaRef, caixaRef, onFechar, onConfirmado, 
           <>
             <div className={s.pix}>
               <div className={s.qr}>
-                {/* eslint-disable-next-line @next/next/no-img-element -- data URL do QR, sem otimização possível */}
                 <img src={srcDoQr(c.qrImagemBase64)} alt="QR do Pix para pagar no app do banco" width={192} height={192} />
               </div>
               <div className={s.cod}>

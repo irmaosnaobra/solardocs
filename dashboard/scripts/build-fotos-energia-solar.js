@@ -22,7 +22,6 @@ const RAIZ = path.join(__dirname, '..', 'public');
 const FONTES = path.join(__dirname, 'fontes');
 const SAIDA = path.join(RAIZ, 'irmaosnaobra', 'assets', 'img');
 const mosaico = (n) => path.join(RAIZ, 'io', 'mosaico', n + '.jpeg');
-const fedd = (n) => path.join(RAIZ, 'io', 'img', 'fedd' + n + '.jpg');
 
 fs.mkdirSync(SAIDA, { recursive: true });
 

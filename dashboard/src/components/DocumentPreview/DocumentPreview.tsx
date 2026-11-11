@@ -146,12 +146,7 @@ function RenderBlock({ block, idx }: { block: Block; idx: number }) {
 // ── Main component ────────────────────────────────────────────
 export default function DocumentPreview({
   content,
-  tipo,
-  clienteId,
-  terceiroId,
   clienteNome,
-  dadosJson,
-  modeloUsado,
   docId,
   userPlano,
   onNewGeneration,

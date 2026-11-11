@@ -51,14 +51,6 @@ async function compressImage(file: File, maxW = 1200, quality = 0.82): Promise<s
   });
 }
 
-const PALETAS = [
-  { id: 'solar',    nome: 'Solar',    c1: '#B45309', c2: '#D97706' },
-  { id: 'oceano',   nome: 'Oceano',   c1: '#1E3A8A', c2: '#1D4ED8' },
-  { id: 'floresta', nome: 'Floresta', c1: '#065F46', c2: '#047857' },
-  { id: 'royal',    nome: 'Royal',    c1: '#8B5CF6', c2: '#A78BFA' },
-  { id: 'carbono',  nome: 'Carbono',  c1: '#1F2937', c2: '#F59E0B' },
-] as const;
-
 /** Ícone por tipo de telhado — a escolha entra pelos olhos antes da palavra. */
 const ICONE_TELHADO: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   'Cerâmico': Home,
@@ -558,8 +550,8 @@ export default function PropostaSolarPage() {
   // Cor de marca da empresa (cadastrada em Empresa) — habilita a paleta
   // "Cores da empresa". Só o swatch/enable usa isso no front; a geração lê
   // company.cor_marca direto no backend.
-  const [corEmpresa, setCorEmpresa] = useState('');   // cor principal (cor_marca)
-  const [corSec, setCorSec] = useState('');           // cor de destaque (cor_secundaria)
+  const [, setCorEmpresa] = useState('');   // cor principal (cor_marca)
+  const [, setCorSec] = useState('');           // cor de destaque (cor_secundaria)
   // O que o cadastro diz — vira o valor fixo dos três campos do rodapé e fica
   // guardado pro botão "usar o do cadastro" de cada um.
   const [padraoEmpresa, setPadraoEmpresa] = useState({ vendedor: '', whatsapp: '', cnpj: '' });
@@ -1586,84 +1578,6 @@ export default function PropostaSolarPage() {
     );
   }
 
-  const PaletaPicker = (
-    <div>
-      <label className={styles.label}>Cor da proposta</label>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
-        {/* Cores da empresa — usa a cor de marca cadastrada em Empresa (automática).
-            Só aparece quando a empresa tem cor definida. */}
-        {corEmpresa && (
-          <button
-            type="button"
-            onClick={() => setField('paleta', 'empresa')}
-            style={{
-              padding: '10px 14px', borderRadius: 10,
-              border: fields.paleta === 'empresa' ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-              background: corEmpresa,
-              color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', minWidth: 88,
-              boxShadow: fields.paleta === 'empresa' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
-              textShadow: '0 1px 2px rgba(0,0,0,0.35)', transition: 'all 0.15s',
-            }}
-            title="Usa a cor de marca cadastrada em Empresa"
-          >
-            Empresa
-          </button>
-        )}
-        {PALETAS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => setField('paleta', p.id)}
-            style={{
-              padding: '10px 14px',
-              borderRadius: 10,
-              border: fields.paleta === p.id ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-              background: `linear-gradient(135deg, ${p.c1}, ${p.c2})`,
-              color: 'white',
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: 'pointer',
-              minWidth: 88,
-              boxShadow: fields.paleta === p.id ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
-              transition: 'all 0.15s',
-            }}
-          >
-            {p.nome}
-          </button>
-        ))}
-
-        {/* Cor personalizada — color picker nativo (o input fica sobreposto e
-            transparente: clicar em qualquer parte do swatch abre o seletor).
-            A escolha (paleta='custom' + hex) fica salva no rascunho automático. */}
-        <label
-          style={{
-            padding: '10px 14px', borderRadius: 10,
-            border: fields.paleta === 'custom' ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-            background: fields.paleta === 'custom' && fields.paleta_c1
-              ? fields.paleta_c1
-              : 'linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4)',
-            color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer',
-            minWidth: 88, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            boxShadow: fields.paleta === 'custom' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
-            position: 'relative', transition: 'all 0.15s',
-          }}
-          title="Escolher uma cor personalizada"
-        >
-          {fields.paleta === 'custom' && fields.paleta_c1 ? fields.paleta_c1.toUpperCase() : 'Personalizar'}
-          <input
-            type="color"
-            value={fields.paleta_c1 || '#B45309'}
-            onChange={e => { setField('paleta_c1', e.target.value); setField('paleta', 'custom'); }}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', border: 'none', padding: 0 }}
-          />
-        </label>
-      </div>
-      <p style={{ fontSize: 11.5, color: 'var(--color-text-muted)', margin: '8px 0 0' }}>
-        Cores claras são escurecidas automaticamente pra manter o texto legível na proposta.
-      </p>
-    </div>
-  );
-
   return (
     <div className={`${styles.page} ${editando ? RESPIRO_EDICAO : ''}`}>
       <div className={styles.header}>
@@ -1824,7 +1738,6 @@ export default function PropostaSolarPage() {
                       <input type="checkbox" checked={on} onChange={e => alternarBanco(b.id, e.target.checked)} />
                       <span className={styles.bancoLogoQuadro}>
                         <span className={styles.bancoLogoFundo}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={`/img/bancos/${b.id}.png`} alt="" className={styles.bancoLogoImg} onError={e => { e.currentTarget.style.visibility = 'hidden'; }} />
                         </span>
                         <span className={styles.bancoNome}>{b.nome}</span>
@@ -2711,31 +2624,6 @@ function PagGrupo({
   );
 }
 
-function PagSubItem({
-  checked, onToggle, label, sub, valor,
-}: {
-  checked: boolean;
-  onToggle: (v: boolean) => void;
-  label: string;
-  sub?: string;
-  valor: string;
-}) {
-  return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, cursor: 'pointer', userSelect: 'none', padding: '4px 8px', borderRadius: 6 }}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onToggle(e.target.checked)}
-        style={{ width: 15, height: 15, accentColor: 'var(--color-primary)', cursor: 'pointer', margin: 0 }}
-      />
-      <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: 'var(--color-text)' }}>
-        {label}{sub && <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}> · {sub}</span>}
-      </span>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--color-text)' }}>{valor}</span>
-    </label>
-  );
-}
-
 function PagSubItemTaxa({
   checked, onToggle, label, taxa, onTaxaChange, valor,
 }: {
@@ -2812,7 +2700,6 @@ function FotoEmpresa({ url, legenda }: { url?: string; legenda?: string }) {
     <li className={styles.faixaMini}>
       <div className={styles.faixaMiniQuadro}>
         {url && !quebrada && (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt={legenda || 'Foto de obra'} className={styles.faixaMiniImg} onError={() => setQuebrada(true)} />
         )}
       </div>

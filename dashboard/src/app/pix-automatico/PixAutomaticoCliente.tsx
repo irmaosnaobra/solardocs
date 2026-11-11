@@ -205,7 +205,6 @@ export default function PixAutomaticoCliente() {
 
           <div className={styles.pagamento} style={{ marginTop: 18 }}>
             {criado.qrImagemBase64 && (
-              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 className={styles.qr}
                 src={`data:image/png;base64,${criado.qrImagemBase64}`}

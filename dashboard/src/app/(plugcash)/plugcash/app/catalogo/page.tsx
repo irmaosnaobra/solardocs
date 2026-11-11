@@ -74,7 +74,7 @@ function CardTrilha({ curso, passo, preview }: { curso: Curso; passo: number; pr
     <article className={`${styles.curso} ${travado ? styles.travado : ''}`}>
       <div className={styles.cursoThumb}>
         {curso.thumb_url
-          ? /* eslint-disable-next-line @next/next/no-img-element */
+          ?
             <img src={curso.thumb_url} alt="" />
           : <Marca />}
         {travado && <span className={styles.cadeado}><Cadeado /></span>}

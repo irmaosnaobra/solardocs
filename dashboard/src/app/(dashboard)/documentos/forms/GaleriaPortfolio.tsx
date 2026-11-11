@@ -256,7 +256,6 @@ export default function GaleriaPortfolio<T extends ItemGaleria>({ tipo, titulo, 
                       {enviando ? (
                         <span className={styles.enviando}>Enviando...</span>
                       ) : temLogo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={b.url} alt={`Logo ${b.nome ?? ''}`.trim()} className={styles.imgContida} onError={() => marcarQuebrada(`${tipo}-${b.path ?? i}`)} />
                       ) : (
                         <span className={styles.semLogo}>{b.path ? 'Indisponível' : 'Sem logo'}</span>
@@ -288,7 +287,6 @@ export default function GaleriaPortfolio<T extends ItemGaleria>({ tipo, titulo, 
                       {quebradas.has(chave) || !it.url ? (
                         <span className={styles.semLogo}>Indisponível</span>
                       ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={it.url} alt={`Imagem ${i + 1}`} className={tipo === 'empresa' ? styles.imgContida : styles.imgCoberta} onError={() => marcarQuebrada(chave)} />
                       )}
                       <button type="button" className={styles.remover} onClick={() => remover(i)} aria-label={`Remover imagem ${i + 1}`}>

@@ -180,7 +180,7 @@ export default function MembrosPanel() {
     }
   }
 
-  const all = data ?? [];
+  const all = useMemo(() => data ?? [], [data]);
 
   // KPIs de topo
   const kpis = useMemo(() => {

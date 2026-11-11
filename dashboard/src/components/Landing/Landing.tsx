@@ -383,7 +383,7 @@ export default function Landing() {
   // clicar não baixa um byte de vídeo — só a capa. Vídeo é o item mais caro da
   // página, e a maior parte do tráfego aqui é celular no 4G.
   const [vslTocando, setVslTocando] = useState(false);
-  const [vslMarcos, setVslMarcos] = useState<Record<string, boolean>>({});
+  const [, setVslMarcos] = useState<Record<string, boolean>>({});
   const vslRef = useRef<HTMLVideoElement>(null);
 
   // Um evento por marco (play / metade / fim). Sem a trava, o 'timeupdate'

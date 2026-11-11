@@ -145,7 +145,7 @@ const lum = c => 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
 const razao = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 const hex = c => '#' + [c.r, c.g, c.b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('').toUpperCase();
 const hexCor = h => parseCor(h);
-const SF3 = hexCor('#EEF2F7'), BRANCO = hexCor('#FFFFFF');
+const SF3 = hexCor('#EEF2F7');
 const fmtA = a => String(Math.round(a * 100) / 100).replace(/^0\./, '.');
 
 /* Familia pela matiz (OKLCH). */
@@ -299,10 +299,8 @@ const PROPS_TEXTO = new Set(['color', 'fill', 'stroke', 'caret-color', 'text-dec
 const PROPS_BORDA = new Set(['border-color', 'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color', 'border-block-color', 'border-inline-color', 'border-block-start-color', 'border-block-end-color', 'border-inline-start-color', 'border-inline-end-color', 'outline-color', 'column-rule-color']);
 
 /* Devolve lista de declaracoes novas [{prop,valor,imp}] e, em .kind, o tipo de fundo da regra (se declara fundo). */
-function converterDecls(decls, ctx, alvoInfo) {
+function converterDecls(decls, ctx) {
   const novas = []; let kind = null; const avisos = [];
-  const bgDecl = decls.filter(d => d.prop === 'background' || d.prop === 'background-color' || d.prop === 'background-image');
-  const pontoDeFundo = [];
   // 1) fundos primeiro: o tipo deles decide o texto da mesma regra
   for (const d of decls) {
     if (!(d.prop === 'background' || d.prop === 'background-color' || d.prop === 'background-image')) continue;
@@ -437,7 +435,7 @@ function converterGradiente(valor, ctx) {
     const infos = cores.map(m => { const c = parseCor(m); return c ? { m, c, o: oklch(c) } : null; });
     if (infos.some(x => !x)) { resultado.push(camada.trim()); continue; }
     if (infos.some(x => x.c.a > 0 && x.o.C >= ESCURO_NEUTRO && x.o.h >= 285 && x.o.h < 345)) temRoxo = true;
-    const ks = []; let outro = camada;
+    const ks = [];
     const novo = camada.replace(RE_COR, (m) => {
       const c = parseCor(m); const r = mapFundo(c, { ...ctx, pagina: false });
       ks.push(r.kind);
@@ -762,7 +760,7 @@ function inlineRegras(achados) {
       if (ehDocumento(item) || motivoPular(item)) continue;
       const comps = splitCompostos(item); const ult = comps[comps.length - 1]; if (!ult || temEstado(ult)) continue;
       const alvo = infoAlvo(item);
-      const { kind } = converterDecls(ds, { campo: alvo.campo, pagina: alvo.pagina }, alvo);
+      const { kind } = converterDecls(ds, { campo: alvo.campo, pagina: alvo.pagina });
       if (!kind || kind === 'none') continue;
       const k = normComposto(ult); if (!k) continue;
       const s = indiceFundo.get(k) || new Set(); s.add(kind); indiceFundo.set(k, s);
@@ -819,7 +817,7 @@ function inlineRegras(achados) {
       const ancestral = fundoDosAncestrais(item);
       const forcado = fundoForcado.find(f => casa(f.seletor, item));
       const ctx = { campo: alvo.campo, pagina: alvo.pagina, bgTexto: forcado ? forcado.tipo : ancestral, somenteTexto: STATUS_SO_TEXTO.test(item) };
-      const { novas, kind, avisos } = converterDecls(ds, ctx, alvo);
+      const { novas } = converterDecls(ds, ctx);
       // regras.json: manter e cores fixas
       const finais = novas.filter(d => !manter.some(m => casa(m.seletor, item) && (!m.props || m.props.includes(d.prop))));
       for (const d of finais) {

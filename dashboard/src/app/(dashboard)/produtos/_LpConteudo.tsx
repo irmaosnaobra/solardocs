@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ArrowLeft, Check, ExternalLink, Lock, ShieldCheck, X } from 'lucide-react';
 import { checkoutCom, type ProdutoLoja } from '@/lib/produtos';
 import {
-  MockupPrecificacao, MockupOffGrid, MockupInventario, MockupCurso,
+  MockupPrecificacao, MockupInventario, MockupCurso,
 } from './_mockups';
 import { DemoOffGrid } from './_demo';
 import styles from './produtos.module.css';

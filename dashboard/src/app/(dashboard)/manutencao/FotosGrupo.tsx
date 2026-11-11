@@ -41,7 +41,6 @@ export default function FotosGrupo({
           {fotos.map((f) => (
             <div key={f.cid} className={`mnt-foto ${f.erro ? 'mnt-fotoErro' : ''}`}>
               {(f.url || f.preview) ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={f.preview || f.url || undefined} alt={rotulo} />
               ) : (f.path && !f.uploading && !f.erro) ? (
                 <div className="mnt-fotoSemUrl" role="img" aria-label={`Foto de ${rotulo} sem miniatura`}>

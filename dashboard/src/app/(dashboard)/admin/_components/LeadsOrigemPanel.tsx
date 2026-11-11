@@ -88,7 +88,7 @@ export default function LeadsOrigemPanel() {
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const etiquetas = data?.etiquetas ?? [];
+  const etiquetas = useMemo(() => data?.etiquetas ?? [], [data]);
   const visiveis = useMemo(() => etiquetas.filter((e) => !ocultas[e]), [etiquetas, ocultas]);
 
   // Recorta a janela e monta as duas séries (diária + acumulada) só das linhas visíveis.
