@@ -23,6 +23,20 @@ import { supabase } from '../utils/supabase';
 // Caminho da LP de cada vídeo. O `lp` que a página manda no evento é a chave.
 const CAMINHO_LP: Record<string, string> = {
   eletroposto: '/io/eletroposto',
+  solardoc_vsl: '/vsl',
+};
+
+// Página de vídeo que NÃO manda as fotografias de baldes (`vsl` com `b`), só marcos soltos: a /vsl da SolarDoc.
+// Para ela o painel mostra uma escada (visitas, play, 25%, 50%, 75%, fim) em vez da curva. O event_type é o
+// nome exato que dashboard/public/vsl/index.html dispara (marco(...)), com event_data.lp = 'solardoc_vsl'.
+const MARCOS_LP: Record<string, Array<{ tipo: string; rotulo: string }>> = {
+  solardoc_vsl: [
+    { tipo: 'vsl_play', rotulo: 'Play' },
+    { tipo: 'vsl_25', rotulo: '25%' },
+    { tipo: 'vsl_50', rotulo: '50%' },
+    { tipo: 'vsl_75', rotulo: '75%' },
+    { tipo: 'vsl_fim', rotulo: 'Fim' },
+  ],
 };
 
 function inicioDoPeriodo(period: string): Date {
@@ -50,13 +64,14 @@ export async function getVslRetencao(req: Request, res: Response): Promise<void>
 
     const period = String(req.query.period || '7dias');
     const desde = inicioDoPeriodo(period).toISOString();
+    const marcosDaLp = MARCOS_LP[lp];
 
     const [{ data: evRows, error: evErr }, { data: vsRows }] = await Promise.all([
       supabase
         .from('lp_events')
         .select('session_id, event_type, event_data')
         .gte('created_at', desde)
-        .in('event_type', ['vsl', 'vsl_cta', 'vsl_pular'])
+        .in('event_type', ['vsl', 'vsl_cta', 'vsl_pular', ...(marcosDaLp ?? []).map((m) => m.tipo)])
         .eq('event_data->>lp', lp)
         .limit(20000),
       supabase
@@ -82,6 +97,24 @@ export async function getVslRetencao(req: Request, res: Response): Promise<void>
     );
 
     const eventos = (evRows ?? []) as EventoVsl[];
+
+    // Escada de marcos: sessões ÚNICAS que dispararam cada marco no período.
+    if (marcosDaLp) {
+      const porMarco = new Map<string, Set<string>>(marcosDaLp.map((m) => [m.tipo, new Set<string>()]));
+      for (const e of eventos) porMarco.get(e.event_type)?.add(e.session_id);
+      const visitas = visitasSessoes.size;
+      const marcos = marcosDaLp.map((m) => {
+        const sessoes = porMarco.get(m.tipo)!.size;
+        return { rotulo: m.rotulo, sessoes, pct_das_visitas: visitas > 0 ? Math.min(100, Math.round((sessoes / visitas) * 1000) / 10) : 0 };
+      });
+      res.json({
+        lp, period, visitas, plays: marcos[0].sessoes,
+        comSom: 0, viramCta: 0, cliqueCta: 0, cliqueSemPlay: 0, pularam: 0, cliqueSegundo: null,
+        assistidoMedio: null, assistidoMediano: null, completaram: marcos[marcos.length - 1].sessoes,
+        duracao: null, bucket: null, curva: [], marcos,
+      });
+      return;
+    }
 
     // Junta as fotografias de cada sessão pelo máximo elemento a elemento.
     type Sessao = { b: number[]; dur: number; bs: number; som: boolean; viu5: boolean; fim: boolean };
