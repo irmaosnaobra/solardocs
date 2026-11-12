@@ -428,6 +428,14 @@ function temDadoInversor(obj: Record<string, unknown> | null | undefined): boole
   return ['qtd_inversores', 'marca_inversor', 'potencia_inversor', 'garantia_inversor'].some(k => obj[k] !== undefined && obj[k] !== null);
 }
 
+/** Garantia do inversor que vai no envio: campo apagado, 0 ou sem número sai 5 anos.
+ *  Fica no formulário, e não no fallback da api, para não mudar proposta antiga. */
+const GARANTIA_INVERSOR_PADRAO = '5';
+function garantiaInversorEnvio(v: unknown): string {
+  const g = String(v ?? '').trim();
+  return parseInt(g, 10) > 0 ? g : GARANTIA_INVERSOR_PADRAO;
+}
+
 /** Lista pronta pro envio: strings aparadas, sem linha com marca E potência vazias,
  *  mas sempre com pelo menos uma. */
 function limparInversores(linhas: InversorLinha[]): InversorLinha[] {
@@ -435,7 +443,7 @@ function limparInversores(linhas: InversorLinha[]): InversorLinha[] {
     qtd: String(l?.qtd ?? '').trim(),
     marca: String(l?.marca ?? '').trim(),
     potencia: String(l?.potencia ?? '').trim(),
-    garantia: String(l?.garantia ?? '').trim(),
+    garantia: garantiaInversorEnvio(l?.garantia),
   }));
   const uteis = aparadas.filter(l => l.marca !== '' || l.potencia !== '');
   if (uteis.length > 0) return uteis;
