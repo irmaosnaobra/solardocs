@@ -376,14 +376,14 @@ async function contarLike(padrao: string, desdeIso?: string): Promise<number> {
 }
 
 /** Retomadas (toques 2 a 5) que saíram desde 00:00 de Brasília: todos os envios do dia menos os toques 1. */
-async function contarRetomadasHoje(agora: Date): Promise<number> {
+export async function contarRetomadasHoje(agora: Date): Promise<number> {
   const desde = inicioDoDiaBrasiliaIso(agora);
   const [todos, aberturas] = await Promise.all([contarChaves(INV_SENT_PREFIX, desde), contarLike(`${INV_SENT_PREFIX}%:t1`, desde)]);
   return Math.max(0, todos - aberturas);
 }
 
 /** Aberturas (toque 1) que saíram desde 00:00 de Brasília. As retomadas não entram. */
-async function contarAberturasHoje(agora: Date): Promise<number> {
+export async function contarAberturasHoje(agora: Date): Promise<number> {
   return contarLike(`${INV_SENT_PREFIX}%:t1`, inicioDoDiaBrasiliaIso(agora));
 }
 
@@ -413,7 +413,7 @@ export async function lerGruposFechados(agora: Date): Promise<{ fechados: Set<st
 }
 
 // ── A fila ───────────────────────────────────────────────────────────────────
-interface LeituraDaFila {
+export interface LeituraDaFila {
   resultado: ResultadoFila;
   sessoes: Map<string, SessaoInvestidor>;
   lidsSemMapa: number;
@@ -562,7 +562,7 @@ function chavesDeRetorno(sessoes: ReadonlyMap<string, SessaoInvestidor>, carimbo
 
 /** Monta a fila inteira. Qualquer leitura que falhar derruba a rodada: sem
  *  saber quem tem card, quem conversou ou quem pediu para parar, ninguém recebe. */
-async function lerFila(agora: number): Promise<LeituraDaFila> {
+export async function lerFila(agora: number): Promise<LeituraDaFila> {
   const [linhas, cards, cardsEp, conversa, sessoes, carimbos, silenciado, mudo, bloqueado, pausa, fracos, grupos] = await Promise.all([
     lerOrigens(),
     lerCardsDoContato(),
@@ -2720,7 +2720,7 @@ export async function fecharRetomadasEsgotadas(
 // ═════════════════════════════════════════════════════════════════════════════
 
 /** Os carimbos dos toques de todo mundo: chave -> { 1: updated_at, 2: ... }. Erro SOBE. */
-async function lerCarimbosDeToque(): Promise<Map<string, CarimbosDosToques>> {
+export async function lerCarimbosDeToque(): Promise<Map<string, CarimbosDosToques>> {
   const linhas = await lerTudo<{ key: string; updated_at: string | null }>('carimbos dos toques', (de, ate) =>
     supabase.from('system_state').select('key, updated_at')
       .like('key', `${INV_SENT_PREFIX}%`).order('key', { ascending: true }).range(de, ate));

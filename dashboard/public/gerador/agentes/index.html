@@ -2337,10 +2337,18 @@ setInterval(carregar, 120000);
     ['Na fila', ['na_fila']], ['Abordados', ['abordado']], ['Em conversa', ['em_conversa']], ['Convidados', ['convidado', 'horarios_enviados']],
     ['Reuniões marcadas', ['reuniao_marcada']], ['Sem resposta', ['sem_resposta']], ['Pararam', ['parou']], ['Com consultor', ['com_consultor']]
   ];
+  // Rótulos dos campos da ficha da Helena (CAMPOS_DA_FICHA da api). Campo que não está aqui aparece com o nome trocado por espaço.
   var ROT_FICHA = {
-    cidade: 'Cidade', valor: 'Valor', valor_disponivel: 'Valor disponível', prazo: 'Prazo', perfil: 'Perfil', objecao: 'Objeção',
-    interesse: 'Interesse', area: 'Área do terreno', local: 'Local', experiencia: 'Experiência', origem: 'Origem', horario_preferido: 'Melhor horário',
-    observacao: 'Observação', motivo: 'Motivo', melhor_horario: 'Melhor horário', ja_tem_carro_eletrico: 'Já tem carro elétrico'
+    nome_preferido: 'Como prefere ser chamada', cidade: 'Cidade', regiao: 'Região', ocupacao: 'O que faz hoje',
+    o_que_chamou_atencao: 'O que chamou a atenção', quando_comecar: 'Quando pensa em começar', quem_decide: 'Quem decide junto',
+    perfil_real: 'Perfil que apareceu na conversa', pressa_ou_resistencia: 'Pressa ou resistência',
+    valor_confirmado: 'Valor confirmado', pagamento: 'Como pretende pagar', tem_ponto: 'Local em vista',
+    expectativa: 'O que espera do negócio', ja_investe_em: 'Já investe em',
+    tipo_local: 'Tipo de local', bairro_local: 'Bairro do local', relacao_local: 'Relação com o local', tamanho_espaco: 'Tamanho do espaço',
+    movimento: 'Movimento do local', padrao_energia: 'Padrão de energia', expectativa_local: 'O que espera receber',
+    interesse_origem: 'O que despertou o interesse', tem_local_capital_ou_parceria: 'Tem local, capital ou quer parceria', duvidas: 'Dúvidas',
+    atuacao: 'O que faz', regiao_atuacao: 'Região em que atua', ja_trabalha_com_carregador: 'Já trabalha com carregador',
+    ideia_parceria: 'Como imagina a parceria'
   };
 
   var est = { montado: false, dados: null, aberta: null, itens: [], f: { tipo: '', sit: '', busca: '' }, timer: null, ver: 0 };
@@ -2569,14 +2577,17 @@ setInterval(carregar, 120000);
     if (card && card.consultor) meta.push('consultor ' + card.consultor); else if (item.consultor) meta.push('consultor ' + item.consultor);
     if (sess.toques != null) meta.push(sess.toques + (sess.toques === 1 ? ' toque' : ' toques'));
     if (sess.ultimo_contato_em) meta.push('último contato ' + fmt(sess.ultimo_contato_em));
-    if (card && card.horario) meta.push('reunião ' + fmt(card.horario));
+    // O /gerador não abre card por link: o card vai como texto (status, horário, consultor) e só a Caixa tem botão.
     var acoes = el('div', 'hl-acoes');
-    var ac = el('a', 'en-btn', 'Abrir card'), cx = el('a', 'en-btn prim', 'Abrir na Caixa');
-    [[ac, '/gerador/?card='], [cx, '/gerador/whatsapp/?card=']].forEach(function (x) {
-      if (cardId != null && cardId !== '') { x[0].href = x[1] + encodeURIComponent(cardId); x[0].target = '_blank'; x[0].rel = 'noopener'; }
-      else { x[0].setAttribute('aria-disabled', 'true'); x[0].title = 'Esta pessoa ainda não tem card'; }
-      acoes.appendChild(x[0]);
-    });
+    var cx = el('a', 'en-btn prim', 'Abrir na Caixa');
+    if (cardId != null && cardId !== '') { cx.href = '/gerador/whatsapp/?card=' + encodeURIComponent(cardId); cx.target = '_blank'; cx.rel = 'noopener'; }
+    else { cx.setAttribute('aria-disabled', 'true'); cx.title = 'Esta pessoa ainda não tem card'; }
+    acoes.appendChild(cx);
+    var cardTxt = '';
+    if (card) {
+      var st = String(card.status || '').replace(/_/g, ' ');
+      cardTxt = 'Card: ' + (st ? st.charAt(0).toUpperCase() + st.slice(1) : 'sem status') + (card.horario ? ' · ' + fmt(card.horario) : '') + (card.consultor ? ' · ' + card.consultor : '');
+    }
     var ficha = el('dl', 'hl-ficha'), n = 0;
     var campos = p.ficha || {};
     Object.keys(campos).forEach(function (k) {
@@ -2605,7 +2616,7 @@ setInterval(carregar, 120000);
     dir.appendChild(conv);
     var grade = el('div', 'hl-det');
     add(grade, esq, dir);
-    add(box, topo, el('div', 'en-meta', meta.join(' · ')), acoes, grade);
+    add(box, topo, el('div', 'en-meta', meta.join(' · ')), cardTxt ? el('div', 'en-meta', cardTxt) : null, acoes, grade);
     if (manter && !colava) conv.scrollTop = topoAntes; else conv.scrollTop = conv.scrollHeight;
   }
 

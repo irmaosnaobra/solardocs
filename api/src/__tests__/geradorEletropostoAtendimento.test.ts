@@ -233,3 +233,34 @@ describe('lerEtiquetasDosCards', () => {
     ])).toEqual({ '7': 'integrador' });
   });
 });
+
+// Helena nova (12/11/2026): sessões com tipo, ficha, toques, ciclo encerrado e os motivos de fecho.
+// A coluna Atendimento do /gerador lê estagio, motivo, consultor, toques, erro e resumo: nenhum deles mudou.
+describe('coluna Atendimento com as sessões da Helena nova', () => {
+  const nova = (key: string, v: Record<string, unknown>) => ({
+    key: `inv_agente:${key}`,
+    updated_at: '2026-11-12T15:00:00Z',
+    value: {
+      estagio: 'chamado', aberto_em: '2026-11-10T12:00:00Z', consultor: 'Giovanna', motivo: null, agendamento_id: null, erro: null,
+      tipo: 'parceiro', toques: 2, ultimo_toque_em: '2026-11-12T12:00:00Z', ciclo_encerrado: 'outra_conversa', card_id: 9,
+      cards_conhecidos: [9], card_antigo: { status: 'cancelado', lote: true }, fatos_do_card: ['cidade: Vila Teste'],
+      dados: { atuacao: 'instala carregador', regiao_atuacao: 'Vale' }, resumo: 'Parceiro de instalação.', ...v,
+    },
+  });
+  it('mapeia o estágio, o consultor, os toques e o resumo; campos novos não atrapalham nem vazam', () => {
+    const i = mapearSessao(nova('3499990001', {}))!;
+    expect(i).toMatchObject({
+      chave: '3499990001', estagio: 'chamado', consultor: 'Giovanna', toques: 2, erro_envio: false, grupo: null, resumo: 'Parceiro de instalação.',
+      movimento_em: '2026-11-12T15:00:00Z',
+    });
+    expect(Object.keys(i).sort()).toEqual(['agendamento_id', 'aberto_em', 'chave', 'consultor', 'erro_envio', 'estagio', 'grupo', 'motivo', 'movimento_em', 'resumo', 'toques'].sort());
+  });
+  it('os motivos de fecho da Helena nova chegam como estão (o /gerador decide o rótulo)', () => {
+    expect(mapearSessao(nova('1', { estagio: 'sem_interesse', motivo: 'sem_resposta' }))).toMatchObject({ estagio: 'sem_interesse', motivo: 'sem_resposta' });
+    expect(mapearSessao(nova('2', { estagio: 'humano', motivo: 'humano_entrou' }))).toMatchObject({ estagio: 'humano', motivo: 'humano_entrou' });
+    expect(mapearSessao(nova('3', { estagio: 'agendado', agendamento_id: 41, motivo: 'card_por_outra_porta' }))).toMatchObject({ estagio: 'agendado', agendamento_id: 41 });
+  });
+  it('abertura que falhou segue como erro_envio', () => {
+    expect(mapearSessao(nova('4', { erro: 'timeout' }))?.erro_envio).toBe(true);
+  });
+});

@@ -39,7 +39,7 @@ const janelaPausaH = (): number => Number(process.env.PAUSA_HUMANA_JANELA_H || 2
  * O navegador recebe a mensagem genérica; o motivo exato vai para o console do servidor, para o diagnóstico
  * não virar adivinhação.
  */
-function instanciaIO(): string | null {
+export function instanciaIO(): string | null {
   const v = (process.env.ZAPI_INSTANCE_ID_IO || '').trim();
   if (!v) console.error('[caixa] ZAPI_INSTANCE_ID_IO não está definida no ambiente: sem ela a caixa não sabe qual é a linha IO e se recusa a ler mensagens (502). Defina a variável na Vercel.');
   return v || null;
@@ -50,7 +50,7 @@ function semCache(_req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
-function exigeEquipe(req: Request, res: Response, next: NextFunction): void {
+export function exigeEquipe(req: Request, res: Response, next: NextFunction): void {
   const nome = String((req as any).consultor?.nome || '');
   if (!equipeAutorizada(nome, process.env.CAIXA_EQUIPE)) {
     res.status(403).json({ ok: false, error: 'Esta tela é só para a equipe.', precisa: 'equipe' });
