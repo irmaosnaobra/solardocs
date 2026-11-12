@@ -26,6 +26,7 @@ import { mountSolardocQuizStatus } from './geradorSolardocQuiz';
 import { mountEletropostoAtendimento } from './geradorEletropostoAtendimento';
 import { mountDashboard } from './geradorDashboard';
 import { mountCaixa } from './geradorCaixa';
+import { mountHelena } from './geradorHelena';
 import { mountContratoHibrido } from './geradorContratoHibrido';
 import { mountContratoAgente } from './geradorContratoAgente';
 import { mountFinanceiro } from './geradorFinanceiro';
@@ -1240,6 +1241,8 @@ mountEletropostoAtendimento(router);
 mountDashboard(router);
 // Caixa de entrada da linha 5040 (fase 1, só leitura). Consultor logado E da lista da equipe.
 mountCaixa(router);
+// Acompanhamento da Helena (aba Helena da Central das Agentes, só leitura): lista para consultor, conversa para a equipe.
+mountHelena(router);
 
 // Contrato do eletroposto: o consultor descreve uma mudança e a IA devolve as
 // OPERAÇÕES sobre as cláusulas (ver services/gerador/contratoIa.ts). Só consultor
