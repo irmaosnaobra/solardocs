@@ -358,6 +358,84 @@ html.io2{
   .en-vivo-tel{flex:1 1 100%}
   .en-sondas{grid-template-columns:1fr}
 }
+
+/* ===== HELENA (acompanhamento das abordagens) =====
+   Só leitura. Cores só pela ponte --en-* (vale nos dois visuais). A tabela é de linhas-botão em grade:
+   no celular cada linha vira um cartão, sem rolagem lateral. */
+#corpo-helena{padding:0;min-height:340px;background:var(--en-bg);color:var(--en-tx)}
+.hl{padding:14px 16px 22px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.hl button,.hl select,.hl input{font-family:inherit;font-size:14px;color:inherit}
+.hl button{cursor:pointer}
+.hl :focus-visible{outline:2px solid var(--en-link);outline-offset:2px}
+.hl-estado{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:11px 14px;background:var(--en-sf);border:1px solid var(--en-bd);border-radius:12px;font-size:13px;color:var(--en-tx2);line-height:1.45}
+.hl-estado b{color:var(--en-tit)}
+.hl-placar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.hl-bloco{background:var(--en-sf);border:1px solid var(--en-bd);border-radius:12px;padding:10px 12px;min-width:0}
+.hl-bloco b{display:block;font-size:22px;font-weight:700;color:var(--en-tit);font-variant-numeric:tabular-nums;line-height:1.15}
+.hl-bloco span{display:block;font-size:12px;color:var(--en-tx2);margin-top:2px}
+.hl-bloco small{display:block;font-size:11px;color:var(--en-tx3);margin-top:2px}
+.hl-tipos{display:flex;flex-direction:column;gap:6px;padding:10px 14px;background:var(--en-sf);border:1px solid var(--en-bd);border-radius:12px}
+.hl-tipo{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:12.5px;color:var(--en-tx2)}
+.hl-tipo b{min-width:104px;color:var(--en-tit);font-size:13px}
+.hl-filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.hl-filtros .en-campo{flex:0 1 190px}
+.hl-filtros .en-campo.busca{flex:1 1 220px}
+.hl-conta{font-size:12.5px;color:var(--en-tx2);margin-left:auto;align-self:center}
+.hl-lista{display:flex;flex-direction:column;border:1px solid var(--en-bd);border-radius:12px;overflow:hidden;background:var(--en-sf)}
+.hl-cols{display:grid;grid-template-columns:minmax(0,2fr) 96px minmax(0,1.1fr) minmax(0,1fr) 132px 104px minmax(0,1.4fr);gap:10px;align-items:center}
+.hl-cab{padding:8px 14px;border-bottom:1px solid var(--en-bd);background:var(--en-sf2);font-size:11.5px;font-weight:700;color:var(--en-tx2);text-transform:uppercase;letter-spacing:.4px}
+.hl-row{width:100%;padding:10px 14px;border:0;border-bottom:1px solid var(--en-bd);background:transparent;text-align:left;color:var(--en-tx);min-height:56px;font-size:13px}
+.hl-row:last-child{border-bottom:0}
+.hl-row:hover{background:var(--en-sf3)}
+.hl-c{min-width:0;overflow-wrap:anywhere;line-height:1.4}
+.c-meta{display:contents}
+.hl-nome{font-weight:700;color:var(--en-tit);font-size:13.5px}
+.hl-sub{display:block;font-size:11.5px;color:var(--en-tx2);font-weight:400;margin-top:2px}
+.hl-mudo{color:var(--en-tx3)}
+.hl-s{display:inline-block;padding:2px 9px;border-radius:99px;border:1px solid var(--en-bd);background:var(--en-sf2);font-size:11.5px;font-weight:700;color:var(--en-tx2);white-space:nowrap}
+.hl-s.azul{background:var(--en-ela-sf);border-color:var(--en-ela-bd);color:var(--en-ela-tx)}
+.hl-s.amar{background:var(--en-av-sf);border-color:var(--en-av);color:var(--en-av)}
+.hl-s.verde{background:var(--en-ok-sf);border-color:var(--en-ok-bd);color:var(--en-ok)}
+.hl-s.verm{background:var(--en-er-sf);border-color:var(--en-er-bd);color:var(--en-er)}
+.hl-topo{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hl-topo h3{margin:0;font-size:16px;color:var(--en-tit);overflow-wrap:anywhere}
+.hl-acoes{display:flex;gap:8px;flex-wrap:wrap}
+.hl-acoes a.en-btn{display:inline-flex;align-items:center;text-decoration:none}
+.hl-acoes .en-btn[aria-disabled="true"]{opacity:.55;pointer-events:none}
+.hl-det{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:14px;align-items:start}
+.hl-bx{background:var(--en-sf);border:1px solid var(--en-bd);border-radius:12px;padding:12px 14px;min-width:0}
+.hl-bx h4{margin:0 0 8px;font-size:13px;color:var(--en-tit)}
+.hl-resumo{font-size:13px;line-height:1.55;color:var(--en-tx);overflow-wrap:anywhere;white-space:pre-wrap;margin-bottom:12px;padding:9px 11px;border:1px solid var(--en-ela-bd);border-radius:10px;background:var(--en-ela-sf);color:var(--en-ela-tx)}
+.hl-ficha{display:grid;grid-template-columns:minmax(90px,.8fr) minmax(0,1.4fr);gap:6px 12px;margin:0;font-size:13px}
+.hl-ficha dt{color:var(--en-tx2)}
+.hl-ficha dd{margin:0;color:var(--en-tx);overflow-wrap:anywhere;white-space:pre-wrap}
+.hl-conv{display:flex;flex-direction:column;gap:6px;max-height:560px;overflow:auto;padding:2px}
+.hl-dia{align-self:center;font-size:11.5px;color:var(--en-tx3);margin:6px 0 2px}
+.hl-exemplo{padding:9px 12px;border:1px dashed var(--en-av);border-radius:10px;color:var(--en-av);background:var(--en-av-sf);font-size:12.5px}
+@media(max-width:860px){
+  .hl-cols{grid-template-columns:minmax(0,2fr) 90px minmax(0,1fr) 124px 100px minmax(0,1.2fr)}
+  .hl-cols .c-cons{display:none}
+  .hl-det{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .hl{padding:12px 10px 20px}
+  .hl-placar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hl-filtros .en-campo,.hl-filtros .en-campo.busca{flex:1 1 100%}
+  .hl-conta{margin-left:0}
+  .hl-cols.hl-cab{display:none}
+  .hl-cols.hl-row{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:11px 12px}
+  .hl-row .c-meta{display:flex;flex-wrap:wrap;gap:2px 10px;grid-column:1/-1;font-size:12.5px;color:var(--en-tx2)}
+  .hl-cols .c-cons{display:block}
+  .hl-row .c-ult,.hl-row .c-prox{grid-column:1/-1;font-size:12px;color:var(--en-tx2)}
+  .hl-row .c-ult::before{content:"Último contato: ";color:var(--en-tx3)}
+  .hl-row .c-prox::before{content:"Próximo passo: ";color:var(--en-tx3)}
+  .hl-row .c-cons::before{content:"Consultor: ";color:var(--en-tx3)}
+  .hl-tipo b{min-width:100%}
+  .hl-acoes .en-btn{flex:1 1 100%;justify-content:center}
+  .hl-ficha{grid-template-columns:1fr;gap:0}
+  .hl-ficha dt{margin-top:8px;font-size:12px}
+  .hl-conv{max-height:60vh}
+}
 </style>
 <link rel="stylesheet" href="/gerador/ui/io2.css" media="not all" data-io2>
 <link rel="stylesheet" href="/gerador/ui/io2-cores-agentes.css" media="not all" data-io2>
@@ -392,6 +470,13 @@ html.io2{
     </div>
     <button type="button" class="en-btn prim" id="btn-ensaio" onclick="abrirEnsaioGeral()">Abrir o ensaio</button>
   </div>
+  <div class="en-entrada">
+    <div class="en-entrada-txt">
+      <b>Acompanhamento da Helena</b>
+      <span>Veja quem ela já chamou, em que pé está cada conversa e o que ela descobriu. Só leitura.</span>
+    </div>
+    <button type="button" class="en-btn prim" id="btn-helena" onclick="abrirHelena()">Abrir o acompanhamento</button>
+  </div>
   <div class="linhas" id="linhas"></div>
   <div class="filtros" id="filtros"></div>
   <div id="conteudo"><div class="vazio-tela">Carregando as agentes…</div></div>
@@ -424,6 +509,7 @@ html.io2{
       <button id="tab-chat" class="on" onclick="trocarAba('chat')">💬 Conversar</button>
       <button id="tab-cerebro" onclick="trocarAba('cerebro')">🧠 Cérebro</button>
       <button id="tab-ensaio" onclick="trocarAba('ensaio')">Ensaio</button>
+      <button id="tab-helena" onclick="trocarAba('helena')">Helena</button>
     </div>
 
     <div class="mbody" id="corpo-chat">
@@ -452,6 +538,10 @@ html.io2{
 
     <div class="mbody" id="corpo-ensaio" style="display:none">
       <div class="en" id="en-raiz"></div>
+    </div>
+
+    <div class="mbody" id="corpo-helena" style="display:none">
+      <div class="hl" id="hl-raiz"></div>
     </div>
   </div>
 </div>
@@ -718,20 +808,39 @@ function abrirModal(id, aba){
   document.getElementById('modal').classList.add('on');
   trocarAba(aba || 'chat');
 }
-function fecharModal(){ document.getElementById('modal').classList.remove('on', 'ensaio'); }
+function fecharModal(){
+  document.getElementById('modal').classList.remove('on', 'ensaio');
+  if (window.Helena) window.Helena.parar();
+  if (location.hash === '#helena') history.replaceState(null, '', location.pathname + location.search);
+}
+// Abre direto na aba Helena (também por /gerador/agentes/#helena).
+function abrirHelena(){
+  atual = null;
+  modoAgente(false);
+  document.getElementById('m-tit').textContent = 'Acompanhamento da Helena';
+  document.getElementById('m-sub').textContent = 'Quem ela já chamou, em que pé está cada conversa e o que ela descobriu. Só leitura.';
+  document.getElementById('modal').classList.add('on');
+  trocarAba('helena');
+}
 
 function trocarAba(aba){
-  const chat = aba === 'chat', cerebro = aba === 'cerebro', ensaio = aba === 'ensaio';
+  const chat = aba === 'chat', cerebro = aba === 'cerebro', ensaio = aba === 'ensaio', helena = aba === 'helena';
   document.getElementById('tab-chat').classList.toggle('on', chat);
   document.getElementById('tab-cerebro').classList.toggle('on', cerebro);
   document.getElementById('tab-ensaio').classList.toggle('on', ensaio);
+  document.getElementById('tab-helena').classList.toggle('on', helena);
+  document.getElementById('corpo-helena').style.display = helena ? '' : 'none';
+  // Ensaio e Helena usam a caixa larga (e tela cheia no celular, regra .modal.ensaio).
+  document.getElementById('modal').classList.toggle('ensaio', ensaio || helena);
+  document.querySelector('#modal .mbox').classList.toggle('larga', ensaio || helena);
+  if (window.Helena) { if (helena) window.Helena.mostrar(); else window.Helena.parar(); }
+  if (helena) { if (location.hash !== '#helena') history.replaceState(null, '', location.pathname + location.search + '#helena'); }
+  else if (location.hash === '#helena') history.replaceState(null, '', location.pathname + location.search);
   document.getElementById('corpo-chat').style.display = chat ? '' : 'none';
   document.getElementById('rodape-chat').style.display = chat ? '' : 'none';
   document.getElementById('corpo-cerebro').style.display = cerebro ? '' : 'none';
   document.getElementById('rodape-cerebro').style.display = cerebro ? '' : 'none';
   document.getElementById('corpo-ensaio').style.display = ensaio ? '' : 'none';
-  document.getElementById('modal').classList.toggle('ensaio', ensaio);
-  document.querySelector('#modal .mbox').classList.toggle('larga', ensaio);
   if (chat) setTimeout(() => document.getElementById('msg').focus(), 50);
   if (ensaio && window.Ensaio) window.Ensaio.mostrar(personaDoAgente());
 }
@@ -2167,7 +2276,8 @@ setInterval(carregar, 120000);
 
   // ── entrada ──
   // Fase 0 (04/11/2026): o cérebro (salvar, restaurar, conversa de teste) exige o login do Gerador de ADM além do token da central.
-  window.agentesSessao = { obterToken: obterToken, renovar: renovar };
+  // `api` e `textoDoErro` também servem à aba Helena (script logo abaixo): mesma sessão, mesmo proxy /_api.
+  window.agentesSessao = { obterToken: obterToken, renovar: renovar, api: api, textoDoErro: textoDoErro };
   window.Ensaio = {
     /** Intervalo (ms) com que a tela confere se a sonda pedida já tem resultado. */
     pollMs: 15000,
@@ -2183,6 +2293,394 @@ setInterval(carregar, 120000);
       carregarPlacar().catch(function (e) { msg('en-status', 'erro', tratarErro(e)); });
     }
   };
+})();
+</script>
+<script>
+/* ===== HELENA: acompanhamento das abordagens (aba "Helena") =====
+   Só leitura: nada aqui envia mensagem. Texto vindo da API entra sempre por textContent.
+   FORMATO DE RESPOSTA QUE A TELA ESPERA (a rota do servidor, fase 2, segue à risca; os dois GET passam pelo api() da página):
+
+   GET gerador/helena/acompanhamento  ->
+     { ok:true, ligada:bool, janela:"texto pronto", atualizado_em:ISO,
+       ritmo:{ frios_24h:n, teto_frios:n, aberturas_hoje:n, retomadas_hoje:n },
+       placar:{ total:{ <situacao>:n }, por_tipo:{ investidor|arrendamento|parceiro|curioso:{ <situacao>:n } },
+                hoje:{ aberturas:n, retomadas:n, respostas:n, reunioes:n } },
+       itens:[ { chave, nome, tipo, faixa:"pediu_reuniao"|"lote_13_10"|"retorno"|null, cidade, valor_txt|null, consultor|null,
+                 card_id|null, situacao, posicao_fila:n|null (só na fila), ultimo_contato_em:ISO|null,
+                 proximo_passo:{ o_que:"texto pronto (Abertura, Toque 2, Reunião)", quando:ISO|null }|null, toques:n, resumo:"" } ] }
+     (sem telefone em item nenhum; ordem de itens livre: a tela ordena)
+
+   GET gerador/helena/pessoa?chave=<chave>  ->
+     { ok:true, chave, nome, tipo, ficha:{ <campo>:valor }, resumo_para_consultor:"",
+       sessao:{ estagio, situacao, toques:n, aberta_em:ISO|null, ultimo_contato_em:ISO|null },
+       card:{ id, status, horario:ISO|null, consultor }|null,
+       mensagens:[ { de:"helena"|"pessoa"|"equipe", texto, em:ISO } ] }   (até 100)
+
+   <situacao> = na_fila | abordado | em_conversa | convidado | horarios_enviados | reuniao_marcada | sem_resposta
+                | sem_interesse | parou | com_consultor | envio_falhou
+
+   Modo de exemplo: só liga com ?exemplo=1 na URL (dados inventados, no fim deste bloco). Sem o parâmetro, nada dele roda. */
+(function () {
+  'use strict';
+
+  var EXEMPLO = /[?&]exemplo=1(&|#|$)/.test(location.search);
+  var TZ = 'America/Sao_Paulo';
+  var TIPOS = { investidor: 'Investidor', arrendamento: 'Arrendamento', parceiro: 'Parceiro', curioso: 'Curioso' };
+  var SIT = {
+    na_fila: ['Na fila', ''], abordado: ['Abordado', 'azul'], em_conversa: ['Em conversa', 'azul'], convidado: ['Convidado', 'amar'],
+    horarios_enviados: ['Horários enviados', 'amar'], reuniao_marcada: ['Reunião marcada', 'verde'], sem_resposta: ['Sem resposta', ''],
+    sem_interesse: ['Sem interesse', ''], parou: ['Parou', 'verm'], com_consultor: ['Com consultor', 'verde'], envio_falhou: ['Envio falhou', 'verm']
+  };
+  var FAIXA = { pediu_reuniao: 'Pediu reunião', lote_13_10: 'Lote de 13/10', retorno: 'Retorno' };
+  // Blocos do placar (rótulo no plural). Convidados soma "Convidado" e "Horários enviados".
+  var BLOCOS = [
+    ['Na fila', ['na_fila']], ['Abordados', ['abordado']], ['Em conversa', ['em_conversa']], ['Convidados', ['convidado', 'horarios_enviados']],
+    ['Reuniões marcadas', ['reuniao_marcada']], ['Sem resposta', ['sem_resposta']], ['Pararam', ['parou']], ['Com consultor', ['com_consultor']]
+  ];
+  var ROT_FICHA = {
+    cidade: 'Cidade', valor: 'Valor', valor_disponivel: 'Valor disponível', prazo: 'Prazo', perfil: 'Perfil', objecao: 'Objeção',
+    interesse: 'Interesse', area: 'Área do terreno', local: 'Local', experiencia: 'Experiência', origem: 'Origem', horario_preferido: 'Melhor horário',
+    observacao: 'Observação', motivo: 'Motivo', melhor_horario: 'Melhor horário', ja_tem_carro_eletrico: 'Já tem carro elétrico'
+  };
+
+  var est = { montado: false, dados: null, aberta: null, itens: [], f: { tipo: '', sit: '', busca: '' }, timer: null, ver: 0 };
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined && txt !== null) e.textContent = txt; return e; }
+  function add(pai) { for (var i = 1; i < arguments.length; i++) if (arguments[i]) pai.appendChild(arguments[i]); return pai; }
+  function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  function num(n) { return Number(n || 0).toLocaleString('pt-BR'); }
+  function fmt(iso) {
+    try { return new Date(iso).toLocaleString('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; }
+  }
+  function dia(iso) {
+    try { return new Date(iso).toLocaleDateString('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric' }); } catch (e) { return ''; }
+  }
+  function hora(iso) {
+    try { return new Date(iso).toLocaleTimeString('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; }
+  }
+  function rel(iso) {
+    var t = new Date(iso).getTime();
+    if (!iso || isNaN(t)) return '';
+    var m = Math.round((Date.now() - t) / 60000);
+    if (m < 0) return fmt(iso);
+    if (m < 2) return 'agora';
+    if (m < 60) return 'há ' + m + ' min';
+    if (m < 60 * 24) return 'há ' + Math.round(m / 60) + ' h';
+    if (m < 60 * 24 * 2) return 'ontem';
+    return 'há ' + Math.round(m / 1440) + ' dias';
+  }
+  function pilula(sit, cls) {
+    var d = SIT[sit] || [String(sit || '-'), ''];
+    return el('span', 'hl-s' + (d[1] ? ' ' + d[1] : '') + (cls ? ' ' + cls : ''), d[0]);
+  }
+  function msg(tipo, texto) { var m = $('hl-msg'); if (!m) return; m.className = 'en-msg' + (tipo ? ' ' + tipo : ''); m.textContent = texto || ''; }
+  function textoErro(e) {
+    var A = window.agentesSessao;
+    return A && A.textoDoErro ? A.textoDoErro(e) : 'Não deu certo. Tente de novo.';
+  }
+  function chamar(caminho) {
+    if (EXEMPLO) return Promise.resolve(exemploResposta(caminho));
+    var A = window.agentesSessao;
+    if (!A || !A.api) return Promise.reject(new Error('sessao'));
+    return A.api('GET', caminho);
+  }
+
+  // ── esqueleto (montado uma vez: reconstruir apagaria o que está sendo digitado na busca) ──
+  function campo(rot, controle, cls) { var c = el('label', 'en-campo' + (cls ? ' ' + cls : '')); add(c, el('span', null, rot), controle); return c; }
+  function montar() {
+    var raiz = $('hl-raiz');
+    raiz.textContent = '';
+    var tipo = el('select'); tipo.id = 'hl-f-tipo';
+    tipo.appendChild(new Option('Todos os tipos', ''));
+    Object.keys(TIPOS).forEach(function (k) { tipo.appendChild(new Option(TIPOS[k], k)); });
+    var sit = el('select'); sit.id = 'hl-f-sit';
+    sit.appendChild(new Option('Todas as situações', ''));
+    Object.keys(SIT).forEach(function (k) { sit.appendChild(new Option(SIT[k][0], k)); });
+    var busca = el('input'); busca.type = 'search'; busca.id = 'hl-f-busca'; busca.placeholder = 'Nome da pessoa'; busca.autocomplete = 'off';
+    tipo.addEventListener('change', function () { est.f.tipo = tipo.value; pintarLista(); });
+    sit.addEventListener('change', function () { est.f.sit = sit.value; pintarLista(); });
+    busca.addEventListener('input', function () { est.f.busca = busca.value; pintarLista(); });
+    var conta = el('div', 'hl-conta'); conta.id = 'hl-conta'; conta.setAttribute('aria-live', 'polite');
+    var lista = el('div'); lista.id = 'hl-lista-box';
+    var filtros = el('div', 'hl-filtros');
+    add(filtros, campo('Tipo', tipo), campo('Situação', sit), campo('Buscar por nome', busca, 'busca'), conta);
+    add(lista, filtros, Object.assign(el('div'), { id: 'hl-lista' }));
+    var det = el('div'); det.id = 'hl-det-box'; det.style.display = 'none';
+    add(raiz,
+      EXEMPLO ? el('div', 'hl-exemplo', 'Modo de exemplo: todos os nomes e números abaixo são inventados.') : null,
+      Object.assign(el('div', 'en-msg'), { id: 'hl-msg' }),
+      Object.assign(el('div'), { id: 'hl-topo-box' }),
+      lista, det);
+    var topo = $('hl-topo-box');
+    add(topo, Object.assign(el('div', 'hl-estado'), { id: 'hl-estado' }), Object.assign(el('div', 'hl-placar'), { id: 'hl-placar' }), Object.assign(el('div', 'hl-tipos'), { id: 'hl-tipos' }));
+    topo.style.cssText = 'display:flex;flex-direction:column;gap:14px';
+    est.montado = true;
+  }
+
+  // ── estado e placar ──
+  function soma(obj, chaves) { var t = 0; chaves.forEach(function (k) { t += Number((obj || {})[k] || 0); }); return t; }
+  function pintarTopo(d) {
+    var r = d.ritmo || {}, h = (d.placar || {}).hoje || {}, tot = (d.placar || {}).total || {};
+    var e = $('hl-estado'); e.textContent = '';
+    add(e,
+      el('span', 'en-tag ' + (d.ligada ? 'lig' : 'des'), d.ligada ? 'Ligada' : 'Desligada'),
+      el('span', null, d.janela || ''),
+      (function () { var s = el('span'); add(s, document.createTextNode('Frios da linha nas últimas 24 h: '), el('b', null, num(r.frios_24h) + (r.teto_frios ? ' de ' + num(r.teto_frios) : ''))); return s; })(),
+      (function () { var s = el('span'); add(s, document.createTextNode('Hoje: '), el('b', null, num(r.aberturas_hoje) + ' aberturas, ' + num(r.retomadas_hoje) + ' retomadas')); return s; })(),
+      d.atualizado_em ? el('span', 'hl-mudo', 'Atualizado ' + hora(d.atualizado_em)) : null);
+    var p = $('hl-placar'); p.textContent = '';
+    BLOCOS.forEach(function (b) {
+      var bl = el('div', 'hl-bloco');
+      add(bl, el('b', null, num(soma(tot, b[1]))), el('span', null, b[0]));
+      if (b[0] === 'Convidados' && tot.horarios_enviados) bl.appendChild(el('small', null, num(tot.horarios_enviados) + ' com horários enviados'));
+      if (b[0] === 'Reuniões marcadas' && h.reunioes) bl.appendChild(el('small', null, num(h.reunioes) + ' hoje'));
+      if (b[0] === 'Em conversa' && h.respostas) bl.appendChild(el('small', null, num(h.respostas) + ' respostas hoje'));
+      p.appendChild(bl);
+    });
+    var t = $('hl-tipos'); t.textContent = '';
+    Object.keys(TIPOS).forEach(function (k) {
+      var linha = el('div', 'hl-tipo'), pt = ((d.placar || {}).por_tipo || {})[k] || {};
+      var total = 0; Object.keys(pt).forEach(function (s) { total += Number(pt[s] || 0); });
+      add(linha, el('b', null, TIPOS[k] + ' (' + num(total) + ')'));
+      Object.keys(SIT).forEach(function (s) { if (pt[s]) linha.appendChild(el('span', 'hl-s' + (SIT[s][1] ? ' ' + SIT[s][1] : ''), SIT[s][0] + ' ' + num(pt[s]))); });
+      t.appendChild(linha);
+    });
+    var extra = [];
+    if (tot.sem_interesse) extra.push(num(tot.sem_interesse) + ' sem interesse');
+    if (tot.envio_falhou) extra.push(num(tot.envio_falhou) + ' envios falharam');
+    if (extra.length) t.appendChild(el('div', 'hl-tipo hl-mudo', 'Também: ' + extra.join(', ') + '.'));
+  }
+
+  // ── lista ──
+  function ordenar(itens) {
+    // Quem se mexeu por último primeiro; os da fila (sem contato) depois, pela posição.
+    return itens.slice().sort(function (a, b) {
+      var ta = a.ultimo_contato_em ? new Date(a.ultimo_contato_em).getTime() : 0, tb = b.ultimo_contato_em ? new Date(b.ultimo_contato_em).getTime() : 0;
+      if (ta && tb) return tb - ta;
+      if (ta) return -1;
+      if (tb) return 1;
+      var pa = a.posicao_fila == null ? 1e9 : a.posicao_fila, pb = b.posicao_fila == null ? 1e9 : b.posicao_fila;
+      return pa - pb;
+    });
+  }
+  function passa(i) {
+    if (est.f.tipo && i.tipo !== est.f.tipo) return false;
+    if (est.f.sit && i.situacao !== est.f.sit) return false;
+    if (est.f.busca && norm(i.nome).indexOf(norm(est.f.busca.trim())) < 0) return false;
+    return true;
+  }
+  function pintarLista() {
+    var c = $('hl-lista'); if (!c) return;
+    var todos = ordenar(est.itens), vis = todos.filter(passa);
+    $('hl-conta').textContent = vis.length === todos.length ? num(todos.length) + ' pessoas' : num(vis.length) + ' de ' + num(todos.length) + ' pessoas';
+    var lista = el('div', 'hl-lista');
+    var cab = el('div', 'hl-cols hl-cab');
+    [['Nome', 'c-nome'], ['Tipo', 'c-tipo'], ['Cidade', 'c-cid'], ['Consultor', 'c-cons'], ['Situação', 'c-sit'], ['Último contato', 'c-ult'], ['Próximo passo', 'c-prox']].forEach(function (x) { cab.appendChild(el('div', x[1], x[0])); });
+    lista.appendChild(cab);
+    if (!vis.length) lista.appendChild(el('div', 'en-vazio', todos.length ? 'Ninguém bate com esse filtro.' : 'A lista da Helena ainda está vazia.'));
+    vis.forEach(function (i) {
+      var b = el('button', 'hl-cols hl-row'); b.type = 'button';
+      var nome = el('div', 'hl-c c-nome hl-nome', i.nome || '(sem nome)');
+      var sub = [];
+      if (i.faixa && FAIXA[i.faixa]) sub.push(FAIXA[i.faixa]);
+      if (i.valor_txt) sub.push(i.valor_txt);
+      if (i.situacao === 'na_fila' && i.posicao_fila != null) sub.push('posição ' + i.posicao_fila + ' na fila');
+      if (sub.length) nome.appendChild(el('span', 'hl-sub', sub.join(' · ')));
+      var sit = el('div', 'hl-c c-sit'); sit.appendChild(pilula(i.situacao));
+      var pp = i.proximo_passo;
+      var meta = el('div', 'c-meta');   // no computador some da grade (display:contents); no celular junta as três numa linha
+      add(meta, el('div', 'hl-c c-tipo', TIPOS[i.tipo] || i.tipo || '-'), el('div', 'hl-c c-cid', i.cidade || '-'), el('div', 'hl-c c-cons', i.consultor || '-'));
+      add(b, nome, meta,
+        sit,
+        (function () { var d = el('div', 'hl-c c-ult', i.ultimo_contato_em ? rel(i.ultimo_contato_em) : '-'); if (i.ultimo_contato_em) d.title = fmt(i.ultimo_contato_em); return d; })(),
+        el('div', 'hl-c c-prox', pp && pp.o_que ? pp.o_que + (pp.quando ? ' · ' + fmt(pp.quando) : '') : '-'));
+      b.addEventListener('click', function () { abrirPessoa(i); });
+      lista.appendChild(b);
+    });
+    c.textContent = '';
+    c.appendChild(lista);
+  }
+
+  function carregar(silencioso) {
+    var minha = ++est.ver;
+    return chamar('helena/acompanhamento').then(function (d) {
+      if (minha !== est.ver) return;
+      est.dados = d; est.itens = d.itens || [];
+      if (!silencioso) msg('', '');
+      pintarTopo(d); pintarLista();
+    }).catch(function (e) { if (minha === est.ver) msg('erro', textoErro(e)); });
+  }
+
+  // ── detalhe da pessoa ──
+  function rotulo(k) {
+    if (ROT_FICHA[k]) return ROT_FICHA[k];
+    var s = String(k).replace(/[_-]+/g, ' ').trim();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  function valorFicha(v) {
+    if (v === null || v === undefined || v === '' || v === false) return null;
+    if (v === true) return 'Sim';
+    if (Array.isArray(v)) { var a = v.map(valorFicha).filter(function (x) { return x !== null; }); return a.length ? a.join(', ') : null; }
+    if (typeof v === 'object') { var p = Object.keys(v).map(function (k) { var x = valorFicha(v[k]); return x === null ? null : rotulo(k) + ': ' + x; }).filter(Boolean); return p.length ? p.join('; ') : null; }
+    return String(v);
+  }
+  function abrirPessoa(item) {
+    est.aberta = item.chave;
+    $('hl-lista-box').style.display = 'none';
+    $('hl-topo-box').style.display = 'none';
+    var box = $('hl-det-box'); box.style.display = '';
+    box.textContent = '';
+    box.appendChild(el('div', 'en-vazio', 'Abrindo a conversa…'));
+    $('corpo-helena').scrollTop = 0;
+    recarregarPessoa(item, false);
+  }
+  function fecharPessoa() {
+    est.aberta = null; est.ver++;
+    $('hl-det-box').style.display = 'none';
+    $('hl-lista-box').style.display = '';
+    $('hl-topo-box').style.display = 'flex';
+    carregar(true);
+  }
+  function recarregarPessoa(item, manter) {
+    var chave = item.chave;
+    return chamar('helena/pessoa?chave=' + encodeURIComponent(chave)).then(function (p) {
+      if (est.aberta !== chave) return;
+      pintarPessoa(item, p, manter);
+    }).catch(function (e) {
+      if (est.aberta !== chave) return;
+      if (!manter) { $('hl-det-box').textContent = ''; $('hl-det-box').appendChild(botaoVoltar()); }
+      msg('erro', textoErro(e));
+    });
+  }
+  function botaoVoltar() { var b = el('button', 'en-btn', '← Voltar à lista'); b.type = 'button'; b.addEventListener('click', fecharPessoa); return b; }
+  function pintarPessoa(item, p, manter) {
+    msg('', '');
+    var box = $('hl-det-box');
+    var antes = box.querySelector('.hl-conv');
+    var colava = !antes || (antes.scrollHeight - antes.scrollTop - antes.clientHeight < 40), topoAntes = antes ? antes.scrollTop : 0;
+    var sess = p.sessao || {}, card = p.card || null;
+    var cardId = card && card.id != null ? card.id : item.card_id;
+    box.textContent = '';
+    var topo = el('div', 'hl-topo');
+    add(topo, botaoVoltar(), el('h3', null, p.nome || item.nome || ''), pilula(sess.situacao || item.situacao), el('span', 'en-tag', TIPOS[p.tipo || item.tipo] || ''));
+    var meta = [];
+    if (item.cidade) meta.push(item.cidade);
+    if (card && card.consultor) meta.push('consultor ' + card.consultor); else if (item.consultor) meta.push('consultor ' + item.consultor);
+    if (sess.toques != null) meta.push(sess.toques + (sess.toques === 1 ? ' toque' : ' toques'));
+    if (sess.ultimo_contato_em) meta.push('último contato ' + fmt(sess.ultimo_contato_em));
+    if (card && card.horario) meta.push('reunião ' + fmt(card.horario));
+    var acoes = el('div', 'hl-acoes');
+    var ac = el('a', 'en-btn', 'Abrir card'), cx = el('a', 'en-btn prim', 'Abrir na Caixa');
+    [[ac, '/gerador/?card='], [cx, '/gerador/whatsapp/?card=']].forEach(function (x) {
+      if (cardId != null && cardId !== '') { x[0].href = x[1] + encodeURIComponent(cardId); x[0].target = '_blank'; x[0].rel = 'noopener'; }
+      else { x[0].setAttribute('aria-disabled', 'true'); x[0].title = 'Esta pessoa ainda não tem card'; }
+      acoes.appendChild(x[0]);
+    });
+    var ficha = el('dl', 'hl-ficha'), n = 0;
+    var campos = p.ficha || {};
+    Object.keys(campos).forEach(function (k) {
+      if (k === 'resumo_para_consultor') return;
+      var v = valorFicha(campos[k]); if (v === null) return;
+      add(ficha, el('dt', null, rotulo(k)), el('dd', null, v)); n++;
+    });
+    var esq = el('div', 'hl-bx');
+    var resumo = p.resumo_para_consultor || campos.resumo_para_consultor || item.resumo;
+    if (resumo) add(esq, el('h4', null, 'Resumo para o consultor'), el('div', 'hl-resumo', resumo));
+    add(esq, el('h4', null, 'O que a Helena descobriu'), n ? ficha : el('div', 'hl-mudo', 'Ainda não descobriu nada.'));
+    if (sess.estagio) esq.appendChild(el('div', 'hl-mudo', 'Estágio da sessão: ' + sess.estagio));
+    var dir = el('div', 'hl-bx');
+    add(dir, el('h4', null, 'Conversa'));
+    var conv = el('div', 'hl-conv'), msgs = (p.mensagens || []).slice().sort(function (a, b) { return new Date(a.em) - new Date(b.em); }), ult = '';
+    if (!msgs.length) conv.appendChild(el('div', 'en-vazio', 'Ainda não há mensagens nesta conversa.'));
+    msgs.forEach(function (m) {
+      var d = dia(m.em);
+      if (d !== ult) { conv.appendChild(el('div', 'hl-dia', d)); ult = d; }
+      var cls = m.de === 'pessoa' ? 'lead' : (m.de === 'equipe' ? 'real' : 'ela');
+      var rot = m.de === 'pessoa' ? (p.nome || item.nome || 'Pessoa') : (m.de === 'equipe' ? 'Equipe' : 'Helena');
+      var b = el('div', 'en-b ' + cls);
+      add(b, el('span', null, m.texto || ''), el('small', null, rot + ' · ' + hora(m.em)));
+      conv.appendChild(b);
+    });
+    dir.appendChild(conv);
+    var grade = el('div', 'hl-det');
+    add(grade, esq, dir);
+    add(box, topo, el('div', 'en-meta', meta.join(' · ')), acoes, grade);
+    if (manter && !colava) conv.scrollTop = topoAntes; else conv.scrollTop = conv.scrollHeight;
+  }
+
+  // ── entrada, atualização de 60 s e saída ──
+  function tique() {
+    if (document.hidden) return;
+    if (est.aberta) {
+      var it = est.itens.filter(function (i) { return i.chave === est.aberta; })[0] || { chave: est.aberta };
+      recarregarPessoa(it, true);
+    } else carregar(true);
+  }
+  window.Helena = {
+    mostrar: function () {
+      if (!est.montado) montar();
+      if (est.timer) clearInterval(est.timer);
+      est.timer = setInterval(tique, 60000);
+      if (est.aberta) { est.aberta = null; $('hl-det-box').style.display = 'none'; $('hl-lista-box').style.display = ''; $('hl-topo-box').style.display = 'flex'; }
+      msg('', '');
+      carregar(false);
+    },
+    parar: function () { if (est.timer) { clearInterval(est.timer); est.timer = null; } est.ver++; }
+  };
+
+  // ── dados de exemplo (inventados; só com ?exemplo=1) ──
+  function exemploResposta(caminho) {
+    var min = function (m) { return new Date(Date.now() - m * 60000).toISOString(); };
+    var mais = function (m) { return new Date(Date.now() + m * 60000).toISOString(); };
+    var itens = [
+      { chave: 'ex-1', nome: 'Marcos Antunes Teixeira', tipo: 'investidor', faixa: 'pediu_reuniao', cidade: 'Londrina-PR', valor_txt: 'Investe até R$ 250 mil', consultor: 'Renata', card_id: 9001, situacao: 'reuniao_marcada', ultimo_contato_em: min(14), proximo_passo: { o_que: 'Reunião', quando: mais(1500) }, toques: 1 },
+      { chave: 'ex-2', nome: 'Sônia Barbosa Lima', tipo: 'arrendamento', faixa: 'lote_13_10', cidade: 'Maringá-PR', valor_txt: null, consultor: 'Paulo', card_id: 9002, situacao: 'em_conversa', ultimo_contato_em: min(55), proximo_passo: { o_que: 'Responder a pessoa', quando: null }, toques: 2 },
+      { chave: 'ex-3', nome: 'Rafael Quintela', tipo: 'parceiro', faixa: 'retorno', cidade: 'Campinas-SP', valor_txt: null, consultor: 'Renata', card_id: 9003, situacao: 'convidado', ultimo_contato_em: min(190), proximo_passo: { o_que: 'Toque 3', quando: mais(2300) }, toques: 2 },
+      { chave: 'ex-4', nome: 'Beatriz Moura Vilela', tipo: 'investidor', faixa: 'lote_13_10', cidade: 'Goiânia-GO', valor_txt: 'Investe de R$ 80 a 150 mil', consultor: 'Paulo', card_id: 9004, situacao: 'horarios_enviados', ultimo_contato_em: min(420), proximo_passo: { o_que: 'Esperar a escolha do horário', quando: null }, toques: 1 },
+      { chave: 'ex-5', nome: 'Edson Carvalho Neto', tipo: 'curioso', faixa: 'retorno', cidade: 'Uberlândia-MG', valor_txt: null, consultor: 'Aline', card_id: 9005, situacao: 'abordado', ultimo_contato_em: min(1500), proximo_passo: { o_que: 'Toque 2', quando: mais(600) }, toques: 1 },
+      { chave: 'ex-6', nome: 'Larissa Pontes', tipo: 'arrendamento', faixa: 'lote_13_10', cidade: 'Joinville-SC', valor_txt: null, consultor: 'Aline', card_id: 9006, situacao: 'sem_resposta', ultimo_contato_em: min(6200), proximo_passo: null, toques: 4 },
+      { chave: 'ex-7', nome: 'Gilberto Sampaio', tipo: 'investidor', faixa: 'retorno', cidade: 'Cuiabá-MT', valor_txt: 'Investe acima de R$ 300 mil', consultor: 'Renata', card_id: 9007, situacao: 'com_consultor', ultimo_contato_em: min(3000), proximo_passo: null, toques: 2 },
+      { chave: 'ex-8', nome: 'Tânia Albuquerque', tipo: 'parceiro', faixa: 'lote_13_10', cidade: 'Recife-PE', valor_txt: null, consultor: 'Paulo', card_id: 9008, situacao: 'parou', ultimo_contato_em: min(8000), proximo_passo: null, toques: 1 },
+      { chave: 'ex-9', nome: 'Otávio Brandão', tipo: 'curioso', faixa: 'lote_13_10', cidade: 'Belém-PA', valor_txt: null, consultor: 'Aline', card_id: 9009, situacao: 'sem_interesse', ultimo_contato_em: min(12000), proximo_passo: null, toques: 2 },
+      { chave: 'ex-10', nome: 'Cláudia Ferraz Dutra', tipo: 'investidor', faixa: 'pediu_reuniao', cidade: 'Curitiba-PR', valor_txt: 'Investe de R$ 150 a 250 mil', consultor: 'Paulo', card_id: 9010, situacao: 'envio_falhou', ultimo_contato_em: min(300), proximo_passo: { o_que: 'Abertura', quando: mais(90) }, toques: 0 },
+      { chave: 'ex-11', nome: 'Wellington Furtado', tipo: 'investidor', faixa: 'pediu_reuniao', cidade: 'Florianópolis-SC', valor_txt: 'Investe até R$ 100 mil', consultor: 'Renata', card_id: 9011, situacao: 'na_fila', posicao_fila: 1, ultimo_contato_em: null, proximo_passo: { o_que: 'Abertura', quando: mais(45) }, toques: 0 },
+      { chave: 'ex-12', nome: 'Priscila Nogueira', tipo: 'arrendamento', faixa: 'lote_13_10', cidade: 'Ribeirão Preto-SP', valor_txt: null, consultor: 'Aline', card_id: 9012, situacao: 'na_fila', posicao_fila: 2, ultimo_contato_em: null, proximo_passo: { o_que: 'Abertura', quando: mais(60) }, toques: 0 }
+    ];
+    if (/^helena\/pessoa/.test(caminho)) {
+      var chave = decodeURIComponent((caminho.split('chave=')[1] || ''));
+      var it = itens.filter(function (i) { return i.chave === chave; })[0] || itens[0];
+      var mensagens = [
+        { de: 'helena', texto: 'Oi, ' + it.nome.split(' ')[0] + '! Aqui é a Helena, da Irmãos na Obra. Você pediu informação sobre o eletroposto, posso te explicar rapidinho como funciona?', em: min(2900) },
+        { de: 'pessoa', texto: 'Oi! Pode sim, queria entender quanto custa e em quanto tempo volta.', em: min(2880) },
+        { de: 'helena', texto: 'Claro. Depende do ponto e do número de carregadores. Pra eu te passar uma conta mais fiel: em que cidade seria?', em: min(2878) },
+        { de: 'pessoa', texto: 'Seria em ' + it.cidade.split('-')[0] + ', perto de um supermercado que a família tem.', em: min(2850) },
+        { de: 'helena', texto: 'Boa, supermercado é um ótimo lugar, o carro fica parado enquanto a pessoa faz compras. Quer que um consultor te mostre os números numa conversa de 20 minutos?', em: min(2849) },
+        { de: 'pessoa', texto: 'Quero sim.', em: min(120) },
+        { de: 'helena', texto: 'Perfeito! Tenho amanhã às 10h30 ou às 15h. Qual fica melhor?', em: min(119) },
+        { de: 'equipe', texto: 'Oi, aqui é da equipe. Vi que você escolheu o horário, já deixei confirmado.', em: min(20) }
+      ];
+      return {
+        ok: true, chave: it.chave, nome: it.nome, tipo: it.tipo,
+        ficha: { cidade: it.cidade, valor_disponivel: it.valor_txt, local: 'Estacionamento de supermercado da família', prazo: 'Começar neste semestre', perfil: it.tipo === 'investidor' ? 'Quer renda passiva' : null, objecao: null, melhor_horario: 'Manhã', ja_tem_carro_eletrico: true, interesses: ['Retorno do investimento', 'Prazo de instalação'] },
+        resumo_para_consultor: it.nome.split(' ')[0] + ' tem um ponto em ' + it.cidade.split('-')[0] + ' e quer saber quanto custa e em quanto tempo volta. Pediu conversa de 20 minutos; prefere manhã.',
+        sessao: { estagio: 'convite', situacao: it.situacao, toques: it.toques, aberta_em: min(2900), ultimo_contato_em: it.ultimo_contato_em },
+        card: { id: it.card_id, status: 'agendado', horario: mais(1500), consultor: it.consultor },
+        mensagens: mensagens
+      };
+    }
+    var total = {}, por = {};
+    itens.forEach(function (i) { total[i.situacao] = (total[i.situacao] || 0) + 1; por[i.tipo] = por[i.tipo] || {}; por[i.tipo][i.situacao] = (por[i.tipo][i.situacao] || 0) + 1; });
+    return {
+      ok: true, ligada: true, janela: 'Abre e retoma de segunda a sábado, das 9h às 19h59. Responde todos os dias, das 7h às 20h.', atualizado_em: new Date().toISOString(),
+      ritmo: { frios_24h: 37, teto_frios: 60, aberturas_hoje: 9, retomadas_hoje: 4 },
+      placar: { total: total, por_tipo: por, hoje: { aberturas: 9, retomadas: 4, respostas: 6, reunioes: 1 } },
+      itens: itens
+    };
+  }
+
+  if (location.hash === '#helena' && typeof window.abrirHelena === 'function') window.abrirHelena();
+  window.addEventListener('hashchange', function () { if (location.hash === '#helena' && typeof window.abrirHelena === 'function') window.abrirHelena(); });
 })();
 </script>
   <script src="/lib/telemetria.js" defer></script>
