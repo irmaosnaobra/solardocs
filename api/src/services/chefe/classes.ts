@@ -410,7 +410,7 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // domingo inclusive, por ordem do dono) é mais larga que a do frio daqui: fica
   // registrado para quando o CHEFE for ligado.
   investidor_agente_abertura: robo('frio_p5', ['services/io/investidorAgente.ts'], {
-    carimbos: [frio('inv_agente_sent:')], subprioridade: 2,
+    carimbos: [frio('inv_agente_sent:'), frio('inv_agente_frio:')], subprioridade: 2,
   }),
   // A RETOMADA da Base das agentes da 5040 (B4b, 21/10/2026): a Duda ou a Helena voltando, uma vez por rodada de
   // 10 min, em quem parou de responder (3 h calado, no máximo 2 por pessoa, janela de 9h às 20h, segunda a sábado).

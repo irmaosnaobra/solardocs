@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   proximoPassoDaRetomada, montarRetomadas, limiteDeRetomadasHoje, tetoRetomadasDoDia, lerChaveDeToque, renderRetomada,
-  sessaoEntraNasRetomadas, RETOMADAS_POR_DIA, RETOMADAS_RESERVA_DE_ABERTURA,
+  sessaoEntraNasRetomadas, tipoDaSessao, RETOMADAS_POR_DIA, RETOMADAS_RESERVA_DE_ABERTURA,
   type CarimbosDosToques, type SessaoDeRetomada, type FiltrosDeRetomada,
 } from '../services/io/investidorAgentePuro';
-import { RETOMADAS } from '../services/io/investidorAgenteTextos';
+import { RETOMADAS_POR_VARIANTE } from '../services/io/investidorAgenteTextos';
 import { sessaoEhDaHelena } from '../services/io/investidorAgentePosse';
 
 // As retomadas (13/10/2026), a parte pura: quando cada toque vence, quem entra e o que a
@@ -203,20 +203,19 @@ describe('o teto de 15 e a reserva de 5 para abertura', () => {
   });
 });
 
-describe('os textos das retomadas', () => {
-  it('3 variações e 1 reserva por toque, de 2 a 5', () => {
+describe('os textos das retomadas (redator, 12/11/2026)', () => {
+  it('um texto por toque e por variante (local e capital), de 2 a 5', () => {
     for (const n of [2, 3, 4, 5] as const) {
-      expect(RETOMADAS[n].variacoes, String(n)).toHaveLength(3);
-      expect(RETOMADAS[n].reserva).toBeTruthy();
-      expect(RETOMADAS[n].reserva).not.toContain('{nome}');
-      for (const v of RETOMADAS[n].variacoes) expect(v).toContain('{nome}');
+      expect(RETOMADAS_POR_VARIANTE[n].local, String(n)).toBeTruthy();
+      expect(RETOMADAS_POR_VARIANTE[n].capital, String(n)).toBeTruthy();
+      expect(RETOMADAS_POR_VARIANTE[n].local).not.toBe(RETOMADAS_POR_VARIANTE[n].capital);
     }
   });
 
-  it('só {nome} e {valor}; nada de travessão, emoji, link, "cota"; toda mensagem começa com maiúscula', () => {
+  it('só {nome}; nada de travessão, emoji, link, "cota"; toda mensagem começa com maiúscula', () => {
     for (const n of [2, 3, 4, 5] as const) {
-      for (const t of [...RETOMADAS[n].variacoes, RETOMADAS[n].reserva]) {
-        for (const v of t.match(/\{[^}]*\}/g) ?? []) expect(['{nome}', '{valor}']).toContain(v);
+      for (const t of [RETOMADAS_POR_VARIANTE[n].local, RETOMADAS_POR_VARIANTE[n].capital]) {
+        for (const v of t.match(/\{[^}]*\}/g) ?? []) expect(['{nome}']).toContain(v);
         expect(t).not.toMatch(/[—–]/);
         expect(t).not.toMatch(/\p{Extended_Pictographic}/u);
         expect(t).not.toMatch(/https?:\/\/|www\./i);
@@ -227,30 +226,23 @@ describe('os textos das retomadas', () => {
     }
   });
 
-  it('os que usam {valor} ficam sem variável depois de renderizar, e o valor entra como a pessoa marcou', () => {
+  it('o tipo Arrendamento fala do "local"; os outros, do "eletroposto"; o primeiro nome entra, e sem nome sai o mesmo molde sem ele', () => {
     for (const n of [2, 3, 4, 5] as const) {
-      for (let k = 0; k < 3; k++) {
-        const chave = String(3400000000 + k);       // as 3 variações de cada toque
-        const { texto } = renderRetomada(n, chave, 'Carlos Lima', 'Até R$ 50 mil');
-        expect(texto).not.toMatch(/\{[^}]*\}/);
-        expect(texto).toContain('Carlos');
-        if (RETOMADAS[n].variacoes.some(v => v.includes('{valor}') && texto.includes('até R$ 50 mil'))) expect(texto).toContain('até R$ 50 mil');
+      expect(renderRetomada(n, 'Carlos Lima', 'arrendamento').texto).toBe(RETOMADAS_POR_VARIANTE[n].local.replace('{nome}', 'Carlos'));
+      for (const tipo of ['investidor', 'parceiro', 'curioso']) {
+        expect(renderRetomada(n, 'Carlos Lima', tipo).texto).toBe(RETOMADAS_POR_VARIANTE[n].capital.replace('{nome}', 'Carlos'));
       }
+      const semNome = renderRetomada(n, 'Eletro posto', 'investidor');
+      expect(semNome.indice).toBe(-1);
+      expect(semNome.texto).not.toMatch(/[{}]/);
+      expect(semNome.texto).not.toContain('Eletro');
     }
   });
 
-  it('a variação é fixa pela chave e pelo número do toque; nome que não é de pessoa usa a reserva', () => {
-    const a = renderRetomada(3, '3499990001', 'Ana', 'R$ 140 mil');
-    expect(renderRetomada(3, '3499990001', 'Ana', 'R$ 140 mil')).toEqual(a);
-    const indices = new Set([2, 3, 4, 5].map(n => renderRetomada(n as 2 | 3 | 4 | 5, '3499990001', 'Ana', 'R$ 140 mil').indice));
-    expect(indices.size).toBeGreaterThan(1);                           // muda de um toque para o outro
-    for (const n of [2, 3, 4, 5] as const) {
-      const r = renderRetomada(n, '3499990001', 'Eletro posto', 'R$ 140 mil');
-      expect(r.indice).toBe(-1);
-      expect(r.texto).toBe(RETOMADAS[n].reserva.split('{valor}').join('R$ 140 mil'));
-    }
-    const todas = new Set(['3400000000', '3400000001', '3400000002'].map(k => renderRetomada(2, k, 'Ana', 'R$ 1 mil').indice));
-    expect(todas.size).toBe(3);
+  it('sessão antiga, sem tipo, vale como investidor (variante capital)', () => {
+    expect(tipoDaSessao(undefined)).toBe('investidor');
+    expect(tipoDaSessao('arrendamento')).toBe('arrendamento');
+    expect(tipoDaSessao('qualquer')).toBe('investidor');
   });
 });
 

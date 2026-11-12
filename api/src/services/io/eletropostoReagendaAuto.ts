@@ -126,7 +126,8 @@ import { proximasVagas, diaBRT } from './eletropostoVagas';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { APALAVRADO_PREFIX, esperaAte } from '../agenda/salaDeEspera';
 import { jaVirou, alvoDoDegrau, inicioDoDia, ordenarPeloLugar } from '../agenda/viradaDoDia';
-import { carregarBloqueados } from '../agents/whatsapp/silenciar';
+import { carregarBloqueados, chaveContato } from '../agents/whatsapp/silenciar';
+import { chavesDaHelena } from './investidorAgentePosse';
 
 const BRT_TZ = 'America/Sao_Paulo';
 
@@ -1163,8 +1164,13 @@ export async function runEletropostoReagendaAutoTick(
   // UMA leitura pra rodada inteira, nao um select por ficha: e pra isso que o
   // `carregarBloqueados` devolve predicado em vez de consultar.
   const bloqueado = await carregarBloqueados();
+  // Quem está em conversa com a Helena (agente do eletroposto) é dela: o reciclo não remarca o card nem manda
+  // "você não conseguiu participar" por cima (12/11/2026). Sem ler as sessões, ninguém anda nesta rodada.
+  const daHelena = await chavesDaHelena();
+  if (!daHelena) return { ...zero('erro_posse_helena'), erros: 1 };
   const candidatos = ((data ?? []) as FichaVermelha[]).filter(f =>
     ehOrigemEletroposto(f.created_by)
+    && !daHelena.has(chaveContato(f.cliente_telefone) ?? '')
     // AGENDA EM LOTE: desde 16/10/2026, por ordem do Thiago, o card `agendado`
     // desta origem também anda quando passa das 6h sem status, para não ficar
     // para trás. Anda como o esquecido, calado (relógio `mudo`, rampa dos

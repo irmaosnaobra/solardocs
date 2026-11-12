@@ -16,22 +16,48 @@ const fixos: Array<[string, readonly string[]]> = [
   ['SOU_ASSISTENTE_VIRTUAL', T.SOU_ASSISTENTE_VIRTUAL],
 ];
 
+const abertoras = Object.values(T.ABERTURAS_POR_TIPO).flat();
+const retomadas = Object.values(T.RETOMADAS_POR_VARIANTE).flatMap(v => [v.local, v.capital]);
+/** O molde sem o nome, que é o que sai para quem não tem primeiro nome que dê para usar. */
+const semNome = [...abertoras, ...retomadas].map(T.moldeSemNome);
+
 const tudoQueOClienteLe: string[] = [
-  ...T.ABERTURAS, T.ABERTURA_SEM_NOME, T.HORARIO_FOI_OCUPADO, ...fixos.flatMap(([, v]) => [...v]),
+  ...abertoras, ...retomadas, ...semNome, T.HORARIO_FOI_OCUPADO, ...fixos.flatMap(([, v]) => [...v]),
 ];
 
 describe('textos da Helena: as variáveis que o código troca', () => {
-  it('5 aberturas, todas com {nome} e {valor}', () => {
-    expect(T.ABERTURAS).toHaveLength(5);
-    for (const a of T.ABERTURAS) {
-      expect(a).toContain('{nome}');
-      expect(a).toContain('{valor}');
+  it('os 4 tipos têm 3 aberturas cada, todas com {nome}; {valor} só no Investidor e {cidade} só na 2ª do Arrendamento', () => {
+    expect(Object.keys(T.ABERTURAS_POR_TIPO).sort()).toEqual(['arrendamento', 'curioso', 'investidor', 'parceiro']);
+    for (const [tipo, lista] of Object.entries(T.ABERTURAS_POR_TIPO)) {
+      expect(lista, tipo).toHaveLength(3);
+      for (const [i, a] of lista.entries()) {
+        expect(a, `${tipo} ${i}`).toContain('{nome}');
+        expect(a.includes('{valor}'), `${tipo} ${i} valor`).toBe(tipo === 'investidor');
+        expect(a.includes('{cidade}'), `${tipo} ${i} cidade`).toBe(tipo === 'arrendamento' && i === 1);
+      }
     }
   });
 
-  it('a reserva tem {valor} e não chama ninguém pelo nome', () => {
-    expect(T.ABERTURA_SEM_NOME).toContain('{valor}');
-    expect(T.ABERTURA_SEM_NOME).not.toContain('{nome}');
+  it('as retomadas: toques 2 a 5, uma por variante (local e capital), todas com {nome}', () => {
+    expect(Object.keys(T.RETOMADAS_POR_VARIANTE)).toEqual(['2', '3', '4', '5']);
+    for (const v of Object.values(T.RETOMADAS_POR_VARIANTE)) {
+      expect(v.local).toContain('{nome}');
+      expect(v.capital).toContain('{nome}');
+      expect(v.local).not.toBe(v.capital);
+    }
+  });
+
+  it('o molde sem nome é o MESMO texto do redator sem "{nome}" e sem pontuação solta', () => {
+    for (const molde of [...abertoras, ...retomadas]) {
+      const t = T.moldeSemNome(molde);
+      expect(t).not.toContain('{nome}');
+      expect(t).not.toMatch(/\s,|,\s*[,!.]|^\s*[,!.]|\s{2,}/);
+      expect(t).toMatch(/^[A-ZÀ-Ý]/);
+    }
+    expect(T.moldeSemNome('Oi, {nome}, tudo bem? Aqui é a Helena.')).toBe('Oi, tudo bem? Aqui é a Helena.');
+    expect(T.moldeSemNome('{nome}, tudo bem? Sou a Helena.')).toBe('Tudo bem? Sou a Helena.');
+    expect(T.moldeSemNome('Olá, {nome}! Helena aqui.')).toBe('Olá! Helena aqui.');
+    expect(T.moldeSemNome('Oi, {nome}. Vou parar.')).toBe('Oi. Vou parar.');
   });
 
   it('cada texto fixo tem 2 variações', () => {
@@ -52,7 +78,7 @@ describe('textos da Helena: as variáveis que o código troca', () => {
   });
 
   it('nenhuma variável desconhecida ficou no texto', () => {
-    const conhecidas = new Set(['{nome}', '{valor}', '{consultor}', '{quando}', '{h1}', '{h2}', '{h3}', '{h4}']);
+    const conhecidas = new Set(['{nome}', '{valor}', '{cidade}', '{consultor}', '{quando}', '{h1}', '{h2}', '{h3}', '{h4}']);
     for (const t of [...tudoQueOClienteLe, T.REGRAS_DO_PROMPT]) {
       for (const v of t.match(/\{[^}]*\}/g) ?? []) expect(conhecidas.has(v), v).toBe(true);
     }
@@ -78,19 +104,26 @@ describe('textos da Helena: as regras da casa', () => {
     }
   });
 
-  it('a abertura cabe numa bolha só do envio frio, mesmo com nome e valor longos', () => {
-    for (const a of [...T.ABERTURAS, T.ABERTURA_SEM_NOME]) {
-      const cheia = a.replace('{nome}', 'Maximiliano').replace('{valor}', 'R$ 100 mil a R$ 200 mil');
+  it('a abertura e a retomada cabem numa bolha só do envio frio, mesmo com nome, valor e cidade longos', () => {
+    for (const a of [...abertoras, ...retomadas]) {
+      const cheia = a.replace('{nome}', 'Maximiliano').replace('{valor}', 'R$ 100 mil a R$ 200 mil').replace('{cidade}', 'Governador Valadares');
       expect(cheia.length).toBeLessThanOrEqual(900);
     }
   });
 
-  it('a abertura se apresenta, cita o formulário e deixa a porta de saída', () => {
-    for (const a of [...T.ABERTURAS, T.ABERTURA_SEM_NOME]) {
+  it('a abertura se apresenta como Helena, da Irmãos na Obra, e cita o formulário de eletroposto', () => {
+    for (const a of abertoras) {
       expect(a).toContain('Helena');
       expect(a).toContain('Irmãos na Obra');
-      expect(a).toContain('formulário');
-      expect(a).toContain('não insisto');
+      expect(a).toMatch(/formulário|cadastro/);
+      expect(a).toContain('eletroposto');
+    }
+  });
+
+  it('o retorno usa o texto do toque 4, que se apresenta e reconhece o tempo que passou', () => {
+    for (const v of ['local', 'capital'] as const) {
+      expect(T.RETOMADAS_POR_VARIANTE[4][v]).toContain('Faz um tempo que a gente não se fala');
+      expect(T.RETOMADAS_POR_VARIANTE[4][v]).toContain('Helena');
     }
   });
 });
@@ -174,6 +207,7 @@ describe('a Helena marca "reunião" sem dizer o formato (11/10/2026)', () => {
     // de ESTILO e não dica de formato: "digitando no celular" e "Nunca coloque link".
     const resto = r.replace(regra, '')
       .replace('Escreva como uma pessoa digitando no celular:', '')
+      .replace('Escreva como alguém calma e simpática digitando no celular:', '')
       .replace('Nunca coloque link.', '');
     expect(resto).not.toMatch(/v[ií]deo|link|celular|computador|sem instalar/i);
   });
@@ -226,5 +260,40 @@ ${t}
   it('só variáveis conhecidas e nenhum travessão no bloco (já cobertos pelos testes gerais)', () => {
     for (const v of r.match(/\{[^}]*\}/g) ?? []) expect(['{consultor}']).toContain(v);
     expect(r).not.toMatch(/[—–]/);
+  });
+});
+
+describe('o roteiro de descoberta por tipo (redator, 12/11/2026)', () => {
+  const r = T.REGRAS_DO_PROMPT;
+  const linhas = r.split('\n');
+
+  it('o bloco A entrou inteiro, na ordem, e o roteiro antigo de 4 passos saiu', () => {
+    const titulos = [
+      'QUEM É A PESSOA, POR TIPO DE CADASTRO', 'COMO VOCÊ CONVERSA', 'COMO REAGIR ANTES DE PERGUNTAR', 'O QUE DESCOBRIR ANTES DO CONVITE',
+      'QUANDO E COMO CONVIDAR PARA A REUNIÃO', 'SE A RESPOSTA FOR CURTA ("SIM", "NORMAL", "NÃO SEI", "TÔ VENDO")',
+      'SE ELA ESTIVER COM PRESSA ("RESUME", "VAI DIRETO", "ME MANDA TUDO")', 'SE ELA PERGUNTAR PREÇO, MÍNIMO OU RESULTADO NO MEIO DO ROTEIRO', 'EXEMPLOS DE TROCA',
+    ];
+    const onde = titulos.map(t => linhas.indexOf(t));
+    for (const [i, pos] of onde.entries()) expect(pos, titulos[i]).toBeGreaterThan(0);
+    expect([...onde].sort((a, b) => a - b)).toEqual(onde);
+    expect(linhas).not.toContain('O QUE DESCOBRIR');
+    expect(r).not.toContain('Descubra nesta ordem, uma coisa por vez e sem interrogatório');
+  });
+
+  it('as contradições do roteiro antigo foram resolvidas: sem piso, sem "só investidor", sem "ajuda para achar ponto vai para humano"', () => {
+    expect(r).not.toContain('R$ 50 mil');
+    expect(r).not.toContain('declararam quanto pretendem investir');
+    expect(r).not.toContain('confirmar se o interesse e o valor continuam');
+    expect(r).not.toContain('Se ela quiser apenas ajuda para achar um ponto, passe');
+    expect(r).not.toContain('não force o roteiro de investimento: passe para {consultor}');
+    expect(r).toContain('Se ela quiser ajuda para achar o local, anote e leve para a reunião');
+    expect(r).toContain('Não comente piso nem faixa: qualquer pessoa pode ser convidada para a reunião.');
+    expect(r).toContain('siga o roteiro de Arrendamento');
+  });
+
+  it('o prompt diz que o consultor é o `{consultor}` e que o convite é a única pergunta da resposta', () => {
+    expect(r).toContain('vale uma conversa com {consultor}, que olha o caso dela com os números. Termine perguntando se pode mandar os horários.');
+    expect(r).toContain('Esse convite é a sua única pergunta daquela resposta.');
+    expect(r).toContain('Não use as palavras "arrendamento" nem "aluguel": fale em "ceder o espaço".');
   });
 });
