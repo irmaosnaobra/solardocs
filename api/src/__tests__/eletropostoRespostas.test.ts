@@ -315,6 +315,32 @@ describe('travas', () => {
 // A remarcação automática mora no eletropostoRemarcar (testado à parte). O que
 // estes provam é a LIGAÇÃO: que o tick de respostas chama o robô de verdade, e
 // que a equipe recebe o desfecho junto do recado em vez de um alerta órfão.
+// A Helena passou a conversa do preparo para o consultor (pedido de remarcar): sessão `humano`, que já não é "da Helena"
+// para o robô da agenda. A Helena responde a mensagem e grava o marcador `ep_resposta:<card>` (ate = a mensagem lida):
+// o robô da agenda NÃO responde a mesma mensagem, e segue atendendo as que vierem depois.
+describe('passagem da Helena no preparo: só um responde', () => {
+  it('mensagem até o `ate` do marcador da Helena: o robô da agenda não oferece horário nem avisa; a seguinte volta a ser dele', async () => {
+    fichas = [ficha({ created_by: 'agente_eletroposto' })];
+    inbound = [msg({ texto: 'preciso remarcar, não vou poder', momment: antes(5) })];
+    state.set('ep_resposta:1', { key: 'ep_resposta:1', value: { ate: antes(5), avisado_em: AGORA.toISOString(), por: 'helena' }, updated_at: AGORA.toISOString() });
+    const r = await tick();
+    expect(r.avisados).toBe(0);
+    expect(aoLead).toHaveLength(0);
+    expect(avisos).toHaveLength(0);
+    // sem o marcador, o mesmo cenário seria respondido pelo robô da agenda (a dupla resposta que o marcador evita)
+    state.delete('ep_resposta:1');
+    expect((await tick()).avisados).toBe(1);
+    expect(aoLead).toHaveLength(1);
+    // com o marcador de volta, a mensagem NOVA depois dele é do robô da agenda
+    aoLead.length = 0; avisos.length = 0;
+    state.set('ep_resposta:1', { key: 'ep_resposta:1', value: { ate: antes(5), avisado_em: AGORA.toISOString(), por: 'helena' }, updated_at: AGORA.toISOString() });
+    inbound.push(msg({ texto: 'prefiro sexta, pode ser?', momment: antes(2) }));
+    expect((await tick()).avisados).toBe(1);
+    expect(avisos[0].texto).toContain('prefiro sexta');
+    expect(avisos[0].texto).not.toContain('não vou poder');
+  });
+});
+
 describe('remarcação automática, pela ponta do tick', () => {
   const pedido = (t: string, min = 5) => msg({ texto: t, momment: antes(min) });
 

@@ -37,6 +37,30 @@ export const ESTAGIOS_ATIVOS: readonly EstagioInvestidor[] = ['chamado', 'conver
 /** Por quanto tempo a passagem para o consultor segura os outros robôs. */
 export const POSSE_DEPOIS_DA_PASSAGEM_MS = 48 * 3600_000;
 
+/**
+ * O PREPARO DEPOIS DE MARCAR (12/11/2026): com a reunião marcada, a Helena ainda faz até 2 perguntas de preparo para o
+ * consultor. A sessão fica `agendado` com este bloco, e enquanto ele vale a conversa continua sendo dela (os outros
+ * robôs calam e a resposta da pessoa chega a ela). Acaba sozinho em `ate_em` (24h depois de marcar, ou 3h antes da reunião).
+ */
+export interface PreparoDaSessao {
+  inicio_em: string;
+  /** O horário da reunião marcada (ISO). */
+  reuniao_em: string;
+  /** Até quando o preparo vale: o que vier primeiro entre 24h depois de marcar e 3h antes da reunião. */
+  ate_em: string;
+  /** Quantas perguntas de preparo já saíram (a da confirmação conta). No máximo 2. */
+  perguntas: number;
+  /** Quando a última pergunta saiu: 30 min sem resposta encerram o preparo. */
+  pergunta_em: string;
+}
+
+export function preparoVivo(preparo: unknown, agora: number = Date.now()): boolean {
+  const p = (preparo ?? null) as { ate_em?: unknown } | null;
+  if (!p || typeof p !== 'object') return false;
+  const ate = Date.parse(String(p.ate_em ?? ''));
+  return Number.isFinite(ate) && agora < ate;
+}
+
 export const sessaoAtiva = (estagio: unknown): boolean =>
   (ESTAGIOS_ATIVOS as readonly string[]).includes(String(estagio ?? ''));
 
@@ -76,9 +100,11 @@ export const ADIADO_VALE_MS = 60 * 86_400_000;
 export function sessaoEhDaHelena(valor: unknown, agora: number = Date.now()): boolean {
   const v = (valor ?? {}) as {
     estagio?: unknown; aberto_em?: unknown; erro?: unknown; adiado_em?: unknown; atualizado_em?: unknown;
-    toques?: unknown; ultimo_toque_em?: unknown;
+    toques?: unknown; ultimo_toque_em?: unknown; preparo?: unknown;
   };
   if (v.erro) return false;
+  // Reunião marcada com o preparo em andamento: a conversa ainda é dela (até o preparo acabar).
+  if (v.estagio === 'agendado') return preparoVivo(v.preparo, agora);
   if (v.estagio === 'adiado') {
     const adiou = Date.parse(String(v.adiado_em || v.atualizado_em || ''));
     return Number.isFinite(adiou) && agora - adiou <= ADIADO_VALE_MS;
@@ -95,7 +121,7 @@ export function sessaoEhDaHelena(valor: unknown, agora: number = Date.now()): bo
 /** A sessão segura os outros robôs? (puro: recebe o valor gravado e a hora) */
 export function sessaoSeguraOutrosRobos(valor: unknown, agora: number = Date.now()): boolean {
   const v = (valor ?? {}) as { estagio?: unknown; atualizado_em?: unknown; aberto_em?: unknown };
-  if (sessaoAtiva(v.estagio) || v.estagio === 'adiado') return sessaoEhDaHelena(valor, agora);
+  if (sessaoAtiva(v.estagio) || v.estagio === 'adiado' || v.estagio === 'agendado') return sessaoEhDaHelena(valor, agora);
   if (v.estagio !== 'humano') return false;
   const quando = Date.parse(String(v.atualizado_em || v.aberto_em || ''));
   return Number.isFinite(quando) && agora - quando < POSSE_DEPOIS_DA_PASSAGEM_MS;

@@ -49,6 +49,8 @@ import { ofertarPorConta, bolhasRetorno1, bolhasRetorno2 } from './eletropostoRe
 import { EP_LIBERADO_PREFIX } from './eletropostoCobraSim';
 import { EP_RESPOSTA_PREFIX } from './eletropostoAgenda';
 import { ehCardSemAvisoAutomatico } from '../agenda/origemEtiqueta';
+import { chaveContato } from '../agents/whatsapp/silenciar';
+import { chavesDaHelena } from './investidorAgentePosse';
 
 /** Carimbo de rodada ENVIADA: `ep_retorno:<id>:r1` / `:r2`. Reivindicado ANTES
  *  do envio (insert numa primary key), pelo mesmo motivo que a régua do SIM:
@@ -195,6 +197,11 @@ export async function runEletropostoRetornoTick(opts: { dry?: boolean } = {}): P
   const porId = new Map<number, FichaCancelada>(
     ((fichasBrutas ?? []) as unknown as FichaCancelada[]).map(f => [f.id, f]));
 
+  // Quem está em conversa com a Helena (agente do eletroposto) é dela: este robô não chama de volta por cima
+  // (12/11/2026). Sem conseguir ler as sessões, ninguém anda nesta rodada (a próxima tenta de novo).
+  const daHelena = await chavesDaHelena();
+  if (!daHelena) return { ...zero('erro_posse_helena'), erros: 1 };
+
   let ofertas = 0, semVaga = 0, voltaram = 0, erros = 0;
   const previa: NonNullable<ResultadoRetorno['previa']> = [];
 
@@ -213,6 +220,7 @@ export async function runEletropostoRetornoTick(opts: { dry?: boolean } = {}): P
       || ((respondeuEm.get(l.id) ?? '') > l.em);
     if (falouDepois) continue;
     if (!f.vendedor_nome || !f.cliente_telefone) continue;
+    if (daHelena.has(chaveContato(f.cliente_telefone) ?? '')) continue;
 
     const rodada = rodadaDevida({
       horasDesdeLiberacao: (agora - Date.parse(l.em)) / 3600_000,

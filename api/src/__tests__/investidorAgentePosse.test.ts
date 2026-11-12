@@ -40,6 +40,7 @@ vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), war
 
 import {
   INV_SESSAO_PREFIX, ESTAGIOS_ATIVOS, sessaoAtiva, sessaoSeguraOutrosRobos, sessaoEhDaHelena, investidorAtende, chavesDaHelena,
+  preparoVivo,
 } from '../services/io/investidorAgentePosse';
 
 const AGORA = Date.parse('2026-10-11T15:00:00Z');
@@ -206,3 +207,32 @@ describe('quem adiou continua sendo da Helena por 60 dias', () => {
   });
 });
 
+
+describe('o preparo depois de marcar (rodada 2, 12/11/2026)', () => {
+  const preparo = (ateEmHoras: number) => ({ inicio_em: haHoras(1), reuniao_em: haHoras(-40), ate_em: haHoras(-ateEmHoras), perguntas: 1, pergunta_em: haHoras(0.1) });
+
+  it('preparoVivo: vale até `ate_em`, e valor estranho não vale', () => {
+    expect(preparoVivo(preparo(2), AGORA)).toBe(true);
+    expect(preparoVivo(preparo(-1), AGORA)).toBe(false);
+    expect(preparoVivo(undefined, AGORA)).toBe(false);
+    expect(preparoVivo({ ate_em: 'lixo' }, AGORA)).toBe(false);
+  });
+
+  it('agendado COM preparo vivo é da Helena e segura os outros robôs; sem preparo, ou com ele vencido, não', () => {
+    const base = { estagio: 'agendado', aberto_em: haHoras(30), atualizado_em: haHoras(1) };
+    expect(sessaoEhDaHelena({ ...base, preparo: preparo(2) }, AGORA)).toBe(true);
+    expect(sessaoSeguraOutrosRobos({ ...base, preparo: preparo(2) }, AGORA)).toBe(true);
+    expect(sessaoEhDaHelena({ ...base, preparo: preparo(-1) }, AGORA)).toBe(false);
+    expect(sessaoEhDaHelena(base, AGORA)).toBe(false);
+    expect(sessaoSeguraOutrosRobos(base, AGORA)).toBe(false);
+    expect(sessaoEhDaHelena({ ...base, preparo: preparo(2), erro: 'x' }, AGORA)).toBe(false);
+  });
+
+  it('chavesDaHelena inclui quem está em preparo (os robôs de agenda que a leem pulam essa pessoa)', async () => {
+    banco.linhas = [
+      sessao('3499990001', { estagio: 'agendado', aberto_em: haHoras(30), preparo: preparo(2) }),
+      sessao('3499990002', { estagio: 'agendado', aberto_em: haHoras(30) }),
+    ];
+    expect([...(await chavesDaHelena())!]).toEqual(['3499990001']);
+  });
+});

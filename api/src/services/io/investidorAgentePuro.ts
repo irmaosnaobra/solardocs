@@ -24,7 +24,7 @@ import { ehFeriadoBR } from '../../utils/feriadosBR';
 import { ehCardSemAvisoAutomatico, ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import {
   ABERTURAS_POR_TIPO, moldeSemNome, REGRAS_DO_PROMPT, OFERTA_HORARIOS, CONFIRMACAO,
-  NAO_ENTENDI_O_NUMERO, PASSAGEM_PARA_O_CONSULTOR, DESPEDIDA, PAROU, ADIADO, HORARIO_FOI_OCUPADO,
+  NAO_ENTENDI_O_NUMERO, PASSAGEM_PARA_O_CONSULTOR, DESPEDIDA, PAROU, ADIADO, HORARIO_FOI_OCUPADO, ENCERRAMENTO_DO_PREPARO,
   ABERTURAS_RESGATE, ABERTURA_RESGATE_SEM_NOME, CONVERSA_DE_RESGATE, RETOMADAS_POR_VARIANTE,
   type TipoHelena, type VarianteDoToque,
 } from './investidorAgenteTextos';
@@ -269,6 +269,8 @@ export const textoPassagem = (chave: string): string => variacao(PASSAGEM_PARA_O
 export const textoDespedida = (chave: string): string => variacao(DESPEDIDA, chave);
 export const textoParou = (chave: string): string => variacao(PAROU, chave);
 export const textoAdiado = (chave: string): string => variacao(ADIADO, chave);
+export const textoEncerramentoPreparo = (chave: string, consultor: string, quandoIso: string): string =>
+  variacao(ENCERRAMENTO_DO_PREPARO, chave).split('{consultor}').join(consultor).split('{quando}').join(horarioNaFrase(quandoIso));
 export const textoNaoEntendi = (chave: string): string => variacao(NAO_ENTENDI_O_NUMERO, chave);
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -412,7 +414,7 @@ export function cardReabre(c: CardDoContato, agoraMs: number): boolean {
 
 /**
  * O card que a Helena remarca: o mais recente (maior id) entre os reabríveis de ELETROPOSTO. Um card de
- * outro produto (uma vistoria de solar cancelada, por exemplo) conta para a pessoa entrar na fila, mas a
+ * outro produto (uma vistoria de solar cancelada, por exemplo) conta só para EXCLUIR a pessoa (se estiver vivo), nunca para entrar, e a
  * Helena nunca o converte em reunião de eletroposto: nesse caso ela cria um card novo.
  */
 export function cardParaRemarcar(cards: readonly CardDoContato[], agoraMs: number): CardDoContato | null {
@@ -473,7 +475,7 @@ export function tipoDoTipoCard(tipoCard: unknown): TipoHelena | null {
  *
  * SÓ ENTRA QUEM TEM CARD NÃO ATENDIDO (ordem do dono, 12/11/2026): cancelado, nao_atendeu, `agendado` do
  * lote mudo ou `agendado` de outra origem vencido há mais de 24h, e nenhum card vivo. Quem não tem card
- * nenhum fica FORA: o cadastro só dá tipo, valor, cidade e local a quem tem card. O status `arrendamento` do
+ * nenhum, ou só tem card de outro produto (solar), fica FORA: o cadastro só dá tipo, valor, cidade e local a quem tem card. O status `arrendamento` do
  * card é status de negócio do consultor: conta como atendido (card vivo) e a pessoa fica fora.
  *
  * ORDEM ESTRITA por tipo, sem rodízio: todos os Investidores, depois Arrendamento, Parceiro e por último
@@ -523,6 +525,9 @@ export function montarFila(linhas: LinhaOrigem[], f: FiltrosDaFila): ResultadoFi
     if (!cards.length) { fora('sem_card'); continue; }
     const naoReabre = cards.find(c => !cardReabre(c, f.agora));
     if (naoReabre) { fora(statusDoCard(naoReabre) === 'agendado' ? 'reuniao_real' : 'card_vivo'); continue; }
+    // Só entra quem tem card de ELETROPOSTO não atendido (ordem do dono, 12/11/2026). Card de solar (ou de outro
+    // produto) conta só para EXCLUIR (acima: se estiver vivo, a pessoa sai), nunca para entrar.
+    if (!cardParaRemarcar(cards, f.agora)) { fora('sem_card'); continue; }
 
     // 3) A sessão da Helena: a que não volta tira; a que volta marca RETORNO.
     const retorno = f.retorno.has(g.chave);
@@ -1315,6 +1320,12 @@ export interface ContextoHelena {
   /** Conversa de RESGATE: o `quando` (ISO) da reunião que não aconteceu. Com isto
    *  os fatos ganham o parágrafo "CONVERSA DE RESGATE". Fila principal: ausente. */
   resgateEm?: string | null;
+  /**
+   * PREPARO DEPOIS DE MARCAR (12/11/2026): a reunião já está marcada para `quando` (ISO) e a conversa é só de preparo
+   * para o consultor. `feitas` = perguntas de preparo já enviadas; `encerrar` = é a hora do agradecimento, sem pergunta;
+   * `confirmacao` = o texto da confirmação que já saiu (a pergunta vai logo depois dela).
+   */
+  preparo?: { feitas: number; quando: string; encerrar: boolean; confirmacao?: string };
 }
 
 // ── O QUE A PESSOA JÁ RESPONDEU NO FORMULÁRIO (11/10/2026) ───────────────────
@@ -1503,6 +1514,14 @@ export function montarSistema(ctx: ContextoHelena): string {
     ] : []),
     ...(sabido.length ? ['O que a conversa já descobriu:', ...sabido.map(x => `  ${x}`)] : []),
     ...(ctx.resgateEm ? ['', paragrafoDeResgate(ctx.resgateEm)] : []),
+    ...(ctx.preparo ? [
+      'MODO PREPARO: a reunião JÁ ESTÁ MARCADA, para ' + horarioNaFrase(ctx.preparo.quando) + ', com ' + consultor + '. Siga a seção \'DEPOIS DE MARCAR\'. Você já fez ' + ctx.preparo.feitas + ' pergunta(s) de preparo.',
+      ctx.preparo.feitas === 0
+        ? 'A confirmação' + (ctx.preparo.confirmacao ? ' ("' + ctx.preparo.confirmacao + '")' : '') + ' já foi enviada, e a sua mensagem vai logo depois dela. Devolva a ação "continuar" com UMA bolha: a primeira pergunta de preparo, terminando em "?". Não repita a confirmação nem fale de horário.'
+        : ctx.preparo.encerrar
+          ? 'Este é o fim do preparo: devolva a ação "continuar" com UMA bolha de agradecimento em uma frase, dizendo que ' + consultor + ' chega na reunião com isso em mãos. Sem pergunta.'
+          : 'Devolva a ação "continuar" com UMA bolha: a próxima pergunta de preparo, terminando em "?", ou, se não falta nada, o agradecimento de encerramento, sem pergunta. Nunca convide para reunião nem ofereça horário.',
+    ] : []),
     ...(ctx.oferta.length ? [
       'Você já enviou esta lista de horários e a pessoa ainda não escolheu:',
       ...ctx.oferta.map((iso, i) => `  ${linhaDoHorario(iso, i)}`),
@@ -1518,7 +1537,7 @@ export function montarSistema(ctx: ContextoHelena): string {
     '',
     ...(ctx.agora ? ['QUE DIA É HOJE', ...fatosDeHoje(ctx.agora), 'Cada linha da conversa traz a data e a hora em que foi escrita. Mensagem de dias atrás é conversa antiga, não é o assunto de agora.', ''] : []),
     'COMO DEVOLVER A RESPOSTA',
-    'Devolva só um JSON com os campos "bolhas", "acao", "opcao", "dados" e "resumo".',
+    'Devolva só um JSON com os campos "bolhas", "acao", "opcao", "dados", "resumo" e "convite".',
     '"bolhas": lista com 0, 1 ou 2 mensagens curtas, na ordem em que saem. Lista vazia quando não há o que responder.',
     '"acao", escolha uma:',
     '- "continuar": a conversa segue. O que estiver em "bolhas" é enviado.',
@@ -1532,6 +1551,7 @@ export function montarSistema(ctx: ContextoHelena): string {
     '"opcao": número inteiro. Em "agendar", a posição do horário escolhido na lista (1 a 4). Em todas as outras ações, 0.',
     '"dados": a ficha do que a pessoa já disse, cada campo em UMA linha de texto, nas palavras dela. Os campos são: ' + CAMPOS_DA_FICHA.join(', ') + '. Preencha só os do roteiro do tipo dela (mais os de todos os tipos), e deixe vazio o que você não sabe. O que veio antes você repete, para não perder: o sistema mescla, e campo vazio não apaga o anterior. Em "expectativa_local", só ponha valor se ela mesma disse. Em "perfil_real", só se a conversa mostrou um tipo diferente do cadastro.',
     '"resumo": o resumo para o consultor, em até 3 frases curtas: o caso dela, o que ela mais valoriza e o que ficou em aberto.',
+    '"convite": true SÓ quando a mensagem em "bolhas" convida para a reunião e termina numa pergunta de horário ("Posso te mandar os horários?" ou variação). Em qualquer outra resposta, false. Na dúvida, false.',
     'Na conversa, a linha marcada como "(áudio transcrito)" é a fala da pessoa em áudio, já passada para texto: trate como se ela tivesse escrito. A transcrição pode ter erro: se algo essencial ficar ambíguo (valor, cidade, horário escolhido), confirme em uma frase antes de seguir. Não comente que a mensagem era um áudio. Isso vale só para áudio transcrito: quando a mensagem aparece como [audio] (sem transcrição), ou como imagem ou arquivo, você não adivinha o conteúdo e pede, em uma frase, para a pessoa escrever.',
     'Palavras proibidas na resposta: retorno, rendimento, rentabilidade, lucro, payback, garantia, juros, por cento, cota. Para falar disso, diga "os números".',
   ].join('\n');
@@ -1606,8 +1626,9 @@ export const SCHEMA_SAIDA_HELENA = {
     },
     opcao: { type: 'integer' },
     resumo: { type: 'string' },
+    convite: { type: 'boolean' },
   },
-  required: ['bolhas', 'acao', 'opcao', 'dados', 'resumo'],
+  required: ['bolhas', 'acao', 'opcao', 'dados', 'resumo', 'convite'],
   additionalProperties: false,
 } as const;
 
@@ -1621,6 +1642,17 @@ export interface SaidaHelena {
   resumo: string;
   /** Só na ação `agendar`: a posição (1 a N) do horário escolhido na lista. 0 nas outras. */
   opcao?: number;
+  /** O modelo diz que a mensagem é um CONVITE para a reunião (pergunta de horário). Só vale com `ehConviteDeHorario`. */
+  convite?: boolean;
+}
+
+/**
+ * A resposta é um convite para a reunião? O modelo marca `convite: true`, e o código só aceita se alguma bolha
+ * pergunta pelos horários (palavra "horário" e "?"). Na dúvida, não marca: o registro alimenta a tela de acompanhamento.
+ */
+export function ehConviteDeHorario(saida: { convite?: boolean }, bolhas: readonly string[]): boolean {
+  if (saida.convite !== true) return false;
+  return bolhas.some(b => { const t = semAcento(b); return /\bhorarios?\b/.test(t) && t.includes('?'); });
 }
 
 const SAIDA_INVALIDA: SaidaHelena = { valido: false, acao: 'humano', bolhas: [], dados: {}, resumo: '' };
@@ -1664,6 +1696,7 @@ export function lerSaida(texto: unknown): SaidaHelena {
     dados: Object.fromEntries(CAMPOS_DA_FICHA.map(k => [k, campo(k)])) as DadosDaConversa,
     resumo: String(j.resumo ?? '').trim().slice(0, 600),
     opcao: Number.isInteger(j.opcao) ? Number(j.opcao) : (typeof j.opcao === 'string' && /^\s*\d+\s*$/.test(j.opcao) ? Number(j.opcao) : 0),
+    convite: j.convite === true,
   };
 }
 
@@ -1712,27 +1745,70 @@ function multiplicador(sufixo: string | undefined): number {
  * sempre a moeda. Texto sem acento e em minúsculo, como o resto da trava.
  */
 export function valoresEmReais(textoSemAcento: string, soComMoeda: boolean): number[] {
+  // Sem repetição: "R$ 140 mil" é pego pelo cifrão e pelo "mil", e é um valor só.
+  return [...new Set(ocorrenciasEmReais(textoSemAcento, soComMoeda).map(o => o.valor))];
+}
+
+/** Um valor em reais achado no texto, com o trecho que ele ocupa (índices na string lida). */
+export interface OcorrenciaEmReais { valor: number; i: number; fim: number }
+
+/** Os mesmos achados de `valoresEmReais`, na mesma ordem, cada um com a posição. O mesmo trecho pode ser lido por duas regras. */
+function ocorrenciasEmReais(textoSemAcento: string, soComMoeda: boolean): OcorrenciaEmReais[] {
   const t = textoSemAcento;
-  const achados: number[] = [];
+  const achados: OcorrenciaEmReais[] = [];
+  const anota = (m: RegExpMatchArray, valor: number) => achados.push({ valor, i: m.index ?? 0, fim: (m.index ?? 0) + m[0].length });
   // R$ 140 mil, R$ 1,5 milhao, R$ 140.000,00, R$140
   const comCifrao = new RegExp(String.raw`r\$\s*(` + NUM + String.raw`)(?:\s*(mil|k|milhoes|milhao)\b)?`, 'g');
-  for (const m of t.matchAll(comCifrao)) achados.push(lerNumero(m[1]!) * multiplicador(m[2]));
+  for (const m of t.matchAll(comCifrao)) anota(m, lerNumero(m[1]!) * multiplicador(m[2]));
   // 140 mil reais, 80 reais, 1,5 milhao, 2 milhoes
   const comPalavra = new RegExp(String.raw`(?<![\d.,])(` + NUM + String.raw`)\s*(mil\s+reais|reais|milhoes|milhao)\b`, 'g');
   for (const m of t.matchAll(comPalavra)) {
     const suf = m[2]!.startsWith('mil ') ? 'mil' : m[2];
-    achados.push(lerNumero(m[1]!) * multiplicador(suf));
+    anota(m, lerNumero(m[1]!) * multiplicador(suf));
   }
   // "180 mil" sem o R$: na fala da Helena (estreita) também é valor; "140k" e o número
   // cru de seis algarismos (300000) só contam na leitura larga, do que a pessoa escreve.
   const sufixoMil = soComMoeda ? 'mil' : 'mil|k';
   const mil = new RegExp(String.raw`(?<![\d.,])(` + NUM + String.raw`)\s*(` + sufixoMil + String.raw`)\b`, 'g');
-  for (const m of t.matchAll(mil)) achados.push(lerNumero(m[1]!) * 1_000);
+  for (const m of t.matchAll(mil)) anota(m, lerNumero(m[1]!) * 1_000);
   if (!soComMoeda) {
-    for (const m of t.matchAll(/(?<![\d.,])(\d{6,})(?![\d.,])/g)) achados.push(Number(m[1]));
+    for (const m of t.matchAll(/(?<![\d.,])(\d{6,})(?![\d.,])/g)) anota(m, Number(m[1]));
   }
-  // Sem repetição: "R$ 140 mil" é pego pelo cifrão e pelo "mil", e é um valor só.
-  return [...new Set(achados.filter(n => Number.isFinite(n) && n > 0))];
+  return achados.filter(o => Number.isFinite(o.valor) && o.valor > 0);
+}
+
+// ── Os PREÇOS que o dono liberou para a Helena dizer (12/11/2026) ────────────
+// Só estes valores e só no contexto certo; o resto do que a trava barra continua barrado.
+//   · chave na mão R$ 145 mil: só com "a partir de" até 20 caracteres antes;
+//   · sociedade 50/50 com R$ 72.500;
+//   · carregador de 80 kW por R$ 69.990 e de 120 kW por R$ 89.990: o preço só vale na mesma frase da potência dele.
+// Se a pessoa disse o valor, a Helena ainda pode repeti-lo (`valoresDaPessoa`), como sempre.
+export const PRECOS_DA_HELENA = { chaveNaMao: 145_000, sociedade: 72_500, carregador80: 69_990, carregador120: 89_990 } as const;
+
+/** A frase (texto sem acento) que contém a posição `i`. Ponto entre dígitos ("69.990") não encerra frase. */
+function fraseEm(t: string, i: number): string {
+  let ini = 0;
+  let fim = t.length;
+  for (const m of t.matchAll(/[!?]+|(?<!\d)\.|\.(?!\d)/g)) {
+    const pos = m.index ?? 0;
+    if (pos < i) ini = pos + m[0].length;
+    else { fim = pos; break; }
+  }
+  return t.slice(ini, fim);
+}
+
+/**
+ * O valor `v` (em reais) é um preço da tabela? `null` = não é da tabela (vale a regra de sempre);
+ * `true` = é da tabela e está no contexto certo; `false` = é da tabela mas fora do contexto (barra).
+ */
+function precoDaTabelaNoContexto(t: string, v: number, i: number): boolean | null {
+  switch (v) {
+    case PRECOS_DA_HELENA.chaveNaMao: return t.slice(Math.max(0, i - 20), i).includes('a partir de');
+    case PRECOS_DA_HELENA.sociedade: return true;
+    case PRECOS_DA_HELENA.carregador80: return /\b80\s*kw\b/.test(fraseEm(t, i));
+    case PRECOS_DA_HELENA.carregador120: return /\b120\s*kw\b/.test(fraseEm(t, i));
+    default: return null;
+  }
 }
 
 /**
@@ -1756,8 +1832,10 @@ export function valoresLiberados(
 
 /** Achou número com unidade de potência, prazo ou volume de recarga na fala? Devolve o motivo. */
 function numeroProibido(t: string): string | null {
-  // Potência: "80 kW", "7,4 kWh". A palavra "kWh" sem número segue liberada.
-  const potencia = /\d\s*kwh?\b/.exec(t);
+  // Potência: "80 kW", "7,4 kWh". A palavra "kWh" sem número segue liberada. Liberados só "80 kW" e "120 kW"
+  // (os carregadores da tabela de preços, 12/11/2026): qualquer outro número com kW e qualquer número com kWh barram.
+  const semOsDois = t.replace(/(?<![\d.,])(?:80|120)\s*kw\b/g, ' ');
+  const potencia = /\d\s*kwh?\b/.exec(semOsDois);
   if (potencia) return `citou potência ("${potencia[0].trim()}")`;
   // Prazo: só dia, semana, mês e ano contam, e só quando é promessa de prazo.
   //  · "em <n> dias/semanas/meses/anos" sempre barra ("fica pronto em 45 dias");
@@ -1802,7 +1880,10 @@ export function violaRegras(bolhas: readonly string[], valoresDaPessoa: readonly
   if (/\bcot(?:a|ista)s?\b/.test(t)) return 'falou em cota';
   // "rend" pega rende, rendendo, rendimento e renda; "se paga" é prazo de retorno
   // dito de outro jeito (ressalva da revisão de 11/10/2026).
-  const promessa = /\b(retornos?|rend\w*|rentabilidade|rentav\w*|lucros?|lucrativ\w*|payback|garant\w*|juros?)\b|\bpor cento\b|\bse pagam?\b/.exec(t);
+  // "Dividimos os lucros" é a ÚNICA menção a lucro liberada (sociedade 50/50, 12/11/2026): a frase sai do texto
+  // antes deste teste. "Lucro" em qualquer outro contexto continua barrado.
+  const tSemDivisao = t.replace(/\b(?:dividimos|dividem|dividir) os lucros\b/g, ' ');
+  const promessa = /\b(retornos?|rend\w*|rentabilidade|rentav\w*|lucros?|lucrativ\w*|payback|garant\w*|juros?)\b|\bpor cento\b|\bse pagam?\b/.exec(tSemDivisao);
   if (promessa) return `usou a palavra "${promessa[0]}"`;
   // "ganhar" sozinho é conversa ("você ganha tempo"); com número ou "por mês" na
   // mesma frase é promessa de ganho.
@@ -1823,8 +1904,19 @@ export function violaRegras(bolhas: readonly string[], valoresDaPessoa: readonly
   if (dominio) return `colocou endereço de site (${dominio[0]})`;
   // Valor em reais que a pessoa não disse. Compara pelo número: 140 mil = 140.000.
   const liberados = new Set(valoresDaPessoa.map(v => Math.round(v)));
-  const inventado = valoresEmReais(t, true).find(v => !liberados.has(Math.round(v)));
-  if (inventado !== undefined) return `citou valor em reais que a pessoa não disse (R$ ${inventado.toLocaleString('pt-BR')})`;
+  // Os preços da tabela do dono passam, cada um no contexto certo; fora dele, barra.
+  const vistos: OcorrenciaEmReais[] = [];
+  for (const o of ocorrenciasEmReais(t, true).sort((x, y) => x.i - y.i)) {
+    // O mesmo trecho lido por duas regras ("R$ 145 mil": cifrão e "mil") é um valor só.
+    if (vistos.some(v => v.valor === o.valor && o.i < v.fim)) continue;
+    vistos.push(o);
+    const v = Math.round(o.valor);
+    if (liberados.has(v)) continue;
+    const naTabela = precoDaTabelaNoContexto(t, v, o.i);
+    if (naTabela === true) continue;
+    if (naTabela === false) return `citou preço da tabela fora do contexto (R$ ${v.toLocaleString('pt-BR')})`;
+    return `citou valor em reais que a pessoa não disse (R$ ${o.valor.toLocaleString('pt-BR')})`;
+  }
   return numeroProibido(t);
 }
 
@@ -1836,7 +1928,7 @@ export function pedidoDeReescrita(pedido: string, quebra: string, bolhas: readon
     '',
     'ATENÇÃO: a resposta que você escreveu foi barrada e NÃO foi enviada. Motivo: ' + quebra + '.',
     'O que você tinha escrito: ' + bolhas.join(' / '),
-    'Reescreva a resposta sem isso. Não fale de rendimento, prazo, percentual nem site, e não escreva número que a pessoa não disse (valor em reais, potência em kW, prazo em dias ou meses, quantidade de recargas): para esses assuntos diga "os números" e que o consultor mostra na reunião. Não diga como a reunião acontece: diga só "reunião" ou "conversa com o consultor", e que ele combina os detalhes pelo WhatsApp dele.',
+    'Reescreva a resposta sem isso. Não fale de rendimento, prazo, percentual nem site, e não escreva número que a pessoa não disse, exceto os da tabela de preços (valor em reais, potência em kW, prazo em dias ou meses, quantidade de recargas): para esses assuntos diga "os números" e que o consultor mostra na reunião. Não diga como a reunião acontece: diga só "reunião" ou "conversa com o consultor", e que ele combina os detalhes pelo WhatsApp dele.',
   ].join('\n');
 }
 

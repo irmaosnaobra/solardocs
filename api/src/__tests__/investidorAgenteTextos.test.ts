@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as T from '../services/io/investidorAgenteTextos';
+import { violaRegras } from '../services/io/investidorAgentePuro';
 
 // Os textos da Helena vieram do redator e são trocados por ele. Este teste não
 // fixa a redação: fixa o que QUALQUER versão tem que respeitar para o código
@@ -13,6 +14,7 @@ const fixos: Array<[string, readonly string[]]> = [
   ['DESPEDIDA', T.DESPEDIDA],
   ['PAROU', T.PAROU],
   ['ADIADO', T.ADIADO],
+  ['ENCERRAMENTO_DO_PREPARO', T.ENCERRAMENTO_DO_PREPARO],
   ['SOU_ASSISTENTE_VIRTUAL', T.SOU_ASSISTENTE_VIRTUAL],
 ];
 
@@ -191,8 +193,8 @@ describe('a Helena marca "reunião" sem dizer o formato (11/10/2026)', () => {
     expect(corpoDe('COMO É A REUNIÃO E QUEM É A EMPRESA')).toContain('A reunião é uma conversa com {consultor}.');
     expect(corpoDe('COMO É A REUNIÃO E QUEM É A EMPRESA')).toContain('{consultor} combina os detalhes com ela pelo WhatsApp dele antes do horário');
     expect(corpoDe('SE DISSER "ME MANDA POR AQUI MESMO" OU "ME PASSA AS INFORMAÇÕES"')).toContain('numa conversa com ela');
-    expect(corpoDe('SE DESCONFIAR ("ISSO É GOLPE?", "COMO CONSEGUIU MEU NÚMERO?")')).toContain('Diga que a reunião serve para {consultor} entender o caso');
-    expect(corpoDe('SE DISSER "AGORA NÃO TENHO TEMPO", "VOU PENSAR" OU "DEPOIS EU VEJO"')).toContain('ela escolhe o horário que encaixar na agenda dela');
+    expect(corpoDe('SE DESCONFIAR ("ISSO É GOLPE?", "COMO CONSEGUIU MEU NÚMERO?")')).toContain('Diga com calma que o número veio do formulário que ela preencheu');
+    expect(corpoDe('SE DISSER "AGORA NÃO TENHO TEMPO", "VOU PENSAR" OU "DEPOIS EU VEJO"')).toContain("Em 'agora não' ou 'não tenho tempo', não insista e não ofereça horário.");
     expect(corpoDe('SE QUISER FALAR AGORA OU PEDIR PARA LIGAR')).toContain('combina os detalhes da conversa com ela pelo WhatsApp dele');
     // Cada título aparece uma vez só.
     for (const t of ['COMO É A REUNIÃO E QUEM É A EMPRESA', 'SE QUISER FALAR AGORA OU PEDIR PARA LIGAR']) {
@@ -208,7 +210,9 @@ describe('a Helena marca "reunião" sem dizer o formato (11/10/2026)', () => {
     const resto = r.replace(regra, '')
       .replace('Escreva como uma pessoa digitando no celular:', '')
       .replace('Escreva como alguém calma e simpática digitando no celular:', '')
-      .replace('Nunca coloque link.', '');
+      .replace('Nunca coloque link.', '')
+      // Seção DEPOIS DE MARCAR (rodada 2): o "link" é o pedido que a PESSOA deixou em aberto, não instrução de formato.
+      .replace('como a conta no papel ou o link', '');
     expect(resto).not.toMatch(/v[ií]deo|link|celular|computador|sem instalar/i);
   });
 
@@ -241,7 +245,8 @@ ${t}
   it('a seção de preço foi SUBSTITUÍDA: existe uma só, e a redação antiga saiu', () => {
     expect(r.split('SE PERGUNTAR QUANTO CUSTA, QUANTO DÁ DE RESULTADO OU QUAL O MÍNIMO').length - 1).toBe(1);
     expect(r).not.toContain('Continua valendo: nenhum número, nem para confirmar nem para negar.');
-    expect(r).toContain('Preço, mínimo e resultado continuam com {consultor}.');
+    expect(r).not.toContain('Preço, mínimo e resultado continuam com {consultor}.');
+    expect(r).toContain("Você só dá os números da seção 'PREÇOS QUE VOCÊ PODE DIZER'.");
     expect(r).toContain('Não diga se o valor dela cobre cada item');
   });
 
@@ -271,7 +276,7 @@ describe('o roteiro de descoberta por tipo (redator, 12/11/2026)', () => {
     const titulos = [
       'QUEM É A PESSOA, POR TIPO DE CADASTRO', 'COMO VOCÊ CONVERSA', 'COMO REAGIR ANTES DE PERGUNTAR', 'O QUE DESCOBRIR ANTES DO CONVITE',
       'QUANDO E COMO CONVIDAR PARA A REUNIÃO', 'SE A RESPOSTA FOR CURTA ("SIM", "NORMAL", "NÃO SEI", "TÔ VENDO")',
-      'SE ELA ESTIVER COM PRESSA ("RESUME", "VAI DIRETO", "ME MANDA TUDO")', 'SE ELA PERGUNTAR PREÇO, MÍNIMO OU RESULTADO NO MEIO DO ROTEIRO', 'EXEMPLOS DE TROCA',
+      'SE ELA ESTIVER COM PRESSA ("RESUME", "VAI DIRETO", "ME MANDA TUDO")', 'SE ELA PERGUNTAR PREÇO, MÍNIMO OU RESULTADO NO MEIO DO ROTEIRO', 'EXEMPLOS DE TROCA (só mostram o formato: nunca copie as palavras deles, nem a reação nem a pergunta; escreva com palavras suas, a partir do que a pessoa de fato disse)',
     ];
     const onde = titulos.map(t => linhas.indexOf(t));
     for (const [i, pos] of onde.entries()) expect(pos, titulos[i]).toBeGreaterThan(0);
@@ -286,7 +291,8 @@ describe('o roteiro de descoberta por tipo (redator, 12/11/2026)', () => {
     expect(r).not.toContain('confirmar se o interesse e o valor continuam');
     expect(r).not.toContain('Se ela quiser apenas ajuda para achar um ponto, passe');
     expect(r).not.toContain('não force o roteiro de investimento: passe para {consultor}');
-    expect(r).toContain('Se ela quiser ajuda para achar o local, anote e leve para a reunião');
+    expect(r).toContain('Se ela quiser ajuda para achar o local, diga que a empresa indica locais para quem investe com ela e leve o assunto para a reunião com {consultor}, sem citar lugar, cidade nem prazo');
+    expect(r).not.toContain('sem prometer que a empresa encontra');
     expect(r).toContain('Não comente piso nem faixa: qualquer pessoa pode ser convidada para a reunião.');
     expect(r).toContain('siga o roteiro de Arrendamento');
   });
@@ -295,5 +301,164 @@ describe('o roteiro de descoberta por tipo (redator, 12/11/2026)', () => {
     expect(r).toContain('vale uma conversa com {consultor}, que olha o caso dela com os números. Termine perguntando se pode mandar os horários.');
     expect(r).toContain('Esse convite é a sua única pergunta daquela resposta.');
     expect(r).toContain('Não use as palavras "arrendamento" nem "aluguel": fale em "ceder o espaço".');
+  });
+});
+
+describe('ajuste de voz do redator (12/11/2026)', () => {
+  const r = T.REGRAS_DO_PROMPT;
+  it('as seis instruções entraram', () => {
+    expect(r).toContain("Alterne. Não comece a reação com 'Então você' e não use 'Entendi', 'Certo', 'Faz sentido' nem 'Tudo bem' mais de uma vez na mesma conversa.");
+    expect(r).toContain('diga que perguntou mal e refaça com duas opções.');
+    expect(r).toContain("Diga em primeira pessoa, em uma frase, que você é a assistente virtual da equipe. Se já for hora de convidar, termine com o convite para a reunião com {consultor} (pode te mandar os horários?). Só se ela pedir para falar com uma pessoa agora, passe com 'humano'.");
+    expect(r).toContain('não repita as mesmas palavras: responda o que ela disse e retome com uma frase nova.');
+    expect(r).toContain('Se a cidade não estiver nos fatos do sistema, pergunte a cidade uma vez só. Se ela não responder ou desviar, desista da cidade e convide.');
+    // Rodada 2 (12/11/2026): o prazo deixou de segurar o convite e passou para o DEPOIS DE MARCAR.
+    expect(r).not.toContain('Antes de convidar, tente saber quando ela pensa em começar');
+    expect(r).toContain('Não segure o convite para saber quando ela pensa em começar: isso você pergunta depois de marcar.');
+  });
+  it('preço, limite de 5 respostas, curioso e quem decide (12/11/2026)', () => {
+    const t = String(r);
+    const sec = "Se você ainda não sabe quando ela pensa em começar, siga a seção 'SE ELA PERGUNTAR PREÇO, MÍNIMO OU RESULTADO NO MEIO DO ROTEIRO' antes de convidar.";
+    expect(t).toContain("Diga com palavras suas que entendeu que ela quer saber se compensa, sem abrir com 'Você quer saber se'.");
+    expect(t).toContain("Convide na mesma resposta, terminando em 'Posso te mandar os horários?'. Se ela insistir em faixa ou retorno, não repita o preço nem a recusa");
+    expect(t).not.toContain('troque o convite por uma pergunta de preparo');
+    expect(t).toContain("Só dê os números da seção de preços, nenhum outro, e nunca confirme nem negue rendimento, retorno ou prazo.");
+    expect(t).not.toContain('Nunca dê número nem faixa');
+    expect(t.split(sec).length - 1).toBe(0);   // a pergunta de prazo agora é do DEPOIS DE MARCAR
+    expect(t).toContain('em geral de 3 a 5 respostas dela');
+    expect(t).toContain('Não passe de 5 respostas dela sem convidar: da 5ª em diante, toda resposta sua termina no convite, mesmo faltando cidade ou prazo, e o consultor pergunta o resto.');
+    expect(t).not.toContain('6 respostas');
+    expect(t).toContain("Se ele só quer carregar o próprio carro, faça UMA pergunta para ver se há interesse de negócio, por exemplo 'Você pensa em ter um ponto seu ou é mais para saber onde carregar?'.");
+    expect(t).toContain('Nunca diga que {consultor} orienta sobre onde carregar.');
+    expect(t).toContain('Só pergunte depois da 4ª resposta dela, e nunca segure o convite por isso.');
+  });
+  it('o texto fixo de assistente virtual fala em primeira pessoa', () => {
+    for (const t of T.SOU_ASSISTENTE_VIRTUAL) expect(t).not.toMatch(/a Helena (é|sou)/);
+  });
+});
+
+describe('preços que o dono liberou para a Helena dizer (12/11/2026)', () => {
+  const r = String(T.REGRAS_DO_PROMPT);
+  const SEC = "'PREÇOS QUE VOCÊ PODE DIZER'";
+  const pos = (t: string): number => { const i = r.indexOf(`\n${t}\n`); expect(i, t).toBeGreaterThan(-1); return i; };
+
+  it('a seção nova vem logo depois de "O QUE VOCÊ PODE EXPLICAR" e antes de "ME MANDA POR AQUI MESMO", uma linha por item', () => {
+    const ordem = ['O QUE VOCÊ PODE EXPLICAR', 'PREÇOS QUE VOCÊ PODE DIZER', 'SE DISSER "ME MANDA POR AQUI MESMO" OU "ME PASSA AS INFORMAÇÕES"'].map(pos);
+    expect([...ordem].sort((a, b) => a - b)).toEqual(ordem);
+    expect(r.split('\nPREÇOS QUE VOCÊ PODE DIZER\n').length - 1).toBe(1);
+    const linhas = r.split('\n');
+    const i = linhas.indexOf('PREÇOS QUE VOCÊ PODE DIZER');
+    expect(linhas[i + 1]).toContain('chave na mão a partir de R$ 145 mil; sociedade 50/50, em que a pessoa entra com o local e R$ 72.500, ficamos sócios da operação e dividimos os lucros; carregador de 80 kW por R$ 69.990 e de 120 kW por R$ 89.990, os dois com mangueiras com malha de aço.');
+    expect(linhas[i + 2]).toContain('Qual opção dizer: fale só da que serve à pessoa, no máximo duas, em uma ou duas frases.');
+    expect(linhas[i + 3]).toContain("Diga sempre 'a partir de' no chave na mão.");
+    expect(linhas[i + 4]).toContain('Depois do preço, SEMPRE leve para a reunião');
+    expect(linhas[i + 5]).toBe('');
+  });
+
+  it('as seções que proibiam preço apontam para a seção nova', () => {
+    for (const t of [
+      `Diga o preço que serve a ela, conforme a seção ${SEC}, e que o caso dela, com os números completos, {consultor} mostra na reunião.`,
+      `Dê só os números da seção ${SEC} e nunca confirme nem negue o que ela disser sobre rendimento, retorno ou prazo.`,
+      `Você só dá os números da seção ${SEC}.`,
+      `Para 'qual o mínimo', diga o preço de entrada da opção que serve a ela, sem usar a palavra mínimo.`,
+      `A única menção a lucro é 'dividimos os lucros', na sociedade 50/50, sem número. Só informe os preços da seção ${SEC}. Nunca informe outro preço, condição de pagamento, financiamento, desconto ou detalhe de contrato.`,
+      `nenhum valor em reais nem potência fora da seção ${SEC}, nenhum nome de modelo,`,
+      `nem como o lucro é dividido, além do 'dividimos os lucros' da sociedade 50/50`,
+      `Não mande material; número só o da seção ${SEC}.`,
+      `Quem fecha os números do caso é o consultor, na reunião. Os preços da seção ${SEC} você pode dizer.`,
+      'Fale só da opção que serve à pessoa.',
+    ]) expect(r, t).toContain(t);
+    for (const velho of [
+      'Diga que os números dependem do caso dela e que {consultor} mostra na reunião.',
+      'Não responda número nenhum, nem confirme nem negue o que a pessoa disser.',
+      'Você não dá número nenhum, nem para confirmar nem para negar.',
+      'não diga que existe ou não existe um mínimo',
+      'Nunca informe preço, valor de equipamento, condição de pagamento ou detalhe de contrato.',
+      'Não mande material nem número.',
+      'Quem apresenta as opções de negócio e os números é o consultor, na reunião, nunca você.',
+      'sem detalhar nenhuma opção',
+    ]) expect(r, velho).not.toContain(velho);
+  });
+
+  it('ajuda para achar local e parceiro', () => {
+    expect(r.split('diga que a empresa indica locais para quem investe com ela e leve o assunto para a reunião com {consultor}, sem citar lugar, cidade nem prazo').length - 1).toBe(2);
+    expect(r).toContain('e que o chave na mão não exige local próprio');
+    expect(r).not.toContain('nem todas exigem local próprio, e que o chave na mão');
+    expect(r).toContain('A empresa procura parceiros que queiram vender a marca NEXUS: diga isso quando ele falar de revenda ou for integrador.');
+  });
+
+  it('os três exemplos de preço entraram, um por rótulo, e as falas da Helena neles passam na trava', () => {
+    const exemplos = [
+      ['Preço, investidor sem local:', 'Pessoa: Quanto preciso para entrar?', 'Helena, bolha 1: Temos o chave na mão a partir de R$ 145 mil, e a empresa indica locais para quem investe com a gente.', 'Helena, bolha 2: Para o {consultor} já chegar com a conta do seu caso, me conta: quando você pensa em começar?'],
+      ['Preço, arrendamento:', 'Pessoa: O terreno é meu, quanto eu preciso pôr?', 'Helena, bolha 1: Com o terreno seu, temos a sociedade 50/50: você entra com o local e R$ 72.500, ficamos sócios da operação e dividimos os lucros.', 'Helena, bolha 2: O {consultor} mostra como isso fica no seu caso. Posso te mandar os horários?'],
+      ['Preço, parceiro:', 'Pessoa: Qual o preço do carregador?', 'Helena, bolha 1: Temos de 80 kW por R$ 69.990 e de 120 kW por R$ 89.990, com mangueiras com malha de aço.', 'Helena, bolha 2: Quem fala de parceria para vender a marca é o {consultor}. Posso te mandar os horários?'],
+    ];
+    for (const ex of exemplos) {
+      expect(r, ex[0]).toContain(`\n${ex.join('\n')}\n`);
+      expect(violaRegras(ex.slice(2).map(l => l.replace(/^Helena, bolha \d: /, '').replace('{consultor}', 'Diego'))), ex[0]).toBeNull();
+    }
+  });
+
+  it('a frase de preços da seção, dita pela Helena, passa na trava', () => {
+    const linhas = r.split('\n');
+    const i = linhas.indexOf('PREÇOS QUE VOCÊ PODE DIZER');
+    expect(violaRegras([linhas[i + 1]!.split('. A empresa também')[0]! + '.'])).toBeNull();
+  });
+});
+
+describe('rodada 2 do redator: voz, DEPOIS DE MARCAR e textos fixos (12/11/2026)', () => {
+  const r = String(T.REGRAS_DO_PROMPT);
+  const tem = (t: string) => expect(r, t.slice(0, 60)).toContain(t);
+
+  it('as trocas do prompt (A1 a A12) estão presentes', () => {
+    tem("Se não houver, não peça a cidade e não convide: diga com simpatia que você não tem lista de pontos nem tarifa, que os aplicativos e mapas de recarga mostram os pontos perto dele, e use sem_interesse.");
+    tem("Em 'agora não' ou 'não tenho tempo', não insista e não ofereça horário. Se ela já disse quando prefere ser procurada, registre com as palavras dela e use adiar, sem perguntar de novo. Se não disse, pergunte uma vez só quando prefere que você chame. Depois de qualquer recusa clara de reunião, nunca volte a convidar: ofereça uma vez falar depois (adiar) ou encerre (sem_interesse).");
+    expect(r).not.toContain('Uma tentativa e pronto.');
+    tem("Se for um pedido claro de adiar, não faça tentativa: aceite e use adiar. A tentativa leve só vale para 'vou pensar' e 'depois eu vejo', sem data.");
+    tem("Se ela perguntar de onde veio o número, diga que foi o formulário de eletroposto que ela preencheu, com o mês se estiver nos fatos do sistema.");
+    tem("Ofereça passar para {consultor} uma só vez na conversa inteira, e não convide para reunião enquanto a desconfiança durar. Se ela disser que sem esse dado não segue, aceite com respeito e use humano.");
+    expect(r).not.toContain('Se a desconfiança continuar, não insista');
+    tem("A empresa do eletroposto é a NEXUS Eletroposto, da Irmãos na Obra, com CNPJ 03.945.372/0001-89 e sede em Araguari, MG. Diga isso quando a pessoa desconfiar ou pedir os dados da empresa.");
+    tem("Todo convite termina numa pergunta clara de horário ('Posso te mandar os horários?' ou variação), nunca só em 'o consultor mostra na reunião'. Se ela já aceitou os horários sem outra pergunta, use oferecer_horarios na hora.");
+    tem("Se ela impôs uma condição ('me diz X que eu marco'), responda o que puder e convide mesmo assim; o que você não souber, diga que {consultor} define.");
+    tem("Releia a última mensagem inteira: toda dúvida ou receio nela, mesmo no fim ou depois de um 'pode mandar', tem que ser respondido ou acolhido em uma frase antes de qualquer convite.");
+    tem("Espelhe o jeito dela: se escreve curto e solto, escreva leve e curto, sem resumo nem lista.");
+    tem("Se ela perguntar se o dono precisa aprovar, diga que isso {consultor} explica na reunião e pergunte se ela já conversou com o dono. Para quem só quer ceder o espaço, não fale de análise de carga nem de compra de equipamento.");
+    tem("Para eletricista que quer instalar, não enquadre como venda: pergunte o que ele imagina da parceria. Se mostrar medo de não dar conta, acolha em uma frase e diga que {consultor} explica como funciona, sem prometer treinamento. Se perguntar margem, exclusividade ou condições, diga que quem define é {consultor}, sem número, e convide com os horários.");
+    tem("Com quem responde seco, use pergunta de duas opções: 'já tem um local em vista ou prefere que a gente indique?', 'sozinho ou com sócio?'.");
+  });
+
+  it('nenhuma seção manda mais perguntar o prazo antes de convidar (A8)', () => {
+    expect(r).not.toContain('Se você ainda não sabe quando ela pensa em começar');
+  });
+
+  it('a seção DEPOIS DE MARCAR vem logo depois da reunião e da empresa e antes de O QUE VOCÊ PODE EXPLICAR', () => {
+    const linhas = r.split('\n');
+    const i = linhas.indexOf('DEPOIS DE MARCAR');
+    expect(i).toBeGreaterThan(linhas.indexOf('COMO É A REUNIÃO E QUEM É A EMPRESA'));
+    expect(i).toBeLessThan(linhas.indexOf('O QUE VOCÊ PODE EXPLICAR'));
+    expect(linhas.filter(l => l === 'DEPOIS DE MARCAR')).toHaveLength(1);
+    expect(linhas[i + 1]).toContain('O horário já está marcado e a confirmação já foi enviada. Agora você prepara {consultor}, com no máximo 2 perguntas, UMA por vez, sempre a que mais falta, nesta ordem.');
+    expect(linhas[i + 1]).toContain('Terceiro, quem decide junto, mas só se ela não disse que decide sozinha, que é MEI, autônoma ou dona do negócio.');
+    expect(linhas[i + 1]).toContain("sem abrir duas mensagens seguidas com 'Anotei' ou 'Deixei anotado'");
+    expect(linhas[i + 2]).toContain("No encerramento, agradeça em uma frase, sem 'em mãos' e sem 'anotado', e cite o dia como está na confirmação, nunca 'amanhã' nem 'hoje'.");
+    expect(linhas[i + 2]).toContain('A pergunta de preparo não é condição: se ela não responder ou responder seco, não insista.');
+    expect(linhas[i + 2]).toContain('Nunca fale de outro horário nem volte a falar de preço.');
+    expect(linhas[i + 3]).toBe('');
+  });
+
+  it('os textos fixos (C) são os do redator, com duas variações cada', () => {
+    expect(T.PASSAGEM_PARA_O_CONSULTOR).toEqual([
+      'Entendi. Vou passar para o consultor da nossa equipe, e ele continua essa conversa com você por aqui mesmo.',
+      'Certo. Vou chamar o consultor da equipe para falar com você por aqui mesmo.',
+    ]);
+    expect(T.ADIADO).toEqual([
+      'Deixei anotado. Não vou ficar te cobrando por aqui: se quiser retomar antes, é só me chamar.',
+      'Tudo bem, sem pressa. Deixei anotado do jeito que você pediu. Se quiser conversar antes, é só me chamar por aqui.',
+    ]);
+    expect(T.DESPEDIDA).toEqual([
+      'Tudo bem, obrigada por me avisar e boa sorte por aí! Se um dia o assunto voltar a fazer sentido, é só me chamar por aqui.',
+      'Entendido, obrigada pela atenção. Se algo mudar mais para frente, pode me chamar por aqui.',
+    ]);
   });
 });

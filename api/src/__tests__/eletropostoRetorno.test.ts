@@ -63,6 +63,13 @@ vi.mock('../services/io/eletropostoRemarcar', () => ({
   bolhasRetorno2: function bolhasRetorno2() { return []; },
 }));
 
+// Quem está em conversa com a Helena (agente do eletroposto): controlado pelo teste.
+const helena = vi.hoisted(() => ({ chaves: new Set<string>(), falha: false }));
+vi.mock('../services/io/investidorAgentePosse', async (orig) => ({
+  ...(await orig<typeof import('../services/io/investidorAgentePosse')>()),
+  chavesDaHelena: vi.fn(async () => (helena.falha ? null : helena.chaves)),
+}));
+
 vi.mock('../utils/logger', () => ({ logger: { info: () => {}, warn: () => {}, error: () => {} } }));
 
 import { runEletropostoRetornoTick, rodadaDevida, EP_RETORNO_PREFIX } from '../services/io/eletropostoRetorno';
@@ -88,6 +95,7 @@ beforeEach(() => {
   estado = []; fichas = []; ofertados.length = 0;
   resultadoOferta = { acao: 'ofertou', ofertas: ['a', 'b', 'c'] };
   delete process.env.EP_RETORNO_OFF;
+  helena.chaves = new Set(); helena.falha = false;
 });
 afterEach(() => { vi.useRealTimers(); });
 
@@ -108,6 +116,26 @@ describe('rodadaDevida — a cadência', () => {
 });
 
 describe('o tick', () => {
+  it('NÃO chama quem está em conversa com a Helena (12/11/2026)', async () => {
+    estado = [liberado(1, 21)];
+    fichas = [ficha(1)];
+    helena.chaves.add('3499887766');   // DDD 34 + 8 últimos de 5534999887766
+    const r = await runEletropostoRetornoTick();
+    expect(r.ofertas).toBe(0);
+    expect(ofertados).toHaveLength(0);
+    expect(estado.some(e => e.key === `${EP_RETORNO_PREFIX}1:r1`)).toBe(false);
+  });
+
+  it('sem conseguir ler as sessões da Helena, ninguém é chamado nesta rodada', async () => {
+    estado = [liberado(1, 21)];
+    fichas = [ficha(1)];
+    helena.falha = true;
+    const r = await runEletropostoRetornoTick();
+    expect(r.ofertas).toBe(0);
+    expect(r.motivo).toBe('erro_posse_helena');
+    expect(ofertados).toHaveLength(0);
+  });
+
   it('chama de volta com horário na mesa e carimba a rodada', async () => {
     estado = [liberado(1, 21)];
     fichas = [ficha(1)];
