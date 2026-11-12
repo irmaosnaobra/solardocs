@@ -1547,13 +1547,13 @@ export function montarSistema(ctx: ContextoHelena): string {
     '- "humano": pediu para falar com uma pessoa, reclamou, ou o assunto não é com você. O sistema envia a mensagem de passagem e avisa o consultor.',
     '- "sem_interesse": disse que não tem interesse ou que desistiu. O sistema envia a despedida.',
     '- "parar": pediu para não receber mais mensagem. O sistema confirma e não escreve mais.',
-    'Em "oferecer_horarios", "agendar", "adiar", "humano", "sem_interesse" e "parar" o sistema manda a mensagem pronta no seu lugar: deixe "bolhas" vazia, porque o que estiver nela não é enviado.',
+    'Em "agendar", "humano" e "parar" o sistema manda a mensagem pronta no seu lugar: deixe "bolhas" vazia, porque o que estiver nela não é enviado. Em "oferecer_horarios" e "sem_interesse" sai UMA bolha sua, curta, antes da mensagem pronta (a lista de horários ou a despedida); em "adiar" a sua bolha curta vai no lugar da mensagem pronta. Sem bolha sua, sai só a mensagem pronta.',
     '"opcao": número inteiro. Em "agendar", a posição do horário escolhido na lista (1 a 4). Em todas as outras ações, 0.',
     '"dados": a ficha do que a pessoa já disse, cada campo em UMA linha de texto, nas palavras dela. Os campos são: ' + CAMPOS_DA_FICHA.join(', ') + '. Preencha só os do roteiro do tipo dela (mais os de todos os tipos), e deixe vazio o que você não sabe. O que veio antes você repete, para não perder: o sistema mescla, e campo vazio não apaga o anterior. Em "expectativa_local", só ponha valor se ela mesma disse. Em "perfil_real", só se a conversa mostrou um tipo diferente do cadastro.',
     '"resumo": o resumo para o consultor, em até 3 frases curtas: o caso dela, o que ela mais valoriza e o que ficou em aberto.',
     '"convite": true SÓ quando a mensagem em "bolhas" convida para a reunião e termina numa pergunta de horário ("Posso te mandar os horários?" ou variação). Em qualquer outra resposta, false. Na dúvida, false.',
     'Na conversa, a linha marcada como "(áudio transcrito)" é a fala da pessoa em áudio, já passada para texto: trate como se ela tivesse escrito. A transcrição pode ter erro: se algo essencial ficar ambíguo (valor, cidade, horário escolhido), confirme em uma frase antes de seguir. Não comente que a mensagem era um áudio. Isso vale só para áudio transcrito: quando a mensagem aparece como [audio] (sem transcrição), ou como imagem ou arquivo, você não adivinha o conteúdo e pede, em uma frase, para a pessoa escrever.',
-    'Palavras proibidas na resposta: retorno, rendimento, rentabilidade, lucro, payback, garantia, juros, por cento, cota. Para falar disso, diga "os números".',
+    'Palavras proibidas na resposta: retorno, rendimento, rentabilidade, lucro, payback, garantia, juros, por cento, cota. A única exceção é a frase "dividimos os lucros", ao falar da sociedade 50/50, sem número. Para falar do resto disso, diga "os números".',
   ].join('\n');
 }
 
@@ -1785,8 +1785,8 @@ function ocorrenciasEmReais(textoSemAcento: string, soComMoeda: boolean): Ocorre
 // Se a pessoa disse o valor, a Helena ainda pode repeti-lo (`valoresDaPessoa`), como sempre.
 export const PRECOS_DA_HELENA = { chaveNaMao: 145_000, sociedade: 72_500, carregador80: 69_990, carregador120: 89_990 } as const;
 
-/** A frase (texto sem acento) que contém a posição `i`. Ponto entre dígitos ("69.990") não encerra frase. */
-function fraseEm(t: string, i: number): string {
+/** Os limites [ini, fim) da frase (texto sem acento) que contém a posição `i`. Ponto entre dígitos ("69.990") não encerra frase. */
+function limitesDaFrase(t: string, i: number): [number, number] {
   let ini = 0;
   let fim = t.length;
   for (const m of t.matchAll(/[!?]+|(?<!\d)\.|\.(?!\d)/g)) {
@@ -1794,8 +1794,36 @@ function fraseEm(t: string, i: number): string {
     if (pos < i) ini = pos + m[0].length;
     else { fim = pos; break; }
   }
+  return [ini, fim];
+}
+
+/** A frase (texto sem acento) que contém a posição `i`. */
+function fraseEm(t: string, i: number): string {
+  const [ini, fim] = limitesDaFrase(t, i);
   return t.slice(ini, fim);
 }
+
+/**
+ * A potência (80 ou 120 kW) MAIS PRÓXIMA do preço na mesma frase: o preço de 80 kW só vale ao lado do "80 kW", mesmo
+ * que a frase cite as duas potências ("o de 80 kW sai por R$ 69.990 e o de 120 kW por R$ 89.990"). Vale a que vem
+ * antes do preço ou depois dele, a de menor distância; empate fica com a que vem antes.
+ */
+function potenciaMaisProxima(t: string, i: number): 80 | 120 | null {
+  const [ini, fim] = limitesDaFrase(t, i);
+  let melhor: { p: 80 | 120; d: number; antes: boolean } | null = null;
+  for (const m of t.slice(ini, fim).matchAll(/(?<![\d.,])(80|120)\s*kw\b/g)) {
+    const pos = ini + (m.index ?? 0);
+    const antes = pos + m[0].length <= i;
+    const d = antes ? i - (pos + m[0].length) : pos - i;
+    if (!melhor || d < melhor.d || (d === melhor.d && antes && !melhor.antes)) melhor = { p: Number(m[1]) as 80 | 120, d, antes };
+  }
+  return melhor ? melhor.p : null;
+}
+
+/** Os preços da tabela do dono, em reais. */
+const VALORES_DA_TABELA: ReadonlySet<number> = new Set(Object.values(PRECOS_DA_HELENA));
+/** Preço da tabela dito como ganho ou valor mensal: nenhum dos preços é isso. */
+const PRECO_COMO_GANHO = /\b(?:por mes|mensal\w*|mensais|ao mes|fatur\w*|lucro de)\b/;
 
 /**
  * O valor `v` (em reais) é um preço da tabela? `null` = não é da tabela (vale a regra de sempre);
@@ -1804,9 +1832,10 @@ function fraseEm(t: string, i: number): string {
 function precoDaTabelaNoContexto(t: string, v: number, i: number): boolean | null {
   switch (v) {
     case PRECOS_DA_HELENA.chaveNaMao: return t.slice(Math.max(0, i - 20), i).includes('a partir de');
-    case PRECOS_DA_HELENA.sociedade: return true;
-    case PRECOS_DA_HELENA.carregador80: return /\b80\s*kw\b/.test(fraseEm(t, i));
-    case PRECOS_DA_HELENA.carregador120: return /\b120\s*kw\b/.test(fraseEm(t, i));
+    // R$ 72.500 só na mesma frase de "50/50" ou "sociedade".
+    case PRECOS_DA_HELENA.sociedade: return /\b50\s*\/\s*50\b|\bsociedade\b/.test(fraseEm(t, i));
+    case PRECOS_DA_HELENA.carregador80: return potenciaMaisProxima(t, i) === 80;
+    case PRECOS_DA_HELENA.carregador120: return potenciaMaisProxima(t, i) === 120;
     default: return null;
   }
 }
@@ -1834,6 +1863,9 @@ export function valoresLiberados(
 function numeroProibido(t: string): string | null {
   // Potência: "80 kW", "7,4 kWh". A palavra "kWh" sem número segue liberada. Liberados só "80 kW" e "120 kW"
   // (os carregadores da tabela de preços, 12/11/2026): qualquer outro número com kW e qualquer número com kWh barram.
+  // "kWh" e "kW/h" (consumo, não potência) barram sempre, até depois de 80 ou 120.
+  const consumo = /\d\s*(?:kwh\b|kw\s*\/\s*h\b)/.exec(t);
+  if (consumo) return `citou potência ("${consumo[0].trim()}")`;
   const semOsDois = t.replace(/(?<![\d.,])(?:80|120)\s*kw\b/g, ' ');
   const potencia = /\d\s*kwh?\b/.exec(semOsDois);
   if (potencia) return `citou potência ("${potencia[0].trim()}")`;
@@ -1911,6 +1943,11 @@ export function violaRegras(bolhas: readonly string[], valoresDaPessoa: readonly
     if (vistos.some(v => v.valor === o.valor && o.i < v.fim)) continue;
     vistos.push(o);
     const v = Math.round(o.valor);
+    // Preço da tabela na mesma frase de "por mês", "mensal", "ao mês", "fatura" ou "lucro de" é promessa de ganho
+    // (ou valor mensal), mesmo que a própria pessoa tenha dito o valor: barra.
+    if (VALORES_DA_TABELA.has(v) && PRECO_COMO_GANHO.test(fraseEm(t, o.i))) {
+      return `citou preço da tabela como ganho ou valor mensal (R$ ${v.toLocaleString('pt-BR')})`;
+    }
     if (liberados.has(v)) continue;
     const naTabela = precoDaTabelaNoContexto(t, v, o.i);
     if (naTabela === true) continue;

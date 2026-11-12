@@ -835,7 +835,9 @@ describe('o que a IA recebe', () => {
     expect(s).toContain('"oferecer_horarios"');
     // A ação nova (11/10/2026) está na lista do código e no aviso de mensagem pronta.
     expect(s).toContain('- "adiar": ela quer ser procurada mais para frente');
-    expect(s).toContain('Em "oferecer_horarios", "agendar", "adiar", "humano", "sem_interesse" e "parar" o sistema manda a mensagem pronta no seu lugar');
+    expect(s).toContain('Em "agendar", "humano" e "parar" o sistema manda a mensagem pronta no seu lugar');
+    expect(s).toContain('Em "oferecer_horarios" e "sem_interesse" sai UMA bolha sua, curta, antes da mensagem pronta');
+    expect(s).toContain('em "adiar" a sua bolha curta vai no lugar da mensagem pronta');
     // E o bloco de contorno do redator chega ao modelo com o nome do consultor.
     expect(s).toContain('Sua meta em toda conversa é marcar a reunião com Diego.');
     // As regras de conteúdo que não podem faltar.
@@ -848,7 +850,7 @@ describe('o que a IA recebe', () => {
     expect(s).toContain('no máximo uma pergunta por resposta');
     // A última linha das instruções técnicas: as palavras que a trava barra.
     expect(s.trimEnd().split('\n').pop()).toBe(
-      'Palavras proibidas na resposta: retorno, rendimento, rentabilidade, lucro, payback, garantia, juros, por cento, cota. Para falar disso, diga "os números".');
+      'Palavras proibidas na resposta: retorno, rendimento, rentabilidade, lucro, payback, garantia, juros, por cento, cota. A única exceção é a frase "dividimos os lucros", ao falar da sociedade 50/50, sem número. Para falar do resto disso, diga "os números".');
     // O separador || do rascunho não chega ao modelo: o transporte é a lista "bolhas".
     expect(s).not.toContain('||');
   });

@@ -10,7 +10,7 @@ vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: {} }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 
 import {
-  violaRegras, valoresEmReais, valoresLiberados, pedidoDeReescrita, type MsgDaConversa,
+  violaRegras, valoresEmReais, valoresLiberados, pedidoDeReescrita, montarSistema, type MsgDaConversa,
 } from '../services/io/investidorAgentePuro';
 
 describe('violaRegras: número que o modelo não pode dizer', () => {
@@ -229,5 +229,52 @@ describe('violaRegras: a tabela de preços liberada', () => {
 
   it('o pedido de reescrita diz que a tabela de preços é a exceção', () => {
     expect(pedidoDeReescrita('P', 'citou valor', ['x'])).toContain('exceto os da tabela de preços');
+  });
+});
+
+// REVISÃO FINAL (12/11/2026): a tabela não pode virar promessa de ganho, 72.500 só na sociedade, o preço do carregador
+// só ao lado da potência dele (mesmo com as duas na frase) e "kW/h" continua barrado.
+describe('violaRegras: a tabela de preços não vira ganho, e cada preço fica com o seu contexto', () => {
+  it('BARRA: preço da tabela na mesma frase de "por mês", "mensal", "ao mês", "fatura" ou "lucro de"', () => {
+    for (const t of [
+      'Na sociedade 50/50, dividimos os lucros, R$ 72.500 por mês para cada lado.',
+      'A sociedade 50/50 com R$ 72.500 dá um valor mensal para cada sócio.',
+      'O chave na mão fatura a partir de R$ 145 mil por mês.',
+      'O chave na mão, a partir de R$ 145 mil, fatura bem.',
+      'Com a sociedade 50/50 e R$ 72.500 ao mês, dividimos os lucros.',
+      'Temos um de 80 kW por R$ 69.990, com lucro de muita gente.',
+      'Temos um de 120 kW por R$ 89.990 e a mensalidade é baixa.',
+    ]) expect(violaRegras([t]), t).toMatch(/preço da tabela como ganho ou valor mensal|usou a palavra/);
+    // até se a própria pessoa tiver dito o valor: o preço não é ganho mensal
+    expect(violaRegras(['O chave na mão a partir de R$ 145 mil por mês.'], [145000])).toMatch(/como ganho ou valor mensal/);
+  });
+
+  it('R$ 72.500 só na mesma frase de "50/50" ou "sociedade"', () => {
+    expect(violaRegras(['Você entra com o local e R$ 72.500, e ficamos sócios na sociedade.'])).toBeNull();
+    expect(violaRegras(['Na 50/50 você entra com R$ 72.500.'])).toBeNull();
+    expect(violaRegras(['O chave na mão sai a partir de R$ 145 mil. Já o terreno custa R$ 72.500.'])).toMatch(/fora do contexto/);
+    expect(violaRegras(['Você entra com R$ 72.500.'])).toMatch(/fora do contexto/);
+  });
+
+  it('o carregador de 80 kW só com R$ 69.990 e o de 120 kW só com R$ 89.990, mesmo com as duas potências na frase', () => {
+    expect(violaRegras(['O de 80 kW sai por R$ 69.990 e o de 120 kW por R$ 89.990.'])).toBeNull();
+    expect(violaRegras(['O de 120 kW por R$ 89.990 e o de 80 kW por R$ 69.990.'])).toBeNull();
+    expect(violaRegras(['Por R$ 69.990 você leva o de 80 kW.'])).toBeNull();
+    expect(violaRegras(['O de 80 kW sai por R$ 89.990 e o de 120 kW por R$ 69.990.'])).toMatch(/fora do contexto/);
+    expect(violaRegras(['O de 120 kW sai por R$ 69.990 e o de 80 kW por R$ 89.990.'])).toMatch(/fora do contexto/);
+    expect(violaRegras(['Temos o de 80 kW e o de 120 kW, e o de 80 kW custa R$ 89.990.'])).toMatch(/fora do contexto/);
+  });
+
+  it('"kW/h" e "kWh" seguem barrados, até depois de 80 ou 120', () => {
+    expect(violaRegras(['O carregador de 120 kW/h é o mais rápido.'])).toMatch(/potência/);
+    expect(violaRegras(['O carregador de 80 kW / h é bom.'])).toMatch(/potência/);
+    expect(violaRegras(['Ele entrega 120 kWh por dia.'])).toMatch(/potência/);
+    expect(violaRegras(['Ele gasta 7,4 kWh.'])).toMatch(/potência/);
+    expect(violaRegras(['O carregador de 120 kW é o mais rápido.'])).toBeNull();
+  });
+
+  it('o recado da reescrita não proíbe "dividimos os lucros": a exceção está escrita', () => {
+    const s = montarSistema({ nome: 'Ana', valorTxt: 'R$ 140 mil', cidade: null, consultor: 'Diego', oferta: [], tipo: 'investidor', dados: {} });
+    expect(s).toContain('A única exceção é a frase "dividimos os lucros"');
   });
 });

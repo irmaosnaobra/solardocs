@@ -924,6 +924,18 @@ describe('respostas: quem cala a Helena', () => {
     expect(sessaoDe(ANA)).toMatchObject({ estagio: 'conversando', respostas: 1 });
   });
 
+  it('sem_interesse no caminho FRIO (mensagem com mais de 15 min): sai só a despedida fixa, sem a bolha do modelo', async () => {
+    sessao(ANA, { aberto_em: new Date(AGORA.getTime() - 5 * 3600_000).toISOString() });
+    chegou('5534999990001', 'Só queria carregar o carro, tem ponto aí?', 130);
+    ia('sem_interesse', ['Não tenho lista de pontos nem tarifa, os aplicativos de recarga mostram.']);
+    await responder();
+    expect(h.zap.humano).toHaveLength(0);
+    expect(h.zap.frio).toHaveLength(1);
+    expect(h.zap.frio[0]!.partes).toEqual([T.DESPEDIDA[0]]);
+    expect(JSON.stringify(h.zap.frio)).not.toContain('aplicativos de recarga');
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'disse_nao' });
+  });
+
   it('resposta atrasada passa pela régua do frio: sem vaga ou sem espaço a leva espera, sem gastar a vez', async () => {
     sessao(ANA, { aberto_em: new Date(AGORA.getTime() - 5 * 3600_000).toISOString() });
     chegou('5534999990001', 'Sim', 130);
@@ -1200,6 +1212,47 @@ describe('respostas: as ações com texto fixo', () => {
     ia('sem_interesse', ['Esse negócio rende muito, pense bem.']);
     await responder();
     expect(h.zap.humano.map(e => e.partes)).toEqual([[T.DESPEDIDA[0]]]);
+  });
+
+  it('adiar com UMA bolha válida do modelo: sai a bolha no lugar do texto fixo (a sessão adia e a equipe é avisada)', async () => {
+    sessao(ANA, { estagio: 'conversando' });
+    chegou('5534999990001', 'Agora não, me chama na semana que vem');
+    ia('adiar', ['Combinado, te chamo na semana que vem.', 'Outra bolha que não entra.'], {}, 'Pediu semana que vem.');
+    await responder();
+    expect(h.zap.humano.map(e => e.partes)).toEqual([['Combinado, te chamo na semana que vem.']]);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'adiado', motivo: 'adiou' });
+    expect(h.zap.equipe.length).toBeGreaterThan(0);
+  });
+
+  it('adiar com bolha BARRADA pelo violaRegras (ou longa demais): sai o texto fixo', async () => {
+    for (const bolha of ['Combinado, o retorno é bom, te chamo depois.', 'a'.repeat(301)]) {
+      h.zap.humano.length = 0; h.zap.equipe.length = 0; h.banco.main.system_state = [];
+      sessao(ANA, { estagio: 'conversando' });
+      chegou('5534999990001', 'Agora não', 2);
+      ia('adiar', [bolha]);
+      await responder();
+      expect(h.zap.humano.map(e => e.partes)).toEqual([[T.ADIADO[0]]]);
+      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'adiado' });
+    }
+  });
+
+  it('adiar sem bolha do modelo: sai o texto fixo, como antes', async () => {
+    sessao(ANA, { estagio: 'conversando' });
+    chegou('5534999990001', 'Agora não');
+    ia('adiar');
+    await responder();
+    expect(h.zap.humano.map(e => e.partes)).toEqual([[T.ADIADO[0]]]);
+  });
+
+  it('adiar no caminho FRIO: UMA bolha só (a do modelo, ou o texto fixo)', async () => {
+    sessao(ANA, { aberto_em: new Date(AGORA.getTime() - 5 * 3600_000).toISOString() });
+    chegou('5534999990001', 'Agora não, me chama mês que vem', 130);
+    ia('adiar', ['Combinado, te chamo mês que vem.', 'Outra bolha.']);
+    await responder();
+    expect(h.zap.humano).toHaveLength(0);
+    expect(h.zap.frio).toHaveLength(1);
+    expect(h.zap.frio[0]!.partes).toEqual(['Combinado, te chamo mês que vem.']);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'adiado' });
   });
 
   it('parar pela IA: quando o pedido não vem com as palavras de sempre', async () => {
@@ -1731,14 +1784,14 @@ describe('sondarHelena: o mesmo miolo da produção, sem tocar em nada', () => {
 describe('ação adiar: "mais para frente eu vejo" não é desinteresse', () => {
   beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
 
-  it('manda SÓ o texto fixo, guarda o resumo, vai para `adiado` e NÃO mexe no status do cadastro', async () => {
+  it('manda a bolha do modelo (uma só), guarda o resumo, vai para `adiado` e NÃO mexe no status do cadastro', async () => {
     sessao(ANA, { estagio: 'conversando' });
     chegou('5534999990001', 'Não, mês que vem eu te procuro');
     ia('adiar', ['Tudo bem, até mês que vem!', 'Abraço.'], {}, 'Pediu para ser procurada mês que vem.');
     const r = await responder();
 
-    // As bolhas do modelo são ignoradas: sai só o texto do redator.
-    expect(h.zap.humano.map(e => e.partes)).toEqual([[T.ADIADO[0]]]);
+    // Só a PRIMEIRA bolha do modelo sai, no lugar do texto fixo (rodada 5).
+    expect(h.zap.humano.map(e => e.partes)).toEqual([['Tudo bem, até mês que vem!']]);
     expect(JSON.stringify(h.zap.humano)).not.toContain('Abraço');
     expect(r).toMatchObject({ respondidas: 1, passadas: 0 });
 
@@ -1802,7 +1855,7 @@ describe('ação adiar: "mais para frente eu vejo" não é desinteresse', () => 
 describe('nas ações finais sai SÓ o texto fixo, nunca a bolha do modelo', () => {
   beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
   const casos: Array<[string, readonly string[]]> = [
-    ['humano', T.PASSAGEM_PARA_O_CONSULTOR], ['adiar', T.ADIADO], ['parar', T.PAROU],   // sem_interesse e oferecer_horarios aceitam UMA bolha curta (testes próprios)
+    ['humano', T.PASSAGEM_PARA_O_CONSULTOR], ['parar', T.PAROU],   // sem_interesse, oferecer_horarios e adiar aceitam UMA bolha curta (testes próprios)
   ];
   for (const [acao, fixo] of casos) {
     it(`${acao}: a bolha do modelo é ignorada`, async () => {
@@ -3436,9 +3489,9 @@ describe('preparo depois de marcar (rodada 2, 12/11/2026)', () => {
       dados: { valor_confirmado: '', pagamento: '', tem_ponto: '', cidade: '', ...(extra.dados ?? {}) },
     });
   };
-  const PERGUNTA_1 = 'Para o Diego já chegar com a conta do seu caso, me conta: quando você pensa em começar?';
+  const PERGUNTA_1 = 'Para Diego já chegar com a conta do seu caso, me conta: quando você pensa em começar?';
   const PERGUNTA_2 = 'Mais alguém decide junto com você?';
-  const FECHO = 'Obrigada por me contar! O Diego te espera na terça.';
+  const FECHO = 'Obrigada por me contar! Diego te espera na terça.';
   const fichasEnviadas = () => h.zap.equipe.filter(e => e.texto.includes('HELENA MARCOU UMA REUNIÃO PARA VOCÊ'));
   /** Marca a reunião pelo número solto e devolve a sessão em preparo (a 1ª pergunta sai na confirmação). */
   async function marcarComPreparo() {
@@ -3695,6 +3748,66 @@ describe('preparo depois de marcar (rodada 2, 12/11/2026)', () => {
     expect(sessaoDe(ANA).ficha_pendente).toBeUndefined();
     expect(sessaoDe(ANA).ficha_enviada_em).toBeTruthy();
     expect(linhaDaResposta.fichas).toEqual([901]);
+  });
+
+  const horasAtras = (h: number) => new Date(AGORA.getTime() - h * 3600_000).toISOString();
+
+  it('FIM DO PREPARO grava o marcador ep_resposta (ate = a última resposta lida) em todos os fins: concluído, tempo e sem resposta', async () => {
+    // concluído (a resposta da pessoa, a 2ª pergunta já feita)
+    emPreparo({ perguntas: 2, inicio_em: horasAtras(1) });
+    chegou(TEL, 'Só eu', 1);
+    iaJson('continuar', [FECHO]);
+    await responder();
+    expect(sessaoDe(ANA).preparo_fim).toMatchObject({ motivo: 'concluido' });
+    expect((estado('ep_resposta:901')!.value as { ate: string }).ate).toBe(new Date(AGORA.getTime() - 60_000).toISOString());
+    // por tempo: ela respondeu durante o preparo (ate depois do início) e o preparo venceu
+    h.banco.main.system_state = []; h.banco.main.wa_mensagens = [];
+    emPreparo({ inicio_em: horasAtras(26), ate_em: horasAtras(1) }, { ate: horasAtras(3) });
+    expect(await fecharPreparos(AGORA.getTime())).toMatchObject({ fechados: 1 });
+    expect(sessaoDe(ANA).preparo_fim).toMatchObject({ motivo: 'tempo' });
+    expect((estado('ep_resposta:901')!.value as { ate: string }).ate).toBe(horasAtras(3));
+    // sem resposta (30 min depois da última pergunta)
+    h.banco.main.system_state = [];
+    emPreparo({ inicio_em: horasAtras(2), pergunta_em: new Date(AGORA.getTime() - 31 * 60_000).toISOString() }, { ate: horasAtras(1) });
+    expect(await fecharPreparos(AGORA.getTime())).toMatchObject({ fechados: 1 });
+    expect(sessaoDe(ANA).preparo_fim).toMatchObject({ motivo: 'sem_resposta' });
+    expect((estado('ep_resposta:901')!.value as { ate: string }).ate).toBe(horasAtras(1));
+  });
+
+  it('FIM DO PREPARO sem nenhuma resposta dela: NÃO grava o marcador (ele valeria como "a pessoa respondeu")', async () => {
+    emPreparo();   // ate anterior ao início do preparo
+    expect(await fecharPreparos(AGORA.getTime() + 25 * 3600_000)).toMatchObject({ fechados: 1, fichas: 1 });
+    expect(estado('ep_resposta:901')).toBeUndefined();
+  });
+
+  it('FICHA PENDENTE confere o card de novo: cancelado, sumido ou com outro dono não envia e apaga a pendência; o válido sai na mesma rodada', async () => {
+    tresPreparos();
+    const depois = AGORA.getTime() + 25 * 3600_000;
+    expect(await fecharPreparos(depois)).toMatchObject({ fechados: 3, fichas: 1 });
+    expect(fichasEnviadas()).toHaveLength(1);
+    // 902 foi cancelado e 903 mudou de dono enquanto esperavam
+    h.banco.ger.agendamentos!.find(a => a.id === 902)!.status = 'cancelado';
+    h.banco.ger.agendamentos!.find(a => a.id === 903)!.vendedor_nome = 'Giovanna Souza';
+    expect(await fecharPreparos(depois + 60_000)).toMatchObject({ fechados: 0, fichas: 0, erros: 0 });
+    expect(fichasEnviadas()).toHaveLength(1);
+    expect(sessaoDe('3499990002').ficha_pendente).toBeUndefined();
+    expect(sessaoDe('3499990003').ficha_pendente).toBeUndefined();
+    expect(estado('ficha_helena:902')).toBeUndefined();
+    expect(estado('ficha_helena:903')).toBeUndefined();
+    expect(await fecharPreparos(depois + 120_000)).toMatchObject({ fichas: 0 });
+    expect(fichasEnviadas()).toHaveLength(1);
+  });
+
+  it('FICHA PENDENTE: o card cancelado é descartado e a PRÓXIMA pendência válida sai na mesma rodada', async () => {
+    tresPreparos();
+    const depois = AGORA.getTime() + 25 * 3600_000;
+    await fecharPreparos(depois);
+    h.banco.ger.agendamentos!.find(a => a.id === 902)!.status = 'cancelado';
+    expect(await fecharPreparos(depois + 60_000)).toMatchObject({ fichas: 1, erros: 0 });
+    expect(fichasEnviadas()).toHaveLength(2);
+    expect(sessaoDe('3499990002').ficha_pendente).toBeUndefined();
+    expect(sessaoDe('3499990002').ficha_enviada_em).toBeUndefined();
+    expect(sessaoDe('3499990003').ficha_enviada_em).toBeTruthy();
   });
 
   it('PASSAGEM no preparo (pedido de remarcar): só a Helena responde; o robô da agenda é avisado pelo marcador ep_resposta até a última mensagem lida', async () => {
