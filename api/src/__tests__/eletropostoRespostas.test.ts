@@ -341,6 +341,33 @@ describe('passagem da Helena no preparo: só um responde', () => {
   });
 });
 
+// Fim do preparo da Helena (concluído, tempo ou sem resposta): a sessão deixa de ser dela e o robô da agenda volta a
+// ler a conversa. As respostas do preparo, que a Helena já leu e respondeu, não podem virar recado à equipe: o marcador
+// que ela grava no fim (ate = a última resposta lida) as cobre, e só o que vier DEPOIS é do robô da agenda.
+describe('fim do preparo da Helena: as respostas do preparo não viram recado', () => {
+  it('com o marcador do fim do preparo o robô da agenda fica calado; a mensagem posterior ao marcador é dele', async () => {
+    fichas = [ficha({ created_by: 'agente_eletroposto' })];
+    inbound = [
+      msg({ texto: 'Sim, confirmo, começo em março', momment: antes(8) }),
+      msg({ texto: 'Só eu decido', momment: antes(6) }),
+    ];
+    state.set('ep_resposta:1', { key: 'ep_resposta:1', value: { ate: antes(6), avisado_em: AGORA.toISOString(), por: 'helena' }, updated_at: AGORA.toISOString() });
+    expect((await tick()).avisados).toBe(0);
+    expect(avisos).toHaveLength(0);
+    expect(presencas).toHaveLength(0);
+    // sem o marcador as mesmas respostas virariam recado (o que o marcador evita)
+    state.delete('ep_resposta:1');
+    expect((await tick()).avisados).toBe(1);
+    // depois do marcador, mensagem nova volta a ser do robô da agenda
+    avisos.length = 0;
+    state.set('ep_resposta:1', { key: 'ep_resposta:1', value: { ate: antes(6), avisado_em: AGORA.toISOString(), por: 'helena' }, updated_at: AGORA.toISOString() });
+    inbound.push(msg({ texto: 'Pode mandar o contrato?', momment: antes(2) }));
+    expect((await tick()).avisados).toBe(1);
+    expect(avisos[0].texto).toContain('contrato');
+    expect(avisos[0].texto).not.toContain('Só eu decido');
+  });
+});
+
 describe('remarcação automática, pela ponta do tick', () => {
   const pedido = (t: string, min = 5) => msg({ texto: t, momment: antes(min) });
 

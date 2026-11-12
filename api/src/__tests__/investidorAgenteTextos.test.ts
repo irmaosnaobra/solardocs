@@ -174,7 +174,8 @@ describe('regras do prompt', () => {
   it('o parágrafo das ações cita as seis ações com o nome que o código entende', () => {
     const acoes = r.split('\n')[r.split('\n').indexOf('COMO VOCÊ INFORMA SUA DECISÃO') + 1]!;
     for (const a of ['continuar', 'oferecer_horarios', 'adiar', 'humano', 'sem_interesse', 'parar']) expect(acoes).toContain('`' + a + '`');
-    expect(acoes).toContain('Nas ações `humano`, `adiar`, `sem_interesse` e `parar`, o sistema envia uma mensagem pronta');
+    expect(acoes).toContain('Nas ações `humano` e `parar`, o sistema envia uma mensagem pronta');
+    expect(acoes).toContain('Em `adiar`, a sua bolha curta é a própria despedida');
   });
 
   it('o contorno proíbe urgência falsa e manda respeitar o não firme', () => {
@@ -320,7 +321,7 @@ describe('ajuste de voz do redator (12/11/2026)', () => {
     const t = String(r);
     const sec = "Se você ainda não sabe quando ela pensa em começar, siga a seção 'SE ELA PERGUNTAR PREÇO, MÍNIMO OU RESULTADO NO MEIO DO ROTEIRO' antes de convidar.";
     expect(t).toContain("Diga com palavras suas que entendeu que ela quer saber se compensa, sem abrir com 'Você quer saber se'.");
-    expect(t).toContain("Convide na mesma resposta, terminando em 'Posso te mandar os horários?'. Se ela insistir em faixa ou retorno, não repita o preço nem a recusa");
+    expect(t).toContain("convide na mesma resposta, terminando em 'Posso te mandar os horários?'. Se ela insistir em faixa ou retorno, não repita o preço nem a recusa");
     expect(t).not.toContain('troque o convite por uma pergunta de preparo');
     expect(t).toContain("Só dê os números da seção de preços, nenhum outro, e nunca confirme nem negue rendimento, retorno ou prazo.");
     expect(t).not.toContain('Nunca dê número nem faixa');
@@ -351,7 +352,7 @@ describe('preços que o dono liberou para a Helena dizer (12/11/2026)', () => {
     expect(linhas[i + 1]).toContain('chave na mão a partir de R$ 145 mil; sociedade 50/50, em que a pessoa entra com o local e R$ 72.500, ficamos sócios da operação e dividimos os lucros; carregador de 80 kW por R$ 69.990 e de 120 kW por R$ 89.990, os dois com mangueiras com malha de aço.');
     expect(linhas[i + 2]).toContain('Qual opção dizer: fale só da que serve à pessoa, no máximo duas, em uma ou duas frases.');
     expect(linhas[i + 3]).toContain("Diga sempre 'a partir de' no chave na mão.");
-    expect(linhas[i + 4]).toContain('Depois do preço, SEMPRE leve para a reunião');
+    expect(linhas[i + 4]).toContain('Depois do preço, leve para a reunião: diga em uma frase que {consultor} mostra como isso se encaixa no caso dela');
     expect(linhas[i + 5]).toBe('');
   });
 
@@ -449,8 +450,8 @@ describe('rodada 2 do redator: voz, DEPOIS DE MARCAR e textos fixos (12/11/2026)
 
   it('os textos fixos (C) são os do redator, com duas variações cada', () => {
     expect(T.PASSAGEM_PARA_O_CONSULTOR).toEqual([
-      'Entendi. Vou passar para o consultor da nossa equipe, e ele continua essa conversa com você por aqui mesmo.',
-      'Certo. Vou chamar o consultor da equipe para falar com você por aqui mesmo.',
+      'Entendi. Vou chamar o consultor da equipe: é ele quem responde isso com os números do seu caso, e ele fala com você por aqui mesmo.',
+      'Certo, vou passar para o consultor da equipe, que tira essas dúvidas direto com você. Ele te chama por aqui mesmo.',
     ]);
     expect(T.ADIADO).toEqual([
       'Deixei anotado. Não vou ficar te cobrando por aqui: se quiser retomar antes, é só me chamar.',
@@ -459,6 +460,76 @@ describe('rodada 2 do redator: voz, DEPOIS DE MARCAR e textos fixos (12/11/2026)
     expect(T.DESPEDIDA).toEqual([
       'Tudo bem, obrigada por me avisar e boa sorte por aí! Se um dia o assunto voltar a fazer sentido, é só me chamar por aqui.',
       'Entendido, obrigada pela atenção. Se algo mudar mais para frente, pode me chamar por aqui.',
+    ]);
+  });
+});
+
+// "O Giovanna" não existe: {consultor} é o primeiro nome de quem atende, de homem ou de mulher, então nenhum TEXTO FIXO
+// (o que o código envia sem o modelo) põe artigo antes dele. No PROMPT o modelo usa o artigo pelo gênero do nome (rodada 5).
+// "pelo espaço {consultor}" não conta: o artigo é de "espaço".
+describe('textos fixos da Helena: nenhum artigo antes de {consultor}', () => {
+  const ARTIGO = /(?:^|[^\p{L}])(?:o|a|os|as|do|da|ao|à|no|na|pro|pra|pelo|pela|com o|com a|para o|para a)\s+\{consultor\}/iu;
+  const todos: Array<[string, string]> = [];
+  for (const [nome, valor] of Object.entries(T)) {
+    if (nome === 'REGRAS_DO_PROMPT') continue;
+    if (typeof valor === 'string') todos.push([nome, valor]);
+    else if (Array.isArray(valor)) valor.forEach((v, i) => { if (typeof v === 'string') todos.push([`${nome}[${i}]`, v]); });
+  }
+  it('há textos com {consultor} para conferir', () => {
+    expect(todos.filter(([, t]) => t.includes('{consultor}')).length).toBeGreaterThan(3);
+  });
+  it.each(todos.filter(([, t]) => t.includes('{consultor}')))('%s', (_nome, texto) => {
+    const m = ARTIGO.exec(texto);
+    expect(m ? texto.slice(Math.max(0, m.index - 20), m.index + 40) : null).toBeNull();
+  });
+});
+
+// Rodada 4 (descoberta antes do preço e do convite): as 9 trocas do prompt.
+describe('rodada 4 do prompt: descobrir antes de convidar', () => {
+  const r = String(T.REGRAS_DO_PROMPT);
+  const tem = (t: string) => expect(r, t.slice(0, 60)).toContain(t);
+
+  it('as 9 trocas estão no prompt', () => {
+    tem("Se você ainda sabe menos de 2 pontos do roteiro do tipo dela (os de 'O QUE DESCOBRIR ANTES DO CONVITE'), além do que o formulário trouxe, responda em UMA frase e faça UMA pergunta do roteiro ligada ao que ela já contou, de preferência com duas opções, sem convidar ainda: o convite vem na resposta seguinte. Isso vale uma vez só na conversa.");
+    tem("Se ela já insistiu em número duas vezes, condicionou a reunião a um número, respondeu seco duas vezes ou disse que está com pressa, não pergunte: convide na mesma resposta, terminando em 'Posso te mandar os horários?'.");
+    tem("Depois do preço, leve para a reunião: diga em uma frase que {consultor} mostra como isso se encaixa no caso dela e pergunte se pode mandar os horários. Exceção: se a seção 'SE ELA PERGUNTAR PREÇO...' mandar fazer antes uma pergunta do roteiro, faça só essa pergunta.");
+    tem("Parceiro: os carregadores de 80 kW e 120 kW só quando ele perguntar o preço do carregador, e que procuramos parceiros para vender a marca NEXUS. Margem, comissão, proposta, condições e exclusividade não são pergunta de preço: não cite tabela, diga em uma frase que quem define é {consultor} e siga a regra de descoberta.");
+    tem("Se ele for integrador, o consultor precisa saber: o que já instala e em que volume, se atende cliente comercial ou só residencial, se tem equipe e o que ele imagina vender.");
+    tem("Se ela contar que tem um espaço (clínica, loja, terreno, estacionamento), o espaço vira a pergunta do roteiro: onde fica, se tem área livre e quantas vagas cabem. Cite o espaço na primeira reação, mesmo que ela tenha pedido material ou preço.");
+    tem("Se o local é herança ou de família, pergunte quem decide e se há outros herdeiros ou inventário em andamento.");
+    tem("Se ela insistir em número de retorno depois da sua primeira resposta, não repita o argumento: pergunte uma vez que tipo de número ajudaria ela a decidir, e convide na resposta seguinte.");
+    tem("Na primeira resposta, mesmo que ela tenha feito uma pergunta, cite em meia frase o detalhe mais pessoal que ela contou (profissão, lugar, espaço, família) antes de responder. Cada uma destas expressões vale no máximo uma vez na conversa inteira: 'com calma', 'o seu caso', 'com os números', 'se vê depois', 'lá no local', 'já chegar com'. Nem toda resposta precisa citar {consultor}.");
+    tem("Use as duas perguntas sempre que ela estiver respondendo bem; só pare na primeira se ela responder seco ou disser que não quer falar mais. Se ela tem um espaço, a primeira pergunta é sobre ele. Se ela condicionou a decisão a um número, a segunda é que número ou valor ela tinha em mente.");
+    expect(r).not.toContain('Depois do preço, SEMPRE leve');
+  });
+});
+
+// Rodada 5: passagem ao consultor só em caso real, preço só com pergunta de preço, adiar com a mensagem do modelo.
+describe('rodada 5 do prompt: passagem, preço e adiar', () => {
+  const r = String(T.REGRAS_DO_PROMPT);
+  const tem = (t: string) => expect(r, t.slice(0, 60)).toContain(t);
+
+  it('as trocas do prompt estão presentes e as frases antigas saíram', () => {
+    tem("Passe com `humano` só quando a pessoa pedir para falar com uma pessoa agora, quando houver reclamação, quando for suporte de quem já é cliente ou quando o assunto não for eletroposto. Dúvida que você não sabe responder, pedido de material e condição repetida não são motivo: diga que {consultor} responde na reunião e convide.");
+    tem("Depois da segunda insistência, convide uma última vez com palavras novas (a reunião é onde ela vê o caso dela) e, se ela recusar, use `adiar` ou `sem_interesse`. Quando passar com `humano`, não tente contornar nem continue a conversa.");
+    tem("Se você ainda sabe menos de 2 pontos do roteiro do tipo dela, faça antes UMA pergunta do roteiro ligada ao que ela contou, sem convidar ainda (vale uma vez só); senão, convide para ver os horários. Se ela insistir em receber por escrito, não discuta e não passe para {consultor}");
+    tem("não repita: convide de novo com palavras novas, dizendo que a reunião é onde ela vê o caso dela; se ela recusar, use `adiar` ou `sem_interesse`.");
+    tem("não tente uma terceira vez: convide para a reunião com a pergunta de horário.");
+    tem("se ela repetir a condição, convide uma última vez com palavras novas (a reunião é onde ela vê o caso dela) e, se ela recusar, use `adiar` ou `sem_interesse`.");
+    tem("Diga o preço SÓ depois de a pessoa perguntar preço, custo ou valor. 'Como funciona', 'o que está incluso', pedido de material, cansaço ou dúvida sobre o negócio não são pergunta de preço: nesses casos não diga nenhum valor, nem o 'a partir de'.");
+    tem("Quando falar do consultor, use o artigo antes do nome conforme o gênero do nome ('o Thiago', 'com o Thiago', 'a Giovanna'); nunca 'com Thiago' nem 'Isso Thiago monta'.");
+    tem("'já ajuda', 'bom para o consultor saber', 'pro consultor chegar'");
+    tem("Se ela disser que não sabe se o dono deixa, acolha em uma frase, pergunte se o dono já sabe da ideia e convide, dizendo que {consultor} explica como isso funciona com o dono.");
+    tem("Se ela escreveu seco ou irritada, diga só quem você é e por que escreveu, em uma bolha, sem explicar a empresa; explique só se ela perguntar. Se não, diga em uma frase o que a empresa faz.");
+    tem("Ao adiar, escreva você mesma a mensagem de despedida, curta e ancorada no combinado: se ela pediu para você chamar, diga que chama no tempo que ela falou ('Combinado, te chamo na semana que vem'); se ela mesma vai chamar, diga que fica no aguardo. Nunca diga que não vai cobrar.");
+    expect(r).not.toContain('ou quando for qualquer coisa que você não saiba responder');
+    expect(r).not.toContain('Diga o preço só depois de a pessoa perguntar preço, valor ou como funciona');
+  });
+
+  it('o texto fixo de passagem tem as duas variações novas', () => {
+    expect([...T.PASSAGEM_PARA_O_CONSULTOR]).toEqual([
+      'Entendi. Vou chamar o consultor da equipe: é ele quem responde isso com os números do seu caso, e ele fala com você por aqui mesmo.',
+      'Certo, vou passar para o consultor da equipe, que tira essas dúvidas direto com você. Ele te chama por aqui mesmo.',
     ]);
   });
 });

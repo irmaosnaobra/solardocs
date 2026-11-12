@@ -1743,6 +1743,14 @@ function semPreparo(s: SessaoInvestidor, motivo: string): SessaoInvestidor {
 /** Estado primeiro: grava o fim do preparo. Devolve a sessão como ficou. */
 async function fecharPreparoNaSessao(s: SessaoInvestidor, chave: string, motivo: string, extra: Partial<SessaoInvestidor> = {}): Promise<SessaoInvestidor> {
   const nova = { ...semPreparo(s, motivo), ...extra };
+  // Acabado o preparo, a sessão deixa de ser da Helena e o robô de respostas da agenda volta a ler a conversa: sem o
+  // marcador `ep_resposta:<card>` ele trataria as respostas do preparo (que a Helena já leu e respondeu) como novas e
+  // mandaria recado à equipe. O marcador vai ANTES de a sessão soltar a pessoa, e só se ela escreveu DURANTE o preparo
+  // (o marcador também vale como "a pessoa respondeu" para outras réguas: não pode nascer sem resposta).
+  const lidaAte = String(nova.ate ?? '');
+  if (s.preparo && s.agendamento_id && Date.parse(lidaAte) > Date.parse(s.preparo.inicio_em)) {
+    await marcarLevaLidaParaAAgenda(s.agendamento_id, lidaAte);
+  }
   await gravarSessao(chave, nova);
   return nova;
 }
@@ -1922,13 +1930,27 @@ export async function fecharPreparos(agora: number = Date.now()): Promise<{ fech
     const pendentes = [...sessoes.entries()]
       .filter(([, s]) => s.estagio === 'agendado' && !s.preparo && !!s.ficha_pendente && !s.ficha_enviada_em && !!s.agendamento_id && !!s.telefone)
       .sort((a, b) => String(a[1].atualizado_em ?? '').localeCompare(String(b[1].atualizado_em ?? '')));
-    const primeira = pendentes[0];
-    if (primeira) {
+    // A pendência pode ter ficado velha: antes de enviar, o card é lido de novo. Cancelado, sumido ou com outro dono:
+    // não envia e apaga a pendência (a sessão fica como está, sem `ficha_pendente`). Erro de leitura deixa para a próxima.
+    for (const [chave, s] of pendentes) {
       try {
-        if (await enviarFichaDoPreparo(primeira[1], primeira[0], primeira[1].ficha_pendente!) === 'enviada') fichas++;
+        const { data, error } = await supabaseGerador.from('agendamentos').select('id, status, vendedor_nome').eq('id', s.agendamento_id ?? -1).maybeSingle();
+        if (error) throw new Error(`ler o card da ficha pendente: ${error.message}`);
+        const card = data as { status: string | null; vendedor_nome: string | null } | null;
+        const mudouDeDono = !!card && primeiroNomeDoConsultor(String(card.vendedor_nome ?? '')) !== primeiroNomeDoConsultor(s.consultor);
+        if (!card || String(card.status ?? '').trim().toLowerCase() === 'cancelado' || mudouDeDono) {
+          logger.info(LOG, `ficha pendente do card ${s.agendamento_id} descartada (${!card ? 'card sumiu' : mudouDeDono ? 'mudou de dono' : 'cancelado'})`);
+          const { ficha_pendente: _p, ...resto } = s;
+          await gravarSessao(chave, resto);
+          continue;
+        }
+        const r = await enviarFichaDoPreparo(s, chave, s.ficha_pendente!);
+        if (r === 'enviada') fichas++;
+        if (r !== 'nada') break;
       } catch (err) {
         erros++;
-        logger.error(LOG, `ficha pendente falhou (final ${primeira[1].telefone.slice(-2)})`, err);
+        logger.error(LOG, `ficha pendente falhou (final ${s.telefone.slice(-2)})`, err);
+        break;
       }
     }
   }
@@ -2156,7 +2178,10 @@ async function atender(
     await avisarEquipe(adiada, 'PEDIU PARA SER PROCURADA DEPOIS', ctx.novas, '', RODAPE_ADIOU)
       .catch(e => logger.error(LOG, 'o recado do adiamento não saiu', e));
     try {
-      await falarComOCliente(s, ctx, [textoAdiado(ctx.chave)]);
+      // A despedida é a bolha curta do modelo (ancorada no combinado), se passar pelo violaRegras; senão, o texto fixo.
+      // No caminho frio também é UMA bolha só.
+      const dele = bolhaAntesDoTextoFixo(saida.bolhas, valoresDaPessoa);
+      await falarComOCliente(s, ctx, [dele ?? textoAdiado(ctx.chave)]);
       ctx.res.respondidas++;
     } catch (e) {
       ctx.res.erros++;
@@ -2169,7 +2194,7 @@ async function atender(
     await marcarCadastro(s, 'sem_interesse');
     try {
       // Uma bolha curta do modelo antes da despedida fixa (ex.: a resposta a quem só queria carregar o carro).
-      const antes = bolhaAntesDoTextoFixo(saida.bolhas, valoresDaPessoa);
+      const antes = ctx.frio ? null : bolhaAntesDoTextoFixo(saida.bolhas, valoresDaPessoa);
       await falarComOCliente(s, ctx, antes ? [antes, textoDespedida(ctx.chave)] : [textoDespedida(ctx.chave)]);
       ctx.res.respondidas++;
     } catch (e) {
