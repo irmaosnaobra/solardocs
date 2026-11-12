@@ -211,7 +211,7 @@ const initialFields = {
   marca_inversor: '',
   potencia_inversor: '',
   // Um inversor por linha (marcas/potências diferentes). Strings como digitadas.
-  inversores: [{ qtd: '1', marca: '', potencia: '', garantia: '10' }] as InversorLinha[],
+  inversores: [{ qtd: '1', marca: '', potencia: '', garantia: '5' }] as InversorLinha[],
   // Conteúdo do modelo 4 (Completo). Não entram em CLIENTE_ONLY no backend: voltam
   // sozinhos nas próximas propostas pelo kit. `path` é o que o servidor guarda; a
   // `url` é só a miniatura (o servidor assina de novo na geração).
@@ -261,7 +261,7 @@ const initialFields = {
   // Vai no kit do vendedor, então a escolha se repete nas próximas propostas.
   validade_dias: '7',
   garantia_paineis: '25',
-  garantia_inversor: '10',
+  garantia_inversor: '5',
   garantia_estrutura: '10',
   garantia_instalacao: '1',
   garantia_instalacao_unidade: 'anos', // 'anos' | 'meses' — mão de obra às vezes é 6 meses
@@ -2112,6 +2112,25 @@ export default function PropostaSolarPage() {
               <label className={styles.label}>Garantia dos painéis (anos)</label>
               <input type="text" inputMode="numeric" value={fields.garantia_paineis} onChange={e => setField('garantia_paineis', e.target.value)} placeholder="25" className="input-field" />
             </div>
+            {fields.inversores.map((l, i) => {
+              const marca = l.marca.trim();
+              const rotulo = fields.inversores.length > 1
+                ? `Garantia do inversor ${i + 1}${marca ? `, ${marca}` : ''} (anos)`
+                : 'Garantia do inversor (anos)';
+              return (
+                <div key={i} className={styles.field}>
+                  <label className={styles.label}>{rotulo}</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={l.garantia}
+                    onChange={e => setField('inversores', fields.inversores.map((x, j) => (j === i ? { ...x, garantia: e.target.value } : x)))}
+                    placeholder="5"
+                    className="input-field"
+                  />
+                </div>
+              );
+            })}
             <div className={styles.field}>
               <label className={styles.label}>Garantia da estrutura (anos)</label>
               <input type="text" inputMode="numeric" value={fields.garantia_estrutura} onChange={e => setField('garantia_estrutura', e.target.value)} placeholder="10" className="input-field" />
