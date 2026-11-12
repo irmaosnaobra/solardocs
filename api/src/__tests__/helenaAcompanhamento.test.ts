@@ -62,6 +62,9 @@ describe('situacaoDaSessao', () => {
     expect(situacaoDaSessao(sessao({ estagio: 'conversando', respostas: 0 }))).toBe('abordado');
     expect(situacaoDaSessao(sessao({ estagio: 'conversando', respostas: 2 }))).toBe('em_conversa');
     expect(situacaoDaSessao(sessao({ estagio: 'adiado' }))).toBe('em_conversa');
+    expect(situacaoDaSessao(sessao({ estagio: 'conversando', respostas: 2, convidou_em: '2026-11-12T12:00:00Z' }))).toBe('convidado');
+    expect(situacaoDaSessao(sessao({ estagio: 'ofertou', convidou_em: '2026-11-12T12:00:00Z' }))).toBe('horarios_enviados');
+    expect(situacaoDaSessao(sessao({ estagio: 'agendado', convidou_em: '2026-11-12T12:00:00Z' }))).toBe('reuniao_marcada');
     expect(situacaoDaSessao(sessao({ estagio: 'ofertou' }))).toBe('horarios_enviados');
     expect(situacaoDaSessao(sessao({ estagio: 'agendado' }))).toBe('reuniao_marcada');
     expect(situacaoDaSessao(sessao({ estagio: 'humano' }))).toBe('com_consultor');
@@ -107,6 +110,15 @@ describe('itens', () => {
       .toMatchObject({ situacao: 'reuniao_marcada', card_id: 77, proximo_passo: { o_que: 'Reunião', quando: '2026-11-14T13:00:00.000Z' } });
     expect(itemDaSessao('1', sessao({ estagio: 'ofertou' }), undefined, null).proximo_passo?.o_que).toBe('Esperar a escolha do horário');
   });
+  it('convidado espera o sim; reunião marcada com preparo aberto mostra o preparo, sem preparo (ou vencido) mostra a reunião', () => {
+    const agora = Date.parse('2026-11-12T15:00:00Z');
+    expect(itemDaSessao('1', sessao({ estagio: 'conversando', respostas: 1, convidou_em: '2026-11-12T14:00:00Z' }), undefined, null).proximo_passo?.o_que).toBe('Esperar o sim para o horário');
+    const preparo = { inicio_em: '2026-11-12T14:00:00Z', reuniao_em: '2026-11-14T13:00:00Z', ate_em: '2026-11-13T14:00:00Z', perguntas: 1, pergunta_em: '2026-11-12T14:00:00Z' };
+    expect(itemDaSessao('1', sessao({ estagio: 'agendado', preparo }), undefined, '2026-11-14T13:00:00.000Z', agora).proximo_passo).toEqual({ o_que: 'Preparo da reunião', quando: '2026-11-14T13:00:00.000Z' });
+    expect(itemDaSessao('1', sessao({ estagio: 'agendado', preparo }), undefined, null, agora).proximo_passo).toEqual({ o_que: 'Preparo da reunião', quando: '2026-11-14T13:00:00Z' });
+    expect(itemDaSessao('1', sessao({ estagio: 'agendado', preparo }), undefined, '2026-11-14T13:00:00.000Z', Date.parse('2026-11-13T15:00:00Z')).proximo_passo?.o_que).toBe('Reunião');
+    expect(itemDaSessao('1', sessao({ estagio: 'agendado' }), undefined, null).proximo_passo?.o_que).toBe('Reunião');
+  });
   it('faixa da sessão: retorno, lote e card parado', () => {
     expect(itemDaSessao('1', sessao({ retorno: true }), undefined, null).faixa).toBe('retorno');
     expect(itemDaSessao('1', sessao({ card_antigo: { status: 'cancelado', lote: true } }), undefined, null).faixa).toBe('lote_13_10');
@@ -141,7 +153,13 @@ describe('placar', () => {
       sessao({ estagio: 'chamado', atualizado_em: hoje }),
       sessao({ estagio: 'conversando', atualizado_em: '2026-11-11T15:00:00Z', respostas: 3 }),
     ], ini);
-    expect(r).toEqual({ respostas: 2, reunioes: 1 });
+    expect(r).toEqual({ respostas: 2, reunioes: 1, convites: 0 });
+    const c = contarDeHoje([
+      sessao({ estagio: 'conversando', respostas: 1, convidou_em: hoje, atualizado_em: hoje }),
+      sessao({ estagio: 'ofertou', respostas: 2, convidou_em: hoje, atualizado_em: hoje }),
+      sessao({ estagio: 'conversando', respostas: 1, convidou_em: '2026-11-11T15:00:00Z', atualizado_em: hoje }),
+    ], ini);
+    expect(c.convites).toBe(2);
   });
 });
 
