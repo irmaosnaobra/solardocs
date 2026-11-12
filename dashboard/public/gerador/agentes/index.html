@@ -2304,7 +2304,7 @@ setInterval(carregar, 120000);
      { ok:true, ligada:bool, janela:"texto pronto", atualizado_em:ISO,
        ritmo:{ frios_24h:n, teto_frios:n, aberturas_hoje:n, retomadas_hoje:n },
        placar:{ total:{ <situacao>:n }, por_tipo:{ investidor|arrendamento|parceiro|curioso:{ <situacao>:n } },
-                hoje:{ aberturas:n, retomadas:n, respostas:n, reunioes:n } },
+                hoje:{ aberturas:n, retomadas:n, respostas:n, reunioes:n, convites:n } },
        itens:[ { chave, nome, tipo, faixa:"pediu_reuniao"|"lote_13_10"|"retorno"|null, cidade, valor_txt|null, consultor|null,
                  card_id|null, situacao, posicao_fila:n|null (só na fila), ultimo_contato_em:ISO|null,
                  proximo_passo:{ o_que:"texto pronto (Abertura, Toque 2, Reunião)", quando:ISO|null }|null, toques:n, resumo:"" } ] }
@@ -2441,7 +2441,12 @@ setInterval(carregar, 120000);
     BLOCOS.forEach(function (b) {
       var bl = el('div', 'hl-bloco');
       add(bl, el('b', null, num(soma(tot, b[1]))), el('span', null, b[0]));
-      if (b[0] === 'Convidados' && tot.horarios_enviados) bl.appendChild(el('small', null, num(tot.horarios_enviados) + ' com horários enviados'));
+      if (b[0] === 'Convidados') {
+        var sub = [];
+        if (h.convites) sub.push(num(h.convites) + ' convites hoje');
+        if (tot.horarios_enviados) sub.push(num(tot.horarios_enviados) + ' com horários enviados');
+        if (sub.length) bl.appendChild(el('small', null, sub.join(' · ')));
+      }
       if (b[0] === 'Reuniões marcadas' && h.reunioes) bl.appendChild(el('small', null, num(h.reunioes) + ' hoje'));
       if (b[0] === 'Em conversa' && h.respostas) bl.appendChild(el('small', null, num(h.respostas) + ' respostas hoje'));
       p.appendChild(bl);

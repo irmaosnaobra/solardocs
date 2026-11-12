@@ -14,7 +14,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { vagasDoFrioLinha } from '../agents/whatsapp/lineThrottle';
-import { INV_SESSAO_PREFIX } from './investidorAgentePosse';
+import { INV_SESSAO_PREFIX, preparoVivo } from './investidorAgentePosse';
 import {
   lerFila, lerCarimbosDeToque, lerChaveDesligar, contarAberturasHoje, contarRetomadasHoje, lerTudo,
   type SessaoInvestidor,
@@ -64,7 +64,7 @@ export interface Acompanhamento {
   placar: {
     total: Contagem;
     por_tipo: Record<string, Contagem>;
-    hoje: { aberturas: number; retomadas: number; respostas: number; reunioes: number };
+    hoje: { aberturas: number; retomadas: number; respostas: number; reunioes: number; convites: number };
   };
   itens: ItemAcompanhamento[];
 }
@@ -72,18 +72,21 @@ export interface Acompanhamento {
 // ── Puro ─────────────────────────────────────────────────────────────────────
 
 /**
- * O estágio gravado na sessão vira a situação da tela. `convidado` (convite feito, esperando o sim) não tem
- * estágio próprio na sessão da Helena: hoje esta função nunca o devolve.
+ * O estágio gravado na sessão vira a situação da tela. `convidado` (convite feito, esperando o sim) é a sessão em
+ * conversa com `convidou_em` gravado e ainda sem horários enviados (`ofertou` ganha). Reunião marcada é `agendado`,
+ * com ou sem preparo.
  * Os motivos de `sem_interesse` seguem a coluna Atendimento do /gerador (cadSituacao): pediu_parar,
  * opt_out_por_outra_trilha e fora_do_padrao são "não procure" (parou); sem_resposta é o fecho por silêncio.
  */
-export function situacaoDaSessao(s: Pick<SessaoInvestidor, 'estagio' | 'motivo' | 'erro' | 'respostas'>): Situacao {
+export function situacaoDaSessao(s: Pick<SessaoInvestidor, 'estagio' | 'motivo' | 'erro' | 'respostas' | 'convidou_em'>): Situacao {
   const ativo = s.estagio === 'chamado' || s.estagio === 'conversando' || s.estagio === 'ofertou';
   if (s.erro && ativo) return 'envio_falhou';
   switch (s.estagio) {
     case 'chamado': return 'abordado';
     // Só a resposta automática do WhatsApp (zero respostas da Helena) ainda é "sem resposta" da pessoa.
-    case 'conversando': return Number(s.respostas ?? 0) === 0 ? 'abordado' : 'em_conversa';
+    case 'conversando':
+      if (Number(s.respostas ?? 0) === 0) return 'abordado';
+      return s.convidou_em ? 'convidado' : 'em_conversa';
     case 'adiado': return 'em_conversa';
     case 'ofertou': return 'horarios_enviados';
     case 'agendado': return 'reuniao_marcada';
@@ -130,7 +133,7 @@ export function itemDaFila(c: CandidatoInvestidor, posicao: number): ItemAcompan
 
 /** Quem já tem sessão. `horarioDoCard` é o horário do card da reunião marcada, se foi lido. */
 export function itemDaSessao(
-  chave: string, s: SessaoInvestidor, carimbos: CarimbosDosToques | undefined, horarioDoCard: string | null,
+  chave: string, s: SessaoInvestidor, carimbos: CarimbosDosToques | undefined, horarioDoCard: string | null, agora: number = Date.now(),
 ): ItemAcompanhamento {
   const situacao = situacaoDaSessao(s);
   const tipo = tipoDaSessao(s.tipo);
@@ -142,7 +145,12 @@ export function itemDaSessao(
       ? { o_que: 'Fechar por silêncio', quando: new Date(p.venceEm).toISOString() }
       : { o_que: `Toque ${p.passo}`, quando: new Date(p.venceEm).toISOString() };
   } else if (situacao === 'horarios_enviados') proximo = { o_que: 'Esperar a escolha do horário', quando: null };
-  else if (situacao === 'reuniao_marcada') proximo = { o_que: 'Reunião', quando: horarioDoCard };
+  else if (situacao === 'reuniao_marcada') {
+    // Preparo aberto: a Helena ainda faz até 2 perguntas ao cliente antes da reunião.
+    proximo = preparoVivo(s.preparo, agora)
+      ? { o_que: 'Preparo da reunião', quando: horarioDoCard ?? s.preparo?.reuniao_em ?? null }
+      : { o_que: 'Reunião', quando: horarioDoCard ?? s.preparo?.reuniao_em ?? null };
+  } else if (situacao === 'convidado') proximo = { o_que: 'Esperar o sim para o horário', quando: null };
   else if (situacao === 'em_conversa') proximo = { o_que: s.estagio === 'adiado' ? 'Adiado pela pessoa' : 'Esperar a pessoa', quando: null };
   const toques = Number.isInteger(s.toques) && Number(s.toques) >= 1 ? Number(s.toques) : (s.erro ? 0 : 1);
   return {
@@ -170,17 +178,19 @@ export function montarPlacar(itens: readonly Pick<ItemAcompanhamento, 'tipo' | '
 }
 
 /** Respostas e reuniões de hoje, a partir do que as sessões gravaram hoje (Brasília). */
-export function contarDeHoje(sessoes: Iterable<SessaoInvestidor>, inicioDoDiaIso: string): { respostas: number; reunioes: number } {
+export function contarDeHoje(sessoes: Iterable<SessaoInvestidor>, inicioDoDiaIso: string): { respostas: number; reunioes: number; convites: number } {
   const ini = Date.parse(inicioDoDiaIso);
-  let respostas = 0, reunioes = 0;
+  let respostas = 0, reunioes = 0, convites = 0;
   for (const s of sessoes) {
+    // O convite conta pelo próprio carimbo (`convidou_em`), mesmo que a sessão tenha andado depois.
+    if (Date.parse(String(s.convidou_em ?? '')) >= ini) convites++;
     const t = Date.parse(String(s.atualizado_em ?? ''));
     if (!Number.isFinite(t) || t < ini) continue;
     if (s.estagio === 'agendado' && s.motivo !== 'card_por_outra_porta') reunioes++;
     // A pessoa respondeu e a Helena andou com a conversa hoje: qualquer estágio depois da abertura.
     if (s.estagio !== 'chamado' && Number(s.respostas ?? 0) > 0) respostas++;
   }
-  return { respostas, reunioes };
+  return { respostas, reunioes, convites };
 }
 
 /** A ficha da pessoa: só os campos preenchidos, na ordem da ficha da Helena. */
