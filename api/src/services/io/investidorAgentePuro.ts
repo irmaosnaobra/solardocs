@@ -18,14 +18,19 @@
 
 import { chaveContato } from '../agents/whatsapp/silenciar';
 import { dentroDaJanelaDiurna } from '../agents/whatsapp/lineThrottle';
-import { agruparPorDestino, destinoDe, valorEmMil, type LinhaOrigem } from './eletropostoPares';
+import { destinoDe, valorEmMil, valorOk, type LinhaOrigem } from './eletropostoPares';
 import { agendaAbre, diaBRT, horasDoDia, livrePara, type Compromisso } from './eletropostoVagas';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
+import { ehCardSemAvisoAutomatico, ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import {
-  ABERTURAS, ABERTURA_SEM_NOME, REGRAS_DO_PROMPT, OFERTA_HORARIOS, CONFIRMACAO,
+  ABERTURAS_POR_TIPO, moldeSemNome, REGRAS_DO_PROMPT, OFERTA_HORARIOS, CONFIRMACAO,
   NAO_ENTENDI_O_NUMERO, PASSAGEM_PARA_O_CONSULTOR, DESPEDIDA, PAROU, ADIADO, HORARIO_FOI_OCUPADO,
-  ABERTURAS_RESGATE, ABERTURA_RESGATE_SEM_NOME, CONVERSA_DE_RESGATE, RETOMADAS,
+  ABERTURAS_RESGATE, ABERTURA_RESGATE_SEM_NOME, CONVERSA_DE_RESGATE, RETOMADAS_POR_VARIANTE,
+  type TipoHelena, type VarianteDoToque,
 } from './investidorAgenteTextos';
+
+export type { TipoHelena, VarianteDoToque };
+export { TIPOS_HELENA } from './investidorAgenteTextos';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // RELÓGIO: tudo em Brasília (UTC menos 3, sem horário de verão desde 2019).
@@ -81,6 +86,16 @@ export function janelaAberta(agora: Date): boolean {
     return h >= LARGADA_INICIO_H && h < LARGADA_FIM_H;
   }
   return dentroDaJanelaDiurna(agora);
+}
+
+/**
+ * A janela das RESPOSTAS a quem escreveu (parecer do chefe anti-ban, 12/11/2026): todos os dias, domingo e
+ * feriado incluídos, das 07:00 às 19:59 de Brasília. A abertura e a retomada seguem a janela da linha
+ * (`janelaAberta`: segunda a sábado, 9h às 19h59, feriado em dia de semana incluído).
+ */
+export function janelaDeResposta(agora: Date): boolean {
+  const h = noFusoDeBrasilia(agora).getUTCHours();
+  return h >= 7 && h < 20;
 }
 
 /**
@@ -194,21 +209,60 @@ export function indicePorChave(chave: string, n: number): number {
 const variacao = (lista: readonly string[], chave: string): string => lista[indicePorChave(chave, lista.length)]!;
 
 /**
- * O texto de uma abertura pelo ÍNDICE dela (-1, ou sem nome que dê para usar, é
- * a reserva). Serve para a escolha de agora e para reconstituir, na conversa que
- * a IA lê, exatamente a abertura que a sessão registrou ter enviado.
+ * HASH ESTÁVEL DA CHAVE (12/11/2026). A abertura varia entre pessoas, e a mesma pessoa recebe
+ * sempre a mesma. A soma dos dígitos (`indicePorChave`) concentrava as pessoas em poucos
+ * índices, então a escolha da abertura usa um FNV-1a de 32 bits.
  */
-export function textoDaAbertura(indice: number, nome: unknown, valorTxt: unknown): string {
-  const valor = valorNaFrase(valorTxt);
-  const p = primeiroNome(nome);
-  const molde = indice >= 0 && indice < ABERTURAS.length && p ? ABERTURAS[indice]! : ABERTURA_SEM_NOME;
-  return molde.split('{nome}').join(p ?? '').split('{valor}').join(valor);
+export function hashDaChave(chave: string): number {
+  let h = 2166136261;
+  for (const c of String(chave)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return h >>> 0;
 }
 
-/** A abertura desta pessoa. `indice` -1 = a reserva, sem nome. */
-export function renderAbertura(chave: string, nome: unknown, valorTxt: unknown): { indice: number; texto: string } {
-  const indice = primeiroNome(nome) ? indicePorChave(chave, ABERTURAS.length) : -1;
-  return { indice, texto: textoDaAbertura(indice, nome, valorTxt) };
+export interface ContextoDaAbertura {
+  tipo: TipoHelena;
+  cidade?: string | null;
+  /** Pessoa que a Helena já chamou há mais de 21 dias: a abertura é o texto do toque 4. */
+  retorno?: boolean;
+}
+
+/** A variante dos textos de retomada: quem tem um espaço fala de "local", o resto de "eletroposto". */
+export const varianteDoTipo = (tipo: TipoHelena | string | null | undefined): VarianteDoToque =>
+  tipo === 'arrendamento' ? 'local' : 'capital';
+
+/** Os índices de abertura que valem para este tipo. A abertura 2 de Arrendamento usa a cidade:
+ *  sem cidade, só as outras duas. */
+export function indicesDeAbertura(tipo: TipoHelena, cidade: unknown): number[] {
+  const n = ABERTURAS_POR_TIPO[tipo].length;
+  const todos = Array.from({ length: n }, (_, i) => i);
+  return tipo === 'arrendamento' && !umaLinha(cidade, 60) ? todos.filter(i => i !== 1) : todos;
+}
+
+/**
+ * O texto de uma abertura pelo ÍNDICE dela. Sem primeiro nome que dê para usar, o mesmo
+ * molde sai sem o nome (`moldeSemNome`). Retorno: o texto do toque 4 da variante do tipo.
+ * Serve para a escolha de agora e para reconstituir, na conversa que a IA lê, exatamente
+ * a abertura que a sessão registrou ter enviado.
+ */
+export function textoDaAbertura(indice: number, nome: unknown, valorTxt: unknown, ctx: ContextoDaAbertura): string {
+  const p = primeiroNome(nome);
+  const molde = ctx.retorno
+    ? RETOMADAS_POR_VARIANTE[4][varianteDoTipo(ctx.tipo)]
+    : (ABERTURAS_POR_TIPO[ctx.tipo][indice] ?? ABERTURAS_POR_TIPO[ctx.tipo][0]!);
+  return (p ? molde : moldeSemNome(molde))
+    .split('{nome}').join(p ?? '')
+    .split('{valor}').join(valorNaFrase(valorTxt))
+    .split('{cidade}').join(umaLinha(ctx.cidade, 60));
+}
+
+/** A abertura desta pessoa, escolhida pelo hash da chave. */
+export function renderAbertura(
+  chave: string, nome: unknown, valorTxt: unknown, ctx: ContextoDaAbertura,
+): { indice: number; texto: string } {
+  if (ctx.retorno) return { indice: 0, texto: textoDaAbertura(0, nome, valorTxt, ctx) };
+  const validos = indicesDeAbertura(ctx.tipo, ctx.cidade);
+  const indice = validos[hashDaChave(chave) % validos.length]!;
+  return { indice, texto: textoDaAbertura(indice, nome, valorTxt, ctx) };
 }
 
 export const textoPassagem = (chave: string): string => variacao(PASSAGEM_PARA_O_CONSULTOR, chave);
@@ -221,29 +275,77 @@ export const textoNaoEntendi = (chave: string): string => variacao(NAO_ENTENDI_O
 // FILA
 // ═════════════════════════════════════════════════════════════════════════════
 
-export interface RefCadastro { origem: 'parceria' | 'nota1'; id: number }
+export interface RefCadastro { origem: 'parceria' | 'nota1' | 'agenda'; id: number }
+
+/** Um card da agenda do telefone (de QUALQUER origem), só o que a fila e o agendamento precisam. */
+export interface CardDoContato {
+  id: number;
+  status: string;
+  /** O horário do card (ISO). */
+  quando: string | null;
+  /** `created_by` do card. */
+  origem: string;
+  /** O consultor dono do card. */
+  vendedor: string | null;
+}
 
 export interface CandidatoInvestidor {
   chave: string;
   telefone: string;
   nome: string | null;
+  /** O valor declarado, só no tipo Investidor. Nos outros, vazio. */
   valorTxt: string;
-  valorMil: number;
-  origem: 'parceria' | 'nota1';
+  valorMil: number | null;
+  /** A fonte do cadastro representante: `card` = a quarta fonte (só tem card de eletroposto, sem cadastro). */
+  origem: 'parceria' | 'nota1' | 'agenda' | 'card';
   id: number;
   criadoEm: string;
   cidade: string | null;
   /** Status do cadastro (novo, falando, conectado). Só informa: não tira da fila. */
   status: string | null;
-  /** Todas as linhas de cadastro daquele telefone, nas duas tabelas. */
+  /** Todas as linhas de cadastro daquele telefone, nas três origens. */
   refs: RefCadastro[];
+  /** O tipo do cadastro, pela mesma regra da aba Cadastros do /gerador. */
+  tipo: TipoHelena;
+  /** A nota interna do cadastro (pontos da ficha da LP), só para ordenar Arrendamento. */
+  nota: number | null;
+  /** A pessoa já foi chamada pela Helena há mais de 21 dias e não respondeu. */
+  retorno: boolean;
+  /** O card que a Helena remarca ao agendar (o mais recente entre os reabríveis), ou null. */
+  card: CardDoContato | null;
+  /** O lado do cadastro de parceria (capital, ponto, integrador), se houver. */
+  lado: string | null;
+  /** Os ids de todos os cards do telefone agora (para a Helena saber, depois, o que é card novo). */
+  cardsConhecidos: number[];
+  /** A faixa de prioridade dentro do tipo: quem já pediu reunião e ficou parado, o lote mudo, quem nunca teve card. */
+  faixa: FaixaDaFila;
+  /** Fatos que só o card traz (quarta fonte): valor, cidade e local da observação dele. */
+  fatosDoCard: string[];
+}
+
+export type FaixaDaFila = 'card_parado' | 'lote_mudo';
+export const FAIXAS: readonly FaixaDaFila[] = ['card_parado', 'lote_mudo'];
+
+/** Um card de eletroposto (qualquer `created_by` com "eletroposto"), só para a QUARTA FONTE da fila:
+ *  telefones que têm card mas não estão em cadastro, ficha nem na agenda de arrendamento. */
+export interface CardEletroposto {
+  id: number;
+  telefone: string | null;
+  nome: string | null;
+  cidade: string | null;
+  observacao: string | null;
+  criadoEm: string;
+  /** O `tipo_card:<id>` do card (cotista, arrendamento, integrador), ou null. */
+  tipoCard: string | null;
 }
 
 export interface FiltrosDaFila {
-  /** Chaves (DDD + 8) com QUALQUER card em `agendamentos`, em qualquer status. */
-  comCard: ReadonlySet<string>;
-  /** Chaves que já têm sessão da Helena. */
+  /** Todos os cards de cada chave (DDD + 8), de qualquer origem, em qualquer status. */
+  cards: ReadonlyMap<string, readonly CardDoContato[]>;
+  /** Chaves com sessão da Helena que NÃO volta (ativa, humano, agendado, sem interesse, erro de envio). */
   comSessao: ReadonlySet<string>;
+  /** Chaves com sessão antiga que volta como RETORNO (ver `sessaoVoltaComoRetorno`). */
+  retorno: ReadonlySet<string>;
   /** Chaves com qualquer mensagem na linha nos últimos 7 dias, nossa ou dele. */
   comConversa: ReadonlySet<string>;
   silenciado: (tel: string) => boolean;
@@ -251,11 +353,10 @@ export interface FiltrosDaFila {
   mudo: (tel: string) => boolean;
   /** Tem humano dentro da conversa agora (pausa humana). */
   comHumano: (tel: string) => boolean;
-  /**
-   * O relógio da rodada, em ms. Liga o corte `cadastro_recente` da fila principal.
-   * Sem ele (testes antigos, fila do resgate) o corte não roda.
-   */
-  agora?: number;
+  /** Os cards de eletroposto, para a quarta fonte (mais novo primeiro, ou qualquer ordem: vale o maior id por telefone). */
+  cardsEletroposto?: readonly CardEletroposto[];
+  /** O relógio da rodada, em ms. */
+  agora: number;
 }
 
 /**
@@ -269,185 +370,297 @@ export interface FiltrosDaFila {
 export const CADASTRO_MINIMO_MS = 24 * 3600_000;
 
 export type MotivoForaDaFila =
-  | 'telefone_invalido' | 'nome_teste' | 'sem_valor_legivel' | 'pode_ceder_local'
-  | 'sem_interesse_no_cadastro' | 'tem_card' | 'tem_sessao' | 'opt_out' | 'bloqueado'
-  | 'mudo' | 'humano_na_conversa' | 'conversa_7_dias' | 'duplicado' | 'cadastro_recente';
+  | 'telefone_invalido' | 'nome_teste' | 'sem_interesse_no_cadastro' | 'sem_card' | 'card_vivo' | 'reuniao_real'
+  | 'tem_sessao' | 'opt_out' | 'bloqueado' | 'mudo' | 'humano_na_conversa' | 'conversa_7_dias' | 'cadastro_recente';
 
 export interface ResultadoFila {
+  /** A fila na ordem de saída (rodízio por tipo). */
   fila: CandidatoInvestidor[];
   excluidos: Partial<Record<MotivoForaDaFila, number>>;
-  /** Tamanho do grupo Investidores antes de qualquer corte. */
+  /** Pessoas distintas antes de qualquer corte. */
   base: number;
+  /** Quantas pessoas de cada tipo entraram na fila. */
+  porTipo: Record<TipoHelena, number>;
 }
 
 const telDaLinha = (l: LinhaOrigem): unknown => (l.origem === 'agenda' ? l.r.cliente_telefone : l.r.telefone);
 
+// ── Os cards: quais a Helena pode reabrir ────────────────────────────────────
+/** Cards "NÃO ATENDIDOS" que a Helena reabre sem pedir nada a ninguém. `arrendamento` NÃO está aqui:
+ *  é status de negócio dado pelo consultor (ordem do dono, 12/11/2026), conta como atendido, card vivo. */
+export const STATUS_REABRIVEIS: ReadonlySet<string> = new Set(['cancelado', 'nao_atendeu']);
+/** `agendado` de reunião real (a pessoa a conhece) só volta depois de vencido há mais de 24h. */
+export const REUNIAO_VENCIDA_MS = 24 * 3600_000;
+
+const statusDoCard = (c: Pick<CardDoContato, 'status'>): string => String(c.status ?? '').trim().toLowerCase();
+
 /**
- * A fila da abertura.
+ * A Helena pode reabrir este card? (12/11/2026)
+ *   · `cancelado` e `nao_atendeu`: sim;
+ *   · `agendado` do LOTE MUDO (origem `cadastro_eletroposto`, que a pessoa nunca marcou): sim, em qualquer data;
+ *   · `agendado` de outra origem: só quando o horário venceu há mais de 24h;
+ *   · qualquer outro status (negociação, fechado, sem interesse, em atendimento...): não. Conservador de propósito.
+ */
+export function cardReabre(c: CardDoContato, agoraMs: number): boolean {
+  const st = statusDoCard(c);
+  if (STATUS_REABRIVEIS.has(st)) return true;
+  if (st !== 'agendado') return false;
+  if (ehCardSemAvisoAutomatico(c.origem)) return true;
+  const q = Date.parse(String(c.quando ?? ''));
+  return Number.isFinite(q) && q < agoraMs - REUNIAO_VENCIDA_MS;
+}
+
+/**
+ * O card que a Helena remarca: o mais recente (maior id) entre os reabríveis de ELETROPOSTO. Um card de
+ * outro produto (uma vistoria de solar cancelada, por exemplo) conta para a pessoa entrar na fila, mas a
+ * Helena nunca o converte em reunião de eletroposto: nesse caso ela cria um card novo.
+ */
+export function cardParaRemarcar(cards: readonly CardDoContato[], agoraMs: number): CardDoContato | null {
+  let melhor: CardDoContato | null = null;
+  for (const c of cards) if (ehOrigemEletroposto(c.origem) && cardReabre(c, agoraMs) && (!melhor || c.id > melhor.id)) melhor = c;
+  return melhor;
+}
+
+// ── A nota interna (só ordena) ───────────────────────────────────────────────
+function notaDaLinha(l: LinhaOrigem): number | null {
+  if (l.origem !== 'nota1') return null;
+  const pts = Number(l.r.pts);
+  if (Number.isFinite(pts) && String(l.r.pts ?? '').trim() !== '') return pts;
+  const m = /(\d+)\s*\/\s*11\s*pts/i.exec(String(l.r.ficha ?? ''));
+  return m ? Number(m[1]) : null;
+}
+
+const maisNovoPrimeiro = (a: { criadoEm: string }, b: { criadoEm: string }): number =>
+  (a.criadoEm < b.criadoEm ? 1 : a.criadoEm > b.criadoEm ? -1 : 0);
+
+/** A ordem ESTRITA dos tipos (ordem do dono, 12/11/2026): sem rodízio. Um tipo só começa quando o
+ *  anterior não tem mais ninguém para abrir. */
+export const ORDEM_DOS_TIPOS: readonly TipoHelena[] = ['investidor', 'arrendamento', 'parceiro', 'curioso'];
+
+/** O tipo que o `tipo_card` do card guarda: cotista é Investidor, arrendamento e integrador mapeiam direto. */
+export function tipoDoTipoCard(tipoCard: unknown): TipoHelena | null {
+  const t = String(tipoCard ?? '').trim().toLowerCase();
+  if (t === 'cotista') return 'investidor';
+  if (t === 'arrendamento') return 'arrendamento';
+  if (t === 'integrador') return 'parceiro';
+  return null;
+}
+
+/**
+ * A fila da abertura, com todos os tipos (12/11/2026, ordem do dono: "pegar todos os
+ * clientes de eletroposto").
  *
- * Base: o grupo `capital` do `agruparPorDestino`, com as mesmas três origens da
- * aba Investidores. Ordem: maior valor primeiro; no empate, cadastro mais novo
- * primeiro. Uma pessoa uma vez, pela chave DDD + 8 últimos (a mesma pessoa pode
- * estar no cadastro E na ficha, com e sem o nono dígito).
+ * UMA PESSOA UMA VEZ, pela chave DDD + 8 últimos (a mesma pessoa pode estar no cadastro
+ * E na ficha, com e sem o nono dígito). O tipo vem da mesma regra da aba Cadastros do
+ * /gerador (`destinoDe`, melhor destino por telefone):
+ *   · Arrendamento: alguma linha manda para o ponto (pode ceder um local, ou card marcado ARRENDAMENTO);
+ *   · Investidor: declarou R$ 50 mil ou mais num valor que dá para citar;
+ *   · Parceiro: veio pelo cadastro de integrador e não tem local nem capital (como no /gerador,
+ *     o integrador é uma marca à parte e não um destino; aqui ele ganha do Curioso);
+ *   · Curioso: o resto (não disse o valor, ou disse menos que o piso, ou o texto não dá para citar).
+ * NÃO existe mais corte de piso nem de "só capital": quem tem menos de R$ 50 mil é Curioso e entra.
  *
- * DOIS CORTES QUE NÃO ESTAVAM NA LISTA DO PEDIDO e vêm de regra da casa:
- *   · `sem_interesse_no_cadastro`: a equipe marcou que a pessoa disse não (ordem
- *     do dono de 05/10/2026, "não quero falar com essa pessoa por agora").
- *   · `pode_ceder_local`: o `agruparPorDestino` junta por telefone cru, então o
- *     mesmo número escrito de dois jeitos escapa do "melhor destino". Quem pode
- *     ceder um local em OUTRA linha é conversa de arrendamento, não desta agente.
+ * QUARTA FONTE: telefone que tem card de eletroposto e NÃO está em cadastro, ficha nem na agenda
+ * de arrendamento. O tipo sai do `tipo_card` do card mais recente (cotista = Investidor, arrendamento,
+ * integrador = Parceiro), e sem ele é Curioso. Investidor sem valor legível no card vira Curioso (a
+ * abertura do Investidor cita o valor).
+ *
+ * CORTES, na ordem: telefone inválido, nome de teste, `sem_interesse` no cadastro, card
+ * vivo (qualquer card do telefone, de qualquer origem, que a Helena não possa reabrir) e
+ * reunião real (`agendado` que a pessoa conhece), sessão da Helena que não volta,
+ * cadastro com menos de 24h, opt-out, bloqueado, mudo, humano na conversa e conversa nos
+ * últimos 7 dias. A marca do lote mudo NÃO exclui: a Helena fala com o lote.
+ *
+ * SÓ ENTRA QUEM TEM CARD NÃO ATENDIDO (ordem do dono, 12/11/2026): cancelado, nao_atendeu, `agendado` do
+ * lote mudo ou `agendado` de outra origem vencido há mais de 24h, e nenhum card vivo. Quem não tem card
+ * nenhum fica FORA: o cadastro só dá tipo, valor, cidade e local a quem tem card. O status `arrendamento` do
+ * card é status de negócio do consultor: conta como atendido (card vivo) e a pessoa fica fora.
+ *
+ * ORDEM ESTRITA por tipo, sem rodízio: todos os Investidores, depois Arrendamento, Parceiro e por último
+ * Curioso. Dentro do tipo, primeiro quem já pediu reunião (card parado) e depois o lote mudo; Investidor
+ * por valor maior, os outros pelo card mais recente.
  */
 export function montarFila(linhas: LinhaOrigem[], f: FiltrosDaFila): ResultadoFila {
-  const refsDe = new Map<string, RefCadastro[]>();
-  const podeCeder = new Set<string>();
-  const disseNao = new Set<string>();
-  // O cadastro MAIS NOVO de cada pessoa, nas duas tabelas. Vale a pessoa e não a
-  // linha: quem tem ficha antiga e acabou de se cadastrar de novo pela LP está
-  // escolhendo horário agora. `cadastrado_em` entra porque o cadastro de parceria
-  // é upsert por (lado, telefone): quem volta mantém o `created_at` antigo.
-  const cadastroMaisNovo = new Map<string, number>();
-  for (const l of linhas) {
-    const tel = telefoneZap(telDaLinha(l));
-    const k = tel ? chaveContato(tel) : null;
-    if (!k) continue;
-    if (destinoDe(l.origem, l.r) === 'ponto') podeCeder.add(k);
-    if (l.origem === 'agenda') continue;
-    for (const campo of [l.r.created_at, l.r.cadastrado_em]) {
-      const t = Date.parse(String(campo ?? ''));
-      if (Number.isFinite(t) && t > (cadastroMaisNovo.get(k) ?? 0)) cadastroMaisNovo.set(k, t);
-    }
-    if (String(l.r.status ?? '') === 'sem_interesse') disseNao.add(k);
-    const id = Number(l.r.id);
-    if (!Number.isInteger(id)) continue;
-    if (!refsDe.has(k)) refsDe.set(k, []);
-    refsDe.get(k)!.push({ origem: l.origem, id });
-  }
-
   const excluidos: ResultadoFila['excluidos'] = {};
   const fora = (m: MotivoForaDaFila) => { excluidos[m] = (excluidos[m] ?? 0) + 1; };
-  const capital = agruparPorDestino(linhas).capital;
-  const passaram: CandidatoInvestidor[] = [];
-  // Data ilegível ou ausente NÃO tira ninguém: o corte só vale para o que se sabe.
-  const cadastroRecente = (chave: string): boolean => {
-    if (f.agora === undefined) return false;
-    const t = cadastroMaisNovo.get(chave);
-    return t !== undefined && f.agora - t < CADASTRO_MINIMO_MS;
-  };
 
-  for (const l of capital) {
-    if (l.origem === 'agenda') continue;   // o grupo capital não tem linha de agenda; é só trava de tipo
-    const tel = telefoneZap(l.r.telefone);
+  // 1) Junta as linhas por pessoa.
+  interface Grupo { chave: string; telefone: string; linhas: LinhaOrigem[]; card?: CardEletroposto }
+  const porChave = new Map<string, Grupo>();
+  for (const l of linhas) {
+    const tel = telefoneZap(telDaLinha(l));
     const chave = tel ? chaveContato(tel) : null;
     if (!tel || !chave) { fora('telefone_invalido'); continue; }
-    if (ehNomeDeTeste(l.r.nome)) { fora('nome_teste'); continue; }
-    const valorTxt = valorDeclarado(l.origem, l.r);
-    const valorMil = valorEmMil(valorTxt);
-    if (valorMil === null || !valorLegivel(valorTxt)) { fora('sem_valor_legivel'); continue; }
-    if (podeCeder.has(chave)) { fora('pode_ceder_local'); continue; }
-    if (disseNao.has(chave)) { fora('sem_interesse_no_cadastro'); continue; }
-    if (f.comCard.has(chave)) { fora('tem_card'); continue; }
-    if (f.comSessao.has(chave)) { fora('tem_sessao'); continue; }
-    // Depois de `tem_card` e `tem_sessao` de propósito: o número deste motivo na
-    // prévia é quem se cadastrou há menos de um dia e AINDA não marcou.
-    if (cadastroRecente(chave)) { fora('cadastro_recente'); continue; }
-    if (f.silenciado(tel)) { fora('opt_out'); continue; }
-    if (f.bloqueado(tel)) { fora('bloqueado'); continue; }
-    if (f.mudo(tel)) { fora('mudo'); continue; }
-    if (f.comHumano(tel)) { fora('humano_na_conversa'); continue; }
-    if (f.comConversa.has(chave)) { fora('conversa_7_dias'); continue; }
+    const g = porChave.get(chave) ?? { chave, telefone: tel, linhas: [] };
+    // O telefone é o mais completo que ela tiver entre as linhas (com o nono dígito).
+    if (tel.length > g.telefone.length) g.telefone = tel;
+    g.linhas.push(l);
+    porChave.set(chave, g);
+  }
+  // A quarta fonte: o card de eletroposto mais recente de cada telefone que as outras duas fontes (cadastro e ficha) não têm.
+  const soCard = new Map<string, Grupo>();
+  for (const c of f.cardsEletroposto ?? []) {
+    const tel = telefoneZap(c.telefone);
+    const chave = tel ? chaveContato(tel) : null;
+    if (!tel || !chave || porChave.has(chave)) continue;
+    const ja = soCard.get(chave);
+    if (ja && ja.card!.id > c.id) continue;
+    soCard.set(chave, { chave, telefone: ja && ja.telefone.length > tel.length ? ja.telefone : tel, linhas: [], card: c });
+  }
+  const grupos = [...porChave.values(), ...soCard.values()];
+
+  const passaram: CandidatoInvestidor[] = [];
+  for (const g of grupos) {
+    const cadastros = g.linhas.filter(l => l.origem !== 'agenda')
+      .sort((a, b) => maisNovoPrimeiro(
+        { criadoEm: String(a.r.created_at ?? '') }, { criadoEm: String(b.r.created_at ?? '') }));
+    const nomeDaLinha = (l: LinhaOrigem) => String(l.origem === 'agenda' ? l.r.cliente_nome ?? '' : l.r.nome ?? '').trim();
+    if (g.linhas.some(l => ehNomeDeTeste(nomeDaLinha(l))) || (g.card && ehNomeDeTeste(g.card.nome))) { fora('nome_teste'); continue; }
+    if (cadastros.some(l => String(l.r.status ?? '') === 'sem_interesse')) { fora('sem_interesse_no_cadastro'); continue; }
+
+    // 2) Os cards do telefone, todos. Sem card não entra; um que a Helena não reabre tira a pessoa da fila.
+    const cards = f.cards.get(g.chave) ?? [];
+    if (!cards.length) { fora('sem_card'); continue; }
+    const naoReabre = cards.find(c => !cardReabre(c, f.agora));
+    if (naoReabre) { fora(statusDoCard(naoReabre) === 'agendado' ? 'reuniao_real' : 'card_vivo'); continue; }
+
+    // 3) A sessão da Helena: a que não volta tira; a que volta marca RETORNO.
+    const retorno = f.retorno.has(g.chave);
+    if (!retorno && f.comSessao.has(g.chave)) { fora('tem_sessao'); continue; }
+
+    // O cadastro MAIS NOVO da pessoa: quem acabou de se cadastrar pela LP está escolhendo
+    // horário agora. `cadastrado_em` entra porque o cadastro de parceria é upsert por
+    // (lado, telefone): quem volta mantém o `created_at` antigo. Data ilegível não tira ninguém.
+    let maisNovo = 0;
+    for (const l of cadastros) {
+      for (const campo of [l.r.created_at, l.r.cadastrado_em]) {
+        const t = Date.parse(String(campo ?? ''));
+        if (Number.isFinite(t) && t > maisNovo) maisNovo = t;
+      }
+    }
+    if (maisNovo && f.agora - maisNovo < CADASTRO_MINIMO_MS) { fora('cadastro_recente'); continue; }
+    if (f.silenciado(g.telefone)) { fora('opt_out'); continue; }
+    if (f.bloqueado(g.telefone)) { fora('bloqueado'); continue; }
+    if (f.mudo(g.telefone)) { fora('mudo'); continue; }
+    if (f.comHumano(g.telefone)) { fora('humano_na_conversa'); continue; }
+    if (f.comConversa.has(g.chave)) { fora('conversa_7_dias'); continue; }
+
+    // 4) O tipo e os dados da pessoa.
+    let tipo: TipoHelena;
+    let origem: CandidatoInvestidor['origem'];
+    let id: number;
+    let criadoEm: string;
+    let nome: string | null;
+    let cidade: string | null;
+    let status: string | null;
+    let lado: string | null;
+    let valorTxt = '';
+    let fatosDoCard: string[] = [];
+    let nota: number | null = null;
+    if (g.card) {
+      const c = g.card;
+      const doCard = tipoDoTipoCard(c.tipoCard);
+      const valorDoCard = valorDeclarado('nota1', { ficha: c.observacao });
+      tipo = doCard === 'investidor' && valorOk(valorDoCard) && valorLegivel(valorDoCard) ? 'investidor'
+        : doCard === 'arrendamento' || doCard === 'parceiro' ? doCard : 'curioso';
+      if (tipo === 'investidor') valorTxt = valorDoCard;
+      origem = 'card'; id = c.id; criadoEm = c.criadoEm; nome = String(c.nome ?? '').trim() || null;
+      cidade = String(c.cidade ?? '').trim() || null; status = null; lado = null;
+      fatosDoCard = respostasDaFicha(c.observacao);
+    } else {
+      const ehIntegrador = (l: LinhaOrigem) => l.origem === 'parceria' && String(l.r.lado ?? '') === 'integrador';
+      const doDestino = g.linhas.filter(l => !ehIntegrador(l));
+      const pontos = doDestino.filter(l => destinoDe(l.origem, l.r) === 'ponto');
+      const capitais = doDestino
+        .filter(l => l.origem !== 'agenda' && destinoDe(l.origem, l.r) === 'capital'
+          && valorLegivel(valorDeclarado(l.origem, l.r)))
+        .sort((a, b) => (valorEmMil(valorDeclarado(b.origem as 'parceria' | 'nota1', b.r)) ?? 0)
+          - (valorEmMil(valorDeclarado(a.origem as 'parceria' | 'nota1', a.r)) ?? 0));
+      const integradores = g.linhas.filter(ehIntegrador);
+      let representante: LinhaOrigem;
+      if (pontos.length) { tipo = 'arrendamento'; representante = pontos.find(l => l.origem !== 'agenda') ?? pontos[0]!; }
+      else if (capitais.length) { tipo = 'investidor'; representante = capitais[0]!; }
+      else if (integradores.length) { tipo = 'parceiro'; representante = integradores[0]!; }
+      else { tipo = 'curioso'; representante = cadastros[0] ?? g.linhas[0]!; }
+      if (tipo === 'investidor') valorTxt = valorDeclarado(representante.origem as 'parceria' | 'nota1', representante.r);
+      origem = representante.origem; id = Number(representante.r.id);
+      criadoEm = String(representante.r.created_at ?? '');
+      nome = [representante, ...cadastros].map(nomeDaLinha).find(Boolean) ?? null;
+      cidade = [representante, ...cadastros].map(l => String(l.r.cidade ?? '').trim()).find(Boolean) ?? null;
+      status = String(representante.r.status ?? '').trim() || null;
+      lado = String(representante.r.lado ?? '').trim() || null;
+      for (const l of g.linhas) { const n = notaDaLinha(l); if (n !== null && (nota === null || n > nota)) nota = n; }
+    }
+
+    const reabriveis = cards.filter(c => cardReabre(c, f.agora));
+    // "Card parado" = já pediu reunião uma vez (cancelado, nao_atendeu ou agendado vencido de origem própria).
+    const faixa: FaixaDaFila = reabriveis.some(c => !ehCardSemAvisoAutomatico(c.origem)) ? 'card_parado' : 'lote_mudo';
+
     passaram.push({
-      chave, telefone: tel,
-      nome: String(l.r.nome ?? '').trim() || null,
-      valorTxt, valorMil,
-      origem: l.origem, id: Number(l.r.id),
-      criadoEm: String(l.r.created_at ?? ''),
-      cidade: String(l.r.cidade ?? '').trim() || null,
-      status: String(l.r.status ?? '').trim() || null,
-      refs: refsDe.get(chave) ?? [{ origem: l.origem, id: Number(l.r.id) }],
+      chave: g.chave, telefone: g.telefone, nome, valorTxt,
+      valorMil: valorTxt ? valorEmMil(valorTxt) : null,
+      origem, id, criadoEm, cidade, status,
+      refs: g.linhas.filter(l => Number.isInteger(Number(l.r.id))).map(l => ({ origem: l.origem, id: Number(l.r.id) })),
+      tipo, nota, retorno, card: cardParaRemarcar(cards, f.agora), lado, faixa, fatosDoCard,
+      cardsConhecidos: cards.map(c => c.id),
     });
   }
 
-  passaram.sort((a, b) => (b.valorMil - a.valorMil) || (a.criadoEm < b.criadoEm ? 1 : a.criadoEm > b.criadoEm ? -1 : 0));
-
-  // Uma pessoa uma vez: fica a primeira linha dela na ordem acima. O telefone é o
-  // mais completo que ela tiver entre as linhas (com o nono dígito), porque a
-  // mesma pessoa costuma estar gravada dos dois jeitos.
-  const porChave = new Map<string, CandidatoInvestidor>();
-  const fila: CandidatoInvestidor[] = [];
-  for (const c of passaram) {
-    const ja = porChave.get(c.chave);
-    if (ja) {
-      if (c.telefone.length > ja.telefone.length) ja.telefone = c.telefone;
-      fora('duplicado');
-      continue;
-    }
-    porChave.set(c.chave, c);
-    fila.push(c);
-  }
-  return { fila, excluidos, base: capital.length };
+  // 5) A ordem: dentro de cada tipo (faixa, depois o critério do tipo), e depois o rodízio entre os tipos.
+  const listas: Record<TipoHelena, CandidatoInvestidor[]> = { arrendamento: [], investidor: [], parceiro: [], curioso: [] };
+  for (const c of passaram) listas[c.tipo].push(c);
+  const porFaixa = (a: CandidatoInvestidor, b: CandidatoInvestidor): number => FAIXAS.indexOf(a.faixa) - FAIXAS.indexOf(b.faixa);
+  /** O card mais recente primeiro (maior id). */
+  const porCardMaisRecente = (a: CandidatoInvestidor, b: CandidatoInvestidor): number => (b.card?.id ?? 0) - (a.card?.id ?? 0);
+  listas.investidor.sort((a, b) => porFaixa(a, b) || ((b.valorMil ?? 0) - (a.valorMil ?? 0)) || porCardMaisRecente(a, b));
+  for (const t of ['arrendamento', 'parceiro', 'curioso'] as const) listas[t].sort((a, b) => porFaixa(a, b) || porCardMaisRecente(a, b));
+  const fila: CandidatoInvestidor[] = ORDEM_DOS_TIPOS.flatMap(t => listas[t]);
+  const porTipo = { arrendamento: listas.arrendamento.length, investidor: listas.investidor.length, parceiro: listas.parceiro.length, curioso: listas.curioso.length };
+  return { fila, excluidos, base: grupos.length, porTipo };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// RESGATE DOS CANCELADOS (12/10/2026)
+// RETORNO: a sessão antiga que volta (12/11/2026)
 //
-// Ordem do dono: "libera os cancelados para a Helena enviar msg e tentar resgatar
-// alguém". Cancelado aqui é quem marcou reunião pela página, não confirmou e teve o
-// horário liberado pela régua do SIM (eletropostoCobraSim.ts), que grava
-// `status = 'cancelado'` no card e o carimbo `ep_liberado_sim:<id>`. O parecer
-// anti-ban liberou com limites, e TODOS estão aqui ou no orquestrador:
-//   · 14 dias ou mais desde a liberação mais recente;
-//   · no máximo 5 aberturas de resgate por dia, DENTRO do teto do dia da Helena;
-//   · intercalado: a 3ª, 8ª, 13ª, 18ª e 23ª abertura do dia, nunca em bloco;
-//   · disjuntor próprio do grupo (2 pedidos de parada no dia).
-// A fila principal (montarFila) não foi tocada.
+// Quem a Helena chamou há mais de 21 dias e não respondeu volta para a fila MARCADA como
+// retorno: a abertura é o texto do toque 4 ("faz um tempo que a gente não se fala"), e o
+// ciclo de toques recomeça dali. Vale para a sessão em `chamado` do regime ANTIGO (sem o
+// campo `tipo`: eram as aberturas de outubro, cujo toque 2 venceu e nunca saiu) e para a que
+// o ciclo já fechou sem resposta (`sem_interesse` com motivo `sem_resposta`). A sessão do
+// regime novo em `chamado` segue o ciclo normal (o toque 4 dela sai aos 60 dias).
+// `humano`, `sem_interesse` por outro motivo, `agendado`, `conversando`, `ofertou`,
+// `adiado` e pedido de parada continuam fora.
 // ═════════════════════════════════════════════════════════════════════════════
 
-/** Aberturas de resgate por dia de Brasília. A env só APERTA. */
-export const RESGATE_POR_DIA = 5;
-/** A liberação mais recente tem que ter, no mínimo, esta idade. */
-export const RESGATE_DIAS_MINIMOS = 14;
-export const RESGATE_MS_MINIMO = RESGATE_DIAS_MINIMOS * 86_400_000;
-/** Pedidos de parada vindos de sessões de resgate, no mesmo dia, que desligam SÓ o resgate. */
-export const PARADAS_RESGATE_ATE_PARAR = 2;
-/** Sessão de resgate em `chamado` há tanto tempo sem resposta é encerrada. */
-export const RESGATE_SEM_RESPOSTA_MS = 7 * 86_400_000;
+export const RETORNO_APOS_MS = 21 * 86_400_000;
 
-/** O teto de resgate de hoje: 5, ou menos se INVESTIDOR_AGENTE_RESGATE_DIA apertar. */
-export function tetoResgateDoDia(env?: string | null): number {
-  let teto = RESGATE_POR_DIA;
-  const daEnv = String(env ?? '').trim();
-  if (/^\d+$/.test(daEnv)) teto = Math.min(teto, Number(daEnv));
-  return teto;
+export interface SessaoParaRetorno {
+  estagio: string;
+  motivo?: string | null;
+  erro?: string | null;
+  tipo?: string;
+  telefone?: string;
+  ciclo_encerrado?: string;
 }
 
-/** As posições do dia que são do resgate, contadas SÓ entre as aberturas (toque 1, fila
- *  principal mais resgate): a 2ª, a 4ª, a 7ª, a 10ª e a 13ª. (13/10/2026: antes eram a 3ª,
- *  8ª, 13ª, 18ª e 23ª de TODOS os envios, e com as retomadas saindo primeiro o resgate
- *  encolhia para 1 por dia.) */
-export const POSICOES_DO_RESGATE: ReadonlySet<number> = new Set([2, 4, 7, 10, 13]);
+/** O último envio da Helena a esta pessoa (ms): o mais novo entre os carimbos dos toques
+ *  e o `ultimo_toque_em`/`aberto_em` da sessão. `null` se nada é legível. */
+export function ultimoEnvioDaSessao(
+  s: { aberto_em?: string; ultimo_toque_em?: string }, carimbos?: CarimbosDosToques,
+): number | null {
+  let melhor: number | null = null;
+  for (const iso of [...Object.values(carimbos ?? {}), s.ultimo_toque_em, s.aberto_em]) {
+    const t = Date.parse(String(iso ?? ''));
+    if (Number.isFinite(t) && (melhor === null || t > melhor)) melhor = t;
+  }
+  return melhor;
+}
 
-/** A abertura de número `n` do dia (1ª, 2ª...) é a vez do resgate? */
-export const ehVezDoResgate = (n: number): boolean => Number.isInteger(n) && POSICOES_DO_RESGATE.has(n);
-
-export type GrupoDaAbertura = 'principal' | 'resgate';
-
-/**
- * Quem sai nesta abertura. `posicao` é a posição dela entre as ABERTURAS do dia (aberturas
- * de hoje + 1; as retomadas não entram na conta).
- *   · vez do resgate, com cota e elegível: resgate;
- *   · senão, a fila principal, se tiver alguém;
- *   · fila principal vazia: o resgate usa a vez mesmo fora da posição, ainda
- *     limitado pela cota (sem isto, com a principal vazia o dia nunca andaria até
- *     a próxima posição de resgate);
- *   · nada: `null`.
- */
-export function escolherGrupo(i: {
-  posicao: number; resgateLigado: boolean; cotaDeResgate: boolean; resgateElegivel: boolean; principalTem: boolean;
-}): GrupoDaAbertura | null {
-  const podeResgate = i.resgateLigado && i.cotaDeResgate && i.resgateElegivel;
-  if (podeResgate && ehVezDoResgate(i.posicao)) return 'resgate';
-  if (i.principalTem) return 'principal';
-  return podeResgate ? 'resgate' : null;
+export function sessaoVoltaComoRetorno(s: SessaoParaRetorno, ultimoEnvioMs: number | null, agoraMs: number): boolean {
+  if (s.erro || !s.telefone || s.ciclo_encerrado) return false;
+  if (ultimoEnvioMs === null || agoraMs - ultimoEnvioMs <= RETORNO_APOS_MS) return false;
+  if (s.estagio === 'chamado') return !s.tipo;
+  return s.estagio === 'sem_interesse' && s.motivo === 'sem_resposta';
 }
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -457,136 +670,6 @@ export function mesPorExtenso(iso: unknown): string {
   const t = Date.parse(String(iso ?? ''));
   if (!Number.isFinite(t)) return '';
   return MESES[new Date(t - TRES_HORAS_MS).getUTCMonth()]!;
-}
-
-/** Um card da agenda, só o que o resgate precisa. */
-export interface CardDaAgenda { id: number; status: string; quando: string | null; escreveu: boolean }
-
-export interface CandidatoResgate extends CandidatoInvestidor {
-  /** Algum card dele tem `lead_resposta_at`: já escreveu para a gente alguma vez. */
-  escreveu: boolean;
-  /** O `quando` do card cancelado mais recente (ISO): a reunião que não aconteceu. */
-  reuniaoPerdidaEm: string;
-  /** `updated_at` do carimbo de liberação mais recente. */
-  liberadoEm: string;
-}
-
-export type MotivoForaDoResgate =
-  | Exclude<MotivoForaDaFila, 'tem_card' | 'mudo'>
-  | 'card_em_outro_status' | 'sem_carimbo_de_liberacao' | 'menos_de_14_dias' | 'sem_data_da_reuniao';
-
-export interface ResultadoFilaResgate {
-  fila: CandidatoResgate[];
-  excluidos: Partial<Record<MotivoForaDoResgate, number>>;
-}
-
-export interface DadosDoResgate {
-  /** Todos os cards de cada chave (DDD + 8), em qualquer status. */
-  cards: ReadonlyMap<string, readonly CardDaAgenda[]>;
-  /** `updated_at` do carimbo `ep_liberado_sim:<id>`, por id de card. */
-  liberados: ReadonlyMap<number, string>;
-  agora: number;
-}
-
-/**
- * A fila do resgate. Mesma base e mesmos cortes da fila principal, na mesma
- * ordem, com DUAS diferenças:
- *   · o corte `tem_card` vira a regra do resgate: todos os cards da pessoa
- *     cancelados, algum com carimbo de liberação, o mais recente com 14 dias ou
- *     mais. Quem não tem card nenhum não é resgate (é da fila principal) e não
- *     entra nem na contagem de excluídos.
- *   · o corte de `mudo` NÃO se aplica. EXCEÇÃO com dono: ordem do Thiago,
- *     12/10/2026 (esta gente levou toques da régua do SIM sem responder, e é por
- *     isso mesmo que o resgate existe). `f.mudo` é ignorado de propósito; o
- *     `f.comCard` também, porque os cards vêm em `r.cards`.
- * Ordem: quem já escreveu alguma vez primeiro; dentro de cada parte, maior valor
- * declarado e, no empate, cadastro mais novo.
- */
-export function montarFilaResgate(linhas: LinhaOrigem[], f: FiltrosDaFila, r: DadosDoResgate): ResultadoFilaResgate {
-  const podeCeder = new Set<string>();
-  const disseNao = new Set<string>();
-  const refsDe = new Map<string, RefCadastro[]>();
-  for (const l of linhas) {
-    const tel = telefoneZap(telDaLinha(l));
-    const k = tel ? chaveContato(tel) : null;
-    if (!k) continue;
-    if (destinoDe(l.origem, l.r) === 'ponto') podeCeder.add(k);
-    if (l.origem === 'agenda') continue;
-    if (String(l.r.status ?? '') === 'sem_interesse') disseNao.add(k);
-    const id = Number(l.r.id);
-    if (!Number.isInteger(id)) continue;
-    if (!refsDe.has(k)) refsDe.set(k, []);
-    refsDe.get(k)!.push({ origem: l.origem, id });
-  }
-
-  const excluidos: ResultadoFilaResgate['excluidos'] = {};
-  const fora = (m: MotivoForaDoResgate) => { excluidos[m] = (excluidos[m] ?? 0) + 1; };
-  const passaram: CandidatoResgate[] = [];
-
-  for (const l of agruparPorDestino(linhas).capital) {
-    if (l.origem === 'agenda') continue;
-    const tel = telefoneZap(l.r.telefone);
-    const chave = tel ? chaveContato(tel) : null;
-    if (!tel || !chave) continue;                       // o motivo já é contado pela fila principal
-    const cards = r.cards.get(chave);
-    if (!cards || !cards.length) continue;              // sem card: é da fila principal
-    if (ehNomeDeTeste(l.r.nome)) { fora('nome_teste'); continue; }
-    const valorTxt = valorDeclarado(l.origem, l.r);
-    const valorMil = valorEmMil(valorTxt);
-    if (valorMil === null || !valorLegivel(valorTxt)) { fora('sem_valor_legivel'); continue; }
-    if (podeCeder.has(chave)) { fora('pode_ceder_local'); continue; }
-    if (disseNao.has(chave)) { fora('sem_interesse_no_cadastro'); continue; }
-
-    // A regra do resgate.
-    if (cards.some(c => String(c.status ?? '').trim().toLowerCase() !== 'cancelado')) { fora('card_em_outro_status'); continue; }
-    let liberadoEm = '';
-    for (const c of cards) {
-      const em = r.liberados.get(c.id);
-      if (em && Number.isFinite(Date.parse(em)) && em > liberadoEm) liberadoEm = em;
-    }
-    if (!liberadoEm) { fora('sem_carimbo_de_liberacao'); continue; }
-    if (r.agora - Date.parse(liberadoEm) < RESGATE_MS_MINIMO) { fora('menos_de_14_dias'); continue; }
-    let reuniaoPerdidaEm = '';
-    for (const c of cards) if (c.quando && Number.isFinite(Date.parse(c.quando)) && c.quando > reuniaoPerdidaEm) reuniaoPerdidaEm = c.quando;
-    if (!reuniaoPerdidaEm) { fora('sem_data_da_reuniao'); continue; }
-
-    if (f.comSessao.has(chave)) { fora('tem_sessao'); continue; }
-    if (f.silenciado(tel)) { fora('opt_out'); continue; }
-    if (f.bloqueado(tel)) { fora('bloqueado'); continue; }
-    // (mudo: não se aplica ao resgate, ver o cabeçalho.)
-    if (f.comHumano(tel)) { fora('humano_na_conversa'); continue; }
-    if (f.comConversa.has(chave)) { fora('conversa_7_dias'); continue; }
-    passaram.push({
-      chave, telefone: tel,
-      nome: String(l.r.nome ?? '').trim() || null,
-      valorTxt, valorMil,
-      origem: l.origem, id: Number(l.r.id),
-      criadoEm: String(l.r.created_at ?? ''),
-      cidade: String(l.r.cidade ?? '').trim() || null,
-      status: String(l.r.status ?? '').trim() || null,
-      refs: refsDe.get(chave) ?? [{ origem: l.origem, id: Number(l.r.id) }],
-      escreveu: cards.some(c => c.escreveu),
-      reuniaoPerdidaEm, liberadoEm,
-    });
-  }
-
-  passaram.sort((a, b) =>
-    (Number(b.escreveu) - Number(a.escreveu)) || (b.valorMil - a.valorMil)
-    || (a.criadoEm < b.criadoEm ? 1 : a.criadoEm > b.criadoEm ? -1 : 0));
-
-  const porChave = new Map<string, CandidatoResgate>();
-  const fila: CandidatoResgate[] = [];
-  for (const c of passaram) {
-    const ja = porChave.get(c.chave);
-    if (ja) {
-      if (c.telefone.length > ja.telefone.length) ja.telefone = c.telefone;
-      fora('duplicado');
-      continue;
-    }
-    porChave.set(c.chave, c);
-    fila.push(c);
-  }
-  return { fila, excluidos };
 }
 
 /** O texto de uma abertura de resgate pelo índice (-1, ou sem nome que dê para
@@ -887,6 +970,8 @@ export interface SessaoDeRetomada {
   telefone: string;
   nome: string | null;
   valor_txt: string;
+  /** O tipo do cadastro (regime de 12/11/2026). Sessão antiga não tem: vale como `investidor`. */
+  tipo?: string;
   respostas?: number;
   grupo?: string;
   sem_retomada?: boolean;
@@ -913,6 +998,7 @@ export interface CandidatoRetomada {
   telefone: string;
   nome: string | null;
   valorTxt: string;
+  tipo: TipoHelena;
   toque: 2 | 3 | 4 | 5;
   venceEm: number;
   vencidaHaDias: number;
@@ -927,9 +1013,14 @@ export interface FiltrosDeRetomada {
   mudo: (tel: string) => boolean;
   /** Tem humano dentro da conversa agora (pausa humana). */
   comHumano: (tel: string) => boolean;
+  /** Chaves que entram como RETORNO na fila (sessão antiga há mais de 21 dias): não recebem o toque
+   *  atrasado, recomeçam pela abertura de retorno. */
+  retorno?: ReadonlySet<string>;
+  /** Grupos (tipo ou `retorno`) com o disjuntor de pedidos de parada aberto hoje. */
+  gruposFechados?: ReadonlySet<string>;
 }
 
-export type MotivoForaDasRetomadas = 'opt_out' | 'bloqueado' | 'mudo' | 'toques_em_60_dias' | 'humano_na_conversa';
+export type MotivoForaDasRetomadas = 'opt_out' | 'bloqueado' | 'mudo' | 'toques_em_60_dias' | 'humano_na_conversa' | 'grupo_fechado_hoje';
 
 export interface ResultadoRetomadas {
   /** Quem pode receber agora (passou nos cortes), a mais antiga primeiro. */
@@ -958,6 +1049,7 @@ export function montarRetomadas(
   const fechos: ResultadoRetomadas['fechos'] = [];
   for (const [chave, s] of sessoes) {
     if (!sessaoEntraNasRetomadas(s)) continue;
+    if (f.retorno?.has(chave)) continue;   // sessão antiga: volta pela fila, como retorno
     const c = carimbos.get(chave);
     const passo = c ? proximoPassoDaRetomada(c) : null;
     if (!passo || passo.venceEm > agoraMs) continue;
@@ -972,8 +1064,10 @@ export function montarRetomadas(
     if (f.comHumano(s.telefone)) { fora('humano_na_conversa'); continue; }
     if (f.mudo(s.telefone)) { fora('mudo'); continue; }
     if (recentes >= TOQUES_EM_60_DIAS_ATE_PARAR) { fora('toques_em_60_dias'); continue; }
+    const tipo = tipoDaSessao(s.tipo);
+    if (f.gruposFechados?.has(tipo)) { fora('grupo_fechado_hoje'); continue; }
     fila.push({
-      chave, telefone: s.telefone, nome: s.nome, valorTxt: s.valor_txt, toque: passo.passo, venceEm: passo.venceEm,
+      chave, telefone: s.telefone, nome: s.nome, valorTxt: s.valor_txt, tipo, toque: passo.passo, venceEm: passo.venceEm,
       vencidaHaDias: Math.floor((agoraMs - passo.venceEm) / DIA_MS), ultimoToqueEm: passo.ultimoToqueEm,
     });
   }
@@ -982,19 +1076,21 @@ export function montarRetomadas(
   return { fila, fechos, vencidasPorToque, excluidos };
 }
 
+/** O tipo gravado na sessão, ou `investidor` para a sessão antiga (de antes de 12/11/2026). */
+export const tipoDaSessao = (tipo: unknown): TipoHelena =>
+  tipo === 'arrendamento' || tipo === 'curioso' || tipo === 'parceiro' ? tipo : 'investidor';
+
 /**
- * O texto da retomada: 3 variações por toque, escolhidas de forma fixa pela chave E
- * pelo número do toque (a mesma pessoa não recebe a mesma redação em dois toques
- * seguidos). `indice` -1 = a reserva, sem nome.
+ * O texto da retomada (12/11/2026): UM texto por toque e por variante ("local" para quem tem
+ * um espaço, "capital" para os outros). Sem primeiro nome que dê para usar, o mesmo texto sai
+ * sem o nome (`moldeSemNome`). `indice` 0 = com nome, -1 = sem nome.
  */
 export function renderRetomada(
-  toque: 2 | 3 | 4 | 5, chave: string, nome: unknown, valorTxt: unknown,
+  toque: 2 | 3 | 4 | 5, nome: unknown, tipo: TipoHelena | string | null | undefined,
 ): { indice: number; texto: string } {
-  const textos = RETOMADAS[toque];
+  const molde = RETOMADAS_POR_VARIANTE[toque][varianteDoTipo(tipo)];
   const p = primeiroNome(nome);
-  const indice = p ? (indicePorChave(chave, textos.variacoes.length) + toque) % textos.variacoes.length : -1;
-  const molde = indice >= 0 ? textos.variacoes[indice]! : textos.reserva;
-  return { indice, texto: molde.split('{nome}').join(p ?? '').split('{valor}').join(valorNaFrase(valorTxt)) };
+  return p ? { indice: 0, texto: molde.split('{nome}').join(p) } : { indice: -1, texto: moldeSemNome(molde) };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1052,12 +1148,48 @@ export function escolhaPendenteDe(
 // OBSERVAÇÃO DO CARD
 // ═════════════════════════════════════════════════════════════════════════════
 
-export interface DadosDaConversa {
-  valor_confirmado?: string;
-  pagamento?: string;
-  tem_ponto?: string;
-  cidade?: string;
-}
+/**
+ * Os campos da ficha que a Helena preenche durante a conversa (redator, 12/11/2026): texto de
+ * uma linha, nas palavras da pessoa. Cada turno traz o que ela ficou sabendo, e `juntarDados`
+ * mescla: campo novo nunca apaga o anterior.
+ *   Todos:        nome_preferido, cidade, regiao, ocupacao, o_que_chamou_atencao, quando_comecar,
+ *                 quem_decide, perfil_real (se a conversa mostrou tipo diferente do cadastro),
+ *                 pressa_ou_resistencia
+ *   Investidor:   valor_confirmado, pagamento, tem_ponto, expectativa, ja_investe_em
+ *   Arrendamento: tipo_local, bairro_local, relacao_local, tamanho_espaco, movimento,
+ *                 padrao_energia (ou "não sabe"), expectativa_local (valor só se ela mesma disse)
+ *   Curioso:      interesse_origem, tem_local_capital_ou_parceria, duvidas
+ *   Parceiro:     atuacao, regiao_atuacao, ja_trabalha_com_carregador, ideia_parceria
+ * O fechamento (`resumo_para_consultor`, até 3 frases) é o campo `resumo` da saída.
+ */
+export const CAMPOS_DA_FICHA = [
+  'nome_preferido', 'cidade', 'regiao', 'ocupacao', 'o_que_chamou_atencao', 'quando_comecar', 'quem_decide',
+  'perfil_real', 'pressa_ou_resistencia',
+  'valor_confirmado', 'pagamento', 'tem_ponto', 'expectativa', 'ja_investe_em',
+  'tipo_local', 'bairro_local', 'relacao_local', 'tamanho_espaco', 'movimento', 'padrao_energia', 'expectativa_local',
+  'interesse_origem', 'tem_local_capital_ou_parceria', 'duvidas',
+  'atuacao', 'regiao_atuacao', 'ja_trabalha_com_carregador', 'ideia_parceria',
+] as const;
+export type CampoDaFicha = typeof CAMPOS_DA_FICHA[number];
+export type DadosDaConversa = Partial<Record<CampoDaFicha, string>>;
+
+/** Como cada campo aparece na ficha ao consultor e nos fatos do sistema. */
+export const ROTULO_DO_CAMPO: Readonly<Record<CampoDaFicha, string>> = {
+  nome_preferido: 'Como prefere ser chamada', cidade: 'Cidade', regiao: 'Região', ocupacao: 'O que faz hoje',
+  o_que_chamou_atencao: 'O que chamou a atenção', quando_comecar: 'Quando pensa em começar', quem_decide: 'Quem decide junto',
+  perfil_real: 'Perfil que apareceu na conversa', pressa_ou_resistencia: 'Pressa ou resistência',
+  valor_confirmado: 'Valor confirmado', pagamento: 'Como pretende pagar', tem_ponto: 'Local em vista',
+  expectativa: 'O que espera do negócio', ja_investe_em: 'Já investe em',
+  tipo_local: 'Tipo de local', bairro_local: 'Bairro do local', relacao_local: 'Relação com o local', tamanho_espaco: 'Tamanho do espaço',
+  movimento: 'Movimento do local', padrao_energia: 'Padrão de energia', expectativa_local: 'O que espera receber',
+  interesse_origem: 'O que despertou o interesse', tem_local_capital_ou_parceria: 'Tem local, capital ou quer parceria', duvidas: 'Dúvidas',
+  atuacao: 'O que faz', regiao_atuacao: 'Região em que atua', ja_trabalha_com_carregador: 'Já trabalha com carregador',
+  ideia_parceria: 'Como imagina a parceria',
+};
+
+export const ROTULO_DO_TIPO: Readonly<Record<TipoHelena, string>> = {
+  investidor: 'Investidor', arrendamento: 'Arrendamento', curioso: 'Curioso', parceiro: 'Parceiro',
+};
 
 /** Texto livre numa linha só, sem os caracteres que o banco usa como marcador
  *  (o ponto médio e o travessão separam o perfil e a nota na leitura do trigger). */
@@ -1084,9 +1216,11 @@ export function comoPretendeInvestir(pagamento: unknown): string | null {
   return null;
 }
 
-const ROTULO_ORIGEM: Record<'parceria' | 'nota1', string> = {
-  parceria: 'cadastro de investidor (eletroposto_parceria)',
+const ROTULO_ORIGEM: Record<'parceria' | 'nota1' | 'agenda' | 'card', string> = {
+  parceria: 'cadastro (eletroposto_parceria)',
   nota1: 'ficha da LP (eletroposto_nota1)',
+  agenda: 'card marcado ARRENDAMENTO na agenda',
+  card: 'card de eletroposto na agenda',
 };
 
 const dataCurtaBrasilia = (iso: unknown): string => {
@@ -1100,7 +1234,9 @@ export interface DadosDoCard {
   valorTxt: string;
   dados: DadosDaConversa;
   cidadeDoCadastro: string | null;
-  origem: 'parceria' | 'nota1';
+  origem: 'parceria' | 'nota1' | 'agenda' | 'card';
+  /** O tipo do cadastro. Sem ele vale Investidor (o que a Helena sempre foi até 11/11/2026). */
+  tipo?: TipoHelena;
   id: number;
   cadastroEm: string | null;
   resumo: string;
@@ -1121,18 +1257,22 @@ export interface DadosDoCard {
  * rótulos próprios, que ninguém lê por máquina.
  */
 export function montarObservacao(c: DadosDoCard): string {
-  const como = comoPretendeInvestir(c.dados.pagamento);
+  const tipo = c.tipo ?? 'investidor';
+  const como = tipo === 'investidor' ? comoPretendeInvestir(c.dados.pagamento) : null;
   const cidade = umaLinha(c.dados.cidade, 80) || umaLinha(c.cidadeDoCadastro, 80);
   const resumo = String(c.resumo ?? '')
     .split(/\r?\n|(?<=[.!?])\s+/).map(l => umaLinha(l, 240)).filter(Boolean).slice(0, 3);
   return [
-    'LP ELETROPOSTO · Investidor',
-    'AGENTE HELENA: reunião marcada pela agente de investidores no WhatsApp',
-    `Quanto pretende investir: ${umaLinha(c.valorTxt, 60)}`,
-    `Valor confirmado na conversa: ${umaLinha(c.dados.valor_confirmado) || 'não informado'}`,
-    ...(como ? [`Como pretende investir: ${como}`] : []),
-    `Pagamento (o que disse): ${umaLinha(c.dados.pagamento) || 'não informado'}`,
-    `Tem ponto (o que disse): ${umaLinha(c.dados.tem_ponto) || 'não informado'}`,
+    // O trigger do banco lê esta linha: "Investidor" vira o perfil investidor; os outros tipos entram como "Outro: ...".
+    tipo === 'investidor' ? 'LP ELETROPOSTO · Investidor' : `LP ELETROPOSTO · Outro: ${ROTULO_DO_TIPO[tipo]}`,
+    'AGENTE HELENA: reunião marcada pela agente do eletroposto no WhatsApp',
+    ...(tipo === 'investidor' ? [
+      `Quanto pretende investir: ${umaLinha(c.valorTxt, 60)}`,
+      `Valor confirmado na conversa: ${umaLinha(c.dados.valor_confirmado) || 'não informado'}`,
+      ...(como ? [`Como pretende investir: ${como}`] : []),
+      `Pagamento (o que disse): ${umaLinha(c.dados.pagamento) || 'não informado'}`,
+      `Tem ponto (o que disse): ${umaLinha(c.dados.tem_ponto) || 'não informado'}`,
+    ] : [`Tipo do cadastro: ${ROTULO_DO_TIPO[tipo]}`]),
     `Cidade: ${cidade || 'não informada'}`,
     `Cadastro de origem: ${ROTULO_ORIGEM[c.origem]} #${c.id}, de ${dataCurtaBrasilia(c.cadastroEm)}`,
     'Resumo da conversa:',
@@ -1149,9 +1289,22 @@ export const ACOES_HELENA: readonly AcaoHelena[] = ['continuar', 'oferecer_horar
 
 export interface ContextoHelena {
   nome: string | null;
+  /** O valor que a pessoa marcou (só o Investidor tem). */
   valorTxt: string;
   cidade: string | null;
   consultor: string;
+  /** O tipo do cadastro. Sem ele vale Investidor. */
+  tipo?: TipoHelena;
+  /** A pessoa já foi chamada há mais de 21 dias e não respondeu: a abertura foi a de retorno. */
+  retorno?: boolean;
+  /** Existe card dela na agenda (para a Helena saber, nunca para contar). `lote`: card do cadastro em lote, que ela nunca marcou. */
+  cardAntigo?: { status: string; lote: boolean } | null;
+  /** A nota interna do cadastro (só informa, nunca é citada). */
+  nota?: number | null;
+  /** Quando ela se cadastrou (ISO). */
+  cadastroEm?: string | null;
+  /** O que o card traz (quarta fonte): valor, cidade e local da observação dele. */
+  fatosDoCard?: readonly string[];
   /** Os horários já enviados, quando a pessoa está escolhendo. */
   oferta: readonly string[];
   dados: DadosDaConversa;
@@ -1194,6 +1347,7 @@ const COLUNAS_DO_CADASTRO: ReadonlyArray<[string, string]> = [
 const LADO_POR_EXTENSO: Record<string, string> = {
   capital: 'investidor (quer investir)',
   ponto: 'dono de local (tem um ponto)',
+  integrador: 'parceiro (quer trabalhar junto)',
 };
 /** Linha da ficha que é nota interna, e por isso não entra. */
 const RE_LINHA_INTERNA = /\bnota\b|\bpts\b|\d\s*\/\s*11\b|pontua/i;
@@ -1314,28 +1468,40 @@ export function fatosDeHoje(agora: Date): string[] {
   ];
 }
 
+/** O primeiro nome de quem atende ("Thiago Silva" vira "Thiago"): é o `{consultor}` do texto. */
+export const primeiroNomeDoConsultor = (c: unknown): string => String(c ?? '').trim().split(/\s+/)[0] ?? '';
+
+const dataDoCadastro = (iso: unknown): string => { const d = dataCurtaBrasilia(iso); return d === 'sem data' ? '' : d; };
+
 /** O "sistema" da conversa: as regras do redator, os fatos desta pessoa e o
  *  formato da resposta. As regras vêm de investidorAgenteTextos.ts. */
 export function montarSistema(ctx: ContextoHelena): string {
-  const regras = REGRAS_DO_PROMPT.split('{consultor}').join(ctx.consultor);
-  const sabido = [
-    ctx.dados.valor_confirmado ? `Valor: ${ctx.dados.valor_confirmado}` : '',
-    ctx.dados.pagamento ? `Pagamento: ${ctx.dados.pagamento}` : '',
-    ctx.dados.tem_ponto ? `Ponto: ${ctx.dados.tem_ponto}` : '',
-    ctx.dados.cidade ? `Cidade: ${ctx.dados.cidade}` : '',
-  ].filter(Boolean);
+  const consultor = primeiroNomeDoConsultor(ctx.consultor) || ctx.consultor;
+  const regras = REGRAS_DO_PROMPT.split('{consultor}').join(consultor);
+  const tipo = ctx.tipo ?? 'investidor';
+  const sabido = CAMPOS_DA_FICHA
+    .map(k => (ctx.dados[k] ? `${ROTULO_DO_CAMPO[k]}: ${ctx.dados[k]}` : ''))
+    .filter(Boolean);
   const doFormulario = fatosDoFormulario(ctx.formulario);
   const fatos = [
+    `Tipo do cadastro: ${ROTULO_DO_TIPO[tipo]}`,
     `Primeiro nome: ${primeiroNome(ctx.nome) || 'não informado'}`,
-    `Valor que ela marcou no formulário: ${ctx.valorTxt}`,
+    ...(ctx.valorTxt ? [`Valor que ela marcou no formulário: ${ctx.valorTxt}`] : []),
     `Cidade no cadastro: ${ctx.cidade || 'não informada'}`,
-    `Consultor que vai atender: ${ctx.consultor}`,
+    `Consultor que vai atender: ${consultor}`,
+    ...(dataDoCadastro(ctx.cadastroEm) ? [`Cadastro feito em ${dataDoCadastro(ctx.cadastroEm)}.`] : []),
+    ...(typeof ctx.nota === 'number' ? [`Nota interna do cadastro: ${ctx.nota} (uso interno: você nunca cita a nota nem fala em pontuação).`] : []),
+    ...(ctx.cardAntigo ? [ctx.cardAntigo.lote
+      ? 'Na agenda interna existe um horário reservado para ela que ELA NÃO MARCOU e não conhece (cadastro em lote). É só para você saber: nunca fale dele.'
+      : `Ela já teve uma reunião marcada antes, com status ${ctx.cardAntigo.status}. É só para você saber: nunca conte isso nem pergunte por que não aconteceu.`] : []),
+    ...(ctx.retorno ? ['Você já chamou esta pessoa há mais de três semanas e ela não respondeu. A mensagem de agora retoma o contato: não cobre resposta, não peça desculpas e não faça a pessoa se sentir em falta.'] : []),
+    ...(ctx.fatosDoCard?.length ? ['O que o card dela traz:', ...ctx.fatosDoCard.map(l => `  ${l}`)] : []),
     ...(doFormulario.length ? [
       'O que ela JÁ RESPONDEU no formulário:',
       ...doFormulario,
       'O que já está respondido aqui você NÃO pergunta de novo. Confirme em uma frase se for útil e siga para o que falta.',
     ] : []),
-    ...(sabido.length ? ['O que a conversa já descobriu:', ...sabido.map(s => `  ${s}`)] : []),
+    ...(sabido.length ? ['O que a conversa já descobriu:', ...sabido.map(x => `  ${x}`)] : []),
     ...(ctx.resgateEm ? ['', paragrafoDeResgate(ctx.resgateEm)] : []),
     ...(ctx.oferta.length ? [
       'Você já enviou esta lista de horários e a pessoa ainda não escolheu:',
@@ -1364,8 +1530,8 @@ export function montarSistema(ctx: ContextoHelena): string {
     '- "parar": pediu para não receber mais mensagem. O sistema confirma e não escreve mais.',
     'Em "oferecer_horarios", "agendar", "adiar", "humano", "sem_interesse" e "parar" o sistema manda a mensagem pronta no seu lugar: deixe "bolhas" vazia, porque o que estiver nela não é enviado.',
     '"opcao": número inteiro. Em "agendar", a posição do horário escolhido na lista (1 a 4). Em todas as outras ações, 0.',
-    '"dados": o que a pessoa já disse, em texto curto, com os campos "valor_confirmado", "pagamento", "tem_ponto" e "cidade". Campo que você não sabe fica vazio.',
-    '"resumo": até 3 frases curtas para o consultor, dizendo o que a pessoa quer e o que já contou.',
+    '"dados": a ficha do que a pessoa já disse, cada campo em UMA linha de texto, nas palavras dela. Os campos são: ' + CAMPOS_DA_FICHA.join(', ') + '. Preencha só os do roteiro do tipo dela (mais os de todos os tipos), e deixe vazio o que você não sabe. O que veio antes você repete, para não perder: o sistema mescla, e campo vazio não apaga o anterior. Em "expectativa_local", só ponha valor se ela mesma disse. Em "perfil_real", só se a conversa mostrou um tipo diferente do cadastro.',
+    '"resumo": o resumo para o consultor, em até 3 frases curtas: o caso dela, o que ela mais valoriza e o que ficou em aberto.',
     'Na conversa, a linha marcada como "(áudio transcrito)" é a fala da pessoa em áudio, já passada para texto: trate como se ela tivesse escrito. A transcrição pode ter erro: se algo essencial ficar ambíguo (valor, cidade, horário escolhido), confirme em uma frase antes de seguir. Não comente que a mensagem era um áudio. Isso vale só para áudio transcrito: quando a mensagem aparece como [audio] (sem transcrição), ou como imagem ou arquivo, você não adivinha o conteúdo e pede, em uma frase, para a pessoa escrever.',
     'Palavras proibidas na resposta: retorno, rendimento, rentabilidade, lucro, payback, garantia, juros, por cento, cota. Para falar disso, diga "os números".',
   ].join('\n');
@@ -1434,13 +1600,8 @@ export const SCHEMA_SAIDA_HELENA = {
     acao: { type: 'string', enum: [...ACOES_HELENA] },
     dados: {
       type: 'object',
-      properties: {
-        valor_confirmado: { type: 'string' },
-        pagamento: { type: 'string' },
-        tem_ponto: { type: 'string' },
-        cidade: { type: 'string' },
-      },
-      required: ['valor_confirmado', 'pagamento', 'tem_ponto', 'cidade'],
+      properties: Object.fromEntries(CAMPOS_DA_FICHA.map(k => [k, { type: 'string' }])),
+      required: [...CAMPOS_DA_FICHA],
       additionalProperties: false,
     },
     opcao: { type: 'integer' },
@@ -1500,10 +1661,7 @@ export function lerSaida(texto: unknown): SaidaHelena {
     valido: true,
     acao: j.acao as AcaoHelena,
     bolhas: limparBolhas(brutas),
-    dados: {
-      valor_confirmado: campo('valor_confirmado'), pagamento: campo('pagamento'),
-      tem_ponto: campo('tem_ponto'), cidade: campo('cidade'),
-    },
+    dados: Object.fromEntries(CAMPOS_DA_FICHA.map(k => [k, campo(k)])) as DadosDaConversa,
     resumo: String(j.resumo ?? '').trim().slice(0, 600),
     opcao: Number.isInteger(j.opcao) ? Number(j.opcao) : (typeof j.opcao === 'string' && /^\s*\d+\s*$/.test(j.opcao) ? Number(j.opcao) : 0),
   };
@@ -1512,7 +1670,7 @@ export function lerSaida(texto: unknown): SaidaHelena {
 /** Junta o que a conversa descobriu: o que veio agora ganha, vazio não apaga. */
 export function juntarDados(antes: DadosDaConversa | undefined, agora: DadosDaConversa): DadosDaConversa {
   const out: DadosDaConversa = { ...(antes ?? {}) };
-  for (const k of ['valor_confirmado', 'pagamento', 'tem_ponto', 'cidade'] as const) {
+  for (const k of CAMPOS_DA_FICHA) {
     const v = String(agora[k] ?? '').trim();
     if (v) out[k] = v;
   }
@@ -1680,4 +1838,78 @@ export function pedidoDeReescrita(pedido: string, quebra: string, bolhas: readon
     'O que você tinha escrito: ' + bolhas.join(' / '),
     'Reescreva a resposta sem isso. Não fale de rendimento, prazo, percentual nem site, e não escreva número que a pessoa não disse (valor em reais, potência em kW, prazo em dias ou meses, quantidade de recargas): para esses assuntos diga "os números" e que o consultor mostra na reunião. Não diga como a reunião acontece: diga só "reunião" ou "conversa com o consultor", e que ele combina os detalhes pelo WhatsApp dele.',
   ].join('\n');
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// A FICHA PARA O CONSULTOR (12/11/2026)
+//
+// Ao agendar, o consultor dono do card recebe UMA mensagem com o resumo (`resumo` da saída do
+// modelo, o `resumo_para_consultor` do redator) e os campos preenchidos, um por linha, sem campo
+// vazio. Na ação `humano` com card, o dono recebe a mesma ficha com o motivo no lugar do horário.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** Teto da mensagem da ficha: uma bolha só. */
+export const TETO_DA_FICHA = 1500;
+
+/** Os campos preenchidos, um por linha ("Rótulo: valor"), na ordem da ficha. Campo vazio não aparece. */
+export function linhasDaFicha(dados: DadosDaConversa | undefined): string[] {
+  const out: string[] = [];
+  for (const k of CAMPOS_DA_FICHA) {
+    const v = umaLinha(dados?.[k], 200);
+    if (v) out.push(`${ROTULO_DO_CAMPO[k]}: ${v}`);
+  }
+  return out;
+}
+
+export interface EntradaDaFicha {
+  nome: string | null;
+  telefone: string;
+  tipo: TipoHelena;
+  retorno?: boolean;
+  consultor: string;
+  /** O horário marcado (ISO): ficha de agendamento. */
+  quando?: string | null;
+  /** O motivo da passagem: ficha de `humano`. */
+  motivo?: string | null;
+  dados: DadosDaConversa | undefined;
+  /** O `resumo_para_consultor`. */
+  resumo: string;
+}
+
+export function montarFichaConsultor(i: EntradaDaFicha): string {
+  const cabeca = i.quando
+    ? '*HELENA MARCOU UMA REUNIÃO PARA VOCÊ*'
+    : '*HELENA PASSOU UMA CONVERSA PARA VOCÊ*';
+  const resumo = String(i.resumo ?? '').replace(/\s+/g, ' ').trim().slice(0, 600);
+  const topo = [
+    cabeca,
+    `*Cliente:* ${i.nome || 'sem nome'}`,
+    `*WhatsApp:* wa.me/${String(i.telefone).replace(/\D/g, '')}`,
+    `*Tipo:* ${ROTULO_DO_TIPO[i.tipo]}${i.retorno ? ' (retomada depois de um tempo)' : ''}`,
+    i.quando ? `*Reunião:* ${horarioCurto(i.quando)}, com ${i.consultor}` : '',
+    i.motivo ? `*Motivo:* ${umaLinha(i.motivo, 200)}` : '',
+    resumo ? `*Resumo:* ${resumo}` : '',
+  ].filter(Boolean);
+  const campos = linhasDaFicha(i.dados);
+  const out: string[] = [...topo];
+  let tamanho = out.join('\n').length;
+  for (const l of campos) {
+    if (tamanho + l.length + 1 > TETO_DA_FICHA) break;
+    out.push(l); tamanho += l.length + 1;
+  }
+  return out.join('\n');
+}
+
+/** A linha da ficha no `historico` do card: uma linha só, sem os caracteres que o banco usa como
+ *  marcador (o ponto médio e o travessão), para o trigger que lê "NOTA n ·" nunca confundir. */
+export function linhaDaFichaNoHistorico(dados: DadosDaConversa | undefined, resumo: string): string {
+  const campos = linhasDaFicha(dados).join('; ');
+  const r = umaLinha(resumo, 400);
+  return umaLinha(`Ficha da conversa: ${[r, campos].filter(Boolean).join(' | ')}`, 900);
+}
+
+/** O carimbo "13/10 14h30" do historico do card, em Brasília. */
+export function carimboDoHistorico(agora: Date): string {
+  const d = new Date(agora.getTime() - TRES_HORAS_MS);
+  return `${p2(d.getUTCDate())}/${p2(d.getUTCMonth() + 1)} ${p2(d.getUTCHours())}h${p2(d.getUTCMinutes())}`;
 }

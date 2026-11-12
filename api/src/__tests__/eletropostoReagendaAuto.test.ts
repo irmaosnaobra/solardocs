@@ -260,6 +260,12 @@ vi.mock('../services/io/eletropostoRemarcar', () => ({ EP_REMARCAR_PREFIX: 'ep_r
 const enviadas: Array<{ tel: string; bolhas: string[]; opts?: any }> = [];
 let envioQuebrado = false;
 let linhaEmCooldownAgora = false;
+// Quem está em conversa com a Helena (agente do eletroposto): controlado pelo teste.
+const helena = vi.hoisted(() => ({ chaves: new Set<string>(), falha: false }));
+vi.mock('../services/io/investidorAgentePosse', async (orig) => ({
+  ...(await orig<typeof import('../services/io/investidorAgentePosse')>()),
+  chavesDaHelena: vi.fn(async () => (helena.falha ? null : helena.chaves)),
+}));
 vi.mock('../services/agents/zapiClient', () => ({
   linhaEmCooldown: vi.fn(() => linhaEmCooldownAgora),
   sendHuman: vi.fn(async (tel: string, bolhas: string[], _inst?: string, opts?: any) => {
@@ -302,6 +308,7 @@ function ficha(over: Partial<any> = {}) {
 const envOriginal = { ...process.env };
 beforeEach(() => {
   fichas = [ficha()];
+  helena.chaves.clear(); helena.falha = false;
   ocupados = new Set();
   state.clear(); apagados.length = 0; updates.length = 0; enviadas.length = 0; pedidos.length = 0;
   vagas = [SEXTA_13H, SEXTA_14H];
@@ -325,6 +332,23 @@ afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.reset
 async function tick(opts: any = {}) {
   return (await import('../services/io/eletropostoReagendaAuto')).runEletropostoReagendaAutoTick(opts);
 }
+
+describe('quem conversa com a Helena (12/11/2026)', () => {
+  it('o card do telefone que está em conversa com a Helena não é remarcado nem recebe mensagem', async () => {
+    helena.chaves.add('7791110001');   // DDD 77 + 8 últimos de 5577991110001
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(fichas[0].status).toBe('nao_atendeu');
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('sem conseguir ler as sessões da Helena, ninguém anda nesta rodada', async () => {
+    helena.falha = true;
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('erro_posse_helena');
+  });
+});
 
 describe('o reagendamento em si', () => {
   it('vermelho vencido volta pra agendado no dia seguinte, mesma hora e mesmo consultor', async () => {

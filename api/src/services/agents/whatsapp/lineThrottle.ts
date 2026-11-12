@@ -204,6 +204,10 @@ const BOT_SENT_PREFIXES = [
   // propósito. O teto do dia dela é próprio e mora no arquivo dela; aqui ela só
   // é contada, para os outros robôs frios enxergarem a linha ocupada.
   'inv_agente_sent:',
+  // [12/11/2026] Resposta da Helena a quem escreveu e ficou mais de 15 min sem resposta (investidorAgente.ts): vira FRIO,
+  // 1 bolha de até 900 caracteres por sendFrio, e entra no teto do frio (30 em 24 h, 10 a 15 min de espaço). Prefixo PRÓPRIO,
+  // nunca `inv_agente_sent:`: aquele a Helena conta como toque (retomada, teto dela) e este comeria a cota dela.
+  'inv_agente_frio:',
   // [14/10] Status em vídeo da 5040 (Automação como centro das redes, statusIo.ts):
   // `status_io_sent:<dia>:<n>`. Conta como 1 frio da linha e fica FORA de PREFIXOS_AGENDA.
   // O teto próprio (3 por dia) e as 2 h entre status moram no arquivo dele.
@@ -320,7 +324,10 @@ export const PREFIXOS_AGENDA = [
 // 40 na hora" do próprio módulo, e fica fora do teto do frio e do transacional.
 // 24/10/2026: os avisos do quiz solar à equipe (solarQuizAviso.ts) deixam `solar_quiz_env:` aqui, como a ficha ao consultor.
 // 05/11/2026: os avisos da Jornada à equipe (jornadaAvisoEquipe.ts) deixam `jornada_env:` aqui, como os do quiz.
-export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:', 'jornada_env:'] as const;
+// 12/11/2026: as respostas da Helena (agente do eletroposto) deixam `inv_agente_env:` aqui, uma chave por bolha enviada (parecer
+// do chefe anti-ban): entram nos 2 min que o frio espera depois de uma resposta e no teto de emergência (60/h e 450/24 h).
+// NUNCA `inv_agente_sent:`, que é o carimbo do FRIO (abertura e retomada) e já está em BOT_SENT_PREFIXES.
+export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:', 'jornada_env:', 'inv_agente_env:'] as const;
 
 /** Janela do espaçamento contra o balde das respostas das agentes (env só para afrouxar/apertar sem deploy). */
 const espacamentoRespostaMs = (): number => Number(process.env.ESPACAMENTO_RESPOSTA_MS || 2 * 60 * 1000);

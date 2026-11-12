@@ -178,6 +178,6 @@ describe('B4c: vaga da Base em modo sombra', () => {
     expect(lê('agents/sdr/carlaRetomada.ts')).toContain("dentroDoTetoHorarioLinha({ robo: 'carla_retomada' })");
     // carlaThrottle.ts fica SEM robo: o chefeGuarda lê `robo:` como registro de robô e o arquivo é um gate compartilhado por vários (não hospeda nenhum).
     expect(lê('gerador/redes/statusIo.ts')).toContain("dentroDoTetoHorarioLinha({ robo: 'status_5040' })");
-    expect(lê('io/investidorAgente.ts').split("robo: 'investidor_agente_abertura'").length - 1).toBe(4);
+    expect(lê('io/investidorAgente.ts').split("robo: 'investidor_agente_abertura'").length - 1).toBe(3);   // abertura, retomada e o portão da resposta atrasada (sem a ramificação do pisoDia, que saiu em 12/11/2026)
   });
 });

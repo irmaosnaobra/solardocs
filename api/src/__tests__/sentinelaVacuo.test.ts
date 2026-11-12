@@ -118,6 +118,12 @@ vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: () => buil
 
 // `marcadores` = quantos carimbos vacuo_avisado existiam no banco NO INSTANTE do envio.
 const enviados: Array<{ phone: string; texto: string; marcadores: number }> = [];
+// Quem está em conversa com a Helena (agente do eletroposto): controlado pelo teste.
+const helena = vi.hoisted(() => ({ chaves: new Set<string>(), falha: false }));
+vi.mock('../services/io/investidorAgentePosse', async (orig) => ({
+  ...(await orig<typeof import('../services/io/investidorAgentePosse')>()),
+  chavesDaHelena: vi.fn(async () => (helena.falha ? null : helena.chaves)),
+}));
 vi.mock('../services/agents/zapiClient', () => ({
   sendWhatsApp: vi.fn(async (phone: string, texto: string) => {
     enviados.push({ phone, texto, marcadores: db.state.filter(r => r.key.startsWith('vacuo_avisado:')).length });
@@ -142,7 +148,7 @@ const msg = (tel: string, from_me: boolean, quandoMs: number, texto = 'oi, queri
 
 beforeEach(() => {
   db.wa = []; db.sessoes = []; db.leads = []; db.state = []; db.erroNoState = false; db.falhaUpsert = false;
-  enviados.length = 0; silenciados.clear();
+  enviados.length = 0; silenciados.clear(); helena.chaves.clear(); helena.falha = false;
   agenda.cards = []; agenda.erro = false; agenda.travaCauda = null;
   vi.mocked(logger.warn).mockClear();
   vi.mocked(sendWhatsApp).mockClear();
@@ -197,6 +203,18 @@ describe('runSentinelaVacuo', () => {
     expect(enviados).toHaveLength(1);
     expect(enviados[0].phone).toBe('34991516846');   // Nilce
     expect(enviados[0].texto).toContain('esperando');
+  });
+
+  it('quem está em conversa com a Helena não é cobrado ao consultor (12/11/2026); sem ler as sessões, ninguém é cobrado', async () => {
+    db.wa = [msg('5534999990001', false, Date.now() - 6 * 3600_000), msg('5534999990004', false, Date.now() - 6 * 3600_000)];
+    db.sessoes = [{ phone: '5534999990001', tipo: 'recepcao_io', lead_data: { produto: 'eletroposto' } }, { phone: '5534999990004', tipo: 'recepcao_io', lead_data: { produto: 'eletroposto' } }];
+    helena.chaves.add('3499990001');
+    const r = await runSentinelaVacuo({ dry: true });
+    expect(r.avisados.length + r.paradas).toBeGreaterThan(0);
+    expect(JSON.stringify(r)).not.toContain('99990001');
+    helena.falha = true;
+    expect(await runSentinelaVacuo({ dry: true })).toMatchObject({ cobrancas: 0, motivo: 'erro_posse_helena' });
+    expect(enviados).toHaveLength(0);
   });
 
   it('não cobra quando a gente já respondeu depois', async () => {

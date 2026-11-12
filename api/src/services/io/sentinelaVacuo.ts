@@ -43,6 +43,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { carregarSilenciados, chaveContato } from '../agents/whatsapp/silenciar';
+import { chavesDaHelena } from './investidorAgentePosse';
 
 /** Instância da linha IO em `wa_mensagens`. A env manda; o valor é o fallback
  *  medido no banco, pra sentinela não morrer calada num deploy sem env. */
@@ -515,6 +516,11 @@ export async function runSentinelaVacuo(
   // 4. Quem pediu pra não ser incomodado não vira cobrança (a pessoa pode ter
   //    escrito "para de mandar" — responder isso com um robô é o oposto).
   const silenciado = await carregarSilenciados();
+  // Quem está em conversa com a Helena (agente do eletroposto) é dela enquanto a sessão está ativa: a bola não está
+  // "com a gente", e a cobrança ao consultor seria um aviso sobre uma conversa que ela está atendendo (12/11/2026).
+  // Sem conseguir ler as sessões, ninguém é cobrado nesta rodada (a próxima tenta de novo).
+  const daHelena = await chavesDaHelena();
+  if (!daHelena) return { paradas: 0, cobrancas: 0, avisados: [], motivo: 'erro_posse_helena' };
 
   // 5. Nível de cobrança de cada um, pulando o que já foi cobrado.
   //
@@ -550,7 +556,7 @@ export async function runSentinelaVacuo(
   // Quem será cobrado agora. O dry olha TODAS as que esperam (inclusive as já
   // cobradas) pra contar o `porDono`: assim a regra do dono do card dá pra provar
   // no ar mesmo quando a rodada diria `todas_ja_cobradas`.
-  const vivas = esperando.filter(e => !silenciado(e.tel));
+  const vivas = esperando.filter(e => !silenciado(e.tel) && !daHelena.has(chaveContato(e.tel) ?? ''));
   const aCobrar = new Map<typeof esperando[number], Nivel>();
   for (const e of vivas) {
     // O nível mais alto que ele já alcançou e que ainda não foi cobrado.

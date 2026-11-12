@@ -103,8 +103,9 @@ function fabrica(base: Record<string, Row[]>) {
       }
       if (st.op === 'update') {
         h.atualizacoes.push({ tabela, patch: st.corpo, id: st.id, or: st.or });
-        for (const r of linhas().filter(x => st.filtros.every(f => f(x)) && passaNoOr(x))) Object.assign(r, st.corpo);
-        return { data: null, error: null };
+        const tocadas = linhas().filter(x => st.filtros.every(f => f(x)) && passaNoOr(x));
+        for (const r of tocadas) Object.assign(r, st.corpo);
+        return { data: tocadas.map(r => ({ ...r })), error: null };
       }
       const fica = linhas().filter(x => !st.filtros.every(f => f(x)));
       base[tabela] = fica;
@@ -121,6 +122,8 @@ function fabrica(base: Record<string, Row[]>) {
       like: (c: string, p: string) => { st.likes.push(p); st.filtros.push(r => casa(p, r[c])); return q; },
       ilike: (c: string, p: string) => { st.filtros.push(r => casa(p, r[c], true)); return q; },
       gte: (c: string, v: any) => { st.filtros.push(r => r[c] >= v); return q; },
+      is: (c: string, v: any) => { st.filtros.push(r => (r[c] ?? null) === v); return q; },
+      gt: (c: string, v: any) => { st.filtros.push(r => r[c] > v); return q; },
       lte: (c: string, v: any) => { st.filtros.push(r => r[c] <= v); return q; },
       lt: (c: string, v: any) => { st.filtros.push(r => r[c] < v); return q; },
       not: (c: string, _op: string, _v: unknown) => { st.filtros.push(r => r[c] !== null && r[c] !== undefined); return q; },
@@ -227,6 +230,15 @@ vi.mock('../services/agenda/agendaFechada', async (orig) => {
     agendaFechadaNoIso: (iso: string) => !!iso && h.agenda.fechados.has(real.ymdBRT(iso)),
   };
 });
+// Os freios das respostas (60/h, 450/24 h, 10 s entre conversas) têm teste próprio (investidorAgenteLinha.test.ts): aqui passam.
+const linhaDaResposta = vi.hoisted(() => ({ ok: true, esperaMs: 0, bolhas: [] as Array<{ chave: string; n: number }>, conferencias: 0 }));
+vi.mock('../services/io/investidorAgenteLinha', () => ({
+  PREFIXO_ENV: 'inv_agente_env:',
+  LIMITES_DA_RESPOSTA: { horaLinha: 60, diaLinha: 450, entreConversasMs: 10_000 },
+  TEMPOS_DA_RESPOSTA: { dormir: async () => {} },
+  conferirLinhaParaResposta: vi.fn(async () => { linhaDaResposta.conferencias++; return linhaDaResposta.ok ? { ok: true, esperaMs: linhaDaResposta.esperaMs } : { ok: false, motivo: 'teto_hora' }; }),
+  registrarBolhas: vi.fn(async (chave: string, n: number) => { linhaDaResposta.bolhas.push({ chave, n }); }),
+}));
 vi.mock('../services/io/eletropostoVagas', async (orig) => ({
   ...(await orig<typeof import('../services/io/eletropostoVagas')>()),
   carregarCompromissos: vi.fn(async () => h.agenda.compromissos),
@@ -246,11 +258,11 @@ vi.mock('../services/io/eletropostoCard', async (orig) => ({
 import {
   runInvestidorAberturaTick, runInvestidorRespostasTick, previaInvestidorAgente, definirChaveDesligar,
   lerChaveDesligar, rodarInvestidorAgente, reivindicarRodada, sondarHelena, fecharResgatesSemResposta, recuperarEscolhasPendentes,
-  runInvestidorRetomadaTick, fecharRetomadasEsgotadas,
-  INV_RESGATE_PREFIX, INV_SENT_PREFIX, INV_OFF_KEY, INV_DISJUNTOR_KEY, INV_LOCK_PREFIX, type SessaoInvestidor,
+  runInvestidorRetomadaTick, fecharRetomadasEsgotadas, atenderPedidosDoBanco, INV_PREVIA_PEDIDO_KEY, INV_PREVIA_KEY, INV_LIGAR_PEDIDO_KEY,
+  INV_SENT_PREFIX, INV_OFF_KEY, INV_DISJUNTOR_KEY, INV_LOCK_PREFIX, type SessaoInvestidor,
 } from '../services/io/investidorAgente';
 import * as T from '../services/io/investidorAgenteTextos';
-import { cortarTranscricao, renderRetomada, montarPedido, montarSistema, valoresLiberados, escolhaPendenteDe } from '../services/io/investidorAgentePuro';
+import { textoDaAbertura, cortarTranscricao, renderRetomada, montarPedido, montarSistema, valoresLiberados, escolhaPendenteDe } from '../services/io/investidorAgentePuro';
 import { logger } from '../utils/logger';
 
 const brt = (s: string): Date => new Date(`${s}:00-03:00`);
@@ -271,7 +283,12 @@ function semear() {
     // A Ana de novo, na ficha, sem o nono dígito.
     { id: 21, nome: 'Ana Lima', telefone: '553499990001', cidade: null, ficha: '', valor_investir: 'R$ 140 mil', status: 'novo', created_at: '2026-09-20T12:00:00Z' },
   ];
-  h.banco.ger.agendamentos = [];
+  // Todo cliente da fila tem pelo menos um card NÃO ATENDIDO (cancelado), de origem eletroposto.
+  h.banco.ger.agendamentos = [
+    { id: 501, cliente_telefone: '5534999990001', cliente_nome: 'Ana Lima', status: 'cancelado', quando: '2026-09-10T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Thiago', created_at: '2026-09-02T12:00:00Z' },
+    { id: 502, cliente_telefone: '5534999990002', cliente_nome: 'Bruno Reis', status: 'cancelado', quando: '2026-09-11T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Diego', created_at: '2026-09-03T12:00:00Z' },
+    { id: 503, cliente_telefone: '5534999990003', cliente_nome: 'Carla', status: 'nao_atendeu', quando: '2026-09-12T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Thiago', created_at: '2026-09-04T12:00:00Z' },
+  ];
 }
 
 const envOriginal = { ...process.env };
@@ -290,10 +307,12 @@ beforeEach(() => {
   Object.assign(h.agenda, { livre: true, compromissos: [] }); h.agenda.fechados.clear();
   Object.assign(h.card, { erro: null, bloqueado: false, cardsDaLp: 0 }); h.card.gravados.length = 0;
   h.opt.length = 0;
+  Object.assign(linhaDaResposta, { ok: true, esperaMs: 0, conferencias: 0 }); linhaDaResposta.bolhas.length = 0;
   h.colunasWa.length = 0;
   h.audio.chamadas.length = 0; h.audio.fn = async () => 'texto do áudio';
   delete process.env.INVESTIDOR_AGENTE_OFF;
   delete process.env.INVESTIDOR_AGENTE_TETO;
+  delete process.env.INVESTIDOR_RESPOSTA_ATRASADA;
   vi.useFakeTimers();
   vi.setSystemTime(LARGADA);
 });
@@ -315,7 +334,7 @@ describe('abertura: o caminho feliz', () => {
     const s = sessaoDe(BRUNO);
     expect(s).toMatchObject({
       estagio: 'chamado', origem: 'parceria', id: 2, telefone: '5534999990002', nome: 'Bruno Reis',
-      valor_txt: 'Mais de R$ 500 mil', consultor: 'Thiago', oferta: [], agendamento_id: null, motivo: null, erro: null,
+      valor_txt: 'Mais de R$ 500 mil', consultor: 'Diego', tipo: 'investidor', card_id: 502, oferta: [], agendamento_id: null, motivo: null, erro: null,
     });
     expect(s.aberto_em).toBe(LARGADA.toISOString());
     // Uma chave por toque e por telefone.
@@ -339,12 +358,12 @@ describe('abertura: o caminho feliz', () => {
     expect(sessaoDe(ANA).refs).toEqual([{ origem: 'parceria', id: 1 }, { origem: 'nota1', id: 21 }]);
   });
 
-  it('o rodízio alterna Thiago e Diego a cada sessão aberta, a partir da contagem da LP', async () => {
-    h.card.cardsDaLp = 7;   // ímpar: o próximo da LP seria o Diego
+  it('o consultor é o dono do card que ela remarca (nada de rodízio quando há card)', async () => {
+    h.card.cardsDaLp = 7;   // com card, a contagem da LP não decide nada
     await abrir();
     await abrir(brt('2026-10-11T08:15'));
     await abrir(brt('2026-10-11T08:30'));
-    expect([sessaoDe(BRUNO).consultor, sessaoDe(ANA).consultor, sessaoDe(CARLA).consultor]).toEqual(['Diego', 'Thiago', 'Diego']);
+    expect([sessaoDe(BRUNO).consultor, sessaoDe(ANA).consultor, sessaoDe(CARLA).consultor]).toEqual(['Diego', 'Thiago', 'Thiago']);
   });
 
   it('os filtros da fila usam mudo com 2 toques (parecer anti-ban), não o padrão de 3', async () => {
@@ -422,9 +441,9 @@ describe('abertura: os portões, todos antes do claim', () => {
     expect(await abrir(brt('2026-10-11T15:00'))).toMatchObject({ motivo: 'teto_do_dia' });
   });
 
-  it('a linha: sem rampa pede o piso do dia em maxPorDia (40), sem transacional e sem piso de hora', async () => {
+  it('a linha: o frio é UM orçamento só, sem piso do dia por cima (parecer do chefe, 12/11/2026)', async () => {
     await abrir();
-    expect(h.linha.pedidosDeTeto).toEqual([{ pisoDia: 40, robo: 'investidor_agente_abertura' }]);
+    expect(h.linha.pedidosDeTeto).toEqual([{ robo: 'investidor_agente_abertura' }]);
   });
 
   it('com a rampa de reconexão armada: sem piso nenhum, e o teto do dia vira o da rampa', async () => {
@@ -444,8 +463,14 @@ describe('abertura: os portões, todos antes do claim', () => {
     nadaSaiu();
   });
 
-  it('humano na conversa do primeiro da fila: ninguém recebe nesta chamada', async () => {
+  it('humano na conversa do primeiro da fila: ele passa a vez ao próximo, e o primeiro não recebe', async () => {
     h.filtros.antesDoClaim = () => h.filtros.pausados.add('5534999990002');
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0001' });
+    expect(estado(`inv_agente:${BRUNO}`)).toBeUndefined();
+  });
+
+  it('humano na conversa de TODOS os da frente da fila: ninguém recebe nesta chamada', async () => {
+    h.filtros.antesDoClaim = () => ['5534999990001', '5534999990002', '5534999990003'].forEach(t => h.filtros.pausados.add(t));
     expect(await abrir()).toMatchObject({ enviados: 0, motivo: 'humano_na_conversa' });
     nadaSaiu();
   });
@@ -549,14 +574,14 @@ describe('trava de chamada sobreposta', () => {
 
 describe('abertura: quem fica fora da fila pelo que está no banco', () => {
   it('card em qualquer status, gravado sem o nono dígito, tira da fila', async () => {
-    h.banco.ger.agendamentos = [{ id: 5, cliente_telefone: '553499990002', status: 'cancelado', created_by: 'lp_solar' }];
+    h.banco.ger.agendamentos!.push({ id: 5, cliente_telefone: '553499990002', status: 'em_atendimento', created_by: 'lp_solar' });
     await abrir();
     expect(h.zap.frio[0]!.tel).toBe('5534999990001');
   });
 
   it('mais de 1000 cards: o card da linha 1200 ainda conta', async () => {
-    h.banco.ger.agendamentos = Array.from({ length: 1199 }, (_, i) => ({ id: i + 1, cliente_telefone: `55119${String(10000000 + i)}`, status: 'agendado' }));
-    h.banco.ger.agendamentos.push({ id: 1200, cliente_telefone: '5534999990002', status: 'fechou' });
+    h.banco.ger.agendamentos!.push(...Array.from({ length: 1199 }, (_, i) => ({ id: 1000 + i, cliente_telefone: `55119${String(10000000 + i)}`, status: 'agendado' })));
+    h.banco.ger.agendamentos!.push({ id: 2200, cliente_telefone: '5534999990002', status: 'fechou' });
     await abrir();
     expect(h.zap.frio[0]!.tel).toBe('5534999990001');
   });
@@ -630,33 +655,53 @@ describe('abertura: erro de envio e disjuntor', () => {
     expect(estado(INV_DISJUNTOR_KEY)!.value).toMatchObject({ erros_seguidos: 0, aberto: false });
   });
 
-  it('3 pedidos de parada no mesmo dia param as aberturas até o dia seguinte', async () => {
+  it('o disjuntor é por GRUPO: 3 pedidos de parada fecham o Investidor, e a fila segue pelos outros tipos', async () => {
+    h.banco.ger.eletroposto_parceria![2]!.capital_faixa = 'Até R$ 20 mil';   // abaixo do piso: a Carla é Curioso
+    for (const k of ['a', 'b', 'c']) h.banco.main.system_state!.push({ key: `inv_agente_parar:2026-10-11:investidor:${k}`, value: {}, updated_at: 'x' });
+    // Bruno e Ana são Investidores (grupo fechado): quem sai é a Carla, que é Curioso.
+    expect(await abrir(brt('2026-10-11T15:00'))).toMatchObject({ enviados: 1, para: 'final 0003', tipo: 'curioso' });
+    // No dia seguinte o grupo reabre.
+    expect((await abrir(brt('2026-10-12T08:00'))).para).toBe('final 0002');
+  });
+
+  it('a chave antiga, sem grupo, vale para o Investidor; 2 pedidos fecham Curioso, Arrendamento, Parceiro e Retorno', async () => {
+    h.banco.ger.eletroposto_parceria![2]!.capital_faixa = 'Até R$ 20 mil';
     for (const k of ['a', 'b', 'c']) h.banco.main.system_state!.push({ key: `inv_agente_parar:2026-10-11:${k}`, value: {}, updated_at: 'x' });
-    expect(await abrir(brt('2026-10-11T15:00'))).toMatchObject({ enviados: 0, motivo: 'disjuntor_pedidos_de_parada' });
+    for (const k of ['d', 'e']) h.banco.main.system_state!.push({ key: `inv_agente_parar:2026-10-11:curioso:${k}`, value: {}, updated_at: 'x' });
+    expect(await abrir(brt('2026-10-11T15:00'))).toMatchObject({ enviados: 0, motivo: 'grupos_fechados_hoje' });
     expect(h.zap.frio).toHaveLength(0);
-    expect((await abrir(brt('2026-10-12T08:00'))).enviados).toBe(1);
+  });
+
+  it('2 pedidos de parada NÃO fecham o Investidor (o limite dele é 3)', async () => {
+    for (const k of ['a', 'b']) h.banco.main.system_state!.push({ key: `inv_agente_parar:2026-10-11:investidor:${k}`, value: {}, updated_at: 'x' });
+    expect(await abrir(brt('2026-10-11T15:00'))).toMatchObject({ enviados: 1, para: 'final 0002' });
   });
 });
 
 describe('prévia (?dry=1)', () => {
-  it('não envia, não grava, ignora janela e início, e mostra a fila com os textos', async () => {
+  it('não envia, não grava, ignora janela e início, e mostra a fila por tipo, faixa e fonte', async () => {
+    h.banco.ger.eletroposto_parceria![2]!.capital_faixa = 'Até R$ 20 mil';   // a Carla fica abaixo do piso: Curioso
     const sabado = brt('2026-10-10T21:00');
     vi.setSystemTime(sabado);
     const p = await previaInvestidorAgente({ agora: sabado }) as Record<string, any>;
     expect(p).toMatchObject({
       hora_brasilia: '2026-10-10 21:00', antes_do_inicio: true, janela_aberta: false,
-      teto_do_dia: 20, enviados_hoje: 0, fila: 3, grupo_investidores: 4,
+      teto_do_dia: 20, enviados_hoje: 0, fila: 3, pessoas_na_base: 3,
       desligada: { off: false, por: null },
+      fila_por_tipo: { investidor: 2, arrendamento: 0, parceiro: 0, curioso: 1 },
+      fila_por_tipo_e_faixa: { investidor: { card_parado: 2, lote_mudo: 0 }, curioso: { card_parado: 1, lote_mudo: 0 } },
+      fila_por_fonte: { parceria: 3 },
+      ordem_dos_tipos: ['investidor', 'arrendamento', 'parceiro', 'curioso'],
     });
-    expect(p.excluidos).toEqual({ duplicado: 1 });
-    expect(p.primeiros).toEqual([
-      { nome: 'Bruno', telefone_final: '02', valor: 'Mais de R$ 500 mil', origem: 'parceria:2' },
-      // Empate de valor entre as duas linhas da Ana: vale a mais nova, que é a ficha.
-      { nome: 'Ana', telefone_final: '01', valor: 'R$ 140 mil', origem: 'nota1:21' },
-      { nome: 'Carla', telefone_final: '03', valor: 'Até R$ 50 mil', origem: 'parceria:3' },
+    expect(p.excluidos).toEqual({});
+    expect(p.primeiros.map((x: any) => [x.nome, x.telefone_final, x.tipo, x.faixa])).toEqual([
+      ['Bruno', '02', 'investidor', 'card_parado'], ['Ana', '01', 'investidor', 'card_parado'], ['Carla', '03', 'curioso', 'card_parado'],
     ]);
-    expect(p.textos).toHaveLength(3);
-    expect(p.textos[2]).toContain('até R$ 50 mil');
+    // As próximas aberturas: sem telefone e com o primeiro nome trocado por {nome}.
+    expect(p.proximas_aberturas).toHaveLength(3);
+    expect(p.proximas_aberturas[0]).toMatchObject({ tipo: 'investidor', retorno: false, tem_card: true, status_do_card: 'cancelado' });
+    expect(p.proximas_aberturas[0].texto).toContain('{nome}');
+    expect(JSON.stringify(p.proximas_aberturas)).not.toContain('Bruno');
     // Nenhum telefone inteiro na prévia, nem os 4 últimos dígitos: só 2.
     expect(JSON.stringify(p)).not.toContain('5534999990002');
     expect(JSON.stringify(p)).not.toContain('0002');
@@ -690,7 +735,7 @@ function sessao(chave: string, over: Partial<SessaoInvestidor> = {}) {
     refs: [{ origem: 'parceria', id: 1 }, { origem: 'nota1', id: 21 }],
     telefone: '5534999990001', nome: 'Ana Lima', cidade: 'Uberlândia', cadastro_em: '2026-09-01T12:00:00Z',
     valor_txt: 'R$ 140 mil', consultor: 'Diego', oferta: [], ofertas_feitas: 0, agendamento_id: null, motivo: null,
-    dados: {}, resumo: '', erro: null, ate: null, respostas: 0, atualizado_em: abertoEm, ...over,
+    dados: {}, resumo: '', erro: null, ate: null, respostas: 0, atualizado_em: abertoEm, tipo: 'investidor', card_id: null, cards_conhecidos: [501, 502, 503], ...over,
   };
   h.banco.main.system_state!.push({ key: `inv_agente:${chave}`, value: s, updated_at: abertoEm });
 }
@@ -759,7 +804,7 @@ describe('respostas: a conversa', () => {
     await responder();
     expect(h.ia.sistema).toContain('marcar uma reunião com Diego');
     expect(h.ia.sistema).toContain('Valor que ela marcou no formulário: R$ 140 mil');
-    expect(h.ia.pedido).toContain('Nós: ' + T.ABERTURAS[0]!.replace('{nome}', 'Ana').replace('{valor}', 'R$ 140 mil'));
+    expect(h.ia.pedido).toContain('Nós: ' + textoDaAbertura(0, 'Ana Lima', 'R$ 140 mil', { tipo: 'investidor' }));
     expect(h.ia.pedido).toContain('Cliente: Sim');
   });
 
@@ -852,7 +897,118 @@ describe('respostas: quem cala a Helena', () => {
     expect(sessaoDe(ANA)).toMatchObject({ estagio: 'humano', motivo: 'agente_desligada' });
   });
 
-  it('resposta com mais de 1 hora (o relógio falhou): não responde atrasado, passa para a equipe', async () => {
+  it('mensagem com mais de 15 min: NÃO bloqueia, a Helena responde como FRIO (1 bolha, sendFrio, registro inv_agente_frio:)', async () => {
+    sessao(ANA, { aberto_em: new Date(AGORA.getTime() - 5 * 3600_000).toISOString() });
+    chegou('5534999990001', 'Sim', 130);
+    ia('continuar', ['Entendi, ' + 'a'.repeat(500), 'Posso te mandar os horários?']);
+    const r = await responder();
+    expect(h.ia.chamadas).toBe(1);
+    expect(h.zap.humano).toHaveLength(0);
+    expect(h.zap.equipe).toHaveLength(0);
+    expect(h.zap.frio).toHaveLength(1);
+    expect(h.zap.frio[0]!.partes).toHaveLength(1);
+    expect(h.zap.frio[0]!.partes[0]!.length).toBeLessThanOrEqual(900);
+    expect(r).toMatchObject({ respondidas: 1, frio: 1 });
+    expect(chaves('inv_agente_frio:')).toHaveLength(1);
+    // O registro do frio nunca vai para debaixo do carimbo de toque da Helena.
+    expect(chaves(INV_SENT_PREFIX)).toHaveLength(0);
+    expect(linhaDaResposta.bolhas).toHaveLength(0);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'conversando', respostas: 1 });
+  });
+
+  it('resposta atrasada passa pela régua do frio: sem vaga ou sem espaço a leva espera, sem gastar a vez', async () => {
+    sessao(ANA, { aberto_em: new Date(AGORA.getTime() - 5 * 3600_000).toISOString() });
+    chegou('5534999990001', 'Sim', 130);
+    ia('continuar', ['Certo.']);
+    h.linha.teto = false;
+    await responder();
+    expect(h.ia.chamadas).toBe(0);
+    h.linha.teto = true; h.linha.espaco = false;
+    await responder();
+    expect(h.ia.chamadas).toBe(0);
+    expect(chaves('inv_agente_vez:')).toHaveLength(0);
+    h.linha.espaco = true;
+    await responder();
+    expect(h.ia.chamadas).toBe(1);
+  });
+
+  it('resposta atrasada: UMA por rodada; e a pessoa que escreveu de novo agora volta a ser resposta normal', async () => {
+    const cedo = new Date(AGORA.getTime() - 5 * 3600_000).toISOString();
+    sessao(ANA, { aberto_em: cedo }); sessao(BRUNO, { telefone: '5534999990002', nome: 'Bruno Reis', aberto_em: cedo });
+    chegou('5534999990001', 'Sim', 130);
+    chegou('5534999990002', 'Oi', 130);
+    ia('continuar', ['Certo.']);
+    const r = await responder();
+    expect(r.frio).toBe(1);
+    expect(h.zap.frio).toHaveLength(1);
+    // Escreveu há 10 s (a leitura ainda não pega): a leva espera e volta como resposta normal.
+    h.zap.frio.length = 0; h.banco.main.system_state = []; h.banco.main.wa_mensagens = [];
+    sessao(ANA, { aberto_em: cedo });
+    chegou('5534999990001', 'Sim', 130);
+    h.banco.main.wa_mensagens!.push({ id: 9999, telefone: '5534999990001', texto: 'Alô?', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: new Date(AGORA.getTime() - 10_000).toISOString() });
+    await responder();
+    expect(h.zap.frio).toHaveLength(0);
+  });
+
+  it('pedido de parada: de NOITE grava o opt-out na hora e NADA sai (nem de manhã)', async () => {
+    sessao(ANA);
+    const noite = brt('2026-10-11T22:00');
+    h.banco.main.wa_mensagens!.push({ id: 1, telefone: '5534999990001', texto: 'Pare de me mandar mensagem', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: new Date(noite.getTime() - 5 * 60_000).toISOString() });
+    vi.setSystemTime(noite);
+    await runInvestidorRespostasTick();
+    expect(h.opt.map(o => o.tel)).toEqual(['5534999990001']);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'pediu_parar' });
+    expect(h.zap.humano).toHaveLength(0);
+    expect(h.zap.frio).toHaveLength(0);
+    // De manhã não sai nada: a sessão já está fechada e a pessoa silenciada.
+    vi.setSystemTime(brt('2026-10-12T09:00'));
+    await runInvestidorRespostasTick();
+    expect(h.zap.humano).toHaveLength(0);
+    expect(h.zap.frio).toHaveLength(0);
+  });
+
+  it('fora das 7h às 20h a resposta normal espera; às 7h de domingo já sai', async () => {
+    const cedo = brt('2026-10-11T06:30');
+    sessao(ANA, { aberto_em: new Date(cedo.getTime() - 3 * 3600_000).toISOString() });
+    h.banco.main.wa_mensagens!.push({ id: 1, telefone: '5534999990001', texto: 'Sim', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: new Date(cedo.getTime() - 5 * 60_000).toISOString() });
+    ia('continuar', ['Certo.']);
+    vi.setSystemTime(cedo);
+    await runInvestidorRespostasTick();
+    expect(h.ia.chamadas).toBe(0);
+    // Uma mensagem nova às 07:01, lida às 07:05: dentro dos 15 min, e a janela das respostas já abriu.
+    h.banco.main.wa_mensagens!.push({ id: 2, telefone: '5534999990001', texto: 'Bom dia', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: brt('2026-10-11T07:01').toISOString() });
+    vi.setSystemTime(brt('2026-10-11T07:05'));
+    await runInvestidorRespostasTick();
+    expect(h.ia.chamadas).toBe(1);
+    expect(h.zap.humano).toHaveLength(1);
+  });
+
+  it('a resposta normal confere os tetos da linha e registra uma chave por bolha; linha cheia para a rodada', async () => {
+    sessao(ANA);
+    chegou('5534999990001', 'Sim');
+    ia('continuar', ['Certo.', 'Posso te mandar os horários?']);
+    await responder();
+    expect(linhaDaResposta.conferencias).toBe(1);
+    expect(linhaDaResposta.bolhas).toEqual([{ chave: ANA, n: 2 }]);
+    h.zap.humano.length = 0; h.banco.main.system_state = []; sessao(ANA); linhaDaResposta.ok = false;
+    const r = await responder();
+    expect(r.respondidas).toBe(0);
+    expect(h.ia.chamadas).toBe(1);   // a do começo do teste; esta não chamou o modelo
+  });
+
+  it('erro de linha ao enviar encerra a rodada: a segunda conversa não é atendida', async () => {
+    sessao(ANA); sessao(BRUNO, { telefone: '5534999990002', nome: 'Bruno Reis' });
+    chegou('5534999990001', 'Sim'); chegou('5534999990002', 'Oi');
+    ia('continuar', ['Certo.']);
+    const z = await import('../services/agents/zapiClient');
+    (z.sendHuman as any).mockImplementationOnce(async () => { throw new Error('linha caiu'); });
+    const r = await responder();
+    expect(r.erros).toBe(1);
+    expect(h.ia.chamadas).toBe(1);
+  });
+
+  it('INVESTIDOR_RESPOSTA_ATRASADA=consultor volta ao caminho antigo: passa para a equipe e não responde', async () => {
+    process.env.INVESTIDOR_RESPOSTA_ATRASADA = 'consultor';
     sessao(ANA, { aberto_em: new Date(AGORA.getTime() - 5 * 3600_000).toISOString() });
     chegou('5534999990001', 'Sim', 130);
     ia('continuar', ['Certo.']);
@@ -1020,7 +1176,7 @@ describe('respostas: as ações com texto fixo', () => {
     expect(h.opt).toEqual([{ tel: '5534999990001', motivo: 'opt_out', origem: 'investidor-agente' }]);
     expect(h.zap.humano.map(e => e.partes)).toEqual([[T.PAROU[0]]]);
     expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'pediu_parar' });
-    expect(chaves('inv_agente_parar:')).toEqual([`inv_agente_parar:2026-10-11:${ANA}`]);
+    expect(chaves('inv_agente_parar:')).toEqual([`inv_agente_parar:2026-10-11:investidor:${ANA}`]);
   });
 
   it('a variação do texto fixo sai da chave: outra pessoa recebe a outra versão', async () => {
@@ -1055,7 +1211,7 @@ describe('respostas: a escolha do horário', () => {
     expect(String(ficha.observacao).split('\n')[0]).toBe('LP ELETROPOSTO · Investidor');
     expect(ficha.observacao).toContain('Quanto pretende investir: R$ 140 mil');
     expect(ficha.observacao).toContain('Como pretende investir: Recurso próprio');
-    expect(ficha.observacao).toContain('Cadastro de origem: cadastro de investidor (eletroposto_parceria) #1, de 01/09/2026');
+    expect(ficha.observacao).toContain('Cadastro de origem: cadastro (eletroposto_parceria) #1, de 01/09/2026');
 
     // Estado primeiro, mensagem depois.
     expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', agendamento_id: 901, oferta: [] });
@@ -1309,10 +1465,12 @@ describe('nome que não é de pessoa, de ponta a ponta', () => {
       { id: 9, nome: 'Eletro posto', telefone: '5534999990009', cidade: 'Uberlândia', lado: 'capital', capital_faixa: 'R$ 140 mil', status: 'novo', created_at: '2026-09-01T12:00:00Z' },
     ];
     h.banco.ger.eletroposto_nota1 = [];
+    h.banco.ger.agendamentos = [{ id: 509, cliente_telefone: '5534999990009', cliente_nome: 'Eletro posto', status: 'cancelado', quando: '2026-09-10T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Thiago' }];
     await abrir();
-    expect(h.zap.frio[0]!.partes[0]).toBe(T.ABERTURA_SEM_NOME.replace('{valor}', 'R$ 140 mil'));
+    // O mesmo molde do redator, sem o nome (nome de empresa não vira "Olá, Eletro!").
+    expect(h.zap.frio[0]!.partes[0]).toBe(textoDaAbertura(sessaoDe('3499990009').abertura, null, 'R$ 140 mil', { tipo: 'investidor' }));
     expect(h.zap.frio[0]!.partes[0]).not.toContain('Eletro');
-    expect(sessaoDe('3499990009').abertura).toBe(-1);
+    expect(h.zap.frio[0]!.partes[0]).not.toContain('{nome}');
 
     // Ela responde: no que vai para a IA o nome aparece como não informado.
     seqMsg = 0;
@@ -1359,13 +1517,13 @@ describe('o cérebro: o que vai na chamada ao modelo', () => {
     expect(h.ia.params[1]).not.toHaveProperty('thinking');
   });
 
-  it('a conversa aguenta 16 respostas antes de ir para gente', async () => {
-    sessao(ANA, { estagio: 'conversando', respostas: 15 });
+  it('a conversa aguenta 30 respostas antes de ir para gente', async () => {
+    sessao(ANA, { estagio: 'conversando', respostas: 29 });
     chegou('5534999990001', 'E como funciona?');
     ia('continuar', ['O Diego explica na reunião.']);
     await responder();
     expect(h.ia.chamadas).toBe(1);
-    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'conversando', respostas: 16 });
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'conversando', respostas: 30 });
 
     chegou('5534999990001', 'Entendi', 1);
     await responder();
@@ -1670,436 +1828,6 @@ describe('a trava de formato de ponta a ponta', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// RESGATE DOS CANCELADOS (12/10/2026)
-// ═════════════════════════════════════════════════════════════════════════════
-
-describe('resgate dos cancelados', () => {
-  const HOJE = brt('2026-10-12T10:00');
-  const haDias = (n: number) => new Date(HOJE.getTime() - n * 86_400_000).toISOString();
-  const DANI = '3499990004';
-  const TEL = { ANA: '5534999990001', BRUNO: '5534999990002', CARLA: '5534999990003', DANI: '5534999990004' };
-  let seqCard = 100;
-
-  /** Um card na agenda e, se `dias` não for null, o carimbo de liberação da régua do SIM. */
-  function card(tel: string, o: { dias?: number | null; escreveu?: boolean; status?: string; quando?: string } = {}): number {
-    const id = ++seqCard;
-    h.banco.ger.agendamentos!.push({
-      id, cliente_telefone: tel, status: o.status ?? 'cancelado', quando: o.quando ?? '2026-09-24T17:00:00Z',
-      lead_resposta_at: o.escreveu ? '2026-09-23T12:00:00Z' : null,
-    });
-    if (o.dias !== null) {
-      h.banco.main.system_state!.push({ key: `ep_liberado_sim:${id}`, value: { em: haDias(o.dias ?? 15) }, updated_at: haDias(o.dias ?? 15) });
-    }
-    return id;
-  }
-  /** `n` aberturas que já saíram hoje. */
-  const saiuHoje = (n: number) => {
-    for (let i = 0; i < n; i++) h.banco.main.system_state!.push({ key: `inv_agente_sent:34000${1000 + i}:t1`, value: {}, updated_at: new Date(HOJE.getTime() - 3600_000).toISOString() });
-  };
-  const resgatesHoje = (n: number) => {
-    for (let i = 0; i < n; i++) h.banco.main.system_state!.push({ key: `${INV_RESGATE_PREFIX}34000${2000 + i}`, value: {}, updated_at: new Date(HOJE.getTime() - 3600_000).toISOString() });
-  };
-  const soAna = () => {
-    h.banco.ger.eletroposto_parceria = h.banco.ger.eletroposto_parceria!.filter(r => r.id === 1);
-  };
-  beforeEach(() => { seqCard = 100; seqMsg = 0; });
-
-  describe('quem entra no grupo', () => {
-    it('só cancelado com carimbo: outro status e sem carimbo ficam de fora, e a fila principal não muda', async () => {
-      card(TEL.ANA, { dias: 15 });
-      card(TEL.BRUNO, { status: 'agendado', dias: null });
-      card(TEL.CARLA, { dias: null });
-      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(p.resgate.elegiveis).toBe(1);
-      expect(p.resgate.excluidos).toMatchObject({ card_em_outro_status: 1, sem_carimbo_de_liberacao: 1 });
-      expect(p.resgate.primeiros).toEqual([
-        { nome: 'Ana', telefone_final: '01', valor: 'R$ 140 mil', mes_da_reuniao: 'setembro', ja_escreveu: false },
-      ]);
-      expect(p.resgate.textos).toHaveLength(1);
-      expect(p.resgate.textos[0]).toContain('setembro');
-      // Os três têm card: a fila principal segue excluindo todos como antes.
-      expect(p.fila).toBe(0);
-      expect(p.excluidos.tem_card).toBeGreaterThanOrEqual(3);
-    });
-
-    it('card cancelado MAIS um card em outro status: fica de fora', async () => {
-      card(TEL.ANA, { dias: 20 });
-      card(TEL.ANA, { status: 'agendado', dias: null });
-      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(p.resgate.elegiveis).toBe(0);
-      expect(p.resgate.excluidos.card_em_outro_status).toBeGreaterThanOrEqual(1);
-    });
-
-    it('13 dias de liberação ficam de fora; 14 entram', async () => {
-      card(TEL.ANA, { dias: 13 });
-      card(TEL.BRUNO, { dias: 14 });
-      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(p.resgate.excluidos.menos_de_14_dias).toBeGreaterThanOrEqual(1);
-      expect(p.resgate.primeiros.map((x: any) => x.nome)).toEqual(['Bruno']);
-    });
-
-    it('quem já escreveu alguma vez vem primeiro, mesmo com valor menor', async () => {
-      h.banco.ger.eletroposto_parceria!.push({ id: 4, nome: 'Dani Souza', telefone: TEL.DANI, cidade: null, lado: 'capital', capital_faixa: 'R$ 60 mil', status: 'novo', created_at: '2026-09-04T12:00:00Z' });
-      card(TEL.ANA, { dias: 15 });
-      card(TEL.DANI, { dias: 15 });
-      card(TEL.DANI, { dias: 16, escreveu: true });   // um dos cards dela tem resposta
-      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(p.resgate.primeiros.map((x: any) => [x.nome, x.ja_escreveu])).toEqual([['Dani', true], ['Ana', false]]);
-    });
-
-    it('a exceção do mudo vale SÓ para o resgate', async () => {
-      card(TEL.ANA, { dias: 15 });
-      h.filtros.mudos.add(TEL.ANA); h.filtros.mudos.add(TEL.BRUNO);
-      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(p.resgate.elegiveis).toBe(1);                 // Ana é muda e entra
-      expect(p.excluidos.mudo).toBe(1);                    // Bruno, da fila principal, segue barrado
-      expect(p.fila).toBe(1);                              // sobra a Carla
-      expect(p.resgate.excluidos.mudo).toBeUndefined();
-    });
-
-    it('opt-out, conversa recente e sessão existente continuam valendo no resgate', async () => {
-      h.banco.ger.eletroposto_parceria!.push(
-        { id: 4, nome: 'Dani Souza', telefone: TEL.DANI, cidade: null, lado: 'capital', capital_faixa: 'R$ 60 mil', status: 'novo', created_at: '2026-09-04T12:00:00Z' },
-        { id: 5, nome: 'Eva Melo', telefone: '5534999990005', cidade: null, lado: 'capital', capital_faixa: 'R$ 80 mil', status: 'novo', created_at: '2026-09-05T12:00:00Z' },
-      );
-      for (const tel of [TEL.BRUNO, TEL.CARLA, TEL.DANI, '5534999990005']) card(tel, { dias: 15 });
-      h.filtros.silenciados.add(TEL.BRUNO);
-      h.banco.main.wa_mensagens!.push({ id: 1, telefone: TEL.CARLA, texto: 'oi', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: haDias(2) });
-      h.banco.main.system_state!.push({ key: `inv_agente:${DANI}`, value: { estagio: 'humano' }, updated_at: 'x' });
-      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(p.resgate.elegiveis).toBe(1);
-      expect(p.resgate.primeiros[0].nome).toBe('Eva');
-      expect(p.resgate.excluidos).toMatchObject({ opt_out: 1, conversa_7_dias: 1, tem_sessao: 1 });
-    });
-
-    it('leitura dos carimbos que falha: o resgate não envia, e a fila principal segue', async () => {
-      card(TEL.ANA, { dias: 15 });
-      saiuHoje(1);                                         // a próxima seria a 2ª abertura: vez do resgate
-      h.falhaDoLike = 'ep_liberado_sim:';
-      const r = await abrir(HOJE);
-      expect(r).toMatchObject({ enviados: 1, para: 'final 0002' });   // Bruno, da principal
-      expect(h.zap.frio.map(f => f.tel)).toEqual([TEL.BRUNO]);
-      expect(sessaoDe(BRUNO).grupo).toBeUndefined();
-      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(p.resgate.elegiveis).toBeNull();
-      expect(p.resgate.erro_da_fila).toContain('ep_liberado_sim:');
-    });
-
-    it('leitura dos carimbos que falha e fila principal vazia: não sai nada', async () => {
-      soAna();
-      card(TEL.ANA, { dias: 15 });
-      h.falhaDoLike = 'ep_liberado_sim:';
-      const r = await abrir(HOJE);
-      expect(r).toMatchObject({ enviados: 0, motivo: 'fila_vazia' });
-      expect(h.zap.frio).toHaveLength(0);
-    });
-  });
-
-  describe('dose e posição', () => {
-    it('a 1ª abertura do dia é da fila principal; a 2ª é do resgate; a 3ª volta à principal', async () => {
-      card(TEL.ANA, { dias: 15 });
-      const a = await abrir(HOJE);
-      expect(a).toMatchObject({ enviados: 1, para: 'final 0002' });
-      const b = await abrir(HOJE);
-      expect(b).toMatchObject({ enviados: 1, para: 'final 0001', grupo: 'resgate' });
-      const c = await abrir(HOJE);
-      expect(c).toMatchObject({ enviados: 1, para: 'final 0003' });
-      expect(h.zap.frio.map(f => f.tel)).toEqual([TEL.BRUNO, TEL.ANA, TEL.CARLA]);
-    });
-
-    it('as RETOMADAS do dia não deslocam a posição do resgate: só as aberturas contam', async () => {
-      card(TEL.ANA, { dias: 15 });
-      saiuHoje(1);                                         // 1 abertura
-      for (let i = 0; i < 6; i++) h.banco.main.system_state!.push({ key: `inv_agente_sent:3400${3000 + i}:t2`, value: {}, updated_at: new Date(HOJE.getTime() - 3600_000).toISOString() });
-      const r = await abrir(HOJE);                         // 7 envios no dia, mas é a 2ª ABERTURA
-      expect(r).toMatchObject({ enviados: 1, grupo: 'resgate', para: 'final 0001' });
-    });
-
-    it('a abertura de resgate: uma bolha com nome, valor e mês; sessão com os três campos; dois carimbos', async () => {
-      card(TEL.ANA, { dias: 15, quando: '2026-09-24T17:00:00Z' });
-      saiuHoje(1);
-      const r = await abrir(HOJE);
-      expect(r).toMatchObject({ enviados: 1, grupo: 'resgate', para: 'final 0001' });
-      expect(h.zap.frio).toHaveLength(1);
-      expect(h.zap.frio[0]!.partes).toHaveLength(1);
-      expect(h.zap.frio[0]!.partes[0]).toContain('Ana');
-      expect(h.zap.frio[0]!.partes[0]).toContain('R$ 140 mil');
-      expect(h.zap.frio[0]!.partes[0]).toContain('setembro');
-      expect(sessaoDe(ANA)).toMatchObject({
-        estagio: 'chamado', grupo: 'resgate', sem_retomada: true, reuniao_perdida_em: '2026-09-24T17:00:00Z', telefone: TEL.ANA,
-      });
-      // O carimbo de envio de sempre CONTINUA sendo gravado, e o do resgate é a mais.
-      expect(chaves(INV_SENT_PREFIX)).toContain(`inv_agente_sent:${ANA}:t1`);
-      expect(chaves(INV_RESGATE_PREFIX)).toEqual([`inv_agente_resgate:${ANA}`]);
-    });
-
-    it('a sessão da fila principal NÃO ganha grupo, sem_retomada nem reuniao_perdida_em', async () => {
-      await abrir(HOJE);
-      const s = sessaoDe(BRUNO) as unknown as Record<string, unknown>;
-      expect('grupo' in s).toBe(false);
-      expect('sem_retomada' in s).toBe(false);
-      expect('reuniao_perdida_em' in s).toBe(false);
-    });
-
-    it('sem elegível na vez do resgate, sai a fila principal', async () => {
-      saiuHoje(1);
-      const r = await abrir(HOJE);
-      expect(r).toMatchObject({ enviados: 1, para: 'final 0002' });
-      expect(r.grupo).toBeUndefined();
-    });
-
-    it('com a fila principal vazia o resgate usa a vez mesmo fora da posição, limitado a 5 por dia', async () => {
-      soAna();
-      h.banco.ger.eletroposto_parceria!.push(
-        ...[4, 5, 6, 7, 8, 9].map(i => ({ id: i, nome: `Pessoa${'abcdefg'[i - 4]}`, telefone: `553499999${String(i).padStart(4, '0')}`, cidade: null, lado: 'capital', capital_faixa: 'R$ 100 mil', status: 'novo', created_at: '2026-09-04T12:00:00Z' })),
-      );
-      card(TEL.ANA, { dias: 15 });
-      for (let i = 4; i <= 9; i++) card(`553499999${String(i).padStart(4, '0')}`, { dias: 15 });
-      h.banco.ger.eletroposto_nota1 = [];
-      const saidas: string[] = [];
-      for (let i = 0; i < 8; i++) {
-        const r = await abrir(HOJE);
-        saidas.push(r.enviados ? String(r.grupo) : String(r.motivo));
-      }
-      expect(saidas).toEqual(['resgate', 'resgate', 'resgate', 'resgate', 'resgate', 'fila_vazia', 'fila_vazia', 'fila_vazia']);
-      expect(chaves(INV_RESGATE_PREFIX)).toHaveLength(5);
-    });
-
-    it('a 6ª de resgate do dia não sai, mesmo na vez dela, e a principal ocupa o lugar', async () => {
-      card(TEL.ANA, { dias: 15 });
-      saiuHoje(6);                                         // a próxima é a 7ª abertura: vez do resgate
-      resgatesHoje(5);                                     // mas a cota de 5 já foi
-      const r = await abrir(HOJE);
-      expect(r).toMatchObject({ enviados: 1, para: 'final 0002' });
-      expect(r.grupo).toBeUndefined();
-    });
-
-    it('INVESTIDOR_AGENTE_RESGATE_DIA só aperta: com 1, a segunda vez do resgate não sai', async () => {
-      process.env.INVESTIDOR_AGENTE_RESGATE_DIA = '1';
-      card(TEL.ANA, { dias: 15 });
-      resgatesHoje(1);
-      saiuHoje(1);
-      const r = await abrir(HOJE);
-      expect(r.grupo).toBeUndefined();
-      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(p.resgate).toMatchObject({ teto_do_dia: 1, enviados_hoje: 1 });
-      process.env.INVESTIDOR_AGENTE_RESGATE_DIA = '9';
-      expect((await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>).resgate.teto_do_dia).toBe(5);
-    });
-
-    it('a prévia diz quem sai na próxima abertura', async () => {
-      card(TEL.ANA, { dias: 15 });
-      const um = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(um.resgate.proxima_abertura).toEqual({ posicao: 1, grupo: 'principal' });
-      saiuHoje(1);
-      const dois = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(dois.resgate.proxima_abertura).toEqual({ posicao: 2, grupo: 'resgate' });
-      expect(dois.resgate.disjuntor_do_grupo).toEqual({ pedidos_de_parada_hoje: 0, limite: 2, aberto: false });
-    });
-  });
-
-  describe('os dois disjuntores são separados', () => {
-    const AGORA_DIA = AGORA;   // 11/10/2026 10:00
-    const resgateSessao = (chave: string, tel: string, nome: string) =>
-      sessao(chave, { grupo: 'resgate', sem_retomada: true, reuniao_perdida_em: '2026-09-24T17:00:00Z', telefone: tel, nome });
-
-    it('dois pedidos de parada de sessões de resgate desligam só o resgate; o geral não conta', async () => {
-      resgateSessao(ANA, TEL.ANA, 'Ana');
-      resgateSessao(DANI, TEL.DANI, 'Dani');
-      chegou(TEL.ANA, 'pare'); chegou(TEL.DANI, 'me tira da lista');
-      await responder();
-      expect(chaves('inv_agente_parar_resgate:')).toHaveLength(2);
-      expect(chaves('inv_agente_parar:')).toHaveLength(0);
-      // O pedido de parada em si é tratado como sempre: opt-out e texto fixo.
-      expect(h.opt.map(o => o.motivo)).toEqual(['opt_out', 'opt_out']);
-      expect(h.zap.humano).toHaveLength(2);
-
-      // Agora o resgate está desligado: na vez dele (2ª) sai a fila principal. A
-      // cobertura de elegível vem de um terceiro cancelado.
-      card(TEL.BRUNO, { dias: 15 });
-      for (let i = 0; i < 1; i++) h.banco.main.system_state!.push({ key: `inv_agente_sent:34000${1000 + i}:t1`, value: {}, updated_at: new Date(AGORA_DIA.getTime() - 1800_000).toISOString() });
-      const r = await abrir(new Date(AGORA_DIA.getTime() + 60_000));
-      expect(r.motivo).not.toBe('disjuntor_pedidos_de_parada');
-      expect(r.grupo).toBeUndefined();
-      expect(r).toMatchObject({ enviados: 1, para: 'final 0003' });   // Carla, da principal
-      const p = await previaInvestidorAgente({ agora: AGORA_DIA }) as Record<string, any>;
-      expect(p.resgate.disjuntor_do_grupo).toMatchObject({ pedidos_de_parada_hoje: 2, aberto: true });
-      expect(p.pedidos_de_parada_hoje).toBe(0);
-    });
-
-    it('uma parada de resgate só não desliga o grupo', async () => {
-      resgateSessao(ANA, TEL.ANA, 'Ana');
-      chegou(TEL.ANA, 'pare');
-      await responder();
-      const p = await previaInvestidorAgente({ agora: AGORA_DIA }) as Record<string, any>;
-      expect(p.resgate.disjuntor_do_grupo).toMatchObject({ pedidos_de_parada_hoje: 1, aberto: false });
-    });
-
-    it('a parada de sessão da fila principal continua indo para o disjuntor geral', async () => {
-      sessao(ANA); chegou(TEL.ANA, 'pare');
-      await responder();
-      expect(chaves('inv_agente_parar:')).toHaveLength(1);
-      expect(chaves('inv_agente_parar_resgate:')).toHaveLength(0);
-    });
-
-    it('as paradas de resgate não pesam no geral: 3 delas e a fila principal segue', async () => {
-      for (const i of [1, 2, 3]) h.banco.main.system_state!.push({ key: `inv_agente_parar_resgate:2026-10-11:340000000${i}`, value: {}, updated_at: 'x' });
-      const r = await abrir(LARGADA);
-      expect(r).toMatchObject({ enviados: 1 });
-    });
-
-    it('3 pedidos da fila principal continuam parando as aberturas (o disjuntor geral não mudou)', async () => {
-      for (const i of [1, 2, 3]) h.banco.main.system_state!.push({ key: `inv_agente_parar:2026-10-11:340000000${i}`, value: {}, updated_at: 'x' });
-      expect(await abrir(LARGADA)).toMatchObject({ enviados: 0, motivo: 'disjuntor_pedidos_de_parada' });
-    });
-  });
-
-  describe('a conversa de resgate', () => {
-    const resgateSessao = (over: Partial<SessaoInvestidor> = {}) =>
-      sessao(ANA, { grupo: 'resgate', sem_retomada: true, reuniao_perdida_em: '2026-09-24T17:00:00Z', ...over });
-
-    it('os fatos ganham o parágrafo CONVERSA DE RESGATE com o mês preenchido, e o card cancelado dela não cala a Helena', async () => {
-      resgateSessao();
-      h.banco.ger.agendamentos!.push({ id: 7, cliente_telefone: TEL.ANA, status: 'cancelado', quando: '2026-09-24T17:00:00Z' });
-      chegou(TEL.ANA, 'Achei que vocês tinham cancelado');
-      ia('continuar', ['Imagina, Ana.', 'Posso te mandar os horários?']);
-      const r = await responder();
-      expect(r).toMatchObject({ respondidas: 1, erros: 0 });
-      expect(h.ia.chamadas).toBe(1);
-      expect(h.ia.sistema).toContain('Esta pessoa já teve uma reunião marcada em setembro');
-      expect(h.ia.sistema).not.toContain('{mes}');
-      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'conversando', grupo: 'resgate' });
-      expect(h.zap.humano).toHaveLength(1);
-    });
-
-    it('o histórico traz a abertura de RESGATE, não a da fila principal', async () => {
-      resgateSessao();
-      chegou(TEL.ANA, 'Pode ser');
-      ia('continuar', ['Combinado.']);
-      await responder();
-      expect(h.ia.pedido).toContain('reunião em setembro');
-      expect(h.ia.pedido).toContain('Nós: ');
-    });
-
-    it('conversa da fila principal: os fatos não ganham o parágrafo', async () => {
-      sessao(ANA); chegou(TEL.ANA, 'Sim');
-      ia('continuar', ['Que bom.']);
-      await responder();
-      expect(h.ia.sistema).not.toContain('Esta pessoa já teve uma reunião marcada');
-    });
-
-    it('card NOVO (outro status) em quem é de resgate continua valendo como "card por outra porta"', async () => {
-      resgateSessao();
-      h.banco.ger.agendamentos!.push({ id: 7, cliente_telefone: TEL.ANA, status: 'cancelado', quando: '2026-09-24T17:00:00Z' });
-      h.banco.ger.agendamentos!.push({ id: 8, cliente_telefone: TEL.ANA, status: 'agendado', quando: '2026-10-20T17:00:00Z' });
-      chegou(TEL.ANA, 'Marquei pela página');
-      await responder();
-      expect(h.ia.chamadas).toBe(0);
-      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', motivo: 'card_por_outra_porta', agendamento_id: 8 });
-    });
-
-    it('na fila principal qualquer card (inclusive cancelado) segue valendo como "card por outra porta"', async () => {
-      sessao(ANA);
-      h.banco.ger.agendamentos!.push({ id: 7, cliente_telefone: TEL.ANA, status: 'cancelado', quando: '2026-09-24T17:00:00Z' });
-      chegou(TEL.ANA, 'Oi');
-      await responder();
-      expect(h.ia.chamadas).toBe(0);
-      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', motivo: 'card_por_outra_porta' });
-    });
-  });
-
-  describe('fecho de quem não respondeu em 7 dias', () => {
-    const diasAtras = (n: number) => new Date(AGORA.getTime() - n * 86_400_000).toISOString();
-    const resgate = (chave: string, over: Partial<SessaoInvestidor> = {}) =>
-      sessao(chave, { grupo: 'resgate', sem_retomada: true, reuniao_perdida_em: '2026-09-24T17:00:00Z', telefone: `55${chave.slice(0, 2)}9${chave.slice(2)}`, ...over });
-
-    it('7 dias em chamado: silencia (nunca_respondeu), vira sem_interesse/sem_resposta e não manda nada', async () => {
-      resgate(ANA, { aberto_em: diasAtras(7) });
-      const r = await fecharResgatesSemResposta(AGORA.getTime());
-      expect(r).toMatchObject({ fechadas: 1, erros: 0 });
-      expect(h.opt).toEqual([{ tel: TEL.ANA, motivo: 'nunca_respondeu', origem: 'investidor-agente' }]);
-      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'sem_resposta', grupo: 'resgate' });
-      expect(h.zap.frio).toHaveLength(0);
-      expect(h.zap.humano).toHaveLength(0);
-      expect(h.zap.equipe).toHaveLength(0);
-    });
-
-    it('6 dias: nada', async () => {
-      resgate(ANA, { aberto_em: diasAtras(6) });
-      expect(await fecharResgatesSemResposta(AGORA.getTime())).toMatchObject({ fechadas: 0 });
-      expect(sessaoDe(ANA).estagio).toBe('chamado');
-      expect(h.opt).toHaveLength(0);
-    });
-
-    it('vale SÓ para o resgate: sessão da fila principal com 8 dias fica como está', async () => {
-      sessao(ANA, { aberto_em: diasAtras(8) });
-      expect(await fecharResgatesSemResposta(AGORA.getTime())).toMatchObject({ fechadas: 0 });
-      expect(sessaoDe(ANA).estagio).toBe('chamado');
-      expect(h.opt).toHaveLength(0);
-    });
-
-    it('quem respondeu (conversando) e quem nunca foi chamado (erro de envio) não são fechados', async () => {
-      resgate(ANA, { aberto_em: diasAtras(9), estagio: 'conversando' });
-      resgate(BRUNO, { aberto_em: diasAtras(9), erro: 'HTTP 500' });
-      expect(await fecharResgatesSemResposta(AGORA.getTime())).toMatchObject({ fechadas: 0 });
-      expect(h.opt).toHaveLength(0);
-    });
-
-    it('chegou uma mensagem dela que a rodada de respostas ainda não leu: não fecha', async () => {
-      resgate(ANA, { aberto_em: diasAtras(8) });
-      chegou(TEL.ANA, 'Oi, vi agora', 1);
-      expect(await fecharResgatesSemResposta(AGORA.getTime())).toMatchObject({ fechadas: 0 });
-      expect(sessaoDe(ANA).estagio).toBe('chamado');
-    });
-
-    it('no máximo 5 por rodada', async () => {
-      for (let i = 1; i <= 7; i++) resgate(`349999100${i}`, { aberto_em: diasAtras(8 + i) });
-      expect(await fecharResgatesSemResposta(AGORA.getTime())).toMatchObject({ fechadas: 5 });
-      expect(h.opt).toHaveLength(5);
-      expect(await fecharResgatesSemResposta(AGORA.getTime())).toMatchObject({ fechadas: 2 });
-    });
-
-    it('leitura que falha não fecha ninguém', async () => {
-      resgate(ANA, { aberto_em: diasAtras(8) });
-      h.falhaDeLeitura.add('wa_mensagens');
-      expect(await fecharResgatesSemResposta(AGORA.getTime())).toMatchObject({ fechadas: 0, erros: 1 });
-      expect(h.opt).toHaveLength(0);
-      expect(sessaoDe(ANA).estagio).toBe('chamado');
-    });
-
-    it('quem JÁ está na supressão não é regravado (não rebaixa opt-out), e a sessão fecha do mesmo jeito', async () => {
-      resgate(ANA, { aberto_em: diasAtras(8) });
-      resgate(BRUNO, { aberto_em: diasAtras(8), telefone: TEL.BRUNO, nome: 'Bruno' });
-      h.filtros.silenciados.add(TEL.ANA);                    // já pediu para parar
-      const r = await fecharResgatesSemResposta(AGORA.getTime());
-      expect(r).toMatchObject({ fechadas: 2, erros: 0 });
-      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'sem_resposta' });
-      expect(sessaoDe(BRUNO)).toMatchObject({ estagio: 'sem_interesse', motivo: 'sem_resposta' });
-      // Só o Bruno foi gravado como nunca_respondeu; a Ana ficou com o motivo que já tinha.
-      expect(h.opt).toEqual([{ tel: TEL.BRUNO, motivo: 'nunca_respondeu', origem: 'investidor-agente' }]);
-    });
-
-    it('sem conseguir ler a supressão (leitura estrita) nada fecha e nada é gravado', async () => {
-      resgate(ANA, { aberto_em: diasAtras(8) });
-      h.filtros.falha.add('silenciados');
-      const r = await fecharResgatesSemResposta(AGORA.getTime());
-      expect(r).toMatchObject({ fechadas: 0, erros: 1, motivo: 'erro_supressao' });
-      expect(h.opt).toHaveLength(0);
-      expect(sessaoDe(ANA).estagio).toBe('chamado');
-      expect(h.filtros.estritas).toContain('silenciados');
-    });
-
-    it('a rodada completa fecha antes de abrir, e sem mandar mensagem por causa do fecho', async () => {
-      resgate(ANA, { aberto_em: diasAtras(8) });
-      vi.setSystemTime(AGORA);
-      const r = await rodarInvestidorAgente() as Record<string, any>;
-      expect(r.fecho).toMatchObject({ fechadas: 1 });
-      expect(sessaoDe(ANA).motivo).toBe('sem_resposta');
-    });
-  });
-});
-
-// ═════════════════════════════════════════════════════════════════════════════
 // 12/10/2026: a escolha do horário que se perdeu
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -2229,7 +1957,8 @@ describe('recuperação da escolha pendente', () => {
     expect(h.card.gravados[0]!.quando).toBe(OFERTA[0]);
     expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', recuperado_ate: antes(180) });
     expect(h.zap.humano).toHaveLength(1);
-    expect(h.zap.equipe).toHaveLength(0);          // nenhum recado de "mensagem atrasada"
+    expect(h.zap.equipe).toHaveLength(1);          // só a ficha ao consultor dono (nenhum recado de "mensagem atrasada")
+    expect(h.zap.equipe[0]!.texto).toContain('HELENA MARCOU UMA REUNIÃO');
   });
 
   it('o carimbo vai para a sessão ANTES da chamada ao modelo', async () => {
@@ -2400,7 +2129,7 @@ describe('retomadas dos toques 2 a 5', () => {
       const r = await retomar();
       expect(r).toMatchObject({ enviados: 1, toque: 2, para: 'final 0001' });
       expect(h.zap.frio).toHaveLength(1);
-      expect(h.zap.frio[0]!.partes).toEqual([renderRetomada(2, ANA, 'Ana Lima', 'R$ 140 mil').texto]);
+      expect(h.zap.frio[0]!.partes).toEqual([renderRetomada(2, 'Ana Lima', 'investidor').texto]);
       expect(chaves('inv_agente_sent:')).toContain(`inv_agente_sent:${ANA}:t2`);
       expect(sessaoDe(ANA)).toMatchObject({ estagio: 'chamado', toques: 2, ultimo_toque_em: HOJE.toISOString() });
     });
@@ -2543,8 +2272,9 @@ describe('retomadas dos toques 2 a 5', () => {
       expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'desligada_env' });
       delete process.env.INVESTIDOR_AGENTE_OFF;
       expect(await retomar(brt('2026-10-15T08:30'))).toMatchObject({ enviados: 0, motivo: 'fora_da_janela' });
-      for (const i of [1, 2, 3]) h.banco.main.system_state!.push({ key: `inv_agente_parar:2026-10-15:340000000${i}`, value: {}, updated_at: 'x' });
-      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'disjuntor_pedidos_de_parada' });
+      // O disjuntor de parada é do GRUPO: 3 pedidos fecham o Investidor, e a retomada de quem é Investidor não sai.
+      for (const i of [1, 2, 3]) h.banco.main.system_state!.push({ key: `inv_agente_parar:2026-10-15:investidor:340000000${i}`, value: {}, updated_at: 'x' });
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'nenhuma_passou_nos_cortes' });
       expect(h.zap.frio).toHaveLength(0);
     });
 
@@ -2555,10 +2285,11 @@ describe('retomadas dos toques 2 a 5', () => {
       h.linha.teto = true; h.linha.espaco = false;
       expect(await retomar()).toMatchObject({ motivo: 'espacamento_da_linha' });
       expect(h.zap.frio).toHaveLength(0);
-      // O mesmo piso da abertura (maxPorDia), e sem piso com a rampa armada.
+      // O frio é um orçamento só da linha: nenhum piso do dia por cima (parecer do chefe, 12/11/2026).
       h.linha.espaco = true;
       await retomar();
-      expect(h.linha.pedidosDeTeto).toContainEqual({ pisoDia: 40, robo: 'investidor_agente_abertura' });
+      expect(h.linha.pedidosDeTeto).toContainEqual({ robo: 'investidor_agente_abertura' });
+      expect(h.linha.pedidosDeTeto.some((p: any) => p && 'pisoDia' in p)).toBe(false);
     });
 
     it('os dois cortes de mudo: o de 3 toques em 60 dias e o dos 3 carimbos próprios', async () => {
@@ -2904,18 +2635,18 @@ describe('retomadas dos toques 2 a 5', () => {
       const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
       expect(p.retomadas).toMatchObject({
         vencidas_por_toque: { 2: 1, 3: 1, 4: 1, 5: 0 }, fechos_pendentes: 0, enviadas_hoje: 0,
-        teto_por_dia: 15, reserva_de_abertura: 5, limite_hoje: 15, proxima_rodada: 'retomada',
+        teto_por_dia: 15, reserva_de_abertura: 5, limite_hoje: 15, cabe_hoje: true,
       });
-      expect(p.retomadas.primeiros[0]).toEqual({ nome: 'Carla', telefone_final: '03', toque: 4, vencida_ha_dias: 30 });
+      expect(p.retomadas.primeiros[0]).toEqual({ nome: 'Carla', telefone_final: '03', tipo: 'investidor', toque: 4, vencida_ha_dias: 30 });
       expect(p.retomadas.primeiros).toHaveLength(3);
       expect(p.retomadas.textos).toHaveLength(2);
-      expect(p.retomadas.textos[0]).toBe(renderRetomada(4, CARLA, 'Carla Dias', 'R$ 140 mil').texto);
+      expect(p.retomadas.textos[0]).toBe(renderRetomada(4, 'Carla Dias', 'investidor').texto);
       expect(h.zap.frio).toHaveLength(0);
     });
 
-    it('sem retomada na vez, diz o que sairia no lugar', async () => {
+    it('sem retomada vencida, a prévia mostra tudo zerado', async () => {
       const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(p.retomadas.proxima_rodada).toBe('principal');
+      expect(p.retomadas.passaram_nos_cortes).toBe(0);
       expect(p.retomadas.vencidas_por_toque).toEqual({ 2: 0, 3: 0, 4: 0, 5: 0 });
     });
   });
@@ -3228,5 +2959,280 @@ describe('áudio: a Helena entende o que a pessoa falou', () => {
       expect(p).toContain('Cliente: digitado');
       expect(p).not.toContain('ignorada');
     });
+  });
+});
+
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 12/11/2026: a Helena atende todos os clientes de eletroposto
+// ═════════════════════════════════════════════════════════════════════════════
+describe('todos os clientes: a fila e a abertura', () => {
+  it('o lote mudo agendado ENTRA (a marca ep_mudo não exclui), com o dono do card e o card guardado na sessão', async () => {
+    h.banco.ger.agendamentos = [{ id: 601, cliente_telefone: '5534999990002', status: 'agendado', quando: '2026-12-01T15:00:00Z', created_by: 'cadastro_eletroposto', vendedor_nome: 'Diego' }];
+    h.banco.main.system_state!.push({ key: 'ep_mudo:601', value: { quando: '2026-12-01T15:00:00Z' }, updated_at: 'x' });
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0002', fila: 0 });
+    expect(sessaoDe(BRUNO)).toMatchObject({ consultor: 'Diego', card_id: 601, card_antigo: { status: 'agendado', lote: true }, cards_conhecidos: [601] });
+  });
+
+  it('reunião real futura (agendado de outra origem) e card vivo NÃO entram; quem não tem card nenhum também não', async () => {
+    h.banco.ger.agendamentos = [
+      { id: 701, cliente_telefone: '5534999990002', status: 'agendado', quando: '2026-10-20T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Diego' },
+      { id: 702, cliente_telefone: '5534999990001', status: 'em_atendimento', quando: '2026-09-20T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Diego' },
+    ];
+    expect(await abrir()).toMatchObject({ enviados: 0, motivo: 'fila_vazia' });
+    expect(h.zap.frio).toHaveLength(0);
+  });
+
+  it('ordem estrita: investidores primeiro, depois arrendamento, parceiro e curioso; cada pessoa recebe UMA abertura por ciclo', async () => {
+    h.banco.ger.eletroposto_parceria = [
+      { id: 1, nome: 'Ana Lima', telefone: '5534999990001', cidade: 'Uberlândia', lado: 'capital', capital_faixa: 'R$ 140 mil', status: 'novo', created_at: '2026-09-01T12:00:00Z' },
+      { id: 2, nome: 'Bia Dona', telefone: '5534999990002', cidade: 'Catalão', lado: 'ponto', ponto_relacao: 'Sou o proprietário', capital_faixa: null, status: 'novo', created_at: '2026-09-01T12:00:00Z' },
+      { id: 3, nome: 'Caio Instalador', telefone: '5534999990003', cidade: 'Uberaba', lado: 'integrador', capital_faixa: null, status: 'novo', created_at: '2026-09-01T12:00:00Z' },
+      { id: 4, nome: 'Duda Curiosa', telefone: '5534999990004', cidade: 'Araxá', lado: 'capital', capital_faixa: 'Até R$ 20 mil', status: 'novo', created_at: '2026-09-01T12:00:00Z' },
+    ];
+    h.banco.ger.eletroposto_nota1 = [];
+    h.banco.ger.agendamentos = ['01', '02', '03', '04'].map((n, i) => ({ id: 800 + i, cliente_telefone: `55349999900${n}`, status: 'cancelado', quando: '2026-09-10T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Thiago' }));
+    for (let i = 0; i < 6; i++) await abrir(new Date(brt('2026-10-11T08:00').getTime() + i * 20 * 60_000));
+    expect(h.zap.frio.map(e => e.tel)).toEqual(['5534999990001', '5534999990002', '5534999990003', '5534999990004']);
+    expect(new Set(h.zap.frio.map(e => e.tel)).size).toBe(h.zap.frio.length);
+    expect(['investidor', 'arrendamento', 'parceiro', 'curioso']).toEqual(
+      ['3499990001', '3499990002', '3499990003', '3499990004'].map(k => sessaoDe(k).tipo));
+    // O Arrendamento fala de ceder o espaço, e o texto do Curioso não cita valor.
+    expect(h.zap.frio[1]!.partes[0]).toMatch(/local|espaço/);
+    expect(h.zap.frio[3]!.partes[0]).not.toMatch(/R\$/);
+  });
+
+  it('Parceiro sem card de eletroposto vai para a Giovanna (os integradores são dela desde 23/10/2026)', async () => {
+    h.banco.ger.eletroposto_parceria = [{ id: 3, nome: 'Caio Instalador', telefone: '5534999990003', cidade: 'Uberaba', lado: 'integrador', capital_faixa: null, status: 'novo', created_at: '2026-09-01T12:00:00Z' }];
+    h.banco.ger.eletroposto_nota1 = [];
+    h.banco.ger.agendamentos = [{ id: 900, cliente_telefone: '5534999990003', status: 'cancelado', quando: '2026-09-10T15:00:00Z', created_by: 'lead-meta', vendedor_nome: 'Nilce' }];
+    await abrir();
+    expect(sessaoDe(CARLA)).toMatchObject({ tipo: 'parceiro', consultor: 'Giovanna', card_id: null });
+  });
+
+  it('QUARTA FONTE: card só da landing, com tipo_card, entra pelo tipo do card', async () => {
+    h.banco.ger.eletroposto_parceria = []; h.banco.ger.eletroposto_nota1 = [];
+    h.banco.ger.agendamentos = [{ id: 950, cliente_telefone: '5534999990007', cliente_nome: 'Paulo Card', cidade: 'Catalão', observacao: 'Quanto pretende investir: R$ 200 mil', status: 'nao_atendeu', quando: '2026-09-10T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Diego', created_at: '2026-09-01T12:00:00Z' }];
+    h.banco.main.system_state!.push({ key: 'tipo_card:950', value: { tipo: 'cotista' }, updated_at: 'x' });
+    expect(await abrir()).toMatchObject({ enviados: 1, tipo: 'investidor' });
+    expect(h.zap.frio[0]!.partes[0]).toContain('R$ 200 mil');
+    expect(sessaoDe('3499990007')).toMatchObject({ origem: 'card', consultor: 'Diego', card_id: 950 });
+  });
+
+  it('RETORNO: sessão antiga em chamado há mais de 21 dias volta com o texto do toque 4, troca a sessão e recomeça o ciclo', async () => {
+    h.banco.ger.agendamentos = [{ id: 501, cliente_telefone: '5534999990001', status: 'cancelado', quando: '2026-09-10T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Thiago' }];
+    const velho = '2026-09-10T12:00:00.000Z';
+    h.banco.main.system_state!.push(
+      { key: `inv_agente:${ANA}`, value: { estagio: 'chamado', aberto_em: velho, abertura: 0, origem: 'parceria', id: 1, refs: [], telefone: '5534999990001', nome: 'Ana Lima', cidade: null, cadastro_em: null, valor_txt: 'R$ 140 mil', consultor: 'Thiago', oferta: [], ofertas_feitas: 0, agendamento_id: null, motivo: null, dados: {}, resumo: '', erro: null, ate: null, respostas: 0, atualizado_em: velho }, updated_at: velho },
+      { key: `inv_agente_sent:${ANA}:t1`, value: {}, updated_at: velho },
+      { key: `inv_agente_sent:${ANA}:t3`, value: {}, updated_at: '2026-09-15T12:00:00.000Z' },
+    );
+    h.banco.main.whatsapp_suppression = [{ phone: '5534999990001', motivo: 'nunca_respondeu' }];
+    h.filtros.silenciados.add('5534999990001');
+    expect(await abrir()).toMatchObject({ enviados: 1, retorno: true, tipo: 'investidor' });
+    expect(h.zap.frio[0]!.partes[0]).toBe(T.RETOMADAS_POR_VARIANTE[4].capital.replace('{nome}', 'Ana'));
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'chamado', retorno: true, tipo: 'investidor', card_id: 501 });
+    expect(estado(`inv_agente_sent:${ANA}:t3`)).toBeUndefined();
+    expect(estado(`inv_agente_sent:${ANA}:t1`)!.updated_at).not.toBe(velho);
+  });
+
+  it('retorno: a sessão que NÃO volta (humano, sem interesse por outro motivo) continua fora, e quem tem silêncio de verdade também', async () => {
+    h.banco.ger.agendamentos = [{ id: 501, cliente_telefone: '5534999990001', status: 'cancelado', quando: '2026-09-10T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Thiago' }];
+    const velho = '2026-09-10T12:00:00.000Z';
+    h.banco.main.system_state!.push({ key: `inv_agente:${ANA}`, value: { estagio: 'humano', aberto_em: velho, telefone: '5534999990001', atualizado_em: velho }, updated_at: velho });
+    expect(await abrir()).toMatchObject({ enviados: 0, motivo: 'fila_vazia' });
+  });
+
+  it('uma agente da 5040 que já é dona da conversa segura a pessoa: a abertura passa para o próximo', async () => {
+    cortes.cede.add('5534999990002');
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0001' });
+  });
+
+  it('a prévia por tipo, faixa e fonte, e o retorno', async () => {
+    h.banco.ger.agendamentos = [
+      { id: 1, cliente_telefone: '5534999990001', status: 'cancelado', quando: '2026-09-10T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Thiago' },
+      { id: 2, cliente_telefone: '5534999990002', status: 'agendado', quando: '2026-12-10T15:00:00Z', created_by: 'cadastro_eletroposto', vendedor_nome: 'Diego' },
+    ];
+    const p = await previaInvestidorAgente({ agora: LARGADA }) as Record<string, any>;
+    expect(p.fila_por_tipo_e_faixa.investidor).toEqual({ card_parado: 1, lote_mudo: 1 });
+    expect(p.excluidos).toMatchObject({ sem_card: 1 });
+    expect(p.primeiros.map((x: any) => x.faixa)).toEqual(['card_parado', 'lote_mudo']);
+  });
+});
+
+describe('todos os clientes: agendar remarca o MESMO card', () => {
+  const CARD_LOTE = () => ({
+    id: 501, cliente_telefone: '5534999990001', cliente_nome: 'Ana Lima', status: 'agendado', quando: '2026-12-01T15:00:00Z',
+    created_by: 'cadastro_eletroposto', vendedor_nome: 'Thiago', observacao: 'LP ELETROPOSTO · Investidor\nNOTA 3 · 10/11 pts', historico: 'linha antiga',
+    confirmacao_at: 'x', lembrete_3h_at: 'x', lembrete_1h_at: 'x', lembrete_5min_at: 'x', presenca_confirmada_at: 'x', lead_resposta_at: 'x', repassar_em: null,
+  });
+  const ofertou = (over: Partial<SessaoInvestidor> = {}) => {
+    h.banco.ger.agendamentos = [CARD_LOTE()];
+    h.banco.main.system_state!.push({ key: 'ep_mudo:501', value: {}, updated_at: 'x' }, { key: 'ep_cobra_sim:501:c1', value: {}, updated_at: 'x' }, { key: 'tipo_card:501', value: { tipo: 'cotista' }, updated_at: 'x' });
+    sessao(ANA, { estagio: 'ofertou', oferta: OFERTA, ofertas_feitas: 1, card_id: 501, consultor: 'Thiago', cards_conhecidos: [501], dados: { cidade: 'Catalão', ocupacao: 'Dono de posto' }, resumo: 'Quer ver o projeto.', ...over });
+  };
+
+  it('remarca o card, tira da origem do lote, zera os carimbos, escreve no historico e NÃO cria card nem troca o dono', async () => {
+    ofertou();
+    chegou('5534999990001', '2');
+    const r = await responder();
+    expect(r).toMatchObject({ agendadas: 1, erros: 0 });
+    const c = h.banco.ger.agendamentos!.find(x => x.id === 501)!;
+    expect(c).toMatchObject({ quando: OFERTA[1], status: 'agendado', created_by: 'agente_eletroposto', vendedor_nome: 'Thiago' });
+    for (const k of ['confirmacao_at', 'lembrete_3h_at', 'lembrete_1h_at', 'lembrete_5min_at', 'presenca_confirmada_at', 'lead_resposta_at']) expect(c[k], k).toBeNull();
+    expect(c.historico.split('\n')[0]).toMatch(/^\[11\/10 10h00 · Helena\] Reunião marcada pela Helena no WhatsApp: /);
+    expect(c.historico.split('\n')[1]).toContain('Ficha da conversa:');
+    expect(c.historico.endsWith('linha antiga')).toBe(true);
+    // A observação (o trigger lê "NOTA n ·" nela) não é tocada.
+    expect(c.observacao).toBe('LP ELETROPOSTO · Investidor\nNOTA 3 · 10/11 pts');
+    expect(h.banco.ger.agendamentos).toHaveLength(1);
+    expect(h.card.gravados).toHaveLength(0);
+    // O dono não muda (trocar dispara o eletropostoCardPing), e o repasse de 12h fica com o trigger do banco.
+    expect(h.atualizacoes.filter(a => a.tabela === 'agendamentos').every(a => !('vendedor_nome' in a.patch) && !('repassar_em' in a.patch))).toBe(true);
+    // As marcas do ciclo anterior saem; o tipo guardado do card fica.
+    expect(estado('ep_mudo:501')).toBeUndefined();
+    expect(estado('ep_cobra_sim:501:c1')).toBeUndefined();
+    expect(estado('tipo_card:501')!.value.tipo).toBe('cotista');
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', agendamento_id: 501 });
+  });
+
+  it('a ficha ao consultor dono sai UMA vez, com o resumo e os campos preenchidos, e fica na sessão', async () => {
+    ofertou();
+    chegou('5534999990001', '2');
+    await responder();
+    const fichas = h.zap.equipe.filter(e => e.texto.includes('HELENA MARCOU UMA REUNIÃO PARA VOCÊ'));
+    expect(fichas).toHaveLength(1);
+    expect(fichas[0]!.tel).toBe('34991360223');   // Thiago, dono do card
+    expect(fichas[0]!.texto).toContain('Quer ver o projeto.');
+    expect(fichas[0]!.texto).toContain('Cidade: Catalão');
+    expect(fichas[0]!.texto).toContain('O que faz hoje: Dono de posto');
+    expect(fichas[0]!.texto).not.toMatch(/Movimento do local|Padrão de energia/);
+    expect(estado('ficha_helena:501')).toBeDefined();
+    expect(sessaoDe(ANA).ficha_enviada_em).toBeTruthy();
+  });
+
+  it('nunca duas fichas para o mesmo agendamento', async () => {
+    ofertou();
+    h.banco.main.system_state!.push({ key: 'ficha_helena:501', value: {}, updated_at: 'x' });
+    chegou('5534999990001', '2');
+    await responder();
+    expect(h.zap.equipe).toHaveLength(0);
+  });
+
+  it('horário tomado no meio do caminho (23505 do índice): lista nova, e o card segue como estava', async () => {
+    ofertou();
+    h.agenda.livre = false;
+    chegou('5534999990001', '2');
+    await responder();
+    expect(h.banco.ger.agendamentos![0]!.created_by).toBe('cadastro_eletroposto');
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'ofertou' });
+  });
+
+  it('card novo por outra porta (a pessoa marcou pela página, o consultor cadastrou) passa a vez para a agenda: nada sai', async () => {
+    ofertou();
+    h.banco.ger.agendamentos!.push({ id: 777, cliente_telefone: '5534999990001', status: 'agendado', quando: '2026-10-20T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Diego' });
+    chegou('5534999990001', '2');
+    await responder();
+    expect(h.zap.humano).toHaveLength(0);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', motivo: 'card_por_outra_porta', agendamento_id: 777 });
+  });
+
+  it('o card conhecido que o consultor pôs em atendimento também passa a vez', async () => {
+    ofertou();
+    h.banco.ger.agendamentos![0]!.status = 'em_atendimento';
+    chegou('5534999990001', '2');
+    await responder();
+    expect(h.zap.humano).toHaveLength(0);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', motivo: 'card_por_outra_porta' });
+  });
+
+  it('sem card de eletroposto: cria o card como sempre, com o tipo_card do tipo da pessoa', async () => {
+    h.banco.ger.agendamentos = [];
+    sessao(ANA, { estagio: 'ofertou', oferta: OFERTA, ofertas_feitas: 1, tipo: 'arrendamento', card_id: null, valor_txt: '', cards_conhecidos: [] });
+    chegou('5534999990001', '1');
+    await responder();
+    expect(h.card.gravados).toHaveLength(1);
+    expect(h.card.gravados[0]!.created_by).toBe('agente_eletroposto');
+    expect(h.card.gravados[0]!.observacao).toMatch(/^LP ELETROPOSTO · Outro: Arrendamento/);
+    expect(estado('tipo_card:901')!.value.tipo).toBe('arrendamento');
+  });
+
+  it('humano com card: o dono recebe a ficha com o motivo, os outros o recado, um por pessoa e em sequência', async () => {
+    ofertou({ estagio: 'conversando', oferta: [] });
+    chegou('5534999990001', 'Quero falar com uma pessoa');
+    ia('humano', [], {}, 'Pediu uma pessoa.');
+    await responder();
+    expect(h.zap.equipe).toHaveLength(2);
+    expect(h.zap.equipe[0]!.tel).toBe('34991360223');
+    expect(h.zap.equipe[0]!.texto).toContain('HELENA PASSOU UMA CONVERSA PARA VOCÊ');
+    expect(h.zap.equipe[0]!.texto).toContain('*Motivo:*');
+    expect(h.zap.equipe[1]!.tel).toBe('34991360172');
+    expect(h.zap.equipe[1]!.texto).toContain('PASSOU PARA VOCÊ');
+  });
+});
+
+describe('todos os clientes: pedidos pelo banco e alternância', () => {
+  it('inv_agente_previa_pedido grava a prévia em inv_agente_previa, sem nome nem telefone, apaga o pedido e não envia nada', async () => {
+    h.banco.main.system_state!.push({ key: INV_PREVIA_PEDIDO_KEY, value: {}, updated_at: 'x' });
+    await definirChaveDesligar(true);
+    expect(await atenderPedidosDoBanco(LARGADA)).toEqual({ previa: 'gravada' });
+    expect(estado(INV_PREVIA_PEDIDO_KEY)).toBeUndefined();
+    const j = JSON.stringify(estado(INV_PREVIA_KEY)!.value);
+    expect(j).toContain('fila_por_tipo');
+    expect(j).toContain('proximas_aberturas');
+    for (const proibido of ['Bruno', 'Ana', '5534', '0002', 'telefone_final']) expect(j).not.toContain(proibido);
+    expect(h.zap.frio).toHaveLength(0);
+    expect(estado(INV_OFF_KEY)).toBeDefined();   // a prévia roda mesmo desligada, e não liga nada
+  });
+
+  it('inv_agente_ligar_pedido faz o ?ligar=1: apaga inv_agente_off e inv_agente_disjuntor, e o pedido', async () => {
+    h.banco.main.system_state!.push({ key: INV_LIGAR_PEDIDO_KEY, value: {}, updated_at: 'x' }, { key: INV_OFF_KEY, value: { off: true }, updated_at: 'x' }, { key: INV_DISJUNTOR_KEY, value: { erros_seguidos: 2, aberto: true }, updated_at: 'x' });
+    expect(await atenderPedidosDoBanco(LARGADA)).toEqual({ ligar: 'ligada' });
+    expect([INV_LIGAR_PEDIDO_KEY, INV_OFF_KEY, INV_DISJUNTOR_KEY].map(k => estado(k))).toEqual([undefined, undefined, undefined]);
+  });
+
+  it('sem pedido, nada acontece', async () => {
+    expect(await atenderPedidosDoBanco(LARGADA)).toEqual({});
+  });
+
+  it('abertura e retomada se ALTERNAM: quem saiu menos hoje vai primeiro, e a resposta fria gasta o envio frio da rodada', async () => {
+    const t0 = brt('2026-10-15T09:30');
+    const velho = new Date(t0.getTime() - 4 * 86_400_000).toISOString();
+    h.banco.main.system_state!.push(
+      { key: `inv_agente:${CARLA}`, value: { estagio: 'chamado', tipo: 'investidor', aberto_em: velho, abertura: 0, origem: 'parceria', id: 3, refs: [], telefone: '5534999990003', nome: 'Carla Dias', cidade: null, cadastro_em: null, cards_conhecidos: [503], valor_txt: 'R$ 140 mil', consultor: 'Thiago', oferta: [], ofertas_feitas: 0, agendamento_id: null, motivo: null, dados: {}, resumo: '', erro: null, ate: null, respostas: 0, atualizado_em: velho }, updated_at: velho },
+      { key: `inv_agente_sent:${CARLA}:t1`, value: {}, updated_at: velho },
+    );
+    const rodar = (m: number) => { const q = new Date(t0.getTime() + m * 60_000); vi.setSystemTime(q); return rodarInvestidorAgente(); };
+    await rodar(0);
+    await rodar(20);
+    await rodar(40);
+    const ordem = h.zap.frio.map(e => e.tel);
+    // 1ª: retomada da Carla (empate). 2ª: já saiu uma retomada e nenhuma abertura, então abertura (Bruno). 3ª: empate, nada de retomada, abertura (Ana).
+    expect(ordem).toEqual(['5534999990003', '5534999990002', '5534999990001']);
+    expect(h.zap.frio[0]!.partes[0]).toBe(renderRetomada(2, 'Carla Dias', 'investidor').texto);
+  });
+});
+
+describe('todos os clientes: as 9 condições do chefe nas respostas', () => {
+  it('a conversa de descoberta: a IA recebe a ficha completa no schema e o prompt do tipo, e a ficha mescla turno a turno', async () => {
+    sessao(ANA, { tipo: 'arrendamento', valor_txt: '', dados: { cidade: 'Catalão', tipo_local: 'Posto' } });
+    chegou('5534999990001', 'É um posto, sou o dono');
+    ia('continuar', ['Posto, e o espaço é seu.', 'Quantas vagas tem?'], { relacao_local: 'Dono', tipo_local: '' });
+    await responder();
+    expect(h.ia.sistema).toContain('Tipo do cadastro: Arrendamento');
+    expect(h.ia.sistema).toContain('  Tipo de local: Posto');
+    expect(Object.keys(h.ia.params[0]!.output_config.format.schema.properties.dados.properties)).toHaveLength(28);
+    // O campo novo entra, o vazio não apaga o anterior.
+    expect(sessaoDe(ANA).dados).toMatchObject({ cidade: 'Catalão', tipo_local: 'Posto', relacao_local: 'Dono' });
+    expect(h.zap.humano[0]!.partes).toEqual(['Posto, e o espaço é seu.', 'Quantas vagas tem?']);
+  });
+
+  it('a resposta que quebra a trava (rendimento) não sai, também nos tipos novos', async () => {
+    sessao(ANA, { tipo: 'curioso', valor_txt: '' });
+    chegou('5534999990001', 'Quanto rende?');
+    ia('continuar', ['Rende bem.']);
+    await responder();
+    expect(h.zap.humano).toHaveLength(0);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'humano', motivo: 'resposta_barrada' });
   });
 });
