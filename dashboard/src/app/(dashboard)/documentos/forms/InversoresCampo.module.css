@@ -93,8 +93,8 @@
 
 .grade {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-areas: "qtd marca pot gar";
+  grid-template-columns: 88px minmax(0, 1.5fr) minmax(0, 1fr);
+  grid-template-areas: "qtd marca pot";
   gap: 12px;
   align-items: start;
 }
@@ -109,7 +109,6 @@
 .areaQtd { grid-area: qtd; }
 .areaMarca { grid-area: marca; position: relative; }
 .areaPot { grid-area: pot; }
-.areaGar { grid-area: gar; }
 
 .atalhos {
   display: flex;
@@ -287,8 +286,7 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
       "marca marca"
-      "qtd pot"
-      "gar gar";
+      "qtd pot";
   }
 
   .grade :global(.input-field) {

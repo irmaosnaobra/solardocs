@@ -183,7 +183,7 @@ export default function InversoresCampo({ linhas, onChange, marcas, onNovaMarca,
   }
 
   function adicionar() {
-    onChange([...linhas, { qtd: '1', marca: '', potencia: '', garantia: linhas[0]?.garantia || '10' }]);
+    onChange([...linhas, { qtd: '1', marca: '', potencia: '', garantia: linhas[0]?.garantia || '5' }]);
   }
 
   const totalKw = linhas.reduce((a, l) => a + qtdDe(l) * num(l.potencia), 0);
@@ -204,7 +204,6 @@ export default function InversoresCampo({ linhas, onChange, marcas, onNovaMarca,
         const idQ = `${uid}-qtd-${i}`;
         const idM = `${uid}-marca-${i}`;
         const idK = `${uid}-kw-${i}`;
-        const idG = `${uid}-gar-${i}`;
         return (
           <div key={`${rodada}-${i}`} className={styles.cartao}>
             <div className={styles.cartaoTopo}>
@@ -232,10 +231,6 @@ export default function InversoresCampo({ linhas, onChange, marcas, onNovaMarca,
               <div className={`${styles.campo} ${styles.areaPot}`}>
                 <label htmlFor={idK} className={docStyles.label}>Potência (kW) *</label>
                 <input id={idK} type="text" inputMode="decimal" value={l.potencia} onChange={e => setLinha(i, { potencia: e.target.value })} placeholder="Ex: 1,875 ou 5" className="input-field" required />
-              </div>
-              <div className={`${styles.campo} ${styles.areaGar}`}>
-                <label htmlFor={idG} className={docStyles.label}>Garantia (anos)</label>
-                <input id={idG} type="text" inputMode="numeric" value={l.garantia} onChange={e => setLinha(i, { garantia: e.target.value })} placeholder="Ex: 12" className="input-field" />
               </div>
             </div>
 
