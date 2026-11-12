@@ -83,16 +83,16 @@ import { guardarTipoDoCard } from '../agenda/etiquetaCard';
 import { TIPO_CARD_PREFIX } from '../agenda/salaDeEspera';
 import { ehCardSemAvisoAutomatico } from '../agenda/origemEtiqueta';
 import { ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from './eletropostoCard';
-import { INV_SESSAO_PREFIX, sessaoEhDaHelena, type EstagioInvestidor } from './investidorAgentePosse';
+import { INV_SESSAO_PREFIX, sessaoEhDaHelena, type EstagioInvestidor, type PreparoDaSessao } from './investidorAgentePosse';
 import { cedeAAgente } from '../agentes5040/posse';
 import { carregarTelefonesConsultores, telefoneDoConsultor, telefoneDoDono } from '../agentes5040/fichaEnvio';
-import { conferirLinhaParaResposta, registrarBolhas, TEMPOS_DA_RESPOSTA } from './investidorAgenteLinha';
+import { conferirLinhaParaResposta, registrarBolhas, registrarFichaNaLinha, TEMPOS_DA_RESPOSTA } from './investidorAgenteLinha';
 import { remarcarCardDaHelena } from './investidorAgenteCard';
 import {
   antesDoInicio, janelaAberta, janelaDeResposta, tetoDoDia, dataBrasilia, horaBrasiliaTexto, inicioDoDiaBrasiliaIso,
   montarFila, renderAbertura, textoDaAbertura, primeiroNome, tipoDaSessao, textoDaAberturaResgate,
   horariosDaOferta, textoOferta, textoConfirmacao, horarioCurto,
-  textoPassagem, textoDespedida, textoParou, textoAdiado, textoNaoEntendi, escolhaPorNumero, pediuParar, montarObservacao,
+  textoPassagem, textoDespedida, textoParou, textoAdiado, textoEncerramentoPreparo, ehConviteDeHorario, textoNaoEntendi, escolhaPorNumero, pediuParar, montarObservacao,
   montarSistema, montarPedido, lerSaida, juntarDados, violaRegras, valoresLiberados, pedidoDeReescrita, SCHEMA_SAIDA_HELENA,
   type CandidatoInvestidor, type DadosDaConversa, type MsgDaConversa, type RefCadastro, type ResultadoFila, type TipoHelena,
   ehAudioSemTexto, type SaidaHelena, type ContextoHelena, type FonteDoFormulario,
@@ -123,6 +123,8 @@ export const INV_PREVIA_KEY = 'inv_agente_previa';
 export const INV_LIGAR_PEDIDO_KEY = 'inv_agente_ligar_pedido';
 /** A ficha ao consultor: `ficha_helena:<id do card>`, reservada por insert antes do envio (nunca duas por agendamento). */
 export const FICHA_HELENA_PREFIX = 'ficha_helena:';
+/** O marcador do robô de respostas da agenda (eletropostoAgenda.EP_RESPOSTA_PREFIX; cópia aqui para não criar import circular). */
+const EP_RESPOSTA_PREFIXO = 'ep_resposta:';
 /** Trava de chamada sobreposta: uma rodada por balde de 5 minutos (UTC). */
 export const INV_LOCK_PREFIX = 'inv_agente_lock:';
 const BALDE_DO_LOCK_MS = 5 * 60_000;
@@ -213,6 +215,15 @@ export interface SessaoInvestidor {
   cards_conhecidos?: number[];
   /** A ficha ao consultor já saiu para este agendamento. */
   ficha_enviada_em?: string;
+  /** A ficha ao consultor ESPEROU a linha (teto 60/h e 450/24 h, ou 1 por rodada): guarda o horário da reunião (ISO). O fecho dos preparos a manda numa rodada seguinte. */
+  ficha_pendente?: string;
+  /** PREPARO DEPOIS DE MARCAR (12/11/2026): enquanto existe, a sessão `agendado` ainda é da Helena. Ver `atenderPreparo`. */
+  preparo?: PreparoDaSessao;
+  /** Como e quando o preparo acabou. */
+  preparo_fim?: { em: string; motivo: string };
+  /** Registro do CONVITE para a reunião (tela de acompanhamento): quando foi o último e quantos já saíram. */
+  convidou_em?: string;
+  convites?: number;
   telefone: string;
   nome: string | null;
   cidade: string | null;
@@ -694,71 +705,98 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
   if (!tamanhoDaFila) return semEnvio(leitura.resultado.fila.length ? 'grupos_fechados_hoje' : 'fila_vazia', { fila: 0 });
 
   // 7) Posse de agente da 5040 e pausa humana daquele telefone, conferidas de novo na hora de falar. Quem já é
-  //    de outra agente (Duda, Carla, Helena da 5040) ou tem humano na conversa passa a vez ao próximo.
+  //    de outra agente (Duda, Carla, Helena da 5040) ou tem humano na conversa passa a vez ao próximo. O CLAIM
+  //    também entra neste laço: o retorno que perde o claim (o `updated_at` da sessão antiga mudou) passa ao
+  //    próximo candidato da mesma rodada, senão o mesmo ficaria na frente toda rodada (12/11/2026). Mesmo
+  //    assim, o envio é UM por rodada.
   let alvo: CandidatoInvestidor | null = null;
+  let abertura!: ReturnType<typeof renderAbertura>;
+  let consultor = '';
+  let sessao!: SessaoInvestidor;
+  let antigaDoRetorno: SessaoInvestidor | null = null;
   let pulouPorPausa = false;
+  let motivoDoClaim: string | null = null;
   for (const c of abertos.slice(0, CANDIDATOS_OLHADOS)) {
     if (await cedeAAgente(c.telefone)) continue;
     if (!(await podeFalarComLead(c.telefone)).pode) { await registrarBloqueio(c.telefone, LOG); pulouPorPausa = true; continue; }
-    alvo = c;
+
+    // CLAIM: o insert da sessão (ou, no retorno, o update da sessão antiga que ainda é a que foi lida).
+    // 23505 = outra chamada já pegou esta pessoa.
+    const aberturaC = renderAbertura(c.chave, c.nome, c.valorTxt, { tipo: c.tipo, cidade: c.cidade, retorno: c.retorno });
+    const consultorC = await consultorDoCandidato(c, leitura.sessoes.size);
+    const nowIso = new Date().toISOString();
+    const sessaoC: SessaoInvestidor = {
+      estagio: 'chamado', aberto_em: nowIso, abertura: aberturaC.indice,
+      origem: c.origem, id: c.id, refs: c.refs,
+      telefone: c.telefone, nome: c.nome, cidade: c.cidade, cadastro_em: c.criadoEm || null,
+      valor_txt: c.valorTxt, consultor: consultorC,
+      oferta: [], ofertas_feitas: 0, agendamento_id: null, motivo: null,
+      dados: {}, resumo: '', erro: null, ate: null, respostas: 0, atualizado_em: nowIso,
+      tipo: c.tipo, ...(c.retorno ? { retorno: true } : {}),
+      card_id: c.card?.id ?? null,
+      cards_conhecidos: c.cardsConhecidos,
+      card_antigo: c.card ? { status: String(c.card.status), lote: ehCardSemAvisoAutomatico(c.card.origem) } : null,
+      nota: c.nota,
+      ...(c.fatosDoCard.length ? { fatos_do_card: c.fatosDoCard } : {}),
+    };
+    if (c.retorno) {
+      const antiga = leitura.sessoes.get(c.chave);
+      if (!antiga?.atualizado_em) { motivoDoClaim = 'sessao_antiga_sem_carimbo'; continue; }
+      const { data, error: eTroca } = await supabase.from('system_state')
+        .update({ value: sessaoC, updated_at: nowIso })
+        .eq('key', chaveDaSessao(c.chave)).eq('updated_at', antiga.atualizado_em).select('key');
+      if (eTroca) { logger.error(LOG, 'troca da sessão de retorno falhou', eTroca); return semEnvio('erro_claim'); }
+      if (!((data ?? []) as unknown[]).length) { motivoDoClaim = 'ja_reivindicado'; continue; }
+      antigaDoRetorno = antiga;
+    } else {
+      const { error: eClaim } = await supabase.from('system_state')
+        .insert({ key: chaveDaSessao(c.chave), value: sessaoC, updated_at: nowIso });
+      if (eClaim) {
+        if (String((eClaim as { code?: string }).code) === '23505') return semEnvio('ja_reivindicado');
+        logger.error(LOG, 'claim da sessão falhou', eClaim);
+        return semEnvio('erro_claim');
+      }
+    }
+    alvo = c; abertura = aberturaC; consultor = consultorC; sessao = sessaoC;
     break;
   }
-  if (!alvo) return semEnvio(pulouPorPausa ? 'humano_na_conversa' : 'posse_de_agente_5040', { fila: tamanhoDaFila });
+  if (!alvo) return semEnvio(motivoDoClaim ?? (pulouPorPausa ? 'humano_na_conversa' : 'posse_de_agente_5040'), { fila: tamanhoDaFila });
 
-  // CLAIM: o insert da sessão (ou, no retorno, o update da sessão antiga que ainda é a que foi lida).
-  // 23505 = outra chamada já pegou esta pessoa.
-  const abertura = renderAbertura(alvo.chave, alvo.nome, alvo.valorTxt, { tipo: alvo.tipo, cidade: alvo.cidade, retorno: alvo.retorno });
-  const consultor = await consultorDoCandidato(alvo, leitura.sessoes.size);
-  const nowIso = new Date().toISOString();
-  const sessao: SessaoInvestidor = {
-    estagio: 'chamado', aberto_em: nowIso, abertura: abertura.indice,
-    origem: alvo.origem, id: alvo.id, refs: alvo.refs,
-    telefone: alvo.telefone, nome: alvo.nome, cidade: alvo.cidade, cadastro_em: alvo.criadoEm || null,
-    valor_txt: alvo.valorTxt, consultor,
-    oferta: [], ofertas_feitas: 0, agendamento_id: null, motivo: null,
-    dados: {}, resumo: '', erro: null, ate: null, respostas: 0, atualizado_em: nowIso,
-    tipo: alvo.tipo, ...(alvo.retorno ? { retorno: true } : {}),
-    card_id: alvo.card?.id ?? null,
-    cards_conhecidos: alvo.cardsConhecidos,
-    card_antigo: alvo.card ? { status: String(alvo.card.status), lote: ehCardSemAvisoAutomatico(alvo.card.origem) } : null,
-    nota: alvo.nota,
-    ...(alvo.fatosDoCard.length ? { fatos_do_card: alvo.fatosDoCard } : {}),
-  };
-  if (alvo.retorno) {
-    const antiga = leitura.sessoes.get(alvo.chave);
-    if (!antiga?.atualizado_em) return semEnvio('sessao_antiga_sem_carimbo', { fila: tamanhoDaFila });
-    const { data, error: eTroca } = await supabase.from('system_state')
-      .update({ value: sessao, updated_at: nowIso })
-      .eq('key', chaveDaSessao(alvo.chave)).eq('updated_at', antiga.atualizado_em).select('key');
-    if (eTroca) { logger.error(LOG, 'troca da sessão de retorno falhou', eTroca); return semEnvio('erro_claim'); }
-    if (!((data ?? []) as unknown[]).length) return semEnvio('ja_reivindicado');
-    // O ciclo de toques recomeça pela abertura de retorno: os carimbos dos toques 2 a 5 do ciclo antigo saem,
-    // senão a pessoa pareceria já no fim do ciclo e fecharia na hora.
-    await supabase.from('system_state').delete()
-      .in('key', [2, 3, 4, 5].map(n => `${INV_SENT_PREFIX}${alvo.chave}:t${n}`))
-      .then(undefined, (e: unknown) => logger.error(LOG, 'limpar os toques do ciclo antigo falhou', e));
-  } else {
-    const { error: eClaim } = await supabase.from('system_state')
-      .insert({ key: chaveDaSessao(alvo.chave), value: sessao, updated_at: nowIso });
-    if (eClaim) {
-      if (String((eClaim as { code?: string }).code) === '23505') return semEnvio('ja_reivindicado');
-      logger.error(LOG, 'claim da sessão falhou', eClaim);
-      return semEnvio('erro_claim');
-    }
-  }
+  // O ciclo de toques recomeça pela abertura de retorno: os carimbos dos toques 2 a 5 do ciclo antigo saem,
+  // senão a pessoa pareceria já no fim do ciclo e fecharia na hora. Só depois da tentativa de envio (saiu ou
+  // errou), nunca quando a mensagem foi calada: aí a sessão antiga volta como estava.
+  const limparToquesDoCicloAntigo = () => alvo!.retorno
+    ? Promise.resolve(supabase.from('system_state').delete()
+      .in('key', [2, 3, 4, 5].map(n => `${INV_SENT_PREFIX}${alvo!.chave}:t${n}`)))
+      .then(undefined, (e: unknown) => logger.error(LOG, 'limpar os toques do ciclo antigo falhou', e))
+    : Promise.resolve();
 
   // UMA bolha. Erro de envio fica na sessão e o tick PARA: não tenta o próximo.
   const fim4 = alvo.telefone.slice(-4);
   try {
-    await sendFrio(alvo.telefone, [abertura.texto], 'io');
+    const saiu = await sendFrio(alvo.telefone, [abertura.texto], 'io');
+    if (saiu === false) {
+      // A pausa humana calou o envio na hora: NADA saiu. Sem carimbo e sem sessão (a pessoa fica para depois);
+      // no retorno, a sessão antiga volta como estava.
+      logger.warn(LOG, `abertura calada pela trava da linha (final ${fim4}): nada saiu, a pessoa fica para depois`);
+      if (antigaDoRetorno) {
+        await gravarSessao(alvo.chave, antigaDoRetorno).catch(e => logger.error(LOG, 'devolver a sessão antiga do retorno falhou', e));
+      } else {
+        const { error: eDesfazer } = await supabase.from('system_state').delete().eq('key', chaveDaSessao(alvo.chave));
+        if (eDesfazer) logger.error(LOG, 'desfazer o claim da abertura calada falhou', eDesfazer);
+      }
+      return semEnvio('envio_calado_pela_linha', { fila: tamanhoDaFila });
+    }
   } catch (err) {
     const erro = String((err as Error)?.message || err).slice(0, 300);
     logger.error(LOG, `abertura falhou para o final ${fim4}`, err);
+    await limparToquesDoCicloAntigo();
     await gravarSessao(alvo.chave, { ...sessao, erro }).catch(e => logger.error(LOG, 'registrar o erro na sessão falhou', e));
     const erros = disjuntor.erros_seguidos + 1;
     await gravarDisjuntor({ erros_seguidos: erros, aberto: erros >= ERROS_ATE_ABRIR, ultimo_erro: erro });
     return semEnvio('erro_envio', { erro });
   }
+  await limparToquesDoCicloAntigo();
 
   // Envio feito: agora sim o carimbo, uma chave por toque e por telefone.
   const carimbo = { key: `${INV_SENT_PREFIX}${alvo.chave}:t1`, value: { em: new Date().toISOString() }, updated_at: new Date().toISOString() };
@@ -1384,13 +1422,31 @@ interface Contexto {
  */
 export const TETO_DA_BOLHA_FRIA = 900;
 
+/** Soma um erro de envio ao disjuntor (como a abertura faz). Sem conseguir ler, não derruba o chamador. */
+async function contarErroDeEnvio(err: unknown): Promise<void> {
+  try {
+    const erro = String((err as Error)?.message || err).slice(0, 300);
+    const erros = (await lerDisjuntor()).erros_seguidos + 1;
+    await gravarDisjuntor({ erros_seguidos: erros, aberto: erros >= ERROS_ATE_ABRIR, ultimo_erro: erro });
+  } catch (e) {
+    logger.error(LOG, 'contar o erro de envio frio no disjuntor falhou', e);
+  }
+}
+
 async function falarComOCliente(
   s: SessaoInvestidor, ctx: Contexto, bolhas: readonly string[], opts: { maxBolhas?: number; max?: number } = {},
 ): Promise<void> {
   try {
     if (ctx.frio) {
       const texto = bolhas.map(b => String(b).trim()).filter(Boolean).join(' ').slice(0, TETO_DA_BOLHA_FRIA);
-      const saiu = await sendFrio(s.telefone, [texto], 'io');
+      let saiu: boolean;
+      try {
+        saiu = await sendFrio(s.telefone, [texto], 'io');
+      } catch (err) {
+        // Erro de envio no frio conta no MESMO disjuntor da abertura (2 seguidos param tudo).
+        await contarErroDeEnvio(err);
+        throw err;
+      }
       if (saiu === false) throw new Error('o envio frio foi calado pela trava da linha');
       const em = new Date().toISOString();
       const { error } = await supabase.from('system_state')
@@ -1427,8 +1483,20 @@ async function passarParaHumano(
 }
 
 /** Manda a lista de horários. `excluir` tira os que a pessoa já recusou. */
+/**
+ * UMA bolha curta do modelo que pode sair ANTES do texto fixo (`oferecer_horarios` e `sem_interesse`): responde a pergunta
+ * que veio junto. Passa pelo `violaRegras`; barrada, vazia ou longa demais, sai só o texto fixo. Das bolhas do modelo,
+ * vale a primeira (a resposta é uma só).
+ */
+export const BOLHA_ANTES_DO_FIXO_MAX = 300;
+export function bolhaAntesDoTextoFixo(bolhas: readonly string[], valoresDaPessoa: readonly number[] = []): string | null {
+  const b = String(bolhas.find(x => String(x ?? '').trim()) ?? '').trim();
+  if (!b || b.length > BOLHA_ANTES_DO_FIXO_MAX) return null;
+  return violaRegras([b], valoresDaPessoa) ? null : b;
+}
+
 async function oferecerHorarios(
-  s: SessaoInvestidor, ctx: Contexto, opts: { foiOcupado?: boolean } = {},
+  s: SessaoInvestidor, ctx: Contexto, opts: { foiOcupado?: boolean; bolhaDoModelo?: string | null } = {},
 ): Promise<void> {
   if ((s.ofertas_feitas ?? 0) >= MAX_OFERTAS) {
     await passarParaHumano(s, ctx, 'muitas_ofertas', 'NENHUM HORÁRIO SERVIU', { falarComOCliente: true });
@@ -1448,8 +1516,12 @@ async function oferecerHorarios(
   };
   await gravarSessao(ctx.chave, nova);
   try {
-    // UMA bolha, com as 4 linhas numeradas inteiras (o teto de 900 não corta).
-    await falarComOCliente(s, ctx, [textoOferta(ctx.chave, horarios, opts)], { maxBolhas: 1, max: 900 });
+    // A lista é UMA bolha, com as 4 linhas numeradas inteiras (o teto de 900 não corta). Com a bolha do modelo antes
+    // (responde a pergunta que veio junto do aceite) são no máximo 2 mensagens. Na resposta atrasada (frio, 1 mensagem
+    // só, que cortaria a lista) a bolha do modelo não vai.
+    const antes = ctx.frio ? null : (opts.bolhaDoModelo ?? null);
+    const lista = textoOferta(ctx.chave, horarios, { foiOcupado: opts.foiOcupado });
+    await falarComOCliente(s, ctx, antes ? [antes, lista] : [lista], { maxBolhas: antes ? 2 : 1, max: 900 });
     ctx.res.respondidas++;
   } catch (e) {
     ctx.res.erros++;
@@ -1483,6 +1555,8 @@ async function enviarFichaAoConsultor(s: SessaoInvestidor, cardId: number, iso: 
   }).slice(0, TETO_DA_FICHA);
   try {
     await sendWhatsApp(await celularDoConsultor(s.consultor), texto, 'io');
+    // Entra na conta da linha como o `ficha_lead:` das agentes da 5040 (PREFIXOS_RESPOSTA_AGENTES): o teto de emergência a enxerga.
+    await registrarFichaNaLinha(cardId);
     return true;
   } catch (e) {
     logger.error(LOG, `a ficha do card ${cardId} não saiu`, { erro: String(e).slice(0, 200) });
@@ -1563,26 +1637,303 @@ async function agendar(s: SessaoInvestidor, ctx: Contexto, iso: string): Promise
     await guardarTipoDoCard(gravado.id, tipoDoCard, 'helena');
     cardId = gravado.id;
   }
-  await gravarSessao(ctx.chave, {
+  const confirmacao = textoConfirmacao(ctx.chave, iso, s.consultor);
+  const agoraMs = Date.now();
+  const nowIso = new Date(agoraMs).toISOString();
+  const base: SessaoInvestidor = {
     ...s, estagio: 'agendado', agendamento_id: cardId, motivo: null, oferta: [], ate: ctx.ultima,
     respostas: (s.respostas ?? 0) + 1,
-  });
+  };
+  // PREPARO DEPOIS DE MARCAR: a confirmação termina com a primeira pergunta de preparo (o modelo escreve, com a seção
+  // DEPOIS DE MARCAR). Modelo falhou ou foi barrado, ou a reunião está perto demais: a confirmação sai sem pergunta e a
+  // ficha ao consultor sai na hora, como antes.
+  const ate = cardId ? limiteDoPreparo(iso, agoraMs) : null;
+  const primeira = ate ? await primeiraPerguntaDePreparo(base, ctx, iso, confirmacao) : null;
+  const sessaoFinal: SessaoInvestidor = primeira && ate
+    ? { ...base, dados: juntarDados(base.dados, primeira.dados), resumo: primeira.resumo || base.resumo,
+        preparo: { inicio_em: nowIso, reuniao_em: iso, ate_em: ate, perguntas: 1, pergunta_em: nowIso } }
+    : base;
+  await gravarSessao(ctx.chave, sessaoFinal);
   await marcarCadastro(s, 'conectado');
   ctx.res.agendadas++;
-  logger.info(LOG, `reunião marcada (card ${cardId}${s.card_id ? ', remarcado' : ', novo'}, ${s.consultor}, ${horarioCurto(iso)})`);
+  logger.info(LOG, `reunião marcada (card ${cardId}${s.card_id ? ', remarcado' : ', novo'}, ${s.consultor}, ${horarioCurto(iso)}${primeira ? ', com preparo' : ''})`);
+  let saiu = false;
   try {
-    await falarComOCliente(s, ctx, [textoConfirmacao(ctx.chave, iso, s.consultor)]);
+    await falarComOCliente(s, ctx, primeira ? [confirmacao, primeira.pergunta] : [confirmacao]);
     ctx.res.respondidas++;
+    saiu = true;
   } catch (e) {
     ctx.res.erros++;
     logger.error(LOG, 'a confirmação não saiu (o card está gravado)', { card: cardId, erro: String(e) });
   }
-  // A ficha ao consultor dono, uma só, depois da confirmação ao cliente.
-  if (cardId && (await enviarFichaAoConsultor(s, cardId, iso))) {
-    await gravarSessao(ctx.chave, { ...s, estagio: 'agendado', agendamento_id: cardId, motivo: null, oferta: [], ate: ctx.ultima,
-      respostas: (s.respostas ?? 0) + 1, ficha_enviada_em: new Date().toISOString() })
-      .catch(e => logger.error(LOG, 'anotar a ficha enviada na sessão falhou', e));
+  // Com preparo em andamento a ficha espera o fim dele. Sem preparo (ou se a mensagem não saiu), sai agora.
+  if (primeira && saiu) return;
+  const semBloco = primeira ? await fecharPreparoNaSessao(sessaoFinal, ctx.chave, 'envio_falhou') : sessaoFinal;
+  if (cardId) await enviarFichaDoPreparo(semBloco, ctx.chave, iso);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PREPARO DEPOIS DE MARCAR (12/11/2026, rodada 2 da avaliação)
+//
+// Reunião marcada e confirmação enviada: a Helena ainda faz até 2 perguntas de preparo para o consultor (a primeira
+// vai no fim da confirmação). A sessão fica `agendado` com `preparo` (ver investidorAgentePosse.ts): enquanto ele vale,
+// a conversa é dela. A resposta da pessoa segue as mesmas regras de envio de qualquer resposta (até 15 min, 7h às 20h,
+// registro `inv_agente_env:`, tetos 60/h e 450/24h; atrasada vira frio de 1 bolha), porque passa pelo mesmo laço.
+//
+// ACABA: na 2ª resposta dela (agradecimento), quando o modelo agradece em vez de perguntar, 30 min depois da última
+// pergunta sem resposta, 24h depois de marcar, 3h antes da reunião. Acaba CALADO (sem mensagem e SEM ficha) quando o card
+// muda (remarcado, cancelado, status de negócio) ou entra humano. A ficha ao consultor sai UMA vez, no fim do preparo
+// (a reserva `ficha_helena:<card>` garante "nunca duas"); reunião a menos de 3h nem começa preparo, e a ficha sai na hora.
+// ═════════════════════════════════════════════════════════════════════════════
+
+const PREPARO_DURA_MS = 24 * 3600_000;
+const PREPARO_FIM_ANTES_DA_REUNIAO_MS = 3 * 3600_000;
+const PREPARO_DURACAO_MINIMA_MS = 30 * 60_000;
+const PREPARO_SEM_RESPOSTA_MS = 30 * 60_000;
+export const PREPARO_MAX_PERGUNTAS = 2;
+
+/** Até quando o preparo vale (ISO), ou `null` quando não compensa começar (reunião perto demais). */
+export function limiteDoPreparo(iso: string, agoraMs: number): string | null {
+  const reuniao = Date.parse(iso);
+  if (!Number.isFinite(reuniao)) return null;
+  const ate = Math.min(agoraMs + PREPARO_DURA_MS, reuniao - PREPARO_FIM_ANTES_DA_REUNIAO_MS);
+  return ate - agoraMs >= PREPARO_DURACAO_MINIMA_MS ? new Date(ate).toISOString() : null;
+}
+
+const terminaEmPergunta = (b: string): boolean => /\?\s*$/.test(b.trim());
+
+/** Chama o modelo no modo preparo (a mesma trava de conteúdo e uma reescrita, como em toda resposta). */
+async function pensarNoPreparo(
+  s: SessaoInvestidor, historico: readonly MsgDaConversa[], novas: readonly MsgDaConversa[], preparo: NonNullable<ContextoHelena['preparo']>,
+): Promise<{ saida: SaidaHelena; violacao: string | null }> {
+  const ctxH: ContextoHelena = {
+    nome: s.nome, valorTxt: s.valor_txt, cidade: s.cidade, consultor: s.consultor,
+    tipo: tipoDaSessao(s.tipo), retorno: !!s.retorno, cardAntigo: s.card_antigo ?? null, nota: s.nota ?? null,
+    cadastroEm: s.cadastro_em, fatosDoCard: s.fatos_do_card,
+    oferta: [], dados: s.dados ?? {}, formulario: await lerFormulario(s), agora: new Date(), preparo,
+  };
+  const p = await pensar(montarSistema(ctxH), montarPedido(historico, novas), valoresLiberados(ctxH, historico, novas));
+  return { saida: p.saida, violacao: p.violacao };
+}
+
+/** A primeira pergunta de preparo (a que termina a confirmação), ou `null` se o modelo falhou, foi barrado ou não perguntou. */
+async function primeiraPerguntaDePreparo(
+  s: SessaoInvestidor, ctx: Contexto, iso: string, confirmacao: string,
+): Promise<{ pergunta: string; dados: DadosDaConversa; resumo: string } | null> {
+  try {
+    const { saida, violacao } = await pensarNoPreparo(s, ctx.historico, ctx.novas, { feitas: 0, quando: iso, encerrar: false, confirmacao });
+    if (!saida.valido || violacao || saida.acao !== 'continuar') return null;
+    const pergunta = saida.bolhas[saida.bolhas.length - 1];
+    // Pergunta de verdade, e nunca sobre outro horário (o horário já está marcado).
+    if (!pergunta || !terminaEmPergunta(pergunta) || /\bhor[aá]rios?\b/i.test(pergunta)) return null;
+    return { pergunta, dados: saida.dados, resumo: saida.resumo };
+  } catch (err) {
+    logger.error(LOG, 'a pergunta de preparo falhou: a confirmação sai sem ela', err);
+    return null;
   }
+}
+
+/** A sessão sem o bloco de preparo, com o motivo do fim. Sessão que não tem preparo volta como está. */
+function semPreparo(s: SessaoInvestidor, motivo: string): SessaoInvestidor {
+  if (!s.preparo) return s;
+  const { preparo: _fim, ...resto } = s;
+  return { ...resto, preparo_fim: { em: new Date().toISOString(), motivo } };
+}
+
+/** Estado primeiro: grava o fim do preparo. Devolve a sessão como ficou. */
+async function fecharPreparoNaSessao(s: SessaoInvestidor, chave: string, motivo: string, extra: Partial<SessaoInvestidor> = {}): Promise<SessaoInvestidor> {
+  const nova = { ...semPreparo(s, motivo), ...extra };
+  await gravarSessao(chave, nova);
+  return nova;
+}
+
+/**
+ * A ficha ao consultor, UMA só por agendamento (a reserva `ficha_helena:<card>` e `ficha_enviada_em`). ANTES de enviar
+ * confere os tetos de emergência da linha (60/h e 450/24 h, a mesma conta das respostas): linha cheia ou ilegível não
+ * manda, e a ficha fica PENDENTE na sessão (`ficha_pendente`) para uma rodada seguinte do fecho dos preparos.
+ * Devolve 'enviada', 'adiada' (esperou a linha) ou 'nada' (já tinha saído, falhou ou não há card).
+ */
+async function enviarFichaDoPreparo(s: SessaoInvestidor, chave: string, iso: string): Promise<'enviada' | 'adiada' | 'nada'> {
+  if (!s.agendamento_id || s.ficha_enviada_em) return 'nada';
+  const linha = await conferirLinhaParaResposta(chave);
+  if (!linha.ok) {
+    logger.warn(LOG, `a ficha do card ${s.agendamento_id} espera a linha (${linha.motivo}): fica para uma rodada seguinte`);
+    await gravarSessao(chave, { ...s, ficha_pendente: iso })
+      .catch(e => logger.error(LOG, 'anotar a ficha pendente na sessão falhou', e));
+    return 'adiada';
+  }
+  if (await enviarFichaAoConsultor(s, s.agendamento_id, iso)) {
+    const { ficha_pendente: _p, ...resto } = s;
+    await gravarSessao(chave, { ...resto, ficha_enviada_em: new Date().toISOString() })
+      .catch(e => logger.error(LOG, 'anotar a ficha enviada na sessão falhou', e));
+    return 'enviada';
+  }
+  return 'nada';
+}
+
+/**
+ * Antes de a Helena PASSAR a conversa do preparo para o consultor, avisa o robô de respostas da agenda de que esta
+ * leva já foi lida: o marcador `ep_resposta:<card>` (a mesma chave dele, `ate` = a última mensagem lida) faz o robô
+ * da agenda ignorar tudo até ali. Sem isso, a sessão em `humano` deixa de ser da Helena e o robô da agenda
+ * (o card tem origem `agente_eletroposto`) respondia a MESMA mensagem logo depois. Devolve `false` se não gravou.
+ */
+async function marcarLevaLidaParaAAgenda(cardId: number, ate: string): Promise<boolean> {
+  const em = new Date().toISOString();
+  try {
+    const { error } = await supabase.from('system_state')
+      .upsert({ key: `${EP_RESPOSTA_PREFIXO}${cardId}`, value: { ate, avisado_em: em, por: 'helena' }, updated_at: em }, { onConflict: 'key' });
+    if (error) throw new Error(error.message);
+    return true;
+  } catch (e) {
+    logger.error(LOG, `marcar a leva como lida para a agenda falhou (card ${cardId}): a passagem sai sem mensagem para a pessoa`, e);
+    return false;
+  }
+}
+
+/** Grava `lead_resposta_at` no card (a hora da última mensagem da pessoa). Erro só vai para o log: a próxima leitura repete. */
+async function gravarRespostaNoCard(cardId: number, momment: string): Promise<void> {
+  const quando = Number.isFinite(Date.parse(momment)) ? new Date(momment).toISOString() : new Date().toISOString();
+  try {
+    const { error } = await supabaseGerador.from('agendamentos').update({ lead_resposta_at: quando }).eq('id', cardId);
+    if (error) throw new Error(error.message);
+  } catch (e) {
+    logger.error(LOG, `gravar lead_resposta_at no card ${cardId} falhou`, e);
+  }
+}
+
+/** A pessoa respondeu no preparo: uma pergunta a mais, ou o agradecimento que encerra. Nunca mais de 2 perguntas. */
+async function atenderPreparo(s: SessaoInvestidor, ctx: Contexto, desligada: boolean): Promise<void> {
+  const p = s.preparo!;
+  const textos = ctx.novas.map(m => String(m.texto || '').trim()).filter(Boolean);
+  const terminar = async (motivo: string, extra: Partial<SessaoInvestidor> = {}): Promise<void> => {
+    const nova = await fecharPreparoNaSessao(s, ctx.chave, motivo, { ate: ctx.ultima, ...extra });
+    await enviarFichaDoPreparo(nova, ctx.chave, p.reuniao_em);
+  };
+  // Mensagem velha demais com a política `consultor`, ou agente desligada: o preparo acaba calado, e a ficha sai.
+  if (Date.now() - Date.parse(ctx.ultima) > RESPOSTA_VIVA_MS && !ctx.frio) { await terminar('resposta_atrasada'); return; }
+  if (desligada) { await terminar('agente_desligada'); return; }
+  // Pedido de parar: grava o opt-out e encerra calado.
+  if (pediuParar(textos)) { await parar(semPreparo(s, 'pediu_parar'), ctx, { semMensagem: true }); return; }
+  if (ctx.novas.some(m => ehAudioSemTexto(m))) ctx.novas = await comTranscricoes(ctx.novas);
+
+  const encerrar = p.perguntas >= PREPARO_MAX_PERGUNTAS;
+  const { saida, violacao } = await pensarNoPreparo(s, ctx.historico, ctx.novas, { feitas: p.perguntas, quando: p.reuniao_em, encerrar });
+  if (!saida.valido || violacao) {
+    if (!saida.valido) ctx.res.erros++;
+    await terminar(saida.valido ? 'resposta_barrada' : 'ia_falhou');
+    return;
+  }
+  const s2: SessaoInvestidor = { ...s, dados: juntarDados(s.dados, saida.dados), resumo: saida.resumo || s.resumo, respostas: (s.respostas ?? 0) + 1 };
+  if (saida.acao === 'humano' || saida.acao === 'agendar' || saida.acao === 'oferecer_horarios') {
+    // Só UM responde esta mensagem: a Helena (passagem + aviso à equipe). O robô da agenda a pula pelo marcador;
+    // se o marcador não gravou, a Helena fica calada para a pessoa (o aviso à equipe sai) e a agenda responde.
+    const agendaPula = s.agendamento_id ? await marcarLevaLidaParaAAgenda(s.agendamento_id, ctx.ultima) : true;
+    await passarParaHumano(semPreparo(s2, 'pediu_humano'), ctx, 'pediu_humano', 'QUER FALAR COM VOCÊ', { falarComOCliente: agendaPula });
+    return;
+  }
+  if (saida.acao === 'parar') { await parar(semPreparo(s2, 'pediu_parar'), ctx, { semMensagem: true }); return; }
+  if (saida.acao !== 'continuar' || !saida.bolhas.length) {
+    // adiar, sem_interesse ou nada a dizer: o preparo acaba calado e a ficha sai.
+    const nova = await fecharPreparoNaSessao(s2, ctx.chave, saida.acao === 'continuar' ? 'sem_o_que_dizer' : saida.acao, { ate: ctx.ultima });
+    await enviarFichaDoPreparo(nova, ctx.chave, p.reuniao_em);
+    return;
+  }
+  const ultimaBolha = saida.bolhas[saida.bolhas.length - 1]!;
+  const eraPergunta = terminaEmPergunta(ultimaBolha) && !/\bhor[aá]rios?\b/i.test(ultimaBolha);
+  if (!encerrar && eraPergunta) {
+    await gravarSessao(ctx.chave, { ...s2, ate: ctx.ultima, preparo: { ...p, perguntas: p.perguntas + 1, pergunta_em: new Date().toISOString() } });
+    try {
+      await falarComOCliente(s2, ctx, [ultimaBolha]);
+      ctx.res.respondidas++;
+    } catch (e) {
+      ctx.res.erros++;
+      logger.error(LOG, 'a pergunta de preparo não saiu', { erro: String(e) });
+    }
+    return;
+  }
+  // Fim do preparo: agradecimento. O modelo que insistiu em perguntar depois da 2ª pergunta leva o texto fixo.
+  const texto = eraPergunta ? textoEncerramentoPreparo(ctx.chave, primeiroNomeDoConsultor(s.consultor), p.reuniao_em) : ultimaBolha;
+  const nova = await fecharPreparoNaSessao(s2, ctx.chave, 'concluido', { ate: ctx.ultima });
+  try {
+    await falarComOCliente(s, ctx, [texto]);
+    ctx.res.respondidas++;
+  } catch (e) {
+    ctx.res.erros++;
+    logger.error(LOG, 'o agradecimento do preparo não saiu', { erro: String(e) });
+  }
+  await enviarFichaDoPreparo(nova, ctx.chave, p.reuniao_em);
+}
+
+/**
+ * O fecho dos preparos por tempo e por mudança do mundo, a cada rodada: 24h/3h (`ate_em`), 30 min sem resposta (só se ela
+ * não escreveu nada que a rodada de respostas ainda não leu), card mudado ou humano na conversa (calado, sem ficha).
+ * Nunca envia mensagem à pessoa. Erro de leitura deixa o preparo para a próxima rodada.
+ */
+export async function fecharPreparos(agora: number = Date.now()): Promise<{ fechados: number; fichas: number; erros: number; motivo?: string }> {
+  let sessoes: Map<string, SessaoInvestidor>;
+  try {
+    sessoes = await lerSessoes();
+  } catch (err) {
+    logger.error(LOG, 'fecho dos preparos: ler as sessões falhou', err);
+    return { fechados: 0, fichas: 0, erros: 1, motivo: 'erro_sessoes' };
+  }
+  const vivos = [...sessoes.entries()].filter(([, s]) => s.estagio === 'agendado' && !!s.preparo && !!s.telefone).slice(0, 20);
+  let fechados = 0, fichas = 0, erros = 0;
+  // No máximo UMA ficha ao consultor por rodada (a linha não leva 20 mensagens coladas). As que não couberem ficam
+  // `ficha_pendente` na sessão e saem, uma por rodada, na ordem.
+  let fichaNestaRodada = false;
+  for (const [chave, s] of vivos) {
+    try {
+      const p = s.preparo!;
+      let motivo: string | null = null;
+      let ficha = true;
+      // O mundo mudou? Card remarcado, cancelado ou com status de negócio, ou humano na conversa: acaba calado, sem ficha.
+      const { data, error } = await supabaseGerador.from('agendamentos').select('id, status, quando').eq('id', s.agendamento_id ?? -1).maybeSingle();
+      if (error) throw new Error(`ler o card do preparo: ${error.message}`);
+      const card = data as { status: string | null; quando: string | null } | null;
+      if (!card || String(card.status ?? '').trim().toLowerCase() !== 'agendado' || Date.parse(String(card.quando ?? '')) !== Date.parse(p.reuniao_em)) {
+        motivo = 'card_mudou'; ficha = false;
+      } else if (!(await podeFalarComLead(s.telefone)).pode) {
+        motivo = 'humano_na_conversa'; ficha = false;
+      } else if (agora >= Date.parse(p.ate_em)) {
+        motivo = 'tempo';
+      } else if (agora - Date.parse(p.pergunta_em) >= PREPARO_SEM_RESPOSTA_MS && !(await escreveuDepoisDe(s.telefone, p.pergunta_em))) {
+        motivo = 'sem_resposta';
+      }
+      if (!motivo) continue;
+      const nova = await fecharPreparoNaSessao(s, chave, motivo);
+      fechados++;
+      if (ficha && !nova.ficha_enviada_em) {
+        if (fichaNestaRodada) {
+          await gravarSessao(chave, { ...nova, ficha_pendente: p.reuniao_em });
+        } else {
+          const r = await enviarFichaDoPreparo(nova, chave, p.reuniao_em);
+          if (r !== 'nada') fichaNestaRodada = true;
+          if (r === 'enviada') fichas++;
+        }
+      }
+    } catch (err) {
+      erros++;
+      logger.error(LOG, `fecho do preparo falhou (final ${s.telefone.slice(-2)})`, err);
+    }
+  }
+  // A fila das fichas que esperaram: a mais antiga primeiro, só se esta rodada ainda não mandou nenhuma.
+  if (!fichaNestaRodada) {
+    const pendentes = [...sessoes.entries()]
+      .filter(([, s]) => s.estagio === 'agendado' && !s.preparo && !!s.ficha_pendente && !s.ficha_enviada_em && !!s.agendamento_id && !!s.telefone)
+      .sort((a, b) => String(a[1].atualizado_em ?? '').localeCompare(String(b[1].atualizado_em ?? '')));
+    const primeira = pendentes[0];
+    if (primeira) {
+      try {
+        if (await enviarFichaDoPreparo(primeira[1], primeira[0], primeira[1].ficha_pendente!) === 'enviada') fichas++;
+      } catch (err) {
+        erros++;
+        logger.error(LOG, `ficha pendente falhou (final ${primeira[1].telefone.slice(-2)})`, err);
+      }
+    }
+  }
+  if (fechados) logger.info(LOG, `${fechados} preparo(s) encerrado(s), ${fichas} ficha(s) ao consultor`);
+  return { fechados, fichas, erros };
 }
 
 /** Uma conversa, com a vez já reivindicada. */
@@ -1592,6 +1943,8 @@ async function atender(
   opts: { recuperacao?: boolean } = {},
 ): Promise<void> {
   let s = s0;
+  // Reunião marcada com o preparo em andamento: conversa própria (ver atenderPreparo).
+  if (s.estagio === 'agendado' && s.preparo) { await atenderPreparo(s, ctx, desligada); return; }
   const textos = ctx.novas.map(m => String(m.texto || '').trim()).filter(Boolean);
 
   // Primeira resposta da pessoa: o cadastro passa para "falando".
@@ -1757,7 +2110,13 @@ async function atender(
 
   if (saida.acao === 'continuar') {
     // Estado primeiro. Sem bolha (só "ok", "obrigado") ela não responde.
-    await gravarSessao(ctx.chave, { ...s, ate: ctx.ultima, respostas: (s.respostas ?? 0) + (saida.bolhas.length ? 1 : 0) });
+    // Registro do convite (tela de acompanhamento): o modelo marca `convite: true` e o código confere que a bolha
+    // pergunta pelos horários. Na dúvida, não marca.
+    const convidou = ehConviteDeHorario(saida, saida.bolhas);
+    await gravarSessao(ctx.chave, {
+      ...s, ate: ctx.ultima, respostas: (s.respostas ?? 0) + (saida.bolhas.length ? 1 : 0),
+      ...(convidou ? { convidou_em: new Date().toISOString(), convites: (s.convites ?? 0) + 1 } : {}),
+    });
     if (!saida.bolhas.length) return;
     try {
       await falarComOCliente(s, ctx, saida.bolhas);
@@ -1770,9 +2129,10 @@ async function atender(
   }
 
   // Nas quatro ações abaixo sai o texto fixo do redator. As bolhas do modelo são
-  // ignoradas, para não sair mensagem dobrada.
+  // ignoradas, para não sair mensagem dobrada, exceto UMA bolha curta antes da lista de horários e antes da despedida
+  // (bolhaAntesDoTextoFixo).
   if (saida.acao === 'oferecer_horarios') {
-    await oferecerHorarios(s, ctx);
+    await oferecerHorarios(s, ctx, { bolhaDoModelo: bolhaAntesDoTextoFixo(saida.bolhas, valoresDaPessoa) });
     return;
   }
   if (saida.acao === 'humano') {
@@ -1808,7 +2168,9 @@ async function atender(
     await gravarSessao(ctx.chave, { ...s, estagio: 'sem_interesse', motivo: 'disse_nao', ate: ctx.ultima });
     await marcarCadastro(s, 'sem_interesse');
     try {
-      await falarComOCliente(s, ctx, [textoDespedida(ctx.chave)]);
+      // Uma bolha curta do modelo antes da despedida fixa (ex.: a resposta a quem só queria carregar o carro).
+      const antes = bolhaAntesDoTextoFixo(saida.bolhas, valoresDaPessoa);
+      await falarComOCliente(s, ctx, antes ? [antes, textoDespedida(ctx.chave)] : [textoDespedida(ctx.chave)]);
       ctx.res.respondidas++;
     } catch (e) {
       ctx.res.erros++;
@@ -1856,10 +2218,12 @@ export type DestinoDaAtrasada = 'frio' | 'consultor';
 export const destinoDaRespostaAtrasada = (): DestinoDaAtrasada =>
   (process.env.INVESTIDOR_RESPOSTA_ATRASADA || '').trim().toLowerCase() === 'consultor' ? 'consultor' : 'frio';
 
-/** O portão do frio para a resposta atrasada: a janela da linha (segunda a sábado, 9h às 19h59), o teto do frio e o espaço. */
+/** O portão do frio para a resposta atrasada: o disjuntor de erros de envio, a janela da linha (segunda a sábado,
+ *  9h às 19h59), o teto do frio e o espaço. Disjuntor aberto, ou que não dá para ler, fecha: a leva espera. */
 async function portaoDoFrio(agora: Date): Promise<boolean> {
   if (!janelaAberta(agora)) return false;
   try {
+    if ((await lerDisjuntor()).aberto) return false;
     return (await dentroDoTetoHorarioLinha({ robo: 'investidor_agente_abertura' })) && (await respeitaEspacamentoLinha());
   } catch (err) {
     logger.error(LOG, 'portão do frio da resposta atrasada falhou: a leva espera a próxima rodada', err);
@@ -1963,6 +2327,12 @@ export async function runInvestidorRespostasTick(): Promise<ResultadoRespostas> 
     // a janela: grava o opt-out na hora e nada sai depois (de noite, ou quando a mensagem já passou de 15 min).
     const velha = agora - Date.parse(ultima) > RESPOSTA_VIVA_MS;
     const quieta = pediuParar(novas.map(m => String(m.texto || '').trim()).filter(Boolean)) && (!dentroDaJanelaDeResposta || velha);
+    // PREPARO: enquanto vale, a sessão é da Helena e o robô de respostas da agenda PULA a pessoa, então ninguém grava
+    // `lead_resposta_at` no card. Sem ele, a régua do SIM cancela o horário de quem respondeu (marcou 19h50, respondeu
+    // 20h05, às 8h ela conta 12h de silêncio). Grava aqui, ANTES da janela, porque a resposta fora das 7h às 20h não passa.
+    if (s.estagio === 'agendado' && s.preparo && s.agendamento_id && novas.length) {
+      await gravarRespostaNoCard(s.agendamento_id, novas[novas.length - 1]!.momment);
+    }
     if (!dentroDaJanelaDeResposta && !quieta) continue;
     const frio = velha && !quieta && destinoAtrasada === 'frio';
     const ctx: Contexto = { chave, novas, ultima, res, historico: [], ...(frio ? { frio: true } : {}) };
@@ -2044,13 +2414,13 @@ export async function runInvestidorRespostasTick(): Promise<ResultadoRespostas> 
       if (!pausa.pode) {
         // Humano entrou na conversa: a agente cala e a sessão vira `humano`.
         await registrarBloqueio(s.telefone, LOG);
-        await gravarSessao(chave, { ...s, estagio: 'humano', motivo: 'humano_entrou', ate: ultima });
+        await gravarSessao(chave, { ...semPreparo(s, 'humano_entrou'), estagio: 'humano', motivo: 'humano_entrou', ate: ultima });
         continue;
       }
       if (card !== null) {
         // Ganhou card por outra porta (marcou pela página, o consultor cadastrou):
         // daqui em diante quem responde é a régua da agenda, não a Helena.
-        await gravarSessao(chave, { ...s, estagio: 'agendado', agendamento_id: card, motivo: 'card_por_outra_porta', ate: ultima });
+        await gravarSessao(chave, { ...semPreparo(s, 'card_por_outra_porta'), estagio: 'agendado', agendamento_id: card, motivo: 'card_por_outra_porta', ate: ultima });
         continue;
       }
       if (!novas.length) {
@@ -2557,7 +2927,15 @@ export async function runInvestidorRetomadaTick(opts: { agora?: Date } = {}): Pr
   // teto e marca o toque como dado), então sai, e o disjuntor de 2 erros seguidos conta.
   const fim4 = alvo.telefone.slice(-4);
   try {
-    await sendFrio(alvo.telefone, [texto.texto], 'io');
+    const saiu = await sendFrio(alvo.telefone, [texto.texto], 'io');
+    if (saiu === false) {
+      // A pausa humana (ou a linha) calou o envio na hora: NADA saiu. Sem carimbo, sem avançar o toque
+      // (a sessão não é tocada) e sem contar erro: a pessoa fica para a próxima rodada.
+      logger.warn(LOG, `retomada ${alvo.toque} calada pela trava da linha (final ${fim4}): nada saiu, a pessoa fica para a próxima rodada`);
+      const { error: eDesfazer } = await supabase.from('system_state').delete().eq('key', keyDoToque);
+      if (eDesfazer) logger.error(LOG, 'desfazer o carimbo da retomada calada falhou', eDesfazer);
+      return sem('envio_calado_pela_linha', { toque: alvo.toque });
+    }
   } catch (err) {
     const erro = String((err as Error)?.message || err).slice(0, 300);
     logger.error(LOG, `retomada ${alvo.toque} falhou para o final ${fim4}`, err);
@@ -2618,7 +2996,8 @@ export async function reivindicarRodada(agora: number = Date.now()): Promise<{ o
  *     nunca envia nada; o pedido é apagado;
  *   · `inv_agente_ligar_pedido`: faz o `?ligar=1` (apaga `inv_agente_off` e `inv_agente_disjuntor`, que rearma o
  *     disjuntor de erros de envio); o pedido é apagado.
- * O pedido sai ANTES de ser atendido: se a prévia falhar, o erro fica gravado no resultado e o pedido não repete.
+ * O pedido sai ANTES de ser atendido, e só é atendido se saiu de verdade (o `error` do delete é conferido): se a
+ * prévia falhar, o erro fica gravado no resultado e o pedido não repete; se o delete falhar, nada é feito.
  */
 export async function atenderPedidosDoBanco(agora: Date = new Date()): Promise<{ previa?: 'gravada' | 'erro'; ligar?: 'ligada' | 'erro' }> {
   const out: { previa?: 'gravada' | 'erro'; ligar?: 'ligada' | 'erro' } = {};
@@ -2631,10 +3010,20 @@ export async function atenderPedidosDoBanco(agora: Date = new Date()): Promise<{
     logger.error(LOG, 'ler os pedidos pelo banco falhou', err);
     return out;
   }
-  const apagar = (key: string) => supabase.from('system_state').delete().eq('key', key)
-    .then(undefined, (e: unknown) => logger.error(LOG, `apagar o pedido ${key} falhou`, e));
-  if (chaves.has(INV_PREVIA_PEDIDO_KEY)) {
-    await apagar(INV_PREVIA_PEDIDO_KEY);
+  // Apaga o pedido ANTES de agir e CONFERE o `error` do supabase (ele não rejeita: devolve `{error}`). Só age se o
+  // pedido saiu: pedido que não se apaga repetiria a ação a cada 5 min (o "ligar" apagaria `inv_agente_off` e o
+  // disjuntor toda vez).
+  const apagou = async (key: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase.from('system_state').delete().eq('key', key);
+      if (error) { logger.error(LOG, `apagar o pedido ${key} falhou: o pedido não foi atendido`, error); return false; }
+      return true;
+    } catch (e) {
+      logger.error(LOG, `apagar o pedido ${key} falhou: o pedido não foi atendido`, e);
+      return false;
+    }
+  };
+  if (chaves.has(INV_PREVIA_PEDIDO_KEY) && await apagou(INV_PREVIA_PEDIDO_KEY)) {
     const em = new Date().toISOString();
     try {
       const previa = await previaInvestidorAgente({ agora });
@@ -2650,8 +3039,7 @@ export async function atenderPedidosDoBanco(agora: Date = new Date()): Promise<{
       out.previa = 'erro';
     }
   }
-  if (chaves.has(INV_LIGAR_PEDIDO_KEY)) {
-    await apagar(INV_LIGAR_PEDIDO_KEY);
+  if (chaves.has(INV_LIGAR_PEDIDO_KEY) && await apagou(INV_LIGAR_PEDIDO_KEY)) {
     try { await definirChaveDesligar(false, 'pedido_pelo_banco'); out.ligar = 'ligada'; }
     catch (err) { logger.error(LOG, 'ligar pelo pedido do banco falhou', err); out.ligar = 'erro'; }
   }
@@ -2673,6 +3061,7 @@ export async function rodarInvestidorAgente(): Promise<Record<string, unknown>> 
   const recuperacao = await recuperarEscolhasPendentes().catch((e) => ({ reprocessadas: 0, erros: 1, error: String(e) }));
   const fecho = await fecharResgatesSemResposta().catch((e) => ({ fechadas: 0, erros: 1, error: String(e) }));
   const fechoRetomadas = await fecharRetomadasEsgotadas().catch((e) => ({ fechadas: 0, erros: 1, error: String(e) }));
+  const preparos = await fecharPreparos().catch((e) => ({ fechados: 0, fichas: 0, erros: 1, error: String(e) }));
 
   // Um envio frio por rodada. A resposta atrasada que saiu como frio já o gastou.
   const frioDaResposta = 'frio' in respostas && Number((respostas as { frio?: number }).frio) > 0;
@@ -2705,5 +3094,6 @@ export async function rodarInvestidorAgente(): Promise<Record<string, unknown>> 
     ...(recuperacao.reprocessadas || recuperacao.erros ? { recuperacao } : {}),
     ...(fecho.fechadas || fecho.erros ? { fecho } : {}),
     ...(fechoRetomadas.fechadas || fechoRetomadas.erros ? { fecho_retomadas: fechoRetomadas } : {}),
+    ...(preparos.fechados || preparos.erros ? { preparos } : {}),
   };
 }

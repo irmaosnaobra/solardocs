@@ -32,7 +32,7 @@ vi.mock('../utils/supabase', () => ({
   },
 }));
 
-import { conferirLinhaParaResposta, registrarBolhas, LIMITES_DA_RESPOSTA, PREFIXO_ENV } from '../services/io/investidorAgenteLinha';
+import { conferirLinhaParaResposta, registrarBolhas, registrarFichaNaLinha, PREFIXO_FICHA_NA_LINHA, LIMITES_DA_RESPOSTA, PREFIXO_ENV } from '../services/io/investidorAgenteLinha';
 import { PREFIXOS_RESPOSTA_AGENTES } from '../services/agents/whatsapp/lineThrottle';
 
 const AGORA = Date.parse('2026-11-12T15:00:00Z');
@@ -67,6 +67,13 @@ describe('os freios da linha para as respostas', () => {
   it('falha de leitura FECHA: sem saber quanto a linha falou, a resposta espera', async () => {
     db.erro = true;
     expect(await conferirLinhaParaResposta('3499990001', AGORA)).toEqual({ ok: false, motivo: 'leitura_falhou' });
+  });
+
+  it('a ficha ao consultor entra na conta da linha: a chave nasce no molde `ficha_lead:` das agentes', async () => {
+    expect(PREFIXOS_RESPOSTA_AGENTES).toContain('ficha_lead:');
+    await registrarFichaNaLinha(901, AGORA);
+    expect(db.gravados.map(g => g.key)).toEqual([`${PREFIXO_FICHA_NA_LINHA}901`]);
+    expect(PREFIXOS_RESPOSTA_AGENTES.some(p => db.gravados[0]!.key.startsWith(p))).toBe(true);
   });
 
   it('uma chave por bolha enviada', async () => {

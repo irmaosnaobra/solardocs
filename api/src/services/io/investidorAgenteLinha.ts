@@ -83,3 +83,14 @@ export async function registrarBolhas(chaveDaConversa: string, quantas: number, 
   const { error } = await supabase.from('system_state').upsert(linhas, { onConflict: 'key' });
   if (error) logger.error('investidor-agente', `RESPOSTA ENVIADA SEM REGISTRO (final ${chaveDaConversa.slice(-2)}): o teto da linha está contando a menos`, error);
 }
+
+/** O carimbo da ficha ao consultor: no molde do `ficha_lead:` das agentes (vivoEnvio.PREFIXO_FICHA), que ESTÁ em PREFIXOS_RESPOSTA_AGENTES. */
+export const PREFIXO_FICHA_NA_LINHA = 'ficha_lead:helena:';
+
+/** Uma chave por ficha enviada, para o teto de emergência da linha (60/h, 450/24 h) enxergar. Erro só vai para o log. */
+export async function registrarFichaNaLinha(cardId: number, agora: number = Date.now()): Promise<void> {
+  const em = new Date(agora).toISOString();
+  const { error } = await supabase.from('system_state')
+    .upsert([{ key: `${PREFIXO_FICHA_NA_LINHA}${cardId}`, value: { em }, updated_at: em }], { onConflict: 'key' });
+  if (error) logger.error('investidor-agente', `FICHA ENVIADA SEM REGISTRO (card ${cardId}): o teto da linha está contando a menos`, error);
+}

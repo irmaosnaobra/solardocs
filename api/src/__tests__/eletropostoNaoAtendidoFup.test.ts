@@ -70,6 +70,13 @@ vi.mock('../services/io/eletropostoRemarcar', () => ({
   bolhasNaoAtendido3: function bolhasNaoAtendido3() { return []; },
 }));
 
+// Quem está em conversa com a Helena (agente do eletroposto): controlado pelo teste.
+const helena = vi.hoisted(() => ({ chaves: new Set<string>(), falha: false }));
+vi.mock('../services/io/investidorAgentePosse', async (orig) => ({
+  ...(await orig<typeof import('../services/io/investidorAgentePosse')>()),
+  chavesDaHelena: vi.fn(async () => (helena.falha ? null : helena.chaves)),
+}));
+
 vi.mock('../utils/logger', () => ({ logger: { info: () => {}, warn: () => {}, error: () => {} } }));
 
 import {
@@ -94,10 +101,29 @@ beforeEach(() => {
   fichas = []; estado = []; ofertados.length = 0; fichasCriadas.length = 0;
   resultadoOferta = { acao: 'ofertou', ofertas: ['a', 'b', 'c'] };
   delete process.env.EP_FUP_NAOATENDIDO_OFF;
+  helena.chaves = new Set(); helena.falha = false;
 });
 afterEach(() => { vi.useRealTimers(); });
 
 describe('follow-up do não atendido', () => {
+  it('quem está em conversa com a Helena não é chamado de volta (12/11/2026)', async () => {
+    fichas = [ficha()];
+    helena.chaves.add('3499887766');   // DDD 34 + 8 últimos de 5534999887766
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.ofertas).toBe(0);
+    expect(ofertados).toHaveLength(0);
+    expect(estado.some(e => e.key === `${EP_FUP_NAOATENDIDO_PREFIX}1:r1`)).toBe(false);
+  });
+
+  it('sem conseguir ler as sessões da Helena, ninguém é chamado nesta rodada', async () => {
+    fichas = [ficha()];
+    helena.falha = true;
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.ofertas).toBe(0);
+    expect(r.motivo).toBe('erro_posse_helena');
+    expect(ofertados).toHaveLength(0);
+  });
+
   it('chama de volta quem o consultor marcou, com horário na mesa', async () => {
     fichas = [ficha()];
     const r = await runEletropostoNaoAtendidoFupTick();

@@ -21,7 +21,7 @@ describe('violaRegras: número que o modelo não pode dizer', () => {
   });
 
   it('cada família acusa pelo motivo certo', () => {
-    expect(violaRegras(['É um carregador de 80 kW'])).toMatch(/potência/);
+    expect(violaRegras(['É um carregador de 60 kW'])).toMatch(/potência/);
     expect(violaRegras(['Um de 7,4 kWh'])).toMatch(/potência/);
     expect(violaRegras(['Fica pronto em 45 dias'])).toMatch(/prazo/);
     expect(violaRegras(['A obra leva uns 2 meses'])).toMatch(/prazo/);
@@ -109,7 +109,7 @@ describe('violaRegras: número que o modelo não pode dizer', () => {
   });
 
   it('potência, prazo e recarga acusam mesmo com valor liberado', () => {
-    expect(violaRegras(['Nos seus R$ 140 mil cabe um de 80 kW'], [140000])).toMatch(/potência/);
+    expect(violaRegras(['Nos seus R$ 140 mil cabe um de 60 kW'], [140000])).toMatch(/potência/);
   });
 });
 
@@ -160,5 +160,74 @@ describe('o recado da reescrita avisa dos números', () => {
     const p = pedidoDeReescrita('PEDIDO', 'citou prazo ("45 dias")', ['45 dias']);
     expect(p).toContain('número que a pessoa não disse');
     expect(p).toContain('quantidade de recargas');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OS PREÇOS QUE O DONO LIBEROU (12/11/2026): chave na mão a partir de R$ 145 mil, sociedade 50/50 com R$ 72.500,
+// carregador de 80 kW por R$ 69.990 e de 120 kW por R$ 89.990. Só isso, e só no contexto certo.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('violaRegras: a tabela de preços liberada', () => {
+  it('PASSA: cada preço no contexto certo', () => {
+    for (const t of [
+      'Temos o chave na mão a partir de R$ 145 mil, e a empresa indica locais para quem investe com a gente.',
+      'Temos o chave na mão a partir de R$ 145.000.',
+      'O chave na mão sai a partir de 145 mil.',
+      'Com o terreno seu, temos a sociedade 50/50: você entra com o local e R$ 72.500, ficamos sócios da operação e dividimos os lucros.',
+      'Temos de 80 kW por R$ 69.990 e de 120 kW por R$ 89.990, com mangueiras com malha de aço.',
+      'Temos um de 80 kW por R$ 69.990.',
+      'Temos um de 120 kW por R$ 89.990.',
+      'O carregador de 80 kW é R$ 69.990',
+      'Procuramos parceiros que queiram vender a marca NEXUS, e a empresa indica locais para quem investe com a gente.',
+      'Ficamos sócios da operação e dividem os lucros entre sócios. Também dá para dividir os lucros com o local.',
+    ]) expect(violaRegras([t]), t).toBeNull();
+  });
+
+  it('PASSA em duas bolhas, como a Helena manda', () => {
+    expect(violaRegras([
+      'Temos o chave na mão a partir de R$ 145 mil, e a empresa indica locais para quem investe com a gente.',
+      'Para o Diego já chegar com a conta do seu caso, me conta: quando você pensa em começar?',
+    ])).toBeNull();
+  });
+
+  it('BARRA: 145 mil sem "a partir de" (ou com ele longe demais)', () => {
+    expect(violaRegras(['O chave na mão sai por R$ 145 mil.'])).toMatch(/preço da tabela fora do contexto/);
+    expect(violaRegras(['O chave na mão custa 145 mil.'])).toMatch(/fora do contexto/);
+    expect(violaRegras(['A partir de agora, e com muita calma, falamos do chave na mão por R$ 145.000.'])).toMatch(/fora do contexto/);
+  });
+
+  it('BARRA: 69.990 sem 80 kW na frase (ou só com 120 kW), 89.990 sem 120 kW', () => {
+    expect(violaRegras(['Temos um de 120 kW por R$ 69.990.'])).toMatch(/fora do contexto/);
+    expect(violaRegras(['O carregador sai por R$ 69.990.'])).toMatch(/fora do contexto/);
+    expect(violaRegras(['Temos um de 80 kW por R$ 89.990.'])).toMatch(/fora do contexto/);
+    expect(violaRegras(['Temos um de 80 kW. O outro sai por R$ 89.990.'])).toMatch(/fora do contexto/);
+  });
+
+  it('BARRA: outros valores, outra potência e kWh', () => {
+    expect(violaRegras(['Sai por R$ 100 mil.'])).toMatch(/valor em reais/);
+    expect(violaRegras(['A sociedade fica em R$ 70.000.'])).toMatch(/valor em reais/);
+    expect(violaRegras(['Temos um de 60 kW.'])).toMatch(/potência/);
+    expect(violaRegras(['Temos um de 40 kW por R$ 69.990.'])).not.toBeNull();
+    expect(violaRegras(['Temos um de 7,4 kWh.'])).toMatch(/potência/);
+    expect(violaRegras(['Temos um de 80 kWh.'])).toMatch(/potência/);
+    expect(violaRegras(['Temos um de 180 kW.'])).toMatch(/potência/);
+    expect(violaRegras(['Temos um de 1,80 kW.'])).toMatch(/potência/);
+  });
+
+  it('BARRA: lucro fora da frase "dividimos os lucros", retorno, percentual', () => {
+    expect(violaRegras(['Dá um lucro de 3 mil por mês.'])).toMatch(/lucro/);
+    expect(violaRegras(['Você tem lucro garantido.'])).toMatch(/lucro/);
+    expect(violaRegras(['Dividimos os lucros e o lucro é alto.'])).toMatch(/lucro/);
+    expect(violaRegras(['Tem retorno de 2% ao mês.'])).toMatch(/retorno/);
+    expect(violaRegras(['Dividimos os lucros meio a meio, 50% para cada.'])).toMatch(/percentual/);
+  });
+
+  it('o 50/50 não é percentual, e o preço dito pela PESSOA continua podendo ser repetido', () => {
+    expect(violaRegras(['A sociedade 50/50 é com sócios.'])).toBeNull();
+    expect(violaRegras(['Nos seus R$ 145 mil, o consultor mostra o caso.'], [145000])).toBeNull();
+  });
+
+  it('o pedido de reescrita diz que a tabela de preços é a exceção', () => {
+    expect(pedidoDeReescrita('P', 'citou valor', ['x'])).toContain('exceto os da tabela de preços');
   });
 });

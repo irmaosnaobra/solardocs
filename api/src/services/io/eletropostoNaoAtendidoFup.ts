@@ -66,6 +66,8 @@ import { EP_NAO_ATENDEU_PREFIX, EP_RESPOSTA_PREFIX } from './eletropostoAgenda';
 import { criarFichaCurioso, type FichaDaAgenda } from './eletropostoCobraSim';
 import { ehQuente, maxVoltas } from './eletropostoReagendaAuto';
 import { ehOrigemEletroposto, ehCardSemAvisoAutomatico, ORIGEM_CADASTRO_EP } from '../agenda/origemEtiqueta';
+import { chaveContato } from '../agents/whatsapp/silenciar';
+import { chavesDaHelena } from './investidorAgentePosse';
 
 /** Carimbo de follow-up enviado: `ep_fup_naoatendido:<id>`. Um por ficha, pra
  *  sempre: quem não escolheu horário depois disso quer falar com gente. */
@@ -195,6 +197,11 @@ export async function runEletropostoNaoAtendidoFupTick(
     .filter(f => !!f.cliente_telefone && !!f.vendedor_nome && !!f.quando);
   if (!fichas.length) return zero('ninguem_nao_atendido');
 
+  // Quem está em conversa com a Helena (agente do eletroposto) é dela: este robô não oferece horário por cima
+  // (12/11/2026). Sem conseguir ler as sessões, ninguém anda nesta rodada (a próxima tenta de novo).
+  const daHelena = await chavesDaHelena();
+  if (!daHelena) return { ...zero('erro_posse_helena'), erros: 1 };
+
   const [doRobo, jaFeito, falaram, reagendas] = await Promise.all([
     supabase.from('system_state').select('key').like('key', `${EP_NAO_ATENDEU_PREFIX}%`).limit(1000),
     supabase.from('system_state').select('key, updated_at').like('key', `${EP_FUP_NAOATENDIDO_PREFIX}%`).limit(2000),
@@ -229,6 +236,7 @@ export async function runEletropostoNaoAtendidoFupTick(
   for (const f of fichas) {
     if (ofertas + semVaga >= POR_TICK) break;
     if (marcadaPeloRobo.has(f.id)) { doRoboN++; continue; }
+    if (daHelena.has(chaveContato(f.cliente_telefone) ?? '')) continue;
     // QUENTE É DO OUTRO ROBÔ ENQUANTO ELE TIVER VOLTA. O `eletropostoReagendaAuto`
     // pega o vermelho quente 45 min depois do horário perdido e MARCA um horário
     // novo (não oferece lista), até 2 vezes. Os dois agindo na mesma pessoa

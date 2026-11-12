@@ -18,9 +18,10 @@ import {
   textoOferta, textoConfirmacao, numeroSolto, escolhaPorNumero, pediuParar, textoDaAbertura, montarObservacao, comoPretendeInvestir,
   naoPareceNomeDePessoa, pedidoDeReescrita, respostasDaFicha, fatosDoFormulario, fatosDeHoje, TETO_DO_FORMULARIO,
   montarSistema, montarPedido, lerSaida, limparBolhas, juntarDados, violaRegras,
+  ehConviteDeHorario, textoEncerramentoPreparo,
   type FiltrosDaFila,
 } from '../services/io/investidorAgentePuro';
-import { ABERTURAS_POR_TIPO, RETOMADAS_POR_VARIANTE } from '../services/io/investidorAgenteTextos';
+import { ABERTURAS_POR_TIPO, RETOMADAS_POR_VARIANTE, ENCERRAMENTO_DO_PREPARO } from '../services/io/investidorAgenteTextos';
 import {
   escolhaPendenteDe, dentroDaJanelaDeRecuperacao, SCHEMA_SAIDA_HELENA, ACOES_HELENA,
   escolhaPorNumero as escolha, lerSaida as ler, montarSistema as sistema, type MsgDaConversa,
@@ -111,6 +112,74 @@ describe('teto do dia', () => {
     expect(tetoDoDia(brt('2026-10-11T10:00'), null, 40)).toBe(30);
     expect(tetoDoDia(brt('2026-10-11T10:00'), '8', 10)).toBe(8);
     expect(tetoDoDia(brt('2026-10-11T10:00'), null, null)).toBe(30);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('nome, telefone e valor', () => {
+  it('telefone: com 55 fica, sem 55 ganha, o resto não é telefone', () => {
+    expect(telefoneZap('5534991360223')).toBe('5534991360223');
+    expect(telefoneZap('(34) 99136-0223')).toBe('5534991360223');
+    expect(telefoneZap('3491360223')).toBe('553491360223');
+    expect(telefoneZap('123')).toBeNull();
+    expect(telefoneZap('120363041234567890')).toBeNull();
+    expect(telefoneZap(null)).toBeNull();
+  });
+
+  it('primeiro nome com a inicial maiúscula', () => {
+    expect(primeiroNome('maria de souza')).toBe('Maria');
+    expect(primeiroNome('JOÃO PEDRO')).toBe('João');
+    expect(primeiroNome('  Érica ')).toBe('Érica');
+  });
+
+  it('os nomes da prova com dado real (11/10/2026)', () => {
+    expect(primeiroNome('IGHOR')).toBe('Ighor');
+    expect(primeiroNome('MARIANNE RIBEIRO BESERRA DA SILVA')).toBe('Marianne');
+    expect(primeiroNome('João')).toBe('João');
+    // "Eletro posto" viraria "Olá, Eletro!": é cadastro de empresa, vai sem nome.
+    expect(primeiroNome('Eletro posto')).toBeNull();
+  });
+
+  it('nome que parece empresa, ou que não é nome, vai sem nome', () => {
+    for (const n of ['Eletro posto', 'Posto Ipiranga', 'ELETROPOSTO BRASIL', 'Solar Engenharia', 'Maria Energia Solar', 'JR Comércio LTDA',
+      'Paulo Serviços', 'Grupo Alfa', 'Empresa do João', 'Loja da Ana', 'Auto Center Silva', 'Oficina do Zé', 'Transportadora Lima',
+      'Construtora Sol', 'Imobiliária Central', 'Consultoria RH', 'Carlos MEI', 'Pedro EIRELI', 'Joao2', 'Ana 34999']) {
+      expect(naoPareceNomeDePessoa(n), n).toBe(true);
+      expect(primeiroNome(n), n).toBeNull();
+    }
+  });
+
+  it('nome de gente com pedaço parecido continua sendo nome', () => {
+    // "mei" e "auto" só valem como começo de palavra: Almeida e Meire são gente.
+    for (const [n, p] of [['Carlos Almeida', 'Carlos'], ['Meire Souza', 'Meire'], ['Paulo Mauto', 'Paulo'], ['Ana Lima', 'Ana']] as const) {
+      expect(naoPareceNomeDePessoa(n), n).toBe(false);
+      expect(primeiroNome(n), n).toBe(p);
+    }
+  });
+
+  it('sem nome que dê para usar devolve null (vai a abertura reserva)', () => {
+    for (const n of ['', null, '@fulano123', 'J', 'Dr. Paulo', 'Cliente 34', '34999990000', 'Teste']) {
+      expect(primeiroNome(n), String(n)).toBeNull();
+    }
+  });
+
+  it('o valor entra como a pessoa marcou; palavra no começo vai minúscula', () => {
+    expect(valorNaFrase('R$ 140 mil')).toBe('R$ 140 mil');
+    expect(valorNaFrase('R$ 100 mil a R$ 200 mil')).toBe('R$ 100 mil a R$ 200 mil');
+    expect(valorNaFrase('Até R$ 50 mil')).toBe('até R$ 50 mil');
+    expect(valorNaFrase('Mais de R$ 500 mil')).toBe('mais de R$ 500 mil');
+    expect(valorNaFrase('Acima de R$ 1 milhão')).toBe('acima de R$ 1 milhão');
+    expect(valorNaFrase('  R$ 70.000. ')).toBe('R$ 70.000');
+  });
+
+  it('valor legível: tem que dar para ler e para citar', () => {
+    expect(valorLegivel('R$ 140 mil')).toBe(true);
+    expect(valorLegivel('Até R$ 50 mil')).toBe(true);
+    expect(valorLegivel('R$ 70.000')).toBe(true);
+    expect(valorLegivel('uns 100k')).toBe(false);
+    expect(valorLegivel('Depende do ponto')).toBe(false);
+    expect(valorLegivel('Tenho uns R$ 80 mil mas depende do banco aprovar o resto do financiamento')).toBe(false);
+    expect(valorLegivel('')).toBe(false);
   });
 });
 
@@ -302,14 +371,17 @@ describe('a fila (12/11/2026: todos os tipos, só quem tem card não atendido, o
     expect(r.fila[0]!.card).toMatchObject({ id: 1, origem: 'cadastro_eletroposto' });
   });
 
-  it('o card que ela remarca é o mais recente de ELETROPOSTO; card de outro produto conta para entrar, mas nunca é remarcado', () => {
-    const linhas = [cad(1, 'Duas', '5534999990001', 'R$ 140 mil'), cad(2, 'So solar', '5534999990002', 'R$ 140 mil')];
+  it('o card que ela remarca é o mais recente de ELETROPOSTO; card de solar só conta para EXCLUIR, nunca para entrar (ordem do dono, 12/11/2026)', () => {
+    const linhas = [cad(1, 'Duas', '5534999990001', 'R$ 140 mil'), cad(2, 'So solar parado', '5534999990002', 'R$ 140 mil'),
+      cad(3, 'Solar vivo e eletroposto parado', '5534999990003', 'R$ 140 mil')];
     const r = montarFila(linhas, comCards({
       '3499990001': [card(5, 'cancelado'), card(9, 'nao_atendeu', { vendedor: 'Diego' }), card(12, 'cancelado', { origem: 'lp_solar' })],
       '3499990002': [card(7, 'cancelado', { origem: 'lead-meta' })],
+      '3499990003': [card(13), card(14, 'em_atendimento', { origem: 'lp_solar' })],
     }));
-    expect(r.fila.find(c => c.nome === 'Duas')!.card).toMatchObject({ id: 9, vendedor: 'Diego' });
-    expect(r.fila.find(c => c.nome === 'So solar')!.card).toBeNull();
+    expect(nomes(r)).toEqual(['Duas']);
+    expect(r.fila[0]!.card).toMatchObject({ id: 9, vendedor: 'Diego' });
+    expect(r.excluidos).toMatchObject({ sem_card: 1, card_vivo: 1 });
     expect(cardParaRemarcar([], AGORA)).toBeNull();
   });
 
@@ -1219,7 +1291,7 @@ describe('a ação agendar na saída do modelo', () => {
     expect(t).toContain('Informe em "opcao" a posição dele na lista.');
     expect(t).toContain('NÃO use "agendar": use "oferecer_horarios"');
     expect(t).toContain('"opcao": número inteiro.');
-    expect(t).toContain('os campos "bolhas", "acao", "opcao", "dados" e "resumo"');
+    expect(t).toContain('os campos "bolhas", "acao", "opcao", "dados", "resumo" e "convite"');
   });
 });
 
@@ -1304,5 +1376,62 @@ describe('a agenda da Giovanna ocupa o horário dela (12/11/2026)', () => {
     const corpo = src.slice(src.indexOf('export async function carregarCompromissos'), src.indexOf('export async function proximasVagas'));
     expect(corpo).not.toMatch(/\.in\('vendedor_nome'|\.eq\('vendedor_nome'/);
     expect(corpo).toContain('lerPaginado');
+  });
+});
+
+describe('convite e preparo no código puro (rodada 2, 12/11/2026)', () => {
+  const lido = (extra: Record<string, unknown>) => lerSaida(JSON.stringify({ bolhas: ['Posso te mandar os horários?'], acao: 'continuar', opcao: 0, dados: {}, resumo: 'x', ...extra }));
+
+  it('o schema pede `convite` e lerSaida lê só o true de verdade', () => {
+    expect(SCHEMA_SAIDA_HELENA.required).toContain('convite');
+    expect(SCHEMA_SAIDA_HELENA.properties.convite).toEqual({ type: 'boolean' });
+    expect(lido({ convite: true }).convite).toBe(true);
+    expect(lido({ convite: false }).convite).toBe(false);
+    expect(lido({}).convite).toBe(false);
+    expect(lido({ convite: 'true' }).convite).toBe(false);
+  });
+
+  it('ehConviteDeHorario: as falas de convite do prompt passam; sem pergunta de horário, ou com convite false, não', () => {
+    const conv = { convite: true };
+    for (const b of [
+      ['Posso te mandar os horários?'],
+      ['Vale uma conversa com Diego, que olha o seu caso. Posso te mandar os horários?'],
+      ['Posso te mandar os horários agora?'],
+      ['Respondi o que deu.', 'Quer que eu te mande os horários?'],
+      ['Posso te mandar o horário?'],
+    ]) expect(ehConviteDeHorario(conv, b), b.join(' / ')).toBe(true);
+    for (const b of [
+      ['Em que cidade você está?'],
+      ['O Diego mostra isso na reunião.'],
+      ['Os horários ficam com o Diego.'],
+      [],
+    ]) expect(ehConviteDeHorario(conv, b), b.join(' / ')).toBe(false);
+    expect(ehConviteDeHorario({ convite: false }, ['Posso te mandar os horários?'])).toBe(false);
+    expect(ehConviteDeHorario({}, ['Posso te mandar os horários?'])).toBe(false);
+  });
+
+  it('montarSistema no modo preparo: 1ª pergunta, pergunta seguinte e fecho; sem o bloco fora do preparo', () => {
+    const base = { nome: 'Ana', valorTxt: 'R$ 140 mil', cidade: null, consultor: 'Diego Silva', oferta: [], dados: {} };
+    const quando = '2026-10-13T16:30:00Z';
+    const primeira = montarSistema({ ...base, preparo: { feitas: 0, quando, encerrar: false, confirmacao: 'Combinado! Sua reunião ficou marcada.' } });
+    expect(primeira).toContain('MODO PREPARO: a reunião JÁ ESTÁ MARCADA');
+    expect(primeira).toContain("Siga a seção 'DEPOIS DE MARCAR'. Você já fez 0 pergunta(s) de preparo.");
+    expect(primeira).toContain('"Combinado! Sua reunião ficou marcada."');
+    expect(primeira).toContain('a primeira pergunta de preparo');
+    expect(montarSistema({ ...base, preparo: { feitas: 1, quando, encerrar: false } })).toContain('a próxima pergunta de preparo');
+    expect(montarSistema({ ...base, preparo: { feitas: 2, quando, encerrar: true } })).toContain('Este é o fim do preparo');
+    expect(montarSistema(base)).not.toContain('MODO PREPARO');
+    expect(montarSistema(base)).toContain('"convite": true SÓ quando a mensagem em "bolhas" convida para a reunião');
+  });
+
+  it('o texto fixo de encerramento do preparo troca {consultor} e varia pela chave', () => {
+    const quando = '2026-10-13T11:00:00.000Z';
+    const a = textoEncerramentoPreparo('3499990001', 'Diego', quando);
+    expect(a).toContain('Diego');
+    expect(a).not.toContain('{consultor}');
+    expect(a).not.toContain('{quando}');
+    expect(a).toContain(horarioNaFrase(quando));   // o dia como está na confirmação, nunca 'amanhã' nem 'hoje'
+    expect(new Set(['3499990001', '3499990002', '3499990003', '3499990004', '3499990005'].map(c => textoEncerramentoPreparo(c, 'Diego', quando))).size).toBeGreaterThan(1);
+    for (const v of ENCERRAMENTO_DO_PREPARO) { expect(v).not.toMatch(/em mãos|anotad|amanhã|hoje/i); }
   });
 });
