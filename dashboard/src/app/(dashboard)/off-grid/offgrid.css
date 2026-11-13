@@ -684,3 +684,6 @@
   .og-carga.ativa > .og-ess { order: 3; }
   .og-carga.ativa > .og-stepper { order: 4; margin-left: auto; }
 }
+
+/* Venda mensal (oferta ligada): o cartão do pacote abaixo do botão. */
+.og2-pacote { margin-top: 16px; text-align: left; }

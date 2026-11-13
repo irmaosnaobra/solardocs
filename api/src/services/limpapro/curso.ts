@@ -13,6 +13,7 @@
 import { supabase } from '../../utils/supabase';
 import { variantesDoTelefone } from '../produtos/chaveTelefone';
 import { temCompraLimpapro } from '../produtos/limpapro';
+import { posseValidaEmEntitlements } from '../produtos/acessos';
 
 export const CHAVE_PADRAO = (slug: string): string => `${slug}#0`;
 export const CHAVE_CHECK = (slug: string, i: number): string => `chk:${slug}:${i}`;
@@ -60,6 +61,11 @@ export interface ContextoCurso {
   itens: Set<string>;
   /** Linha do aluno em limpapro_membros. Nula para quem só entrou como administrador. */
   membro: MembroCurso | null;
+  /**
+   * Acesso só pelo adicional mensal (entitlements com data): `membro` é uma âncora sem linha em limpapro_membros (que valeria para sempre). O
+   * progresso dessa conta mora em system_state (`limpapro_prog:<userId>`), no mesmo formato { "m01#0": true }.
+   */
+  somentePorAdicional?: boolean;
 }
 
 const COLUNAS_LISTA = 'slug, grupo, modulo, ordem, titulo, resumo, minutos, bonus, requer, libera_apos_dias';
@@ -137,6 +143,16 @@ export async function contextoDoCurso(userId: string | undefined): Promise<Conte
   let membro = membroInicial;
   const compraPropria = !!membro || itens.has('curso-principal') || itens.has('premium');
   if (compraPropria && !membro) membro = await garantirMembro(email, nome, whatsapp);
+
+  // Adicional mensal: o acesso vem de entitlements VÁLIDO (vence). Não grava limpapro_membros (valeria para sempre): a âncora dos 7 dias da
+  // liberação atrasada é a data em que a posse nasceu, e o progresso mora em system_state (`limpapro_prog:<userId>`), lido aqui e gravado por gravarChave.
+  if (!compra) {
+    const posse = await posseValidaEmEntitlements(userId, 'curso-limpapro');
+    if (posse) {
+      const ancora: MembroCurso = { email, nome: nome || null, progresso: await lerProgressoDoAdicional(userId), criado_em: posse.desde };
+      return { userId, email, nome, isAdmin, acesso: true, premium: false, itens, membro: ancora, somentePorAdicional: true };
+    }
+  }
 
   return { userId, email, nome, isAdmin, acesso: compra, premium: itens.has('premium'), itens, membro };
 }
@@ -230,6 +246,18 @@ export function estadoCertificado(ctx: ContextoCurso, aulas: AulaLinha[], progre
 
 export class ProgressoCheio extends Error {}
 
+/** Onde o progresso de quem tem SÓ o adicional mensal fica (sem migration e sem linha em limpapro_membros). */
+export const chaveProgressoDoAdicional = (userId: string): string => `limpapro_prog:${userId}`;
+
+async function lerProgressoDoAdicional(userId: string): Promise<Record<string, unknown>> {
+  try {
+    const { data } = await supabase.from('system_state').select('value').eq('key', chaveProgressoDoAdicional(userId)).maybeSingle();
+    return objeto((data as { value?: { progresso?: unknown } } | null)?.value?.progresso);
+  } catch {
+    return {};
+  }
+}
+
 function rpcAusente(e: { code?: string; message?: string }): boolean {
   return e.code === 'PGRST202' || e.code === '42883' || /could not find the function|does not exist/i.test(e.message ?? '');
 }
@@ -249,6 +277,19 @@ export async function gravarChave(
   ctx: ContextoCurso, chave: string, valor: boolean,
 ): Promise<{ salvo: boolean; progresso: Record<string, unknown> }> {
   if (!ctx.membro) return { salvo: false, progresso: {} };
+  if (ctx.somentePorAdicional) {
+    // Mesma regra do curso (teto de 200 chaves só ao marcar; desmarcar nunca falha), guardada em system_state.
+    const atual = await lerProgressoDoAdicional(ctx.userId);
+    if (valor) {
+      if (!(chave in atual) && Object.keys(atual).length >= MAX_CHAVES) throw new ProgressoCheio();
+      atual[chave] = true;
+    } else delete atual[chave];
+    const { error } = await supabase.from('system_state')
+      .upsert({ key: chaveProgressoDoAdicional(ctx.userId), value: { progresso: atual, atualizado_em: new Date().toISOString() } }, { onConflict: 'key' });
+    if (error) throw new Error(`system_state: ${error.message}`);
+    ctx.membro.progresso = atual;
+    return { salvo: true, progresso: atual };
+  }
   const email = ctx.membro.email;
 
   const cliente = supabase as unknown as ClienteComRpc;

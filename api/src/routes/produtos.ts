@@ -5,8 +5,13 @@ import { PRODUTOS } from '../services/produtos/catalogo';
 import { supabase } from '../utils/supabase';
 import { noBastidor } from '../services/produtos/bastidor';
 import { criarPixProdutoHandler, statusPixProdutoHandler, cpfPixProdutoHandler } from '../controllers/produtoPixController';
+import { ofertaHandler, estadoHandler, comprarHandler, cancelarHandler } from '../controllers/adicionaisController';
 
 const router = Router();
+
+// Público, ANTES do login: a tela /assinar precisa saber se o bump existe e quanto custa antes de a pessoa ter conta.
+router.get('/adicionais/oferta', ofertaHandler);
+
 router.use(authMiddleware);
 
 /**
@@ -55,5 +60,10 @@ router.get('/acessos', async (req: Request, res: Response): Promise<void> => {
 router.post('/pix', criarPixProdutoHandler);
 router.get('/pix/:cobrancaId', statusPixProdutoHandler);
 router.get('/cpf', cpfPixProdutoHandler);
+
+// Adicionais mensais (R$ 17 cada, ou as 4 por R$ 40): cartão ou Pix automático. Atrás de ADICIONAIS_MENSAIS.
+router.get('/adicional', estadoHandler);
+router.post('/adicional', comprarHandler);
+router.post('/adicional/cancelar', cancelarHandler);
 
 export default router;

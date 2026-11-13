@@ -6,6 +6,8 @@ import api from '@/services/api';
 import { getCheckoutAttribution, novoIcEventId } from '@/hooks/useLpTracking';
 import { pixRecorrenteLigado } from '@/components/LinkPagarPix/LinkPagarPix';
 import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
+import { useOfertaAdicionais } from '@/lib/loja/adicionais';
+import BumpAdicionais, { valorAdicionais, type Marcados } from './BumpAdicionais';
 import styles from './assinar.module.css';
 
 interface CupomInfo {
@@ -23,6 +25,15 @@ const ITENS = [
   'Histórico permanente e suporte no WhatsApp',
 ];
 
+/** O link do Pix recorrente, com o cupom e as ferramentas marcadas. Sem nenhum dos dois, o link de sempre. */
+function linkPix(cupom: string, adicionais: Marcados): string {
+  const q = new URLSearchParams();
+  if (cupom) q.set('cupom', cupom);
+  if (adicionais.length) q.set('adicionais', adicionais.join(','));
+  const s = q.toString();
+  return `/pix-recorrente${s ? `?${s}` : ''}`;
+}
+
 export default function AssinarCliente() {
   const params = useSearchParams();
   const cupomUrl = (params.get('cupom') || '').trim().toUpperCase();
@@ -32,6 +43,16 @@ export default function AssinarCliente() {
   const [conferindo, setConferindo] = useState(true);
   const [indo, setIndo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [marcados, setMarcados] = useState<Marcados>([]);
+
+  // Order bump das ferramentas: só com a oferta ligada na api e no plano mensal (o anual não mistura intervalo na
+  // mesma assinatura da Stripe). Falha na oferta = desligada, e a tela fica exatamente como era.
+  const oferta = useOfertaAdicionais();
+  const ehMensal = plano !== 'anual' && plano !== 'vip_anual';
+  const comBump = oferta.ligado && ehMensal;
+  const escolhidos: Marcados = comBump ? marcados : [];
+  const adicionais = valorAdicionais(escolhidos, oferta);
+  const temAdicional = escolhidos.length > 0;
 
   // Sempre consulta — a resposta traz o preço do plano mesmo sem cupom, então a
   // página nunca chuta valor (os preços do SolarDoc já mudaram uma vez). Cupom
@@ -48,6 +69,9 @@ export default function AssinarCliente() {
   const comCupom = !!cupom?.valido;
   const precoCheio = cupom?.precoCheio ?? null;
   const primeiroMes = comCupom ? (cupom?.primeiroMes ?? precoCheio) : precoCheio;
+  // O cupom desconta só o plano. As ferramentas entram cheias desde o primeiro mês.
+  const hoje = primeiroMes === null ? null : primeiroMes + adicionais;
+  const depois = precoCheio === null ? null : precoCheio + adicionais;
 
   async function irPraPagamento() {
     setIndo(true);
@@ -56,7 +80,7 @@ export default function AssinarCliente() {
       // Mesmo id no pixel (eventID) e no servidor (ic_event_id): o Meta conta um InitiateCheckout só.
       const icEventId = novoIcEventId();
       (window as unknown as { fbq?: (...a: unknown[]) => void }).fbq?.(
-        'track', 'InitiateCheckout', { value: primeiroMes ?? 0, currency: 'BRL', content_name: 'assinar_link' }, { eventID: icEventId },
+        'track', 'InitiateCheckout', { value: hoje ?? 0, currency: 'BRL', content_name: 'assinar_link' }, { eventID: icEventId },
       );
       // Esta tela é o destino dos toques (link da Giovanna, recuperação): sem
       // repassar as UTMs da URL, a venda chegava no ledger sem rastro nenhum e
@@ -65,6 +89,7 @@ export default function AssinarCliente() {
       const { data } = await api.post('/payments/public-checkout', {
         plan: plano,
         ...(comCupom ? { cupom: cupom?.codigo } : {}),
+        ...(temAdicional ? { adicionais: escolhidos } : {}),
         ic_event_id: icEventId,
         ...getCheckoutAttribution(),
       });
@@ -101,14 +126,39 @@ export default function AssinarCliente() {
           {ITENS.map((i) => <li key={i}>{i}</li>)}
         </ul>
 
-        <button className={styles.btn} onClick={irPraPagamento} disabled={indo || conferindo}>
-          {indo ? 'Abrindo pagamento...' : comCupom ? `Assinar por R$ ${primeiroMes}` : 'Assinar agora'}
-        </button>
+        {comBump && <BumpAdicionais oferta={oferta} marcados={marcados} onMudar={setMarcados} />}
+
+        {/* Com o bump na tela, o total e o botão grudam no pé da tela do celular: a pessoa marca as caixas sem
+            perder o botão de pagar de vista. */}
+        <div className={comBump ? styles.pagar : undefined}>
+          {temAdicional && hoje !== null && (
+            <div className={styles.total} aria-live="polite">
+              {comCupom ? (
+                <>
+                  <p className={styles.totalLinha}>Hoje você paga <strong>R$ {hoje}.</strong></p>
+                  <p className={styles.totalDetalhe}>Depois, R$ {depois} por mês.</p>
+                </>
+              ) : (
+                <>
+                  <p className={styles.totalLinha}>Hoje você paga <strong>R$ {hoje} por mês.</strong></p>
+                  <p className={styles.totalDetalhe}>R$ {primeiroMes} do plano e R$ {adicionais} das ferramentas.</p>
+                </>
+              )}
+            </div>
+          )}
+
+          <button className={styles.btn} onClick={irPraPagamento} disabled={indo || conferindo}>
+            {indo ? 'Abrindo pagamento...'
+              : temAdicional ? `Assinar por R$ ${hoje}`
+              : comCupom ? `Assinar por R$ ${primeiroMes}` : 'Assinar agora'}
+          </button>
+          {temAdicional && <p className={styles.cancele}>Cancele quando quiser. Você usa até o fim do mês pago.</p>}
+        </div>
 
         {/* O Pix recorrente só aparece quando o trilho está ligado — e ele pede
-            login, porque a cobrança nasce amarrada à conta. */}
+            login, porque a cobrança nasce amarrada à conta. As ferramentas marcadas vão junto na URL. */}
         {pixRecorrenteLigado && (
-          <a className={styles.btnPix} href={`/pix-recorrente${cupomUrl ? `?cupom=${encodeURIComponent(cupomUrl)}` : ''}`}>
+          <a className={styles.btnPix} href={linkPix(cupomUrl, escolhidos)}>
             Prefiro pagar por Pix
           </a>
         )}

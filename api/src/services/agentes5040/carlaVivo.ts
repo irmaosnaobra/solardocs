@@ -24,7 +24,7 @@
 
 import { registrarPromessa } from './planilhaBonus';
 import { registrarFeedbackSaidaPelaCarla } from '../pesquisa/respostas';
-import { CARDS_CARLA, LINKS_CARLA, PEDIDO_DEPOIMENTO_AVISO } from './personas/carla';
+import { CARDS_CARLA, LINKS_CARLA, PEDIDO_DEPOIMENTO_AVISO, linkDoAvulsoVale } from './personas/carla';
 import { MAX_DEPOIMENTOS_POR_CONVERSA } from './conhecimento/depoimentos';
 import { estadoDaConversa, semAcento } from './trava';
 import { ehPosseDaRetomada, ehPosseDoPedidoDeDepoimento, type DadosPosse } from './posse';
@@ -207,6 +207,10 @@ export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
     return linkDe(LINKS_CARLA.entrar_no_app!, 'entrar_no_app');
   }
   if (id.startsWith('avulso:') && peca.tipo === 'link') {
+    // Com ADICIONAIS_MENSAIS ligada, a página de fora das 3 ferramentas ainda tem o preço único antigo: não vai junto com o preço mensal.
+    if (!linkDoAvulsoVale(id.slice('avulso:'.length))) {
+      return recusa('avulso_so_no_app', 'esta ferramenta agora é adicional mensal: a compra é no app ou no checkout do plano, e a página de fora tem o preço antigo. Não mande link dela; explique em uma frase.');
+    }
     const url = LINKS_CARLA[id];
     return url ? linkDe(url, id) : recusa('avulso_desconhecido', `o produto avulso "${id.slice(0, 40)}" não existe.`);
   }

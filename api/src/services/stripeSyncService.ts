@@ -7,6 +7,7 @@ import { resolverPrecoAnual, precoAnualConhecido, FERRAMENTAS_DO_ANUAL } from '.
 import { concederAcesso } from './produtos/acessos';
 import { sendOpsAlert } from '../utils/mailer';
 import { carregarPonteEmailConta } from './stripeContaLink';
+import { itemDoPlano } from './produtos/adicionaisStripe';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -139,11 +140,12 @@ async function fetchStripeTruth(): Promise<VarreduraStripe> {
 
       if (!ACTIVE_STATUSES.has(s.status)) continue;
 
-      const priceId = s.items.data[0]?.price?.id ?? '';
+      const itemDoPlanoSync = itemDoPlano(s.items.data as never[]) as (typeof s.items.data)[number] | undefined;
+      const priceId = itemDoPlanoSync?.price?.id ?? '';
       const planInfo = priceToPlan[priceId];
       if (!planInfo) continue;
 
-      const unitAmount = s.items.data[0]?.price?.unit_amount ?? 0;
+      const unitAmount = itemDoPlanoSync?.price?.unit_amount ?? 0;
       const trialEnd = s.status === 'trialing' && s.trial_end
         ? new Date(s.trial_end * 1000)
         : null;

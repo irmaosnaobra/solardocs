@@ -879,6 +879,12 @@ export async function concederCursoPorAssinatura(
   const emailLc = (email || '').toLowerCase().trim();
   if (!userId || !emailLc) return { concedido: false, jaTinha: false };
 
+  // Com ADICIONAIS_MENSAIS ligada, assinatura nova (depois do corte) não leva mais o Fecha Vendas de brinde: este
+  // é o ponto por onde o Pix, a campanha de 30 dias e a oferta vip_curso gravavam a posse. Quem já tem a linha
+  // (assinou antes) não passa por aqui de novo para perder nada: nunca apagamos pedido.
+  const { brindeFechaVendasVale } = await import('./produtos/adicionaisCorte');
+  if (!(await brindeFechaVendasVale(emailLc))) return { concedido: false, jaTinha: false };
+
   const orderId = `assinatura-vip-curso-${userId}`;
 
   const { data: existente } = await supabase

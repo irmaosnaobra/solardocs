@@ -8,8 +8,10 @@
 import type { ContaRetomada, ContextoLead, PersonaDef } from '../tipos';
 import { diaBRT } from '../relogio';
 import {
-  AVULSOS, DOCUMENTOS_SOLARDOC, NOVIDADES_SOLARDOC, PLANO_MENSAL, PROMESSA_PLANILHA_ELETROPOSTO, textoConhecimentoSolarDoc, textoRetomadaSolarDoc,
+  AVULSOS, DOCUMENTOS_SOLARDOC, NOVIDADES_SOLARDOC, PLANO_MENSAL, PROMESSA_PLANILHA_ELETROPOSTO, textoConhecimentoSolarDoc,
+  textoRetomadaSolarDoc, valoresPermitidosCarla,
 } from '../conhecimento/solardoc';
+import { PRECOS, adicionaisLigado } from '../../produtos/adicionais';
 import { DEPOIMENTOS, MAX_DEPOIMENTOS_POR_CONVERSA, cardsParaLead } from '../conhecimento/depoimentos';
 import { estadoDaConversa } from '../trava';
 import {
@@ -45,6 +47,12 @@ export const LINKS_CARLA: Readonly<Record<string, string>> = {
   entrar_no_app: `${BASE}/auth`,
   ...Object.fromEntries(AVULSOS.filter(a => ROTAS_AVULSOS[a.id]).map(a => [`avulso:${a.id}`, `${BASE}${ROTAS_AVULSOS[a.id]}`])),
 };
+
+/** Ferramentas que, com ADICIONAIS_MENSAIS ligada, viram adicional mensal: a página de fora (preço único antigo) não vai junto com o preço novo. */
+export const AVULSOS_QUE_VIRAM_ADICIONAL: readonly string[] = ['curso-fechamento', 'offgrid', 'inventario'];
+
+/** O link do avulso vale agora? Com a flag ligada, as 3 ferramentas só se compram no app ou no checkout do plano. */
+export const linkDoAvulsoVale = (id: string): boolean => !(adicionaisLigado() && AVULSOS_QUE_VIRAM_ADICIONAL.includes(id));
 
 /** Cards de depoimento que existem em imagem (só esses podem ser enviados). */
 export const CARDS_CARLA = DEPOIMENTOS.filter(d => d.cardArquivo);
@@ -170,12 +178,29 @@ export const EXEMPLOS_CARLA: readonly ExemploPersona[] = [
 const listaCards = CARDS_CARLA
   .map(d => `- ${idDoCard(d.slug)}: ${d.nome}${d.empresa ? `, ${d.empresa}` : ''}, ${d.cidade}/${d.uf} (região ${d.regiao})`)
   .join('\n');
-const listaLinks = Object.entries(LINKS_CARLA)
-  .map(([id, url]) => `- ${id}: ${url}${id === 'entrar_no_app' ? ' (só para quem já tem conta; os fatos dizem)' : ''}`).join('\n');
-const valoresPermitidos = [V, ...AVULSOS.map(a => a.preco)].filter((v, i, a) => a.indexOf(v) === i).map(v => `R$ ${v}`).join(', ');
 const avulsosPorNome = AVULSOS.map(a => `${a.nome} (R$ ${a.preco}, peça avulso:${a.id})`).join('; ');
 
-export const SISTEMA_FIXO_CARLA = `Você é a Carla, do SolarDoc, na linha de WhatsApp da Irmãos na Obra.
+/**
+ * O bloco fixo da Carla, montado a cada uso para ler ADICIONAIS_MENSAIS. Desligada, é o texto de hoje. Ligada, mudam só três pontos: a lista de
+ * links (sem as páginas de fora das 3 ferramentas), a seção de ferramentas adicionais e a frase do "nunca diga que liberou".
+ */
+export function sistemaFixoCarla(): string {
+  const novo = adicionaisLigado();
+  const listaLinks = Object.entries(LINKS_CARLA)
+    .filter(([id]) => !id.startsWith('avulso:') || linkDoAvulsoVale(id.slice('avulso:'.length)))
+    .map(([id, url]) => `- ${id}: ${url}${id === 'entrar_no_app' ? ' (só para quem já tem conta; os fatos dizem)' : ''}`).join('\n');
+  const valoresPermitidos = valoresPermitidosCarla().map(v => `R$ ${v}`).join(', ');
+  const nuncaLiberou = novo
+    ? 'as ferramentas da loja do app são adicionais, cobrados à parte por mês.'
+    : 'o que fica em Para crescer é vendido à parte.';
+  const secaoAvulsos = novo
+    ? `- Ferramentas adicionais: Venda Off-Grid, Estoque em Dia e Fecha Vendas, R$ ${PRECOS.avulso} por mês cada, ou as 4 ferramentas da loja do app por R$ ${PRECOS.pacoteApp} por mês. Valem enquanto ele paga e cancela quando quiser. Quem já tem conta compra no app. Quem ainda vai assinar vê as ferramentas no checkout do plano, por R$ ${PRECOS.avulso} por mês cada ou as 4 por R$ ${PRECOS.pacoteCheckout} por mês. A Precificação Profissional é avulsa, R$ ${PRECIFICACAO.preco} (peça avulso:precificacao).
+- Só quando a conversa pede (ele mesmo pergunta de preço das propostas, de sistema off-grid, de controle de estoque, de como fechar venda) e de preferência depois que ele pagou o plano.
+- Nunca empilhe ferramenta junto com o plano numa primeira conversa. Uma ferramenta por vez, com uma frase do que ela resolve. Sem link: a compra é no app ou no checkout do plano.`
+    : `- ${avulsosPorNome}.
+- Só quando a conversa pede (ele mesmo pergunta de preço das propostas, de sistema off-grid, de controle de estoque, de como fechar venda) e de preferência depois que ele pagou o plano.
+- Nunca empilhe avulso junto com o plano numa primeira conversa. Um avulso por vez, com uma frase do que ele resolve e o link quando ele perguntar o valor ou disser que quer.`;
+  return `Você é a Carla, do SolarDoc, na linha de WhatsApp da Irmãos na Obra.
 
 QUEM VOCÊ É
 - A vendedora do SolarDoc: 100% automática, sem reunião e sem ligação. A venda começa e termina aqui, na conversa.
@@ -234,9 +259,7 @@ A PLANILHA DE ELETROPOSTO (promessa permitida, com cuidado)
 - Nunca dê data, mês ou previsão de lançamento. Nunca use como ameaça ("só hoje"). Não a ofereça para quem ainda não quer o plano.
 
 PRODUTOS AVULSOS
-- ${avulsosPorNome}.
-- Só quando a conversa pede (ele mesmo pergunta de preço das propostas, de sistema off-grid, de controle de estoque, de como fechar venda) e de preferência depois que ele pagou o plano.
-- Nunca empilhe avulso junto com o plano numa primeira conversa. Um avulso por vez, com uma frase do que ele resolve e o link quando ele perguntar o valor ou disser que quer.
+${secaoAvulsos}
 
 PIX
 - Quem quer pagar no Pix: use a peça pix_automatico (tipo link; na bolha 2 ponha ${PIX_LINK}). O único Pix é o Pix automático do Asaas: ele cobra na conta da pessoa todo mês, pede e-mail e CPF ou CNPJ e mostra o código para copiar. Na bolha 1, curta, diga isso e que o acesso abre sozinho quando o banco confirmar; não precisa de comprovante. O sistema troca o link pelo código do Pix da pessoa e, se faltar o CPF dela, pede o CPF no lugar: se ela acabou de mandar o CPF, peça pix_automatico de novo. Nunca ofereça Pix avulso, Pix de um mês só, chave Pix, nem escreva código Pix.
@@ -246,7 +269,7 @@ PIX
 QUEM JÁ TEM CONTA (os fatos trazem "Situação da conta")
 - É a retomada: ele já conhece o SolarDoc. Responda ao que ele disse, sem se apresentar de novo e sem explicar o básico.
 - Nunca use a peça assinatura: ela cria outra conta e outra cobrança. Cartão é por dentro do app: peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade. Pix só do jeito que o AVISO DO SISTEMA sobre o Pix manda nesta conversa. Se os fatos disserem que o cartão pelo app não vale para esta conta, ofereça só o Pix automático.
-- Nunca diga que liberou, e nunca diga que R$ ${V} dá a plataforma inteira: o que fica em Para crescer é vendido à parte.
+- Nunca diga que liberou, e nunca diga que R$ ${V} dá a plataforma inteira: ${nuncaLiberou}
 - Só diga que ele assinou ou pagou quando a situação da conta disser isso.
 
 DEPOIMENTOS (cards em imagem; só estes existem)
@@ -286,6 +309,10 @@ ${regrasDaCasa('do SolarDoc', 'Sou a IA do SolarDoc, sim.', false)}
 EXEMPLOS (o tom aprovado pelo dono; não copie as frases, siga o jeito)
 
 ${textoDosExemplos(EXEMPLOS_CARLA)}`;
+}
+
+/** O bloco fixo no estado de quem carregou o módulo (flag desligada nos testes). Quem precisa do texto vigente chama sistemaFixoCarla(). */
+export const SISTEMA_FIXO_CARLA = sistemaFixoCarla();
 
 // Fatos do lead (mensagem do usuário, nunca no cache)
 
@@ -401,7 +428,8 @@ export function fatosCarla(ctx: ContextoLead): string {
 
 export const CARLA: PersonaDef = {
   persona: 'carla',
-  sistemaFixo: SISTEMA_FIXO_CARLA,
+  // Lido a cada uso: com ADICIONAIS_MENSAIS ligada o bloco traz as ferramentas como adicional mensal.
+  get sistemaFixo(): string { return sistemaFixoCarla(); },
   fatos: fatosCarla,
   acoes: ACOES_CARLA,
 };

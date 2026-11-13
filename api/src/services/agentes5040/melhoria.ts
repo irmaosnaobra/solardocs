@@ -25,7 +25,7 @@ import { clienteComCota, type EstadoCota } from './cota';
 import { MODELO_PRINCIPAL, type ClienteIA } from './ia';
 import { ligado } from './interruptores';
 import { regrasDaCasa, semTelefone } from './personas/comum';
-import { SISTEMA_FIXO_CARLA } from './personas/carla';
+import { sistemaFixoCarla } from './personas/carla';
 import { SISTEMA_FIXO_DUDA } from './personas/duda';
 import { SISTEMA_FIXO_HELENA } from './personas/helena';
 import { PRAZO_TOTAL_MS, TIPOS_PROBLEMA, type NotaGravadaQualidade, type TipoProblema } from './qualidade';
@@ -204,7 +204,8 @@ export function topTipos(porAgente: Record<string, ContagemAgente>, n = 3): Arra
 
 // ── o texto atual das regras ─────────────────────────────────────────────────
 
-const SISTEMA_FIXO: Record<Persona, string> = { duda: SISTEMA_FIXO_DUDA, carla: SISTEMA_FIXO_CARLA, helena: SISTEMA_FIXO_HELENA };
+// A Carla é lida a cada uso: com ADICIONAIS_MENSAIS ligada o bloco dela muda (sistemaFixoCarla).
+const SISTEMA_FIXO: Record<Persona, string> = { duda: SISTEMA_FIXO_DUDA, get carla() { return sistemaFixoCarla(); }, helena: SISTEMA_FIXO_HELENA };
 /** Os mesmos argumentos com que cada persona monta o bloco das regras comuns (personas/*.ts). */
 const ARGS_COMUM: Record<Persona, [string, string, boolean]> = {
   duda: ['da Irmãos na Obra', 'Sou a IA da Irmãos na Obra, sim.', true],

@@ -83,6 +83,38 @@ describe('Kit Fecha Vendas: a assinatura segue como era (esta mudança não mexe
   });
 });
 
+// Os dois estados da flag dos adicionais mensais (13/11/2026). Desligada é o que vale hoje; ligada, o catálogo continua
+// marcando o curso como "na assinatura" (a tela explica o plano), e quem decide o corte é adicionaisCorte.
+describe('Kit Fecha Vendas: a assinatura com a flag dos adicionais nos dois estados', () => {
+  const ENV = { ...process.env };
+  afterEach(() => { process.env = { ...ENV }; });
+
+  it('desligada: assinatura abre o curso, como sempre', async () => {
+    delete process.env.ADICIONAIS_MENSAIS;
+    expect((await menu(usuario({ plano: 'ilimitado' }).id)).origem).toBe('assinatura');
+  });
+
+  it('ligada sem corte: assinatura abre o curso, como sempre', async () => {
+    process.env.ADICIONAIS_MENSAIS = '1';
+    delete process.env.ADICIONAIS_CORTE;
+    expect((await menu(usuario({ plano: 'ilimitado' }).id)).origem).toBe('assinatura');
+  });
+
+  it('ligada com corte: a assinatura de conta nova não abre; a compra do mesmo usuário abre', async () => {
+    process.env.ADICIONAIS_MENSAIS = '1';
+    process.env.ADICIONAIS_CORTE = new Date(Date.now() - 86400_000).toISOString();
+    const u = usuario({ plano: 'ilimitado', created_at: new Date().toISOString() });
+    expect((await menu(u.id)).tem).toBe(false);
+    semear('kit_pedidos', { order_id: 'K-1', email: EMAIL, user_id: u.id, itens: ['kit'], status: 'paid', criado_em: new Date().toISOString(), trial_vip_ate: null });
+    expect((await menu(u.id)).origem).toBe('compra');
+  });
+
+  it('o catálogo segue listando o curso como "na assinatura" nos dois estados', () => {
+    process.env.ADICIONAIS_MENSAIS = '1';
+    expect(produtosDaAssinatura()).toContain('curso-fechamento');
+  });
+});
+
 describe('Kit Fecha Vendas: o menu usa a regra do curso (user_id OU e-mail, qualquer item) e só soma', () => {
   // [descrição, monta a conta e devolve o id, esperado no menu]
   const casos: Array<[string, () => string, boolean]> = [

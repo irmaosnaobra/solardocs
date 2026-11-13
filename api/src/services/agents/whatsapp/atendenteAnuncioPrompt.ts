@@ -14,8 +14,47 @@
 // nem a sequência de interpolação do JS, o texto tem que ser inerte.
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase } from '../../../utils/supabase';
+import { PRECOS, adicionaisLigado } from '../../produtos/adicionais';
 
 export const ATENDENTE_PROMPT_KEY = 'atendente_prompt:solardoc';
+
+/**
+ * Os 3 trechos do prompt que falam das ferramentas, trocados SÓ com ADICIONAIS_MENSAIS ligada (13/11/2026): Venda Off-Grid, Estoque em
+ * Dia, Fecha Vendas e LimpaPro viram adicionais mensais. Cada troca procura o trecho antigo EXATO e, se não achar (prompt editado na aba
+ * do admin), deixa o texto como está. Desligada, o prompt é byte a byte o de hoje.
+ */
+const TROCAS_ADICIONAIS: ReadonlyArray<readonly [string, string]> = [
+  [
+    `Não inclui curso nem Kit de Fechamento, são compras à parte,
+assinar não libera curso nenhum. Precificação e Estoque em Dia não vêm no mensal.`,
+    `Não inclui as ferramentas da loja do app: Venda Off-Grid, Estoque em Dia,
+Fecha Vendas e LimpaPro são adicionais de R$ ${PRECOS.avulso} por mês cada, ou as 4 por
+R$ ${PRECOS.pacoteApp} por mês no app e R$ ${PRECOS.pacoteCheckout} por mês no checkout do plano. Valem enquanto
+paga e cancela quando quiser. Assinar o plano não libera nenhuma delas.
+Precificação não vem no mensal.`,
+  ],
+  [
+    `argumento de venda, e NUNCA prometa essas duas pra quem está assinando o
+mensal: ele paga, bate no cadeado e pede o dinheiro de volta com razão.`,
+    `argumento de venda, e NUNCA prometa essas duas como incluídas no mensal.
+O Estoque em Dia o mensalista pode levar como adicional, R$ ${PRECOS.avulso} por mês.`,
+  ],
+  [
+    `Oferecer o anual sem ele pedir. Prometer Precificação ou Estoque em Dia no mensal.
+Prometer curso ou Kit de Fechamento na assinatura. Prometer teste grátis, plano`,
+    `Oferecer o anual sem ele pedir. Prometer Precificação ou Estoque em Dia como
+incluídos no mensal. Prometer qualquer ferramenta da loja do app como
+incluída na assinatura: são adicionais pagos por mês. Prometer teste grátis, plano`,
+  ],
+];
+
+/** O prompt com as ferramentas como adicionais mensais, quando a flag está ligada. Desligada devolve o texto sem tocar. */
+export function promptComAdicionais(texto: string): string {
+  if (!adicionaisLigado()) return texto;
+  let out = texto;
+  for (const [de, para] of TROCAS_ADICIONAIS) out = out.replace(de, () => para);
+  return out;
+}
 
 /** Placeholders que o painel resolve ao vivo (e o runtime resolveria também). */
 export const PLACEHOLDERS: { chave: string; descricao: string }[] = [

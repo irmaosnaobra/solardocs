@@ -18,6 +18,7 @@ import { mascararEmail } from './solardoc/ativacaoPosVendaTextos';
 import { logger } from '../utils/logger';
 import { FREE_LIMIT } from './planService';
 import { pixBlocoEmailHtml } from '../utils/pixInfo';
+import { assinaturaSoDeAdicional } from './produtos/adicionaisStripe';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
@@ -480,6 +481,8 @@ export async function cancelStripeSubsForEmail(email: string): Promise<number> {
     for (const custId of ids) {
       const subs = await stripe.subscriptions.list({ customer: custId, status: 'all', limit: 20 });
       for (const s of subs.data) {
+        // Assinatura SÓ de adicional (comprada no app) não é a duplicata do plano que esta função existe para encerrar.
+        if (assinaturaSoDeAdicional(s as never)) continue;
         if (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due' || s.status === 'unpaid') {
           await stripe.subscriptions.cancel(s.id, { invoice_now: false, prorate: false });
           canceled++;

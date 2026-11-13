@@ -81,8 +81,8 @@ export default function CheckoutPix({ produto, usarCpfSalvo, onFechar, onConfirm
   );
 }
 
-/* ── A caixa: fundo, foco, Escape, rolagem da página travada ── */
-function Caixa({ children, onFechar, caixaRef, fundoFecha }: {
+/* ── A caixa: fundo, foco, Escape, rolagem da página travada. O checkout do adicional mensal usa a mesma. ── */
+export function Caixa({ children, onFechar, caixaRef, fundoFecha }: {
   children: ReactNode;
   onFechar: () => void;
   caixaRef: RefObject<HTMLDivElement | null>;
@@ -129,7 +129,7 @@ function Caixa({ children, onFechar, caixaRef, fundoFecha }: {
 
 type Fase = 'cpf' | 'gerando' | 'pix' | 'ok' | 'jaTem';
 
-function Topo({ titulo, onFechar }: { titulo: string; onFechar: () => void }) {
+export function Topo({ titulo, onFechar }: { titulo: string; onFechar: () => void }) {
   return (
     <div className={s.topo}>
       <h2 id="co-titulo">{titulo}</h2>
@@ -155,7 +155,7 @@ const Confianca = ({ texto }: { texto: string }) => (
 );
 
 /** Copia para a área de transferência. Sem a API moderna (http, webview antigo), cai no campo temporário. */
-async function copiarTexto(texto: string): Promise<boolean> {
+export async function copiarTexto(texto: string): Promise<boolean> {
   try {
     if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(texto); return true; }
   } catch { /* cai no plano B */ }

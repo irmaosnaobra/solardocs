@@ -229,3 +229,113 @@ describe('POST /kit/progresso: o erro chega à tela', () => {
     expect(r.status).toBe(400);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADICIONAIS MENSAIS (13/11/2026): com ADICIONAIS_MENSAIS ligada e ADICIONAIS_CORTE definida, quem assinou DEPOIS do
+// corte não leva mais o Fecha Vendas de brinde. Quem assinou antes não perde, e a posse (compra, vitalício) nunca
+// passa por este corte. Desligada, tudo é como antes (os casos acima).
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Fecha Vendas com os adicionais mensais: os dois estados da flag', () => {
+  const ENV = { ...process.env };
+  const CORTE = Date.now() - 5 * 86400_000;                  // a flag ligou há 5 dias
+  const ANTES = new Date(CORTE - 60 * 86400_000).toISOString();
+  const DEPOIS = new Date(CORTE + 2 * 86400_000).toISOString();
+
+  const comCorte = () => { process.env.ADICIONAIS_MENSAIS = '1'; process.env.ADICIONAIS_CORTE = new Date(CORTE).toISOString(); };
+  const venda = (email: string, quando: string) => semear('sales', { email, card_passed_at: quando, status: 'paid' });
+  const contrato = (email: string, quando: string, status = 'pendente') => semear('asaas_pix_assinaturas', { email, created_at: quando, status });
+
+  beforeEach(() => { delete process.env.ADICIONAIS_MENSAIS; delete process.env.ADICIONAIS_CORTE; });
+  afterEach(() => { process.env = { ...ENV }; });
+
+  it('flag DESLIGADA: a assinatura nova depois da "data de corte" continua abrindo (nada muda)', async () => {
+    process.env.ADICIONAIS_CORTE = new Date(CORTE).toISOString();
+    const u = usuario({ plano: 'ilimitado' }); venda(EMAIL, DEPOIS);
+    expect((await curso(u.id)).body.liberado).toBe(true);
+    expect((await menu(u.id)).tem).toBe(true);
+  });
+
+  it('flag LIGADA sem ADICIONAIS_CORTE: o brinde segue para todos (lado seguro)', async () => {
+    process.env.ADICIONAIS_MENSAIS = '1';
+    const u = usuario({ plano: 'ilimitado' }); venda(EMAIL, DEPOIS);
+    expect((await curso(u.id)).body.liberado).toBe(true);
+    expect((await menu(u.id)).tem).toBe(true);
+  });
+
+  it('flag LIGADA: assinou ANTES do corte, não perde, no curso E no menu', async () => {
+    comCorte();
+    const u = usuario({ plano: 'ilimitado' }); venda(EMAIL, ANTES);
+    expect((await curso(u.id)).body.motivoAcesso).toBe('assinatura');
+    expect((await menu(u.id)).tem).toBe(true);
+  });
+
+  it('flag LIGADA: assinou DEPOIS do corte, o brinde sai, no curso E no menu', async () => {
+    comCorte();
+    const u = usuario({ plano: 'ilimitado' }); venda(EMAIL, DEPOIS);
+    expect((await curso(u.id)).body.liberado).toBe(false);
+    expect((await menu(u.id)).tem).toBe(false);
+  });
+
+  it('flag LIGADA: vale a assinatura mais antiga (quem voltou depois do corte já tinha assinado antes)', async () => {
+    comCorte();
+    const u = usuario({ plano: 'ilimitado' }); venda(EMAIL, DEPOIS); venda(EMAIL, ANTES);
+    expect((await menu(u.id)).tem).toBe(true);
+  });
+
+  it('flag LIGADA: o 1o Pix depois do corte (contrato nasce antes do pagamento, venda ainda não existe) não leva o curso', async () => {
+    comCorte();
+    const u = usuario({ plano: 'ilimitado' }); contrato(EMAIL, DEPOIS);
+    expect((await menu(u.id)).tem).toBe(false);
+  });
+
+  it('flag LIGADA: contrato de Pix que venceu sem pagamento não "envelhece" quem assinou depois', async () => {
+    comCorte();
+    const u = usuario({ plano: 'ilimitado' }); contrato(EMAIL, ANTES, 'expirado'); venda(EMAIL, DEPOIS);
+    expect((await menu(u.id)).tem).toBe(false);
+  });
+
+  it('flag LIGADA: sem venda nem contrato, vale a data de criação da conta', async () => {
+    comCorte();
+    const antiga = usuario({ plano: 'ilimitado', created_at: ANTES });
+    expect((await menu(antiga.id)).tem).toBe(true);
+    const nova = semear('users', { email: 'nova@x.com', plano: 'ilimitado', is_admin: false, billing_status: 'active', plano_expira_em: null, created_at: DEPOIS });
+    expect((await menu(nova.id as string)).tem).toBe(false);
+  });
+
+  it('flag LIGADA: leitura que falha vale "o brinde vale" (nunca tira por erro)', async () => {
+    comCorte();
+    const u = usuario({ plano: 'ilimitado' }); venda(EMAIL, DEPOIS);
+    falhas.tabelaQuebrada.add('sales');
+    expect((await menu(u.id)).tem).toBe(true);
+  });
+
+  it('flag LIGADA: a compra, o pedido pago e o vitalício não passam pelo corte', async () => {
+    comCorte();
+    const comprador = usuario({ plano: 'ilimitado' }); venda(EMAIL, DEPOIS); pedidoPago(comprador.id);
+    expect((await curso(comprador.id)).body.motivoAcesso).toBe('compra');
+    expect((await menu(comprador.id)).tem).toBe(true);
+    const vitalicio = semear('users', { email: 'v@x.com', plano: 'ilimitado', is_admin: false, billing_status: 'active', plano_expira_em: null, curso_vitalicio: true });
+    semear('sales', { email: 'v@x.com', card_passed_at: DEPOIS, status: 'paid' });
+    expect((await curso(vitalicio.id as string)).body.motivoAcesso).toBe('vitalicio');
+  });
+
+  it('concederCursoPorAssinatura: grava o pedido com a flag desligada e antes do corte; depois do corte não grava', async () => {
+    const { concederCursoPorAssinatura } = await import('../services/kitIntegradorService');
+    const u = usuario({ plano: 'ilimitado' }); venda(EMAIL, DEPOIS);
+
+    // desligada: como sempre
+    expect((await concederCursoPorAssinatura(u.id, EMAIL)).concedido).toBe(true);
+    expect(db.kit_pedidos.length).toBe(1);
+
+    // ligada, assinatura nova: não grava
+    db.kit_pedidos.length = 0;
+    comCorte();
+    expect(await concederCursoPorAssinatura(u.id, EMAIL)).toEqual({ concedido: false, jaTinha: false });
+    expect(db.kit_pedidos.length).toBe(0);
+
+    // ligada, assinatura antiga: grava
+    db.sales.length = 0; venda(EMAIL, ANTES);
+    expect((await concederCursoPorAssinatura(u.id, EMAIL)).concedido).toBe(true);
+    expect(db.kit_pedidos.length).toBe(1);
+  });
+});

@@ -282,6 +282,27 @@ describe('Carla: link de assinatura, Pix e avulsos', () => {
     expect(pedidos()[0].peca).toBeUndefined();
   });
 
+  describe('com ADICIONAIS_MENSAIS ligada: a página de fora das 3 ferramentas tem o preço antigo e não vai junto', () => {
+    const antes = process.env.ADICIONAIS_MENSAIS;
+    beforeEach(() => { process.env.ADICIONAIS_MENSAIS = '1'; });
+    afterEach(() => { if (antes === undefined) delete process.env.ADICIONAIS_MENSAIS; else process.env.ADICIONAIS_MENSAIS = antes; });
+
+    it.each(['offgrid', 'curso-fechamento', 'inventario'])('avulso %s: link recusado, a Carla reescreve sem a peça', async (id) => {
+      semear();
+      ia = modelo([link(`avulso:${id}`, 'Te mando o link.'), { bolhas: ['É no app ou no checkout do plano, por mês.'] }]);
+      await rodar();
+      expect(ia.chamadas).toHaveLength(2);
+      expect(JSON.stringify(ia.chamadas[1]!.body)).toContain('adicional mensal');
+      expect(pedidos()[0].peca).toBeUndefined();
+    });
+
+    it('a Precificação segue com o link dela', async () => {
+      semear(); ia = modelo([link('avulso:precificacao', 'Te mando o link.')]);
+      await rodar();
+      expect(pedidos()[0].peca).toEqual({ tipo: 'link', texto: 'https://solardoc.app/calculadora' });
+    });
+  });
+
   it('o mesmo link só 1 vez por conversa: repetido sem o lead pedir = recusado; se ele pede de novo, sai', async () => {
     semear({ posse: { links: ['https://solardoc.app/assinar'] }, textoDoLead: 'Ok, vou olhar com calma' });
     ia = modelo([link('assinatura', 'Segue o link.'), { bolhas: ['Fico no aguardo.'] }]);

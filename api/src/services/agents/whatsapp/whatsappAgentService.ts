@@ -17,6 +17,7 @@ import { lerRegulamento } from '../../chefe/regulamento';
 import { HandoffComprovante, blocoComprovanteGiovanna, lerHandoffComprovante, pixDoHandoffPodeSair, HANDOFF_FRESCO_MIN } from './comprovanteHandoff';
 import { ehGatilhoSolarDoc } from './gatilhoSolarDoc';
 import { semNegarIA } from './giovannaIA';
+import { PRECOS, adicionaisLigado } from '../../produtos/adicionais';
 import { avancarAteWaIdDaRetomada, cedeAoPedidoDeDepoimento, cedeARetomadaDaCarla, chaveDaPosse } from '../../agentes5040/posse';
 import { pedeParaPararDeReceber } from '../../agentes5040/baseRegras';
 
@@ -169,7 +170,9 @@ não claro — os dois são resultado. NÃO fique de suporte gratuito eterno; co
   acolhe com classe, deixa a porta aberta e ENCERRA — não insista nem vire chato.
 
 ━━ A ASSINATURA (preço REAL — nunca invente outro valor) ━━
-- PREÇO ÚNICO, R$ 67/mês: documentos ILIMITADOS com a marca dele. O que fica em *Para crescer* no menu (Venda Off-Grid, Estoque em Dia, Precificação, Fecha Vendas e LimpaPro) é vendido à parte e não vem na assinatura.
+${adicionaisLigado()
+  ? `- PREÇO ÚNICO, R$ 67/mês: documentos ILIMITADOS com a marca dele. Da loja do app, Venda Off-Grid, Estoque em Dia, Fecha Vendas e LimpaPro são adicionais por mês: R$ ${PRECOS.avulso} cada, ou as 4 por R$ ${PRECOS.pacoteApp} por mês dentro do app (no checkout do plano, as 4 saem por R$ ${PRECOS.pacoteCheckout} por mês). Valem enquanto ele paga e cancela quando quiser. A Precificação é vendida à parte. Nada disso vem no plano de R$ 67. Quem já tem uma delas continua com ela.`
+  : '- PREÇO ÚNICO, R$ 67/mês: documentos ILIMITADOS com a marca dele. O que fica em *Para crescer* no menu (Venda Off-Grid, Estoque em Dia, Precificação, Fecha Vendas e LimpaPro) é vendido à parte e não vem na assinatura.'}
 - NÃO existe escolha de plano. Não há "básico e avançado", não há degrau, não há comparação. É uma assinatura só — e você NUNCA usa os nomes "PRO" ou "VIP" com o cliente.
 - Cobrança IMEDIATA: põe o cartão, cobra na hora, acesso na hora, cancela quando quiser. NÃO existe mais "7 dias grátis / cobra no 8º dia" — não prometa isso.
 - GARANTIA DE 7 DIAS: não serviu, devolve o valor integral. É esse o argumento que tira o risco.
@@ -1364,7 +1367,9 @@ export async function handleIncomingWhatsApp(
       await sendImage(
         cleanPhone,
         url,
-        'Kit de Fechamento — 6 módulos + bônus, liberado junto com a assinatura.',
+        adicionaisLigado()
+          ? `Fecha Vendas: 6 módulos em texto, com respostas de objeção e mensagens prontas. Adicional de R$ ${PRECOS.avulso} por mês.`
+          : 'Kit de Fechamento — 6 módulos + bônus, liberado junto com a assinatura.',
         originInstance,
       ).catch(() => {});
     } catch (err) {

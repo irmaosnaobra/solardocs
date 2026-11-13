@@ -9,6 +9,7 @@ import { useSearchParams } from 'next/navigation';
 import { useDashboard } from '@/contexts/DashboardContext';
 import api from '@/services/api';
 import { registrarEvento } from '@/hooks/useLpTracking';
+import { LinhaAdicionaisPix, corpoAdicionaisDaUrl } from '@/components/CheckoutAdicional/AdicionaisPix';
 import styles from './pix-recorrente.module.css';
 
 // PREÇO ÚNICO: uma assinatura só. Aqui eram dois botões (PRO R$27 × VIP R$67) —
@@ -23,7 +24,7 @@ interface Contrato {
   modo: 'automatico' | 'assinatura';
   status: string;
   plano: string;
-  valor: number;
+  valor: number; totalMensal?: number; // totalMensal: com adicionais (bump do /assinar) junto; ausente = só o plano
   qrPayload: string | null;
   ultimoPagamentoEm: string | null;
   proximoVencimento: string | null;
@@ -34,6 +35,7 @@ interface Criado {
   plano: string;
   valor: number;         // mensalidade cheia
   primeiroMes: number;   // com cupom, é o que ele paga agora
+  totalMensal?: number;  // com adicionais (bump): o mês inteiro; ausente = só o plano (o 1º pagamento vem na `instrucao`)
   cupom: string | null;
   qrPayload: string | null;
   qrImagemBase64: string | null;
@@ -68,7 +70,6 @@ export default function PixRecorrentePage() {
   const [criado, setCriado] = useState<Criado | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
-
   const [cupomOk, setCupomOk] = useState<{ codigo: string; primeiroMes: number; precoCheio: number } | null>(null);
 
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -118,7 +119,6 @@ export default function PixRecorrentePage() {
       setCarregando(false);
     }
   }, []);
-
   useEffect(() => { void carregarStatus(); }, [carregarStatus]);
 
   // Enquanto o pagamento não cai, a tela pergunta sozinha — o cliente não precisa
@@ -140,7 +140,7 @@ export default function PixRecorrentePage() {
         plan: plano,
         cpfCnpj: doc.replace(/\D/g, ''),
         whatsapp: fone.replace(/\D/g, '') || undefined,
-        cupom: cupomUrl || undefined,
+        cupom: cupomUrl || undefined, ...corpoAdicionaisDaUrl(), // ferramentas do order bump do /assinar
       });
       setCriado(data);
       registrarEvento('pix_gerou', { tela: 'recorrente', modo: data?.modo ?? null, contrato: data?.id ?? null });
@@ -219,7 +219,7 @@ export default function PixRecorrentePage() {
             Sua assinatura por Pix está ativa <span className={`${styles.badge} ${styles.badgeOk}`}>ativa</span>
           </div>
           <p className={styles.cardText}>
-            R$ {contrato.valor}/mês ·{' '}
+            R$ {contrato.totalMensal ?? contrato.valor}/mês ·{' '}
             {contrato.modo === 'automatico'
               ? 'débito automático autorizado no seu banco'
               : 'cobrança mensal por Pix'}
@@ -276,7 +276,7 @@ export default function PixRecorrentePage() {
               <ol className={styles.passos}>
                 <li>Abra o app do seu banco e pague o Pix acima.</li>
                 {criado.modo === 'automatico'
-                  ? <li>O banco vai perguntar se você autoriza a cobrança mensal de R$ {criado.valor} — confirme.</li>
+                  ? <li>O banco vai perguntar se você autoriza a cobrança mensal de R$ {criado.totalMensal ?? criado.valor} — confirme.</li>
                   : <li>Todo mês você recebe um novo código; a confirmação é automática.</li>}
                 <li>Esta tela libera seu acesso sozinha assim que o pagamento cair.</li>
               </ol>
@@ -302,6 +302,7 @@ export default function PixRecorrentePage() {
               <div className={styles.planoDesc}>{ASSINATURA.desc}</div>
             </div>
           </div>
+          <LinhaAdicionaisPix plano={Number(ASSINATURA.preco)} cupom={cupomOk} className={styles.cardText} />
 
           <label className={styles.label} htmlFor="doc">CPF ou CNPJ do pagador</label>
           <input

@@ -36,6 +36,9 @@ import {
   QR_SEGUNDOS_PADRAO, QR_SEGUNDOS_FALLBACK, FOLGA_VENCIMENTO_MS, codigoVencidoParaTroca, expiracaoParaGravar, validadeDoCodigoMs,
 } from './pixAutoValidade';
 
+import { adicionaisDoPedido, gravarAdicionaisDoPlano, lerAdicionaisDoPlano } from '../produtos/adicionaisPlanoPix';
+import { somaMensal } from '../produtos/adicionais';
+
 export type { AtribuicaoPixAuto } from './pixAutoChaves';
 
 // Preço e limite saem de utils/planos (mesma tabela que o resto do sistema usa).
@@ -60,6 +63,14 @@ export interface PixRecorrenteCriado {
   status: string;
   /** Até quando o código vale (ISO), pela data REAL do Asaas. null = contrato sem código a pagar (já ativo, ou trilho assinatura). */
   expiraEm: string | null;
+  /**
+   * Ferramentas adicionais (bump do checkout) cobradas JUNTO com o plano. `valor` e `primeiroMes` continuam sendo os do
+   * plano (R$ 67 e o 1º mês com cupom); o que o cliente paga de verdade é `totalPrimeiroMes`, e depois `totalMensal`.
+   */
+  adicionais: string[];
+  valorAdicionais: number;
+  totalMensal: number;
+  totalPrimeiroMes: number;
 }
 
 export async function gravarEstado(key: string, value: Record<string, unknown>, quando: string): Promise<void> {
@@ -182,7 +193,7 @@ async function criarAutorizacaoAutomatica(args: {
  * O QR de 24 h (86400 s). Erro de VALIDAÇÃO do Asaas (400 ou 422) por causa do valor: repete UMA vez com 3600, o mesmo contractId (o 4xx não
  * cria a autorização). Timeout, 5xx, 401 e 403 NÃO repetem: a autorização pode ter sido criada, e repetir abriria uma segunda.
  */
-async function criarAutorizacaoComFallback(args: {
+export async function criarAutorizacaoComFallback(args: {
   customerId: string; plano: string; valor: number; primeiroMes: number; contractId: string; nomePlano: string;
 }): Promise<{ auth: AsaasAutorizacao; segundos: number }> {
   try {
@@ -305,6 +316,8 @@ export async function criarPixRecorrente(args: {
   atribuicao?: AtribuicaoPixAuto;
   /** true = só Pix Automático: tenta a autorização mesmo com ASAAS_PIX_MODO=assinatura e, se ela falhar, devolve erro (502) em vez de cair pra assinatura. */
   exigirAutomatico?: boolean;
+  /** Bump do checkout (ids de `adicionais.ts`). Só vale com ADICIONAIS_MENSAIS ligada; fora disso é ignorado. */
+  adicionais?: unknown;
 }): Promise<PixRecorrenteCriado> {
   if (!asaasHabilitado()) throw new ApiError(503, 'Pix recorrente ainda não está ligado');
 
@@ -316,6 +329,9 @@ export async function criarPixRecorrente(args: {
   // mensalidade continua sendo `info.valor` nos dois modos.
   const aplicado = aplicarCupom(await buscarCupomValido(args.cupom, info.plano), info.valor);
   const primeiroMes = aplicado?.primeiroMes ?? info.valor;
+  // Adicionais do bump: somam na autorização (valor fixo, não dá para mudar depois). A mensalidade do plano segue R$ 67.
+  const adicionais = adicionaisDoPedido(args.adicionais);
+  const valorAdicionais = somaMensal(adicionais, 'checkout');
 
   // Já tem contrato vivo? Devolve o mesmo em vez de abrir um segundo — dois
   // contratos ativos no mesmo CPF é cobrança em dobro com outro nome.
@@ -361,7 +377,14 @@ export async function criarPixRecorrente(args: {
         .insert({ key: chavePixAutoAtrib(existente.contract_id), value: atribuicao });
       if (eAtr && (eAtr as { code?: string }).code !== '23505') logger.error('asaas-pix', 'atribuição do contrato existente não gravou', eAtr);
     }
+    // O contrato que já existe mantém os adicionais dele (o valor da autorização não muda): o que veio agora é ignorado.
+    const doContrato = await lerAdicionaisDoPlano(existente.contract_id);
+    const valorAdDoContrato = doContrato?.valor ?? 0;
     return {
+      adicionais: doContrato?.itens ?? [],
+      valorAdicionais: valorAdDoContrato,
+      totalMensal: Number(existente.valor) + valorAdDoContrato,
+      totalPrimeiroMes: Number(existente.primeiro_mes ?? existente.valor) + valorAdDoContrato,
       id: existente.id,
       modo: existente.modo as ModoPix,
       contractId: existente.contract_id,
@@ -404,7 +427,7 @@ export async function criarPixRecorrente(args: {
   if (modoCfg === 'automatico' || modoCfg === 'auto' || args.exigirAutomatico) {
     try {
       const { auth, segundos } = await criarAutorizacaoComFallback({
-        customerId, plano: info.plano, valor: info.valor, primeiroMes, contractId, nomePlano: info.nome,
+        customerId, plano: info.plano, valor: info.valor + valorAdicionais, primeiroMes: primeiroMes + valorAdicionais, contractId, nomePlano: info.nome,
       });
       modo = 'automatico';
       segundosQr = segundos;
@@ -433,7 +456,7 @@ export async function criarPixRecorrente(args: {
   if (modo === 'assinatura') {
     if (args.exigirAutomatico) throw new ApiError(502, 'O Pix automático não está disponível agora. Tente de novo em instantes.');
     const { assinatura, qr } = await criarAssinaturaPix({
-      customerId, valor: info.valor, primeiroMes, contractId, nomePlano: info.nome,
+      customerId, valor: info.valor + valorAdicionais, primeiroMes: primeiroMes + valorAdicionais, contractId, nomePlano: info.nome,
     });
     subscriptionId = assinatura.id;
     qrPayload = qr?.payload ?? null;
@@ -468,6 +491,8 @@ export async function criarPixRecorrente(args: {
       await gravarEstado(chavePixAutoQr(conciliationId), { contract_id: contractId, em: new Date().toISOString() }, 'criação');
     }
     if (atribuicao) await gravarEstado(chavePixAutoAtrib(contractId), atribuicao as Record<string, unknown>, 'criação');
+    // O que o cliente escolheu no bump: o webhook estende essas ferramentas a cada pagamento confirmado.
+    await gravarAdicionaisDoPlano(contractId, adicionais);
     // A validade REAL do código, por contrato (sem migration). Quem decide "vivo, espera ou vencido" lê daqui.
     if (expiraEm) await gravarValidadeDoQr(contractId, { expira_em: expiraEm, segundos: segundosQr, fallback: expiraEmFallback, em: new Date().toISOString() });
   }
@@ -477,6 +502,9 @@ export async function criarPixRecorrente(args: {
     modo, contractId, plano: info.plano, valor: info.valor, primeiroMes,
     cupom: aplicado?.cupom.codigo ?? null, qrPayload, qrImagemBase64: qrImagem, status,
     expiraEm: status === 'pendente' && qrPayload ? expiraEm : null,
+    adicionais, valorAdicionais,
+    totalMensal: info.valor + valorAdicionais,
+    totalPrimeiroMes: primeiroMes + valorAdicionais,
   };
 }
 

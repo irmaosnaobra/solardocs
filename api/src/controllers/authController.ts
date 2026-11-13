@@ -16,6 +16,7 @@ import { logger } from '../utils/logger';
 import { FREE_LIMIT } from '../services/planService';
 import { acessoDoUsuario } from '../services/kitIntegradorService';
 import { comprouAlgumProduto } from '../services/produtos/acessos';
+import { itemDoPlano } from '../services/produtos/adicionaisStripe';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -42,7 +43,7 @@ async function detectStripePlan(email: string): Promise<{ plano: string; limite:
     const subs = await stripe.subscriptions.list({ customer: customers.data[0].id, status: 'all', limit: 5 });
     const sub = subs.data.find(s => s.status === 'active' || s.status === 'trialing');
     if (!sub) return null;
-    const priceId = sub.items.data[0]?.price?.id ?? '';
+    const priceId = (itemDoPlano(sub.items.data as never[]) as { price?: { id?: string } } | undefined)?.price?.id ?? '';
     return PRICE_TO_PLAN[priceId] ?? null;
   } catch {
     return null;
@@ -101,7 +102,7 @@ async function detectPlanFromSession(sessionId: string): Promise<{ plano: string
     if (session.metadata?.source !== 'public_checkout') return null;
     if (!session.subscription) return null;
     const sub = await stripe.subscriptions.retrieve(session.subscription as string);
-    const priceId = sub.items.data[0]?.price?.id ?? '';
+    const priceId = (itemDoPlano(sub.items.data as never[]) as { price?: { id?: string } } | undefined)?.price?.id ?? '';
     const info = PRICE_TO_PLAN[priceId];
     if (!info) return null;
     const email = session.customer_email

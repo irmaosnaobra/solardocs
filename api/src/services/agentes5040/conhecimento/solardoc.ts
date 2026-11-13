@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { produtoPorId } from '../../produtos/catalogo';
+import { PRECOS, adicionaisLigado } from '../../produtos/adicionais';
 
 /**
  * Os 8 documentos que a landing do SolarDoc promete, na ordem da esteira.
@@ -43,11 +44,29 @@ export const AVULSOS: readonly Avulso[] = IDS_AVULSOS.map(id => {
   return { id, nome: p.nome, preco: p.preco };
 });
 
-/** Todo valor em reais que a Carla pode escrever: o plano e os preços dos avulsos. */
+/** Todo valor em reais que a Carla pode escrever: o plano e os preços dos avulsos (os de hoje, com ADICIONAIS_MENSAIS desligada). */
 export const VALORES_PERMITIDOS_CARLA: readonly number[] = [
   PLANO_MENSAL.valor,
   ...AVULSOS.map(a => a.preco),
 ].filter((v, i, a) => a.indexOf(v) === i);
+
+/**
+ * A lista que vale AGORA. Com ADICIONAIS_MENSAIS ligada, Venda Off-Grid, Estoque em Dia e Fecha Vendas passam a ser adicionais por mês:
+ * entram R$ 17 (cada), R$ 30 (as 4 no checkout do plano) e R$ 40 (as 4 no app) e saem R$ 27 e R$ 97, que eram os preços de compra única.
+ * O R$ 67 fica (plano e Precificação avulsa). A trava lê esta função, não a constante.
+ */
+export function valoresPermitidosCarla(): readonly number[] {
+  if (!adicionaisLigado()) return VALORES_PERMITIDOS_CARLA;
+  return [PLANO_MENSAL.valor, PRECOS.avulso, PRECOS.pacoteCheckout, PRECOS.pacoteApp]
+    .filter((v, i, a) => a.indexOf(v) === i);
+}
+
+/** Texto das ferramentas adicionais (Carla, com a flag ligada). Não nomeia o LimpaPro: o teste do conhecimento proíbe. */
+export const TEXTO_ADICIONAIS_CARLA =
+  `Ferramentas adicionais, só quando a conversa pede e de preferência depois que pagou o plano: Venda Off-Grid, Estoque em Dia e Fecha Vendas, R$ ${PRECOS.avulso} por mês cada, ` +
+  `ou as 4 ferramentas da loja do app por R$ ${PRECOS.pacoteApp} por mês. Valem enquanto ele paga e cancela quando quiser. ` +
+  `Quem vai assinar vê as ferramentas no checkout do plano: R$ ${PRECOS.avulso} por mês cada, ou as 4 por R$ ${PRECOS.pacoteCheckout} por mês. ` +
+  'Quem já tem uma delas continua com ela, sem cobrança nova. A Precificação Profissional segue avulsa, R$ 67.';
 
 /** Promessa permitida, só para quem fecha no mesmo dia e sem dar data de lançamento. */
 export const PROMESSA_PLANILHA_ELETROPOSTO =
@@ -80,6 +99,10 @@ export function textoRetomadaSolarDoc(): string[] {
     l.push('NOVIDADES DA PLATAFORMA (só estas, uma por vez, sem inventar outra):');
     for (const n of NOVIDADES_SOLARDOC) l.push(`- ${n}`);
   }
+  if (adicionaisLigado()) {
+    l.push(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam na loja do app: ${PARA_LIBERAR.join(', ')}. Venda Off-Grid, Estoque em Dia, Fecha Vendas e LimpaPro saem por R$ ${PRECOS.avulso} por mês cada, ou as 4 por R$ ${PRECOS.pacoteApp} por mês, e valem enquanto ele paga. A Precificação é avulsa. Assinar o plano não libera nenhum deles.`);
+    return l;
+  }
   l.push(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam em Para crescer, vendidos à parte: ${PARA_LIBERAR.join(', ')}. Assinar não libera nenhum deles.`);
   return l;
 }
@@ -92,7 +115,9 @@ export function textoConhecimentoSolarDoc(): string {
     `- Os ${DOCUMENTOS_SOLARDOC.length} documentos, todos com a marca do integrador: ${DOCUMENTOS_SOLARDOC.join(', ')}.`,
     '- O carro-chefe é o orçamento de 1 página: investimento, economia por mês em reais e tempo de retorno numa folha só. Marca própria: a logo, a cor e o CNPJ do integrador em tudo, não a nossa.',
     '- Não existe cupom, nem desconto, nem Pix de R$ 19, nem plano anual.',
-    `- Produtos avulsos (Kiwify, o acesso chega sozinho), só quando a conversa pede e depois que pagou: ${avulsos}.`,
+    adicionaisLigado()
+      ? `- ${TEXTO_ADICIONAIS_CARLA}`
+      : `- Produtos avulsos (Kiwify, o acesso chega sozinho), só quando a conversa pede e depois que pagou: ${avulsos}.`,
     `- Promessa permitida só para quem fecha no mesmo dia, sem data: "${PROMESSA_PLANILHA_ELETROPOSTO}"`,
     '- Pix: só o Pix automático (peça pix_automatico), que cobra na conta da pessoa todo mês. O sistema manda o código dessa pessoa (ou pede o CPF). Sem chave escrita por você, sem código escrito por você e sem comprovante.',
     '- Cartão de crédito: aceito. Pelo link de assinatura só para quem não tem conta; quem já tem conta assina por dentro do app.',

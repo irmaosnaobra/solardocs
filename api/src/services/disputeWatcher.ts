@@ -33,6 +33,7 @@ import {
   CtxDefesa, CobrancaResumo, AssinaturaResumo, DecisaoDefesa,
   autoOffLigado, dataDaDefesa, decidirDefesa, diaBR, isoDiaBR, docMs, mascararPrevia, montarEvidencia,
 } from './disputeDefesa';
+import { itemDoPlano } from './produtos/adicionaisStripe';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -194,7 +195,8 @@ async function buscarNaStripe(email: string | null, charge: any): Promise<{
         id: s0.id, status: s0.status, created: s0.created,
         canceled_at: s0.canceled_at ?? null, cancel_at: s0.cancel_at ?? null,
         cancel_at_period_end: !!s0.cancel_at_period_end, trial_end: s0.trial_end ?? null,
-        intervalo: s0.items?.data?.[0]?.price?.recurring?.interval ?? s0.items?.data?.[0]?.plan?.interval ?? null,
+        // O item do PLANO, não o primeiro: com adicionais na assinatura o plano nem sempre vem primeiro.
+        intervalo: (itemDoPlano(s0.items?.data as never[]) as any ?? s0.items?.data?.[0])?.price?.recurring?.interval ?? s0.items?.data?.[0]?.plan?.interval ?? null,
       }
     : null;
   return { cobrancas, ativas, assinatura };

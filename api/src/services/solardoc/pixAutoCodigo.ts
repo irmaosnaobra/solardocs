@@ -20,6 +20,7 @@ import { FOLGA_VENCIMENTO_MS, ehCodigoPix, pagamentoValeDesde, restanteDoCodigoM
 import { PREFIXO_PAGTO, PREFIXO_PAGTO_EMAIL, PREFIXO_PAGTO_EMAIL2 } from './recuperacaoCarlaRegras';
 import { hmacDoPagamento } from './marcaPagamentoQuiz';
 import { situacaoDaConta, type SituacaoDaConta } from '../../utils/clientePagante';
+import { lerAdicionaisDoPlano } from '../produtos/adicionaisPlanoPix';
 
 const LOG = 'pix-auto-codigo';
 
@@ -99,11 +100,13 @@ export async function gerarCodigoNovo(a: { antigo: ContratoBase; nome: string | 
   const atrAntiga = await lerAtribuicao(a.antigo.contract_id);
   // `rota: 'publica'` é a trava do webhook (não cancela o cartão de quem só digitou o e-mail de um cliente); `whatsapp` é o telefone que a recuperação lê no contrato.
   const atribuicao: AtribuicaoPixAuto = { ...(atrAntiga ?? {}), rota: atrAntiga?.rota ?? 'publica', whatsapp: atrAntiga?.whatsapp ?? a.tel };
+  // O código novo leva os mesmos adicionais (bump do checkout) do contrato que venceu: o valor da autorização é fixo, e a pessoa pagou o que viu.
+  const adicionaisDoAntigo = (await lerAdicionaisDoPlano(a.antigo.contract_id))?.itens;
   let criado: Awaited<ReturnType<typeof criarPixRecorrente>>;
   try {
     criado = await criarPixRecorrente({
       userId: a.antigo.user_id, email: a.antigo.email, nome: a.nome ?? '', cpfCnpj: a.antigo.cpf_cnpj, whatsapp: a.tel,
-      planKey: a.antigo.plano, cupom: a.antigo.cupom, atribuicao, exigirAutomatico: true,
+      planKey: a.antigo.plano, cupom: a.antigo.cupom, atribuicao, exigirAutomatico: true, adicionais: adicionaisDoAntigo,
     });
   } catch (err) {
     const st = Number((err as { asaasStatus?: unknown } | null)?.asaasStatus);

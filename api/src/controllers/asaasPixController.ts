@@ -13,6 +13,7 @@ import {
   cancelarPixRecorrente, docValido, soDigitos, PLANOS_PIX, type AtribuicaoPixAuto,
 } from '../services/asaas/pixRecorrenteService';
 import { processarWebhookAsaas, AsaasWebhookBody } from '../services/asaas/asaasWebhookService';
+import { lerAdicionaisDoPlano } from '../services/produtos/adicionaisPlanoPix';
 import { pixPublicoAtivo, pixAutoQuizAtivo, pixAutoLpAtivo, pixAvulsoFunilAtivo } from '../utils/pixInfo';
 import { criarPixAvulso, statusPixAvulso } from '../services/asaas/pixAvulsoService';
 import { gravarMarcaPagamento } from '../services/solardoc/marcaPagamentoQuiz';
@@ -38,6 +39,9 @@ function traduzirErroDeValidacao(err: unknown): never {
   if (Number.isFinite(st) && st >= 400 && st < 500 && st !== 408 && st !== 429 && msg) throw new ApiError(400, msg);
   throw err;
 }
+
+/** O contrato leva ferramentas adicionais (bump)? Tolerante: quem monta o `criado` pode não trazer o campo. */
+const temAdicionais = (c: { adicionais?: readonly string[] | null }): boolean => (c.adicionais?.length ?? 0) > 0;
 
 function responderErro(res: Response, err: unknown, contexto: string): void {
   const status = (err as { statusCode?: number; status?: number })?.statusCode
@@ -70,6 +74,8 @@ export async function criarPixRecorrenteHandler(req: Request, res: Response): Pr
       whatsapp: soDigitos(whatsapp) || u.whatsapp,
       planKey: plan,
       cupom,
+      // Bump do checkout (ferramentas adicionais). Ignorado com ADICIONAIS_MENSAIS desligada.
+      adicionais: (req.body as Record<string, unknown> | undefined)?.adicionais,
     });
 
     // Guarda o telefone informado aqui — é por ele que a Giovanna avisa o
@@ -84,8 +90,8 @@ export async function criarPixRecorrenteHandler(req: Request, res: Response): Pr
       // A instrução muda com o trilho e o cliente PRECISA saber em qual está:
       // num ele não faz mais nada, no outro ele paga um QR todo mês.
       instrucao: criado.modo === 'automatico'
-        ? `Pague este Pix${criado.cupom ? ` de R$ ${criado.primeiroMes}` : ''} no app do banco e autorize a cobrança mensal quando ele perguntar. Dos próximos meses em diante o débito é automático${criado.cupom ? `, de R$ ${criado.valor}` : ''}.`
-        : `Pague este Pix${criado.cupom ? ` de R$ ${criado.primeiroMes}` : ''} pra liberar o acesso. Todo mês você recebe um novo código no WhatsApp e no e-mail${criado.cupom ? ` (R$ ${criado.valor} a partir do mês que vem)` : ''} — a confirmação é automática.`,
+        ? `Pague este Pix${(criado.cupom || temAdicionais(criado)) ? ` de R$ ${criado.totalPrimeiroMes ?? criado.primeiroMes}` : ''} no app do banco e autorize a cobrança mensal quando ele perguntar. Dos próximos meses em diante o débito é automático${(criado.cupom || temAdicionais(criado)) ? `, de R$ ${criado.totalMensal ?? criado.valor}` : ''}.`
+        : `Pague este Pix${(criado.cupom || temAdicionais(criado)) ? ` de R$ ${criado.totalPrimeiroMes ?? criado.primeiroMes}` : ''} pra liberar o acesso. Todo mês você recebe um novo código no WhatsApp e no e-mail${(criado.cupom || temAdicionais(criado)) ? ` (R$ ${criado.totalMensal ?? criado.valor} a partir do mês que vem)` : ''} — a confirmação é automática.`,
     });
   } catch (err) {
     responderErro(res, err, 'criar');
@@ -102,6 +108,7 @@ export async function statusPixRecorrenteHandler(req: Request, res: Response): P
     }
     const { data: user } = await supabase
       .from('users').select('plano, plano_expira_em').eq('id', req.userId).maybeSingle();
+    const adic = await lerAdicionaisDoPlano(linha.contract_id);
 
     res.json({
       ativo: linha.status === 'ativo',
@@ -111,6 +118,10 @@ export async function statusPixRecorrenteHandler(req: Request, res: Response): P
         status: linha.status,
         plano: linha.plano,
         valor: Number(linha.valor),
+        // Bump do checkout cobrado junto (vazio sem adicionais): `valor` segue sendo só a mensalidade do plano.
+        adicionais: adic?.itens ?? [],
+        valorAdicionais: adic?.valor ?? 0,
+        totalMensal: Number(linha.valor) + (adic?.valor ?? 0),
         qrPayload: linha.qr_payload,
         ultimoPagamentoEm: linha.ultimo_pagamento_em,
         proximoVencimento: linha.proximo_vencimento,
@@ -262,6 +273,7 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
       planKey: plan,
       cupom,
       atribuicao,
+      adicionais: corpo.adicionais,
       // Quiz e LP: só Pix Automático. Se não der, erro claro, nunca cair em assinatura.
       ...(origem ? { exigirAutomatico: true } : {}),
     }).catch(traduzirErroDeValidacao);
@@ -308,8 +320,8 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
       ...(codigoLp ? { codigo: codigoLp } : {}),
       temConta: Boolean(dono),
       instrucao: criado.modo === 'automatico'
-        ? `Pague este Pix${criado.cupom ? ` de R$ ${criado.primeiroMes}` : ''} no app do banco e autorize a cobrança mensal quando ele perguntar. Dos próximos meses em diante o débito é automático${criado.cupom ? `, de R$ ${criado.valor}` : ''}.`
-        : `Pague este Pix${criado.cupom ? ` de R$ ${criado.primeiroMes}` : ''} pra liberar o acesso. Todo mês você recebe um novo código no WhatsApp e no e-mail${criado.cupom ? ` (R$ ${criado.valor} a partir do mês que vem)` : ''} — a confirmação é automática.`,
+        ? `Pague este Pix${(criado.cupom || temAdicionais(criado)) ? ` de R$ ${criado.totalPrimeiroMes ?? criado.primeiroMes}` : ''} no app do banco e autorize a cobrança mensal quando ele perguntar. Dos próximos meses em diante o débito é automático${(criado.cupom || temAdicionais(criado)) ? `, de R$ ${criado.totalMensal ?? criado.valor}` : ''}.`
+        : `Pague este Pix${(criado.cupom || temAdicionais(criado)) ? ` de R$ ${criado.totalPrimeiroMes ?? criado.primeiroMes}` : ''} pra liberar o acesso. Todo mês você recebe um novo código no WhatsApp e no e-mail${(criado.cupom || temAdicionais(criado)) ? ` (R$ ${criado.totalMensal ?? criado.valor} a partir do mês que vem)` : ''} — a confirmação é automática.`,
     });
   } catch (err) {
     responderErro(res, err, 'criar-publico');
@@ -357,8 +369,13 @@ export async function statusPixPublicoHandler(req: Request, res: Response): Prom
     if (!pixPublicoAtivo() && !pixAutoQuizAtivo() && !pixAutoLpAtivo()) throw new ApiError(503, 'Indisponível');
     const linha = await buscarAssinaturaPorId(String(req.params.id || ''));
     if (!linha) throw new ApiError(404, 'Contrato não encontrado');
+    const adic = await lerAdicionaisDoPlano(linha.contract_id);
 
     res.json({
+      adicionais: adic?.itens ?? [],
+      valorAdicionais: adic?.valor ?? 0,
+      totalMensal: Number(linha.valor) + (adic?.valor ?? 0),
+      totalPrimeiroMes: Number(linha.primeiro_mes ?? linha.valor) + (adic?.valor ?? 0),
       id: linha.id,
       status: linha.status,
       modo: linha.modo,

@@ -121,6 +121,25 @@ export interface ProdutoLoja {
    */
   abrirNoApp?: string;
   cor: string;
+  /**
+   * A ferramenta vendida como ADICIONAL MENSAL dentro do app (`oferta.ligado`, 13/11/2026). Só os campos que mudam.
+   * Vale só para a versão de dentro do app: a página pública segue com o preço único da Kiwify.
+   */
+  mensal?: Partial<Pick<ProdutoLoja, 'entrega' | 'beneficios' | 'faq' | 'fechamento' | 'numeros'>>;
+  /**
+   * O que deixa de prometer o produto na assinatura, com a oferta ligada, em qualquer página (o Fecha Vendas sai do
+   * plano mensal para quem assina daqui para frente).
+   */
+  semBrinde?: Partial<Pick<ProdutoLoja, 'faq'>>;
+}
+
+/**
+ * O produto que vale agora. `semBrinde` entra sempre que a oferta mensal está ligada; `mensal`, só dentro do app.
+ * Desligada, o produto de sempre.
+ */
+export function produtoDaOferta(p: ProdutoLoja, ligado: boolean, dentroDoApp: boolean): ProdutoLoja {
+  if (!ligado) return p;
+  return { ...p, ...(p.semBrinde ?? {}), ...(dentroDoApp ? (p.mensal ?? {}) : {}) };
 }
 
 /**
@@ -232,6 +251,48 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
       { valor: '12', rotulo: 'bancos dentro da proposta' },
       { valor: '7 dias', rotulo: 'de garantia' },
     ],
+    // "Os R$ 97 voltam no primeiro pedido" sai na venda mensal (decisão de 13/11/2026).
+    mensal: {
+      entrega: [
+        'Placas, inversor e baterias dimensionados pelo que o cliente quer ligar e pelos dias sem sol',
+        'O kit da casa, com frete até o CEP da obra, ou o seu próprio equipamento, com o seu custo e a sua margem',
+        'Proposta completa com a sua marca e as fotos das suas obras',
+        'As formas de pagamento e os 12 bancos dentro da proposta',
+        'O aceite do cliente na própria proposta',
+        'Adicional de R$ 17 por mês, com acesso enquanto você pagar',
+      ],
+      fechamento: {
+        titulo: 'A próxima venda de off-grid não precisa travar na pergunta da bateria.',
+        texto: 'Testar o dimensionamento é de graça: a ferramenta está aberta pra você ver antes. O acesso à proposta completa é um adicional de R$ 17 por mês. Cancele quando quiser e use até o fim do mês pago.',
+      },
+      beneficios: [
+        { titulo: 'Dimensiona pelo que o cliente quer ligar',
+          texto: 'Você marca os aparelhos e diz quantos dias sem sol ele precisa aguentar. A plataforma dimensiona as placas, o inversor e as baterias a partir disso.' },
+        { titulo: 'O kit da casa ou o seu próprio equipamento',
+          texto: 'Usa o kit da casa, com frete até o CEP da obra, ou o seu próprio equipamento, com o seu custo e a sua margem. A proposta sai com o SEU preço.' },
+        { titulo: 'A proposta sai com a sua marca',
+          texto: 'Proposta completa com a sua logo, as suas cores e as fotos das suas obras. Quem vende é você, e o cliente vê o seu nome.' },
+        { titulo: 'Formas de pagamento e 12 bancos na proposta',
+          texto: 'As formas de pagamento e os 12 bancos já entram na proposta, e o cliente dá o aceite nela mesma. Sem montar tudo na mão a cada venda.' },
+        { titulo: 'Adicional mensal, cancela quando quiser',
+          texto: 'São R$ 17 por mês, enquanto você usar. Cancelou, o acesso fica até o fim do mês pago.' },
+      ],
+      faq: [
+        { p: 'Preciso entender de cálculo pra usar?',
+          r: 'Não. Você marca o que o cliente quer ligar e responde quantos dias sem sol ele precisa aguentar. A conta é da ferramenta.' },
+        { p: 'O preço do kit é o que eu vendo?',
+          r: 'Não. Com o kit da casa, o preço que aparece é o nosso fornecimento, com frete até o CEP da obra. Você põe a sua margem em cima, e a proposta sai com o SEU preço. Se usar o seu próprio equipamento, entra o seu custo e a sua margem.' },
+        { p: 'Sou obrigado a comprar o kit de vocês?',
+          r: 'Não. Você pode usar o seu próprio equipamento, com o seu custo e a sua margem.' },
+        { p: 'Tem mensalidade?',
+          r: 'Tem. São R$ 17 por mês, e você cancela quando quiser.' },
+      ],
+      numeros: [
+        { valor: 'R$ 17', rotulo: 'por mês, cancela quando quiser' },
+        { valor: '12', rotulo: 'bancos dentro da proposta' },
+        { valor: '7 dias', rotulo: 'de garantia' },
+      ],
+    },
     cor: '#0F766E',
   },
   {
@@ -523,6 +584,24 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     checkout: process.env.NEXT_PUBLIC_KIT_CHECKOUT_URL || 'https://pay.kiwify.com.br/TGvxMl0',
     lpPropria: '/kit',
     mockup: 'curso',
+    semBrinde: {
+      faq: [
+        { p: 'É vídeo ou é PDF?',
+          r: 'É trilha dentro da plataforma, com progresso: você abre do celular, vê onde parou e continua. Não é pasta de arquivo que some quando troca de aparelho nem PDF que fica desatualizado.' },
+        { p: 'Serve pra quem está começando?',
+          r: 'Serve — ele começa na primeira ligação e vai até a assinatura. Quem já vende costuma usar mais os módulos de objeção e de preço, que são os que travam venda de quem já tem rodagem.' },
+        { p: 'Quanto tempo leva pra terminar?',
+          r: 'São 21 lições curtas. Fazendo uma por dia, três semanas. Mas ele é feito pra consulta também: dá pra ir direto na objeção que apareceu ontem.' },
+        { p: 'Preciso assinar o SolarDoc pra usar?',
+          r: 'Não. Você não precisa do plano do SolarDoc para usar o Fecha Vendas. Ele é vendido à parte.' },
+      ],
+    },
+    mensal: {
+      fechamento: {
+        titulo: 'A próxima objeção já tem resposta.',
+        texto: 'R$ 17 por mês é menos que o combustível de uma visita perdida. São 21 lições curtas, no celular, e o acesso vale enquanto você paga.',
+      },
+    },
     cor: '#7C3AED',
   },
   {
