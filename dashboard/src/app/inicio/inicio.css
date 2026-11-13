@@ -7,7 +7,7 @@
   --ini-cor: #F26513;                       /* principal: faixa e cartões grandes */
   --ini-sobre: #111111;                     /* texto e ícone sobre a principal (>= 4,5:1) */
   --ini-pressionada: #d4530f;               /* fundo do cartão apertado */
-  --ini-escura: #c65310;                    /* cor escura da marca sobre o BRANCO: ícones, iniciais, Liberar e Abrir (>= 4,5:1) */
+  --ini-escura: #c65310;                    /* cor escura da marca sobre o BRANCO: ícones e iniciais (>= 4,5:1) */
   --ini-escura-pagina: #ba4e0f;             /* a mesma, recalculada para o cinza da página: "Ver todos" (>= 4,5:1) */
   --ini-tinta: rgba(242, 101, 19, 0.12);    /* a marca a 12%: fundo do quadrado dos ícones */
   --ini-chip: rgba(255, 255, 255, 0.4);     /* quadrado translúcido dos cartões grandes */
@@ -222,7 +222,7 @@
   animation: ini-rot 0.8s linear infinite;
 }
 
-/* Quadrado do ícone nas linhas dos Recentes e nos cartões do Para liberar: a marca a 12% e o ícone escuro. */
+/* Quadrado do ícone nas linhas dos Recentes: a marca a 12% e o ícone escuro. */
 .ini-chip {
   flex: none;
   width: 38px; height: 38px;
@@ -231,19 +231,18 @@
   color: var(--ini-escura);
   display: flex; align-items: center; justify-content: center;
 }
-/* Produto travado: o quadrado e o ícone ficam cinza. */
-.ini-chipCinza { background: #EEF0F3; color: #4A5361; }
 
-/* Ferramentas: grade de três colunas iguais em qualquer largura, blocos brancos com o nome. Com "minmax(0, 1fr)" a
+/* Ferramentas: uma grade só, de três colunas iguais em qualquer largura, com as ferramentas, os produtos e o "Ver
+   todos os produtos". Blocos brancos com o nome; a etiqueta (Novo ou COMPRAR) fica embaixo dele, encostada no pé do
+   bloco, então os blocos de uma mesma linha alinham as etiquetas. Com "minmax(0, 1fr)" a
    coluna nunca cresce para caber a palavra mais longa: a grade ocupa sempre a largura do corpo. A palavra mais longa
    (Manutenção, Precificação) pode passar 1 a 2 px do texto do bloco a 320 px, para dentro do padding, sem rolagem
    lateral, sem quebrar no meio e sem esconder nada. */
 .ini-ferramentas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .ini-ferramentas > li { display: flex; }
 .ini-ferramenta {
-  position: relative;
   flex: 1 1 auto; min-width: 0; box-sizing: border-box;
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 7px;
   min-height: 100px;               /* cresce conforme o texto (nomes de 2 palavras usam mais linhas) */
   padding: 14px 6px 12px;
   text-align: center;
@@ -267,44 +266,31 @@
 .ini-ferramentaNome { font-size: 14px; font-weight: 700; line-height: 1.25; overflow-wrap: normal; word-break: normal; hyphens: manual; }
 /* Palavra com hífen (Kit Off-Grid) quebra no espaço, não no hífen. */
 .ini-semQuebra { white-space: nowrap; }
-.ini-selo {
-  position: absolute; top: 8px; right: 8px;
-  padding: 2px 7px;
+.ini-etiqueta {
+  margin-top: auto;
+  display: inline-flex; align-items: center;
+  height: 20px;
+  padding: 0 8px;
   border-radius: 999px;
-  background: #E6F0FB; color: #0B5BB5;
-  font-size: 11px; font-weight: 800;
+  border: 1px solid;
+  font-size: 10.5px; font-weight: 800; white-space: nowrap;
 }
-
-/* Para liberar: vitrine que rola para o lado, de ponta a ponta da tela. Só ela rola: o corpo da página não. A folga
-   do fim vem da margem do último cartão, porque o padding do fim de um contêiner que rola nem sempre conta. */
-.ini-vitrine {
-  margin: 0 -16px; padding: 0 0 6px 16px;
-  display: flex; gap: 10px;
-  overflow-x: auto; overscroll-behavior-x: contain;
-  scroll-padding-left: 16px;
-  scrollbar-width: none;
+/* "Novo" (Parceiro NEXUS): azul claro, 5,6:1. */
+.ini-selo { background: #E6F0FB; color: #0B5BB5; border-color: #BCD5F3; }
+/* Produto que a pessoa ainda não tem: o laranja da etiqueta do menu lateral, escurecido para o fundo claro, 5,7:1. */
+.ini-comprar { background: #FFEBDD; color: #A23C00; border-color: #F3A574; letter-spacing: 0.05em; }
+/* Celular de 320 px: o bloco fica com uns 77 px por dentro, e a etiqueta encolhe um pouco para caber. */
+@media (max-width: 340px) {
+  .ini-etiqueta { padding: 0 6px; }
+  .ini-comprar { letter-spacing: 0.02em; }
 }
-.ini-vitrine::-webkit-scrollbar { display: none; }
-.ini-vitrine > li { flex: 0 0 140px; display: flex; }
-.ini-vitrine > li:last-child { margin-right: 16px; }
-.ini-liberar {
-  position: relative;
-  flex: 1 1 auto; min-width: 0; box-sizing: border-box;
-  min-height: 118px;
-  padding: 14px;
-  display: flex; flex-direction: column; justify-content: space-between; gap: 10px;
-  background: #ffffff;
-  border: 1px solid var(--ini-contorno);
-  border-radius: 16px;
-  color: inherit;
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-}
-.ini-liberar:active { background: var(--ini-fundo); }
-.ini-liberarCadeado { position: absolute; top: 12px; right: 12px; color: var(--ini-cinza); }
-.ini-liberarTextos { display: flex; flex-direction: column; gap: 2px; }
-.ini-liberarNome { font-size: 14px; font-weight: 700; line-height: 1.25; }
-.ini-liberarAcao { font-size: 13px; font-weight: 700; color: var(--ini-escura); }
+/* "Ver todos os produtos": fecha a grade, tracejado e sem fundo, para não parecer mais uma ferramenta. */
+.ini-ferramentaTodos { background: transparent; box-shadow: none; border: 1.5px dashed #BFC7D2; padding: 12.5px 4.5px 10.5px; }
+.ini-ferramentaTodos .ini-ferramentaIcone { background: #E9ECF0; color: #3E4754; }
+/* Cartão vazio: guarda o lugar de um produto enquanto a resposta de acesso não chega. */
+.ini-ferramentaVazia { min-height: 120px; }
+.ini-ossoRotulo { width: 64%; height: 14px; margin-top: 2px; }
+.ini-ferramentaIcone.ini-osso { background: var(--ini-divisor); border-radius: 13px; }
 
 /* Anel de foco na cor secundária */
 .ini-page a:focus-visible,
@@ -312,10 +298,8 @@
   outline: 3px solid var(--ini-anel);
   outline-offset: 2px;
 }
-/* Linhas e cartões dentro de um cartão que corta (ou de uma vitrine que rola) levam o anel para dentro, senão
-   a borda do contêiner o esconderia. */
+/* Linhas dentro de um cartão que corta levam o anel para dentro, senão a borda do cartão o esconderia. */
 .ini-page .ini-linha:focus-visible { outline-offset: -3px; }
-.ini-page .ini-liberar:focus-visible { outline-offset: -4px; }
 /* Na faixa colorida o anel da secundária pode sumir: nada garante o contraste dela contra a principal
    (deu 2,07:1 no laranja). Ali o anel usa a cor do texto da faixa, que passa de 4,5:1 sobre ela. */
 .ini-page .ini-faixa a:focus-visible,

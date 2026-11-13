@@ -1,9 +1,9 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, Files, Lock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Files } from 'lucide-react';
 import { isAuthenticated } from '@/services/auth';
 import api from '@/services/api';
 import { useAcessos } from '@/hooks/useAcessos';
@@ -24,7 +24,7 @@ import './inicio.css';
 // Tela de atalho (launcher), SÓ no celular.
 // Abre quando o app abre (start_url do PWA). No PC redireciona pra plataforma normal
 // (comportamento inalterado). De cima para baixo: a faixa da marca, as duas ações principais, os Recentes,
-// o convite da NEXUS, as Ferramentas, a Papelada em lista, a vitrine do Para liberar e o rodapé. Os itens
+// o convite da NEXUS, as Ferramentas (com os produtos na mesma grade), a Papelada em lista e o rodapé. Os itens
 // são os MESMOS do menu lateral (as definições moram em Sidebar/itensMenu.ts) e a tela se veste com a marca
 // do assinante: a cor e a logo que ele escolheu na tela Empresa. O menu lateral NÃO pega a cor.
 // Dá pra intercalar: "Plataforma" entra no app; o botão de grade no topo do app
@@ -126,7 +126,7 @@ function variaveis(p: PaletaMarca): CSSProperties {
     '--ini-cor': p.principal,
     '--ini-sobre': p.sobrePrincipal,
     '--ini-pressionada': p.pressionada,
-    // A cor escura da marca sobre o BRANCO (ícones, iniciais e a linha Liberar/Abrir dos cartões brancos).
+    // A cor escura da marca sobre o BRANCO (ícones das Ferramentas, das linhas e as iniciais).
     '--ini-escura': p.textoSobreBranco,
     // Para o texto que fica direto no cinza da página ("Ver todos"): recalculada contra o cinza, onde a de cima
     // dá uns 4,1:1 em vez de 4,5:1.
@@ -159,8 +159,8 @@ export default function InicioPage() {
   const aoFalharQuadro = useCallback(() => setQuadroFalhou(true), []);
   const { itens: recentes, pronto: recentesProntos, reserva: reservaRecentes, buscar: buscarRecentes } = useRecentes();
 
-  // Quem decide o cadeado é o servidor (uma chamada, cacheada no módulo), como no menu lateral. O admin vem
-  // das duas chamadas (/auth/me e /produtos/acessos): se uma falhar, a outra ainda o livra do cadeado.
+  // Quem decide a etiqueta COMPRAR é o servidor (uma chamada, cacheada no módulo), como no menu lateral. O admin
+  // vem das duas chamadas (/auth/me e /produtos/acessos): se uma falhar, a outra ainda o livra da etiqueta.
   const {
     carregando: carregandoServidor, tem: temServidor, bastidor: bastidorServidor, isAdmin: adminServidor, previa,
   } = useAcessos();
@@ -266,14 +266,14 @@ export default function InicioPage() {
   }
 
   // Mesma regra do menu lateral: a prévia do cache só desenha; item de produto só aparece depois
-  // que o servidor (e a conta) respondem; admin nunca tem cadeado.
+  // que o servidor (e a conta) respondem; admin nunca tem etiqueta.
   const acessosCarregando = (previa ? false : carregandoServidor) || pessoa === null;
   const bastidor = previa ? previa.bastidor : bastidorServidor;
   const tem = (produto: string) => (previa ? previa.produtos.has(produto) : temServidor(produto));
   const { principal, paraLiberar, mostrarLoja, travado: travadoNoMenu } = organizarMenu({
     bastidor, carregando: acessosCarregando, isAdmin: !!pessoa?.admin || adminServidor, tem,
   });
-  // Sem a ficha do produto no catálogo não há para onde levar o cadeado: fica o link normal.
+  // Sem a ficha do produto no catálogo não há para onde levar a etiqueta: fica o link normal.
   const travado = (item: ItemMenu) => travadoNoMenu(item) && !!item.produto && !!produtoPorId(item.produto);
 
   const { temEmpresa, nome, logo } = dados;
@@ -330,14 +330,16 @@ export default function InicioPage() {
             {/* Convite ao Portal do Parceiro NEXUS: só com o portal ligado, fechável por usuário */}
             {convite}
 
-            {ferramentas.length > 0 && (
-              <section className="ini-secao" aria-labelledby="ini-ferramentas-titulo">
-                <h2 id="ini-ferramentas-titulo" className="ini-titulo">Ferramentas</h2>
-                <ul className="ini-lista ini-ferramentas" role="list">
-                  {ferramentas.map((item) => <li key={item.id}><Ferramenta item={item} /></li>)}
-                </ul>
-              </section>
-            )}
+            <section className="ini-secao" aria-labelledby="ini-ferramentas-titulo">
+              <h2 id="ini-ferramentas-titulo" className="ini-titulo">Ferramentas</h2>
+              <GradeDeFerramentas
+                ferramentas={ferramentas}
+                produtos={paraLiberar}
+                travado={travado}
+                mostrarLoja={mostrarLoja}
+                carregando={acessosCarregando}
+              />
+            </section>
 
             <section className="ini-secao" aria-labelledby="ini-papelada-titulo">
               <h2 id="ini-papelada-titulo" className="ini-titulo">Papelada</h2>
@@ -374,27 +376,6 @@ export default function InicioPage() {
                 </ul>
               </div>
             </section>
-
-            {paraLiberar.length > 0 && (
-              <section className="ini-secao" aria-labelledby="ini-liberar-titulo">
-                <div className="ini-secaoTopo">
-                  <h2 id="ini-liberar-titulo" className="ini-titulo">Para crescer</h2>
-                  {mostrarLoja && (
-                    <Link
-                      id="ini-liberar-ver"
-                      href={lojaItem.href}
-                      className="ini-verTodos"
-                      aria-labelledby="ini-liberar-ver ini-liberar-titulo"
-                    >
-                      Ver todos
-                    </Link>
-                  )}
-                </div>
-                <ul className="ini-lista ini-vitrine" role="list">
-                  {paraLiberar.map((item) => <li key={item.id}><CartaoDeProduto item={item} travado={travado(item)} /></li>)}
-                </ul>
-              </section>
-            )}
 
             {faltaMarca && cartoesAntigos && (
               <section className="ini-cartao ini-cartaoMarca" aria-labelledby="ini-marca-titulo">
@@ -442,17 +423,106 @@ function Acao({ item }: { item: ItemMenu }) {
 }
 
 /**
- * Um bloco da grade de Ferramentas. Aqui nunca há cadeado: o item de produto que a pessoa ainda não tem
- * não está na lista principal (vai para "Para liberar"). Página estática (NEXUS): <a> comum, de página inteira.
+ * Quanto a grade de Ferramentas ocupou da última vez neste aparelho: quantos cartões e a altura em px. Enquanto
+ * a resposta de /produtos/acessos não chega, os cartões de produto ainda não podem ser desenhados (nada de
+ * etiqueta piscando para quem pagou); a grade guarda o lugar deles com cartões vazios e com esta altura, para a
+ * Papelada não pular quando a resposta chega. Sem registro, vale o caso mais comum (loja aberta, nada comprado):
+ * 11 cartões. Opcional: sem localStorage, só os cartões vazios guardam o lugar.
  */
-function Ferramenta({ item }: { item: ItemMenu }) {
+const CHAVE_RESERVA_GRADE = 'ini-ferramentas-reserva';
+const RESERVA_PADRAO = { n: 11, h: 0 };
+
+function lerReservaGrade(): { n: number; h: number } {
+  try {
+    const d = JSON.parse(window.localStorage.getItem(CHAVE_RESERVA_GRADE) || 'null');
+    const n = Number(d?.n);
+    const h = Number(d?.h);
+    if (Number.isInteger(n) && n >= 1 && n <= 30) return { n, h: Number.isFinite(h) && h > 0 && h < 3000 ? h : 0 };
+  } catch { /* sem armazenamento ou registro estragado: vale o padrão */ }
+  return RESERVA_PADRAO;
+}
+
+function guardarReservaGrade(n: number, h: number) {
+  try { window.localStorage.setItem(CHAVE_RESERVA_GRADE, JSON.stringify({ n, h: Math.round(h) })); } catch { /* sem armazenamento: sem reserva */ }
+}
+
+interface PropsGrade {
+  /** A lista principal do menu, mais o Parceiro NEXUS quando o portal está no ar. */
+  ferramentas: ItemMenu[];
+  /** O grupo "Para liberar" de organizarMenu, na ordem que a função devolve. */
+  produtos: ItemMenu[];
+  travado: (item: ItemMenu) => boolean;
+  mostrarLoja: boolean;
+  carregando: boolean;
+}
+
+/**
+ * Uma grade só, 3 por linha: as ferramentas, depois do Parceiro NEXUS os produtos (quem não tem vê COMPRAR
+ * embaixo do nome e o toque leva para onde o produto vende) e, por último, "Ver todos os produtos" tracejado,
+ * só quando falta algum produto.
+ */
+function GradeDeFerramentas({ ferramentas, produtos, travado, mostrarLoja, carregando }: PropsGrade) {
+  const grade = useRef<HTMLUListElement>(null);
+  const [reserva] = useState(lerReservaGrade);
+  const total = ferramentas.length + produtos.length + (mostrarLoja ? 1 : 0);
+
+  // Com tudo desenhado, guarda o tamanho para a próxima abertura.
+  useEffect(() => {
+    if (carregando || !grade.current) return;
+    guardarReservaGrade(total, grade.current.getBoundingClientRect().height);
+  }, [carregando, total]);
+
+  const vazios = carregando ? Math.max(0, reserva.n - ferramentas.length) : 0;
+  const estilo = carregando && reserva.h ? { minHeight: reserva.h } : undefined;
+
+  return (
+    <ul ref={grade} className="ini-lista ini-ferramentas" role="list" aria-busy={carregando || undefined} style={estilo}>
+      {ferramentas.map((item) => <li key={item.id}><Ferramenta item={item} /></li>)}
+      {produtos.map((item) => <li key={item.id}><Ferramenta item={item} comprar={travado(item)} /></li>)}
+      {mostrarLoja && (
+        <li>
+          <Link href={lojaItem.href} className="ini-ferramenta ini-ferramentaTodos">
+            <span className="ini-ferramentaIcone"><lojaItem.icon size={22} strokeWidth={2} aria-hidden="true" /></span>
+            <span className="ini-ferramentaNome">{lojaItem.label}</span>
+          </Link>
+        </li>
+      )}
+      {Array.from({ length: vazios }, (_, i) => (
+        <li key={`vazio-${i}`} aria-hidden="true">
+          <span className="ini-ferramenta ini-ferramentaVazia">
+            <span className="ini-ferramentaIcone ini-osso" />
+            <span className="ini-osso ini-ossoRotulo" />
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Um cartão da grade de Ferramentas. Produto que a pessoa ainda não tem (`comprar`): o cartão normal, com a
+ * etiqueta COMPRAR embaixo do nome, e o toque vai para onde o produto vende (`hrefVendaDoProduto`, a mesma regra
+ * do menu lateral: a página de venda ou, no Venda Off-Grid, a própria ferramenta). Com acesso, ou admin: o
+ * cartão normal, sem etiqueta. Página estática (NEXUS): <a> comum, de página inteira.
+ */
+function Ferramenta({ item, comprar = false }: { item: ItemMenu; comprar?: boolean }) {
+  // Sem a ficha do produto no catálogo não há para onde levar a etiqueta: fica o link normal.
+  const prod = comprar && item.produto ? produtoPorId(item.produto) : null;
   const conteudo = (
     <>
       <span className="ini-ferramentaIcone"><item.icon size={22} strokeWidth={2} aria-hidden="true" /></span>
       <span className="ini-ferramentaNome">{rotulo(item.label)}</span>
-      {item.badge && <span className="ini-selo">{item.badge}</span>}
+      {prod ? <span className="ini-etiqueta ini-comprar">COMPRAR</span>
+        : item.badge && <span className="ini-etiqueta ini-selo">{item.badge}</span>}
     </>
   );
+  if (prod) {
+    return (
+      <Link href={hrefVendaDoProduto(prod)} className="ini-ferramenta" title={`${prod.nome}: ver o que tem dentro`}>
+        {conteudo}
+      </Link>
+    );
+  }
   if (item.paginaInteira) {
     return <a href={item.href} className="ini-ferramenta">{conteudo}</a>;
   }
@@ -468,37 +538,4 @@ function LinhaDeDocumento({ item }: { item: ItemMenu }) {
       <ChevronRight className="ini-chevron" size={18} strokeWidth={2} aria-hidden="true" />
     </Link>
   );
-}
-
-/**
- * Um cartão da vitrine do "Para liberar". Produto que a pessoa ainda não tem: cadeado, ícone cinza, a linha
- * "Liberar" e link para onde o produto vende (`hrefVendaDoProduto`, a mesma regra do menu lateral: a página de
- * venda ou, no Kit Off-Grid, a própria ferramenta). Item liberado (fixo que a pessoa já tem, ou admin): sem
- * cadeado, ícone na cor da marca e a linha "Abrir", com o link normal.
- */
-function CartaoDeProduto({ item, travado }: { item: ItemMenu; travado: boolean }) {
-  const prod = travado && item.produto ? produtoPorId(item.produto) : null;
-  const conteudo = (
-    <>
-      {prod && <Lock className="ini-liberarCadeado" size={16} strokeWidth={2} aria-label="Bloqueado" />}
-      <span className={prod ? 'ini-chip ini-chipCinza' : 'ini-chip'}>
-        <item.icon size={20} strokeWidth={2} aria-hidden="true" />
-      </span>
-      <span className="ini-liberarTextos">
-        <span className="ini-liberarNome">{rotulo(item.label)}</span>
-        <span className="ini-liberarAcao">{prod ? 'Liberar' : 'Abrir'}</span>
-      </span>
-    </>
-  );
-  if (prod) {
-    return (
-      <Link href={hrefVendaDoProduto(prod)} className="ini-liberar" title={`${prod.nome}: ver o que tem dentro`}>
-        {conteudo}
-      </Link>
-    );
-  }
-  if (item.paginaInteira) {
-    return <a href={item.href} className="ini-liberar">{conteudo}</a>;
-  }
-  return <Link href={item.href} className="ini-liberar">{conteudo}</Link>;
 }
