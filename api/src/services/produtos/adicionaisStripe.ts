@@ -46,26 +46,28 @@ export function assinaturaSoDeAdicional(sub: AssinaturaStripe | null | undefined
 }
 
 /**
- * Linhas recorrentes do bump para somar ao checkout do plano. Item sem preço na Stripe (script ainda não rodou) é
- * DESCARTADO e vai para o log: o bump nunca derruba a venda do plano. `aplicados` diz o que de fato entrou.
+ * Linhas recorrentes do bump para somar ao checkout do plano. Com ADICIONAIS_MENSAIS ligada o preço que faltar é criado na Stripe pelo
+ * próprio resolvedor. Cada item é resolvido à parte: o sem preço, ou com preço divergente do catálogo, é DESCARTADO e vai para o log, e os
+ * outros ficam. O bump nunca derruba a venda do plano nem cobra valor diferente. `aplicados` diz o que de fato entrou (é o que vai no
+ * metadata.adicionais, para a liberação bater com a cobrança).
  */
 export async function linhasDoBump(
-  stripe: { prices: any }, itens: string[], contexto: ContextoAdicional = 'checkout',
+  stripe: { prices: any; products?: any }, itens: string[], contexto: ContextoAdicional = 'checkout',
 ): Promise<{ linhas: Array<{ price: string; quantity: number }>; aplicados: string[] }> {
   const pares = itens.map((i) => ({ item: i, chave: lookupKeyDoItem(i, contexto) })).filter((p) => !!p.chave) as Array<{ item: string; chave: string }>;
   if (!pares.length) return { linhas: [], aplicados: [] };
-  let precos: Map<string, string>;
-  try {
-    precos = await resolverPrecosAdicionais(stripe, pares.map((p) => p.chave));
-  } catch (err) {
-    console.error('[adicionais] nao consegui ler os precos na Stripe (o plano segue sem o bump):', err);
-    return { linhas: [], aplicados: [] };
-  }
   const linhas: Array<{ price: string; quantity: number }> = [];
   const aplicados: string[] = [];
   for (const p of pares) {
-    const price = precos.get(p.chave);
-    if (!price) { console.error(`[adicionais] preco ${p.chave} nao existe na Stripe: rode scripts/criar-precos-adicionais.ts`); continue; }
+    // Cada chave no seu try: o item com preço divergente (ou que a Stripe não deu) sai sozinho, os outros ficam e o plano segue sempre.
+    let price: string | undefined;
+    try {
+      price = (await resolverPrecosAdicionais(stripe, [p.chave])).get(p.chave);
+    } catch (err) {
+      console.error(`[adicionais] preco ${p.chave} indisponivel (o plano segue sem este item do bump):`, (err as Error)?.message);
+      continue;
+    }
+    if (!price) { console.error(`[adicionais] preco ${p.chave} nao existe na Stripe e nao foi criado (flag desligada ou sem acesso a products)`); continue; }
     linhas.push({ price, quantity: 1 });
     aplicados.push(p.item);
   }

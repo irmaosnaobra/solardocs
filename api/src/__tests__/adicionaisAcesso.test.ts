@@ -264,7 +264,12 @@ describe('código novo do Pix leva os adicionais do contrato que venceu', () => 
 });
 
 describe('linhas do bump no checkout', () => {
-  const stripePrecos = (achados: Array<{ id: string; lookup_key: string }>) => ({ prices: { list: vi.fn(async () => ({ data: achados })) } });
+  // Preço como a Stripe devolve: valor, moeda e cobrança do catálogo (o resolvedor confere antes de usar).
+  const cheio = (a: { id: string; lookup_key: string }) => ({
+    ...a, active: true, currency: 'brl', recurring: { interval: 'month', interval_count: 1 },
+    unit_amount: a.lookup_key.startsWith('ad_pacote_checkout') ? 3000 : a.lookup_key.startsWith('ad_pacote_app') ? 4000 : 1700,
+  });
+  const stripePrecos = (achados: Array<{ id: string; lookup_key: string }>) => ({ prices: { list: vi.fn(async () => ({ data: achados.map(cheio) })) } });
 
   it('monta uma linha por item, na ordem pedida', async () => {
     const st = stripePrecos([{ id: 'price_a', lookup_key: 'ad_offgrid_mensal' }, { id: 'price_b', lookup_key: 'ad_limpapro_mensal' }]);
