@@ -272,6 +272,11 @@ function UpgradePage({ email }: { email: string }) {
   );
 }
 
+// Reserva da marca do sessionStorage: vale enquanto a aba não recarrega. Sem ela, com o
+// storage bloqueado, todo clique fora de /empresa voltaria para /empresa. Também cobre
+// o caso de o push depois de salvar a empresa chegar antes do /company recarregar.
+let orientadoNestaAba = false;
+
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -360,6 +365,35 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     window.addEventListener('limit-reached', handler);
     return () => window.removeEventListener('limit-reached', handler);
   }, [setShowUpgrade]);
+
+  // Orientação do cliente que PAGA e entrou sem empresa cadastrada: leva para
+  // /empresa UMA vez por sessão do navegador, depois navega livre (não é muro, ao
+  // contrário do free abaixo). Fica antes dos retornos antecipados porque é hook.
+  // Mesmas exclusões do free: admin, comprador de kit/avulso e as telas de compra.
+  const planoUsuario = user?.plano;
+  const pagoSemEmpresa = !!user && companyLoaded && !hasCompany
+    && !!planoUsuario && planoUsuario !== 'free'
+    && !user.is_admin && !user.tem_kit && !user.tem_produto_avulso
+    && user.billing_status !== 'suspended'
+    && pathname !== '/pix-recorrente' && pathname !== '/produtos' && !pathname.startsWith('/produtos/');
+  useEffect(() => {
+    if (!pagoSemEmpresa) return;
+    const chave = 'sd-orientacao-empresa';
+    let jaOrientado = orientadoNestaAba;
+    try {
+      if (sessionStorage.getItem(chave) === '1') jaOrientado = true;
+    } catch { /* sem storage: vale a marca do módulo */ }
+    const marcar = () => {
+      orientadoNestaAba = true;
+      try { sessionStorage.setItem(chave, '1'); } catch { /* sem storage: vale a marca do módulo */ }
+    };
+    // Já estando em /empresa a pessoa está orientada: marca e não redireciona.
+    if (pathname === '/empresa') { marcar(); return; }
+    if (jaOrientado) return;
+    // Marca ANTES do replace, para nenhuma navegação seguinte voltar para cá.
+    marcar();
+    router.replace(`/empresa?welcome=1&plan=${encodeURIComponent(planoUsuario ?? '')}`);
+  }, [pagoSemEmpresa, pathname, planoUsuario, router]);
 
   if (erroCarga && (!user || !companyLoaded)) {
     return (

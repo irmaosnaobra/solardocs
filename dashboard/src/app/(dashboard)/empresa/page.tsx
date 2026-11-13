@@ -82,6 +82,16 @@ function maskDocumento(v: string): string {
   return /[A-Z]/.test(d) || d.length > 11 ? maskCnpj(d) : maskCpf(d);
 }
 
+// Telefone da conta vem só com dígitos (DDD + 8 ou 9). Mostra no mesmo formato do
+// placeholder do campo; qualquer coisa fora desse tamanho não é preenchida.
+function formatarWhatsapp(v: string): string {
+  let d = v.replace(/\D/g, '');
+  if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2);
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return '';
+}
+
 /** Foto de obra vinda do servidor: só item com `path`; `url` é a miniatura assinada. */
 function fotosDoServidor(v: unknown): ImagemObra[] {
   if (!Array.isArray(v)) return [];
@@ -153,15 +163,20 @@ export default function EmpresaPage() {
   const [dragging, setDragging] = useState(false);
   const [logoError, setLogoError] = useState('');
   const [isWelcome, setIsWelcome] = useState(false);
+  // Veio do link de criar senha depois de pagar (?reset=ok): mesma boas-vindas do pagante.
+  const [veioDaSenha, setVeioDaSenha] = useState(false);
   const [welcomePlan, setWelcomePlan] = useState<string | null>(null);
   // CNPJ que já foi validado nesta sessão de edição
   const validatedCnpjRef = useRef('');
+  // O WhatsApp da conta entra no campo vazio uma vez só: se a pessoa apagar, não volta.
+  const whatsappPreenchido = useRef(false);
 
   useEffect(() => {
     // Vindo direto do checkout do Stripe (?welcome=1&plan=ilimitado|pro)
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       setIsWelcome(params.get('welcome') === '1');
+      setVeioDaSenha(params.get('reset') === 'ok');
       setWelcomePlan(params.get('plan'));
     }
   }, []);
@@ -203,6 +218,18 @@ export default function EmpresaPage() {
       }
     }).finally(() => setLoading(false));
   }, []);
+
+  // Pré-preenche o WhatsApp do responsável com o da conta (cadastro ou compra),
+  // depois que a empresa carregou e só se o campo continua vazio. Segue editável e
+  // obrigatório.
+  const whatsappConta = user?.whatsapp;
+  useEffect(() => {
+    if (loading || whatsappPreenchido.current || !whatsappConta) return;
+    whatsappPreenchido.current = true;
+    const formatado = formatarWhatsapp(whatsappConta);
+    if (!formatado) return;
+    setForm(f => (f.whatsapp ? f : { ...f, whatsapp: formatado }));
+  }, [loading, whatsappConta]);
 
   function set(field: keyof typeof emptyForm, value: string) {
     setForm(f => ({ ...f, [field]: value }));
@@ -348,8 +375,9 @@ export default function EmpresaPage() {
       // O quadro "Primeiros passos" recarrega o que falta (empresa, logo e fotos salvam por aqui).
       window.dispatchEvent(new Event('primeiros-passos:atualizar'));
 
-      // Fluxo VSL: free cadastrou empresa pela 1ª vez → direto pro gerador.
-      if (isNew && welcomePlan === 'free') {
+      // Empresa nova (free ou pagante) → direto pro primeiro orçamento. Edição de
+      // empresa existente continua na tela.
+      if (isNew) {
         setTimeout(() => router.push('/documentos?tipo=proposta'), 800);
       }
     } catch (err: unknown) {
@@ -370,6 +398,9 @@ export default function EmpresaPage() {
   }, [loading]);
 
   if (loading) return <div className={styles.loading}>Carregando...</div>;
+
+  // Link de criar senha depois de pagar: boas-vindas do pagante. Conta free mantém o aviso âmbar de antes.
+  const boasVindasSenha = veioDaSenha && !loading && !company && user?.plano !== 'free';
 
   // ── VIEW ─────────────────────────────────────────────────
   if (company && !editing) {
@@ -527,7 +558,7 @@ export default function EmpresaPage() {
         </div>
       )}
 
-      {isWelcome && welcomePlan !== 'free' && (
+      {((isWelcome && welcomePlan !== 'free') || (boasVindasSenha && !isWelcome)) && (
         <div style={{
           background: 'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(245,158,11,0.10))',
           border: '1px solid rgba(34,197,94,0.4)',
@@ -546,14 +577,14 @@ export default function EmpresaPage() {
           }}>✓</div>
           <div style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
             <strong style={{ color: 'var(--color-text)', fontSize: 15.5, display: 'block', marginBottom: 2 }}>
-              Assinatura ativada! Seu acesso já está liberado.
+              Bem-vindo ao SolarDoc
             </strong>
-            Pra emitir seu primeiro documento, preencha os dados da empresa abaixo. Leva 2 minutinhos.
+            Primeiro passo: cadastre sua empresa. Leva 1 minuto, e suas propostas já saem com a sua marca.
           </div>
         </div>
       )}
 
-      {!company && !isWelcome && (
+      {!company && !isWelcome && !boasVindasSenha && (
         <div style={{
           background: 'rgba(245,158,11,0.08)',
           border: '1px solid rgba(245,158,11,0.3)',

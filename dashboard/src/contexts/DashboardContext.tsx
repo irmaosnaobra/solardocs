@@ -20,6 +20,9 @@ interface User {
   /** Já instalou o app em algum aparelho. Diferente de "está em standalone
    *  agora": quem instalou e abriu pelo navegador não precisa do convite. */
   app_instalado?: boolean;
+  /** WhatsApp do cadastro ou da compra (só dígitos). Vem do /auth/me; a tela da
+   *  empresa usa para pré-preencher o WhatsApp do responsável. */
+  whatsapp?: string | null;
 }
 
 interface DashboardContextType {

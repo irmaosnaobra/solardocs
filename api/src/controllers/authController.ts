@@ -854,7 +854,7 @@ export async function getMe(req: Request, res: Response): Promise<void> {
     // apagar o cookie.
     const user = await lerDoBanco(() => supabase
       .from('users')
-      .select('id, email, nome, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status, past_due_since, app_instalado_em')
+      .select('id, email, nome, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status, past_due_since, app_instalado_em, whatsapp')
       .eq('id', req.userId)
       .maybeSingle());
 
