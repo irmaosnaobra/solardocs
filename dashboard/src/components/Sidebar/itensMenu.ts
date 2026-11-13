@@ -45,7 +45,7 @@ export interface ItemMenu {
   requireCompany?: boolean;
   /**
    * id do produto no catálogo (`produtoPorId`, o mesmo que `/produtos/acessos` devolve em
-   * `produtos`). Quem não tem vê a etiqueta COMPRAR no menu lateral (a /inicio mostra cadeado) e o
+   * `produtos`). Quem não tem vê a etiqueta COMPRAR no menu lateral e na /inicio e o
    * clique leva para onde o produto vende (`hrefVendaDoProduto`), nunca para um beco. Quem tem vê o
    * item normal, sem nada em volta.
    */
@@ -165,7 +165,7 @@ export interface MenuOrganizado {
   paraLiberar: ItemMenu[];
   /** "Ver todos os produtos" só aparece quando falta algum produto (algum item do grupo está travado). */
   mostrarLoja: boolean;
-  /** O item está atrás de cadeado de produto agora (a /inicio pinta o cadeado a partir disto). */
+  /** O item está atrás de cadeado de produto agora (o menu lateral e a /inicio põem a etiqueta COMPRAR a partir disto). */
   travado: (item: ItemMenu) => boolean;
 }
 
