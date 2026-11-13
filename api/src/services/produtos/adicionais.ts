@@ -4,6 +4,8 @@
  * Venda Off-Grid, Estoque em Dia, Fecha Vendas e LimpaPro viram adicional MENSAL: o acesso vale enquanto paga.
  * Duas portas: o order bump do checkout do plano mensal (R$ 17 por ferramenta, ou as 4 por R$ 30) e a compra
  * dentro do app (R$ 17 cada, ou as 4 por R$ 40). Tudo atrás de ADICIONAIS_MENSAIS: desligada, nada muda.
+ * Ligada em produção em 13/11/2026, com ADICIONAIS_CORTE = 2026-11-13T18:30:00-03:00. Para desligar: apagar a env na Vercel
+ * (projeto solardocs-api) e subir um commit em api/, porque o Ignored Build Step pula redeploy sem mudança na pasta.
  *
  * Este arquivo só tem a parte PURA (lista, preço, normalização, flag). Stripe, Asaas e banco moram nos irmãos
  * (adicionaisPrecos, adicionaisStripe, adicionaisPix, adicionaisAcesso).
