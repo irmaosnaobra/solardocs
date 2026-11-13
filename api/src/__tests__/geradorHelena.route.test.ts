@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   lids: [] as Array<Record<string, unknown>>,
   bancoFora: false,
   falhaDaLista: false,
+  falhaDaAgenda: false,
   instancias: [] as string[],
   escritas: 0,
 }));
@@ -58,6 +59,13 @@ vi.mock('../services/io/helenaAcompanhamento', () => ({
   })),
 }));
 
+vi.mock('../services/io/helenaAgenda', () => ({
+  lerAgendaDaHelena: vi.fn(async () => {
+    if (h.falhaDaAgenda) throw new Error('leitura da agenda falhou 5511988880001');
+    return { ocultos: ['101', '102'], marcadas: ['7'], gerado_em: '2026-11-12T15:00:00.000Z' };
+  }),
+}));
+
 import { mountHelena } from '../routes/geradorHelena';
 
 const r = Router();
@@ -87,7 +95,7 @@ beforeEach(() => {
     M({ id: 5, tipo: 'reacao', texto: '👍', momment: '2026-11-12T14:07:00Z' }),
   ];
   h.lids = [];
-  h.bancoFora = false; h.falhaDaLista = false; h.instancias = []; h.escritas = 0;
+  h.bancoFora = false; h.falhaDaLista = false; h.falhaDaAgenda = false; h.instancias = []; h.escritas = 0;
   erroConsole = vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 afterEach(() => { erroConsole.mockRestore(); });
@@ -160,5 +168,25 @@ describe('GET /gerador/helena/pessoa', () => {
     delete process.env.ZAPI_INSTANCE_ID_IO;
     const res = await request(app).get('/gerador/helena/pessoa?chave=1188880001').set('Authorization', THIAGO);
     expect(res.status).toBe(502);
+  });
+});
+
+describe('GET /gerador/helena/agenda', () => {
+  it('sem login, como a /gerador/apalavrado: devolve ocultos, marcadas e gerado_em, sem cache', async () => {
+    const res = await request(app).get('/gerador/helena/agenda');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ocultos: ['101', '102'], marcadas: ['7'], gerado_em: '2026-11-12T15:00:00.000Z' });
+    expect(res.headers['cache-control']).toBe('no-store');
+  });
+  it('falha na leitura: 503 sem telefone nem detalhe do erro, e a tela segue sem esconder', async () => {
+    h.falhaDaAgenda = true;
+    const res = await request(app).get('/gerador/helena/agenda');
+    expect(res.status).toBe(503);
+    expect(JSON.stringify(res.body)).not.toContain('5511988880001');
+    expect(res.body.ocultos).toBeUndefined();
+  });
+  it('nao escreve nada no banco', async () => {
+    await request(app).get('/gerador/helena/agenda');
+    expect(h.escritas).toBe(0);
   });
 });

@@ -1270,6 +1270,67 @@
     -webkit-box-shadow: 0 0 0 100px #0F172A inset !important;
     caret-color: #E5E7EB;
   }
+
+  /* ===== HELENA NA AGENDA (12/11/2026) =====
+     Os cards de quem a Helena esta atendendo saem da grade, e um contador discreto
+     acima dela deixa ver de novo. Cor SO pelos tokens de ui/io2.css. No visual
+     antigo (link do cliente, PDF, folha que falhou) o io2.css nao existe e cada
+     var() cai na paleta escura de reserva, que e a do tema escuro desta pagina. */
+  .helena-barra { padding: 10px 22px 0; }
+  .helena-conta {
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 36px; padding: 0 14px 0 12px;
+    border: 1px solid var(--n-bd2, #475569); border-radius: var(--r-pilula, 999px);
+    background: var(--n-sf, #1E293B); color: var(--n-tx2, #B4C0D1);
+    font: inherit; font-size: 13px; font-weight: 600; line-height: 1.2; cursor: pointer;
+  }
+  .helena-conta:hover,
+  .helena-conta[aria-expanded="true"] { background: var(--n-sf3, #2A384F); color: var(--n-tx, #E5E7EB); }
+  .helena-conta .ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--io-amarelo, #FFC220); flex: none; }
+  .helena-conta .seta {
+    width: 6px; height: 6px; margin: -3px 0 0 2px; flex: none;
+    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    transform: rotate(45deg); transition: transform .15s ease-out;
+  }
+  .helena-conta[aria-expanded="true"] .seta { transform: translateY(4px) rotate(225deg); }
+  .helena-painel {
+    max-width: 560px; margin-top: 8px; padding: 14px 16px;
+    border: 1px solid var(--n-bd, #334155); border-radius: var(--r-cartao, 12px);
+    background: var(--n-sf, #1E293B); color: var(--n-tx, #E5E7EB);
+  }
+  .helena-painel p { margin: 0 0 12px; font-size: 14px; line-height: 1.45; color: var(--n-tx2, #B4C0D1); text-wrap: pretty; }
+  .helena-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+  .helena-acoes button {
+    min-height: 40px; padding: 0 16px;
+    border: 1px solid var(--n-bd2, #475569); border-radius: var(--r-controle, 10px);
+    background: var(--n-sf3, #2A384F); color: var(--n-tx, #E5E7EB);
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .helena-acoes button:hover { border-color: var(--io-borda-campo, #7384A0); }
+  .helena-acoes a:hover { text-decoration-thickness: 2px; }
+  .helena-conta, .helena-acoes button { touch-action: manipulation; }
+  .helena-acoes a {
+    display: inline-flex; align-items: center; min-height: 40px;
+    color: var(--io-azul-tx, #93C5FD); font-size: 14px; font-weight: 600;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  .helena-conta:focus-visible,
+  .helena-acoes button:focus-visible,
+  .helena-acoes a:focus-visible { outline: 2px solid var(--io-azul-tx, #93C5FD); outline-offset: 2px; }
+  html.io2 .helena-barra { padding: 12px 0 0; }
+  @media (max-width: 860px) {
+    .helena-barra { padding: 10px 12px 0; }
+    html.io2 .helena-barra { padding: 10px 0 0; }
+    .helena-conta, .helena-acoes button, .helena-acoes a { min-height: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .helena-conta .seta { transition: none; } }
+  /* Na grade. O card que a Helena atende so aparece com a chave ligada, e apagado:
+     ele nao e reuniao, e o consultor tem que bater o olho e passar. */
+  .helena-slot-txt { margin: 0; font-size: 15px; line-height: 1.45; font-weight: 600; color: var(--n-tx, #E5E7EB); text-wrap: pretty; }
+  .slot.ocupado.helena-oculto,
+  .slot.dividido .meia.helena-oculto { opacity: .55; }
+  .slot.ocupado.helena-oculto:hover,
+  .slot.dividido .meia.helena-oculto:hover { opacity: .85; }
 </style>
 <!-- Visual novo (reforma do /gerador, atras da chave). Ordem importa: os links vem ANTES do chave.js, que troca o media deles quando a chave esta ligada. -->
 <link rel="stylesheet" href="/gerador/ui/io2.css" media="not all" data-io2>
@@ -1295,6 +1356,19 @@
     <button class="btn-hoje" onclick="irHoje()">Hoje</button>
   </div>
   <div class="abas" id="abas"></div>
+</div>
+
+<div class="helena-barra" id="helena-barra" hidden>
+  <button type="button" class="helena-conta" id="helena-conta" aria-expanded="false" aria-controls="helena-painel" onclick="alternarPainelHelena()">
+    <span class="ponto" aria-hidden="true"></span><span id="helena-conta-txt"></span><span class="seta" aria-hidden="true"></span>
+  </button>
+  <div class="helena-painel" id="helena-painel" hidden>
+    <p>Esses cards ficam ocultos enquanto a Helena atende essas pessoas pelo WhatsApp.</p>
+    <div class="helena-acoes">
+      <button type="button" id="helena-alternar" onclick="alternarCardsHelena()">Mostrar cards da Helena</button>
+      <a href="/gerador/agentes/#helena">Abrir a aba Helena</a>
+    </div>
+  </div>
 </div>
 
 <div class="grid-wrap">
@@ -1425,6 +1499,17 @@
     <div class="modal-acoes" style="margin-top:14px">
       <button class="btn-cancelar" onclick="fecharModalBloq()">Fechar</button>
       <button class="btn-excluir" id="b-btn-desbloquear" onclick="desbloquearHorario()">Desbloquear</button>
+    </div>
+  </div>
+</div>
+
+<!-- AVISO: horario que so tem card oculto pela Helena (12/11/2026) -->
+<div id="modal-helena-slot" class="modal-bg" onclick="if(event.target===this)fecharAvisoHelena()" onkeydown="if(event.key==='Escape')fecharAvisoHelena()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helena-slot-txt">
+    <p class="helena-slot-txt" id="helena-slot-txt">Esse horário já tem um card que a Helena está atendendo. Escolha outro horário.</p>
+    <div class="modal-acoes">
+      <button type="button" class="btn-cancelar" onclick="fecharAvisoHelena()">Fechar</button>
+      <button type="button" class="btn-salvar" id="helena-slot-mostrar" onclick="mostrarCardsHelenaDoAviso()">Mostrar cards da Helena</button>
     </div>
   </div>
 </div>
@@ -2030,6 +2115,107 @@ async function carregarEsperas() {
   }
 }
 
+// ============= HELENA NA AGENDA (12/11/2026) =============
+// Pedido do dono: os cards de eletroposto que a Helena esta atendendo saem da
+// agenda do consultor (eram mais de 100 por semana de um lote antigo, quase todos
+// em :15/:45). A reuniao que ela marcou nao ganha pilula propria: a origem
+// "EP Helena" ja diz isso. A lista `marcadas` fica so como guarda.
+//
+// OCULTAR, NUNCA APAGAR: o card guarda o historico e a Helena precisa dele. A
+// tela so deixa de desenhar. A lista vem da api (`ocultos` e `marcadas`, ids em
+// string) e a regra de quem entra mora la.
+//
+// A AGENDA NUNCA ESPERA A HELENA: o primeiro desenho aguarda a rota no maximo
+// 2,5 s. Qualquer falha (401, 503, rede, demora) desenha TUDO, sem esconder; se a
+// resposta chegar depois, a grade e redesenhada. Reuniao marcada pela Helena
+// nunca e escondida, mesmo se o id vier nas duas listas.
+const HELENA_ESPERA_MS = 2500;
+const HELENA_RENOVA_MS = 5 * 60 * 1000;
+const HELENA_TENTA_DE_NOVO_MS = 60 * 1000;
+const HELENA_CHAVE = 'agenda-helena-mostrar';
+let helenaConj = null;          // { ocultos: Set<string>, marcadas: Set<string> } ou null (nada se esconde)
+let helenaLidaEm = 0;
+let helenaEmCurso = null;
+let helenaVersao = 0;           // sobe a cada leitura nova da rota
+let helenaDesenhada = -1;       // versao que a grade desenhou por ultimo
+let helenaOcultosNaTela = 0;    // da semana visivel, so do consultor ativo
+let renderTudoEmCurso = 0;
+
+function helenaMostrar() {
+  try { return localStorage.getItem(HELENA_CHAVE) === '1'; } catch (e) { return false; }
+}
+function helenaGuardar(mostrar) {
+  try { localStorage.setItem(HELENA_CHAVE, mostrar ? '1' : '0'); } catch (e) {}
+}
+/** 'marcada', 'oculto' ou ''. */
+function helenaEstado(ag) {
+  if (!helenaConj || !ag) return '';
+  const id = String(ag.id);
+  if (helenaConj.marcadas.has(id)) return 'marcada';
+  if (helenaConj.ocultos.has(id)) return 'oculto';
+  return '';
+}
+function pillHelena(ag) {
+  return helenaEstado(ag) === 'oculto' ? '<span class="tag-modelo">Helena atendendo</span>' : '';
+}
+
+function carregarHelena() {
+  if (helenaEmCurso) return helenaEmCurso;
+  if (helenaLidaEm && Date.now() - helenaLidaEm < HELENA_RENOVA_MS) return Promise.resolve();
+  helenaEmCurso = (async () => {
+    let conj = null;
+    try {
+      const r = await fetch(`${API_ESPERA}/gerador/helena/agenda`, { cache: 'no-store' });
+      if (r.ok) {
+        const j = await r.json();
+        if (j && Array.isArray(j.ocultos) && Array.isArray(j.marcadas)) {
+          conj = { ocultos: new Set(j.ocultos.map(String)), marcadas: new Set(j.marcadas.map(String)) };
+        }
+      }
+    } catch (e) { console.warn('helena: lista da agenda nao carregou', e); }
+    helenaConj = conj;
+    // Falhou: tenta de novo em 1 min, nao em 5.
+    helenaLidaEm = conj ? Date.now() : Date.now() - HELENA_RENOVA_MS + HELENA_TENTA_DE_NOVO_MS;
+    helenaVersao++;
+  })().finally(() => { helenaEmCurso = null; });
+  return helenaEmCurso;
+}
+
+function renderHelenaBarra() {
+  const barra = document.getElementById('helena-barra');
+  if (!barra) return;
+  const n = helenaOcultosNaTela;
+  if (!n) { barra.hidden = true; return; }
+  document.getElementById('helena-conta-txt').textContent = `${n} com a Helena`;
+  document.getElementById('helena-alternar').textContent = helenaMostrar() ? 'Esconder cards da Helena' : 'Mostrar cards da Helena';
+  barra.hidden = false;
+}
+function alternarPainelHelena() {
+  const btn = document.getElementById('helena-conta');
+  const aberto = btn.getAttribute('aria-expanded') === 'true';
+  btn.setAttribute('aria-expanded', String(!aberto));
+  document.getElementById('helena-painel').hidden = aberto;
+}
+function avisoSlotHelena() {
+  const m = document.getElementById('modal-helena-slot');
+  m.classList.add('show');
+  document.getElementById('helena-slot-mostrar').focus();
+}
+function fecharAvisoHelena() {
+  document.getElementById('modal-helena-slot').classList.remove('show');
+}
+function mostrarCardsHelenaDoAviso() {
+  fecharAvisoHelena();
+  helenaGuardar(true);
+  renderAbas();
+  renderGrid();
+}
+function alternarCardsHelena() {
+  helenaGuardar(!helenaMostrar());
+  renderAbas();
+  renderGrid();
+}
+
 /** A etiqueta que o status terminal apagou, ou string vazia. Só aparece quando o
  *  status de AGORA é terminal: card que voltou a negociar carrega a etiqueta no
  *  próprio status, e seriam duas pílulas iguais. */
@@ -2184,8 +2370,10 @@ function bloqueioNoSlot(vendedor, dt) {
 // ============= RENDER =============
 function renderAbas() {
   const cont = document.getElementById('abas');
+  // O numero da aba acompanha a grade: card escondido da Helena nao conta.
+  const escondendo = !helenaMostrar();
   cont.innerHTML = VENDEDORES.map(v => {
-    const n = agendamentosCache.filter(a => a.vendedor_nome === v).length;
+    const n = agendamentosCache.filter(a => a.vendedor_nome === v && !(escondendo && helenaEstado(a) === 'oculto')).length;
     const ativa = v === vendedorAtivo ? 'ativa' : '';
     return `<button class="aba ${ativa}" onclick="trocarVendedor('${v}')">${v}<span class="badge">${n}</span></button>`;
   }).join('');
@@ -2373,6 +2561,11 @@ function renderGrid() {
   const hoje = new Date();
   const dias = [0,1,2,3,4].map(i => addDays(semanaAtual, i));
   const labelsDia = ['Seg','Ter','Qua','Qui','Sex'];
+  // Helena: o card que ela atende sai da grade, a menos que a chave esteja ligada.
+  // A contagem e feita aqui, depois dos mesmos filtros da grade: o contador diz
+  // exatamente quantos sumiram desta semana, deste consultor.
+  const helenaVer = helenaMostrar();
+  const helenaVistos = new Set();
 
   let html = '<div class="grid">';
   // cabeçalho
@@ -2407,6 +2600,7 @@ function renderGrid() {
         // era a única que exigia o horário cravado.
         const iniSlot = dt.getTime();
         const fimSlot = iniSlot + SLOT_MIN * 60_000;
+        let slotSoOculto = false;
         const doSlot = agendamentosCache.filter(a => {
           if (a.vendedor_nome !== vendedorAtivo || !a.quando) return false;
           const t = new Date(a.quando).getTime();
@@ -2428,6 +2622,10 @@ function renderGrid() {
           // A lista e a mesma do servidor (`STATUS_QUE_NAO_OCUPAM`): `fechou` fica
           // de fora, porque reuniao de quem comprou e reuniao de verdade.
           if (t > Date.now() && SEM_DESFECHO_NO_FUTURO.has(String(a.status || ''))) return false;
+          if (helenaEstado(a) === 'oculto') {
+            helenaVistos.add(String(a.id));
+            if (!helenaVer) { slotSoOculto = true; return false; }
+          }
           return true;
         });
         const ag = doSlot[0] || null;
@@ -2443,10 +2641,13 @@ function renderGrid() {
             const etq = etqDeLead(a.created_by, a.src);
             const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
             const okA = !!a.presenca_confirmada_at;
-            return `<div class="meia ocupado ${classeDeCor(a)}${classeEspera(a)}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
+            const hel = helenaEstado(a);
+            const linhaA = [pillHelena(a), pillStatus(a, true),
+              etq ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''].filter(Boolean).join(' ');
+            return `<div class="meia ocupado ${classeDeCor(a)}${classeEspera(a)}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}${hel === 'oculto' ? ' helena-oculto' : ''}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
               <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
-              ${(pillStatus(a, true) || etq) ? `<div class="cidade">${pillStatus(a, true)}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
+              ${linhaA ? `<div class="cidade">${linhaA}</div>` : ''}
               ${btnConfirmada(a, true)}
             </div>`;
           }).join('') + `</div>`;
@@ -2478,10 +2679,15 @@ function renderGrid() {
           const mod = pillStatus(ag, !!apres);
           const cidTxt = ag.cidade ? `📍 ${escapeHtml(ag.cidade)}` : '';
           const etqPill = etq ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : '';
-          const rodape = [mod, apres, etqPill].filter(Boolean).join(' ');
+          // Helena: "Helena atendendo" abre a linha (e o que explica o card apagado).
+          // A reuniao que ela marcou nao ganha pilula propria: a origem "EP Helena"
+          // ja diz isso (decisao de 12/11/2026).
+          const hel = helenaEstado(ag);
+          const rodape = [pillHelena(ag), mod, apres, etqPill].filter(Boolean).join(' ');
           const okCls = ag.presenca_confirmada_at ? ' confirmado' : '';
           const srCls = semRespostaDoLead(ag) ? ' sem-resposta' : '';
-          html += `<div class="slot ocupado ${stCls}${tempCls}${okCls}${srCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
+          const helCls = hel === 'oculto' ? ' helena-oculto' : '';
+          html += `<div class="slot ocupado ${stCls}${tempCls}${okCls}${srCls}${helCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
             ${tempLabel ? `<div class="temp-mark">${tempLabel}</div>` : ''}
             <div class="nome">${horaDoSlot(ag, iniSlot)}${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}${cidTxt ? ' · ' + cidTxt : ''}</div>
@@ -2498,7 +2704,13 @@ function renderGrid() {
           const cls = ['slot'];
           if (passou) cls.push('passado');
           if (foraPrio) cls.push('fora-prioridade');
-          const onclick = passou ? '' : `onclick="abrirNovo('${dt.toISOString()}')"`;
+          // Horario com card oculto pela Helena: parece livre (sem marca nova, a
+          // agenda nao volta a poluir), mas o clique avisa em vez de abrir o
+          // formulario. No eletroposto o banco recusaria a reuniao nova sem dizer
+          // por que.
+          const onclick = passou ? ''
+            : slotSoOculto ? 'onclick="avisoSlotHelena()"'
+            : `onclick="abrirNovo('${dt.toISOString()}')"`;
           html += `<div class="${cls.join(' ')}" ${onclick}></div>`;
         }
       }
@@ -2506,6 +2718,9 @@ function renderGrid() {
   }
   html += '</div>';
   cont.innerHTML = html;
+  helenaOcultosNaTela = helenaVistos.size;
+  helenaDesenhada = helenaVersao;
+  renderHelenaBarra();
 }
 
 function escapeHtml(s) {
@@ -2546,9 +2761,23 @@ async function renderTudo() {
   renderPeriodo();
   document.getElementById('grid-container').innerHTML = 'Carregando agenda…';
   document.getElementById('grid-container').classList.add('loading');
-  await carregarSemana();
+  // A lista da Helena corre junto com a semana e espera no maximo 2,5 s contados
+  // daqui. Passou disso, a grade sai sem esconder nada e redesenha quando chegar.
+  const t0 = Date.now();
+  const helena = carregarHelena();
+  renderTudoEmCurso++;
+  try {
+    await carregarSemana();
+    const resta = Math.max(0, HELENA_ESPERA_MS - (Date.now() - t0));
+    await Promise.race([helena, new Promise(ok => setTimeout(ok, resta))]);
+  } finally {
+    renderTudoEmCurso--;
+  }
   renderAbas();
   renderGrid();
+  helena.then(() => {
+    if (!renderTudoEmCurso && helenaDesenhada !== helenaVersao) { renderAbas(); renderGrid(); }
+  });
 }
 
 // ============= MODAL NOVO =============

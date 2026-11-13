@@ -76,7 +76,7 @@ export async function remarcarCardDaHelena(i: {
   }
   // O card ainda é um daqueles que a Helena reabre? Se não, alguém o moveu: não passa por cima.
   if (!lido || !ehOrigemEletroposto(lido.created_by)
-    || !cardReabre({ id: lido.id, status: String(lido.status ?? ''), quando: lido.quando, origem: String(lido.created_by ?? ''), vendedor: lido.vendedor_nome }, i.agora.getTime())) {
+    || !cardReabre({ id: lido.id, status: String(lido.status ?? ''), quando: lido.quando, origem: String(lido.created_by ?? ''), vendedor: lido.vendedor_nome, historico: lido.historico }, i.agora.getTime())) {
     return { ok: false, motivo: 'card_mudou' };
   }
 

@@ -297,7 +297,7 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     resumo: 'Chama quem declarou investimento e marca a reunião',
     papel: 'Chama, uma pessoa por vez, quem preencheu o formulário do eletroposto e declarou quanto pretende investir, confirma se o plano continua de pé e marca a reunião com o consultor. Quem respondeu é atendido por ela, que lê a conversa inteira. Cala quando um humano entra. Liga e desliga pela chave inv_agente_off no banco, e INVESTIDOR_AGENTE_OFF é o freio de mão.',
     regra: { tipo: 'banco_helena' }, fonte: 'services/io/investidorAgente.ts',
-    robos: ['investidor_agente_abertura', 'investidor_agente_respostas', 'investidor_agente_recado'],
+    robos: ['investidor_agente_abertura', 'investidor_agente_respostas', 'investidor_agente_recado', 'investidor_agente_aviso_marcada', 'investidor_agente_aviso_dia'],
   }),
 
   // ── Prospecção ─────────────────────────────────────────────────────────────
