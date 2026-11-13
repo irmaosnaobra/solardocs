@@ -215,14 +215,6 @@
   background: var(--chrome-bg-2);
 }
 
-/* Cadeado que leva para a própria ferramenta (Kit Off-Grid) com a pessoa já nela: o item fica marcado como
-   página atual, igual ao ativo sem cadeado. Vem depois do hover, para valer também com o mouse em cima. */
-.navItemLocked.navItemActive {
-  background: var(--chrome-bg-2);
-  color: #fff;
-  opacity: 1;
-}
-
 /* Foco de teclado em tudo que se clica no menu. */
 .navItem:focus-visible,
 .navItemLocked:focus-visible,
@@ -243,13 +235,6 @@
   min-width: 18px;
   flex: 0 0 18px;
   color: currentColor;
-}
-
-/* Cadeado do "Para liberar": pequeno, à direita. */
-.lockRight {
-  margin-left: auto;
-  flex-shrink: 0;
-  color: var(--chrome-text-dim);
 }
 
 /* "Outros documentos": linha que abre e fecha no próprio menu, sem navegar. */
@@ -336,6 +321,29 @@
   color: #7cc0ff;
   border: 1px solid rgba(0, 133, 255, 0.4);
   flex-shrink: 0;
+}
+
+/* Etiqueta "COMPRAR" dos produtos que a pessoa ainda não tem. Mesmo tamanho do "Novo", em laranja mais
+   forte que a faixa do item ativo (#F26513), para não ser confundida com ela. Texto #FFA05C sobre o
+   fundo do menu: 6:1. Com o mouse no item, fica um pouco mais viva. */
+.badgeComprar {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 106, 0, 0.2);
+  color: #ffa05c;
+  border: 1px solid rgba(255, 106, 0, 0.6);
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.navItem:hover .badgeComprar,
+.navItem:focus-visible .badgeComprar {
+  background: rgba(255, 106, 0, 0.3);
+  border-color: rgba(255, 106, 0, 0.85);
+  color: #ffb27a;
 }
 
 .tripleBadge {
@@ -590,7 +598,7 @@
   .navDivider { width: auto; height: auto; background: none; margin: 0; }
   .navDividerLabel { display: block; }
   .navDividerLabelAdmin { display: block; }
-  .countBadge, .badgeNovo, .tripleBadge, .externalIcon { display: inline-flex; }
+  .countBadge, .badgeNovo, .badgeComprar, .tripleBadge, .externalIcon { display: inline-flex; }
   .navItemActive::before { width: 3px; }
 
   /* revela a seção Conta mobile-only dentro do drawer */

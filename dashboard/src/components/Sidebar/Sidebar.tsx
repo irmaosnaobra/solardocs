@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-  Settings, Lock, ChevronRight,
+  Settings, ChevronRight,
   Building2, User, BarChart3, Smartphone,
   Send, LogOut, TrendingUp, LayoutGrid, Tags,
   type LucideIcon,
@@ -48,7 +48,7 @@ interface NavItem {
   vipOnly?: boolean;
   paidOnly?: boolean; // free vê locked → clique abre upgrade modal
   /**
-   * id do produto no catálogo. Quem não tem vê cadeado e o clique leva pra mini
+   * id do produto no catálogo. Quem não tem vê a etiqueta COMPRAR e o clique leva pra mini
    * LP, nunca pra um beco. Quem tem vê o item normal, sem nada em volta.
    */
   produto?: string;
@@ -65,7 +65,7 @@ interface NavItem {
 
 // ── Configuração do menu ─────────────────────────────────────────
 //
-// Os itens da tela (botões do topo, lista principal, papelada, "Para liberar") moram em
+// Os itens da tela (botões do topo, lista principal, produtos, papelada) moram em
 // ./itensMenu.ts, que a tela de atalhos do celular (/inicio) também lê: os dois sempre
 // mostram os mesmos itens. Aqui ficam só os itens que são exclusivos do menu lateral.
 
@@ -135,7 +135,7 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
     setRotaVista(rotaAtual);
     setFechadoNaRota(null);
   }
-  // Quem decide o cadeado é o servidor (uma chamada, cacheada no módulo).
+  // Quem decide a etiqueta COMPRAR é o servidor (uma chamada, cacheada no módulo).
   const { carregando: carregandoServidor, tem: temServidor, bastidor: bastidorServidor, previa } = useAcessos();
   // O cache de acessos só DESENHA o menu (sem pulo na carga). Enquanto o servidor não responde, o menu usa a
   // prévia; a porta de cada ferramenta (Cadeado) continua esperando o servidor, sem olhar para o cache.
@@ -177,12 +177,13 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
     router.push('/auth?mode=login');
   }
 
-  // SEU / NÃO É SEU. Quem entra na lista e quem entra em "Para liberar" é decidido em
-  // organizarMenu (./itensMenu.ts), a mesma função da /inicio: sem pulo na carga (item de
-  // produto não aparece em lugar nenhum até o servidor responder), fora do lançamento restrito
-  // o que é novo não aparece, e admin vê tudo direto. Com a loja aberta, Kit Off-Grid e
-  // Inventário ficam SEMPRE em "Para liberar": link normal para quem tem o produto, cadeado
-  // para quem não tem. Com a loja fechada, o Inventário volta para a lista, sem cadeado.
+  // SEU / NÃO É SEU. Quem entra na lista e quem entra no grupo de produtos (`paraLiberar`, desenhado
+  // logo abaixo do Parceiro NEXUS) é decidido em organizarMenu (./itensMenu.ts), a mesma função da
+  // /inicio: sem pulo na carga (item de produto não aparece em lugar nenhum até o servidor
+  // responder), fora do lançamento restrito o que é novo não aparece, e admin vê tudo direto. Com a
+  // loja aberta, Venda Off-Grid, Estoque em Dia, Fecha Vendas e LimpaPro ficam SEMPRE nesse grupo:
+  // link normal para quem tem o produto, etiqueta COMPRAR para quem não tem. Com a loja fechada, o
+  // Estoque em Dia volta para a lista, sem etiqueta.
   const { principal, paraLiberar, mostrarLoja } = organizarMenu({
     bastidor, carregando: acessosCarregando, isAdmin, tem,
   });
@@ -222,10 +223,10 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
     const lockedByVip = !!item.vipOnly && !isVip && !isAdmin;
     const lockedByFree = !!item.paidOnly && isFree && !isAdmin;
     const lockedByPlan = lockedByVip || lockedByFree;
-    // Produto não comprado: cadeado que LEVA A ALGUM LUGAR (a mini LP). Enquanto
+    // Produto não comprado: etiqueta COMPRAR que LEVA A ALGUM LUGAR (a página de venda). Enquanto
     // a resposta do servidor não chega, o item fica normal.
     const prod = item.produto ? produtoPorId(item.produto) : null;
-    // Fora do bastidor, ferramenta que já era grátis segue SEM cadeado: pra base
+    // Fora do bastidor, ferramenta que já era grátis segue SEM etiqueta: pra base
     // a novidade ainda não existe.
     const lockedByProduto = !!prod && bastidor && !acessosCarregando && !isAdmin && !tem(item.produto!);
     const clique = item.evento ? () => logMenu(item.evento!, 'gaveta') : undefined;
@@ -240,22 +241,23 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
       );
     }
 
-    // Produto não comprado: vai pra onde o produto vende, com cadeado à direita.
+    // Produto não comprado: item com aparência normal, com a etiqueta COMPRAR à direita. O clique
+    // vai pra onde o produto vende.
     if (lockedByProduto && prod) {
       const destino = hrefVendaDoProduto(prod);
-      // Cadeado que leva para a própria ferramenta (hoje só o Kit Off-Grid): quem já está nela vê o
-      // item marcado como página atual, como veria sem o cadeado.
+      // Quando o destino é a própria ferramenta (hoje só o Venda Off-Grid), quem já está nela vê o
+      // item marcado como página atual, como veria depois de comprar.
       const naFerramenta = destino === item.href && active;
       return (
-        // O cadeado leva pra onde o produto vende. Quem decide se e' o /lp/<slug>, o
-        // /produtos/<slug> ou, no Kit Off-Grid, a propria ferramenta, e por que, e'
-        // hrefVendaDoProduto (./itensMenu.ts): a /inicio usa a mesma regra.
+        // Quem decide se o destino é o /lp/<slug>, o /produtos/<slug> ou, no Venda Off-Grid, a
+        // propria ferramenta, e por que, e' hrefVendaDoProduto (./itensMenu.ts): a /inicio usa a
+        // mesma regra.
         <Link key={item.href} href={destino} aria-current={naFerramenta ? 'page' : undefined}
-              className={naFerramenta ? `${styles.navItemLocked} ${styles.navItemActive}` : styles.navItemLocked}
+              className={naFerramenta ? `${styles.navItem} ${styles.navItemActive}` : styles.navItem}
               title={`${prod.nome}: ver o que tem dentro`}>
-          <item.icon className={styles.navIcon} size={18} strokeWidth={1.75} />
+          <item.icon className={styles.navIcon} size={18} strokeWidth={1.75} aria-hidden="true" />
           <span className={styles.navLabel}>{item.label}</span>
-          <Lock className={styles.lockRight} size={13} strokeWidth={1.75} aria-label="Bloqueado" />
+          <span className={styles.badgeComprar}>COMPRAR</span>
         </Link>
       );
     }
@@ -353,6 +355,10 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
         <div className={`${styles.navSection} ${styles.listaPrincipal}`}>
           {principal.map(renderItem)}
           {nexusLigado && renderItem(nexusItem)}
+          {/* Os produtos logo abaixo do Parceiro NEXUS: sem etiqueta para quem tem (ou é admin),
+              com COMPRAR para quem não tem. "Ver todos os produtos" só aparece quando falta algum. */}
+          {paraLiberar.map(renderItem)}
+          {mostrarLoja && renderItem(lojaItem)}
         </div>
 
         {/* ── Papelada: contratos e recibos; o resto fica dobrado ── */}
@@ -379,23 +385,6 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
             {outrosDocsItems.map(renderItem)}
           </div>
         </div>
-
-        {/* ── Para liberar: com a loja aberta, Kit Off-Grid e Inventário ficam SEMPRE aqui (link
-            normal para quem tem o produto ou é admin, cadeado para quem não tem), depois os outros
-            travados. O título aparece sempre que o grupo tem algum item (com a loja fechada o grupo
-            some); "Ver todos os produtos" só quando falta algum produto (algum item do grupo está
-            travado). ── */}
-        {paraLiberar.length > 0 && (
-          <>
-            <div className={styles.navDivider}>
-              <span className={styles.navDividerLabel}>Para crescer</span>
-            </div>
-            <div className={styles.navSection}>
-              {paraLiberar.map(renderItem)}
-              {mostrarLoja && renderItem(lojaItem)}
-            </div>
-          </>
-        )}
 
         {/* ── Conta (MOBILE ONLY): no desktop estes itens vivem na topbar/avatar.
               No mobile a topbar some, então aparecem aqui. CSS esconde no desktop. ── */}

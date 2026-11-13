@@ -94,7 +94,7 @@ export const PRODUTOS_DA_LOJA: ProdutoDaLoja[] = [
     // A área de membros agora abre dentro do app, sem segundo login.
     rotaAbrir: '/limpapro',
     abrirBotao: 'Abrir o LimpaPro',
-    proximo: 'Abra o curso e comece pelo módulo 1. Ele fica no menu, em Para crescer.',
+    proximo: 'Abra o curso e comece pelo módulo 1. Ele fica no menu do app.',
   },
 ];
 
