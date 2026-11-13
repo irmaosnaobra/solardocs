@@ -57,6 +57,11 @@ beforeEach(() => {
 });
 
 describe('situacaoDaSessao', () => {
+  it('quem passou para a equipe por silêncio ou porque a equipe assumiu fica COM O CONSULTOR (a agenda não esconde o card dele)', () => {
+    for (const motivo of ['silencio_depois_do_convite', 'equipe_assumiu']) {
+      expect(situacaoDaSessao(sessao({ estagio: 'humano', motivo }))).toBe('com_consultor');
+    }
+  });
   it('mapeia cada estágio da Helena para a situação da tela', () => {
     expect(situacaoDaSessao(sessao({ estagio: 'chamado' }))).toBe('abordado');
     expect(situacaoDaSessao(sessao({ estagio: 'conversando', respostas: 0 }))).toBe('abordado');

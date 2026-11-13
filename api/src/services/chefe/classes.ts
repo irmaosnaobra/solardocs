@@ -290,6 +290,12 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // e o resumo do dia (a partir das 7h30). Carimbo `ficha_lead:helena:marcada:` / `ficha_lead:helena:dia:` (balde da equipe).
   investidor_agente_aviso_marcada: robo('aviso_interno_p2', ['services/io/investidorAgenteAvisos.ts'], { nasceDeEvento: true }),
   investidor_agente_aviso_dia: robo('aviso_interno_p2', ['services/io/investidorAgenteAvisos.ts']),
+  // [13/11/2026] Os dois avisos novos ao consultor dono do card (parecer do anti-ban): a pessoa que não respondeu ao convite nem à retomada
+  // (a ficha da conversa, 1 bolha) e a equipe que assumiu pelo celular da linha (1 bolha). SÓ pelo enviarComConferencias do arquivo dos
+  // avisos, só o celular do consultor, 1 aviso por rodada somado aos outros. Carimbos `ficha_lead:helena:silencio:` e
+  // `ficha_lead:helena:assumiu:` (balde da equipe). Não nascem de evento: só gente da equipe, e se adiar, espera a próxima rodada.
+  investidor_agente_aviso_silencio: robo('aviso_interno_p2', ['services/io/investidorAgenteAvisos.ts', 'services/io/investidorAgenteAvisosEquipe.ts']),
+  investidor_agente_aviso_assumiu: robo('aviso_interno_p2', ['services/io/investidorAgenteAvisos.ts', 'services/io/investidorAgenteAvisosEquipe.ts']),
   pix_comprovante_dono: robo('aviso_interno_p2', ['services/agents/whatsapp/pixComprovanteService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
   giovanna_aviso_dono: robo('aviso_interno_p2', ['services/agents/whatsapp/whatsappAgentService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
   venda_aviso: robo('aviso_interno_p2', ['services/vendaAviso.ts', 'services/avisoVendaDiego.ts'], { nasceDeEvento: true, linha: 'solardoc' }),

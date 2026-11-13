@@ -1584,6 +1584,8 @@ export function cortarTranscricao(t: string): string {
 
 export interface MsgDaConversa {
   from_me: boolean | null; texto: string | null; tipo: string | null; momment: string;
+  /** `from_me` com `from_api` verdadeiro é automação (a própria Helena, outro robô); sem ele é gente digitando no celular da linha. */
+  from_api?: boolean | null;
   /** Id da linha em `wa_mensagens` (chave do cache da transcrição). Só áudio carrega. */
   id?: number | string | null;
   /** Endereço do arquivo (Z-API), lido só nas mensagens novas de áudio. */
