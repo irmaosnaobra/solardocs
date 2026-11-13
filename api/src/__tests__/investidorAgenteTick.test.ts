@@ -78,7 +78,9 @@ function fabrica(base: Record<string, Row[]>) {
       if (st.op === 'select') {
         if (h.falhaDeLeitura.has(tabela)) return { data: null, error: { message: `leitura de ${tabela} falhou` }, count: null };
         if (h.falhaDoLike && st.likes.some(p => p.startsWith(h.falhaDoLike!))) return { data: null, error: { message: `leitura ${h.falhaDoLike} falhou` }, count: null };
-        let r = linhas().filter(x => st.filtros.every(f => f(x)));
+        // `or` de chaves (`key.like.<prefixo>%,key.like.<outro>%`), como o PostgREST: só as linhas que casam com algum padrão.
+        const padroesDoOr = st.or && st.or.includes('key.like.') ? [...st.or.matchAll(/key.like.([^,]+)/g)].map(m => m[1]!) : null;
+        let r = linhas().filter(x => st.filtros.every(f => f(x)) && (!padroesDoOr || padroesDoOr.some(pt => casa(pt, x.key))));
         for (const [c, asc] of [...st.ordem].reverse()) {
           r = [...r].sort((a, b) => (a[c] < b[c] ? -1 : a[c] > b[c] ? 1 : 0) * (asc ? 1 : -1));
         }
@@ -3877,5 +3879,98 @@ describe('registro do convite (convidou_em e convites)', () => {
     await responder();
     expect(sessaoDe(ANA).convidou_em).toBeUndefined();
     expect(sessaoDe(ANA).convites).toBeUndefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1.6: a Helena cede aos robôs de agenda (reagenda, follow-up do não atendido, retorno). Relê o card antes do claim e PULA a
+// pessoa nesta rodada, sem tirá-la da fila: a próxima da fila é a chamada.
+describe('a abertura cede aos robôs de agenda (12/11/2026)', () => {
+  const carimbo = (key: string, value: Row = {}, updated_at = '2026-10-10T12:00:00Z') => { h.banco.main.system_state!.push({ key, value, updated_at }); };
+  const nadaSaiu = () => { expect(h.zap.frio).toEqual([]); expect(h.zap.humano).toEqual([]); expect(h.zap.equipe).toEqual([]); };
+  /** O Bruno (o primeiro da fila, R$ 500 mil) com o card não atendido de 6 dias atrás, fora do lote. */
+  const brunoNaoAtendeu = (quando = '2026-10-05T15:00:00Z') => {
+    const c = h.banco.ger.agendamentos!.find(x => x.id === 502)!;
+    Object.assign(c, { status: 'nao_atendeu', quando });
+  };
+
+  it('sem nenhum robô com a pessoa, o primeiro da fila é chamado (o controle dos outros casos)', async () => {
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0002' });
+  });
+
+  it('a) nao_atendeu fora do lote, reunião de até 21 dias e menos de 3 voltas do reagenda: pula o Bruno, chama a Ana e ele continua na fila', async () => {
+    brunoNaoAtendeu();
+    carimbo('ep_reagenda_auto:502', { n: 2, ultimo: '2026-10-09T12:00:00Z' });
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0001' });
+    expect(estado(`inv_agente:${BRUNO}`)).toBeUndefined();
+    // Passadas as 3 voltas o reagenda larga o card, e o Bruno, que seguiu na fila, é o próximo.
+    h.banco.main.system_state!.find(r => r.key === 'ep_reagenda_auto:502')!.value = { n: 3 };
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0002' });
+  });
+
+  it('a) o mesmo card sem nenhum carimbo do reagenda (zero voltas) também cede; reunião de mais de 21 dias atrás não cede', async () => {
+    brunoNaoAtendeu();
+    expect(await abrir()).toMatchObject({ para: 'final 0001' });
+    brunoNaoAtendeu('2026-09-01T15:00:00Z');
+    expect(await abrir()).toMatchObject({ para: 'final 0002' });
+  });
+
+  it('b) escada aberta do follow-up (ep_fup_naoatendido:<id>:r1 sem :lista): pula; com a :lista, a escada acabou e ele é chamado', async () => {
+    brunoNaoAtendeu('2026-10-10T15:00:00Z');
+    carimbo('ep_reagenda_auto:502', { n: 3 });
+    carimbo('ep_fup_naoatendido:502:r1');
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0001' });
+    expect(estado(`inv_agente:${BRUNO}`)).toBeUndefined();
+    carimbo('ep_fup_naoatendido:502:lista');
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0002' });
+  });
+
+  it('c) retorno recente (ep_liberado_sim:<id> de menos de 8 dias): pula; de mais de 8 dias, chama', async () => {
+    carimbo('ep_liberado_sim:502', { tel: 'x' }, '2026-10-08T12:00:00Z');
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0001' });
+    expect(estado(`inv_agente:${BRUNO}`)).toBeUndefined();
+    h.banco.main.system_state!.find(r => r.key === 'ep_liberado_sim:502')!.updated_at = '2026-10-01T12:00:00Z';
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0002' });
+  });
+
+  it('todos os da frente com robô de agenda: nenhuma abertura, motivo próprio, e ninguém sai da fila', async () => {
+    for (const id of [501, 502, 503]) carimbo(`ep_liberado_sim:${id}`, {}, '2026-10-10T12:00:00Z');
+    expect(await abrir()).toMatchObject({ enviados: 0, motivo: 'robo_de_agenda_com_a_pessoa' });
+    nadaSaiu();
+    expect(chaves('inv_agente:')).toEqual([]);
+  });
+
+  it('a leitura do card falha: na dúvida a pessoa é pulada (FECHA), sem sessão nem envio', async () => {
+    h.falhaDeLeitura.add('agendamentos');
+    expect((await abrir()).enviados).toBe(0);
+    nadaSaiu();
+  });
+});
+
+describe('a abertura cede aos robôs de agenda: o r1 solto e o teto de candidatos (12/11/2026)', () => {
+  const carimbo = (key: string, value: Row = {}, updated_at = '2026-10-10T12:00:00Z') => { h.banco.main.system_state!.push({ key, value, updated_at }); };
+
+  it('r1 solto de um card cancelado (ou nao_atendeu fora dos 2 dias) NÃO prende a pessoa: o Bruno é chamado', async () => {
+    carimbo('ep_fup_naoatendido:502:r1');                     // o card 502 é `cancelado`
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0002' });
+  });
+
+  it('r1 solto de nao_atendeu de 6 dias atrás (fora da janela do follow-up, reagenda já com 3 voltas): chama', async () => {
+    Object.assign(h.banco.ger.agendamentos!.find(x => x.id === 502)!, { status: 'nao_atendeu', quando: '2026-10-05T15:00:00Z' });
+    carimbo('ep_reagenda_auto:502', { n: 3 });
+    carimbo('ep_fup_naoatendido:502:r1');
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0002' });
+  });
+
+  it('quem cede não gasta os candidatos: 10 pulados e o 11º apto, então o 11º é chamado', async () => {
+    // 10 pessoas na frente da fila (valor maior), todas com retorno recente de um robô de agenda.
+    for (let i = 0; i < 10; i++) {
+      const tel = `55349999${String(1000 + i)}`;
+      h.banco.ger.eletroposto_parceria!.push({ id: 100 + i, nome: `Fila ${i}`, telefone: tel, cidade: 'Uberlândia', lado: 'capital', capital_faixa: 'Mais de R$ 900 mil', status: 'novo', created_at: '2026-09-01T12:00:00Z' });
+      h.banco.ger.agendamentos!.push({ id: 900 + i, cliente_telefone: tel, cliente_nome: `Fila ${i}`, status: 'cancelado', quando: '2026-09-10T15:00:00Z', created_by: 'lp_eletroposto', vendedor_nome: 'Thiago', created_at: '2026-09-02T12:00:00Z' });
+      carimbo(`ep_liberado_sim:${900 + i}`, {}, '2026-10-10T12:00:00Z');
+    }
+    expect(await abrir()).toMatchObject({ enviados: 1, para: 'final 0002' });
+    expect(chaves('inv_agente:')).toEqual([`inv_agente:${BRUNO}`]);
   });
 });

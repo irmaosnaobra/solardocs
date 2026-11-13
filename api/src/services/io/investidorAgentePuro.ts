@@ -22,6 +22,7 @@ import { destinoDe, valorEmMil, valorOk, type LinhaOrigem } from './eletropostoP
 import { agendaAbre, diaBRT, horasDoDia, livrePara, type Compromisso } from './eletropostoVagas';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
 import { ehCardSemAvisoAutomatico, ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ultimaLinhaEhDePessoa } from './investidorAgenteEquipe';
 import {
   ABERTURAS_POR_TIPO, moldeSemNome, REGRAS_DO_PROMPT, OFERTA_HORARIOS, CONFIRMACAO,
   NAO_ENTENDI_O_NUMERO, PASSAGEM_PARA_O_CONSULTOR, DESPEDIDA, PAROU, ADIADO, HORARIO_FOI_OCUPADO, ENCERRAMENTO_DO_PREPARO,
@@ -289,6 +290,8 @@ export interface CardDoContato {
   origem: string;
   /** O consultor dono do card. */
   vendedor: string | null;
+  /** O `historico` do card. A fila só o lê para o `agendado` do lote; sem ele a regra da reunião da equipe não vale. */
+  historico?: string | null;
 }
 
 export interface CandidatoInvestidor {
@@ -372,7 +375,7 @@ export interface FiltrosDaFila {
 export const CADASTRO_MINIMO_MS = 24 * 3600_000;
 
 export type MotivoForaDaFila =
-  | 'telefone_invalido' | 'nome_teste' | 'sem_interesse_no_cadastro' | 'sem_card' | 'card_vivo' | 'reuniao_real'
+  | 'telefone_invalido' | 'nome_teste' | 'sem_interesse_no_cadastro' | 'sem_card' | 'card_vivo' | 'reuniao_real' | 'reuniao_da_equipe'
   | 'tem_sessao' | 'opt_out' | 'bloqueado' | 'mudo' | 'humano_na_conversa' | 'conversa_7_dias' | 'cadastro_recente';
 
 export interface ResultadoFila {
@@ -399,7 +402,8 @@ const statusDoCard = (c: Pick<CardDoContato, 'status'>): string => String(c.stat
 /**
  * A Helena pode reabrir este card? (12/11/2026)
  *   · `cancelado` e `nao_atendeu`: sim;
- *   · `agendado` do LOTE MUDO (origem `cadastro_eletroposto`, que a pessoa nunca marcou): sim, em qualquer data;
+ *   · `agendado` do LOTE MUDO (origem `cadastro_eletroposto`, que a pessoa nunca marcou): sim, em qualquer data, EXCETO a
+ *     reunião da equipe (`reuniaoDaEquipe`, abaixo);
  *   · `agendado` de outra origem: só quando o horário venceu há mais de 24h;
  *   · qualquer outro status (negociação, fechado, sem interesse, em atendimento...): não. Conservador de propósito.
  */
@@ -407,9 +411,20 @@ export function cardReabre(c: CardDoContato, agoraMs: number): boolean {
   const st = statusDoCard(c);
   if (STATUS_REABRIVEIS.has(st)) return true;
   if (st !== 'agendado') return false;
-  if (ehCardSemAvisoAutomatico(c.origem)) return true;
+  if (ehCardSemAvisoAutomatico(c.origem)) return !reuniaoDaEquipe(c, agoraMs);
   const q = Date.parse(String(c.quando ?? ''));
   return Number.isFinite(q) && q < agoraMs - REUNIAO_VENCIDA_MS;
+}
+
+/**
+ * REUNIÃO DA EQUIPE (12/11/2026): card `agendado` do lote cuja linha mais recente do `historico` foi escrita por PESSOA
+ * (a Giovanna remarcou à mão, um consultor mexeu no status) e cujo horário é futuro ou de até 24h atrás. Deixou de ser
+ * lote mudo: alguém combinou aquele horário com o cliente, então é reunião viva. Passadas as 24h volta a ser não atendido.
+ */
+export function reuniaoDaEquipe(c: CardDoContato, agoraMs: number): boolean {
+  if (statusDoCard(c) !== 'agendado' || !ehCardSemAvisoAutomatico(c.origem)) return false;
+  const q = Date.parse(String(c.quando ?? ''));
+  return Number.isFinite(q) && q >= agoraMs - REUNIAO_VENCIDA_MS && ultimaLinhaEhDePessoa(c.historico);
 }
 
 /**
@@ -524,7 +539,7 @@ export function montarFila(linhas: LinhaOrigem[], f: FiltrosDaFila): ResultadoFi
     const cards = f.cards.get(g.chave) ?? [];
     if (!cards.length) { fora('sem_card'); continue; }
     const naoReabre = cards.find(c => !cardReabre(c, f.agora));
-    if (naoReabre) { fora(statusDoCard(naoReabre) === 'agendado' ? 'reuniao_real' : 'card_vivo'); continue; }
+    if (naoReabre) { fora(reuniaoDaEquipe(naoReabre, f.agora) ? 'reuniao_da_equipe' : statusDoCard(naoReabre) === 'agendado' ? 'reuniao_real' : 'card_vivo'); continue; }
     // Só entra quem tem card de ELETROPOSTO não atendido (ordem do dono, 12/11/2026). Card de solar (ou de outro
     // produto) conta só para EXCLUIR (acima: se estiver vivo, a pessoa sai), nunca para entrar.
     if (!cardParaRemarcar(cards, f.agora)) { fora('sem_card'); continue; }

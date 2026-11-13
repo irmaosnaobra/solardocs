@@ -81,7 +81,9 @@ import { carregarCompromissos, aindaLivre } from './eletropostoVagas';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { guardarTipoDoCard } from '../agenda/etiquetaCard';
 import { TIPO_CARD_PREFIX } from '../agenda/salaDeEspera';
-import { ehCardSemAvisoAutomatico } from '../agenda/origemEtiqueta';
+import { ehCardSemAvisoAutomatico, ORIGEM_CADASTRO_EP } from '../agenda/origemEtiqueta';
+import { avisarMarcacao, iniciarRodadaDeAvisos, rodarAvisosDaEquipe } from './investidorAgenteAvisos';
+import { cedeEmLote } from './investidorAgenteCede';
 import { ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from './eletropostoCard';
 import { INV_SESSAO_PREFIX, sessaoEhDaHelena, type EstagioInvestidor, type PreparoDaSessao } from './investidorAgentePosse';
 import { cedeAAgente } from '../agentes5040/posse';
@@ -96,7 +98,7 @@ import {
   montarSistema, montarPedido, lerSaida, juntarDados, violaRegras, valoresLiberados, pedidoDeReescrita, SCHEMA_SAIDA_HELENA,
   type CandidatoInvestidor, type DadosDaConversa, type MsgDaConversa, type RefCadastro, type ResultadoFila, type TipoHelena,
   ehAudioSemTexto, type SaidaHelena, type ContextoHelena, type FonteDoFormulario,
-  type CardDoContato, type CardEletroposto, cardReabre,
+  type CardDoContato, type CardEletroposto, cardReabre, REUNIAO_VENCIDA_MS,
   escolhaPendenteDe, dentroDaJanelaDeRecuperacao, RECUPERACOES_POR_RODADA, type EscolhaPendente,
   montarRetomadas, renderRetomada, lerChaveDeToque, limiteDeRetomadasHoje, tetoRetomadasDoDia, MARGEM_DO_TOQUE_MS,
   RETOMADAS_RESERVA_DE_ABERTURA, sessaoVoltaComoRetorno, ultimoEnvioDaSessao, varianteDoTipo,
@@ -452,12 +454,17 @@ async function lerOrigens(): Promise<LinhaOrigem[]> {
 
 /** TODOS os cards da agenda por chave de contato (qualquer origem, qualquer status): quem tem card vivo
  *  fica fora, quem só tem card parado entra, e quem não tem card nenhum também fica fora. */
-async function lerCardsDoContato(): Promise<Map<string, CardDoContato[]>> {
+export async function lerCardsDoContato(agora: number = Date.now()): Promise<Map<string, CardDoContato[]>> {
   const linhas = await lerTudo<{
     id: number; cliente_telefone: string | null; status: string | null; quando: string | null; created_by: string | null; vendedor_nome: string | null;
   }>('cards da agenda', (de, ate) =>
     supabaseGerador.from('agendamentos').select('id, cliente_telefone, status, quando, created_by, vendedor_nome')
       .not('cliente_telefone', 'is', null).order('id', { ascending: true }).range(de, ate));
+  // O histórico só dos agendados do lote de hoje em diante (a regra da reunião da equipe): são poucas centenas de linhas.
+  const historicos = new Map<number, string | null>();
+  for (const h of await lerTudo<{ id: number; historico: string | null }>('histórico dos agendados do lote', (de, ate) =>
+    supabaseGerador.from('agendamentos').select('id, historico').ilike('created_by', ORIGEM_CADASTRO_EP).ilike('status', 'agendado')
+      .gte('quando', new Date(agora - REUNIAO_VENCIDA_MS).toISOString()).order('id', { ascending: true }).range(de, ate))) historicos.set(Number(h.id), h.historico ?? null);
   const porChave = new Map<string, CardDoContato[]>();
   for (const l of linhas) {
     const k = chaveContato(l.cliente_telefone);
@@ -466,6 +473,7 @@ async function lerCardsDoContato(): Promise<Map<string, CardDoContato[]>> {
     porChave.get(k)!.push({
       id: Number(l.id), status: String(l.status ?? ''), quando: l.quando ?? null,
       origem: String(l.created_by ?? ''), vendedor: l.vendedor_nome ?? null,
+      ...(historicos.has(Number(l.id)) ? { historico: historicos.get(Number(l.id)) } : {}),
     });
   }
   return porChave;
@@ -565,7 +573,7 @@ function chavesDeRetorno(sessoes: ReadonlyMap<string, SessaoInvestidor>, carimbo
 export async function lerFila(agora: number): Promise<LeituraDaFila> {
   const [linhas, cards, cardsEp, conversa, sessoes, carimbos, silenciado, mudo, bloqueado, pausa, fracos, grupos] = await Promise.all([
     lerOrigens(),
-    lerCardsDoContato(),
+    lerCardsDoContato(agora),
     lerCardsEletroposto(),
     lerChavesComConversa(agora),
     lerSessoes(),
@@ -647,6 +655,8 @@ const semEnvio = (motivo: string, extra: Partial<ResultadoAbertura> = {}): Resul
 
 /** Quantos da frente da fila a abertura olha antes de desistir da rodada (posse de agente da 5040, pausa humana). */
 const CANDIDATOS_OLHADOS = 10;
+/** Quem cede aos robôs de agenda NÃO gasta os candidatos olhados: o laço segue até este teto de pessoas por rodada. */
+const CANDIDATOS_MAX_NA_RODADA = 30;
 
 /** Um envio por chamada, sempre. */
 export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Promise<ResultadoAbertura> {
@@ -715,8 +725,18 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
   let sessao!: SessaoInvestidor;
   let antigaDoRetorno: SessaoInvestidor | null = null;
   let pulouPorPausa = false;
+  let cedeuAAgenda = false;
   let motivoDoClaim: string | null = null;
-  for (const c of abertos.slice(0, CANDIDATOS_OLHADOS)) {
+  // Os robôs de agenda (reagenda, follow-up do não atendido, retorno) falam com alguma destas pessoas agora? Os cards e os
+  // carimbos de todas são relidos de uma vez, ANTES do claim (investidorAgenteCede.ts).
+  const doLote = abertos.slice(0, CANDIDATOS_MAX_NA_RODADA);
+  const cedem = await cedeEmLote(doLote.map(c => ({ chave: c.chave, ids: c.cardsConhecidos })), agora.getTime());
+  let olhados = 0;
+  for (const c of doLote) {
+    // Quem cede é PULADO sem gastar a rodada: a pessoa continua na fila e a próxima é a chamada.
+    const cedeA = cedem.get(c.chave);
+    if (cedeA) { logger.info(LOG, `abertura cede aos robôs de agenda (${cedeA}, final ${c.telefone.slice(-4)}): a pessoa fica na fila`); cedeuAAgenda = true; continue; }
+    if (++olhados > CANDIDATOS_OLHADOS) break;
     if (await cedeAAgente(c.telefone)) continue;
     if (!(await podeFalarComLead(c.telefone)).pode) { await registrarBloqueio(c.telefone, LOG); pulouPorPausa = true; continue; }
 
@@ -760,7 +780,7 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
     alvo = c; abertura = aberturaC; consultor = consultorC; sessao = sessaoC;
     break;
   }
-  if (!alvo) return semEnvio(motivoDoClaim ?? (pulouPorPausa ? 'humano_na_conversa' : 'posse_de_agente_5040'), { fila: tamanhoDaFila });
+  if (!alvo) return semEnvio(motivoDoClaim ?? (pulouPorPausa ? 'humano_na_conversa' : cedeuAAgenda ? 'robo_de_agenda_com_a_pessoa' : 'posse_de_agente_5040'), { fila: tamanhoDaFila });
 
   // O ciclo de toques recomeça pela abertura de retorno: os carimbos dos toques 2 a 5 do ciclo antigo saem,
   // senão a pessoa pareceria já no fim do ciclo e fecharia na hora. Só depois da tentativa de envio (saiu ou
@@ -1236,16 +1256,16 @@ async function cardPorOutraPorta(s: SessaoInvestidor): Promise<number | null> {
   const tel = s.telefone;
   const chave = chaveContato(tel);
   const { data, error } = await supabaseGerador.from('agendamentos')
-    .select('id, cliente_telefone, status, quando, created_by, vendedor_nome').ilike('cliente_telefone', `%${tel.slice(-8)}`)
+    .select('id, cliente_telefone, status, quando, created_by, vendedor_nome, historico').ilike('cliente_telefone', `%${tel.slice(-8)}`)
     .order('id', { ascending: false }).limit(50);
   if (error) throw new Error(`conferir card do telefone: ${error.message}`);
   const conhecidos = new Set(s.cards_conhecidos ?? []);
   const agora = Date.now();
-  for (const a of (data ?? []) as Array<{ id: number; cliente_telefone: string | null; status: string | null; quando: string | null; created_by: string | null; vendedor_nome: string | null }>) {
+  for (const a of (data ?? []) as Array<{ id: number; cliente_telefone: string | null; status: string | null; quando: string | null; created_by: string | null; vendedor_nome: string | null; historico?: string | null }>) {
     if (chaveContato(a.cliente_telefone) !== chave || a.id === s.agendamento_id) continue;
     const status = String(a.status ?? '').trim().toLowerCase();
     if (!conhecidos.has(a.id)) { if (status !== 'cancelado') return a.id; continue; }
-    if (!cardReabre({ id: a.id, status, quando: a.quando, origem: String(a.created_by ?? ''), vendedor: a.vendedor_nome }, agora)) return a.id;
+    if (!cardReabre({ id: a.id, status, quando: a.quando, origem: String(a.created_by ?? ''), vendedor: a.vendedor_nome, historico: a.historico ?? null }, agora)) return a.id;
   }
   return null;
 }
@@ -1665,6 +1685,14 @@ async function agendar(s: SessaoInvestidor, ctx: Contexto, iso: string): Promise
   } catch (e) {
     ctx.res.erros++;
     logger.error(LOG, 'a confirmação não saiu (o card está gravado)', { card: cardId, erro: String(e) });
+  }
+  // O aviso curto ao consultor (1 bolha, link dentro) sai agora, SÓ com o preparo em andamento: a trava, o carimbo e as
+  // conferências da linha moram em investidorAgenteAvisos.ts. Nunca lança.
+  if (cardId) {
+    await avisarMarcacao({
+      comPreparo: !!(primeira && saiu), cardId, iso, consultor: s.consultor, nome: s.nome, tipo,
+      cidade: s.dados?.cidade || s.cidade, dados: sessaoFinal.dados,
+    });
   }
   // Com preparo em andamento a ficha espera o fim dele. Sem preparo (ou se a mensagem não saiu), sai agora.
   if (primeira && saiu) return;
@@ -3078,15 +3106,26 @@ export async function atenderPedidosDoBanco(agora: Date = new Date()): Promise<{
  * resposta atrasada (frio, com prioridade) gasta o envio frio desta rodada. Falha numa metade não
  * impede a outra de rodar os portões dela.
  */
+/** Os avisos da Helena ao consultor (pendentes da marcação e resumo do dia): respeitam a chave de desligar e o disjuntor, como os outros envios dela. */
+async function avisosDaEquipeNaRodada(): Promise<Record<string, unknown>> {
+  const chave = await lerChaveDesligar();
+  if (chave.off) return { pulou: `desligada_${chave.por}` };
+  if ((await lerDisjuntor()).aberto) return { pulou: 'disjuntor_erros_de_envio' };
+  return rodarAvisosDaEquipe(new Date());
+}
+
 export async function rodarInvestidorAgente(): Promise<Record<string, unknown>> {
   const pedidos = await atenderPedidosDoBanco().catch((e) => ({ erro: String(e) }));
   const vez = await reivindicarRodada();
   if (!vez.ok) return { ok: true, pulou: vez.motivo, ...(Object.keys(pedidos).length ? { pedidos } : {}) };
+  // Só depois do claim da rodada: quem perde a corrida (outra chamada no mesmo balde) não zera o "1 aviso por rodada" de quem ganhou.
+  iniciarRodadaDeAvisos();
   const respostas = await runInvestidorRespostasTick().catch((e) => ({ error: String(e) }));
   const recuperacao = await recuperarEscolhasPendentes().catch((e) => ({ reprocessadas: 0, erros: 1, error: String(e) }));
   const fecho = await fecharResgatesSemResposta().catch((e) => ({ fechadas: 0, erros: 1, error: String(e) }));
   const fechoRetomadas = await fecharRetomadasEsgotadas().catch((e) => ({ fechadas: 0, erros: 1, error: String(e) }));
   const preparos = await fecharPreparos().catch((e) => ({ fechados: 0, fichas: 0, erros: 1, error: String(e) }));
+  const avisos: Record<string, unknown> = await avisosDaEquipeNaRodada().catch((e) => ({ erro: String(e) }));
 
   // Um envio frio por rodada. A resposta atrasada que saiu como frio já o gastou.
   const frioDaResposta = 'frio' in respostas && Number((respostas as { frio?: number }).frio) > 0;
@@ -3120,5 +3159,6 @@ export async function rodarInvestidorAgente(): Promise<Record<string, unknown>> 
     ...(fecho.fechadas || fecho.erros ? { fecho } : {}),
     ...(fechoRetomadas.fechadas || fechoRetomadas.erros ? { fecho_retomadas: fechoRetomadas } : {}),
     ...(preparos.fechados || preparos.erros ? { preparos } : {}),
+    ...(avisos.marcada || avisos.erro || (avisos.resumo as { enviados?: number } | undefined)?.enviados ? { avisos } : {}),
   };
 }

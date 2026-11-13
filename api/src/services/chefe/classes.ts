@@ -286,6 +286,10 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   solar_agente_recado: robo('aviso_interno_p2', ['services/io/solarAgenteQuiz.ts'], { nasceDeEvento: true }),
   // O recado "a Helena passou para você" no celular do Thiago e do Diego.
   investidor_agente_recado: robo('aviso_interno_p2', ['services/io/investidorAgente.ts'], { nasceDeEvento: true }),
+  // Os avisos da Helena ao consultor (12/11/2026, parecer do anti-ban): a reunião que ela marcou (1 bolha, na hora do preparo)
+  // e o resumo do dia (a partir das 7h30). Carimbo `ficha_lead:helena:marcada:` / `ficha_lead:helena:dia:` (balde da equipe).
+  investidor_agente_aviso_marcada: robo('aviso_interno_p2', ['services/io/investidorAgenteAvisos.ts'], { nasceDeEvento: true }),
+  investidor_agente_aviso_dia: robo('aviso_interno_p2', ['services/io/investidorAgenteAvisos.ts']),
   pix_comprovante_dono: robo('aviso_interno_p2', ['services/agents/whatsapp/pixComprovanteService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
   giovanna_aviso_dono: robo('aviso_interno_p2', ['services/agents/whatsapp/whatsappAgentService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
   venda_aviso: robo('aviso_interno_p2', ['services/vendaAviso.ts', 'services/avisoVendaDiego.ts'], { nasceDeEvento: true, linha: 'solardoc' }),

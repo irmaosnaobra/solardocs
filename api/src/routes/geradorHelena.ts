@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase';
 import { exigeConsultor } from './geradorDossie';
 import { exigeEquipe, instanciaIO } from './geradorCaixa';
 import { lerAcompanhamento, lerPessoa } from '../services/io/helenaAcompanhamento';
+import { lerAgendaDaHelena } from '../services/io/helenaAgenda';
 import { chaveValida, variantesDaChave, autorDe, type LinhaWa } from '../services/gerador/caixaWhatsapp';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -10,6 +11,8 @@ import { chaveValida, variantesDaChave, autorDe, type LinhaWa } from '../service
 //
 //   GET /gerador/helena/acompanhamento   consultor logado (a lista não leva telefone); 60 s em memória.
 //   GET /gerador/helena/pessoa?chave=    consultor logado E da equipe (leva a conversa de cliente, como a Caixa).
+//   GET /gerador/helena/agenda           SEM login, como a `GET /gerador/apalavrado` que a Agenda já chama (só ids de card, sem
+//                                        nome nem telefone): { ocultos, marcadas, gerado_em }. Falha = 503 e a tela não esconde nada.
 //
 // O formato de resposta é o do comentário no topo do bloco JS da aba (agentes/index.html).
 // Erro de banco vira 502 com mensagem genérica; nada de telefone ou texto de mensagem em log.
@@ -54,6 +57,15 @@ export function mountHelena(router: Router): void {
     } catch (err) {
       console.error('[helena] acompanhamento falhou', String((err as Error)?.message || err).slice(0, 200));
       res.status(502).json({ ok: false, error: 'Não consegui ler a lista da Helena agora. Tente de novo em instantes.' });
+    }
+  });
+
+  router.get('/helena/agenda', semCache, async (_req: Request, res: Response) => {
+    try {
+      res.json(await lerAgendaDaHelena());
+    } catch (err) {
+      console.error('[helena] agenda falhou', String((err as Error)?.message || err).slice(0, 80));
+      res.status(503).json({ ok: false, error: 'Não consegui ler a agenda da Helena agora.' });
     }
   });
 
