@@ -30,7 +30,8 @@ import type { ProdutoLoja } from '@/lib/produtos';
  *   aberta (ver `organizarMenu`).
  * - `papelada`: contratos e recibos.
  * - `outros`: os documentos que quase ninguém usa, dobrados.
- * - `loja`: "Ver todos os produtos", que fecha o grupo "Para liberar".
+ * - `loja`: "Ver todos os produtos", que fecha o grupo "Para liberar". No menu lateral esse grupo não
+ *   tem título: é desenhado logo abaixo do Parceiro NEXUS.
  */
 export type GrupoMenu = 'acao' | 'principal' | 'papelada' | 'outros' | 'loja';
 
@@ -44,8 +45,9 @@ export interface ItemMenu {
   requireCompany?: boolean;
   /**
    * id do produto no catálogo (`produtoPorId`, o mesmo que `/produtos/acessos` devolve em
-   * `produtos`). Quem não tem vê cadeado e o clique leva para onde o produto vende
-   * (`hrefVendaDoProduto`), nunca para um beco. Quem tem vê o item normal, sem nada em volta.
+   * `produtos`). Quem não tem vê a etiqueta COMPRAR no menu lateral (a /inicio mostra cadeado) e o
+   * clique leva para onde o produto vende (`hrefVendaDoProduto`), nunca para um beco. Quem tem vê o
+   * item normal, sem nada em volta.
    */
   produto?: string;
   /** Só aparece para quem está no lançamento restrito (`bastidor`); para a base, a novidade não existe. */

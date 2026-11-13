@@ -149,7 +149,7 @@ export const PAGINAS_DE_VENDA: Partial<Record<IdProdutoLoja, PaginaDeVenda>> = {
     ],
     como: [
       { titulo: 'Compre sem sair do app', texto: 'Pague com Pix aqui mesmo, sem sair do app.' },
-      { titulo: 'Abra o curso aqui no app', texto: 'Ele aparece no menu, em Para crescer, sem outro login.' },
+      { titulo: 'Abra o curso aqui no app', texto: 'Ele aparece no menu do app, sem outro login.' },
       { titulo: 'Siga os 5 módulos', texto: 'Da técnica de limpeza ao contrato de manutenção, na ordem que o curso propõe.' },
     ],
     resolve: [
@@ -169,7 +169,7 @@ export const PAGINAS_DE_VENDA: Partial<Record<IdProdutoLoja, PaginaDeVenda>> = {
     rodapeQuadro: 'Este plano é o curso, sem bônus. Compra com garantia.',
     perguntas: [
       { p: 'Preciso ter experiência com solar?', r: 'Não. O curso começa do zero: técnica, segurança em altura, preço e conversa de venda.' },
-      { p: 'Onde eu assisto?', r: 'Aqui mesmo, na SolarDoc. Depois do Pix, o curso aparece no menu, em Para crescer, sem outro login.' },
+      { p: 'Onde eu assisto?', r: 'Aqui mesmo, na SolarDoc. Depois do Pix, o curso aparece no menu do app, sem outro login.' },
       { p: 'Vem com bônus?', r: 'Este plano é o curso, sem bônus.' },
       { p: 'E se não for para mim?', r: 'A compra tem garantia. Se o curso não servir, você pede o reembolso.' },
     ],
