@@ -56,3 +56,114 @@
 
 .rodape { font-size: 0.76rem; color: #64748b; text-align: center; margin: 18px 0 0; line-height: 1.6; }
 .erro { font-size: 0.85rem; color: #f87171; font-weight: 600; margin-top: 14px; text-align: center; }
+
+/* ── Order bump das ferramentas (só com a oferta ligada) ── */
+.bump { border: 0; margin: 0 0 22px; padding: 0; min-width: 0; }
+.bumpTitulo { padding: 0; font-size: 1.05rem; font-weight: 800; color: #f8fafc; line-height: 1.3; }
+.bumpSub { font-size: 0.84rem; color: #94a3b8; margin: 4px 0 14px; line-height: 1.5; }
+
+.opcoes { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+
+.opcao {
+  position: relative;
+  display: flex; align-items: flex-start; gap: 12px;
+  min-height: 56px;
+  padding: 13px 14px;
+  border: 1px solid #263552;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.55);
+  cursor: pointer;
+  transition: border-color 160ms cubic-bezier(0.22, 1, 0.36, 1), background-color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  /* A barra do total gruda no pé da tela do celular: a caixa em foco pelo teclado não pode ficar atrás dela. */
+  scroll-margin-bottom: 200px;
+}
+.opcao:hover { border-color: #3b5279; }
+.opcaoMarcada { border-color: rgba(251, 191, 36, 0.7); background: rgba(245, 158, 11, 0.08); }
+.opcaoNoPacote { cursor: default; opacity: 0.62; }
+.opcaoNoPacote:hover { border-color: rgba(251, 191, 36, 0.7); }
+
+/* O input cobre a linha inteira, invisível: o toque em qualquer ponto marca, e o teclado continua nativo. */
+.opcaoInput {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; margin: 0;
+  opacity: 0; cursor: inherit;
+}
+.opcaoCaixa {
+  flex: none;
+  width: 24px; height: 24px; margin-top: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid #4b5f82; border-radius: 7px;
+  background: #0b1427;
+  color: transparent;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
+}
+.opcaoMarcada .opcaoCaixa { background: #fbbf24; border-color: #fbbf24; color: #0f172a; }
+.opcaoInput:focus-visible + .opcaoCaixa { outline: 2px solid #fbbf24; outline-offset: 3px; }
+
+.opcaoCorpo { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.opcaoTopo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.opcaoNome { font-size: 0.95rem; font-weight: 800; color: #f1f5f9; line-height: 1.3; }
+.opcaoPreco { flex: none; font-size: 0.88rem; font-weight: 800; color: #fbbf24; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.opcaoLinha { font-size: 0.8rem; color: #94a3b8; line-height: 1.45; }
+
+/* O pacote é o destaque: borda âmbar sempre, fundo mais quente e a economia em verde. */
+.opcaoPacote {
+  padding: 16px 14px 15px;
+  border-color: rgba(251, 191, 36, 0.45);
+  background: linear-gradient(160deg, rgba(245, 158, 11, 0.13) 0%, rgba(15, 23, 42, 0.6) 70%);
+}
+.opcaoPacote.opcaoMarcada { border-color: #fbbf24; box-shadow: 0 6px 22px rgba(245, 158, 11, 0.18); }
+.opcaoPacote .opcaoTopo { align-items: center; margin-bottom: 4px; }
+.opcaoPacote .opcaoNome { font-size: 1.08rem; }
+.opcaoPacote .opcaoPreco { font-size: 1rem; }
+.opcaoSelo {
+  align-self: flex-start;
+  padding: 3px 9px;
+  font-size: 0.66rem; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+  color: #0f172a; background: #fbbf24; border-radius: 99px;
+}
+.opcaoEconomia { margin-top: 4px; font-size: 0.8rem; font-weight: 700; color: #6ee7b7; line-height: 1.45; }
+
+.bumpAviso {
+  margin-top: 10px; padding: 12px 14px;
+  border: 1px dashed rgba(251, 191, 36, 0.55); border-radius: 12px;
+  background: rgba(245, 158, 11, 0.06);
+}
+.bumpAviso p { margin: 0 0 10px; font-size: 0.84rem; line-height: 1.5; color: #e2e8f0; }
+.bumpTrocar {
+  min-height: 44px; padding: 10px 16px;
+  border: 1px solid #fbbf24; border-radius: 10px;
+  background: transparent; color: #fbbf24;
+  font-size: 0.88rem; font-weight: 800; cursor: pointer;
+}
+.bumpTrocar:hover { background: rgba(251, 191, 36, 0.1); }
+.bumpTrocar:focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; }
+
+/* Total e botão: no celular grudam no pé da tela enquanto a pessoa escolhe. */
+.pagar {
+  position: sticky; bottom: 0; z-index: 2;
+  margin: 0 -30px; padding: 12px 30px 14px;
+  background: linear-gradient(180deg, rgba(13, 26, 50, 0.92) 0%, #0c1a33 30%);
+  border-top: 1px solid rgba(99, 179, 237, 0.18);
+  backdrop-filter: blur(6px);
+}
+@media (min-width: 720px) {
+  .pagar { position: static; margin: 0; padding: 0; background: none; border-top: 0; backdrop-filter: none; }
+}
+.total { margin: 0 0 12px; }
+.totalLinha { margin: 0; font-size: 0.98rem; color: #e2e8f0; line-height: 1.4; }
+.totalLinha strong { color: #fff; font-weight: 900; font-variant-numeric: tabular-nums; }
+.totalDetalhe { margin: 2px 0 0; font-size: 0.8rem; color: #94a3b8; font-variant-numeric: tabular-nums; }
+.cancele { margin: 8px 0 0; font-size: 0.78rem; color: #94a3b8; text-align: center; }
+
+.btn:focus-visible, .btnPix:focus-visible { outline: 2px solid #fbbf24; outline-offset: 3px; }
+
+@media (max-width: 380px) {
+  .card { padding: 28px 20px 24px; }
+  .pagar { margin: 0 -20px; padding: 12px 20px 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opcao, .opcaoCaixa { transition: none; }
+}

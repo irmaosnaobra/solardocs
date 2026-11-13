@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { acessoDoUsuario } from '../services/kitIntegradorService';
-import { assinaturaAbreCurso } from '../services/produtos/acessos';
+import { assinaturaAbreCurso, posseValidaEmEntitlements } from '../services/produtos/acessos';
+import { brindeFechaVendasVale } from '../services/produtos/adicionaisCorte';
 
 // Fecha Vendas (antes Kit de Fechamento do Integrador) — leitura do acesso e progresso do comprador.
 // A aba /materiais do dashboard consome estes dois endpoints.
@@ -52,13 +53,16 @@ async function acessoDoCurso(userId: string): Promise<AcessoDoCurso | null> {
   const acesso = await acessoDoUsuario(userId, user.email);
   const comprou = acesso.itens.length > 0;
   const vitalicio = (user as { curso_vitalicio?: boolean }).curso_vitalicio === true;
+  // Com ADICIONAIS_MENSAIS ligada, quem assinou depois do corte não abre o curso pela assinatura (só por compra).
   const assinando = assinaturaAbreCurso(user as {
     plano?: string | null; plano_expira_em?: string | null; billing_status?: string | null;
-  });
+  }) && await brindeFechaVendasVale(user.email);
+  // Adicional mensal (13/11/2026): a posse vive só em entitlements e VENCE. Vale enquanto a data não passou; nunca vira linha em kit_pedidos.
+  const adicional = comprou || assinando || vitalicio ? null : await posseValidaEmEntitlements(userId, 'curso-fechamento');
   return {
     user, acesso,
-    liberado: comprou || assinando || vitalicio,
-    motivoAcesso: comprou ? 'compra' : assinando ? 'assinatura' : vitalicio ? 'vitalicio' : null,
+    liberado: comprou || assinando || vitalicio || !!adicional,
+    motivoAcesso: comprou || adicional ? 'compra' : assinando ? 'assinatura' : vitalicio ? 'vitalicio' : null,
   };
 }
 

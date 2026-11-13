@@ -67,3 +67,6 @@
 .veja { margin-top: 32px; }
 .veja h2 { margin: 0 0 4px; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
 .veja > p { margin: 0 0 14px; font-size: 13.5px; color: var(--color-text-muted); }
+
+/* Venda mensal: o "por mês" ao lado do preço, menor. */
+.porMes { font-size: 14px; font-weight: 800; letter-spacing: 0; color: var(--color-text-muted); }

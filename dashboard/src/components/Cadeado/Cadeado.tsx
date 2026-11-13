@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Lock } from 'lucide-react';
 import { useAcessos } from '@/hooks/useAcessos';
 import { produtoPorId } from '@/lib/produtos';
+import { ehAdicional, useOfertaAdicionais } from '@/lib/loja/adicionais';
 import styles from './Cadeado.module.css';
 
 /**
@@ -25,8 +26,13 @@ export default function Cadeado({
   produto: string;
   children: React.ReactNode;
 }) {
-  const { carregando, tem, bastidor } = useAcessos();
+  const acessos = useAcessos();
+  const { tem, bastidor } = acessos;
   const p = produtoPorId(produto);
+  // Com a oferta mensal ligada, as 4 ferramentas da loja viram adicional por mês. A Precificação segue avulsa.
+  const oferta = useOfertaAdicionais();
+  const carregando = acessos.carregando || oferta.carregando;
+  const mensal = oferta.ligado && ehAdicional(produto);
 
   if (carregando) {
     return (
@@ -44,7 +50,7 @@ export default function Cadeado({
     <div className={styles.wrap}>
       <div className={styles.card} style={{ ['--cor' as string]: p.cor }}>
         <div className={styles.selo}>
-          <Lock size={13} /> {p.tipo === 'curso' ? 'Curso' : 'Ferramenta'} · acesso liberado por compra
+          <Lock size={13} /> {p.tipo === 'curso' ? 'Curso' : 'Ferramenta'} · {mensal ? 'adicional mensal' : 'acesso liberado por compra'}
         </div>
         <h1>{p.nome}</h1>
         <p className={styles.promessa}>{p.promessa}</p>
@@ -63,7 +69,13 @@ export default function Cadeado({
         </div>
 
         <p className={styles.nota}>
-          {p.naAssinatura
+          {mensal
+            ? p.naAssinatura
+              ? `Adicional de R$ ${oferta.precos.avulso} por mês, ou as 4 ferramentas por R$ ${oferta.precos.pacoteApp} por mês. O acesso vale enquanto você paga.`
+              : p.noPlanoAnual
+                ? `Vem inclusa no plano ANUAL do SolarDoc, e nesse caso fica sua pra sempre. Ou assine só esta ferramenta por R$ ${oferta.precos.avulso} por mês.`
+                : `Adicional de R$ ${oferta.precos.avulso} por mês. O acesso vale enquanto você paga.`
+          : p.naAssinatura
             ? 'Já vem incluso pra quem assina o SolarDoc — ou compre só esta ferramenta, uma vez, e use pra sempre.'
             : p.noPlanoAnual
               // O mensal não libera: dizer "vem na assinatura" aqui seria mandar

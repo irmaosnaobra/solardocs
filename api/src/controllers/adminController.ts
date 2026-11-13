@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase';
 import { runMonthlyReset } from '../services/planService';
 import { fetchAdsetInsights, sumTotals, type MetaPeriod } from '../services/metaAdsService';
 import { resolverPrecoAnual } from '../services/precoAnual';
+import { itemDoPlano } from '../services/produtos/adicionaisStripe';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -160,7 +161,7 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
           // não pode sobrescrever o trial novo de maio).
           const atual = stripeByEmail.get(key);
           if (atual && pesoStatusStripe(atual.status) >= pesoStatusStripe(s.status)) continue;
-          const priceId = s.items.data[0]?.price?.id ?? '';
+          const priceId = (itemDoPlano(s.items.data as never[]) as { price?: { id?: string } } | undefined)?.price?.id ?? '';
           stripeByEmail.set(key, {
             status: s.status,
             plan: PRICE_TO_PLAN[priceId] ?? null,
@@ -387,7 +388,7 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
         for (const s of subs.data) {
           stripeReached += 1;
           if (s.status === 'active') stripeClosed += 1;
-          const priceId = s.items.data[0]?.price?.id ?? '';
+          const priceId = (itemDoPlano(s.items.data as never[]) as { price?: { id?: string } } | undefined)?.price?.id ?? '';
           const plano = PRICE_TO_PLAN[priceId];
           if (plano) byProduct[plano] = (byProduct[plano] ?? 0) + 1;
         }
@@ -1096,7 +1097,7 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
       });
       const nowUnix = Math.floor(Date.now() / 1000);
       for (const s of subs.data) {
-        const item = s.items.data[0];
+        const item = itemDoPlano(s.items.data as never[]) as (typeof s.items.data)[number] | undefined;
         const priceId = item?.price?.id ?? '';
         if (!SOLARDOC_PRICE_IDS.has(priceId)) continue; // não é SolarDoc
         const valorCents = item?.price?.unit_amount ?? 0;

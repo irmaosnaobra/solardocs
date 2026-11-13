@@ -17,6 +17,10 @@ import { pixCheckoutUrl, PIX_MES_VALOR, pixPublicoAtivo } from '../utils/pixInfo
 import { asaasHabilitado } from '../services/asaas/asaasClient';
 import { resolverPrecoAnual, precoAnualConhecido, ANUAL_VALOR, ANUAL_EQUIV_MES, FERRAMENTAS_DO_ANUAL } from '../services/precoAnual';
 import { concederAcesso } from '../services/produtos/acessos';
+import { adicionaisLigado, normalizarAdicionais } from '../services/produtos/adicionais';
+import {
+  ErroLeituraDaAssinatura, assinaturaSoDeAdicional, faturaEhSoDeAdicional, itemDoPlano, linhasDoBump, liberarAdicionaisDaSessao, processarFaturaDeAdicionais,
+} from '../services/produtos/adicionaisStripe';
 import { tentarBonusPosPagamento } from '../services/agentes5040/planilhaBonus';
 import {
   buscarCupomValido, aplicarCupom, garantirCupomStripe, garantirPromotionCode, cupomAtivoParaPlano,
@@ -359,7 +363,7 @@ function attributionPatchFromMetadata(
 }
 
 export async function createCheckout(req: Request, res: Response): Promise<void> {
-  const { plan, cupom } = req.body as { plan: string; cupom?: string };
+  const { plan, cupom, adicionais } = req.body as { plan: string; cupom?: string; adicionais?: unknown };
   // Aceita 'vip' (alias do landing) → 'ilimitado'. 'anual' é o alias que volta
   // da tela /quase-la: o cancel_url carrega `plano=anual` e ela repassa o valor
   // cru — sem este apelido, quem desiste do anual e clica em "voltar pro cartão"
@@ -434,10 +438,13 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
         status: 'all',
         limit: 10,
       });
+      // Assinatura SÓ de adicional (comprada dentro do app) não é o plano: trocar o price dela pelo do plano apagaria o adicional.
       const activeSub = subs.data.find(
-        (s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due',
+        (s) => (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due') && !assinaturaSoDeAdicional(s as never),
       );
-      if (activeSub && activeSub.items.data[0] && ehAnual) {
+      // O item do plano: com adicionais na assinatura o plano deixa de ser sempre o primeiro item.
+      const itemPlanoDaSub = activeSub ? itemDoPlano(activeSub.items.data as never[]) as { id: string } | undefined : undefined;
+      if (activeSub && itemPlanoDaSub && ehAnual) {
         // MENSAL VIVO → ANUAL não passa por aqui. O caminho in-place cobra na
         // hora com `always_invoice` e a Stripe NÃO emite checkout.session.completed
         // por ele: seriam ~R$ 564 entrando sem linha no ledger, sem aviso ao dono
@@ -452,9 +459,9 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
         return;
       }
 
-      if (activeSub && activeSub.items.data[0]) {
+      if (activeSub && itemPlanoDaSub) {
         await stripe.subscriptions.update(activeSub.id, {
-          items: [{ id: activeSub.items.data[0].id, price: priceId }],
+          items: [{ id: itemPlanoDaSub.id, price: priceId }],
           proration_behavior: 'always_invoice',
           metadata: { userId: req.userId! },
         });
@@ -533,10 +540,16 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     cupom: aplicado?.cupom.codigo ?? null,
   });
 
+  // Bump do checkout (ferramentas adicionais mensais): só com a flag ligada e plano mensal. O plano vai SEMPRE primeiro.
+  const bump = !ehAnual && adicionaisLigado()
+    ? await linhasDoBump(stripe, normalizarAdicionais(adicionais))
+    : { linhas: [], aplicados: [] as string[] };
+  const metaBump: Record<string, string> = bump.aplicados.length ? { adicionais: bump.aplicados.join(',') } : {};
+
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: [{ price: priceId, quantity: 1 }, ...bump.linhas],
     ...(discounts ? { discounts } : permitirCodigoDigitado ? { allow_promotion_codes: true } : {}),
     customer_email: user.email,
     // Telefone: o checkout público já coletava, este NÃO — e é daqui que vem a
@@ -555,6 +568,7 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
       plan: planInfo.plano,
       ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : ehAnual ? { oferta: 'vip_anual' } : {}),
       ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
+      ...metaBump,
     },
     subscription_data: {
       // trialDias: 0 = cobra agora (oferta sem trial). undefined = os 7 de sempre.
@@ -654,7 +668,7 @@ function dispararInitiateCheckout(req: Request, planInfo: { plano: string; valor
 export const ORIGEM_QUIZ_SOLARDOC = 'quiz_solardoc';
 
 export async function createPublicCheckout(req: Request, res: Response): Promise<void> {
-  const { plan, cupom, origem } = req.body as { plan: string; cupom?: string; origem?: string };
+  const { plan, cupom, origem, adicionais } = req.body as { plan: string; cupom?: string; origem?: string; adicionais?: unknown };
   // Mesmos apelidos do createCheckout: 'vip' vem da LP, 'anual' volta da /quase-la.
   const planKey = plan === 'vip' ? 'ilimitado' : plan === 'anual' ? 'vip_anual' : plan;
   const planInfo = PLAN_MAP[planKey];
@@ -737,6 +751,9 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
     // `oferta: vip_anual` é o que separa o anual do mensal pra quem só lê
     // metadata: a recuperação de abandono (que senão manda copy de R$ 67 pra
     // quem abandonou R$ 564) e o webhook, que libera as ferramentas por ele.
+    const bumpPublico = !ehAnual && adicionaisLigado()
+      ? await linhasDoBump(stripe, normalizarAdicionais(adicionais))
+      : { linhas: [], aplicados: [] as string[] };
     const baseMeta = {
       plan: planInfo.plano, source: 'public_checkout', ...attribution,
       // Quem veio do quiz /diagnostico (24/10/2026). Lista FECHADA: o corpo é público e o
@@ -744,6 +761,8 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       ...(origem === ORIGEM_QUIZ_SOLARDOC ? { origem } : {}),
       ...(ehAnual ? { oferta: 'vip_anual' } : {}),
       ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
+      // Bump do checkout (só com ADICIONAIS_MENSAIS ligada e plano mensal): ids que de fato entraram na cobrança.
+      ...(bumpPublico.aplicados.length ? { adicionais: bumpPublico.aplicados.join(',') } : {}),
     };
 
     // Ver a nota do outro checkout: "voltar" no Stripe cai na oferta de Pix,
@@ -758,7 +777,7 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }, ...bumpPublico.linhas],
       // Um ou outro: a Stripe não aceita desconto pronto E campo de digitar juntos.
       ...(discounts ? { discounts } : permitirCodigoDigitado ? { allow_promotion_codes: true } : {}),
       // Stripe coleta o email no próprio checkout (não temos user ainda).
@@ -871,7 +890,7 @@ export async function getCheckoutInfo(req: Request, res: Response): Promise<void
     let planName: string | null = null;
     if (session.subscription) {
       const sub = await stripe.subscriptions.retrieve(session.subscription as string);
-      const priceId = sub.items.data[0]?.price?.id ?? '';
+      const priceId = (itemDoPlano(sub.items.data as never[]) as { price?: { id?: string } } | undefined)?.price?.id ?? '';
       const info = await planByPrice(priceId);
       if (info) planName = info.plano;
     }
@@ -969,7 +988,8 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     let priceId = '';
     if (session.subscription) {
       const sub = await stripe.subscriptions.retrieve(session.subscription as string);
-      priceId = sub.items.data[0]?.price?.id ?? '';
+      // O item do PLANO, não o primeiro: com adicionais na assinatura o plano nem sempre vem primeiro.
+      priceId = (itemDoPlano(sub.items.data as never[]) as { price?: { id?: string } } | undefined)?.price?.id ?? '';
     }
 
     const planInfo = await planByPrice(priceId);
@@ -993,7 +1013,9 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
       // passam a usar o valor REAL só neste caso — sem desconto, tudo segue byte
       // a byte como antes (o `valor` de tabela do PLAN_MAP).
       const totalPago = typeof session.amount_total === 'number' ? session.amount_total / 100 : null;
-      const valor = ((codigoCupom || descontou) && totalPago && totalPago > 0) ? totalPago : planInfo.valor;
+      // Com adicional no checkout (metadata.adicionais) o que entrou no caixa também é o total da sessão, não o preço do plano.
+      const comAdicional = !!(session.metadata as Record<string, string | undefined> | null)?.adicionais;
+      const valor = ((codigoCupom || descontou || comAdicional) && totalPago && totalPago > 0) ? totalPago : planInfo.valor;
 
       // Contabiliza o uso AQUI, no pagamento confirmado — não na criação da
       // sessão. `referencia` = session.id, que é único: reentrega do webhook
@@ -1348,6 +1370,18 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         console.error('[bonus-planilha] gancho falhou (pagamento intacto):', err);
       }
     }
+
+    // ═══════════ ADICIONAIS MENSAIS (bump do checkout e compra avulsa no app) ═══════════
+    // Depois do bloco do plano, de propósito: no checkout público a conta pode ter sido criada agora pelo
+    // 100%-CADASTRO, e o acesso precisa de um dono. Cobre também a sessão SÓ de adicional (planInfo undefined).
+    // Libera até o fim do período pago + 3 dias; o invoice.payment_succeeded repete a conta nas renovações.
+    // Isolado: nada aqui desfaz o plano, o ledger ou o Purchase.
+    try {
+      const liberados = await liberarAdicionaisDaSessao(stripe, session);
+      if (liberados.length) console.info(`[adicionais] sessao ${session.id}: liberado ${liberados.join(', ')}`);
+    } catch (err) {
+      console.error('[adicionais] liberacao na sessao falhou (pagamento intacto):', err);
+    }
   }
 
   // ═══════════════ RECUPERAÇÃO: checkout abandonado / cartão recusado ═══════════════
@@ -1367,7 +1401,10 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
   // garantirEventosWebhook() agora repõe essa assinatura sozinho.
   if (event.type === 'checkout.session.expired') {
     const session = event.data.object as any;
-    const nosso = session.metadata?.source === 'public_checkout' || !!session.metadata?.userId;
+    // Sessão de adicional comprado no app carrega userId, mas não é checkout de plano: sem este corte, quem fechou a aba
+    // entraria na cadência de recuperação do plano.
+    const nosso = session.metadata?.tipo !== 'adicional'
+      && (session.metadata?.source === 'public_checkout' || !!session.metadata?.userId);
     if (nosso) {
       const cd = session.customer_details as { email?: string | null; name?: string | null; phone?: string | null } | null;
       const email = session.customer_email ?? cd?.email ?? null;
@@ -1409,7 +1446,8 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     // não é o e-mail da conta. `emailsDaConta` devolve os dois (ver
     // services/stripeContaLink.ts) — por isso `.in()` e nunca `.eq()`.
     const emails = await emailsDaConta({ customerId: custId, subscriptionId: sub.id, emailDoCustomer: customer.email });
-    if (emails.length) {
+    // Assinatura SÓ de adicional que acabou não é o plano acabando: o acesso do adicional vence pela data da posse.
+    if (emails.length && !assinaturaSoDeAdicional(sub)) {
       // GUARD PIX: NÃO suspende quem tem acesso Pix ATIVO (plano_expira_em no futuro).
       // Caso real: cliente em dunning paga por Pix → a gente CANCELA a sub de cartão no
       // Stripe (anti-cobrança-dupla) → este evento dispara. Sem o guard, re-suspendia o
@@ -1438,7 +1476,17 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
 
     // Só age em renovação. Primeira cobrança falha já é tratada pelo próprio
     // checkout (cliente vê o erro na hora e tenta de novo).
+    // Cobrança que falhou numa assinatura SÓ de adicional não abre o dunning do plano (o adicional só deixa de ser estendido).
+    // Sem ler a assinatura não dá para saber se a fatura é de plano ou só de adicional: 500, e a Stripe reenvia.
+    let soAdicionalNaFalha = false;
     if (invoice.billing_reason === 'subscription_cycle') {
+      try { soAdicionalNaFalha = await faturaEhSoDeAdicional(stripe, invoice); } catch (err) {
+        if (!(err instanceof ErroLeituraDaAssinatura)) throw err;
+        res.status(500).json({ error: 'assinatura_indisponivel' });
+        return;
+      }
+    }
+    if (invoice.billing_reason === 'subscription_cycle' && !soAdicionalNaFalha) {
       const customer = await stripe.customers.retrieve(custId) as any;
       const emails = await emailsDaConta({ customerId: custId, subscriptionId: invoice.subscription as string | null, emailDoCustomer: customer.email });
       if (emails.length) {
@@ -1472,7 +1520,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
   // são responsabilidade do invoice.payment_failed). Idempotente.
   if (event.type === 'customer.subscription.updated') {
     const sub = event.data.object as any;
-    if (sub.status === 'past_due' || sub.status === 'unpaid') {
+    if ((sub.status === 'past_due' || sub.status === 'unpaid') && !assinaturaSoDeAdicional(sub)) {
       const custId   = sub.customer as string;
       const customer = await stripe.customers.retrieve(custId) as any;
       const emails = await emailsDaConta({ customerId: custId, subscriptionId: sub.id, emailDoCustomer: customer.email });
@@ -1492,13 +1540,29 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
   // notifica o cliente.
   if (event.type === 'invoice.payment_succeeded') {
     const invoice = event.data.object as any;
+    // Primeiro CLASSIFICA a fatura (a assinatura é lida uma vez): fatura de assinatura SÓ de adicional nunca segue pelo caminho do
+    // plano, nem quando a liberação abaixo falha. Leitura que falha = não dá para saber, e vale o caminho de sempre.
+    // Adicionais da assinatura: libera/estende até o fim do período pago + 3 dias, em TODA fatura paga (criação, ciclo, item adicionado no
+    // meio do mês). A liberação roda num try próprio dentro da função, que nunca lança.
+    let resultadoFatura: Awaited<ReturnType<typeof processarFaturaDeAdicionais>>;
+    try {
+      resultadoFatura = await processarFaturaDeAdicionais(stripe, invoice);
+    } catch (err) {
+      // Stripe não respondeu: não dá para classificar a fatura. Nada segue pelo caminho do plano; 500 faz a Stripe reenviar o evento.
+      if (!(err instanceof ErroLeituraDaAssinatura)) throw err;
+      res.status(500).json({ error: 'assinatura_indisponivel' });
+      return;
+    }
+    const { soAdicional: faturaSoDeAdicional, liberados } = resultadoFatura;
+    if (liberados.length) console.info(`[adicionais] fatura ${invoice.id}: liberado ${liberados.join(', ')}`);
     // 'subscription_create' entrou por causa da oferta SEM trial: nela a primeira
     // fatura chega com esse motivo, e sem ele o espelho 'paid' na UTMify nunca
     // dispararia pra esses clientes — a atribuição de mídia ficaria errada pra
     // sempre (a UTMify não se auto-corrige como o ledger interno).
-    if (invoice.billing_reason === 'subscription_cycle'
+    // Fatura de assinatura SÓ de adicional: não é mensalidade do plano (status de cobrança, UTMify e aviso de renovação não se aplicam).
+    if (!faturaSoDeAdicional && (invoice.billing_reason === 'subscription_cycle'
         || invoice.billing_reason === 'subscription_update'
-        || invoice.billing_reason === 'subscription_create') {
+        || invoice.billing_reason === 'subscription_create')) {
       const custId   = invoice.customer as string;
       const customer = await stripe.customers.retrieve(custId) as any;
       const emails = await emailsDaConta({ customerId: custId, subscriptionId: invoice.subscription as string | null, emailDoCustomer: customer.email });

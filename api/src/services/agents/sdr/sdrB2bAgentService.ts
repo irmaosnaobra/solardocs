@@ -5,7 +5,7 @@ import { sendHuman, sendImage, sendWhatsApp, ZapiInstance } from '../zapiClient'
 import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import {
-  ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, numerosVivos, resolverPlaceholders,
+  ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, numerosVivos, promptComAdicionais, resolverPlaceholders,
 } from '../whatsapp/atendenteAnuncioPrompt';
 import { parseAcoesCarla, pecaDaTag, blocoDeAcoes, BOLHAS_CARLA } from './carlaAcoes';
 import { novoAnthropic } from "../../../utils/anthropicClient";
@@ -610,7 +610,8 @@ async function systemPromptVivo(): Promise<string> {
     const { data } = await supabase
       .from('system_state').select('value').eq('key', ATENDENTE_PROMPT_KEY).maybeSingle();
     const salvo = (data?.value ?? null) as { texto?: string } | null;
-    const base = typeof salvo?.texto === 'string' && salvo.texto.trim() ? salvo.texto : PROMPT_PADRAO;
+    // Com ADICIONAIS_MENSAIS ligada, os trechos das ferramentas viram adicionais mensais (promptComAdicionais); desligada, o texto de sempre.
+    const base = promptComAdicionais(typeof salvo?.texto === 'string' && salvo.texto.trim() ? salvo.texto : PROMPT_PADRAO);
     const nums = await numerosVivos().catch(() => ({}));
     // blocoDeAcoes vem POR ÚLTIMO de propósito: é a única seção que descreve
     // capacidade real, e as anteriores (inclusive o texto editado na aba) podem

@@ -28,7 +28,7 @@ import MeuEquipamento from './_componentes/MeuEquipamento';
 import FormasPagamento from './_componentes/FormasPagamento';
 import MaisOpcoes, { type OpcoesProposta } from './_componentes/MaisOpcoes';
 import OfertaAddon from './_componentes/OfertaAddon';
-import { useCheckoutPix } from '@/components/CheckoutPix/useCheckoutPix';
+import { useComprar } from '@/components/CheckoutAdicional/useComprar';
 import { brl, nb, tempoHumano, TODOS_BANCOS, type Orcamento, type DocGerado } from './_componentes/util';
 import './offgrid.css';
 import './offgrid-passos.css';
@@ -73,7 +73,7 @@ export default function OffGridPage() {
   const [releitura, setReleitura] = useState(0);
   // O checkout mora AQUI, fora do `(trancado || oferta)`: quando o Pix cai o acesso libera e a oferta desmonta, e o modal
   // tem que sobreviver para mostrar "Pagamento confirmado" e o upsell. Ao confirmar, relê o acesso e solta o cadeado.
-  const { abrir: abrirCheckout, modal: modalCheckout } = useCheckoutPix(() => setReleitura((n) => n + 1));
+  const { abrir: abrirCheckout, modal: modalCheckout } = useComprar(() => setReleitura((n) => n + 1));
   const [txtKit, setTxtKit] = useState({ inst: '', extras: '', margem: String(entradaPadrao().margemPct) });
 
   // ── Meu equipamento ──

@@ -91,6 +91,10 @@ function query(table: string) {
           return { data: existente, error: null };
         }
       }
+      // system_state.key é a chave primária: insert repetido volta 23505 (é o "claim só de inserção" do código).
+      if (table === 'system_state' && modo === 'insert' && (db[table] ?? []).some((r) => r.key === row.key)) {
+        return { data: null, error: { code: '23505', message: 'duplicate key' } };
+      }
       if (table === 'users') {
         const email = String(row.email || '').toLowerCase();
         if (emails.has(email)) return { data: null, error: { code: '23505', message: 'duplicate key' } };

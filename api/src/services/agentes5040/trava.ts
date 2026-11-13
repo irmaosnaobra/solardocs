@@ -16,7 +16,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { EstadoConversa, MsgConversa, Persona, SaidaAgente } from './tipos';
-import { VALORES_PERMITIDOS_CARLA } from './conhecimento/solardoc';
+import { valoresPermitidosCarla } from './conhecimento/solardoc';
 import { PERCENTUAIS_PUBLICOS_ELETROPOSTO, REAIS_PUBLICOS_ELETROPOSTO } from './conhecimento/eletroposto';
 import { MAX_DEPOIMENTOS_POR_CONVERSA } from './conhecimento/depoimentos';
 import { horarioComercial, type Instante } from './relogio';
@@ -388,7 +388,7 @@ const DATA_NA_FRASE = /\b\d{1,2}\s*\/\s*\d{1,2}\b|\bdia\s+\d{1,2}\b|\b(?:janeiro
 function regrasCarla(t: string, link: string): string[] {
   const m: string[] = [];
   // SÓ os valores do catálogo (67, 27, 97). Valor derivado ("R$ 2,23 por dia") e centavos (67,40) não passam.
-  const fora = valoresEmReais(t + ' ' + link, true).find(v => !batePreciso(v, VALORES_PERMITIDOS_CARLA));
+  const fora = valoresEmReais(t + ' ' + link, true).find(v => !batePreciso(v, valoresPermitidosCarla()));
   if (fora !== undefined) m.push(`Carla citou valor fora da tabela (R$ ${fora.toLocaleString('pt-BR')})`);
   if (/\bcupom\b|\bcupons\b|\bcoupon\b|\bacesso19\b/.test(t + ' ' + link)) m.push('Carla falou de cupom');
   if (/\banual\b|\banuais\b|\bplano anual\b/.test(t + ' ' + link)) m.push('Carla falou de plano anual');

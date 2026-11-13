@@ -244,7 +244,7 @@ async function cobrancaDoUsuario(userId: string, id: string): Promise<CobrancaPr
 }
 
 /** CPF (so digitos) da ultima cobranca da pessoa. */
-async function ultimoCpf(userId: string): Promise<string | null> {
+export async function ultimoCpf(userId: string): Promise<string | null> {
   const { data } = await supabase.from('produto_cobrancas').select('cpf')
     .eq('user_id', userId).order('criado_em', { ascending: false }).limit(1).maybeSingle();
   const d = soDigitos((data as { cpf?: string } | null)?.cpf);

@@ -4,6 +4,8 @@ import Image from 'next/image';
 import { Lock, Check } from 'lucide-react';
 import { brl } from './util';
 import VejaTambem from '@/components/Loja/VejaTambem';
+import { CartaoPacote } from '@/components/Loja/Adicional';
+import { avulsasAtivas, useAdicionais, useOfertaAdicionais } from '@/lib/loja/adicionais';
 
 /**
  * Página de venda curta do Off-grid. Aparece no passo 3 para quem ainda não tem o acesso (no lugar do antigo cartão
@@ -26,6 +28,12 @@ export default function OfertaAddon({
   /** Abre o checkout Pix (CPF, QR e liberação sozinha). O modal mora na página, que não desmonta quando o acesso libera. */
   abrir: (produto: string) => void;
 }) {
+  // Com a oferta mensal ligada, o Off-grid se vende por mês e sem o "os R$ 97 voltam" (decisão de 13/11/2026).
+  const oferta = useOfertaAdicionais();
+  const mensal = oferta.ligado;
+  const ad = useAdicionais(mensal);
+  const pacoteAtivo = ad.ativos.some((x) => x.id === 'pacote' && !x.cancelado);
+  const avulso = oferta.precos.avulso;
   return (
     <>
     <section className="og-card og-trancado og2-venda" aria-labelledby="og2-venda-t">
@@ -56,19 +64,47 @@ export default function OfertaAddon({
       </div>
       <p className="og-hint">Exemplo com dados fictícios.</p>
 
-      <div className="og-trancado-preco">
-        <strong>{brl(preco)}</strong>
-        <span>um pagamento, sem mensalidade</span>
-      </div>
-      <ul className="og-trancado-lista">
-        <li>Acesso liberado na hora, enquanto sua conta existir.</li>
-        <li><strong>Os {brl(preco)} voltam</strong> como desconto no primeiro kit da casa.</li>
-        <li>7 dias de garantia.</li>
-      </ul>
-      <button type="button" className="og-btn og-btn-primary" onClick={() => abrir('offgrid')}>
-        <Check size={16} /> Liberar o Off-grid por {brl(preco)}
-      </button>
-      <p className="og-hint og2-centro">Pague por Pix sem sair desta tela: o acesso libera sozinho.</p>
+      {mensal ? (
+        <>
+          <div className="og-trancado-preco">
+            <strong>{brl(avulso)}</strong>
+            <span>por mês · acesso enquanto você paga</span>
+          </div>
+          <ul className="og-trancado-lista">
+            <li>Cancele quando quiser e use até o fim do mês pago.</li>
+            <li>7 dias de garantia.</li>
+          </ul>
+          <button type="button" className="og-btn og-btn-primary" onClick={() => abrir('offgrid')}>
+            <Check size={16} /> Liberar por {brl(avulso)} por mês
+          </button>
+          {!ad.carregando && !pacoteAtivo && (ad.podeComprar.length === 0 || ad.podeComprar.includes('pacote')) && (
+            <div className="og2-pacote">
+              <CartaoPacote
+                preco={oferta.precos.pacoteApp}
+                avulso={avulso}
+                jaPagaAvulsas={avulsasAtivas(ad.ativos).length > 0}
+                onComprar={() => abrir('pacote')}
+              />
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="og-trancado-preco">
+            <strong>{brl(preco)}</strong>
+            <span>um pagamento, sem mensalidade</span>
+          </div>
+          <ul className="og-trancado-lista">
+            <li>Acesso liberado na hora, enquanto sua conta existir.</li>
+            <li><strong>Os {brl(preco)} voltam</strong> como desconto no primeiro kit da casa.</li>
+            <li>7 dias de garantia.</li>
+          </ul>
+          <button type="button" className="og-btn og-btn-primary" onClick={() => abrir('offgrid')}>
+            <Check size={16} /> Liberar o Off-grid por {brl(preco)}
+          </button>
+          <p className="og-hint og2-centro">Pague por Pix sem sair desta tela: o acesso libera sozinho.</p>
+        </>
+      )}
     </section>
     <VejaTambem atual="offgrid" onLiberar={abrir} />
     </>

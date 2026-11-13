@@ -38,7 +38,25 @@ export interface PaginaDeVenda {
   hero: Imagem[];
   /** A imagem ao lado de "Como funciona". */
   comoImagem: Imagem;
+  /**
+   * O que muda com a ferramenta vendida como adicional mensal (`oferta.ligado`). Só os campos que mudam; o resto
+   * vem da versão de sempre. Desligada, nada daqui aparece.
+   */
+  mensal?: Partial<Omit<PaginaDeVenda, 'mensal'>>;
 }
+
+/** As duas perguntas novas das três páginas, na venda mensal (redator, 13/11/2026). */
+const PERGUNTAS_MENSAL: Pergunta[] = [
+  { p: 'Como eu cancelo?', r: 'Na página da ferramenta, toque em Cancelar. O acesso fica até o fim do mês pago.' },
+  { p: 'Já tinha comprado. Preciso pagar de novo?', r: 'Não. Quem já tem a ferramenta continua com ela, sem cobrança nova.' },
+];
+
+/** A página que vale agora: com a oferta mensal ligada, a versão de sempre com os campos de `mensal` por cima. */
+export function paginaDaOferta(c: PaginaDeVenda, mensalLigado: boolean): PaginaDeVenda {
+  return mensalLigado && c.mensal ? { ...c, ...c.mensal } : c;
+}
+
+const LINHA_MENSAL = 'R$ 17 por mês, no cartão ou no Pix. Acesso liberado assim que o pagamento é confirmado, enquanto você pagar. Cancele quando quiser e use até o fim do mês pago.';
 
 export const PAGINAS_DE_VENDA: Partial<Record<IdProdutoLoja, PaginaDeVenda>> = {
   inventario: {
@@ -86,6 +104,19 @@ export const PAGINAS_DE_VENDA: Partial<Record<IdProdutoLoja, PaginaDeVenda>> = {
       { src: '/produtos/estoque-celular.webp', alt: 'A mesma tela do Estoque em Dia no celular', largura: 804, altura: 998 },
     ],
     comoImagem: { src: '/produtos/estoque-celular.webp', alt: 'Tela do Estoque em Dia no celular: total em equipamento e a lista de itens com o valor de cada um', largura: 804, altura: 998 },
+    // A garantia de 7 dias continua no primeiro mês do adicional (decisão de 13/11/2026): fica no fim das frases.
+    mensal: {
+      botao: 'Liberar o Estoque em Dia por R$ 17 por mês',
+      linhaPagamento: `${LINHA_MENSAL} 7 dias de garantia. Já vem no plano anual.`,
+      rodapeQuadro: 'Acesso enquanto você pagar. Já vem no plano anual. 7 dias de garantia.',
+      perguntas: [
+        { p: 'Preciso cadastrar tudo de uma vez?', r: 'Não. Você pode cadastrar só o que importa agora, ou montar o inventário de exemplo e ir ajustando.' },
+        { p: 'Posso criar os meus próprios locais?', r: 'Pode. Além de escritório, montagem, depósito e frota, você cria o local que quiser e controla o material lá dentro do mesmo jeito.' },
+        { p: 'O que sai no PDF?', r: 'O estoque separado por local, com quantidade, valor de cada item e os totais. A logo e o CNPJ saem quando a empresa está cadastrada.' },
+        { p: 'Tenho o plano anual. Preciso pagar de novo?', r: 'Não. O Estoque em Dia já vem no plano anual e fica seu enquanto a sua conta existir.' },
+        ...PERGUNTAS_MENSAL,
+      ],
+    },
   },
 
   'curso-fechamento': {
@@ -132,6 +163,20 @@ export const PAGINAS_DE_VENDA: Partial<Record<IdProdutoLoja, PaginaDeVenda>> = {
       { src: '/produtos/fv-licao.webp', alt: 'Lição do Fecha Vendas: a objeção do cliente, o que ele quer dizer, o erro comum, a fala pronta e a versão de WhatsApp', largura: 1200, altura: 907 },
     ],
     comoImagem: { src: '/produtos/fv-mensagens.webp', alt: 'Lição de mensagens do Fecha Vendas: primeiro contato, o momento certo de usar e a mensagem pronta', largura: 1200, altura: 907 },
+    // Com a oferta ligada, o Fecha Vendas sai do mensal para quem assina daqui para frente: some a promessa de
+    // "já vem em qualquer assinatura paga".
+    mensal: {
+      botao: 'Liberar o Fecha Vendas por R$ 17 por mês',
+      linhaPagamento: `${LINHA_MENSAL} 7 dias de garantia.`,
+      rodapeQuadro: 'Acesso enquanto você pagar. Cancele quando quiser. 7 dias de garantia.',
+      perguntas: [
+        { p: 'É vídeo?', r: 'Não. É um curso em texto, dentro da plataforma, com o seu progresso salvo.' },
+        { p: 'Serve para quem está começando?', r: 'Serve. O módulo 2 vai da primeira ligação até a assinatura. Quem já vende pode ir direto no grupo de objeção que apareceu na última visita.' },
+        { p: 'Já sou assinante. Preciso comprar?', r: 'Quem já assinava e já vê o Fecha Vendas liberado continua com ele, sem pagar a mais. Para quem assina daqui para frente, ele é um adicional de R$ 17 por mês.' },
+        { p: 'Como abre o bônus?', r: 'Ao concluir as lições, cadastrar a sua empresa e um cliente e gerar um documento na plataforma.' },
+        ...PERGUNTAS_MENSAL,
+      ],
+    },
   },
 
   'curso-limpapro': {
@@ -178,5 +223,24 @@ export const PAGINAS_DE_VENDA: Partial<Record<IdProdutoLoja, PaginaDeVenda>> = {
       { src: '/produtos/limpapro-curso.webp', alt: 'Curso LimpaPro: caixa, tela do curso no notebook e no celular e os 5 módulos', largura: 840, altura: 643 },
     ],
     comoImagem: { src: '/produtos/limpapro-curso.webp', alt: 'Os 5 módulos do curso LimpaPro, da técnica de limpeza à renda recorrente', largura: 840, altura: 643 },
+    // A pergunta da garantia fica (decisão de 13/11/2026); a de parar entra ao lado dela.
+    mensal: {
+      botao: 'Liberar o LimpaPro por R$ 17 por mês',
+      linhaPagamento: `${LINHA_MENSAL} Compra com garantia.`,
+      como: [
+        { titulo: 'Escolha como pagar', texto: 'Cartão ou Pix, aqui mesmo, sem sair do app.' },
+        { titulo: 'Abra o curso aqui no app', texto: 'Ele aparece no menu do app, sem outro login.' },
+        { titulo: 'Siga os 5 módulos', texto: 'Da técnica de limpeza ao contrato de manutenção, na ordem que o curso propõe.' },
+      ],
+      rodapeQuadro: 'Acesso enquanto você pagar. Cancele quando quiser. Compra com garantia.',
+      perguntas: [
+        { p: 'Preciso ter experiência com solar?', r: 'Não. O curso começa do zero: técnica, segurança em altura, preço e conversa de venda.' },
+        { p: 'Onde eu assisto?', r: 'Aqui mesmo, na SolarDoc. Depois que o pagamento é confirmado, o curso aparece no menu do app, sem outro login.' },
+        { p: 'Vem com bônus?', r: 'Não. O adicional é o curso, sem bônus.' },
+        { p: 'E se não for para mim?', r: 'A compra tem garantia. Se o curso não servir, você pede o reembolso.' },
+        { p: 'E se eu quiser parar?', r: 'Cancele quando quiser. Você usa o curso até o fim do mês pago e não é cobrado de novo.' },
+        ...PERGUNTAS_MENSAL,
+      ],
+    },
   },
 };

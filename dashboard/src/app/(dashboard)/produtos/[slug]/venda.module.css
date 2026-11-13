@@ -165,3 +165,8 @@
 .final h2 { margin: 0 0 14px; font-size: 20px; line-height: 1.3; font-weight: 800; letter-spacing: -0.01em; }
 .final .cta { display: flex; justify-content: center; }
 .final .jaTem { align-items: center; }
+
+/* ── Venda mensal (oferta ligada) ── */
+.valor small { line-height: 1.4; }
+.valorPeriodo { font-size: 17px; font-weight: 800; letter-spacing: 0; color: var(--color-text-muted); }
+.pacoteVem { margin-top: 14px; }

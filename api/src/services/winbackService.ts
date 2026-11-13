@@ -12,6 +12,7 @@ import { supabase } from '../utils/supabase';
 import { Resend } from 'resend';
 import Stripe from 'stripe';
 import { logger } from '../utils/logger';
+import { assinaturaSoDeAdicional } from './produtos/adicionaisStripe';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
@@ -115,6 +116,8 @@ async function fetchCanceledByEmail(): Promise<Map<string, Date>> {
     });
 
     for (const s of subs.data) {
+      // Assinatura SÓ de adicional que acabou não é cliente do plano que saiu: não entra no winback.
+      if (assinaturaSoDeAdicional(s as never)) continue;
       const cust = s.customer as { email?: string | null } | string;
       const email = typeof cust === 'string' ? null : (cust.email ?? null);
       if (!email) continue;

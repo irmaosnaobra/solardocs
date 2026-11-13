@@ -997,3 +997,6 @@
 @media (max-width: 640px) {
   .lpFecharBtn, .lpFecharPreco { width: 100%; justify-content: center; }
 }
+
+/* Venda mensal: o cartão do pacote entre o título da seção e a grade. */
+.lojaPacote { margin-bottom: 14px; }

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { ArrowLeft, Check, ExternalLink, Lock, ShieldCheck, X } from 'lucide-react';
-import { checkoutCom, type ProdutoLoja } from '@/lib/produtos';
+import { checkoutCom, produtoDaOferta, type ProdutoLoja } from '@/lib/produtos';
+import { ehAdicional, useOfertaAdicionais } from '@/lib/loja/adicionais';
 import {
   MockupPrecificacao, MockupInventario, MockupCurso,
 } from './_mockups';
@@ -17,7 +18,7 @@ import styles from './produtos.module.css';
  * checkout Pix do app. Os textos das duas são mantidos separados, então preço e promessa mudam nos dois lugares.
  */
 export function LpConteudo({
-  p, liberado, carregando, email, assinante, previa = false, slug, dentroDoApp = true,
+  p: original, liberado, carregando, email, assinante, previa = false, slug, dentroDoApp = true,
 }: {
   p: ProdutoLoja;
   liberado: boolean;
@@ -30,6 +31,11 @@ export function LpConteudo({
   dentroDoApp?: boolean;
 }) {
   const brl = (n: number) => 'R$ ' + n.toLocaleString('pt-BR');
+  // Oferta mensal ligada: some a promessa do produto na assinatura (em qualquer página) e, dentro do app, as 4
+  // ferramentas se vendem por mês. A página pública segue com o preço único da Kiwify.
+  const oferta = useOfertaAdicionais();
+  const p = produtoDaOferta(original, oferta.ligado, dentroDoApp);
+  const mensal = oferta.ligado && dentroDoApp && ehAdicional(p.id);
 
   // O endereço que aparece na barra da janela do herói. Produto que mora fora
   // (LimpaPro) mostra o domínio DELE — escrever solardoc.app/produtos/limpapro
@@ -131,7 +137,7 @@ export function LpConteudo({
               <div className={styles.lpSelo}>
                 {p.tipo === 'curso' ? 'Curso' : 'Ferramenta'}
                 {p.naAssinatura
-                  ? ' · incluso na assinatura'
+                  ? (oferta.ligado ? '' : ' · incluso na assinatura')
                   : p.noPlanoAnual ? ' · incluso no plano anual' : ''}
               </div>
               <h1 className={styles.lpTitulo}>{p.nome}</h1>
@@ -170,19 +176,34 @@ export function LpConteudo({
             </div>
           ) : (
             <div className={styles.lpCaixa}>
-              <div className={styles.lpPreco}>
-                <strong>{brl(p.preco)}</strong>
-                <span>uma vez · acesso enquanto sua conta existir</span>
-              </div>
-              <a className={styles.lpBtn} href={checkoutCom(p, email)} target="_blank" rel="noopener noreferrer">
-                Comprar {p.tipo === 'curso' ? 'o curso' : 'a ferramenta'} <ExternalLink size={15} />
-              </a>
+              {mensal ? (
+                <>
+                  <div className={styles.lpPreco}>
+                    <strong>{brl(oferta.precos.avulso)}</strong>
+                    <span>por mês · acesso enquanto você paga</span>
+                  </div>
+                  {/* A compra mensal mora na página de venda de dentro do app (o Off-grid, na própria ferramenta). */}
+                  <Link className={styles.lpBtn} href={`/produtos/${p.slug}`}>
+                    Liberar por {brl(oferta.precos.avulso)} por mês
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <div className={styles.lpPreco}>
+                    <strong>{brl(p.preco)}</strong>
+                    <span>uma vez · acesso enquanto sua conta existir</span>
+                  </div>
+                  <a className={styles.lpBtn} href={checkoutCom(p, email)} target="_blank" rel="noopener noreferrer">
+                    Comprar {p.tipo === 'curso' ? 'o curso' : 'a ferramenta'} <ExternalLink size={15} />
+                  </a>
+                </>
+              )}
               {p.experimentar && (
                 <Link href={p.experimentar.rota} className={styles.lpBtnGhost}>
                   {p.experimentar.texto}
                 </Link>
               )}
-              {p.naAssinatura && !assinante && (
+              {p.naAssinatura && !assinante && !oferta.ligado && (
                 <p className={styles.lpAssinatura}>
                   Também vem junto com a <Link href="/minha-conta">assinatura do SolarDoc</Link>, com
                   todas as outras ferramentas inclusas.

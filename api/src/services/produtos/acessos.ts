@@ -22,6 +22,7 @@ import { supabase } from '../../utils/supabase';
 import { PRODUTOS, produtosDaAssinatura } from './catalogo';
 import { pedidosPagosDaConta } from './kitPedidos';
 import { temCompraLimpapro } from './limpapro';
+import { brindeFechaVendasVale } from './adicionaisCorte';
 
 /**
  * Ferramentas que JÁ FORAM GRÁTIS. Se a tabela de entitlements ainda não existe
@@ -132,6 +133,8 @@ export async function acessos(userId: string | undefined): Promise<Acessos> {
   if (assinante) {
     for (const id of produtosDaAssinatura()) {
       if (id === 'curso-fechamento' && !abreCurso) continue;   // trial não paga: ver assinaturaAbreCurso
+      // Com ADICIONAIS_MENSAIS ligada, quem assinou depois do corte não leva o Fecha Vendas de brinde (adicionaisCorte).
+      if (id === 'curso-fechamento' && !(await brindeFechaVendasVale(conta?.email))) continue;
       if (!produtos.has(id)) origem[id] = 'assinatura';
       produtos.add(id);
     }
@@ -225,6 +228,70 @@ export async function concederAcesso(opts: {
   });
   if (error && opts.lancarErro) throw new ErroDeBanco('entitlements', error);
   return !error;
+}
+
+/**
+ * A conta tem posse VÁLIDA deste produto em `entitlements` (sem data, ou com a data ainda no futuro)? É a mesma leitura do
+ * `acessos()`, para os portões dos cursos que têm fonte própria (Fecha Vendas: kit_pedidos; LimpaPro: limpapro_*) aceitarem também o
+ * adicional mensal, que só vive aqui e vence. Nunca grava cópia nessas fontes: elas valem para sempre. Erro de leitura = não tem.
+ */
+export async function posseValidaEmEntitlements(userId: string | undefined, produto: string): Promise<{ desde: string | null } | null> {
+  if (!userId) return null;
+  try {
+    const { data, error } = await supabase.from('entitlements').select('desde, expira_em').eq('user_id', userId).eq('produto', produto).maybeSingle();
+    if (error || !data) return null;
+    const venceu = !!data.expira_em && new Date(data.expira_em).getTime() < Date.now();
+    return venceu ? null : { desde: (data.desde as string | null) ?? null };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Concede ou ESTENDE um acesso com data (adicional mensal). NUNCA encurta:
+ *  - sem linha: cria com `expira_em = ate`;
+ *  - linha com `expira_em` nulo (para sempre: compra antiga, Kiwify, cortesia, anual): fica como está;
+ *  - linha com data mais distante que `ate`: fica como está;
+ *  - linha com data mais próxima (ou já vencida): só a data anda para `ate`.
+ * Idempotente: a mesma fatura reentregue cai em 'mantido'. Erro de banco lança (quem chama decide se isola).
+ */
+export async function concederOuEstender(opts: {
+  userId: string;
+  produto: string;
+  ate: Date;
+  orderId?: string | null;
+  obs?: string | null;
+}): Promise<'criado' | 'estendido' | 'mantido'> {
+  const ateMs = opts.ate.getTime();
+  const { data: existente, error: erroLeitura } = await supabase
+    .from('entitlements')
+    .select('id, expira_em')
+    .eq('user_id', opts.userId)
+    .eq('produto', opts.produto)
+    .maybeSingle();
+  if (erroLeitura) throw new ErroDeBanco('entitlements', erroLeitura);
+
+  if (!existente) {
+    const { error } = await supabase.from('entitlements').insert({
+      user_id: opts.userId,
+      produto: opts.produto,
+      origem: 'compra',
+      expira_em: opts.ate.toISOString(),
+      order_id: opts.orderId || null,
+      obs: opts.obs || null,
+    });
+    if (error) throw new ErroDeBanco('entitlements', error);
+    return 'criado';
+  }
+
+  if (!existente.expira_em) return 'mantido';
+  if (new Date(existente.expira_em).getTime() >= ateMs) return 'mantido';
+
+  const { error } = await supabase.from('entitlements')
+    .update({ expira_em: opts.ate.toISOString(), origem: 'compra', order_id: opts.orderId || null, obs: opts.obs || null })
+    .eq('id', existente.id);
+  if (error) throw new ErroDeBanco('entitlements', error);
+  return 'estendido';
 }
 
 /**

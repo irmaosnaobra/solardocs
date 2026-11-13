@@ -35,6 +35,7 @@ export interface AsaasWebhookBody {
   payment?: {
     id?: string; customer?: string; subscription?: string; value?: number;
     status?: string; billingType?: string; externalReference?: string | null;
+    description?: string | null;
     dueDate?: string; paymentDate?: string;
     /** id do link de pagamento que gerou a cobrança — é assim que a venda de
      *  produto do PlugCash se identifica (campo conferido na API em 14/08/2026). */
@@ -359,6 +360,16 @@ async function creditarPagamento(
   // Folga por cima do +1 mês (ver GRACE_DIAS).
   const vencComFolga = new Date(venc.getTime() + GRACE_DIAS * 24 * 60 * 60 * 1000);
   await supabase.from('users').update({ plano_expira_em: vencComFolga.toISOString() }).eq('id', userId);
+
+  // Bump do checkout: as ferramentas escolhidas junto com o plano valem mais 1 mês + 3 dias a cada pagamento confirmado.
+  // Isolado: o plano já está liberado, e falhar aqui não pode desfazer nem travar a adesão.
+  try {
+    const { estenderAdicionaisDoPlano } = await import('../produtos/adicionaisPlanoPix');
+    const estendidos = await estenderAdicionaisDoPlano(userId, linha.contract_id);
+    if (estendidos.length) logger.info('asaas-webhook', `adicionais do plano estendidos (${linha.contract_id}): ${estendidos.join(', ')}`);
+  } catch (err) {
+    logger.error('asaas-webhook', `adicionais do contrato ${linha.contract_id} NAO estendidos (plano creditado): estender na mao`, err);
+  }
 
   await supabase.from('asaas_pix_assinaturas').update({
     status: 'ativo',
@@ -1031,6 +1042,20 @@ export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ trat
     }
   }
 
+  // ── Adicional comprado no app (autorização de Pix SEPARADA da do plano) ANTES de tudo que acha contrato ─────
+  // O cliente tem o mesmo CPF e o mesmo customer no Asaas nas duas autorizações: sem este desvio, o pagamento do
+  // adicional cairia no fallback por customer e creditaria a mensalidade do PLANO. Só responde pelo que reconhece
+  // (contrato SDAD- ou ligação gravada); o resto devolve null e segue. Carregado sob demanda, como o de produtos.
+  try {
+    const { tratarWebhookAdicionalPix } = await import('../produtos/adicionaisPix');
+    const doAdicional = await tratarWebhookAdicionalPix(evento, b);
+    if (doAdicional) return doAdicional;
+  } catch (err) {
+    // Reentrega do Asaas: tira a marca de "evento ja visto", senao ela morreria em 'evento repetido'.
+    await supabase.from('asaas_webhook_events').delete().eq('event_id', eventId);
+    throw err;
+  }
+
   // ── PlugCash ANTES da assinatura ───────────────────────────────────────────
   // Venda de produto (curso pago por Pix/cartão no link do Asaas) não tem
   // contrato em `asaas_pix_assinaturas`: `acharContrato` devolveria null e o
@@ -1070,6 +1095,16 @@ export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ trat
       if (b.payment?.id) { alvo = await acharContratoPorInstrucao(b.payment.id); if (alvo) via = 'instrucao'; }
       if (!alvo && b.payment?.pixQrCodeId) { alvo = await acharContratoPorQr(b.payment.pixQrCodeId); if (alvo) via = 'qr'; }
       if (!alvo) alvo = linha;
+      // Trava: pagamento de adicional que chegou sem ligação não pode creditar o mês do plano pelo fallback por customer.
+      if (alvo && via === 'direto') {
+        const { pagamentoParecePixDeAdicional } = await import('../produtos/adicionaisPlanoPix');
+        if (await pagamentoParecePixDeAdicional(b.payment ?? {}, alvo)) {
+          logger.error('asaas-webhook', `pagamento ${b.payment?.id} parece de ADICIONAL sem ligação: nao creditei o plano (${alvo.contract_id})`);
+          await avisarThiago(`⚠️ *Pagamento de adicional sem ligação*
+Pagamento ${b.payment?.id} de R$ ${b.payment?.value} chegou sem o contrato do adicional. NÃO creditei o plano. Confira no Asaas e libere o adicional na mão.`);
+          return { tratado: false, motivo: 'pagamento de adicional sem ligação: plano não creditado' };
+        }
+      }
       if (!alvo) {
         // Rede de segurança: Pix com QR que não casou com nada (nem avulso, nem pix_auto_qr, nem PlugCash, nem contrato)
         // não pode cair calado. Um aviso por pagamento.
