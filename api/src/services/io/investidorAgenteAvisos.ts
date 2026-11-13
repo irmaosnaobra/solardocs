@@ -46,8 +46,8 @@ export const RESUMO_A_PARTIR_DOS_MIN = 7 * 60 + 30;
 const PENDENTE_VALE_MS = 36 * HORA_MS;
 
 /** `enviando` = alguma rodada pegou a trava e está mandando (ou caiu no meio): nunca se repete. */
-type Estado = 'pendente' | 'enviando' | 'enviado' | 'descartado';
-interface Trava extends Record<string, unknown> { estado: Estado }
+export type Estado = 'pendente' | 'enviando' | 'enviado' | 'descartado';
+export interface Trava extends Record<string, unknown> { estado: Estado }
 interface PendenteDaMarcada extends Trava {
   card: number; quando: string; consultor: string; nome: string; tipo: TipoHelena; cidade: string; fatos: string[];
 }
@@ -56,6 +56,8 @@ interface PendenteDaMarcada extends Trava {
 let avisoNestaRodada = false;
 /** Chamada no começo de cada rodada da Helena (rodarInvestidorAgente). */
 export function iniciarRodadaDeAvisos(): void { avisoNestaRodada = false; }
+/** Algum aviso à equipe já gastou a vez nesta rodada? (os avisos novos da Helena esperam o das marcações e o resumo) */
+export const avisoDaRodadaGasto = (): boolean => avisoNestaRodada;
 
 const codigoDe = (e: unknown): string => String((e as { code?: string } | null)?.code ?? '');
 const lerValor = (v: unknown): Record<string, unknown> | null => {
@@ -74,12 +76,12 @@ export async function celularSoDoConsultor(consultor: string): Promise<{ lido: b
 }
 
 // ── A trava (pendente → enviado) e o carimbo da linha ────────────────────────
-async function gravarTrava(key: string, valor: Trava, agora: Date): Promise<void> {
+export async function gravarTrava(key: string, valor: Trava, agora: Date): Promise<void> {
   const { error } = await supabase.from('system_state').upsert({ key, value: valor, updated_at: agora.toISOString() }, { onConflict: 'key' });
   if (error) logger.error(LOG, `gravar a trava ${key.split(':')[0]} (${valor.estado}) falhou (${codigoDe(error) || 'sem código'})`);
 }
 /** `true` = a trava nasceu agora; `false` = já existia (ou não deu para gravar: na dúvida, não manda). */
-async function reservar(key: string, valor: Trava, agora: Date): Promise<boolean> {
+export async function reservar(key: string, valor: Trava, agora: Date): Promise<boolean> {
   const { error } = await supabase.from('system_state').insert({ key, value: valor, updated_at: agora.toISOString() });
   if (!error) return true;
   if (codigoDe(error) !== '23505') logger.error(LOG, `reservar o aviso falhou (${codigoDe(error) || 'sem código'}): nada sai`);
@@ -104,7 +106,7 @@ async function carimbarNaLinha(key: string, agora: Date): Promise<void> {
  * não coube, o consultor está sem celular, outro aviso já saiu nesta rodada ou o envio falhou). A tentativa gasta o aviso da
  * rodada mesmo quando falha: nunca há segunda tentativa na mesma rodada.
  */
-async function enviarComConferencias(i: {
+export async function enviarComConferencias(i: {
   tel: string | null; texto: string; trava: string; valor: Trava; carimbo: string; agora: Date; sorteio?: () => number;
 }): Promise<'enviado' | 'pendente'> {
   if (avisoNestaRodada || !i.tel) return 'pendente';

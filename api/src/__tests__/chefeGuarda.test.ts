@@ -378,7 +378,9 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   // A Helena, agente de investidores (10/10/2026): abertura fria, resposta reativa e recado à equipe no mesmo arquivo.
   'services/io/investidorAgente.ts': { robos: ['investidor_agente_abertura', 'investidor_agente_recado', 'investidor_agente_respostas'], classeMaxima: 'reativo_p1' },
   // Os avisos da Helena ao consultor (12/11/2026): a marcação e o resumo do dia, só equipe.
-  'services/io/investidorAgenteAvisos.ts': { robos: ['investidor_agente_aviso_dia', 'investidor_agente_aviso_marcada'], classeMaxima: 'aviso_interno_p2' },
+  'services/io/investidorAgenteAvisos.ts': { robos: ['investidor_agente_aviso_assumiu', 'investidor_agente_aviso_dia', 'investidor_agente_aviso_marcada', 'investidor_agente_aviso_silencio'], classeMaxima: 'aviso_interno_p2' },
+  // Os dois avisos novos (13/11/2026): quem não respondeu ao convite e a equipe que assumiu. Só pelo enviarComConferencias do arquivo acima.
+  'services/io/investidorAgenteAvisosEquipe.ts': { robos: ['investidor_agente_aviso_assumiu', 'investidor_agente_aviso_silencio'], classeMaxima: 'aviso_interno_p2' },
   'services/io/ioSend.ts': { robos: ['avisos_pauta'], classeMaxima: 'frio_p5' },
   'services/io/jornadaAniversario.ts': { robos: ['jornada_aniversario'], classeMaxima: 'frio_p5' },
   'services/io/jornadaAvisoEquipe.ts': { robos: ['jornada_etapa_aviso', 'jornada_fila_manha', 'jornada_venda_aviso'], classeMaxima: 'aviso_interno_p2' },

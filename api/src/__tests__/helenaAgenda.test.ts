@@ -65,6 +65,13 @@ describe('ocultosDaAgenda: quem esconde', () => {
   });
 });
 
+describe('sessão que passou para a equipe (silêncio ou equipe assumiu)', () => {
+  it('com_consultor não esconde: o card parado dela fica visível na agenda do consultor', () => {
+    expect(SITUACOES_QUE_OCULTAM.has('com_consultor' as never)).toBe(false);
+    expect(ocultosDaAgenda(it1('com_consultor'), cardsDe(card(7, 'cancelado'), card(8, 'nao_atendeu')), AGORA)).toEqual([]);
+  });
+});
+
 describe('conjuntoDaAgenda e a rota de leitura', () => {
   it('junta ocultos e marcadas, ids como string', async () => {
     h.itens = it1('na_fila'); h.cards = cardsDe(card(5, 'cancelado'), loteFuturo(6)); h.marcadas = [{ id: 42 }, { id: 8 }];

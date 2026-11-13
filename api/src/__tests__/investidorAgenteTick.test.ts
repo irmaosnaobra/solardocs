@@ -1502,8 +1502,9 @@ describe('posse com prazo, pela ponta das respostas', () => {
 describe('o histórico é o DESTA pessoa', () => {
   beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
   const antes = (min: number) => new Date(AGORA.getTime() - min * 60_000).toISOString();
-  const linha = (telefone: string, texto: string, min: number, from_me = false) =>
-    h.banco.main.wa_mensagens!.push({ id: ++seqMsg, telefone, texto, tipo: 'texto', from_me, is_group: false, instancia: 'LINHA_TESTE', momment: antes(min) });
+  // `from_api`: a fala nossa é, por padrão, de automação (a própria Helena). Só quem digita no celular da linha vem com `false`.
+  const linha = (telefone: string, texto: string, min: number, from_me = false, from_api: boolean | null = from_me ? true : null) =>
+    h.banco.main.wa_mensagens!.push({ id: ++seqMsg, telefone, texto, tipo: 'texto', from_me, from_api, is_group: false, instancia: 'LINHA_TESTE', momment: antes(min) });
 
   it('mesmo final em OUTRO DDD é outra pessoa: a conversa dela não entra', async () => {
     sessao(ANA);
@@ -1528,7 +1529,8 @@ describe('o histórico é o DESTA pessoa', () => {
   it('o que o consultor digitou pelo celular (LID do contato, pelo mapa) entra', async () => {
     sessao(ANA);
     h.banco.main.wa_lid_telefone = [{ lid: '253068247589084', telefone: '5534999990001', chave: ANA }];
-    linha('253068247589084', 'Oi Ana, aqui é o Diego, te ligo amanhã', 20, true);
+    // O consultor digitou ANTES da abertura da Helena (que é de 60 min atrás): depois dela, quem digita no celular tira a Helena da conversa.
+    linha('253068247589084', 'Oi Ana, aqui é o Diego, te ligo amanhã', 90, true, false);
     chegou('5534999990001', 'Combinado');
     ia('continuar', []);
     await responder();
@@ -2817,7 +2819,7 @@ describe('áudio: a Helena entende o que a pessoa falou', () => {
     expect(leituraDaLeva).toBeTruthy();
     expect(leituraDaLeva).toMatch(/^id, /);
     // E o histórico lê o id, que é a chave do cache.
-    expect(h.colunasWa.some(c => /^id, telefone, from_me, texto, tipo, momment$/.test(c))).toBe(true);
+    expect(h.colunasWa.some(c => /^id, telefone, from_me, from_api, texto, tipo, momment$/.test(c))).toBe(true);
   });
 
   it('o log guarda só o id, o tamanho e o tempo: nunca o texto da pessoa', async () => {
@@ -2961,7 +2963,7 @@ describe('áudio: a Helena entende o que a pessoa falou', () => {
       const base = { telefone: '5534999990001', is_group: false, instancia: 'LINHA_TESTE', tipo: 'audio', texto: null };
       h.banco.main.wa_mensagens!.push(
         { ...base, id: 801, from_me: false, momment: antes(40) },
-        { ...base, id: 802, from_me: true, momment: antes(38) },
+        { ...base, id: 802, from_me: true, from_api: true, momment: antes(38) },
         { ...base, id: 803, from_me: false, momment: antes(36) },
       );
       h.banco.main.system_state!.push(

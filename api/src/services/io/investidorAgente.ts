@@ -88,8 +88,14 @@ import { ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCar
 import { INV_SESSAO_PREFIX, sessaoEhDaHelena, type EstagioInvestidor, type PreparoDaSessao } from './investidorAgentePosse';
 import { cedeAAgente } from '../agentes5040/posse';
 import { carregarTelefonesConsultores, telefoneDoConsultor, telefoneDoDono } from '../agentes5040/fichaEnvio';
-import { conferirLinhaParaResposta, registrarBolhas, registrarFichaNaLinha, TEMPOS_DA_RESPOSTA } from './investidorAgenteLinha';
+import { PREFIXO_ENV, conferirLinhaParaResposta, registrarBolhas, registrarFichaNaLinha, TEMPOS_DA_RESPOSTA } from './investidorAgenteLinha';
 import { remarcarCardDaHelena } from './investidorAgenteCard';
+import { contarErroDaLinha, zerarErrosDaLinha } from '../agentes5040/guardaDaLinha';
+import {
+  MOTIVO_EQUIPE_ASSUMIU, MOTIVO_SILENCIO, TEXTO_DO_SILENCIO, avaliarConvite, equipeAssumiu, sessaoEmConversaDaHelena, sessaoEntraNoConvite,
+  silencioDepoisDoConvite, silencioVencido, textoDoConvite, textoEquipeAssumiu,
+} from './investidorAgenteConvite';
+import { reservarAvisoDaEquipe, rodarAvisosDaHelenaEquipe } from './investidorAgenteAvisosEquipe';
 import {
   antesDoInicio, janelaAberta, janelaDeResposta, tetoDoDia, dataBrasilia, horaBrasiliaTexto, inicioDoDiaBrasiliaIso,
   montarFila, renderAbertura, textoDaAbertura, primeiroNome, tipoDaSessao, textoDaAberturaResgate,
@@ -223,6 +229,8 @@ export interface SessaoInvestidor {
   preparo?: PreparoDaSessao;
   /** Como e quando o preparo acabou. */
   preparo_fim?: { em: string; motivo: string };
+  /** A RETOMADA DO CONVITE (13/11/2026, toque `c1`, uma por pessoa): quando saiu. Depois dela, 48 h de silêncio passam a sessão a `humano`. */
+  convite_retomado_em?: string;
   /** Registro do CONVITE para a reunião (tela de acompanhamento): quando foi o último e quantos já saíram. */
   convidou_em?: string;
   convites?: number;
@@ -906,6 +914,8 @@ export async function previaInvestidorAgente(opts: { agora?: Date } = {}): Promi
       texto: textoSemOPrimeiroNome(c),
     })),
     retomadas: await tentar(() => previaDasRetomadas(leitura, agora, typeof enviados === 'number' ? enviados : null)),
+    // A retomada do convite (13/11/2026): quem conversou, recebeu o convite (ou os horários) e parou de responder.
+    convite_retomada: await tentar(() => previaDoConvite(leitura, agora)),
     // Escolhas de horário que se perderam (a sessão está em `ofertou`, a última fala é dela e ninguém
     // respondeu): quantas a recuperação reprocessaria.
     recuperacao_de_escolha: await tentar(async () => ({
@@ -967,6 +977,50 @@ async function previaDasRetomadas(
     textos: r.fila.slice(0, 2).map(c => renderRetomada(c.toque, c.nome, c.tipo).texto),
     // A conversa nova desde o toque anterior só é conferida na hora de enviar.
     obs: 'a conversa nova desde o toque anterior é conferida no envio, não aqui',
+  };
+}
+
+/**
+ * O bloco `convite_retomada` da prévia: quantos candidatos a retomada do convite tem, quantos passam nos cortes e quantos já
+ * estariam elegíveis pela conversa (24 h da última fala dela, nada depois). Só lê: não envia, não grava, sem nome nem telefone.
+ */
+async function previaDoConvite(leitura: LeituraDaFila, agora: Date): Promise<Record<string, unknown>> {
+  const agoraMs = agora.getTime();
+  const enviados = await lerConvitesJaEnviados();
+  const base = [...leitura.sessoes.entries()].filter(([k, s]) => sessaoEntraNoConvite(s) && sessaoEhDaHelena(s, agoraMs) && !enviados.has(k));
+  const [silenciado, mudo, bloqueado, pausa] = await Promise.all([
+    carregarSilenciados({ estrito: true }), carregarMudos(3, 60, { estrito: true }),
+    carregarBloqueados({ estrito: true }), carregarPausas({ estrito: true }),
+  ]);
+  const excluidos: Record<string, number> = {};
+  const fora = (m: string) => { excluidos[m] = (excluidos[m] ?? 0) + 1; };
+  const passam: Array<[string, SessaoInvestidor]> = [];
+  for (const [k, s] of base) {
+    if (leitura.gruposFechados.has(grupoDaSessao(s))) fora('grupo_fechado_hoje');
+    else if (silenciado(s.telefone)) fora('opt_out');
+    else if (bloqueado(s.telefone)) fora('bloqueado');
+    else if (mudo(s.telefone)) fora('mudo');
+    else if (!pausa(s.telefone).pode) fora('humano_na_conversa');
+    else passam.push([k, s]);
+  }
+  let elegiveis = 0;
+  const motivos: Record<string, number> = {};
+  for (const [k, s] of passam.slice(0, 40)) {
+    try {
+      const conversa = await lerConversaAteAgora(k, s.telefone, agoraMs);
+      const d = equipeAssumiu(conversa, s.aberto_em) ? { ok: false as const, motivo: 'equipe_assumiu' } : avaliarConvite(s, conversa, agoraMs, (await lerCarimbosDela(k)).momentos);
+      if (d.ok) elegiveis++; else motivos[d.motivo] = (motivos[d.motivo] ?? 0) + 1;
+    } catch { motivos.erro_leitura_conversa = (motivos.erro_leitura_conversa ?? 0) + 1; }
+  }
+  return {
+    candidatos: base.length,
+    passaram_nos_cortes: passam.length,
+    elegiveis_agora: elegiveis,
+    excluidos,
+    motivos_da_conversa: motivos,
+    ja_retomados: enviados.size,
+    aguardando_silencio: [...leitura.sessoes.values()].filter(x => !!x.convite_retomado_em && sessaoEmConversaDaHelena(x.estagio)).length,
+    obs: 'a conversa, os horários livres do consultor e o portão do frio são conferidos no envio',
   };
 }
 
@@ -1386,7 +1440,7 @@ async function lerHistorico(chave: string, telefone: string, antesDe: string): P
   const lids = new Set(((mapa ?? []) as Array<{ lid: string }>).map(m => String(m.lid).replace(/\D/g, '')).filter(Boolean));
 
   const base = () => supabase.from('wa_mensagens')
-    .select('id, telefone, from_me, texto, tipo, momment')
+    .select('id, telefone, from_me, from_api, texto, tipo, momment')
     .eq('instancia', INSTANCE_ID_IO).eq('is_group', false)
     .lt('momment', antesDe)
     .order('momment', { ascending: false });
@@ -1410,10 +1464,10 @@ async function lerHistorico(chave: string, telefone: string, antesDe: string): P
   // Áudio que já tem transcrição em cache aparece com ela (do cliente e nosso). Áudio sem
   // cache segue "[audio]". Só o áudio carrega `id` e `transcricao`; as outras linhas não mudam.
   const cache = await lerTranscricoes(conversa.filter(m => ehAudioSemTexto(m) && temId(m)).map(m => m.id as string | number));
-  return conversa.map(({ id, from_me, texto, tipo, momment }) => {
-    if (!(ehAudioSemTexto({ tipo, texto }) && id !== null && id !== undefined)) return { from_me, texto, tipo, momment };
+  return conversa.map(({ id, from_me, from_api, texto, tipo, momment }) => {
+    if (!(ehAudioSemTexto({ tipo, texto }) && id !== null && id !== undefined)) return { from_me, from_api, texto, tipo, momment };
     const transcricao = cache.get(String(id));
-    return transcricao ? { id, from_me, texto, tipo, momment, transcricao } : { id, from_me, texto, tipo, momment };
+    return transcricao ? { id, from_me, from_api, texto, tipo, momment, transcricao } : { id, from_me, from_api, texto, tipo, momment };
   });
 }
 
@@ -2406,9 +2460,16 @@ export async function runInvestidorRespostasTick(): Promise<ResultadoRespostas> 
     // vez NÃO é gasta: a próxima chamada tenta de novo. Na terceira falha
     // seguida a conversa vai para gente (mais abaixo, já com a vez na mão).
     let semHistorico = false;
+    let equipe = false;
     if (novas.length && !quieta) {
       try {
         ctx.historico = await lerHistorico(chave, s.telefone, novas[0]!.momment);
+        // A EQUIPE ASSUMIU (13/11/2026): alguém escreveu pelo celular da linha depois da abertura. A leitura vai até agora, e não até a
+        // primeira mensagem nova, para pegar também o que veio depois da leva. Ela herda a regra do `falhas_historico`: leitura que
+        // falha não responde e não muda o estado; na terceira falha seguida a conversa vai para gente.
+        if (sessaoEmConversaDaHelena(s.estagio)) {
+          equipe = equipeAssumiu(await lerHistorico(chave, s.telefone, new Date(Date.now() + 60_000).toISOString()), s.aberto_em);
+        }
       } catch (err) {
         const falhas = (s.falhas_historico ?? 0) + 1;
         res.erros++;
@@ -2420,6 +2481,22 @@ export async function runInvestidorRespostasTick(): Promise<ResultadoRespostas> 
         }
         semHistorico = true;
       }
+    }
+
+    // Gente da equipe na conversa: ela sai ANTES de gastar a vez (depois dela a mensagem do cliente se perderia). Mas o pedido de PARAR
+    // (opt-out e `sem_interesse`) e o card por outra porta (`agendado`) mandam mais: nesses dois casos o fluxo de sempre cuida (ele mesmo
+    // grava a sessão e não manda nada de novo ao cliente). O pedido de parar com a equipe na conversa grava o opt-out SEM a confirmação).
+    const textosDaLeva = novas.map(m => String(m.texto || '').trim()).filter(Boolean);
+    if (equipe && pediuParar(textosDaLeva) && !pediuPararDeVerdade(s.telefone) && card === null) {
+      // Pediu para parar e a equipe já assumiu: o opt-out vale, mas a confirmação da Helena NÃO sai (gente já está na conversa).
+      await parar({ ...s, falhas_historico: 0 }, ctx, { semMensagem: true })
+        .catch(e => { res.erros++; logger.error(LOG, `registrar o pedido de parar falhou (final ${s.telefone.slice(-2)})`, e); });
+      continue;
+    }
+    if (equipe && !pediuParar(textosDaLeva) && !pediuPararDeVerdade(s.telefone) && card === null) {
+      await equipeAssumiuNaConversa(chave, { ...s, falhas_historico: 0 }, ultima)
+        .catch(e => { res.erros++; logger.error(LOG, `passar a conversa para a equipe falhou (final ${s.telefone.slice(-2)})`, e); });
+      continue;
     }
 
     // Os portões do envio, ANTES de gastar a vez (a leva fica para a próxima rodada se algum fechar):
@@ -3015,6 +3092,331 @@ export async function runInvestidorRetomadaTick(opts: { agora?: Date } = {}): Pr
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// A RETOMADA DO CONVITE, A PASSAGEM POR SILÊNCIO E A EQUIPE QUE ASSUMIU (13/11/2026)
+//
+// A regra pura mora em investidorAgenteConvite.ts; o aviso ao consultor, em investidorAgenteAvisosEquipe.ts. Aqui ficam as leituras, os
+// portões, o claim e o envio. Parecer do chefe anti-ban: NÃO BLOQUEIA com as condições do plano.
+//
+//   · RETOMADA DO CONVITE (toque `c1`, 1 por pessoa para sempre): quem conversou, recebeu o convite (ou os horários) e parou de responder.
+//     24 h depois da última fala da Helena, sem NENHUMA mensagem depois dela, volta 1 vez com 2 horários livres do consultor dono do card.
+//     É um envio FRIO: 1 por rodada, pelo portão do frio (janela, disjuntor, teto da linha, espaço), no teto do dia e na cota das retomadas.
+//     O claim é o insert de `inv_agente_sent:<chave>:c1` ANTES do envio (23505 = já saiu); a sessão vira `ofertou` ANTES, com os 2 horários.
+//   · PASSAGEM POR SILÊNCIO: 48 h depois da retomada, sem ninguém escrever, a sessão vai a `humano` e o consultor recebe a ficha.
+//   · EQUIPE ASSUMIU: `from_me` com `from_api` diferente de `true` depois da abertura. A Helena sai e o consultor recebe 1 aviso.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** Quantos candidatos da retomada do convite a rodada olha (cada um custa uma leitura da conversa). */
+const CONVITE_CONFERIDOS_POR_RODADA = 10;
+/** Quantas sessões a passagem por silêncio fecha por rodada. */
+const SILENCIOS_POR_RODADA = 5;
+/** Os horários que a retomada oferece: 2, escolhidos pela MESMA função da oferta normal, no mesmo horizonte de 22 dias. */
+const HORARIOS_DO_CONVITE = 2;
+/** O carimbo da retomada: `inv_agente_sent:<chave>:c1`. Entra na conta única pelo prefixo, e o regex dos toques o ignora. */
+const chaveDoConvite = (chave: string): string => `${INV_SENT_PREFIX}${chave}:c1`;
+
+export interface ResultadoConvite { enviados: number; motivo?: string; candidatos?: number; para?: string; erro?: string }
+export interface ResultadoSilencio { passadas: number; equipe: number; erros: number; motivo?: string }
+
+/** Quem já recebeu a retomada do convite (carimbo `c1`). Erro SOBE. */
+async function lerConvitesJaEnviados(): Promise<Set<string>> {
+  const linhas = await lerTudo<{ key: string }>('carimbos da retomada do convite', (de, ate) =>
+    supabase.from('system_state').select('key').like('key', `${INV_SENT_PREFIX}%:c1`).order('key', { ascending: true }).range(de, ate));
+  return new Set(linhas.map(l => l.key.slice(INV_SENT_PREFIX.length).split(':')[0]!));
+}
+
+async function relerSessao(chave: string): Promise<SessaoInvestidor | null> {
+  const { data, error } = await supabase.from('system_state').select('value').eq('key', chaveDaSessao(chave)).maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data?.value as SessaoInvestidor | undefined) ?? null;
+}
+
+/** A sessão relida é a mesma que foi lida (mesmo estágio, mesmo `atualizado_em`)? */
+const sessaoIgual = (a: SessaoInvestidor, b: SessaoInvestidor | null): boolean =>
+  !!b && b.estagio === a.estagio && b.atualizado_em === a.atualizado_em;
+
+/** A conversa inteira até agora, com `from_api` (a leitura que decide a retomada, o silêncio e a equipe). Erro SOBE. */
+const lerConversaAteAgora = (chave: string, telefone: string, agoraMs: number): Promise<MsgDaConversa[]> =>
+  lerHistorico(chave, telefone, new Date(agoraMs + 60_000).toISOString());
+
+/** Devolve a sessão ao que era ANTES da retomada, com o `atualizado_em` de antes: ele marca a última fala da Helena. */
+async function restaurarSessao(chave: string, antes: SessaoInvestidor): Promise<void> {
+  const { error } = await supabase.from('system_state')
+    .upsert({ key: chaveDaSessao(chave), value: antes, updated_at: antes.atualizado_em }, { onConflict: 'key' });
+  if (error) logger.error(LOG, 'devolver a sessão a antes da retomada do convite falhou', error);
+}
+
+/**
+ * A equipe assumiu: estado primeiro (`humano`, motivo `equipe_assumiu`), depois a trava `pendente` do aviso ao consultor dono do card
+ * (quem envia é `rodarAvisosDaHelenaEquipe`, no máximo 1 por rodada). Nada sai para o cliente. 1 vez por sessão (a trava é um insert).
+ */
+async function equipeAssumiuNaConversa(chave: string, s: SessaoInvestidor, ate?: string): Promise<void> {
+  // A trava do aviso nasce ANTES do estado: se ela não for gravada, o estado não muda e a Helena não responde nesta rodada (falha fechada).
+  // `existia` (23505) é aviso já reservado antes: o estado muda do mesmo jeito, e o aviso não repete.
+  const reserva = await reservarAvisoDaEquipe('assumiu', {
+    chave, consultor: s.consultor, texto: textoEquipeAssumiu({ consultor: s.consultor, nome: s.nome, tipo: tipoDaSessao(s.tipo) }),
+  });
+  if (reserva === 'erro') throw new Error('reservar o aviso da equipe falhou: o estado não muda');
+  await gravarSessao(chave, { ...s, estagio: 'humano', motivo: MOTIVO_EQUIPE_ASSUMIU, ...(ate ? { ate } : {}) });
+  logger.info(LOG, `a equipe assumiu a conversa (final ${s.telefone.slice(-2)}): a Helena saiu`);
+}
+
+/**
+ * Os carimbos da fala da Helena para esta chave: `inv_agente_env:<chave>:<ms>:<n>` (cada bolha de resposta, desde 12/11), `inv_agente_frio:` (resposta
+ * atrasada) e `inv_agente_sent:<chave>:tN` / `:c1` (abertura, retomadas e a retomada do convite). Usa o `updated_at` de cada um. `c1`: a retomada
+ * do convite foi reivindicada. Erro SOBE (não saber de quem é a última fala é não falar).
+ */
+async function lerCarimbosDela(chave: string): Promise<{ momentos: number[]; c1: boolean }> {
+  const { data, error } = await supabase.from('system_state').select('key, updated_at')
+    .or(`key.like.${PREFIXO_ENV}${chave}:%,key.like.${INV_FRIO_PREFIX}${chave}:%,key.like.${INV_SENT_PREFIX}${chave}:%`)
+    .order('updated_at', { ascending: false }).limit(300);
+  if (error) throw new Error(`carimbos da Helena: ${error.message}`);
+  const linhas = (data ?? []) as Array<{ key: string; updated_at: string | null }>;
+  return {
+    momentos: linhas.map(l => Date.parse(String(l.updated_at ?? ''))).filter(Number.isFinite),
+    c1: linhas.some(l => l.key === chaveDoConvite(chave)),
+  };
+}
+
+const idsDoCardDaSessao = (s: SessaoInvestidor): number[] => [...new Set([...(s.cards_conhecidos ?? []), ...(s.card_id ? [s.card_id] : [])])];
+
+/** Um envio por chamada, sempre. */
+export async function runInvestidorConviteTick(opts: { agora?: Date } = {}): Promise<ResultadoConvite> {
+  const agora = opts.agora ?? new Date();
+  const agoraMs = agora.getTime();
+  const sem = (motivo: string, extra: Partial<ResultadoConvite> = {}): ResultadoConvite => ({ enviados: 0, motivo, ...extra });
+
+  // 1) Chave de desligar, disjuntores, início e janela: os mesmos da retomada. Sem conseguir ler, não envia.
+  const chave = await lerChaveDesligar();
+  if (chave.off) return sem(`desligada_${chave.por}`);
+  let disjuntor: Disjuntor;
+  let gruposFechados: Set<string>;
+  try {
+    const [d, g] = await Promise.all([lerDisjuntor(), lerGruposFechados(agora)]);
+    disjuntor = d; gruposFechados = g.fechados;
+  } catch (err) {
+    logger.error(LOG, 'convite: ler o disjuntor falhou', err);
+    return sem('erro_leitura_disjuntor');
+  }
+  if (disjuntor.aberto) return sem('disjuntor_erros_de_envio');
+  if (antesDoInicio(agora)) return sem('antes_do_inicio');
+  if (!janelaAberta(agora)) return sem('fora_da_janela');
+
+  // 2) Teto do dia e cota das retomadas (o `c1` conta nas duas): o convite não come a reserva da abertura.
+  const rampa = await rampaReconexaoVigente(agora);
+  const teto = tetoDoDia(agora, process.env.INVESTIDOR_AGENTE_TETO, rampa?.dia ?? null);
+  let enviadosHoje: number;
+  let retomadasHoje: number;
+  try {
+    [enviadosHoje, retomadasHoje] = await Promise.all([contarEnviadosHoje(agora), contarRetomadasHoje(agora)]);
+  } catch (err) {
+    logger.error(LOG, 'convite: contar os envios de hoje falhou', err);
+    return sem('erro_leitura_teto');
+  }
+  if (enviadosHoje >= teto) return sem('teto_do_dia');
+  if (retomadasHoje >= limiteDeRetomadasHoje(teto, process.env.INVESTIDOR_AGENTE_RETOMADAS_DIA)) return sem('cota_de_retomadas');
+
+  // 3) Quem entra: só a regra da sessão. Sem ninguém, nem toca na linha.
+  let candidatos: Array<[string, SessaoInvestidor]>;
+  try {
+    const [sessoes, enviados] = await Promise.all([lerSessoes(), lerConvitesJaEnviados()]);
+    candidatos = [...sessoes.entries()]
+      .filter(([k, s]) => sessaoEntraNoConvite(s) && sessaoEhDaHelena(s, agoraMs) && !enviados.has(k) && !gruposFechados.has(grupoDaSessao(s)))
+      .sort((a, b) => String(a[1].atualizado_em).localeCompare(String(b[1].atualizado_em)));
+  } catch (err) {
+    logger.error(LOG, 'convite: ler as sessões falhou', err);
+    return sem('erro_leitura_sessoes');
+  }
+  if (!candidatos.length) return sem('nenhum_candidato', { candidatos: 0 });
+
+  // 4) O portão do frio (janela, disjuntor, teto horário da linha e espaçamento) e os cortes, em modo estrito.
+  if (!(await portaoDoFrio(agora))) return sem('portao_do_frio', { candidatos: candidatos.length });
+  let liberados: Array<[string, SessaoInvestidor]>;
+  try {
+    const [silenciado, mudo, bloqueado, pausa] = await Promise.all([
+      carregarSilenciados({ estrito: true }), carregarMudos(3, 60, { estrito: true }),
+      carregarBloqueados({ estrito: true }), carregarPausas({ estrito: true }),
+    ]);
+    liberados = candidatos.filter(([, s]) => !silenciado(s.telefone) && !bloqueado(s.telefone) && !mudo(s.telefone) && pausa(s.telefone).pode);
+  } catch (err) {
+    logger.error(LOG, 'convite: ler os cortes falhou, ninguém recebe nesta rodada', err);
+    return sem('erro_leitura_cortes');
+  }
+  if (!liberados.length) return sem('nenhuma_passou_nos_cortes', { candidatos: candidatos.length });
+
+  // 5) Os robôs de agenda e a posse de agente da 5040, em lote e depois por pessoa (falha de leitura fecha).
+  const lote = liberados.slice(0, CONVITE_CONFERIDOS_POR_RODADA);
+  const cedem = await cedeEmLote(lote.map(([k, s]) => ({ chave: k, ids: idsDoCardDaSessao(s) })), agoraMs);
+  let motivo = 'nenhuma_elegivel';
+  for (const [k, s] of lote) {
+    if (cedem.has(k)) { motivo = 'robo_de_agenda_com_a_pessoa'; continue; }
+    if (await cedeAAgente(s.telefone)) { motivo = 'posse_de_agente_5040'; continue; }
+
+    // 6) A conversa: 24 h da última fala dela e nada depois (cliente, robô, equipe). Erro de leitura não envia.
+    let conversa: MsgDaConversa[];
+    let carimbos: number[];
+    try {
+      conversa = await lerConversaAteAgora(k, s.telefone, agoraMs);
+      carimbos = (await lerCarimbosDela(k)).momentos;
+    } catch (err) {
+      logger.error(LOG, `convite: ler a conversa falhou (final ${s.telefone.slice(-2)})`, err);
+      motivo = 'erro_leitura_conversa';
+      continue;
+    }
+    if (equipeAssumiu(conversa, s.aberto_em)) {
+      await equipeAssumiuNaConversa(k, s).catch(e => logger.error(LOG, 'convite: passar a conversa para a equipe falhou', e));
+      motivo = 'equipe_assumiu';
+      continue;
+    }
+    const decisao = avaliarConvite(s, conversa, agoraMs, carimbos);
+    if (!decisao.ok) { motivo = decisao.motivo; continue; }
+
+    // 7) Card por outra porta: a pessoa já tem reunião. A sessão fecha como `agendado`, sem mensagem.
+    let card: number | null;
+    try {
+      card = await cardPorOutraPorta(s);
+    } catch (err) {
+      logger.error(LOG, 'convite: conferir o card falhou, ninguém recebe nesta rodada', err);
+      return sem('erro_leitura_card', { candidatos: candidatos.length });
+    }
+    if (card !== null) {
+      try { await fecharPorCardDeOutraPorta(k, card); } catch (err) {
+        logger.error(LOG, 'convite: fechar a sessão por card falhou', err);
+        return sem('erro_fechar_por_card', { candidatos: candidatos.length });
+      }
+      motivo = 'card_por_outra_porta';
+      continue;
+    }
+
+    // 8) A sessão relida tem que ser a mesma, e o consultor dono do card tem que ter 2 horários livres (:00 e :30).
+    try {
+      if (!sessaoIgual(s, await relerSessao(k))) { motivo = 'sessao_mudou'; continue; }
+    } catch (err) {
+      logger.error(LOG, 'convite: reler a sessão falhou', err);
+      return sem('erro_leitura_sessao', { candidatos: candidatos.length });
+    }
+    const compromissos = await carregarCompromissos(new Date(agoraMs).toISOString(), new Date(agoraMs + 22 * 86_400_000).toISOString());
+    const livres = compromissos ? horariosDaOferta(s.consultor, compromissos, agoraMs, s.oferta ?? []) : [];
+    if (livres.length < HORARIOS_DO_CONVITE) { motivo = compromissos ? 'sem_2_horarios_livres' : 'sem_leitura_da_agenda'; continue; }
+    const dois = livres.slice(0, HORARIOS_DO_CONVITE);
+
+    // 9) Pausa humana daquele telefone, conferida de novo na hora de falar.
+    if (!(await podeFalarComLead(s.telefone)).pode) { await registrarBloqueio(s.telefone, LOG); motivo = 'humano_na_conversa'; continue; }
+
+    // CLAIM: o insert do carimbo ANTES do envio. 23505 = já saiu (ou outra chamada o pegou): pula.
+    const texto = textoDoConvite(k, s.consultor, dois[0]!, dois[1]!);
+    const nowIso = new Date().toISOString();
+    const keyC1 = chaveDoConvite(k);
+    const { error: eClaim } = await supabase.from('system_state')
+      .insert({ key: keyC1, value: { em: nowIso, convite: true, variante: texto.variante }, updated_at: nowIso });
+    if (eClaim) {
+      // 23505: já saiu (ou outra chamada o pegou). A rodada ACABA aqui, como a retomada: com `continue` o laço tentaria o próximo candidato com o
+      // portão do frio lido antes, e sairiam 2 frios em segundos.
+      if (String((eClaim as { code?: string }).code) === '23505') return sem('ja_reivindicado', { candidatos: candidatos.length });
+      logger.error(LOG, 'convite: claim falhou', eClaim);
+      return sem('erro_claim', { candidatos: candidatos.length });
+    }
+    const apagarC1 = (): Promise<void> => Promise.resolve(supabase.from('system_state').delete().eq('key', keyC1))
+      .then(({ error }) => { if (error) logger.error(LOG, 'desfazer o carimbo da retomada do convite falhou', error); },
+        (e: unknown) => logger.error(LOG, 'desfazer o carimbo da retomada do convite falhou', e));
+
+    // ESTADO PRIMEIRO: a sessão vira `ofertou` com os 2 horários (no formato da oferta normal) ANTES de a mensagem sair.
+    try {
+      await gravarSessao(k, { ...s, estagio: 'ofertou', oferta: dois, ofertas_feitas: (s.ofertas_feitas ?? 0) + 1, convite_retomado_em: nowIso });
+    } catch (err) {
+      logger.error(LOG, 'convite: gravar a sessão falhou, nada sai', err);
+      await restaurarSessao(k, s);
+      await apagarC1();
+      return sem('erro_gravar_sessao', { candidatos: candidatos.length });
+    }
+
+    const fim4 = s.telefone.slice(-4);
+    try {
+      const saiu = await sendFrio(s.telefone, [texto.texto], 'io');
+      if (saiu === false) {
+        // A pausa humana calou o envio (o zapiClient só cala por ela): NADA saiu. Desfaz a sessão e o carimbo. Não é erro de linha (como a retomada):
+        // contá-lo pausaria a linha, e a pausa da 5040 segura a agenda da Duda.
+        logger.warn(LOG, `convite calado pela trava da linha (final ${fim4}): nada saiu`);
+        await restaurarSessao(k, s);
+        await apagarC1();
+        return sem('envio_calado_pela_linha', { candidatos: candidatos.length });
+      }
+    } catch (err) {
+      const erro = String((err as Error)?.message || err).slice(0, 300);
+      logger.error(LOG, `convite falhou para o final ${fim4}`, err);
+      await restaurarSessao(k, s);
+      await apagarC1();
+      await contarErroDaLinha(new Date(), err);
+      const erros = disjuntor.erros_seguidos + 1;
+      await gravarDisjuntor({ erros_seguidos: erros, aberto: erros >= ERROS_ATE_ABRIR, ultimo_erro: erro });
+      return sem('erro_envio', { erro, candidatos: candidatos.length });
+    }
+    await zerarErrosDaLinha(new Date());
+    if (disjuntor.erros_seguidos > 0) await gravarDisjuntor({ erros_seguidos: 0, aberto: false });
+    logger.info(LOG, `retomada do convite enviada (final ${fim4}, variante ${texto.variante})`);
+    return { enviados: 1, para: `final ${fim4}`, candidatos: candidatos.length };
+  }
+  return sem(motivo, { candidatos: candidatos.length });
+}
+
+/** A ficha da conversa para quem passou por silêncio: a de sempre, com a linha do silêncio logo depois do título. */
+function fichaDoSilencio(s: SessaoInvestidor): string {
+  const ficha = montarFichaConsultor({
+    nome: s.nome, telefone: s.telefone, tipo: tipoDaSessao(s.tipo), retorno: s.retorno,
+    consultor: primeiroNomeDoConsultor(s.consultor), dados: s.dados, resumo: s.resumo,
+  }).split('\n');
+  ficha.splice(1, 0, TEXTO_DO_SILENCIO);
+  return ficha.join('\n').slice(0, TETO_DA_FICHA);
+}
+
+/**
+ * A PASSAGEM POR SILÊNCIO: a retomada do convite fez 48 h ou mais, a sessão segue ativa e ninguém escreveu depois (cliente, robô ou
+ * equipe). `humano`, motivo `silencio_depois_do_convite`, nada para o cliente; o consultor dono do card recebe a ficha (trava
+ * `pendente`, o envio é de `rodarAvisosDaHelenaEquipe`). Conversa que não dá para ler não muda de estado.
+ */
+export async function runInvestidorSilencioTick(opts: { agora?: Date } = {}): Promise<ResultadoSilencio> {
+  const agoraMs = (opts.agora ?? new Date()).getTime();
+  const res: ResultadoSilencio = { passadas: 0, equipe: 0, erros: 0 };
+  const chave = await lerChaveDesligar();
+  if (chave.off) return { ...res, motivo: `desligada_${chave.por}` };
+  let sessoes: Map<string, SessaoInvestidor>;
+  try {
+    sessoes = await lerSessoes();
+  } catch (err) {
+    logger.error(LOG, 'silêncio: ler as sessões falhou', err);
+    return { ...res, erros: 1, motivo: 'erro_leitura_sessoes' };
+  }
+  const vencidas = [...sessoes.entries()]
+    .filter(([, s]) => !!s.telefone && silencioVencido(s, agoraMs))
+    .sort((a, b) => String(a[1].convite_retomado_em).localeCompare(String(b[1].convite_retomado_em)))
+    .slice(0, SILENCIOS_POR_RODADA);
+  for (const [k, s] of vencidas) {
+    try {
+      const conversa = await lerConversaAteAgora(k, s.telefone, agoraMs);
+      const carimbos = await lerCarimbosDela(k);
+      if (equipeAssumiu(conversa, s.aberto_em)) {
+        if (!sessaoIgual(s, await relerSessao(k))) continue;
+        await equipeAssumiuNaConversa(k, s);
+        res.equipe++;
+        continue;
+      }
+      // ENVIO REAL: o carimbo c1 existe e a última fala dela casa com um carimbo dela, feita desde a retomada. As 48 h contam dessa fala.
+      if (silencioDepoisDoConvite(s, conversa, agoraMs, carimbos.momentos, carimbos.c1) !== 'passar') continue;
+      if (!sessaoIgual(s, await relerSessao(k))) continue;
+      // A trava do aviso nasce ANTES do estado (falha fechada: sem ela a sessão não muda).
+      const reserva = await reservarAvisoDaEquipe('silencio', { chave: k, consultor: s.consultor, texto: fichaDoSilencio(s) });
+      if (reserva === 'erro') throw new Error('reservar o aviso da equipe falhou: o estado não muda');
+      await gravarSessao(k, { ...s, estagio: 'humano', motivo: MOTIVO_SILENCIO });
+      res.passadas++;
+      logger.info(LOG, `silêncio depois do convite (final ${s.telefone.slice(-2)}): a sessão passou para a equipe`);
+    } catch (err) {
+      res.erros++;
+      logger.error(LOG, `silêncio: a passagem falhou (final ${s.telefone.slice(-2)}): a sessão não muda`, err);
+    }
+  }
+  return res;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // A RODADA: o que a rota do cron chama.
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -3114,6 +3516,14 @@ async function avisosDaEquipeNaRodada(): Promise<Record<string, unknown>> {
   return rodarAvisosDaEquipe(new Date());
 }
 
+/** Os dois avisos novos da Helena (silêncio e equipe assumiu): chave de desligar e disjuntor, como os outros envios dela. */
+async function avisosDaHelenaNaRodada(): Promise<Record<string, unknown>> {
+  const chave = await lerChaveDesligar();
+  if (chave.off) return { pulou: `desligada_${chave.por}` };
+  if ((await lerDisjuntor()).aberto) return { pulou: 'disjuntor_erros_de_envio' };
+  return rodarAvisosDaHelenaEquipe(new Date());
+}
+
 export async function rodarInvestidorAgente(): Promise<Record<string, unknown>> {
   const pedidos = await atenderPedidosDoBanco().catch((e) => ({ erro: String(e) }));
   const vez = await reivindicarRodada();
@@ -3126,12 +3536,26 @@ export async function rodarInvestidorAgente(): Promise<Record<string, unknown>> 
   const fechoRetomadas = await fecharRetomadasEsgotadas().catch((e) => ({ fechadas: 0, erros: 1, error: String(e) }));
   const preparos = await fecharPreparos().catch((e) => ({ fechados: 0, fichas: 0, erros: 1, error: String(e) }));
   const avisos: Record<string, unknown> = await avisosDaEquipeNaRodada().catch((e) => ({ erro: String(e) }));
+  // Quem ficou calado 48 h depois da retomada do convite vai para a equipe, e os dois avisos novos (silêncio e equipe assumiu) saem
+  // DEPOIS dos avisos que já existiam: a rodada tem 1 aviso só, e a marcação e o resumo passam na frente.
+  const silencio = await runInvestidorSilencioTick().catch((e) => ({ passadas: 0, equipe: 0, erros: 1, motivo: String(e) } as ResultadoSilencio));
+  const avisosHelena: Record<string, unknown> = await avisosDaHelenaNaRodada().catch((e) => ({ erro: String(e) }));
 
   // Um envio frio por rodada. A resposta atrasada que saiu como frio já o gastou.
   const frioDaResposta = 'frio' in respostas && Number((respostas as { frio?: number }).frio) > 0;
   let retomada: ResultadoRetomada = { enviados: 0, motivo: frioDaResposta ? 'resposta_fria_enviada' : undefined };
   let abertura: Record<string, unknown> = { enviados: 0, motivo: frioDaResposta ? 'resposta_fria_enviada' : undefined };
-  if (!frioDaResposta) {
+  // A ordem do frio: resposta atrasada, retomada do convite, retomadas (toques 2 a 5), abertura. Um envio só por rodada.
+  let convite: ResultadoConvite = { enviados: 0, motivo: frioDaResposta ? 'resposta_fria_enviada' : undefined };
+  if (!frioDaResposta) convite = await runInvestidorConviteTick().catch((e) => ({ enviados: 0, erro: String(e) } as ResultadoConvite));
+  // Convite que falhou no envio (`erro`, `erro_envio`) GASTA a vaga: o c1 foi apagado e o espaçamento não enxerga a tentativa, e um 5xx pode ter
+  // entregado. Nessa rodada não roda retomada nem abertura (senão sairiam 2 frios colados).
+  const conviteFalhou = !!convite.erro || convite.motivo === 'erro_envio';
+  if (convite.enviados || conviteFalhou) {
+    const porque = convite.enviados ? 'convite_enviado' : 'convite_falhou_vaga_gasta';
+    retomada = { enviados: 0, motivo: porque };
+    abertura = { enviados: 0, motivo: porque };
+  } else if (!frioDaResposta) {
     // Quem saiu menos hoje vai primeiro; empate, a retomada (que tem prazo vencendo).
     let abertoPrimeiro = false;
     try {
@@ -3154,6 +3578,9 @@ export async function rodarInvestidorAgente(): Promise<Record<string, unknown>> 
   return {
     ok: true, respostas, abertura,
     ...(Object.keys(pedidos).length ? { pedidos } : {}),
+    ...(convite.enviados || convite.erro || convite.motivo === 'erro_envio' ? { convite } : {}),
+    ...(silencio.passadas || silencio.equipe || silencio.erros ? { silencio } : {}),
+    ...(avisosHelena.tipo || avisosHelena.erro ? { avisos_helena: avisosHelena } : {}),
     ...(retomada.enviados || retomada.erro || retomada.motivo === 'erro_envio' ? { retomada } : {}),
     ...(recuperacao.reprocessadas || recuperacao.erros ? { recuperacao } : {}),
     ...(fecho.fechadas || fecho.erros ? { fecho } : {}),
