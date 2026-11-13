@@ -48,10 +48,16 @@ export async function comprarAdicionalCartao(stripe: any, o: {
   if (produtosDoItem(o.item).every((p) => acessosDaConta.produtos.has(p))) throw new ApiError(409, 'Você já tem este adicional.');
 
   const chave = lookupKeyDoItem(o.item, 'app') as string;
-  const precos = await resolverPrecosAdicionais(stripe, [chave]);
-  const price = precos.get(chave);
+  let price: string | undefined;
+  try {
+    price = (await resolverPrecosAdicionais(stripe, [chave])).get(chave);
+  } catch (err) {
+    // Preço divergente do catálogo (o dono já foi avisado) ou Stripe fora: nunca cobra valor diferente.
+    console.error(`[adicionais] preco ${chave} indisponivel:`, (err as Error)?.message);
+    throw new ApiError(503, 'Esta compra ainda não está disponível. Tente de novo em instantes.');
+  }
   if (!price) {
-    console.error(`[adicionais] preco ${chave} nao existe na Stripe: rode scripts/criar-precos-adicionais.ts`);
+    console.error(`[adicionais] preco ${chave} nao existe na Stripe e nao foi criado (flag desligada ou cliente sem products)`);
     throw new ApiError(503, 'Esta compra ainda não está disponível. Tente de novo em instantes.');
   }
 
