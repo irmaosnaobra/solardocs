@@ -6,10 +6,10 @@ import {
 
 // O exemplo do protótipo (prototipo/index.html, EXEMPLO): 37 de 100, perfil `braco`.
 const EXEMPLO: RespostasSd = {
-  papel: 'dono', cnpj: 'sim', clientes: ['casas'], propostas_mes: '6a15', vendas_mes: 'v1a2', ticket: '15a30',
+  papel: 'dono', cnpj: 'sim', propostas_mes: '6a15', vendas_mes: 'v1a2', ticket: '15a30',
   como_faz_hoje: 'word', gasto_ferramenta: 'nada', tempo_por_proposta: 't120', quando_monta: 'noite', demora_envio: 'd1a2',
-  perdeu_venda: 'algumas', cliente_entende: 'explico', erro_proposta: 'atempo', papelada: 'viro', meta_vendas: 'dobro',
-  tempo_livre: 'visitas', imagem: 'profissional', fechar_primeira: ['nahora', 'retorno'], prioridade: 'rapidez', frase: 'muito',
+  perdeu_venda: 'algumas', cliente_entende: 'explico', erro_proposta: 'atempo', papelada: 'viro',
+  tempo_livre: 'visitas', fechar_primeira: ['nahora', 'retorno'], frase: 'muito',
   tem_marca: 'asvezes', mostra_economia: 'so_total', economia_25: 'nao', financiamento: 'aparte', usa_conta: 'digito',
   contrato_pronto: 'depois', modelos: 'mesmo', followup: 'lembro',
 };
@@ -85,18 +85,22 @@ describe('limparRespostas', () => {
     expect(r).toEqual({ papel: 'dono', tem_marca: 'sim' });
   });
 
+  it('envio antigo com as 4 perguntas que saíram (página em cache) não quebra: só as chaves somem', () => {
+    expect(limparRespostas({ papel: 'dono', clientes: ['casas'], meta_vendas: 'dobro', imagem: 'clara', prioridade: 'conta' })).toEqual({ papel: 'dono' });
+  });
+
   it('não aceita texto livre nem tipo errado', () => {
     expect(limparRespostas({ papel: ['dono'], tem_marca: 5, empresa: 'Sol do Cerrado', cidade: 'Uberlândia-MG', uf: 'MG' })).toEqual({});
-    expect(limparRespostas({ clientes: 'casas' })).toEqual({});
+    expect(limparRespostas({ papel: ['dono'] })).toEqual({});
     expect(limparRespostas(null)).toEqual({});
     expect(limparRespostas('x')).toEqual({});
     expect(limparRespostas([1, 2])).toEqual({});
   });
 
   it('as de várias escolhas filtram ids, tiram repetição e o "marque até 3" corta', () => {
-    expect(limparRespostas({ clientes: ['casas', 'casas', 'lua', 'rural'] })).toEqual({ clientes: ['casas', 'rural'] });
+    expect(limparRespostas({ documentos: ['proposta', 'proposta', 'lua', 'contrato'] })).toEqual({ documentos: ['proposta', 'contrato'] });
     expect(limparRespostas({ fechar_primeira: ['nahora', 'retorno', 'parcelas', 'bateria'] })).toEqual({ fechar_primeira: ['nahora', 'retorno', 'parcelas'] });
-    expect(limparRespostas({ clientes: ['lua'] })).toEqual({});
+    expect(limparRespostas({ documentos: ['lua'] })).toEqual({});
   });
 
   it('pagamento só vale com CNPJ sim ou empregador', () => {
@@ -110,9 +114,9 @@ describe('limparRespostas', () => {
     expect(limparRespostas(JSON.parse('{"__proto__":"x","constructor":"y","papel":"dono"}'))).toEqual({ papel: 'dono' });
   });
 
-  it('são 36 perguntas em respostas (39 menos empresa, uf e cidade)', () => {
-    expect(IDS_PERGUNTAS_SD).toHaveLength(36);
-    expect(new Set(IDS_PERGUNTAS_SD).size).toBe(36);
+  it('são 32 perguntas em respostas (35 menos empresa, uf e cidade)', () => {
+    expect(IDS_PERGUNTAS_SD).toHaveLength(32);
+    expect(new Set(IDS_PERGUNTAS_SD).size).toBe(32);
   });
 });
 
