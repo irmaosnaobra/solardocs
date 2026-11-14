@@ -6,10 +6,10 @@ import {
 
 // O exemplo do protótipo (prototipo/index.html, EXEMPLO): 37 de 100, perfil `braco`.
 const EXEMPLO: RespostasSd = {
-  papel: 'dono', cnpj: 'sim', clientes: ['casas'], propostas_mes: '6a15', vendas_mes: 'v1a2', ticket: '15a30',
+  papel: 'dono', cnpj: 'sim', propostas_mes: '6a15', vendas_mes: 'v1a2', ticket: '15a30',
   como_faz_hoje: 'word', gasto_ferramenta: 'nada', tempo_por_proposta: 't120', quando_monta: 'noite', demora_envio: 'd1a2',
-  perdeu_venda: 'algumas', cliente_entende: 'explico', erro_proposta: 'atempo', papelada: 'viro', meta_vendas: 'dobro',
-  tempo_livre: 'visitas', imagem: 'profissional', fechar_primeira: ['nahora', 'retorno'], prioridade: 'rapidez', frase: 'muito',
+  perdeu_venda: 'algumas', cliente_entende: 'explico', erro_proposta: 'atempo', papelada: 'viro',
+  tempo_livre: 'visitas', fechar_primeira: ['nahora', 'retorno'], frase: 'muito',
   tem_marca: 'asvezes', mostra_economia: 'so_total', economia_25: 'nao', financiamento: 'aparte', usa_conta: 'digito',
   contrato_pronto: 'depois', modelos: 'mesmo', followup: 'lembro',
 };
@@ -43,6 +43,7 @@ describe('o cálculo do diagnóstico', () => {
   it('um caso de cada perfil, na ordem em que a regra decide', () => {
     expect(PERFIS.map((p) => p.id)).toEqual(['cedo', 'grande', 'caro', 'comecando', 'braco', 'crescer', 'informa']);
     expect(perfil(com({ cnpj: 'nao' })).id).toBe('cedo');
+    expect(perfil(com({ cnpj: 'nao' })).nome).toBe('Montando a empresa');
     expect(perfil(com({ cnpj: 'abrindo' })).id).toBe('cedo');
     expect(perfil(com({ propostas_mes: 'mais30' })).id).toBe('grande');
     expect(perfil(com({ gasto_ferramenta: 'g151a300' })).id).toBe('caro');
@@ -85,34 +86,40 @@ describe('limparRespostas', () => {
     expect(r).toEqual({ papel: 'dono', tem_marca: 'sim' });
   });
 
+  it('envio antigo com as 4 perguntas que saíram (página em cache) não quebra: só as chaves somem', () => {
+    expect(limparRespostas({ papel: 'dono', clientes: ['casas'], meta_vendas: 'dobro', imagem: 'clara', prioridade: 'conta' })).toEqual({ papel: 'dono' });
+  });
+
   it('não aceita texto livre nem tipo errado', () => {
     expect(limparRespostas({ papel: ['dono'], tem_marca: 5, empresa: 'Sol do Cerrado', cidade: 'Uberlândia-MG', uf: 'MG' })).toEqual({});
-    expect(limparRespostas({ clientes: 'casas' })).toEqual({});
+    expect(limparRespostas({ papel: ['dono'] })).toEqual({});
     expect(limparRespostas(null)).toEqual({});
     expect(limparRespostas('x')).toEqual({});
     expect(limparRespostas([1, 2])).toEqual({});
   });
 
   it('as de várias escolhas filtram ids, tiram repetição e o "marque até 3" corta', () => {
-    expect(limparRespostas({ clientes: ['casas', 'casas', 'lua', 'rural'] })).toEqual({ clientes: ['casas', 'rural'] });
+    expect(limparRespostas({ documentos: ['proposta', 'proposta', 'lua', 'contrato'] })).toEqual({ documentos: ['proposta', 'contrato'] });
     expect(limparRespostas({ fechar_primeira: ['nahora', 'retorno', 'parcelas', 'bateria'] })).toEqual({ fechar_primeira: ['nahora', 'retorno', 'parcelas'] });
-    expect(limparRespostas({ clientes: ['lua'] })).toEqual({});
+    expect(limparRespostas({ documentos: ['lua'] })).toEqual({});
   });
 
-  it('pagamento só vale com CNPJ sim ou empregador', () => {
+  it('pagamento vale com qualquer resposta de CNPJ, e sem CNPJ nenhum', () => {
     expect(limparRespostas({ cnpj: 'sim', pagamento: 'pix' })).toEqual({ cnpj: 'sim', pagamento: 'pix' });
     expect(limparRespostas({ cnpj: 'empregador', pagamento: 'cartao' })).toEqual({ cnpj: 'empregador', pagamento: 'cartao' });
-    expect(limparRespostas({ cnpj: 'nao', pagamento: 'pix' })).toEqual({ cnpj: 'nao' });
-    expect(limparRespostas({ pagamento: 'pix' })).toEqual({});
+    expect(limparRespostas({ cnpj: 'nao', pagamento: 'pix' })).toEqual({ cnpj: 'nao', pagamento: 'pix' });
+    expect(limparRespostas({ cnpj: 'abrindo', pagamento: 'cartao' })).toEqual({ cnpj: 'abrindo', pagamento: 'cartao' });
+    expect(limparRespostas({ pagamento: 'pix' })).toEqual({ pagamento: 'pix' });
+    expect(limparRespostas({ cnpj: 'nao', pagamento: 'boleto' })).toEqual({ cnpj: 'nao' });
   });
 
   it('id herdado do objeto (__proto__, constructor) não passa', () => {
     expect(limparRespostas(JSON.parse('{"__proto__":"x","constructor":"y","papel":"dono"}'))).toEqual({ papel: 'dono' });
   });
 
-  it('são 36 perguntas em respostas (39 menos empresa, uf e cidade)', () => {
-    expect(IDS_PERGUNTAS_SD).toHaveLength(36);
-    expect(new Set(IDS_PERGUNTAS_SD).size).toBe(36);
+  it('são 32 perguntas em respostas (35 menos empresa, uf e cidade)', () => {
+    expect(IDS_PERGUNTAS_SD).toHaveLength(32);
+    expect(new Set(IDS_PERGUNTAS_SD).size).toBe(32);
   });
 });
 
