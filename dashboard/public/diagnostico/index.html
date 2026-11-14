@@ -551,11 +551,11 @@ const FAQS = [
   { q: 'Os contratos têm validade jurídica?', a: 'Sim. As cláusulas são revisadas para o setor solar. Você assina à mão ou na ferramenta que já usa.' },
   { q: 'Funciona com a minha concessionária?', a: 'A procuração segue o padrão das principais, como CEMIG, CPFL, Enel, Light, Energisa e Equatorial.' },
   { q: 'Como recebo o acesso?', a: 'No cartão, você cria a senha na hora. No Pix automático, o link chega no seu e-mail quando o 1º pagamento cai.' },
-  { q: 'E se eu não gostar?', a: 'Você tem 7 dias de garantia. O valor volta inteiro.' },
+  { q: 'E se eu não gostar?', a: 'Você tem 7 dias de garantia. Se não servir, o valor volta inteiro. É só pedir pelo WhatsApp.' },
   { q: 'Posso cancelar?', a: 'Pode, quando quiser e sem multa. No cartão, em Minha conta. No Pix automático, no app do banco.' },
   { q: 'O que é o Portal NEXUS?', a: 'É a área de eletropostos, grátis com o mesmo login. Não tem garantia de volume nem exclusividade de território.' }
 ];
-const FAQ_OBJ = { preco: 0, aprender: 1, validade: 2, online: 4 };
+const FAQ_OBJ = { preco: 0, ja_uso: 5, aprender: 1, validade: 2, online: 4 };
 const ITENS = [
   { q: 'tem_marca', ok: 'sim', rot: 'Sua logo e sua cor em tudo', selo: 'sd', img: ['tela/doc-proposta-a4-mobile.webp'], cap: 'Folha com o nome e a cor da empresa.' },
   { q: 'mostra_economia', ok: 'sim', rot: 'Economia mês a mês e tempo de retorno', selo: 'sd', img: ['tela/doc-proposta-mobile.webp'], cap: 'Conta antes e depois, economia por mês e tempo de retorno.' },
@@ -1362,7 +1362,7 @@ function pixCopiar() {
   const ta = $('pix-codigo'), bt = $('pix-copiar');
   if (!ta) return;
   const ok = () => { SDR.evento('pix_copiou', { modo: 'automatico' }); if (bt) { bt.textContent = 'Código copiado'; setTimeout(() => { if (document.contains(bt)) bt.textContent = 'Copiar código Pix'; }, 3000); } };
-  const sel = () => { ta.focus(); ta.select(); try { if (document.execCommand('copy')) ok(); } catch (e) { /* o texto fica selecionado para copiar à mão */ } };
+  const sel = () => { const d = ta.closest('details'); if (d) d.open = true; ta.focus(); ta.select(); try { if (document.execCommand('copy')) ok(); } catch (e) { /* o texto fica selecionado para copiar à mão */ } };
   try { navigator.clipboard.writeText(ta.value).then(ok, sel); } catch (e) { sel(); }
 }
 function acaoFinal(k, el) {
