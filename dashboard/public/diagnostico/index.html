@@ -355,6 +355,61 @@ body{min-height:100vh;min-height:100dvh;overflow:hidden}
 .folha-in .cta+.pular{margin-top:6px}
 /* O PNG da Enel tem 94% de margem transparente: sobe a altura e puxa a margem para a marca ficar do tamanho das outras */
 .faixa-conc .logos img[src$="/enel.png"]{height:64px;margin:-20px -18px}
+/* Última página direta (14/11): diagnóstico curto, figuras no lugar de parágrafo, oferta enxuta */
+.r2{margin-top:26px!important}
+.diag{display:flex;align-items:center;gap:16px;margin:12px 0 4px;padding:14px 16px;border:1.5px solid var(--borda);border-radius:16px;background:var(--cartao)}
+.diag>div{min-width:0}
+.diag b{display:block;font-size:1.12rem;line-height:1.25}
+.diag p{margin:2px 0 0;color:var(--mudo);font-size:.95rem}
+.dias7{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.dias7 li{display:flex;align-items:center;gap:12px;min-height:44px;padding:6px 12px;border-radius:12px;background:var(--cartao);border:1.5px solid var(--borda);font-weight:700;line-height:1.25}
+.dias7 .dn{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--trilho);font-size:.85rem;font-weight:800}
+.dias7 .dt{flex:1;min-width:0}
+.dias7 li.prio{border-color:var(--acao-borda);background:var(--acao-suave)}
+.dias7 li.prio .dn{background:var(--acao-grad);color:var(--sobre-acao)}
+.dias7 .dp{flex:none;font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--acao-claro)}
+.docs6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 6px}
+.docs6 figure{margin:0;text-align:center}
+.docs6 img{display:block;width:100%;height:auto;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:1px solid var(--borda-forte);background:var(--papel)}
+.docs6 figcaption{margin-top:6px;font-size:.82rem;font-weight:700}
+.centro{text-align:center}
+.ic{width:22px;height:22px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fatos{list-style:none;margin:14px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fatos li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;padding:12px 6px;border-radius:14px;background:var(--cartao);border:1.5px solid var(--borda)}
+.fatos .ic{width:28px;height:28px;color:var(--acao-claro);margin-bottom:4px}
+.fatos b{font-size:.92rem;line-height:1.2}
+.fatos span{font-size:.76rem;color:var(--mudo);line-height:1.25}
+.oferta2{margin:26px 0 8px;padding:20px 18px;border:2px solid var(--marca);border-radius:18px;background:var(--faixa);box-shadow:0 30px 60px var(--acao-suave);text-align:center}
+.oferta2 .preco{margin:8px 0 2px;font-size:3.25rem;line-height:1;font-weight:800;background:var(--acao-grad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;font-variant-numeric:tabular-nums}
+.oferta2 .preco small{font-size:1.1rem;font-weight:700}
+.of-comp{margin:6px 0 0;color:var(--mudo);font-weight:700}
+.of-ok{list-style:none;margin:16px 0 18px;padding:0;display:grid;gap:8px;text-align:left;justify-items:center}
+.of-ok li{display:flex;align-items:center;gap:10px;font-weight:700;width:15rem;max-width:100%}
+.of-ok .ic{color:var(--tem)}
+.oferta2 .cta{gap:10px}
+.oferta2 .cta .ic{width:22px;height:22px}
+.oferta2 .cta.vazio{box-shadow:none;background:transparent;border:2px solid var(--borda-forte);color:var(--texto)}
+.oferta2 .cta.vazio:hover{border-color:var(--acao);transform:none}
+.oferta2 .nota{margin:12px 0 0}
+.oferta2.sem{text-align:left;box-shadow:none;border-color:var(--borda-forte)}
+.oferta2.sem p{margin:6px 0 0;color:var(--mudo)}
+.passos-h{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;counter-reset:ph}
+.passos-h li{position:relative;counter-increment:ph;text-align:center;font-size:.86rem;font-weight:700;line-height:1.3}
+.passos-h li::before{content:counter(ph);display:grid;place-items:center;width:34px;height:34px;margin:0 auto 8px;border-radius:50%;background:var(--acao-grad);color:var(--sobre-acao);font-weight:800;position:relative;z-index:1}
+.passos-h li:not(:last-child)::after{content:"";position:absolute;top:17px;left:calc(50% + 22px);right:calc(-50% + 18px);height:2px;background:var(--acao-borda)}
+.quem{display:flex;align-items:center;gap:12px;margin:18px 0 6px}
+.quem .fotos{display:flex;flex:none}
+.quem .fotos img{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--acao)}
+.quem .fotos img+img{margin-left:-12px}
+.quem p{margin:0;color:var(--mudo);font-size:.92rem}
+.pix-passos{margin:16px 0 0;padding:0;list-style:none;display:grid;gap:8px;counter-reset:pp}
+.pix-passos li{display:flex;align-items:center;gap:10px;counter-increment:pp;font-weight:700}
+.pix-passos li::before{content:counter(pp);flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--trilho);font-size:.85rem;font-weight:800}
+.pix-st{display:flex;align-items:center;justify-content:center;gap:8px;margin:16px 0 0;padding:10px;border-radius:12px;background:var(--cartao);color:var(--mudo);font-weight:700;font-size:.92rem}
+.pix-mais{margin:12px 0 0;border:1.5px solid var(--borda);border-radius:12px;padding:0 12px;background:var(--cartao)}
+.pix-mais summary{min-height:44px;display:flex;align-items:center;font-weight:700;cursor:pointer}
+.pix-mais .msg{margin-bottom:8px}
+.pix-mais .pix-qr+p{margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -451,19 +506,15 @@ const TXT = {
   g1Titulo: 'Seu plano está pronto. Como você se chama?', g1Ajuda: 'Para o plano sair no seu nome.',
   g2Titulo: 'Qual é o seu WhatsApp?', g2Ajuda: 'Seu diagnóstico fica guardado junto com o seu número. A Carla, do SolarDoc, pode te chamar no WhatsApp para mostrar o plano.',
   g2Consent: 'Ao continuar, você concorda em receber contato da SolarDoc sobre este diagnóstico, conforme a Política de Privacidade.',
-  garantia: 'Garantia de 7 dias. Se não servir, você recebe o valor integral de volta pelo WhatsApp.', semFid: 'Sem fidelidade. Cancele quando quiser.',
-  ofertaGasto: (piso) => 'Hoje você gasta a partir de R$ ' + piso + ' por mês. No SolarDoc são R$ 67.', socio: 'Copiar resumo para quem decide',
-  heroLegenda: 'É isto que sai, no seu computador e no seu celular, com a sua marca.',
+  socio: 'Copiar resumo para quem decide',
   i2SubMao: 'Eles também faziam na mão. Contam o que mudou.', i2SubPlat: 'Eles também pagavam outra plataforma. Contam o que mudou.', i2SubOutros: 'Eles contam o que mudou na venda.',
   i3Carr: 'É isso que sai quando você clica em gerar.', i3Nota: 'Folhas reais do SolarDoc, com os dados de um cliente de exemplo.',
-  adTitulo: 'A diferença entre perder e fechar a venda.', cfTitulo: 'Do cliente ao documento pronto em 3 passos.',
-  depTitulo: '11 integradores contam como é.', logosTitulo: 'As empresas dos depoimentos:',
-  concTitulo: 'Procuração pronta para levar às principais concessionárias do Brasil.',
-  qfTitulo: 'Software feito por quem vende solar.',
-  qfTexto: 'A gente é o Thiago e o Diego, irmãos, do Triângulo Mineiro. Trabalhamos com energia solar. O SolarDoc nasceu de um problema nosso: a venda esfriava esperando papel. Montamos a ferramenta pra usar no nosso dia a dia. Depois abrimos pros outros integradores.'
+  depTitulo: '11 integradores contam como é.', concTitulo: 'Procuração pronta para as principais concessionárias.',
+  fundadores: 'Feito pelo Thiago e pelo Diego, irmãos que vendem energia solar.'
 };
-const OFERTA_ITENS = ['Documentos ilimitados, sem teto no mês', 'Os 8 tipos de documento com a sua logo e a sua cor', 'Proposta solar completa pronta para enviar no WhatsApp', 'Procuração pronta para levar às principais concessionárias', 'Cadastro de clientes e de prestadores parceiros', 'Escaneia a conta de luz e preenche o cliente sozinho', 'Histórico salvo para sempre, acha qualquer contrato depois', 'Atualizações e recursos novos inclusos, sem pagar mais', 'Suporte no WhatsApp e no chat de dentro da plataforma'];
-const ARG1 = { rapidez: 'Proposta solar completa pronta para enviar no WhatsApp.', visual: 'Os 8 tipos de documento com a sua logo e a sua cor.', conta: 'Escaneia a conta de luz e preenche o cliente sozinho.', preco: 'Um preço só, R$ 67 por mês.', suporte: 'Suporte no WhatsApp e no chat de dentro da plataforma.' };
+/* Última página: o que a pessoa recebe, em figura. Folhas reais do SolarDoc com dados de exemplo. */
+const DOCS_GRADE = [['doc-proposta-a4-mobile', 'Orçamento'], ['doc-proposta-mobile', 'Proposta'], ['doc-contrato-mobile', 'Contrato'], ['doc-procuracao-mobile', 'Procuração'], ['doc-recibo-mobile', 'Recibo'], ['doc-banco-mobile', 'Banco']];
+const FATOS = [['infinito', 'Ilimitado', 'documentos no mês'], ['marca', 'Sua logo', 'e sua cor em tudo'], ['foto', 'Conta de luz', 'lida por foto']];
 /* Material real da landing (legendas literais, sem travessão). Na produção, os mesmos arquivos em caminho absoluto. */
 const FOLHAS = [
   { src: 'tela/doc-proposta-a4-mobile.webp', t: 'Orçamento de 1 página', x: 'Investimento, economia mensal e tempo de retorno numa folha só, pronta pro WhatsApp.' },
@@ -494,23 +545,17 @@ const cardsDe = (R) => CARD_GRUPO[GRUPO_TOOL[R.como_faz_hoje] || 'braco'];
 const cardsTodos = (R) => { const a = cardsDe(R); return a.concat(Object.keys(CARDS).filter((k) => !a.includes(k))); };
 const LOGOS = [['alves-cardoso-solar', 'Alves Cardoso Solar'], ['american-energy-solar', 'American Energy Solar'], ['eclipse-solar', 'Eclipse Solar'], ['exxel-solar', 'Exxel Solar'], ['forca-solar', 'Força Solar'], ['gedalih-energia-solar', 'Gedalih Energia Solar'], ['grilo-energia', 'Grilo Energia Solar'], ['gsi-solucoes', 'GSI Energia Solar'], ['rsc-solar', 'RSC Solar'], ['vff-energia-solar', 'VFF Energia Solar'], ['vs-solar', 'VS Solar']];
 const CONC = [['cemig.svg', 'CEMIG'], ['enel.png', 'Enel'], ['cpfl.png', 'CPFL'], ['equatorial.png', 'Equatorial'], ['energisa.png', 'Energisa'], ['light.png', 'Light']];
-const AD = {
-  mao: ['O modelo quebra e desformata toda hora.', 'Procuração recusada e refeita.', 'Documento sem a cara da empresa.', 'Tempo perdido a cada contrato.', 'Cliente esfria esperando o PDF.'],
-  plataforma: ['Do sistema inteiro, você só abre o gerador de proposta.', 'O resto você configurou uma vez e não voltou.', 'O preço não cai porque você usa menos.', 'Migrar dá trabalho. Por isso você continua lá.'],
-  sd: ['Documento pronto em segundos.', 'Procuração pronta para levar à concessionária.', 'Tudo com a sua logo e a sua cor.', 'Você mesmo faz, sem depender de ninguém.', 'Manda no WhatsApp com o cliente quente.']
-};
-const PASSOS3 = [['Configure a sua marca', 'Sobe a logo, escolhe a cor da empresa e pronto. Uma vez só.'], ['Cadastre o cliente', 'Preenche os dados da venda ou escaneia a conta de luz. A plataforma puxa o cliente pra você.'], ['Gere e envie', 'Escolhe o documento, clica em gerar e manda pro WhatsApp do cliente em PDF.']];
 const FAQS = [
-  { q: 'Tem plano mais barato?', a: 'Não tem plano capado. É um preço só, R$ 67 por mês, com tudo liberado: documentos ilimitados, histórico permanente e todos os recursos. A gente cortou os planos menores justamente para ninguém entrar e descobrir que o que precisa está no plano de cima.' },
-  { q: 'O dono mesmo consegue usar?', a: 'Esse é exatamente o público para quem foi feito. Você não precisa de funcionário, advogado ou escritório: abre o app, cadastra o cliente, gera o documento e manda. Sai perfeito.' },
-  { q: 'Posso usar com a marca da minha empresa?', a: 'Sim. Você sobe a logo, define a cor da empresa e os documentos saem com a sua identidade visual. Você só preenche os dados, a formatação sai pronta.' },
-  { q: 'Os contratos têm validade jurídica?', a: 'Sim. Os modelos seguem cláusulas técnicas revisadas para o setor solar (geração, garantia, inadimplência, titularidade) e saem prontos para você assinar com o seu cliente, à mão ou na ferramenta de assinatura que você já usar.' },
-  { q: 'Funciona com qualquer concessionária?', a: 'Sim. As procurações são padronizadas para serem aceitas pelas principais concessionárias, como CEMIG, CPFL, Enel, Light, Energisa, Equatorial e outras.' },
-  { q: 'E se eu pagar e não gostar?', a: 'Você tem 7 dias de garantia: se não servir para você, devolvemos o valor integral, sem perguntas. É só chamar no WhatsApp dentro dos 7 dias.' },
-  { q: 'Posso cancelar depois?', a: 'Pode, a qualquer momento e sem multa, em Minha conta e depois Gerenciar assinatura. Você mesmo cancela, sem precisar pedir para ninguém, e não é cobrado no mês seguinte.' },
-  { q: 'Quando eu sou cobrado e quando libera?', a: 'A cobrança é na hora: você passa o cartão no checkout da Stripe e o acesso já é liberado. Na sequência você define a senha e entra na plataforma. Depois disso, renova uma vez por mês, no mesmo dia.' }
+  { q: 'Tem plano mais barato?', a: 'Não. É um preço só, com tudo liberado.' },
+  { q: 'É difícil de usar?', a: 'Não. Você sobe a logo, cadastra o cliente e gera. Funciona no celular.' },
+  { q: 'Os contratos têm validade jurídica?', a: 'Sim. As cláusulas são revisadas para o setor solar. Você assina à mão ou na ferramenta que já usa.' },
+  { q: 'Funciona com a minha concessionária?', a: 'A procuração segue o padrão das principais, como CEMIG, CPFL, Enel, Light, Energisa e Equatorial.' },
+  { q: 'Como recebo o acesso?', a: 'No cartão, você cria a senha na hora. No Pix automático, o link chega no seu e-mail quando o 1º pagamento cai.' },
+  { q: 'E se eu não gostar?', a: 'Você tem 7 dias de garantia. O valor volta inteiro.' },
+  { q: 'Posso cancelar?', a: 'Pode, quando quiser e sem multa. No cartão, em Minha conta. No Pix automático, no app do banco.' },
+  { q: 'O que é o Portal NEXUS?', a: 'É a área de eletropostos, grátis com o mesmo login. Não tem garantia de volume nem exclusividade de território.' }
 ];
-const FAQ_OBJ = { preco: 0, ja_uso: 5, aprender: 1, validade: 3, online: 7 };
+const FAQ_OBJ = { preco: 0, aprender: 1, validade: 2, online: 4 };
 const ITENS = [
   { q: 'tem_marca', ok: 'sim', rot: 'Sua logo e sua cor em tudo', selo: 'sd', img: ['tela/doc-proposta-a4-mobile.webp'], cap: 'Folha com o nome e a cor da empresa.' },
   { q: 'mostra_economia', ok: 'sim', rot: 'Economia mês a mês e tempo de retorno', selo: 'sd', img: ['tela/doc-proposta-mobile.webp'], cap: 'Conta antes e depois, economia por mês e tempo de retorno.' },
@@ -530,9 +575,6 @@ const PERFIS = [
   { id: 'crescer', nome: 'Pronto para crescer', frase: 'Sua proposta já está boa. O próximo passo é ganhar tempo para vender mais.', teste: (R) => indice(R) >= 75 },
   { id: 'informa', nome: 'Proposta que informa', frase: 'Sua proposta traz as informações. Falta ela convencer o cliente sozinha.', teste: () => true }
 ];
-const MSG = {
-  pix: (c) => 'Quero saber como assinar o SolarDoc no Pix. Meu código é ' + c + '.'
-};
 /* Formatação */
 const br = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
 const mil = (v) => br(v / 1000) + ' mil';
@@ -588,7 +630,7 @@ function cartoes(R) {
   if (R.perdeu_venda === 'varias' || R.perdeu_venda === 'algumas') L.push({ n: '', t: 'Você já perdeu venda para quem chegou antes.', s: 'Chegar antes depende de velocidade na proposta.' });
   return L;
 }
-/* Pix automático: ligado para todos desde 28/10, por ordem do dono. Com false aqui, só aparece com ?pixauto=1 na URL (guardado na sessão, para valer nas outras telas). Se falhar ao gerar, o painel oferece o Pix pelo WhatsApp, nunca só o cartão. */
+/* Pix automático: ligado para todos desde 28/10, por ordem do dono. Com false aqui, só aparece com ?pixauto=1 na URL (guardado na sessão, para valer nas outras telas). Desligado, a oferta fica só no cartão. */
 const PIX_AUTO_PADRAO = true;
 function pixAutoLigado() {
   if (PIX_AUTO_PADRAO) return true;
@@ -597,82 +639,22 @@ function pixAutoLigado() {
   } catch (e) { /* URL ilegível: segue pela sessão */ }
   try { return sessionStorage.getItem('sd_pixauto') === '1'; } catch (e) { return false; }
 }
+/* Botões da oferta. Com CNPJ: cartão e Pix automático, o preferido na frente. Sem CNPJ não há compra nem saída para conversa: o diagnóstico fica salvo. */
 function botoes(R) {
   const pf = perfil(R).id, b = [];
-  /* Com CNPJ o cartão. Quem marcou Pix vê antes o Pix pelo WhatsApp (a pessoa escreve primeiro e recebe o copia e cola), ou o Pix automático quando a trava estiver ligada. Quem não compra, a Carla chama no WhatsApp 15 min depois. Sem CNPJ não há botão de compra e a tela termina sem botão: o quiz não tem saída para conversar com a Carla. */
-  if (pf === 'cedo') {
-    /* sem CNPJ não há compra: nenhum botão */
-  } else if (pixAutoLigado()) {
-    const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_auto', rot: 'Pagar no Pix' };
-    if (R.pagamento === 'pix') { pix.prim = true; b.push(pix, cartao); } else { cartao.prim = true; b.push(cartao, pix); }
-  } else if (R.pagamento === 'pix') b.push({ k: 'pix', rot: 'Assinar no Pix', prim: true }, { k: 'cartao', rot: 'Assinar com cartão' });
-  else b.push({ k: 'cartao', rot: 'Assinar com cartão', prim: true });
+  if (pf !== 'cedo') {
+    const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_auto', rot: 'Assinar no Pix automático' };
+    if (!pixAutoLigado()) { cartao.prim = true; b.push(cartao); }
+    else if (R.pagamento === 'pix') { pix.prim = true; b.push(pix, cartao); } else { cartao.prim = true; b.push(cartao, pix); }
+  }
   if (R.decisor === 'socio' || R.decisor === 'chefe') b.push({ k: 'socio', rot: TXT.socio });
   return b;
 }
-/* Tela final: blocos de confiança. Tudo aqui devolve texto puro, sem HTML. Campo que falta faz a linha sumir. */
-const nomeDe = (R) => (R.nome || '').trim();
-const empresaDe = (R) => (R.empresa || '').trim();
-const municipioDe = (R) => String(R.cidade || '').replace(/-[A-Z]{2}$/, '').trim();
-const ACESSO_CARTAO = 'No cartão, você volta na mesma hora para a tela de criar a senha e entra.';
-const ACESSO_AVISOS = 'O e-mail com o link de acesso também chega, e o WhatsApp também, se você deixou o número.';
-const ACESSO_PIX = 'No Pix automático, quando o 1º pagamento cai, a conta é criada e o link para criar a senha chega no seu e-mail.';
-const PRIMEIRA_PROPOSTA = 'Cadastra o cliente e sai a sua 1ª proposta, com a logo e a cor da empresa, pronta para mandar no WhatsApp.';
-const PASSOS_CARTAO = ['Você paga no cartão.', 'Na mesma hora, você volta para a tela de criar a sua senha.', 'Cria a senha e entra. ' + ACESSO_AVISOS, PRIMEIRA_PROPOSTA];
-const PASSOS_PIX = ['Você paga o 1º mês agora, no Pix.', 'Quando o 1º pagamento cai, a sua conta é criada.', 'O link para criar a senha chega no seu e-mail. Você cria a senha e entra.', PRIMEIRA_PROPOSTA];
-const NOTA_PIX = 'Nos meses seguintes, o banco debita sozinho. Para cancelar, é só pelo app do seu banco.';
-/* Pix pelo WhatsApp: o copia e cola vem na conversa e o comprovante libera o acesso (pixComprovanteService). */
-const ACESSO_PIX_WA = 'No Pix, você paga pelo código que recebe no WhatsApp, manda o comprovante e o seu e-mail na mesma conversa e o link para criar a senha chega ali mesmo.';
-const PASSOS_PIX_WA = ['Você toca em "Assinar no Pix" e o WhatsApp abre com a mensagem pronta. É só enviar.', 'A gente responde na conversa com o código Pix copia e cola de R$ 67.', 'Você paga e manda na mesma conversa a foto do comprovante e o seu e-mail.','Com o comprovante conferido, o acesso é liberado e o link para criar a senha chega ali mesmo.', PRIMEIRA_PROPOSTA];
-const NOTA_PIX_WA = 'Nos meses seguintes, a renovação também é no Pix, pelo mesmo WhatsApp. Sem fidelidade.';
-const LINHA_APP = 'Funciona no computador e no celular, e você instala na tela inicial do celular para abrir como um app.';
-const MICRO_COMPRA = 'R$ 67 por mês. Sem fidelidade, cancela quando quiser em "Minha conta".';
-const ELETROPOSTO = { t: 'Eletroposto, no mesmo login', x: 'Com o mesmo login, você entra no Portal do Parceiro NEXUS, de eletropostos, que é grátis. Lá você vende carregadores com a sua marca. Quem chega ao nível Partner Pro (depois da 1ª compra de carregador) e tem o selo de montagem aprovado recebe indicação de clientes e de obras de eletroposto da região, sem garantia de volume e sem exclusividade de território.' };
-/* Frase de cada objeção, escrita para encaixar em "Parece que o que mais te segura é ...". Opção sem frase (nada) faz a linha sumir. */
-const OBJ_FRASE = { preco: 'o preço', ja_uso: 'trocar a ferramenta que você já usa', aprender: 'o medo de perder tempo aprendendo', validade: 'a dúvida se os documentos têm validade', online: 'o receio de pagar pela internet' };
-/* Bloco "É isso mesmo?": o que a pessoa contou, de volta, com o rótulo da opção (nunca o id) */
-function confere(R) {
-  const nome = nomeDe(R), em = empresaDe(R), mun = municipioDe(R), pm = rot(R, 'propostas_mes'), tp = rot(R, 'tempo_por_proposta'), h = horas(R), ob = OBJ_FRASE[R.objecao];
-  const L = [nome ? 'Deixa eu ver se entendi, ' + nome + '.' : 'Deixa eu ver se entendi.'];
-  if (pm) L.push('Parece que ' + (em ? 'a ' + em + (mun ? ', em ' + mun + ',' : '') : 'você') + ' faz ' + frase(pm) + ' propostas por mês.');
-  if (tp) L.push('Parece que cada uma leva ' + frase(tp) + '.');
-  if (h > 0) L.push('Isso dá cerca de ' + horasTxt(h) + ' por mês só com proposta.');
-  L.push('Parece que o ponto mais fraco hoje é ' + pilarFraco(R).nome.toLowerCase() + '.');
-  if (ob) L.push('Parece que o que mais te segura é ' + ob + '.');
-  L.push('Seu Índice de Proposta ficou em ' + indice(R) + ' de 100.', 'Pelo que você me contou, é isso mesmo?');
-  return L;
-}
-/* "Antes do preço": 4 receios, cada um com a resposta. O 1º e a FAQ mudam com o Pix automático. */
-function receios(R, pix) {
-  const em = empresaDe(R);
-  return {
-    titulo: 'Antes do preço, o que você deve estar pensando',
-    intro: 'Antes de falar de valor, deixa eu dizer o que ' + (em ? 'a ' + em : 'você') + ' deve estar pensando.',
-    itens: [
-      { t: 'Parece que você tem medo de pagar e não receber.', a: ACESSO_CARTAO + ' ' + ACESSO_AVISOS + (pix ? ' ' + (pix === 'wa' ? ACESSO_PIX_WA : ACESSO_PIX) : '') },
-      { t: 'Parece que você acha que vai ser mais um sistema que some.', a: 'É justo pensar assim. Seus documentos ficam salvos no histórico, as atualizações estão incluídas e o suporte atende no WhatsApp e no chat da plataforma. E se deixar de fazer sentido, não tem fidelidade: você cancela em "Minha conta".' },
-      { t: 'Parece que você tem receio de que dê trabalho para aprender.', a: 'Funciona no computador e no celular. Os documentos já saem com a logo e a cor da sua empresa. Se travar em qualquer ponto, o suporte está no WhatsApp e no chat.' },
-      { t: 'Parece que você teme que não sirva para ' + (em ? 'a ' + em : 'o seu jeito de trabalhar') + '.', a: 'Não existe teste grátis. Existe a garantia: são 7 dias, e se não servir o valor volta inteiro, pedido pelo WhatsApp.' }
-    ]
-  };
-}
-/* Pergunta de fechamento, logo acima dos botões de compra */
-function fechamento(R) {
-  const em = empresaDe(R), h = horas(R);
-  return [
-    em && h > 0 ? 'O que a ' + em + ' deixa de vender se mais um mês passar com ' + horasTxt(h) + ' indo para proposta?' : 'O que você deixa de vender se mais um mês passar com tantas horas indo para proposta?',
-    'Seria ruim para você começar agora, sabendo que em 7 dias o valor volta inteiro se não servir?'
-  ];
-}
-/* Três perguntas novas da FAQ. Quem não tem CNPJ não vê compra, então fica sem a do acesso. */
-function faqsNovas(pix, cedo) {
-  const L = [
-    { q: 'Vou receber o acesso mesmo?', a: 'Vai. ' + ACESSO_CARTAO + (pix ? ' ' + (pix === 'wa' ? ACESSO_PIX_WA : ACESSO_PIX) : '') + ' ' + ACESSO_AVISOS + ' Se algo não chegar, chame o suporte no WhatsApp.' },
-    { q: 'Tem app de celular?', a: 'Tem. A plataforma funciona no computador e no celular. No celular, você instala na tela inicial e abre como um app.' },
-    { q: 'O que é o Portal do Parceiro NEXUS?', a: 'É a área de eletropostos da NEXUS, e o assinante entra com o mesmo login, sem pagar nada a mais. Lá você vende carregadores com a sua marca. Quem chega ao nível Partner Pro (depois da 1ª compra de carregador) e tem o selo de montagem aprovado recebe indicação de clientes e de obras de eletroposto da região. Não há garantia de volume nem exclusividade de território.' }
-  ];
-  return cedo ? L.slice(1) : L;
-}
+/* Depois de pagar: 3 passos curtos, do jeito que a pessoa escolheu pagar */
+const PASSOS_DEPOIS = {
+  cartao: ['Paga no cartão.', 'Cria a sua senha na hora.', 'Gera a 1ª proposta.'],
+  pix: ['Paga o 1º mês no Pix.', 'O link da senha chega no e-mail.', 'Gera a 1ª proposta.']
+};
 const DIA_PILAR = { Imagem: 1, Velocidade: 2, Clareza: 3, Papelada: 4 };
 const DIA_21 = { marca: 1, nahora: 5, retorno: 3, parcelas: 3, bateria: 3, contrato: 4 };
 function dias(R) {
@@ -775,6 +757,17 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const IC_OK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const IC_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const IC_VOLTA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+/* Ícones de traço da última página */
+const ICO = {
+  ok: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  escudo: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v6c0 4.2-3 7.6-7 9-4-1.4-7-4.8-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+  livre: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4M10 13.5l4 4M14 13.5l-4 4"/></svg>',
+  cartao: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>',
+  pix: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l8.5 8.5-8.5 8.5L3.5 12z"/><path d="M8 12l4-4 4 4-4 4z"/></svg>',
+  infinito: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 8.5c-2-2-5.5-1-5.5 3.5s3.5 5.5 5.5 3.5L15.5 8.5c2-2 5.5-1 5.5 3.5s-3.5 5.5-5.5 3.5z"/></svg>',
+  marca: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 100 18c1 0 1.5-.7 1.5-1.5 0-1.2-1-1.5-1-2.5S13.3 15 14.5 15H17a4 4 0 004-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="11" cy="7.5" r="1.2"/><circle cx="15.5" cy="8.5" r="1.2"/></svg>',
+  foto: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.5-2.5h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>'
+};
 let R = {};
 const S = { i: 0, hist: [], timers: [], lock: false, opener: null, enviando: false, pagando: false, fimK: '' };
 const IDX = {};
@@ -826,28 +819,6 @@ function initCarr(root) {
 function depSlide(k) {
   const d = CARDS[k];
   return { src: 'depoimentos/' + d.f, alt: 'Depoimento de ' + (d.n ? d.n + ', ' : '') + d.e + ', ' + d.c, cap: '<span class="dep-cap"><img src="' + ASSET + 'logos/' + d.l + '.webp" alt="Logo da ' + esc(d.e) + '" loading="lazy"><span><b>' + esc(d.n || d.e) + '</b>' + esc((d.n ? d.e + ', ' : '') + d.c) + '</span></span>' };
-}
-function antesDepois(R) {
-  const plat = R.como_faz_hoje === 'plataforma', dist = R.como_faz_hoje === 'distribuidor';
-  const onde = { word: 'no Word ou à mão', planilha: 'na planilha', canva: 'no Canva', whatsapp: 'direto no WhatsApp', distribuidor: 'na ferramenta do distribuidor' }[R.como_faz_hoje] || 'no Word ou à mão';
-  const hoje = plat ? AD.plataforma.slice() : dist ? [AD.mao[1], AD.mao[2], AD.mao[4]] : AD.mao.slice();
-  if (plat && piso(R) >= 68) hoje.unshift('Você paga a partir de R$ ' + piso(R) + ' por mês.');
-  const li = (t, ic) => '<li>' + ic + '<span>' + esc(t) + '</span></li>';
-  return '<p class="rotulo" style="margin-top:18px">' + TXT.adTitulo + '</p><div class="antes"><div class="coluna-ad hoje"><h4>' + (plat ? 'Na plataforma que você já paga' : 'Hoje, ' + onde) + '</h4><ul>' + hoje.map((t) => li(t, IC_X)).join('') + '</ul></div><div class="coluna-ad sd"><h4>Com o SolarDoc</h4><ul>' + AD.sd.map((t) => li(t, IC_OK)).join('') + '</ul></div></div>';
-}
-/* "O que acontece depois que você paga": passos do cartão e, com a trava ligada, do Pix automático em duas abas */
-function depoisDePagar(pix, abrePix) {
-  const ol = (a) => '<ol class="passos3 simples">' + a.map((t) => '<li><div><span>' + esc(t) + '</span></div></li>').join('') + '</ol>';
-  let h = '<p class="sub-l" style="margin-top:16px">O que acontece depois que você paga</p>';
-  if (!pix) h += ol(PASSOS_CARTAO);
-  else {
-    const k = abrePix ? 'pix' : 'cartao';
-    const wa = pix === 'wa';
-    h += '<div class="abas" role="tablist" aria-label="Forma de pagamento">' + [['cartao', 'No cartão'], ['pix', wa ? 'No Pix' : 'No Pix automático']].map(([id, r]) => '<button type="button" class="aba" role="tab" id="aba-' + id + '" aria-selected="' + (id === k) + '" aria-controls="pn-' + id + '" data-a="aba" data-k="' + id + '">' + r + '</button>').join('') + '</div>'
-      + '<div id="pn-cartao" role="tabpanel" aria-labelledby="aba-cartao"' + (k === 'cartao' ? '' : ' hidden') + '>' + ol(PASSOS_CARTAO) + '</div>'
-      + '<div id="pn-pix" role="tabpanel" aria-labelledby="aba-pix"' + (k === 'pix' ? '' : ' hidden') + '>' + ol(wa ? PASSOS_PIX_WA : PASSOS_PIX) + '<p class="nota">' + esc(wa ? NOTA_PIX_WA : NOTA_PIX) + '</p></div>';
-  }
-  return h + '<p class="ajuda" style="margin-top:12px">' + esc(LINHA_APP) + '</p>';
 }
 function itemHTML(it, nota) {
   const falta = !it.tem, extra = nota === false ? '' : (nota || (falta && it.nota) || '');
@@ -964,30 +935,31 @@ const VIEW = {
     return { html: '<form data-form novalidate><h3 class="titulo" id="tit">' + TXT.g2Titulo + '</h3><p class="ajuda">' + TXT.g2Ajuda + '</p><input class="campo" id="campo-whats" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="(34) 99999-9999" value="' + esc(mascara(R.whats || '')) + '" aria-labelledby="tit"></form><p class="nota">' + esc(TXT.g2Consent).replace('Política de Privacidade', '<a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a>') + '</p>', rod: { txt: 'Ver meu plano', on: valido(PASSOS[S.i]) } };
   },
   plano() {
-    const pf = perfil(R), bt = botoes(R), cedo = pf.id === 'cedo';
-    const meta = { mesmas: 'as mesmas vendas, com menos esforço', dobro: 'o dobro das vendas de hoje', triplo: 'o triplo ou mais', primeiras: 'as primeiras vendas' }[R.meta_vendas];
-    let x = '<h3 class="titulo" id="tit">' + esc(R.nome || 'Cliente') + ', este é o plano ' + esc(daEmp(R)) + '.</h3>';
-    x += '<div class="cartao"><b>Índice ' + indice(R) + ' de 100</b><p>Perfil: ' + esc(pf.nome) + '. Cerca de ' + br(horas(R)) + ' h por mês em proposta.</p></div>';
-    const cf = confere(R);
-    x += '<div class="confere"><b>É isso mesmo?</b>' + cf.map((l, k) => '<p' + (k === cf.length - 1 ? ' class="fim"' : '') + '>' + esc(l) + '</p>').join('') + '</div>';
-    if (R.imagem || meta) x += '<p class="ajuda" style="margin-top:12px">' + (R.imagem ? 'Você quer que o cliente veja ' + esc('a ' + emp(R)) + ' como ' + esc(frase(rot(R, 'imagem'))) + '.' : '') + (meta ? ' Em 6 meses, você quer fechar ' + meta + '.' : '') + '</p>';
-    x += antesDepois(R);
-    x += '<p class="rotulo" style="margin-top:18px">Plano de 7 dias</p><div class="cartoes">' + dias(R).map((d) => '<div class="dia' + (d.prio ? ' prio' : '') + '"><div class="rotulo">Dia ' + d.n + (d.prio ? ' <span class="chip sd">Prioridade para você</span>' : '') + '</div><h3>' + esc(d.t) + '</h3><p>' + esc(d.x) + '</p></div>').join('') + '</div>';
-    x += '<img class="hero-img" src="' + ASSET + 'hero-orcamento.webp" alt="Orçamento do SolarDoc aberto no notebook e no celular" width="2800" height="1520" loading="lazy"><p class="nota">' + TXT.heroLegenda + '</p>';
-    const pix = pixAutoLigado() ? 'auto' : (R.pagamento === 'pix' && !cedo ? 'wa' : ''), rc = receios(R, pix);
-    if (!cedo) x += '<p class="rotulo" style="margin-top:20px">' + esc(rc.titulo) + '</p><p class="ajuda" style="margin-top:10px">' + esc(rc.intro) + '</p>' + rc.itens.map((it) => '<div class="receio"><b>' + esc(it.t) + '</b><p>' + esc(it.a) + '</p></div>').join('');
-    x += '<div class="oferta"><p class="rotulo">SolarDoc</p><p class="preco">R$ 67<small> por mês</small></p>' + (R.prioridade ? '<p><b>' + esc(rot(R, 'prioridade')) + ':</b> ' + ARG1[R.prioridade] + '</p>' : '') + '<ul class="checks">' + OFERTA_ITENS.map((t) => '<li><span class="ck">' + IC_OK + '</span><span>' + esc(t) + '</span></li>').join('') + '</ul>' + (cedo ? '' : depoisDePagar(pix, R.pagamento === 'pix')) + (cedo ? '<p>' + TXT.garantia + '</p><p>' + TXT.semFid + '</p>' : '') + (piso(R) >= 68 ? '<p><b>' + TXT.ofertaGasto(piso(R)) + '</b></p>' : '') + (cedo ? '<p class="nota">Sem CNPJ, o botão de compra não aparece. A Carla explica como usar o SolarDoc quando o seu sair.</p>' : '<p class="fecha"><b>' + esc(fechamento(R)[0]) + '</b></p><p class="fecha">' + esc(fechamento(R)[1]) + '</p>') + bt.map((b) => '<button type="button" class="' + (b.prim ? 'cta' : 'link-bt') + '" data-a="btn" data-k="' + b.k + '">' + esc(b.rot) + '</button>').join('') + (cedo ? '' : '<p class="nota micro">' + esc(MICRO_COMPRA) + '</p>') + '</div>';
-    x += '<div class="banda"><p class="rotulo">' + esc(ELETROPOSTO.t) + '</p><p class="ajuda" style="margin-top:10px">' + esc(ELETROPOSTO.x) + '</p></div>';
-    x += '<div class="banda"><p class="rotulo">' + TXT.cfTitulo + '</p><ol class="passos3">' + PASSOS3.map(([t, d]) => '<li><div><b>' + esc(t) + '</b><span>' + esc(d) + '</span></div></li>').join('') + '</ol></div>';
-    x += '<p class="rotulo" style="margin-top:20px">' + TXT.depTitulo + '</p>' + carrHTML(cardsTodos(R).map(depSlide), 'Depoimentos de integradores', 5000, 'quadrado');
+    /* Última página, direta: diagnóstico em 2 linhas, plano de 7 dias, o que recebe em figura, preço e botões. Sem saída para conversa. */
+    const pf = perfil(R), bt = botoes(R), cedo = pf.id === 'cedo', fr = pilarFraco(R), h = horas(R);
+    let x = '<h3 class="titulo" id="tit">' + esc((R.nome || '').trim() ? R.nome.trim() + ', seu plano está pronto.' : 'Seu plano está pronto.') + '</h3>';
+    x += '<div class="diag">' + anelSVG(indice(R), 100, 'Índice de Proposta: ' + indice(R) + ' de 100', 'peq') + '<div><b>' + esc(pf.nome) + '</b><p>Ponto fraco: ' + esc(fr.nome.toLowerCase()) + '.</p>' + (h > 0 ? '<p>' + esc(br(h)) + ' h por mês em proposta.</p>' : '') + '</div></div>';
+    x += '<p class="rotulo r2">Seus 7 dias</p><ol class="dias7">' + dias(R).map((d) => '<li' + (d.prio ? ' class="prio"' : '') + '><span class="dn">' + d.n + '</span><span class="dt">' + esc(d.t.replace(/\.$/, '')) + '</span>' + (d.prio ? '<span class="dp">Para você</span>' : '') + '</li>').join('') + '</ol>';
+    x += '<p class="rotulo r2">O que você recebe</p><div class="docs6">' + DOCS_GRADE.map(([f, t]) => '<figure><img src="' + ASSET + 'tela/' + f + '.webp" alt="' + esc(t) + ', folha real do SolarDoc" width="975" height="1550" loading="lazy" decoding="async"><figcaption>' + esc(t) + '</figcaption></figure>').join('') + '</div><p class="nota centro">E mais serviço, vendedor e vistoria. Com dados de exemplo.</p>';
+    x += '<ul class="fatos">' + FATOS.map(([ic, t, s]) => '<li>' + ICO[ic] + '<b>' + esc(t) + '</b><span>' + esc(s) + '</span></li>').join('') + '</ul>';
+    if (cedo) x += '<div class="oferta2 sem"><b>Sem CNPJ, ainda não dá para assinar.</b><p>O SolarDoc gera os documentos em nome da empresa. Seu diagnóstico fica salvo para quando o CNPJ sair.</p></div>';
+    else {
+      x += '<div class="oferta2" id="oferta"><p class="rotulo">SolarDoc completo</p><p class="preco">R$ 67<small>/mês</small></p>' + (piso(R) >= 68 ? '<p class="of-comp">Hoje você paga a partir de R$ ' + piso(R) + '.</p>' : '')
+        + '<ul class="of-ok"><li>' + ICO.ok + 'Documentos ilimitados</li><li>' + ICO.escudo + 'Garantia de 7 dias</li><li>' + ICO.livre + 'Sem fidelidade</li></ul>'
+        + bt.filter((b) => b.k !== 'socio').map((b) => '<button type="button" class="cta' + (b.prim ? '' : ' vazio') + '" data-a="btn" data-k="' + b.k + '">' + (b.k === 'cartao' ? ICO.cartao : ICO.pix) + esc(b.rot) + '</button>').join('')
+        + '<p class="nota centro">' + (pixAutoLigado() ? 'No Pix automático, o banco debita todo mês. ' : '') + 'Cancela quando quiser.</p></div>';
+      const pg = R.pagamento === 'pix' && pixAutoLigado() ? 'pix' : 'cartao';
+      x += '<p class="rotulo r2">Depois de pagar</p><ol class="passos-h">' + PASSOS_DEPOIS[pg].map((t) => '<li><span>' + esc(t) + '</span></li>').join('') + '</ol>';
+    }
+    bt.filter((b) => b.k === 'socio').forEach((b) => { x += '<button type="button" class="link-bt" data-a="btn" data-k="socio">' + esc(b.rot) + '</button>'; });
+    x += '<p class="rotulo r2">' + TXT.depTitulo + '</p>' + carrHTML(cardsTodos(R).map(depSlide), 'Depoimentos de integradores', 5000, 'quadrado');
     x += '<div class="faixa-conc"><p>' + TXT.concTitulo + '</p><div class="logos">' + CONC.map(([f, n]) => '<img src="' + ASSET + 'conc/' + f + '" alt="' + n + '" loading="lazy">').join('') + '</div></div>';
-    x += '<div class="banda"><p class="rotulo">Quem fez</p><h4 class="qf">' + TXT.qfTitulo + '</h4><div class="fundadores"><figure><img src="' + ASSET + 'founder-thiago.webp" alt="Thiago, sócio-fundador do SolarDoc" loading="lazy"><b>Thiago</b>Sócio-fundador</figure><figure><img src="' + ASSET + 'founder-diego.webp" alt="Diego, sócio-fundador do SolarDoc" loading="lazy"><b>Diego</b>Sócio-fundador</figure></div><p class="ajuda">' + TXT.qfTexto + '</p></div>';
-    /* A pergunta da objeção sobe ao topo e as 3 novas vêm logo depois dela */
-    const lista = FAQS.concat(faqsNovas(pix, cedo)), fi = FAQ_OBJ[R.objecao];
-    const novas = lista.map((q, i) => i).slice(FAQS.length), base = FAQS.map((q, i) => i);
-    if (fi !== undefined) base.splice(base.indexOf(fi), 1);
-    const seq = (fi !== undefined ? [fi] : []).concat(novas, base);
-    x += '<p class="rotulo" style="margin-top:20px">Perguntas frequentes</p>' + seq.map((i) => '<details class="faq"><summary>' + esc(lista[i].q) + '</summary><p>' + esc(lista[i].a) + '</p></details>').join('');
+    x += '<div class="quem"><span class="fotos"><img src="' + ASSET + 'founder-thiago.webp" alt="Thiago" width="44" height="44" loading="lazy"><img src="' + ASSET + 'founder-diego.webp" alt="Diego" width="44" height="44" loading="lazy"></span><p>' + esc(TXT.fundadores) + '</p></div>';
+    /* A pergunta da objeção sobe ao topo. Sem CNPJ não há compra, então sai a do acesso. */
+    const fi = FAQ_OBJ[R.objecao];
+    let seq = FAQS.map((q, i) => i).filter((i) => !(cedo && i === 4));
+    if (fi !== undefined && seq.includes(fi)) seq = [fi].concat(seq.filter((i) => i !== fi));
+    x += '<p class="rotulo r2">Perguntas</p>' + seq.map((i) => '<details class="faq"><summary>' + esc(FAQS[i].q) + '</summary><p>' + esc(FAQS[i].a) + '</p></details>').join('');
     x += '<p class="rodape-marca"><b>SolarDoc<span>.App</span></b> · Documentação solar com IA</p>';
     const pri = bt.find((b) => b.prim);
     return { html: x, rod: pri ? { txt: pri.rot, on: true, k: pri.k } : undefined };
@@ -1111,7 +1083,6 @@ const PASSO_NOME = { res: 'resultado', g1: 'nome', g2: 'whatsapp' };
 const idPasso = (s) => (s.tipo === 'q' ? s.id : PASSO_NOME[s.tipo]);
 const chaveDe = (i) => { const s = PASSOS[i]; return s.tipo === 'q' ? s.id : s.tipo; };
 const LS_KEY = 'sd-diagnostico-v1', VALIDADE = 14 * 24 * 3600 * 1000;
-const WHATS = '5534998165040';
 let E = { codigo: '', eventId: '', sig: '', ok: false, blocos: {}, fez: {} };
 const vistos = new Set(), respVistas = new Set(), errosVistos = new Set();
 
@@ -1300,13 +1271,13 @@ function pixForm(msg) {
   const rot = 'class="ajuda" style="display:block;margin:14px 0 0;font-weight:700;color:var(--texto)"';
   return '<form id="pix-form" novalidate><label ' + rot + ' for="pix-email">Seu e-mail</label><input class="campo" id="pix-email" name="email" type="email" inputmode="email" autocomplete="email" maxlength="120" value="' + esc(PIX.em) + '">'
     + '<label ' + rot + ' for="pix-doc">CPF ou CNPJ de quem paga</label><input class="campo" id="pix-doc" name="cpfcnpj" type="text" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="000.000.000-00" aria-describedby="pix-doc-dica pix-doc-erro" value="' + esc(mascDoc(PIX.doc)) + '">'
-    + '<p class="nota" id="pix-doc-dica">O Pix automático pede o CPF de quem paga. Você cancela quando quiser pelo app do banco.</p><p class="nota" id="pix-doc-erro" role="alert"></p>'
+    + '<p class="nota" id="pix-doc-dica">O banco pede o CPF de quem paga.</p><p class="nota" id="pix-doc-erro" role="alert"></p>'
     + '<p class="nota" id="pix-erro" role="alert">' + esc(msg || '') + '</p><button type="submit" class="cta" id="pix-gerar">Gerar o Pix</button></form>';
 }
 function abrirPixAuto(op) {
   pararPix();
   S.opener = op || null;
-  $('folha-in').innerHTML = '<h2 id="folha-t">Assinar no Pix automático</h2><p class="ajuda" id="pix-intro">R$ 67 por mês, debitado sozinho pelo seu banco. Você cancela quando quiser pelo app do banco.</p><div id="pix-corpo">' + pixForm('') + '</div><button type="button" class="pular" id="folha-fechar" data-a="fechar">Fechar</button>';
+  $('folha-in').innerHTML = '<h2 id="folha-t">Pix automático, R$ 67 por mês</h2><p class="ajuda" id="pix-intro">O banco debita sozinho. Cancela pelo app do banco.</p><div id="pix-corpo">' + pixForm('') + '</div><button type="button" class="pular" id="folha-fechar" data-a="fechar">Fechar</button>';
   $('folha').hidden = false;
   ($('pix-email').value ? $('pix-doc') : $('pix-email')).focus();
 }
@@ -1360,10 +1331,9 @@ function pixQr(j) {
   const img = /^[A-Za-z0-9+/=]+$/.test(j.qrImagemBase64 || '') ? '<img class="pix-qr" alt="QR Code do Pix automático" style="width:150px;margin:8px auto 4px" src="data:image/png;base64,' + esc(j.qrImagemBase64) + '"><p class="nota" style="text-align:center;margin-top:0">Ou leia o QR em outro aparelho</p>' : '';
   pixMostrar('<button type="button" class="cta" id="pix-copiar" data-a="pixcopiar" style="margin-top:14px">Copiar código Pix</button>'
     + (val ? '<p class="nota" id="pix-valido" style="text-align:center;margin:8px 0 0">Este código vale até ' + esc(val) + '</p>' : '')
-    + '<p class="ajuda" style="margin:14px 0 4px">1. Toque em Copiar código Pix.</p><p class="ajuda" style="margin:0 0 4px">2. No app do seu banco, escolha Pix copia e cola.</p><p class="ajuda" style="margin:0 0 4px">3. Cole o código e autorize o Pix automático.</p>'
-    + '<label class="ajuda" for="pix-codigo" style="display:block;margin:12px 0 0;font-weight:700;color:var(--texto)">Pix copia e cola</label><textarea class="msg" id="pix-codigo" readonly rows="4">' + esc(j.qrPayload) + '</textarea>'
-    + img
-    + '<p class="nota" id="pix-st" role="status">Esperando o pagamento.</p>');
+    + '<ol class="pix-passos"><li>Copie o código.</li><li>No banco, abra o Pix copia e cola.</li><li>Cole e autorize o Pix automático.</li></ol>'
+    + '<p class="pix-st" id="pix-st" role="status"><span class="spin" aria-hidden="true"></span>Esperando o pagamento</p>'
+    + '<details class="pix-mais"' + (window.matchMedia('(pointer: fine)').matches ? ' open' : '') + '><summary>Ver o código ou o QR</summary><label class="vh" for="pix-codigo">Pix copia e cola</label><textarea class="msg" id="pix-codigo" readonly rows="3">' + esc(j.qrPayload) + '</textarea>' + img + '</details>');
   const intro = $('pix-intro'); if (intro) intro.hidden = true;
   SDR.evento('pix_gerou', { modo: 'automatico', contrato: j.id || null });
   if (j.id) { fb('track', 'InitiateCheckout', { content_name: 'vip_pix_auto', value: 67, currency: 'BRL' }); pixEsperar(String(j.id)); }
@@ -1395,19 +1365,11 @@ function pixCopiar() {
   const sel = () => { ta.focus(); ta.select(); try { if (document.execCommand('copy')) ok(); } catch (e) { /* o texto fica selecionado para copiar à mão */ } };
   try { navigator.clipboard.writeText(ta.value).then(ok, sel); } catch (e) { sel(); }
 }
-/* Abre o wa.me da 5040 com a mensagem pronta MSG[k] (com o código do quiz). Só abre: quem chama decide o que registrar. */
-function abrirWhats(k) {
-  if (!E.codigo) E.codigo = SDR.codigoLocal();
-  const url = 'https://wa.me/' + WHATS + '?text=' + encodeURIComponent(MSG[k](E.codigo));
-  const w = window.open(url, '_blank');
-  if (w) { try { w.opener = null; } catch (err) { /* sem acesso */ } } else window.location.href = url;
-}
 function acaoFinal(k, el) {
   if (k !== S.fimK) { S.fimK = k; SDR.evento('quiz_fim', { destino: k }); }
   if (k === 'cartao') { assinarCartao(); return; }
   if (k === 'pix_auto' && pixAutoLigado()) { abrirPixAuto(el); return; }
-  if (k === 'socio') { abrirFolha('socio', el); return; }
-  abrirWhats(k);
+  if (k === 'socio') abrirFolha('socio', el);
 }
 $('app').addEventListener('click', (e) => {
   if (e.target === $('folha')) { fecharFolha(); return; }
