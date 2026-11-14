@@ -531,10 +531,7 @@ const PERFIS = [
   { id: 'informa', nome: 'Proposta que informa', frase: 'Sua proposta traz as informações. Falta ela convencer o cliente sozinha.', teste: () => true }
 ];
 const MSG = {
-  carla: (c) => 'Quero saber como usar o SolarDoc quando meu CNPJ sair. Meu código é ' + c + '.',
-  duvida: (c) => 'Quero saber mais sobre o SolarDoc. Fiz o diagnóstico, meu código é ' + c + '.',
-  pix: (c) => 'Quero saber como assinar o SolarDoc no Pix. Meu código é ' + c + '.',
-  pixajuda: (c) => 'Oi, Carla! Gerei meu Pix da SolarDoc e quero ajuda para ativar. Código ' + c
+  pix: (c) => 'Quero saber como assinar o SolarDoc no Pix. Meu código é ' + c + '.'
 };
 /* Formatação */
 const br = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
@@ -602,10 +599,9 @@ function pixAutoLigado() {
 }
 function botoes(R) {
   const pf = perfil(R).id, b = [];
-  /* Com CNPJ o cartão. Quem marcou Pix vê antes o Pix pelo WhatsApp (a pessoa escreve primeiro e recebe o copia e cola), ou o Pix automático quando a trava estiver ligada. Quem não compra, a Carla chama no WhatsApp 15 min depois. Sem CNPJ a Carla é a única saída. */
+  /* Com CNPJ o cartão. Quem marcou Pix vê antes o Pix pelo WhatsApp (a pessoa escreve primeiro e recebe o copia e cola), ou o Pix automático quando a trava estiver ligada. Quem não compra, a Carla chama no WhatsApp 15 min depois. Sem CNPJ não há botão de compra e a tela termina sem botão: o quiz não tem saída para conversar com a Carla. */
   if (pf === 'cedo') {
-    b.push({ k: 'carla', rot: 'Falar com a Carla', prim: true });
-    b.push({ k: 'duvida', rot: 'Tirar uma dúvida no WhatsApp' });
+    /* sem CNPJ não há compra: nenhum botão */
   } else if (pixAutoLigado()) {
     const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_auto', rot: 'Pagar no Pix' };
     if (R.pagamento === 'pix') { pix.prim = true; b.push(pix, cartao); } else { cartao.prim = true; b.push(cartao, pix); }
@@ -1364,7 +1360,6 @@ function pixQr(j) {
   const img = /^[A-Za-z0-9+/=]+$/.test(j.qrImagemBase64 || '') ? '<img class="pix-qr" alt="QR Code do Pix automático" style="width:150px;margin:8px auto 4px" src="data:image/png;base64,' + esc(j.qrImagemBase64) + '"><p class="nota" style="text-align:center;margin-top:0">Ou leia o QR em outro aparelho</p>' : '';
   pixMostrar('<button type="button" class="cta" id="pix-copiar" data-a="pixcopiar" style="margin-top:14px">Copiar código Pix</button>'
     + (val ? '<p class="nota" id="pix-valido" style="text-align:center;margin:8px 0 0">Este código vale até ' + esc(val) + '</p>' : '')
-    + '<button type="button" class="cta vazio" id="pix-carla" data-a="pixajuda" style="margin-top:10px">Falar com a Carla no WhatsApp</button>'
     + '<p class="ajuda" style="margin:14px 0 4px">1. Toque em Copiar código Pix.</p><p class="ajuda" style="margin:0 0 4px">2. No app do seu banco, escolha Pix copia e cola.</p><p class="ajuda" style="margin:0 0 4px">3. Cole o código e autorize o Pix automático.</p>'
     + '<label class="ajuda" for="pix-codigo" style="display:block;margin:12px 0 0;font-weight:700;color:var(--texto)">Pix copia e cola</label><textarea class="msg" id="pix-codigo" readonly rows="4">' + esc(j.qrPayload) + '</textarea>'
     + img
@@ -1430,7 +1425,6 @@ $('app').addEventListener('click', (e) => {
   else if (a === 'btn') acaoFinal(t.getAttribute('data-k'), t);
   else if (a === 'copiar') copiar(resumo(R));
   else if (a === 'pixcopiar') pixCopiar();
-  else if (a === 'pixajuda') { SDR.evento('pix_ajuda_whatsapp', { modo: 'automatico' }); abrirWhats('pixajuda'); }
   else if (a === 'fechar') fecharFolha();
   else if (a === 'fecharmesmo') fecharFolhaJa();
   else if (a === 'voltarpix') voltarPix();
