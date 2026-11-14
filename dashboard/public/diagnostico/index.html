@@ -258,11 +258,6 @@ details.faq p{margin:0 0 12px;color:var(--mudo)}
 .carr-pontos{display:flex;gap:6px;align-items:center}
 .carr-pontos i{display:block;width:7px;height:7px;border-radius:4px;background:var(--borda-forte);transition:width .2s}
 .carr-pontos i.on{width:18px;background:var(--acao)}
-.esteira{overflow:hidden;margin:12px 0 2px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
-.esteira-in{display:flex;gap:10px;width:max-content;animation:esteira 30s linear infinite}
-.esteira figure{margin:0;width:62px;text-align:center;font-size:.66rem;font-weight:700;color:var(--mudo)}
-.esteira img{display:block;width:62px;height:auto;border-radius:6px;border:1px solid var(--borda);background:var(--logo-fundo);margin-bottom:4px}
-@keyframes esteira{to{transform:translateX(-50%)}}
 .hero-img{display:block;width:100%;height:auto;margin:12px 0 4px}
 .item .ver-bt{flex:none;min-height:36px;padding:0 10px;border-radius:9px;border:1.5px solid var(--acao);background:transparent;color:var(--texto);font-weight:700;font-size:.8rem;cursor:pointer}
 .antes{display:grid;gap:10px;margin:10px 0 4px}
@@ -312,7 +307,6 @@ details.faq p{margin:0 0 12px;color:var(--mudo)}
 .op.uf b{font-size:1.1rem}
 .op.uf small{display:none}
 .op[aria-disabled="true"]{opacity:.45}
-.esteira-in{padding-right:10px}
 .carr-bt{width:44px;height:44px}
 .item .ver-bt{min-height:44px}
 details.faq summary{padding-block:12px;gap:12px;list-style:none}
@@ -321,7 +315,9 @@ details.faq summary::after{content:"+";margin-left:auto;font-weight:800;font-siz
 details.faq[open] summary::after{content:"\2212"}
 /* Logo do cliente em cada depoimento */
 .dep-cap{display:flex;align-items:center;gap:10px}
-.carr-slide .dep-cap img{flex:none;width:48px;height:48px;object-fit:contain;border-radius:10px;background:var(--logo-fundo);border:1px solid var(--borda);padding:5px}
+.carr-slide .dep-cap img{flex:none;width:48px;height:48px;object-fit:contain;border-radius:10px;background:var(--cartao);border:1px solid var(--borda-forte);padding:5px}
+/* O fundo branco da logo só entra quando ela carrega: antes disso era um quadrado branco vazio */
+.carr-slide .dep-cap img.ok{background:var(--logo-fundo);border-color:var(--borda)}
 .dep-cap>span{min-width:0}
 /* Componentes da landing: botão em degradê com brilho, rótulo em pílula, título com fecho em degradê, faixas alternadas */
 .titulo{letter-spacing:-.02em}
@@ -338,8 +334,7 @@ details.faq[open] summary::after{content:"\2212"}
 .marca-topo img{display:block;width:26px;height:26px;border-radius:7px}
 .marca-topo b{color:var(--marca);font-weight:800}
 .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--marca);background:var(--acao-suave);border:1px solid var(--acao-borda);margin-top:4px}
-.eyebrow i{width:7px;height:7px;border-radius:50%;background:var(--marca);animation:pulsa 1.6s ease-in-out infinite}
-@keyframes pulsa{50%{opacity:.35}}
+.eyebrow i{width:7px;height:7px;border-radius:50%;background:var(--marca)}
 .cartao .big,.oferta .preco{background:var(--acao-grad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
 .oferta{border:2px solid var(--marca);background:var(--faixa);box-shadow:0 30px 60px var(--acao-suave)}
 .banda{margin:22px -20px;padding:20px;background:var(--faixa);border-block:1px solid var(--borda)}
@@ -379,6 +374,21 @@ body{min-height:100vh;min-height:100dvh;overflow:hidden}
 .folha-in .cta+.pular{margin-top:6px}
 /* O PNG da Enel tem 94% de margem transparente: sobe a altura e puxa a margem para a marca ficar do tamanho das outras */
 .faixa-conc .logos img[src$="/enel.png"]{height:64px;margin:-20px -18px}
+/* Retorno no topo da pergunta (14/11): as pausas entre blocos viraram a abertura da pergunta seguinte, sem botão Continuar */
+.retorno{margin:4px 0 18px;padding-bottom:18px;border-bottom:1px solid var(--borda)}
+.ret-t{display:flex;align-items:center;gap:10px;margin:4px 0 6px;font-size:1.2rem;line-height:1.25;font-weight:800;outline:none}
+.ret-t .ic{width:24px;height:24px;color:var(--tem)}
+.retorno .ajuda{margin:0;font-size:.95rem}
+.retorno .grafico{margin:10px 0 0}
+.retorno .nota{margin:6px 0 0}
+.retorno .itens{margin:10px 0}
+.retorno .carr{margin:12px 0 0}
+.retorno .carr.quadrado .carr-slide{flex-basis:64%}
+.retorno .carr-nav{margin-top:4px}
+.retorno .fp{margin:10px 0 8px}
+.retorno .fp svg{display:block;width:100%;height:48px}
+@media (min-width:520px){.retorno .carr.quadrado .carr-slide{flex-basis:52%}}
+.retorno + .titulo,.retorno + .abertura{margin-top:0}
 /* Última página direta (14/11): diagnóstico curto, figuras no lugar de parágrafo, oferta enxuta */
 .r2{margin-top:26px!important}
 .diag{display:flex;align-items:center;gap:16px;margin:12px 0 4px;padding:14px 16px;border:1.5px solid var(--borda);border-radius:16px;background:var(--cartao)}
@@ -415,8 +425,6 @@ body{min-height:100vh;min-height:100dvh;overflow:hidden}
 .oferta2 .cta.vazio{box-shadow:none;background:transparent;border:2px solid var(--borda-forte);color:var(--texto)}
 .oferta2 .cta.vazio:hover{border-color:var(--acao);transform:none}
 .oferta2 .nota{margin:12px 0 0}
-.oferta2.sem{text-align:left;box-shadow:none;border-color:var(--borda-forte)}
-.oferta2.sem p{margin:6px 0 0;color:var(--mudo)}
 .passos-h{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;counter-reset:ph}
 .passos-h li{position:relative;counter-increment:ph;text-align:center;font-size:.86rem;font-weight:700;line-height:1.3}
 .passos-h li::before{content:counter(ph);display:grid;place-items:center;width:34px;height:34px;margin:0 auto 8px;border-radius:50%;background:var(--acao-grad);color:var(--sobre-acao);font-weight:800;position:relative;z-index:1}
@@ -463,28 +471,23 @@ const PASSOS = [
   Q(6, 'propostas_mes', 1, 'Quantas propostas você faz por mês?', { aj: 'Conte todas, até as que não fecharam.', ops: [o('ate5', 'Até 5', 3), o('6a15', 'De 6 a 15', 10), o('16a30', 'De 16 a 30', 23), o('mais30', 'Mais de 30', 40)] }),
   Q(7, 'vendas_mes', 1, 'Quantas dessas viram venda por mês?', { ops: [o('v0', 'Nenhuma ainda', 0), o('v1a2', '1 ou 2', 1.5), o('v3a5', 'De 3 a 5', 4), o('v6a10', 'De 6 a 10', 8), o('mais10', 'Mais de 10', 12)] }),
   Q(8, 'ticket', 1, 'Quanto vale, em média, um sistema que você vende?', { ops: [o('ate15', 'Até R$ 15 mil', 12000), o('15a30', 'De R$ 15 mil a R$ 30 mil', 22000), o('30a60', 'De R$ 30 mil a R$ 60 mil', 45000), o('mais60', 'Mais de R$ 60 mil', 80000)] }),
-  { tipo: 'i1', bl: 1 },
-  Q(9, 'como_faz_hoje', 2, 'Como você monta suas propostas hoje?', { ops: [o('word', 'No Word ou no PowerPoint'), o('planilha', 'Numa planilha'), o('canva', 'No Canva'), o('plataforma', 'Numa plataforma ou CRM pago'), o('distribuidor', 'Na ferramenta do distribuidor'), o('whatsapp', 'Mando os valores direto no WhatsApp')] }),
+  Q(9, 'como_faz_hoje', 2, 'Como você monta suas propostas hoje?', { antes: 'i1', ops: [o('word', 'No Word ou no PowerPoint'), o('planilha', 'Numa planilha'), o('canva', 'No Canva'), o('plataforma', 'Numa plataforma ou CRM pago'), o('distribuidor', 'Na ferramenta do distribuidor'), o('whatsapp', 'Mando os valores direto no WhatsApp')] }),
   Q(10, 'gasto_ferramenta', 2, 'Quanto você gasta por mês com ferramenta para fazer proposta?', { ops: [o('nada', 'Nada', 0), o('ate67', 'Até R$ 67', 0), o('g68a150', 'De R$ 68 a R$ 150', 68), o('g151a300', 'De R$ 151 a R$ 300', 151), o('mais300', 'Mais de R$ 300', 301)] }),
   Q(11, 'tempo_por_proposta', 2, 'Quanto tempo leva para montar uma proposta completa?', { pil: 'Velocidade', ops: [o('t15', 'Até 15 minutos', 10, 10), o('t30', 'De 15 a 30 minutos', 22, 7), o('t60', 'De 30 minutos a 1 hora', 45, 4), o('t120', 'De 1 a 2 horas', 90, 2), o('tmais', 'Mais de 2 horas', 150, 0)] }),
   Q(12, 'quando_monta', 2, 'Quando você costuma montar as propostas?', { pil: 'Velocidade', ops: [pt('expediente', 'No horário de trabalho', 3), pt('rua', 'No celular, entre uma visita e outra', 2), pt('sobra', 'Quando sobra tempo', 1), pt('noite', 'À noite ou no fim de semana', 0)] }),
   Q(13, 'demora_envio', 2, 'Depois da visita, em quanto tempo o cliente recebe a proposta?', { pil: 'Velocidade', ops: [pt('nahora', 'Na hora, ainda na visita', 8), pt('mesmodia', 'No mesmo dia', 6), pt('d1a2', 'Em 1 ou 2 dias', 3), pt('d3', 'Em 3 dias ou mais', 0)] }),
-  { tipo: 'e1', bl: 2 },
-  Q(14, 'perdeu_venda', 2, 'Você já perdeu venda para alguém que mandou a proposta antes?', { ops: [o('varias', 'Sim, várias vezes'), o('algumas', 'Uma ou duas vezes'), o('naosei', 'Não sei dizer'), o('nunca', 'Nunca')] }),
+  Q(14, 'perdeu_venda', 2, 'Você já perdeu venda para alguém que mandou a proposta antes?', { antes: 'e1', ops: [o('varias', 'Sim, várias vezes'), o('algumas', 'Uma ou duas vezes'), o('naosei', 'Não sei dizer'), o('nunca', 'Nunca')] }),
   Q(15, 'cliente_entende', 2, 'Quando o cliente lê a sua proposta, ele entende quanto vai economizar?', { pil: 'Clareza', ops: [pt('sozinho', 'Entende sozinho', 8), pt('explico', 'Entende depois que eu explico', 5), pt('confuso', 'Fica confuso com os números', 1), pt('preco', 'Ele só olha o preço', 0)] }),
   Q(16, 'erro_proposta', 2, 'Já saiu proposta com erro de valor, de nome ou de formatação?', { pil: 'Imagem', ops: [pt('caro', 'Sim, e me custou caro', 0), pt('atempo', 'Sim, mas percebi a tempo', 3), pt('quase', 'Quase', 5), pt('nunca', 'Nunca', 8)] }),
   Q(17, 'papelada', 2, 'E a papelada depois do sim, como contrato, procuração e recibo?', { pil: 'Papelada', ops: [pt('luta', 'Dá muito trabalho', 0), pt('viro', 'Dá trabalho, mas eu me viro', 5), pt('modelo', 'É tranquilo, tenho modelo pronto', 12), pt('outro', 'Outra pessoa cuida disso', 8)] }),
-  { tipo: 'i2', bl: 2 },
-  Q(19, 'tempo_livre', 3, 'Se você ganhasse tempo na semana, o que faria com ele?', { ops: [o('visitas', 'Faria mais visitas'), o('posvenda', 'Cuidaria de quem já comprou'), o('familia', 'Ficaria mais com a família'), o('cidade_nova', 'Abriria uma cidade nova')] }),
+  Q(19, 'tempo_livre', 3, 'Se você ganhasse tempo na semana, o que faria com ele?', { antes: 'i2', ops: [o('visitas', 'Faria mais visitas'), o('posvenda', 'Cuidaria de quem já comprou'), o('familia', 'Ficaria mais com a família'), o('cidade_nova', 'Abriria uma cidade nova')] }),
   Q(21, 'fechar_primeira', 3, 'O que ajudaria você a fechar já na primeira reunião?', { kind: 'multi', max: 3, aj: 'Marque até 3.', ops: [o('nahora', 'Proposta pronta na hora, no celular'), o('retorno', 'Gráfico de economia e retorno'), o('parcelas', 'Parcelas do financiamento na proposta'), o('bateria', 'Opção com bateria na mesma proposta'), o('contrato', 'Contrato pronto para assinar'), o('marca', 'Proposta com a minha marca')] }),
   Q(23, 'frase', 3, 'Você se identifica com esta frase?', { destaque: 'Eu perco venda por demora e por proposta que não convence.', ops: [o('muito', 'Muito'), o('pouco', 'Um pouco'), o('nao', 'Não')] }),
-  { tipo: 'i3', bl: 3 },
-  Q(24, 'tem_marca', 4, 'A sua proposta sai com a sua logo e as cores da empresa?', { pil: 'Imagem', ab: ABRE4, ops: [pt('sim', 'Sim', 9), pt('asvezes', 'Às vezes', 4), pt('nao', 'Não', 0)] }),
+  Q(24, 'tem_marca', 4, 'A sua proposta sai com a sua logo e as cores da empresa?', { antes: 'i3', pil: 'Imagem', ab: ABRE4, ops: [pt('sim', 'Sim', 9), pt('asvezes', 'Às vezes', 4), pt('nao', 'Não', 0)] }),
   Q(25, 'mostra_economia', 4, 'Ela mostra a economia mês a mês e em quanto tempo o sistema se paga?', { pil: 'Clareza', ab: ABRE4, ops: [pt('sim', 'Sim, as duas coisas', 7), pt('so_total', 'Só o valor total', 3), pt('nao', 'Não', 0)] }),
   Q(26, 'economia_25', 4, 'Ela mostra quanto o cliente economiza em 25 anos?', { pil: 'Clareza', ab: ABRE4, ops: [pt('sim', 'Sim', 5), pt('nao', 'Não', 0), pt('naosei', 'Não sei', 0)] }),
   Q(27, 'financiamento', 4, 'Ela mostra as parcelas do financiamento?', { pil: 'Clareza', ab: ABRE4, ops: [pt('sim', 'Sim', 5), pt('aparte', 'Faço à parte', 2), pt('nao', 'Não', 0)] }),
-  { tipo: 'e2', bl: 4 },
-  Q(28, 'usa_conta', 4, 'Como os dados da conta de luz entram na proposta?', { pil: 'Velocidade', ab: ABRE4, ops: [pt('foto', 'Por foto ou leitura automática', 4), pt('digito', 'Eu digito tudo', 2), pt('nao', 'Não uso a conta', 0)] }),
+  Q(28, 'usa_conta', 4, 'Como os dados da conta de luz entram na proposta?', { antes: 'e2', pil: 'Velocidade', ab: ABRE4, ops: [pt('foto', 'Por foto ou leitura automática', 4), pt('digito', 'Eu digito tudo', 2), pt('nao', 'Não uso a conta', 0)] }),
   Q(29, 'contrato_pronto', 4, 'Você leva o contrato pronto para assinar na primeira reunião?', { pil: 'Papelada', ab: ABRE4, ops: [pt('sim', 'Sim', 13), pt('depois', 'Só mando depois', 5), pt('nao', 'Não uso contrato', 0)] }),
   Q(30, 'modelos', 4, 'Você tem um modelo de proposta para cada tipo de cliente?', { pil: 'Imagem', aj: 'Por exemplo: casa, comércio e banco.', ab: ABRE4, ops: [pt('sim', 'Sim', 8), pt('mesmo', 'Uso o mesmo para todos', 3), pt('nao', 'Não tenho modelo', 0)] }),
   Q(31, 'followup', 4, 'Depois de mandar a proposta, você chama o cliente de novo?', { ab: ABRE4, ops: [o('rotina', 'Sim, tenho uma rotina'), o('lembro', 'Quando eu lembro'), o('nao', 'Não chamo')] }),
@@ -495,7 +498,7 @@ const PASSOS = [
   Q(34, 'logo', 5, 'Você já tem a logo da empresa em arquivo?', { ops: [o('sim', 'Sim'), o('achar', 'Tenho, mas preciso achar'), o('nao', 'Ainda não tenho')] }),
   Q(35, 'decisor', 5, 'Quem decide a compra de uma ferramenta na sua empresa?', { ops: [o('eu', 'Eu'), o('socio', 'Eu e meu sócio'), o('chefe', 'Meu chefe')] }),
   Q(36, 'objecao', 5, 'O que poderia te impedir de começar hoje?', { ops: [o('preco', 'O preço'), o('ja_uso', 'Já uso outra ferramenta'), o('aprender', 'Medo de perder tempo aprendendo'), o('validade', 'Dúvida se os documentos têm validade'), o('online', 'Receio de pagar pela internet'), o('nada', 'Nada, quero começar')] }),
-  Q(37, 'pagamento', 5, 'Como você prefere pagar?', { cond: (R) => R.cnpj === 'sim' || R.cnpj === 'empregador', ops: [o('cartao', 'Cartão de crédito'), o('pix', 'Pix')] }),
+  Q(37, 'pagamento', 5, 'Como você prefere pagar?', { ops: [o('cartao', 'Cartão de crédito'), o('pix', 'Pix')] }),
   Q(38, 'quando_comecar', 5, 'Quando você quer mandar a primeira proposta pelo SolarDoc?', { ops: [o('hoje', 'Hoje'), o('semana', 'Esta semana'), o('mes', 'Este mês'), o('pesquisando', 'Só estou pesquisando')] }),
   { tipo: 'g1', bl: 0 },
   { tipo: 'g2', bl: 0 },
@@ -513,8 +516,7 @@ const TXT = {
   capaTexto: '<b>Grátis.</b> No fim, você recebe:', capaItens: ['O seu Índice de Proposta', 'As horas por mês que vão para proposta', 'Um plano de 7 dias para ganhar tempo'],
   capaRodape: 'Clientes do SolarDoc. <b>3.370 propostas</b> já saíram daqui.', capaRot: { engenheiro: 'Sou engenheiro ou projetista' },
   i1Alto: 'Você faz mais propostas que o típico do SolarDoc.', i1Baixo: 'Com poucas propostas, cada uma precisa convencer sozinha.', i1Meio: 'Você está perto de quem usa o SolarDoc.',
-  i1Texto: (n) => 'No SolarDoc, o integrador típico faz ' + TIPICO + ' propostas por mês. Os 10% que mais usam fazem ' + TOPO + ' ou mais. Você faz cerca de ' + n + ' propostas por mês.',
-  i1Nota: 'Números de quem usou o SolarDoc nos últimos 30 dias.',
+  i1Nota: 'Propostas por mês, de quem usou o SolarDoc nos últimos 30 dias.',
   e1Titulo: 'Anotado.', e1Texto: (t, d) => 'Você leva ' + t + ' por proposta. O cliente recebe a proposta ' + d + '. Isso entra no seu índice. Faltam 4 perguntas deste bloco.',
   i2Titulo: 'Outros integradores já passaram por isso.',
   i3Titulo: (e) => 'Veja como fica a proposta ' + e + '.', i3Texto: 'Com a sua logo, a sua cor e a conta do cliente lida por foto.',
@@ -528,23 +530,12 @@ const TXT = {
   g2Consent: 'Ao continuar, você concorda em receber contato da SolarDoc sobre este diagnóstico, conforme a Política de Privacidade.',
   socio: 'Copiar resumo para quem decide',
   i2SubMao: 'Eles também faziam na mão. Contam o que mudou.', i2SubPlat: 'Eles também pagavam outra plataforma. Contam o que mudou.', i2SubOutros: 'Eles contam o que mudou na venda.',
-  i3Carr: 'É isso que sai quando você clica em gerar.', i3Nota: 'Folhas reais do SolarDoc, com os dados de um cliente de exemplo.',
   depTitulo: '11 integradores contam como é.', concTitulo: 'Procuração pronta para as principais concessionárias.',
   fundadores: 'Feito pelo Thiago e pelo Diego, irmãos que vendem energia solar.'
 };
 /* Última página: o que a pessoa recebe, em figura. Folhas reais do SolarDoc com dados de exemplo. */
 const DOCS_GRADE = [['doc-proposta-a4-mobile', 'Orçamento'], ['doc-proposta-mobile', 'Proposta'], ['doc-contrato-mobile', 'Contrato'], ['doc-procuracao-mobile', 'Procuração'], ['doc-recibo-mobile', 'Recibo'], ['doc-banco-mobile', 'Banco']];
 const FATOS = [['infinito', 'Ilimitado', 'documentos no mês'], ['marca', 'Sua logo', 'e sua cor em tudo'], ['foto', 'Conta de luz', 'lida por foto']];
-/* Material real da landing (legendas literais, sem travessão). Na produção, os mesmos arquivos em caminho absoluto. */
-const FOLHAS = [
-  { src: 'tela/doc-proposta-a4-mobile.webp', t: 'Orçamento de 1 página', x: 'Investimento, economia mensal e tempo de retorno numa folha só, pronta pro WhatsApp.' },
-  { src: 'tela/doc-proposta-mobile.webp', t: 'Proposta comercial', x: 'Economia em 25 anos, conta antes e depois e geração mês a mês, na marca da empresa.' },
-  { src: 'tela/doc-contrato-mobile.webp', t: 'Contrato de compra e venda', x: 'Partes, equipamentos, prazos e garantias já escritos. Você só confere e envia.' },
-  { src: 'tela/doc-procuracao-mobile.webp', t: 'Procuração pra concessionária', x: 'Com UC, concessionária e os poderes certos, no padrão que passa de primeira.' },
-  { src: 'tela/doc-recibo-mobile.webp', t: 'Recibo de pagamento', x: 'Lança as parcelas e ele calcula sozinho o que o cliente já pagou e o que falta.' },
-  { src: 'tela/doc-banco-mobile.webp', t: 'Proposta pro banco financiar', x: 'No formato que a financeira pede: equipamento, mão de obra e valor total separados.' },
-  { src: 'tela/doc-vistoria-mobile.webp', t: 'Checklist de vistoria', x: 'A folha que vai pra obra: consumo, padrão, telhado, fotos e conclusão da visita.' }
-];
 /* Cartão real de cada depoimento e a logo que o próprio cliente usa nos documentos dele (a mesma da landing, L:175-238) */
 const CARDS = {
   alessandro: { f: 'card-alessandro-forca-solar.jpg', n: 'Alessandro Goulart', e: 'Força Solar', c: 'Feliz/RS', l: 'forca-solar' },
@@ -563,7 +554,6 @@ const GRUPO_TOOL = { word: 'braco', planilha: 'braco', canva: 'braco', whatsapp:
 const CARD_GRUPO = { braco: ['alessandro', 'gedalih', 'carlos', 'ronailson'], plataforma: ['juliano', 'vanderlei', 'vicente', 'antonio', 'eduardo'], distribuidor: ['lucas', 'gsi'] };
 const cardsDe = (R) => CARD_GRUPO[GRUPO_TOOL[R.como_faz_hoje] || 'braco'];
 const cardsTodos = (R) => { const a = cardsDe(R); return a.concat(Object.keys(CARDS).filter((k) => !a.includes(k))); };
-const LOGOS = [['alves-cardoso-solar', 'Alves Cardoso Solar'], ['american-energy-solar', 'American Energy Solar'], ['eclipse-solar', 'Eclipse Solar'], ['exxel-solar', 'Exxel Solar'], ['forca-solar', 'Força Solar'], ['gedalih-energia-solar', 'Gedalih Energia Solar'], ['grilo-energia', 'Grilo Energia Solar'], ['gsi-solucoes', 'GSI Energia Solar'], ['rsc-solar', 'RSC Solar'], ['vff-energia-solar', 'VFF Energia Solar'], ['vs-solar', 'VS Solar']];
 const CONC = [['cemig.svg', 'CEMIG'], ['enel.png', 'Enel'], ['cpfl.png', 'CPFL'], ['equatorial.png', 'Equatorial'], ['energisa.png', 'Energisa'], ['light.png', 'Light']];
 const FAQS = [
   { q: 'Tem plano mais barato?', a: 'Não. É um preço só, com tudo liberado.' },
@@ -587,7 +577,7 @@ const ITENS = [
   { q: 'followup', ok: 'rotina', rot: 'Chamar o cliente de novo depois da proposta', selo: 'voce' }
 ];
 const PERFIS = [
-  { id: 'cedo', nome: 'Ainda não é a hora', frase: 'O SolarDoc gera documentos em nome de uma empresa com CNPJ. Seu diagnóstico fica de guia para quando você abrir a sua.', teste: (R) => R.cnpj === 'abrindo' || R.cnpj === 'nao' },
+  { id: 'cedo', nome: 'Começando sem CNPJ', frase: 'Você ainda não tem CNPJ. Dá para assinar hoje do mesmo jeito, no cartão ou no Pix automático.', teste: (R) => R.cnpj === 'abrindo' || R.cnpj === 'nao' },
   { id: 'grande', nome: 'Operação grande', frase: 'Com esse volume, cada minuto por proposta pesa no mês inteiro.', teste: (R) => R.propostas_mes === 'mais30' },
   { id: 'caro', nome: 'Pagando caro pela proposta', frase: 'Você já gasta mais de R$ 67 por mês com ferramenta de proposta. O SolarDoc custa R$ 67.', teste: (R) => piso(R) >= 151 || (piso(R) >= 68 && R.como_faz_hoje === 'plataforma') },
   { id: 'comecando', nome: 'Começando agora', frase: 'A proposta é a primeira impressão que o cliente tem de você. Ela precisa passar confiança.', teste: (R) => R.papel === 'comecando' || R.vendas_mes === 'v0' },
@@ -613,16 +603,18 @@ const visivel = (s, R) => !s.cond || s.cond(R);
 const proximo = (i, R) => { let j = i + 1; while (j < PASSOS.length && !visivel(PASSOS[j], R)) j++; return j; };
 const qtdBloco = (b, R) => PASSOS.filter((s) => s.tipo === 'q' && s.bl === b && visivel(s, R)).length;
 const posBloco = (i, R) => PASSOS.filter((s, j) => j < i && s.tipo === 'q' && s.bl === PASSOS[i].bl && visivel(s, R)).length;
-/* Barra inteligente: rápida no começo e mais lenta no fim (curva r^0,65), sempre subindo, 100% só no plano */
+/* Barra inteligente: rápida no começo e mais lenta no fim (curva r^0,65), sempre subindo, 100% só no plano.
+   A frase ao lado segue a posição REAL (r, telas vistas sobre o total de telas), não a curva: "Falta pouco" só nas últimas telas, mesmo que o número de perguntas mude. */
 const CURVA = 0.65;
-function progresso(i, R) {
-  const s = PASSOS[i];
-  if (s.tipo === 'load') return null;
+function posReal(i, R) {
   const vis = PASSOS.map((p, j) => j).filter((j) => visivel(PASSOS[j], R));
-  const r = Math.max(0, Math.min(1, vis.indexOf(i) / (vis.length - 1)));
-  return Math.pow(r, CURVA);
+  return Math.max(0, Math.min(1, vis.indexOf(i) / (vis.length - 1)));
 }
-const marco = (d) => d >= 0.999 ? 'Pronto' : d >= 0.9 ? 'Última parte' : d >= 0.75 ? 'Falta pouco' : d >= 0.5 ? 'Mais da metade' : '';
+function progresso(i, R) {
+  if (PASSOS[i].tipo === 'load') return null;
+  return Math.pow(posReal(i, R), CURVA);
+}
+const marco = (r) => r >= 0.999 ? 'Pronto' : r >= 0.85 ? 'Falta pouco' : r >= 0.5 ? 'Mais da metade' : '';
 
 /* Contas */
 function pilares(R) { const r = {}; PILARES.forEach(([nome, ids]) => { r[nome] = ids.reduce((t, id) => t + pontos(R, id), 0); }); return r; }
@@ -659,14 +651,12 @@ function pixAutoLigado() {
   } catch (e) { /* URL ilegível: segue pela sessão */ }
   try { return sessionStorage.getItem('sd_pixauto') === '1'; } catch (e) { return false; }
 }
-/* Botões da oferta. Com CNPJ: cartão e Pix automático, o preferido na frente. Sem CNPJ não há compra nem saída para conversa: o diagnóstico fica salvo. */
+/* Botões da oferta, para todos os perfis (com ou sem CNPJ, ordem do dono em 14/11): cartão e Pix automático, o preferido na frente. Nenhuma saída para conversa. */
 function botoes(R) {
-  const pf = perfil(R).id, b = [];
-  if (pf !== 'cedo') {
-    const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_auto', rot: 'Assinar no Pix automático' };
-    if (!pixAutoLigado()) { cartao.prim = true; b.push(cartao); }
-    else if (R.pagamento === 'pix') { pix.prim = true; b.push(pix, cartao); } else { cartao.prim = true; b.push(cartao, pix); }
-  }
+  const b = [];
+  const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_auto', rot: 'Assinar no Pix automático' };
+  if (!pixAutoLigado()) { cartao.prim = true; b.push(cartao); }
+  else if (R.pagamento === 'pix') { pix.prim = true; b.push(pix, cartao); } else { cartao.prim = true; b.push(cartao, pix); }
   if (R.decisor === 'socio' || R.decisor === 'chefe') b.push({ k: 'socio', rot: TXT.socio });
   return b;
 }
@@ -818,7 +808,7 @@ const ASSET = '/';
 const MARCA_TOPO = '<div class="marca-topo"><img src="' + ASSET + 'icon-192.png" alt="" width="26" height="26"><span>SolarDoc<b>.App</b></span></div>';
 function carrHTML(slides, rotulo, auto, cls) {
   return '<div class="carr' + (cls ? ' ' + cls : '') + '" data-auto="' + (auto || 0) + '" role="region" aria-roledescription="carrossel" aria-label="' + esc(rotulo) + '"><div class="carr-trilho" tabindex="0">'
-    + slides.map((s, i) => '<figure class="carr-slide" aria-label="' + (i + 1) + ' de ' + slides.length + '"><img src="' + ASSET + s.src + '" alt="' + esc(s.alt) + '" loading="lazy" decoding="async">' + (s.cap ? '<figcaption>' + s.cap + '</figcaption>' : '') + '</figure>').join('') + '</div>'
+    + slides.map((s, i) => '<figure class="carr-slide" aria-label="' + (i + 1) + ' de ' + slides.length + '"><img src="' + ASSET + s.src + '" alt="' + esc(s.alt) + '"' + (i > 1 ? ' loading="lazy"' : '') + ' decoding="async">' + (s.cap ? '<figcaption>' + s.cap + '</figcaption>' : '') + '</figure>').join('') + '</div>'
     + (slides.length > 1 ? '<div class="carr-nav"><button type="button" class="carr-bt" data-a="carr" data-d="-1" aria-label="Anterior">' + IC_VOLTA + '</button><div class="carr-pontos" aria-hidden="true">' + slides.map((_, i) => '<i' + (i ? '' : ' class="on"') + '></i>').join('') + '</div><button type="button" class="carr-bt prox" data-a="carr" data-d="1" aria-label="Próximo">' + IC_VOLTA + '</button></div>' : '') + '</div>';
 }
 function carrIdx(tr) { const sl = tr.children, c = tr.scrollLeft + tr.clientWidth / 2; let best = 0, bd = Infinity; for (let k = 0; k < sl.length; k++) { const d = Math.abs(sl[k].offsetLeft + sl[k].offsetWidth / 2 - c); if (d < bd) { bd = d; best = k; } } return best; }
@@ -836,9 +826,10 @@ function initCarr(root) {
     }
   });
 }
+/* A logo (1 a 12 KB) carrega já, com tamanho fixo: com loading lazy dentro do carrossel ela ficava um quadrado branco vazio */
 function depSlide(k) {
   const d = CARDS[k];
-  return { src: 'depoimentos/' + d.f, alt: 'Depoimento de ' + (d.n ? d.n + ', ' : '') + d.e + ', ' + d.c, cap: '<span class="dep-cap"><img src="' + ASSET + 'logos/' + d.l + '.webp" alt="Logo da ' + esc(d.e) + '" loading="lazy"><span><b>' + esc(d.n || d.e) + '</b>' + esc((d.n ? d.e + ', ' : '') + d.c) + '</span></span>' };
+  return { src: 'depoimentos/' + d.f, alt: 'Depoimento de ' + (d.n ? d.n + ', ' : '') + d.e + ', ' + d.c, cap: '<span class="dep-cap"><img src="' + ASSET + 'logos/' + d.l + '.webp" alt="Logo da ' + esc(d.e) + '" width="48" height="48" decoding="async"><span><b>' + esc(d.n || d.e) + '</b>' + esc((d.n ? d.e + ', ' : '') + d.c) + '</span></span>' };
 }
 function itemHTML(it, nota) {
   const falta = !it.tem, extra = nota === false ? '' : (nota || (falta && it.nota) || '');
@@ -884,7 +875,31 @@ function listaCidades() {
   const l = MUN.filter((m) => m[1] === R.uf && (!t || norm(m[0]).includes(t)));
   el.innerHTML = l.length ? l.map((m) => { const v = m[0] + '-' + m[1]; return '<button type="button" class="op peq" role="option" aria-selected="' + (R.cidade === v) + '" aria-checked="' + (R.cidade === v) + '" data-a="cid" data-o="' + esc(v) + '"><span class="caixa">' + IC_OK + '</span><span class="tx">' + esc(m[0]) + '</span></button>'; }).join('') : '<p class="amostra">Nenhuma cidade com esse nome no estado. Confira a grafia.</p>';
 }
-const CONT = { rod: { txt: 'Continuar', on: true } };
+/* Retorno que abre a pergunta seguinte (eram telas com botão Continuar até 14/11). Mesmo conteúdo, sem botão: a pessoa lê e responde a pergunta logo abaixo. */
+const ANTES = {
+  i1() {
+    const n = N(R), tit = n >= 23 ? TXT.i1Alto : n <= 3 ? TXT.i1Baixo : TXT.i1Meio;
+    const rows = [{ rot: 'Você', v: n, txt: String(n), cls: 'sv-a' }, { rot: 'Típico no SolarDoc', v: TIPICO, txt: String(TIPICO) }, { rot: 'Os 10% que mais fazem', v: TOPO, txt: String(TOPO) }];
+    return '<h2 class="ret-t">' + esc(tit) + '</h2><div class="grafico">' + barrasSVG(rows, Math.max(n, TOPO), 'Propostas por mês: você ' + n + ', típico ' + TIPICO + ', os 10% que mais fazem ' + TOPO) + '</div><p class="nota">' + TXT.i1Nota + '</p>';
+  },
+  e1() {
+    return '<h2 class="ret-t">' + ICO.ok + TXT.e1Titulo + '</h2><p class="ajuda">' + esc(TXT.e1Texto(frase(rot(R, 'tempo_por_proposta')) || 'algum tempo', frase(rot(R, 'demora_envio')) || 'quando fica pronta')) + '</p>';
+  },
+  i2() {
+    const g = GRUPO_TOOL[R.como_faz_hoje] || 'braco', sub = g === 'distribuidor' ? TXT.i2SubOutros : g === 'plataforma' ? TXT.i2SubPlat : TXT.i2SubMao;
+    return '<h2 class="ret-t">' + TXT.i2Titulo + '</h2><p class="ajuda">' + sub + '</p>' + carrHTML(cardsDe(R).map(depSlide), 'Depoimentos de integradores', 5000, 'quadrado');
+  },
+  i3() {
+    const e = (R.empresa || '').trim() || 'Sua empresa';
+    let bars = ''; [118, 112, 104, 92, 80, 74, 80, 92, 101, 110, 114, 120].forEach((g, k) => { const hh = Math.round(g / 120 * 50); bars += '<rect class="sv-a" x="' + (k * 20 + 3) + '" y="' + (56 - hh) + '" width="14" height="' + hh + '" rx="2"/>'; });
+    return '<h2 class="ret-t">' + esc(TXT.i3Titulo(daEmp(R))) + '</h2><div class="fp"><div class="fp-faixa"><b>' + esc(e) + '</b><span>Proposta comercial de energia solar</span></div><div class="fp-corpo"><div>' + esc(R.cidade || 'Sua cidade') + '. Cliente de exemplo.</div><div class="fp-nums"><div><small>Economia por mês</small><b>R$ 664</b></div><div><small>Retorno</small><b>4 anos e 5 meses</b></div><div><small>Economia em 25 anos</small><b>R$ 437.424</b></div><div><small>Conta depois</small><b>R$ 100</b></div></div><svg viewBox="0 0 240 60" preserveAspectRatio="none" role="img" aria-label="Geração de energia mês a mês, valores de exemplo"><line class="sv-eixo" x1="0" y1="57" x2="240" y2="57"/>' + bars + '</svg><div class="nota"><span class="chip">Valores de exemplo</span> Geração de energia mês a mês, de janeiro a dezembro.</div></div></div><p class="ajuda">' + TXT.i3Texto + '</p>';
+  },
+  e2() {
+    return '<h2 class="ret-t">' + TXT.e2Titulo + '</h2><ul class="itens">' + faltam(R).lista.slice(0, 4).map((it) => itemHTML(it, false)).join('') + '</ul><p class="ajuda">' + TXT.e2Texto + '</p>';
+  }
+};
+/* Pausas antigas guardadas no aparelho: abrem na pergunta que agora traz o retorno */
+const PAUSA_VIROU = { i1: 'como_faz_hoje', e1: 'perdeu_venda', i2: 'tempo_livre', i3: 'tem_marca', e2: 'usa_conta' };
 
 /* Primeira tela (14/11): o que a pessoa ganha, a 1ª pergunta com opção grande que avança ao tocar e a prova com logos reais de clientes, tudo sem rolar em 390 px. Sem barra de 0% no topo. */
 const CAPA_SVG = (d) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>';
@@ -912,7 +927,7 @@ function capaHTML(s) {
 const VIEW = {
   q(s) {
     if (s.pre && R[s.id] === undefined) R[s.id] = s.pre.slice();
-    const cab = (s.ab ? '<p class="abertura">' + s.ab + '</p>' : '') + '<h3 class="titulo" id="tit">' + esc(s.t) + '</h3>' + (s.aj ? '<p class="ajuda">' + esc(s.aj) + '</p>' : '') + (s.destaque ? '<p class="destaque">' + esc(s.destaque) + '</p>' : '');
+    const cab = (s.antes ? '<section class="retorno" aria-label="Resultado parcial">' + ANTES[s.antes]() + '</section>' : '') + (s.ab ? '<p class="abertura">' + s.ab + '</p>' : '') + '<h3 class="titulo" id="tit">' + esc(s.t) + '</h3>' + (s.aj ? '<p class="ajuda">' + esc(s.aj) + '</p>' : '') + (s.destaque ? '<p class="destaque">' + esc(s.destaque) + '</p>' : '');
     /* Primeira tela do quiz (a capa saiu): chamada, título e apoio no topo, a pergunta logo abaixo e a linha de prova depois das opções. Sem foto, para a pergunta caber sem rolar no celular. */
     if (s.id === 'papel') return { html: capaHTML(s) };
     if (s.kind === 'single') return { html: cab + opsHTML(s) };
@@ -922,26 +937,6 @@ const VIEW = {
     const nomeUF = rot(R, 'uf');
     const cabC = '<h3 class="titulo" id="tit">' + esc(s.t) + '</h3><p class="ajuda">' + (nomeUF ? 'Estado: ' + esc(nomeUF) + '. ' : '') + esc(s.aj) + '</p>';
     return { html: '<form data-form novalidate>' + cabC + '<input class="campo" id="campo-cidade" name="cidade" type="search" autocomplete="off" placeholder="' + esc(s.ex) + '" aria-labelledby="tit"></form><div class="cid-lista" id="lista-cid" role="listbox" aria-label="Cidades do estado"></div>', rod: MUN_ERRO ? { txt: 'Continuar', on: valido(s) } : undefined, after() { listaCidades(); carregarMun().then(() => { if (PASSOS[S.i] !== s) return; if (MUN_ERRO && !$('btn-cont')) render(true); else listaCidades(); }); } };
-  },
-  i1() {
-    const n = N(R), tit = n >= 23 ? TXT.i1Alto : n <= 3 ? TXT.i1Baixo : TXT.i1Meio;
-    const rows = [{ rot: 'Você', v: n, txt: String(n), cls: 'sv-a' }, { rot: 'Típico no SolarDoc', v: TIPICO, txt: String(TIPICO) }, { rot: 'Os 10% que mais fazem', v: TOPO, txt: String(TOPO) }];
-    return { html: '<h3 class="titulo" id="tit">' + tit + '</h3><p class="ajuda">' + TXT.i1Texto(n) + '</p><div class="grafico">' + barrasSVG(rows, Math.max(n, TOPO), 'Propostas por mês: você ' + n + ', típico ' + TIPICO + ', os 10% que mais fazem ' + TOPO) + '</div><p class="nota">' + TXT.i1Nota + '</p>', rod: CONT.rod };
-  },
-  e1() {
-    return { html: '<h3 class="titulo" id="tit">' + TXT.e1Titulo + '</h3><p class="ajuda">' + esc(TXT.e1Texto(frase(rot(R, 'tempo_por_proposta')) || 'algum tempo', frase(rot(R, 'demora_envio')) || 'quando fica pronta')) + '</p>', rod: CONT.rod };
-  },
-  i2() {
-    const g = GRUPO_TOOL[R.como_faz_hoje] || 'braco', sub = g === 'distribuidor' ? TXT.i2SubOutros : g === 'plataforma' ? TXT.i2SubPlat : TXT.i2SubMao;
-    return { html: '<h3 class="titulo" id="tit">' + TXT.i2Titulo + '</h3><p class="ajuda">' + sub + '</p>' + carrHTML(cardsDe(R).map(depSlide), 'Depoimentos de integradores', 5000, 'quadrado'), rod: CONT.rod };
-  },
-  i3() {
-    const e = (R.empresa || '').trim() || 'Sua empresa';
-    let bars = ''; [118, 112, 104, 92, 80, 74, 80, 92, 101, 110, 114, 120].forEach((g, k) => { const hh = Math.round(g / 120 * 50); bars += '<rect class="sv-a" x="' + (k * 20 + 3) + '" y="' + (56 - hh) + '" width="14" height="' + hh + '" rx="2"/>'; });
-    return { html: '<h3 class="titulo" id="tit">' + esc(TXT.i3Titulo(daEmp(R))) + '</h3><div class="fp"><div class="fp-faixa"><b>' + esc(e) + '</b><span>Proposta comercial de energia solar</span></div><div class="fp-corpo"><div>' + esc(R.cidade || 'Sua cidade') + '. Cliente de exemplo.</div><div class="fp-nums"><div><small>Economia por mês</small><b>R$ 664</b></div><div><small>Retorno</small><b>4 anos e 5 meses</b></div><div><small>Economia em 25 anos</small><b>R$ 437.424</b></div><div><small>Conta depois</small><b>R$ 100</b></div></div><svg viewBox="0 0 240 60" role="img" aria-label="Geração de energia mês a mês, valores de exemplo"><line class="sv-eixo" x1="0" y1="57" x2="240" y2="57"/>' + bars + '</svg><div class="nota"><span class="chip">Valores de exemplo</span> Geração de energia mês a mês, de janeiro a dezembro.</div></div></div><p class="ajuda">' + TXT.i3Texto + '</p><p class="rotulo" style="margin-top:16px">' + TXT.i3Carr + '</p>' + carrHTML(FOLHAS.map((f) => ({ src: f.src, alt: f.t + ', folha real com dados de exemplo', cap: '<b>' + esc(f.t) + '</b>' + esc(f.x) })), 'Folhas reais do SolarDoc', 4500) + '<p class="nota">' + TXT.i3Nota + '</p>', rod: CONT.rod };
-  },
-  e2() {
-    return { html: '<h3 class="titulo" id="tit">' + TXT.e2Titulo + '</h3><ul class="itens">' + faltam(R).lista.slice(0, 4).map((it) => itemHTML(it, false)).join('') + '</ul><p class="ajuda">' + TXT.e2Texto + '</p>', rod: CONT.rod };
   },
   load() {
     const f = faltam(R);
@@ -978,14 +973,13 @@ const VIEW = {
   },
   plano() {
     /* Última página, direta: diagnóstico em 2 linhas, plano de 7 dias, o que recebe em figura, preço e botões. Sem saída para conversa. */
-    const pf = perfil(R), bt = botoes(R), cedo = pf.id === 'cedo', fr = pilarFraco(R), h = horas(R);
+    const pf = perfil(R), bt = botoes(R), fr = pilarFraco(R), h = horas(R);
     let x = '<h3 class="titulo" id="tit">' + esc((R.nome || '').trim() ? R.nome.trim() + ', seu plano está pronto.' : 'Seu plano está pronto.') + '</h3>';
     x += '<div class="diag">' + anelSVG(indice(R), 100, 'Índice de Proposta: ' + indice(R) + ' de 100', 'peq') + '<div><b>' + esc(pf.nome) + '</b><p>Ponto fraco: ' + esc(fr.nome.toLowerCase()) + '.</p>' + (h > 0 ? '<p>' + esc(br(h)) + ' h por mês em proposta.</p>' : '') + '</div></div>';
     x += '<p class="rotulo r2">Seus 7 dias</p><ol class="dias7">' + dias(R).map((d) => '<li' + (d.prio ? ' class="prio"' : '') + '><span class="dn">' + d.n + '</span><span class="dt">' + esc(d.t.replace(/\.$/, '')) + '</span>' + (d.prio ? '<span class="dp">Para você</span>' : '') + '</li>').join('') + '</ol>';
     x += '<p class="rotulo r2">O que você recebe</p><div class="docs6">' + DOCS_GRADE.map(([f, t]) => '<figure><img src="' + ASSET + 'tela/' + f + '.webp" alt="' + esc(t) + ', folha real do SolarDoc" width="975" height="1550" loading="lazy" decoding="async"><figcaption>' + esc(t) + '</figcaption></figure>').join('') + '</div><p class="nota centro">E mais serviço, vendedor e vistoria. Com dados de exemplo.</p>';
     x += '<ul class="fatos">' + FATOS.map(([ic, t, s]) => '<li>' + ICO[ic] + '<b>' + esc(t) + '</b><span>' + esc(s) + '</span></li>').join('') + '</ul>';
-    if (cedo) x += '<div class="oferta2 sem"><b>Sem CNPJ, ainda não dá para assinar.</b><p>O SolarDoc gera os documentos em nome da empresa. Seu diagnóstico fica salvo para quando o CNPJ sair.</p></div>';
-    else {
+    {
       x += '<div class="oferta2" id="oferta"><p class="rotulo">SolarDoc completo</p><p class="preco">R$ 67<small>/mês</small></p>' + (piso(R) >= 68 ? '<p class="of-comp">Hoje você paga a partir de R$ ' + piso(R) + '.</p>' : '')
         + '<ul class="of-ok"><li>' + ICO.ok + 'Documentos ilimitados</li><li>' + ICO.escudo + 'Garantia de 7 dias</li><li>' + ICO.livre + 'Sem fidelidade</li></ul>'
         + bt.filter((b) => b.k !== 'socio').map((b) => '<button type="button" class="cta' + (b.prim ? '' : ' vazio') + '" data-a="btn" data-k="' + b.k + '">' + (b.k === 'cartao' ? ICO.cartao : ICO.pix) + esc(b.rot) + '</button>').join('')
@@ -997,9 +991,9 @@ const VIEW = {
     x += '<p class="rotulo r2">' + TXT.depTitulo + '</p>' + carrHTML(cardsTodos(R).map(depSlide), 'Depoimentos de integradores', 5000, 'quadrado');
     x += '<div class="faixa-conc"><p>' + TXT.concTitulo + '</p><div class="logos">' + CONC.map(([f, n]) => '<img src="' + ASSET + 'conc/' + f + '" alt="' + n + '" loading="lazy">').join('') + '</div></div>';
     x += '<div class="quem"><span class="fotos"><img src="' + ASSET + 'founder-thiago.webp" alt="Thiago" width="44" height="44" loading="lazy"><img src="' + ASSET + 'founder-diego.webp" alt="Diego" width="44" height="44" loading="lazy"></span><p>' + esc(TXT.fundadores) + '</p></div>';
-    /* A pergunta da objeção sobe ao topo. Sem CNPJ não há compra, então sai a do acesso. */
+    /* A pergunta da objeção sobe ao topo. Todos os perfis veem a FAQ inteira. */
     const fi = FAQ_OBJ[R.objecao];
-    let seq = FAQS.map((q, i) => i).filter((i) => !(cedo && i === 4));
+    let seq = FAQS.map((q, i) => i);
     if (fi !== undefined && seq.includes(fi)) seq = [fi].concat(seq.filter((i) => i !== fi));
     x += '<p class="rotulo r2">Perguntas</p>' + seq.map((i) => '<details class="faq"><summary>' + esc(FAQS[i].q) + '</summary><p>' + esc(FAQS[i].a) + '</p></details>').join('');
     x += '<p class="rodape-marca"><b>SolarDoc<span>.App</span></b> · Documentação solar com IA</p>';
@@ -1020,7 +1014,7 @@ function topoHTML(s) {
   const d = progresso(S.i, R);
   let h = MARCA_TOPO, pct = '';
   if (d !== null) {
-    const p = Math.round(d * 100), m = marco(d);
+    const p = Math.round(d * 100), m = marco(posReal(S.i, R));
     h += '<div class="barra" role="progressbar" aria-label="Progresso do diagnóstico" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + p + '"><i style="--w:' + p + '%"></i></div>';
     pct = '<span class="pct">' + (m ? m + ' · ' : '') + p + '%</span>';
   }
@@ -1038,7 +1032,7 @@ function render(semFoco) {
   if (v.after) v.after();
   initCarr(c);
   c.scrollTop = 0;
-  const t = c.querySelector('.titulo');
+  const t = c.querySelector('.ret-t, .titulo');
   if (t && !semFoco) { t.setAttribute('tabindex', '-1'); t.focus({ preventScroll: true }); }
   acompanhar(s);
   salvar();
@@ -1193,6 +1187,7 @@ function carregarEstado() {
   if (!cru) return;
   try {
     const d = JSON.parse(cru);
+    if (d && typeof d.i === 'string' && PAUSA_VIROU[d.i]) d.i = PAUSA_VIROU[d.i];
     if (!d || d.v !== 1 || typeof d.t !== 'number' || Date.now() - d.t > VALIDADE || typeof d.i !== 'string' || !(d.i in IDX) || d.i === 'capa') return; /* estado antigo, de quando a capa existia, recomeça no papel */
     R = limparR(d.R);
     const e = d.E && typeof d.E === 'object' ? d.E : {};
@@ -1449,6 +1444,8 @@ $('corpo').addEventListener('submit', (e) => {
   if (PASSOS[S.i].kind === 'city' && !MUN_ERRO) { const ops = document.querySelectorAll('[data-a="cid"]'); if (ops.length === 1) { ops[0].click(); return; } }
   continuar();
 });
+/* Logo do depoimento carregou: ganha o fundo branco (load não sobe, por isso a captura) */
+$('corpo').addEventListener('load', (e) => { if (e.target.tagName === 'IMG' && e.target.closest('.dep-cap')) e.target.classList.add('ok'); }, true);
 $('folha').addEventListener('submit', (e) => { if (e.target.id === 'pix-form') { e.preventDefault(); gerarPix(); } });
 $('folha').addEventListener('input', (e) => { if (e.target.id === 'pix-doc') { e.target.value = mascDoc(e.target.value); const de = $('pix-doc-erro'); if (de) de.textContent = ''; } });
 window.addEventListener('pagehide', pararPix);
