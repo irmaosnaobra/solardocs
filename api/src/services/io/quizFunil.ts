@@ -259,9 +259,11 @@ export const CONFIG_SOLAR: ConfigFunil = {
 
 // ── O QUIZ DO SOLARDOC (/diagnostico, 24/10/2026) ─────────────────────────────
 // Mesma conta, outra configuração. Os ids são os da página (`PASSOS` do protótipo):
-// as 39 perguntas, a capa, o resultado (fica entre `followup` e `documentos`) e os
-// dois passos do portão. `pagamento` só aparece com CNPJ sim ou empregador, e por
-// isso o painel lê "parou aqui", não "chegou". Quem comprou não passa por agenda:
+// as 35 perguntas, a capa, o resultado (fica entre `followup` e `documentos`) e os
+// dois passos do portão. As telas de pausa (i1, e1, i2, i3, e2) e as 4 perguntas
+// que saíram (clientes, meta_vendas, imagem, prioridade) não são passos: o dado
+// antigo fica no banco e este mapa não as lista. `pagamento` aparece para todos
+// desde 14/11/2026. Quem comprou não passa por agenda:
 // a coluna "reuniões" conta quem foi para o cartão ou para o Pix.
 export const MEDINDO_DESDE_SOLARDOC = '2026-10-24';
 export const PERGUNTAS_SOLARDOC: Record<string, string> = {
@@ -271,7 +273,6 @@ export const PERGUNTAS_SOLARDOC: Record<string, string> = {
   cnpj: 'A sua empresa tem CNPJ?',
   uf: 'Em que estado fica a sua empresa?',
   cidade: 'Qual é a sua cidade?',
-  clientes: 'Para quem você mais vende?',
   propostas_mes: 'Quantas propostas você faz por mês?',
   vendas_mes: 'Quantas dessas viram venda por mês?',
   ticket: 'Quanto vale, em média, um sistema que você vende?',
@@ -284,11 +285,8 @@ export const PERGUNTAS_SOLARDOC: Record<string, string> = {
   cliente_entende: 'Quando o cliente lê a sua proposta, ele entende quanto vai economizar?',
   erro_proposta: 'Já saiu proposta com erro de valor, de nome ou de formatação?',
   papelada: 'E a papelada depois do sim, como contrato, procuração e recibo?',
-  meta_vendas: 'Daqui a 6 meses, quantas vendas por mês você quer fechar?',
   tempo_livre: 'Se você ganhasse tempo na semana, o que faria com ele?',
-  imagem: 'Como você quer que o cliente veja a sua empresa?',
   fechar_primeira: 'O que ajudaria você a fechar já na primeira reunião?',
-  prioridade: 'Numa ferramenta de proposta, o que pesa mais para você?',
   frase: 'Você se identifica com esta frase?',
   tem_marca: 'A sua proposta sai com a sua logo e as cores da empresa?',
   mostra_economia: 'Ela mostra a economia mês a mês e em quanto tempo o sistema se paga?',
@@ -310,12 +308,12 @@ export const PERGUNTAS_SOLARDOC: Record<string, string> = {
   whatsapp: 'Qual é o seu WhatsApp?',
 };
 export const CURTAS_SOLARDOC: Record<string, string> = {
-  capa: 'Capa', papel: 'Papel', empresa: 'Empresa', cnpj: 'CNPJ', uf: 'Estado', cidade: 'Cidade', clientes: 'Clientes',
+  capa: 'Capa', papel: 'Papel', empresa: 'Empresa', cnpj: 'CNPJ', uf: 'Estado', cidade: 'Cidade',
   propostas_mes: 'Propostas por mês', vendas_mes: 'Vendas por mês', ticket: 'Ticket', como_faz_hoje: 'Como faz hoje',
   gasto_ferramenta: 'Gasto com ferramenta', tempo_por_proposta: 'Tempo por proposta', quando_monta: 'Quando monta',
   demora_envio: 'Demora para enviar', perdeu_venda: 'Perdeu venda', cliente_entende: 'Cliente entende', erro_proposta: 'Erro na proposta',
-  papelada: 'Papelada', meta_vendas: 'Meta de vendas', tempo_livre: 'Tempo livre', imagem: 'Imagem da empresa',
-  fechar_primeira: 'Fechar na 1ª reunião', prioridade: 'Prioridade', frase: 'Frase', tem_marca: 'Tem marca', mostra_economia: 'Mostra economia',
+  papelada: 'Papelada', tempo_livre: 'Tempo livre',
+  fechar_primeira: 'Fechar na 1ª reunião', frase: 'Frase', tem_marca: 'Tem marca', mostra_economia: 'Mostra economia',
   economia_25: 'Economia em 25 anos', financiamento: 'Financiamento', usa_conta: 'Conta de luz', contrato_pronto: 'Contrato pronto',
   modelos: 'Modelos', followup: 'Follow-up', resultado: 'Resultado', documentos: 'Documentos', modelo: 'Estilo', logo: 'Logo',
   decisor: 'Quem decide', objecao: 'Objeção', pagamento: 'Pagamento', quando_comecar: 'Quando começar', nome: 'Nome', whatsapp: 'WhatsApp',

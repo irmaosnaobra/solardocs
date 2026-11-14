@@ -33,7 +33,6 @@ export const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 
 export const PERGUNTAS_SD: Pergunta[] = [
   { id: 'papel', kind: 'single', ops: [o('dono'), o('vendedor'), o('engenheiro'), o('comecando')] },
   { id: 'cnpj', kind: 'single', ops: [o('sim'), o('empregador'), o('abrindo'), o('nao')] },
-  { id: 'clientes', kind: 'multi', ops: [o('casas'), o('comercio'), o('rural'), o('investidor')] },
   { id: 'propostas_mes', kind: 'single', ops: [o('ate5', 3), o('6a15', 10), o('16a30', 23), o('mais30', 40)] },
   { id: 'vendas_mes', kind: 'single', ops: [o('v0', 0), o('v1a2', 1.5), o('v3a5', 4), o('v6a10', 8), o('mais10', 12)] },
   { id: 'ticket', kind: 'single', ops: [o('ate15', 12000), o('15a30', 22000), o('30a60', 45000), o('mais60', 80000)] },
@@ -46,11 +45,8 @@ export const PERGUNTAS_SD: Pergunta[] = [
   { id: 'cliente_entende', kind: 'single', pilar: 'Clareza', ops: [pt('sozinho', 8), pt('explico', 5), pt('confuso', 1), pt('preco', 0)] },
   { id: 'erro_proposta', kind: 'single', pilar: 'Imagem', ops: [pt('caro', 0), pt('atempo', 3), pt('quase', 5), pt('nunca', 8)] },
   { id: 'papelada', kind: 'single', pilar: 'Papelada', ops: [pt('luta', 0), pt('viro', 5), pt('modelo', 12), pt('outro', 8)] },
-  { id: 'meta_vendas', kind: 'single', ops: [o('mesmas'), o('dobro'), o('triplo'), o('primeiras')] },
   { id: 'tempo_livre', kind: 'single', ops: [o('visitas'), o('posvenda'), o('familia'), o('cidade_nova')] },
-  { id: 'imagem', kind: 'single', ops: [o('profissional'), o('rapida'), o('clara'), o('confiavel')] },
   { id: 'fechar_primeira', kind: 'multi', max: 3, ops: [o('nahora'), o('retorno'), o('parcelas'), o('bateria'), o('contrato'), o('marca')] },
-  { id: 'prioridade', kind: 'single', ops: [o('rapidez'), o('visual'), o('conta'), o('preco'), o('suporte')] },
   { id: 'frase', kind: 'single', ops: [o('muito'), o('pouco'), o('nao')] },
   { id: 'tem_marca', kind: 'single', pilar: 'Imagem', ops: [pt('sim', 9), pt('asvezes', 4), pt('nao', 0)] },
   { id: 'mostra_economia', kind: 'single', pilar: 'Clareza', ops: [pt('sim', 7), pt('so_total', 3), pt('nao', 0)] },
@@ -65,8 +61,8 @@ export const PERGUNTAS_SD: Pergunta[] = [
   { id: 'logo', kind: 'single', ops: [o('sim'), o('achar'), o('nao')] },
   { id: 'decisor', kind: 'single', ops: [o('eu'), o('socio'), o('chefe')] },
   { id: 'objecao', kind: 'single', ops: [o('preco'), o('ja_uso'), o('aprender'), o('validade'), o('online'), o('nada')] },
-  // Só aparece (e só vale) com CNPJ `sim` ou `empregador`.
-  { id: 'pagamento', kind: 'single', cond: (r) => r.cnpj === 'sim' || r.cnpj === 'empregador', ops: [o('cartao'), o('pix')] },
+  // Aparece para todos, com ou sem CNPJ (a página mostra desde 14/11/2026).
+  { id: 'pagamento', kind: 'single', ops: [o('cartao'), o('pix')] },
   { id: 'quando_comecar', kind: 'single', ops: [o('hoje'), o('semana'), o('mes'), o('pesquisando')] },
 ];
 
@@ -86,8 +82,8 @@ export const PILARES: Array<[string, string[]]> = [
 /**
  * Só deixa passar o que a página poderia ter mandado: id de pergunta conhecido,
  * id de opção da lista, uma opção nas perguntas de uma escolha e uma lista sem
- * repetição nas de várias (`fechar_primeira` no máximo 3). `pagamento` sem CNPJ
- * `sim` ou `empregador` cai fora. Texto livre nunca passa por aqui.
+ * repetição nas de várias (`fechar_primeira` no máximo 3). `pagamento` vale com qualquer
+ * resposta de CNPJ. Texto livre nunca passa por aqui.
  */
 export function limparRespostas(bruto: unknown): RespostasSd {
   const out: RespostasSd = {};
@@ -105,7 +101,7 @@ export function limparRespostas(bruto: unknown): RespostasSd {
       if (cortada.length) out[p.id] = cortada;
     }
   }
-  // A visibilidade de `pagamento` depende do CNPJ já limpo.
+  // Pergunta com `cond` só vale se a condição bate com as respostas já limpas (hoje nenhuma usa).
   for (const p of PERGUNTAS_SD) if (p.cond && out[p.id] !== undefined && !p.cond(out)) delete out[p.id];
   return out;
 }
@@ -142,7 +138,7 @@ const piso = (r: RespostasSd) => valor(r, 'gasto_ferramenta');
 
 /** A ORDEM importa: o primeiro que bate ganha. `informa` pega os demais. */
 export const PERFIS: Array<{ id: string; nome: string; teste: (r: RespostasSd) => boolean }> = [
-  { id: 'cedo', nome: 'Ainda não é a hora', teste: (r) => r.cnpj === 'abrindo' || r.cnpj === 'nao' },
+  { id: 'cedo', nome: 'Montando a empresa', teste: (r) => r.cnpj === 'abrindo' || r.cnpj === 'nao' },
   { id: 'grande', nome: 'Operação grande', teste: (r) => r.propostas_mes === 'mais30' },
   { id: 'caro', nome: 'Pagando caro pela proposta', teste: (r) => piso(r) >= 151 || (piso(r) >= 68 && r.como_faz_hoje === 'plataforma') },
   { id: 'comecando', nome: 'Começando agora', teste: (r) => r.papel === 'comecando' || r.vendas_mes === 'v0' },

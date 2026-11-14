@@ -55,7 +55,7 @@ const corpo = {
     papel: 'dono', cnpj: 'sim', propostas_mes: '6a15', vendas_mes: 'v1a2', como_faz_hoje: 'word', gasto_ferramenta: 'nada',
     tempo_por_proposta: 't120', quando_monta: 'noite', demora_envio: 'd1a2', cliente_entende: 'explico', erro_proposta: 'atempo',
     papelada: 'viro', tem_marca: 'asvezes', mostra_economia: 'so_total', economia_25: 'nao', financiamento: 'aparte',
-    usa_conta: 'digito', contrato_pronto: 'depois', modelos: 'mesmo', followup: 'lembro', clientes: ['casas'],
+    usa_conta: 'digito', contrato_pronto: 'depois', modelos: 'mesmo', followup: 'lembro', documentos: ['proposta'],
   },
   utm: { utm_source: 'fb', utm_campaign: 'camp1', utm_term: '1234567890' },
   fbp: FBP, fbc: FBC, lp_session: 'sd-abc_123', event_id: 'lead_abc123xyz', url: 'https://solardoc.app/diagnostico',
@@ -90,7 +90,7 @@ describe('POST /solardoc/quiz', () => {
     expect(campo(g, 'Perfil')).toEqual(['braco']);
     expect(campo(g, 'Empresa')).toEqual(['Sol do Cerrado Energia']);
     expect(campo(g, 'propostas_mes')).toEqual(['6a15']);
-    expect(campo(g, 'clientes')).toEqual(['casas']);
+    expect(campo(g, 'documentos')).toEqual(['proposta']);
     expect(campo(g, 'utm_campaign')).toEqual(['camp1']);
     expect(campo(g, 'fbp')).toEqual([FBP]);
     expect(campo(g, 'lp_session')).toEqual(['sd-abc_123']);
