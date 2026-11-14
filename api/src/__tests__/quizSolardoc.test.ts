@@ -43,6 +43,7 @@ describe('o cálculo do diagnóstico', () => {
   it('um caso de cada perfil, na ordem em que a regra decide', () => {
     expect(PERFIS.map((p) => p.id)).toEqual(['cedo', 'grande', 'caro', 'comecando', 'braco', 'crescer', 'informa']);
     expect(perfil(com({ cnpj: 'nao' })).id).toBe('cedo');
+    expect(perfil(com({ cnpj: 'nao' })).nome).toBe('Montando a empresa');
     expect(perfil(com({ cnpj: 'abrindo' })).id).toBe('cedo');
     expect(perfil(com({ propostas_mes: 'mais30' })).id).toBe('grande');
     expect(perfil(com({ gasto_ferramenta: 'g151a300' })).id).toBe('caro');
@@ -103,11 +104,13 @@ describe('limparRespostas', () => {
     expect(limparRespostas({ documentos: ['lua'] })).toEqual({});
   });
 
-  it('pagamento só vale com CNPJ sim ou empregador', () => {
+  it('pagamento vale com qualquer resposta de CNPJ, e sem CNPJ nenhum', () => {
     expect(limparRespostas({ cnpj: 'sim', pagamento: 'pix' })).toEqual({ cnpj: 'sim', pagamento: 'pix' });
     expect(limparRespostas({ cnpj: 'empregador', pagamento: 'cartao' })).toEqual({ cnpj: 'empregador', pagamento: 'cartao' });
-    expect(limparRespostas({ cnpj: 'nao', pagamento: 'pix' })).toEqual({ cnpj: 'nao' });
-    expect(limparRespostas({ pagamento: 'pix' })).toEqual({});
+    expect(limparRespostas({ cnpj: 'nao', pagamento: 'pix' })).toEqual({ cnpj: 'nao', pagamento: 'pix' });
+    expect(limparRespostas({ cnpj: 'abrindo', pagamento: 'cartao' })).toEqual({ cnpj: 'abrindo', pagamento: 'cartao' });
+    expect(limparRespostas({ pagamento: 'pix' })).toEqual({ pagamento: 'pix' });
+    expect(limparRespostas({ cnpj: 'nao', pagamento: 'boleto' })).toEqual({ cnpj: 'nao' });
   });
 
   it('id herdado do objeto (__proto__, constructor) não passa', () => {

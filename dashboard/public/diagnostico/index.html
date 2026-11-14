@@ -577,7 +577,7 @@ const ITENS = [
   { q: 'followup', ok: 'rotina', rot: 'Chamar o cliente de novo depois da proposta', selo: 'voce' }
 ];
 const PERFIS = [
-  { id: 'cedo', nome: 'Começando sem CNPJ', frase: 'Você ainda não tem CNPJ. Dá para assinar hoje do mesmo jeito, no cartão ou no Pix automático.', teste: (R) => R.cnpj === 'abrindo' || R.cnpj === 'nao' },
+  { id: 'cedo', nome: 'Montando a empresa', frase: 'Você está montando a empresa. Começar com proposta profissional passa confiança desde o primeiro cliente.', teste: (R) => R.cnpj === 'abrindo' || R.cnpj === 'nao' },
   { id: 'grande', nome: 'Operação grande', frase: 'Com esse volume, cada minuto por proposta pesa no mês inteiro.', teste: (R) => R.propostas_mes === 'mais30' },
   { id: 'caro', nome: 'Pagando caro pela proposta', frase: 'Você já gasta mais de R$ 67 por mês com ferramenta de proposta. O SolarDoc custa R$ 67.', teste: (R) => piso(R) >= 151 || (piso(R) >= 68 && R.como_faz_hoje === 'plataforma') },
   { id: 'comecando', nome: 'Começando agora', frase: 'A proposta é a primeira impressão que o cliente tem de você. Ela precisa passar confiança.', teste: (R) => R.papel === 'comecando' || R.vendas_mes === 'v0' },
@@ -802,7 +802,7 @@ function anelSVG(v, max, desc, cls) {
   const c = 2 * Math.PI * 52, off = c * (1 - Math.max(0, Math.min(v, max)) / max);
   return '<svg class="anel' + (cls ? ' ' + cls : '') + '" viewBox="0 0 140 140" role="img" aria-label="' + esc(desc) + '"><circle class="anel-trilho" cx="70" cy="70" r="52"/>' + (v > 0 ? '<circle class="anel-v" cx="70" cy="70" r="52" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 70 70)"/>' : '') + '<text class="anel-n" x="70" y="80" text-anchor="middle">' + v + '</text><text class="anel-d" x="70" y="101" text-anchor="middle">de ' + max + '</text></svg>';
 }
-/* Carrossel: rola com o dedo, tem setas e pontos, e anda sozinho até a pessoa tocar nele */
+/* Carrossel: rola com o dedo, tem setas e pontos, e anda sozinho só se o data-auto pedir (o do topo da pergunta não anda) */
 const REDUZ = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ASSET = '/';
 const MARCA_TOPO = '<div class="marca-topo"><img src="' + ASSET + 'icon-192.png" alt="" width="26" height="26"><span>SolarDoc<b>.App</b></span></div>';
@@ -887,7 +887,7 @@ const ANTES = {
   },
   i2() {
     const g = GRUPO_TOOL[R.como_faz_hoje] || 'braco', sub = g === 'distribuidor' ? TXT.i2SubOutros : g === 'plataforma' ? TXT.i2SubPlat : TXT.i2SubMao;
-    return '<h2 class="ret-t">' + TXT.i2Titulo + '</h2><p class="ajuda">' + sub + '</p>' + carrHTML(cardsDe(R).map(depSlide), 'Depoimentos de integradores', 5000, 'quadrado');
+    return '<h2 class="ret-t">' + TXT.i2Titulo + '</h2><p class="ajuda">' + sub + '</p>' + carrHTML(cardsDe(R).map(depSlide), 'Depoimentos de integradores', 0, 'quadrado');
   },
   i3() {
     const e = (R.empresa || '').trim() || 'Sua empresa';
@@ -898,8 +898,8 @@ const ANTES = {
     return '<h2 class="ret-t">' + TXT.e2Titulo + '</h2><ul class="itens">' + faltam(R).lista.slice(0, 4).map((it) => itemHTML(it, false)).join('') + '</ul><p class="ajuda">' + TXT.e2Texto + '</p>';
   }
 };
-/* Pausas antigas guardadas no aparelho: abrem na pergunta que agora traz o retorno */
-const PAUSA_VIROU = { i1: 'como_faz_hoje', e1: 'perdeu_venda', i2: 'tempo_livre', i3: 'tem_marca', e2: 'usa_conta' };
+/* Passos que não existem mais e podem estar guardados no aparelho: abrem na pergunta que existe no lugar. Pausas viraram o retorno no topo da pergunta seguinte; as 4 perguntas cortadas abrem na seguinte da fila. */
+const PAUSA_VIROU = { i1: 'como_faz_hoje', e1: 'perdeu_venda', i2: 'tempo_livre', i3: 'tem_marca', e2: 'usa_conta', clientes: 'propostas_mes', meta_vendas: 'tempo_livre', imagem: 'fechar_primeira', prioridade: 'frase' };
 
 /* Primeira tela (14/11): o que a pessoa ganha, a 1ª pergunta com opção grande que avança ao tocar e a prova com logos reais de clientes, tudo sem rolar em 390 px. Sem barra de 0% no topo. */
 const CAPA_SVG = (d) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>';

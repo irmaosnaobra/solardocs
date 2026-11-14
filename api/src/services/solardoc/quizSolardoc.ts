@@ -61,8 +61,8 @@ export const PERGUNTAS_SD: Pergunta[] = [
   { id: 'logo', kind: 'single', ops: [o('sim'), o('achar'), o('nao')] },
   { id: 'decisor', kind: 'single', ops: [o('eu'), o('socio'), o('chefe')] },
   { id: 'objecao', kind: 'single', ops: [o('preco'), o('ja_uso'), o('aprender'), o('validade'), o('online'), o('nada')] },
-  // Só aparece (e só vale) com CNPJ `sim` ou `empregador`.
-  { id: 'pagamento', kind: 'single', cond: (r) => r.cnpj === 'sim' || r.cnpj === 'empregador', ops: [o('cartao'), o('pix')] },
+  // Aparece para todos, com ou sem CNPJ (a página mostra desde 14/11/2026).
+  { id: 'pagamento', kind: 'single', ops: [o('cartao'), o('pix')] },
   { id: 'quando_comecar', kind: 'single', ops: [o('hoje'), o('semana'), o('mes'), o('pesquisando')] },
 ];
 
@@ -82,8 +82,8 @@ export const PILARES: Array<[string, string[]]> = [
 /**
  * Só deixa passar o que a página poderia ter mandado: id de pergunta conhecido,
  * id de opção da lista, uma opção nas perguntas de uma escolha e uma lista sem
- * repetição nas de várias (`fechar_primeira` no máximo 3). `pagamento` sem CNPJ
- * `sim` ou `empregador` cai fora. Texto livre nunca passa por aqui.
+ * repetição nas de várias (`fechar_primeira` no máximo 3). `pagamento` vale com qualquer
+ * resposta de CNPJ. Texto livre nunca passa por aqui.
  */
 export function limparRespostas(bruto: unknown): RespostasSd {
   const out: RespostasSd = {};
@@ -101,7 +101,7 @@ export function limparRespostas(bruto: unknown): RespostasSd {
       if (cortada.length) out[p.id] = cortada;
     }
   }
-  // A visibilidade de `pagamento` depende do CNPJ já limpo.
+  // Pergunta com `cond` só vale se a condição bate com as respostas já limpas (hoje nenhuma usa).
   for (const p of PERGUNTAS_SD) if (p.cond && out[p.id] !== undefined && !p.cond(out)) delete out[p.id];
   return out;
 }
@@ -138,7 +138,7 @@ const piso = (r: RespostasSd) => valor(r, 'gasto_ferramenta');
 
 /** A ORDEM importa: o primeiro que bate ganha. `informa` pega os demais. */
 export const PERFIS: Array<{ id: string; nome: string; teste: (r: RespostasSd) => boolean }> = [
-  { id: 'cedo', nome: 'Ainda não é a hora', teste: (r) => r.cnpj === 'abrindo' || r.cnpj === 'nao' },
+  { id: 'cedo', nome: 'Montando a empresa', teste: (r) => r.cnpj === 'abrindo' || r.cnpj === 'nao' },
   { id: 'grande', nome: 'Operação grande', teste: (r) => r.propostas_mes === 'mais30' },
   { id: 'caro', nome: 'Pagando caro pela proposta', teste: (r) => piso(r) >= 151 || (piso(r) >= 68 && r.como_faz_hoje === 'plataforma') },
   { id: 'comecando', nome: 'Começando agora', teste: (r) => r.papel === 'comecando' || r.vendas_mes === 'v0' },

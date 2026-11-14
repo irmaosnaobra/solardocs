@@ -260,8 +260,10 @@ export const CONFIG_SOLAR: ConfigFunil = {
 // ── O QUIZ DO SOLARDOC (/diagnostico, 24/10/2026) ─────────────────────────────
 // Mesma conta, outra configuração. Os ids são os da página (`PASSOS` do protótipo):
 // as 35 perguntas, a capa, o resultado (fica entre `followup` e `documentos`) e os
-// dois passos do portão. `pagamento` só aparece com CNPJ sim ou empregador, e por
-// isso o painel lê "parou aqui", não "chegou". Quem comprou não passa por agenda:
+// dois passos do portão. As telas de pausa (i1, e1, i2, i3, e2) e as 4 perguntas
+// que saíram (clientes, meta_vendas, imagem, prioridade) não são passos: o dado
+// antigo fica no banco e este mapa não as lista. `pagamento` aparece para todos
+// desde 14/11/2026. Quem comprou não passa por agenda:
 // a coluna "reuniões" conta quem foi para o cartão ou para o Pix.
 export const MEDINDO_DESDE_SOLARDOC = '2026-10-24';
 export const PERGUNTAS_SOLARDOC: Record<string, string> = {
