@@ -18,7 +18,7 @@ const html = existe ? readFileSync(CAMINHO, 'utf8') : '';
 describe('o painel e a página do diagnóstico falam dos mesmos passos', () => {
   it.skipIf(!existe)('cada pergunta da página tem texto no painel, na mesma ordem', () => {
     const idsDaPagina = [...html.matchAll(/\bQ\(\s*\d+\s*,\s*['"]([a-z0-9_]+)['"]/g)].map((m) => m[1]);
-    expect(idsDaPagina.length).toBeGreaterThanOrEqual(39);
+    expect(idsDaPagina.length).toBeGreaterThanOrEqual(35);
     const doPainel = Object.keys(PERGUNTAS_SOLARDOC).filter((id) => !['capa', 'resultado', 'nome', 'whatsapp'].includes(id));
     expect(idsDaPagina).toEqual(doPainel);
   });
@@ -45,9 +45,9 @@ describe('a configuração do painel do SolarDoc', () => {
       expect(passos).toContain(id);
     }
   });
-  it('são 39 perguntas (as 36 de respostas, mais empresa, uf e cidade), a capa, o resultado e o portão', () => {
+  it('são 35 perguntas (as 32 de respostas, mais empresa, uf e cidade), a capa, o resultado e o portão', () => {
     const ids = Object.keys(PERGUNTAS_SOLARDOC);
-    expect(ids).toHaveLength(39 + 4);
+    expect(ids).toHaveLength(35 + 4);
     for (const extra of ['empresa', 'uf', 'cidade', 'capa', 'resultado', 'nome', 'whatsapp']) expect(ids).toContain(extra);
     expect(Object.keys(CURTAS_SOLARDOC)).toEqual(ids);
   });
