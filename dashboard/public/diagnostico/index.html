@@ -654,7 +654,7 @@ function pixAutoLigado() {
 /* Botões da oferta, para todos os perfis (com ou sem CNPJ, ordem do dono em 14/11): cartão e Pix automático, o preferido na frente. Nenhuma saída para conversa. */
 function botoes(R) {
   const b = [];
-  const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_auto', rot: 'Assinar no Pix automático' };
+  const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_auto', rot: 'Pagar no Pix' };
   if (!pixAutoLigado()) { cartao.prim = true; b.push(cartao); }
   else if (R.pagamento === 'pix') { pix.prim = true; b.push(pix, cartao); } else { cartao.prim = true; b.push(cartao, pix); }
   if (R.decisor === 'socio' || R.decisor === 'chefe') b.push({ k: 'socio', rot: TXT.socio });
