@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // O robô da Carla do quiz do SolarDoc (B2, 24/10/2026): regras puras, estado (liga e desliga) e a rodada inteira sobre dependências falsas.
 // Nada aqui toca banco, Z-API nem relógio de verdade.
@@ -97,6 +97,9 @@ const trocaCampo = (l: LeadRec, nome: string, valor: string): LeadRec => ({
 });
 
 beforeEach(() => {
+  // Esta suíte é o comportamento de ANTES da recuperação pesada (16/11/2026): com QUIZ_PESADA_OFF=1 ela tem que passar inteira, byte a byte.
+  // A pesada ligada tem a suíte própria (recuperacaoPesada.test.ts).
+  process.env.QUIZ_PESADA_OFF = '1';
   process.env.SUPABASE_SERVICE_KEY = 'chave-de-teste';
   delete process.env.AGENTES5040_HMAC;
   delete process.env.QUIZ_RECUPERACAO_LIGADA;
@@ -104,6 +107,7 @@ beforeEach(() => {
   h.pausa = undefined; h.largada = undefined; h.mudos = []; h.rpcs = []; h.update = 'ok'; h.updates = 0;
   seq = 0;
 });
+afterEach(() => { delete process.env.QUIZ_PESADA_OFF; });
 
 // ── dependências falsas ──────────────────────────────────────────────────────
 

@@ -29,11 +29,13 @@ describe('routes/cron.ts: a ordem dos ticks do SolarDoc', () => {
 });
 
 describe('o robô quiz_recuperacao_5040 nos registros', () => {
-  it('classe frio_receita_p4, carimbos frios quiz_rec_sent: e quiz_rec_sent2: (o 2º toque), arquivo próprio', () => {
+  it('classe frio_receita_p4, carimbos frios quiz_rec_sent:, quiz_rec_sent2: e quiz_rec_sent3: (o 3º toque da pesada), arquivo próprio', () => {
     const r = CLASSE_POR_ROBO.quiz_recuperacao_5040!;
     expect(r.classe).toBe('frio_receita_p4');
     expect(r.arquivos).toEqual(['services/solardoc/recuperacaoCarla.ts']);
-    expect(r.carimbos).toEqual([{ prefixo: 'quiz_rec_sent:', contaHoje: 'frio' }, { prefixo: 'quiz_rec_sent2:', contaHoje: 'frio' }]);
+    expect(r.carimbos).toEqual([
+      { prefixo: 'quiz_rec_sent:', contaHoje: 'frio' }, { prefixo: 'quiz_rec_sent2:', contaHoje: 'frio' }, { prefixo: 'quiz_rec_sent3:', contaHoje: 'frio' },
+    ]);
     expect(r.maxBolhas).toBe(1);
     expect(r.respeitaPausa).toBe(true);
   });

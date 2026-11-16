@@ -7,6 +7,7 @@
 
 import type { ContaRetomada, ContextoLead, PersonaDef } from '../tipos';
 import { diaBRT } from '../relogio';
+import { pesadaLigada } from '../../solardoc/recuperacaoCarlaEstado';
 import {
   AVULSOS, DOCUMENTOS_SOLARDOC, NOVIDADES_SOLARDOC, PLANO_MENSAL, PROMESSA_PLANILHA_ELETROPOSTO, textoConhecimentoSolarDoc,
   textoRetomadaSolarDoc, valoresPermitidosCarla,
@@ -333,6 +334,10 @@ export function fatosDoQuiz(ctx: ContextoLead): string[] {
   return [
     `Esta pessoa fez o diagnóstico do quiz do SolarDoc. Respostas dela: ${partes.join('; ')}.`,
     'Não repita pergunta que o quiz já respondeu (propostas por mês, como monta a proposta, tempo por proposta, cidade, objeção, quando quer começar). Use a resposta dela, e só pergunte o que ficou faltando.',
+    // Recuperação pesada (16/11/2026): a pessoa chegou na hora de pagar e não concluiu. QUIZ_PESADA_OFF=1 tira a linha.
+    ...(pesadaLigada() ? [
+      `Se ela ainda não assinou, ela chegou na hora de pagar e não concluiu: pergunte o que houve, ofereça pix_automatico ou assinatura (cartão) e lembre da garantia de ${G} dias. CNPJ não é requisito para assinar, mas o app só gera documento com o CNPJ da empresa cadastrado: se ela perguntar ou disser que não tem CNPJ, diga isso com sinceridade, lembre que a garantia de ${G} dias devolve o valor se ela não conseguir usar, e deixe ela escolher entre assinar agora ou quando o CNPJ sair. Se perguntar do débito mensal do Pix automático: é a mensalidade do plano (R$ ${V}, mais os adicionais, se ela marcou algum), dá para cancelar quando quiser e a garantia de ${G} dias devolve o valor. Nunca diga que o Pix falhou, travou ou saiu do ar: não houve falha.`,
+    ] : []),
   ];
 }
 

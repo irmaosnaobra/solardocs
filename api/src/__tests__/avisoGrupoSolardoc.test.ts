@@ -173,7 +173,7 @@ beforeEach(() => {
   delete process.env.ZAPI_IO_GROUP_ID;
   delete process.env.IO_GRUPO_ELETROPOSTO_ID;
 });
-afterEach(() => { delete process.env.ZAPI_SOLARDOC_GRUPO_ID; });
+afterEach(() => { delete process.env.ZAPI_SOLARDOC_GRUPO_ID; delete process.env.QUIZ_PESADA_OFF; });
 
 describe('textos dos avisos', () => {
   const todos = Object.keys(MODELOS) as ModeloAviso[];
@@ -979,7 +979,15 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(1);
     expect(textoEnviado()).toContain('A Carla chama no próximo horário');
   });
-  it('a Carla não vai chamar (sem CNPJ): o tick avisa aos 15 min, mesmo com a janela aberta, com a linha do motivo e a Giovanna', async () => {
+  it('com a recuperação pesada ligada, quem não tem CNPJ é da Carla: o tick segura para o robô e não avisa "sem CNPJ"', async () => {
+    podeChamar();
+    tabelas.leads_meta!.push(semCnpj());
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(0);
+    expect(sendToGroup).not.toHaveBeenCalled();
+  });
+  it('a Carla não vai chamar (sem CNPJ, com QUIZ_PESADA_OFF=1): o tick avisa aos 15 min, mesmo com a janela aberta, com a linha do motivo e a Giovanna', async () => {
+    process.env.QUIZ_PESADA_OFF = '1';
     tabelas.leads_meta!.push(semCnpj());
     const r = await runSolardocQuizDesistenciaTick();
     expect(r.avisados).toBe(1);
@@ -1180,7 +1188,8 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
 
   describe('a conta de 12 avaliações por rodada', () => {
     const tel = (i: number) => `55349${String(10000000 + i)}`;
-    it('12 leads novos segurados para o robô + 1 antigo sem CNPJ: o antigo é avisado na mesma rodada, sem gastar a conta', async () => {
+    it('12 leads novos segurados para o robô + 1 antigo sem CNPJ (QUIZ_PESADA_OFF=1): o antigo é avisado na mesma rodada, sem gastar a conta', async () => {
+      process.env.QUIZ_PESADA_OFF = '1';
       podeChamar();
       for (let i = 0; i < 12; i++) tabelas.leads_meta!.push(leadQuiz({ lead_id: `sdquiz_n${i}`, whatsapp: tel(i), nome: `Novo ${i}`, created_time: minAtras(16 + i) }));
       tabelas.leads_meta!.push(semCnpj({ lead_id: 'sdquiz_velho', whatsapp: tel(99), nome: 'Antigo Sem Cnpj', created_time: minAtras(300) }));
@@ -1446,10 +1455,10 @@ describe('sem id de grupo: o ROBÔ da Carla manda UM e-mail por rodada (27/10), 
     expect(await compra('cs_robo')).toBe('sem_grupo');
     expect(sendOpsAlert).not.toHaveBeenCalled();
   });
-  it('a ligação: só as 3 deps do robô passam o coletor, e fecham a rodada; o tick e a compra não', () => {
+  it('a ligação: só as 4 deps do robô passam o coletor (a 4ª é o aviso da recuperação pesada), e fecham a rodada; o tick e a compra não', () => {
     const lerFonte = (arq: string) => readFileSync(join(__dirname, '..', 'services', 'solardoc', arq), 'utf8');
     const robo = lerFonte('recuperacaoCarla.ts');
-    expect(robo.match(/coletorSemGrupo: semGrupo/g)).toHaveLength(3);
+    expect(robo.match(/coletorSemGrupo: semGrupo/g)).toHaveLength(4);
     expect(robo).toContain('fecharRodada: () => fecharSemGrupo(semGrupo)');
     expect(robo).toMatch(/finally \{[^}]*fecharRodada/);
     expect(lerFonte('desistenciaQuizTick.ts')).not.toContain('coletorSemGrupo');

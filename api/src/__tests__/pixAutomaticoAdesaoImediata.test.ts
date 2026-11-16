@@ -778,7 +778,7 @@ describe('Aviso ao Thiago: Pix Automático recusado x QR vencido', () => {
       expect(linhas[0]).toBe('⏳ *Pix automático venceu sem pagamento*');
       expect(linhas[1]).toContain('cliente@teste.com');
       expect(linhas[1]).toContain('R$ 67');
-      expect(linhas[2]).toBe('A pessoa gerou o código e não pagou dentro de 1 hora.');
+      expect(linhas[2]).toBe('A pessoa gerou o código e não pagou dentro do prazo do código.');
       expect(linhas).toHaveLength(3);
     }
   });
