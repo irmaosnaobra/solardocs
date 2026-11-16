@@ -1044,6 +1044,18 @@ router.get('/solardoc/quiz-recuperacao', async (_req: Request, res: Response): P
   }
 });
 
+// A SONDA da recuperação pesada (16/11/2026): o estado, o lote de resgate, a fila de agora (com a avaliação de leitura) e o porquê de cada pessoa.
+// SÓ LÊ: sem phone-exists, vez, claim, posse, código novo no Asaas ou envio. Sem nome e sem telefone (só o hmac curto).
+router.get('/solardoc/quiz-recuperacao-pesada', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    const { sondarPesada } = await import('../services/solardoc/recuperacaoPesadaSonda');
+    res.json(await sondarPesada({ vagas: () => vagasDoFrioLinha() }));
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 // A CONTA em si mora em services/io/nota1Funil.ts, com teste — aqui só se lê
 // banco e se devolve JSON.
 router.get('/nota1-funil', async (req: Request, res: Response): Promise<void> => {

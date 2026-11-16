@@ -22,6 +22,7 @@ import { solardocViaIo } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { ehFeriadoBR } from '../../../utils/feriadosBR';
 import { diaBRT, diaDaSemanaBRT, horaBRT } from '../../agentes5040/relogio';
+import { metaDoRobo } from '../../chefe/classes';
 
 // Cap de segurança por hora na linha física (anti-ban). Compartilhado por todos os bots.
 //
@@ -238,6 +239,9 @@ const BOT_SENT_PREFIXES = [
   'dunning_sent:',
   // [04/11] A Carla do quiz SolarDoc, segunda perna (recuperacaoCarla*): `quiz_rec_sent2:`. Frio, fora de PREFIXOS_AGENDA. Não casa com `quiz_rec_sent:`.
   'quiz_rec_sent2:',
+  // [16/11] A recuperação pesada do quiz e do Pix (recuperacaoPesada.ts), o 3º e último toque: `quiz_rec_sent3:`. Frio, fora de PREFIXOS_AGENDA.
+  // Sem ele aqui o teto não enxergaria o toque (o caso de 02/10). Não casa com `quiz_rec_sent:` nem com `quiz_rec_sent2:`.
+  'quiz_rec_sent3:',
   // [04/11] Pós-venda da SolarDoc (pedido do dono: quem compra tem que se cadastrar e usar). Quatro carimbos, um por insert ANTES do envio:
   //   `boasvindas_pix_sent:<contrato>` = boas-vindas do Pix automático na adesão (evento P0, asaasWebhookService). Também em PREFIXOS_AGENDA.
   //   `ativ_senha_sent:<userId>`       = "pagou e não criou a senha" (ativacaoPosVenda, transacional P3, 7h às 21h). Também em PREFIXOS_AGENDA:
@@ -393,6 +397,8 @@ export async function dentroDoTetoHorarioLinha(
   if (n24 >= tetoDia) return false;
   // B4c (sombra): só o frio que se identifica (`robo`) consulta a vaga da Base. Sem `robo`, nada além do que sempre houve.
   if (opts.robo && !opts.transacional && await vagaDaBaseSegura(opts.robo, tetoDia, n24)) return false;
+  // Vaga guardada da recuperação do quiz (P4), parecer do chefe de 16/11/2026: o frio P5 cede enquanto ela tem fila fresca.
+  if (opts.robo && !opts.transacional && await vagaDaRecuperacaoSegura(opts.robo, tetoDia)) return false;
   return true;
 }
 
@@ -478,6 +484,36 @@ async function vagaDaBaseSegura(robo: string, tetoFrioDia: number, frio24h: numb
     logger.info('linha', 'vaga_da_base (sombra)', { robo });
     await contarSombraDaBase(robo, now);
     return false;
+  } catch {
+    return false;
+  }
+}
+
+// ─── VAGA GUARDADA DA RECUPERAÇÃO DO QUIZ (P4, parecer do chefe anti-ban de 16/11/2026) ─────────────────────
+// A régua de 10 min não ordena: quem pergunta primeiro leva a vaga do frio, e o P5 (Bia, Helena, retomadas) gastava a hora antes da recuperação.
+// Enquanto a rodada da Carla do quiz deixar `quiz_rec_fila` = { prontos > 0, em < 20 min } (recuperacaoCarla.ts, só com a pesada ligada), o robô de
+// classe frio_p5 (chefe/classes.ts) não leva a vaga, até mín(15, metade do teto frio vigente) carimbos `quiz_rec_sent*` em 24 h e só dentro da janela.
+// Leitura que falha não segura ninguém, robô sem classe conhecida não é segurado, e não há env que afrouxe ou aperte.
+const FILA_REC_FRESCA_MS = 20 * 60_000;
+const VAGA_REC_MAX = 15;
+const CHAVE_FILA_REC = 'quiz_rec_fila';
+
+/** true = SEGURAR o frio P5 agora. Nunca lança. */
+export async function vagaDaRecuperacaoSegura(robo: string, tetoFrioDia: number, now: Date = new Date()): Promise<boolean> {
+  try {
+    if (metaDoRobo(robo)?.classe !== 'frio_p5') return false;
+    const vaga = Math.min(VAGA_REC_MAX, Math.floor(tetoFrioDia / 2));
+    if (vaga <= 0 || !dentroDaJanelaDaBaseLinha(now)) return false;
+    const { data: fila, error: eFila } = await supabase.from('system_state').select('value').eq('key', CHAVE_FILA_REC).maybeSingle();
+    if (eFila) return false;
+    const f = (fila as { value?: { prontos?: unknown; em?: unknown } } | null)?.value;
+    const em = Date.parse(String(f?.em ?? ''));
+    if (!f || !(Number(f.prontos) > 0) || !Number.isFinite(em) || now.getTime() - em >= FILA_REC_FRESCA_MS || em > now.getTime() + 60_000) return false;
+    const { data: usadas, error } = await supabase.from('system_state').select('key')
+      .like('key', 'quiz_rec_sent%').gte('updated_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()).limit(vaga);
+    if (error || (usadas?.length ?? vaga) >= vaga) return false;
+    logger.info('linha', 'vaga_da_recuperacao', { robo });
+    return true;
   } catch {
     return false;
   }

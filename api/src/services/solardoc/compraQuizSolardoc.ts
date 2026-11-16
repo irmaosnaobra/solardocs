@@ -16,12 +16,12 @@ interface VendaLinha { phone?: string | null; attribution_session_id?: string | 
 
 export interface VendasRecentes { sessoes: Set<string>; chaves: Set<string>; /** e-mails (minúsculos) das vendas recentes; opcional para os falsos dos testes */ emails?: Set<string> }
 
-/** Quem comprou: sessões e chaves de telefone das vendas recentes do ledger. */
-export async function vendasRecentes(agora: number): Promise<VendasRecentes> {
+/** Quem comprou: sessões e chaves de telefone das vendas recentes do ledger. `desdeMs` (opcional, só alarga) olha mais para trás: o lote de resgate (16/11/2026). */
+export async function vendasRecentes(agora: number, desdeMs?: number): Promise<VendasRecentes> {
   const sessoes = new Set<string>();
   const chaves = new Set<string>();
   const emails = new Set<string>();
-  const desde = new Date(agora - TETO_CALENDARIO_MS - 3600_000).toISOString();
+  const desde = new Date(Math.min(agora - TETO_CALENDARIO_MS - 3600_000, desdeMs ?? Infinity)).toISOString();
   const { data, error } = await supabase.from('sales').select('phone, attribution_session_id, email').gte('created_at', desde).limit(2000);
   if (error) throw new Error(`ler vendas: ${error.message}`);
   for (const v of (data ?? []) as VendaLinha[]) {

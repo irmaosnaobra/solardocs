@@ -44,7 +44,7 @@ import { hmacDe } from '../agentes5040/hmac';
 import { lerPosse } from '../agentes5040/posse';
 import { comprouLead, temPlanoPago, vendasRecentes } from './compraQuizSolardoc';
 import { avaliarLead, depsAvaliarReais, type DepsAvaliar } from './recuperacaoCarla';
-import { estadoRecuperacaoCarla, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
+import { estadoRecuperacaoCarla, lerLargada, pesadaLigada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import {
   ESPERA_MIN_MS, FRASE_DO_MOTIVO, FRASE_FORA_DA_JANELA, FRASE_NAO_CONFERIU, FRASE_NAO_CONFIRMOU_ENVIO, FRASE_SEM_VAGA_AINDA, JANELA_LEITURA_COM_ROBO_MS, JANELA_MAX_MS,
   PREFIXO_AINDA_REC, PREFIXO_CARIMBO_REC, SEGURA_PARA_O_ROBO_MS, foraDoTempo, horaBRT, motivoSemBanco,
@@ -131,6 +131,8 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
 
   // O estado do robô vale para a rodada inteira (lido uma vez). Chave do banco que não lê vale desligado: o tick avisa com a linha "desligada".
   const estado: EstadoRecuperacao = await estadoRecuperacaoCarla();
+  // Recuperação pesada (16/11/2026): quem não tem CNPJ entra na fila da Carla, então o tick não avisa "não vai chamar: sem CNPJ".
+  const pesada = pesadaLigada();
   let largada: number | null = null;
   if (estado.ligada) {
     try { largada = await lerLargada(); } catch (e) {
@@ -211,7 +213,7 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
           ({ hora, motivo } = dec);
         } else {
           // 1) o que não lê banco (sem CNPJ, antes da largada): avisa já e não gasta a conta
-          const semBanco = motivoSemBanco(l, largada);
+          const semBanco = motivoSemBanco(l, largada, { pesada });
           if (semBanco) {
             motivo = FRASE_DO_MOTIVO[semBanco];
           } else if (janelaAberta && idade < SEGURA_PARA_O_ROBO_MS) {
@@ -221,7 +223,7 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
             // 3) o resto gasta a conta de avaliações por rodada
             if (avaliados >= AVALIACOES_POR_RODADA) continue;
             avaliados++;
-            const av = await avaliarLead(l, { agoraMs: agora, largadaMs: largada, vendas }, depsAvaliacao);
+            const av = await avaliarLead(l, { agoraMs: agora, largadaMs: largada, vendas, pesada }, depsAvaliacao);
             if (!av.ok) {
               // Teste, sem telefone e compra não geram aviso. O resto: a Carla não vai chamar, com o motivo.
               if (av.motivo === 'teste' || av.motivo === 'sem_telefone' || av.motivo === 'comprou') continue;

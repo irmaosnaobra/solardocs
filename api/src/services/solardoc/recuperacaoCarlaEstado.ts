@@ -21,6 +21,13 @@ export const envDesligaRecuperacao = (env: NodeJS.ProcessEnv = process.env): boo
   (env.QUIZ_RECUPERACAO_LIGADA ?? '').trim() === '0';
 
 /**
+ * A RECUPERAÇÃO PESADA (16/11/2026, pedido do dono) está ligada? Nasce LIGADA; só a env QUIZ_PESADA_OFF com o texto '1' desliga, e desliga SÓ ela:
+ * a Carla volta exatamente ao comportamento de antes (sem lote, sem 3º toque, sem quem não tem CNPJ, recusado = sem recuperação, texto do diagnóstico).
+ * QUIZ_RECUPERACAO_LIGADA='0' e a chave `quiz_rec_pausa` continuam desligando tudo. Lida a cada chamada.
+ */
+export const pesadaLigada = (env: NodeJS.ProcessEnv = process.env): boolean => (env.QUIZ_PESADA_OFF ?? '').trim() !== '1';
+
+/**
  * A linha `quiz_rec_pausa` EXISTE: a pausa vale, a menos que o valor traga `ate` e a hora já tenha passado (expirou, como a pausa da
  * linha). `ate` ausente = pausa sem prazo; `ate` ilegível = pausado (na dúvida, a Carla não fala).
  */

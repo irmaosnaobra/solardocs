@@ -179,8 +179,12 @@ export type FaseDoCodigo = 'codigo' | 'espera' | 'vencido' | 'nada';
 
 export function faseDoCodigo(
   c: { status: string; created_at: string | null; qr_payload: string | null; expira_em?: string | null }, agoraMs: number,
+  opts: { recusadoVence?: boolean } = {},
 ): FaseDoCodigo {
   if (c.status === 'expirado') return 'vencido';
+  // [16/11/2026] Recuperação pesada: o webhook grava `recusado` quando o QR vence sem pagamento (REFUSED sem motivo), então `recusado` vale como vencido
+  // (código novo com o CPF do contrato). `cancelado` (a pessoa cancelou no app do banco) continua 'nada'. Sem a opção, o de antes.
+  if (c.status === 'recusado' && opts.recusadoVence) return 'vencido';
   if (c.status !== 'pendente') return 'nada';
   const restante = restanteDoCodigoMs({ created_at: c.created_at, expira_em: c.expira_em }, agoraMs);
   if (restante === null) return 'espera';
@@ -217,8 +221,10 @@ export function marcaDeLinha(key: string, value: unknown): MarcaPagto | null {
 // Os depoimentos e todos os textos moram em recuperacaoTextos.ts (um lugar só para trocar).
 export { DEP_VANDERLEI, DEP_ALESSANDRO, DEP_GSI } from './recuperacaoTextos';
 
-/** Carimbo do 2º toque (um por pessoa, para sempre): `quiz_rec_sent2:<hmac>`. Nunca existe um 3º. */
+/** Carimbo do 2º toque (um por pessoa, para sempre): `quiz_rec_sent2:<hmac>`. */
 export const PREFIXO_CARIMBO2_REC = 'quiz_rec_sent2:';
+/** Carimbo do 3º e último toque da recuperação pesada (16/11/2026): `quiz_rec_sent3:<hmac>`. Nunca existe um 4º. */
+export const PREFIXO_CARIMBO3_REC = 'quiz_rec_sent3:';
 /** Claim do e-mail do dia seguinte: 1 por contrato. */
 export const PREFIXO_PAGTO_EMAIL2 = 'quiz_pagto_email2:';
 
@@ -294,12 +300,13 @@ export function semCnpj(fieldData: unknown): boolean {
 
 /**
  * As conferências que NÃO leem banco: sem CNPJ e lead de antes da largada (o lead de teste e o telefone ilegível ficam com quem chama).
- * O robô, o tick de desistência e a sonda usam a mesma, na mesma ordem.
+ * O robô, o tick de desistência e a sonda usam a mesma, na mesma ordem. Com a recuperação pesada ligada (`pesada: true`, 16/11/2026) quem não tem
+ * CNPJ entra: o dono decidiu em 14/11 que quem não tem CNPJ compra igual. 'sem_cnpj' fica no tipo para quando ela está desligada.
  */
 export function motivoSemBanco(
-  l: Pick<LeadRec, 'field_data' | 'created_time'>, largadaMs: number | null,
+  l: Pick<LeadRec, 'field_data' | 'created_time'>, largadaMs: number | null, opts: { pesada?: boolean } = {},
 ): 'sem_cnpj' | 'antes_da_largada' | null {
-  if (semCnpj(l.field_data)) return 'sem_cnpj';
+  if (!opts.pesada && semCnpj(l.field_data)) return 'sem_cnpj';
   const criado = Date.parse(String(l.created_time ?? ''));
   if (largadaMs === null || !Number.isFinite(criado) || criado < largadaMs) return 'antes_da_largada';
   return null;

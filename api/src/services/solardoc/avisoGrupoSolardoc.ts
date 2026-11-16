@@ -596,6 +596,21 @@ export async function avisarDesistencia(
   return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}`, tipo: 'desistencia', texto, urgente: true, soReivindicar: opts.soReivindicar, coletorSemGrupo: opts.coletorSemGrupo });
 }
 
+/**
+ * Recuperação pesada (16/11/2026): a pessoa tentou pagar e não concluiu, mas JÁ conversou com a linha, então o robô não fala por cima. O time é avisado
+ * UMA vez por pessoa, para sempre (`quiz_aviso:<hmac>:pesada`), pendente (o tick do B1 manda, no espaçamento dele).
+ */
+export async function avisarTentouPagar(lead: LeadQuizLinha, opts: { coletorSemGrupo?: ColetorSemGrupo } = {}): Promise<ResultadoAviso> {
+  if (ehLeadDeTeste(lead.field_data)) return 'ignorado';
+  const h = hmacDoLead(lead.whatsapp);
+  if (!h) return 'ignorado';
+  const texto = montarAviso('desistencia', {
+    ...camposDoLead(lead), hora_carla: null,
+    motivo_carla: 'Tentou pagar e não concluiu. A Carla não chama porque a pessoa já conversou com a linha: falar à mão.',
+  });
+  return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}:pesada`, tipo: 'desistencia', texto, urgente: true, soReivindicar: true, coletorSemGrupo: opts.coletorSemGrupo });
+}
+
 /** Sem vaga para a Carla. UMA vez por pessoa, para sempre (B2.1). Quem decide não chamar quando a desistência já saiu é o robô (lerFila). */
 export async function avisarSemVaga(lead: LeadQuizLinha, opts: { coletorSemGrupo?: ColetorSemGrupo } = {}): Promise<ResultadoAviso> {
   if (ehLeadDeTeste(lead.field_data)) return 'ignorado';

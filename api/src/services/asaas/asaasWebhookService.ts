@@ -1163,9 +1163,19 @@ Pagamento ${b.payment?.id} de R$ ${b.payment?.value} chegou sem o contrato do ad
       // vai debitar. Sem este aviso a assinatura morre em silêncio.
       const resumo = `${linha.email} · ${PLANOS_PIX[linha.plano]?.nome ?? linha.plano} · R$ ${linha.valor}`;
       // REFUSED sem motivo: o QR do 1º mês venceu sem pagamento (o webhook chega ~30 s depois do vencimento do QR).
-      const qrVenceu = status === 'recusado' && !String(b.authorization?.cancellationReason ?? '').trim();
+      const motivoRecusa = String(b.authorization?.cancellationReason ?? '').trim();
+      const qrVenceu = status === 'recusado' && !motivoRecusa;
+      // [16/11/2026] O motivo fica gravado por contrato (`pix_auto_recusa:<contrato>`) para a sonda da recuperação separar "o QR venceu" de "o banco
+      // recusou". Melhor esforço: a falha aqui nunca derruba o webhook.
+      if (status === 'recusado' && linha.contract_id) {
+        try {
+          await supabase.from('system_state').upsert(
+            { key: `pix_auto_recusa:${linha.contract_id}`, value: { motivo: motivoRecusa.slice(0, 80) || null, qrVenceu, em: new Date().toISOString() } },
+            { onConflict: 'key' });
+        } catch { /* só observação */ }
+      }
       await avisarThiago(qrVenceu
-        ? `⏳ *Pix automático venceu sem pagamento*\n${resumo}\nA pessoa gerou o código e não pagou dentro de 1 hora.`
+        ? `⏳ *Pix automático venceu sem pagamento*\n${resumo}\nA pessoa gerou o código e não pagou dentro do prazo do código.`
         : `⚠️ *Pix Automático ${status}*\n${resumo}\nNão haverá mais débito automático. Vale um toque pra reativar.`);
       return { tratado: true, motivo: `autorização ${status}` };
     }
