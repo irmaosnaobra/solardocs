@@ -13,6 +13,7 @@ import {
   cancelarPixRecorrente, docValido, soDigitos, PLANOS_PIX, type AtribuicaoPixAuto,
 } from '../services/asaas/pixRecorrenteService';
 import { processarWebhookAsaas, AsaasWebhookBody } from '../services/asaas/asaasWebhookService';
+import { camposPixParaTela, qrImagemParaTela } from '../services/asaas/pixPagoTela';
 import { lerAdicionaisDoPlano } from '../services/produtos/adicionaisPlanoPix';
 import { pixPublicoAtivo, pixAutoQuizAtivo, pixAutoLpAtivo, pixAvulsoFunilAtivo } from '../utils/pixInfo';
 import { criarPixAvulso, statusPixAvulso } from '../services/asaas/pixAvulsoService';
@@ -109,6 +110,8 @@ export async function statusPixRecorrenteHandler(req: Request, res: Response): P
     const { data: user } = await supabase
       .from('users').select('plano, plano_expira_em').eq('id', req.userId).maybeSingle();
     const adic = await lerAdicionaisDoPlano(linha.contract_id);
+    const tela = await camposPixParaTela(linha);
+    const qrImagem = qrImagemParaTela(linha, req.query.qr);
 
     res.json({
       ativo: linha.status === 'ativo',
@@ -125,6 +128,8 @@ export async function statusPixRecorrenteHandler(req: Request, res: Response): P
         qrPayload: linha.qr_payload,
         ultimoPagamentoEm: linha.ultimo_pagamento_em,
         proximoVencimento: linha.proximo_vencimento,
+        ...tela,
+        ...(qrImagem ? { qrImagemBase64: qrImagem } : {}),
       },
       acessoAte: (user as { plano_expira_em?: string | null } | null)?.plano_expira_em ?? null,
     });
@@ -370,6 +375,8 @@ export async function statusPixPublicoHandler(req: Request, res: Response): Prom
     const linha = await buscarAssinaturaPorId(String(req.params.id || ''));
     if (!linha) throw new ApiError(404, 'Contrato não encontrado');
     const adic = await lerAdicionaisDoPlano(linha.contract_id);
+    const tela = await camposPixParaTela(linha);
+    const qrImagem = qrImagemParaTela(linha, req.query.qr);
 
     res.json({
       adicionais: adic?.itens ?? [],
@@ -386,6 +393,10 @@ export async function statusPixPublicoHandler(req: Request, res: Response): Prom
       contractId: linha.contract_id,
       qrPayload: linha.qr_payload,
       proximoVencimento: linha.proximo_vencimento,
+      // Somados (nada acima mudou): a tela diz "Pix pago" por aqui, mesmo com o status ainda atrasado ou recusado depois do pagamento.
+      ...tela,
+      // Só com `?qr=1` (a tela reabriu e não tem a imagem): PNG em base64 gerado do copia e cola, mesmo formato da criação.
+      ...(qrImagem ? { qrImagemBase64: qrImagem } : {}),
     });
   } catch (err) {
     responderErro(res, err, 'status-publico');

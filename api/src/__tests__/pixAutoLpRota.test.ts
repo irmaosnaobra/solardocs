@@ -29,6 +29,7 @@ vi.mock('../services/asaas/pixRecorrenteService', () => ({
   criarPixRecorrente: (...a: unknown[]) => criarPixRecorrente(...a),
   buscarAssinaturaPorId: (...a: unknown[]) => buscarAssinaturaPorId(...a),
   buscarAssinaturaAtiva: vi.fn(),
+  lerExpiracaoDoContrato: vi.fn(async () => ({ estado: 'ausente' as const })),
   cancelarPixRecorrente: vi.fn(),
   docValido: (d: string) => String(d || '').replace(/\D/g, '').length === 11,
   soDigitos: (v: unknown) => String(v ?? '').replace(/\D/g, ''),

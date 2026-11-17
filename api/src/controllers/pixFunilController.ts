@@ -40,7 +40,7 @@ function desdeQuando(period: string): Date {
 
 type Tela = 'automatico' | 'recorrente';
 
-interface Evento {
+export interface Evento {
   session_id: string;
   event_type: string;
   event_data: Record<string, unknown> | null;
@@ -50,10 +50,16 @@ interface Evento {
 // Conta PESSOAS (sessões distintas), não disparos. Uma pessoa que gera o Pix,
 // erra e gera de novo é uma pessoa — contar eventos inflaria o funil no ponto
 // exato em que ele está com problema.
-function sessoes(evs: Evento[], tipo: string, tela?: Tela): number {
+export function sessoes(evs: Evento[], tipo: string, tela?: Tela): number {
+  // O sid do quiz mora no sessionStorage e sobrevive ao recarregar a mesma aba: quem recarrega manda pix_pago com retomado
+  // numa sessão que JÁ tem pix_gerou. Essa conta é válida e entra.
+  const geraram = tipo === 'pix_pago' ? new Set(evs.filter(e => e.event_type === 'pix_gerou').map(e => e.session_id)) : null;
   return new Set(
     evs
       .filter(e => e.event_type === tipo)
+      // pix_pago retomado de uma sessão SEM pix_gerou (a pessoa reabriu a página em outra aba ou aparelho) é a MESMA venda confirmada
+      // depois: fica fora da conta por sessão, senão ela fecha acima de 100%. Com pix_gerou na sessão, conta.
+      .filter(e => !(geraram && e.event_data?.retomado === true && !geraram.has(e.session_id)))
       .filter(e => !tela || (e.event_data?.tela as string) === tela)
       .map(e => e.session_id)
   ).size;

@@ -10,7 +10,10 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import api from '@/services/api';
 import { registrarEvento } from '@/hooks/useLpTracking';
 import { LinhaAdicionaisPix, corpoAdicionaisDaUrl } from '@/components/CheckoutAdicional/AdicionaisPix';
+import { primeiraVezPago, usePixEspera, validadeTexto, type PixStatus } from '@/lib/pixEspera';
+import PixCartao from '@/components/PixPago/PixCartao';
 import styles from './pix-recorrente.module.css';
+const ESPERA_MAX_MS = 60 * 60 * 1000; // sem expiraEm da api, a tela espera 60 min
 
 // PREÇO ÚNICO: uma assinatura só. Aqui eram dois botões (PRO R$27 × VIP R$67) —
 // virou resumo do que vai ser cobrado. O estado `plano` continua em 'ilimitado'
@@ -28,6 +31,12 @@ interface Contrato {
   qrPayload: string | null;
   ultimoPagamentoEm: string | null;
   proximoVencimento: string | null;
+  // Campos somados pela api em 16/11 (ausentes na api antiga).
+  pago?: boolean;
+  pagoEm?: string | null;
+  situacao?: string | null;
+  criadoEm?: string | null;
+  expiraEm?: string | null;
 }
 
 interface Criado {
@@ -41,6 +50,8 @@ interface Criado {
   qrImagemBase64: string | null;
   status: string;
   instrucao: string;
+  id?: string | null;
+  expiraEm?: string | null;
 }
 
 // Máscara só visual — quem valida CPF/CNPJ de verdade é o Asaas.
@@ -72,7 +83,7 @@ export default function PixRecorrentePage() {
   const [copiado, setCopiado] = useState(false);
   const [cupomOk, setCupomOk] = useState<{ codigo: string; primeiroMes: number; precoCheio: number } | null>(null);
 
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [fimMs, setFimMs] = useState(0); // até quando o código gerado aqui vale
   const jaMediu = useRef(false);
 
   // CHEGOU. Mesmo evento da tela pública, com `tela` diferente — os dois
@@ -97,40 +108,35 @@ export default function PixRecorrentePage() {
     return () => { vivo = false; };
   }, [cupomUrl, plano]);
 
-  const carregarStatus = useCallback(async () => {
+  // Estado da assinatura. Só lê: o "pagou" é medido pela espera abaixo, uma vez por contrato.
+  const carregarStatus = useCallback(async (): Promise<Contrato | null> => {
     try {
-      const { data } = await api.get('/payments/pix-recorrente');
+      const { data } = await api.get('/payments/pix-recorrente', { timeout: 12000 });
       setDisponivel(data.disponivel !== false);
-      // Fecha o funil na própria tela: dispara UMA vez, na virada pra ativo.
-      // Sem a comparação com o estado anterior, cada rodada do poll (5 em 5
-      // segundos) mandaria um "pagou" novo e o número viraria ficção.
-      setContrato((antes) => {
-        const agora = data.contrato ?? null;
-        if (agora?.status === 'ativo' && antes?.status !== 'ativo') {
-          registrarEvento('pix_pago', { tela: 'recorrente', modo: agora.modo ?? null });
-        }
-        return agora;
-      });
+      setContrato(data.contrato ?? null);
       setAcessoAte(data.acessoAte ?? null);
-      return data.contrato?.status as string | undefined;
-    } catch {
-      return undefined;
+      return (data.contrato ?? null) as Contrato | null;
     } finally {
       setCarregando(false);
     }
   }, []);
-  useEffect(() => { void carregarStatus(); }, [carregarStatus]);
+  useEffect(() => { void carregarStatus().catch(() => {}); }, [carregarStatus]);
 
-  // Enquanto o pagamento não cai, a tela pergunta sozinha — o cliente não precisa
-  // recarregar nem avisar ninguém. Para no primeiro "ativo".
-  useEffect(() => {
-    if (!criado || contrato?.status === 'ativo') {
-      if (timer.current) { clearInterval(timer.current); timer.current = null; }
-      return;
-    }
-    timer.current = setInterval(() => { void carregarStatus(); }, 5000);
-    return () => { if (timer.current) clearInterval(timer.current); };
-  }, [criado, contrato?.status, carregarStatus]);
+  // Código gerado aqui: pergunta a cada 3 s e na volta do banco. Sem contrato na resposta (a lista
+  // da api não traz recusado), espera até o prazo e diz que venceu, sem afirmar que nada foi cobrado.
+  const chaveEspera = criado ? (criado.id || 'recorrente') : null;
+  // Aqui a leitura é a da própria conta (não a pública): não há ?qr=1, o QR vem da criação.
+  const buscar = useCallback(async (): Promise<PixStatus | null> => {
+    const c = await carregarStatus();
+    return c ?? { status: 'desconhecido' };
+  }, [carregarStatus]);
+  const aoPagar = useCallback((d: PixStatus) => {
+    const id = criado?.id || `rec-${(d as Contrato).criadoEm || ''}`;
+    if (!primeiraVezPago(id)) return;
+    registrarEvento('pix_pago', { tela: 'recorrente', modo: d.modo ?? null });
+  }, [criado?.id]);
+  const est = usePixEspera({ chave: chaveEspera, fimMs, retomada: false, temImagem: true, buscar, aoPagar });
+  const pagou = criado !== null && est.fase === 'pago', encerrou = criado !== null && est.fase === 'encerrado';
 
   async function criar() {
     setCriando(true);
@@ -142,9 +148,11 @@ export default function PixRecorrentePage() {
         whatsapp: fone.replace(/\D/g, '') || undefined,
         cupom: cupomUrl || undefined, ...corpoAdicionaisDaUrl(), // ferramentas do order bump do /assinar
       });
+      const expira = typeof data?.expiraEm === 'string' ? Date.parse(data.expiraEm) : NaN;
+      setFimMs(Number.isFinite(expira) && expira > Date.now() + 60 * 1000 ? expira : Date.now() + ESPERA_MAX_MS);
+      setCopiado(false);
       setCriado(data);
       registrarEvento('pix_gerou', { tela: 'recorrente', modo: data?.modo ?? null, contrato: data?.id ?? null });
-      await carregarStatus();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       registrarEvento('pix_falhou', { tela: 'recorrente', motivo: e?.response?.data?.error ?? 'erro-desconhecido' });
@@ -159,8 +167,9 @@ export default function PixRecorrentePage() {
       await navigator.clipboard.writeText(texto);
       registrarEvento('pix_copiou', { tela: 'recorrente' });
       setCopiado(true);
-      setTimeout(() => setCopiado(false), 2500);
+      setTimeout(() => setCopiado(false), 3000);
     } catch {
+      (document.getElementById('pix-codigo') as HTMLTextAreaElement | null)?.select();
       setErro('Seu navegador bloqueou a cópia. Selecione o código e copie na mão.');
     }
   }
@@ -179,7 +188,6 @@ export default function PixRecorrentePage() {
   }
 
   if (!user) return null;
-
   if (carregando) {
     return (
       <div className={styles.page}>
@@ -208,10 +216,37 @@ export default function PixRecorrentePage() {
   const ativo = contrato?.status === 'ativo';
   const dataBR = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
 
+  const cartaoPix = criado?.qrPayload ? (
+    <PixCartao
+      est={est}
+      payload={criado.qrPayload}
+      imagem={criado.qrImagemBase64 || ''}
+      validade={fimMs && criado.expiraEm ? validadeTexto(fimMs) : ''}
+      instrucao={criado.instrucao}
+      copiado={copiado}
+      onCopiar={() => copiar(criado.qrPayload as string)}
+      temConta
+      logado
+      hrefConta="/dashboard"
+      onGerar={() => { setCriado(null); setCopiado(false); setErro(null); }}
+      cartao={null}
+      css={{ card: `${styles.card} ${styles.cardPix}`, titulo: styles.cardTitleGrande, texto: `${styles.cardText} ${styles.instrucao}`, btn: styles.btnPrimary, btn2: styles.btnSecondary }}
+    />
+  ) : null;
+
+  // Código gerado aqui e já pago (ou vencido): o resultado ocupa a tela inteira.
+  if (pagou || encerrou) return <div className={styles.page}>{cartaoPix}</div>;
+
+  const esperando = Boolean(criado) && !ativo;
+
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Pagar por Pix</h1>
-      <p className={styles.subtitle}>Assinatura mensal no Pix, sem precisar de cartão de crédito.</p>
+      {!esperando && (
+        <>
+          <h1 className={styles.title}>Pagar por Pix</h1>
+          <p className={styles.subtitle}>Assinatura mensal no Pix, sem precisar de cartão de crédito.</p>
+        </>
+      )}
 
       {ativo && contrato && (
         <div className={styles.card}>
@@ -230,7 +265,7 @@ export default function PixRecorrentePage() {
           {contrato.modo === 'assinatura' && (
             <div className={styles.aviso}>
               Todo mês enviamos um novo código Pix no seu WhatsApp e e-mail. Assim que você paga,
-              o acesso renova sozinho — não precisa mandar comprovante.
+              o acesso renova sozinho. Não precisa mandar comprovante.
             </div>
           )}
           <div className={styles.row}>
@@ -239,51 +274,16 @@ export default function PixRecorrentePage() {
         </div>
       )}
 
-      {!ativo && criado && (
+      {esperando && (cartaoPix ?? (
+        // Cobrança criada mas QR não veio: dizer isso é melhor que
+        // mostrar uma caixa vazia e o cliente achar que travou.
         <div className={styles.card}>
-          <div className={styles.cardTitle}>Pague para ativar</div>
-          <p className={styles.cardText}>{criado.instrucao}</p>
-
-          <div className={styles.pagamento} style={{ marginTop: 18 }}>
-            {criado.qrImagemBase64 && (
-              <img
-                className={styles.qr}
-                src={`data:image/png;base64,${criado.qrImagemBase64}`}
-                alt="QR Code do Pix"
-              />
-            )}
-            <div className={styles.pagamentoLado}>
-              {criado.qrPayload ? (
-                <>
-                  <label className={styles.label}>Pix copia e cola</label>
-                  <textarea className={styles.copiaCola} readOnly value={criado.qrPayload} rows={4} />
-                  <div className={styles.row}>
-                    <button className={styles.btnPrimary} onClick={() => copiar(criado.qrPayload as string)}>
-                      {copiado ? 'Código copiado' : 'Copiar código'}
-                    </button>
-                    <span className={styles.badge}>aguardando pagamento</span>
-                  </div>
-                </>
-              ) : (
-                // Cobrança criada mas QR não veio: dizer isso é melhor que
-                // mostrar uma caixa vazia e o cliente achar que travou.
-                <div className={styles.aviso}>
-                  A cobrança foi criada, mas o código demorou a chegar. Recarregue a página em
-                  alguns segundos ou chame a gente no WhatsApp (34) 99816-5040.
-                </div>
-              )}
-
-              <ol className={styles.passos}>
-                <li>Abra o app do seu banco e pague o Pix acima.</li>
-                {criado.modo === 'automatico'
-                  ? <li>O banco vai perguntar se você autoriza a cobrança mensal de R$ {criado.totalMensal ?? criado.valor} — confirme.</li>
-                  : <li>Todo mês você recebe um novo código; a confirmação é automática.</li>}
-                <li>Esta tela libera seu acesso sozinha assim que o pagamento cair.</li>
-              </ol>
-            </div>
+          <div className={styles.aviso}>
+            A cobrança foi criada, mas o código demorou a chegar. Recarregue a página em
+            alguns segundos ou chame a gente no WhatsApp (34) 99816-5040.
           </div>
         </div>
-      )}
+      ))}
 
       {!ativo && !criado && (
         <div className={styles.card}>

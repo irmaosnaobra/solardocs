@@ -1,0 +1,244 @@
+/* Peças da espera do Pix. Cores pelas variáveis --pix-*: cada tela define as
+   dela (a LP escura no PixAutomaticoModal.module.css, as telas claras nos
+   próprios módulos). Sem a variável, vale o tema claro do app (styles/globals.css). */
+
+.pago,
+.fim {
+  text-align: center;
+  padding: 4px 0 2px;
+}
+
+/* Selo verde: disco cheio com o check, dentro de um halo suave. */
+.selo {
+  width: 92px;
+  height: 92px;
+  margin: 4px auto 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--pix-ok-fundo, color-mix(in srgb, var(--color-success) 16%, transparent));
+}
+.seloDisco {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--pix-ok, var(--ink-green));
+  color: var(--pix-sobre-ok, #fff);
+  animation: seloEntra 0.36s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.seloDisco svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: traco 0.38s 0.22s ease-out forwards;
+}
+@keyframes seloEntra {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes traco {
+  to { stroke-dashoffset: 0; }
+}
+
+/* O foco vai para cá só para o leitor de tela anunciar o resultado: não é um controle, sem anel. */
+.pagoStatus,
+.pagoStatus:focus,
+.pagoStatus:focus-visible { outline: none; }
+
+.pagoTitulo,
+.fimTitulo {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--pix-texto, var(--color-text));
+}
+.fimTitulo { font-size: 24px; }
+
+.retomado {
+  margin: 0 auto 8px;
+  max-width: 34ch;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--pix-texto, var(--color-text));
+}
+.pagoTexto {
+  margin: 0 auto;
+  max-width: 36ch;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--pix-mudo, var(--color-text-muted));
+  text-wrap: pretty;
+}
+.passo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px auto 0;
+  max-width: 36ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--pix-mudo, var(--color-text-muted));
+  text-align: left;
+}
+.passo .spin { margin-top: 2px; }
+
+.botao { margin-top: 20px; min-height: 48px; }
+.botao2 { margin-top: 10px; min-height: 48px; }
+.pago .botao,
+.fim .botao,
+.fim .botao2 { width: 100%; }
+
+/* Vencido ou recusado: ícone neutro, sem alarme. */
+.fimIcone {
+  width: 64px;
+  height: 64px;
+  margin: 4px auto 14px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--pix-neutro-fundo, var(--color-surface-2));
+  color: var(--pix-mudo, var(--color-text-muted));
+}
+.fimIcone svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Esperando: a linha viva com o giro. */
+.espera {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--pix-borda, var(--color-border));
+  background: var(--pix-caixa, var(--color-surface-2));
+}
+.espera > .spin { margin-top: 3px; }
+.esperaTexto {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--pix-texto, var(--color-text));
+}
+.semConexao {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--pix-alerta, var(--ink-amber));
+}
+.spin {
+  flex: none;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2.5px solid var(--pix-trilho, var(--color-border-strong));
+  border-top-color: var(--pix-acao, var(--color-primary));
+  animation: gira 0.8s linear infinite;
+}
+@keyframes gira { to { transform: rotate(360deg); } }
+
+/* Código e QR: um embaixo do outro no celular, lado a lado quando há espaço. */
+.codigoBloco {
+  container-type: inline-size;
+  margin-top: 4px;
+}
+.codigoGrade {
+  display: grid;
+  gap: 14px;
+}
+.codigoLado { min-width: 0; }
+.validade {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--pix-mudo, var(--color-text-muted));
+}
+.rotulo {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pix-texto, var(--color-text));
+}
+.codigo {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--pix-borda, var(--color-border-strong));
+  border-radius: 10px;
+  background: var(--pix-campo, var(--color-surface-2));
+  color: var(--pix-texto, var(--color-text));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.45;
+  height: calc(4 * 1.45em + 22px); /* 4 linhas inteiras; o resto rola */
+  overflow-y: auto;
+  resize: none;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.codigo:focus-visible {
+  outline: 3px solid var(--pix-foco, var(--color-primary));
+  outline-offset: 2px;
+}
+.qrFig {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.qr {
+  display: block;
+  width: 176px;
+  max-width: 60%;
+  height: auto;
+  padding: 8px;
+  border-radius: 12px;
+  background: #fff; /* o QR precisa de fundo branco para o banco ler */
+  border: 1px solid var(--pix-borda, var(--color-border));
+}
+.apoio {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--pix-mudo, var(--color-text-muted));
+  max-width: 32ch;
+  margin-inline: auto;
+}
+.qrFig .apoio { margin-top: 0; }
+
+@container (min-width: 520px) {
+  .codigoGrade { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+  .codigoLado { grid-column: 1; }
+  .qrFig { grid-column: 2; grid-row: 1; width: 196px; }
+  .qr { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seloDisco,
+  .seloDisco svg { animation: none; stroke-dashoffset: 0; }
+  .spin { animation-duration: 2.4s; }
+}
