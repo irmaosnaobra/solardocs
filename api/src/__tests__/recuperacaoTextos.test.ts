@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
   MODELOS_WHATSAPP, MAX_NOME, MAX_EMPRESA, LIMITE_TEXTO_CODIGO, LIMITE_TEXTO_CURTO, LIMITE_TEXTO_LP_SEM_LINK,
   DEP_VANDERLEI, DEP_ALESSANDRO, DEP_GSI,
-  montarTextoCodigoVivo, montarTextoCodigoNovoHoje, montarTextoCodigoNovoDia2, montarTextoAbandonoLp, montarTextoRespostaCodigo, montarTextoPedidoCpf,
+  montarTextoCodigoVivo, montarTextoCodigoNovoHoje, montarTextoCodigoNovoDia2, montarTextoAbandonoLp, montarTextoRespostaCodigo, montarTextoPedidoCpf, montarTextoPedidoDados, ehPedidoDeDados,
   montarEmailCodigo, EMAIL_CODIGO_ASSUNTO, EMAIL_CODIGO_CORPO, montarTextoPixJaPagou, montarTextoPixAguarde,
 } from '../services/solardoc/recuperacaoTextos';
 import { montarTextoPagamento, linkDoPagamento } from '../services/solardoc/recuperacaoCarlaRegras';
@@ -137,6 +137,28 @@ describe('textos 4 e 5 (resposta na conversa): até 160, que é o teto da bolha 
     expect(montarTextoRespostaCodigo('Ana')).toBe('Fechado, Ana. É o Pix automático de R$ 67 por mês, e você cancela quando quiser pelo app do banco. O código vai aqui embaixo.');
     expect(montarTextoPedidoCpf(null).startsWith('O Pix automático pede o CPF de quem paga')).toBe(true);
     expect(montarTextoPedidoCpf('Ana')).toBe('Ana, o Pix automático pede o CPF de quem paga, e eu ainda não tenho o seu. Me manda aqui, por favor? Assim eu gero o código.');
+  });
+  it('texto 5b (CPF e e-mail): os três pedidos, com e sem nome, literais, até 160 e dentro das regras da casa', () => {
+    const f = (faltaCpf: boolean, faltaEmail: boolean) => ({ faltaCpf, faltaEmail });
+    expect(montarTextoPedidoDados('Ana', f(true, true))).toBe('Ana, pra gerar seu Pix automático eu preciso de dois dados: seu CPF e o e-mail que você vai usar pra entrar no app. Me manda aqui, por favor?');
+    expect(montarTextoPedidoDados(null, f(true, true))).toBe('Pra gerar seu Pix automático eu preciso de dois dados: seu CPF e o e-mail que você vai usar pra entrar no app. Me manda aqui, por favor?');
+    expect(montarTextoPedidoDados('Ana', f(false, true))).toBe('Ana, agora só falta o e-mail que você vai usar pra entrar no app. Me manda aqui que eu já gero o código.');
+    expect(montarTextoPedidoDados(null, f(false, true))).toBe('Agora só falta o e-mail que você vai usar pra entrar no app. Me manda aqui que eu já gero o código.');
+    expect(montarTextoPedidoDados('Ana', f(true, false))).toBe(montarTextoPedidoCpf('Ana'));
+    for (const nome of ['Maximiliano Alexandri', null]) {
+      for (const fl of [f(true, true), f(false, true), f(true, false)]) {
+        const t = montarTextoPedidoDados(nome, fl);
+        casas(t);
+        expect(t.length).toBeLessThanOrEqual(LIMITE_TEXTO_CURTO);
+      }
+    }
+  });
+  it('ehPedidoDeDados reconhece os três pedidos e nada mais', () => {
+    expect(ehPedidoDeDados(montarTextoPedidoCpf('Ana'))).toBe(true);
+    expect(ehPedidoDeDados(montarTextoPedidoDados('Ana', { faltaCpf: true, faltaEmail: true }))).toBe(true);
+    expect(ehPedidoDeDados(montarTextoPedidoDados(null, { faltaCpf: false, faltaEmail: true }))).toBe(true);
+    expect(ehPedidoDeDados('Oi! Aqui é a Giovanna.')).toBe(false);
+    expect(ehPedidoDeDados(null)).toBe(false);
   });
   it('texto 7: já pagou e código vivo por pouco (placeholders [nome] e [hora]), até 160, com e sem nome', () => {
     for (const hora of ['15h40', '21h']) {

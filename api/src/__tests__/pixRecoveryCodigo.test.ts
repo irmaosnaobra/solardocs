@@ -79,7 +79,7 @@ describe('resposta na conversa: [[ENVIAR_PIX]] = Pix automático em código', ()
   });
 
   it('sem CPF: UMA bolha pedindo o CPF (resposta, nunca toque); o histórico guarda o pedido', async () => {
-    h.resolver = { tipo: 'pedir_cpf' };
+    h.resolver = { tipo: 'pedir_dados', faltaCpf: true, faltaEmail: false };
     await handleRecoveryReply(TEL, 'quero pix', null);
     expect(h.humanas).toHaveLength(1);
     expect(h.humanas[0]!.partes[0]).toBe('Ana, o Pix automático pede o CPF de quem paga, e eu ainda não tenho o seu. Me manda aqui, por favor? Assim eu gero o código.');
@@ -92,6 +92,30 @@ describe('resposta na conversa: [[ENVIAR_PIX]] = Pix automático em código', ()
     await handleRecoveryReply(TEL, `meu cpf é ${CPF}`, null);
     expect(h.iaChamadas).toBe(0);
     expect(h.pedidosResolver[0]!.textoDoLead).toContain(CPF);
+    expect(h.humanas.map(x => x.partes[0])).toEqual([expect.stringContaining('O código vai aqui embaixo.'), CODIGO]);
+  });
+
+  it('sem CPF e sem e-mail: UMA bolha pedindo os dois dados (a Giovanna trata o tipo novo, nunca cai no null)', async () => {
+    h.resolver = { tipo: 'pedir_dados', faltaCpf: true, faltaEmail: true };
+    await handleRecoveryReply(TEL, 'quero pix', null);
+    expect(h.humanas).toHaveLength(1);
+    expect(h.humanas[0]!.partes).toEqual(['Ana, pra gerar seu Pix automático eu preciso de dois dados: seu CPF e o e-mail que você vai usar pra entrar no app. Me manda aqui, por favor?']);
+    expect(h.humanas[0]!.opts).toEqual({ maxBolhas: 1 });
+  });
+
+  it('só falta o e-mail: pede só o e-mail; o e-mail mandado depois do pedido vai ao resolver SEM chamar o modelo, com o CPF do histórico', async () => {
+    h.resolver = { tipo: 'pedir_dados', faltaCpf: false, faltaEmail: true };
+    await handleRecoveryReply(TEL, `meu cpf é ${CPF}`, null);
+    expect(h.humanas[0]!.partes[0]).toBe('Ana, agora só falta o e-mail que você vai usar pra entrar no app. Me manda aqui que eu já gero o código.');
+    // a sessão agora guarda o CPF dele e o pedido nosso; ele manda só o e-mail
+    h.sessao = { messages: h.salvas[h.salvas.length - 1]!, nome: 'Ana Souza' };
+    h.humanas = []; h.iaChamadas = 0; h.pedidosResolver = [];
+    h.resolver = { tipo: 'codigo', codigo: CODIGO, validadeMs: Date.now() + 3_600_000 * 24, novo: true };
+    await handleRecoveryReply(TEL, 'ana@exemplo.com', null);
+    expect(h.iaChamadas).toBe(0);
+    const pedido = h.pedidosResolver[0]!;
+    expect(pedido.textoDoLead).toBe('ana@exemplo.com');
+    expect(pedido.msgs.filter((m: { from_me: boolean }) => !m.from_me).map((m: { texto: string }) => m.texto)).toContain(`meu cpf é ${CPF}`);
     expect(h.humanas.map(x => x.partes[0])).toEqual([expect.stringContaining('O código vai aqui embaixo.'), CODIGO]);
   });
 

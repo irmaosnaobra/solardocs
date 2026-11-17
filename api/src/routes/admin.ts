@@ -1581,6 +1581,14 @@ router.post('/pix-liberar', async (req: Request, res: Response): Promise<void> =
       plano: 'ilimitado', limite_documentos: 999999, billing_status: 'active', plano_expira_em: expira,
       past_due_since: null, dunning_last_day_sent: null,
     }).eq('id', u.id);
+    // O comprovante pendente deste telefone (a varredura/o e-mail liberariam um 2º mês): sai agora. Só o campo `comprovante` do registro `pix_solicitado:<11 dígitos>`
+    // é limpo (a marca de "já mandamos Pix" fica). Nunca derruba a liberação, que já aconteceu.
+    try {
+      const whats = String(u.whatsapp ?? '').replace(/\D/g, '');
+      if (whats) { const { limparComprovantePendente } = await import('../services/agents/whatsapp/pixSolicitado'); await limparComprovantePendente(whats); }
+    } catch (err) {
+      console.error('[admin] pix-liberar: limpar o comprovante pendente falhou (liberação já feita):', err);
+    }
     // Estava em dunning? cancela a sub de cartão falhando no Stripe (anti-cobrança-dupla —
     // senão o Smart Retries cobra o cartão além do Pix). O guard do webhook subscription.deleted
     // não re-suspende porque plano_expira_em acabou de ir pro futuro.

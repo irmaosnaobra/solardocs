@@ -209,6 +209,7 @@ import { avisarCompra } from '../services/solardoc/avisoGrupoSolardoc';
 import { cancelStripeSubsForEmail } from '../services/dunningService';
 import { getOrCreatePixUser, liberarAcessoPix } from '../services/agents/whatsapp/pixComprovanteService';
 import { logger } from '../utils/logger';
+import { emBolhas } from '../services/agents/bolhas';
 
 const CONTRATO = 'SD-VIP-auto1';
 const QR = 'QR-CONCILIACAO-1';
@@ -1028,11 +1029,13 @@ function chaveE2eMock(): string {
   return `pix_e2e:${E2E_ID.slice(0, 21).toUpperCase()}:67`;
 }
 
-describe('boas-vindas do Pix automático pelo WhatsApp (04/11/2026): só na adesão, só com o link de senha já enviado por e-mail', () => {
-  const TEXTO = 'Oi, Maria, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado e o link para criar sua senha chegou no e-mail c***@teste.com. Se não achar, é só responder aqui que eu te ajudo.';
+describe('boas-vindas do Pix automático pelo WhatsApp (04/11/2026; link de senha e de entrar desde 17/11/2026): só na adesão, UMA bolha, link na linha de baixo', () => {
+  const FRASE_NOVA = 'Oi, Maria, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado e seu acesso já está liberado. Seu login é o e-mail c***@teste.com. Pra entrar, crie sua senha neste link:';
+  const FRASE_EXISTENTE = 'Oi, Maria, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado e o plano já está liberado na sua conta c***@teste.com. É só entrar por aqui:';
+  const TEXTO = `${FRASE_NOVA}\nhttps://solardoc.app/auth?mode=redefinir&token=TOKEN-SECRETO-123`;
   afterEach(() => { vi.useRealTimers(); });
 
-  it('(B1) adesão de conta nova com e-mail ok: 1 bolha, e-mail mascarado, telefone da atribuição, carimbo antes do envio e contexto para a Giovanna', async () => {
+  it('(B1) adesão de conta nova com e-mail ok: UMA bolha (frase + \\n + link de senha), telefone da atribuição, 1 carimbo, e a sessão da Giovanna guarda a frase SEM o link', async () => {
     db.users = [];
     qrSalvo();
     atribQuiz();
@@ -1041,11 +1044,17 @@ describe('boas-vindas do Pix automático pelo WhatsApp (04/11/2026): só na ades
     expect(H.boas).toHaveLength(1);
     expect(H.boas[0]).toMatchObject({ tel: '34999990000', instancia: 'solardoc', opts: { maxBolhas: 1, max: 900 } });
     expect(H.boas[0]!.partes).toEqual([TEXTO]);
-    expect(H.boas[0]!.partes[0]).not.toContain('TOKEN-SECRETO-123');
+    expect(H.boas[0]!.partes[0]).toContain('/auth?mode=redefinir&token=TOKEN-SECRETO-123');
+    expect(H.boas[0]!.partes[0]).not.toMatch(/\n\n/);   // quebra simples: linha em branco viraria 2 bolhas
+    expect(H.boas[0]!.partes[0]!.endsWith('TOKEN-SECRETO-123')).toBe(true);   // a URL por último
+    expect(emBolhas(H.boas[0]!.partes[0]!, { maxBolhas: 1, max: 900 })).toHaveLength(1);
+    expect(db.system_state.filter((x) => x.key.startsWith('boasvindas_pix_sent:'))).toHaveLength(1);
     const carimbo = db.system_state.find((x) => x.key === `boasvindas_pix_sent:${CONTRATO}`);
     expect(carimbo?.updated_at).toBeTruthy();                       // o teto e o espaçamento da linha contam por updated_at
     expect(H.sessao).toHaveLength(1);
-    expect(H.sessao[0]).toMatchObject({ userId: 'u-novo', phone: '34999990000', content: TEXTO });
+    expect(H.sessao[0]).toMatchObject({ userId: 'u-novo', phone: '34999990000' });
+    expect(H.sessao[0].content).toContain('Pra entrar, crie sua senha neste link.');
+    expect(JSON.stringify([H.sessao, db.system_state])).not.toContain('TOKEN-SECRETO-123');   // o token nunca entra no contexto da IA nem no banco
   });
 
   it('(B1b) sai na hora mesmo de madrugada (evento P0, sem janela)', async () => {
@@ -1066,23 +1075,30 @@ describe('boas-vindas do Pix automático pelo WhatsApp (04/11/2026): só na ades
     expect(H.boas[0]!.partes[0]!.startsWith('Oi, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado')).toBe(true);
   });
 
-  it('(B3) o e-mail de acesso falhou: não sai (a frase "chegou no e-mail" mentiria) e não queima o carimbo', async () => {
+  it('(B3) o e-mail de acesso falhou: o WhatsApp vira o único caminho e sai igual, com o link de senha e sem dizer que algo chegou no e-mail', async () => {
     db.users = [];
     qrSalvo();
     atribQuiz();
     const { sendPixAutomaticoAcessoEmail } = await import('../utils/mailer');
     vi.mocked(sendPixAutomaticoAcessoEmail).mockRejectedValueOnce(new Error('resend fora'));
     await processarWebhookAsaas(recebido('ev-1'));
-    expect(H.boas).toHaveLength(0);
-    expect(db.system_state.some((x) => x.key.startsWith('boasvindas_pix_sent:'))).toBe(false);
+    expect(H.boas).toHaveLength(1);
+    expect(H.boas[0]!.partes).toEqual([TEXTO]);
+    expect(H.boas[0]!.partes[0]).not.toMatch(/chegou no e-mail/);
+    expect(db.system_state.filter((x) => x.key.startsWith('boasvindas_pix_sent:'))).toHaveLength(1);
   });
 
-  it('(B4) conta que já existia (sem token novo): não sai', async () => {
+  it('(B4) conta que já existia (sem token novo): só o link de ENTRAR, nunca token de senha', async () => {
     qrSalvo();
     atribQuiz();
     await processarWebhookAsaas(recebido('ev-1'));
     expect(H.emails).toHaveLength(0);
-    expect(H.boas).toHaveLength(0);
+    expect(H.boas).toHaveLength(1);
+    expect(H.boas[0]).toMatchObject({ tel: '34999990000', instancia: 'solardoc', opts: { maxBolhas: 1, max: 900 } });
+    expect(H.boas[0]!.partes).toEqual([`${FRASE_EXISTENTE}\nhttps://solardoc.app/auth`]);
+    expect(H.boas[0]!.partes[0]).not.toMatch(/token|redefinir/);
+    expect(emBolhas(H.boas[0]!.partes[0]!, { maxBolhas: 1, max: 900 })).toHaveLength(1);
+    expect(db.system_state.filter((x) => x.key.startsWith('boasvindas_pix_sent:'))).toHaveLength(1);
   });
 
   it('(B5) renovação nunca recebe boas-vindas', async () => {

@@ -163,7 +163,7 @@ describe('retomada: a Carla atende quem tem conta quando a posse é da campanha'
     ia = modelo([{ bolhas: ['Quer ver como ficou?'] }]);
     await rodar();
     const corpo = mensagens(0);
-    expect(corpo).toContain('Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar; o sistema manda o código da pessoa ou pede o CPF). Nunca Pix avulso nem escreva o código.');
+    expect(corpo).toContain('Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar; o sistema manda o código da pessoa ou pede o CPF e o e-mail que faltam). Nunca Pix avulso nem escreva o código.');
     expect(corpo).toContain('exatamente assim: a***@exemplo.com.');
     expect(corpo).not.toContain('ana@exemplo.com');
     expect(corpo).not.toContain('Ele já pagou antes');
@@ -382,13 +382,13 @@ describe('avisosDaCarla: o Pix automático, na retomada e fora dela', () => {
       expect(avisos).toHaveLength(1);
       expect(avisos[0]).toContain('pix_automatico');
       expect(avisos[0]).toContain('o sistema troca o link pelo código do Pix automático da pessoa');
-      expect(avisos[0]).toContain('se faltar o CPF, o sistema pede o CPF no lugar');
+      expect(avisos[0]).toContain('se faltar o CPF ou o e-mail, o sistema pede o que falta no lugar');
       expect(avisos[0]).not.toMatch(/link da assinatura|Kiwify|pix_kiwify|comprovante|\bmenu\b/i);
     }
   });
 
   it('na retomada o aviso diz que o acesso volta na conta dela; fora dela, que cobra todo mês', () => {
-    expect(avisosDaCarla(posseRet(), AGORA)[0]).toContain('Esta pessoa já tem conta: o acesso volta sozinho na conta dela quando o banco confirmar');
+    expect(avisosDaCarla(posseRet(), AGORA)[0]).toContain('Esta pessoa já tem conta: quando o banco confirmar, o acesso volta sozinho na conta dela');
     expect(avisosDaCarla(posseNormal(), AGORA)[0]).toContain('cobra na conta dela todo mês');
   });
 

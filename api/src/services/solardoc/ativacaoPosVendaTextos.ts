@@ -33,9 +33,23 @@ export const abertura = (nome: string | null | undefined, quem: string): string 
   return n ? `Oi, ${n}, aqui é a Giovanna, ${quem}.` : `Oi, aqui é a Giovanna, ${quem}.`;
 };
 
-export function textoBoasVindasPix(nome: string | null | undefined, email: string): string {
-  return `${abertura(nome, 'do suporte da SolarDoc')} Seu pagamento foi confirmado e o link para criar sua senha chegou no e-mail ${mascararEmail(email)}. Se não achar, é só responder aqui que eu te ajudo.`;
+/**
+ * Boas-vindas do Pix automático (17/11/2026): a frase TERMINA em ":" e o link vai na linha de baixo (`comLinkEmbaixo`), tudo numa bolha só.
+ * `nova` = a conta foi criada neste pagamento (o link define a senha); `existente` = a conta já existia (o link só abre a tela de entrar, nunca define senha).
+ * Sem "chegou no e-mail": vale também quando o e-mail de acesso falhou.
+ */
+export function textoBoasVindasPix(nome: string | null | undefined, email: string, conta: 'nova' | 'existente' = 'nova'): string {
+  const abre = abertura(nome, 'do suporte da SolarDoc');
+  return conta === 'nova'
+    ? `${abre} Seu pagamento foi confirmado e seu acesso já está liberado. Seu login é o e-mail ${mascararEmail(email)}. Pra entrar, crie sua senha neste link:`
+    : `${abre} Seu pagamento foi confirmado e o plano já está liberado na sua conta ${mascararEmail(email)}. É só entrar por aqui:`;
 }
+
+/** Frase + link na linha de baixo. Quebra SIMPLES (nunca duas: o `emBolhas` separaria em 2 bolhas) e a URL por último. */
+export const comLinkEmbaixo = (frase: string, url: string): string => `${frase}\n${url}`;
+
+/** O que a Giovanna guarda na sessão: a frase SEM a URL (o token de senha nunca fica no contexto da IA, que o repetiria). */
+export const fraseSemLink = (frase: string): string => `${frase.replace(/:$/, '.')} O link foi na mesma mensagem.`;
 
 export function textoSenhaNaoCriada(nome: string | null | undefined, email: string): string {
   return `${abertura(nome, 'da SolarDoc')} Seu pagamento caiu, mas a senha ainda não foi criada. O link está no e-mail ${mascararEmail(email)}, e se você responder aqui eu reenvio.`;

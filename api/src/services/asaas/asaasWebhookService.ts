@@ -307,8 +307,10 @@ async function creditarPagamento(
     billing_status = (u as { billing_status: string | null }).billing_status;
   }
 
-  // Conta nova (quiz): a pessoa pagou o QR antes de ter conta. Cria PENDENTE (sem senha) e o link de definir
-  // senha segue por E-MAIL depois do crédito: nunca por WhatsApp e nunca pela rota pública de status.
+  // Conta nova (quiz): a pessoa pagou o QR antes de ter conta. Cria PENDENTE (sem senha) e o link de definir senha segue
+  // por E-MAIL depois do crédito e TAMBÉM pelo WhatsApp (17/11/2026: boas-vindas da Giovanna, só para conta criada NESTE pagamento
+  // e só para o telefone da atribuição do contrato). Nunca pela rota pública de status. Conta que já existia nunca recebe token de senha:
+  // só o link de entrar (quem paga com o e-mail de outra pessoa não pode definir a senha da conta dela).
   let tokenContaNova: string | null = null;
   let emailDeAcessoFalhou = false;
   if (!userId && primeiroPagamento) {
@@ -383,11 +385,7 @@ async function creditarPagamento(
     emailDeAcessoFalhou = true;
     try {
       const { sendPixAutomaticoAcessoEmail } = await import('../../utils/mailer');
-      const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
-      await sendPixAutomaticoAcessoEmail({
-        to: linha.email, nome: atrib?.nome ?? null,
-        acessoUrl: `${dashboardUrl}/auth?mode=redefinir&token=${tokenContaNova}`,
-      });
+      await sendPixAutomaticoAcessoEmail({ to: linha.email, nome: atrib?.nome ?? null, acessoUrl: urlDeAcessoSolarDoc(tokenContaNova) });
       emailDeAcessoFalhou = false;
     } catch (err) {
       // Sem WhatsApp extra: a falha vai como linha do aviso único ao Thiago (o da adesão, logo abaixo).
@@ -596,42 +594,55 @@ async function creditarPagamento(
     }
   }
 
-  // BOAS-VINDAS PELO WHATSAPP (04/11/2026, aprovado pelo chefe-antiban): só na ADESÃO (o claim da adesão devolveu 'novo'; renovação
-  // nunca chega aqui com primeiroPagamento) e só com o link de senha já enviado por e-mail, senão a frase "chegou no e-mail" mente.
-  // Por último de propósito: ela sai na hora, mas depois do cancelamento do cartão na Stripe e do registro da venda, que a Z-API lenta não pode atrasar.
-  if (primeiroPagamento && tokenContaNova && !emailDeAcessoFalhou) {
-    await boasVindasPixWhatsApp({ contratoId: linha.contract_id, userId, email: linha.email, nome: atrib?.nome ?? null, whatsapp: atrib?.whatsapp ?? null });
+  // BOAS-VINDAS PELO WHATSAPP (04/11/2026, aprovado pelo chefe-antiban; 17/11/2026 com o link): só na ADESÃO (o claim da adesão devolveu 'novo'; renovação
+  // nunca chega aqui com primeiroPagamento). Conta criada neste pagamento: o link de CRIAR A SENHA (o e-mail segue como antes e, se ele falhou, o WhatsApp é o único caminho).
+  // Conta que já existia: só o link de ENTRAR, nunca token de senha. Por último de propósito: ela sai na hora, mas depois do cancelamento do cartão na Stripe e do
+  // registro da venda, que a Z-API lenta não pode atrasar.
+  if (primeiroPagamento) {
+    await boasVindasPixWhatsApp({
+      contratoId: linha.contract_id, userId, email: linha.email, nome: atrib?.nome ?? null, whatsapp: atrib?.whatsapp ?? null,
+      urlSenha: tokenContaNova ? urlDeAcessoSolarDoc(tokenContaNova) : null,
+    });
   }
 }
 
+/** O endereço do app: com token = a tela de definir senha (`/auth?mode=redefinir&token=`); sem token = a tela de entrar (`/auth`). Uma base só (DASHBOARD_URL), para o e-mail e o WhatsApp. */
+function urlDeAcessoSolarDoc(token?: string | null): string {
+  const base = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+  return token ? `${base}/auth?mode=redefinir&token=${token}` : `${base}/auth`;
+}
+
 /**
- * Boas-vindas da Giovanna ao cliente do Pix automático (robô `solardoc_ativacao`, evento P0): sai na hora, a qualquer hora, 1 bolha,
- * com o e-mail mascarado, para o telefone da PRÓPRIA atribuição do contrato (nunca o do cadastro). Um carimbo
- * `boasvindas_pix_sent:<contrato>` por INSERT antes do envio; a falha aqui nunca derruba a liberação (o cliente já pagou e já tem acesso).
+ * Boas-vindas da Giovanna ao cliente do Pix automático (robô `solardoc_ativacao`, evento P0): sai na hora, a qualquer hora, UMA bolha só (a frase, quebra de linha
+ * simples e o link por último: o `emBolhas` separaria em duas bolhas se o link fosse um elemento solto ou viesse depois de uma linha em branco), com o e-mail mascarado, para o
+ * telefone da PRÓPRIA atribuição do contrato (nunca o do cadastro). `urlSenha` = link de definir senha (conta criada agora); null = conta que já existia (link de entrar).
+ * Um carimbo `boasvindas_pix_sent:<contrato>` por INSERT antes do envio; a falha aqui nunca derruba a liberação (o cliente já pagou e já tem acesso).
  */
-async function boasVindasPixWhatsApp(a: { contratoId: string; userId: string; email: string; nome: string | null; whatsapp: string | null }): Promise<void> {
+async function boasVindasPixWhatsApp(a: { contratoId: string; userId: string; email: string; nome: string | null; whatsapp: string | null; urlSenha: string | null }): Promise<void> {
   try {
     const tel = soDigitos(a.whatsapp);
     if (tel.length < 10 || tel.length > 13) return;
     const { motivosDaSupressao } = await import('../agents/whatsapp/silenciar');
     if ((await motivosDaSupressao(tel)).length) return;           // pediu para não receber / denunciou: nem o evento fala
-    const { chaveBoasVindasPix, textoBoasVindasPix, nomeParaSaudar } = await import('../solardoc/ativacaoPosVendaTextos');
+    const { chaveBoasVindasPix, textoBoasVindasPix, comLinkEmbaixo, fraseSemLink, nomeParaSaudar } = await import('../solardoc/ativacaoPosVendaTextos');
     const { reservarChave } = await import('../agentes5040/cota');
     // Carimbo com updated_at (é por ele que o teto e o espaçamento da linha contam), gravado ANTES do envio.
     const claim = await reservarChave(chaveBoasVindasPix(a.contratoId), { user_id: a.userId }, new Date());
     if (claim !== 'reservada') return;
-    const texto = textoBoasVindasPix(a.nome, a.email);
+    const frase = textoBoasVindasPix(a.nome, a.email, a.urlSenha ? 'nova' : 'existente');
+    const texto = comLinkEmbaixo(frase, a.urlSenha ?? urlDeAcessoSolarDoc());
     const { sendHuman } = await import('../agents/zapiClient');
     await sendHuman(tel, [texto], 'solardoc', { maxBolhas: 1, max: 900 });
-    // Contexto para a Giovanna quando a pessoa responder (a mensagem fica na sessão como dela). Se falhar, a mensagem já saiu.
+    // Contexto para a Giovanna quando a pessoa responder (a mensagem fica na sessão como dela), SEM o link: o token nunca entra no contexto da IA. Se falhar, a mensagem já saiu.
     try {
       const { registrarMsgProativa } = await import('../agents/whatsapp/whatsappAgentService');
-      await registrarMsgProativa({ userId: a.userId, phone: tel, content: texto, nome: nomeParaSaudar(a.nome) });
+      await registrarMsgProativa({ userId: a.userId, phone: tel, content: fraseSemLink(frase), nome: nomeParaSaudar(a.nome) });
     } catch (err) {
       logger.error('asaas-webhook', `não registrei as boas-vindas na sessão da Giovanna (${a.contratoId})`, err);
     }
-  } catch (err) {
-    logger.error('asaas-webhook', `boas-vindas pelo WhatsApp não saíram (${a.contratoId}); o acesso já foi liberado`, err);
+  } catch {
+    // Sem `err` no log: a mensagem de erro da Z-API pode trazer o texto enviado, e nele vai o token de senha.
+    logger.error('asaas-webhook', `boas-vindas pelo WhatsApp não saíram (${a.contratoId}); o acesso já foi liberado`);
   }
 }
 
