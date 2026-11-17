@@ -198,11 +198,11 @@
     oportunidades: { menu: 'Oportunidade', ctx: 'Clientes e obras da NEXUS na sua região', req: 'oportunidades' },
     usinas: { menu: 'Usinas', ctx: 'Indique uma usina', req: 'usinas', motivo: 'Complete o perfil da empresa para indicar usinas.' },
     materiais: { menu: 'Materiais', ctx: 'Fotos para divulgar o equipamento', req: 'materiais', motivo: 'Complete o perfil da empresa para liberar os Materiais.' },
-    parceria: { menu: 'Minha parceria', ctx: 'Níveis, caminho e selo' },
+    parceria: { menu: 'Minha parceria', get ctx() { return TR() ? 'Seu caminho na trilha' : 'Níveis, caminho e selo'; } },   /* com a trilha ligada #parceria abre a trilha, e o selo mora no Nível 3 */
     perfil: { menu: 'Perfil', ctx: 'Dados e capacidades da empresa' },
     instalar: { menu: 'Instalar o app', ctx: 'Deixe o portal na tela inicial do aparelho' },
     trilha: { menu: 'Trilha', ctx: 'Seu caminho na parceria' },
-    historico: { menu: 'Histórico', ctx: 'Tudo o que você fez na trilha' }
+    historico: { menu: 'Histórico', ctx: 'O que você fez e ganhou na trilha' }
   };
   /* Trilha do Parceiro (js/trilha.js): só existe quando o GET /trilha responde ligada. Desligada, nada muda. */
   function TR() { var t = window.NexusTrilha; return t && t.ligada() ? t : null; }
@@ -2417,16 +2417,24 @@
     h += '<section class="np-sec"><h2>Selo do parceiro</h2>';
     if (libera('selo')) {
       var chaves = legendasDoParceiro();
-      h += '<div class="np-card"><div class="np-selo-bloco"><div class="tela"><canvas id="nx-selo" class="nx-selo-tela" width="1080" height="1080" role="img" aria-label="Selo Parceiro Credenciado NEXUS, Energia que move o amanhã"></canvas></div>' +
-        '<div class="acao"><p style="font-size:15px;color:var(--nx-tx2)">Baixe o selo e use nas suas redes e nos seus materiais.</p><button type="button" class="nx-btn lg" data-acao="baixarSelo">' + ic('baixar', 'p') + 'Baixar selo em PNG</button></div></div></div>';
+      h += '<div class="np-card">' + seloBlocoHTML(true) + '</div>';
       chaves.forEach(function (k) {
         h += '<div class="np-card"><h3>Legenda · ' + (k === 'revenda' ? 'Revenda' : 'Montagem e Engenharia') + '</h3><div class="nx-legenda">' + esc(LEGENDA[k]) + '</div><div><button type="button" class="nx-btn sec" data-acao="copiarLegenda" data-arg="' + k + '">Copiar legenda</button></div></div>';
       });
     } else {
-      h += '<div class="np-card"><div class="np-selo-bloco"><div class="tela"><div style="background:var(--nx-navy);border-radius:16px;max-width:360px;padding:28px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center"><img src="/gerador/nexus-logo-tela.png" alt="" style="width:150px;height:auto"><span style="display:block;width:48px;height:3px;border-radius:3px;background:var(--nx-verde)"></span><span style="font-size:18px;font-weight:800;color:#fff;line-height:1.25">Parceiro Credenciado NEXUS</span><span style="font-size:12px;font-weight:500;color:var(--nx-inv2)">Energia que move o amanhã</span></div></div>' +
-        '<div class="acao"><p style="font-size:15px;color:var(--nx-tx2)">Prévia do selo. O download fica travado até você virar Partner.</p>' + lk('Baixar selo', 'selo', '') + '</div></div></div>';
+      h += '<div class="np-card">' + seloBlocoHTML(false, '<p style="font-size:15px;color:var(--nx-tx2)">Prévia do selo. O download fica travado até você virar Partner.</p>' + lk('Baixar selo', 'selo', '')) + '</div>';
     }
     return h + '</section></div>';
+  }
+  /* Bloco do selo (prévia ou canvas + botão). Vale para a Minha parceria e para a trilha (js/trilha.js).
+     aberto: canvas desenhado por desenharSelo() + "Baixar selo em PNG". Travado: prévia fixa e o HTML da coluna de ação que vier de fora. */
+  function seloBlocoHTML(aberto, acaoTravada) {
+    if (aberto) {
+      return '<div class="np-selo-bloco"><div class="tela"><canvas id="nx-selo" class="nx-selo-tela" width="1080" height="1080" role="img" aria-label="Selo Parceiro Credenciado NEXUS, Energia que move o amanhã"></canvas></div>' +
+        '<div class="acao"><p style="font-size:15px;color:var(--nx-tx2)">Baixe o selo e use nas suas redes e nos seus materiais.</p><button type="button" class="nx-btn lg" data-acao="baixarSelo">' + ic('baixar', 'p') + 'Baixar selo em PNG</button></div></div>';
+    }
+    return '<div class="np-selo-bloco"><div class="tela"><div style="background:var(--nx-navy);border-radius:16px;max-width:360px;padding:28px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center"><img src="/gerador/nexus-logo-tela.png" alt="" style="width:150px;height:auto"><span style="display:block;width:48px;height:3px;border-radius:3px;background:var(--nx-verde)"></span><span style="font-size:18px;font-weight:800;color:#fff;line-height:1.25">Parceiro Credenciado NEXUS</span><span style="font-size:12px;font-weight:500;color:var(--nx-inv2)">Energia que move o amanhã</span></div></div>' +
+      '<div class="acao">' + (acaoTravada || '') + '</div></div>';
   }
   function posParceria() {
     if (libera('selo') && $('#nx-selo')) desenharSelo();
@@ -2577,7 +2585,8 @@
     var nome = nomeEmpresa() || 'Sua empresa';
     var fontes = (document.fonts && document.fonts.load) ? Promise.all([document.fonts.load('800 56px Montserrat'), document.fonts.load('700 56px Montserrat'), document.fonts.load('600 40px Montserrat')]).catch(function () { return null; }) : Promise.resolve();
     Promise.all([carregarImg('/gerador/nexus-logo-tela.png').catch(function () { return null; }), fontes]).then(function (rs_) {
-      if (!$('#nx-selo')) return;
+      cv = $('#nx-selo');   /* a tela pode ter sido repintada enquanto a logo e a fonte carregavam */
+      if (!cv) return;
       var x = cv.getContext('2d'), W = 1080, logo = rs_[0], F = "'Montserrat', system-ui, sans-serif";
       var g = x.createLinearGradient(0, 0, 0, W);
       g.addColorStop(0, '#13293F'); g.addColorStop(1, '#0B1A2B');
@@ -3270,7 +3279,8 @@
       repintar: function (manter) { pintarMain(manter); },
       repintarTudo: function () { pintarNav(); pintarMain(true); },
       aoLigar: function () { if (S.fase !== 'app') return; var rh = rotaDoHash(); if (rh) { S.rota = rh.r; S.sub = rh.sub; } pintarNav(); pintarMain(true); },
-      termo: { html: termoSecaoHTML, carregar: carregarTermo }
+      termo: { html: termoSecaoHTML, carregar: carregarTermo },
+      selo: { liberado: function () { return libera('selo'); }, bloco: seloBlocoHTML, desenhar: desenharSelo }
     };
   }
   function boot() {

@@ -353,6 +353,18 @@
     return '<section class="tr-cx tr-premio" aria-labelledby="tr-pr-t"><div class="tr-vid" aria-hidden="true"><div class="falso"><span class="fb"></span><span class="fl"></span><span class="fl" style="width:80%"></span><span class="fl" style="width:60%"></span></div><div class="cad"><span>' + ic('cadeado') + '</span></div></div>' +
       '<div><h3 id="tr-pr-t">Abre no fim do Nível ' + p + '</h3><ul class="tr-libs">' + itens + '</ul></div></section>';
   }
+  /* Selo do parceiro: o prêmio do Nível 3. Trancado até o Nível 3 terminar; depois, o selo de verdade com o botão de baixar.
+     soGanho: no início limpo e no Histórico só aparece se já foi ganho. */
+  function seloHTML(soGanho) {
+    if (!C.selo) return '';
+    var ganho = C.selo.liberado();
+    if (soGanho && !ganho) return '';
+    var chip = ganho ? '<span class="tr-est ok">' + ic('check', 'p') + 'Ganho no Nível 3</span>' : '<span class="tr-est cz">' + ic('cadeado', 'p') + 'Trancado</span>';
+    var acao = ganho ? '' : '<p class="tr-sub">Use nas suas redes e nos seus materiais.</p>' +
+      '<span class="tr-sub tr-lin">Abre ao concluir o Nível 3 ' + aj('Abre ao concluir o Nível 3: 4 encontros da mentoria ou as 12 aulas da Academia. Aí você baixa o selo em PNG, com o nome da sua empresa.') + '</span>';
+    return '<section class="tr-cx tr-selo" aria-labelledby="tr-selo-t"><div class="tr-cab-l"><span class="tr-rot">' + (ganho ? 'Seu prêmio' : 'Prêmio do Nível 3') + '</span>' + chip + '</div>' +
+      '<h3 id="tr-selo-t">Selo do parceiro</h3>' + C.selo.bloco(ganho, acao) + '</section>';
+  }
   function conquistaHTML() {
     if (!st.conq) return '';
     /* O aviso de conquista fica na tela em que apareceu; saiu dela, some. */
@@ -699,6 +711,7 @@
         '<section class="tr-cx tr-acad"><span class="tr-rot">Grátis</span><h3>Academia NEXUS</h3><span class="tr-sub">12 aulas curtas com checagem</span><button type="button" class="tr-bt sec lg" data-tr="prepFormato" data-v="academia">Fazer sozinho</button></section>';
     }
     h += '</div><section class="tr-cx"><h3 class="tr-mb">Ao terminar, abre</h3><div class="tr-abre">' + ABRE[3].map(function (x) { return '<span>' + ic(x[0], 'p') + esc(x[1]) + '</span>'; }).join('') + '</div></section>';
+    h += seloHTML(false);
     if (feito(3)) h += '<a class="tr-bt az lg tr-seg" href="#trilha/termo">Ler o Termo de Parceria</a>';
     return h + '</div>';
   }
@@ -917,7 +930,7 @@
       '<a class="it" href="#servicos"><span class="tr-ib">' + ic('regua') + '</span><span><b>Engenharia</b><small>Projeto e ART</small></span>' + ic('seta', 'p') + '</a>' +
       (feito(6) ? '<a class="it" href="#oportunidades"><span class="tr-ib">' + ic('pino') + '</span><span><b>Obras da sua região</b><small>Parceiro regional</small></span>' + ic('seta', 'p') + '</a>'
         : '<div class="it lk"><span class="tr-ib">' + ic('cadeado') + '</span><span><b>Obras da sua região</b><small>Abre no Parceiro regional</small></span>' + aj('Último prêmio. A equipe NEXUS promove a Parceiro regional.') + '</div>') +
-      '</section></div>' +
+      '</section></div>' + seloHTML(true) +
       '<a class="tr-cx tr-hist-l" href="#historico">' + ic('historico') + '<span><b>Histórico</b> · ' + esc(resumoTrilha()) + '</span>' + ic('seta', 'p') + '</a></div>';
     return h;
   }
@@ -942,7 +955,7 @@
       var ok = feito(k), at = !ok && k === pat();
       h += '<li class="' + (ok ? 'feita' : at ? 'at' : 'lk') + '"><span class="b">' + (ok ? ic('check', 'p') : at ? k : ic('cadeado', 'p')) + '</span><b>' + esc(PAT[k].nome) + '</b><span class="tr-sub">' + (ok ? esc(dm(etapa(k).em)) : at ? 'Agora' : '') + '</span></li>';
     }
-    h += '</ol></section><div class="tr-hist-g"><section class="tr-cx" aria-labelledby="tr-hl-t"><h3 id="tr-hl-t" class="tr-mb">Cada passo</h3>';
+    h += '</ol></section>' + seloHTML(true) + '<div class="tr-hist-g"><section class="tr-cx" aria-labelledby="tr-hl-t"><h3 id="tr-hl-t" class="tr-mb">Cada passo</h3>';
     if (!lista.length) h += '<p class="tr-sub">Nada ainda. O primeiro passo é o Raio-X.</p>';
     else {
       h += '<ol class="tr-linha">' + lista.map(function (x) {
@@ -974,6 +987,7 @@
   }
   function pos(r, sub) {
     sub = String(sub || '');
+    if (C.selo && $('#nx-selo')) C.selo.desenhar();   /* o canvas do selo só existe depois da pintura */
     if (r === 'trilha' && sub === 'termo' && feito(3)) {
       C.termo.carregar();
       /* Aceitou agora (o /eu já sabe, a trilha ainda não): busca a trilha uma vez para o Nível 4 andar. */

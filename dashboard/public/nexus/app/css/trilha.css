@@ -471,6 +471,14 @@ button.tr-falta-b:hover, a.tr-falta-b:hover { background: var(--nx-azul-sf); col
 .tr-pats .lk b { color: var(--nx-tx2); }
 .tr-hist-g { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 .tr-hist-g > .tr-cx { display: flex; flex-direction: column; gap: 12px; }
+/* Selo do parceiro (prêmio do Nível 3): reaproveita o bloco da Minha parceria, menor dentro da trilha. */
+.tr-selo { display: flex; flex-direction: column; gap: 12px; }
+.tr-selo h3 { margin: 0; font-size: 17px; }
+.tr-selo .np-selo-bloco { gap: 16px 24px; }
+.tr-selo .np-selo-bloco .tela { flex: 0 1 240px; }
+.tr-selo .np-selo-bloco .acao { flex: 0 1 340px; }
+.tr-selo .nx-selo-tela { max-width: 240px; }
+.tr-selo .tr-sub { font-size: 14px; }
 .tr-linha { list-style: none; margin: 0; padding: 0; position: relative; }
 .tr-linha li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; padding: 8px 0; border-top: 1px solid var(--nx-bd); }
 .tr-linha li:first-child { border-top: 0; }
