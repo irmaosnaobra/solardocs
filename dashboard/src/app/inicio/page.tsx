@@ -8,9 +8,10 @@ import { isAuthenticated } from '@/services/auth';
 import api from '@/services/api';
 import { useAcessos } from '@/hooks/useAcessos';
 import { useNexusPortal } from '@/hooks/useNexusPortal';
+import { etiquetaNexus, useNexusTrilhaResumo } from '@/hooks/useNexusTrilhaResumo';
 import { produtoPorId } from '@/lib/produtos';
 import Logo from '@/components/Logo/Logo';
-import NexusBanner from '@/components/NexusBanner/NexusBanner';
+import NexusConvite from '@/components/NexusTrilhaCartao/NexusTrilhaCartao';
 import PrimeirosPassos from '@/components/PrimeirosPassos/PrimeirosPassos';
 import { usuarioComum } from '@/utils/usuarioComum';
 import {
@@ -165,6 +166,7 @@ export default function InicioPage() {
     carregando: carregandoServidor, tem: temServidor, bastidor: bastidorServidor, isAdmin: adminServidor, previa,
   } = useAcessos();
   const nexusLigado = useNexusPortal();
+  const resumoNexus = useNexusTrilhaResumo(pessoa?.id ?? null);
 
   // Só vale pra quem tem empresa cadastrada; sem CNPJ a tela mostra o convite pra cadastrar.
   // Falha de servidor ou de rede NÃO é "sem CNPJ": antes qualquer erro mandava pra
@@ -287,10 +289,13 @@ export default function InicioPage() {
   const quadro = <PrimeirosPassos mostrar={!!pessoa?.comum} userId={pessoa?.id} onFalhou={aoFalharQuadro} />;
 
   // As Ferramentas: a lista principal do menu, mais o Parceiro NEXUS quando o portal está no ar.
-  const ferramentas = nexusLigado ? [...principal, nexusItem] : principal;
+  // A etiqueta do Parceiro NEXUS segue a mesma regra do menu: Refazer agora, Cadastre-se ou nada depois do Nível 1.
+  const nexusNaGrade = { ...nexusItem, badge: etiquetaNexus(resumoNexus, nexusItem.badge) };
+  const ferramentas = nexusLigado ? [...principal, nexusNaGrade] : principal;
 
-  // O convite da NEXUS: o mesmo componente de antes, agora depois dos Recentes. Sem convite ele não ocupa lugar.
-  const convite = <div className="ini-nexus"><NexusBanner userId={pessoa?.id ?? null} /></div>;
+  // O convite da NEXUS depois dos Recentes: o cartão da trilha quando ela está ligada, o convite antigo quando não.
+  // Sem convite ele não ocupa lugar.
+  const convite = <div className="ini-nexus"><NexusConvite userId={pessoa?.id ?? null} /></div>;
 
   return (
     <div className="ini-page" style={variaveis(paleta)}>

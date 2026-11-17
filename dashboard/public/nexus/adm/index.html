@@ -42,7 +42,17 @@ html, body { max-width: 100%; overflow-x: hidden; }
   .adm-top-acoes { display: none; }
   .adm-app .np-main { padding: 28px 28px 56px; }
 }
+/* Dentro do admin do SolarDoc (iframe da aba Parceiros NEXUS): sem menu lateral, sem barra de cima e sem o título;
+   o admin já tem o menu, o título e o botão Atualizar. */
+html.adm-embed .adm-app .np-lado, html.adm-embed .adm-app .np-top, html.adm-embed .adm-titulo { display: none !important; }
+html.adm-embed .adm-app .np-corpo { margin-left: 0 !important; padding-top: 0 !important; }
+html.adm-embed .adm-app .np-main { padding: 14px 14px 32px !important; }
+html.adm-embed .adm-app .np-pagina { gap: 12px; }
 </style>
+<script>
+  // No iframe do admin a página vira só o painel (classe adm-embed).
+  try { if (window.self !== window.top) document.documentElement.classList.add('adm-embed'); } catch (e) { document.documentElement.classList.add('adm-embed'); }
+</script>
 </head>
 <body class="pn-nx">
 

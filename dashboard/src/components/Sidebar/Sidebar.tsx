@@ -12,6 +12,7 @@ import {
 import { removeToken } from '@/services/auth';
 import { useAcessos } from '@/hooks/useAcessos';
 import { useNexusPortal } from '@/hooks/useNexusPortal';
+import { trilhaPendente, useNexusTrilhaResumo } from '@/hooks/useNexusTrilhaResumo';
 import { produtoPorId } from '@/lib/produtos';
 import { logMenu, type EventoMenu } from '@/utils/logMenu';
 import PlanBadge from '../PlanBadge/PlanBadge';
@@ -23,6 +24,7 @@ import {
 import styles from './Sidebar.module.css';
 
 interface User {
+  id?: string | number;
   email: string;
   nome?: string | null;
   plano: string;
@@ -54,6 +56,11 @@ interface NavItem {
   produto?: string;
   /** Selo ao lado do nome (ex.: "Novo"). */
   badge?: string;
+  /**
+   * Etiqueta chamativa (cheia, com um ponto que pulsa) no lugar do selo. Hoje só a Trilha do Parceiro NEXUS:
+   * "Refazer agora" (laranja) para o parceiro do portal antigo, "Cadastre-se" (azul) para os outros.
+   */
+  destaque?: { texto: string; tom: 'laranja' | 'azul' };
   /**
    * Destino fora do Next (página estática): navegação de página inteira com <a>
    * comum, na mesma aba. <Link> tentaria resolver como rota do app.
@@ -143,6 +150,18 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
   const bastidor = previa ? previa.bastidor : bastidorServidor;
   const tem = (produto: string) => (previa ? previa.produtos.has(produto) : temServidor(produto));
   const nexusLigado = useNexusPortal();
+  // Trilha do Parceiro NEXUS: enquanto o Raio-X não foi enviado, o item ganha a etiqueta chamativa; enviado, fica
+  // sem etiqueta nenhuma. Resumo indisponível (rota fora, rede): o item de antes, com "Novo". Enquanto o resumo não
+  // chega, sem etiqueta, para não piscar "Novo" e trocar.
+  const resumoNexus = useNexusTrilhaResumo(user.id);
+  const trilhaNexus = trilhaPendente(resumoNexus);
+  const trilhaLigada = resumoNexus.estado === 'pronto' && resumoNexus.resumo.ligada;
+  const itemNexus: NavItem = trilhaNexus
+    ? {
+      ...nexusItem, badge: undefined,
+      destaque: trilhaNexus.precisa_refazer ? { texto: 'Refazer agora', tom: 'laranja' } : { texto: 'Cadastre-se', tom: 'azul' },
+    }
+    : (trilhaLigada || resumoNexus.estado === 'pendente') ? { ...nexusItem, badge: undefined } : nexusItem;
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- Sincroniza com dado do navegador que só existe depois de montar.
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -275,6 +294,10 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
 
     const badge = item.count != null ? (
       <span className={styles.countBadge}>{item.count}</span>
+    ) : item.destaque ? (
+      <span className={`${styles.badgeDestaque} ${item.destaque.tom === 'laranja' ? styles.badgeDestaqueLaranja : ''}`}>
+        {item.destaque.texto}
+      </span>
     ) : item.badge ? (
       <span className={styles.badgeNovo}>{item.badge}</span>
     ) : null;
@@ -298,6 +321,21 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
           {badge}
           <span className={styles.externalIcon}>↗</span>
         </a>
+      );
+    }
+
+    // Etiqueta chamativa: vai para a linha de baixo, embaixo do nome. Na mesma linha ela cortava o "Parceiro NEXUS".
+    if (item.destaque) {
+      return (
+        <Link key={item.href} href={item.href} onClick={clique}
+              aria-current={active ? 'page' : undefined}
+              className={`${styles.navItem} ${styles.navItemDestaque} ${active ? styles.navItemActive : ''}`}>
+          <item.icon className={styles.navIcon} size={18} strokeWidth={1.75} />
+          <span className={styles.navLabelPilha}>
+            <span className={styles.navLabel}>{item.label}</span>
+            {badge}
+          </span>
+        </Link>
       );
     }
 
@@ -354,7 +392,7 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
         {/* ── Lista principal, sem título ── */}
         <div className={`${styles.navSection} ${styles.listaPrincipal}`}>
           {principal.map(renderItem)}
-          {nexusLigado && renderItem(nexusItem)}
+          {(nexusLigado || trilhaLigada) && renderItem(itemNexus)}
           {/* Os produtos logo abaixo do Parceiro NEXUS: sem etiqueta para quem tem (ou é admin),
               com COMPRAR para quem não tem. "Ver todos os produtos" só aparece quando falta algum. */}
           {paraLiberar.map(renderItem)}

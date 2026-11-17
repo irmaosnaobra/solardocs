@@ -15,7 +15,7 @@
     rx: { i: -1, resp: {}, nota: null, faltas: null, fila: {}, t: 0, sim: null, novo: null },
     acad: null, acadErro: false, acadProm: null, acadRes: {},
     props: null, propsErro: false, propsProm: null,
-    diag: { dias: [], periodo: '', whatsapp: '' },
+    diag: { pronto: false, nome: '', whatsapp: '', periodo: '', erro: null },   /* fim do Nível 1: o contato que a equipe NEXUS chama */
     reu: { cliente: '', proposta: '', dias: [], periodo: '', tipo: '' },
     conq: null, busca: ''
   };
@@ -51,6 +51,16 @@
     return SEMANA[p.weekday] + ' ' + p.day + '/' + p.month + ', ' + h + (m !== '00' ? ':' + m : 'h');
   }
   function diasEntre(a, b) { return Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000)); }
+  function digitos(v) { return String(v == null ? '' : v).replace(/\D/g, ''); }
+  /* WhatsApp brasileiro com DDD: tira o 55 e o 0 da frente; 10 ou 11 dígitos. */
+  function foneLimpo(v) { return digitos(v).replace(/^(?:55|0)(?=\d{10,11}$)/, ''); }
+  function foneFmt(v) {
+    var d = foneLimpo(v).slice(0, 11);
+    if (d.length <= 2) return d;
+    if (d.length <= 6) return '(' + d.slice(0, 2) + ') ' + d.slice(2);
+    if (d.length <= 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+  }
   function urlSegura(u) { return typeof u === 'string' && /^https:\/\/[^\s"'<>]+$/.test(u) ? u : ''; }
   function iniciais(t) {
     var p = String(t || '').replace(/\b(ltda|me|eireli|s\/?a|epp)\b\.?/gi, '').trim().split(/\s+/).filter(Boolean);
@@ -99,7 +109,8 @@
     escada: '<path d="M3 21h4v-5h4v-5h4V6h4V3"/>',
     mais: '<path d="M12 5v14M5 12h14"/>',
     x: '<path d="M18 6 6 18M6 6l12 12"/>',
-    play: '<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z"/>'
+    play: '<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z"/>',
+    conversa: '<path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2.1-5.6A8.4 8.4 0 1 1 21 11.5z"/>'
   };
   function ic(n, c) { return '<svg class="nx-ic' + (c ? ' ' + c : '') + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (IC[n] || '') + '</svg>'; }
   /* "(?)": explicação em balão de até 2 linhas. O texto também vira o nome do botão para quem usa leitor de tela. */
@@ -239,6 +250,9 @@
     etapa_bloqueada: 'Esta etapa ainda não abriu. Conclua a anterior.',
     trilha_desligada: 'A trilha não está disponível agora. Tente mais tarde.',
     ja_pedido: 'Este pedido já foi enviado.',
+    contato_invalido: 'Confira o nome e o WhatsApp.',
+    nome_invalido: 'Escreva o nome de quem vai na reunião.',
+    whatsapp_invalido: 'Escreva o WhatsApp com DDD.',
     ja_pedida: 'A reunião já foi pedida.',
     ja_concluido: 'Esta etapa já foi concluída.',
     formato_ja_escolhido: 'Você já começou o outro formato.',
@@ -259,6 +273,13 @@
         C.toast(msg || MSG_ERRO[cod] || (r.status === 0 ? 'Sem conexão. Tente de novo.' : 'Não foi possível concluir. Tente de novo.'), true);
         /* Sem plano pago: a tela passa a mostrar o cartão "Assine para seguir", cujo botão abre /assinar na janela de cima (o app roda em iframe). */
         if (cod === 'assinatura_necessaria' && E && E.ligada) { E.assinante = false; C.repintarTudo(); }
+        /* Já pedido (outra aba, outro aparelho): busca a trilha para a tela mostrar o pedido que existe. */
+        if (cod === 'ja_pedido' || cod === 'ja_pedida') recarregar();
+        /* Contato recusado pela api: o erro vai para baixo do campo que ela apontou. */
+        if (cod === 'contato_invalido' && /^(nome|whatsapp|periodo)$/.test(d.campo || '')) {
+          st.diag.erro = { campo: d.campo, msg: d.campo === 'nome' ? 'Escreva o nome de quem vai na reunião.' : d.campo === 'whatsapp' ? 'Confira o WhatsApp com DDD.' : 'Escolha o melhor período.' };
+          C.repintar(true);
+        }
         return null;
       }
       var t = trilhaDe(r.data);
@@ -281,8 +302,8 @@
       if (!assinante()) return { t: 'Assine para seguir', meta: [['info', 'O diagnóstico é para assinantes']], bt: 'Ver os planos', href: '/assinar', aj: 'O Nível 1 é para todos. Do diagnóstico em diante, só com plano pago da SolarDoc.' };
       if (d.feito_em && d.resultado === 'ainda_nao') return { t: 'Ajuste o plano e volte', meta: [['alvo', 'Diagnóstico em ' + dm(d.feito_em)]], bt: 'Ver o plano', ir: 'trilha/diagnostico' };
       if (d.agendado_para) return { t: 'Diagnóstico, 30 min', meta: [['calendario', dmh(d.agendado_para)], ['video', 'Vídeo']], bt: urlSegura(d.link) ? 'Entrar na reunião' : 'Ver o diagnóstico', href: urlSegura(d.link), ir: 'trilha/diagnostico' };
-      if (d.pedido_em) return { t: 'Diagnóstico pedido', meta: [['relogio', 'A equipe confirma o horário']], bt: 'Ver o pedido', ir: 'trilha/diagnostico', aj: 'Você recebe o horário aqui. Leva 30 minutos, por vídeo.' };
-      return { t: 'Marque seu diagnóstico', meta: [['video', '30 min com a NEXUS'], ['alvo', 'Sai o seu plano de entrada']], bt: 'Escolher dias', ir: 'trilha/diagnostico' };
+      if (d.pedido_em) return { t: 'Contato enviado', meta: [['conversa', 'A equipe chama você no WhatsApp']], bt: 'Ver o pedido', ir: 'trilha/diagnostico', aj: 'Vocês combinam o dia da reunião de 30 minutos.' };
+      return { t: 'Deixe um contato', meta: [['video', 'Diagnóstico de 30 min'], ['conversa', 'A equipe NEXUS chama você']], bt: 'Deixar meu contato', ir: 'trilha/diagnostico', aj: 'Reunião de 30 minutos com a NEXUS. Sai o seu plano de entrada.' };
     }
     if (p === 3) {
       if (!pr.formato) return { t: 'Escolha como se preparar', meta: [['capelo', 'Mentoria ou Academia']], bt: 'Escolher', ir: 'trilha/preparo' };
@@ -576,7 +597,7 @@
       st.rx.nota = num(d.nota); st.rx.faltas = Array.isArray(d.faltas) ? d.faltas : [];
       var t = trilhaDe(d); if (t) aplicar(t);
       st.rx.novo = null;
-      if (d.passou) st.conq = { t: 'Nível 1 concluído.', s: 'Abriu: reunião de diagnóstico.', ir: 'trilha/diagnostico', bt: 'Marcar' };
+      if (d.passou) st.conq = { t: 'Nível 1 concluído.', s: 'Abriu: reunião de diagnóstico.', ir: 'trilha/diagnostico', bt: 'Deixar meu contato' };
       C.irPara('trilha/nota');
     });
   }
@@ -613,7 +634,7 @@
     var passou = feito(1);
     var h = '<div class="tr-pag">' + conquistaHTML() + cab('Seu Raio-X', 'trilha', '<span class="tr-ex">' + (r.enviado_em ? 'Enviado em ' + esc(dm(r.enviado_em)) : 'Rascunho') + '</span>');
     h += '<div class="tr-rx"><section class="tr-cx" aria-labelledby="tr-nota-t"><span class="tr-rot" id="tr-nota-t">Nota de excelência ' + aj('Tudo respondido, 1 cliente ou mais em vista e a simulação feita. Passa com 80.') + '</span>' + anelHTML(n);
-    if (passou) h += '<p class="tr-ok-l">' + ic('check', 'p') + 'Nível 1 concluído em ' + esc(dm(etapa(1).em)) + '</p>' + (pat() === 2 && !diag().pedido_em && !st.conq ? '<a class="tr-bt az" href="#trilha/diagnostico">Marcar o diagnóstico</a>' : '');
+    if (passou) h += '<p class="tr-ok-l">' + ic('check', 'p') + 'Nível 1 concluído em ' + esc(dm(etapa(1).em)) + '</p>' + (pat() === 2 && !diag().pedido_em && !st.conq ? '<a class="tr-bt az" href="#trilha/diagnostico">Deixar meu contato</a>' : '');
     else if (faltas && faltas.length) {
       h += '<span class="tr-rot">Falta para 80</span><ul class="tr-faltas" aria-label="O que falta para 80">' + faltas.map(function (f) {
         var alvo = FALTA_Q[f.item] != null ? qPor(FALTA_Q[f.item]) : -1;
@@ -654,34 +675,92 @@
     var ds = (pref && pref.dias) || [];
     return ds.map(function (x) { var p = partes(x + 'T12:00:00-03:00'); return p ? SEMANA[p.weekday] + ' ' + p.day + '/' + p.month : x; }).join(', ') + (pref && pref.periodo ? ', ' + (pref.periodo === 'manha' ? 'manhã' : 'tarde') : '');
   }
+  /* Fim do Nível 1, sem agenda: a pessoa deixa um contato e o melhor período, e a equipe NEXUS chama para a reunião
+     de diagnóstico. Nome e WhatsApp vêm preenchidos com o que a SolarDoc já sabe (prefill.contato_sugerido). */
+  var PERIODOS = [['manha', 'Manhã', 'pela manhã'], ['tarde', 'Tarde', 'à tarde'], ['noite', 'Noite', 'à noite']];
+  function contatoForm() {
+    var D = st.diag;
+    if (!D.pronto) {
+      var cs = prefill().contato_sugerido || {};
+      D.nome = String(cs.nome || '').trim(); D.whatsapp = foneFmt(cs.whatsapp); D.pronto = true;
+    }
+    function erro(campo) { return D.erro && D.erro.campo === campo ? '<span class="tr-erro-c" id="tr-dg-' + campo + '-e">' + esc(D.erro.msg) + '</span>' : ''; }
+    function inval(campo) { return D.erro && D.erro.campo === campo ? ' aria-invalid="true"' : ''; }
+    return '<form class="tr-apto-form" data-tr-form="diag" novalidate><div class="tr-apto-campos">' +
+      '<div class="nx-campo"><label for="tr-dg-nome">Nome de quem vai na reunião</label>' +
+        '<input type="text" id="tr-dg-nome" name="nome" autocomplete="name" maxlength="80" value="' + esc(D.nome) + '" data-tr-in="dgNome"' + inval('nome') + (D.erro && D.erro.campo === 'nome' ? ' aria-describedby="tr-dg-nome-e"' : '') + '>' + erro('nome') + '</div>' +
+      '<div class="nx-campo"><label for="tr-dg-wa">WhatsApp</label>' +
+        '<input type="tel" id="tr-dg-wa" name="whatsapp" inputmode="tel" autocomplete="tel-national" placeholder="(00) 00000-0000" maxlength="16" value="' + esc(D.whatsapp) + '" data-mascara="fone" data-tr-in="dgWa"' + inval('whatsapp') + ' aria-describedby="tr-dg-wa-d' + (D.erro && D.erro.campo === 'whatsapp' ? ' tr-dg-whatsapp-e' : '') + '">' +
+        '<span class="nx-dica" id="tr-dg-wa-d">Com DDD. É nesse número que a equipe vai chamar você.</span>' + erro('whatsapp') + '</div></div>' +
+      '<fieldset class="tr-dias-f tr-per"' + (D.erro && D.erro.campo === 'periodo' ? ' aria-describedby="tr-dg-periodo-e"' : '') + '><legend>Melhor período para conversar</legend><div class="tr-pills">' + PERIODOS.map(function (x) {
+        var on = D.periodo === x[0];
+        return '<button type="button" class="tr-pill lg' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-tr="dgPer" data-v="' + x[0] + '">' + x[1] + '</button>';
+      }).join('') + '</div>' + erro('periodo') + '</fieldset>' +
+      '<button type="submit" class="tr-bt az lg">Pedir meu diagnóstico</button></form>';
+  }
+  function contatoEnviado(d) {
+    var ct = d.contato || {}, wa = foneLimpo(ct.whatsapp);
+    var per = null;
+    PERIODOS.forEach(function (x) { if (x[0] === ct.periodo) per = x; });
+    var passos = ['A equipe NEXUS lê o seu Raio-X.', per ? 'Ela chama você no WhatsApp ' + per[2] + '.' : 'Ela chama você no WhatsApp que você deixou.', 'Vocês combinam o dia da reunião de 30 minutos.'];
+    return '<div class="tr-apto-corpo"><span class="tr-rot">O que acontece agora</span><ol class="tr-agora">' + passos.map(function (t, i) {
+      return '<li><span class="n num" aria-hidden="true">' + (i + 1) + '</span><span>' + esc(t) + '</span></li>';
+    }).join('') + '</ol>' +
+      (ct.nome || wa ? '<div class="tr-contato">' + (ct.nome ? '<span>' + ic('usuarios', 'p') + esc(ct.nome) + '</span>' : '') + (wa ? '<span class="num">' + ic('conversa', 'p') + esc(foneFmt(wa)) + '</span>' : '') + (per ? '<span>' + ic('relogio', 'p') + esc(per[1]) + '</span>' : '') + '</div>' : '') +
+      '</div>';
+  }
   function telaDiag() {
     if (!feito(1)) return trancada(2, 'Diagnóstico');
     var d = diag(), h = '<div class="tr-pag">' + conquistaHTML() + cab('Nível 2: Diagnosticado');
     if (!assinante()) {
       return h + '<section class="tr-cx tr-lk"><span class="tr-ib">' + ic('cadeado') + '</span><div><h3>Assine para seguir</h3><p class="tr-sub">O diagnóstico é para quem tem plano pago da SolarDoc.</p></div><a class="tr-bt az" href="/assinar" target="_top">Ver os planos</a></section></div>';
     }
-    h += '<div class="tr-g2"><section class="tr-cx" aria-labelledby="tr-dg-t"><h3 id="tr-dg-t">' + ic('video') + 'Diagnóstico, 30 min ' + aj('Uma conversa por vídeo com a equipe NEXUS. Sai o seu plano de entrada.') + '</h3>';
+    h += '<div class="tr-g2">';
     if (!d.pedido_em) {
-      h += '<p class="tr-sub">Escolha até 3 dias. A equipe confirma o horário.</p>' + escolhaDias(st.diag, 'dgDia', 'dgPer') +
-        '<div class="nx-campo"><label for="tr-dg-wa">WhatsApp para o aviso <span class="tr-sub">(opcional)</span></label><input type="tel" id="tr-dg-wa" name="whatsapp" inputmode="tel" autocomplete="tel-national" maxlength="20" value="' + esc(st.diag.whatsapp) + '" data-tr-in="dgWa"></div>' +
-        '<button type="button" class="tr-bt az lg" data-tr="dgPedir">Pedir o diagnóstico</button>';
+      h += '<section class="tr-cx tr-apto" aria-labelledby="tr-dg-t"><div class="tr-apto-topo"><span class="tr-apto-ok">' + ic('check') + '</span>' +
+        '<h2 id="tr-dg-t" tabindex="-1">Parabéns, você concluiu o Nível 1</h2>' +
+        '<p>Agora deixe um contato e a equipe NEXUS chama você para a reunião de diagnóstico. ' + aj('Reunião de 30 minutos com a NEXUS. Sai o seu plano de entrada.') + '</p></div>' +
+        '<div class="tr-apto-corpo">' + contatoForm() + '</div></section>';
     } else if (d.feito_em) {
-      h += d.resultado === 'aprovado'
+      h += '<section class="tr-cx" aria-labelledby="tr-dg-t"><h3 id="tr-dg-t">' + ic('video') + 'Diagnóstico, 30 min</h3>' + (d.resultado === 'aprovado'
         ? '<div class="tr-feito">' + ic('check') + 'Aprovado para seguir · ' + esc(dm(d.feito_em)) + ' ' + aj('A equipe marca no fim da reunião. Isso abre o Nível 3.') + '</div>'
-        : '<div class="tr-feito av">' + ic('info') + 'Ainda não · ' + esc(dm(d.feito_em)) + ' ' + aj('Siga o plano ao lado. A equipe marca de novo quando estiver pronto.') + '</div>';
+        : '<div class="tr-feito av">' + ic('info') + 'Ainda não · ' + esc(dm(d.feito_em)) + ' ' + aj('Siga o plano ao lado. A equipe marca de novo quando estiver pronto.') + '</div>') + '</section>';
     } else if (d.agendado_para) {
       var link = urlSegura(d.link);
-      h += '<div class="tr-quando"><span class="tr-ib">' + ic('calendario') + '</span><div><b>' + esc(dmh(d.agendado_para)) + '</b><small>Por vídeo, com a equipe NEXUS</small></div></div>' +
-        (link ? '<a class="tr-bt az lg" href="' + esc(link) + '" target="_blank" rel="noopener">' + ic('video', 'p') + 'Entrar na reunião</a>' : '<p class="tr-sub">O link chega aqui antes da reunião.</p>');
+      h += '<section class="tr-cx" aria-labelledby="tr-dg-t"><h3 id="tr-dg-t">' + ic('video') + 'Diagnóstico, 30 min</h3>' +
+        '<div class="tr-quando"><span class="tr-ib">' + ic('calendario') + '</span><div><b>' + esc(dmh(d.agendado_para)) + '</b><small>Por vídeo, com a equipe NEXUS</small></div></div>' +
+        (link ? '<a class="tr-bt az lg" href="' + esc(link) + '" target="_blank" rel="noopener">' + ic('video', 'p') + 'Entrar na reunião</a>' : '<p class="tr-sub">O link chega aqui antes da reunião.</p>') + '</section>';
     } else {
-      h += '<div class="tr-quando"><span class="tr-ib">' + ic('relogio') + '</span><div><b>Pedido em ' + esc(dm(d.pedido_em)) + '</b><small>' + esc(diasTxt(d.preferencia)) + '</small></div></div><span class="tr-est av">Aguardando o horário</span>';
+      /* Contato enviado, esperando a equipe. Pedido antigo (com dias e período) mostra a preferência embaixo. */
+      var pref = d.preferencia && d.preferencia.dias && d.preferencia.dias.length ? diasTxt(d.preferencia) : '';
+      h += '<section class="tr-cx tr-apto" aria-labelledby="tr-dg-t"><div class="tr-apto-topo"><span class="tr-apto-ok">' + ic('check') + '</span>' +
+        '<h2 id="tr-dg-t" tabindex="-1">Contato enviado</h2><p>Recebemos seu pedido de diagnóstico.</p></div>' + contatoEnviado(d) +
+        (pref ? '<p class="tr-sub tr-apto-pref">' + esc(maiusc(pref)) + '</p>' : '') + '</section>';
     }
-    h += '</section><section class="tr-cx" aria-labelledby="tr-pl-t"><h3 id="tr-pl-t">Seu plano de entrada</h3>';
+    h += '<section class="tr-cx" aria-labelledby="tr-pl-t"><h3 id="tr-pl-t">Seu plano de entrada</h3>';
     if (d.plano) h += '<p class="tr-plano">' + esc(d.plano) + '</p>';
     else h += '<ul class="tr-plano-l"><li><span class="tr-ib">' + ic('usuarios', 'p') + '</span><span><b>Clientes certos</b><small>Quem da carteira atacar primeiro</small></span></li><li><span class="tr-ib">' + ic('raio', 'p') + '</span><span><b>Modelo</b><small>DC 80 ou DC 120</small></span></li><li><span class="tr-ib">' + ic('caneta', 'p') + '</span><span><b>Contrato</b><small>O formato que fecha</small></span></li></ul><p class="tr-sub">Sai na reunião.</p>';
     h += '</section></div>';
     if (feito(2)) h += '<a class="tr-bt az lg tr-seg" href="#trilha/preparo">Escolher como se preparar</a>';
     return h + '</div>';
+  }
+  /* Valida e envia o contato. O erro aparece embaixo do campo, que recebe o foco. */
+  function pedirDiagnostico(btn) {
+    var D = st.diag, nome = String(D.nome || '').trim().replace(/\s+/g, ' '), wa = foneLimpo(D.whatsapp);
+    D.erro = null;
+    if (nome.length < 2) D.erro = { campo: 'nome', msg: 'Escreva o nome de quem vai na reunião.' };
+    else if (!/^[1-9]\d(?:[2-8]\d{7}|9\d{8})$/.test(wa)) D.erro = { campo: 'whatsapp', msg: wa.length ? 'Confira o número. Com DDD são 10 ou 11 dígitos.' : 'Escreva o WhatsApp com DDD.' };
+    else if (!D.periodo) D.erro = { campo: 'periodo', msg: 'Escolha o melhor período.' };
+    if (D.erro) {
+      C.repintar(true);
+      var f = $(D.erro.campo === 'nome' ? '#tr-dg-nome' : D.erro.campo === 'whatsapp' ? '#tr-dg-wa' : '.tr-per .tr-pill'); if (f) try { f.focus(); } catch (e) { /* ok */ }
+      return;
+    }
+    postar('/trilha/diagnostico', { contato: { nome: nome.slice(0, 80), whatsapp: wa, periodo: D.periodo } }, btn, function () {
+      st.conq = null; C.repintarTudo();
+      window.scrollTo(0, 0);
+      var t = $('#tr-dg-t'); if (t) try { t.focus({ preventScroll: true }); } catch (e) { /* ok */ }
+    });
   }
 
   /* ------------------------------------------------------------------ Nível 3: mentoria ou Academia */
@@ -1087,14 +1166,11 @@
       var l = carteira().concat([{ nome: n.slice(0, 120), cidade: c.slice(0, 80), uf: u, tipo_local: '', fase: '' }]);
       salvarCarteira(l); C.repintar(true);
     },
-    dgDia: function (el) { if (alternarDia(st.diag, el.dataset.v)) C.repintar(true); },
-    dgPer: function (el) { st.diag.periodo = el.dataset.v; C.repintar(true); },
-    dgPedir: function (el) {
-      if (!st.diag.dias.length || !st.diag.periodo) { C.toast(st.diag.dias.length ? 'Escolha o período.' : 'Escolha pelo menos 1 dia.'); return; }
-      var pref = { dias: st.diag.dias.slice().sort(), periodo: st.diag.periodo };
-      var wa = String(st.diag.whatsapp || '').replace(/\D/g, '');
-      if (wa.length >= 10) pref.whatsapp = wa;
-      postar('/trilha/diagnostico', { preferencia: pref }, el, function () { C.toast('Pedido enviado. A equipe confirma o horário.'); st.conq = null; C.repintarTudo(); });
+    dgPer: function (el) {
+      st.diag.periodo = el.dataset.v;
+      if (st.diag.erro && st.diag.erro.campo === 'periodo') st.diag.erro = null;
+      $$('.tr-per .tr-pill').forEach(function (b) { var on = b === el; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+      var e3 = $('#tr-dg-periodo-e'); if (e3) e3.remove();
     },
     prepFormato: function (el) {
       postar('/trilha/preparo', { formato: el.dataset.v }, el, function () {
@@ -1149,7 +1225,8 @@
   };
   var ENTRADAS = {
     busca: function (el) { st.busca = el.value; var pos0 = el.selectionStart; C.repintar(true); var n = $('[data-tr-in="busca"]'); if (n) { n.focus(); try { n.setSelectionRange(pos0, pos0); } catch (e) { /* ok */ } } },
-    dgWa: function (el) { st.diag.whatsapp = el.value; },
+    dgNome: function (el) { st.diag.nome = el.value; if (st.diag.erro && st.diag.erro.campo === 'nome') { st.diag.erro = null; el.removeAttribute('aria-invalid'); var e1 = $('#tr-dg-nome-e'); if (e1) e1.remove(); } },
+    dgWa: function (el) { st.diag.whatsapp = el.value; if (st.diag.erro && st.diag.erro.campo === 'whatsapp') { st.diag.erro = null; el.removeAttribute('aria-invalid'); var e2 = $('#tr-dg-whatsapp-e'); if (e2) e2.remove(); } },
     reuTipo: function (el) { st.reu.tipo = el.value; C.repintar(true); },
     simCli: function (el) {
       var x = st.rx.sim; x.cliente = el.value;
@@ -1230,6 +1307,14 @@
       });
       root.addEventListener('change', aoMudar);
       root.addEventListener('input', aoDigitar);
+      /* O formulário do contato (fim do Nível 1): Enter e o botão enviam pelo mesmo caminho, sem recarregar a página. */
+      root.addEventListener('submit', function (e) {
+        var f = e.target;
+        if (!f || !f.getAttribute || f.getAttribute('data-tr-form') !== 'diag') return;
+        e.preventDefault();
+        var b = $('[type=submit]', f);
+        if (b && !b.disabled) pedirDiagnostico(b);
+      });
     }
     ligarBalao();
   }
@@ -1258,16 +1343,18 @@
     E = {
       ligada: true, patamar: p, assinante: true, etapas: et,
       raio_x: { respostas: respostas, nota: p >= 2 ? 86 : null, enviado_em: p >= 2 ? t1 : null, faltas: [] },
-      diagnostico: p >= 3 ? { pedido_em: dia(-23), preferencia: { dias: [], periodo: 'manha' }, agendado_para: dia(-21, 10), link: '', feito_em: t2, resultado: 'aprovado', plano: '1º Posto Cerrado, 2º Bom Preço. DC 80 kW. Contrato chave na mão.' } : {},
+      diagnostico: p >= 3 ? { pedido_em: dia(-23), contato: { nome: 'Rafael Souza', whatsapp: '34991234567', periodo: 'manha' }, agendado_para: dia(-21, 10), link: '', feito_em: t2, resultado: 'aprovado', plano: '1º Posto Cerrado, 2º Bom Preço. DC 80 kW. Contrato chave na mão.' }
+        : (p === 2 && /[?&]pedido=1(&|$)/.test(busca || '') ? { pedido_em: dia(0), contato: { nome: 'Rafael Souza', whatsapp: '34991234567', periodo: 'tarde' } } : {}),
       preparo: { formato: p >= 3 ? 'mentoria' : null, mentoria_paga_em: p >= 3 ? dia(-20) : null, encontros: enc, encontros_meta: 4, academia: { feitas: 0, meta: 12, aulas: {} } },
       termo: { aceito: p >= 4, versao: 'v1' },
       reuniao: p >= 4 && !/[?&]reuniao=0(&|$)/.test(busca || '') ? { pedida_em: t3, dados: { cliente_nome: 'Posto Cerrado', cidade: 'Uberlândia', uf: 'MG', tipo_local: 'posto' }, agendada_para: dia(p >= 5 ? -3 : 2, 10), feita_em: p >= 5 ? t4 : null } : {},
-      prefill: { empresa: 'Volt Sul Energia Solar', cnpj: '12345678000190', cidade: 'Uberlândia', uf: 'MG', tem_logo: true, cor_marca: '#0E7C66', engenheiro_crea: true, clientes_pj: pj, propostas_solares: 214 },
+      prefill: { empresa: 'Volt Sul Energia Solar', cnpj: '12345678000190', cidade: 'Uberlândia', uf: 'MG', tem_logo: true, cor_marca: '#0E7C66', engenheiro_crea: true, clientes_pj: pj, propostas_solares: 214,
+        contato_sugerido: { nome: 'Rafael Souza', whatsapp: '34991234567' } },
       historico: []
     };
     var H = [];
     if (p >= 2) H.push({ titulo: 'Raio-X enviado, nota 86', em: t1, autor: 'voce' }, { titulo: 'Nível 1: Mapeado', em: t1, autor: 'sistema' });
-    if (p >= 3) H.push({ titulo: 'Diagnóstico pedido', em: dia(-23), autor: 'voce' }, { titulo: 'Diagnóstico feito: aprovado para seguir', em: t2, autor: 'NEXUS' }, { titulo: 'Nível 2: Diagnosticado', em: t2, autor: 'sistema' }, { titulo: 'Escolheu a mentoria', em: dia(-21), autor: 'voce' });
+    if (p >= 3) H.push({ titulo: 'Contato deixado para o diagnóstico', em: dia(-23), autor: 'voce' }, { titulo: 'Diagnóstico feito: aprovado para seguir', em: t2, autor: 'NEXUS' }, { titulo: 'Nível 2: Diagnosticado', em: t2, autor: 'sistema' }, { titulo: 'Escolheu a mentoria', em: dia(-21), autor: 'voce' });
     for (var k = 1; k <= enc; k++) H.push({ titulo: 'Encontro ' + k + ' da mentoria: ' + ENCONTROS[k - 1].toLowerCase(), em: dia(-20 + k * 3), autor: 'NEXUS' });
     if (p >= 4) H.push({ titulo: 'Nível 3: Preparado', em: t3, autor: 'sistema' }, { titulo: 'Termo de Parceria aceito', em: t3, autor: 'voce' }, { titulo: 'Reunião com o Posto Cerrado pedida', em: t3, autor: 'voce' });
     if (p >= 5) H.push({ titulo: 'Reunião com o Posto Cerrado feita', em: t4, autor: 'NEXUS' }, { titulo: 'Nível 4: Em campo', em: t4, autor: 'sistema' });
@@ -1318,7 +1405,12 @@
       if (passou) { E.etapas.p1 = { em: agora }; E.patamar = 2; E.historico.push({ titulo: 'Raio-X enviado, nota ' + n.nota, em: agora, autor: 'voce' }); }
       return { ok: true, data: { nota: n.nota, passou: passou, faltas: n.faltas, trilha: E } };
     }
-    if (c === '/trilha/diagnostico') { E.diagnostico = { pedido_em: agora, preferencia: corpo.preferencia }; E.historico.push({ titulo: 'Diagnóstico pedido', em: agora, autor: 'voce' }); return { ok: true, data: E }; }
+    if (c === '/trilha/diagnostico') {
+      if (E.diagnostico && E.diagnostico.pedido_em) return { ok: false, status: 409, data: { erro: 'ja_pedido' } };
+      E.diagnostico = { pedido_em: agora, contato: corpo.contato };
+      E.historico.push({ titulo: 'Contato deixado para o diagnóstico', em: agora, autor: 'voce' });
+      return { ok: true, data: E };
+    }
     if (c === '/trilha/preparo') { E.preparo = Object.assign({}, E.preparo, { formato: corpo.formato }); return { ok: true, data: E }; }
     if ((m = /^\/trilha\/academia\/(.+)$/.exec(c))) {
       var certa = num(corpo.resposta) === DEMO_ACAD_CERTA[m[1]];

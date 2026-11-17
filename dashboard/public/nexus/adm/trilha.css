@@ -303,3 +303,76 @@ button.tr-uf:hover{outline:2px solid var(--p-tx);outline-offset:1px}
 /* Toque sem atraso e realce de toque discreto */
 .tr button,.tr-ficha button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .tr-hf button:hover,.tr-filas button:hover{border-color:var(--p-acc)}
+
+/* ── Rodada 2 (17/11): visão Funil, contato com WhatsApp e linha com botão esticado ── */
+/* Nas visões da trilha somem os totais, o gráfico dos níveis antigos e o convite (classe posta pelo painel.js) */
+#painel.tr-foco .pn-topo{display:none !important}
+
+/* Linha: o nome é o botão e o ::after cobre a linha toda; links (WhatsApp, e-mail) ficam por cima */
+.tr-lin,.tr-fl{position:relative}
+.tr-lin:focus-within,.tr-fl:focus-within{border-color:var(--p-acc)}
+.tr-abre{display:block;width:auto;max-width:100%;padding:0;margin:0;border:0;background:none;color:var(--p-tx);font:inherit;font-weight:800;
+  font-size:14px;line-height:1.3;text-align:left;cursor:pointer;overflow-wrap:anywhere;min-height:0}
+.tr-abre::after{content:'';position:absolute;inset:0;border-radius:12px}
+.tr-abre:focus-visible{outline:none}
+.tr-abre:focus-visible::after{outline:2px solid var(--p-acc);outline-offset:-1px}
+.tr-fl .emp{display:block;font-weight:800;font-size:14px;line-height:1.3;overflow-wrap:anywhere}
+.tr-wa,.tr-mail{position:relative;z-index:1;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 10px 4px 8px;border-radius:99px;
+  font-weight:700;font-size:13px;text-decoration:none;overflow-wrap:anywhere;max-width:100%}
+.tr-wa{background:var(--p-ok-sf);color:var(--p-ok)}
+.tr-wa:hover{background:color-mix(in srgb,var(--p-ok) 18%,var(--p-sf))}
+.tr-mail{background:var(--p-sf3);color:var(--p-tx)}
+.tr-mail:hover{background:var(--p-acc-sf);color:var(--p-acc-tx)}
+.tr-wa svg,.tr-mail svg{width:16px;height:16px;flex:0 0 auto}
+.tr-mail span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr-contato{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:6px}
+.tr-f-contato{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:10px;font-size:13px;font-weight:700;color:var(--p-tx)}
+
+/* Funil */
+.tr-fn-topo{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:12px;align-items:start}
+.tr-fn-cart{display:grid;gap:10px}
+.tr-kpi.est{cursor:default}
+.tr-kpi.est:hover{border-color:var(--p-bd)}
+.tr-fn h3 .dir b{color:var(--p-tx);font-weight:800}
+.tr-fn-lista{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.tr-fn-l{display:grid;grid-template-columns:minmax(0,13em) minmax(0,1fr) 3.2em 6.6em;gap:12px;align-items:center;font-size:13.5px}
+.tr-fn-l .t{font-weight:700;color:var(--p-tx);line-height:1.25}
+.tr-fn-l .b{height:14px;border-radius:4px;background:var(--p-sf3);overflow:hidden}
+.tr-fn-l .b i{display:block;height:100%;border-radius:4px;background:var(--p-acc)}
+.tr-fn-l .n{text-align:right;font-weight:800;font-size:15px}
+.tr-fn-l .p{text-align:right;font-size:12.5px;color:var(--p-tx2);font-weight:600}
+.tr-fn-duas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+section.tr-cx:focus{outline:none}
+section.tr-cx:focus-visible{outline:2px solid var(--p-acc);outline-offset:2px}
+
+/* Listas do Funil */
+.tr-fl-lista{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.tr-fl{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.3fr) 6.5em;gap:6px 12px;align-items:center;padding:10px 12px;border-radius:12px;
+  border:1px solid var(--p-bd);background:var(--p-sf2);font-size:13px}
+.tr-fl.apto{grid-template-columns:minmax(0,1.7fr) minmax(0,1.5fr) 56px 7.5em 6.5em;background:var(--p-sf)}
+.tr-fl:hover{border-color:var(--p-acc)}
+.tr-fl > div{min-width:0;display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.tr-fl .c5{align-items:flex-end;text-align:right}
+.tr-fl .rt{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--p-tx3);font-weight:800}
+.tr-prog{display:block;width:100%;max-width:160px;height:8px;border-radius:99px;background:var(--p-sf3);overflow:hidden}
+.tr-prog i{display:block;height:100%;background:var(--p-acc);border-radius:99px}
+.tr-mais{margin-top:10px}
+
+@media(max-width:900px){
+  .tr-fn-topo{grid-template-columns:1fr}
+  .tr-fn-cart{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tr-fn-cart .tr-kpi{flex-direction:column;align-items:flex-start;justify-content:flex-start}
+  .tr-fn-duas{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .tr-fn-l{grid-template-columns:minmax(0,1fr) auto auto;gap:4px 10px}
+  .tr-fn-l .t{grid-column:1}
+  .tr-fn-l .b{grid-column:1 / -1;grid-row:2}
+  .tr-fl.apto{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tr-fl.apto .c1,.tr-fl.apto .c2{grid-column:1 / -1}
+  .tr-fl.apto .c5{align-items:flex-start;text-align:left}
+  .tr-fl.apto .rt{display:block}
+  .tr-fl{grid-template-columns:minmax(0,1fr) auto}
+  .tr-fl:not(.apto) .c2{grid-column:1 / -1;grid-row:2}
+  .tr-fl:not(.apto) .c5{grid-row:1;grid-column:2}
+}

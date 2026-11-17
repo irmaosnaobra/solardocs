@@ -45,6 +45,8 @@ import VslPanel from './_panels/VslPanel';
 import LojaPanel from './_panels/LojaPanel';
 // Ponto Certo: o investidor recusado por falta de local, chegou no material?
 import PontoCertoPanel from './_panels/PontoCertoPanel';
+// Trilha do Parceiro NEXUS: aptos para reunião e Mapa de demanda (iframe de /nexus/adm)
+import NexusParceirosPanel from './_panels/NexusParceirosPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -110,6 +112,9 @@ export const PRODUCTS: Product[] = [
       // /ponto-certo. Esta aba mede esse caminho ponta a ponta e é a única que enxerga a fila
       // dos dois lados (quem tem o ponto e quem tem o capital) sem recorte de período.
       { key: 'pontocerto', label: 'Ponto Certo',     status: 'pronto',   Comp: PontoCertoPanel },
+      // Trilha do Parceiro NEXUS (17/11/2026): quem concluiu o Nível 1 e está apto para reunião,
+      // com nível, contato e ficha, mais o Mapa de demanda. Embute /nexus/adm/ (mesma origem).
+      { key: 'parceiros-nexus', label: 'Parceiros NEXUS', status: 'pronto', Comp: NexusParceirosPanel },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="eletroposto" /> },
     ],
   },

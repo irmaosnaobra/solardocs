@@ -33,8 +33,9 @@ import { sendWhatsApp } from '../agents/zapiClient';
 import { sendOpsAlert } from '../../utils/mailer';
 import { diaBRT } from './tempo';
 import { cidadeUf } from './repositorio';
+import { ASSUNTO_APTO, RAJADA_MAX, RAJADA_MINUTOS, avisarApto, type DadosApto } from './avisoApto';
 
-export type TipoAviso = 'cadastro' | 'solicitacao' | 'pedido' | 'usina' | 'oportunidade' | 'termo';
+export type TipoAviso = 'cadastro' | 'solicitacao' | 'pedido' | 'usina' | 'oportunidade' | 'termo' | 'apto_reuniao';
 export type ResultadoAviso = 'enviado' | 'email' | 'duplicado' | 'desligado';
 
 export const PREFIXO_CHAVE = 'nexus_aviso:';
@@ -62,6 +63,7 @@ export interface DadosAviso {
   };
   /** (f) a versão do Termo de Parceria aceito. */
   termo?: { versao: string };
+  apto?: DadosApto;
   /** (d) a usina indicada. */
   usina?: { id: string; dono_nome?: string | null; cidade?: string | null; uf?: string | null; potencia_kwp?: number | null; interesse?: string | null };
   /** (e) a oportunidade e o status novo (aceita, recusada, contato, visita, orcamento, fechou, perdeu). */
@@ -109,6 +111,7 @@ export function chaveDoAviso(tipo: TipoAviso, d: DadosAviso, quando: Date = new 
     return `${PREFIXO_CHAVE}pedido:${d.pedido?.id ?? d.parceiro.id}`;
   }
   if (tipo === 'usina') return `${PREFIXO_CHAVE}usina:${d.usina?.id ?? d.parceiro.id}`;
+  if (tipo === 'apto_reuniao') return `${PREFIXO_CHAVE}apto_reuniao:${d.parceiro.id}`;
   if (tipo === 'termo') return `${PREFIXO_CHAVE}termo:${d.parceiro.id}:${d.termo?.versao ?? 'v1'}`;
   return `${PREFIXO_CHAVE}oportunidade:${d.oportunidade?.id ?? d.parceiro.id}:${d.oportunidade?.status ?? 'x'}`;
 }
@@ -195,11 +198,11 @@ const ASSUNTO: Record<TipoAviso, string> = {
   pedido: 'Portal NEXUS: pedido de equipamento',
   usina: 'Portal NEXUS: usina indicada',
   oportunidade: 'Portal NEXUS: resposta a oportunidade',
-  termo: 'Portal NEXUS: Termo de Parceria aceito',
+  termo: 'Portal NEXUS: Termo de Parceria aceito', apto_reuniao: ASSUNTO_APTO,
 };
 
 /** Os que, acima do teto de 12 por hora, saem só por e-mail. O resto é urgente e sai sempre pelo WhatsApp. */
-const SO_EMAIL_ACIMA_DO_TETO: ReadonlySet<TipoAviso> = new Set<TipoAviso>(['cadastro', 'usina', 'termo']);
+const SO_EMAIL_ACIMA_DO_TETO: ReadonlySet<TipoAviso> = new Set<TipoAviso>(['cadastro', 'usina', 'termo', 'apto_reuniao']);
 
 /** Assunto por tipo. Entra cru no <h2> do sendOpsAlert: só texto fixo nosso (e o número do pacote, validado), nunca dado de parceiro. */
 export function assuntoDoAviso(tipo: TipoAviso, d: DadosAviso): string {
@@ -260,9 +263,9 @@ async function chamarWebhook(tipo: TipoAviso, d: DadosAviso): Promise<void> {
   }
 }
 
-/** Quantos avisos de WhatsApp (chaves `nexus_aviso:`) a trava registrou na última hora. */
-async function contarNaUltimaHora(): Promise<number> {
-  const desde = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+/** Quantos avisos de WhatsApp (chaves `nexus_aviso:`) a trava registrou nos últimos `minutos` (60 = teto por hora; RAJADA_MINUTOS = rajada). */
+async function contarAvisos(minutos: number): Promise<number> {
+  const desde = new Date(Date.now() - minutos * 60 * 1000).toISOString();
   const { count, error } = await supabase
     .from('system_state')
     .select('key', { count: 'exact', head: true })
@@ -282,6 +285,7 @@ async function contarNaUltimaHora(): Promise<number> {
  */
 export async function avisarComercial(tipo: TipoAviso, d: DadosAviso): Promise<ResultadoAviso> {
   try {
+    if (tipo === 'apto_reuniao') return await avisarApto(d.parceiro, d.apto); // Thiago e Diego, regras próprias: ver avisoApto.ts
     const ligado = String(process.env.NEXUS_AVISO_LIGADO ?? '').trim() === '1';
     const destino = String(process.env.NEXUS_AVISO_PHONE ?? '').replace(/\D/g, '');
     if (!ligado || !destino) {
@@ -294,8 +298,8 @@ export async function avisarComercial(tipo: TipoAviso, d: DadosAviso): Promise<R
       return 'desligado';
     }
 
-    // A contagem vem ANTES do insert da trava, senão a própria chave do aviso entraria na conta do teto.
-    const naHora = await contarNaUltimaHora();
+    // As contagens vêm ANTES do insert da trava (a própria chave não entra na conta).
+    const naHora = await contarAvisos(60), naRajada = await contarAvisos(RAJADA_MINUTOS);
 
     const { error: travaErr } = await supabase.from('system_state').insert({
       key: chaveDoAviso(tipo, d),
@@ -316,11 +320,11 @@ export async function avisarComercial(tipo: TipoAviso, d: DadosAviso): Promise<R
     }
 
     const texto = textoDoAviso(tipo, d);
-    const acimaDoTeto = naHora >= TETO_WHATSAPP_POR_HORA;
+    const acimaDoTeto = naHora >= TETO_WHATSAPP_POR_HORA || naRajada >= RAJADA_MAX;
     let resultado: ResultadoAviso;
 
     if (SO_EMAIL_ACIMA_DO_TETO.has(tipo) && acimaDoTeto) {
-      await emailDoAviso(tipo, d, texto, 'O teto de 12 avisos por hora no WhatsApp foi atingido, então este foi só por e-mail.');
+      await emailDoAviso(tipo, d, texto, 'O teto de avisos no WhatsApp (12 por hora ou 6 em 10 minutos) foi atingido, então este foi só por e-mail.');
       resultado = 'email';
     } else {
       try {

@@ -2,7 +2,7 @@
 // Tudo função PURA: a rota traz as linhas (parceiros, trilhas, assinantes) e estas funções só montam e contam.
 
 import type { Linha } from './repositorio';
-import { LinhaTrilha, PENDENCIAS, paradoHaDias, patamarEmCurso, pendenciaDaEquipe, trilhaVazia } from './trilha';
+import { LinhaTrilha, PENDENCIAS, contatoDoDiagnostico, paradoHaDias, patamarEmCurso, pendenciaDaEquipe, trilhaVazia } from './trilha';
 import { OPCOES } from './trilhaRaioX';
 
 const tamanho = (v: unknown): number => (Array.isArray(v) ? v.length : 0);
@@ -22,6 +22,8 @@ export function linhaDaLista(p: Linha, t: LinhaTrilha | null, assinante: boolean
     parado_ha_dias: paradoHaDias(tt, agora),
     pendencia_equipe: pendenciaDaEquipe(tt, agora),
     responsavel_email: tt.responsavel_email ?? null,
+    contato: contatoDoDiagnostico(tt),
+    pedido_em: tt.diag_pedido_em ?? null,
     demanda_12m: Number(rx.demanda_12m) || 0,
     clientes_em_vista: tamanho(rx.clientes_em_vista),
   };

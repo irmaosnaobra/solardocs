@@ -623,6 +623,22 @@
       '<a class="nx-btn wa grande" href="' + waLink('Oi, tudo bem? Quero saber do Portal do Parceiro NEXUS.') + '" rel="noopener">' + ic('conversa') + 'Falar com o comercial no WhatsApp</a>' +
       '<p class="nx-ent-rodape"><a href="/nexus">Ver a vitrine da NEXUS</a></p></div></div></div>';
   }
+  /* Trilha ligada e o portal aberto FORA da SolarDoc (sem ?embed=1), com a conta logada: a parceria agora anda dentro
+     da SolarDoc, e a casca antiga dá lugar a este cartão. O cadastro (#cadastro, do quiz do eletroposto) não passa por
+     aqui: ele roda na fase 'cadastro', e só depois da conta criada a pessoa vê o cartão. Na demonstração, só com ?fora=1. */
+  function foraDaSolarDoc() {
+    return S.fase === 'app' && !S.embed && !!TR() && (!S.demo || /[?&]fora=1(&|$)/.test(location.search));
+  }
+  /* Quem acabou de criar a conta pelo #cadastro nesta sessão não "mudou de casa": a conta está pronta e o caminho é o Raio-X. */
+  function contaNovaNestaSessao() { try { return sessionStorage.getItem('nx_conta_nova') === '1'; } catch (e) { return false; } }
+  function telaMudou() {
+    var nova = contaNovaNestaSessao();
+    return '<div class="nx-ent"><div class="nx-ent-in">' + logoEntrada() +
+      '<div class="nx-ent-card nx-tela-cheia nx-mudou"><span class="nx-mudou-ic" aria-hidden="true">' + ic('inicio') + '</span>' +
+      '<h1>' + (nova ? 'Sua conta está pronta' : 'A parceria NEXUS mudou de casa') + '</h1>' +
+      '<p class="sub">' + (nova ? 'A parceria NEXUS fica dentro da SolarDoc. Entre e comece pelo Raio-X.' : 'A parceria agora anda dentro da SolarDoc. Entre e abra o item Parceiro NEXUS no menu.') + '</p>' +
+      '<a class="nx-btn grande" href="https://solardoc.app/parceiro-nexus">Entrar na SolarDoc</a></div></div></div>';
+  }
   function telaCnpjInativo() {
     return '<div class="nx-ent"><div class="nx-ent-in">' + logoEntrada() +
       '<div class="nx-ent-card nx-tela-cheia"><h1>Não conseguimos liberar este CNPJ</h1>' +
@@ -1128,6 +1144,15 @@
   function pintar() {
     var root = $('#nx-root');
     if (!root) return;
+    if (foraDaSolarDoc()) {
+      if (MAIS) { MAIS.fechar(false); MAIS = null; }
+      S.shell = false;
+      document.documentElement.classList.remove('np-com-banner');
+      document.title = contaNovaNestaSessao() ? 'Sua conta está pronta' : 'A parceria NEXUS mudou de casa';
+      root.innerHTML = telaMudou();
+      window.scrollTo(0, 0);
+      return;
+    }
     if (S.fase !== 'app') {
       if (MAIS) { MAIS.fechar(false); MAIS = null; }
       S.shell = false;
@@ -2955,6 +2980,7 @@
       return api('POST', '/auth/register', corpo, { semToken: true, quieto: true }).then(function (r) {
         if (r.ok && r.data && r.data.token) {
           salvarSessao(r.data); S.msgEntrada = '';
+          try { sessionStorage.setItem('nx_conta_nova', '1'); } catch (e) { /* sem sessionStorage, vale o cartão de sempre */ }
           c.senha = ''; c.conf = '';
           c.fila.forEach(function (n) { ev('cadastro_passo', { passo: n }); });
           c.fila = [];
@@ -3278,7 +3304,7 @@
       api: function (m, c, b, o) { return api(m, NX + c, b, { quieto: true, timeout: o && o.timeout }); },
       repintar: function (manter) { pintarMain(manter); },
       repintarTudo: function () { pintarNav(); pintarMain(true); },
-      aoLigar: function () { if (S.fase !== 'app') return; var rh = rotaDoHash(); if (rh) { S.rota = rh.r; S.sub = rh.sub; } pintarNav(); pintarMain(true); },
+      aoLigar: function () { if (S.fase !== 'app') return; if (foraDaSolarDoc()) { pintar(); return; } var rh = rotaDoHash(); if (rh) { S.rota = rh.r; S.sub = rh.sub; } pintarNav(); pintarMain(true); },
       termo: { html: termoSecaoHTML, carregar: carregarTermo },
       selo: { liberado: function () { return libera('selo'); }, bloco: seloBlocoHTML, desenhar: desenharSelo }
     };

@@ -5,6 +5,7 @@ import { soDigitos } from '../../utils/cnpj';
 import { UFS } from './procura';
 import { OPCOES, type Resultado } from './trilhaRaioX';
 import { inicioDiaBRT } from './tempo';
+import { telefoneComDdi } from './repositorio';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ehObjeto = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -41,6 +42,35 @@ export function validarPreferencia(v: unknown, hoje: string): Resultado<Preferen
     out.whatsapp = d;
   }
   return { ok: true, valor: out };
+}
+
+export const PERIODOS_CONTATO = ['manha', 'tarde', 'noite'] as const;
+export type PeriodoContato = (typeof PERIODOS_CONTATO)[number];
+
+export interface ContatoDiagnostico {
+  nome: string;
+  whatsapp: string;
+  periodo: PeriodoContato;
+}
+
+/**
+ * Contato do fim do Nível 1 (POST /nexus/trilha/diagnostico): `{ contato: { nome, whatsapp, periodo } }`. Período obrigatório (manha, tarde ou noite). Nome de 2 a 80 caracteres;
+ * WhatsApp brasileiro (DDD de 11 a 99, celular de 9 dígitos começando em 9 ou fixo de 8), guardado com o 55. O formato
+ * antigo (preferencia, dias, periodo) é recusado: a agenda saiu do diagnóstico.
+ */
+export function validarContatoDiagnostico(corpo: unknown): Resultado<ContatoDiagnostico> {
+  if (!ehObjeto(corpo)) return { ok: false, erro: 'contato_invalido' };
+  if (corpo.preferencia !== undefined || corpo.dias !== undefined || corpo.periodo !== undefined) return { ok: false, erro: 'formato_antigo' };
+  const c = corpo.contato;
+  if (!ehObjeto(c)) return { ok: false, erro: 'contato_invalido', campo: 'contato' };
+  const nome = typeof c.nome === 'string' ? c.nome.replace(/\s+/g, ' ').trim() : '';
+  if (nome.length < 2 || nome.length > 80) return { ok: false, erro: 'contato_invalido', campo: 'nome' };
+  const tel = telefoneComDdi(c.whatsapp);
+  const local = tel ? tel.slice(4) : '';
+  const ddd = tel ? Number(tel.slice(2, 4)) : 0;
+  if (!tel || ddd < 11 || ddd > 99 || !(local.length === 8 || (local.length === 9 && local.startsWith('9')))) return { ok: false, erro: 'contato_invalido', campo: 'whatsapp' };
+  if (typeof c.periodo !== 'string' || !(PERIODOS_CONTATO as readonly string[]).includes(c.periodo)) return { ok: false, erro: 'contato_invalido', campo: 'periodo' };
+  return { ok: true, valor: { nome, whatsapp: tel, periodo: c.periodo as PeriodoContato } };
 }
 
 export interface PedidoDeReuniao {
