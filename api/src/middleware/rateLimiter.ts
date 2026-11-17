@@ -14,6 +14,16 @@ const RE_ENVIO_DOCS = /^\/gerador\/clientes\/(?:solar|eletroposto|vendasolar)\/\
 export const ehEnvioDeDocs = (metodo: string | undefined, url: string | undefined): boolean =>
   metodo === 'POST' && RE_ENVIO_DOCS.test(String(url ?? '').split('?')[0]);
 
+/**
+ * A consulta de "o Pix foi pago?" das telas de Pix: GET `/payments/pix-recorrente/publico/:id`. A tela pergunta a cada 3 s
+ * (300 pedidos por 15 min por aba aberta), então várias pessoas atrás do mesmo IP de operadora gastariam os 500 do global.
+ * Fica fora dele e tem o `pixStatusPublicoLimiter` (abaixo). Regex ancorada: só o GET, um único segmento de id, sem barra no fim;
+ * o POST `/publico` (que cria cobrança) e o `/publico/:id/x` NÃO casam.
+ */
+const RE_STATUS_PIX_PUBLICO = /^\/payments\/pix-recorrente\/publico\/[^/?#]+$/;
+export const ehStatusPixPublico = (metodo: string | undefined, url: string | undefined): boolean =>
+  metodo === 'GET' && RE_STATUS_PIX_PUBLICO.test(String(url ?? '').split('?')[0]);
+
 export const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 500,
@@ -24,7 +34,19 @@ export const globalLimiter = rateLimit({
   // mundo e derrubaria o resto do /gerador. Quem protege a caixa são os dois limitadores abaixo.
   // O envio de anexos da venda também sai: 100 fotos são 200+ pedidos e gastariam a conta do escritório inteiro.
   // Quem o protege é o `docsEnvioLimiter` (por pessoa).
-  skip: (req) => ehRotaDaCaixa(req.originalUrl) || ehEnvioDeDocs(req.method, req.originalUrl),
+  // A consulta do Pix pago também sai (tela que pergunta a cada 3 s); quem a protege é o `pixStatusPublicoLimiter`, por IP real.
+  skip: (req) => ehRotaDaCaixa(req.originalUrl) || ehEnvioDeDocs(req.method, req.originalUrl) || ehStatusPixPublico(req.method, req.originalUrl),
+});
+
+// Consulta pública do status do Pix (GET /payments/pix-recorrente/publico/:id): 1.500 a cada 15 min por IP (uma aba a cada 3 s
+// gasta 300, então cabem ~5 abas por IP de operadora com folga). A chave é o IP REAL do cliente, não o do proxy do dashboard.
+export const pixStatusPublicoLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1500,
+  keyGenerator: (req) => 'pix-status:' + ipKeyGenerator(clientIp(req) || 'sem-ip'),
+  message: { error: 'Muitas consultas em pouco tempo. Aguarde um pouco.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 export const aiLimiter = rateLimit({

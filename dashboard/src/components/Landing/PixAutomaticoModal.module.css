@@ -27,6 +27,20 @@
   color: #f1f5f9;
   font-family: inherit;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  /* Cores das peças do Pix (components/PixPago), na paleta escura desta LP. */
+  --pix-texto: #f1f5f9;
+  --pix-mudo: #cbd5e1;
+  --pix-ok: #34d399;
+  --pix-sobre-ok: #0f172a;
+  --pix-ok-fundo: rgba(52, 211, 153, 0.14);
+  --pix-neutro-fundo: #253347;
+  --pix-alerta: #fbbf24;
+  --pix-borda: #334155;
+  --pix-caixa: #253347;
+  --pix-campo: #0f172a;
+  --pix-trilho: #334155;
+  --pix-acao: #fbbf24;
+  --pix-foco: #fbbf24;
 }
 /* A rolagem fica aqui dentro; o × é irmão desta área e por isso nunca sai da vista. */
 .rolagem {
@@ -34,6 +48,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   padding: 26px 20px 22px;
 }
 .painel *,
@@ -62,8 +77,7 @@
 .campo:focus-visible,
 .btnPrincipal:focus-visible,
 .btnSecundario:focus-visible,
-.link:focus-visible,
-.codigo:focus-visible { outline: 3px solid #fbbf24; outline-offset: 2px; }
+.link:focus-visible { outline: 3px solid #fbbf24; outline-offset: 2px; }
 .titulo {
   margin: 0 40px 6px 0;
   font-size: 22px;
@@ -176,50 +190,6 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.qr {
-  display: block;
-  width: 150px;
-  max-width: 60%;
-  height: auto;
-  margin: 14px auto 6px;
-  padding: 8px;
-  border-radius: 12px;
-  background: #fff;
-}
-.codigo {
-  display: block;
-  width: 100%;
-  margin-top: 6px;
-  padding: 10px 12px;
-  border: 2px solid #334155;
-  border-radius: 12px;
-  background: #0f172a;
-  color: #f1f5f9;
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 1.4;
-  resize: none;
-  overflow-wrap: anywhere;
-  word-break: break-all;
-}
-.passos {
-  margin: 14px 0 0;
-  padding-left: 22px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #cbd5e1;
-}
-.legendaQr {
-  margin: 0;
-  text-align: center;
-  font-size: 12.5px;
-  color: #94a3b8;
-}
-.espera {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #94a3b8;
-}
 .travou {
   margin-top: 16px;
   padding: 14px;
@@ -240,11 +210,3 @@
   .titulo { font-size: 20px; }
 }
 
-/* Validade do código, logo abaixo do botão de copiar. */
-.validade {
-  margin: 8px 0 0;
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--color-text-muted);
-  text-align: center;
-}

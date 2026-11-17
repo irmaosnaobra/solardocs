@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import api from '@/services/api';
 import { registrarEvento } from '@/hooks/useLpTracking';
+import {
+  guardarPix, lerPixGuardado, limparPixGuardado, primeiraVezPago, usePixEspera, validadeTexto, type PixStatus,
+} from '@/lib/pixEspera';
+import PixCartao from '@/components/PixPago/PixCartao';
 import styles from './pix-automatico.module.css';
+
+const TELA = 'auto'; // chave do contrato guardado no aparelho
+const ESPERA_MAX_MS = 60 * 60 * 1000; // sem expiraEm da api
 
 const ASSINATURA = {
   preco: '67',
@@ -23,6 +30,30 @@ interface Criado {
   status: string;
   temConta: boolean;
   instrucao: string;
+  expiraEm?: string | null;
+}
+
+// O que a tela precisa para esperar: vem do POST ou do aparelho (24 h).
+interface Espera {
+  id: string;
+  payload: string;
+  imagem: string;
+  temConta: boolean;
+  email: string;
+  fimMs: number;
+  validade: string;
+  instrucao: string;
+  retomada: boolean;
+}
+
+function esperaGuardada(): Espera | null {
+  if (typeof window === 'undefined') return null;
+  const g = lerPixGuardado(TELA);
+  if (!g) return null;
+  return {
+    id: g.id, payload: g.payload, imagem: '', temConta: g.temConta, email: '', fimMs: g.fimMs,
+    validade: g.fimMs > Date.now() ? validadeTexto(g.fimMs) : '', instrucao: '', retomada: true,
+  };
 }
 
 // Máscara só visual — quem valida CPF/CNPJ de verdade é o Asaas.
@@ -50,13 +81,13 @@ export default function PixAutomaticoCliente() {
 
   const [criando, setCriando] = useState(false);
   const [criado, setCriado] = useState<Criado | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [espera, setEspera] = useState<Espera | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [cupomOk, setCupomOk] = useState<{ codigo: string; primeiroMes: number; precoCheio: number } | null>(null);
 
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const jaMediu = useRef(false);
+  const leuGuardado = useRef(false);
 
   // CHEGOU. Este é o número que não existia: até aqui dava pra saber quantos
   // pagaram (linha no banco) e nenhum dos que olharam e foram embora. Uma vez
@@ -84,36 +115,37 @@ export default function PixAutomaticoCliente() {
       .catch(() => setCupomOk(null));
   }, [cupomUrl, plano]);
 
+  // Pix gerado nas últimas 24 h neste aparelho: volta ao mesmo código, ou já mostra
+  // que foi pago. Lido depois de montar porque o localStorage só existe no cliente.
+  useEffect(() => {
+    if (leuGuardado.current) return;
+    leuGuardado.current = true;
+    const g = esperaGuardada();
+    if (g) setEspera(g);
+  }, []);
+
   // Enquanto o pagamento não cai, a tela pergunta sozinha pela chave pública
-  // (o uuid do contrato). Para no primeiro "ativo".
-  const consultar = useCallback(async () => {
-    if (!criado?.id) return;
-    try {
-      const { data } = await api.get(`/payments/pix-recorrente/publico/${criado.id}`);
-      const novo = data?.status ?? null;
-      // Fecha o funil na PRÓPRIA tela. O banco já sabe quem pagou; o que só
-      // daqui se enxerga é que a pessoa estava com a tela aberta na hora — é o
-      // que separa "pagou na hora" de "pagou dois dias depois pelo lembrete".
-      setStatus((antes) => {
-        if (novo === 'ativo' && antes !== 'ativo') {
-          registrarEvento('pix_pago', { tela: 'automatico', contrato: criado.id, modo: data?.modo ?? null });
-        }
-        return novo;
-      });
-    } catch {
-      // Falha de rede no meio da espera não vira erro na tela: a próxima rodada
-      // tenta de novo e o pagamento não depende desta consulta.
-    }
-  }, [criado?.id]);
+  // (o uuid do contrato) e pergunta na hora quando a pessoa volta do banco.
+  const idEspera = espera?.id ?? null;
+  const buscar = useCallback(async (comQr: boolean): Promise<PixStatus | null> => {
+    if (!idEspera) return null;
+    const { data } = await api.get(`/payments/pix-recorrente/publico/${encodeURIComponent(idEspera)}`, { timeout: 12000, ...(comQr ? { params: { qr: 1 } } : {}) });
+    return (data ?? null) as PixStatus | null;
+  }, [idEspera]);
+  // Fecha o funil na PRÓPRIA tela, uma vez por contrato. O banco já sabe quem
+  // pagou; o que só daqui se enxerga é que a pessoa estava com a tela aberta.
+  const aoPagar = useCallback((d: PixStatus, retomado: boolean) => {
+    if (!idEspera || !primeiraVezPago(idEspera)) return;
+    registrarEvento('pix_pago', { tela: 'automatico', contrato: idEspera, modo: d.modo ?? null, ...(retomado ? { retomado: true } : {}) });
+  }, [idEspera]);
+  const est = usePixEspera({ chave: idEspera, fimMs: espera?.fimMs ?? 0, retomada: espera?.retomada ?? false, temImagem: Boolean(espera?.imagem), buscar, aoPagar });
+  const pagou = espera !== null && est.fase === 'pago';
+  const encerrou = espera !== null && est.fase === 'encerrado';
+  const sumiu = espera !== null && est.fase === 'sumiu';
 
   useEffect(() => {
-    if (!criado?.id || status === 'ativo') {
-      if (timer.current) { clearInterval(timer.current); timer.current = null; }
-      return;
-    }
-    timer.current = setInterval(() => { void consultar(); }, 5000);
-    return () => { if (timer.current) clearInterval(timer.current); };
-  }, [criado?.id, status, consultar]);
+    if (pagou || encerrou || sumiu) limparPixGuardado(TELA);
+  }, [pagou, encerrou, sumiu]);
 
   const docOk = doc.replace(/\D/g, '').length >= 11;
   const podeGerar = Boolean(nome.trim()) && EMAIL_RE.test(email.trim()) && docOk && !criando;
@@ -130,8 +162,21 @@ export default function PixAutomaticoCliente() {
         whatsapp: fone.replace(/\D/g, '') || undefined,
         cupom: cupomUrl || undefined,
       });
-      setCriado(data as Criado);
-      setStatus((data as Criado).status);
+      const cr = data as Criado;
+      setCriado(cr);
+      if (cr.id && cr.qrPayload) {
+        const expira = typeof cr.expiraEm === 'string' ? Date.parse(cr.expiraEm) : NaN;
+        const comExpira = Number.isFinite(expira) && expira > Date.now() + 60 * 1000;
+        const nova: Espera = {
+          id: String(cr.id), payload: cr.qrPayload, imagem: cr.qrImagemBase64 || '', temConta: Boolean(cr.temConta),
+          email: email.trim().toLowerCase(), fimMs: comExpira ? expira : Date.now() + ESPERA_MAX_MS,
+          validade: comExpira ? validadeTexto(expira) : '', instrucao: cr.instrucao || '', retomada: false,
+        };
+        setEspera(nova);
+        guardarPix(TELA, { id: nova.id, t: Date.now(), fimMs: nova.fimMs, payload: nova.payload, temConta: nova.temConta });
+      } else {
+        setEspera(null);
+      }
       registrarEvento('pix_gerou', {
         tela: 'automatico',
         modo: (data as Criado).modo,
@@ -155,91 +200,67 @@ export default function PixAutomaticoCliente() {
       await navigator.clipboard.writeText(texto);
       registrarEvento('pix_copiou', { tela: 'automatico' });
       setCopiado(true);
-      setTimeout(() => setCopiado(false), 2500);
+      setTimeout(() => setCopiado(false), 3000);
     } catch {
+      (document.getElementById('pix-codigo') as HTMLTextAreaElement | null)?.select();
       setErro('Seu navegador bloqueou a cópia. Selecione o código e copie na mão.');
     }
   }
 
-  // ── pago ───────────────────────────────────────────────────────────────────
-  if (status === 'ativo') {
-    return (
-      <div className={styles.page}>
-        <h1 className={styles.title}>Pagamento confirmado</h1>
-        <p className={styles.subtitle}>Sua assinatura por Pix está ativa.</p>
-        <div className={styles.card}>
-          <div className={styles.cardTitle}>
-            Tudo certo <span className={`${styles.badge} ${styles.badgeOk}`}>ativa</span>
-          </div>
-          <p className={styles.cardText}>
-            {criado?.temConta
-              ? 'Sua conta já existe: é só entrar com o seu e-mail e a plataforma está liberada.'
-              : 'Agora crie sua senha para entrar. Usamos o mesmo e-mail que você informou aqui.'}
-          </p>
-          <div className={styles.row}>
-            <a
-              className={styles.btnPrimary}
-              href={criado?.temConta
-                ? '/auth?mode=login'
-                : `/auth?mode=register&email=${encodeURIComponent(email.trim().toLowerCase())}`}
-            >
-              {criado?.temConta ? 'Entrar na plataforma' : 'Criar minha senha'}
-            </a>
-          </div>
-        </div>
-      </div>
-    );
+  // Venceu ou não foi concluído: volta ao formulário com os dados ainda preenchidos.
+  function gerarOutro() {
+    limparPixGuardado(TELA);
+    setEspera(null);
+    setCriado(null);
+    setCopiado(false);
+    setErro(null);
   }
+
+  const hrefCartao = `/assinar${cupomUrl ? `?cupom=${encodeURIComponent(cupomUrl)}` : ''}`;
+  const emailConta = (espera?.email || email).trim().toLowerCase();
+
+  const cartaoPix = espera && (
+    <PixCartao
+      est={est}
+      payload={espera.payload}
+      imagem={espera.imagem}
+      validade={espera.validade}
+      instrucao={espera.instrucao}
+      copiado={copiado}
+      onCopiar={() => copiar(espera.payload)}
+      temConta={espera.temConta}
+      hrefConta={espera.temConta
+        ? '/auth?mode=login'
+        : `/auth?mode=register${emailConta ? `&email=${encodeURIComponent(emailConta)}` : ''}`}
+      onGerar={gerarOutro}
+      cartao={{ href: hrefCartao }}
+      css={{ card: `${styles.card} ${styles.cardPix}`, titulo: styles.cardTitleGrande, texto: `${styles.cardText} ${styles.instrucao}`, btn: styles.btnPrimary, btn2: styles.btnSecondary }}
+    />
+  );
+
+  // Pago, ou vencido sem pagamento: o resultado ocupa a tela, sem o título de preço.
+  if (pagou || encerrou) return <div className={styles.page}>{cartaoPix}</div>;
+
+  const esperando = espera !== null && !sumiu;
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Não tem cartão? Dá pra assinar no Pix</h1>
-      <p className={styles.subtitle}>
-        Mesma plataforma, mesmo preço — a mensalidade sai no Pix e você não precisa de cartão de crédito.
-      </p>
+      {!esperando && (
+        <>
+          <h1 className={styles.title}>Não tem cartão? Dá pra assinar no Pix</h1>
+          <p className={styles.subtitle}>
+            Mesma plataforma, mesmo preço. A mensalidade sai no Pix e você não precisa de cartão de crédito.
+          </p>
+        </>
+      )}
 
-      {criado ? (
+      {esperando ? cartaoPix : criado && !criado.qrPayload ? (
+        // Cobrança criada mas QR não veio: dizer isso é melhor que mostrar uma
+        // caixa vazia e o cliente achar que travou.
         <div className={styles.card}>
-          <div className={styles.cardTitle}>Pague para ativar</div>
-          <p className={styles.cardText}>{criado.instrucao}</p>
-
-          <div className={styles.pagamento} style={{ marginTop: 18 }}>
-            {criado.qrImagemBase64 && (
-              <img
-                className={styles.qr}
-                src={`data:image/png;base64,${criado.qrImagemBase64}`}
-                alt="QR Code do Pix"
-              />
-            )}
-            <div className={styles.pagamentoLado}>
-              {criado.qrPayload ? (
-                <>
-                  <label className={styles.label}>Pix copia e cola</label>
-                  <textarea className={styles.copiaCola} readOnly value={criado.qrPayload} rows={4} />
-                  <div className={styles.row}>
-                    <button className={styles.btnPrimary} onClick={() => copiar(criado.qrPayload as string)}>
-                      {copiado ? 'Código copiado' : 'Copiar código'}
-                    </button>
-                    <span className={styles.badge}>aguardando pagamento</span>
-                  </div>
-                </>
-              ) : (
-                // Cobrança criada mas QR não veio: dizer isso é melhor que mostrar
-                // uma caixa vazia e o cliente achar que travou.
-                <div className={styles.aviso}>
-                  A cobrança foi criada, mas o código demorou a chegar. Recarregue a página em
-                  alguns segundos ou chame a gente no WhatsApp (34) 99816-5040.
-                </div>
-              )}
-
-              <ol className={styles.passos}>
-                <li>Abra o app do seu banco e pague o Pix acima.</li>
-                {criado.modo === 'automatico'
-                  ? <li>O banco vai perguntar se você autoriza a cobrança mensal de R$ {criado.valor} — confirme.</li>
-                  : <li>Todo mês você recebe um novo código; a confirmação é automática.</li>}
-                <li>Esta tela libera seu acesso sozinha assim que o pagamento cair.</li>
-              </ol>
-            </div>
+          <div className={styles.aviso}>
+            A cobrança foi criada, mas o código demorou a chegar. Recarregue a página em
+            alguns segundos ou chame a gente no WhatsApp (34) 99816-5040.
           </div>
         </div>
       ) : (
@@ -307,10 +328,10 @@ export default function PixAutomaticoCliente() {
       {erro && <p className={styles.erro}>{erro}</p>}
 
       {/* Cartão continua a um clique: quem só queria trocar o cartão não fica preso no Pix. */}
-      {!criado && (
+      {!esperando && !criado && (
         <p className={styles.cardText} style={{ textAlign: 'center', marginTop: 18 }}>
           Prefere cartão de crédito?{' '}
-          <a className={styles.btnLink} href={`/assinar${cupomUrl ? `?cupom=${encodeURIComponent(cupomUrl)}` : ''}`}>
+          <a className={styles.btnLink} href={hrefCartao}>
             Voltar para o checkout no cartão
           </a>
         </p>

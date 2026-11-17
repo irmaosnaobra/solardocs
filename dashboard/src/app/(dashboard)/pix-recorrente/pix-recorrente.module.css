@@ -125,3 +125,25 @@
 
 .erro { font-size: 13px; color: var(--color-error); font-weight: 600; margin-top: 12px; }
 .ok   { font-size: 13px; color: var(--color-success); font-weight: 600; margin-top: 12px; }
+
+/* Espera e resultado do Pix (components/PixPago): um cartão só, estreito, como nos apps de pagamento. */
+.cardPix {
+  max-width: 560px;
+  margin-inline: auto;
+  padding: 26px 22px 24px;
+}
+.cardTitleGrande {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+.instrucao { margin-top: 14px; font-size: 13px; line-height: 1.55; }
+.cardPix .btnPrimary,
+.cardPix .btnSecondary { width: 100%; min-height: 48px; font-size: 15px; }
+.cardPix .btnPrimary:focus-visible,
+.cardPix .btnSecondary:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .cardPix { padding: 22px 16px 20px; }
+}

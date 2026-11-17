@@ -156,12 +156,12 @@ details.faq summary{min-height:48px;display:flex;align-items:center;font-weight:
 details.faq p{margin:0 0 12px;color:var(--mudo)}
 .folha{position:absolute;inset:0;display:flex;align-items:flex-end;background:var(--sombra);z-index:5}
 .folha[hidden],.rodape[hidden]{display:none}
-.folha-in{width:100%;max-height:92%;overflow-y:auto;background:var(--tela);border-radius:20px 20px 0 0;padding:18px 20px calc(20px + env(safe-area-inset-bottom,0px))}
+.folha-in{width:100%;max-height:92%;overflow-y:auto;overscroll-behavior:contain;background:var(--tela);border-radius:20px 20px 0 0;padding:18px 20px calc(20px + env(safe-area-inset-bottom,0px))}
 .folha-in h2{font-size:1.2rem;margin:10px 0 6px}
 .folha-in dt{font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--mudo);margin-top:12px}
 .folha-in dd{margin:2px 0 0;overflow-wrap:anywhere}
 .msg{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--cartao);border:1.5px solid var(--borda-forte);border-radius:12px;padding:10px 12px;font-size:.95rem;width:100%;min-height:96px;color:var(--texto);font-family:inherit}
-.pix-qr{display:block;width:224px;max-width:72%;height:auto;margin:14px auto;padding:8px;background:#fff;border:1.5px solid var(--borda);border-radius:12px}
+.pix-qr{display:block;width:176px;max-width:60%;height:auto;margin:0 auto;padding:8px;background:#fff;border:1.5px solid var(--borda);border-radius:12px}
 /* Acabamento depois da revisão visual */
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .corpo{scrollbar-width:thin}
@@ -437,11 +437,38 @@ body{min-height:100vh;min-height:100dvh;overflow:hidden}
 .pix-passos{margin:16px 0 0;padding:0;list-style:none;display:grid;gap:8px;counter-reset:pp}
 .pix-passos li{display:flex;align-items:center;gap:10px;counter-increment:pp;font-weight:700}
 .pix-passos li::before{content:counter(pp);flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--trilho);font-size:.85rem;font-weight:800}
-.pix-st{display:flex;align-items:center;justify-content:center;gap:8px;margin:16px 0 0;padding:10px;border-radius:12px;background:var(--cartao);color:var(--mudo);font-weight:700;font-size:.92rem}
-.pix-mais{margin:12px 0 0;border:1.5px solid var(--borda);border-radius:12px;padding:0 12px;background:var(--cartao)}
-.pix-mais summary{min-height:44px;display:flex;align-items:center;font-weight:700;cursor:pointer}
-.pix-mais .msg{margin-bottom:8px}
-.pix-mais .pix-qr+p{margin-bottom:10px}
+.pix-st{display:flex;align-items:flex-start;gap:10px;margin:12px 0 16px;padding:12px 14px;border-radius:12px;border:1px solid var(--borda-forte);background:var(--fundo);color:var(--texto);font-size:.95rem;line-height:1.5}
+.pix-st .spin{flex:none;margin-top:3px}
+.pix-st p{margin:0}
+.pix-semcon{display:block;margin-top:6px;color:var(--acao-claro);font-weight:700;font-size:.88rem}
+.pix-semcon[hidden]{display:none}
+.pix-rot{display:block;margin:14px 0 6px;font-size:.85rem;font-weight:700;color:var(--texto)}
+.pix-cod{min-height:0;height:calc(4 * 1.45em + 23px);overflow-y:auto;resize:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.78rem;line-height:1.45;word-break:break-all}
+.pix-qrfig{margin:14px 0 0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.pix-qrfig .nota{margin:0;text-align:center;max-width:32ch}
+.nota.centro{text-align:center}
+/* Pix pago: selo verde cheio dentro de um halo, título grande, frase curta e o botão */
+.pix-ok,.pix-fim{text-align:center;padding:6px 0 2px}
+.pix-selo{width:92px;height:92px;margin:8px auto 18px;border-radius:50%;display:grid;place-items:center;background:var(--tem-fundo)}
+.pix-selo span{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--tem);color:var(--sobre-acao);animation:pixSelo .36s cubic-bezier(.2,.9,.3,1.2) both}
+.pix-selo svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:24;stroke-dashoffset:24;animation:pixTraco .38s .22s ease-out forwards}
+@keyframes pixSelo{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes pixTraco{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.pix-selo svg{stroke-dashoffset:0}}
+/* O foco vai para o resultado só para o leitor de tela anunciar: não é um controle, sem anel */
+.pix-ok-st,.pix-ok-st:focus,.pix-ok-st:focus-visible{outline:none}
+.folha-in .pix-ok h2,.folha-in .pix-fim h2{margin:0 0 8px;font-size:1.75rem;font-weight:800;line-height:1.15;letter-spacing:-.015em;color:var(--texto)}
+.folha-in .pix-fim h2{font-size:1.45rem}
+.pix-ok-ret{margin:0 auto 8px;max-width:34ch;font-weight:700;color:var(--texto)}
+.pix-ok-p{margin:0 auto;max-width:36ch;color:var(--mudo);line-height:1.55;text-wrap:pretty}
+.pix-ok-passo{display:flex;align-items:flex-start;justify-content:center;gap:8px;margin:12px auto 0;max-width:36ch;font-size:.9rem;color:var(--mudo);text-align:left}
+.pix-ok-passo .spin{flex:none;margin-top:3px}
+.pix-ok .cta,.pix-fim .cta{margin-top:20px}
+.pix-ok a.cta{text-decoration:none}
+.pix-fim .cta+.cta{margin-top:10px}
+.pix-fim .cta.vazio{border:1.5px solid var(--borda-forte);box-shadow:none;background:transparent}
+.pix-fim-ic{width:64px;height:64px;margin:8px auto 14px;border-radius:50%;display:grid;place-items:center;background:var(--trilho);color:var(--mudo)}
+.pix-fim-ic svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 </style>
 </head>
 <body>
@@ -1102,7 +1129,7 @@ function voltarPix() {
 }
 function fecharFolha() {
   if ($('pix-sair')) { voltarPix(); return; }
-  if ($('pix-st') && PIX.iv) {
+  if ($('pix-st') && PIX.esp) {
     const c = $('pix-corpo');
     c.hidden = true;
     c.insertAdjacentHTML('beforebegin', '<div id="pix-sair" role="alertdialog" aria-labelledby="pix-sair-t"><p class="ajuda" id="pix-sair-t" style="margin-top:14px">Se você já pagou, o acesso chega no seu e-mail do mesmo jeito.</p><button type="button" class="cta vazio" data-a="fecharmesmo">Fechar mesmo assim</button><button type="button" class="cta" id="pix-voltar" data-a="voltarpix">Voltar ao código</button></div>');
@@ -1283,12 +1310,28 @@ async function assinarCartao() {
   SDR.utmKeys.forEach((k) => { if (u[k]) qs.set(k, u[k]); });
   window.location.href = '/auth?' + qs.toString();
 }
-/* Pix automático (atrás da trava pixAutoLigado): painel na folha de baixo, sem sair da página. Débito mensal autorizado no app do banco, pela Asaas. */
-const PIX = { gen: 0, iv: 0, tm: 0, busy: false, em: '', doc: '', fim: 0 };
+/* Pix automático (atrás da trava pixAutoLigado): painel na folha de baixo, sem sair da página. Débito mensal autorizado no app do banco, pela Asaas.
+   Igual aos apps de pagamento: a folha mostra o QR e o copia e cola, e quando a pessoa volta do app do banco a MESMA folha diz que o Pix foi pago.
+   Mesma regra de src/lib/pixEspera.ts (LP, /pix-automatico, /pix-recorrente): pago = d.pago === true OU d.status === 'ativo'. Mudou lá, muda aqui. */
+const PIX = { gen: 0, iv: 0, tm: 0, busy: false, em: '', doc: '', fim: 0, id: '', payload: '', img: '', temConta: false, ret: false, esp: false, ini: 0, falhas: 0, pagoDesde: 0, liberado: false, demorou: false, primeira: true, qrTent: 0 };
 const PIX_OFF = 'Não deu para gerar o Pix automático agora. Tente de novo em instantes.';
 const PIX_JA = 'Já existe uma assinatura no Pix para este CPF ou e-mail. Use outro CPF ou CNPJ.';
 const PIX_CAMPOS = 'Confira o e-mail e o CPF ou CNPJ.';
 const PIX_DOC_ERRO = 'Esse CPF ou CNPJ não confere. Confira os números.';
+const PIX_T = {
+  form: 'Pix automático, R$ 67 por mês',
+  espT: 'Esperando o pagamento', espC: 'Pague no app do seu banco e volte aqui. Esta tela confirma sozinha.', apoio: 'Abra o app do banco, escolha Pix e leia o QR ou cole o código.',
+  pagoT: 'Pix pago',
+  contaNova: 'Recebemos seu pagamento. Seu acesso já está liberado. O link para criar sua senha chega no seu e-mail em alguns minutos. Olhe também o spam.',
+  contaExiste: 'Recebemos seu pagamento. Seu acesso já está liberado. Entre com o seu e-mail e a sua senha.',
+  liberando: 'Estamos liberando seu acesso.', liberandoPasso: 'Fique nesta tela. Se demorar, olhe seu e-mail, inclusive o spam.',
+  demoraNova: 'Recebemos seu pagamento. O link para criar sua senha chega no seu e-mail. Olhe também o spam.', demoraConta: 'Recebemos seu pagamento. O acesso chega no seu e-mail. Olhe também o spam.',
+  retomado: 'Vimos que o seu Pix foi pago enquanto você estava fora.',
+  vencT: 'O código venceu', recT: 'O Pix não foi concluído', semCon: 'Sem conexão agora. Seguimos tentando.',
+  copiar: 'Copiar código', copiado: 'Código copiado', gerar: 'Gerar outro código', cartao: 'Pagar no cartão', criar: 'Criar minha senha', entrar: 'Entrar na plataforma'
+};
+const PIX_LS = 'sd-pix-espera-quiz', PIX_MARCA = 'sd-pix-pago-medido', PIX_GUARDA_MS = 24 * 3600 * 1000;
+const EMAIL_OK = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 /* Máscara do CPF (até 11 dígitos) e do CNPJ (14), e conferência dos dígitos verificadores */
 function mascDoc(v) {
   const d = String(v || '').replace(/\D/g, '').slice(0, 14);
@@ -1302,25 +1345,73 @@ function docValido(d) {
   if (d.length === 14) return dv(d, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[12]) && dv(d, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[13]);
   return false;
 }
+const pixFoiPago = (d) => !!d && (d.pago === true || d.status === 'ativo');
+/* A api disse, com todas as letras, que não houve pagamento e que o código acabou. Com a api antiga (sem `pago`) só encerra no fim do prazo. */
+function pixEncerrou(d) {
+  if (!d || pixFoiPago(d) || d.pago !== false) return '';
+  const s = d.situacao || '', st = d.status || '';
+  if (s === 'recusado' || s === 'cancelado' || st === 'recusado' || st === 'cancelado') return 'recusado';
+  if (s === 'vencido' || st === 'expirado') return 'vencido';
+  return '';
+}
+/* O contrato fica no aparelho por 24 h: quem volta do banco com a página recarregada reencontra o código ou a confirmação. Nunca guarda o CPF, o e-mail nem a imagem do QR (ela volta da api, com ?qr=1). */
+function pixGuardar() { gravarLS(PIX_LS, JSON.stringify({ id: PIX.id, t: Date.now(), fimMs: PIX.fim, payload: PIX.payload, temConta: PIX.temConta })); }
+/* A imagem do QR vem em base64: a criação devolve PNG; se a api gerar GIF, o prefixo acompanha */
+const pixQrSrc = (b) => (String(b).indexOf('R0lGOD') === 0 ? 'data:image/gif;base64,' : 'data:image/png;base64,') + b;
+const pixB64 = (b) => (typeof b === 'string' && /^[A-Za-z0-9+/=]+$/.test(b) ? b : '');
+function pixLimpar() { try { localStorage.removeItem(PIX_LS); } catch (e) { /* nada a limpar */ } }
+function pixLerGuardado() {
+  try {
+    const g = JSON.parse(lerLS(PIX_LS) || 'null');
+    if (!g) return null;
+    if (typeof g.id === 'string' && /^[\w-]{6,80}$/.test(g.id) && typeof g.t === 'number' && Date.now() - g.t < PIX_GUARDA_MS && g.t <= Date.now() + 60000 && typeof g.fimMs === 'number' && typeof g.payload === 'string') return g;
+  } catch (e) { /* ilegível: descarta */ }
+  pixLimpar();
+  return null;
+}
+/* pix_pago sai uma vez por contrato (a mesma marca da LP) */
+const pixMarcasMem = new Set();
+function pixPrimeiraVezPago(id) {
+  if (!id || pixMarcasMem.has(id)) return false;
+  pixMarcasMem.add(id);
+  try {
+    const l = JSON.parse(lerLS(PIX_MARCA) || '[]'), ids = Array.isArray(l) ? l.filter((x) => typeof x === 'string') : [];
+    if (ids.indexOf(id) >= 0) return false;
+    gravarLS(PIX_MARCA, JSON.stringify(ids.concat(id).slice(-30)));
+  } catch (e) { /* sem armazenamento: a trava da memória basta */ }
+  return true;
+}
 /* Para a consulta e invalida qualquer resposta que ainda esteja a caminho */
-function pararPix() { PIX.gen++; if (PIX.iv) { clearInterval(PIX.iv); PIX.iv = 0; } if (PIX.tm) { clearTimeout(PIX.tm); PIX.tm = 0; } PIX.busy = false; }
-function pixMostrar(html) { const c = $('pix-corpo'); if (c) { c.innerHTML = html; c.hidden = false; } const q = $('pix-sair'); if (q) q.remove(); const i = $('pix-intro'); if (i) i.hidden = false; }
+function pararPix() { PIX.gen++; PIX.esp = false; if (PIX.iv) { clearInterval(PIX.iv); PIX.iv = 0; } if (PIX.tm) { clearTimeout(PIX.tm); PIX.tm = 0; } PIX.busy = false; }
+/* modo: 'form' e 'espera' trocam o título da folha; 'pago' e 'fim' escondem o título de preço e a introdução */
+function pixMostrar(html, modo) {
+  const c = $('pix-corpo'); if (c) { c.innerHTML = html; c.hidden = false; }
+  const q = $('pix-sair'); if (q) q.remove();
+  const t = $('folha-t'), i = $('pix-intro'), m = modo || 'form';
+  if (t) { t.hidden = m === 'pago' || m === 'fim'; t.textContent = m === 'espera' ? PIX_T.espT : PIX_T.form; }
+  if (i) i.hidden = m !== 'form';
+}
 function pixForm(msg) {
   const rot = 'class="ajuda" style="display:block;margin:14px 0 0;font-weight:700;color:var(--texto)"';
-  return '<form id="pix-form" novalidate><label ' + rot + ' for="pix-email">Seu e-mail</label><input class="campo" id="pix-email" name="email" type="email" inputmode="email" autocomplete="email" maxlength="120" value="' + esc(PIX.em) + '">'
+  return '<form id="pix-form" novalidate><label ' + rot + ' for="pix-email">Seu e-mail</label><input class="campo" id="pix-email" name="email" type="email" inputmode="email" autocomplete="email" spellcheck="false" maxlength="120" value="' + esc(PIX.em) + '">'
     + '<label ' + rot + ' for="pix-doc">CPF ou CNPJ de quem paga</label><input class="campo" id="pix-doc" name="cpfcnpj" type="text" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="000.000.000-00" aria-describedby="pix-doc-dica pix-doc-erro" value="' + esc(mascDoc(PIX.doc)) + '">'
     + '<p class="nota" id="pix-doc-dica">O banco pede o CPF de quem paga.</p><p class="nota" id="pix-doc-erro" role="alert"></p>'
     + '<p class="nota" id="pix-erro" role="alert">' + esc(msg || '') + '</p><button type="submit" class="cta" id="pix-gerar">Gerar o Pix</button></form>';
 }
-function abrirPixAuto(op) {
+/* Abre a folha do Pix, ainda sem conteúdo */
+function pixFolha(op) {
   pararPix();
   S.opener = op || null;
-  $('folha-in').innerHTML = '<h2 id="folha-t">Pix automático, R$ 67 por mês</h2><p class="ajuda" id="pix-intro">O banco debita sozinho. Cancela pelo app do banco.</p><div id="pix-corpo">' + pixForm('') + '</div><button type="button" class="pular" id="folha-fechar" data-a="fechar">Fechar</button>';
+  $('folha-in').innerHTML = '<h2 id="folha-t">' + esc(PIX_T.form) + '</h2><p class="ajuda" id="pix-intro">O banco debita sozinho. Cancela pelo app do banco.</p><div id="pix-corpo"></div><button type="button" class="pular" id="folha-fechar" data-a="fechar">Fechar</button>';
   $('folha').hidden = false;
+}
+function abrirPixAuto(op) {
+  pixFolha(op);
+  /* Já existe um código deste aparelho esperando: volta a ele em vez de gerar outro */
+  if (PIX.id && PIX.payload && PIX.fim > Date.now() && !PIX.pagoDesde) { pixQr(null); const b = $('pix-copiar'); if (b) b.focus(); return; }
+  pixMostrar(pixForm(''), 'form');
   ($('pix-email').value ? $('pix-doc') : $('pix-email')).focus();
 }
-const PIX_VENCEU = '<p class="ajuda" role="status" style="margin-top:14px">O código venceu. Gere outro.</p>';
-const PIX_PAGO = '<p class="ajuda" role="status" style="margin-top:14px"><b>Pronto.</b> Sua assinatura está ativa. Se for o seu primeiro acesso, o link para criar a senha chega no seu e-mail em alguns minutos.</p>';
 /* O WhatsApp do quiz fica em R.whats (só dígitos, DDD + número); a API quer com 55 */
 function whatsPix() { const d = String(R.whats || '').replace(/\D/g, ''); return d.length >= 10 ? '55' + d : ''; }
 /* Até quando o código vale, no horário de Brasília: "hoje às 14:30" ou "amanhã às 09:05" */
@@ -1336,18 +1427,22 @@ function validadeTexto(fimMs) {
     return 'em ' + p[2] + '/' + p[1] + ' às ' + hora;
   } catch (err) { return ''; }
 }
-async function gerarPix() {
+/* direto: gera com o e-mail e o CPF que já estão na memória (botão Gerar outro código) */
+async function gerarPix(direto) {
   if (PIX.busy) return;
-  const em = ($('pix-email').value || '').trim().toLowerCase(), doc = ($('pix-doc').value || '').replace(/\D/g, '');
-  PIX.em = em; PIX.doc = doc;
+  let em = PIX.em, doc = PIX.doc;
   const er = $('pix-erro');
-  const emOk = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(em), docOk = docValido(doc), de = $('pix-doc-erro');
-  if (de) de.textContent = docOk ? '' : PIX_DOC_ERRO;
-  if (!docOk) SDR.evento('pix_doc_invalido', { motivo: doc.length === 11 || doc.length === 14 ? 'digito' : 'tamanho' });
-  if (!emOk || !docOk) { if (er) er.textContent = emOk ? '' : PIX_CAMPOS; if (!docOk && $('pix-doc')) $('pix-doc').focus(); return; }
+  if (!direto) {
+    em = ($('pix-email').value || '').trim().toLowerCase(); doc = ($('pix-doc').value || '').replace(/\D/g, '');
+    PIX.em = em; PIX.doc = doc;
+    const emOk = EMAIL_OK.test(em), docOk = docValido(doc), de = $('pix-doc-erro');
+    if (de) de.textContent = docOk ? '' : PIX_DOC_ERRO;
+    if (!docOk) SDR.evento('pix_doc_invalido', { motivo: doc.length === 11 || doc.length === 14 ? 'digito' : 'tamanho' });
+    if (!emOk || !docOk) { if (er) er.textContent = emOk ? '' : PIX_CAMPOS; if (!docOk && $('pix-doc')) $('pix-doc').focus(); return; }
+  }
   pararPix();
   PIX.busy = true;
-  const gen = PIX.gen, bt = $('pix-gerar');
+  const gen = PIX.gen, bt = $('pix-gerar') || $('pix-outro');
   if (er) er.textContent = '';
   if (bt) { bt.disabled = true; bt.textContent = 'Gerando o Pix'; }
   const corpo = Object.assign({ plan: 'ilimitado', nome: (R.nome || '').trim() || 'Cliente', email: em, cpfCnpj: doc, whatsapp: whatsPix(), origem: 'quiz_solardoc' }, SDR.utm(), { lp_session: SDR.sid }, SDR.meta());
@@ -1356,51 +1451,164 @@ async function gerarPix() {
   if (gen !== PIX.gen) return;
   PIX.busy = false;
   const j = r && r.json;
-  if (r && r.status === 400) { pixMostrar(pixForm(PIX_CAMPOS)); return; }
-  if (!r || !r.ok || !j || j.modo !== 'automatico') { if (r) erro('plano', 'pix_auto_' + r.status); pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_OFF) + '</p>' + pixForm('')); return; }
-  if (!j.qrPayload || j.status === 'ativo') { pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_JA) + '</p>' + pixForm('')); return; }
-  pixQr(j);
-}
-function pixQr(j) {
+  if (r && r.status === 400) { pixMostrar(pixForm(PIX_CAMPOS), 'form'); return; }
+  if (!r || !r.ok || !j || j.modo !== 'automatico') { if (r) erro('plano', 'pix_auto_' + r.status); pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_OFF) + '</p>' + pixForm(''), 'form'); return; }
+  if (!j.qrPayload || j.status === 'ativo' || !j.id) { pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_JA) + '</p>' + pixForm(''), 'form'); return; }
   /* A espera segue o expiraEm da resposta. Sem ele (ou já vencido pelo relógio daqui), valem os 60 min de sempre. */
   const exp = typeof j.expiraEm === 'string' ? Date.parse(j.expiraEm) : NaN, comExp = isFinite(exp) && exp > Date.now() + 60 * 1000;
   PIX.fim = comExp ? exp : Date.now() + 60 * 60 * 1000;
-  const val = comExp ? validadeTexto(exp) : '';
-  const img = /^[A-Za-z0-9+/=]+$/.test(j.qrImagemBase64 || '') ? '<img class="pix-qr" alt="QR Code do Pix automático" style="width:150px;margin:8px auto 4px" src="data:image/png;base64,' + esc(j.qrImagemBase64) + '"><p class="nota" style="text-align:center;margin-top:0">Ou leia o QR em outro aparelho</p>' : '';
-  pixMostrar('<button type="button" class="cta" id="pix-copiar" data-a="pixcopiar" style="margin-top:14px">Copiar código Pix</button>'
-    + (val ? '<p class="nota" id="pix-valido" style="text-align:center;margin:8px 0 0">Este código vale até ' + esc(val) + '</p>' : '')
-    + '<ol class="pix-passos"><li>Copie o código.</li><li>No banco, abra o Pix copia e cola.</li><li>Cole e autorize o Pix automático.</li></ol>'
-    + '<p class="pix-st" id="pix-st" role="status"><span class="spin" aria-hidden="true"></span>Esperando o pagamento</p>'
-    + '<details class="pix-mais"' + (window.matchMedia('(pointer: fine)').matches ? ' open' : '') + '><summary>Ver o código ou o QR</summary><label class="vh" for="pix-codigo">Pix copia e cola</label><textarea class="msg" id="pix-codigo" readonly rows="3">' + esc(j.qrPayload) + '</textarea>' + img + '</details>');
-  const intro = $('pix-intro'); if (intro) intro.hidden = true;
-  SDR.evento('pix_gerou', { modo: 'automatico', contrato: j.id || null });
-  if (j.id) { fb('track', 'InitiateCheckout', { content_name: 'vip_pix_auto', value: 67, currency: 'BRL' }); pixEsperar(String(j.id)); }
+  PIX.id = String(j.id); PIX.payload = String(j.qrPayload); PIX.img = pixB64(j.qrImagemBase64); PIX.qrTent = 0;
+  PIX.temConta = j.temConta === true; PIX.ret = false; PIX.pagoDesde = 0; PIX.liberado = false; PIX.demorou = false;
+  pixGuardar();
+  SDR.evento('pix_gerou', { modo: 'automatico', contrato: PIX.id });
+  fb('track', 'InitiateCheckout', { content_name: 'vip_pix_auto', value: 67, currency: 'BRL' });
+  pixQr(null);
+  const b = $('pix-copiar'); if (b) b.focus();
 }
-/* Pergunta se o contrato ficou ativo: a cada 5 s nos primeiros 10 min e a cada 15 s depois, até o expiraEm (ou 60 min) */
-function pixEsperar(id) {
-  const gen = PIX.gen, ini = Date.now(), fim = PIX.fim || ini + 60 * 60 * 1000;
-  let ocupado = false, ultima = 0;
-  const iv = setInterval(async () => {
-    if (gen !== PIX.gen || !document.contains($('pix-st'))) { clearInterval(iv); return; }
-    const agora = Date.now();
-    if (agora >= fim) { pararPix(); pixMostrar(PIX_VENCEU + pixForm('')); return; }
-    if (agora - ini > 10 * 60 * 1000 && agora - ultima < 15000) return;
-    if (ocupado) return;
-    ultima = agora;
-    ocupado = true;
-    try {
-      const resp = await fetch(SDR.api + '/payments/pix-recorrente/publico/' + encodeURIComponent(id));
-      const d = resp.ok ? await resp.json() : null;
-      if (gen === PIX.gen && d && d.status === 'ativo') { pararPix(); SDR.evento('pix_pago', { modo: 'automatico', contrato: id }); pixMostrar(PIX_PAGO); }
-    } catch (err) { /* sem rede agora: tenta de novo na próxima rodada */ } finally { ocupado = false; }
-  }, 5000);
-  PIX.iv = iv;
+function pixFigQr() { return '<figure class="pix-qrfig" id="pix-qrfig"><img class="pix-qr" alt="QR Code do Pix automático" width="176" height="176" src="' + esc(pixQrSrc(PIX.img)) + '"><figcaption class="nota">' + esc(PIX_T.apoio) + '</figcaption></figure>'; }
+/* A resposta trouxe a imagem do QR (pedida com ?qr=1): entra no lugar da frase de apoio, sem refazer a folha (o copiar e o código ficam como estão) */
+function pixImagem(d) {
+  const b = d && !PIX.img && !PIX.pagoDesde ? pixB64(d.qrImagemBase64) : '';
+  if (!b) return;
+  PIX.img = b;
+  const ap = $('pix-apoio'); if (ap) ap.outerHTML = pixFigQr();
+}
+/* Esperando: aviso vivo, botão de copiar, código à vista e QR. d = 1ª resposta da api (retomada), se houver */
+function pixQr(d) {
+  const val = PIX.fim > Date.now() + 60 * 1000 ? validadeTexto(PIX.fim) : '';
+  const img = PIX.img ? pixFigQr() : '<p class="nota centro" id="pix-apoio">' + esc(PIX_T.apoio) + '</p>';
+  pixMostrar('<div class="pix-st" id="pix-st" role="status"><span class="spin" aria-hidden="true"></span><p>' + esc(PIX_T.espC) + '<b class="pix-semcon" id="pix-semcon" hidden>' + esc(PIX_T.semCon) + '</b></p></div>'
+    + '<button type="button" class="cta" id="pix-copiar" data-a="pixcopiar">' + esc(PIX_T.copiar) + '</button>'
+    + (val ? '<p class="nota centro" id="pix-valido">Este código vale até ' + esc(val) + '</p>' : '')
+    + '<label class="pix-rot" for="pix-codigo">Pix copia e cola</label><textarea class="msg pix-cod" id="pix-codigo" readonly rows="3" spellcheck="false" translate="no">' + esc(PIX.payload) + '</textarea>'
+    + img, 'espera');
+  pixEsperar(d);
+}
+/* Pergunta se o Pix foi pago: a cada 3 s com a tela visível (10 s depois de 15 min), na hora quando a pessoa volta do banco, e uma última vez antes de dizer que venceu */
+function pixEsperar(d) {
+  pararPix();
+  PIX.esp = true; PIX.ini = Date.now(); PIX.falhas = 0; PIX.primeira = !d;
+  if (d) { pixAgendar(); return; }
+  pixConsultar();
+}
+function pixAgendar() {
+  if (PIX.tm) { clearTimeout(PIX.tm); PIX.tm = 0; }
+  if (!PIX.esp || document.visibilityState === 'hidden') return;
+  const ms = PIX.pagoDesde ? 5000 : Date.now() - PIX.ini < 15 * 60 * 1000 ? 3000 : 10000;
+  PIX.tm = setTimeout(pixConsultar, ms);
+}
+async function pixLer(id, comQr) {
+  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const t = setTimeout(() => { if (ctl) ctl.abort(); }, 12000);
+  try {
+    const resp = await fetch(SDR.api + '/payments/pix-recorrente/publico/' + encodeURIComponent(id) + (comQr ? '?qr=1' : ''), { signal: ctl ? ctl.signal : undefined });
+    if (resp.status === 404) return { sumiu: true };
+    if (!resp.ok) throw new Error('http_' + resp.status);
+    return { d: await resp.json() };
+  } finally { clearTimeout(t); }
+}
+async function pixConsultar() {
+  if (!PIX.esp || PIX.busy || !PIX.id) return;
+  const gen = PIX.gen, id = PIX.id;
+  PIX.busy = true;
+  const comQr = !PIX.img && !PIX.pagoDesde && PIX.qrTent < 3; if (comQr) PIX.qrTent++; /* sem a imagem do QR, pede junto (poucas vezes) */
+  let r = null;
+  try { r = await pixLer(id, comQr); } catch (err) { r = null; }
+  if (gen !== PIX.gen) return;
+  PIX.busy = false;
+  const eraPrimeira = PIX.primeira; PIX.primeira = false;
+  if (!r) {
+    PIX.falhas++;
+    if (PIX.falhas >= 3) { const s = $('pix-semcon'); if (s) s.hidden = false; }
+    pixAgendar(); return;
+  }
+  PIX.falhas = 0;
+  const sc = $('pix-semcon'); if (sc) sc.hidden = true;
+  if (r.sumiu) { pararPix(); pixLimpar(); PIX.id = ''; PIX.payload = ''; pixMostrar(pixForm(''), 'form'); return; }
+  pixResposta(r.d, eraPrimeira);
+}
+function pixResposta(d, eraPrimeira) {
+  pixImagem(d);
+  if (pixFoiPago(d)) {
+    const liberado = d.status === 'ativo';
+    const demorou = !liberado && !!PIX.pagoDesde && Date.now() - PIX.pagoDesde > 15 * 60 * 1000;
+    if (!PIX.pagoDesde) {
+      PIX.pagoDesde = Date.now();
+      if (pixPrimeiraVezPago(PIX.id)) SDR.evento('pix_pago', PIX.ret ? { modo: 'automatico', contrato: PIX.id, retomado: true } : { modo: 'automatico', contrato: PIX.id });
+      pixLimpar();
+      pixPago(liberado, eraPrimeira && PIX.ret, false);
+    } else if (liberado && !PIX.liberado) pixPago(true, false, false);
+    else if (demorou && !PIX.demorou) pixPago(false, false, true); /* pago, mas o acesso não saiu em 15 min: sem giro, com o e-mail e o botão */
+    PIX.liberado = liberado; PIX.demorou = demorou;
+    if (liberado || demorou) { pararPix(); return; }
+    pixAgendar(); return;
+  }
+  if (PIX.pagoDesde) { pixAgendar(); return; } /* já mostrou pago: uma resposta estranha depois não desfaz */
+  const fim = pixEncerrou(d) || (Date.now() >= PIX.fim ? (d && (d.status === 'recusado' || d.situacao === 'recusado') ? 'recusado' : 'vencido') : '');
+  if (fim) { pararPix(); pixLimpar(); pixFim(fim, !!d && d.pago === false); return; }
+  pixAgendar();
+}
+/* Voltou do app do banco (aba visível de novo ou página restaurada): consulta na hora. Esconder a aba só pausa. */
+function pixVoltou() { if (!PIX.esp || document.visibilityState === 'hidden') return; if (PIX.tm) { clearTimeout(PIX.tm); PIX.tm = 0; } pixConsultar(); }
+function pixPausar() { if (PIX.tm) { clearTimeout(PIX.tm); PIX.tm = 0; } }
+const PIX_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function pixChegou(id) {
+  const st = $(id); if (!st) return;
+  const calmo = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  try { st.scrollIntoView({ block: 'center', behavior: calmo ? 'auto' : 'smooth' }); } catch (e) { /* navegador antigo */ }
+  st.focus({ preventScroll: true });
+}
+/* Pix pago: selo verde, título grande, frase curta e o botão. "Acesso liberado" só com status 'ativo'. */
+function pixPago(liberado, aoReabrir, demorou) {
+  const href = liberado && !PIX.temConta ? '/auth?mode=register' + (PIX.em ? '&email=' + encodeURIComponent(PIX.em) : '') : '/auth?mode=login';
+  const final = liberado || !!demorou;
+  pixMostrar('<section class="pix-ok" aria-labelledby="pix-ok-t"><div class="pix-selo" aria-hidden="true"><span>' + PIX_CHECK + '</span></div>'
+    + '<div class="pix-ok-st" id="pix-ok-st" role="status" tabindex="-1"><h2 id="pix-ok-t">' + esc(PIX_T.pagoT) + '</h2>'
+    + (aoReabrir ? '<p class="pix-ok-ret">' + esc(PIX_T.retomado) + '</p>' : '')
+    + (liberado ? '<p class="pix-ok-p">' + esc(PIX.temConta ? PIX_T.contaExiste : PIX_T.contaNova) + '</p>'
+      : demorou ? '<p class="pix-ok-p">' + esc(PIX.temConta ? PIX_T.demoraConta : PIX_T.demoraNova) + '</p>'
+      : '<p class="pix-ok-p">' + esc(PIX_T.liberando) + '</p><p class="pix-ok-passo"><span class="spin" aria-hidden="true"></span>' + esc(PIX_T.liberandoPasso) + '</p>')
+    + '</div>' + (final ? '<a class="cta" href="' + esc(href) + '">' + esc(liberado && !PIX.temConta ? PIX_T.criar : PIX_T.entrar) + '</a>' : '') + '</section>', 'pago');
+  pixChegou('pix-ok-st');
+}
+/* Venceu ou não foi concluído, sem pagamento. "Nada foi cobrado" só quando a api disse pago === false. */
+function pixFim(tipo, nadaCobrado) {
+  const corpo = (tipo === 'vencido' ? 'Não recebemos o pagamento deste código.' : 'Não recebemos o pagamento.') + (nadaCobrado ? ' Nada foi cobrado.' : '') + ' Gere outro código ou pague no cartão.';
+  pixMostrar('<section class="pix-fim" aria-labelledby="pix-fim-t"><div class="pix-fim-ic" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></div>'
+    + '<div class="pix-ok-st" id="pix-fim-st" role="status" tabindex="-1"><h2 id="pix-fim-t">' + esc(tipo === 'vencido' ? PIX_T.vencT : PIX_T.recT) + '</h2><p class="pix-ok-p">' + esc(corpo) + '</p></div>'
+    + '<button type="button" class="cta" id="pix-outro" data-a="pixoutro">' + esc(PIX_T.gerar) + '</button>'
+    + '<button type="button" class="cta vazio" data-a="pixcartao">' + esc(PIX_T.cartao) + '</button></section>', 'fim');
+  PIX.id = ''; PIX.payload = '';
+  pixChegou('pix-fim-st');
+}
+function pixGerarOutro() {
+  pixLimpar(); PIX.id = ''; PIX.payload = ''; PIX.img = ''; PIX.pagoDesde = 0; PIX.demorou = false;
+  if (EMAIL_OK.test(PIX.em) && docValido(PIX.doc)) { gerarPix(true); return; }
+  pixMostrar(pixForm(''), 'form');
+  const c = $('pix-email'); if (c) (c.value ? $('pix-doc') : c).focus();
+}
+/* Abriu a página com um Pix deste aparelho nas últimas 24 h: consulta uma vez e mostra o que valer (pago, o mesmo código, ou vencido) */
+async function pixRetomar() {
+  const g = pixLerGuardado();
+  if (!g || !pixAutoLigado()) return;
+  PIX.id = g.id; PIX.payload = g.payload.slice(0, 2000); PIX.img = ''; PIX.qrTent = 1; PIX.temConta = g.temConta === true;
+  PIX.em = ''; PIX.fim = g.fimMs; PIX.ret = true; PIX.pagoDesde = 0; PIX.liberado = false; PIX.demorou = false;
+  let r = null;
+  try { r = await pixLer(PIX.id, true); } catch (err) { r = null; } /* aparelho reaberto: a imagem do QR volta da api */
+  if (r && r.sumiu) { pixLimpar(); PIX.id = ''; PIX.payload = ''; return; }
+  pixFolha(null);
+  if (!r) { pixQr(null); return; } /* sem rede agora: volta ao código e segue tentando */
+  const d = r.d;
+  pixImagem(d);
+  if (!pixFoiPago(d) && !pixEncerrou(d) && Date.now() < PIX.fim) { pixQr(d); return; }
+  PIX.esp = true; PIX.ini = Date.now(); PIX.falhas = 0;
+  pixResposta(d, true);
 }
 function pixCopiar() {
   const ta = $('pix-codigo'), bt = $('pix-copiar');
   if (!ta) return;
-  const ok = () => { SDR.evento('pix_copiou', { modo: 'automatico' }); if (bt) { bt.textContent = 'Código copiado'; setTimeout(() => { if (document.contains(bt)) bt.textContent = 'Copiar código Pix'; }, 3000); } };
-  const sel = () => { const d = ta.closest('details'); if (d) d.open = true; ta.focus(); ta.select(); try { if (document.execCommand('copy')) ok(); } catch (e) { /* o texto fica selecionado para copiar à mão */ } };
+  const ok = () => { SDR.evento('pix_copiou', { modo: 'automatico' }); if (bt) { bt.textContent = PIX_T.copiado; setTimeout(() => { if (document.contains(bt)) bt.textContent = PIX_T.copiar; }, 3000); } };
+  const sel = () => { ta.focus(); ta.select(); try { if (document.execCommand('copy')) ok(); } catch (e) { /* o texto fica selecionado para copiar à mão */ } };
   try { navigator.clipboard.writeText(ta.value).then(ok, sel); } catch (e) { sel(); }
 }
 function acaoFinal(k, el) {
@@ -1425,6 +1633,8 @@ $('app').addEventListener('click', (e) => {
   else if (a === 'btn') acaoFinal(t.getAttribute('data-k'), t);
   else if (a === 'copiar') copiar(resumo(R));
   else if (a === 'pixcopiar') pixCopiar();
+  else if (a === 'pixoutro') pixGerarOutro();
+  else if (a === 'pixcartao') acaoFinal('cartao', t);
   else if (a === 'fechar') fecharFolha();
   else if (a === 'fecharmesmo') fecharFolhaJa();
   else if (a === 'voltarpix') voltarPix();
@@ -1446,16 +1656,21 @@ $('corpo').addEventListener('submit', (e) => {
 });
 /* Logo do depoimento carregou: ganha o fundo branco (load não sobe, por isso a captura) */
 $('corpo').addEventListener('load', (e) => { if (e.target.tagName === 'IMG' && e.target.closest('.dep-cap')) e.target.classList.add('ok'); }, true);
-$('folha').addEventListener('submit', (e) => { if (e.target.id === 'pix-form') { e.preventDefault(); gerarPix(); } });
+$('folha').addEventListener('submit', (e) => { if (e.target.id === 'pix-form') { e.preventDefault(); gerarPix(false); } });
 $('folha').addEventListener('input', (e) => { if (e.target.id === 'pix-doc') { e.target.value = mascDoc(e.target.value); const de = $('pix-doc-erro'); if (de) de.textContent = ''; } });
-window.addEventListener('pagehide', pararPix);
+/* Saiu para o app do banco: a espera pausa, nunca morre. Na volta (aba visível ou página restaurada do cache), consulta na hora. */
+window.addEventListener('pagehide', pixPausar);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') pixPausar(); else pixVoltou(); });
+window.addEventListener('focus', pixVoltou);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('folha').hidden) fecharFolha(); });
 carregarEstado();
 abriuPagina();
 render(true);
 carregarMun();
 /* Voltou do checkout pelo botão do navegador: a página vem do cache com o botão travado */
-window.addEventListener('pageshow', (e) => { if (e.persisted) { S.pagando = false; S.enviando = false; render(true); } });
+window.addEventListener('pageshow', (e) => { if (e.persisted) { S.pagando = false; S.enviando = false; render(true); } pixVoltou(); });
+/* Pix gerado neste aparelho nas últimas 24 h: confere e mostra pago, o mesmo código ou vencido */
+pixRetomar();
 })();
 </script>
 </body>

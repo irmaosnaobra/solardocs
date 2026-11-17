@@ -6,7 +6,7 @@ import { useLpTracking, getCheckoutAttribution, novoIcEventId } from '@/hooks/us
 import api from '@/services/api';
 import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import { VSL } from './vsl';
-import PixAutomaticoModal from './PixAutomaticoModal';
+import PixAutomaticoModal, { temPixGuardadoLp } from './PixAutomaticoModal';
 import styles from './Landing.module.css';
 
 declare global {
@@ -370,13 +370,16 @@ export default function Landing() {
 
   // Link de recuperação: /?pagar=pix abre o modal ao carregar. As UTMs da URL
   // entram na atribuição porque o useLpTracking já as guarda na sessão.
+  // Pix gerado nas últimas 24 h (aba fechada, volta do app do banco com a página
+  // recarregada): reabre o modal sozinho, com o mesmo código ou já com o Pix pago.
   useEffect(() => {
     if (pixAutoAbriu.current || typeof window === 'undefined') return;
-    if (new URLSearchParams(window.location.search).get('pagar') !== 'pix') return;
+    const pelaUrl = new URLSearchParams(window.location.search).get('pagar') === 'pix';
+    if (!pelaUrl && !temPixGuardadoLp()) return;
     pixAutoAbriu.current = true;
-    // A URL só existe no cliente: ler no useState inicial quebraria a hidratação.
+    // A URL e o localStorage só existem no cliente: ler no useState inicial quebraria a hidratação.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    abrirPix('url');
+    if (pelaUrl) abrirPix('url'); else setPixOrigem('retomada');
   }, [abrirPix]);
 
   // VSL: `preload="none"` no player garante que quem rola a LP inteira sem
@@ -1666,7 +1669,12 @@ export default function Landing() {
       </footer>
 
       {pixOrigem && (
-        <PixAutomaticoModal origem={pixOrigem} whatsappUrl={WHATSAPP} onFechar={fecharPix} />
+        <PixAutomaticoModal
+          origem={pixOrigem}
+          whatsappUrl={WHATSAPP}
+          onFechar={fecharPix}
+          onCartao={() => { setPixOrigem(null); void goToCheckout('pix_cartao'); }}
+        />
       )}
     </div>
   );

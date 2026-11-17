@@ -38,6 +38,7 @@ import {
 
 import { adicionaisDoPedido, gravarAdicionaisDoPlano, lerAdicionaisDoPlano } from '../produtos/adicionaisPlanoPix';
 import { somaMensal } from '../produtos/adicionais';
+import { qrPngBase64 } from './qrPixImagem';
 
 export type { AtribuicaoPixAuto } from './pixAutoChaves';
 
@@ -395,7 +396,8 @@ export async function criarPixRecorrente(args: {
       primeiroMes: Number(existente.primeiro_mes ?? existente.valor),
       cupom: existente.cupom ?? null,
       qrPayload: existente.qr_payload ?? null,
-      qrImagemBase64: null, // o QR só é entregue na criação; o copia-e-cola basta
+      // O Asaas só entrega a imagem na criação: do contrato que já existe ela é refeita do copia e cola (mesmo PNG em base64).
+      qrImagemBase64: existente.status === 'pendente' ? qrPngBase64(existente.qr_payload) : null,
       status: existente.status,
       expiraEm: (() => {
         if (existente.modo !== 'automatico' || existente.status !== 'pendente' || !existente.qr_payload) return null;
@@ -540,7 +542,7 @@ export function contratoPendenteVencido(
   return codigoVencidoParaTroca({ created_at: l.created_at, expira_em: l.expira_em }, agoraMs);
 }
 
-const COLS = 'id, user_id, email, modo, authorization_id, subscription_id, contract_id, plano, valor, primeiro_mes, cupom, status, qr_payload, ultimo_pagamento_em, proximo_vencimento, created_at';
+const COLS = 'id, user_id, email, modo, authorization_id, subscription_id, contract_id, plano, valor, primeiro_mes, cupom, status, qr_payload, ultimo_pagamento_em, ultimo_pagamento_id, proximo_vencimento, created_at';
 
 // Mesma trava do `buscarAssinaturaAtiva`, para quem AINDA NAO TEM CONTA: o
 // caminho publico (abandono de checkout) chega sem userId, e sem isto cada

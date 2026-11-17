@@ -2,12 +2,20 @@
 
 // Assinar no Pix automático, sem sair da LP. Mesma API, mesmos textos e mesma
 // lógica do quiz (/diagnostico) e da tela /pix-automatico: o POST cria o
-// contrato e devolve o código; a tela pergunta a cada 5 s se ficou ativo (a cada
-// 15 s depois dos 10 primeiros minutos). A espera segue o expiraEm da resposta.
+// contrato e devolve o código; a tela pergunta a cada 3 s se o Pix foi pago e,
+// quando a pessoa volta do app do banco, pergunta na hora (lib/pixEspera.ts).
+// O contrato fica guardado no aparelho por 24 h (só o id, o código e o prazo, sem
+// e-mail): quem fecha a aba ou recarrega a LP reencontra o mesmo código, com o
+// QR vindo da api, ou a confirmação de que pagou.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/services/api';
 import { getCheckoutAttribution, registrarEvento, novoIcEventId } from '@/hooks/useLpTracking';
+import {
+  guardarPix, lerPixGuardado, limparPixGuardado, primeiraVezPago, usePixEspera, validadeTexto,
+  TXT_PIX, type PixStatus,
+} from '@/lib/pixEspera';
+import { PixCodigoBloco, PixEsperaAviso, PixPagoBloco, PixSemPagamentoBloco } from '@/components/PixPago/PixEstados';
 import { digitosFone, docValido, foneValido, mascaraDoc, mascaraFone, soDigitos } from './pixDoc';
 import styles from './PixAutomaticoModal.module.css';
 
@@ -25,10 +33,9 @@ const msgCarla = (c: string) =>
 const CODIGO_RE = /^SD-[A-Z0-9]{4,6}$/;
 
 const ESPERA_MAX_MS = 60 * 60 * 1000; // vale quando a API não manda expiraEm
-const ESPERA_RAPIDA_MS = 10 * 60 * 1000; // 5 s nos primeiros 10 min
-const CONSULTA_LENTA_MS = 15 * 1000; // depois, a cada 15 s
 const COPIADO_MS = 3000;
 const SK_LEAD_SESSAO = 'sd-pix-lead-sessao';
+const TELA = 'lp'; // chave do contrato guardado
 
 // Celular completo: DDD (11 a 99) + 9 + 8 dígitos. É o que a captura exige.
 const celularCompleto = (d: string) => /^\d{2}9\d{8}$/.test(d) && Number(d.slice(0, 2)) >= 11;
@@ -47,41 +54,42 @@ function sessaoLead(): string {
   }
 }
 
-// Até quando o código vale, no horário de Brasília: "hoje às 14:30" ou "amanhã às 09:05".
-function validadeTexto(fimMs: number): string {
-  try {
-    const fuso = 'America/Sao_Paulo';
-    const dia = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { timeZone: fuso });
-    const hora = new Date(fimMs).toLocaleTimeString('pt-BR', { timeZone: fuso, hour: '2-digit', minute: '2-digit', hour12: false });
-    const dif = Math.round((Date.parse(dia(fimMs) + 'T00:00:00Z') - Date.parse(dia(Date.now()) + 'T00:00:00Z')) / 86400000);
-    if (dif === 0) return 'hoje às ' + hora;
-    if (dif === 1) return 'amanhã às ' + hora;
-    const [, m, d] = dia(fimMs).split('-');
-    return 'em ' + d + '/' + m + ' às ' + hora;
-  } catch {
-    return '';
-  }
-}
-
 interface Cobranca {
   id: string;
   payload: string;
   imagem: string;
   temConta: boolean;
+  email: string;
   codigo: string; // SD-XXXX, quando a API devolve; '' se não
   fimMs: number; // até quando esperar o pagamento (expiraEm da API, ou 60 min)
   validade: string; // "hoje às 14:30"; '' quando a API não mandou expiraEm
+  retomada: boolean; // veio do aparelho (aba fechada, página recarregada)
+}
+
+// Contrato guardado nas últimas 24 h, se houver. A LP abre o modal sozinha com ele.
+export function temPixGuardadoLp(): boolean {
+  return lerPixGuardado(TELA) !== null;
+}
+
+function cobrancaGuardada(): Cobranca | null {
+  const g = lerPixGuardado(TELA);
+  if (!g) return null;
+  return {
+    id: g.id, payload: g.payload, imagem: '', temConta: g.temConta, email: '',
+    codigo: '', fimMs: g.fimMs, validade: g.fimMs > Date.now() ? validadeTexto(g.fimMs) : '', retomada: true,
+  };
 }
 
 interface Props {
-  origem: string;
+  origem: string; // 'retomada' quando a LP abriu sozinha com um contrato guardado
   whatsappUrl: string; // https://wa.me/<número da 5040>
   onFechar: () => void;
+  onCartao?: () => void; // fecha o modal e vai ao checkout do cartão
 }
 
 type FbqWindow = Window & { fbq?: (...args: unknown[]) => void };
 
-export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Props) {
+export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar, onCartao }: Props) {
   const [email, setEmail] = useState('');
   const [fone, setFone] = useState('');
   const [doc, setDoc] = useState('');
@@ -90,9 +98,7 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
   const [erroDoc, setErroDoc] = useState('');
   const [erro, setErro] = useState('');
   const [criando, setCriando] = useState(false);
-  const [cobranca, setCobranca] = useState<Cobranca | null>(null);
-  const [pagou, setPagou] = useState(false);
-  const [vencido, setVencido] = useState(false);
+  const [cobranca, setCobranca] = useState<Cobranca | null>(cobrancaGuardada);
   const [leadCodigo, setLeadCodigo] = useState('');
   const [copiado, setCopiado] = useState(false);
   const [saindo, setSaindo] = useState(false);
@@ -100,13 +106,42 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
   const painel = useRef<HTMLDivElement>(null);
   const campoEmail = useRef<HTMLInputElement>(null);
   const jaMediu = useRef(false);
-  const ocupado = useRef(false);
   const leadFone = useRef(''); // último número enviado à captura (ou em voo)
 
   const zapUrl = `${whatsappUrl}?text=${encodeURIComponent(msgCarla(cobranca?.codigo || leadCodigo))}`;
 
+  const idCobranca = cobranca?.id ?? null;
+  const buscar = useCallback(async (comQr: boolean): Promise<PixStatus | null> => {
+    if (!idCobranca) return null;
+    const { data } = await api.get(`/payments/pix-recorrente/publico/${encodeURIComponent(idCobranca)}`, { timeout: 12000, ...(comQr ? { params: { qr: 1 } } : {}) });
+    return (data ?? null) as PixStatus | null;
+  }, [idCobranca]);
+  const aoPagar = useCallback((_d: PixStatus, retomado: boolean) => {
+    if (!idCobranca || !primeiraVezPago(idCobranca)) return;
+    registrarEvento('pix_pago', { tela: 'lp', modo: 'automatico', contrato: idCobranca, ...(retomado ? { retomado: true } : {}) });
+  }, [idCobranca]);
+  const espera = usePixEspera({
+    chave: idCobranca,
+    fimMs: cobranca?.fimMs ?? 0,
+    retomada: cobranca?.retomada ?? false,
+    temImagem: Boolean(cobranca?.imagem),
+    buscar,
+    aoPagar,
+  });
+
+  const pagou = cobranca !== null && espera.fase === 'pago';
+  const encerrou = cobranca !== null && espera.fase === 'encerrado';
+  const sumiu = cobranca !== null && espera.fase === 'sumiu';
+  const polling = cobranca !== null && espera.fase === 'esperando';
+
+  // Pago, vencido ou contrato que não existe mais: o código guardado já cumpriu o papel.
+  useEffect(() => {
+    if (pagou || encerrou || sumiu) limparPixGuardado(TELA);
+  }, [pagou, encerrou, sumiu]);
+
   // Abriu: mede uma vez (StrictMode monta duas vezes em dev), guarda quem abriu
   // para devolver o foco, trava a rolagem da página e leva o foco ao 1º campo.
+  // Reaberto sozinho pela LP (origem 'retomada') não conta como abertura nova.
   useEffect(() => {
     const abriu = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
@@ -114,47 +149,13 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
     campoEmail.current?.focus();
     if (!jaMediu.current) {
       jaMediu.current = true;
-      registrarEvento('pix_abriu', { tela: 'lp', origem });
+      if (origem !== 'retomada') registrarEvento('pix_abriu', { tela: 'lp', origem });
     }
     return () => {
       document.body.style.overflow = overflow;
       if (abriu && document.contains(abriu)) abriu.focus();
     };
   }, [origem]);
-
-  // Enquanto o pagamento não cai, pergunta a cada 5 s (a cada 15 s depois dos
-  // 10 primeiros minutos). Para no primeiro "ativo" ou quando o código vence.
-  const consultar = useCallback(async (c: Cobranca) => {
-    if (ocupado.current) return;
-    ocupado.current = true;
-    try {
-      const { data } = await api.get(`/payments/pix-recorrente/publico/${encodeURIComponent(c.id)}`);
-      if (data?.status === 'ativo') {
-        registrarEvento('pix_pago', { tela: 'lp', modo: 'automatico', contrato: c.id });
-        setPagou(true);
-      }
-    } catch {
-      // Sem rede agora: a próxima rodada tenta de novo.
-    } finally {
-      ocupado.current = false;
-    }
-  }, []);
-
-  const polling = cobranca !== null && !pagou && !vencido;
-  useEffect(() => {
-    if (!polling || !cobranca) return;
-    const inicio = Date.now();
-    const fim = cobranca.fimMs;
-    let ultima = 0;
-    const iv = setInterval(() => {
-      const agora = Date.now();
-      if (agora >= fim) { clearInterval(iv); setVencido(true); return; }
-      if (agora - inicio > ESPERA_RAPIDA_MS && agora - ultima < CONSULTA_LENTA_MS) return;
-      ultima = agora;
-      void consultar(cobranca);
-    }, 5000);
-    return () => clearInterval(iv);
-  }, [polling, cobranca, consultar]);
 
   // Fechar (X, Esc) com o Pix na tela esperando pagamento: antes de sair, o modal
   // pergunta por dentro. Sem window.confirm.
@@ -185,9 +186,8 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
   }, [tentarFechar]);
 
   function recomecar() {
+    limparPixGuardado(TELA);
     setCobranca(null);
-    setPagou(false);
-    setVencido(false);
     setCopiado(false);
     setSaindo(false);
     setErro('');
@@ -219,8 +219,11 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
     }
   }
 
-  async function gerar(ev: React.FormEvent) {
-    ev.preventDefault();
+  // Os três campos valem? Sem focar nem marcar erro (usado pelo "Gerar outro código").
+  const camposOk = () => EMAIL_RE.test(email.trim().toLowerCase()) && foneValido(digitosFone(fone)) && docValido(soDigitos(doc));
+
+  async function gerar(ev?: React.FormEvent) {
+    ev?.preventDefault();
     if (criando) return;
     const em = email.trim().toLowerCase();
     const dd = soDigitos(doc);
@@ -254,35 +257,50 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
       });
       if (!data || data.modo !== 'automatico') {
         registrarEvento('pix_falhou', { tela: 'lp', motivo: 'modo_' + (data?.modo ?? 'vazio') });
+        setCobranca(null);
         setErro(PIX_OFF);
         return;
       }
       if (!data.qrPayload || data.status === 'ativo' || !data.id) {
         registrarEvento('pix_falhou', { tela: 'lp', motivo: 'ja_existe' });
+        setCobranca(null);
         setErro(PIX_JA);
         return;
       }
       // Sem expiraEm válido (ou já vencido pelo relógio daqui), mantém os 60 min de sempre.
       const expira = typeof data.expiraEm === 'string' ? Date.parse(data.expiraEm) : NaN;
       const comExpira = Number.isFinite(expira) && expira > Date.now() + 60 * 1000;
-      setCobranca({
+      const nova: Cobranca = {
         id: String(data.id),
         payload: data.qrPayload,
         imagem: data.qrImagemBase64 || '',
         temConta: Boolean(data.temConta),
+        email: em,
         codigo: typeof data.codigo === 'string' && CODIGO_RE.test(data.codigo) ? data.codigo : '',
         fimMs: comExpira ? expira : Date.now() + ESPERA_MAX_MS,
         validade: comExpira ? validadeTexto(expira) : '',
-      });
+        retomada: false,
+      };
+      setCopiado(false);
+      setSaindo(false);
+      setCobranca(nova);
+      guardarPix(TELA, { id: nova.id, t: Date.now(), fimMs: nova.fimMs, payload: nova.payload, temConta: nova.temConta });
       registrarEvento('pix_gerou', { tela: 'lp', modo: 'automatico', contrato: data.id, temConta: data.temConta });
       fbq('vip_pix_auto'); // só depois de chegar o id: um 400 com nova tentativa não conta duas vezes
     } catch (err: unknown) {
       const e = err as { response?: { status?: number; data?: { error?: string } } };
       registrarEvento('pix_falhou', { tela: 'lp', motivo: e?.response?.data?.error ?? 'erro-desconhecido' });
+      setCobranca(null);
       setErro(e?.response?.status === 400 ? PIX_CAMPOS : PIX_OFF);
     } finally {
       setCriando(false);
     }
+  }
+
+  // Venceu ou não foi concluído: com os campos ainda na tela, gera direto; senão volta ao formulário.
+  function gerarOutro() {
+    if (camposOk()) { void gerar(); return; }
+    recomecar();
   }
 
   async function copiar() {
@@ -299,7 +317,10 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
     }
   }
 
-  const imgOk = Boolean(cobranca?.imagem) && /^[A-Za-z0-9+/=]+$/.test(cobranca?.imagem || '');
+  const emailConta = (cobranca?.email || email).trim().toLowerCase();
+  const hrefConta = cobranca?.temConta
+    ? '/auth?mode=login'
+    : `/auth?mode=register${emailConta ? `&email=${encodeURIComponent(emailConta)}` : ''}`;
 
   return (
     <div className={styles.fundo}>
@@ -314,46 +335,51 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
           <span aria-hidden="true">×</span>
         </button>
         <div className={styles.rolagem}>
-        {pagou ? (
+        {pagou && cobranca ? (
+          <PixPagoBloco
+            dados={espera.dados}
+            pagoAoReabrir={espera.pagoAoReabrir}
+            demorou={espera.demorou}
+            temConta={cobranca.temConta}
+            hrefConta={hrefConta}
+            classeBotao={styles.btnPrincipal}
+            idTitulo="pix-modal-titulo"
+          />
+        ) : encerrou && cobranca ? (
           <>
-            <h2 id="pix-modal-titulo" className={styles.titulo}>Pagamento confirmado</h2>
-            <p className={styles.sub}>Sua assinatura por Pix está ativa.</p>
-            <p className={styles.texto}>
-              {cobranca?.temConta
-                ? 'Sua conta já existe: é só entrar com o seu e-mail e a plataforma está liberada.'
-                : 'Agora crie sua senha para entrar. Usamos o mesmo e-mail que você informou aqui.'}
-            </p>
-            <a
-              className={styles.btnPrincipal}
-              href={cobranca?.temConta
-                ? '/auth?mode=login'
-                : `/auth?mode=register&email=${encodeURIComponent(email.trim().toLowerCase())}`}
-            >
-              {cobranca?.temConta ? 'Entrar na plataforma' : 'Criar minha senha'}
-            </a>
+            <PixSemPagamentoBloco
+              fim={espera.fim}
+              nadaCobrado={espera.nadaCobrado}
+              classeBotao={styles.btnPrincipal}
+              classeBotao2={styles.btnSecundario}
+              onGerar={gerarOutro}
+              gerando={criando}
+              cartao={onCartao ? { onClick: onCartao } : null}
+              idTitulo="pix-modal-titulo"
+            />
+            {erro && <p className={styles.erro} role="alert">{erro}</p>}
           </>
-        ) : cobranca ? (
+        ) : cobranca && !sumiu ? (
           <>
-            <h2 id="pix-modal-titulo" className={styles.titulo}>Pague para ativar</h2>
+            <h2 id="pix-modal-titulo" className={styles.titulo}>{TXT_PIX.esperandoTitulo}</h2>
             {saindo ? (
               <div className={styles.travou} role="alertdialog" aria-label="Sair sem pagar?">
                 <p>Se você já pagou, o acesso chega no seu e-mail do mesmo jeito.</p>
                 <button type="button" className={styles.btnSecundario} onClick={onFechar}>Fechar mesmo assim</button>
                 <button type="button" className={styles.btnPrincipal} onClick={() => setSaindo(false)} autoFocus>Voltar ao código</button>
               </div>
-            ) : vencido ? (
-              <>
-                <p className={styles.texto} role="status">O código venceu. Gere outro.</p>
-                <button type="button" className={styles.btnPrincipal} onClick={recomecar}>Gerar outro Pix</button>
-              </>
             ) : (
               <>
-                <button type="button" className={styles.btnPrincipal} onClick={copiar}>
-                  {copiado ? 'Código copiado' : 'Copiar código Pix'}
-                </button>
-                {cobranca.validade && (
-                  <p className={styles.validade}>Este código vale até {cobranca.validade}</p>
-                )}
+                <PixEsperaAviso semConexao={espera.semConexao} />
+                <PixCodigoBloco
+                  payload={cobranca.payload}
+                  imagem={cobranca.imagem || espera.dados?.qrImagemBase64 || ''}
+                  validade={cobranca.validade}
+                  copiado={copiado}
+                  onCopiar={copiar}
+                  classeBotao={styles.btnPrincipal}
+                  idCodigo="pix-codigo"
+                />
                 <a
                   className={styles.btnSecundario}
                   href={zapUrl}
@@ -363,24 +389,6 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
                 >
                   Falar com a Carla no WhatsApp
                 </a>
-                <ol className={styles.passos}>
-                  <li>Toque em Copiar código Pix.</li>
-                  <li>No app do seu banco, escolha Pix copia e cola.</li>
-                  <li>Cole o código e autorize o Pix automático.</li>
-                </ol>
-                <label className={styles.rotulo} htmlFor="pix-codigo">Pix copia e cola</label>
-                <textarea id="pix-codigo" className={styles.codigo} readOnly rows={4} value={cobranca.payload} />
-                {imgOk && (
-                  <>
-                    <img
-                      className={styles.qr}
-                      src={`data:image/png;base64,${cobranca.imagem}`}
-                      alt="QR Code do Pix automático"
-                    />
-                    <p className={styles.legendaQr}>Ou leia o QR em outro aparelho</p>
-                  </>
-                )}
-                <p className={styles.espera} role="status">Esperando o pagamento.</p>
               </>
             )}
             {erro && <p className={styles.erro} role="alert">{erro}</p>}
@@ -395,7 +403,7 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
             <label className={styles.rotulo} htmlFor="pix-email">Seu e-mail</label>
             <input
               id="pix-email" ref={campoEmail} className={styles.campo} type="email" inputMode="email"
-              autoComplete="email" maxLength={120} value={email}
+              autoComplete="email" maxLength={120} value={email} spellCheck={false}
               onChange={(e) => { setEmail(e.target.value); setErroEmail(''); }}
               aria-describedby="pix-email-dica pix-email-erro" aria-invalid={erroEmail ? true : undefined}
             />

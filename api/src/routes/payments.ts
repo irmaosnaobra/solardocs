@@ -5,6 +5,7 @@ import {
   criarPixPublicoHandler, statusPixPublicoHandler, criarPixAvulsoPublicoHandler, statusPixAvulsoPublicoHandler, leadLpPublicoHandler,
 } from '../controllers/asaasPixController';
 import { authMiddleware } from '../middleware/auth';
+import { pixStatusPublicoLimiter } from '../middleware/rateLimiter';
 import { pixPublicoRateLimit, pixAvulsoRateLimit, pixLeadLpRateLimit } from '../middleware/pixPublicoRateLimit';
 
 const router = Router();
@@ -29,7 +30,8 @@ router.post('/pix-recorrente/cancelar', authMiddleware, cancelarPixRecorrenteHan
 // cria cobrança de verdade no gateway, e trava de ambiente (PIX_PUBLICO_ATIVO)
 // dentro do handler — sem a variável, responde 503 e ninguém entra por aqui.
 router.post('/pix-recorrente/publico', pixPublicoRateLimit, criarPixPublicoHandler);
-router.get('/pix-recorrente/publico/:id', statusPixPublicoHandler);
+// A tela consulta a cada 3 s: fora do limite geral (rateLimiter.ts), com teto próprio por IP.
+router.get('/pix-recorrente/publico/:id', pixStatusPublicoLimiter, statusPixPublicoHandler);
 // O WhatsApp da LP ANTES do "Gerar" (abandono). Mesmos números do rate limit de pagamento (5 por hora por IP), em balde próprio para não gastar o do /publico.
 router.post('/pix-recorrente/lead-lp', pixLeadLpRateLimit, leadLpPublicoHandler);
 // Pix AVULSO do quiz e da LP (código copia e cola de R$ 67, sem CPF). Balde de rate limit próprio (10/h por IP); trava PIX_AVULSO_FUNIL no handler.
