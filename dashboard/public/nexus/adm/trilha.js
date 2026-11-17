@@ -294,7 +294,7 @@ function desenharVisao() {
     '<div class="tr-filas" id="tr-filas" role="group" aria-label="Filas"></div>' +
     '<div class="tr-filtros">' +
       '<div class="busca"><label for="tr-q">Buscar</label><input id="tr-q" type="search" placeholder="Empresa ou cidade…" autocomplete="off" value="' + esc(T.q) + '"></div>' +
-      '<div><label for="tr-pat">Patamar</label><select id="tr-pat"><option value="">Todos</option>' +
+      '<div><label for="tr-pat">Nível</label><select id="tr-pat"><option value="">Todos</option>' +
         [1, 2, 3, 4, 5, 6, 7].map(function (k) { return '<option value="' + k + '"' + (String(T.patamar) === String(k) ? ' selected' : '') + '>' + (k < 7 ? k + '. ' : '') + PATAMARES[k] + '</option>'; }).join('') +
       '</select></div>' +
       '<div><label for="tr-uf">UF</label><select id="tr-uf"><option value="">Todas</option>' +
@@ -302,7 +302,7 @@ function desenharVisao() {
       '</select></div>' +
     '</div>' +
     '<p class="contagem" id="tr-cont" aria-live="polite"></p>' +
-    '<div class="tr-cab" aria-hidden="true"><span>Parceiro</span><span>Patamar</span><span>Nota</span><span>Assinante</span><span>Parado há</span><span>Pendência</span><span>Responsável</span></div>' +
+    '<div class="tr-cab" aria-hidden="true"><span>Parceiro</span><span>Nível</span><span>Nota</span><span>Assinante</span><span>Parado há</span><span>Pendência</span><span>Responsável</span></div>' +
     '<div class="tr-lista" id="tr-lin"></div>';
   desenharDinamico();
 }
@@ -334,14 +334,14 @@ function desenharDinamico() {
   var maxPat = 1;
   [1, 2, 3, 4, 5, 6, 7].forEach(function (k) { maxPat = Math.max(maxPat, R.pat[k] || 0); });
   var escada = '<div class="tr-escada"><div class="tr-escada-t"><h2>Onde cada um está ' +
-      aj('Patamar em curso de cada parceiro. Toque num degrau para filtrar.') + '</h2>' +
+      aj('Nível em curso de cada parceiro. Toque num degrau para filtrar.') + '</h2>' +
       (T.patamar ? '<button type="button" class="btn ghost sm" data-tr="limpar-pat">Ver todos</button>' : '') + '</div>' +
     '<div class="tr-degraus">' + [1, 2, 3, 4, 5, 6, 7].map(function (k) {
       var n = R.pat[k] || 0;
       return '<button type="button" class="tr-dg' + (k === 7 ? ' fim' : '') + (n ? '' : ' zero') + '" data-tr="pat" data-v="' + k + '" aria-pressed="' + (String(T.patamar) === String(k)) + '"' +
-        ' aria-label="' + esc((k < 7 ? 'Patamar ' + k + ', ' : '') + PATAMARES[k] + ': ' + n) + '" style="--alt:' + (10 + (k - 1) * 9) + 'px;--pct:' + Math.max(n ? 4 : 0, Math.round(n / maxPat * 100)) + '%">' +
+        ' aria-label="' + esc((k < 7 ? 'Nível ' + k + ', ' : '') + PATAMARES[k] + ': ' + n) + '" style="--alt:' + (10 + (k - 1) * 9) + 'px;--pct:' + Math.max(n ? 4 : 0, Math.round(n / maxPat * 100)) + '%">' +
         '<span class="q num">' + n + '</span><span class="bloco-dg"></span>' +
-        '<span class="nm"><b>' + (k < 7 ? 'P' + k : 'Fim') + '</b>' + esc(PATAMARES[k]) + '</span></button>';
+        '<span class="nm"><b>' + (k < 7 ? 'N' + k : 'Fim') + '</b>' + esc(PATAMARES[k]) + '</span></button>';
     }).join('') + '</div></div>';
   var kpis = '<div class="tr-kpis">' +
     '<button type="button" class="tr-kpi esp" data-tr="fila" data-v="esperando" aria-pressed="' + (T.fila === 'esperando') + '"><span class="r">Esperando a equipe</span><span class="n num">' + R.esperando + '</span></button>' +
@@ -391,7 +391,7 @@ function linhaHtml(p) {
   var resp = p.responsavel_email ? emailCurto(p.responsavel_email) : '';
   return '<button type="button" class="tr-lin' + (pend ? ' esp' : '') + '" data-tr="ficha" data-v="' + esc(p.user_id) + '">' +
     '<div class="c-emp"><div class="emp">' + esc(p.empresa || 'Empresa sem nome') + '</div><div class="peq">' + esc(cidadeUf(p.cidade, p.uf) || 'Sem cidade') + '</div></div>' +
-    '<div class="c-pat"><span class="rt">Patamar</span><span class="tr-pat">' + escadinha(pat) + '<span>' + (pat < 7 ? pat + '.&nbsp;' : '') + esc(PATAMARES[pat]) + '</span>' + '</span></div>' +
+    '<div class="c-pat"><span class="rt">Nível</span><span class="tr-pat">' + escadinha(pat) + '<span>' + (pat < 7 ? pat + '.&nbsp;' : '') + esc(PATAMARES[pat]) + '</span>' + '</span></div>' +
     '<div><span class="rt">Nota</span>' + notaHtml(p) + '</div>' +
     '<div><span class="rt">Assinante</span>' + (p.assinante ? '<span class="pill ok">Sim</span>' : '<span class="pill">Não</span>') + '</div>' +
     '<div><span class="rt">Parado há</span>' + paradoHtml(p) + '</div>' +
@@ -468,7 +468,7 @@ function desenharFicha() {
       '<h2 id="tr-f-titulo">' + esc(empresa) + '</h2>' +
       '<p class="sub">' + esc(local || 'Sem cidade') + ' · ' + (resp ? 'Responsável: ' + esc(emailCurto(resp)) : 'Sem responsável') + '</p>' +
       '<div class="tr-pills">' +
-        '<span class="pill az">' + (pat < 7 ? 'Patamar ' + pat + ' · ' : '') + esc(PATAMARES[pat]) + '</span>' + parPill +
+        '<span class="pill az">' + (pat < 7 ? 'Nível ' + pat + ' · ' : '') + esc(PATAMARES[pat]) + '</span>' + parPill +
         (f.assinante ? '<span class="pill ok">Assinante</span>' : '<span class="pill">Sem plano pago</span>') +
         (T.exemplo ? '<span class="tr-tag-ex">Exemplo</span>' : '') +
       '</div></div>' + botaoFechar() + '</div>' +
@@ -487,7 +487,7 @@ var ACOES = {
   agendar_reuniao: { rot: 'Agendar reunião com cliente', ic: 'cal' },
   reuniao_feita: { rot: 'Marcar reunião feita', ic: 'gente' },
   promover_regional: { rot: 'Promover a Parceiro regional', ic: 'estrela' },
-  avancar: { rot: 'Avançar o patamar', ic: 'seta' },
+  avancar: { rot: 'Avançar o nível', ic: 'seta' },
   responsavel: { rot: 'Trocar o responsável', ic: 'pessoa' },
   obs: { rot: 'Escrever observação', ic: 'nota' }
 };
@@ -498,7 +498,7 @@ function acoesDe(f, pat) {
   if (pat === 4 && re.pedida_em && !re.feita_em) { l.push('agendar_reuniao'); l.push('reuniao_feita'); }
   if (pat === 6) l.push('promover_regional');
   var sempre = ['responsavel', 'obs'];
-  // O Patamar 5 fecha sozinho com o 1º pedido confirmado: não tem "avançar".
+  // O Nível 5 fecha sozinho com o 1º pedido confirmado: não tem "avançar".
   if (pat <= 6 && pat !== 5) sempre.unshift('avancar');
   return { agora: l, sempre: sempre, d: d, pr: pr, re: re };
 }
@@ -516,7 +516,7 @@ function blocoAcoes(f, pat, empresa) {
     return '<button type="button" class="btn' + (primaria ? '' : ' ghost') + '" data-tr="acao" data-v="' + k + '" aria-expanded="' + aberto + '">' +
       '<span>' + esc(rotuloAcao(k, f)) + '</span>' + ic(aberto ? 'x' : (primaria ? ACOES[k].ic : 'mais')) + '</button>' + (aberto ? formAcao(k, f, pat, empresa) : '');
   };
-  var h = '<div class="tr-cx"><h3>Agora ' + aj('Só aparecem as ações que valem no patamar em curso. Toda ação fica no histórico com o seu e-mail.') + '</h3><div class="tr-acoes">';
+  var h = '<div class="tr-cx"><h3>Agora ' + aj('Só aparecem as ações que valem no nível em curso. Toda ação fica no histórico com o seu e-mail.') + '</h3><div class="tr-acoes">';
   if (a.agora.length) h += a.agora.map(function (k) { return bt(k, true); }).join('');
   else h += '<p class="vz">' + esc(esperaTxt(f, pat)) + '</p>';
   h += '<div class="sep" role="presentation"></div>' + a.sempre.map(function (k) { return bt(k, false); }).join('');
@@ -556,7 +556,7 @@ function formAcao(k, f, pat, empresa) {
     c = '<p class="dica">Libera os 4 encontros da mentoria.</p>';
   } else if (k === 'mentoria_encontro') {
     var n = Math.min(4, (num(pr.encontros) || 0) + 1);
-    c = '<p class="dica">Encontro ' + n + ' de 4.' + (n === 4 ? ' O 4º fecha o Patamar 3.' : '') + '</p>';
+    c = '<p class="dica">Encontro ' + n + ' de 4.' + (n === 4 ? ' O 4º fecha o Nível 3.' : '') + '</p>';
   } else if (k === 'agendar_reuniao') {
     var dd = re.dados || {};
     c = (dd.cliente_nome ? '<p class="dica">Com ' + esc(dd.cliente_nome) + (dd.cidade ? ', ' + esc(cidadeUf(dd.cidade, dd.uf)) : '') + '.</p>' : '') +
@@ -566,7 +566,7 @@ function formAcao(k, f, pat, empresa) {
   } else if (k === 'promover_regional') {
     c = '<p class="dica">Confira os requisitos antes. Abre as obras da região.</p>';
   } else if (k === 'avancar') {
-    c = '<p class="dica">Fecha o Patamar ' + pat + ' sem o passo normal. O motivo fica no histórico.</p>' +
+    c = '<p class="dica">Fecha o Nível ' + pat + ' sem o passo normal. O motivo fica no histórico.</p>' +
       '<div><label for="tr-a-motivo">Motivo</label><textarea id="tr-a-motivo" required placeholder="Obrigatório"></textarea></div>';
   } else if (k === 'responsavel') {
     var r = fichaG(f, 'responsavel_email') || '';
@@ -582,7 +582,7 @@ function formAcao(k, f, pat, empresa) {
 function lerForm(k, form, f, pat, empresa) {
   var v = function (id) { var e = form.querySelector('#' + id); return e ? String(e.value || '').trim() : ''; };
   var corpo = { acao: k }, muda = null;
-  var fecha = function (n) { return { texto: 'Fecha o Patamar ' + n + ' (' + PATAMARES[n] + ') de ' + empresa + '.', sub: n < 6 ? 'O parceiro passa para o Patamar ' + (n + 1) + ' na hora.' : 'A trilha fica completa.' }; };
+  var fecha = function (n) { return { texto: 'Fecha o Nível ' + n + ' (' + PATAMARES[n] + ') de ' + empresa + '.', sub: n < 6 ? 'O parceiro passa para o Nível ' + (n + 1) + ' na hora.' : 'A trilha fica completa.' }; };
   if (k === 'agendar_diagnostico' || k === 'agendar_reuniao') {
     var q = v('tr-a-quando'); var d = q ? new Date(q) : null;
     if (!d || isNaN(d.getTime())) return { erro: 'Escolha a data e a hora.' };
@@ -623,9 +623,9 @@ function lerForm(k, form, f, pat, empresa) {
 }
 var ERRO_ACAO = {
   sem_pedido_pendente: 'Não há pedido em aberto para isso.', sem_pedido: 'O parceiro ainda não pediu.', ja_concluido: 'Esse passo já foi concluído.',
-  etapa_anterior: 'Falta concluir o patamar anterior.', formato_invalido: 'O parceiro não escolheu a mentoria.', ja_registrado: 'Isso já está registrado.',
+  etapa_anterior: 'Falta concluir o nível anterior.', formato_invalido: 'O parceiro não escolheu a mentoria.', ja_registrado: 'Isso já está registrado.',
   encontros_completos: 'Os 4 encontros já foram registrados.', termo_pendente: 'O parceiro ainda não aceitou o termo.',
-  patamar_automatico: 'O Patamar 5 fecha sozinho com o 1º pedido confirmado.', motivo_obrigatorio: 'Escreva o motivo.',
+  patamar_automatico: 'O Nível 5 fecha sozinho com o 1º pedido confirmado.', motivo_obrigatorio: 'Escreva o motivo.',
   acao_invalida: 'Confira os campos e tente de novo.', trilha_desligada: 'A trilha está desligada.', parceiro_nao_encontrado: 'Parceiro não encontrado.'
 };
 function enviarAcao(corpo) {
@@ -824,8 +824,8 @@ function blocoHistorico(hist) {
 function tituloEvento(ev) {
   var d = ev.dados || {}, t = String(ev.tipo || '');
   var n = Math.round(Number(d.patamar));
-  if (t === 'patamar_concluido' && PATAMARES[n]) return 'Patamar ' + n + ' concluído: ' + PATAMARES[n];
-  if (t === 'avancar' && PATAMARES[n]) return 'Patamar ' + n + ' fechado pela equipe';
+  if (t === 'patamar_concluido' && PATAMARES[n]) return 'Nível ' + n + ' concluído: ' + PATAMARES[n];
+  if (t === 'avancar' && PATAMARES[n]) return 'Nível ' + n + ' fechado pela equipe';
   if (t === 'mentoria_encontro' && num(d.numero)) return 'Encontro ' + num(d.numero) + ' de 4 da mentoria';
   if (t === 'diagnostico_feito' && d.resultado) return d.resultado === 'aprovado' ? 'Diagnóstico: aprovado para seguir' : 'Diagnóstico: ainda não';
   if ((t === 'diagnostico_agendado' || t === 'reuniao_agendada') && d.quando) return (t === 'reuniao_agendada' ? 'Reunião com o cliente' : 'Diagnóstico') + ' agendado para ' + dt(d.quando, true);
@@ -896,7 +896,7 @@ function desenharMapa() {
         '<div class="tr-leg" aria-hidden="true"><span>Menos</span><i class="n1"></i><i class="n2"></i><i class="n3"></i><span>Mais</span></div>' + tabela + '</div>' +
       '<div class="tr-cx"><h3>Fase da carteira ' + aj('Os clientes em vista de todos os parceiros, pela fase da conversa.') + '</h3>' + split + '</div>' +
     '</div><div class="tr-f-col">' +
-      '<div class="tr-cx"><h3>Parceiros por patamar</h3>' + barras([1, 2, 3, 4, 5, 6, 7].map(function (k) { return [(k < 7 ? k + '. ' : '') + PATAMARES[k], M.por_patamar[k] || 0]; })) + '</div>' +
+      '<div class="tr-cx"><h3>Parceiros por nível</h3>' + barras([1, 2, 3, 4, 5, 6, 7].map(function (k) { return [(k < 7 ? k + '. ' : '') + PATAMARES[k], M.por_patamar[k] || 0]; })) + '</div>' +
       '<div class="tr-cx"><h3>Tipo de local ' + aj('Dos clientes em vista. Diz que carregador e que material mais vão pedir.') + '</h3>' + barras(ordenado(M.por_tipo_local, RX.tipo_local), 'esc') + '</div>' +
       '<div class="tr-cx"><h3>Quando querem entrar</h3>' + barras(['agora', '3m', '6m', 'sem_pressa'].map(function (k) { return [RX.quando[k], M.quando[k] || 0]; })) + '</div>' +
       '<div class="tr-cx"><h3>Dificuldades mais citadas ' + aj('Cada parceiro marca até 3.') + '</h3>' + barras(ordenado(M.dificuldades, RX.dificuldades), 'esc') + '</div>' +
@@ -1096,7 +1096,7 @@ function aplicarNoExemplo(id, c) {
   } else if (a === 'agendar_reuniao') { f.reuniao.agendada_para = c.quando; ev('reuniao_agendada', 'Reunião com o cliente agendada para ' + dt(c.quando, true)); }
   else if (a === 'reuniao_feita') { f.reuniao.feita_em = agora; ev('reuniao_feita', 'Reunião com o cliente feita', { obs: c.obs }); fechar(4); }
   else if (a === 'promover_regional') { ev('promovido_regional', 'Promovido a Parceiro regional'); fechar(6); }
-  else if (a === 'avancar') { var p = f.patamar; ev('avancar', 'Patamar ' + p + ' fechado pela equipe', { motivo: c.motivo }); fechar(p); }
+  else if (a === 'avancar') { var p = f.patamar; ev('avancar', 'Nível ' + p + ' fechado pela equipe', { motivo: c.motivo }); fechar(p); }
   else if (a === 'responsavel') { f.responsavel_email = c.email; ev('responsavel', 'Responsável agora é ' + emailCurto(c.email)); }
   else if (a === 'obs') { f.obs_equipe = c.texto; ev('obs', 'Observação', { texto: c.texto }); }
   f.ultimo_movimento_em = agora;

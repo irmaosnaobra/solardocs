@@ -412,7 +412,7 @@
             + '<button type="button" class="nxg-sec peq" data-acao="duplicar" data-i="' + i + '">Duplicar</button>';
           var pedir = libera.pedido
             ? (pedido ? '' : '<button type="button" class="nxg-prim peq" data-acao="pedir" data-i="' + i + '">Pedir equipamento</button>')
-            : '<button type="button" class="nxg-sec peq trava" disabled>Disponível para Partner</button>';
+            : '<button type="button" class="nxg-sec peq trava" disabled>' + (ctx.trilha ? 'Disponível no Nível 4' : 'Disponível para Partner') + '</button>';
           return '<tr><td class="n">' + esc(p.numero) + '</td><td class="c">' + esc(p.cliente_nome || 'Cliente sem nome') + '</td><td>' + esc(cidade) + '</td>'
             + '<td>' + esc((p.quantidade || 1) + 'x ' + String(p.modelo || '').replace(/^NEXUS\s+/, '')) + '</td>'
             + '<td class="d">' + esc(C.moeda2(p.valor_total)) + '</td>'

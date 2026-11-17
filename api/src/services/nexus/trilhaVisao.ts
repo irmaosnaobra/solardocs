@@ -14,8 +14,8 @@ const TITULOS: Record<string, string> = {
   raio_x_enviado: 'Raio-X enviado', diagnostico_pedido: 'Diagnóstico pedido', diagnostico_agendado: 'Diagnóstico agendado',
   diagnostico_feito: 'Diagnóstico feito', preparo_escolhido: 'Preparação escolhida', mentoria_paga: 'Mentoria confirmada',
   mentoria_encontro: 'Encontro da mentoria registrado', academia_aula: 'Aula da Academia respondida', reuniao_pedida: 'Reunião com o cliente pedida',
-  reuniao_agendada: 'Reunião agendada', reuniao_feita: 'Reunião feita', patamar_concluido: 'Patamar concluído',
-  promover_regional: 'Promovido a Parceiro regional', avancar: 'Patamar avançado pela equipe', legado: 'Patamares anteriores reconhecidos',
+  reuniao_agendada: 'Reunião agendada', reuniao_feita: 'Reunião feita', patamar_concluido: 'Nível concluído',
+  promover_regional: 'Promovido a Parceiro regional', avancar: 'Nível avançado pela equipe', legado: 'Níveis anteriores reconhecidos',
   responsavel: 'Responsável definido', obs: 'Observação da equipe',
 };
 /** Eventos que só a equipe vê. */

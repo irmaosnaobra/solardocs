@@ -3,7 +3,7 @@
    mostrar qualquer coisa daqui. Com o GET /gerador/nexus/trilha devolvendo {ligada:false}, ou com erro, nada da trilha aparece
    e o portal fica exatamente como era.
    Rotas: #trilha (escada e próximo passo), #trilha/raiox, #trilha/nota, #trilha/diagnostico, #trilha/preparo, #trilha/academia[/id],
-   #trilha/termo, #trilha/reuniao, #trilha/patamar/N, #historico. Com o Patamar 4 feito, #inicio vira a mesa limpa.
+   #trilha/termo, #trilha/reuniao, #trilha/patamar/N, #historico. Com o Nível 4 feito, #inicio vira a mesa limpa.
    Contrato da api: plano-trilha (17/11/2026). Todo texto que vem da api passa por esc(). O gabarito da Academia nunca vem para cá. */
 (function () {
   'use strict';
@@ -115,7 +115,7 @@
     { nome: 'Cliente NEXUS', sub: 'Suporte prioritário', ic: 'raio', rota: 'trilha/patamar/5', passa: 'Primeiro pedido de carregador confirmado.' },
     { nome: 'Parceiro regional', sub: 'Obras da sua região', ic: 'pino', rota: 'trilha/patamar/6', passa: 'Promoção pela equipe NEXUS.' }
   ];
-  /* O que cada patamar abre quando termina (a lista do cartão "Abre no fim do Patamar N"). */
+  /* O que cada patamar abre quando termina (a lista do cartão "Abre no fim do Nível N"). */
   var ABRE = [
     null,
     [['alvo', 'Reunião de diagnóstico'], ['planilha', 'Plano de entrada']],
@@ -141,7 +141,7 @@
   function empresa() { var p = prefill(); return p.empresa || (C && C.nomeEmpresa()) || 'Sua empresa'; }
   function curto(nome) { return String(nome || '').replace(/\s+(energia\s+solar|solar|ltda\.?|me|eireli)\b.*$/i, '') || nome; }
   function uf() { return prefill().uf || (eu().parceiro && eu().parceiro.uf) || ''; }
-  function rotulo() { var p = pat(); return p >= 7 ? 'Patamar 6 de 6' : 'Patamar ' + p + ' de 6'; }
+  function rotulo() { var p = pat(); return p >= 7 ? 'Nível 6 de 6' : 'Nível ' + p + ' de 6'; }
   function fmHTML(cls) {
     var p = pat(), h = '';
     for (var k = 1; k <= 6; k++) h += '<i class="' + (k < p || feito(k) ? 'f' : k === p ? 'a' : '') + '" style="height:' + (4 + k * 3) + 'px"></i>';
@@ -278,7 +278,7 @@
       return { t: 'Faça seu Raio-X', meta: [['relogio', 'Cerca de 10 min'], ['check', 'Tudo fica salvo']], bt: 'Começar', ir: 'trilha/raiox', aj: 'Uma pergunta por tela. O que a SolarDoc já sabe vem preenchido.' };
     }
     if (p === 2) {
-      if (!assinante()) return { t: 'Assine para seguir', meta: [['info', 'O diagnóstico é para assinantes']], bt: 'Ver os planos', href: '/assinar', aj: 'O Patamar 1 é para todos. Do diagnóstico em diante, só com plano pago da SolarDoc.' };
+      if (!assinante()) return { t: 'Assine para seguir', meta: [['info', 'O diagnóstico é para assinantes']], bt: 'Ver os planos', href: '/assinar', aj: 'O Nível 1 é para todos. Do diagnóstico em diante, só com plano pago da SolarDoc.' };
       if (d.feito_em && d.resultado === 'ainda_nao') return { t: 'Ajuste o plano e volte', meta: [['alvo', 'Diagnóstico em ' + dm(d.feito_em)]], bt: 'Ver o plano', ir: 'trilha/diagnostico' };
       if (d.agendado_para) return { t: 'Diagnóstico, 30 min', meta: [['calendario', dmh(d.agendado_para)], ['video', 'Vídeo']], bt: urlSegura(d.link) ? 'Entrar na reunião' : 'Ver o diagnóstico', href: urlSegura(d.link), ir: 'trilha/diagnostico' };
       if (d.pedido_em) return { t: 'Diagnóstico pedido', meta: [['relogio', 'A equipe confirma o horário']], bt: 'Ver o pedido', ir: 'trilha/diagnostico', aj: 'Você recebe o horário aqui. Leva 30 minutos, por vídeo.' };
@@ -303,7 +303,7 @@
     }
     if (p === 5) {
       var cli = (reun().dados && reun().dados.cliente_nome) || '';
-      return { t: cli ? 'Faça o pedido do ' + cli : 'Faça o primeiro pedido', meta: ru.feita_em ? [['check', 'Reunião feita em ' + dm(ru.feita_em)]] : [['raio', 'DC 80 ou DC 120']], bt: 'Fazer o pedido', ir: 'equipamentos', aj: 'O pedido confirmado abre o Patamar 5. Pagamento para a K EMA EASY, a NEXUS.' };
+      return { t: cli ? 'Faça o pedido do ' + cli : 'Faça o primeiro pedido', meta: ru.feita_em ? [['check', 'Reunião feita em ' + dm(ru.feita_em)]] : [['raio', 'DC 80 ou DC 120']], bt: 'Fazer o pedido', ir: 'equipamentos', aj: 'O pedido confirmado abre o Nível 5. Pagamento para a K EMA EASY, a NEXUS.' };
     }
     if (p === 6) return { t: 'Siga vendendo', meta: [['pino', 'Próximo: Parceiro regional']], bt: 'Gerar proposta', ir: 'propostas', aj: 'A equipe NEXUS promove a Parceiro regional. Aí abrem as obras da sua região.' };
     return { t: 'Obras da sua região', meta: [['pino', 'Parceiro regional']], bt: 'Ver as obras', ir: 'oportunidades' };
@@ -327,9 +327,9 @@
   function abreQuando(n) {
     var f = prep().formato;
     if (n === 4 && f) return f === 'mentoria' ? 'Abre ao terminar a mentoria' : 'Abre ao terminar a Academia';
-    return 'Abre ao concluir o Patamar ' + (n - 1);
+    return 'Abre ao concluir o Nível ' + (n - 1);
   }
-  function trancaTexto(n) { return 'Abre ao concluir o Patamar ' + (n - 1) + '. ' + PAT[n - 1].passa; }
+  function trancaTexto(n) { return 'Abre ao concluir o Nível ' + (n - 1) + '. ' + PAT[n - 1].passa; }
   function escadaHTML() {
     var p = pat(), cel = C.mobile(), h = '';
     for (var n = 1; n <= 6; n++) {
@@ -349,9 +349,9 @@
   function premioHTML() {
     var p = Math.min(6, pat()), L = ABRE[p] || [];
     var itens = L.map(function (x) { return '<li>' + ic(x[0], 'p') + esc(x[1]) + '</li>'; }).join('');
-    if (p < 6) itens += '<li class="top">' + ic('cadeado', 'p') + 'Obras da sua região ' + aj('Abre só no Parceiro regional, o último patamar.') + '</li>';
+    if (p < 6) itens += '<li class="top">' + ic('cadeado', 'p') + 'Obras da sua região ' + aj('Abre só no Parceiro regional, o último nível.') + '</li>';
     return '<section class="tr-cx tr-premio" aria-labelledby="tr-pr-t"><div class="tr-vid" aria-hidden="true"><div class="falso"><span class="fb"></span><span class="fl"></span><span class="fl" style="width:80%"></span><span class="fl" style="width:60%"></span></div><div class="cad"><span>' + ic('cadeado') + '</span></div></div>' +
-      '<div><h3 id="tr-pr-t">Abre no fim do Patamar ' + p + '</h3><ul class="tr-libs">' + itens + '</ul></div></section>';
+      '<div><h3 id="tr-pr-t">Abre no fim do Nível ' + p + '</h3><ul class="tr-libs">' + itens + '</ul></div></section>';
   }
   function conquistaHTML() {
     if (!st.conq) return '';
@@ -376,8 +376,8 @@
     return '<div class="tr-cabt"><a class="tr-volta" href="#' + esc(voltar || 'trilha') + '" aria-label="Voltar">' + ic('voltar') + '</a><h1 class="tr-h1" tabindex="-1">' + esc(titulo) + '</h1>' + (extra || '') + '</div>';
   }
   function trancada(n, titulo) {
-    return '<div class="tr-pag">' + cab(titulo) + '<section class="tr-cx tr-lk"><span class="tr-ib">' + ic('cadeado') + '</span><div><h3>Abre no fim do Patamar ' + (n - 1) + '</h3><p class="tr-sub">' + esc(PAT[n - 1].passa) + '</p></div>' +
-      '<a class="tr-bt az" href="#' + esc(n - 1 === 1 ? 'trilha/raiox' : PAT[n - 1].rota) + '">Ir para o Patamar ' + (n - 1) + '</a></section></div>';
+    return '<div class="tr-pag">' + cab(titulo) + '<section class="tr-cx tr-lk"><span class="tr-ib">' + ic('cadeado') + '</span><div><h3>Abre no fim do Nível ' + (n - 1) + '</h3><p class="tr-sub">' + esc(PAT[n - 1].passa) + '</p></div>' +
+      '<a class="tr-bt az" href="#' + esc(n - 1 === 1 ? 'trilha/raiox' : PAT[n - 1].rota) + '">Ir para o Nível ' + (n - 1) + '</a></section></div>';
   }
 
   /* ------------------------------------------------------------------ Raio-X: uma pergunta por tela */
@@ -564,7 +564,7 @@
       st.rx.nota = num(d.nota); st.rx.faltas = Array.isArray(d.faltas) ? d.faltas : [];
       var t = trilhaDe(d); if (t) aplicar(t);
       st.rx.novo = null;
-      if (d.passou) st.conq = { t: 'Patamar 1 concluído.', s: 'Abriu: reunião de diagnóstico.', ir: 'trilha/diagnostico', bt: 'Marcar' };
+      if (d.passou) st.conq = { t: 'Nível 1 concluído.', s: 'Abriu: reunião de diagnóstico.', ir: 'trilha/diagnostico', bt: 'Marcar' };
       C.irPara('trilha/nota');
     });
   }
@@ -601,7 +601,7 @@
     var passou = feito(1);
     var h = '<div class="tr-pag">' + conquistaHTML() + cab('Seu Raio-X', 'trilha', '<span class="tr-ex">' + (r.enviado_em ? 'Enviado em ' + esc(dm(r.enviado_em)) : 'Rascunho') + '</span>');
     h += '<div class="tr-rx"><section class="tr-cx" aria-labelledby="tr-nota-t"><span class="tr-rot" id="tr-nota-t">Nota de excelência ' + aj('Tudo respondido, 1 cliente ou mais em vista e a simulação feita. Passa com 80.') + '</span>' + anelHTML(n);
-    if (passou) h += '<p class="tr-ok-l">' + ic('check', 'p') + 'Patamar 1 concluído em ' + esc(dm(etapa(1).em)) + '</p>' + (pat() === 2 && !diag().pedido_em && !st.conq ? '<a class="tr-bt az" href="#trilha/diagnostico">Marcar o diagnóstico</a>' : '');
+    if (passou) h += '<p class="tr-ok-l">' + ic('check', 'p') + 'Nível 1 concluído em ' + esc(dm(etapa(1).em)) + '</p>' + (pat() === 2 && !diag().pedido_em && !st.conq ? '<a class="tr-bt az" href="#trilha/diagnostico">Marcar o diagnóstico</a>' : '');
     else if (faltas && faltas.length) {
       h += '<span class="tr-rot">Falta para 80</span><ul class="tr-faltas" aria-label="O que falta para 80">' + faltas.map(function (f) {
         var alvo = FALTA_Q[f.item] != null ? qPor(FALTA_Q[f.item]) : -1;
@@ -618,7 +618,7 @@
   }
   function maiusc(t) { t = String(t || ''); return t.charAt(0).toUpperCase() + t.slice(1); }
 
-  /* ------------------------------------------------------------------ Patamar 2: diagnóstico */
+  /* ------------------------------------------------------------------ Nível 2: diagnóstico */
   function proximosDias(n) {
     var l = [], d = new Date();
     while (l.length < n) {
@@ -644,7 +644,7 @@
   }
   function telaDiag() {
     if (!feito(1)) return trancada(2, 'Diagnóstico');
-    var d = diag(), h = '<div class="tr-pag">' + conquistaHTML() + cab('Patamar 2: Diagnosticado');
+    var d = diag(), h = '<div class="tr-pag">' + conquistaHTML() + cab('Nível 2: Diagnosticado');
     if (!assinante()) {
       return h + '<section class="tr-cx tr-lk"><span class="tr-ib">' + ic('cadeado') + '</span><div><h3>Assine para seguir</h3><p class="tr-sub">O diagnóstico é para quem tem plano pago da SolarDoc.</p></div><a class="tr-bt az" href="/assinar" target="_top">Ver os planos</a></section></div>';
     }
@@ -655,7 +655,7 @@
         '<button type="button" class="tr-bt az lg" data-tr="dgPedir">Pedir o diagnóstico</button>';
     } else if (d.feito_em) {
       h += d.resultado === 'aprovado'
-        ? '<div class="tr-feito">' + ic('check') + 'Aprovado para seguir · ' + esc(dm(d.feito_em)) + ' ' + aj('A equipe marca no fim da reunião. Isso abre o Patamar 3.') + '</div>'
+        ? '<div class="tr-feito">' + ic('check') + 'Aprovado para seguir · ' + esc(dm(d.feito_em)) + ' ' + aj('A equipe marca no fim da reunião. Isso abre o Nível 3.') + '</div>'
         : '<div class="tr-feito av">' + ic('info') + 'Ainda não · ' + esc(dm(d.feito_em)) + ' ' + aj('Siga o plano ao lado. A equipe marca de novo quando estiver pronto.') + '</div>';
     } else if (d.agendado_para) {
       var link = urlSegura(d.link);
@@ -672,10 +672,10 @@
     return h + '</div>';
   }
 
-  /* ------------------------------------------------------------------ Patamar 3: mentoria ou Academia */
+  /* ------------------------------------------------------------------ Nível 3: mentoria ou Academia */
   function telaPreparo() {
     if (!feito(2)) return trancada(3, 'Preparo');
-    var pr = prep(), h = '<div class="tr-pag">' + conquistaHTML() + cab('Patamar 3: Preparado');
+    var pr = prep(), h = '<div class="tr-pag">' + conquistaHTML() + cab('Nível 3: Preparado');
     var acad = pr.academia || {}, fe = num(acad.feitas), meta = num(acad.meta, 12) || 12;
     h += '<div class="tr-escolha">';
     if (pr.formato === 'mentoria') {
@@ -738,7 +738,7 @@
       if (idx >= 0) return telaAula(aulas[idx], idx, aulas, pg);
     }
     var h = '<div class="tr-pag">' + cab('Academia NEXUS', 'trilha/preparo', '<span class="tr-est az num">' + pg.feitas + ' de ' + pg.meta + '</span>');
-    if (prep().formato !== 'academia') h += '<p class="tr-aviso">' + ic('info', 'p') + 'Você está na mentoria. As aulas são para consulta e não contam para o Patamar 3. <button type="button" class="tr-bt p sec" data-tr="prepFormato" data-v="academia">Trocar para a Academia</button></p>';
+    if (prep().formato !== 'academia') h += '<p class="tr-aviso">' + ic('info', 'p') + 'Você está na mentoria. As aulas são para consulta e não contam para o Nível 3. <button type="button" class="tr-bt p sec" data-tr="prepFormato" data-v="academia">Trocar para a Academia</button></p>';
     h += '<div class="tr-grupos">';
     GRUPOS.forEach(function (g, k) {
       var doGrupo = [];
@@ -811,7 +811,7 @@
     return h + '<div class="tr-termo">' + C.termo.html() + '</div></div>';
   }
 
-  /* ------------------------------------------------------------------ Patamar 4: reunião com o cliente */
+  /* ------------------------------------------------------------------ Nível 4: reunião com o cliente */
   function clientesReuniao() {
     var l = [], vistos = {};
     carteira().forEach(function (c) { var k = c.cliente_id || c.nome; vistos[k] = 1; l.push({ id: c.cliente_id || '', nome: c.nome, cidade: c.cidade, uf: c.uf, tipo: c.tipo_local, fase: c.fase }); });
@@ -829,7 +829,7 @@
   }
   function telaReuniao() {
     if (!feito(3)) return trancada(4, 'Reunião com o cliente');
-    var ru = reun(), h = '<div class="tr-pag">' + conquistaHTML() + cab('Patamar 4: Em campo');
+    var ru = reun(), h = '<div class="tr-pag">' + conquistaHTML() + cab('Nível 4: Em campo');
     if (!termoAceito()) {
       return h + '<section class="tr-cx tr-lk"><span class="tr-ib">' + ic('caneta') + '</span><div><h3>Aceite o Termo de Parceria primeiro</h3><p class="tr-sub">A reunião abre depois do aceite.</p></div><a class="tr-bt az" href="#trilha/termo">Ler o termo</a></section></div>';
     }
@@ -885,7 +885,7 @@
     n = Math.min(6, Math.max(1, Math.round(num(n, 5))));
     if (n <= 4) { C.irPara(PAT[n].rota); return ''; }
     var P = PAT[n], ok = feito(n), lk = !ok && n > pat();
-    return '<div class="tr-pag">' + cab('Patamar ' + n + ': ' + P.nome) +
+    return '<div class="tr-pag">' + cab('Nível ' + n + ': ' + P.nome) +
       '<section class="tr-cx tr-pat"><span class="tr-ib ' + (ok ? 'ok' : lk ? 'lk' : '') + '">' + ic(ok ? 'check' : lk ? 'cadeado' : P.ic) + '</span><div class="tr-pat-g">' +
       '<div><span class="tr-rot">Passa com</span><p>' + esc(P.passa) + '</p></div>' +
       '<div><span class="tr-rot">Abre</span><ul class="tr-libs">' + (ABRE[n] || []).map(function (x) { return '<li>' + ic(x[0], 'p') + esc(x[1]) + '</li>'; }).join('') + '</ul></div></div>' +
@@ -893,7 +893,7 @@
       (n === 5 && pat() === 5 ? '<a class="tr-bt az lg tr-seg" href="#equipamentos">Fazer o pedido</a>' : '') + '</div>';
   }
 
-  /* ------------------------------------------------------------------ mesa limpa (Patamar 4 feito): passo, propostas, loja */
+  /* ------------------------------------------------------------------ mesa limpa (Nível 4 feito): passo, propostas, loja */
   function statusProp(p) {
     if (num(p.aberturas) > 0) return ['av', 'Cliente abriu'];
     if (p.link_token) return ['az', 'Enviada'];
@@ -925,7 +925,7 @@
     var ini = etapa(1).em || (rx().enviado_em), feitos = 0, ult = '';
     for (var n = 1; n <= 6; n++) if (feito(n)) { feitos++; ult = etapa(n).em; }
     if (!ini) return 'Sua trilha começa no Raio-X';
-    return 'Na trilha desde ' + dm(ini) + ', ' + feitos + (feitos === 1 ? ' patamar' : ' patamares') + (ult ? ' em ' + Math.max(1, diasEntre(ini, ult)) + ' dias' : '');
+    return 'Na trilha desde ' + dm(ini) + ', ' + feitos + (feitos === 1 ? ' nível' : ' níveis') + (ult ? ' em ' + Math.max(1, diasEntre(ini, ult)) + ' dias' : '');
   }
 
   /* ------------------------------------------------------------------ histórico */
@@ -933,11 +933,11 @@
   function telaHistorico() {
     var lista = Array.isArray(E.historico) ? E.historico.slice() : [];
     if (!lista.length) {
-      for (var n = 1; n <= 6; n++) if (feito(n)) lista.push({ titulo: 'Patamar ' + n + ': ' + PAT[n].nome, em: etapa(n).em, autor: 'sistema' });
+      for (var n = 1; n <= 6; n++) if (feito(n)) lista.push({ titulo: 'Nível ' + n + ': ' + PAT[n].nome, em: etapa(n).em, autor: 'sistema' });
     }
     lista.sort(function (a, b) { return new Date(b.em).getTime() - new Date(a.em).getTime(); });
     var h = '<div class="tr-pag">' + cab('Histórico', 'inicio', '<span class="tr-sub">' + esc(resumoTrilha()) + '</span>');
-    h += '<section class="tr-cx" aria-labelledby="tr-hp-t"><h3 id="tr-hp-t" class="tr-mb">Patamares</h3><ol class="tr-pats">';
+    h += '<section class="tr-cx" aria-labelledby="tr-hp-t"><h3 id="tr-hp-t" class="tr-mb">Níveis</h3><ol class="tr-pats">';
     for (var k = 1; k <= 6; k++) {
       var ok = feito(k), at = !ok && k === pat();
       h += '<li class="' + (ok ? 'feita' : at ? 'at' : 'lk') + '"><span class="b">' + (ok ? ic('check', 'p') : at ? k : ic('cadeado', 'p')) + '</span><b>' + esc(PAT[k].nome) + '</b><span class="tr-sub">' + (ok ? esc(dm(etapa(k).em)) : at ? 'Agora' : '') + '</span></li>';
@@ -976,7 +976,7 @@
     sub = String(sub || '');
     if (r === 'trilha' && sub === 'termo' && feito(3)) {
       C.termo.carregar();
-      /* Aceitou agora (o /eu já sabe, a trilha ainda não): busca a trilha uma vez para o Patamar 4 andar. */
+      /* Aceitou agora (o /eu já sabe, a trilha ainda não): busca a trilha uma vez para o Nível 4 andar. */
       if (termoAceito() && !(E.termo && E.termo.aceito) && !st.demo && !st.termoBusca) { st.termoBusca = true; recarregar(); }
     }
     if (r === 'trilha' && /^academia\//.test(sub)) contarAula();
@@ -994,7 +994,7 @@
       { h: 'perfil', rot: 'Perfil', ic: 'perfil', at: ['perfil', 'instalar', 'materiais'] }
     ];
   }
-  var TITULOS = { raiox: 'Patamar 1: Mapeado', nota: 'Seu Raio-X', diagnostico: 'Patamar 2: Diagnosticado', preparo: 'Patamar 3: Preparado', academia: 'Academia NEXUS', termo: 'Termo de Parceria', reuniao: 'Patamar 4: Em campo' };
+  var TITULOS = { raiox: 'Nível 1: Mapeado', nota: 'Seu Raio-X', diagnostico: 'Nível 2: Diagnosticado', preparo: 'Nível 3: Preparado', academia: 'Academia NEXUS', termo: 'Termo de Parceria', reuniao: 'Nível 4: Em campo' };
   function barra(rota, sub) {
     var lig = ligada(), t = 'Parceiro NEXUS';
     if (rota === 'trilha' && TITULOS[String(sub || '').split('/')[0]]) t = TITULOS[String(sub).split('/')[0]];
@@ -1113,7 +1113,7 @@
           pe.aulas = pe.aulas || {};
           if (!(pe.aulas[id] && pe.aulas[id].certa)) pe.aulas[id] = { em: new Date().toISOString(), certa: false, libera_em: st.acadRes[id].libera ? new Date(st.acadRes[id].libera).toISOString() : null };
         }
-        if (feito(3)) st.conq = { t: 'Patamar 3 concluído.', s: 'Abriu: proposta com sua marca e o termo.', ir: 'trilha/termo', bt: 'Ler o termo' };
+        if (feito(3)) st.conq = { t: 'Nível 3 concluído.', s: 'Abriu: proposta com sua marca e o termo.', ir: 'trilha/termo', bt: 'Ler o termo' };
         C.repintarTudo();
       });
     },
@@ -1252,11 +1252,11 @@
       historico: []
     };
     var H = [];
-    if (p >= 2) H.push({ titulo: 'Raio-X enviado, nota 86', em: t1, autor: 'voce' }, { titulo: 'Patamar 1: Mapeado', em: t1, autor: 'sistema' });
-    if (p >= 3) H.push({ titulo: 'Diagnóstico pedido', em: dia(-23), autor: 'voce' }, { titulo: 'Diagnóstico feito: aprovado para seguir', em: t2, autor: 'NEXUS' }, { titulo: 'Patamar 2: Diagnosticado', em: t2, autor: 'sistema' }, { titulo: 'Escolheu a mentoria', em: dia(-21), autor: 'voce' });
+    if (p >= 2) H.push({ titulo: 'Raio-X enviado, nota 86', em: t1, autor: 'voce' }, { titulo: 'Nível 1: Mapeado', em: t1, autor: 'sistema' });
+    if (p >= 3) H.push({ titulo: 'Diagnóstico pedido', em: dia(-23), autor: 'voce' }, { titulo: 'Diagnóstico feito: aprovado para seguir', em: t2, autor: 'NEXUS' }, { titulo: 'Nível 2: Diagnosticado', em: t2, autor: 'sistema' }, { titulo: 'Escolheu a mentoria', em: dia(-21), autor: 'voce' });
     for (var k = 1; k <= enc; k++) H.push({ titulo: 'Encontro ' + k + ' da mentoria: ' + ENCONTROS[k - 1].toLowerCase(), em: dia(-20 + k * 3), autor: 'NEXUS' });
-    if (p >= 4) H.push({ titulo: 'Patamar 3: Preparado', em: t3, autor: 'sistema' }, { titulo: 'Termo de Parceria aceito', em: t3, autor: 'voce' }, { titulo: 'Reunião com o Posto Cerrado pedida', em: t3, autor: 'voce' });
-    if (p >= 5) H.push({ titulo: 'Reunião com o Posto Cerrado feita', em: t4, autor: 'NEXUS' }, { titulo: 'Patamar 4: Em campo', em: t4, autor: 'sistema' });
+    if (p >= 4) H.push({ titulo: 'Nível 3: Preparado', em: t3, autor: 'sistema' }, { titulo: 'Termo de Parceria aceito', em: t3, autor: 'voce' }, { titulo: 'Reunião com o Posto Cerrado pedida', em: t3, autor: 'voce' });
+    if (p >= 5) H.push({ titulo: 'Reunião com o Posto Cerrado feita', em: t4, autor: 'NEXUS' }, { titulo: 'Nível 4: Em campo', em: t4, autor: 'sistema' });
     if (p >= 6) H.push({ titulo: 'Primeiro pedido confirmado', em: t5, autor: 'NEXUS' });
     E.historico = H;
     st.rx.resp = Object.assign({}, respostas);
@@ -1270,7 +1270,7 @@
       L.conversa = p >= 2; L.pedido = p4; L.pacotes_engenharia = p4; L.consultoria = p4; L.plataforma = p >= 6; L.manutencao = p >= 6; L.oportunidades = p >= 7;
       euD.libera = L;
       var B = {};
-      Object.keys(L).forEach(function (k3) { if (!L[k3]) B[k3] = /^(pedido|pacotes_engenharia|consultoria)$/.test(k3) ? 'Abre no fim do Patamar 4' : /^(plataforma|manutencao)$/.test(k3) ? 'Abre no Patamar 5' : k3 === 'oportunidades' ? 'Abre no Parceiro regional' : 'Abre no fim do Patamar 3'; });
+      Object.keys(L).forEach(function (k3) { if (!L[k3]) B[k3] = /^(pedido|pacotes_engenharia|consultoria)$/.test(k3) ? 'Abre no fim do Nível 4' : /^(plataforma|manutencao)$/.test(k3) ? 'Abre no Nível 5' : k3 === 'oportunidades' ? 'Abre no Parceiro regional' : 'Abre no fim do Nível 3'; });
       euD.bloqueios = B;
       euD.termo = { versao: 'v1', disponivel: true, aceito_em: p >= 4 ? t3 : null };
     }

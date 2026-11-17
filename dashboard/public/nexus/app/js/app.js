@@ -281,6 +281,7 @@
     var r = ALIAS[partes[0]] || partes[0];
     if (TR() && (partes[0] === 'trilha' || partes[0] === 'historico')) r = partes[0];
     else if (r === 'historico') r = 'parceria';
+    if (TR() && r === 'parceria') { partes = (partes[0] === 'parceria' && partes[1] === 'termo') ? ['trilha', 'termo'] : ['trilha']; r = 'trilha'; } /* trilha ligada: sem a lista dos niveis antigos */
     if (!ROTAS[r]) return null;
     if (r === 'usinas' && !MOSTRAR_USINAS) {
       try { history.replaceState(null, '', location.pathname + location.search + '#inicio'); } catch (e) { /* ok */ }
@@ -584,7 +585,7 @@
   function nomeEmpresa() { return (S.eu && S.eu.empresa && (S.eu.empresa.nome_fantasia || S.eu.empresa.nome)) || (S.eu && S.eu.parceiro && S.eu.parceiro.empresa) || ''; }
   function trava(msg, botao) {
     return '<div class="nx-cartao nx-trava">' + ic('cadeado') + '<h2>Esta área ainda está travada</h2><p>' + esc(msg) + '</p>' +
-      (botao || '<button type="button" class="nx-btn" data-acao="ir" data-arg="parceria">Ver como chegar</button>') + '</div>';
+      (botao || '<button type="button" class="nx-btn" data-acao="ir" data-arg="' + (TR() ? 'trilha' : 'parceria') + '">Ver como chegar</button>') + '</div>';
   }
   function secErro(msg, acao, rotulo) {
     return '<div class="np-erro-sec" role="alert"><p>' + esc(msg) + '</p><button type="button" class="nx-btn sec" data-acao="' + esc(acao) + '">' + esc(rotulo || 'Tentar de novo') + '</button></div>';
@@ -1650,7 +1651,7 @@
   function opsBloqueadasMini() {
     var pro = (NIVEL_IDX[nivel()] || 1) >= 3;
     return '<div class="ap-trava"><span class="ico">' + ic('cadeado') + '</span><div><p class="b">' + esc(bloq('oportunidades')) + '</p>' +
-      '<p class="np-lktx">Clientes e obras da NEXUS na sua região chegam aos parceiros Pro que aceitaram o Termo de Parceria, com prazo para aceitar.</p>' +
+      '<p class="np-lktx">Clientes e obras da NEXUS na sua região chegam aos ' + (TR() ? 'Parceiros regionais' : 'parceiros Pro') + ' que aceitaram o Termo de Parceria, com prazo para aceitar.</p>' +
       (pro ? '<button type="button" class="nx-btn" data-acao="irTermoParceria">Ler e aceitar o termo</button>' : '<button type="button" class="nx-btn" data-acao="ir" data-arg="parceria">Ver como chegar</button>') + '</div></div>';
   }
   function termoCartaoApp() {
@@ -1751,7 +1752,7 @@
     return '<div class="np-ops"><div class="np-bloq"><div class="fundo" aria-hidden="true">' +
       amostra.map(function (t) { return '<div class="np-op"><div class="c"><div class="t"><span class="np-tipo">' + esc(t) + '</span></div><p>Exemplo de pedido de cliente ou de obra com o prazo para aceitar.</p></div></div>'; }).join('') + '</div>' +
       '<div class="aviso"><div role="note"><span class="ico">' + ic('cadeado') + '</span><p>' + esc(bloq('oportunidades')) + '</p>' +
-      '<span class="np-lktx">Clientes e obras da NEXUS na sua região chegam aos parceiros Pro que aceitaram o Termo de Parceria, com prazo para aceitar.</span>' +
+      '<span class="np-lktx">Clientes e obras da NEXUS na sua região chegam aos ' + (TR() ? 'Parceiros regionais' : 'parceiros Pro') + ' que aceitaram o Termo de Parceria, com prazo para aceitar.</span>' +
       ((NIVEL_IDX[nivel()] || 1) >= 3 ? '<button type="button" class="nx-btn" data-acao="irTermoParceria">Ler e aceitar o termo</button>' : '<button type="button" class="nx-btn" data-acao="ir" data-arg="parceria">Ver como chegar</button>') +
       '</div></div></div></div>';
   }
@@ -1830,7 +1831,7 @@
     var c = $('#np-compra');
     if (!c) return;
     if (!libera('pedido')) {
-      c.innerHTML = '<p class="np-aviso lk" style="margin:0">' + ic('cadeado', 'p') + '<span>' + esc(bloq('pedido')) + '. <a href="#parceria">Ver como chegar</a>.</span></p>';
+      c.innerHTML = '<p class="np-aviso lk" style="margin:0">' + ic('cadeado', 'p') + '<span>' + esc(bloq('pedido')) + '. <a href="#' + (TR() ? 'trilha' : 'parceria') + '">Ver como chegar</a>.</span></p>';
       return;
     }
     c.innerHTML = pedidoForm('compra', { modelo: S.sub, qtd: S.qtd, titulo: 'Pedir ' + ((produtoPor(S.sub) || {}).nome || 'equipamento') });
@@ -1853,6 +1854,7 @@
       parceiro: eu.parceiro, empresa: eu.empresa, nivel: eu.nivel, progresso: eu.progresso, libera: eu.libera, catalogo: eu.catalogo,
       entrega: eu.entrega, financiamento: eu.financiamento, demo: S.demo,
       servicos: eu.servicos || null, bloqueios: bloqueiosCompletos(), saldo_engenharia: saldoEng(), termo: termo(), montagem_aprovada: montagemAprovada(),
+      trilha: !!TR(),
       criarLink: criarLink, atualizar: recarregarEu,
       api: ctxApi, evento: function (tipo, dados) { ev(tipo, dados); }, irPara: irPara
     };
@@ -1950,7 +1952,7 @@
   }
   function pedirEquipamento(arg) {
     arg = arg || {};
-    if (!libera('pedido')) return Promise.reject(new Error('Disponível para Partner, depois da conversa com o comercial.'));
+    if (!libera('pedido')) return Promise.reject(new Error(TR() ? bloq('pedido') : 'Disponível para Partner, depois da conversa com o comercial.'));
     var prod = produtoPor(arg.modelo) || produtoPor(arg.modelo_id) || produtos()[0];
     if (!prod) return Promise.reject(new Error('Escolha o modelo do equipamento.'));
     var q = Math.max(1, Math.min(50, Math.round(num(arg.quantidade, 1)) || 1));
@@ -1961,7 +1963,7 @@
     return api('POST', NX + '/pedidos', corpo).then(function (r) {
       if (r.ok) { ev('pediu_equipamento', { modelo: prod.id, quantidade: q }); if (!S.demo) recarregarEu(); return { id: r.data && r.data.id }; }
       var cod = r.data && (r.data.erro || r.data.error);
-      var e = new Error(cod === 'etapa_bloqueada' ? 'Disponível para Partner, depois da conversa com o comercial.' : textoErro(r, 'Não foi possível enviar o pedido.'));
+      var e = new Error(cod === 'etapa_bloqueada' ? (TR() ? bloq('pedido') : 'Disponível para Partner, depois da conversa com o comercial.') : textoErro(r, 'Não foi possível enviar o pedido.'));
       e.status = r.status; e.erro = cod || ''; throw e;
     });
   }
@@ -2129,7 +2131,7 @@
   }
   function servBloq(id) {
     var b = servApi(id).bloqueio;
-    return typeof b === 'string' && b.trim() ? maiuscula(b.trim()) : (SV_BLOQ[id] || SV_TX_COMPRA);
+    return typeof b === 'string' && b.trim() ? maiuscula(b.trim()) : (TR() ? bloq(SERV_CHAVE[id] || 'pedido') : (SV_BLOQ[id] || SV_TX_COMPRA));
   }
   function servValor(id, padrao) { var v = servApi(id).preco_valor; return typeof v === 'number' && isFinite(v) && v > 0 ? v : padrao; }
   function engValor(n) { return servValor('eng-' + n, ENG_PRECO[n]); }
@@ -3146,7 +3148,7 @@
     aceitarTermo: function (el) { aceitarTermo(el); },
     imprimirTermo: imprimirTermo,
     recarregarTermo: function () { S.termoErro = false; S.termoTxt = undefined; carregarTermo(); },
-    irTermoParceria: function () { fecharMais(true); if (mobile()) { irPara('parceria/termo'); return; } S.irTermo = true; irPara('parceria'); },
+    irTermoParceria: function () { fecharMais(true); if (TR()) { irPara('trilha/termo'); return; } if (mobile()) { irPara('parceria/termo'); return; } S.irTermo = true; irPara('parceria'); },
     irTermo: function (el, e) { if (e && e.preventDefault) e.preventDefault(); var t = $('#np-termo'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
     criarLinkProp: function (el) {
       ocupado(el, true, 'Criando');
