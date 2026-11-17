@@ -961,12 +961,13 @@ function capaHTML(s) {
 
 /* Última página, convencimento curto (16/11): o resumo com os números da pessoa e a resposta ao receio que ela marcou. Texto do redator. */
 function confereHTML(R) {
-  const nome = (R.nome || '').trim(), empresa = (R.empresa || '').trim(), cidade = String(R.cidade || '').replace(/-[A-Z]{2}$/, '').trim();
+  const nome = (R.nome || '').trim(), empresa = (R.empresa || '').trim(), cidade = String(R.cidade || '').replace(/-[A-Z]{0,2}$/, '').trim();
   const pm = frase(rot(R, 'propostas_mes')), tp = frase(rot(R, 'tempo_por_proposta')), h = horas(R);
   if (!pm) return ''; /* sem o número de propostas não há o que conferir (estado antigo guardado no aparelho) */
-  const quem = (empresa ? 'A <b>' + esc(empresa) + '</b>' : 'Você') + (cidade ? ', em ' + esc(cidade) + ',' : '');
+  const onde = cidade ? ', em ' + esc(cidade) + ',' : '';
+  const quem = empresa ? 'Na empresa <b>' + esc(empresa) + '</b>' + onde + ' são' : 'Você' + onde + ' faz';
   return '<div class="confere"><p>' + esc(nome ? 'Deixa eu ver se entendi, ' + nome + '.' : 'Deixa eu ver se entendi.') + '</p>'
-    + '<p>' + quem + ' faz <b class="n">' + esc(pm) + '</b> propostas por mês' + (tp ? ', e cada uma leva <b class="n">' + esc(tp) + '</b>' : '') + '.</p>'
+    + '<p>' + quem + ' <b class="n">' + esc(pm) + '</b> propostas por mês' + (tp ? ', e cada uma leva <b class="n">' + esc(tp) + '</b>' : '') + '.</p>'
     + '<p class="fim">' + (h > 0 ? 'Dá cerca de <b class="n">' + esc(horasTxt(h)) + '</b> por mês só com proposta. ' : '') + 'É isso mesmo?</p></div>';
 }
 const RECEIO = {
@@ -974,7 +975,7 @@ const RECEIO = {
   ja_uso: 'Você não fica preso: não tem fidelidade e você cancela quando quiser.',
   aprender: 'Você sobe a logo, cadastra o cliente e gera. Funciona no celular.',
   validade: 'As cláusulas são revisadas para o setor solar.',
-  online: 'No cartão, você cria a senha na hora. No Pix, o link chega no e-mail quando o 1º pagamento cai.'
+  online: 'No cartão, você cria a senha na hora. No Pix, o acesso é liberado quando o 1º pagamento cai.'
 };
 function receioHTML(R) {
   const r = R.objecao && R.objecao !== 'nada' ? RECEIO[R.objecao] : '';
@@ -1520,7 +1521,7 @@ function pixValores(d) {
 }
 function pixGarantia() {
   const l1 = PIX.v1 && PIX.vm ? 'Você paga ' + reais(PIX.v1) + ' agora e autoriza o débito de ' + reais(PIX.vm) + ' por mês.' : 'Você paga o 1º mês agora e autoriza o débito todo mês.';
-  return [l1, 'Você cancela a autorização quando quiser, no app do banco.', 'Mesmo se fechar esta tela depois de pagar, o acesso chega no seu e-mail.'].map((t) => '<span>' + esc(t) + '</span>').join('');
+  return [l1, 'Você cancela a autorização quando quiser, no app do banco.', PIX.temConta ? 'Depois de pagar, é só entrar com a sua senha.' : 'Mesmo se fechar esta tela depois de pagar, o acesso chega no seu e-mail.'].map((t) => '<span>' + esc(t) + '</span>').join('');
 }
 /* Esperando: aviso vivo, botão de copiar, código à vista e QR. d = 1ª resposta da api (retomada), se houver */
 function pixQr(d) {
