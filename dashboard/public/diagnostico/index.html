@@ -278,13 +278,17 @@ details.faq p{margin:0 0 12px;color:var(--mudo)}
 .passos3.simples span{color:var(--texto);font-size:1rem}
 .passos3.simples li{grid-template-columns:28px minmax(0,1fr)}
 .passos3.simples li::before{width:28px;height:28px;font-size:.9rem}
-.confere{border:1.5px solid var(--borda);border-radius:14px;padding:14px 16px;background:var(--cartao);margin:12px 0}
-.confere b{display:block;font-size:1.12rem;line-height:1.25;font-weight:800}
+/* Última página: o resumo com os números da pessoa (cartão de destaque) e o receio dela em uma citação com a resposta */
+.confere{border:1.5px solid var(--acao-borda);border-radius:14px;padding:14px 16px;background:var(--acao-suave);margin:18px 0 0;line-height:1.45}
 .confere p{margin:6px 0 0;overflow-wrap:anywhere}
-.confere p.fim{font-weight:800}
-.receio{border:1.5px solid var(--borda);border-radius:14px;padding:12px 16px;background:var(--cartao);margin:10px 0}
-.receio b{display:block;line-height:1.3;overflow-wrap:anywhere}
-.receio p{margin:6px 0 0;color:var(--mudo);font-size:.95rem;overflow-wrap:anywhere}
+.confere p:first-child{margin:0;font-weight:800;font-size:1.05rem}
+.confere b{font-weight:800;color:var(--acao-claro)}
+.confere b.n{white-space:nowrap}
+.confere p.fim{margin-top:8px}
+.receio{margin:12px 0 0;padding:0 4px;line-height:1.4}
+.receio p{margin:0;overflow-wrap:anywhere}
+.receio p:first-child{color:var(--mudo);font-size:.88rem;font-style:italic}
+.receio p+p{margin-top:4px;font-weight:700;text-wrap:pretty}
 .oferta .fecha{margin:12px 0 8px;overflow-wrap:anywhere}
 .oferta .micro{margin:10px 0 0;text-align:center}
 .abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:10px 0 4px}
@@ -425,6 +429,8 @@ body{min-height:100vh;min-height:100dvh;overflow:hidden}
 .oferta2 .cta.vazio{box-shadow:none;background:transparent;border:2px solid var(--borda-forte);color:var(--texto)}
 .oferta2 .cta.vazio:hover{border-color:var(--acao);transform:none}
 .oferta2 .nota{margin:12px 0 0}
+.oferta2 .of-ok+.nota{margin:-4px 0 12px;font-size:.95rem;font-weight:700;color:var(--texto);line-height:1.4;text-wrap:balance}
+.passos-h+.nota{margin-top:14px}
 .passos-h{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;counter-reset:ph}
 .passos-h li{position:relative;counter-increment:ph;text-align:center;font-size:.86rem;font-weight:700;line-height:1.3}
 .passos-h li::before{content:counter(ph);display:grid;place-items:center;width:34px;height:34px;margin:0 auto 8px;border-radius:50%;background:var(--acao-grad);color:var(--sobre-acao);font-weight:800;position:relative;z-index:1}
@@ -950,6 +956,29 @@ function capaHTML(s) {
     + '<div class="cp-prova"><div class="cp-logos">' + CAPA_LOGOS.map((k) => '<img src="' + ASSET + 'logos/' + CARDS[k].l + '.webp" alt="' + esc(CARDS[k].e) + '" width="36" height="36" decoding="async">').join('') + '</div><p class="cp-prova-n">' + TXT.capaRodape + '</p></div></div>';
 }
 
+/* Última página, convencimento curto (16/11): o resumo com os números da pessoa e a resposta ao receio que ela marcou. Texto do redator. */
+function confereHTML(R) {
+  const nome = (R.nome || '').trim(), empresa = (R.empresa || '').trim(), cidade = String(R.cidade || '').replace(/-[A-Z]{2}$/, '').trim();
+  const pm = frase(rot(R, 'propostas_mes')), tp = frase(rot(R, 'tempo_por_proposta')), h = horas(R);
+  if (!pm) return ''; /* sem o número de propostas não há o que conferir (estado antigo guardado no aparelho) */
+  const quem = (empresa ? 'A <b>' + esc(empresa) + '</b>' : 'Você') + (cidade ? ', em ' + esc(cidade) + ',' : '');
+  return '<div class="confere"><p>' + esc(nome ? 'Deixa eu ver se entendi, ' + nome + '.' : 'Deixa eu ver se entendi.') + '</p>'
+    + '<p>' + quem + ' faz <b class="n">' + esc(pm) + '</b> propostas por mês' + (tp ? ', e cada uma leva <b class="n">' + esc(tp) + '</b>' : '') + '.</p>'
+    + '<p class="fim">' + (h > 0 ? 'Dá cerca de <b class="n">' + esc(horasTxt(h)) + '</b> por mês só com proposta. ' : '') + 'É isso mesmo?</p></div>';
+}
+const RECEIO = {
+  preco: 'R$ 67 por mês, com tudo liberado e sem fidelidade.',
+  ja_uso: 'Você não fica preso: não tem fidelidade e você cancela quando quiser.',
+  aprender: 'Você sobe a logo, cadastra o cliente e gera. Funciona no celular.',
+  validade: 'As cláusulas são revisadas para o setor solar.',
+  online: 'No cartão, você cria a senha na hora. No Pix, o link chega no e-mail quando o 1º pagamento cai.'
+};
+function receioHTML(R) {
+  const r = R.objecao && R.objecao !== 'nada' ? RECEIO[R.objecao] : '';
+  if (!r) return '';
+  return '<div class="receio"><p>' + esc('Você marcou: “' + rot(R, 'objecao') + '”.') + '</p><p>' + esc(r) + '</p></div>';
+}
+
 /* Uma função por tipo de tela. Cada uma devolve html, rodapé e, se precisar, uma ação depois de desenhar */
 const VIEW = {
   q(s) {
@@ -1006,13 +1035,16 @@ const VIEW = {
     x += '<p class="rotulo r2">Seus 7 dias</p><ol class="dias7">' + dias(R).map((d) => '<li' + (d.prio ? ' class="prio"' : '') + '><span class="dn">' + d.n + '</span><span class="dt">' + esc(d.t.replace(/\.$/, '')) + '</span>' + (d.prio ? '<span class="dp">Para você</span>' : '') + '</li>').join('') + '</ol>';
     x += '<p class="rotulo r2">O que você recebe</p><div class="docs6">' + DOCS_GRADE.map(([f, t]) => '<figure><img src="' + ASSET + 'tela/' + f + '.webp" alt="' + esc(t) + ', folha real do SolarDoc" width="975" height="1550" loading="lazy" decoding="async"><figcaption>' + esc(t) + '</figcaption></figure>').join('') + '</div><p class="nota centro">E mais serviço, vendedor e vistoria. Com dados de exemplo.</p>';
     x += '<ul class="fatos">' + FATOS.map(([ic, t, s]) => '<li>' + ICO[ic] + '<b>' + esc(t) + '</b><span>' + esc(s) + '</span></li>').join('') + '</ul>';
+    x += confereHTML(R) + receioHTML(R);
     {
       x += '<div class="oferta2" id="oferta"><p class="rotulo">SolarDoc completo</p><p class="preco">R$ 67<small>/mês</small></p>' + (piso(R) >= 68 ? '<p class="of-comp">Hoje você paga a partir de R$ ' + piso(R) + '.</p>' : '')
         + '<ul class="of-ok"><li>' + ICO.ok + 'Documentos ilimitados</li><li>' + ICO.escudo + 'Garantia de 7 dias</li><li>' + ICO.livre + 'Sem fidelidade</li></ul>'
+        + '<p class="nota centro">' + esc('Seria ruim para você começar agora, sabendo que em 7 dias o valor volta inteiro se não servir?') + '</p>'
         + bt.filter((b) => b.k !== 'socio').map((b) => '<button type="button" class="cta' + (b.prim ? '' : ' vazio') + '" data-a="btn" data-k="' + b.k + '">' + (b.k === 'cartao' ? ICO.cartao : ICO.pix) + esc(b.rot) + '</button>').join('')
-        + '<p class="nota centro">' + (pixAutoLigado() ? 'No Pix automático, o banco debita todo mês. ' : '') + 'Cancela quando quiser.</p></div>';
+        + '<p class="nota centro">' + esc(pixAutoLigado() ? 'No Pix automático, você paga o 1º mês agora e o banco debita todo mês. Para parar, é só cancelar a autorização no app do banco. No cartão, cancela quando quiser.' : 'Cancela quando quiser.') + '</p></div>';
       const pg = R.pagamento === 'pix' && pixAutoLigado() ? 'pix' : 'cartao';
       x += '<p class="rotulo r2">Depois de pagar</p><ol class="passos-h">' + PASSOS_DEPOIS[pg].map((t) => '<li><span>' + esc(t) + '</span></li>').join('') + '</ol>';
+      x += '<p class="nota centro">' + esc('Funciona no computador e no celular, e você instala na tela inicial para abrir como um app.') + '</p>';
     }
     bt.filter((b) => b.k === 'socio').forEach((b) => { x += '<button type="button" class="link-bt" data-a="btn" data-k="socio">' + esc(b.rot) + '</button>'; });
     x += '<p class="rotulo r2">' + TXT.depTitulo + '</p>' + carrHTML(cardsTodos(R).map(depSlide), 'Depoimentos de integradores', 5000, 'quadrado');
