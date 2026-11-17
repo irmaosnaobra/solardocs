@@ -431,6 +431,9 @@ body{min-height:100vh;min-height:100dvh;overflow:hidden}
 .oferta2 .nota{margin:12px 0 0}
 .oferta2 .of-ok+.nota{margin:-4px 0 12px;font-size:.95rem;font-weight:700;color:var(--texto);line-height:1.4;text-wrap:balance}
 .passos-h+.nota{margin-top:14px}
+#pix-garantia{line-height:1.45}
+#pix-garantia span{display:block;text-wrap:balance}
+#pix-garantia span+span{margin-top:4px}
 .passos-h{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;counter-reset:ph}
 .passos-h li{position:relative;counter-increment:ph;text-align:center;font-size:.86rem;font-weight:700;line-height:1.3}
 .passos-h li::before{content:counter(ph);display:grid;place-items:center;width:34px;height:34px;margin:0 auto 8px;border-radius:50%;background:var(--acao-grad);color:var(--sobre-acao);font-weight:800;position:relative;z-index:1}
@@ -1345,7 +1348,7 @@ async function assinarCartao() {
 /* Pix automático (atrás da trava pixAutoLigado): painel na folha de baixo, sem sair da página. Débito mensal autorizado no app do banco, pela Asaas.
    Igual aos apps de pagamento: a folha mostra o QR e o copia e cola, e quando a pessoa volta do app do banco a MESMA folha diz que o Pix foi pago.
    Mesma regra de src/lib/pixEspera.ts (LP, /pix-automatico, /pix-recorrente): pago = d.pago === true OU d.status === 'ativo'. Mudou lá, muda aqui. */
-const PIX = { gen: 0, iv: 0, tm: 0, busy: false, em: '', doc: '', fim: 0, id: '', payload: '', img: '', temConta: false, ret: false, esp: false, ini: 0, falhas: 0, pagoDesde: 0, liberado: false, demorou: false, primeira: true, qrTent: 0 };
+const PIX = { gen: 0, iv: 0, tm: 0, busy: false, em: '', doc: '', fim: 0, id: '', payload: '', img: '', temConta: false, ret: false, esp: false, ini: 0, falhas: 0, pagoDesde: 0, liberado: false, demorou: false, primeira: true, qrTent: 0, v1: 0, vm: 0 };
 const PIX_OFF = 'Não deu para gerar o Pix automático agora. Tente de novo em instantes.';
 const PIX_JA = 'Já existe uma assinatura no Pix para este CPF ou e-mail. Use outro CPF ou CNPJ.';
 const PIX_CAMPOS = 'Confira o e-mail e o CPF ou CNPJ.';
@@ -1491,6 +1494,7 @@ async function gerarPix(direto) {
   PIX.fim = comExp ? exp : Date.now() + 60 * 60 * 1000;
   PIX.id = String(j.id); PIX.payload = String(j.qrPayload); PIX.img = pixB64(j.qrImagemBase64); PIX.qrTent = 0;
   PIX.temConta = j.temConta === true; PIX.ret = false; PIX.pagoDesde = 0; PIX.liberado = false; PIX.demorou = false;
+  pixValores(j);
   pixGuardar();
   SDR.evento('pix_gerou', { modo: 'automatico', contrato: PIX.id });
   fb('track', 'InitiateCheckout', { content_name: 'vip_pix_auto', value: 67, currency: 'BRL' });
@@ -1505,13 +1509,28 @@ function pixImagem(d) {
   PIX.img = b;
   const ap = $('pix-apoio'); if (ap) ap.outerHTML = pixFigQr();
 }
+/* Valor do Pix vem da api (criação ou consulta): total do 1º mês e da mensalidade, já com adicional ou cupom. Sem ele, a frase sai sem número. */
+const reais = (v) => 'R$ ' + (Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ','));
+function pixValores(d) {
+  if (!d) return false;
+  const n = (a, b) => { const x = Number(a), y = Number(b); return x > 0 ? x : y > 0 ? y : 0; };
+  const v1 = n(d.totalPrimeiroMes, d.primeiroMes), vm = n(d.totalMensal, d.valor);
+  if (!v1 || !vm || (v1 === PIX.v1 && vm === PIX.vm)) return false;
+  PIX.v1 = v1; PIX.vm = vm; return true;
+}
+function pixGarantia() {
+  const l1 = PIX.v1 && PIX.vm ? 'Você paga ' + reais(PIX.v1) + ' agora e autoriza o débito de ' + reais(PIX.vm) + ' por mês.' : 'Você paga o 1º mês agora e autoriza o débito todo mês.';
+  return [l1, 'Você cancela a autorização quando quiser, no app do banco.', 'Mesmo se fechar esta tela depois de pagar, o acesso chega no seu e-mail.'].map((t) => '<span>' + esc(t) + '</span>').join('');
+}
 /* Esperando: aviso vivo, botão de copiar, código à vista e QR. d = 1ª resposta da api (retomada), se houver */
 function pixQr(d) {
+  pixValores(d);
   const val = PIX.fim > Date.now() + 60 * 1000 ? validadeTexto(PIX.fim) : '';
   const img = PIX.img ? pixFigQr() : '<p class="nota centro" id="pix-apoio">' + esc(PIX_T.apoio) + '</p>';
   pixMostrar('<div class="pix-st" id="pix-st" role="status"><span class="spin" aria-hidden="true"></span><p>' + esc(PIX_T.espC) + '<b class="pix-semcon" id="pix-semcon" hidden>' + esc(PIX_T.semCon) + '</b></p></div>'
     + '<button type="button" class="cta" id="pix-copiar" data-a="pixcopiar">' + esc(PIX_T.copiar) + '</button>'
     + (val ? '<p class="nota centro" id="pix-valido">Este código vale até ' + esc(val) + '</p>' : '')
+    + '<p class="nota centro" id="pix-garantia">' + pixGarantia() + '</p>'
     + '<label class="pix-rot" for="pix-codigo">Pix copia e cola</label><textarea class="msg pix-cod" id="pix-codigo" readonly rows="3" spellcheck="false" translate="no">' + esc(PIX.payload) + '</textarea>'
     + img, 'espera');
   pixEsperar(d);
@@ -1561,6 +1580,7 @@ async function pixConsultar() {
 }
 function pixResposta(d, eraPrimeira) {
   pixImagem(d);
+  if (pixValores(d)) { const g = $('pix-garantia'); if (g) g.innerHTML = pixGarantia(); }
   if (pixFoiPago(d)) {
     const liberado = d.status === 'ativo';
     const demorou = !liberado && !!PIX.pagoDesde && Date.now() - PIX.pagoDesde > 15 * 60 * 1000;
@@ -1605,7 +1625,7 @@ function pixPago(liberado, aoReabrir, demorou) {
 }
 /* Venceu ou não foi concluído, sem pagamento. "Nada foi cobrado" só quando a api disse pago === false. */
 function pixFim(tipo, nadaCobrado) {
-  const corpo = (tipo === 'vencido' ? 'Não recebemos o pagamento deste código.' : 'Não recebemos o pagamento.') + (nadaCobrado ? ' Nada foi cobrado.' : '') + ' Gere outro código ou pague no cartão.';
+  const corpo = (tipo === 'vencido' ? 'Não recebemos o pagamento deste código. Acontece, ele tem prazo.' : 'Não recebemos o pagamento.') + (nadaCobrado ? ' Nada foi cobrado.' : '') + ' Gere outro ou pague no cartão e crie a sua senha na hora.';
   pixMostrar('<section class="pix-fim" aria-labelledby="pix-fim-t"><div class="pix-fim-ic" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></div>'
     + '<div class="pix-ok-st" id="pix-fim-st" role="status" tabindex="-1"><h2 id="pix-fim-t">' + esc(tipo === 'vencido' ? PIX_T.vencT : PIX_T.recT) + '</h2><p class="pix-ok-p">' + esc(corpo) + '</p></div>'
     + '<button type="button" class="cta" id="pix-outro" data-a="pixoutro">' + esc(PIX_T.gerar) + '</button>'
@@ -1614,7 +1634,7 @@ function pixFim(tipo, nadaCobrado) {
   pixChegou('pix-fim-st');
 }
 function pixGerarOutro() {
-  pixLimpar(); PIX.id = ''; PIX.payload = ''; PIX.img = ''; PIX.pagoDesde = 0; PIX.demorou = false;
+  pixLimpar(); PIX.id = ''; PIX.payload = ''; PIX.img = ''; PIX.pagoDesde = 0; PIX.demorou = false; PIX.v1 = 0; PIX.vm = 0;
   if (EMAIL_OK.test(PIX.em) && docValido(PIX.doc)) { gerarPix(true); return; }
   pixMostrar(pixForm(''), 'form');
   const c = $('pix-email'); if (c) (c.value ? $('pix-doc') : c).focus();
@@ -1624,7 +1644,7 @@ async function pixRetomar() {
   const g = pixLerGuardado();
   if (!g || !pixAutoLigado()) return;
   PIX.id = g.id; PIX.payload = g.payload.slice(0, 2000); PIX.img = ''; PIX.qrTent = 1; PIX.temConta = g.temConta === true;
-  PIX.em = ''; PIX.fim = g.fimMs; PIX.ret = true; PIX.pagoDesde = 0; PIX.liberado = false; PIX.demorou = false;
+  PIX.em = ''; PIX.fim = g.fimMs; PIX.ret = true; PIX.v1 = 0; PIX.vm = 0; PIX.pagoDesde = 0; PIX.liberado = false; PIX.demorou = false;
   let r = null;
   try { r = await pixLer(PIX.id, true); } catch (err) { r = null; } /* aparelho reaberto: a imagem do QR volta da api */
   if (r && r.sumiu) { pixLimpar(); PIX.id = ''; PIX.payload = ''; return; }
