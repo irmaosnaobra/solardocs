@@ -3,7 +3,9 @@
 //   GET  /nexus/trilha                       { ligada:false } com a trilha desligada; senão a visão completa (cria a linha na 1ª vez)
 //   PUT  /nexus/trilha/raio-x                { respostas } parcial (autosave) -> { nota, faltas }
 //   POST /nexus/trilha/raio-x/enviar         -> { nota, passou, faltas, trilha }; com 80+ fecha o patamar 1 e copia o perfil
-//   POST /nexus/trilha/diagnostico           { preferencia } exige patamar 1 e plano pago ativo
+//   GET  /nexus/trilha/resumo                só leitura, leve (menu): { ligada, parceiro, pendente, nivel, raio_x_enviado, diag_pedido, precisa_refazer, convite }
+//   POST /nexus/trilha/convite               { acao: 'fechou' | 'nao_quero' } sem parceiro e sem linha da trilha: só grava um evento -> { fechou, recusou }
+//   POST /nexus/trilha/diagnostico           { contato: { nome, whatsapp, periodo } } exige patamar 1 e plano pago ativo; avisa a equipe (apto_reuniao)
 //   POST /nexus/trilha/preparo               { formato } exige patamar 2
 //   GET  /nexus/trilha/academia              aulas SEM gabarito + progresso
 //   POST /nexus/trilha/academia/:aulaId      { resposta } -> { certa, trilha }; 12 certas fecham o patamar 3
@@ -16,13 +18,16 @@
 import { Request, Response, Router } from 'express';
 import { supabase } from '../utils/supabase';
 import { authMiddleware } from '../middleware/auth';
-import { ErroBanco, Linha, marcarPerfilCompleto, tabelaAusente, termoAceitoNaVersao } from '../services/nexus/repositorio';
+import { ErroBanco, Linha, lerParceiro, marcarPerfilCompleto, portalLigado, tabelaAusente, termoAceitoNaVersao } from '../services/nexus/repositorio';
 import { ESPERA_APOS_ERRO_MS, TOTAL_AULAS, aulasFeitas, aulasParaFront, corrigirAula, idDeAulaValido, progressoParaFront, segundosDeEspera } from '../services/nexus/academia';
-import { LinhaTrilha, concluidos, academiaCompleta } from '../services/nexus/trilha';
+import { LinhaTrilha, academiaCompleta, comLegado, concluidos, patamarEmCurso } from '../services/nexus/trilha';
 import { calcularNota, idsDeClientes, validarRespostas } from '../services/nexus/trilhaRaioX';
-import { FORMATOS, validarPreferencia, validarReuniao } from '../services/nexus/trilhaEntradas';
+import { FORMATOS, validarContatoDiagnostico, validarReuniao } from '../services/nexus/trilhaEntradas';
+import { avisarComercial } from '../services/nexus/avisoComercial';
+import { acaoDeConvite, lerConvite, registrarConvite } from '../services/nexus/trilhaConvite';
+import { waitUntil } from '../utils/waitUntil';
 import {
-  type Decisao, type EventoDaTrilha, assinanteDe, atualizarTrilha, clientesDoUsuario, completarComClientes, garantirTrilha, marcarTrilhaAusente, propostaDoUsuario, trilhaLigada,
+  type Decisao, type EventoDaTrilha, assinanteDe, atualizarTrilha, clientesDoUsuario, completarComClientes, garantirTrilha, lerTrilha, marcarTrilhaAusente, propostaDoUsuario, trilhaLigada,
 } from '../services/nexus/trilhaRepo';
 import { montarVisao } from '../services/nexus/trilhaVisao';
 import { diaBRT } from '../services/nexus/tempo';
@@ -79,6 +84,38 @@ export function mountNexusTrilha(router: Router, garantir: Garantir): void {
     return { t, resultado: decisao.resultado };
   };
 
+  // ── Resumo para o menu do SolarDoc (toda página): só lê, nunca cria a linha da trilha nem o parceiro ──────────────────
+  router.get('/nexus/trilha/resumo', authMiddleware, rota('GET /nexus/trilha/resumo', async (req, res) => {
+    try {
+      if (!(await portalLigado()) || !(await trilhaLigada())) { res.json({ ligada: false }); return; } // o freio do portal também desliga cartão e menu
+      const [p, convite] = await Promise.all([lerParceiro(req.userId), lerConvite(req.userId)]); // 2 consultas (a sonda da trilha tem cache)
+      if (!p) { res.json({ ligada: true, parceiro: false, pendente: true, convite }); return; }
+      const comprados = Number(p.carregadores_comprados) || 0;
+      const t = comLegado(p, await lerTrilha(req.userId));
+      const pendente = !concluidos(t, comprados)[0]; // 3ª consulta; o legado (já comprou) vale em memória, como no estadoParaNivel
+      res.json({
+        ligada: true, parceiro: true, convite, nivel: patamarEmCurso(t, comprados), raio_x_enviado: !!t.raio_x_enviado_em, diag_pedido: !!t.diag_pedido_em,
+        pendente, precisa_refazer: pendente, // pendente = Nível 1 não concluído (com o legado e o `avancar` da equipe); o cartão e a etiqueta decidem por ele
+      });
+    } catch (e) {
+      if (e instanceof ErroBanco && tabelaAusente(e.causa)) { res.json({ ligada: false }); return; }
+      throw e;
+    }
+  }));
+
+  // ── Convite da trilha (quem ainda não é parceiro): só um evento no histórico, nunca cria parceiro nem linha da trilha ─────
+  router.post('/nexus/trilha/convite', authMiddleware, rota('POST /nexus/trilha/convite', async (req, res) => {
+    const acao = acaoDeConvite((req.body as Record<string, unknown> | undefined)?.acao);
+    if (!acao) { res.status(400).json({ erro: 'acao_invalida' }); return; }
+    try {
+      if (!(await trilhaLigada())) { res.status(503).json({ erro: 'trilha_desligada' }); return; }
+      res.json(await registrarConvite(req.userId, acao));
+    } catch (e) {
+      if (e instanceof ErroBanco && tabelaAusente(e.causa)) { res.status(503).json({ erro: 'trilha_desligada' }); return; }
+      throw e;
+    }
+  }));
+
   // ── Ver a trilha ───────────────────────────────────────────────────────────
   router.get('/nexus/trilha', ...parceiro, comTrilha('GET /nexus/trilha', async (c, _req, res) => { res.json(await visao(c)); }, 'vazio'));
 
@@ -131,10 +168,11 @@ export function mountNexusTrilha(router: Router, garantir: Garantir): void {
     res.json({ ...r.resultado, trilha: await visao({ ...c, parceiro: parceiroAtual }, r.t) });
   }));
 
-  // ── Patamar 2: pedir o diagnóstico ─────────────────────────────────────────
+  // ── Fim do Nível 1: deixar o contato (sem agenda). A equipe é avisada de que a empresa está apta para a reunião ─────────
   router.post('/nexus/trilha/diagnostico', ...parceiro, comTrilha('POST /nexus/trilha/diagnostico', async (c, req, res) => {
-    const pref = validarPreferencia((req.body as Record<string, unknown> | undefined)?.preferencia, diaBRT());
-    if (!pref.ok) { res.status(400).json({ erro: pref.erro, campo: pref.campo }); return; }
+    const ct = validarContatoDiagnostico(req.body);
+    if (!ct.ok) { res.status(400).json({ erro: ct.erro, campo: ct.campo }); return; }
+    const contato = ct.valor;
     const assinante = await assinanteDe(c.userId);
     const r = await mutar(c, res, (t): Decisao => {
       if (!t.p1_em) return bloqueada();
@@ -144,11 +182,21 @@ export function mountNexusTrilha(router: Router, garantir: Garantir): void {
       if (t.diag_pedido_em && !refazendo) return recusa(409, 'ja_pedido');
       return {
         tipo: 'gravar',
-        patch: { diag_pedido_em: new Date().toISOString(), diag_preferencia: pref.valor, diag_agendado_para: null, diag_link: null, diag_feito_em: null, diag_resultado: null },
-        eventos: [{ tipo: 'diagnostico_pedido', dados: { dias: pref.valor.dias, periodo: pref.valor.periodo, refeito: refazendo }, autor: 'parceiro' }],
+        patch: { diag_pedido_em: new Date().toISOString(), diag_preferencia: { contato }, diag_agendado_para: null, diag_link: null, diag_feito_em: null, diag_resultado: null },
+        eventos: [{ tipo: 'apto_reuniao', dados: { nota: Number(t.raio_x_nota) || 0, refeito: refazendo }, autor: 'parceiro' }],
       };
     });
-    if (r) res.json(await visao(c, r.t));
+    if (!r) return;
+    res.json(await visao(c, r.t));
+    // Depois da resposta: avisa a equipe (e-mail e WhatsApp interno, com trava e teto no avisoComercial). Nunca lança.
+    const rx = dadosDe(r.t.raio_x);
+    waitUntil(avisarComercial('apto_reuniao', {
+      parceiro: c.parceiro as never,
+      apto: {
+        user_id: c.userId, pedido_em: r.t.diag_pedido_em ?? null, nota: Number(r.t.raio_x_nota) || 0, demanda_12m: Number(rx.demanda_12m) || 0,
+        clientes_em_vista: Array.isArray(rx.clientes_em_vista) ? rx.clientes_em_vista.length : 0, contato,
+      },
+    }));
   }));
 
   // ── Patamar 3: mentoria ou Academia ────────────────────────────────────────

@@ -248,7 +248,7 @@ describe('aviso ao comercial: envio e trava', () => {
 });
 
 describe('aviso ao comercial: teto de 12 por hora', () => {
-  const encher = (n: number, minutosAtras = 5) => {
+  const encher = (n: number, minutosAtras = 30) => {
     for (let i = 0; i < n; i++) {
       banco.poe('system_state', { key: `nexus_aviso:cadastro:antigo-${i}`, value: {}, updated_at: new Date(Date.now() - minutosAtras * 60_000).toISOString() });
     }
@@ -275,6 +275,20 @@ describe('aviso ao comercial: teto de 12 por hora', () => {
     encher(TETO_WHATSAPP_POR_HORA - 1);
     expect(await avisarComercial('cadastro', dados)).toBe('enviado');
     expect(enviados).toHaveLength(1);
+  });
+
+  it('rajada: com 6 chaves nos últimos 10 minutos o cadastro, a usina e o termo vão só por e-mail; com 5 ainda sai pelo WhatsApp', async () => {
+    ligar();
+    encher(6, 5);
+    expect(await avisarComercial('cadastro', dados)).toBe('email');
+    expect(await avisarComercial('usina', usina)).toBe('email');
+    expect(enviados).toHaveLength(0);
+    banco.reset(); emails.length = 0;
+    encher(5, 5);
+    expect(await avisarComercial('cadastro', dados)).toBe('enviado');
+    banco.reset();
+    encher(6, 5);
+    expect(await avisarComercial('solicitacao', conversa)).toBe('enviado'); // urgente: a rajada não segura
   });
 
   it('avisos de mais de 1 hora atrás não contam', async () => {

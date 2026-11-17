@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import TopBar from '@/components/TopBar/TopBar';
 import UpgradeModal from '@/components/UpgradeModal/UpgradeModal';
 import InstallBanner from '@/components/InstallBanner/InstallBanner';
-import NexusBanner from '@/components/NexusBanner/NexusBanner';
+import NexusConvite from '@/components/NexusTrilhaCartao/NexusTrilhaCartao';
+import { atualizarResumoNexus } from '@/hooks/useNexusTrilhaResumo';
 import WhatsAppFab from '@/components/WhatsAppFab/WhatsAppFab';
 import LinkPagarPix, { pixRecorrenteLigado } from '@/components/LinkPagarPix/LinkPagarPix';
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
@@ -296,6 +297,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // dezenas de segundos durante uma instabilidade e recarregava a página.
   const [tentandoDeNovo, setTentandoDeNovo] = useState(false);
 
+  // Saiu do /parceiro-nexus: a pessoa pode ter enviado o Raio-X lá dentro. O resumo da trilha é buscado de novo
+  // para a etiqueta do menu e o cartão sumirem sem recarregar a página.
+  const saiuDoParceiro = useRef(false);
+  const userIdAtual = user?.id;
+  useEffect(() => {
+    if (pathname === '/parceiro-nexus') { saiuDoParceiro.current = true; return; }
+    if (saiuDoParceiro.current) { saiuDoParceiro.current = false; atualizarResumoNexus(userIdAtual); }
+  }, [pathname, userIdAtual]);
+
   // forceHasCompany: admin navega livre mesmo sem CNPJ; não rebaixar hasCompany
   // por causa da resposta da empresa (mas ainda pegamos logo e nome pra UI).
   const fetchCompany = useCallback((forceHasCompany = false) => {
@@ -541,10 +551,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <main className={styles.main}>
         <TopBar userEmail={user.email} companyLogo={companyLogo} />
         <div className={styles.content}>
-          {/* Convite ao Portal do Parceiro NEXUS: uma vez, no topo de toda tela logada (é onde o login
-              cai: /empresa e /dashboard). Fora das telas de admin e de compra. O banner só abre com o
-              portal ligado e lembra o fechar por usuário. */}
-          {!pathname.startsWith('/admin') && !naTelaPix && !naLoja && !naParceiroNexus && <NexusBanner userId={user.id} />}
+          {/* Parceria NEXUS no topo de toda tela logada (é onde o login cai: /empresa e /dashboard), fora
+              das telas de admin, de compra e do próprio /parceiro-nexus. Com a trilha ligada é o cartão da
+              trilha (some com o Raio-X enviado, "Agora não" vale só nesta sessão); sem ela, o convite
+              antigo. Nunca os dois: quem decide é o NexusConvite. */}
+          {!pathname.startsWith('/admin') && !naTelaPix && !naLoja && !naParceiroNexus && <NexusConvite userId={user.id} />}
           {/* Comprador do kit sem empresa: convite, não portão. É o que substitui
               o redirect pra /empresa — ele precisa da empresa cadastrada pros
               modelos saírem com a marca dele, mas descobre isso navegando. */}

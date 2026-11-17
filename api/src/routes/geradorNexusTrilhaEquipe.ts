@@ -5,6 +5,7 @@
 //   PATCH /nexus/equipe/trilha/:userId             { acao, ... }: agendar_diagnostico, diagnostico_feito, mentoria_paga, mentoria_encontro,
 //                                                  agendar_reuniao, reuniao_feita, promover_regional, avancar {motivo}, responsavel, obs
 //   GET   /nexus/equipe/trilha-mapa                Mapa de demanda
+//   GET   /nexus/equipe/trilha-funil               Funil da trilha (geradorNexusTrilhaFunil.ts)
 //
 // Trilha desligada: GET devolve { ligada:false } e o PATCH responde 503 `trilha_desligada`. O e-mail de quem agiu vai só
 // para o histórico (autor); nada daqui é exposto às rotas do parceiro.
@@ -20,6 +21,7 @@ import { planejarAcao } from '../services/nexus/trilhaAcoes';
 import { filtrarLista, linhaDaLista, mapaDeDemanda, parceiroParaFicha, resumoDaLista } from '../services/nexus/trilhaEquipe';
 import { type Decisao, assinanteDe, atualizarTrilha, lerTrilha, trilhaLigada } from '../services/nexus/trilhaRepo';
 import { montarVisao } from '../services/nexus/trilhaVisao';
+import { mountNexusTrilhaFunil } from './geradorNexusTrilhaFunil';
 import { UUID, exigePortalLigado, lerTudo, lotes, ok, rota } from './geradorNexusBase';
 
 /** Todos os parceiros, as linhas da trilha de cada um e quem tem plano pago ativo (consultas em lote). */
@@ -50,6 +52,8 @@ export function mountNexusTrilhaEquipe(router: Router): void {
     const filtro = { patamar: typeof q.patamar === 'string' ? q.patamar : undefined, fila: typeof q.fila === 'string' ? q.fila : undefined, q: typeof q.q === 'string' ? q.q : undefined };
     res.json({ ligada: true, parceiros: filtrarLista(todas, filtro), resumo: resumoDaLista(todas) });
   }));
+
+  mountNexusTrilhaFunil(router);
 
   router.get('/nexus/equipe/trilha-mapa', ...equipe, rota('GET /nexus/equipe/trilha-mapa', async (_req, res) => {
     if (!(await trilhaLigada())) { res.json({ ligada: false }); return; }

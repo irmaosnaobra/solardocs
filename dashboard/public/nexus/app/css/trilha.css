@@ -340,6 +340,42 @@ button.tr-falta-b:hover, a.tr-falta-b:hover { background: var(--nx-azul-sf); col
 .tr-dia small { font-size: 12px; color: var(--nx-tx3); font-weight: 600; }
 .tr-dia.on { border-color: var(--nx-azul-tx); background: var(--nx-azul-tx); color: #fff; }
 .tr-dia.on small { color: #DCEBFF; }
+/* Fim do Nível 1: contato para a reunião de diagnóstico (sem agenda) e a confirmação. Topo azul-noite com o verde
+   da NEXUS no selo de concluído; o corpo é o cartão branco de sempre. */
+.tr-g2 > .tr-apto { padding: 0; overflow: hidden; gap: 0; }
+.tr-apto-topo { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 14px; align-items: center; padding: 20px 18px 18px; background: var(--nx-navy); color: #fff; }
+.tr-apto-ok { grid-row: span 2; align-self: start; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--nx-verde); color: var(--nx-navy); }
+.tr-apto-ok .nx-ic { width: 24px; height: 24px; stroke-width: 3; }
+.tr-apto-topo h2 { margin: 0; font-size: 20px; font-weight: 900; line-height: 1.2; color: #fff; text-wrap: balance; }
+.tr-apto-topo h2:focus { outline: none; }
+.tr-apto-topo p { margin: 0; font-size: 14.5px; line-height: 1.45; color: var(--nx-inv2); text-wrap: pretty; }
+.tr-apto-topo .tr-aj { color: #fff; margin-left: 2px; }
+.tr-apto-corpo { display: flex; flex-direction: column; gap: 10px; padding: 18px 18px 20px; }
+.tr-apto-form { display: flex; flex-direction: column; gap: 4px; }
+.tr-apto-campos { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 14px; }
+.tr-apto-form .tr-per { margin: 2px 0 16px; }
+.tr-per .tr-pills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tr-per .tr-pill { justify-content: center; }
+.tr-apto-form .tr-bt { width: 100%; }
+.tr-erro-c { display: block; font-size: 13px; font-weight: 700; color: var(--nx-er); line-height: 1.35; margin-top: 2px; }
+.tr-agora { list-style: none; margin: 0; padding: 0; }
+.tr-agora li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--nx-bd); font-size: 14.5px; font-weight: 600; line-height: 1.4; }
+.tr-agora li:first-child { border-top: 0; padding-top: 6px; }
+.tr-agora .n { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--nx-azul-sf); color: var(--nx-azul-tx); font-size: 14px; font-weight: 800; }
+.tr-contato { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 12px; border-radius: 10px; background: var(--nx-sf2); font-size: 13.5px; font-weight: 600; color: var(--nx-tx2); }
+.tr-contato span { display: inline-flex; align-items: center; gap: 6px; }
+.tr-contato .nx-ic { width: 16px; height: 16px; color: var(--nx-azul-tx); }
+.tr-apto-pref { padding: 0 18px 18px; margin-top: -8px; }
+@media (min-width: 520px) {
+  .tr-apto-campos { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+}
+@media (min-width: 861px) {
+  .tr-apto-topo { padding: 24px 24px 22px; grid-template-columns: 52px minmax(0, 1fr); gap: 6px 16px; }
+  .tr-apto-ok { width: 52px; height: 52px; }
+  .tr-apto-topo h2 { font-size: 24px; }
+  .tr-apto-corpo { padding: 22px 24px 24px; }
+  .tr-apto-form .tr-bt { width: auto; align-self: flex-start; }
+}
 .tr-quando { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px; background: var(--nx-sf2); }
 .tr-quando b { display: block; font-size: 16px; }
 .tr-quando small { display: block; font-size: 12.5px; color: var(--nx-tx3); }

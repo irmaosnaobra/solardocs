@@ -6,16 +6,16 @@ import { logger } from '../../utils/logger';
 import { Linha, separarCidadeUf, termoAceitoNaVersao } from './repositorio';
 import { TERMO_VERSAO } from './catalogo';
 import { aulasFeitas, progressoParaFront, TOTAL_AULAS } from './academia';
-import { ENCONTROS_META, LinhaTrilha, concluidos, paradoHaDias, patamarEmCurso, pendenciaDaEquipe, proximoPasso } from './trilha';
+import { ENCONTROS_META, LinhaTrilha, concluidos, contatoDoDiagnostico, paradoHaDias, patamarEmCurso, pendenciaDaEquipe, proximoPasso } from './trilha';
 import { calcularNota } from './trilhaRaioX';
 import { lerEventos } from './trilhaRepo';
 
 const TITULOS: Record<string, string> = {
-  raio_x_enviado: 'Raio-X enviado', diagnostico_pedido: 'Diagnóstico pedido', diagnostico_agendado: 'Diagnóstico agendado',
+  raio_x_enviado: 'Raio-X enviado', diagnostico_pedido: 'Diagnóstico pedido', apto_reuniao: 'Pediu a reunião de diagnóstico', diagnostico_agendado: 'Diagnóstico agendado',
   diagnostico_feito: 'Diagnóstico feito', preparo_escolhido: 'Preparação escolhida', mentoria_paga: 'Mentoria confirmada',
   mentoria_encontro: 'Encontro da mentoria registrado', academia_aula: 'Aula da Academia respondida', reuniao_pedida: 'Reunião com o cliente pedida',
   reuniao_agendada: 'Reunião agendada', reuniao_feita: 'Reunião feita', patamar_concluido: 'Nível concluído',
-  promover_regional: 'Promovido a Parceiro regional', avancar: 'Nível avançado pela equipe', legado: 'Níveis anteriores reconhecidos',
+  promover_regional: 'Promovido a Parceiro regional', avancar: 'Nível avançado pela equipe', legado: 'Níveis anteriores reconhecidos', convite_fechado: 'Convite da trilha fechado', convite_recusado: 'Convite da trilha recusado',
   responsavel: 'Responsável definido', obs: 'Observação da equipe',
 };
 /** Eventos que só a equipe vê. */
@@ -49,7 +49,7 @@ async function tolerante<T>(rotulo: string, vazio: T, fn: () => PromiseLike<T>):
 
 /** O que o SolarDoc já sabe do parceiro (nada disso é perguntado de novo). */
 export async function prefillDoSolarDoc(userId: string, parceiro: Linha, company: Linha | null) {
-  const [extra, clientes, propostas] = await Promise.all([
+  const [extra, clientes, propostas, usuario] = await Promise.all([
     tolerante('empresa da trilha', null as Linha | null, async () => {
       const { data, error } = await supabase.from('company').select('cor_marca, engenheiro_crea').eq('user_id', userId).limit(1);
       if (error) throw new Error(error.message);
@@ -65,6 +65,11 @@ export async function prefillDoSolarDoc(userId: string, parceiro: Linha, company
       if (error) throw new Error(error.message);
       return count ?? 0;
     }),
+    tolerante('nome do usuário da trilha', null as Linha | null, async () => {
+      const { data, error } = await supabase.from('users').select('nome').eq('id', userId).limit(1);
+      if (error) throw new Error(error.message);
+      return ((data as Linha[] | null) ?? [])[0] ?? null;
+    }),
   ]);
   return {
     empresa: parceiro.empresa ?? company?.nome_fantasia ?? company?.nome ?? null,
@@ -76,6 +81,7 @@ export async function prefillDoSolarDoc(userId: string, parceiro: Linha, company
     engenheiro_crea: !!String(extra?.engenheiro_crea ?? '').trim(),
     clientes_pj: clientes.map((c) => { const l = separarCidadeUf(c.cidade, c.uf); return { id: c.id, nome: c.nome, cidade: l.cidade, uf: l.uf }; }),
     propostas_solares: propostas,
+    contato_sugerido: { nome: String(usuario?.nome ?? '').trim() || null, whatsapp: String(company?.whatsapp ?? '').trim() || null },
   };
 }
 
@@ -122,7 +128,7 @@ export async function montarVisao(e: EntradaVisao): Promise<Record<string, unkno
     raio_x: { respostas, nota, enviado_em: t.raio_x_enviado_em ?? null, faltas },
     diagnostico: {
       pedido_em: t.diag_pedido_em ?? null, preferencia: t.diag_preferencia ?? null, agendado_para: t.diag_agendado_para ?? null,
-      link: t.diag_link ?? null, feito_em: t.diag_feito_em ?? null, resultado: t.diag_resultado ?? null, plano: t.diag_plano ?? null,
+      link: t.diag_link ?? null, contato: contatoDoDiagnostico(t), feito_em: t.diag_feito_em ?? null, resultado: t.diag_resultado ?? null, plano: t.diag_plano ?? null,
     },
     preparo: {
       formato: t.preparo_formato ?? null, mentoria_paga_em: t.mentoria_paga_em ?? null, encontros: Number(t.mentoria_encontros) || 0,
@@ -135,7 +141,7 @@ export async function montarVisao(e: EntradaVisao): Promise<Record<string, unkno
     historico: historicoDe(eventos, e.paraEquipe === true),
   };
   if (e.paraEquipe) {
-    visao.equipe = { responsavel_email: t.responsavel_email ?? null, obs_equipe: t.obs_equipe ?? null, pendencia_equipe: pendenciaDaEquipe(t), parado_ha_dias: paradoHaDias(t) };
+    visao.equipe = { responsavel_email: t.responsavel_email ?? null, obs_equipe: t.obs_equipe ?? null, pendencia_equipe: pendenciaDaEquipe(t), parado_ha_dias: paradoHaDias(t), contato: contatoDoDiagnostico(t) };
   }
   return visao;
 }

@@ -1,5 +1,6 @@
-/* Trilha do Parceiro NEXUS, telas da equipe: visão "Trilha" (resumo, filas, lista e a ficha de cada parceiro)
-   e visão "Mapa de demanda". Carregado pelo painel.js por caminho absoluto, nas duas páginas que usam o painel
+/* Trilha do Parceiro NEXUS, telas da equipe: visão "Funil" (padrão: funil, Aptos, Começaram e pararam, Não querem),
+   visão "Trilha" (resumo, filas, lista e a ficha de cada parceiro) e visão "Mapa de demanda".
+   Endereços: #funil, #trilha (abre na fila Aptos para reunião), #trilha/<user_id> (abre a ficha) e #mapa. Carregado pelo painel.js por caminho absoluto, nas duas páginas que usam o painel
    (/nexus/adm e /gerador/parceiros). Usa a sessão e o endereço da api do painel (window.PainelNexus.util).
 
    Api (contrato do plano da Onda 1, sempre sob /gerador/nexus/equipe):
@@ -7,6 +8,7 @@
      GET   /trilha/:userId        ficha completa com histórico
      PATCH /trilha/:userId        { acao, ... }
      GET   /trilha-mapa           Mapa de demanda
+     GET   /trilha-funil          etapas, fecharam, recusaram e em_andamento
    404 ou { ligada:false }: a visão mostra "Trilha ainda não ligada" e o resto do painel segue igual.
 
    Modo de exemplo: ?exemplo=1 na página, ou o botão do estado "não ligada". 12 parceiros fictícios,
@@ -24,14 +26,14 @@ var PATAMARES = { 1: 'Mapeado', 2: 'Diagnosticado', 3: 'Preparado', 4: 'Em campo
 var FILAS = [
   ['', 'Todos'],
   ['esperando', 'Esperando a equipe'],
-  ['agendar_diagnostico', 'Agendar diagnóstico'],
+  ['agendar_diagnostico', 'Aptos para reunião'],
   ['diagnostico_hoje', 'Diagnóstico de hoje'],
   ['registrar_encontro', 'Registrar encontro'],
   ['agendar_reuniao', 'Agendar reunião com cliente'],
   ['parados', 'Parados há mais de 7 dias']
 ];
 var PENDENCIA = {
-  agendar_diagnostico: 'Agendar diagnóstico', diagnostico_hoje: 'Diagnóstico de hoje',
+  agendar_diagnostico: 'Apto para reunião', diagnostico_hoje: 'Diagnóstico de hoje',
   registrar_encontro: 'Registrar encontro', agendar_reuniao: 'Agendar reunião com cliente'
 };
 var RX = {
@@ -48,6 +50,13 @@ var RX = {
   fase: { ideia: 'Ideia', conversando: 'Conversando', quente: 'Quente' }
 };
 var FASE_COR = { ideia: '', conversando: 'az', quente: 'ok' };
+var PERIODO = { manha: 'De manhã', tarde: 'À tarde', noite: 'À noite' };
+// Etapas do funil com o rótulo da equipe. "enviaram" sai: o envio só grava com nota 80, então é igual a "passaram".
+var ETAPAS = {
+  usuarios: 'Contas no SolarDoc', abriram: 'Abriram a trilha', comecaram: 'Começaram o Raio-X', passaram: 'Passaram no Raio-X',
+  pediram_reuniao: 'Pediram a reunião', diagnosticados: 'Nível 2: diagnosticados', preparados: 'Nível 3: preparados',
+  em_campo: 'Nível 4: em campo', clientes: 'Nível 5: clientes NEXUS', regionais: 'Nível 6: regionais'
+};
 
 /* ── Ícones (traço único, 24 px) ── */
 var IC = {
@@ -68,6 +77,8 @@ var IC = {
   cadeado: 'M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3',
   mapa: 'M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5zM9 4v13.5M15 6.5V20',
   mais: 'M9 6l6 6-6 6',
+  wa: 'M4 20l1.4-4.1A8 8 0 1 1 8.3 18.7zM9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.4-1.6-1-2-2l1-1-1-2z',
+  mail: 'M3.5 6h17v12h-17zM4 7l8 6 8-6',
   ponto: 'M12 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z'
 };
 function ic(nome) {
@@ -86,7 +97,8 @@ var T = {
   fila: '', patamar: '', uf: '', q: '',
   ficha: null, fichaId: null, carregandoFicha: false,
   acao: null, confirmar: null, salvando: false, erroAcao: '',
-  hist: 'tudo', foco: null
+  hist: 'tudo', foco: null,
+  funil: null, carregandoFunil: null, mais: {}, abrirId: null, hashAntes: ''
 };
 var EX = null; // dados de exemplo (fichas completas, por user_id)
 
@@ -121,6 +133,44 @@ function paraCampo(iso) {
 function diasTxt(n) { return n === 1 ? '1 dia' : n + ' dias'; }
 function num(v) { var n = Number(v); return v == null || v === '' || !isFinite(n) ? null : n; }
 function fmtN(v) { var n = num(v); return n == null ? '' : U.fmtNum(n); }
+
+/* ── Contato que o parceiro deixou ao pedir a reunião ── */
+function contatoDe(x) {
+  if (!x) return null;
+  var c = x.contato || (x.equipe && x.equipe.contato) || (x.diagnostico && x.diagnostico.contato) || null;
+  return c && (c.whatsapp || c.nome) ? c : null;
+}
+function digitos(v) { return String(v || '').replace(/\D/g, ''); }
+function linkWa(v) {
+  var d = digitos(v);
+  if (d.length < 10) return '';
+  if (d.length <= 11) d = '55' + d;
+  return 'https://wa.me/' + d;
+}
+function foneTxt(v) {
+  var d = digitos(v);
+  if (d.length >= 12 && d.indexOf('55') === 0) d = d.slice(2);
+  if (d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+  if (d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+  return String(v || '');
+}
+function waHtml(c) {
+  var href = c && linkWa(c.whatsapp);
+  if (!href) return '<span class="tr-sem">Sem WhatsApp</span>';
+  return '<a class="tr-wa" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" aria-label="' +
+    esc('Chamar ' + (c.nome || 'o contato') + ' no WhatsApp, ' + foneTxt(c.whatsapp)) + '">' + ic('wa') + '<span class="num">' + esc(foneTxt(c.whatsapp)) + '</span></a>';
+}
+// #funil, #trilha, #trilha/<user_id> e #mapa. A troca de endereço feita aqui não dispara o hashchange (replaceState).
+function lerHash() {
+  var m = /^#(funil|trilha|mapa)(?:\/([A-Za-z0-9_-]{1,64}))?$/.exec(location.hash);
+  if (!m) return null;
+  return { aba: m[1] === 'funil' ? 'tfunil' : m[1], id: m[1] === 'trilha' ? (m[2] || null) : null };
+}
+function hashDaAba(a) { return a === 'tfunil' ? '#funil' : '#' + a; }
+function trocarHash(h) {
+  if (location.hash === h || !(window.history && history.replaceState)) return;
+  history.replaceState(null, '', location.pathname + location.search + h);
+}
 
 /* ── Leitura tolerante das respostas da api ── */
 function listaDe(j) {
@@ -225,8 +275,32 @@ function normalizarMapa(j) {
     total_raio_x: num(j.total_raio_x || j.raio_x_enviados)
   };
 }
+function carregarFunil(forcar) {
+  if (T.exemplo) { usarExemplo(); return Promise.resolve(); }
+  if (T.carregandoFunil) return T.carregandoFunil;
+  if (T.funil && !forcar) return Promise.resolve();
+  T.carregandoFunil = U.api('GET', '/trilha-funil').then(function (x) {
+    if (naoLigada(x)) { T.ligada = false; T.funil = null; return; }
+    if (!U.okHttp(x)) { T.erroFunil = 'O servidor respondeu com erro (' + x.status + ').'; return; }
+    T.ligada = true; T.erroFunil = '';
+    T.funil = normalizarFunil(x.json);
+  }).catch(function (e) {
+    if (e && e.tipo === 'login') return;
+    T.erroFunil = 'Sem conexão com o servidor.';
+  }).then(function () { T.carregandoFunil = null; });
+  return T.carregandoFunil;
+}
+function normalizarFunil(j) {
+  j = j || {};
+  return {
+    etapas: (Array.isArray(j.etapas) ? j.etapas : []).map(function (e) { return { codigo: String(e.codigo || ''), titulo: e.titulo || '', n: num(e.n) || 0 }; }),
+    fecharam: num(j.fecharam),
+    recusaram: Array.isArray(j.recusaram) ? j.recusaram : [],
+    em_andamento: Array.isArray(j.em_andamento) ? j.em_andamento : []
+  };
+}
 function buscarFicha(id) {
-  if (T.exemplo) { T.ficha = EX.fichas[id] || null; return Promise.resolve(); }
+  if (T.exemplo) { usarExemplo(); T.ficha = EX.fichas[id] || null; if (!T.ficha) T.erroFicha = 'Parceiro não encontrado no exemplo.'; return Promise.resolve(); }
   T.carregandoFicha = true;
   return U.api('GET', '/trilha/' + encodeURIComponent(id)).then(function (x) {
     if (String(T.fichaId) !== String(id)) return;
@@ -245,14 +319,23 @@ function raizLista() { return document.getElementById('tr-lista-raiz'); }
 function raizMapa() { return document.getElementById('tr-mapa-raiz'); }
 
 // Quem chega por /nexus/adm#trilha (ou #mapa) cai direto na aba, rolada até as abas.
-var rolarParaAbas = /^#(trilha|mapa)\b/.test(location.hash);
+var rolarParaAbas = !!lerHash();
 function rolarSeVeioPeloLink() {
   if (!rolarParaAbas) return;
   rolarParaAbas = false;
   var a = document.getElementById('abas');
   if (a) a.scrollIntoView({ block: 'start' });
 }
+function raizFunil() { return document.getElementById('tr-funil-raiz'); }
 function abrir(qual, forcar) {
+  // O endereço acompanha a visão; com a ficha aberta ele fica em #trilha/<id>.
+  if (!T.fichaId) trocarHash(hashDaAba(qual));
+  if (qual === 'tfunil') {
+    var rf = raizFunil(); if (!rf) return;
+    if (!T.funil && !T.exemplo) rf.innerHTML = '<div class="vazio"><span class="spin"></span>Carregando o funil…</div>';
+    Promise.all([carregarFunil(forcar), carregarLista(forcar)]).then(desenharFunil).then(rolarSeVeioPeloLink);
+    return;
+  }
   if (qual === 'mapa') {
     var rm = raizMapa(); if (!rm) return;
     if (!T.mapa && !T.exemplo) rm.innerHTML = '<div class="vazio"><span class="spin"></span>Carregando o mapa…</div>';
@@ -268,13 +351,12 @@ function faixaExemplo() {
   return '<div class="tr-ex" role="note"><span>Exemplo. Dados fictícios, nada é gravado.</span>' +
     '<button type="button" class="btn ghost sm" data-tr="sair-exemplo">Sair do exemplo</button></div>';
 }
-function telaOff(onde) {
+function telaOff() {
   return '<div class="tr-off">' + ic('mapa') +
     '<h2>Trilha ainda não ligada</h2>' +
     '<p>Ela liga sozinha quando o banco ganhar as tabelas da trilha. O resto do painel segue igual. ' +
     aj('Falta rodar MIGRATION_nexus_trilha.sql no banco do SolarDoc. Até lá a api responde que a trilha está desligada.') + '</p>' +
-    '<button type="button" class="btn" data-tr="exemplo">Ver com dados de exemplo</button></div>' +
-    (onde === 'mapa' ? '' : '');
+    '<button type="button" class="btn" data-tr="exemplo">Ver com dados de exemplo</button></div>';
 }
 function telaErro(msg, alvo) {
   return '<div class="vazio">' + esc(msg) + ' <button type="button" class="btn sm" data-tr="recarregar" data-v="' + alvo + '">Tentar de novo</button></div>';
@@ -389,21 +471,132 @@ function notaHtml(p) {
 function linhaHtml(p) {
   var pat = patamarDe(p), pend = pendenciaDe(p);
   var resp = p.responsavel_email ? emailCurto(p.responsavel_email) : '';
-  return '<button type="button" class="tr-lin' + (pend ? ' esp' : '') + '" data-tr="ficha" data-v="' + esc(p.user_id) + '">' +
-    '<div class="c-emp"><div class="emp">' + esc(p.empresa || 'Empresa sem nome') + '</div><div class="peq">' + esc(cidadeUf(p.cidade, p.uf) || 'Sem cidade') + '</div></div>' +
+  var c = contatoDe(p);
+  return '<div class="tr-lin' + (pend ? ' esp' : '') + '" data-id="' + esc(p.user_id) + '">' +
+    '<div class="c-emp"><button type="button" class="tr-abre emp" data-tr="ficha" data-v="' + esc(p.user_id) + '">' + esc(p.empresa || 'Empresa sem nome') + '</button><div class="peq">' + esc(cidadeUf(p.cidade, p.uf) || 'Sem cidade') + '</div></div>' +
     '<div class="c-pat"><span class="rt">Nível</span><span class="tr-pat">' + escadinha(pat) + '<span>' + (pat < 7 ? pat + '.&nbsp;' : '') + esc(PATAMARES[pat]) + '</span>' + '</span></div>' +
     '<div><span class="rt">Nota</span>' + notaHtml(p) + '</div>' +
     '<div><span class="rt">Assinante</span>' + (p.assinante ? '<span class="pill ok">Sim</span>' : '<span class="pill">Não</span>') + '</div>' +
     '<div><span class="rt">Parado há</span>' + paradoHtml(p) + '</div>' +
-    '<div class="c-pend">' + (pend ? '<span class="rt">Pendência</span><span class="tr-pend">' + ic('relogio') + esc(PENDENCIA[pend]) + '</span>' : '') + '</div>' +
+    '<div class="c-pend">' + (pend ? '<span class="rt">Pendência</span><span class="tr-pend">' + ic('relogio') + esc(PENDENCIA[pend]) + '</span>' : '') +
+      (pend === 'agendar_diagnostico' && c ? '<div class="tr-contato">' + waHtml(c) + (c.periodo && PERIODO[c.periodo] ? '<span class="peq">' + PERIODO[c.periodo] + '</span>' : '') + '</div>' : '') + '</div>' +
     '<div class="c-resp">' + (resp ? '<span class="rt">Responsável</span>' + esc(resp) : '<span class="rt">Responsável</span><span class="tr-sem">Sem responsável</span>') + '</div>' +
-    '</button>';
+    '</div>';
+}
+
+/* ═════════════ Visão Funil ═════════════ */
+function pctTxt(n, ant) {
+  if (!ant) return '';
+  var p = n / ant * 100;
+  if (n > 0 && p < 1) return 'Menos de 1%';
+  return Math.round(p) + '%';
+}
+function quandoTxt(iso) {
+  var d = diasDesde(iso);
+  if (d == null) return '';
+  return d === 0 ? 'Hoje' : (d === 1 ? 'Ontem' : 'Há ' + d + ' dias');
+}
+function aptos() {
+  return (T.lista || []).filter(function (p) { return pendenciaDe(p) === 'agendar_diagnostico'; }).sort(function (a, b) {
+    return (diasDesdePedido(b) || 0) - (diasDesdePedido(a) || 0);
+  });
+}
+function diasDesdePedido(p) {
+  var d = diasDesde(p.diag_pedido_em || p.pedido_em);
+  return d == null ? paradoDe(p) : d;
+}
+function temFicha(id) {
+  return (T.lista || []).some(function (p) { return String(p.user_id) === String(id); });
+}
+var POR_VEZ = 8;
+function maisHtml(k, total) {
+  if (total <= POR_VEZ) return '';
+  return T.mais[k] ? '<button type="button" class="btn ghost sm tr-mais" data-tr="mais" data-v="' + k + '">Mostrar menos</button>'
+    : '<button type="button" class="btn ghost sm tr-mais" data-tr="mais" data-v="' + k + '">Ver todos (' + total + ')</button>';
+}
+function corte(k, l) { return T.mais[k] ? l : l.slice(0, POR_VEZ); }
+function abreHtml(id, txt, pode) {
+  return pode ? '<button type="button" class="tr-abre emp" data-tr="ficha" data-v="' + esc(id) + '">' + esc(txt) + '</button>' : '<span class="emp">' + esc(txt) + '</span>';
+}
+
+function desenharFunil() {
+  var r = raizFunil(); if (!r) return;
+  if (T.exemplo) usarExemplo();
+  if (!T.exemplo && T.ligada === false) { r.innerHTML = telaOff('funil'); return; }
+  var F = T.funil;
+  if (!F) { r.innerHTML = telaErro(T.erroFunil || 'Não consegui carregar o funil.', 'tfunil'); return; }
+
+  var et = F.etapas.filter(function (e) { return e.codigo !== 'enviaram'; });
+  var base = et.length && et[0].codigo === 'usuarios' ? et.shift() : null;
+  var max = Math.max.apply(null, [1].concat(et.map(function (e) { return e.n; })));
+  var ant = base ? base.n : null;
+  var linhas = et.map(function (e) {
+    var pct = ant != null ? pctTxt(e.n, ant) : '';
+    ant = e.n;
+    var rot = ETAPAS[e.codigo] || e.titulo || tituloPadrao(e.codigo);
+    return '<li class="tr-fn-l"><span class="t">' + esc(rot) + '</span>' +
+      '<span class="b" aria-hidden="true"><i style="width:' + (e.n ? Math.max(2, Math.round(e.n / max * 100)) : 0) + '%"></i></span>' +
+      '<span class="n num">' + fmtN(e.n) + '</span><span class="p num">' + (pct ? esc(pct) : '') + '</span></li>';
+  }).join('');
+  var funil = '<div class="tr-cx tr-fn"><h3>Funil da trilha ' + aj('Cada linha mostra quantos chegaram e o quanto isso é da etapa de cima.') +
+      (base ? '<span class="dir">De <b class="num">' + fmtN(base.n) + '</b> contas no SolarDoc</span>' : '') + '</h3>' +
+    (linhas ? '<ol class="tr-fn-lista" aria-label="Etapas do funil">' + linhas + '</ol>' : '<p class="vz">Sem dado ainda.</p>') + '</div>';
+
+  var A = aptos();
+  var rec = F.recusaram, and = F.em_andamento;
+  var cartoes = '<div class="tr-fn-cart">' +
+    '<button type="button" class="tr-kpi esp" data-tr="ir" data-v="tr-l-aptos"><span class="r">Aptos para reunião ' + '</span><span class="n num">' + A.length + '</span></button>' +
+    '<div class="tr-kpi est"><span class="r">Fecharam o convite ' + aj('Fecharam o aviso da trilha sem responder. Contam uma vez cada.') + '</span><span class="n num">' + (F.fecharam == null ? 'Sem dado' : fmtN(F.fecharam)) + '</span></div>' +
+    '<button type="button" class="tr-kpi par" data-tr="ir" data-v="tr-l-nao"><span class="r">Não querem ' + '</span><span class="n num">' + rec.length + '</span></button>' +
+    '</div>';
+
+  var lAptos = A.length ? '<ol class="tr-fl-lista">' + corte('aptos', A).map(function (p) {
+    var c = contatoDe(p) || {}, d = diasDesdePedido(p), dem = num(p.demanda_12m);
+    return '<li class="tr-fl apto">' +
+      '<div class="c1">' + abreHtml(p.user_id, p.empresa || 'Empresa sem nome', true) + '<span class="peq">' + esc([c.nome, cidadeUf(p.cidade, p.uf)].filter(Boolean).join(' · ') || 'Sem contato') + '</span></div>' +
+      '<div class="c2">' + waHtml(c) + '<span class="peq">' + esc(c.periodo && PERIODO[c.periodo] ? PERIODO[c.periodo] : 'Qualquer horário') + '</span></div>' +
+      '<div class="c3"><span class="rt">Nota</span>' + notaHtml(p) + '</div>' +
+      '<div class="c4"><span class="rt">Demanda</span><span><b class="num">' + (dem ? fmtN(dem) : '0') + '</b> <span class="peq">' + (dem === 1 ? 'carregador' : 'carregadores') + '</span></span></div>' +
+      '<div class="c5"><span class="rt">Pediu</span><span class="tr-parado num ' + (d > 3 ? (d > 7 ? 'er' : 'av') : '') + '">' + esc(d == null ? 'Sem data' : (d === 0 ? 'Hoje' : 'Há ' + diasTxt(d))) + '</span></div>' +
+      '</li>';
+  }).join('') + '</ol>' + maisHtml('aptos', A.length) : '<p class="vz">Ninguém esperando reunião agora.</p>';
+
+  var lAnd = and.length ? '<ol class="tr-fl-lista">' + corte('andamento', and).map(function (x) {
+    var tot = num(x.total_perguntas) || 13, resp = Math.min(tot, num(x.respondidas) || 0), d = diasDesde(x.ultimo_movimento_em);
+    return '<li class="tr-fl">' +
+      '<div class="c1">' + abreHtml(x.user_id, x.empresa || x.nome || 'Sem nome', true) + (x.empresa && x.nome ? '<span class="peq">' + esc(x.nome) + '</span>' : '') + '</div>' +
+      '<div class="c2"><span class="tr-prog" role="img" aria-label="' + resp + ' de ' + tot + ' respondidas"><i style="width:' + Math.round(resp / tot * 100) + '%"></i></span><span class="peq num">' + resp + ' de ' + tot + '</span></div>' +
+      '<div class="c5"><span class="rt">Parado há</span><span class="tr-parado num ' + (d > 7 ? 'er' : (d > 3 ? 'av' : '')) + '">' + esc(d == null ? 'Sem dado' : (d === 0 ? 'Hoje' : diasTxt(d))) + '</span></div>' +
+      '</li>';
+  }).join('') + '</ol>' + maisHtml('andamento', and.length) : '<p class="vz">Ninguém parado no meio do Raio-X.</p>';
+
+  var lNao = rec.length ? '<ol class="tr-fl-lista">' + corte('nao', rec).map(function (x) {
+    var pode = temFicha(x.user_id);
+    return '<li class="tr-fl">' +
+      '<div class="c1">' + abreHtml(x.user_id, x.nome || x.empresa || 'Sem nome', pode) + (x.nome && x.empresa ? '<span class="peq">' + esc(x.empresa) + '</span>' : '') + '</div>' +
+      '<div class="c2">' + (x.email ? '<a class="tr-mail" href="mailto:' + esc(x.email) + '" title="' + esc(x.email) + '">' + ic('mail') + '<span>' + esc(x.email) + '</span></a>' : '<span class="tr-sem">Sem e-mail</span>') + '</div>' +
+      '<div class="c5"><span class="peq">' + esc(quandoTxt(x.em) || 'Sem data') + '</span></div>' +
+      '</li>';
+  }).join('') + '</ol>' + maisHtml('nao', rec.length) : '<p class="vz">Ninguém recusou o convite.</p>';
+
+  r.innerHTML = (T.exemplo ? faixaExemplo() : '') +
+    '<div class="tr-fn-topo">' + funil + cartoes + '</div>' +
+    '<section class="tr-cx" id="tr-l-aptos" tabindex="-1"><h3>Aptos para reunião ' + aj('Passaram do Nível 1 e pediram a reunião. Chame no WhatsApp e agende na ficha.') +
+      '<span class="dir">' + (A.length === 1 ? '1 parceiro' : A.length + ' parceiros') + '</span></h3>' + lAptos + '</section>' +
+    '<div class="tr-fn-duas">' +
+      '<section class="tr-cx" id="tr-l-and" tabindex="-1"><h3>Começaram e pararam ' + aj('Abriram o Raio-X e não enviaram. O parado há mais tempo vem primeiro.') +
+        '<span class="dir">' + and.length + '</span></h3>' + lAnd + '</section>' +
+      '<section class="tr-cx" id="tr-l-nao" tabindex="-1"><h3>Não querem ' + aj('Disseram que não querem e não enviaram o Raio-X depois.') +
+        '<span class="dir">' + rec.length + '</span></h3>' + lNao + '</section>' +
+    '</div>';
 }
 
 /* ═════════════ Ficha ═════════════ */
 function abrirFicha(id) {
+  if (!T.fichaId) T.hashAntes = /^#trilha\//.test(location.hash) ? '#trilha' : (location.hash || hashDaAba(U.aba()));
   T.fichaId = id; T.acao = null; T.confirmar = null; T.erroAcao = ''; T.hist = 'tudo'; T.ficha = null; T.erroFicha = '';
   T.foco = document.activeElement;
+  trocarHash('#trilha/' + id);
   var fundo = garantirGaveta();
   fundo.hidden = false;
   document.body.style.overflow = 'hidden';
@@ -417,6 +610,7 @@ function focarFechar() { var b = document.querySelector('#tr-ficha .tr-fx'); if 
 function fecharFicha() {
   var fundo = document.getElementById('tr-fundo');
   if (fundo) fundo.hidden = true;
+  if (T.fichaId) trocarHash(T.hashAntes || hashDaAba(U.aba()));
   T.fichaId = null; T.ficha = null; T.acao = null; T.confirmar = null;
   document.body.style.overflow = '';
   esconderBalao();
@@ -460,6 +654,9 @@ function desenharFicha() {
   if (!ult && hist.length) ult = hist.reduce(function (a, h) { return !a || String(h.em) > String(a) ? h.em : a; }, null);
   var parado = num(fichaG(f, 'parado_ha_dias'));
   if (parado == null) parado = diasDesde(ult);
+  var ct = contatoDe(f);
+  var contatoLinha = ct ? '<div class="tr-f-contato"><span>' + esc(ct.nome || 'Contato') + '</span>' + waHtml(ct) +
+    (ct.periodo && PERIODO[ct.periodo] ? '<span class="peq">' + PERIODO[ct.periodo] + '</span>' : '') + '</div>' : '';
   var parPill = pat === 7 ? '' : (parado == null ? '' :
     '<span class="pill ' + (parado > 7 ? 'er' : (parado > 3 ? 'av' : '')) + '">Parado há ' + (parado === 0 ? 'menos de 1 dia' : diasTxt(parado)) + '</span>');
 
@@ -471,7 +668,7 @@ function desenharFicha() {
         '<span class="pill az">' + (pat < 7 ? 'Nível ' + pat + ' · ' : '') + esc(PATAMARES[pat]) + '</span>' + parPill +
         (f.assinante ? '<span class="pill ok">Assinante</span>' : '<span class="pill">Sem plano pago</span>') +
         (T.exemplo ? '<span class="tr-tag-ex">Exemplo</span>' : '') +
-      '</div></div>' + botaoFechar() + '</div>' +
+      '</div>' + contatoLinha + '</div>' + botaoFechar() + '</div>' +
     '<div class="tr-f-corpo">' +
       '<div class="tr-f-col">' + blocoAcoes(f, pat, empresa) + blocoPassos(f, pat) + blocoNota(f) + '</div>' +
       '<div class="tr-f-col">' + blocoRaioX(f) + blocoCarteira(f) + blocoSimulacao(f) + blocoSolarDoc(f) + blocoHistorico(hist) + '</div>' +
@@ -942,6 +1139,7 @@ var DEFS = [
       dificuldades: ['financiamento', 'tecnica'], clientes_em_vista: [cli('Posto Avenida', 'Montes Claros', 'MG', 'posto', 'quente'), cli('Restaurante Sertão', 'Bocaiuva', 'MG', 'restaurante', 'conversando')],
       demanda_12m: 4 } },
   { id: 'ex-04', empresa: 'SolTech Integração', cidade: 'Ribeirão Preto', uf: 'SP', pat: 2, assina: true, inicio: 16, parado: 9, resp: 2, diagPedido: true,
+    contato: { nome: 'Rafael Moura', whatsapp: '16900000004', periodo: 'manha' },
     r: { anos_solar: '1-3', usinas: '20-100', equipe: '3-5', raio_km: 150, capacidades: ['eletrica_bt', 'homologacao'], ja_montou_eletroposto: 'nunca', conhece_mercado: 'nada', papel: 'revenda', quando: '3m',
       dificuldades: ['cliente', 'financiamento', 'tecnica'], clientes_em_vista: [cli('Mercado Real', 'Ribeirão Preto', 'SP', 'empresa_frota', 'conversando'), cli('Mercado Popular', 'Sertãozinho', 'SP', 'outro', 'ideia')],
       demanda_12m: 3, simulacao: sim('outro', 'AC 22 kW', 2500, 1.8) } },
@@ -949,6 +1147,7 @@ var DEFS = [
     r: { anos_solar: '1-3', usinas: '20-100', equipe: '3-5', raio_km: 120, capacidades: ['engenharia_art'], ja_montou_eletroposto: 'nunca', conhece_mercado: 'pouco', papel: 'ambos', quando: '6m',
       dificuldades: ['tempo'], clientes_em_vista: [], demanda_12m: 2 } },
   { id: 'ex-06', empresa: 'Cerrado Sol Energia', cidade: 'Brasília', uf: 'DF', pat: 2, assina: true, inicio: 9, parado: 0, resp: 1, diagPedido: true, diagHoje: true,
+    contato: { nome: 'Patrícia Lemos', whatsapp: '61900000006', periodo: 'tarde' },
     r: { anos_solar: '5+', usinas: '100-500', equipe: '6-15', raio_km: 200, capacidades: ['eletrica_bt', 'eletrica_mt', 'engenharia_art'], ja_montou_eletroposto: '1-2', conhece_mercado: 'pouco', papel: 'ambos', quando: 'agora',
       dificuldades: [], clientes_em_vista: [cli('Condomínio Lago Norte', 'Brasília', 'DF', 'condominio', 'quente'), cli('Estacionamento Central', 'Brasília', 'DF', 'estacionamento', 'conversando'), cli('Hotel Planalto', 'Brasília', 'DF', 'hotel', 'ideia')],
       demanda_12m: 8, simulacao: sim('condominio', 'AC 22 kW', 4000, 2.3) } },
@@ -970,7 +1169,17 @@ var DEFS = [
   { id: 'ex-12', empresa: 'Horizonte Solar', cidade: 'Campinas', uf: 'SP', pat: 7, assina: true, inicio: 80, parado: 11, resp: 0, formato: 'mentoria', paga: true, encontros: 4, reuniaoFeita: true, compras: 6,
     r: { anos_solar: '5+', usinas: '500+', equipe: '16+', raio_km: 350, capacidades: ['eletrica_bt', 'eletrica_mt', 'engenharia_art', 'obra_civil', 'homologacao'], ja_montou_eletroposto: '3+', conhece_mercado: 'bem', papel: 'ambos', quando: 'agora',
       dificuldades: ['tempo'], clientes_em_vista: [cli('Rede de Postos Paulista', 'Campinas', 'SP', 'posto', 'quente'), cli('Shopping Dom', 'Campinas', 'SP', 'shopping', 'quente'), cli('Logística Anhanguera', 'Jundiaí', 'SP', 'empresa_frota', 'conversando')],
-      demanda_12m: 18, simulacao: sim('shopping', 'DC 120 kW', 18000, 2.2) } }
+      demanda_12m: 18, simulacao: sim('shopping', 'DC 120 kW', 18000, 2.2) } },
+  { id: 'ex-13', empresa: 'Energia Mais Solar', cidade: 'Maringá', uf: 'PR', pat: 2, assina: true, inicio: 6, parado: 1, resp: -1, diagPedido: true,
+    contato: { nome: 'Juliana Prado', whatsapp: '44900000013', periodo: 'tarde' },
+    r: { anos_solar: '3-5', usinas: '100-500', equipe: '6-15', raio_km: 200, capacidades: ['eletrica_bt', 'engenharia_art'], ja_montou_eletroposto: 'nunca', conhece_mercado: 'pouco', papel: 'ambos', quando: 'agora',
+      dificuldades: ['financiamento'], clientes_em_vista: [cli('Posto Avenida Colombo', 'Maringá', 'PR', 'posto', 'quente'), cli('Hotel Catedral', 'Maringá', 'PR', 'hotel', 'conversando')],
+      demanda_12m: 5, simulacao: sim('posto', 'DC 80 kW', 8000, 2.0) } },
+  { id: 'ex-14', empresa: 'Lux Nordeste Solar', cidade: 'Recife', uf: 'PE', pat: 2, assina: true, inicio: 8, parado: 4, resp: -1, diagPedido: true,
+    contato: { nome: 'Carlos Barreto', whatsapp: '81900000014', periodo: 'noite' },
+    r: { anos_solar: '1-3', usinas: '20-100', equipe: '3-5', raio_km: 150, capacidades: ['eletrica_bt', 'homologacao'], ja_montou_eletroposto: 'nunca', conhece_mercado: 'pouco', papel: 'revenda', quando: '3m',
+      dificuldades: ['cliente', 'preco'], clientes_em_vista: [cli('Shopping Boa Vista', 'Recife', 'PE', 'shopping', 'conversando')],
+      demanda_12m: 2, simulacao: sim('shopping', 'AC 22 kW', 3000, 2.1) } }
 ];
 function montarExemplo(d) {
   var r = JSON.parse(JSON.stringify(d.r || {}));
@@ -992,6 +1201,7 @@ function montarExemplo(d) {
   if (d.pat >= 2) add('raio_x_enviado', 'Raio-X enviado, nota ' + nf.nota, 'parceiro', {}, function (em) { f.raio_x.enviado_em = em; f.etapas.p1 = { em: em }; });
   if (d.pat >= 2) add('diagnostico_pedido', 'Pediu o diagnóstico', 'parceiro', {}, function (em) {
     f.diagnostico.pedido_em = em; f.diagnostico.preferencia = { dias: [diasAtras(-1), diasAtras(-2)], periodo: 'manha' };
+    if (d.contato) { f.diagnostico.contato = d.contato; f.equipe = { contato: d.contato }; }
   });
   if (d.pat >= 3 || d.diagHoje) add('diagnostico_agendado', 'Diagnóstico agendado', eq, { link: 'https://meet.google.com/exemplo' }, function () {
     f.diagnostico.agendado_para = d.diagHoje ? diasAtras(0, 15) : diasAtras(d.inicio * 0.6, 10); f.diagnostico.link = 'https://meet.google.com/exemplo';
@@ -1033,7 +1243,46 @@ function linhaDeFicha(f) {
   var r = f.raio_x.respostas || {}, pre = f.prefill;
   return { user_id: f.user_id, empresa: pre.empresa, cidade: pre.cidade, uf: pre.uf, patamar: f.patamar, nota: f.raio_x.nota, assinante: f.assinante,
     parado_ha_dias: diasDesde(f.ultimo_movimento_em), pendencia_equipe: pendenciaExemplo(f), responsavel_email: f.responsavel_email,
-    demanda_12m: num(r.demanda_12m) || 0, clientes_em_vista: (r.clientes_em_vista || []).length };
+    demanda_12m: num(r.demanda_12m) || 0, clientes_em_vista: (r.clientes_em_vista || []).length,
+    contato: f.diagnostico.contato || null, diag_pedido_em: f.diagnostico.pedido_em || null };
+}
+// Funil do exemplo: as etapas da trilha saem das fichas fictícias; contas, fecharam e as duas listas são inventadas.
+function funilDeFichas(fichas) {
+  var cont = function (fn) { return fichas.filter(fn).length; };
+  var tem = function (f, n) { return !!(f.etapas && f.etapas['p' + n]); };
+  var parados = fichas.filter(function (f) { return f.patamar === 1 && f.raio_x.nota != null; }).map(function (f) {
+    var r = f.raio_x.respostas || {};
+    var resp = ['anos_solar', 'usinas', 'equipe', 'raio_km', 'capacidades', 'ja_montou_eletroposto', 'conhece_mercado', 'papel', 'quando', 'dificuldades', 'clientes_em_vista', 'demanda_12m', 'simulacao']
+      .filter(function (k) { var v = r[k]; return v != null && v !== '' && !(Array.isArray(v) && !v.length); }).length;
+    return { user_id: f.user_id, empresa: f.prefill.empresa, nome: null, nivel: 1, respondidas: resp, total_perguntas: 13, ultimo_movimento_em: f.ultimo_movimento_em };
+  });
+  parados.push({ user_id: 'ex-90', empresa: 'Sol Forte Instalações', nome: 'Marcos Lima', nivel: 1, respondidas: 3, total_perguntas: 13, ultimo_movimento_em: diasAtras(12) });
+  parados.push({ user_id: 'ex-91', empresa: null, nome: 'Fernanda Rocha', nivel: 1, respondidas: 1, total_perguntas: 13, ultimo_movimento_em: diasAtras(19) });
+  parados.sort(function (a, b) { return String(a.ultimo_movimento_em).localeCompare(String(b.ultimo_movimento_em)); });
+  var passaram = cont(function (f) { return tem(f, 1); });
+  return {
+    etapas: [
+      { codigo: 'usuarios', titulo: 'Contas no SolarDoc', n: 1240 },
+      { codigo: 'abriram', titulo: 'Abriram a trilha', n: 64 },
+      { codigo: 'comecaram', titulo: 'Começaram o Raio-X', n: passaram + parados.length },
+      { codigo: 'enviaram', titulo: 'Enviaram o Raio-X', n: passaram },
+      { codigo: 'passaram', titulo: 'Passaram do Nível 1', n: passaram },
+      { codigo: 'pediram_reuniao', titulo: 'Pediram a reunião', n: cont(function (f) { return !!f.diagnostico.pedido_em; }) },
+      { codigo: 'diagnosticados', titulo: 'Diagnosticados (Nível 2)', n: cont(function (f) { return tem(f, 2); }) },
+      { codigo: 'preparados', titulo: 'Preparados (Nível 3)', n: cont(function (f) { return tem(f, 3); }) },
+      { codigo: 'em_campo', titulo: 'Em campo (Nível 4)', n: cont(function (f) { return tem(f, 4); }) },
+      { codigo: 'clientes', titulo: 'Clientes NEXUS (Nível 5)', n: cont(function (f) { return tem(f, 5); }) },
+      { codigo: 'regionais', titulo: 'Parceiros regionais (Nível 6)', n: cont(function (f) { return tem(f, 6); }) }
+    ],
+    fecharam: 37,
+    recusaram: [
+      { user_id: 'ex-80', nome: 'Paulo Henrique', email: 'paulo@exemplo.com', empresa: 'PH Solar', em: diasAtras(2) },
+      { user_id: 'ex-81', nome: 'Aline Souza', email: 'aline@exemplo.com', empresa: 'Souza Energia', em: diasAtras(5) },
+      { user_id: 'ex-82', nome: 'Roberto Dias', email: 'roberto@exemplo.com', empresa: null, em: diasAtras(9) },
+      { user_id: 'ex-83', nome: 'Tatiane Melo', email: 'tatiane@exemplo.com', empresa: 'Melo Fotovoltaica', em: diasAtras(16) }
+    ],
+    em_andamento: parados
+  };
 }
 function pendenciaExemplo(f) {
   var d = f.diagnostico, pr = f.preparo, re = f.reuniao;
@@ -1071,6 +1320,7 @@ function usarExemplo() {
   T.lista = todas.map(linhaDeFicha);
   T.resumo = resumoDe(T.lista, null);
   T.mapa = mapaDeFichas(todas);
+  T.funil = funilDeFichas(todas);
   marcarAba();
 }
 // Ação no exemplo: muda a cópia local do jeito que a api faria e grava o evento no histórico.
@@ -1105,9 +1355,10 @@ function aplicarNoExemplo(id, c) {
 function entrarExemplo(sim) {
   T.exemplo = sim;
   T.fila = ''; T.patamar = ''; T.uf = ''; T.q = '';
-  if (!sim) { T.lista = null; T.mapa = null; T.resumo = null; }
+  if (!sim) { T.lista = null; T.mapa = null; T.resumo = null; T.funil = null; }
+  T.mais = {};
   var a = U.aba();
-  if (a === 'trilha' || a === 'mapa') abrir(a, true);
+  if (a === 'trilha' || a === 'mapa' || a === 'tfunil') abrir(a, true);
   marcarAba();
 }
 
@@ -1146,8 +1397,9 @@ function marcarAba() {
   b.setAttribute('title', n === 1 ? '1 parceiro esperando a equipe' : n + ' esperando a equipe');
 }
 function aoCarregarPainel() {
-  T.mapa = null;
+  T.mapa = null; T.funil = null;
   return carregarLista(true).then(function () {
+    if (T.abrirId) { var id = T.abrirId; T.abrirId = null; abrirFicha(id); return; }
     if (T.fichaId && !T.exemplo) buscarFicha(T.fichaId).then(desenharFicha);
   });
 }
@@ -1166,10 +1418,12 @@ document.addEventListener('click', function (ev) {
   else if (o === 'limpar-pat') { T.patamar = ''; sincronizarFiltros(); desenharDinamico(); }
   else if (o === 'tudo') { T.fila = ''; T.patamar = ''; T.uf = ''; T.q = ''; sincronizarFiltros(); desenharDinamico(); }
   else if (o === 'ficha') abrirFicha(v);
+  else if (o === 'mais') { T.mais[v] = !T.mais[v]; desenharFunil(); var mb = document.querySelector('#tr-funil-raiz [data-tr="mais"][data-v="' + v + '"]'); if (mb) mb.focus(); }
+  else if (o === 'ir') { var alvo = document.getElementById(v); if (alvo) { alvo.scrollIntoView({ block: 'start' }); alvo.focus({ preventScroll: true }); } }
   else if (o === 'fechar') fecharFicha();
   else if (o === 'exemplo') entrarExemplo(true);
   else if (o === 'sair-exemplo') entrarExemplo(false);
-  else if (o === 'recarregar') { if (v === 'ficha') { if (T.fichaId) abrirFicha(T.fichaId); } else abrir(v, true); }
+  else if (o === 'recarregar') { if (v === 'ficha') { if (T.fichaId) { var fid = T.fichaId; T.fichaId = null; abrirFicha(fid); } } else abrir(v === 'trilha' || v === 'mapa' || v === 'tfunil' ? v : 'trilha', true); }
   else if (o === 'uf') { T.uf = v; T.fila = ''; T.patamar = ''; T.q = ''; U.abrirAba('trilha', false); desenharVisao(); var s = document.getElementById('tr-lista-raiz'); if (s) s.scrollIntoView({ block: 'start' }); }
   else if (o === 'hist') { T.hist = v; desenharFicha(); var hb = document.querySelector('#tr-ficha [data-tr="hist"][data-v="' + v + '"]'); if (hb) hb.focus(); }
   else if (o === 'acao') {
@@ -1235,8 +1489,14 @@ document.addEventListener('mouseout', function (ev) {
 });
 window.addEventListener('scroll', function () { if (balaoDe) esconderBalao(); }, true);
 window.addEventListener('hashchange', function () {
-  var m = /^#(trilha|mapa)\b/.exec(location.hash);
-  if (m && U.painelPronto()) U.abrirAba(m[1], false);
+  var h = lerHash();
+  if (!h) { if (T.fichaId) fecharFicha(); return; }
+  if (!U.painelPronto()) { T.abrirId = h.id; return; }
+  if (h.aba === 'trilha' && !h.id) T.fila = 'agendar_diagnostico';
+  if (U.aba() !== h.aba) U.abrirAba(h.aba, false);
+  if (h.id) { if (String(h.id) !== String(T.fichaId)) abrirFicha(h.id); }
+  else if (T.fichaId) fecharFicha();
+  rolarParaAbas = true; rolarSeVeioPeloLink();
 });
 function sincronizarFiltros() {
   var p = document.getElementById('tr-pat'); if (p) p.value = T.patamar;
@@ -1246,11 +1506,18 @@ function sincronizarFiltros() {
 
 window.TrilhaNexus = { abrir: abrir, marcarAba: marcarAba, aoCarregarPainel: aoCarregarPainel };
 
+(function () {
+  var h = lerHash();
+  if (!h) return;
+  if (h.aba === 'trilha' && !h.id) T.fila = 'agendar_diagnostico';
+  if (h.id) T.abrirId = h.id;
+})();
+
 // O painel pode ter terminado antes deste arquivo chegar: pega a aba aberta e a contagem agora.
 if (U.painelPronto()) {
   aoCarregarPainel().then(function () {
     var a = U.aba();
-    if (a === 'trilha' || a === 'mapa') abrir(a, false);
+    if (a === 'trilha' || a === 'mapa' || a === 'tfunil') abrir(a, false);
   });
 }
 })();

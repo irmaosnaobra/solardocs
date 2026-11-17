@@ -347,6 +347,9 @@ html.np-teclado .np-tabs { display: none; }
 .nx-tela-cheia { text-align: center; }
 .nx-tela-cheia .nx-btn { margin-top: 8px; }
 .nx-tela-cheia p { color: var(--nx-tx2); font-size: 15px; margin-bottom: 14px; }
+.nx-mudou { padding: 28px 20px 24px; }
+.nx-mudou-ic { display: inline-grid; place-items: center; width: 56px; height: 56px; margin-bottom: 14px; border-radius: 16px; background: var(--nx-azul-sf); color: var(--nx-azul-tx); }
+.nx-mudou-ic .nx-ic { width: 28px; height: 28px; }
 .nx-selo-em-breve { display: inline-block; margin-bottom: 14px; padding: 4px 14px; border-radius: 999px; background: var(--nx-navy); color: var(--nx-verde); font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 
 /* ------------------------------------------------------------------ pecas das telas */

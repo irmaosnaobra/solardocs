@@ -169,6 +169,15 @@ export function pendenciaDaEquipe(t: LinhaTrilha, agora: Date = new Date()): Pen
   return null;
 }
 
+/** O contato que o parceiro deixou ao pedir o diagnóstico (`diag_preferencia.contato`), ou null (pedido antigo, com agenda, não tem). */
+export function contatoDoDiagnostico(t: LinhaTrilha | null): { nome: string; whatsapp: string; periodo: 'manha' | 'tarde' | 'noite' | null } | null {
+  const c = t?.diag_preferencia && typeof t.diag_preferencia === 'object' ? (t.diag_preferencia as Record<string, unknown>).contato : null;
+  if (!c || typeof c !== 'object') return null;
+  const { nome, whatsapp, periodo } = c as Record<string, unknown>;
+  const p = periodo === 'manha' || periodo === 'tarde' || periodo === 'noite' ? periodo : null; // contato sem período (antes de 17/11) vale como está
+  return typeof nome === 'string' && typeof whatsapp === 'string' ? { nome, whatsapp, periodo: p } : null;
+}
+
 /** Dias desde o último movimento (null = nunca se mexeu). */
 export function paradoHaDias(t: LinhaTrilha, agora: Date = new Date()): number | null {
   const ms = Date.parse(String(t.ultimo_movimento_em ?? ''));

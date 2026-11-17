@@ -346,6 +346,66 @@
   color: #ffb27a;
 }
 
+/* Etiqueta chamativa da Trilha do Parceiro NEXUS ("Cadastre-se" em azul, "Refazer agora" em laranja). Cheia, um pouco
+   maior que o "Novo" e com um ponto que pulsa: é a única etiqueta do menu que pede uma ação. Branco sobre #0070D9
+   dá 4,9:1 e sobre #C2410C dá 5,2:1. Sem animação para quem pede movimento reduzido. */
+.badgeDestaque {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 3px 8px 3px 7px;
+  border-radius: 999px;
+  background: #0070d9;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px rgba(124, 192, 255, 0.55), 0 2px 10px -2px rgba(0, 112, 217, 0.7);
+  transition: background 0.12s;
+}
+.badgeDestaque::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #39ff14;
+  animation: pulsoDestaque 1.8s ease-out infinite;
+}
+.badgeDestaqueLaranja {
+  background: #c2410c;
+  box-shadow: 0 0 0 1px rgba(255, 160, 92, 0.6), 0 2px 10px -2px rgba(255, 106, 0, 0.6);
+}
+.badgeDestaqueLaranja::before {
+  background: #fff;
+  animation-name: pulsoDestaqueBranco;
+}
+/* Item com etiqueta chamativa: nome em cima, etiqueta embaixo, ícone alinhado ao nome. */
+.navItemDestaque { align-items: flex-start; padding-top: 9px; padding-bottom: 9px; }
+.navItemDestaque .navIcon { margin-top: 1px; }
+.navLabelPilha { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; flex: 1; min-width: 0; }
+.navLabelPilha .navLabel { flex: none; max-width: 100%; }
+.navLabelPilha .badgeDestaque { margin-left: 0; }
+.navItem:hover .badgeDestaque { background: #005fb8; }
+.navItem:hover .badgeDestaqueLaranja { background: #a8380a; }
+
+@keyframes pulsoDestaque {
+  0% { box-shadow: 0 0 0 0 rgba(57, 255, 20, 0.6); }
+  70%, 100% { box-shadow: 0 0 0 6px rgba(57, 255, 20, 0); }
+}
+@keyframes pulsoDestaqueBranco {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+  70%, 100% { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .badgeDestaque::before { animation: none; }
+  .badgeDestaque { transition: none; }
+}
+
 .tripleBadge {
   margin-left: auto;
   display: inline-flex;
@@ -598,7 +658,7 @@
   .navDivider { width: auto; height: auto; background: none; margin: 0; }
   .navDividerLabel { display: block; }
   .navDividerLabelAdmin { display: block; }
-  .countBadge, .badgeNovo, .badgeComprar, .tripleBadge, .externalIcon { display: inline-flex; }
+  .countBadge, .badgeNovo, .badgeComprar, .badgeDestaque, .tripleBadge, .externalIcon { display: inline-flex; }
   .navItemActive::before { width: 3px; }
 
   /* revela a seção Conta mobile-only dentro do drawer */

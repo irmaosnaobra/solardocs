@@ -226,9 +226,11 @@ function cidadeUf(cidade, uf) {
 }
 var UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 // Funil e Equipe só no ADM (/nexus/adm); o /gerador/parceiros segue com as abas de sempre.
-// Trilha e Mapa de demanda vivem em /nexus/adm/trilha.js (carregado abaixo, nas duas páginas).
+// Funil, Trilha e Mapa de demanda vivem em /nexus/adm/trilha.js (carregado abaixo, nas duas páginas).
+// O funil antigo (cadastros por origem e UF, só no ADM) continua com a chave 'funil' e o rótulo Cadastros.
 var ABAS = [
-  ['parceiros', 'Parceiros', null], ['trilha', 'Trilha', null], ['mapa', 'Mapa de demanda', null], ['funil', 'Funil', null], ['pedidos', 'Pedidos', 'pedidos_abertos'], ['oportunidades', 'Oportunidades', 'oportunidades_abertas'],
+  ['tfunil', 'Funil', null], ['trilha', 'Trilha', null], ['mapa', 'Mapa de demanda', null],
+  ['parceiros', 'Parceiros', null], ['funil', 'Cadastros', null], ['pedidos', 'Pedidos', 'pedidos_abertos'], ['oportunidades', 'Oportunidades', 'oportunidades_abertas'],
   ['usinas', 'Usinas', 'usinas_novas'], ['solicitacoes', 'Solicitações', 'solicitacoes_abertas'], ['propostas', 'Propostas', null], ['equipe', 'Equipe', null]
 ].filter(function (a) {
   if (a[0] === 'funil' || a[0] === 'equipe') return ADM;
@@ -596,8 +598,14 @@ function abrirAba(qual, forcar) {
   Array.prototype.forEach.call($('abas').querySelectorAll('button'), function (b) {
     b.setAttribute('aria-selected', b.getAttribute('data-aba') === qual ? 'true' : 'false');
   });
+  // Nas visões da trilha os totais, o gráfico de níveis antigos e o convite saem: a visão tem os números dela.
+  var ehTrilha = qual === 'tfunil' || qual === 'trilha' || qual === 'mapa';
+  $('painel').classList.toggle('tr-foco', ehTrilha);
+  if (!ehTrilha && /^#(funil|trilha|mapa)\b/.test(location.hash) && window.history && history.replaceState) {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
   if (qual === 'parceiros') return;
-  if (qual === 'trilha' || qual === 'mapa') {
+  if (ehTrilha) {
     // Se o trilha.js ainda não chegou, ele mesmo desenha a aba aberta quando terminar de carregar.
     if (window.TrilhaNexus) window.TrilhaNexus.abrir(qual, !!forcar);
     return;
@@ -1537,7 +1545,8 @@ var SEC_FUNIL = '<section id="sec-funil" class="oculto" role="tabpanel">' +
   '<div class="filtros simples" style="max-width:320px"><div><label for="fn-desde">Período dos cadastros</label><select id="fn-desde" onchange="abrirAba(\'funil\', true)">' +
   '<option value="30">Últimos 30 dias</option><option value="90" selected>Últimos 90 dias</option><option value="0">Tudo</option></select></div></div>' +
   '<div id="fn-corpo"></div></section>';
-var SEC_TRILHA = '<section id="sec-trilha" class="oculto" role="tabpanel" aria-label="Trilha"><div id="tr-lista-raiz" class="tr"><div class="vazio"><span class="spin"></span>Carregando a trilha…</div></div></section>' +
+var SEC_TRILHA = '<section id="sec-tfunil" class="oculto" role="tabpanel" aria-label="Funil"><div id="tr-funil-raiz" class="tr"><div class="vazio"><span class="spin"></span>Carregando o funil…</div></div></section>' +
+  '<section id="sec-trilha" class="oculto" role="tabpanel" aria-label="Trilha"><div id="tr-lista-raiz" class="tr"><div class="vazio"><span class="spin"></span>Carregando a trilha…</div></div></section>' +
   '<section id="sec-mapa" class="oculto" role="tabpanel" aria-label="Mapa de demanda"><div id="tr-mapa-raiz" class="tr"><div class="vazio"><span class="spin"></span>Carregando o mapa…</div></div></section>';
 var SEC_EQUIPE = '<section id="sec-equipe" class="oculto" role="tabpanel">' +
   '<div id="eq-form"></div><p class="contagem" id="eq-contagem"></p><div class="lista" id="eq-lista"></div></section>';
@@ -1613,7 +1622,9 @@ function iniciar(eu) {
   D = null; ST = {}; PROPS_DESDE = null; PROPS_ALL = null; SUG = {}; FUNIL_DESDE = null; FUNIL_REQ++;
   fichaId = null; carregando = false;
   // #trilha e #mapa abrem direto nessas abas (link da equipe).
-  aba = /^#(trilha|mapa)\b/.test(location.hash) ? location.hash.slice(1).split(/[^a-z]/)[0] : 'parceiros';
+  // A visão Funil da trilha é a que abre; #funil, #trilha, #trilha/<id> e #mapa abrem direto a visão pedida.
+  var hashAba = /^#(funil|trilha|mapa)\b/.exec(location.hash);
+  aba = !hashAba || hashAba[1] === 'funil' ? 'tfunil' : hashAba[1];
   CV = { fase: 'carregando', previa: null, confirmando: false, enviando: false, incerto: false, semPermissao: false, retorno: null, testando: false, retornoTeste: null };
   document.body.style.overflow = '';
   raiz.innerHTML = ESTRUTURA;
@@ -1628,7 +1639,10 @@ function iniciar(eu) {
     $('sec-propostas').insertAdjacentHTML('afterend', SEC_EQUIPE);
     $('sec-parceiros').insertAdjacentHTML('afterend', SEC_FUNIL);
   }
-  $('sec-parceiros').insertAdjacentHTML('afterend', SEC_TRILHA);
+  $('sec-parceiros').insertAdjacentHTML('beforebegin', SEC_TRILHA);
+  // Topo das abas antigas: some nas visões da trilha (classe tr-foco no #painel).
+  ['totais', 'convite-box'].forEach(function (id) { $(id).classList.add('pn-topo'); });
+  $('grafico').parentNode.classList.add('pn-topo');
   ligarEventos();
   carregar(false);
 }

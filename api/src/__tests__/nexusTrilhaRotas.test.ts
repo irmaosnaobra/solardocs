@@ -28,6 +28,8 @@ vi.mock('../utils/supabaseGerador', () => ({
 }));
 const enviados: unknown[] = [];
 vi.mock('../services/agents/zapiClient', () => ({ sendWhatsApp: vi.fn(async (...a: unknown[]) => { enviados.push(a); }) }));
+// O estado da linha (cooldown e teto) vem do fichaEnvio; o banco falso não entende o filtro dele. Aqui a linha está livre.
+vi.mock('../services/agentes5040/fichaEnvio', async (orig) => ({ ...(await orig<typeof import('../services/agentes5040/fichaEnvio')>()), linhaIoEmCooldown: () => false, tetoDaLinhaPermiteFicha: async () => 'ok' as const }));
 const emails: unknown[] = [];
 vi.mock('../utils/mailer', () => ({ sendOpsAlert: vi.fn(async (...a: unknown[]) => { emails.push(a); }) }));
 
@@ -41,6 +43,7 @@ const CLIENTE_U1 = '00000000-0000-4000-b000-000000000001';
 const CLIENTE_U2 = '00000000-0000-4000-b000-000000000002';
 const amanha = () => new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 const pref = () => ({ dias: [amanha()], periodo: 'manha' });
+const contato = () => ({ contato: { nome: 'Maria Souza', whatsapp: '(34) 99136-0000', periodo: 'manha' } });
 
 function usuario(id: string, extra: Record<string, unknown> = {}) {
   banco.poe('users', { id, email: `${id.slice(-4)}@exemplo.com`, nome: 'Fulano', is_admin: false, plano: 'free', billing_status: 'active', plano_expira_em: null, ...extra });
@@ -94,7 +97,7 @@ describe('dormente: tabela ausente ou NEXUS_TRILHA_OFF', () => {
   it('tabela ausente: as outras rotas da trilha respondem 503 trilha_desligada e a equipe lê { ligada:false }', async () => {
     banco.trilhaLigada = false;
     expect((await enviar(U1, 'put', '/gerador/nexus/trilha/raio-x', { respostas: {} })).body).toEqual({ erro: 'trilha_desligada' });
-    expect((await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', { preferencia: pref() })).status).toBe(503);
+    expect((await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', contato())).status).toBe(503);
     expect((await request(app()).get('/gerador/nexus/equipe/trilha').set(equipeAuth)).body).toEqual({ ligada: false });
     expect((await request(app()).get('/gerador/nexus/equipe/trilha-mapa').set(equipeAuth)).body).toEqual({ ligada: false });
   });
@@ -197,17 +200,89 @@ describe('Raio-X', () => {
 describe('diagnóstico e preparo', () => {
   it('exige o patamar 1 e plano pago ativo; depois grava o pedido e recusa pedido repetido', async () => {
     semearTrilha(U1);
-    expect((await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', { preferencia: pref() })).body).toEqual({ erro: 'etapa_bloqueada' });
+    expect((await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', contato())).body).toEqual({ erro: 'etapa_bloqueada' });
     linhaTrilha(U1).p1_em = D;
     banco.linhas('users').find((u) => u.id === U1)!.plano = 'free';
-    expect((await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', { preferencia: pref() })).body).toEqual({ erro: 'assinatura_necessaria' });
+    expect((await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', contato())).body).toEqual({ erro: 'assinatura_necessaria' });
     banco.linhas('users').find((u) => u.id === U1)!.plano = 'ilimitado';
-    expect((await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', { preferencia: { dias: [], periodo: 'manha' } })).status).toBe(400);
-    const ok = await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', { preferencia: pref() });
+    expect((await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', { contato: { nome: 'M', whatsapp: '34991360000', periodo: 'manha' } })).status).toBe(400);
+    const ok = await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', contato());
     expect(ok.status).toBe(200);
     expect(ok.body.diagnostico.pedido_em).toBeTruthy();
     expect(ok.body.proximo_passo.codigo).toBe('aguardar_agenda');
-    expect((await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', { preferencia: pref() })).body).toEqual({ erro: 'ja_pedido' });
+    expect((await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', contato())).body).toEqual({ erro: 'ja_pedido' });
+  });
+
+  describe('contato e aviso apto_reuniao', () => {
+    const URL = '/gerador/nexus/trilha/diagnostico';
+    const aptoPronto = () => semearTrilha(U1, { p1_em: D, raio_x: respostasCheias(), raio_x_nota: 100 });
+    const ligarAviso = () => { process.env.NEXUS_AVISO_LIGADO = '1'; process.env.NEXUS_AVISO_PHONE = '5511900000000'; };
+    afterEach(() => { delete process.env.NEXUS_AVISO_LIGADO; delete process.env.NEXUS_AVISO_PHONE; });
+
+    it('contato inválido é recusado e nada é gravado', async () => {
+      aptoPronto();
+      for (const ct of [{ nome: 'M', whatsapp: '34991360000', periodo: 'manha' }, { nome: 'x'.repeat(81), whatsapp: '34991360000', periodo: 'manha' }, { nome: 'Maria', whatsapp: '123', periodo: 'manha' }, { nome: 'Maria', whatsapp: '(03) 99136-0000', periodo: 'manha' }, { nome: 'Maria', whatsapp: '(34) 89136-0000', periodo: 'manha' }, { nome: 'Maria', whatsapp: '34991360000' }, { nome: 'Maria', whatsapp: '34991360000', periodo: 'madrugada' }, { nome: 'Maria' }, null]) {
+        const r = await enviar(U1, 'post', URL, { contato: ct });
+        expect(r.status).toBe(400);
+        expect(r.body.erro).toBe('contato_invalido');
+      }
+      expect((await enviar(U1, 'post', URL, {})).status).toBe(400);
+      expect(linhaTrilha(U1).diag_pedido_em ?? null).toBeNull();
+      expect(eventos(U1)).toHaveLength(0);
+    });
+
+    it('o formato antigo (dias e período) é recusado, com ou sem contato', async () => {
+      aptoPronto();
+      for (const corpo of [{ preferencia: pref() }, { dias: [amanha()], periodo: 'manha' }, { ...contato(), preferencia: pref() }]) {
+        const r = await enviar(U1, 'post', URL, corpo);
+        expect(r.status).toBe(400);
+        expect(r.body.erro).toBe('formato_antigo');
+      }
+      expect(linhaTrilha(U1).diag_pedido_em ?? null).toBeNull();
+    });
+
+    it('sem o Nível 1 concluído é recusado, sem evento e sem aviso', async () => {
+      ligarAviso();
+      semearTrilha(U1);
+      const r = await enviar(U1, 'post', URL, contato());
+      expect(r.status).toBe(403);
+      expect(r.body).toEqual({ erro: 'etapa_bloqueada' });
+      expect(eventos(U1)).toHaveLength(0);
+      await new Promise((ok) => setTimeout(ok, 20));
+      expect(enviados).toHaveLength(0);
+    });
+
+    it('grava o contato normalizado, o evento apto_reuniao e avisa a equipe UMA vez; repetir dá 409 ja_pedido sem reavisar', async () => {
+      ligarAviso();
+      aptoPronto();
+      const ok = await enviar(U1, 'post', URL, contato());
+      expect(ok.status).toBe(200);
+      expect(ok.body.diagnostico).toMatchObject({ contato: { nome: 'Maria Souza', whatsapp: '5534991360000', periodo: 'manha' } });
+      expect(linhaTrilha(U1).diag_preferencia).toEqual({ contato: { nome: 'Maria Souza', whatsapp: '5534991360000', periodo: 'manha' } });
+      expect(linhaTrilha(U1).diag_pedido_em).toBeTruthy();
+      expect(eventos(U1).map((e) => e.tipo)).toEqual(['apto_reuniao']);
+      await vi.waitFor(() => expect(enviados).toHaveLength(1));
+      const texto = String((enviados[0] as unknown[])[1]);
+      expect(texto).toContain('Maria Souza, 5534991360000');
+      expect(texto).toContain('Melhor período: Manhã');
+      expect(texto).toContain('Nota do Raio-X: 100');
+      expect(texto).toContain(`https://solardoc.app/nexus/adm/#trilha/${U1}`);
+      expect((await enviar(U1, 'post', URL, contato())).body).toEqual({ erro: 'ja_pedido' });
+      await new Promise((ok) => setTimeout(ok, 30));
+      expect(enviados).toHaveLength(1);
+      expect(eventos(U1)).toHaveLength(1);
+    });
+
+    it('o GET devolve o contato ao próprio parceiro e o prefill traz o contato sugerido (nome do usuário e WhatsApp da empresa)', async () => {
+      aptoPronto();
+      banco.linhas('company').find((c) => c.user_id === U1)!.whatsapp = '34988887777';
+      const antes = await get(U1);
+      expect(antes.body.diagnostico.contato).toBeNull();
+      expect(antes.body.prefill.contato_sugerido).toEqual({ nome: 'Fulano', whatsapp: '34988887777' });
+      await enviar(U1, 'post', URL, contato());
+      expect((await get(U1)).body.diagnostico.contato).toEqual({ nome: 'Maria Souza', whatsapp: '5534991360000', periodo: 'manha' });
+      expect((await get(U2)).body.diagnostico.contato).toBeNull();
+    });
   });
 
   it('preparo exige o patamar 2 e aceita só mentoria ou academia', async () => {
@@ -314,7 +389,7 @@ describe('isolamento entre parceiros', () => {
     expect(r.status).toBe(200);
     expect(linhaTrilha(U1).raio_x).toEqual({ anos_solar: '5+', usinas: '500+' });
     expect(linhaTrilha(U2).raio_x).toEqual({ anos_solar: '0-1' });
-    await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', { user_id: U2, preferencia: pref() });
+    await enviar(U1, 'post', '/gerador/nexus/trilha/diagnostico', { user_id: U2, ...contato() });
     expect(linhaTrilha(U2).diag_pedido_em ?? null).toBeNull();
   });
 });
@@ -488,6 +563,191 @@ describe('escrita concorrente na trilha', () => {
     expect(linhaTrilha(U1).p2_em).toBeTruthy();
     expect(linhaTrilha(U1).p3_em ?? null).toBeNull();
     expect(eventos(U1).filter((e) => e.tipo === 'avancar').map((e) => e.dados.patamar).sort()).toEqual([1, 2]);
+  });
+});
+
+describe('GET /nexus/trilha/resumo (menu: só leitura)', () => {
+  const resumo = (uid: string) => get(uid, '/gerador/nexus/trilha/resumo');
+
+  it('parceiro sem linha na trilha: nível 1, precisa refazer, e NADA é criado (nem a linha, nem escrita alguma)', async () => {
+    const r = await resumo(U1);
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ ligada: true, parceiro: true, convite: { fechou: 0, recusou: false }, nivel: 1, raio_x_enviado: false, diag_pedido: false, pendente: true, precisa_refazer: true });
+    expect(banco.tabelas['nexus_trilha'] ?? []).toHaveLength(0);
+    expect(banco.escritas).toEqual([]);
+  });
+
+  it('acompanha o nível em curso, o Raio-X enviado e o diagnóstico pedido', async () => {
+    semearTrilha(U1, { p1_em: D, raio_x_enviado_em: D, diag_pedido_em: D });
+    expect((await resumo(U1)).body).toEqual({ ligada: true, parceiro: true, convite: { fechou: 0, recusou: false }, nivel: 2, raio_x_enviado: true, diag_pedido: true, pendente: false, precisa_refazer: false });
+    expect(banco.escritas).toEqual([]);
+  });
+
+  it('pendente: parceiro com carregador comprado e parceiro avançado pela equipe NÃO estão pendentes, mesmo sem Raio-X enviado', async () => {
+    banco.linhas('nexus_parceiros').find((p) => p.user_id === U1)!.carregadores_comprados = 1;
+    expect((await resumo(U1)).body).toMatchObject({ raio_x_enviado: false, pendente: false, precisa_refazer: false });
+    expect((await resumo(U2)).body).toMatchObject({ pendente: true, precisa_refazer: true });
+    const av = await request(app()).patch(`/gerador/nexus/equipe/trilha/${U2}`).set(equipeAuth).send({ acao: 'avancar', motivo: 'Conhece a equipe' });
+    expect(av.status).toBe(200);
+    expect((await resumo(U2)).body).toMatchObject({ nivel: 2, raio_x_enviado: false, pendente: false, precisa_refazer: false });
+  });
+
+  it('portal desligado (freio do portal): { ligada:false }, o cartão e o menu somem', async () => {
+    banco.falhas['nexus_usinas.select'] = { erro: { code: '42P01', message: 'x' } };
+    expect((await resumo(U1)).body).toEqual({ ligada: false });
+  });
+
+  it('quem já comprou tem o legado em memória (nível 5), sem gravar', async () => {
+    banco.linhas('nexus_parceiros').find((p) => p.user_id === U1)!.carregadores_comprados = 1;
+    expect((await resumo(U1)).body).toMatchObject({ nivel: 6, precisa_refazer: false });
+    expect(banco.escritas).toEqual([]);
+  });
+
+  it('quem não é parceiro: { ligada:true, parceiro:false } e nada é criado', async () => {
+    const livre = '00000000-0000-4000-8000-0000000000aa';
+    usuario(livre, PAGO);
+    const r = await resumo(livre);
+    expect(r.body).toEqual({ ligada: true, parceiro: false, pendente: true, convite: { fechou: 0, recusou: false } });
+    expect(banco.linhas('nexus_parceiros').find((p) => p.user_id === livre)).toBeUndefined();
+    expect(banco.escritas).toEqual([]);
+  });
+
+  it('trilha desligada: { ligada:false }; sem login: 401', async () => {
+    banco.trilhaLigada = false;
+    expect((await resumo(U1)).body).toEqual({ ligada: false });
+    expect((await request(app()).get('/gerador/nexus/trilha/resumo')).status).toBe(401);
+  });
+
+  it('cada parceiro vê só o próprio resumo', async () => {
+    semearTrilha(U2, { p1_em: D, p2_em: D });
+    expect((await resumo(U1)).body.nivel).toBe(1);
+    expect((await resumo(U2)).body.nivel).toBe(3);
+  });
+});
+
+describe('equipe: contato do diagnóstico na lista e na ficha', () => {
+  it('a lista e a ficha trazem o contato; sem pedido, null; a pendência segue agendar_diagnostico', async () => {
+    semearTrilha(U1, { p1_em: D, diag_pedido_em: D, diag_preferencia: { contato: { nome: 'Maria Souza', whatsapp: '5534991360000', periodo: 'noite' } } });
+    const lista = await request(app()).get('/gerador/nexus/equipe/trilha').set(equipeAuth);
+    const linha = (uid: string) => lista.body.parceiros.find((p: { user_id: string }) => p.user_id === uid);
+    expect(linha(U1)).toMatchObject({ pedido_em: D, contato: { nome: 'Maria Souza', whatsapp: '5534991360000', periodo: 'noite' }, pendencia_equipe: 'agendar_diagnostico' });
+    expect(linha(U2).contato).toBeNull();
+    expect(linha(U2).pedido_em).toBeNull();
+    const ficha = await request(app()).get(`/gerador/nexus/equipe/trilha/${U1}`).set(equipeAuth);
+    expect(ficha.body.equipe).toMatchObject({ contato: { nome: 'Maria Souza', whatsapp: '5534991360000', periodo: 'noite' }, pendencia_equipe: 'agendar_diagnostico' });
+    expect(ficha.body.diagnostico.contato).toEqual({ nome: 'Maria Souza', whatsapp: '5534991360000', periodo: 'noite' });
+  });
+
+  it('pedido antigo (com dias e período) não vira contato', async () => {
+    semearTrilha(U1, { p1_em: D, diag_pedido_em: D, diag_preferencia: pref() });
+    const lista = await request(app()).get('/gerador/nexus/equipe/trilha').set(equipeAuth);
+    expect(lista.body.parceiros.find((p: { user_id: string }) => p.user_id === U1).contato).toBeNull();
+  });
+});
+
+describe('POST /nexus/trilha/convite', () => {
+  const convite = (uid: string, acao: unknown) => enviar(uid, 'post', '/gerador/nexus/trilha/convite', { acao });
+  const LIVRE = '00000000-0000-4000-8000-0000000000bb';
+  const tiposDe = (uid: string) => eventos(uid).map((e) => e.tipo);
+
+  it('quem não é parceiro: grava só o evento, SEM criar linha em nexus_parceiros nem em nexus_trilha', async () => {
+    usuario(LIVRE, PAGO);
+    const r = await convite(LIVRE, 'fechou');
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ fechou: 1, recusou: false });
+    expect(tiposDe(LIVRE)).toEqual(['convite_fechado']);
+    expect(eventos(LIVRE)[0]).toMatchObject({ autor: 'parceiro' });
+    expect(banco.escritas.map((e) => e.tabela)).toEqual(['nexus_trilha_eventos']);
+    expect(banco.linhas('nexus_parceiros').find((p) => p.user_id === LIVRE)).toBeUndefined();
+    expect(banco.linhas('nexus_trilha').find((p) => p.user_id === LIVRE)).toBeUndefined();
+  });
+
+  it('fechou repetido em menos de 1 minuto é ignorado; passado 1 minuto conta de novo', async () => {
+    usuario(LIVRE, PAGO);
+    expect((await convite(LIVRE, 'fechou')).body).toEqual({ fechou: 1, recusou: false });
+    expect((await convite(LIVRE, 'fechou')).body).toEqual({ fechou: 1, recusou: false });
+    expect(tiposDe(LIVRE)).toEqual(['convite_fechado']);
+    for (const e of eventos(LIVRE)) e.created_at = new Date(Date.now() - 61_000).toISOString();
+    expect((await convite(LIVRE, 'fechou')).body).toEqual({ fechou: 2, recusou: false });
+    expect(tiposDe(LIVRE)).toEqual(['convite_fechado', 'convite_fechado']);
+  });
+
+  it('nao_quero é idempotente e não apaga o que já fechou', async () => {
+    usuario(LIVRE, PAGO);
+    await convite(LIVRE, 'fechou');
+    expect((await convite(LIVRE, 'nao_quero')).body).toEqual({ fechou: 1, recusou: true });
+    expect((await convite(LIVRE, 'nao_quero')).body).toEqual({ fechou: 1, recusou: true });
+    expect(tiposDe(LIVRE)).toEqual(['convite_fechado', 'convite_recusado']);
+  });
+
+  it('o resumo devolve a contagem do próprio usuário (e só dele)', async () => {
+    usuario(LIVRE, PAGO);
+    await convite(LIVRE, 'fechou');
+    await convite(LIVRE, 'nao_quero');
+    expect((await get(LIVRE, '/gerador/nexus/trilha/resumo')).body).toEqual({ ligada: true, parceiro: false, pendente: true, convite: { fechou: 1, recusou: true } });
+    expect((await get(U1, '/gerador/nexus/trilha/resumo')).body.convite).toEqual({ fechou: 0, recusou: false });
+  });
+
+  it('ação inválida: 400; sem login: 401; trilha desligada: 503 sem gravar', async () => {
+    expect((await convite(U1, 'abrir')).body).toEqual({ erro: 'acao_invalida' });
+    expect((await convite(U1, undefined)).status).toBe(400);
+    expect((await request(app()).post('/gerador/nexus/trilha/convite').send({ acao: 'fechou' })).status).toBe(401);
+    banco.trilhaLigada = false;
+    expect((await convite(U1, 'fechou')).body).toEqual({ erro: 'trilha_desligada' });
+    expect(banco.escritas).toEqual([]);
+  });
+
+  it('o user_id do corpo é ignorado: grava para quem está logado', async () => {
+    await enviar(U1, 'post', '/gerador/nexus/trilha/convite', { acao: 'fechou', user_id: U2 });
+    expect(tiposDe(U1)).toEqual(['convite_fechado']);
+    expect(tiposDe(U2)).toEqual([]);
+  });
+});
+
+describe('GET /nexus/equipe/trilha-funil', () => {
+  const funil = () => request(app()).get('/gerador/nexus/equipe/trilha-funil').set(equipeAuth);
+  const LIVRE = '00000000-0000-4000-8000-0000000000cc';
+  const LIVRE2 = '00000000-0000-4000-8000-0000000000dd';
+  const evento = (uid: string, tipo: string, em: string) => banco.poe('nexus_trilha_eventos', { id: `e-${uid.slice(-2)}-${tipo}-${em}`, user_id: uid, tipo, dados: {}, autor: 'parceiro', created_at: em });
+
+  it('só a equipe vê: parceiro comum 403, sem login 401; trilha desligada devolve { ligada:false }; nunca escreve', async () => {
+    expect((await request(app()).get('/gerador/nexus/equipe/trilha-funil').set(bearer(U1))).status).toBe(403);
+    expect((await request(app()).get('/gerador/nexus/equipe/trilha-funil')).status).toBe(401);
+    banco.trilhaLigada = false;
+    expect((await funil()).body).toEqual({ ligada: false });
+    expect(banco.escritas).toEqual([]);
+  });
+
+  it('conta cada etapa na ordem e lista quem fechou, recusou e está em andamento', async () => {
+    usuario(LIVRE, { nome: 'Joana Livre', email: 'joana@exemplo.com' });
+    usuario(LIVRE2, { nome: 'Pedro Livre', email: 'pedro@exemplo.com' });
+    semearTrilha(U1, { p1_em: D, raio_x_nota: 90, raio_x_enviado_em: D, diag_pedido_em: D, p2_em: D, raio_x: respostasCheias() });
+    semearTrilha(U2, { raio_x_nota: 20, raio_x: { anos_solar: '0-1', usinas: '20-100' }, ultimo_movimento_em: '2026-11-02T10:00:00.000Z' });
+    semearTrilha(LIVRE, { raio_x_nota: 0, raio_x: {}, ultimo_movimento_em: '2026-11-03T10:00:00.000Z' }); // abriu, sem resposta: não está "em andamento"
+    evento(LIVRE, 'convite_fechado', '2026-11-05T10:00:00.000Z');
+    evento(LIVRE2, 'convite_fechado', '2026-11-05T11:00:00.000Z');
+    evento(LIVRE2, 'convite_fechado', '2026-11-05T12:00:00.000Z');
+    evento(LIVRE2, 'convite_recusado', '2026-11-06T10:00:00.000Z');
+    const r = await funil();
+    expect(r.status).toBe(200);
+    const n = Object.fromEntries(r.body.etapas.map((e: { codigo: string; n: number }) => [e.codigo, e.n]));
+    expect(r.body.etapas.map((e: { codigo: string }) => e.codigo)).toEqual(['usuarios', 'abriram', 'comecaram', 'enviaram', 'passaram', 'pediram_reuniao', 'diagnosticados', 'preparados', 'em_campo', 'clientes', 'regionais']);
+    expect(n).toEqual({ usuarios: 4, abriram: 3, comecaram: 2, enviaram: 1, passaram: 1, pediram_reuniao: 1, diagnosticados: 1, preparados: 0, em_campo: 0, clientes: 0, regionais: 0 });
+    expect(r.body.fecharam).toBe(2);
+    expect(r.body.recusaram).toEqual([{ user_id: LIVRE2, nome: 'Pedro Livre', email: 'pedro@exemplo.com', empresa: null, em: '2026-11-06T10:00:00.000Z' }]);
+    expect(r.body.em_andamento).toEqual([{ user_id: U2, empresa: 'Solar Exemplo', nome: 'Fulano', nivel: 1, respondidas: 2, total_perguntas: 13, ultimo_movimento_em: '2026-11-02T10:00:00.000Z' }]);
+    expect(banco.escritas).toEqual([]);
+  });
+
+  it('quem recusou e depois enviou o Raio-X sai da lista de recusaram; o parado há mais tempo vem primeiro', async () => {
+    semearTrilha(U1, { raio_x_nota: 85, raio_x_enviado_em: '2026-11-10T10:00:00.000Z', p1_em: '2026-11-10T10:00:00.000Z', raio_x: respostasCheias() });
+    evento(U1, 'convite_recusado', '2026-11-06T10:00:00.000Z');
+    evento(U2, 'convite_recusado', '2026-11-07T10:00:00.000Z');
+    semearTrilha('00000000-0000-4000-8000-0000000000ee', { raio_x_nota: 10, raio_x: { anos_solar: '5+' }, ultimo_movimento_em: '2026-11-01T10:00:00.000Z' });
+    semearTrilha('00000000-0000-4000-8000-0000000000ef', { raio_x_nota: 10, raio_x: { anos_solar: '5+' }, ultimo_movimento_em: '2026-10-20T10:00:00.000Z' });
+    const r = await funil();
+    expect(r.body.recusaram.map((x: { user_id: string }) => x.user_id)).toEqual([U2]);
+    expect(r.body.em_andamento.map((x: { user_id: string }) => x.user_id)).toEqual(['00000000-0000-4000-8000-0000000000ef', '00000000-0000-4000-8000-0000000000ee']);
   });
 });
 
