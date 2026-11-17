@@ -9,6 +9,7 @@ import { calcularNivel, EntradaNivel, perfilCompleto } from './niveis';
 import { inicioMesBRT } from './tempo';
 import { acessoAdm } from './equipe';
 import { UFS } from './procura';
+import type { TrilhaNivel } from './trilha';
 
 export type Linha = Record<string, any>;
 
@@ -184,7 +185,7 @@ export function termoAceitoNaVersao(parceiro: Linha): boolean {
 }
 
 // ── Montagem da resposta do /eu ──────────────────────────────────────────────
-export function entradaDoNivel(parceiro: Linha, company: Linha | null): EntradaNivel {
+export function entradaDoNivel(parceiro: Linha, company: Linha | null, trilha?: TrilhaNivel | null): EntradaNivel {
   return {
     cnpj: parceiro.cnpj ?? null,
     cnpj_situacao: parceiro.cnpj_situacao ?? null,
@@ -200,6 +201,7 @@ export function entradaDoNivel(parceiro: Linha, company: Linha | null): EntradaN
     carregadores_comprados: Number(parceiro.carregadores_comprados) || 0,
     tem_logo: !!company?.logo_base64,
     termo_aceito: termoAceitoNaVersao(parceiro),
+    ...(trilha ? { trilha } : {}), // sem trilha (desligada), a entrada é a de sempre
   };
 }
 
@@ -229,8 +231,9 @@ export async function contagensDoParceiro(userId: string) {
   return { propostas_mes, pedidos, oportunidades_recebidas, usinas };
 }
 
-export async function montarEu(parceiro: Linha, company: Linha | null) {
-  const { nivel, progresso, libera, bloqueios } = calcularNivel(entradaDoNivel(parceiro, company));
+/** `trilha`: o estado da Trilha do Parceiro (nivelDaTrilha) quando ela está ligada; null/ausente = regras antigas. */
+export async function montarEu(parceiro: Linha, company: Linha | null, trilha?: TrilhaNivel | null) {
+  const { nivel, progresso, libera, bloqueios } = calcularNivel(entradaDoNivel(parceiro, company, trilha));
   const userId = String(parceiro.user_id);
   const [contagens, saldo, adm] = await Promise.all([contagensDoParceiro(userId), saldoEngenharia(userId), acessoAdm(userId)]);
   const termoAceito = termoAceitoNaVersao(parceiro) ? String(parceiro.termo_aceito_em) : null;
@@ -258,6 +261,7 @@ export async function montarEu(parceiro: Linha, company: Linha | null) {
     financiamento: { ...FINANCIAMENTO },
     contagens,
     whatsappComercial: WHATSAPP_COMERCIAL,
+    ...(trilha ? { trilha_ligada: true } : {}),
   };
 }
 

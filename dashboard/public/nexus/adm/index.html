@@ -24,6 +24,10 @@ html, body { max-width: 100%; overflow-x: hidden; }
 }
 .adm-btn-top:hover { background: rgba(255, 255, 255, .08); }
 .adm-app .np-main { padding-bottom: 48px; }
+/* Barra de cima no celular: o portal passou a usar .np-top-1; aqui a barra é uma linha só, logo pequeno e os dois botões. */
+.adm-app { --np-top: 60px; }
+.adm-app .np-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 60px; padding: 0 12px 0 16px; }
+.adm-app .np-top > img { display: block; width: 96px; height: auto; flex-shrink: 0; }
 .adm-titulo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .adm-titulo h1 { font-size: 24px; font-weight: 800; line-height: 1.2; color: var(--nx-tx); }
 .adm-titulo p { font-size: 14px; color: var(--nx-tx2); }

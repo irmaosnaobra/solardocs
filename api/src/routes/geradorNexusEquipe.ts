@@ -25,6 +25,7 @@ import { inicioDiaBRT, inicioMesBRT } from '../services/nexus/tempo';
 import { UFS } from '../services/nexus/procura';
 import { ErroBanco, Linha, calcularSaldoEngenharia, ehPedidoDeEquipamento, entradaDoNivel, recalcularCarregadores, saldoEngenharia } from '../services/nexus/repositorio';
 import { DIA_MS, UUID, exigePortalLigado, lerTudo, lotes, ok, rota, textoLivre } from './geradorNexusBase';
+import { estadoParaNivel, estadosParaNivel } from '../services/nexus/trilhaRepo';
 import { STATUS_APOS_ACEITE, tempoDeRespostaMs } from './geradorNexusRede';
 import { chaveMunicipio, normalizarCidade } from '../services/io/cidadeParse';
 
@@ -401,7 +402,7 @@ export function mountNexusEquipe(router: Router): void {
       const pr = ok(await supabase.from('nexus_parceiros').select('*').eq('user_id', alvo).limit(1), 'leitura do parceiro da oportunidade');
       const parceiro = ((pr.data as Linha[] | null) ?? [])[0];
       if (!parceiro) { res.status(400).json({ erro: 'parceiro_invalido' }); return; }
-      const nivelDele = calcularNivel(entradaDoNivel(parceiro, null));
+      const nivelDele = calcularNivel(entradaDoNivel(parceiro, null, await estadoParaNivel(parceiro))); // trilha ligada: oportunidade só para o regional
       if (!nivelDele.libera.termo) { res.status(409).json({ erro: 'parceiro_sem_nivel' }); return; }
       // Pro (1ª compra) sem o Termo aceito na versão vigente ainda não recebe oportunidade.
       if (!nivelDele.libera.oportunidades) { res.status(409).json({ erro: 'sem_termo_aceito' }); return; }
@@ -440,7 +441,8 @@ export function mountNexusEquipe(router: Router): void {
     // Só quem pode receber: Pro ou Master (compra confirmada) com o Termo aceito, da mesma UF; obra exige também a montagem aprovada.
     const daUf = await lerTudo('parceiros da UF', (de, ate) =>
       supabase.from('nexus_parceiros').select('*').eq('uf', op.uf).order('created_at', { ascending: false }).range(de, ate));
-    const aptos = daUf.filter((p) => calcularNivel(entradaDoNivel(p, null)).libera.oportunidades && (op.tipo !== 'obra' || !!p.montagem_aprovada_em));
+    const estados = await estadosParaNivel(daUf); // trilha ligada: só o regional recebe (null = trilha desligada, regra antiga)
+    const aptos = daUf.filter((p) => calcularNivel(entradaDoNivel(p, null, estados?.get(String(p.user_id)))).libera.oportunidades && (op.tipo !== 'obra' || !!p.montagem_aprovada_em));
     const ids = aptos.map((p) => String(p.user_id));
     const zaps = await whatsappsDe(ids);
 

@@ -23,7 +23,10 @@ export const banco = {
   rpcs: {} as Record<string, (args: any) => { data: any; error: Erro }>,
   /** Cada rpc chamada, para o teste provar que a rota passou pela função. */
   rpcChamadas: [] as Array<{ nome: string; args: any }>,
+  /** As tabelas da trilha (MIGRATION_nexus_trilha.sql) só "existem" quando o teste liga: por padrão respondem 42P01, como o banco antes da migration. */
+  trilhaLigada: false,
   reset() {
+    this.trilhaLigada = false;
     this.rpcs = {};
     this.rpcChamadas = [];
     this.tabelas = {};
@@ -157,6 +160,9 @@ class Consulta implements PromiseLike<any> {
 
   private async executa(): Promise<{ data: any; error: Erro; count?: number | null }> {
     const t = banco.linhas(this.tabela);
+    if (!banco.trilhaLigada && this.tabela.startsWith('nexus_trilha')) {
+      return { data: null, error: { code: '42P01', message: `relation "public.${this.tabela}" does not exist` }, count: null };
+    }
     const erro = this.falhou();
     if (this.op !== 'select') banco.escritas.push({ tabela: this.tabela, op: this.op, payload: this.payload });
     if (erro) return { data: null, error: erro, count: null };

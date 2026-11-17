@@ -1,0 +1,23 @@
+/* A área de conteúdo do (dashboard) tem padding (24/32/40 no computador, 16/16/32 no celular). A moldura anula esse
+   padding e ocupa exatamente a altura que sobra embaixo da barra de cima: assim só o iframe rola. */
+.moldura {
+  margin: -24px -32px -40px;
+  height: calc(100vh - var(--topbar-height));
+  height: calc(100dvh - var(--topbar-height));
+  background: #F4F6F9;
+}
+
+.quadro {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+@media (max-width: 768px) {
+  .moldura {
+    margin: -16px -16px -32px;
+    height: calc(100vh - 56px);
+    height: calc(100dvh - 56px);
+  }
+}

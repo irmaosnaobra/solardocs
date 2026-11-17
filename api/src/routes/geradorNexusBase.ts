@@ -6,6 +6,7 @@ import {
   ErroBanco, Linha, entradaDoNivel, lerCompany, lerParceiro, marcarPortalAusente, portalLigado, tabelaAusente,
 } from '../services/nexus/repositorio';
 import { calcularNivel, Libera, Nivel } from '../services/nexus/niveis';
+import { estadoParaNivel } from '../services/nexus/trilhaRepo';
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const DIA_MS = 24 * 60 * 60 * 1000;
@@ -71,7 +72,9 @@ export const lotes = <T,>(xs: T[], n: number): T[][] => {
 export async function contexto(userId: string): Promise<{ parceiro: Linha; company: Linha | null; libera: Libera; nivel: Nivel } | null> {
   const [parceiro, company] = await Promise.all([lerParceiro(userId), lerCompany(userId)]);
   if (!parceiro) return null;
-  const { libera, nivel } = calcularNivel(entradaDoNivel(parceiro, company));
+  // Trilha ligada: a liberação segue os patamares. Desligada (tabela ausente ou NEXUS_TRILHA_OFF=1), estadoParaNivel devolve null e nada muda.
+  const trilha = await estadoParaNivel(parceiro);
+  const { libera, nivel } = calcularNivel(entradaDoNivel(parceiro, company, trilha));
   return { parceiro, company, libera, nivel };
 }
 
