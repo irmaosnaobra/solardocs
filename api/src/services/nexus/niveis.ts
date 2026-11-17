@@ -12,6 +12,8 @@
 //
 // A escada é cumulativa: quem já comprou tem tudo do Partner, mesmo que a equipe desmarque partner_em depois.
 
+import { bloqueiosDaTrilha, liberaPelaTrilha, type TrilhaNivel } from './trilha';
+
 export type Nivel = 'cadastrado' | 'partner' | 'pro' | 'master';
 
 export interface EntradaNivel {
@@ -31,6 +33,11 @@ export interface EntradaNivel {
   tem_logo: boolean;
   /** Aceitou o Termo de Parceria na versão vigente (termo_versao igual à do catálogo e termo_aceito_em preenchido). */
   termo_aceito?: boolean;
+  /**
+   * Trilha do Parceiro (MIGRATION_nexus_trilha.sql). Com valor, a liberação passa a seguir os patamares da trilha (ver trilha.ts).
+   * Ausente ou null (trilha desligada: tabela ausente ou NEXUS_TRILHA_OFF=1) = regras antigas, sem nenhuma mudança.
+   */
+  trilha?: TrilhaNivel | null;
 }
 
 export interface Libera {
@@ -137,7 +144,7 @@ export function calcularNivel(p: EntradaNivel): { nivel: Nivel; progresso: Progr
     : partner ? 'partner'
     : 'cadastrado';
 
-  const libera: Libera = {
+  const libera: Libera = p.trilha ? liberaPelaTrilha({ cadastro, perfil, comprados, termo_aceito: p.termo_aceito === true }, p.trilha) : {
     simulador: cadastro,
     basico: perfil,
     completo: perfil,
@@ -171,5 +178,8 @@ export function calcularNivel(p: EntradaNivel): { nivel: Nivel; progresso: Progr
     progresso = { proximo: null, faltam: [] };
   }
 
-  return { nivel, progresso, libera, bloqueios: bloqueiosDe(libera, cadastro, pro) };
+  const bloqueios = p.trilha
+    ? bloqueiosDaTrilha(libera, cadastro, TEXTO_BLOQUEIO.cadastro, TEXTO_BLOQUEIO.perfil)
+    : bloqueiosDe(libera, cadastro, pro);
+  return { nivel, progresso, libera, bloqueios };
 }

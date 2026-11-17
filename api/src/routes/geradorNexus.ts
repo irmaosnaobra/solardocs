@@ -40,6 +40,9 @@ import { mountNexusRede } from './geradorNexusRede';
 import { mountNexusEquipe } from './geradorNexusEquipe';
 import { mountNexusConvite } from './geradorNexusConvite';
 import { mountNexusAdm } from './geradorNexusAdm';
+import { mountNexusTrilha } from './geradorNexusTrilha';
+import { mountNexusTrilhaEquipe } from './geradorNexusTrilhaEquipe';
+import { estadoParaNivel } from '../services/nexus/trilhaRepo';
 
 // ── Cadastro do parceiro ─────────────────────────────────────────────────────
 
@@ -312,7 +315,7 @@ export function mountNexus(router: Router): void {
     if (ehFalha(r)) { res.status(r.status).json(r.corpo); return; }
     const p = await marcarPerfilCompleto(r.parceiro, r.company);
     if (r.criado) await avisoDoCadastro(p, r.company);
-    res.json(await montarEu(p, r.company));
+    res.json(await montarEu(p, r.company, await estadoParaNivel(p)));
   }));
 
   router.put('/nexus/perfil', ...parceiro, rota('PUT /nexus/perfil', async (req, res) => {
@@ -341,7 +344,7 @@ export function mountNexus(router: Router): void {
     const p = await marcarPerfilCompleto(up.data as Linha, company);
     // O aviso (a) sai depois do perfil gravado, para já levar cidade e papéis.
     if (r.criado) await avisoDoCadastro(p, company);
-    res.json(await montarEu(p, company));
+    res.json(await montarEu(p, company, await estadoParaNivel(p)));
   }));
 
   // ── Parceiro: procura (contagens do banco do Gerador, cache de 6 h) ────────
@@ -631,4 +634,12 @@ export function mountNexus(router: Router): void {
   mountNexusEquipe(router);
   mountNexusConvite(router);
   mountNexusAdm(router);
+  // Trilha do Parceiro (dormente até a MIGRATION_nexus_trilha.sql rodar). Reaproveita garantirParceiro, sem importar este arquivo de volta.
+  mountNexusTrilha(router, async (userId) => {
+    const r = await garantirParceiro(userId, { origem: 'portal', utm: null });
+    if (ehFalha(r)) return r;
+    if (r.criado) await avisoDoCadastro(r.parceiro, r.company);
+    return { parceiro: r.parceiro, company: r.company };
+  });
+  mountNexusTrilhaEquipe(router);
 }

@@ -226,8 +226,9 @@ function cidadeUf(cidade, uf) {
 }
 var UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 // Funil e Equipe só no ADM (/nexus/adm); o /gerador/parceiros segue com as abas de sempre.
+// Trilha e Mapa de demanda vivem em /nexus/adm/trilha.js (carregado abaixo, nas duas páginas).
 var ABAS = [
-  ['parceiros', 'Parceiros', null], ['funil', 'Funil', null], ['pedidos', 'Pedidos', 'pedidos_abertos'], ['oportunidades', 'Oportunidades', 'oportunidades_abertas'],
+  ['parceiros', 'Parceiros', null], ['trilha', 'Trilha', null], ['mapa', 'Mapa de demanda', null], ['funil', 'Funil', null], ['pedidos', 'Pedidos', 'pedidos_abertos'], ['oportunidades', 'Oportunidades', 'oportunidades_abertas'],
   ['usinas', 'Usinas', 'usinas_novas'], ['solicitacoes', 'Solicitações', 'solicitacoes_abertas'], ['propostas', 'Propostas', null], ['equipe', 'Equipe', null]
 ].filter(function (a) {
   if (a[0] === 'funil' || a[0] === 'equipe') return ADM;
@@ -470,6 +471,7 @@ function carregar(silencioso) {
     montarUFs();
     desenharLista();
     if (!silencioso) carregarConvite(false);
+    if (window.TrilhaNexus) window.TrilhaNexus.aoCarregarPainel();
     if (aba !== 'parceiros') abrirAba(aba, true);
     if (fichaId) desenharFicha();
   }).catch(function (e) {
@@ -518,6 +520,7 @@ function desenharAbas() {
     return '<button type="button" role="tab" data-aba="' + a[0] + '" aria-selected="' + (aba === a[0]) + '">' + esc(a[1]) +
       (n ? '<span class="ct">' + n + '</span>' : '') + '</button>';
   }).join('');
+  if (window.TrilhaNexus) window.TrilhaNexus.marcarAba();
 }
 
 function montarUFs() {
@@ -594,6 +597,11 @@ function abrirAba(qual, forcar) {
     b.setAttribute('aria-selected', b.getAttribute('data-aba') === qual ? 'true' : 'false');
   });
   if (qual === 'parceiros') return;
+  if (qual === 'trilha' || qual === 'mapa') {
+    // Se o trilha.js ainda não chegou, ele mesmo desenha a aba aberta quando terminar de carregar.
+    if (window.TrilhaNexus) window.TrilhaNexus.abrir(qual, !!forcar);
+    return;
+  }
   var fn = { pedidos: carregarPedidos, oportunidades: carregarOportunidades, usinas: carregarUsinas, solicitacoes: carregarSolicitacoes, propostas: carregarPropostas, funil: carregarFunil, equipe: carregarEquipe }[qual];
   if (fn) fn(!!forcar);
 }
@@ -1529,6 +1537,8 @@ var SEC_FUNIL = '<section id="sec-funil" class="oculto" role="tabpanel">' +
   '<div class="filtros simples" style="max-width:320px"><div><label for="fn-desde">Período dos cadastros</label><select id="fn-desde" onchange="abrirAba(\'funil\', true)">' +
   '<option value="30">Últimos 30 dias</option><option value="90" selected>Últimos 90 dias</option><option value="0">Tudo</option></select></div></div>' +
   '<div id="fn-corpo"></div></section>';
+var SEC_TRILHA = '<section id="sec-trilha" class="oculto" role="tabpanel" aria-label="Trilha"><div id="tr-lista-raiz" class="tr"><div class="vazio"><span class="spin"></span>Carregando a trilha…</div></div></section>' +
+  '<section id="sec-mapa" class="oculto" role="tabpanel" aria-label="Mapa de demanda"><div id="tr-mapa-raiz" class="tr"><div class="vazio"><span class="spin"></span>Carregando o mapa…</div></div></section>';
 var SEC_EQUIPE = '<section id="sec-equipe" class="oculto" role="tabpanel">' +
   '<div id="eq-form"></div><p class="contagem" id="eq-contagem"></p><div class="lista" id="eq-lista"></div></section>';
 
@@ -1601,7 +1611,9 @@ function iniciar(eu) {
   if (!raiz) return;
   if (eu) EU = eu;
   D = null; ST = {}; PROPS_DESDE = null; PROPS_ALL = null; SUG = {}; FUNIL_DESDE = null; FUNIL_REQ++;
-  fichaId = null; carregando = false; aba = 'parceiros';
+  fichaId = null; carregando = false;
+  // #trilha e #mapa abrem direto nessas abas (link da equipe).
+  aba = /^#(trilha|mapa)\b/.test(location.hash) ? location.hash.slice(1).split(/[^a-z]/)[0] : 'parceiros';
   CV = { fase: 'carregando', previa: null, confirmando: false, enviando: false, incerto: false, semPermissao: false, retorno: null, testando: false, retornoTeste: null };
   document.body.style.overflow = '';
   raiz.innerHTML = ESTRUTURA;
@@ -1616,10 +1628,31 @@ function iniciar(eu) {
     $('sec-propostas').insertAdjacentHTML('afterend', SEC_EQUIPE);
     $('sec-parceiros').insertAdjacentHTML('afterend', SEC_FUNIL);
   }
+  $('sec-parceiros').insertAdjacentHTML('afterend', SEC_TRILHA);
   ligarEventos();
   carregar(false);
 }
 
-window.PainelNexus = { iniciar: iniciar, recarregar: function () { return carregar(false); } };
+window.PainelNexus = {
+  iniciar: iniciar,
+  recarregar: function () { return carregar(false); },
+  // Ferramentas que o trilha.js usa: a mesma sessão, o mesmo endereço da api e a mesma formatação.
+  util: {
+    api: api, esc: esc, toast: toast, fmtData: fmtData, fmtNum: fmtNum, okHttp: okHttp, textoDoErro: textoDoErro,
+    UFS: UFS, ADM: ADM, eu: function () { return EU; }, aba: function () { return aba; }, abrirAba: abrirAba,
+    painelPronto: function () { return !!D; }
+  }
+};
+// Trilha do Parceiro (visões Trilha e Mapa de demanda): arquivos próprios, sempre por caminho absoluto,
+// para valer igual no /nexus/adm e no /gerador/parceiros.
+(function carregarTrilha() {
+  if (document.getElementById('tr-js')) return;
+  var l = document.createElement('link');
+  l.rel = 'stylesheet'; l.href = '/nexus/adm/trilha.css';
+  document.head.appendChild(l);
+  var s = document.createElement('script');
+  s.id = 'tr-js'; s.src = '/nexus/adm/trilha.js'; s.async = true;
+  document.head.appendChild(s);
+})();
 if (!CFG.manual) iniciar();
 })();

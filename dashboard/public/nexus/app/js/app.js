@@ -142,7 +142,9 @@
     maisq: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/>',
     pontos: '<path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/>',
     bussola: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5 5-2z"/>',
-    monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'
+    monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+    trilha: '<path d="M3 21h4v-5h4v-5h4V6h4V3"/>',
+    historico: '<path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>'
   };
   function ic(nome, cls) {
     return '<svg class="nx-ic' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (ICONES[nome] || '') + '</svg>';
@@ -198,8 +200,13 @@
     materiais: { menu: 'Materiais', ctx: 'Fotos para divulgar o equipamento', req: 'materiais', motivo: 'Complete o perfil da empresa para liberar os Materiais.' },
     parceria: { menu: 'Minha parceria', ctx: 'Níveis, caminho e selo' },
     perfil: { menu: 'Perfil', ctx: 'Dados e capacidades da empresa' },
-    instalar: { menu: 'Instalar o app', ctx: 'Deixe o portal na tela inicial do aparelho' }
+    instalar: { menu: 'Instalar o app', ctx: 'Deixe o portal na tela inicial do aparelho' },
+    trilha: { menu: 'Trilha', ctx: 'Seu caminho na parceria' },
+    historico: { menu: 'Histórico', ctx: 'Tudo o que você fez na trilha' }
   };
+  /* Trilha do Parceiro (js/trilha.js): só existe quando o GET /trilha responde ligada. Desligada, nada muda. */
+  function TR() { var t = window.NexusTrilha; return t && t.ligada() ? t : null; }
+  function nivelTxt() { return TR() ? TR().rotulo() : (NIVEL_NOME[nivel()] || ''); }
   var ORDEM = ['inicio', 'propostas', 'equipamentos', 'servicos', 'oportunidades', 'usinas', 'parceria', 'materiais'].filter(function (r) { return MOSTRAR_USINAS || r !== 'usinas'; });
   var BAIXO = ['perfil', 'instalar'];
   var ALIAS = { trilha: 'parceria', gerar: 'propostas', selo: 'parceria', credenciado: 'parceria' };
@@ -272,6 +279,8 @@
     var partes = t.split('/');
     if (ATALHO_SEC[partes[0]]) return { r: ATALHO_SEC[partes[0]][0], sub: '', sec: ATALHO_SEC[partes[0]][1] };
     var r = ALIAS[partes[0]] || partes[0];
+    if (TR() && (partes[0] === 'trilha' || partes[0] === 'historico')) r = partes[0];
+    else if (r === 'historico') r = 'parceria';
     if (!ROTAS[r]) return null;
     if (r === 'usinas' && !MOSTRAR_USINAS) {
       try { history.replaceState(null, '', location.pathname + location.search + '#inicio'); } catch (e) { /* ok */ }
@@ -782,13 +791,13 @@
   }
   function ladoHTML() {
     var h = '<div class="logo"><img src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos"></div><nav class="np-nav" aria-label="Menu principal">';
-    ORDEM.forEach(function (r) { h += itemMenu(r); });
+    (TR() ? TR().menu(ORDEM) : ORDEM).forEach(function (r) { h += itemMenu(r); });
     h += '</nav><nav class="np-nav baixo" aria-label="Conta e aplicativo">';
     BAIXO.forEach(function (r) { h += itemMenu(r); });
     if (admOk()) h += '<a class="np-n-item" href="/nexus/adm">' + ic('escudo', 'm') + '<span>ADM</span></a>';
     h += '</nav><div class="np-emp"><b>' + esc(nomeEmpresa() || 'Sua empresa') + '</b>' +
       (localParceiro() ? '<span class="loc">' + esc(localParceiro()) + '</span>' : '') +
-      '<span class="nivel">' + esc(NIVEL_NOME[nivel()] || '') + '</span>' +
+      '<span class="nivel">' + esc(nivelTxt()) + '</span>' +
       '<div class="acoes"><button type="button" data-acao="sairConta">' + (S.demo ? 'Sair da demonstração' : 'Sair') + '</button></div></div>';
     return h;
   }
@@ -833,9 +842,9 @@
     return h;
   }
   function folhaHTML() {
-    var lista = ['equipamentos', 'servicos'].concat(MOSTRAR_USINAS ? ['usinas'] : []).concat(['parceria', 'materiais', 'perfil', 'instalar']);
+    var lista = ['equipamentos', 'servicos'].concat(MOSTRAR_USINAS ? ['usinas'] : []).concat([TR() ? 'historico' : 'parceria', 'materiais', 'perfil', 'instalar']);
     var algumTravado = false;
-    var h = '<div class="np-folha-cab"><div class="np-alca" aria-hidden="true"></div><div class="np-folha-tit"><div><b id="np-folha-tit">Mais</b><small>' + esc([nomeEmpresa() || 'Sua empresa', NIVEL_NOME[nivel()] || ''].filter(Boolean).join(' · ')) + '</small></div>' +
+    var h = '<div class="np-folha-cab"><div class="np-alca" aria-hidden="true"></div><div class="np-folha-tit"><div><b id="np-folha-tit">Mais</b><small>' + esc([nomeEmpresa() || 'Sua empresa', nivelTxt()].filter(Boolean).join(' · ')) + '</small></div>' +
       '<button type="button" class="np-icobtn claro" data-acao="fecharMais" data-foco aria-label="Fechar o menu">' + ic('fechar') + '</button></div></div>';
     h += '<div class="np-folha-corpo"><div class="np-grade-f">';
     lista.forEach(function (r) {
@@ -855,7 +864,7 @@
     root.innerHTML =
       '<header class="np-top" id="np-top"></header>' +
       '<aside class="np-lado" id="np-lado"></aside>' +
-      '<div class="np-corpo" id="np-corpo"><header class="np-head" id="np-head"></header><main class="np-main" id="nx-main" tabindex="-1"></main></div>' +
+      '<div class="np-corpo" id="np-corpo"><div class="tr-embed" id="tr-embed"></div><header class="np-head" id="np-head"></header><main class="np-main" id="nx-main" tabindex="-1"></main></div>' +
       '<nav class="np-tabs" id="np-tabs" aria-label="Menu do aplicativo"></nav>' +
       '<div class="np-banner" id="np-banner" role="region" aria-label="Instalar o app NEXUS" hidden></div>' +
       '<div class="np-fundo" id="np-fundo" data-acao="fecharMais"></div>' +
@@ -876,6 +885,7 @@
     if (!(MAIS && MAIS.aberta)) $('#np-folha').innerHTML = folhaHTML();
     $('#np-head').innerHTML = cobrandHTML() + '<button type="button" class="nx-btn np-head-cta" data-acao="ir" data-arg="propostas">Gerar proposta</button>';
     if (mobile()) document.title = telaAtual().titulo + ' · NEXUS Parceiro';
+    if (S.embed && window.NexusTrilha) $('#tr-embed').innerHTML = window.NexusTrilha.barra(S.rota, S.sub);
     pintarBanner();
   }
   function abrirMais(gatilho) {
@@ -1070,7 +1080,7 @@
   function pintarBanner() {
     var el = $('#np-banner');
     if (!el) return;
-    var ver = S.fase === 'app' && mobile() && !emApp() && S.rota !== 'instalar' && !bannerFechado();
+    var ver = !S.embed && S.fase === 'app' && mobile() && !emApp() && S.rota !== 'instalar' && !bannerFechado();
     el.hidden = !ver;
     el.innerHTML = ver
       ? '<span class="ico" aria-hidden="true">' + ic('instalar') + '</span><div class="tx"><b>Instale o app NEXUS</b><span>Abre em tela cheia, direto da tela inicial.</span></div>' +
@@ -1110,7 +1120,7 @@
     toast.t = setTimeout(function () { t.hidden = true; }, 4600);
   }
   function faixaDemo() {
-    return S.demo ? '<div class="np-demo"><b>Demonstração</b><span>Dados de exemplo (nível ' + esc(NIVEL_NOME[nivel()]) + '). Nada é salvo e nenhuma conta é usada.</span></div>' : '';
+    return S.demo ? '<div class="np-demo"><b>Demonstração</b><span>Dados de exemplo (' + esc(TR() ? TR().rotulo() : 'nível ' + NIVEL_NOME[nivel()]) + '). Nada é salvo e nenhuma conta é usada.</span></div>' : '';
   }
 
   /* ------------------------------------------------------------------ pintar (fase atual) */
@@ -1133,6 +1143,7 @@
       return;
     }
     if (!S.shell) montarCasca();
+    if (window.NexusTrilha) window.NexusTrilha.garantir();
     pintarNav();
     pintarMain();
   }
@@ -1146,7 +1157,9 @@
     desligarIndice();
     var r = S.rota, h = faixaDemo(), pos = null;
     if (r !== 'servicos') S.engHost = null;
-    if (r === 'inicio') { h += telaInicio(); pos = posInicio; }
+    var tr = TR();
+    if (tr && (r === 'inicio' || r === 'trilha' || r === 'historico')) { h += tr.tela(r, S.sub); pos = function () { tr.pos(r, S.sub); }; }
+    else if (r === 'inicio') { h += telaInicio(); pos = posInicio; }
     else if (r === 'equipamentos') { h += S.sub && produtoPor(S.sub) ? telaEquipamento(produtoPor(S.sub)) : telaEquipamentos(); pos = posEquipamento; }
     else if (r === 'servicos') { h += telaServicos(); pos = posServicos; }
     else if (r === 'propostas') { h += telaPropostas(); pos = posPropostas; }
@@ -2706,7 +2719,8 @@
   }
   function iniciarApp(novo) {
     S.fase = 'boot'; pintar();
-    return carregarEu().then(function (ok) {
+    var pt = window.NexusTrilha ? window.NexusTrilha.carregar() : null;   /* em paralelo com o /eu: a primeira tela já sai com a trilha */
+    return carregarEu().then(function (ok) { return pt ? pt.then(function () { return ok; }, function () { return ok; }) : ok; }).then(function (ok) {
       if (!ok) return;
       if (ehCadastro()) { aposSessaoCadastro(); return; }
       S.fase = 'app';
@@ -3246,6 +3260,17 @@
     if (window.NexusFolha) window.NexusFolha.fecharTodas();
     pintarNav(); pintarMain();
   }
+  /* Ponte para js/trilha.js: só o que ela precisa da casca. */
+  function trilhaCtx() {
+    return {
+      S: S, toast: toast, irPara: irPara, mobile: mobile, girando: girando, nomeEmpresa: nomeEmpresa, listarPropostas: listarPropostas, produtos: produtos,
+      api: function (m, c, b, o) { return api(m, NX + c, b, { quieto: true, timeout: o && o.timeout }); },
+      repintar: function (manter) { pintarMain(manter); },
+      repintarTudo: function () { pintarNav(); pintarMain(true); },
+      aoLigar: function () { if (S.fase !== 'app') return; var rh = rotaDoHash(); if (rh) { S.rota = rh.r; S.sub = rh.sub; } pintarNav(); pintarMain(true); },
+      termo: { html: termoSecaoHTML, carregar: carregarTermo }
+    };
+  }
   function boot() {
     capturarOrigem();
     var root = $('#nx-root');
@@ -3272,6 +3297,10 @@
     var rt;
     window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(desenharGrafs, 150); });
 
+    /* ?embed=1: dentro da SolarDoc (/parceiro-nexus), sem menu lateral nem barras; a trilha.js põe uma barra curta de abas. */
+    S.embed = /[?&]embed=1(&|$)/.test(location.search);
+    if (S.embed) document.documentElement.classList.add('np-embed');
+    if (window.NexusTrilha) window.NexusTrilha.ligar(trilhaCtx());
     S.demo = /[?&]demo=1(&|$)/.test(location.search);
     if (S.demo) {
       var mn = /[?&]nivel=(cadastrado|partner|pro|master)(&|$)/.exec(location.search);
@@ -3279,6 +3308,7 @@
       var mm = /[?&]montagem=([01])(&|$)/.exec(location.search);
       S.montagemDemo = mm ? mm[1] === '1' : null;
       S.eu = euDemo(S.nivelDemo); S.fase = 'app';
+      if (window.NexusTrilha && !/[?&]trilha=0(&|$)/.test(location.search)) window.NexusTrilha.demo(S.eu, location.search);
       var rd = rotaDoHash();
       S.rota = rd ? rd.r : 'inicio'; S.sub = rd ? rd.sub : ''; S.sec = rd ? rd.sec : '';
       pintar();

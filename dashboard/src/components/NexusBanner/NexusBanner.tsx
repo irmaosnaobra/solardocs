@@ -1,6 +1,7 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
+import Link from 'next/link';
 import { ArrowRight, PlugZap, X } from 'lucide-react';
 import api from '@/services/api';
 import { useNexusPortal } from '@/hooks/useNexusPortal';
@@ -18,13 +19,13 @@ import styles from './NexusBanner.module.css';
  * outra de propósito: quem fechou o aviso antigo (`nexus_banner_fechado`) vê este.
  *
  * Versão curta ou completa, quem decide é o CSS, pela largura do próprio banner (container query): o celular e o
- * /inicio ficam com a curta. O portal é uma página estática (`/nexus/app`), não uma rota do Next: o link é um <a>
- * comum, de página inteira, e por isso o clique é registrado com keepalive, para não morrer na troca de página.
+ * /inicio ficam com a curta. O link leva a /parceiro-nexus, o portal dentro da SolarDoc. O clique é registrado com
+ * keepalive, para não morrer na troca de página.
  */
 
 const SETE_DIAS = 7 * 24 * 60 * 60 * 1000;
 const FOLGA_DO_RELOGIO = 24 * 60 * 60 * 1000;
-const DESTINO = '/nexus/app?o=solardoc_banner';
+const DESTINO = '/parceiro-nexus?o=solardoc_banner';
 const TEXTO =
   'Procuramos parceiros que queiram entrar no mercado de carregadores e ter equipamento de qualidade. O seu login do SolarDoc já abre o portal da NEXUS.';
 const ITENS = ['Carregadores', 'Mentoria e suporte', 'Engenharia', 'Indicação de clientes', 'E muito mais'];
@@ -105,11 +106,11 @@ export default function NexusBanner({ userId }: { userId?: string | number | nul
           </div>
         </div>
         <div className={styles.acoes}>
-          <a className={styles.botao} href={DESTINO} onClick={registrarClique} aria-label="Conhecer a NEXUS">
+          <Link className={styles.botao} href={DESTINO} onClick={registrarClique} aria-label="Conhecer a NEXUS">
             <span className={styles.rotuloLongo}>Conhecer a NEXUS</span>
             <span className={styles.rotuloCurto}>Conhecer</span>
             <ArrowRight className={styles.seta} size={18} strokeWidth={2.4} aria-hidden="true" />
-          </a>
+          </Link>
           <button type="button" className={styles.fechar} onClick={() => registrarFechamento(chave)} aria-label="Agora não">
             <span className={styles.fecharRotulo}>Agora não</span>
             <X className={styles.fecharIcone} size={18} strokeWidth={2.2} aria-hidden="true" />

@@ -120,10 +120,11 @@ export const lojaItem = ITENS_MENU.find((i) => i.id === 'loja') as ItemMenu;
 export const papeladaItems = doGrupo('papelada');
 export const outrosDocsItems = doGrupo('outros');
 
-// Portal do Parceiro NEXUS: página estática em /nexus/app, fora do Next. Fica FORA de ITENS_MENU
-// porque só entra quando o portal responde ligado (ver useNexusPortal); vem depois da lista principal.
+// Portal do Parceiro NEXUS: a página /parceiro-nexus abre o portal estático (/nexus/app) em iframe, no modo
+// embutido, com o menu da SolarDoc ao lado. Fica FORA de ITENS_MENU porque só entra quando o portal responde
+// ligado (ver useNexusPortal); vem depois da lista principal.
 export const nexusItem: ItemMenu = {
-  id: 'nexus', grupo: 'principal', href: '/nexus/app?o=solardoc', icon: Zap, label: 'Parceiro NEXUS', badge: 'Novo', paginaInteira: true,
+  id: 'nexus', grupo: 'principal', href: '/parceiro-nexus', icon: Zap, label: 'Parceiro NEXUS', badge: 'Novo',
 };
 
 /**
