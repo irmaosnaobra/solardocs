@@ -67,8 +67,8 @@ export function nivelDaTrilha(t: LinhaTrilha | null, comprados: number): TrilhaN
 
 export const TEXTO_BLOQUEIO_TRILHA = Object.freeze({
   p1: 'Libera quando o Raio-X passar com nota 80 ou mais',
-  p3: 'Libera quando você concluir o patamar Preparado',
-  p4: 'Libera quando você concluir o patamar Em campo',
+  p3: 'Libera quando você concluir o nível Preparado',
+  p4: 'Libera quando você concluir o nível Em campo',
   p5: 'Libera com o primeiro pedido de carregador',
   regional: 'Libera quando a equipe promover sua empresa a Parceiro regional',
 });

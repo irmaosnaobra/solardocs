@@ -218,9 +218,9 @@ export const AULAS: readonly Aula[] = Object.freeze([
   {
     "id": "a12",
     "titulo": "Subir até Parceiro regional",
-    "resumo": "São 6 patamares, do Mapeado ao Parceiro regional. Obra da região só vai para o Parceiro regional, encaminhada e sem garantia.",
+    "resumo": "São 6 níveis, do Mapeado ao Parceiro regional. Obra da região só vai para o Parceiro regional, encaminhada e sem garantia.",
     "pontos": [
-      "Cada patamar abre com o anterior concluído",
+      "Cada nível abre com o anterior concluído",
       "Parceiro regional: 5 ou mais carregadores comprados",
       "Só o regional recebe obra, encaminhada e sem garantia"
     ],

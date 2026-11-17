@@ -369,7 +369,7 @@
 
     var S = { filtro: 'todas', itens: [], estado: 'carregando', erro: '', placarApi: null, ui: {}, foco: '' };
     var passos = h('ol', 'nr-passos');
-    for (var i = 0; i < PASSOS.length; i++) passos.appendChild(h('li', 'nr-passo', [h('span', 'nr-passo-n', i + 1), h('span', 'nr-passo-t', PASSOS[i])]));
+    for (var i = 0; i < PASSOS.length; i++) passos.appendChild(h('li', 'nr-passo', [h('span', 'nr-passo-n', i + 1), h('span', 'nr-passo-t', (inst.ctx.trilha ? PASSOS[i].replace('Partner Pro', 'Parceiro regional') : PASSOS[i]))]));
     root.appendChild(h('section', 'nr-bloco', [h('h2', 'nr-h2', 'Como funciona'), passos]));
 
     var areaFiltros = h('div', 'nr-filtros', null, { role: 'group', 'aria-label': 'Filtrar por tipo' });
@@ -742,14 +742,16 @@
     itens.forEach(function (i) {
       ul.appendChild(h('li', i.feito ? 'feito' : '', [h('span', 'nr-falta-b', i.feito ? ic('ok', 'nr-ic-p') : null), h('span', null, i.t), h('span', 'nr-sr', i.feito ? ' Feito' : ' Pendente')]));
     });
-    var ir = btn('Ir para Minha parceria');
-    ir.addEventListener('click', function () { if (typeof ctx.irPara === 'function') ctx.irPara('#parceria'); });
+    var ir = btn(ctx.trilha ? 'Ir para a Trilha' : 'Ir para Minha parceria');
+    ir.addEventListener('click', function () { if (typeof ctx.irPara === 'function') ctx.irPara(ctx.trilha ? '#trilha' : '#parceria'); });
 
     var prev = h('div', 'nr-prev', null, { 'aria-hidden': 'true' });
     [['Obra terceirizada NEXUS', 'Cidade da sua região', 'Montagem e homologação de um carregador NEXUS.'], ['Cliente para você vender', 'Cidade da sua região', 'Orçamento de carregador rápido para um ponto comercial.'], ['Cliente para você vender', 'Cidade da sua região', 'Consulta sobre um ponto para carregador.']].forEach(function (x) {
       prev.appendChild(h('div', 'nr-prev-i', [h('span', 'nr-prev-t', x[0] + ' · ' + x[1]), h('p', null, x[2])]));
     });
-    var nota = h('div', 'nr-bloq-nota', [
+    var nota = ctx.trilha /* trilha ligada: sem o nível antigo nem "virar Partner Pro" */
+      ? h('div', 'nr-bloq-nota', [h('span', 'nr-bloq-ic', ic('cadeado')), h('p', 'nr-bloq-t', aviso), ir], { role: 'note' })
+      : h('div', 'nr-bloq-nota', [
       h('span', 'nr-bloq-ic', ic('cadeado')),
       h('p', 'nr-bloq-t', aviso),
       h('p', 'nr-dica', 'Seu nível agora: ' + (NOMES[nivel] || 'Cadastrado') + '. Etapa ' + n + ' de 4.'),
