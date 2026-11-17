@@ -990,10 +990,17 @@ export async function handleIncomingWhatsApp(
     if (!comprovanteSource && text && text.trim()) {
       try {
         const { acharEmail, temComprovantePendente } = await import('./pixSolicitado');
-        const emailPix = acharEmail(text);
+        let emailPix = acharEmail(text);
         // 720h = o prazo inteiro do registro: o e-mail libera mesmo depois das 48h
         // em que a Duda cede.
-        if (emailPix && await temComprovantePendente(cleanPhone, 720)) {
+        const pendentePix = await temComprovantePendente(cleanPhone, 720);
+        // Com comprovante pendente e SEM e-mail neste texto ("Esse", "e aí?"): vale o último e-mail
+        // que o próprio lead mandou nas últimas 48 h (17/11/2026).
+        if (pendentePix && !emailPix) {
+          const { emailDoLeadNoHistorico } = await import('./pixComprovanteService');
+          emailPix = await emailDoLeadNoHistorico(cleanPhone, Date.now(), true);   // soSeUnico: dois e-mails diferentes na conversa não liberam sozinhos
+        }
+        if (emailPix && pendentePix) {
           const { aplicarComprovantePendente } = await import('./pixComprovanteService');
           // Só encerra se TRATOU: liberou o mês, creditou um pagamento PARCIAL (a função já
           // respondeu com o que falta e o Pix do restante) ou o comprovante já estava

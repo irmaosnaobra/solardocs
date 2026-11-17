@@ -395,6 +395,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // lista pra desalinhar, e tarefa nova entra sem poder errar o rótulo.
     const TAREFAS: Array<[string, () => Promise<unknown>]> = [
       ['queue', () => processMessageQueue()],
+      ['pix_varredura', async () => (await import('../services/agents/whatsapp/pixVarreduraPendentes')).varrerComprovantesPendentes()],   // Pix: comprovante guardado esperando o e-mail que o lead já mandou na conversa (48 h antes do comprovante até agora) é liberado sozinho (PIX_VARREDURA_OFF=true desliga)
       ['poll_io', () => pollZapiMessagesIO()],            // linha IO: resposta de campanha vira aviso pra equipe
       ['cleanup', () => cleanupPerdidosAntigos()],
       ['dedup_cleanup', () => cleanupMessageDedup()],

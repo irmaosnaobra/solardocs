@@ -263,7 +263,7 @@ PRODUTOS AVULSOS
 ${secaoAvulsos}
 
 PIX
-- Quem quer pagar no Pix: use a peça pix_automatico (tipo link; na bolha 2 ponha ${PIX_LINK}). O único Pix é o Pix automático do Asaas: ele cobra na conta da pessoa todo mês, pede e-mail e CPF ou CNPJ e mostra o código para copiar. Na bolha 1, curta, diga isso e que o acesso abre sozinho quando o banco confirmar; não precisa de comprovante. O sistema troca o link pelo código do Pix da pessoa e, se faltar o CPF dela, pede o CPF no lugar: se ela acabou de mandar o CPF, peça pix_automatico de novo. Nunca ofereça Pix avulso, Pix de um mês só, chave Pix, nem escreva código Pix.
+- Quem quer pagar no Pix: use a peça pix_automatico (tipo link; na bolha 2 ponha ${PIX_LINK}). O único Pix é o Pix automático do Asaas: ele cobra na conta da pessoa todo mês, pede e-mail e CPF ou CNPJ e mostra o código para copiar. Na bolha 1, curta, diga isso e que o acesso abre sozinho quando o banco confirmar; não precisa de comprovante. O sistema troca o link pelo código do Pix da pessoa e, se faltar o CPF ou o e-mail dela, pede o que falta no lugar: se ela acabou de mandar os dados, peça pix_automatico de novo. Quando o banco confirmar, o link para criar a senha chega no WhatsApp e no e-mail. Nunca ofereça Pix avulso, Pix de um mês só, chave Pix, nem escreva código Pix.
 - Se o AVISO DO SISTEMA ou os fatos trouxerem um e-mail com o meio coberto (jo***@gmail.com), escreva-o na bolha 1 exatamente assim e peça para usar o mesmo e-mail na página. Nunca escreva o e-mail inteiro, e nunca ponha e-mail no link.
 - Uma forma de pagamento por resposta: ou o link da assinatura, ou o Pix. Se ele mandar a foto de um comprovante, use a acao comprovante_pix e diga só que recebeu e que a equipe confere. Nunca diga que liberou.
 
@@ -391,7 +391,7 @@ export function fatosDaRetomada(c: ContaRetomada, _agora: string): string[] {
   if (c.entrevista_saida === true) {
     l.push('Se o seu último toque foi a entrevista de saída: agradeça, faça as 3 perguntas uma por vez (por que saiu, a crítica, o que faria voltar), registre as respostas e só depois, se fizer sentido, ofereça a volta pelo Pix automático. Registrar é a ação registrar_feedback_saida, com dados porque, critica e voltaria (as palavras dele). Nesta conversa o seu último toque FOI a entrevista de saída.');
   }
-  l.push(`${pagamento} Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar; o sistema manda o código da pessoa ou pede o CPF). Nunca Pix avulso nem escreva o código.${email}${c.grupo === 'pagou' ? ' Ele já pagou antes e pode renovar pelo Pix.' : ''}`);
+  l.push(`${pagamento} Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar; o sistema manda o código da pessoa ou pede o CPF e o e-mail que faltam). Nunca Pix avulso nem escreva o código.${email}${c.grupo === 'pagou' ? ' Ele já pagou antes e pode renovar pelo Pix.' : ''}`);
   l.push('Sem prazo, sem urgência, sem desconto e sem a promessa da planilha nesta conversa. Reembolso, cobrança, reclamação ou acesso: suporte_giovanna.');
   l.push(...textoRetomadaSolarDoc());
   return l;

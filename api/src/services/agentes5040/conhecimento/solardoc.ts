@@ -119,7 +119,7 @@ export function textoConhecimentoSolarDoc(): string {
       ? `- ${TEXTO_ADICIONAIS_CARLA}`
       : `- Produtos avulsos (Kiwify, o acesso chega sozinho), só quando a conversa pede e depois que pagou: ${avulsos}.`,
     `- Promessa permitida só para quem fecha no mesmo dia, sem data: "${PROMESSA_PLANILHA_ELETROPOSTO}"`,
-    '- Pix: só o Pix automático (peça pix_automatico), que cobra na conta da pessoa todo mês. O sistema manda o código dessa pessoa (ou pede o CPF). Sem chave escrita por você, sem código escrito por você e sem comprovante.',
+    '- Pix: só o Pix automático (peça pix_automatico), que cobra na conta da pessoa todo mês. O sistema manda o código dessa pessoa (ou pede o CPF e o e-mail que faltam; quando o banco confirmar, o acesso abre sozinho e o link para criar a senha chega no WhatsApp e no e-mail). Sem chave escrita por você, sem código escrito por você e sem comprovante.',
     '- Cartão de crédito: aceito. Pelo link de assinatura só para quem não tem conta; quem já tem conta assina por dentro do app.',
     '- Reembolso é com a Giovanna (pessoa). Nunca diga que devolveu ou que vai devolver.',
   ].join('\n');

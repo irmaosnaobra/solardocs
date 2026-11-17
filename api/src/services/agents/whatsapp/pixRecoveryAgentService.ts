@@ -26,9 +26,9 @@ import { guardarEmailSePendente } from './pixSolicitado';
 import { registrarMsgProativa } from './whatsappAgentService';
 import { novoAnthropic } from "../../../utils/anthropicClient";
 import { nomeDoPagamento } from '../../solardoc/recuperacaoCarlaRegras';
-import { extrairCpf, resolverPixConversa, type ResultadoPixConversa } from '../../solardoc/pixAutoCodigo';
+import { extrairCpf, extrairEmail, resolverPixConversa, type ResultadoPixConversa } from '../../solardoc/pixAutoCodigo';
 import {
-  montarTextoPedidoCpf, montarTextoPixAguarde, montarTextoPixJaPagou, montarTextoRespostaCodigo,
+  ehPedidoDeDados, montarTextoPedidoDados, montarTextoPixAguarde, montarTextoPixJaPagou, montarTextoRespostaCodigo,
 } from '../../solardoc/recuperacaoTextos';
 import { horaCurtaBRT } from '../../asaas/pixAutoValidade';
 
@@ -90,7 +90,7 @@ function giovannaSystem(nome: string | null, oferta: OfertaCupom | null): string
     '- Acolhe primeiro ("foi o cartão que não passou?"). No primeiro toque, só abre a conversa.',
     `- Assim que ele responder qualquer coisa que não seja "não quero", MANDE O CAMINHO: inclua o marcador [[ENVIAR_LINK]] no fim da sua resposta. O sistema anexa o link e o passo a passo do cupom sozinho — NÃO escreva o link nem o cupom você mesma, e não invente outro desconto.`,
     '- No caminho do site ele faz tudo sozinho: você não libera acesso na mão.',
-    '- SE ELE PEDIR PIX (ou disser que não tem cartão): manda sim, sem enrolar. Inclua o marcador [[ENVIAR_PIX]] — o sistema anexa o Pix AUTOMÁTICO sozinho (o código dele, ou o link, ou pede o CPF). NÃO escreva link, código nem valor você mesma, e não mande o link do site junto (ele já escolheu o caminho).',
+    '- SE ELE PEDIR PIX (ou disser que não tem cartão): manda sim, sem enrolar. Inclua o marcador [[ENVIAR_PIX]] — o sistema anexa o Pix AUTOMÁTICO sozinho (o código dele, ou o link, ou pede o CPF e o e-mail que faltam). NÃO escreva link, código nem valor você mesma, e não mande o link do site junto (ele já escolheu o caminho).',
     // Ordem do dono (04/11/2026): todo Pix é o automático. Nunca copia-e-cola, nunca comprovante.
     '- Todo Pix é o Pix AUTOMÁTICO: ele assina uma vez, com o e-mail da conta dele, e o banco debita todo mês sozinho. NUNCA ofereça copia-e-cola e NUNCA peça comprovante. Se ele disser que já pagou por outro caminho, peça só o e-mail e avise que o time confere.',
     `- O Pix custa R$ ${PIX_VALOR} por mês, um mês do plano completo — o desconto de primeiro mês existe só no cartão, pelo site. Se ele perguntar, fale isso na lata, sem inventar desconto no Pix.`,
@@ -153,7 +153,7 @@ async function enviarRespostaPix(phone: string, r: ResultadoPixConversa, nome: s
       return [texto];
     }
   }
-  const texto = r.tipo === 'pedir_cpf' ? montarTextoPedidoCpf(primeiro) : r.tipo === 'ja_pagou' ? montarTextoPixJaPagou(primeiro)
+  const texto = r.tipo === 'pedir_dados' ? montarTextoPedidoDados(primeiro, r) : r.tipo === 'ja_pagou' ? montarTextoPixJaPagou(primeiro)
     : r.tipo === 'aguardar' ? montarTextoPixAguarde({ nome: primeiro, hora: horaCurtaBRT(r.ateMs) }) : null;
   if (!texto) return null;
   await sendHuman(phone, [texto], 'solardoc', { maxBolhas: 1 });
@@ -167,7 +167,7 @@ async function enviarRespostaPix(phone: string, r: ResultadoPixConversa, nome: s
 async function enviarComMarcadores(
   phone: string, raw: string, oferta: OfertaCupom | null, forcarLink = false, nome: string | null = null,
   /** Só a RESPOSTA na conversa liga isto: o marcador [[ENVIAR_PIX]] vira o código (ou o pedido de CPF). Sem isto o Pix segue como link. */
-  codigoPix?: { textoDoLead: string },
+  codigoPix?: { textoDoLead: string; historico?: Msg[] },
 ): Promise<{ enviado: string[]; encerrar: boolean; mandouLink: boolean }> {
   // ENVIAR_PIX é ancorado com `]]` logo depois do nome pra não casar dentro de
   // ENVIAR_PIX_CURSO (que existe no outro agente e vale outro valor).
@@ -183,7 +183,9 @@ async function enviarComMarcadores(
   const mandaPix = pediuPix && !encerrar;
   // Resposta na conversa: o servidor resolve o Pix automático (código vivo, código novo ou pedido de CPF). O texto do modelo não sai: o texto fixo do redator o substitui.
   if (mandaPix && codigoPix) {
-    const r = await resolverPixConversa({ tel: phone, nome, textoDoLead: codigoPix.textoDoLead });
+    // A sessão guarda a conversa desta pessoa: CPF e e-mail mandados antes (só as falas DELA, role user) contam.
+    const msgs = (codigoPix.historico ?? []).map(m => ({ from_me: m.role === 'assistant', texto: m.content }));
+    const r = await resolverPixConversa({ tel: phone, nome, textoDoLead: codigoPix.textoDoLead, msgs });
     const resposta = await enviarRespostaPix(phone, r, nome);
     if (resposta) return { enviado: resposta, encerrar, mandouLink: false };
   }
@@ -369,7 +371,7 @@ export async function handleRecoveryReply(
   // Pediu Pix? Então o link não vai forçado por cima — ele já escolheu o caminho.
   // Mandou o CPF logo depois de a Giovanna pedir: é o mesmo pedido de Pix, e o servidor cria o código (sem passar pelo modelo).
   const ultimaDela = [...sess.messages].reverse().find(m => m.role === 'assistant')?.content ?? '';
-  const mandouCpf = !!extrairCpf(text) && /pede o CPF de quem paga/i.test(ultimaDela);
+  const mandouCpf = (!!extrairCpf(text) || !!extrairEmail(text)) && ehPedidoDeDados(ultimaDela);
   const pedindoPix = /\bpix\b/i.test(text) || mandouCpf;
 
   let raw: string;
@@ -377,7 +379,7 @@ export async function handleRecoveryReply(
     if (mandouCpf) raw = '[[ENVIAR_PIX]]';
     else raw = await gerarResposta(giovannaSystem(nome, oferta), historico,
       pedindoPix
-        ? 'O lead está pedindo Pix. Responda CURTO (1 bolha) confirmando que já vai mandar e use [[ENVIAR_PIX]] — o sistema anexa o Pix automático (o código dele, ou pede o CPF). Não peça comprovante.'
+        ? 'O lead está pedindo Pix. Responda CURTO (1 bolha) confirmando que já vai mandar e use [[ENVIAR_PIX]] — o sistema anexa o Pix automático (o código dele, ou pede o CPF e o e-mail que faltam). Não peça comprovante.'
         : emailInformado
           ? `O lead mandou o e-mail dele (${emailInformado}). Confirme que anotou, em UMA bolha curta, e diga que o time confere e libera o acesso. Não peça comprovante e não repita o link.`
           : forcarLink
@@ -390,7 +392,7 @@ export async function handleRecoveryReply(
 
   // Quem pediu Pix ou acabou de mandar o e-mail não recebe o link empurrado.
   const forcarLinkAgora = forcarLink && !pedindoPix && !emailInformado;
-  const { enviado, encerrar } = await enviarComMarcadores(cleanPhone, raw, oferta, forcarLinkAgora, nome, { textoDoLead: text });
+  const { enviado, encerrar } = await enviarComMarcadores(cleanPhone, raw, oferta, forcarLinkAgora, nome, { textoDoLead: text, historico: sess.messages });
   const novas: Msg[] = [...historico, ...enviado.map(c => ({ role: 'assistant' as const, content: c }))];
   await saveRecoverySession(phoneKey, novas, nome);
 

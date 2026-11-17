@@ -178,12 +178,28 @@ describe('Carla: link de assinatura, Pix e avulsos', () => {
     });
 
     it('sem CPF: a resposta é o pedido do CPF (1 bolha, sem peça, nada de link nem código)', async () => {
-      semear(); ia = modelo([link('pix_automatico', 'Segue o Pix automático.')]); h.pix = { tipo: 'pedir_cpf' };
+      semear(); ia = modelo([link('pix_automatico', 'Segue o Pix automático.')]); h.pix = { tipo: 'pedir_dados', faltaCpf: true, faltaEmail: false };
       await rodar();
       const p = pedidos()[0];
       expect(p.peca).toBeUndefined();
       expect(p.bolha).toMatch(/[Oo] Pix automático pede o CPF de quem paga, e eu ainda não tenho o seu\. Me manda aqui, por favor\? Assim eu gero o código\.$/);
       expect(p.bolha.length).toBeLessThanOrEqual(160);
+    });
+
+    it('sem CPF e sem e-mail: UM pedido dos dois dados (1 bolha, sem peça, nunca o link)', async () => {
+      semear(); ia = modelo([link('pix_automatico', 'Segue o Pix automático.')]); h.pix = { tipo: 'pedir_dados', faltaCpf: true, faltaEmail: true };
+      await rodar();
+      const p = pedidos()[0];
+      expect(p.peca).toBeUndefined();
+      expect(p.bolha).toMatch(/[Pp]ra gerar seu Pix automático eu preciso de dois dados: seu CPF e o e-mail que você vai usar pra entrar no app\. Me manda aqui, por favor\?$/);
+    });
+
+    it('só falta o e-mail: pede só o e-mail (1 bolha, sem peça)', async () => {
+      semear(); ia = modelo([link('pix_automatico', 'Segue o Pix automático.')]); h.pix = { tipo: 'pedir_dados', faltaCpf: false, faltaEmail: true };
+      await rodar();
+      const p = pedidos()[0];
+      expect(p.peca).toBeUndefined();
+      expect(p.bolha).toMatch(/gora só falta o e-mail que você vai usar pra entrar no app\. Me manda aqui que eu já gero o código\.$/);
     });
 
     it('já pagou: o texto do redator (pagamento entrou, SolarDoc liberada), 1 bolha, sem peça', async () => {
@@ -515,5 +531,44 @@ describe('Carla: pedido de reenvio do link (heurística explícita) e hora da pe
     ia = modelo([link('assinatura', 'Segue o link.')]);
     await runVivoTick({ agora: agora2, cliente: ia.cliente });
     expect(posseDe().peca_pendente).toMatchObject({ tipo: 'link', ref: 'assinatura', em: agora2.toISOString() });
+  });
+});
+
+describe('Duda: também manda o Pix automático da SolarDoc (17/11/2026), resolvido pelo MESMO servidor e com os MESMOS textos da Carla', () => {
+  const CODIGO = '000201260400147BRNOVO5204000053039865802BR5913AIOROS GROUP6009UBERLANDIA62070503***6304BEEF';
+  const pixDuda = (bolha1 = 'Combinado, já te mando o Pix automático.'): Saida => ({ bolhas: [bolha1, LINKS_CARLA.pix_automatico!], extra: { peca: { tipo: 'link', id: 'pix_automatico' } } });
+  beforeEach(() => {
+    process.env.AGENTES5040_DUDA_VIVO = '1';
+    h.pix = { tipo: 'link' }; h.pixValido = () => true; h.pixPedidos = [];
+  });
+  afterEach(() => { delete process.env.AGENTES5040_DUDA_VIVO; });
+
+  it('código: a bolha 1 vira o texto fixo e a peça é o código sozinho; o resolver recebe a conversa para achar CPF e e-mail', async () => {
+    semear({ posse: { dona: 'duda' } }); ia = modelo([pixDuda()]); h.pix = { tipo: 'codigo', codigo: CODIGO, validadeMs: Date.now() + 20 * 3_600_000, novo: true };
+    await rodar();
+    expect(pedidos()).toHaveLength(1);
+    const p = pedidos()[0];
+    expect(p.dona).toBe('duda');
+    expect(p.peca).toEqual({ tipo: 'pix', texto: CODIGO });
+    expect(p.bolha).toMatch(/^Fechado(, \p{Lu}\p{L}*)?\. É o Pix automático de R\$ 67 por mês/u);
+    expect(h.pixPedidos).toHaveLength(1);
+    expect((h.pixPedidos[0]![0] as { msgs: unknown[] }).msgs.length).toBeGreaterThan(0);
+  });
+
+  it('faltam CPF e e-mail: 1 bolha com o pedido dos dois dados, sem peça (nunca o link nem o texto do modelo)', async () => {
+    semear({ posse: { dona: 'duda' } }); ia = modelo([pixDuda()]); h.pix = { tipo: 'pedir_dados', faltaCpf: true, faltaEmail: true };
+    await rodar();
+    const p = pedidos()[0];
+    expect(p.dona).toBe('duda');
+    expect(p.peca).toBeUndefined();
+    expect(p.bolha).toMatch(/[Pp]ra gerar seu Pix automático eu preciso de dois dados: seu CPF e o e-mail que você vai usar pra entrar no app\. Me manda aqui, por favor\?$/);
+  });
+
+  it('sem texto fixo (link): vai o link do Pix automático, nunca o que o modelo escreveu', async () => {
+    semear({ posse: { dona: 'duda' } });
+    ia = modelo([{ bolhas: ['Combinado, já te mando o Pix.', 'https://solardoc.app/outra-coisa'], extra: { peca: { tipo: 'link', id: 'pix_automatico' } } }]);
+    h.pix = { tipo: 'link' };
+    await rodar();
+    expect(pedidos()[0].peca).toEqual({ tipo: 'link', texto: LINKS_CARLA.pix_automatico });
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { emBolhas } from '../services/agents/bolhas';
-import { textoBoasVindasPix, textoSenhaNaoCriada, textoPrimeiraProposta, mascararEmail, nomeParaSaudar } from '../services/solardoc/ativacaoPosVendaTextos';
+import { textoBoasVindasPix, comLinkEmbaixo, fraseSemLink, textoSenhaNaoCriada, textoPrimeiraProposta, mascararEmail, nomeParaSaudar } from '../services/solardoc/ativacaoPosVendaTextos';
 
 // Pós-venda da SolarDoc (04/11/2026, aprovado pelo chefe-antiban): os 4 carimbos novos entram na conta CERTA da linha.
 //   boasvindas_pix_sent: e ativ_senha_sent: = linha inteira E agenda (o frio não os soma);
@@ -88,8 +88,9 @@ describe('pós-venda: a sonda (gravar `<prefixo>sonda` sobe a conta certa, apaga
 
 describe('pós-venda: uma bolha só', () => {
   const textos = [
-    textoBoasVindasPix('Maria da Silva', 'joao@gmail.com'),
-    textoBoasVindasPix(null, 'joao@gmail.com'),
+    comLinkEmbaixo(textoBoasVindasPix('Maria da Silva', 'joao@gmail.com'), 'https://solardoc.app/auth?mode=redefinir&token=' + 'a'.repeat(64)),
+    comLinkEmbaixo(textoBoasVindasPix(null, 'joao@gmail.com'), 'https://solardoc.app/auth?mode=redefinir&token=' + 'a'.repeat(64)),
+    comLinkEmbaixo(textoBoasVindasPix('Maria da Silva', 'joao@gmail.com', 'existente'), 'https://solardoc.app/auth'),
     textoSenhaNaoCriada('Maria', 'joao@gmail.com'),
     textoSenhaNaoCriada('Cliente', 'joao@gmail.com'),
     textoPrimeiraProposta('Maria'),
@@ -101,8 +102,16 @@ describe('pós-venda: uma bolha só', () => {
   });
 
   it('os textos são os aprovados, com e sem nome ("Cliente" conta como sem nome), e o e-mail sai mascarado', () => {
-    expect(textoBoasVindasPix('Maria da Silva', 'joao@gmail.com')).toBe('Oi, Maria, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado e o link para criar sua senha chegou no e-mail j***@gmail.com. Se não achar, é só responder aqui que eu te ajudo.');
-    expect(textoBoasVindasPix('Cliente', 'joao@gmail.com')).toBe('Oi, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado e o link para criar sua senha chegou no e-mail j***@gmail.com. Se não achar, é só responder aqui que eu te ajudo.');
+    expect(textoBoasVindasPix('Maria da Silva', 'joao@gmail.com')).toBe('Oi, Maria, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado e seu acesso já está liberado. Seu login é o e-mail j***@gmail.com. Pra entrar, crie sua senha neste link:');
+    expect(textoBoasVindasPix('Cliente', 'joao@gmail.com')).toBe('Oi, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado e seu acesso já está liberado. Seu login é o e-mail j***@gmail.com. Pra entrar, crie sua senha neste link:');
+    expect(textoBoasVindasPix('Maria da Silva', 'joao@gmail.com', 'existente')).toBe('Oi, Maria, aqui é a Giovanna, do suporte da SolarDoc. Seu pagamento foi confirmado e o plano já está liberado na sua conta j***@gmail.com. É só entrar por aqui:');
+    expect(comLinkEmbaixo('Frase:', 'https://solardoc.app/auth')).toBe('Frase:\nhttps://solardoc.app/auth');
+    expect(fraseSemLink(textoBoasVindasPix('Maria', 'joao@gmail.com'))).not.toMatch(/https?:|:$/);
+    for (const t of [textoBoasVindasPix('Maria', 'joao@gmail.com'), textoBoasVindasPix('Maria', 'joao@gmail.com', 'existente')]) {
+      expect(t, 'travessão').not.toMatch(/[—–]/);
+      expect(t, 'emoji').not.toMatch(/\p{Extended_Pictographic}/u);
+      expect(/^\p{Lu}/u.test(t)).toBe(true);
+    }
     expect(textoSenhaNaoCriada('Ana', 'ana@x.com')).toBe('Oi, Ana, aqui é a Giovanna, da SolarDoc. Seu pagamento caiu, mas a senha ainda não foi criada. O link está no e-mail a***@x.com, e se você responder aqui eu reenvio.');
     expect(textoSenhaNaoCriada(null, 'ana@x.com').startsWith('Oi, aqui é a Giovanna, da SolarDoc. Seu pagamento caiu')).toBe(true);
     expect(textoPrimeiraProposta('Ana')).toBe('Oi, Ana, aqui é a Giovanna, do suporte da SolarDoc. Se quiser, eu te guio na sua 1ª proposta aqui pelo WhatsApp. Ela sai em poucos minutos, com a logo e a cor da sua empresa, pronta para mandar no WhatsApp. O suporte está junto com você, é só chamar quando for fazer.');

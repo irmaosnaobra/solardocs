@@ -44,6 +44,16 @@ export const TEXTO_PEDIDO_CPF =
 export const TEXTO_PEDIDO_CPF_SEM_NOME =
   'O Pix automático pede o CPF de quem paga, e eu ainda não tenho o seu. Me manda aqui, por favor? Assim eu gero o código.';
 
+// ── 5b. Pedido de CPF e e-mail (17/11/2026): o Pix automático pede os dois; o robô pede SÓ o que falta ─────────────────────────────────────────────
+export const TEXTO_PEDIDO_DADOS =
+  '[nome], pra gerar seu Pix automático eu preciso de dois dados: seu CPF e o e-mail que você vai usar pra entrar no app. Me manda aqui, por favor?';
+export const TEXTO_PEDIDO_DADOS_SEM_NOME =
+  'Pra gerar seu Pix automático eu preciso de dois dados: seu CPF e o e-mail que você vai usar pra entrar no app. Me manda aqui, por favor?';
+export const TEXTO_PEDIDO_EMAIL =
+  '[nome], agora só falta o e-mail que você vai usar pra entrar no app. Me manda aqui que eu já gero o código.';
+export const TEXTO_PEDIDO_EMAIL_SEM_NOME =
+  'Agora só falta o e-mail que você vai usar pra entrar no app. Me manda aqui que eu já gero o código.';
+
 // ── 7. Respostas quando o código não é o caso (redator, 05/11/2026) ─────────────────────────────────────────────────────────────────────────────
 export const TEXTO_PIX_JA_PAGOU =
   'Boa notícia, [nome]: seu pagamento já entrou e a SolarDoc já está liberada na sua conta. É só entrar em https://solardoc.app com o seu e-mail.';
@@ -132,6 +142,18 @@ export function montarTextoPedidoCpf(nome: string | null): string {
   return n ? TEXTO_PEDIDO_CPF.replace('[nome]', () => n) : TEXTO_PEDIDO_CPF_SEM_NOME;
 }
 
+/** Texto 5b: o que falta para gerar o código. Os dois = "dois dados"; só o CPF = o texto 5; só o e-mail = "agora só falta o e-mail". */
+export function montarTextoPedidoDados(nome: string | null, f: { faltaCpf: boolean; faltaEmail: boolean }): string {
+  const n = nomeCurto(nome);
+  if (f.faltaCpf && f.faltaEmail) return n ? TEXTO_PEDIDO_DADOS.replace('[nome]', () => n) : TEXTO_PEDIDO_DADOS_SEM_NOME;
+  if (f.faltaEmail) return n ? TEXTO_PEDIDO_EMAIL.replace('[nome]', () => n) : TEXTO_PEDIDO_EMAIL_SEM_NOME;
+  return montarTextoPedidoCpf(nome);
+}
+
+/** A fala anterior nossa foi um pedido de CPF e/ou e-mail? (a Giovanna confere isto para tratar a resposta da pessoa como pedido de Pix.) */
+export const ehPedidoDeDados = (texto: string | null | undefined): boolean =>
+  /pede o CPF de quem paga|preciso de dois dados: seu CPF e o e-mail|agora só falta o e-mail que você vai usar/i.test(String(texto ?? ''));
+
 /** Texto 7a: o pagamento já entrou. Só sai quando a regra de pagamento confirma. */
 export function montarTextoPixJaPagou(nome: string | null): string {
   const n = nomeCurto(nome);
@@ -155,5 +177,5 @@ export function montarEmailCodigo(e: { nome: string | null; validade: string; co
 /** Todos os textos de WhatsApp desta frente, para o teste varrer (travessão, emoji, tamanho). */
 export const MODELOS_WHATSAPP: Record<string, string> = {
   TEXTO_CODIGO_VIVO, TEXTO_CODIGO_NOVO_HOJE, TEXTO_CODIGO_NOVO_DIA2, TEXTO_ABANDONO_LP, TEXTO_RESPOSTA_CODIGO, TEXTO_RESPOSTA_CODIGO_SEM_NOME,
-  TEXTO_PEDIDO_CPF, TEXTO_PEDIDO_CPF_SEM_NOME, TEXTO_PIX_JA_PAGOU, TEXTO_PIX_JA_PAGOU_SEM_NOME, TEXTO_PIX_AGUARDE, TEXTO_PIX_AGUARDE_SEM_NOME,
+  TEXTO_PEDIDO_CPF, TEXTO_PEDIDO_CPF_SEM_NOME, TEXTO_PEDIDO_DADOS, TEXTO_PEDIDO_DADOS_SEM_NOME, TEXTO_PEDIDO_EMAIL, TEXTO_PEDIDO_EMAIL_SEM_NOME, TEXTO_PIX_JA_PAGOU, TEXTO_PIX_JA_PAGOU_SEM_NOME, TEXTO_PIX_AGUARDE, TEXTO_PIX_AGUARDE_SEM_NOME,
 };

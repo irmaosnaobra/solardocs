@@ -10,8 +10,9 @@ import { novoAnthropic } from "../../../utils/anthropicClient";
 import { hmacDe, idChaveHmac } from '../../agentes5040/hmac';
 import { tentarBonusPosPagamento } from '../../agentes5040/planilhaBonus';
 import {
-  lerPixSolicitado, guardarComprovantePendente, limparComprovantePendente, marcarAvisoFalhaPendente, PixSolicitado, chaveTelefone,
+  lerPixSolicitado, guardarComprovantePendente, limparComprovantePendente, marcarAvisoFalhaPendente, temComprovantePendente, PixSolicitado, chaveTelefone,
 } from './pixSolicitado';
+import { JANELA_DADOS_DO_LEAD_MS, dadosDoLead, emailsDoLead, textosDoLeadRecentes } from '../../solardoc/dadosDoLeadPix';
 import { guardarHandoffComprovante, apagarHandoffComprovante, HandoffComprovante, CodigoMotivo } from './comprovanteHandoff';
 
 // ID de Pix de verdade (E2E do Bacen): "E" + ISPB de 8 dígitos + data-hora de 12
@@ -1180,6 +1181,19 @@ export async function aplicarComprovantePendente(
     return nada;
   }
 
+  // Liberação manual no /admin NÃO sempre apaga o pendente (varredura de 17/11/2026): conta que JÁ tem um mês inteiro de plano por vir, vencendo mais de 27 dias
+  // depois do comprovante, recebeu o crédito depois dele (toda liberação soma 1 mês ao maior entre hoje e o vencimento, então sai em 28 dias ou mais).
+  // Creditar de novo seria o 2º mês de graça: não credita, o Thiago confere. Quem renova com menos de 27 dias de plano sobrando segue normal.
+  const vencAtual = u.criadaAgora ? NaN : Date.parse(String(u.plano_expira_em ?? ''));
+  const emPend = Date.parse(String(pend.em ?? ''));
+  if (Number.isFinite(vencAtual) && Number.isFinite(emPend) && vencAtual > emPend + 27 * 864e5) {
+    await sendWhatsApp(THIAGO_PHONE,
+      `⚠️ *Pix pendente*: ${email} já tem plano até ${diaMes(new Date(vencAtual))}, liberado DEPOIS do comprovante (${brl(pend.valor)}). Não creditei de novo (evita 2º mês): confere.`,
+      'solardoc').catch(() => {});
+    await limparComprovantePendente(cleanPhone);
+    return nada;
+  }
+
   const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
   const r = await aplicarPagamentoPix({
     user: u,
@@ -1207,7 +1221,15 @@ export async function aplicarComprovantePendente(
   // Liberou, creditou parcial ou já estava processado: o pendente cumpriu o papel.
   await limparComprovantePendente(cleanPhone);
   // Já processado antes: o e-mail do cliente segue pro fluxo normal e recebe resposta.
-  if (r.resultado === 'duplicado') return nada;
+  if (r.resultado === 'duplicado') {
+    // Conta criada AGORA e a confirmação (a que leva o link de senha) não saiu: sem aviso a pessoa fica com conta e sem como entrar. Só o Thiago é avisado, o lead não recebe mensagem nova.
+    if (u.criadaAgora) {
+      await sendWhatsApp(THIAGO_PHONE,
+        `⚠️ *Pix pendente*: criei a conta de ${email} (${cleanPhone}), mas o pagamento já estava processado e NÃO mandei o link de senha. Manda o link de definir senha pelo /admin.`,
+        'solardoc').catch(() => {});
+    }
+    return nada;
+  }
   return { tratado: true, venc: r.resultado === 'liberou' ? r.venc : null };
 }
 
@@ -1232,6 +1254,53 @@ export async function liberarComprovantePendente(
 const RE_EMAIL_G = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 const emailsDe = (t: string | null | undefined): string[] =>
   (String(t ?? '').match(RE_EMAIL_G) ?? []).map(e => e.toLowerCase().trim());
+
+/**
+ * O último e-mail que o LEAD escreveu nesta conversa nas últimas 48 h (só as falas dele, nunca as nossas). Serve para NÃO pedir de novo o e-mail que a pessoa
+ * já mandou (caso real de 17/11/2026: e-mail às 16h16, comprovante às 16h18, e o sistema pediu o e-mail outra vez). Nunca lança.
+ * `agoraMs` é o "agora" da janela de 48 h (a varredura passa o instante do comprovante, para olhar desde 48 h antes dele).
+ */
+export async function emailDoLeadNoHistorico(cleanPhone: string, agoraMs: number = Date.now(), soSeUnico = false): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from('wa_mensagens').select('texto, momment')
+      .in('telefone', variantesTelefone(cleanPhone))
+      .eq('from_me', false)
+      // Só texto digitado pelo próprio lead, fora de grupo: legenda de anexo e nome de arquivo ('documento', 'imagem') carregam e-mail que ele não escreveu.
+      .eq('tipo', 'texto')
+      .eq('is_group', false)
+      .gte('momment', new Date(agoraMs - JANELA_DADOS_DO_LEAD_MS).toISOString())
+      .order('momment', { ascending: false })
+      .limit(100);
+    const msgs = ((data ?? []) as Array<{ texto?: string | null; momment?: string | null }>)
+      .map(m => ({ from_me: false, texto: m.texto ?? null, momment: m.momment ?? null }))
+      .sort((a, b) => Date.parse(String(a.momment)) - Date.parse(String(b.momment)));   // do mais antigo ao mais novo (o banco devolve o contrário)
+    // `soSeUnico` (comprovante que acaba de chegar e varredura): dois e-mails diferentes na conversa são ambíguos e NÃO liberam sozinhos (pode ser conta de outra pessoa).
+    if (soSeUnico && emailsDoLead(textosDoLeadRecentes(msgs, agoraMs)).length > 1) return null;
+    return dadosDoLead(msgs, agoraMs).email;
+  } catch (err) {
+    logger.error('pix-comprovante', 'ler o histórico do lead para achar o e-mail falhou (segue pedindo o e-mail)', err);
+    return null;
+  }
+}
+
+/**
+ * O comprovante já está guardado como pendente: se o e-mail já está no histórico do lead, aplica na hora (o mesmo fluxo de quando o e-mail chega depois, que cria a conta,
+ * credita UMA vez e manda o link de senha). true = o caso foi fechado (liberou, ou o pendente saiu e o Thiago já sabe): NÃO pede o e-mail. false = segue pedindo.
+ */
+async function aplicarComEmailDoHistorico(cleanPhone: string, originInstance: ZapiInstance): Promise<boolean> {
+  const email = await emailDoLeadNoHistorico(cleanPhone, Date.now(), true);
+  if (!email) return false;
+  try {
+    const r = await aplicarComprovantePendente(cleanPhone, email, null, originInstance);
+    if (r.tratado) return true;
+    // Não liberou: se o pendente saiu (cartão ativo, código de outro número, já processado), o Thiago foi avisado e pedir o e-mail seria errado; se ficou, pede.
+    return !(await temComprovantePendente(cleanPhone, 720));
+  } catch (err) {
+    logger.error('pix-comprovante', 'aplicar o comprovante com o e-mail do histórico falhou (segue pedindo o e-mail)', err);
+    return false;
+  }
+}
 
 // ilike sem curinga: `_` e `%` são comuns em e-mail e casariam a conta errada.
 const escapaIlike = (v: string) => v.replace(/[\\%_]/g, m => `\\${m}`);
@@ -1539,6 +1608,8 @@ async function processarComprovanteDesconhecido(
       valor: v.valor, dedupKey: v.dedupKey, passou: true, em: new Date().toISOString(), e2eKey: v.e2eKey,
       txid: v.txid, modo: v.modo ?? 'tabela', data: c.data ?? null,
     }, { origem: 'desconhecido' });
+    // O e-mail já foi mandado antes do comprovante (últimas 48 h, falas do lead)? Aplica na hora, sem pedir de novo.
+    if (await aplicarComEmailDoHistorico(cleanPhone, originInstance)) return true;
     const { error: jaPediu } = await supabase.from('system_state').insert({
       key: `pix_pediu_email:${v.dedupKey}`, value: { at: new Date().toISOString() },
     });
@@ -1646,6 +1717,8 @@ export async function tryProcessAbandonedPixComprovante(
       valor: v.valor, dedupKey: v.dedupKey, passou: v.passou, em: new Date().toISOString(), e2eKey: v.e2eKey,
       txid: v.txid, modo: v.modo ?? 'tabela', data: c.data ?? null,
     });
+    // O e-mail já foi mandado antes do comprovante (últimas 48 h, falas do lead)? Aplica na hora, sem pedir de novo.
+    if (await aplicarComEmailDoHistorico(cleanPhone, originInstance)) return true;
     await sendHuman(cleanPhone, [
       'Recebi seu comprovante, obrigada! 🙌',
       'Me manda só o *e-mail* que você usa (ou vai usar) no SolarDoc? É com ele que eu libero seu acesso.',

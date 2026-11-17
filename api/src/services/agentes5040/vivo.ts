@@ -71,7 +71,8 @@ import {
   destinoDaRecusa, horariosPorExtenso, kwhDoLead, lerCardParaFicha, linhasDoOrcamentoEscrito, observacaoDoCardDaDuda, ofertaDeHorarios,
   primeiroNome, situacaoDoCard, topoDoOrcamentoEscrito, type Oferta,
 } from './acoesVivo';
-import { avisosDaCarla, planejarCarla, type PlanoCarla } from './carlaVivo';
+import { avisosDaCarla, planejarCarla, planoDoPixResolvido, type PlanoCarla } from './carlaVivo';
+import { PIX_LINK } from './personas/carla';
 import { juntarBase, lerBaseDaPosse, pareceOptOut, patchDoEstacionar, pedeParaPararDeReceber, planejarEstacionar, type PlanoEstacionar } from './baseRegras';
 import { bolhaDeConfirmacao, chaveFila, enfileirarAgenda, type TipoAgenda } from './agendaEnvio';
 import { devolverBoasVindas, gravarCardSolar, marcarBoasVindasEnviada, remarcarCardSolar, reservarBoasVindas, silenciarLembretesDoCard, tirarMarcaSaiuDoCard } from './agendaSolar';
@@ -1209,11 +1210,11 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       if (dona === 'carla') {
         peca = undefined;
         if (!naoIncomodar) {
-          // O marcador de Pix automático (peça pix_automatico) é resolvido AQUI, no servidor: código vivo reenviado, código novo, ou o pedido do CPF. Em rodada seca nada é criado.
+          // O marcador de Pix automático (peça pix_automatico) é resolvido AQUI, no servidor: código vivo reenviado, código novo, ou o pedido do CPF e do e-mail que faltam (o que ele mandou nas últimas 48 h conta). Em rodada seca nada é criado.
           // Código que o vivoEnvio recusaria (formato ou CRC) nunca vira promessa de "o código vai aqui embaixo": cai no link.
           let pixConversa: ResultadoPixConversa | undefined;
           if (saida.peca?.id === 'pix_automatico' && saida.peca.tipo === 'link') {
-            pixConversa = await resolverPixConversa({ tel, nome: ctx0.nome, textoDoLead: textosDaFala.join(' '), dry });
+            pixConversa = await resolverPixConversa({ tel, nome: ctx0.nome, textoDoLead: textosDaFala.join(' '), msgs: ctx0.msgs, dry });
             if (pixConversa.tipo === 'codigo' && !pixValidoComoPeca(pixConversa.codigo) && !dry) pixConversa = { tipo: 'link' };
           }
           const pl = planejarCarla({ saida, posse, msgs: ctx0.msgs, fala: L, textosDoLead: textosDaFala, pix: pixConversa, nomeDoLead: nomeLimpoDoPagamento(ctx0.nome) });
@@ -1234,6 +1235,16 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
             return 'seguir';
           }
         }
+      }
+
+      // A DUDA também manda o Pix automático da SolarDoc (17/11/2026): quando o lead dela quer assinar, ela pede a peça pix_automatico e o servidor resolve com o MESMO
+      // resolverPixConversa e os MESMOS textos da Carla (código, pedido de CPF e e-mail, já pagou, aguarde). Sem texto fixo, vai o link do Pix automático; nunca o que o modelo escreveu.
+      if (dona === 'duda' && !naoIncomodar && !planoE && saida.peca?.id === 'pix_automatico' && saida.peca.tipo === 'link') {
+        let pixDuda: ResultadoPixConversa = await resolverPixConversa({ tel, nome: ctx0.nome, textoDoLead: textosDaFala.join(' '), msgs: ctx0.msgs, dry });
+        if (pixDuda.tipo === 'codigo' && !pixValidoComoPeca(pixDuda.codigo) && !dry) pixDuda = { tipo: 'link' };
+        const plDuda = planoDoPixResolvido(pixDuda, nomeLimpoDoPagamento(ctx0.nome), null);
+        peca = plDuda ? plDuda.peca : { tipo: 'link', texto: PIX_LINK };
+        if (plDuda) { planoC = plDuda; if (plDuda.bolha) bolhaDaVez = plDuda.bolha; }
       }
 
       // O estado nao_incomodar é gravado ANTES da despedida: se algo falhar daqui em diante, a conversa já está calada

@@ -316,7 +316,7 @@ describe('Carla na retomada: fatosDaRetomada', () => {
 
   it('o Pix é sempre o automático (03/11): peça pix_automatico, e-mail com o meio coberto, nada de código, Kiwify nem Pix avulso; a frase de renovar só com `pagou`; o cartão sai por entrar_no_app', () => {
     const gratis = fatosRet(conta());
-    expect(gratis).toContain('Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar; o sistema manda o código da pessoa ou pede o CPF). Nunca Pix avulso nem escreva o código.');
+    expect(gratis).toContain('Pix: peça pix_automatico (o Pix automático, que cobra na conta dele todo mês e mostra o código para copiar; o sistema manda o código da pessoa ou pede o CPF e o e-mail que faltam). Nunca Pix avulso nem escreva o código.');
     expect(gratis).toContain('exatamente assim: an***@exemplo.com.');
     expect(gratis).toContain('Peça para usar o mesmo e-mail da conta na página.');
     expect(gratis).not.toContain('ana@exemplo.com');
@@ -413,5 +413,20 @@ describe('Carla na retomada: fatosDaRetomada', () => {
   it('os exemplos seguem dentro do limite e passando na trava (o exemplo da retomada só entra com o texto novo do redator, D30)', () => {
     expect(EXEMPLOS_CARLA.length).toBeLessThanOrEqual(9);
     expect(EXEMPLOS_CARLA.map(e => e.titulo).join(' ')).not.toMatch(/retomada/i);
+  });
+});
+
+describe('Duda e Carla falam do Pix automático da SolarDoc do mesmo jeito (17/11/2026)', () => {
+  it('a Duda pede a peça pix_automatico (só o automático, nunca avulso, código nem chave) e diz que o sistema pede o CPF e o e-mail que faltam', () => {
+    const t = DUDA.sistemaFixo;
+    expect(t).toContain('peça pix_automatico');
+    expect(t).toContain(LINKS_CARLA.pix_automatico!);
+    expect(t).toMatch(/Nunca Pix avulso, nunca escreva código nem chave Pix/);
+    expect(t).toMatch(/se faltar o CPF ou o e-mail dela, pede o que falta no lugar/);
+    expect(t).toMatch(/o link para criar a senha chega no WhatsApp e no e-mail/);
+  });
+  it('a Carla diz o mesmo do CPF, do e-mail e do link de senha no WhatsApp', () => {
+    expect(SISTEMA_FIXO_CARLA).toMatch(/se faltar o CPF ou o e-mail dela, pede o que falta no lugar/);
+    expect(SISTEMA_FIXO_CARLA).toMatch(/o link para criar a senha chega no WhatsApp e no e-mail/);
   });
 });

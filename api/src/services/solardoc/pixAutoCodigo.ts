@@ -21,6 +21,7 @@ import { PREFIXO_PAGTO, PREFIXO_PAGTO_EMAIL, PREFIXO_PAGTO_EMAIL2 } from './recu
 import { hmacDoPagamento } from './marcaPagamentoQuiz';
 import { situacaoDaConta, type SituacaoDaConta } from '../../utils/clientePagante';
 import { lerAdicionaisDoPlano } from '../produtos/adicionaisPlanoPix';
+import { cpfValido, dadosDoLead, extrairCpf, extrairEmail, type MsgDaConversaPix } from './dadosDoLeadPix';
 
 const LOG = 'pix-auto-codigo';
 
@@ -149,41 +150,16 @@ export async function moverMarcaDePagamento(hmac: string, antigo: string, novo: 
   } catch { return false; }
 }
 
-// ── CPF e e-mail em texto livre ──────────────────────────────────────────────
-
-/** Dígitos verificadores do CPF (rejeita 11 dígitos iguais). */
-export function cpfValido(bruto: string): boolean {
-  const d = soDigitos(bruto);
-  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
-  const dv = (n: number): number => {
-    let soma = 0;
-    for (let i = 0; i < n; i++) soma += Number(d[i]) * (n + 1 - i);
-    const r = (soma * 10) % 11;
-    return r === 10 ? 0 : r;
-  };
-  return dv(9) === Number(d[9]) && dv(10) === Number(d[10]);
-}
-
-/** O primeiro CPF VÁLIDO no texto da pessoa (com ou sem pontos), só dígitos. CNPJ e número de telefone não passam. null = não achou. */
-export function extrairCpf(texto: string | null | undefined): string | null {
-  const t = String(texto ?? '');
-  for (const m of t.matchAll(/(?<!\d)\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?!\d)/g)) {
-    if (cpfValido(m[0])) return soDigitos(m[0]);
-  }
-  return null;
-}
-
-export function extrairEmail(texto: string | null | undefined): string | null {
-  const m = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/.exec(String(texto ?? ''));
-  return m ? m[0].toLowerCase() : null;
-}
+// ── CPF e e-mail em texto livre: moram em dadosDoLeadPix.ts (puro) e saem daqui para quem já importava deste arquivo ──
+export { cpfValido, extrairCpf, extrairEmail };
 
 // ── a resposta na conversa (E) ───────────────────────────────────────────────
 
 export type ResultadoPixConversa =
   | { tipo: 'codigo'; codigo: string; validadeMs: number; novo: boolean }
-  | { tipo: 'pedir_cpf' }
-  /** Sem e-mail para criar (ou o Asaas não deu): o chamador cai no link `?pagar=pix`, que continua sendo o Pix automático. */
+  /** Falta CPF, e-mail ou os dois (o que a pessoa mandou nas últimas 48 h já conta): o chamador pede SÓ o que falta. Nunca cai no link por falta de e-mail. */
+  | { tipo: 'pedir_dados'; faltaCpf: boolean; faltaEmail: boolean }
+  /** O Asaas não deu o código (ou a leitura falhou): o chamador cai no link `?pagar=pix`, que continua sendo o Pix automático. */
   | { tipo: 'link' }
   | { tipo: 'ja_pagou' }
   /** O código ainda vale, mas faltam menos de 30 min: NÃO cria outro (seria um segundo QR vivo). `ateMs` = até quando vale (a mensagem diz a hora). */
@@ -222,8 +198,10 @@ export interface DepsPixConversa {
 export interface PedidoPixConversa {
   tel: string;
   nome?: string | null;
-  /** O que a pessoa escreveu agora (o CPF vem daqui). */
+  /** O que a pessoa escreveu agora (rodada em curso). */
   textoDoLead?: string | null;
+  /** A conversa já carregada (quem chama a tem): CPF e e-mail das falas DO LEAD nas últimas 48 h contam, as nossas nunca. */
+  msgs?: ReadonlyArray<MsgDaConversaPix>;
   /** Rodada seca (ensaio): nada é criado nem reservado. */
   dry?: boolean;
 }
@@ -299,21 +277,23 @@ export async function resolverPixConversa(p: PedidoPixConversa, d: DepsPixConver
       }
     }
 
-    // 3. sem contrato: precisa do CPF (que a pessoa manda em resposta) e de um e-mail.
-    const cpf = extrairCpf(p.textoDoLead);
-    if (!cpf) return { tipo: 'pedir_cpf' };
+    // 3. sem contrato: precisa do CPF e do e-mail. O que a pessoa mandou nas últimas 48 h (só as falas dela) conta, não só a rodada atual.
+    // O e-mail digitado vence; o do cadastro (`identidade`) é só reserva.
+    const { cpf, email: emailDigitado } = dadosDoLead(p.msgs, agoraMs, p.textoDoLead);
     const identidade = await d.identidade(p.tel);
-    const email = identidade?.email ?? extrairEmail(p.textoDoLead);
-    if (!email) return { tipo: 'link' };
+    const email = emailDigitado ?? identidade?.email ?? null;
+    if (!cpf || !email) return { tipo: 'pedir_dados', faltaCpf: !cpf, faltaEmail: !email };
+    // O userId e o nome do cadastro só valem se o e-mail usado é o do cadastro (e-mail digitado diferente = outra pessoa).
+    const doCadastro = !!identidade && identidade.email === email ? identidade : null;
     if (await d.pagouCpfOuEmail(cpf, email, null)) return { tipo: 'ja_pagou' };
-    const pagante = await d.contaPagante(email, identidade?.userId ?? null);
+    const pagante = await d.contaPagante(email, doCadastro?.userId ?? null);
     if (pagante === 'erro' || pagante === 'tolerancia') return { tipo: 'link' };
     if (pagante === 'vigente') return { tipo: 'ja_pagou' };
     if (p.dry) return { tipo: 'codigo', codigo: codigoDeEnsaio(), validadeMs: agoraMs + 86_400_000, novo: true };
     const reserva = await d.reservarConversa(hmac, { contractId: 'sem_contrato', em: agora.toISOString() }, !!conv);
     if (reserva !== 'ok') return { tipo: 'link' };
     try {
-      const novo = await d.criarComCpf({ cpf, identidade: { email, nome: identidade?.nome ?? p.nome ?? null, userId: identidade?.userId ?? null }, tel: p.tel });
+      const novo = await d.criarComCpf({ cpf, identidade: { email, nome: doCadastro?.nome ?? p.nome ?? null, userId: doCadastro?.userId ?? null }, tel: p.tel });
       await d.atualizarConversa(hmac, novo.contractId);
       return { tipo: 'codigo', codigo: novo.qrPayload, validadeMs: Date.parse(novo.expiraEm), novo: true };
     } catch (err) {

@@ -84,8 +84,10 @@ function query(table: string) {
       filtros.push((r) => re.test(String(r[col] ?? '')));
       return q;
     },
+    like: (col: string, padrao: string) => { const pre = padrao.replace(/%$/, ''); filtros.push((r) => String(r[col] ?? '').startsWith(pre)); return q; },
     gte: (col: string, val: any) => { filtros.push((r) => String(r[col]) >= String(val)); return q; },
     not: (col: string, _op: string, val: any) => { filtros.push((r) => r[col] !== val); return q; },
+    lt: (col: string, val: any) => { filtros.push((r) => String(r[col] ?? '') < String(val)); return q; },
     order: () => q,
     limit: () => q,
     maybeSingle: async () => {
@@ -110,7 +112,9 @@ vi.mock('../utils/anthropicClient', () => ({
     },
   }),
 }));
+const linhaMock = vi.hoisted(() => ({ cooldown: vi.fn((_i?: string) => false) }));
 vi.mock('../services/agents/zapiClient', () => ({
+  linhaEmCooldown: linhaMock.cooldown,
   sendWhatsApp: vi.fn(async () => {}),
   sendHuman: vi.fn(async () => {}),
   sendImage: vi.fn(async () => {}),
@@ -129,6 +133,7 @@ import {
   tryProcessAbandonedPixComprovante, liberarComprovantePendente, chaveE2e,
 } from '../services/agents/whatsapp/pixComprovanteService';
 import { lerPixSolicitado, temComprovantePendente } from '../services/agents/whatsapp/pixSolicitado';
+import { varrerComprovantesPendentes } from '../services/agents/whatsapp/pixVarreduraPendentes';
 
 const IMG = { type: 'base64' as const, media_type: 'image/jpeg', data: 'AAAA' };
 const TEL = '5534991112222';
@@ -164,7 +169,7 @@ function conta(over: Row = {}): Row {
 }
 
 function mensagemRecebida(texto: string, telefone = TEL): Row {
-  return { telefone, texto, tipo: 'text', from_me: false, momment: new Date().toISOString(), instancia: 'io' };
+  return { telefone, texto, tipo: 'texto', is_group: false, from_me: false, momment: new Date().toISOString(), instancia: 'io' };
 }
 
 beforeEach(() => {
@@ -176,6 +181,7 @@ beforeEach(() => {
   falhaCriarConta = false;
   (sendHuman as any).mockClear();
   (sendWhatsApp as any).mockClear();
+  linhaMock.cooldown.mockReset(); linhaMock.cooldown.mockReturnValue(false);
 });
 afterEach(() => { vi.useRealTimers(); });
 
@@ -794,5 +800,211 @@ describe('reprovado: uma explicação por comprovante e teto de 3 em 24h', () =>
 
     expect(await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '')).toBe(false);
     expect(enviadas()).toHaveLength(0);
+  });
+});
+
+// ── 17/11/2026: e-mail já mandado ANTES do comprovante, e a varredura que libera o pendente sozinha ──
+describe('e-mail do histórico do lead (48 h): não pede de novo e libera', () => {
+  const as1616 = (texto: string, over: Row = {}): Row => ({ telefone: TEL, texto, tipo: 'texto', is_group: false, from_me: false, momment: '2026-10-20T16:16:00.000Z', instancia: 'io', ...over });
+
+  it('D1. e-mail (conta que não existe) às 16h16, comprovante às 17h00: libera na hora, cria a conta, manda o link de senha e NÃO pede o e-mail', async () => {
+    leitura = LEO2;
+    db.wa_mensagens.push(as1616('meu e-mail é Novo@Cliente.com'));
+
+    const r = await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+
+    expect(r).toBe(true);
+    const nova = db.users.find((u) => u.email === 'novo@cliente.com')!;
+    expect(nova).toBeTruthy();
+    expect(nova.plano).toBe('pro');
+    expect(enviadas()).toHaveLength(1);
+    expect(textoEnviado()).toContain(`/auth?mode=redefinir&token=${nova.reset_token}`);
+    expect(textoEnviado()).not.toContain('Qual o e-mail');
+    expect(db.system_state.find((x) => x.key === `pix_solicitado:${TEL_FORMATO_USERS}`)?.value.comprovante).toBeNull();
+  });
+
+  it('D2. e-mail que só aparece em fala NOSSA, ou de mais de 48 h, não conta: pede o e-mail como antes', async () => {
+    leitura = LEO2;
+    db.wa_mensagens.push(as1616('seu e-mail é novo@cliente.com?', { from_me: true }), as1616('velho@cliente.com', { momment: '2026-10-18T10:00:00.000Z' }));
+
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+
+    expect(textoEnviado()).toContain('Qual o e-mail da sua conta no SolarDoc?');
+    expect(db.users.some((u) => u.email === 'novo@cliente.com' || u.email === 'velho@cliente.com')).toBe(false);
+  });
+
+  it('E1. pendente + e-mail do lead no histórico (sem texto depois): a varredura libera UMA vez; a 2ª rodada não credita de novo', async () => {
+    leitura = LEO2;
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');          // sem e-mail ainda: guarda o pendente e pede
+    expect(textoEnviado()).toContain('Qual o e-mail');
+    db.wa_mensagens.push(as1616('novo@cliente.com'));                      // o e-mail aparece no histórico (o gatilho de texto nunca rodou)
+    (sendHuman as any).mockClear();
+
+    const r1 = await varrerComprovantesPendentes(Date.now());
+    const vencDepois1 = db.users.find((u) => u.email === 'novo@cliente.com')!.plano_expira_em;
+    const r2 = await varrerComprovantesPendentes(Date.now() + 5 * 60_000);
+
+    expect(r1).toMatchObject({ candidatos: 1, liberados: 1, semEmail: 0 });
+    expect(r2).toMatchObject({ candidatos: 0, liberados: 0 });
+    expect(db.users.filter((u) => u.email === 'novo@cliente.com')).toHaveLength(1);
+    expect(db.users.find((u) => u.email === 'novo@cliente.com')!.plano_expira_em).toBe(vencDepois1);
+    expect(chaves().filter((k) => k.startsWith('pix_e2e:'))).toHaveLength(1);
+    expect(enviadas()).toHaveLength(1);
+  });
+
+  it('E2. sem e-mail no histórico: não faz nada (nem lembrete); comprovante reprovado nunca é candidato; PIX_VARREDURA_OFF=true desliga', async () => {
+    leitura = LEO2;
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+    (sendHuman as any).mockClear();
+    expect(await varrerComprovantesPendentes(Date.now())).toMatchObject({ candidatos: 1, liberados: 0, semEmail: 1 });
+    expect(enviadas()).toHaveLength(0);
+    const faixa = (n: number) => Date.now() + n * 5 * 60_000;   // cada rodada em uma faixa de 5 min (a trava da rodada)
+    expect(db.users).toHaveLength(1);
+
+    db.wa_mensagens.push(as1616('novo@cliente.com'));
+    process.env.PIX_VARREDURA_OFF = 'true';
+    expect(await varrerComprovantesPendentes(faixa(1))).toMatchObject({ ligada: false, candidatos: 0 });
+    delete process.env.PIX_VARREDURA_OFF;
+    expect(db.users).toHaveLength(1);
+
+    // reprovado nas travas: o pendente não entra na varredura
+    const reg = db.system_state.find((x) => x.key === `pix_solicitado:${TEL_FORMATO_USERS}`)!;
+    reg.value.comprovante.passou = false;
+    expect(await varrerComprovantesPendentes(faixa(2))).toMatchObject({ candidatos: 0, liberados: 0 });
+    expect(db.users).toHaveLength(1);
+
+    // pendente velho (mais de 72 h) também não
+    reg.value.comprovante.passou = true;
+    reg.value.comprovante.em = '2026-10-16T10:00:00.000Z';
+    expect(await varrerComprovantesPendentes(faixa(3))).toMatchObject({ candidatos: 0 });
+  });
+});
+
+
+// ── 17/11/2026 (chefe anti-ban): a varredura é a única que manda WhatsApp sem o cliente escrever ──
+describe('varredura de pendentes: freios anti-ban', () => {
+  const TELS = ['5534991112222', '5534991113333', '5534991114444'];
+  const EMAILS = ['a@cliente.com', 'b@cliente.com', 'c@cliente.com'];
+  const LEITURAS = [LEO2, { ...LEO2, id_transacao: 'E004269682026101919400uHT9pUwumly' }, { ...LEO2, id_transacao: 'E004369682026101919400uHT9pUwumly' }];
+  const RODADA = (n: number) => new Date('2026-10-20T17:00:00Z').getTime() + n * 300_000;   // faixas de 5 min distintas
+  const msg = (telefone: string, texto: string, momment: string, over: Row = {}): Row => ({ telefone, texto, tipo: 'texto', is_group: false, from_me: false, momment, instancia: 'io', ...over });
+  const temConta = (email: string) => db.users.some((u) => u.email === email);
+  const pendenteEm = async (i: number, iso: string) => {
+    vi.setSystemTime(new Date(iso)); leitura = LEITURAS[i]!;
+    await tryProcessAbandonedPixComprovante(TELS[i]!, IMG, 'io', '');
+  };
+  /** 3 pendentes (15h00, 15h30, 16h00) e o e-mail de cada um já na conversa (14h). */
+  async function tresPendentes() {
+    await pendenteEm(0, '2026-10-20T15:00:00Z'); await pendenteEm(1, '2026-10-20T15:30:00Z'); await pendenteEm(2, '2026-10-20T16:00:00Z');
+    TELS.forEach((t, i) => db.wa_mensagens.push(msg(t, EMAILS[i]!, '2026-10-20T14:00:00.000Z')));
+    vi.setSystemTime(new Date('2026-10-20T17:00:00Z'));
+    (sendHuman as any).mockClear(); (sendWhatsApp as any).mockClear();
+  }
+
+  it('F1. 3 pendentes com e-mail: UMA liberação por rodada, o mais antigo primeiro', async () => {
+    await tresPendentes();
+    const r1 = await varrerComprovantesPendentes(RODADA(0));
+    expect(r1).toMatchObject({ candidatos: 3, liberados: 1 });
+    expect([temConta(EMAILS[0]!), temConta(EMAILS[1]!), temConta(EMAILS[2]!)]).toEqual([true, false, false]);
+    expect(enviadas()).toHaveLength(1);
+    const r2 = await varrerComprovantesPendentes(RODADA(1));
+    expect(r2).toMatchObject({ candidatos: 2, liberados: 1 });
+    expect([temConta(EMAILS[1]!), temConta(EMAILS[2]!)]).toEqual([true, false]);
+  });
+
+  it('F2. a 2ª chamada na mesma faixa de 5 min (a chave do tick já existe) não faz nada', async () => {
+    await tresPendentes();
+    await varrerComprovantesPendentes(RODADA(0));
+    expect(chaves().some((k) => k.startsWith('pix_varredura_tick:'))).toBe(true);
+    const r = await varrerComprovantesPendentes(RODADA(0) + 60_000);
+    expect(r).toMatchObject({ candidatos: 0, liberados: 0, pulouRodada: 'trava' });
+    expect([temConta(EMAILS[1]!), temConta(EMAILS[2]!)]).toEqual([false, false]);
+    expect(enviadas()).toHaveLength(1);
+  });
+
+  it('F3. linha em cooldown ou caída (monitor da IO): pula a rodada inteira e o pendente fica', async () => {
+    await tresPendentes();
+    linhaMock.cooldown.mockReturnValue(true);
+    expect(await varrerComprovantesPendentes(RODADA(0))).toMatchObject({ liberados: 0, pulouRodada: 'linha' });
+    expect(db.users).toHaveLength(1);
+    expect(enviadas()).toHaveLength(0);
+    // sem cooldown, mas a linha IO caída segundo o monitor (a conversa veio pela IO de verdade)
+    linhaMock.cooldown.mockReturnValue(false);
+    db.wa_mensagens.forEach((m) => { m.instancia = '3F26F6ECE67D72BB7FCA6244BF24326C'; });
+    db.system_state.push({ key: 'zapi_io_health', value: { downStreak: 2 }, updated_at: new Date().toISOString() });
+    expect(await varrerComprovantesPendentes(RODADA(1))).toMatchObject({ liberados: 0, pulouRodada: 'linha' });
+    expect(db.users).toHaveLength(1);
+    // monitor saudável: libera
+    db.system_state.find((x) => x.key === 'zapi_io_health')!.value.downStreak = 0;
+    expect(await varrerComprovantesPendentes(RODADA(2))).toMatchObject({ liberados: 1 });
+    expect(temConta(EMAILS[0]!)).toBe(true);
+  });
+
+  it('F4. fala NOSSA depois do comprovante (mais de 60 s): pula esse e libera o próximo, sem gastar a vez', async () => {
+    await tresPendentes();
+    db.wa_mensagens.push(msg(TELS[0]!, 'Oi, já liberei aqui pelo painel', '2026-10-20T15:20:00.000Z', { from_me: true }));
+    const r = await varrerComprovantesPendentes(RODADA(0));
+    expect(r).toMatchObject({ candidatos: 3, liberados: 1, comFalaNossa: 1 });
+    expect([temConta(EMAILS[0]!), temConta(EMAILS[1]!)]).toEqual([false, true]);
+  });
+
+  it('F5. pendente sem e-mail não gasta a vez; e-mail só em anexo (documento) não conta; dois e-mails diferentes não liberam', async () => {
+    await tresPendentes();
+    db.wa_mensagens.length = 0;
+    db.wa_mensagens.push(
+      msg(TELS[0]!, 'comprovante-de-a@cliente.com.pdf', '2026-10-20T14:00:00.000Z', { tipo: 'documento' }),   // nome de arquivo
+      msg(TELS[1]!, 'b@cliente.com', '2026-10-20T14:00:00.000Z'), msg(TELS[1]!, 'errei, é outro@cliente.com', '2026-10-20T14:05:00.000Z'),   // ambíguo
+      msg(TELS[2]!, 'c@cliente.com', '2026-10-20T14:00:00.000Z'),
+    );
+    const r = await varrerComprovantesPendentes(RODADA(0));
+    expect(r).toMatchObject({ candidatos: 3, liberados: 1, semEmail: 2 });
+    expect([temConta(EMAILS[0]!), temConta(EMAILS[1]!), temConta('outro@cliente.com'), temConta(EMAILS[2]!)]).toEqual([false, false, false, true]);
+  });
+
+  it('F6. caso do cliente: e-mail 16h16, comprovante 16h18, só a resposta automática depois: libera 1 vez', async () => {
+    leitura = LEO2;
+    vi.setSystemTime(new Date('2026-10-20T16:18:00Z'));
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');       // sem e-mail na conversa ainda: guarda o pendente e responde
+    db.wa_mensagens.push(
+      msg(TEL, 'novo@cliente.com', '2026-10-20T16:16:00.000Z'),
+      msg(TEL, 'Esse', '2026-10-20T16:19:00.000Z'),
+      msg(TEL, '', '2026-10-20T16:21:00.000Z', { tipo: 'audio' }),
+      msg(TEL, 'Recebi seu comprovante! Vou confirmar aqui e já te libero o acesso', '2026-10-20T16:18:05.000Z', { from_me: true }),   // a resposta automática do próprio fluxo
+    );
+    vi.setSystemTime(new Date('2026-10-20T16:30:00Z'));
+    (sendHuman as any).mockClear();
+    const r1 = await varrerComprovantesPendentes(Date.now());
+    expect(r1).toMatchObject({ candidatos: 1, liberados: 1, comFalaNossa: 0 });
+    expect(db.users.filter((u) => u.email === 'novo@cliente.com')).toHaveLength(1);
+    expect(enviadas()).toHaveLength(1);
+    const r2 = await varrerComprovantesPendentes(Date.now() + 300_000);
+    expect(r2).toMatchObject({ candidatos: 0, liberados: 0 });
+    expect(enviadas()).toHaveLength(1);
+  });
+
+  it('F7. R1: conta que já ganhou um mês depois do comprovante (liberação manual) não recebe o 2º: avisa o Thiago e limpa o pendente', async () => {
+    await pendenteEm(0, '2026-10-20T15:00:00Z');
+    db.users.push(conta({ id: 'u9', email: EMAILS[0], plano: 'ilimitado', billing_status: 'active', plano_expira_em: '2026-11-20T15:00:00.000Z' }));
+    db.wa_mensagens.push(msg(TELS[0]!, EMAILS[0]!, '2026-10-20T14:00:00.000Z'));
+    vi.setSystemTime(new Date('2026-10-20T17:00:00Z'));
+    (sendHuman as any).mockClear(); (sendWhatsApp as any).mockClear();
+    await varrerComprovantesPendentes(RODADA(0));
+    expect(db.users.find((u) => u.id === 'u9')!.plano_expira_em).toBe('2026-11-20T15:00:00.000Z');
+    expect(enviadas()).toHaveLength(0);
+    expect((sendWhatsApp as any).mock.calls.some((c: any[]) => String(c[1]).includes('Não creditei de novo'))).toBe(true);
+    expect(db.system_state.find((x) => x.key === 'pix_solicitado:34991112222')?.value.comprovante).toBeNull();
+  });
+
+  it('F8. R4: conta criada agora mas o pagamento já estava processado: avisa o Thiago que o link de senha NÃO saiu (nada novo ao lead)', async () => {
+    await pendenteEm(0, '2026-10-20T15:00:00Z');
+    const dedupKey = db.system_state.find((x) => x.key === 'pix_solicitado:34991112222')!.value.comprovante.dedupKey;
+    db.system_state.push({ key: dedupKey, value: { user_id: 'outro', valor: 27, e2e: null } });   // o mesmo comprovante já tinha sido processado
+    db.wa_mensagens.push(msg(TELS[0]!, EMAILS[0]!, '2026-10-20T14:00:00.000Z'));
+    vi.setSystemTime(new Date('2026-10-20T17:00:00Z'));
+    (sendHuman as any).mockClear(); (sendWhatsApp as any).mockClear();
+    await varrerComprovantesPendentes(RODADA(0));
+    expect(temConta(EMAILS[0]!)).toBe(true);
+    expect(enviadas()).toHaveLength(0);
+    expect((sendWhatsApp as any).mock.calls.some((c: any[]) => String(c[1]).includes('NÃO mandei o link de senha'))).toBe(true);
   });
 });

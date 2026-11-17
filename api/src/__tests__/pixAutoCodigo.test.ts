@@ -201,11 +201,74 @@ describe('E: o marcador de Pix automático na conversa', () => {
     expect(s.marcaMovida).toHaveLength(0);
   });
 
-  it('sem contrato e sem CPF: a agente PEDE o CPF (resposta, nada é criado)', async () => {
+  it('sem contrato e sem CPF (com o e-mail do cadastro como reserva): a agente PEDE só o CPF (resposta, nada é criado)', async () => {
     const { d, s } = falsas({ marca: null });
-    expect(await pedir(d)).toEqual({ tipo: 'pedir_cpf' });
+    expect(await pedir(d)).toEqual({ tipo: 'pedir_dados', faltaCpf: true, faltaEmail: false });
     expect(s.criados).toHaveLength(0);
     expect(s.reservas).toHaveLength(0);
+  });
+
+  it('sem contrato, sem CPF e sem e-mail (nem no cadastro): pede os DOIS', async () => {
+    const { d, s } = falsas({ marca: null, identidade: null });
+    expect(await pedir(d)).toEqual({ tipo: 'pedir_dados', faltaCpf: true, faltaEmail: true });
+    expect(s.criados).toHaveLength(0);
+  });
+
+  it('só o CPF mandado e sem e-mail em lugar nenhum: pede SÓ o e-mail (não cai mais no link)', async () => {
+    const { d, s } = falsas({ marca: null, identidade: null });
+    expect(await pedir(d, `meu cpf é ${CPF}`)).toEqual({ tipo: 'pedir_dados', faltaCpf: false, faltaEmail: true });
+    expect(s.criados).toHaveLength(0);
+    expect(s.reservas).toHaveLength(0);
+  });
+
+  it('CPF numa mensagem e e-mail na SEGUINTE (histórico do lead, 48 h): gera o código', async () => {
+    const { d, s } = falsas({ marca: null, identidade: null });
+    const msgs = [
+      { from_me: false, texto: `meu cpf é ${CPF}`, momment: iso(AGORA.getTime() - 5 * MIN) },
+      { from_me: true, texto: 'Agora só falta o e-mail que você vai usar pra entrar no app.', momment: iso(AGORA.getTime() - 4 * MIN) },
+    ];
+    // rodada atual: só o e-mail
+    const r = await pedir(d, 'ana@exemplo.com', { msgs });
+    expect(r).toMatchObject({ tipo: 'codigo', codigo: CODIGO_NOVO, novo: true });
+    expect(s.criados).toEqual(['cpf']);
+  });
+
+  it('o e-mail digitado vence o do cadastro (e o userId do cadastro não vai junto)', async () => {
+    const { d, s } = falsas({ marca: null, identidade: { email: 'cadastro@exemplo.com', nome: 'Cadastro', userId: 'u-cadastro' } });
+    let usado: { cpf: string; identidade: { email: string; userId: string | null } } | null = null;
+    d.criarComCpf = async (a) => { usado = a; s.criados.push('cpf'); return { contractId: 'SD-VIP-NOVO', qrPayload: CODIGO_NOVO, expiraEm: iso(AGORA.getTime() + 24 * H) }; };
+    const r = await pedir(d, `cpf ${CPF} e o e-mail é digitado@exemplo.com`);
+    expect(r).toMatchObject({ tipo: 'codigo' });
+    expect(usado!.identidade.email).toBe('digitado@exemplo.com');
+    expect(usado!.identidade.userId).toBeNull();
+    // sem e-mail digitado, o do cadastro entra como reserva, com o userId dele
+    const b = falsas({ marca: null, identidade: { email: 'cadastro@exemplo.com', nome: 'Cadastro', userId: 'u-cadastro' } });
+    let usadoB: { identidade: { email: string; userId: string | null } } | null = null;
+    b.d.criarComCpf = async (a) => { usadoB = a; return { contractId: 'SD-VIP-NOVO', qrPayload: CODIGO_NOVO, expiraEm: iso(AGORA.getTime() + 24 * H) }; };
+    await pedir(b.d, `cpf ${CPF}`);
+    expect(usadoB!.identidade).toMatchObject({ email: 'cadastro@exemplo.com', userId: 'u-cadastro' });
+  });
+
+  it('o último e-mail citado vence (mais de um e-mail nas falas do lead)', async () => {
+    const { d } = falsas({ marca: null, identidade: null });
+    let usado: { identidade: { email: string } } | null = null;
+    d.criarComCpf = async (a) => { usado = a; return { contractId: 'SD-VIP-NOVO', qrPayload: CODIGO_NOVO, expiraEm: iso(AGORA.getTime() + 24 * H) }; };
+    const msgs = [
+      { from_me: false, texto: `cpf ${CPF} velho@exemplo.com`, momment: iso(AGORA.getTime() - 3 * H) },
+      { from_me: false, texto: 'na verdade use novo@exemplo.com', momment: iso(AGORA.getTime() - H) },
+    ];
+    await pedir(d, 'pode gerar', { msgs });
+    expect(usado!.identidade.email).toBe('novo@exemplo.com');
+  });
+
+  it('CPF e e-mail que só aparecem em fala NOSSA não contam, nem os de mais de 48 h', async () => {
+    const { d, s } = falsas({ marca: null, identidade: null });
+    const msgs = [
+      { from_me: true, texto: `Seu CPF ${CPF} e o e-mail ana@exemplo.com, certo?`, momment: iso(AGORA.getTime() - MIN) },
+      { from_me: false, texto: `cpf ${CPF} ana@exemplo.com`, momment: iso(AGORA.getTime() - 49 * H) },
+    ];
+    expect(await pedir(d, 'quero pagar', { msgs })).toEqual({ tipo: 'pedir_dados', faltaCpf: true, faltaEmail: true });
+    expect(s.criados).toHaveLength(0);
   });
 
   it('a pessoa manda o CPF: cria com ele e devolve o código novo', async () => {
@@ -215,11 +278,11 @@ describe('E: o marcador de Pix automático na conversa', () => {
     expect(s.criados).toEqual(['cpf']);
   });
 
-  it('CPF inválido não vale (pede de novo); sem e-mail conhecido cai no link; o e-mail pode vir no mesmo texto', async () => {
+  it('CPF inválido não vale (pede de novo); sem e-mail conhecido pede o e-mail; o e-mail pode vir no mesmo texto', async () => {
     const a = falsas({ marca: null });
-    expect(await pedir(a.d, 'meu cpf é 52998224726')).toEqual({ tipo: 'pedir_cpf' });
+    expect(await pedir(a.d, 'meu cpf é 52998224726')).toEqual({ tipo: 'pedir_dados', faltaCpf: true, faltaEmail: false });
     const b = falsas({ marca: null, identidade: null });
-    expect(await pedir(b.d, `cpf ${CPF}`)).toEqual({ tipo: 'link' });
+    expect(await pedir(b.d, `cpf ${CPF}`)).toEqual({ tipo: 'pedir_dados', faltaCpf: false, faltaEmail: true });
     const c = falsas({ marca: null, identidade: null });
     expect(await pedir(c.d, `cpf ${CPF} e o e-mail é ana@exemplo.com`)).toMatchObject({ tipo: 'codigo', novo: true });
   });
@@ -418,9 +481,9 @@ describe('bloqueio 2: a identidade pelo telefone casa DDD + 8 dígitos e exige E
     h.abandonados = [{ email: 'ana@exemplo.com', nome: 'Ana', phone: '5534991230001' }, { email: 'ANA@exemplo.com', nome: 'Ana', phone: '34991230001' }];
     expect((await identidadePorTelefone(TEL))?.email).toBe('ana@exemplo.com');
   });
-  it('no resolver: identidade ambígua (null) + CPF sem e-mail no texto = link; com e-mail no texto, cria', async () => {
+  it('no resolver: identidade ambígua (null) + CPF sem e-mail no texto = pede o e-mail; com e-mail no texto, cria', async () => {
     const a = falsas({ marca: null, identidade: null });
-    expect(await pedir(a.d, `cpf ${CPF}`)).toEqual({ tipo: 'link' });
+    expect(await pedir(a.d, `cpf ${CPF}`)).toEqual({ tipo: 'pedir_dados', faltaCpf: false, faltaEmail: true });
     expect(a.s.criados).toHaveLength(0);
     const b = falsas({ marca: null, identidade: null });
     expect(await pedir(b.d, `cpf ${CPF}, e-mail ana@exemplo.com`)).toMatchObject({ tipo: 'codigo' });

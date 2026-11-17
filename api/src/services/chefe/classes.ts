@@ -208,8 +208,9 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   solardoc_boas_vindas: robo('evento_p0', ['services/agents/whatsapp/whatsappAgentService.ts', 'controllers/authController.ts'], { linha: 'solardoc' }),
   solardoc_compra: robo('evento_p0', ['services/agents/whatsapp/whatsappAgentService.ts', 'controllers/authController.ts', 'controllers/paymentsController.ts'], { linha: 'solardoc' }),
   // Link de definir senha de quem acabou de pagar: sem ele o cliente não entra [crítica].
-  // [04/11] Boas-vindas do Pix automático pelo WhatsApp (asaasWebhookService, só na ADESÃO, nunca na renovação): 1 bolha, com o e-mail mascarado,
-  // só com o link de senha já enviado por e-mail. O carimbo boasvindas_pix_sent:<contrato> é de agenda (a linha o conta, o frio não o soma).
+  // [04/11] Boas-vindas do Pix automático pelo WhatsApp (asaasWebhookService, só na ADESÃO, nunca na renovação): 1 bolha, com o e-mail mascarado.
+  // [17/11] Leva o link na linha de baixo (frase, uma quebra simples e a URL, na MESMA bolha): conta criada no pagamento recebe o de criar senha (mesmo se o e-mail falhou);
+  // conta que já existia recebe só o de entrar (/auth). O carimbo boasvindas_pix_sent:<contrato> é de agenda (a linha o conta, o frio não o soma).
   solardoc_ativacao: robo('evento_p0', ['services/agents/whatsapp/whatsappAgentService.ts', 'services/asaas/asaasWebhookService.ts'], {
     linha: 'solardoc', carimbos: [agenda('boasvindas_pix_sent:')], maxBolhas: 1,
   }),
