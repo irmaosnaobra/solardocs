@@ -4,6 +4,7 @@ import { pixBlocoEmailHtml } from './pixInfo';
 import { DEPOIMENTOS, blocoDepoimentoHtml, Depoimento } from './depoimentos';
 import { conteudoEmailRecepcao, type ConteudoEmail, type ToqueRecep } from '../services/solardoc/recepcaoNovoUsuarioTextos';
 import type { ResultadoPassos } from '../services/solardoc/primeirosPassos';
+import { montarEmailRetomada, type SegmentoEmailRetomada, type VarianteEmail } from '../services/solardoc/emailRetomadaTextos';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -1633,4 +1634,15 @@ export async function sendPesquisaSatisfacaoEmail(opts: {
     // depender de MAIL_REPLY_TO estar apontando pra caixa certa hoje.
     replyTo: (process.env.PESQUISA_REPLY_TO || 'aiorosgroup@gmail.com').trim(),
   });
+}
+
+/**
+ * Retomada da base (18/11/2026): UM e-mail de marketing da Carla, com o descadastro e o List-Unsubscribe do sendMarketingEmail. Quem escolhe o
+ * segmento, a variante e o momento é services/solardoc/emailRetomada.ts. `nome` é o primeiro nome já limpo ('' = sem vocativo). Lança se o Resend recusar.
+ */
+export async function sendEmailRetomadaBase(opts: {
+  to: string; userId: string; nome?: string | null; segmento: SegmentoEmailRetomada; variante: VarianteEmail;
+}): Promise<void> {
+  const m = montarEmailRetomada({ nome: opts.nome, email: opts.to, segmento: opts.segmento, variante: opts.variante });
+  await sendMarketingEmail({ to: opts.to, userId: opts.userId, subject: m.subject, html: m.html });
 }

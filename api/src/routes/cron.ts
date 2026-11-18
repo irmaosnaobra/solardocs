@@ -11,6 +11,7 @@ import { dentroDoTetoCarla } from '../services/agents/whatsapp/carlaThrottle';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
 import { rodarAtivacaoPosVenda } from '../services/solardoc/ativacaoPosVenda';
 import { rodarRecepcaoWhatsApp, rodarRecepcaoEmail } from '../services/solardoc/recepcaoNovoUsuario';
+import { rodarEmailRetomada, contarEmailRetomada } from '../services/solardoc/emailRetomada';
 import { runConfiancaNutricao } from '../services/confiancaService';
 import { runConfiancaWhatsApp } from '../services/confiancaWhatsAppService';
 import { runLimpaproRecoveryConsumer, runLimpaproRecoverySeeds, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, seedLimpaproGrupoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
@@ -1614,6 +1615,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)
     ['meta-purchase-redrive',       () => reDrivePendingPurchases()], // reenvia Purchase que não confirmou entrega (garante Meta = card-pass)
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
+    ['email-retomada',              () => rodarEmailRetomada()],    // [18/11/2026] e-mail único para a base que não paga (grátis e ex-assinante): DESLIGADO até EMAIL_RETOMADA_LIGADA=true, 8h às 20h BRT, até 25 por rodada
     // ['pix-vip-reminder', ...] saiu desta lista: roda em sequência DEPOIS do dunning (ver `emSequencia`, abaixo).
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
     ['capi-lead-qualificado',       () => runCapiLeadQualificado()], // solar >700 kWh que orçou → Meta aprende o perfil do cliente bom (CAPI_QUALIFICADO_OFF desliga)
@@ -1677,6 +1679,17 @@ router.get('/master', async (req: Request, res: Response) => {
 // WhatsApp. SEM ?enviar=1 a rota só MOSTRA a lista. O envio está LIGADO desde
 // 18/08 (autorizado): o master cron horário manda UMA por tick, dentro do teto
 // da linha, até esvaziar. Pra parar no meio: PESQUISA_WHATSAPP_OFF=1.
+// Quantos receberiam o e-mail da retomada da base, por segmento. SÓ CONTA: nada é enviado nem gravado, com a campanha ligada ou não.
+router.get('/email-retomada-contar', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    res.json({ ok: true, ...(await contarEmailRetomada()) });
+  } catch (err: any) {
+    logger.error('cron', 'email-retomada-contar falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 router.get('/pesquisa-satisfacao', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {

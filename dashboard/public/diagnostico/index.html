@@ -51,7 +51,7 @@ fbq('track', 'PageView');
 <noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=824905216831401&ev=PageView&noscript=1"/></noscript>
 <style>
 /* Marca SolarDoc, um visual só, escuro como a landing (Landing.module.css:35-60): fundo azul-marinho, faixas #1E293B, ação em degradê âmbar, laranja #F26513 no .App e nos rótulos, Nunito Sans */
-:root{--fundo:#0F172A;--tela:#0F172A;--cartao:#1E293B;--faixa:#1E293B;--sobre-faixa:#F1F5F9;--borda:rgba(255,255,255,.08);--borda-forte:rgba(255,255,255,.16);--texto:#F1F5F9;--mudo:#CBD5E1;--marca:#F26513;--acao:#F59E0B;--acao-claro:#FBBF24;--acao-hover:#D97706;--acao-grad:linear-gradient(135deg,#FBBF24,#F59E0B);--acao-borda:rgba(245,158,11,.35);--acao-sombra:rgba(245,158,11,.35);--sobre-acao:#0F172A;--acao-suave:rgba(245,158,11,.12);--tem:#34D399;--tem-fundo:rgba(52,211,153,.14);--falta:#F87171;--falta-fundo:rgba(248,113,113,.14);--barra:#94A3B8;--pilula-fundo:#2B2420;--desab-fundo:#334155;--desab-texto:#CBD5E1;--trilho:rgba(255,255,255,.1);--foco:#FBBF24;--moldura:#020617;--sombra:rgba(0,0,0,.55);--codigo:#1E293B;--logo-fundo:#FFFFFF;--papel:#FFFFFF;--sobre-papel:#0F172A;--papel-mudo:#475569;--papel-borda:#E2E8F0;color-scheme:dark}
+:root{--fundo:#0F172A;--tela:#0F172A;--cartao:#1E293B;--faixa:#1E293B;--sobre-faixa:#F1F5F9;--borda:rgba(255,255,255,.08);--borda-forte:rgba(255,255,255,.16);--texto:#F1F5F9;--mudo:#CBD5E1;--marca:#F26513;--acao:#F59E0B;--acao-claro:#FBBF24;--acao-hover:#D97706;--acao-grad:linear-gradient(135deg,#FBBF24,#F59E0B);--acao-borda:rgba(245,158,11,.35);--acao-sombra:rgba(245,158,11,.35);--sobre-acao:#0F172A;--acao-suave:rgba(245,158,11,.12);--tem:#34D399;--tem-fundo:rgba(52,211,153,.14);--falta:#F87171;--falta-fundo:rgba(248,113,113,.14);--barra:#94A3B8;--pilula-fundo:#2B2420;--desab-fundo:#334155;--desab-texto:#CBD5E1;--trilho:rgba(255,255,255,.1);--foco:#FBBF24;--moldura:#020617;--sombra:rgba(0,0,0,.55);--codigo:#1E293B;--logo-fundo:#FFFFFF;--papel:#FFFFFF;--sobre-papel:#0F172A;--papel-mudo:#475569;--papel-borda:#E2E8F0;--zap:#25D366;--zap-fundo:rgba(37,211,102,.08);--zap-fundo-forte:rgba(37,211,102,.16);color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--fundo);color:var(--texto);font-family:'Nunito Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit}
@@ -475,6 +475,14 @@ body{min-height:100vh;min-height:100dvh;overflow:hidden}
 .pix-ok .cta,.pix-fim .cta{margin-top:20px}
 .pix-ok a.cta{text-decoration:none}
 .pix-fim .cta+.cta{margin-top:10px}
+/* Falar com a Carla: 2ª ação, abaixo do pagamento, separada por um fio. Contorno verde, nunca o degradê do botão de pagar. */
+.carla{margin:18px -2px 0;padding-top:18px;border-top:1px solid var(--borda-forte)}
+.carla-t{margin:0 0 10px;font-weight:700;color:var(--texto);text-wrap:balance}
+.zap{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;padding:10px 14px;border:2px solid var(--zap);border-radius:14px;background:var(--zap-fundo);color:var(--texto);font-weight:800;font-size:1rem;line-height:1.25;text-decoration:none;text-align:center;transition:background-color .15s,border-color .15s}
+.zap:hover{background:var(--zap-fundo-forte)}
+.zap .ic{width:24px;height:24px;color:var(--zap)}
+.zap .ch{fill:currentColor;stroke:none}
+.carla .nota{margin:8px 0 0}
 .pix-fim .cta.vazio{border:1.5px solid var(--borda-forte);box-shadow:none;background:transparent}
 .pix-fim-ic{width:64px;height:64px;margin:8px auto 14px;border-radius:50%;display:grid;place-items:center;background:var(--trilho);color:var(--mudo)}
 .pix-fim-ic svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -562,7 +570,7 @@ const TXT = {
   resBotao: 'Montar meu plano de 7 dias', resNota: 'Conta feita com as suas respostas. Não é promessa de resultado.',
   fecho: (k, r) => k === 0 ? 'Nenhum item falta na sua proposta.' : (k === 1 ? 'Falta 1 item. ' : 'Faltam ' + k + ' itens. ') + (r === 0 ? 'Ele fica com você.' : k === 1 ? 'O SolarDoc tem a função para ele.' : 'O SolarDoc tem a função para ' + r + ' deles.'),
   g1Titulo: 'Seu plano está pronto. Como você se chama?', g1Ajuda: 'Para o plano sair no seu nome.',
-  g2Titulo: 'Qual é o seu WhatsApp?', g2Ajuda: 'Seu diagnóstico fica guardado junto com o seu número. A Carla, do SolarDoc, pode te chamar no WhatsApp para mostrar o plano.',
+  g2Titulo: 'Qual é o seu WhatsApp?', g2Ajuda: 'Seu diagnóstico fica guardado junto com o seu número. Prefere conversar antes? No fim do plano, você fala com a Carla no WhatsApp.',
   g2Consent: 'Ao continuar, você concorda em receber contato da SolarDoc sobre este diagnóstico, conforme a Política de Privacidade.',
   socio: 'Copiar resumo para quem decide',
   i2SubMao: 'Eles também faziam na mão. Contam o que mudou.', i2SubPlat: 'Eles também pagavam outra plataforma. Contam o que mudou.', i2SubOutros: 'Eles contam o que mudou na venda.',
@@ -687,7 +695,7 @@ function pixAutoLigado() {
   } catch (e) { /* URL ilegível: segue pela sessão */ }
   try { return sessionStorage.getItem('sd_pixauto') === '1'; } catch (e) { return false; }
 }
-/* Botões da oferta, para todos os perfis (com ou sem CNPJ, ordem do dono em 14/11): cartão e Pix automático, o preferido na frente. Nenhuma saída para conversa. */
+/* Botões da oferta, para todos os perfis (com ou sem CNPJ, ordem do dono em 14/11): cartão e Pix automático, o preferido na frente. A conversa com a Carla fica abaixo deles, como 2ª ação (ordem do dono em 18/11). */
 function botoes(R) {
   const b = [];
   const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_auto', rot: 'Pagar no Pix' };
@@ -812,6 +820,7 @@ const ICO = {
   pix: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l8.5 8.5-8.5 8.5L3.5 12z"/><path d="M8 12l4-4 4 4-4 4z"/></svg>',
   infinito: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 8.5c-2-2-5.5-1-5.5 3.5s3.5 5.5 5.5 3.5L15.5 8.5c2-2 5.5-1 5.5 3.5s-3.5 5.5-5.5 3.5z"/></svg>',
   marca: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 100 18c1 0 1.5-.7 1.5-1.5 0-1.2-1-1.5-1-2.5S13.3 15 14.5 15H17a4 4 0 004-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="11" cy="7.5" r="1.2"/><circle cx="15.5" cy="8.5" r="1.2"/></svg>',
+  zap: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5l1.2-4.1A8.6 8.6 0 1 1 7.9 19.4z"/><path class="ch" d="M9.1 8.3c.3-.4.8-.4 1.1-.1l1 1.1c.3.3.3.7 0 1l-.6.6c.6 1.1 1.5 2 2.6 2.6l.6-.6c.3-.3.7-.3 1 0l1.1 1c.3.3.3.8-.1 1.1-.9.7-2.1.8-3.1.3-1.7-.9-3.1-2.3-4-4-.5-1-.4-2.2.4-3z"/></svg>',
   foto: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.5-2.5h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>'
 };
 let R = {};
@@ -1032,7 +1041,7 @@ const VIEW = {
     return { html: '<form data-form novalidate><h3 class="titulo" id="tit">' + TXT.g2Titulo + '</h3><p class="ajuda">' + TXT.g2Ajuda + '</p><input class="campo" id="campo-whats" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="(34) 99999-9999" value="' + esc(mascara(R.whats || '')) + '" aria-labelledby="tit"></form><p class="nota">' + esc(TXT.g2Consent).replace('Política de Privacidade', '<a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a>') + '</p>', rod: { txt: 'Ver meu plano', on: valido(PASSOS[S.i]) } };
   },
   plano() {
-    /* Última página, direta: diagnóstico em 2 linhas, plano de 7 dias, o que recebe em figura, preço e botões. Sem saída para conversa. */
+    /* Última página, direta: diagnóstico em 2 linhas, plano de 7 dias, o que recebe em figura, preço e botões. Pagar é o principal; falar com a Carla vem logo abaixo, menor. */
     const pf = perfil(R), bt = botoes(R), fr = pilarFraco(R), h = horas(R);
     let x = '<h3 class="titulo" id="tit">' + esc((R.nome || '').trim() ? R.nome.trim() + ', seu plano está pronto.' : 'Seu plano está pronto.') + '</h3>';
     x += '<div class="diag">' + anelSVG(indice(R), 100, 'Índice de Proposta: ' + indice(R) + ' de 100', 'peq') + '<div><b>' + esc(pf.nome) + '</b><p>Ponto fraco: ' + esc(fr.nome.toLowerCase()) + '.</p>' + (h > 0 ? '<p>' + esc(br(h)) + ' h por mês em proposta.</p>' : '') + '</div></div>';
@@ -1045,7 +1054,10 @@ const VIEW = {
         + '<ul class="of-ok"><li>' + ICO.ok + 'Documentos ilimitados</li><li>' + ICO.escudo + 'Garantia de 7 dias</li><li>' + ICO.livre + 'Sem fidelidade</li></ul>'
         + '<p class="nota centro">' + esc('Seria ruim para você começar agora, sabendo que em 7 dias o valor volta inteiro se não servir?') + '</p>'
         + bt.filter((b) => b.k !== 'socio').map((b) => '<button type="button" class="cta' + (b.prim ? '' : ' vazio') + '" data-a="btn" data-k="' + b.k + '">' + (b.k === 'cartao' ? ICO.cartao : ICO.pix) + esc(b.rot) + '</button>').join('')
-        + '<p class="nota centro">' + esc(pixAutoLigado() ? 'No Pix automático, você paga o 1º mês agora e o banco debita todo mês. Para parar, é só cancelar a autorização no app do banco. No cartão, cancela quando quiser.' : 'Cancela quando quiser.') + '</p></div>';
+        + '<p class="nota centro">' + esc(pixAutoLigado() ? 'No Pix automático, você paga o 1º mês agora e o banco debita todo mês. Para parar, é só cancelar a autorização no app do banco. No cartão, cancela quando quiser.' : 'Cancela quando quiser.') + '</p>'
+        + '<div class="carla"><p class="carla-t">Prefere conversar antes? Fala com a Carla.</p>'
+        + '<a class="zap" href="' + esc(zapCarla()) + '" target="_blank" rel="noopener" data-a="carla">' + ICO.zap + 'Tirar dúvidas no WhatsApp</a>'
+        + '<p class="nota centro">Ela responde na hora, até de noite.</p></div></div>';
       const pg = R.pagamento === 'pix' && pixAutoLigado() ? 'pix' : 'cartao';
       x += '<p class="rotulo r2">Depois de pagar</p><ol class="passos-h">' + PASSOS_DEPOIS[pg].map((t) => '<li><span>' + esc(t) + '</span></li>').join('') + '</ol>';
       x += '<p class="nota centro">' + esc('Funciona no computador e no celular, e você instala na tela inicial para abrir como um app.') + '</p>';
@@ -1664,6 +1676,13 @@ function pixCopiar() {
   const sel = () => { ta.focus(); ta.select(); try { if (document.execCommand('copy')) ok(); } catch (e) { /* o texto fica selecionado para copiar à mão */ } };
   try { navigator.clipboard.writeText(ta.value).then(ok, sel); } catch (e) { sel(); }
 }
+/* Falar com a Carla: o texto leva "saber sobre o SolarDoc" (é o que manda a conversa para ela) e o código do diagnóstico,
+   só quando a API devolveu um de verdade. O código de reserva (codigoLocal) não existe no banco, então não vai. */
+function zapCodigo() { return E.ok && /^SD-[A-Z0-9]{4,6}$/.test(E.codigo || '') ? E.codigo : ''; }
+function zapCarla() {
+  const c = zapCodigo();
+  return 'https://wa.me/5534998165040?text=' + encodeURIComponent('Quero saber sobre o SolarDoc.' + (c ? ' Meu diagnóstico: ' + c : ''));
+}
 function acaoFinal(k, el) {
   if (k !== S.fimK) { S.fimK = k; SDR.evento('quiz_fim', { destino: k }); }
   if (k === 'cartao') { assinarCartao(); return; }
@@ -1683,6 +1702,7 @@ $('app').addEventListener('click', (e) => {
   else if (a === 'ver') abrirVer(t.getAttribute('data-k'), t);
   else if (a === 'carr') { const cr = t.closest('.carr'); carrIr(cr, carrIdx(cr.querySelector('.carr-trilho')) + Number(t.getAttribute('data-d'))); }
   else if (a === 'aba') { const k = t.getAttribute('data-k'); ['cartao', 'pix'].forEach((x) => { const on = x === k, ab = $('aba-' + x), pn = $('pn-' + x); if (ab) ab.setAttribute('aria-selected', String(on)); if (pn) pn.hidden = !on; }); }
+  else if (a === 'carla') SDR.evento('quiz_whatsapp_carla', { codigo: zapCodigo() || null }); /* o link segue sozinho para o WhatsApp */
   else if (a === 'btn') acaoFinal(t.getAttribute('data-k'), t);
   else if (a === 'copiar') copiar(resumo(R));
   else if (a === 'pixcopiar') pixCopiar();

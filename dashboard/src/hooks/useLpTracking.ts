@@ -51,6 +51,17 @@ function extractMetaClickIds(): Record<string, string> {
   return out;
 }
 
+// O link de recuperação do Pix (/?pagar=pix&email=...) traz o e-mail na URL. Ele
+// serve só para preencher o campo: nunca vai para landing_url, banco ou pixel.
+export function urlSemEmail(href: string): string {
+  try {
+    const u = new URL(href);
+    if (!u.searchParams.has('email')) return href;
+    u.searchParams.delete('email');
+    return u.toString();
+  } catch { return href; }
+}
+
 // Reserva de landing_url e referrer: guarda os da 1ª página da sessão (no checkout, a página
 // atual já não é a de entrada). Só vale quando o /lib/origem.js não respondeu.
 function extractLanding(): Record<string, string> {
@@ -58,7 +69,7 @@ function extractLanding(): Record<string, string> {
   const out: Record<string, string> = {};
   try {
     let landing = sessionStorage.getItem(SK_LANDING);
-    if (!landing) { landing = (window.location.href || '').slice(0, 500); if (landing) sessionStorage.setItem(SK_LANDING, landing); }
+    if (!landing) { landing = urlSemEmail(window.location.href || '').slice(0, 500); if (landing) sessionStorage.setItem(SK_LANDING, landing); }
     if (landing) out.landing_url = landing;
     let ref = sessionStorage.getItem(SK_REFERRER);
     if (ref === null) { ref = (document.referrer || '').slice(0, 500); sessionStorage.setItem(SK_REFERRER, ref); }
@@ -197,7 +208,7 @@ export function useLpTracking() {
       ...(fbp ? { fbp } : {}),
       ...(fbclid ? { fbclid } : {}),
       referrer: document.referrer || null,
-      landing_url: window.location.href,
+      landing_url: urlSemEmail(window.location.href),
     })
       .then(() => {
         try { sessionStorage.setItem(SK_VISIT_SENT, '1'); } catch {}

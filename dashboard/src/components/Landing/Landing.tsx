@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLpTracking, getCheckoutAttribution, novoIcEventId } from '@/hooks/useLpTracking';
+import { useLpTracking, getCheckoutAttribution, novoIcEventId, urlSemEmail } from '@/hooks/useLpTracking';
 import api from '@/services/api';
 import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import { VSL } from './vsl';
@@ -72,6 +72,11 @@ const PRICE_ANUAL = 564;
 // seção com "inclusas no plano anual". Sem anual na vitrine, somar as duas não
 // diz nada — cada uma se vende pelo próprio preço.
 const WHATSAPP = 'https://wa.me/5534998165040';
+// Link geral (rodapé): o texto pronto leva "saber sobre o SolarDoc", que é o que
+// manda a conversa para a Carla. O modal do Pix monta o próprio texto em cima do WHATSAPP.
+const WHATSAPP_GERAL = `${WHATSAPP}?text=${encodeURIComponent('Quero saber sobre o SolarDoc.')}`;
+// E-mail do link de recuperação (?email=): só passa com formato de e-mail e sem sinal de HTML.
+const EMAIL_URL_RE = /^[^@\s<>"'`]+@[^@\s<>"'`]+\.[^@\s<>"'`]{2,}$/;
 
 // Concessionárias da faixa de confiança (logo oficial em /public/conc).
 const CONCESSIONARIAS = [
@@ -360,6 +365,7 @@ export default function Landing() {
   // Pix automático (modal, sem sair da LP). `pixOrigem` é o botão que abriu
   // (modulos, oferta, final ou url); null = fechado.
   const [pixOrigem, setPixOrigem] = useState<string | null>(null);
+  const [pixEmail, setPixEmail] = useState(''); // vem do link de recuperação (?email=)
   const pixAutoAbriu = useRef(false);
   const abrirPix = useCallback((origem: string) => {
     // O InitiateCheckout (vip_pix_auto) sai dentro do modal, depois que o código chega.
@@ -372,13 +378,23 @@ export default function Landing() {
   // entram na atribuição porque o useLpTracking já as guarda na sessão.
   // Pix gerado nas últimas 24 h (aba fechada, volta do app do banco com a página
   // recarregada): reabre o modal sozinho, com o mesmo código ou já com o Pix pago.
+  // `&email=` preenche o campo do modal (só se tiver formato de e-mail; o React
+  // põe como valor do campo, nunca como HTML) e sai da barra de endereço na hora,
+  // para não ir ao pixel nem ao landing_url. As UTMs ficam na URL.
   useEffect(() => {
     if (pixAutoAbriu.current || typeof window === 'undefined') return;
-    const pelaUrl = new URLSearchParams(window.location.search).get('pagar') === 'pix';
+    const qs = new URLSearchParams(window.location.search);
+    const pelaUrl = qs.get('pagar') === 'pix';
+    if (qs.has('email')) {
+      const em = (qs.get('email') || '').trim().toLowerCase();
+      // A URL só existe no cliente: ler no useState inicial quebraria a hidratação.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (em.length <= 120 && EMAIL_URL_RE.test(em)) setPixEmail(em);
+      try { window.history.replaceState(window.history.state, '', urlSemEmail(window.location.href)); } catch { /* segue com a URL como veio */ }
+    }
     if (!pelaUrl && !temPixGuardadoLp()) return;
     pixAutoAbriu.current = true;
     // A URL e o localStorage só existem no cliente: ler no useState inicial quebraria a hidratação.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (pelaUrl) abrirPix('url'); else setPixOrigem('retomada');
   }, [abrirPix]);
 
@@ -1663,7 +1679,7 @@ export default function Landing() {
             <strong>SolarDoc Pro</strong> · Documentação solar com IA · {new Date().getFullYear()}
           </div>
           <div className={styles.footerLinks}>
-            <a href={WHATSAPP} target="_blank" rel="noopener noreferrer">Suporte WhatsApp</a>
+            <a href={WHATSAPP_GERAL} target="_blank" rel="noopener noreferrer">Suporte WhatsApp</a>
           </div>
         </div>
       </footer>
@@ -1672,6 +1688,7 @@ export default function Landing() {
         <PixAutomaticoModal
           origem={pixOrigem}
           whatsappUrl={WHATSAPP}
+          emailInicial={pixEmail}
           onFechar={fecharPix}
           onCartao={() => { setPixOrigem(null); void goToCheckout('pix_cartao'); }}
         />
