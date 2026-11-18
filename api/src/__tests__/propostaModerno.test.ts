@@ -49,10 +49,12 @@ describe('Moderno em folhas A4', () => {
     expect(h).toContain(`${pBRL(fin.economiaMensal)} <small>por mês</small>`);
   });
 
-  it('dados mínimos: sem CPF, e-mail, telefone, foto, garantia de inversor nem QR', () => {
+  it('dados mínimos: CPF só como XXX.XXX.XXX-XX, sem e-mail, telefone, foto, garantia de inversor nem QR', () => {
     const t = texto(render('minimo', 3));
     expect(render('minimo', 3)).not.toContain('<div class="k">Inversor</div>');
-    for (const r of ['CPF', 'E-mail', 'Telefone', 'Vistoria feita por', 'Local da instalação', 'Aponte a câmera', 'Bateria', 'Cartão de crédito', 'Financiamento']) expect(t).not.toContain(r);
+    expect(t).toContain('CPF');
+    expect(t).toContain('XXX.XXX.XXX-XX');
+    for (const r of ['E-mail', 'Telefone', 'Vistoria feita por', 'Local da instalação', 'Aponte a câmera', 'Bateria', 'Cartão de crédito', 'Financiamento']) expect(t).not.toContain(r);
   });
 
   it('completa: CPF formatado, bateria explicada, financiamento com aviso de crédito', () => {

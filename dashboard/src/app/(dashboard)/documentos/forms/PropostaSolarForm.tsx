@@ -369,6 +369,9 @@ const LIMITE_FOTOS_OBRAS = 12;
 // A etiqueta "Novo" do cartão Completa + Banco vale até esta data (inclusive, horário de Brasília).
 const SELO_NOVO_ATE = '2026-12-05T23:59:59-03:00';
 const seloNovoAtivo = () => Date.now() <= new Date(SELO_NOVO_ATE).getTime();
+// A etiqueta "Novo" dos cartões Moderno e Moderno com capa (refeitos em A4 em 18/11/2026) vale até esta data, 30 dias depois.
+const SELO_NOVO_MODERNO_ATE = '2026-12-18T23:59:59-03:00';
+const seloNovoModernoAtivo = () => Date.now() <= new Date(SELO_NOVO_MODERNO_ATE).getTime();
 const LIMITE_EMPRESAS = 12;
 const LIMITE_BANCOS = 8;
 const CHAVES_PORTFOLIO = ['fotos_obras', 'empresas_atendidas', 'bancos_parceiros'] as const;
@@ -1664,6 +1667,7 @@ export default function PropostaSolarPage() {
                 onClick={() => setModelo(2)}
                 titulo="Moderno"
                 desc="completo, com gráfico de 25 anos"
+                selo={seloNovoModernoAtivo() ? 'Novo' : undefined}
               />
               <Escolha
                 on={modelo === 3}
@@ -1671,6 +1675,7 @@ export default function PropostaSolarPage() {
                 onClick={() => setModelo(3)}
                 titulo="Moderno com capa"
                 desc="o mesmo, com folha de rosto na frente"
+                selo={seloNovoModernoAtivo() ? 'Novo' : undefined}
               />
             </Escolhas>
           </div>

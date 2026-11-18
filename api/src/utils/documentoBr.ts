@@ -25,6 +25,14 @@ export function formatarCpf(v: unknown): string {
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
 }
 
+/** O que o orçamento imprime no lugar do CPF quando o cliente foi cadastrado sem documento. */
+export const CPF_OCULTO = 'XXX.XXX.XXX-XX';
+
+/** Sem nenhum dígito (vazio, nulo, só espaços ou máscara vazia): é o caso do CPF_OCULTO. Qualquer dígito já não é vazio. */
+export function documentoVazio(v: unknown): boolean {
+  return soDigitos(v).length === 0;
+}
+
 // ─── Assinatura da proposta Completa + Banco ─────────────────────────────────
 
 export interface AssinaturaEmpresa { razao_social: string; cnpj: string; representante: string; cargo: string }

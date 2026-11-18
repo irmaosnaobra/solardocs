@@ -10,7 +10,7 @@ import {
 } from './templates/propostaSolarPartes';
 import { propostaModernoHtml } from './templates/propostaModerno';
 import { fotoSegura, logoSegura } from './templates/propostaModernoPaginas';
-import { normalizarAssinatura, formatarCpf, formatarCnpj } from '../utils/documentoBr';
+import { normalizarAssinatura, formatarCpf, formatarCnpj, CPF_OCULTO, documentoVazio } from '../utils/documentoBr';
 import {
   FIN_PRAZOS, anoCivil, calcularFinanceiro, lerFioB, serieFioB,
   valorParcelaCartao as calcParcelaCartao, valorParcelaFin as calcParcelaFin,
@@ -2626,9 +2626,12 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const docCliente = (tipo: 'PF' | 'PJ' | '', numero: string): string => {
     const d = numero.replace(/\D/g, '');
     if (tipo === 'PJ' || (!tipo && d.length === 14)) return d ? `CNPJ ${formatarCnpj(numero)}` : '';
+    if (documentoVazio(numero)) return `CPF ${CPF_OCULTO}`;   // orçamento sem CPF real: o integrador deixa em branco
     return d.length === 11 ? `CPF ${formatarCpf(d)}` : '';
   };
-  const cpfCliente = assin?.cliente.documento ? docCliente(assin.cliente.tipo, assin.cliente.documento) : docCliente('', String(client.cpf_cnpj || ''));
+  // Sem documento na assinatura vale o cadastro, com o tipo dele: empresa sem CNPJ não vira "CPF XXX".
+  const tipoCadastro: 'PJ' | '' = assin?.cliente.tipo === 'PJ' || client.tipo === 'PJ' ? 'PJ' : '';
+  const cpfCliente = assin?.cliente.documento ? docCliente(assin.cliente.tipo, assin.cliente.documento) : docCliente(tipoCadastro, String(client.cpf_cnpj || ''));
   const nomeCliente = String(client.nome || '').trim();
   const cidadeEmpresa = String((company as { cidade?: string }).cidade || '').trim();
   const cnpjEmpresaAssin = assin?.empresa.cnpj ? `CNPJ ${formatarCnpj(assin.empresa.cnpj)}` : (contatoDoc.cnpjDoc ? `CNPJ ${pCnpj(contatoDoc.cnpjDoc)}` : '');
