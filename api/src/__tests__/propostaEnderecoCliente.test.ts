@@ -33,30 +33,30 @@ describe('endereço do cliente na proposta solar', () => {
 
   it('modelo 2: imprime o endereço na ficha técnica, com o rótulo Endereço', () => {
     const h = render({ endereco: ENDERECO }, 2);
-    expect(h).toMatch(/<div class="spec-label">Endereço<\/div>\s*<div class="spec-value">Rua das Palmeiras, 1200/);
-    expect(h).not.toContain('capa-endereco">');
+    expect(h).toContain('<div class="k">Endereço da instalação</div><div class="v">Rua das Palmeiras, 1200');
+    expect(h).not.toContain('class="page capa"');
   });
 
   it('modelo 2: sem endereço o rótulo não aparece, nem "___"', () => {
     const h = render({}, 2);
-    expect(h).not.toContain('<div class="spec-label">Endereço</div>');
+    expect(h).not.toContain('Endereço da instalação');
     expect(h).not.toContain('___');
   });
 
   it('modelo 2: espaços em branco contam como vazio', () => {
-    expect(render({ endereco: '   ' }, 2)).not.toContain('<div class="spec-label">Endereço</div>');
+    expect(render({ endereco: '   ' }, 2)).not.toContain('Endereço da instalação');
   });
 
   it('modelo 3: imprime o endereço na capa e na ficha técnica', () => {
     const h = render({ endereco: ENDERECO }, 3);
-    expect(h).toContain('<p class="capa-sub capa-endereco">' + ENDERECO + '</p>');
-    expect(h).toMatch(/<div class="spec-label">Endereço<\/div>/);
+    expect(h).toContain('<div class="loc">' + ENDERECO + '</div>');
+    expect(h).toContain('Endereço da instalação');
   });
 
   it('modelo 3: sem endereço a capa não ganha a linha', () => {
     const h = render({}, 3);
-    expect(h).not.toContain('<p class="capa-sub capa-endereco">');
-    expect(h).not.toContain('<div class="spec-label">Endereço</div>');
+    expect(h).toContain('class="page capa"');
+    expect(h).not.toContain('Endereço da instalação');
   });
 
   it('cai no endereço do cadastro quando o form não manda', () => {

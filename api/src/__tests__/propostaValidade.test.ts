@@ -28,8 +28,14 @@ describe('validade da proposta solar', () => {
     expect(render(1, { validade_dias: '0' })).toContain('VÁLIDO POR 7 DIAS');
   });
 
-  it('Moderno: mostra a validade no cabecalho', () => {
-    expect(render(2, { validade_dias: '10' })).toMatch(/Válido por 10 dias · até \d{2} de \w+ de \d{4}/);
+  it('Moderno: mostra a validade no cabecalho, com a data exata (emissão + 10 dias)', () => {
+    // Emissão fixa: 18/11/2026 15h UTC (12h em Brasília). Mais 10 dias corridos = 28 de novembro de 2026.
+    const h = render(2, { validade_dias: '10', emitido_em: '2026-11-18T15:00:00.000Z' });
+    expect(h).toContain('Válida até<b>28 de novembro de 2026</b>');
+    expect(h).toContain('Emitida em<b>18 de novembro de 2026</b>');
+    expect(h).toContain('Esta proposta vale até 28 de novembro de 2026.');
+    // Na virada do mês e do ano também: 25/12 + 10 = 04/01.
+    expect(render(2, { validade_dias: '10', emitido_em: '2026-12-25T15:00:00.000Z' })).toContain('Válida até<b>04 de janeiro de 2027</b>');
   });
 
   it('numero absurdo nao vira "Invalid Date" no PDF', () => {
