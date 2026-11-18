@@ -7,6 +7,7 @@ import {
 } from './geradorClientes';
 import { lerLigacao } from '../services/gerador/vendaSolarHub';
 import { tentarNumeroDaJornada } from './geradorJornadaNumero';
+import { waitUntil } from '../utils/waitUntil';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { lerProposta, assinar, normalizarNome, ARQUIVOS_SOLAR } from '../services/gerador/dossieVenda';
 import { celulaDe } from '../services/gerador/gestaoClientes';
@@ -17,9 +18,9 @@ import {
 } from '../services/gerador/fichaEletropostoBanco';
 import { docsEnvioLimiter, docsEnvioIpLimiter } from '../middleware/rateLimiter';
 import {
-  CATALOGO, SLOTS_FORA_DO_RELATORIO, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
+  CATALOGO, SLOTS_FORA_DO_RELATORIO, SLOTS_DO_TRELLO_AUTO, extDoArquivo, mimeDoKmz, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
   lerCaminho, comArquivo, semArquivo, comVinculo, motivoSemEspaco, nomesParecidos, dadosSolarPlanilha, dadosVendaSolar, dadosEletroposto,
-  equipamentoDaPlanilha, montarRelatorio, assinaturaBate, comArquivoMovido, motivoSemEspacoParaMover, TIPOS_FORA_DA_HOMOLOGACAO,
+  equipamentoDaPlanilha, montarRelatorio, assinaturaBate, assinaturaPedeArquivoInteiro, comArquivoMovido, motivoSemEspacoParaMover, TIPOS_FORA_DA_HOMOLOGACAO,
   limiteDoItem, tetoDaVenda, SLOT_DO_DOSSIE_NA_VENDASOLAR, comArquivosTrocados, type ArquivoDoc, type Linha, type RegistroDocs, type DocBruto, type DadosHomologacao, type ItemDoc,
 } from '../services/gerador/docsCliente';
 import {
@@ -400,9 +401,11 @@ export function mountClientesDocs(router: Router): void {
     const b = corpoDe(req);
     const item = b ? itemDoCatalogo(ctx.linha, b.slot) : null;
     if (!b || !item) { res.status(400).json({ ok: false, error: 'Item não encontrado.' }); return; }
-    const mime = normalizarMime(b.mime);
+    // KMZ/KML: o navegador manda zip, octet-stream ou nada; a extensão (`ext` ou `nome`, nunca guardados) decide e o tipo vira o do Google Earth.
+    // Só o item `kmz` passa por aqui: em qualquer outro, zip e octet-stream continuam recusados por `mimeServeAoItem`.
+    const mime = item.aceita === 'kmz' ? (mimeDoKmz(normalizarMime(b.mime), extDoArquivo(b.ext ?? b.nome)) ?? '') : normalizarMime(b.mime);
     if (!mimeServeAoItem(item, mime)) {
-      res.status(400).json({ ok: false, error: item.aceita === 'imagem' ? 'Este item aceita só foto (jpg, png ou webp).' : 'Envie jpg, png, webp ou pdf.' });
+      res.status(400).json({ ok: false, error: item.aceita === 'kmz' ? 'Este item aceita só arquivo .kmz ou .kml.' : item.aceita === 'imagem' ? 'Este item aceita só foto (jpg, png ou webp).' : 'Envie jpg, png, webp ou pdf.' });
       return;
     }
     const bytes = b.bytes;
@@ -462,7 +465,7 @@ export function mountClientesDocs(router: Router): void {
       }
       // O tipo que o Storage guarda é o que o navegador declarou: a assinatura do arquivo tem que bater com ele.
       let primeiros: Uint8Array;
-      try { primeiros = await lerPrimeirosBytes(caminho); } catch (e) {
+      try { primeiros = await lerPrimeirosBytes(caminho, assinaturaPedeArquivoInteiro(sonda.mime) ? LIMITE_BYTES : 16); } catch (e) {
         // Sem conseguir conferir o tipo, o objeto não pode ficar solto no bucket: tenta remover antes do 502.
         await removerObjeto(caminho).catch((e2) => logErro('limpeza falhou', e2));
         throw e;
@@ -515,6 +518,13 @@ export function mountClientesDocs(router: Router): void {
             const rn = await tentarNumeroDaJornada(ctx.card, { nome: ctx.nome, socio: ctx.socio }, inicioDoPedido, {});
             numero = rn.ok ? { ok: true, codigo: rn.codigo } : { ok: false, motivo: rn.motivo };
           } catch (e) { logErro('número depois do anexo', e); numero = { ok: false, motivo: 'banco' }; }
+        }
+        // Jornada (18/11/2026): datasheet da placa, datasheet do inversor ou KMZ podem ter fechado o bloco equipamento da etapa 3. O cartão
+        // do Trello sai sozinho em segundo plano (idempotente; falha só vira log). `import()` aqui por causa do ciclo de módulos.
+        if (ctx.linha === 'vendasolar' && ctx.card && SLOTS_DO_TRELLO_AUTO.includes(item.chave)) {
+          const dono = { nome: ctx.nome, socio: ctx.socio };
+          const card = ctx.card;
+          waitUntil(import('./geradorJornadaTrelloAuto').then((m) => m.tentarTrelloAutomatico(card, dono)).then(() => undefined).catch((e) => logErro('trello automático', e)));
         }
         res.json({ ok: true, arquivo: lerNaTela(arq, urls), ...(antigo ? { substituiu: antigo.id } : {}), ...(numero ? { numero } : {}) });
         return;
@@ -587,7 +597,7 @@ export function mountClientesDocs(router: Router): void {
           let trocado: ArquivoDoc | null = null;
           if (itemNovo && itemNovo.chave !== a.slot) {
             if (!mimeServeAoItem(itemNovo, a.mime)) {
-              return { status: 400 as const, corpo: { ok: false, motivo: 'formato_nao_aceito', error: itemNovo.aceita === 'imagem' ? 'Este item aceita só foto (jpg, png ou webp).' : 'Este item aceita só pdf.' } };
+              return { status: 400 as const, corpo: { ok: false, motivo: 'formato_nao_aceito', error: itemNovo.aceita === 'kmz' ? 'Este item aceita só arquivo .kmz ou .kml.' : itemNovo.aceita === 'imagem' ? 'Este item aceita só foto (jpg, png ou webp).' : 'Este item aceita só pdf.' } };
             }
             const motivo = motivoSemEspacoParaMover(reg, id, itemNovo);
             // `trocar: true` só vale com o destino de UM arquivo só já ocupado: o arquivo de lá vai para o item de origem, nos dois

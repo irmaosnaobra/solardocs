@@ -128,28 +128,82 @@ describe('itensDaEtapa', () => {
       desconto_centavos: null, prazo_prometido: 'até 60 dias', nota: '', kit_confirmado: true, combinado_por: 'nilce', combinado_em: AGORA, editado: [] },
     cancelamento: null, descancelamentos: [],
   });
-  it('etapa 1: faltam o Medidor e a conta da mãe com outro titular (Falta 2); anexar o medidor e tirar a conta zera', () => {
+  const cadOk = () => cad({ nome: 'Marcos Andrade', endereco_ponto: 'Rua A, 10', telefone: '34999990000', email: 'a@b.c' });
+  const falta = (itens: ReturnType<typeof itensDaEtapa>) => itens.filter((i) => !i.feito).map((i) => i.chave);
+  const papeisGerados = (e: EstadoJornada) => {
+    e.etapas[2].papeis = { contrato: { gerado_em: AGORA, por: 'nilce' }, procuracao: { gerado_em: AGORA, por: 'nilce' }, recibo: null };
+  };
+  it('etapa 1 (Venda): blocos cliente, venda e papeis, nesta ordem e com estas chaves; o kit NÃO está aqui', () => {
     const e = novo();
+    const itens = itensDaEtapa(1, base(e, new Set(), cadOk(), privadoOk()));
+    expect(itens.map((i) => [i.bloco, i.chave])).toEqual([
+      ['cliente', 'nome'], ['cliente', 'endereco_usina'], ['cliente', 'telefone'], ['cliente', 'email'],
+      ['venda', 'proposta'], ['venda', 'valor'], ['venda', 'prazo'],
+      ['papeis', 'papel_contrato'], ['papeis', 'papel_procuracao'],
+    ]);
+    expect(itens.map((i) => i.texto)).toEqual([
+      'Nome completo', 'Endereço da usina', 'Telefone de contato', 'E-mail do cliente', 'Proposta aceita ligada', 'Valor e forma de pagamento',
+      'Prazo prometido ao cliente', 'Contrato gerado', 'Procuração gerada',
+    ]);
+    expect(itens.some((i) => i.chave === 'kit')).toBe(false);
+    expect(itens.some((i) => i.chave === 'contrato_assinado')).toBe(false);   // o assinado é da etapa 2
+    expect(falta(itens)).toEqual(['papel_contrato', 'papel_procuracao']);
+  });
+  it('etapa 1: contrato e procuração gerados vêm de etapas[2].papeis (recibo não é item); sem cadastro, o bloco cliente falta inteiro', () => {
+    const e = novo();
+    papeisGerados(e);
+    const todos = itensDaEtapa(1, base(e, new Set(), cadOk(), privadoOk()));
+    expect(falta(todos)).toEqual([]);
+    expect(todos.some((i) => i.chave.includes('recibo'))).toBe(false);
+    expect(falta(itensDaEtapa(1, base(e, new Set(), cad({}), privadoOk())))).toEqual(['nome', 'endereco_usina', 'telefone', 'email']);
+    expect(falta(itensDaEtapa(1, base(null, new Set(), cadOk(), null)))).toEqual(['valor', 'prazo', 'papel_contrato', 'papel_procuracao']);
+  });
+  it('etapa 2 (Documentos e vistoria): documentos, fotos e os DOIS papéis assinados (contrato e procuração), no bloco portao', () => {
+    const e = novo();
+    e.etapas[1].excedente = 'nao';
+    const itens = itensDaEtapa(2, base(e, new Set(), cadOk()));
+    expect(itens.map((i) => [i.bloco, i.chave])).toEqual([
+      ['documentos', 'documento'], ['documentos', 'conta_luz'], ['documentos', 'excedente'],
+      ['fotos', 'fachada'], ['fotos', 'padrao'], ['fotos', 'disjuntor'], ['fotos', 'medidor'], ['portao', 'contrato_assinado'], ['portao', 'procuracao'],
+    ]);
+    expect(itens.find((i) => i.chave === 'procuracao')!.texto).toBe('Procuração assinada anexada');
+    expect(falta(itens)).toEqual(['documento', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor', 'contrato_assinado', 'procuracao']);
+    expect(itens.find((i) => i.chave === 'contrato_assinado')!.texto).toBe('Contrato assinado anexado');
+    expect(falta(itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor', 'procuracao']), cadOk())))).toEqual(['contrato_assinado']);
+    expect(falta(itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor', 'procuracao', 'contrato_assinado']), cadOk())))).toEqual([]);
+  });
+  it('etapa 2: conta_excedente só entra com excedente "sim" e conta o slot conta_luz_beneficiaria', () => {
+    const e = novo();
+    e.etapas[1].excedente = 'nao';
+    expect(itensDaEtapa(2, base(e, new Set(), cadOk())).some((i) => i.chave === 'conta_excedente')).toBe(false);
     e.etapas[1].excedente = 'sim';
     const c = cad({ email: 'a@b.c', titular_conta: 'Marcos Andrade', benef_1_uc: '3012', benef_1_titular: 'Maria Andrade' });
-    const falta = (itens: ReturnType<typeof itensDaEtapa>) => itens.filter((i) => !i.feito).map((i) => i.chave);
-    expect(falta(itensDaEtapa(1, base(e, slotsOk, c, privadoOk())))).toEqual(['medidor', 'excedente']);
-    expect(itensDaEtapa(1, base(e, slotsOk, c, privadoOk())).find((i) => i.chave === 'excedente')!.texto).toBe('Todas as contas do excedente no nome de Marcos Andrade');
-    const c2 = cad({ email: 'a@b.c', titular_conta: 'Marcos Andrade' });
-    e.etapas[1].excedente = 'nao';
-    expect(falta(itensDaEtapa(1, base(e, new Set([...slotsOk, 'medidor']), c2, privadoOk())))).toEqual([]);
+    const sem = itensDaEtapa(2, base(e, slotsOk, c));
+    expect(sem.find((i) => i.chave === 'conta_excedente')).toMatchObject({ bloco: 'documentos', texto: 'Conta de luz do excedente', feito: false });
+    expect(sem.find((i) => i.chave === 'excedente')!.texto).toBe('Todas as contas do excedente no nome de Marcos Andrade');
+    expect(itensDaEtapa(2, base(e, new Set([...slotsOk, 'conta_luz_beneficiaria']), c)).find((i) => i.chave === 'conta_excedente')!.feito).toBe(true);
   });
   it('excedente null falta; "nao" não pede beneficiária', () => {
     const e = novo();
     const c = cad({ email: 'a@b.c' });
-    const ex = () => itensDaEtapa(1, base(e, slotsOk, c, privadoOk())).find((i) => i.chave === 'excedente')!;
+    const ex = () => itensDaEtapa(2, base(e, slotsOk, c, privadoOk())).find((i) => i.chave === 'excedente')!;
     expect(ex()).toMatchObject({ feito: false, texto: 'Diga se tem excedente para outras contas' });
     e.etapas[1].excedente = 'nao';
     expect(ex().feito).toBe(true);
   });
-  it('etapa 2 pede só os dois papéis assinados', () => {
+  it('etapa 3: o bloco equipamento vem PRIMEIRO (kit, datasheets e KMZ) e o resto segue como era', () => {
     const e = novo();
-    expect(itensDaEtapa(2, base(e, new Set(['contrato_assinado']), cad({}))).map((i) => [i.chave, i.feito])).toEqual([['contrato_assinado', true], ['procuracao', false]]);
+    const itens = itensDaEtapa(3, base(e, new Set(), cadOk(), null));
+    expect(itens.map((i) => [i.bloco, i.chave])).toEqual([
+      ['equipamento', 'kit'], ['equipamento', 'datasheet_modulo'], ['equipamento', 'datasheet_inversor'], ['equipamento', 'kmz'],
+      ['portao', 'trello'], ['portao', 'art'], ['portao', 'protocolo'], ['portao', 'parecer'],
+    ]);
+    expect(itens.slice(0, 4).map((i) => i.texto)).toEqual(['Todo o equipamento confirmado', 'Datasheet da placa', 'Datasheet do inversor', 'KMZ do local']);
+    const tudo = itensDaEtapa(3, base(e, new Set(['datasheet_modulo', 'datasheet_inversor', 'kmz']), cadOk(), privadoOk())).slice(0, 4);
+    expect(tudo.map((i) => i.feito)).toEqual([true, true, true, true]);
+    const semKit = privadoOk();
+    semKit.venda!.kit_confirmado = false;
+    expect(itensDaEtapa(3, base(e, new Set(['kmz']), cadOk(), semKit))[0].feito).toBe(false);
   });
   it('etapa 3: o rateio que mudou depois da conferência volta a faltar; sem excedente o item não entra; engenheiro a pagar não trava', () => {
     const e = novo();
@@ -198,7 +252,16 @@ describe('deduzirEtapa (venda antiga, sem estado)', () => {
     expect(v([], { temNumero: true })).toMatchObject({ trilho: 'sem_trilho', etapa: null });
     expect(v(['contrato_assinado', 'procuracao'], { temNumero: true, planilhaFora: true })).toMatchObject({ trilho: 'sem_trilho', etapa: null });
     expect(v(['contrato_assinado', 'procuracao']).etapa).toBe(2);
+    const e2 = ['documento_titular', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor', 'procuracao'];
+    // o par assinado OU as fotos e documentos da vistoria põem a venda na etapa 2; só com o par e COM número ela vai à 3
     expect(v(['fachada', 'padrao', 'disjuntor', 'medidor', 'conta_luz', 'documento_titular']).etapa).toBe(2);
+    expect(v(['fachada', 'padrao', 'disjuntor', 'medidor', 'conta_luz', 'documento_titular_uc']).etapa).toBe(2);
+    expect(v(['contrato_assinado']).etapa).toBe(1);   // só o contrato, sem a procuração nem as fotos
+    expect(v(['procuracao', ...e2.slice(0, -1)]).etapa).toBe(2);
+    // sem número, o par assinado (e até tudo da etapa 2) fica na etapa 2: o número nasce ao concluí-la e a etapa 3 só vem depois dele
+    expect(v(['contrato_assinado', ...e2]).etapa).toBe(2);
+    expect(v(['contrato_assinado', 'procuracao']).etapa).toBe(2);
+    expect(v(['contrato_assinado', ...e2], { temNumero: true }).etapa).toBe(3);
     expect(v(['fachada']).etapa).toBe(1);
   });
 });

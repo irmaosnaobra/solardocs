@@ -449,11 +449,11 @@ describe('upload-url', () => {
     const e = await post('/clientes/eletroposto/101/docs/upload-url', { slot: 'foto_local', mime: 'image/webp', bytes: 100 });
     expect(e.body.caminho).toMatch(/^eletroposto\/101\/[0-9a-f-]{36}\.webp$/);
   });
-  it('bucket novo nasce PRIVADO, com 10 MB e só os 4 tipos', async () => {
+  it('bucket novo nasce PRIVADO, com 10 MB e os 4 tipos de sempre mais KMZ e KML', async () => {
     h.bucket = null;
     expect((await post(url, { slot: 'documento', mime: 'application/pdf', bytes: 5 })).status).toBe(200);
     const c = h.chamadas.find((x) => x.op === 'createBucket')!.arg as any;
-    expect(c).toEqual({ public: false, fileSizeLimit: 10485760, allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] });
+    expect(c).toEqual({ public: false, fileSizeLimit: 10485760, allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/vnd.google-earth.kmz', 'application/vnd.google-earth.kml+xml'] });
   });
   it('item de um arquivo só já ocupado dá 409; item "vários" aceita', async () => {
     sobe(caminhoDe('solar', '0057'));
@@ -604,10 +604,20 @@ describe('bucket', () => {
     expect(h.linhas.has('docs_cliente:solar:0057')).toBe(false);
     expect(h.chamadas.some((c) => c.op === 'updateBucket')).toBe(false);
   });
-  it('sem limites: atualiza para privado + 10 MB + 4 tipos; se não conseguir, 502', async () => {
+  it('depósito com os 6 tipos E MAIS algum vale (não alterna com instância antiga); com só 4 tipos é atualizado', async () => {
+    const seis = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/vnd.google-earth.kmz', 'application/vnd.google-earth.kml+xml'];
+    h.bucket = { public: false, file_size_limit: 10485760, allowed_mime_types: [...seis, 'image/heic'] };
+    expect((await get('/clientes/solar/57/docs')).status).toBe(200);
+    expect(h.chamadas.some((c) => c.op === 'updateBucket')).toBe(false);
+    limparCacheBucketDocs();
+    h.bucket = { public: false, file_size_limit: 10485760, allowed_mime_types: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] };
+    expect((await get('/clientes/solar/57/docs')).status).toBe(200);
+    expect(h.chamadas.some((c) => c.op === 'updateBucket')).toBe(true);
+  });
+  it('sem limites: atualiza para privado + 10 MB + os 6 tipos (4 de sempre, KMZ e KML); se não conseguir, 502', async () => {
     h.bucket = { public: false, file_size_limit: null, allowed_mime_types: null };
     expect((await get('/clientes/solar/57/docs')).status).toBe(200);
-    expect(h.chamadas.find((c) => c.op === 'updateBucket')!.arg).toEqual({ public: false, fileSizeLimit: 10485760, allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] });
+    expect(h.chamadas.find((c) => c.op === 'updateBucket')!.arg).toEqual({ public: false, fileSizeLimit: 10485760, allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/vnd.google-earth.kmz', 'application/vnd.google-earth.kml+xml'] });
     h.bucket = { public: false, file_size_limit: 99999999, allowed_mime_types: ['image/jpeg'] };
     h.erroUpdateBucket = true; limparCacheBucketDocs();
     expect((await get('/clientes/solar/57/docs')).status).toBe(502);

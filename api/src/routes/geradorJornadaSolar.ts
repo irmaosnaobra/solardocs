@@ -6,6 +6,7 @@ import { acessoVendaSolar } from './geradorClientes';
 import { planilha, comSobrescritas } from './geradorSolar';
 import { responderErroDoAlocador } from './geradorVendaSolarCliente';
 import { tentarNumeroDaJornada, baseDaJornada, responderNumero409 } from './geradorJornadaNumero';
+import { dispararTrelloAutomatico } from './geradorJornadaTrelloAuto';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { generateFromTemplate } from '../services/templateService';
 import { limparHtmlPapel } from '../services/gerador/htmlPapelSeguro';
@@ -28,7 +29,7 @@ import { dadosDaPlanilha } from '../services/gerador/jornadaFinalizada';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 import {
   CURTOS_ETAPA, DONOS_FIXOS, blocoVendaCompleto, FORMAS_PAGAMENTO, MOTIVOS_ESPERA, NOMES_ETAPA, TIPOS_PAPEL, ROTULO_ESPERA,
-  comissoesDaVenda, ddmm, deduzirEtapa, donosDaEtapa, estadoMaterializado, etapaAtualDoEstado, iniciais, itensDaEtapa, marcaDoRateio,
+  comissoesDaVenda, ddmm, deduzirEtapa, donosDaEtapa, estadoMaterializado, estadoTrelloAuto, etapaAtualDoEstado, iniciais, itensDaEtapa, marcaDoRateio,
   podeConcluir, prazoDaEtapa, rateioDoCadastro, situacao, somarDiasUteis, totalDoRateio, veObra,
   type EntradaItens, type EstadoJornada, type FormaPagamento, type MotivoEspera, type PrivadoJornada, type Situacao, type TipoPapel,
 } from '../services/gerador/jornadaSolar';
@@ -178,6 +179,14 @@ export async function arquivosDaPlanilha(ctx: Ctx, venda: string | null): Promis
   } catch (err) { logErro('arquivos da planilha', err); return []; }
 }
 
+/** `{ placas, inversor, kwp }` do kit da proposta ligada ("20 × Canadian 590 W"), ou null quando não há proposta. */
+function kitVendido(e: ReturnType<typeof equipamentoDaProposta>, kwp: number | null): { placas: string; inversor: string; kwp: number | null } | null {
+  if (!e) return null;
+  const q = (n: number | null): string => (n ? `${n} × ` : '');
+  const placas = `${q(e.qtdPlacas)}${[e.modeloPlaca, e.potPlaca ? `${e.potPlaca} W` : ''].filter(Boolean).join(' ')}`.trim();
+  return { placas, inversor: `${q(e.qtdInversor)}${e.inversor}`.trim(), kwp };
+}
+
 const vendedorDe = (card: CardVendido, estado: EstadoJornada | null): string => nomeSimples(card.vendedor_nome) || estado?.vendedor || '';
 
 interface Posicao { trilho: 'jornada' | 'deduzida' | 'sem_trilho'; etapa: number | null; posvenda: boolean }
@@ -205,6 +214,9 @@ function podeDe(g: Guarda, l: Leitura, pos: Posicao) {
   const etapa = pos.etapa;
   const e1Aberta = l.estado ? !l.estado.etapas[1].concluida_em : pos.etapa === 1;
   const e1Feita = !!l.estado?.etapas[1].concluida_em || (pos.trilho !== 'jornada' && pos.etapa !== null && pos.etapa > 1);
+  // Fases 1 a 3 (18/11/2026): o excedente se marca até a etapa 2 concluir; o kit se confirma até a etapa 3 concluir.
+  const e2Aberta = l.estado ? !l.estado.etapas[2].concluida_em : pos.etapa !== null && pos.etapa <= 2;
+  const e3Aberta = l.estado ? !l.estado.etapas[3].concluida_em : pos.etapa !== null && pos.etapa <= 3;
   const no123 = etapa !== null && etapa >= 1 && etapa <= 3;
   const par = l.slotsDoCard.has('contrato_assinado') && l.slotsDoCard.has('procuracao');
   const nEstado = estadoDoNumero(l);
@@ -214,8 +226,10 @@ function podeDe(g: Guarda, l: Leitura, pos: Posicao) {
     descancelar: cancelada && g.adm,
     esperar: !cancelada && no123 && (g.adm || donosDaEtapa(etapa as number, vend).includes(g.nome)),
     editar_venda: !cancelada && (e1Aberta ? (ehVend || g.adm) : (e1Feita && (giov || g.adm))),
-    gerar_papeis: !cancelada && !l.obraEstado?.fechada && (giov || ehVend || g.adm) && e1Feita,
-    marcar_excedente: !cancelada && (ehVend || g.adm) && e1Aberta,
+    gerar_papeis: !cancelada && !l.obraEstado?.fechada && (giov || ehVend || g.adm),
+    marcar_excedente: !cancelada && (ehVend || giov || g.adm) && e2Aberta,
+    // Confirmar o kit (etapa 3): as mesmas pessoas de `editar_venda` (a regra de quem mexe na venda não muda), enquanto a etapa 3 não conclui.
+    confirmar_kit: !cancelada && !l.obraEstado?.fechada && e3Aberta && (e1Aberta ? (ehVend || g.adm) : (giov || g.adm)),
     etapa3: !cancelada && (g.nome === 'thiago' || g.adm) && etapa === 3,
     numero: !cancelada && (giov || ehVend || g.adm) && par && !l.lig.venda,
     numero_novo: g.adm && nEstado === 'confirmar',
@@ -593,6 +607,8 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       comissoes: (com?.linhas ?? []).filter((c) => c.papel === 'venda' || g.adm || g.nome === 'giovanna'), comissoes_aviso: com?.aviso ?? null,
       proposta: p ? { codigo: p.codigo, cliente: p.cliente_nome ?? '', kwp } : null,
       propostas_candidatas: candidatas,
+      // Os dados do bloco `cliente` da etapa 1 (o que está no cadastro da venda; vazio = falta).
+      dados_cliente: { nome: cadValor('nome'), endereco_ponto: cadValor('endereco_ponto'), telefone: cadValor('telefone'), email: cadValor('email') },
       documentos: {
         titular_geradora: titularGeradora, email: cadValor('email'),
         beneficiarias: bens.map((b) => ({ uc: b.uc, titular: b.titular, mesmo_titular: !!b.titular && nomeCmp(b.titular) === nomeCmp(titularGeradora) })),
@@ -601,13 +617,18 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       trello: {
         ...trelloDaFicha(l.estado, l.proposta?.dossie.trello ?? null, l.lig.trello_card),
         criado_em: l.estado?.etapas[3].trello?.criado_em ?? null, por: l.estado?.etapas[3].trello?.por ?? null,
+        completado_em: l.estado?.etapas[3].trello?.completado_em ?? null,
       },
       protocolo: l.estado?.etapas[3].protocolo ?? null, engenheiro: l.estado?.etapas[3].engenheiro ?? null,
       excedente: l.estado?.etapas[1].excedente ?? null,
+      // O kit que foi VENDIDO (a proposta ligada), para a Fase 1 mostrar: texto das placas e do inversor e o kWp; null sem proposta.
+      kit_vendido: kitVendido(equip, kwp),
+      // O cartão do Trello sai sozinho quando `pronto`: etapas 1 e 2 concluídas, bloco equipamento feito, com número e sem cancelar.
+      trello_auto: estadoTrelloAuto(entradaDe(l, l.estado), !!l.lig.venda),
       papeis: l.estado?.etapas[2].papeis ?? { contrato: null, procuracao: null, recibo: null },
       rateio_conferido: l.estado?.etapas[3].rateio ?? null,
       slots: Object.fromEntries(['fachada', 'padrao', 'disjuntor', 'medidor', 'conta_luz', 'documento_titular', 'documento_titular_uc', 'contrato_assinado', 'procuracao',
-        'art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso'].map((s) => [s === 'documento_titular' ? 'documento' : s, l.slots.has(s)])),
+        'conta_luz_beneficiaria', 'datasheet_modulo', 'datasheet_inversor', 'kmz', 'art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso'].map((s) => [s === 'documento_titular' ? 'documento' : s, l.slots.has(s)])),
       origem_slots: Object.fromEntries(origemSlots),
       cancelamento: l.privado?.cancelamento ?? null,
       aviso: pos.trilho === 'sem_trilho' ? 'Não deu para saber a etapa desta venda pelo que existe hoje.' : null,
@@ -708,6 +729,12 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     if (l.estado?.cancelada) { res.status(409).json({ ok: false, error: 'Venda cancelada.' }); return; }
     // Fase 2: a conta fechada trava o valor vendido (ele é a base do "a receber"). Só o Thiago reabre.
     if (l.obraEstado?.fechada) { res.status(409).json({ ok: false, error: 'A conta desta obra está fechada. Só o Thiago reabre.' }); return; }
+    // O kit só muda enquanto a etapa 3 não concluiu (e por quem pode confirmá-lo): depois disso o PUT recusa a troca do kit.
+    if ((l.privado?.venda?.kit_confirmado ?? false) !== b.kit_confirmado && !pode.confirmar_kit) {
+      res.status(403).json({ ok: false, error: 'O kit só pode ser confirmado ou desfeito até a etapa Homologação concluir.' });
+      return;
+    }
+    // Não há trava por etapa aqui: com a etapa 1 concluída a Giovanna e o ADM seguem editando a venda (kit incluso) até a obra fechar a conta.
     if (!pode.editar_venda) { res.status(403).json({ ok: false, error: 'Você não pode editar o valor desta venda agora.' }); return; }
     const agora = new Date().toISOString();
     const completoAntes = blocoVendaCompleto(l.lig, l.privado);
@@ -738,6 +765,8 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     }
     // Fase 3: o bloco Venda pode ter ficado completo agora (grava `venda_completa` uma vez só; nunca lança).
     await marcarVendaCompleta(g.id, g.nome, completoAntes);
+    // Kit confirmado pode ter completado o bloco equipamento da etapa 3: o cartão do Trello sai sozinho (segundo plano, idempotente).
+    if (b.kit_confirmado === true) dispararTrelloAutomatico(g.card, { nome: g.nome, socio: g.socio });
     res.json({ ok: true, venda: novo.venda, ...(aviso ? { aviso } : {}) });
   } catch (err) {
     falhou(res, 'venda', err);
@@ -909,6 +938,8 @@ async function rotaEtapa(req: Request, res: Response): Promise<void> {
         numero = rn.ok ? { ok: true, codigo: rn.codigo } : { ok: false, motivo: rn.motivo };
       } catch (err) { logErro('número ao concluir', err); numero = { ok: false, motivo: 'banco' }; }
     }
+    // Etapa 2 concluída: o cartão do Trello sai sozinho se o equipamento da etapa 3 já está todo feito (depois do número, que ele exige).
+    if (n === 2) dispararTrelloAutomatico(g.card, { nome: g.nome, socio: g.socio });
     res.json({ ok: true, etapa_atual: etapaAtualDoEstado(r), ...(numero ? { numero } : {}) });
   } catch (err) {
     falhou(res, 'etapa', err);

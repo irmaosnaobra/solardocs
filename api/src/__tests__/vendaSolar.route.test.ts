@@ -34,6 +34,15 @@ const h = vi.hoisted(() => ({
   logs: [] as unknown[][],
   /** A leitura de `codigo_solar:*` (registro do alocador) falha. */
   registroCai: false,
+  /** O Trello automático da Jornada: os cards para os quais ele foi pedido. */
+  disparos: [] as number[],
+  /** Caminhos assinados com `download: true` (Content-Disposition: attachment). */
+  downloads: [] as string[],
+}));
+
+vi.mock('../routes/geradorJornadaTrelloAuto', () => ({
+  tentarTrelloAutomatico: async (card: { id: number }) => { h.disparos.push(card.id); return { acao: 'nao_pronto', falta: [] }; },
+  dispararTrelloAutomatico: () => undefined,
 }));
 
 vi.mock('../utils/logger', () => ({
@@ -133,7 +142,7 @@ vi.mock('../utils/supabase', () => ({
             const t = mapa.get(p);
             return t === undefined
               ? { data: null, error: { message: 'Object not found', statusCode: '404' } }
-              : { data: { id: 'o1', name: p, size: t.length, contentType: cadastro ? 'application/json' : p.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg' }, error: null };
+              : { data: { id: 'o1', name: p, size: t.length, contentType: cadastro ? 'application/json' : p.endsWith('.pdf') ? 'application/pdf' : p.endsWith('.kmz') ? 'application/vnd.google-earth.kmz' : p.endsWith('.kml') ? 'application/vnd.google-earth.kml+xml' : 'image/jpeg' }, error: null };
           },
           download: async (p: string) => {
             if (dossie) h.baixados.push(p);
@@ -149,7 +158,8 @@ vi.mock('../utils/supabase', () => ({
             error: null,
           }),
           createSignedUploadUrl: async (p: string) => ({ data: { signedUrl: 'https://up.test/u?x=1', token: 'tok-1', path: p }, error: null }),
-          createSignedUrl: async (p: string) => {
+          createSignedUrl: async (p: string, _s?: number, opcoes?: { download?: boolean }) => {
+            if (opcoes?.download) h.downloads.push(p);
             if (dossie) { h.assinados.push(p); return { data: { signedUrl: `https://dossie.test/s${++h.sig}` }, error: null }; }
             return { data: { signedUrl: `https://bytes.test/${encodeURIComponent(p)}` }, error: null };
           },
@@ -377,7 +387,7 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (String(url).includes('docs.google.com')) return new Response(h.csv, { status: 200 });
-    if (String(url).startsWith('https://bytes.test/')) return new Response(new Uint8Array(JPG.subarray(0, 16)), { status: 206 });
+    if (String(url).startsWith('https://bytes.test/')) return new Response(new Uint8Array((h.objetos.get(decodeURIComponent(String(url).slice('https://bytes.test/'.length))) ?? JPG).subarray(0, 16)), { status: 206 });
     throw new Error('rede indisponível no teste');
   }));
 });
@@ -462,6 +472,61 @@ describe('catálogo e envio', () => {
     expect(h.cad.has('vendasolar/201.docs.json')).toBe(true);
     expect((await del(`/clientes/vendasolar/201/docs/${id}`)).status).toBe(200);
     expect((await docs(201)).body.arquivos).toEqual([]);
+  });
+  it('KMZ do local: aceita .kmz e .kml (inclusive zip/octet-stream com a extensão certa), recusa o resto e SÓ vale neste item', async () => {
+    const up = (slot: string, corpo: Record<string, unknown>) => post('/clientes/vendasolar/201/docs/upload-url', { slot, bytes: 50, ...corpo });
+    expect((await up('kmz', { mime: 'application/vnd.google-earth.kmz' })).body.caminho).toMatch(/\.kmz$/);
+    expect((await up('kmz', { mime: 'application/vnd.google-earth.kml+xml' })).body.caminho).toMatch(/\.kml$/);
+    const zip = await up('kmz', { mime: 'application/zip', ext: 'kmz' });
+    expect(zip.status).toBe(200);
+    expect(zip.body.cabecalhos['content-type']).toBe('application/vnd.google-earth.kmz');
+    expect((await up('kmz', { mime: 'application/octet-stream', nome: 'Casa.KMZ' })).body.caminho).toMatch(/\.kmz$/);
+    expect((await up('kmz', { mime: 'application/octet-stream', ext: '.kml' })).body.caminho).toMatch(/\.kml$/);
+    for (const ruim of [{ mime: 'application/octet-stream' }, { mime: 'application/octet-stream', ext: 'exe' }, { mime: 'application/zip', ext: 'zip' }, { mime: 'application/pdf' }, { mime: 'image/jpeg' }]) {
+      expect((await up('kmz', ruim)).status, JSON.stringify(ruim)).toBe(400);
+    }
+    // nos outros itens, nada de KMZ, zip nem octet-stream (nem com a extensão)
+    for (const slot of ['datasheet_modulo', 'documento_titular', 'fachada', 'procuracao', 'outros']) {
+      for (const corpo of [{ mime: 'application/vnd.google-earth.kmz', ext: 'kmz' }, { mime: 'application/zip', ext: 'kmz' }, { mime: 'application/octet-stream', ext: 'kmz' }]) {
+        expect((await up(slot, corpo)).status, slot + ' ' + corpo.mime).toBe(400);
+      }
+    }
+  });
+  it('KMZ registrado confere a assinatura (zip PK) e pede o Trello automático; datasheet também; uma foto qualquer, não', async () => {
+    h.disparos = []; h.downloads = [];
+    // arquivo que diz ser KMZ mas não é zip: recusado e o objeto sai do bucket
+    const u2 = await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'kmz', mime: 'application/vnd.google-earth.kmz', bytes: 30 });
+    h.objetos.set(u2.body.caminho, Buffer.from('isto nao e um zip, e um texto qualquer'));
+    expect((await post('/clientes/vendasolar/201/docs', { slot: 'kmz', caminho: u2.body.caminho })).status).toBe(400);
+    expect(h.objetos.has(u2.body.caminho)).toBe(false);
+    const u = await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'kmz', mime: 'application/vnd.google-earth.kmz', bytes: 30 });
+    h.objetos.set(u.body.caminho, Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(30, 1)]));
+    const reg = await post('/clientes/vendasolar/201/docs', { slot: 'kmz', caminho: u.body.caminho });
+    expect(reg.status).toBe(200);
+    expect(reg.body.arquivo).toMatchObject({ slot: 'kmz', mime: 'application/vnd.google-earth.kmz' });
+    expect(h.downloads).toEqual([u.body.caminho]);   // o link do KMZ sai como download (attachment), nunca para abrir na página
+    expect(reg.body.arquivo.url).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(h.disparos).toEqual([201]);
+    const u3 = await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'kmz', mime: 'application/vnd.google-earth.kml+xml', bytes: 30 });
+    expect(u3.status).toBe(409);   // o item KMZ guarda um arquivo só e já está ocupado
+    // contrato assinado e procuração também (o número da obra pode nascer com eles e o cartão o exige)
+    h.disparos = [];
+    for (const slot of ['contrato_assinado', 'procuracao']) {
+      const pdf = await post('/clientes/vendasolar/201/docs/upload-url', { slot, mime: 'application/pdf', bytes: 30 });
+      h.objetos.set(pdf.body.caminho, Buffer.from('%PDF-1.4 teste'));
+      expect((await post('/clientes/vendasolar/201/docs', { slot, caminho: pdf.body.caminho })).status).toBe(200);
+    }
+    await new Promise((r) => setTimeout(r, 30));
+    expect(h.disparos).toEqual([201, 201]);
+    // foto no item fachada não pede o Trello automático
+    h.disparos = [];
+    const f = await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'fachada', mime: 'image/jpeg', bytes: JPG.length });
+    h.objetos.set(f.body.caminho, JPG);
+    expect((await post('/clientes/vendasolar/201/docs', { slot: 'fachada', caminho: f.body.caminho })).status).toBe(200);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(h.disparos).toEqual([]);
+    expect(h.downloads).toEqual([u.body.caminho]);   // a foto continua com o link normal
   });
 });
 

@@ -651,10 +651,15 @@
    * O arquivo deste item. Quem diz de onde ele veio é o servidor (origem_slots da obra): dossiê da proposta ou Planilha (#NNNN) são só
    * leitura, com o link quando ele já chegou (o do dossiê vem do quadro; o da Planilha, da ficha). O resto é do card.
    */
-  function arquivoDoSlot(chave) {
-    var org = (O.dados && O.dados.origem_slots && O.dados.origem_slots[chave]) || '';
+  function arquivoDoSlot(chave, id) {
+    var org = id != null ? '' : ((O.dados && O.dados.origem_slots && O.dados.origem_slots[chave]) || '');
     var st = (typeof vdcEst !== 'undefined') ? vdcEst : null;
     var temSt = !!(st && String(st.id) === String(O.card) && st.docs);
+    // Item com vários arquivos (as contas do excedente): `id` escolhe UM arquivo do item.
+    if (id != null) {
+      if (!temSt || !Array.isArray(st.docs.arquivos)) return null;
+      return st.docs.arquivos.filter(function (a) { return a && a.slot === chave && String(a.id) === String(id); })[0] || null;
+    }
     if (org === 'dossie') {
       var dd = (temSt && st.docs.dossie && Array.isArray(st.docs.dossie.arquivos)) ? st.docs.dossie.arquivos.filter(function (a) { return a && a.slot === chave; }) : [];
       return { url: dd.length ? (dd[dd.length - 1].url || '') : '', em: '', fora: 'dossiê da proposta' };
@@ -696,16 +701,17 @@
   function podeMexer() { var st = quadroDoCard(); return (st && !st.carregando && st.docs) ? !!st.docs.pode : null; }
 
   /** Manda o arquivo: Trocar (troca=true, o antigo sai na mesma gravação) ou anexar o primeiro. Erro vira linha do item e aviso. */
-  function enviarArquivo(chave, arqs, troca, refazer) {
-    if (O.ocupSlot[chave]) return;
+  function enviarArquivo(chave, arqs, troca, refazer, opc) {
+    opc = opc || {}; var ck = opc.ck || chave;   // ck: a chave do estado na tela (item com vários arquivos tem uma por arquivo)
+    if (O.ocupSlot[ck]) return;
     var card = String(O.card); var falha = '';
-    delete O.erroSlot[chave];
-    O.ocupSlot[chave] = troca ? 'Trocando o arquivo…' : 'Enviando…';
+    delete O.erroSlot[ck];
+    O.ocupSlot[ck] = troca ? 'Trocando o arquivo…' : 'Enviando…';
     refazer();
     garantirQuadro().then(function (st) {
       if (!st) { falha = 'Não consegui abrir os documentos agora. Tente de novo.'; return null; }
       if (troca) {
-        var a = arquivoDoSlot(chave);
+        var a = arquivoDoSlot(chave, opc.id);
         if (!a || a.fora || a.id == null) { falha = 'Não achei o arquivo atual deste item. Atualize a tela e tente de novo.'; return null; }
         if (typeof window.vdcTrocarEnviar !== 'function') { falha = 'Não consegui trocar agora. Atualize a página.'; return null; }
         return window.vdcTrocarEnviar(st, a, arqs[0]).then(function (r) { if (!r || !r.ok) falha = (r && r.erro) || 'Não consegui trocar o arquivo agora. O arquivo atual continua no lugar.'; });
@@ -717,16 +723,17 @@
         if (m) falha = m;
       });
     }).catch(function () { falha = 'Não consegui enviar agora. Tente de novo.'; }).then(function () {
-      delete O.ocupSlot[chave];
-      if (falha) { if (String(O.card) === card) O.erroSlot[chave] = falha; toast(falha); }
+      delete O.ocupSlot[ck];
+      if (falha) { if (String(O.card) === card) O.erroSlot[ck] = falha; toast(falha); }
       if (String(O.card) === card) releia();
     });
   }
 
   /** Apagar: confirma na própria tela (diálogo da Jornada) e só então chama o quadro. */
-  function pedirApagar(chave, rotulo) {
+  function pedirApagar(chave, rotulo, id, ck) {
+    ck = ck || chave;
     var card = String(O.card);
-    var a0 = arquivoDoSlot(chave);
+    var a0 = arquivoDoSlot(chave, id);
     var nome = (a0 && !a0.fora && (a0.rotulo || a0.nome)) || rotulo;
     var dlgEl = null;
     var id0 = (a0 && !a0.fora && a0.id != null) ? String(a0.id) : '';   // o arquivo que a pessoa viu no diálogo: é ele que sai, nenhum outro
@@ -739,13 +746,13 @@
       b.disabled = true; b.textContent = 'Apagando…';
       garantirQuadro().then(function (st) {
         if (!st) return { ok: false, erro: 'Não consegui abrir os documentos agora. Tente de novo.' };
-        var a = arquivoDoSlot(chave);
+        var a = arquivoDoSlot(chave, id);
         if (!id0 || !a || a.fora || a.id == null) return { ok: false, erro: 'Não achei este arquivo. Atualize a tela.' };
         if (String(a.id) !== id0) return { ok: false, erro: 'Este item mudou desde que você abriu o aviso. Feche, confira o arquivo e tente de novo.' };
         if (typeof window.vdcExcluirJa !== 'function') return { ok: false, erro: 'Não consegui apagar agora. Atualize a página.' };
         return window.vdcExcluirJa(st, a);
       }).catch(function () { return { ok: false, erro: 'Não consegui apagar agora. Tente de novo.' }; }).then(function (r) {
-        if (r && r.ok) { delete O.erroSlot[chave]; if (dlgEl && dlgEl.isConnected) fecharDlg(); if (String(O.card) === card) releia(); return; }
+        if (r && r.ok) { delete O.erroSlot[ck]; if (dlgEl && dlgEl.isConnected) fecharDlg(); if (String(O.card) === card) releia(); return; }
         if (!b.isConnected) return;
         b.disabled = false; b.textContent = 'Apagar'; info.textContent = (r && r.erro) || 'Não consegui apagar agora. Tente de novo.';
       });
@@ -753,22 +760,31 @@
     dlgEl = document.querySelector('.jor-dlg');   // o diálogo é este: se a pessoa o fechar e abrir outro, o sucesso daqui não fecha o novo
   }
 
-  /** Anexo: o mesmo componente em todo lugar. Usa o quadro de documentos montado. Vazio: caixa tracejada com Foto, Arquivo e Print. Preenchido: bloco verde com miniatura, data, Trocar e Apagar. */
+  /** O seletor de arquivo: um rótulo que abre o seletor do aparelho. `aoEscolher(arquivos)` roda quando a pessoa escolhe. */
+  function seletor(rot, aceita, camera, cls, ariaRot, aoEscolher) {
+    var lab = el('label', cls, rot);
+    var inp = el('input'); inp.type = 'file'; inp.accept = aceita; inp.style.display = 'none'; if (camera) inp.setAttribute('capture', 'environment');
+    inp.setAttribute('aria-label', rot + ': ' + ariaRot);
+    inp.addEventListener('change', function () {
+      var arqs = Array.prototype.slice.call(inp.files || []); inp.value = '';
+      if (arqs.length) aoEscolher(arqs);
+    });
+    lab.appendChild(inp); lab.tabIndex = 0;
+    lab.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } });
+    return lab;
+  }
+  var ACEITA_PADRAO = 'image/*,application/pdf';
+  var ACEITA_KMZ = '.kmz,.kml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml';
+
+  /** Anexo: o mesmo componente em todo lugar. Usa o quadro de documentos montado. Vazio: caixa tracejada com Foto, Arquivo e Print. Preenchido: bloco verde com miniatura, data, Trocar e Apagar.
+   *  opts: compacto; id (um arquivo de um item com vários); ck (chave do estado); aceita (só o botão Arquivo, com este filtro: o KMZ). */
   function anexo(chave, rotulo, tem, opts) {
     opts = opts || {};
+    var ck = opts.ck || (opts.id != null ? chave + '#' + opts.id : chave);
+    var aceitaTudo = opts.aceita || ACEITA_PADRAO;
     var linha = el('div', 'jor-anexo');
     function entrada(rot, aceita, camera, cls, troca) {
-      var lab = el('label', cls, rot);
-      var inp = el('input'); inp.type = 'file'; inp.accept = aceita; inp.style.display = 'none'; if (camera) inp.setAttribute('capture', 'environment');
-      inp.setAttribute('aria-label', rot + ': ' + rotulo);
-      inp.addEventListener('change', function () {
-        var arqs = Array.prototype.slice.call(inp.files || []); inp.value = '';
-        if (!arqs.length) return;
-        enviarArquivo(chave, arqs, !!troca, montar);
-      });
-      lab.appendChild(inp); lab.tabIndex = 0;
-      lab.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } });
-      return lab;
+      return seletor(rot, aceita, camera, cls, rotulo, function (arqs) { enviarArquivo(chave, arqs, !!troca, montar, { id: opts.id, ck: ck }); });
     }
     function montar() {
       linha.replaceChildren();
@@ -776,9 +792,9 @@
         var tp = el('div', 'jor-anexo-topo'); tp.appendChild(el('span', 'jor-rot', rotulo));
         tp.appendChild(etq(tem ? 'Anexado' : 'Falta', tem ? 'ok' : 'av')); linha.appendChild(tp);
       }
-      if (O.ocupSlot[chave]) { var oc = el('p', 'jor-nota', O.ocupSlot[chave]); oc.setAttribute('role', 'status'); linha.appendChild(oc); return; }
+      if (O.ocupSlot[ck]) { var oc = el('p', 'jor-nota', O.ocupSlot[ck]); oc.setAttribute('role', 'status'); linha.appendChild(oc); return; }
       if (tem) {
-        var fora = arquivoDoSlot(chave);
+        var fora = arquivoDoSlot(chave, opts.id);
         if (fora && fora.fora) {
           // Já existe em outro depósito: mostra, só leitura. Ninguém sobe de novo nem apaga.
           var ok2 = el('div', 'jor-anexo-ok'); var mini2 = el('span', 'jor-anexo-mini');
@@ -798,11 +814,11 @@
           ok.appendChild(leg);
           // Trocar e Apagar: quem pode é o servidor (pode_remover). Antes do quadro carregar, o Trocar já aparece e o Apagar chega junto com a resposta.
           var acoes = el('span', 'jor-anexo-acoes'); var pode = podeMexer();
-          var troc = pode === false ? null : entrada('Trocar', 'image/*,application/pdf', false, 'jor-anexo-trocar', true);
+          var troc = pode === false ? null : entrada('Trocar', aceitaTudo, false, 'jor-anexo-trocar', true);
           if (troc) acoes.appendChild(troc);
           var apagar = function () {
             var b = el('button', 'jor-anexo-trocar jor-anexo-apagar', 'Apagar'); b.type = 'button'; b.setAttribute('aria-label', 'Apagar arquivo: ' + rotulo);
-            b.addEventListener('click', function () { pedirApagar(chave, rotulo); });
+            b.addEventListener('click', function () { pedirApagar(chave, rotulo, opts.id, ck); });
             return b;
           };
           if (pode === true) acoes.appendChild(apagar());
@@ -810,7 +826,7 @@
             quadroPronto(acoes).then(function (st2) {
               if (!st2 || !acoes.isConnected) return;
               if (!st2.docs.pode) { if (troc && troc.parentNode) troc.parentNode.removeChild(troc); return; }
-              var a2 = arquivoDoSlot(chave);
+              var a2 = arquivoDoSlot(chave, opts.id);
               if (a2 && !a2.fora && a2.id != null) acoes.appendChild(apagar());
             });
           }
@@ -819,10 +835,11 @@
         }
       } else {
         var bts = el('div', 'jor-anexo-bts');
-        add(bts, entrada('Foto', 'image/*', true, 'jor-anexo-bt'), entrada('Arquivo', 'image/*,application/pdf', false, 'jor-anexo-bt'), entrada('Print', 'image/*', false, 'jor-anexo-bt'));
+        if (opts.aceita) add(bts, entrada('Arquivo', aceitaTudo, false, 'jor-anexo-bt'));
+        else add(bts, entrada('Foto', 'image/*', true, 'jor-anexo-bt'), entrada('Arquivo', aceitaTudo, false, 'jor-anexo-bt'), entrada('Print', 'image/*', false, 'jor-anexo-bt'));
         linha.appendChild(bts);
       }
-      if (O.erroSlot[chave]) { var er = el('p', 'jor-erro jor-anexo-msg', O.erroSlot[chave]); er.setAttribute('role', 'alert'); linha.appendChild(er); }
+      if (O.erroSlot[ck]) { var er = el('p', 'jor-erro jor-anexo-msg', O.erroSlot[ck]); er.setAttribute('role', 'alert'); linha.appendChild(er); }
     }
     montar();
     return linha;
@@ -851,7 +868,13 @@
   }
 
   function abrirQuadro() { if (O.vdcDet) { O.vdcDet.open = true; if (O.vdcNo && O.vdcNo.scrollIntoView) O.vdcNo.scrollIntoView({ behavior: 'smooth' }); } }
-  var RESUMO_QUADRO = { 1: 'Mais documentos, ligações e cadastro', 2: 'Ligações, e-mail e arquivos do cliente', 3: 'Trello, rateio e arquivos do cliente' };
+  /** Os blocos de cada etapa, na ordem da tela: [bloco do servidor, título]. */
+  var BLOCOS_ETAPA = {
+    1: [['cliente', 'Dados do cliente'], ['venda', 'Venda'], ['papeis', 'Contrato e procuração']],
+    2: [['documentos', 'Documentos'], ['fotos', 'Fotos da vistoria'], ['portao', 'Contrato e procuração assinados']],
+    3: [['equipamento', 'Equipamento']],
+  };
+  var RESUMO_QUADRO = { 1: 'Mais documentos, ligações e cadastro', 2: 'Mais documentos, ligações e cadastro', 3: 'Trello, rateio e arquivos do cliente' };
 
   function desenharObra() {
     var d = O.dados; var n = O.obraNo; if (!d || !n) return;
@@ -931,9 +954,9 @@
     else if (et.n === 9 && window.Jornada.etapas[9]) window.Jornada.etapas[9](esq, d, et, O.fase3);
     else if (f2 && window.Jornada.etapas[et.n]) window.Jornada.etapas[et.n](esq, d, et, f2);
     else if (f2et) { var pf = el('div', 'jor-bloco'); pf.appendChild(el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); pf.appendChild(btn('Tentar de novo', '', carregarObra)); esq.appendChild(pf); }
-    if (et.n === 1 && window.Jornada.extras.vistoria) window.Jornada.extras.vistoria(esq, d);
-    if (et.n === 2 && window.Jornada.extras.banco) window.Jornada.extras.banco(esq, d);
-    if (et.n === 2 && window.Jornada.extras.indicacao) window.Jornada.extras.indicacao(esq, d, O.fase3);
+    // A vistoria agora mora na etapa 2 (etapa2() a chama junto das fotos). O banco e a indicação seguem o contrato, na etapa 1.
+    if (et.n === 1 && window.Jornada.extras.banco) window.Jornada.extras.banco(esq, d);
+    if (et.n === 1 && window.Jornada.extras.indicacao) window.Jornada.extras.indicacao(esq, d, O.fase3);
     if (et.n <= 8 && window.Jornada.dinheiro && window.Jornada.dinheiro.gastosDaEtapa && (et.n <= 3 || f2)) window.Jornada.dinheiro.gastosDaEtapa(esq, et.n, O.dinheiro);
     // Portão
     if (et.n <= 3 || (f2et && f2)) {
@@ -945,12 +968,14 @@
         });
         return ul;
       }
-      if (et.n === 1) {
-        [['venda', 'Venda'], ['fotos', 'Fotos da vistoria'], ['documentos', 'Documentos']].forEach(function (g) {
-          var its = itensDoBloco(et, g[0]); if (!its.length) return;
-          pt.appendChild(subTitulo(g[1])); pt.appendChild(listaItens(its));
-        });
-      } else pt.appendChild(listaItens(et.itens));
+      // Etapas 1 a 3: os itens agrupados pelo bloco da tela; o que não tem grupo (o resto da homologação) entra numa lista só, no fim.
+      var grupos = BLOCOS_ETAPA[et.n] || []; var usados = {};
+      grupos.forEach(function (g) {
+        var its = itensDoBloco(et, g[0]); if (!its.length) return;
+        usados[g[0]] = true; pt.appendChild(subTitulo(g[1])); pt.appendChild(listaItens(its));
+      });
+      var resto = et.itens.filter(function (i) { return !usados[i.bloco]; });
+      if (resto.length) pt.appendChild(listaItens(resto));
       var concluida = !!et.concluida_em;
       var podeLista = et.n <= 3 ? d.pode.concluir : ((f2 && f2.pode && f2.pode.concluir) || []);
       var pode = podeLista.indexOf(et.n) >= 0 && et.falta === 0 && !concluida;
@@ -1081,10 +1106,6 @@
   function formVenda(pai, d, onSalvo, et) {
     var v = d.venda || { valor_centavos: 0, pagamento: [], desconto_centavos: null, prazo_prometido: '', nota: '', kit_confirmado: false };
     var f = el('div'); var info = el('p', 'jor-erro'); info.setAttribute('role', 'status');
-    var kit = el('input'); kit.type = 'checkbox'; kit.checked = !!v.kit_confirmado;
-    var lk = el('label', 'jor-kit' + (kit.checked ? '' : ' falta')); lk.appendChild(kit); lk.appendChild(el('span', '', 'Kit confirmado'));
-    var etKit = etq(kit.checked ? 'Confirmado' : 'Falta', kit.checked ? 'ok' : 'av');
-    kit.addEventListener('change', function () { lk.classList.toggle('falta', !kit.checked); etKit.textContent = kit.checked ? 'Confirmado' : 'Falta'; etKit.className = 'jor-etq jor-etq-' + (kit.checked ? 'ok' : 'av'); });
     var valor = el('input', 'jor-in'); valor.type = 'text'; valor.inputMode = 'decimal'; valor.setAttribute('aria-label', 'Valor vendido'); valor.value = v.valor_centavos ? (v.valor_centavos / 100).toFixed(2).replace('.', ',') : '';
     var desc = el('input', 'jor-in'); desc.type = 'text'; desc.inputMode = 'decimal'; desc.setAttribute('aria-label', 'Desconto dado'); desc.value = v.desconto_centavos ? (v.desconto_centavos / 100).toFixed(2).replace('.', ',') : '';
     var prazo = el('input', 'jor-in'); prazo.type = 'text'; prazo.maxLength = 200; prazo.setAttribute('aria-label', 'Prazo prometido ao cliente'); prazo.value = v.prazo_prometido || '';
@@ -1105,7 +1126,7 @@
       var vv = !(cents(valor.value) > 0); valor.classList.toggle('falta', vv); mostra(etValor, vv);
     }
     var grade = el('div', 'jor-campos');
-    add(grade, campoRot('Kit vendido', lk, etKit), campoRot('Valor vendido', valor, rotValor), campoRot('Desconto dado', desc),
+    add(grade, campoRot('Valor vendido', valor, rotValor), campoRot('Desconto dado', desc),
       campoRot('Prazo prometido ao cliente', prazo, (function () { var s = el('span'); s.appendChild(etPrazo); s.appendChild(document.createTextNode(' ')); s.appendChild(trava); if (mPrazo) s.appendChild(mPrazo); return s; })(), true));
     var pgBox = el('div'); var linhas = [];
     function addLinha(p) {
@@ -1126,7 +1147,7 @@
     var salvar = btn('Salvar', 'jor-btn-pri', function () {
       salvar.disabled = true; info.textContent = '';
       var pedido = {
-        valor_centavos: cents(valor.value), kit_confirmado: kit.checked, prazo_prometido: prazo.value.trim(), nota: nota.value.trim(),
+        valor_centavos: cents(valor.value), kit_confirmado: !!v.kit_confirmado, prazo_prometido: prazo.value.trim(), nota: nota.value.trim(),
         desconto_centavos: desc.value.trim() ? cents(desc.value) : null,
         pagamento: linhas.map(function (l) { return { forma: l.fs.value, valor_centavos: cents(l.vl.value), obs: l.ob.value.trim() }; }),
       };
@@ -1168,6 +1189,8 @@
   function etapa1(esq, d, et) {
     var concluida = !!et.concluida_em;
     esq.appendChild(el('p', 'jor-intro', 'O botão Vendido do card abriu esta etapa. A obra aparece com * até o contrato e a procuração assinados chegarem.'));
+    // 1. Dados do cliente
+    esq.appendChild(blocoDados(d, et));
     // 1. Venda
     var b1 = el('div', 'jor-bloco'); b1.appendChild(blocoTitulo('Venda', itensDoBloco(et, 'venda')));
     b1.appendChild(subTitulo('Veio do card', etq('Automático', 'auto')));
@@ -1195,12 +1218,25 @@
         b1.appendChild(el('p', 'jor-nota', 'Ligue a proposta em "Mais documentos, ligações e cadastro", logo abaixo, em Ligações.'));
       }
     }
+    // O kit vendido (placas, inversor e kWp) só aparece quando o servidor manda `kit_vendido`.
+    var kv = d.kit_vendido;
+    if (kv && (kv.placas || kv.inversor || kv.kwp)) {
+      var gk = el('div', 'jor-campos');
+      add(gk, kv.placas ? campoLeitura('Placas', String(kv.placas)) : null, kv.inversor ? campoLeitura('Inversor', String(kv.inversor)) : null,
+        kv.kwp ? campoLeitura('Potência do kit', String(kv.kwp).replace('.', ',') + ' kWp') : null);
+      b1.appendChild(subTitulo('Kit vendido')); b1.appendChild(gk);
+    }
     if (concluida) {
       var vv = d.venda;
       if (vv) {
         b1.appendChild(subTitulo('Você confirmou'));
         b1.appendChild(el('p', '', 'Valor ' + reais(vv.valor_centavos) + ' · ' + vv.pagamento.map(function (x) { return x.forma + ' ' + reais(x.valor_centavos); }).join(', ')));
-        b1.appendChild(el('p', 'jor-nota', 'Combinado por ' + nomeBonito(vv.combinado_por) + ' em ' + ddmm(String(vv.combinado_em).slice(0, 10)) + '. Edite na etapa 2.'));
+        b1.appendChild(el('p', 'jor-nota', 'Combinado por ' + nomeBonito(vv.combinado_por) + ' em ' + ddmm(String(vv.combinado_em).slice(0, 10)) + '.'));
+      }
+      if (d.pode.editar_venda) {
+        var caixaVenda = el('div'); caixaVenda.hidden = true;
+        b1.appendChild(btn('Editar', '', function () { caixaVenda.hidden = !caixaVenda.hidden; }));
+        formVenda(caixaVenda, d, carregarObra, et); b1.appendChild(caixaVenda);
       }
     } else if (d.pode.editar_venda) {
       b1.appendChild(subTitulo('Você confirma'));
@@ -1217,112 +1253,227 @@
       b1.appendChild(sv); b1.appendChild(bolhaAvisoVenda(d));
     }
     esq.appendChild(b1);
-    // 2. Fotos
-    var b2 = el('div', 'jor-bloco'); b2.appendChild(blocoTitulo('Fotos da vistoria', itensDoBloco(et, 'fotos')));
-    var gf = el('div', 'jor-fotos');
-    [['fachada', 'Fachada'], ['padrao', 'Padrão de entrada'], ['disjuntor', 'Disjuntor'], ['medidor', 'Medidor']].forEach(function (x) {
-      var tem = !!d.slots[x[0]]; var cf = el('div', 'jor-foto');
-      var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', x[1])); tp.appendChild(etq(tem ? 'Anexada' : 'Falta', tem ? 'ok' : 'av')); cf.appendChild(tp);
-      cf.appendChild(anexo(x[0], 'Foto ' + (x[1] === 'Padrão de entrada' ? 'do padrão de entrada' : x[1] === 'Medidor' ? 'do medidor' : x[1] === 'Disjuntor' ? 'do disjuntor' : 'da fachada'), tem, { compacto: true }));
-      gf.appendChild(cf);
-    });
-    b2.appendChild(gf);
-    b2.appendChild(el('p', 'jor-nota', 'As outras fotos (que não travam) e os dados do local ficam em "Mais documentos, ligações e cadastro", logo abaixo.'));
-    esq.appendChild(b2);
-    // 3. Documentos
-    var b3 = el('div', 'jor-bloco'); b3.appendChild(blocoTitulo('Documentos', itensDoBloco(et, 'documentos')));
-    var gd = el('div', 'jor-fotos');
-    // A caixa olha os dois documentos que o portão aceita (o do contratante e o do titular da homologação).
-    var temDoc = !!(d.slots.documento || d.slots.documento_titular_uc);
-    var chDoc = d.slots.documento ? 'documento_titular' : (d.slots.documento_titular_uc ? 'documento_titular_uc' : 'documento_titular');
-    [['conta_luz', 'Conta de luz', 'Conta de luz', !!d.slots.conta_luz], [chDoc, 'CNH ou documento com foto', 'CNH ou documento com foto', temDoc]].forEach(function (x) {
-      var cf = el('div', 'jor-foto');
-      var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', x[1])); tp.appendChild(etq(x[3] ? 'Anexada' : 'Falta', x[3] ? 'ok' : 'av')); cf.appendChild(tp);
-      cf.appendChild(anexo(x[0], x[2], x[3], { compacto: true })); gd.appendChild(cf);
-    });
-    b3.appendChild(gd);
-    b3.appendChild(campoEmail(d));
-    var q = el('div'); q.appendChild(subTitulo('Tem excedente para outras contas?'));
-    var qs = el('div', 'jor-filtros');
-    [['sim', 'Sim'], ['nao', 'Não']].forEach(function (o) {
-      var b = el('button', 'jor-chip jor-chip-grande' + (d.excedente === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !d.pode.marcar_excedente;
-      b.addEventListener('click', function () {
-        api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card), 'PATCH', { excedente: o[0] }).then(function (r) {
-          if (r.status === 200 && r.json.ok !== false) carregarObra(); else toast(msgDe(r, 'Não consegui agora.'));
-        });
-      });
-      qs.appendChild(b);
-    });
-    q.appendChild(qs); b3.appendChild(q);
-    if (d.excedente === 'sim') {
-      d.documentos.beneficiarias.forEach(function (b) {
-        var li = el('div', 'jor-conta');
-        li.appendChild(etq(b.mesmo_titular ? 'ok' : 'Titular diferente', b.mesmo_titular ? 'ok' : 'er'));
-        li.appendChild(el('span', b.mesmo_titular ? 'jor-ok' : 'jor-erro', 'UC ' + b.uc + ' · ' + (b.titular || 'sem titular') + ' · ' + (b.mesmo_titular ? 'Mesmo titular' : 'Titular diferente. Todas as contas precisam estar no nome de ' + d.documentos.titular_geradora + '. Troque a titularidade na Cemig ou tire esta conta em "Mais documentos, ligações e cadastro", logo abaixo.')));
-        b3.appendChild(li);
-      });
-    }
-    esq.appendChild(b3);
+    // 3. Contrato e procuração (gerar, colher a assinatura e anexar o contrato assinado)
+    esq.appendChild(blocoPapeis(d, et));
   }
 
-  /** O e-mail do cliente, editável ali mesmo. Grava pelo mesmo PUT do cadastro que o quadro usa (vdcEmailGravar). Sem e-mail o campo já nasce aberto. */
+  // ── Etapa 1: dados do cliente, editáveis ali mesmo ──────────────────────────────
   var EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  function campoEmail(d) {
-    var caixa = el('div', 'jor-campos'); caixa.style.marginTop = '12px';
+  function soDig(t) { return String(t || '').replace(/\D/g, ''); }
+  function fmtTel(v) {
+    var x = soDig(v);
+    if (x.length === 11) return '(' + x.slice(0, 2) + ') ' + x.slice(2, 7) + '-' + x.slice(7);
+    if (x.length === 10) return '(' + x.slice(0, 2) + ') ' + x.slice(2, 6) + '-' + x.slice(6);
+    return String(v || '');
+  }
+  /** Os 4 campos do bloco "Dados do cliente". `item` é a chave do item no servidor; `campo` é o campo do cadastro (PUT /cadastro). */
+  var CAMPOS_CLIENTE = [
+    { item: 'nome', campo: 'nome', rot: 'Nome completo', tipo: 'text', vazio: 'Digite o nome completo do cliente.',
+      valida: function (v) { return v.length < 3 ? 'Digite o nome completo do cliente.' : ''; },
+      sug: function (d) { return d.card && d.card.cliente ? { v: d.card.cliente, de: 'o card' } : null; } },
+    { item: 'endereco_usina', campo: 'endereco_ponto', rot: 'Endereço da usina', tipo: 'text', vazio: 'Digite o endereço da usina.', ex: 'Rua, número, bairro, cidade e UF',
+      valida: function (v) { return v.length < 8 ? 'Digite o endereço completo, com rua, número, bairro e cidade.' : ''; } },
+    { item: 'telefone', campo: 'telefone', rot: 'Telefone de contato', tipo: 'tel', vazio: 'Digite o telefone com DDD.', ex: '(34) 99999-0000', fmt: fmtTel, norm: soDig,
+      valida: function (v) { var n = soDig(v).length; return n >= 10 && n <= 13 ? '' : 'Telefone com DDD, de 10 a 13 dígitos.'; },
+      sug: function (d) { return d.card && d.card.telefone && soDig(d.card.telefone).length >= 10 ? { v: d.card.telefone, de: 'o card' } : null; } },
+    { item: 'email', campo: 'email', rot: 'E-mail do cliente', tipo: 'email', vazio: 'Digite o e-mail do cliente.', ex: 'nome@exemplo.com',
+      valida: function (v) { return EMAIL_OK.test(v) ? '' : 'Esse e-mail não parece certo. Confira e tente de novo.'; },
+      sug: function (d, st) { return st && st.sugEmail ? { v: st.sugEmail, de: 'a proposta' } : null; } },
+  ];
+  function valorDoCadastro(st, campo) { var c = st && st.cad && st.cad.campos && st.cad.campos[campo]; return String((c && c.valor) == null ? '' : c.valor).trim(); }
+
+  /**
+   * Um campo do cadastro, editável ali mesmo. Com valor: o valor e "Editar". Sem valor: o campo aberto e "Salvar". Grava pelo mesmo PUT /cadastro
+   * que o quadro de documentos usa (vdcCampoGravar), valida o formato antes e mostra o erro embaixo do campo.
+   */
+  function campoCadastro(d, et, cfg) {
+    var no = el('div', 'jor-campo jor-campo-larga');
     var card = String(O.card);
-    var edita = !d.documentos.email;
+    var edita = false; var opaco = false;
+    function feitoNoItem() { var x = et && et.itens ? et.itens.filter(function (i) { return i.chave === cfg.item; })[0] : null; return !!(x && x.feito); }
+    // De onde vem o valor: dados do servidor (se vierem) > cadastro do quadro (quando carregar) > e-mail da própria resposta. null = ainda não sei.
+    function lerValor() {
+      var x = d.dados_cliente && d.dados_cliente[cfg.campo]; if (typeof x === 'string') return x.trim();
+      if (cfg.campo === 'email' && d.documentos && typeof d.documentos.email === 'string') return d.documentos.email.trim();
+      var st = quadroDoCard(); if (st && !st.carregando && st.cad) return valorDoCadastro(st, cfg.campo);
+      return null;
+    }
+    var valor = lerValor();
+    if (valor === null) {
+      if (!feitoNoItem()) valor = '';
+      else quadroPronto(no).then(function () { var v = lerValor(); if (v === null) { valor = ''; opaco = true; } else valor = v; montar(); });
+    }
     function montar(foco) {
-      var atual = d.documentos.email || '';
+      var temValor = valor !== null && (valor !== '' || opaco);
       var ctl = el('div'); var lin = el('div', 'jor-email-lin'); ctl.appendChild(lin);
-      if (atual && !edita) {
-        lin.appendChild(el('div', 'jor-campo-lei', atual));
-        var ed = btn('Editar', '', function () { edita = true; montar(true); }); ed.setAttribute('aria-label', 'Editar o e-mail do cliente');
+      if (valor === null) {
+        lin.appendChild(el('div', 'jor-campo-lei', 'Carregando…'));
+      } else if (temValor && !edita) {
+        lin.appendChild(el('div', 'jor-campo-lei', opaco ? 'Preenchido' : (cfg.fmt ? cfg.fmt(valor) : valor)));
+        var ed = btn('Editar', '', function () { edita = true; montar(true); }); ed.setAttribute('aria-label', 'Editar: ' + cfg.rot);
         lin.appendChild(ed);
       } else {
-        var inp = el('input', 'jor-in' + (atual ? '' : ' falta')); inp.type = 'email'; inp.inputMode = 'email'; inp.autocomplete = 'off'; inp.name = 'email-cliente'; inp.spellcheck = false; inp.maxLength = 120;
-        inp.setAttribute('aria-label', 'E-mail do cliente'); inp.placeholder = 'nome@exemplo.com'; inp.value = atual;
+        var inp = el('input', 'jor-in' + (temValor ? '' : ' falta')); inp.type = cfg.tipo; inp.inputMode = cfg.tipo === 'tel' ? 'tel' : cfg.tipo === 'email' ? 'email' : 'text';
+        inp.autocomplete = 'off'; inp.name = 'cliente-' + cfg.campo; inp.maxLength = 160; if (cfg.tipo !== 'text') inp.spellcheck = false;
+        inp.setAttribute('aria-label', cfg.rot); if (cfg.ex) inp.placeholder = cfg.ex; inp.value = temValor && !opaco ? (cfg.fmt ? cfg.fmt(valor) : valor) : '';
         var nota = el('p', 'jor-nota'); nota.hidden = true;
         var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
-        var sv = btn('Salvar e-mail', atual ? '' : 'jor-btn-pri', salvar);
+        var sv = btn('Salvar', temValor ? '' : 'jor-btn-pri', salvar); sv.setAttribute('aria-label', 'Salvar: ' + cfg.rot);
         lin.appendChild(inp); lin.appendChild(sv);
-        if (atual) lin.appendChild(btn('Cancelar', '', function () { edita = false; montar(); }));
+        if (temValor) lin.appendChild(btn('Cancelar', '', function () { edita = false; montar(); }));
         ctl.appendChild(nota); ctl.appendChild(erro);
         inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); salvar(); } });
         inp.addEventListener('input', function () { inp.dataset.sujo = '1'; nota.hidden = true; erro.textContent = ''; });
         if (foco) setTimeout(function () { inp.focus(); }, 0);
-        // O e-mail da proposta é só sugestão: preenche o campo, nunca grava sozinho.
-        if (!atual) quadroPronto(caixa).then(function (st) {
-          if (!st || !st.sugEmail || inp.value || inp.dataset.sujo || !inp.isConnected) return;
-          inp.value = st.sugEmail; nota.textContent = 'Veio da proposta. Confira e salve.'; nota.hidden = false;
-        });
+        // O que já existe em outro lugar (card, proposta) é só sugestão: preenche o campo, nunca grava sozinho.
+        var sugerir = function () {
+          if (inp.value || inp.dataset.sujo || !cfg.sug) return;
+          var sg = cfg.sug(d, quadroDoCard()); if (!sg || !sg.v) return;
+          inp.value = cfg.fmt ? cfg.fmt(sg.v) : sg.v; nota.textContent = 'Veio d' + sg.de + '. Confira e salve.'; nota.hidden = false;
+        };
+        if (!temValor) { sugerir(); quadroPronto(no).then(function () { if (inp.isConnected) sugerir(); }); }
       }
-      caixa.replaceChildren(campoRot('E-mail do cliente', ctl, atual ? null : etq('Falta', 'av'), true));
+      no.replaceChildren(campoRot(cfg.rot, ctl, valor !== null && !temValor ? etq('Falta', 'av') : null, true).firstChild, ctl);
       function salvar() {
         if (sv.disabled) return;
         var v = inp.value.trim(); erro.textContent = '';
-        if (!v) { erro.textContent = 'Digite o e-mail do cliente.'; inp.focus(); return; }
-        if (!EMAIL_OK.test(v)) { erro.textContent = 'Esse e-mail não parece certo. Confira e tente de novo.'; inp.focus(); return; }
-        if (v === atual) { edita = false; montar(); return; }
+        if (!v) { erro.textContent = cfg.vazio; inp.focus(); return; }
+        var msg = cfg.valida(v); if (msg) { erro.textContent = msg; inp.focus(); return; }
+        var env = cfg.norm ? cfg.norm(v) : v;
+        if (!opaco && env === (cfg.norm ? cfg.norm(valor) : valor)) { edita = false; montar(); return; }
         sv.disabled = true; sv.textContent = 'Salvando…';
         garantirQuadro().then(function (st) {
           if (!st) return { ok: false, erro: 'Não consegui abrir o cadastro agora. Tente de novo.' };
-          if (typeof window.vdcEmailGravar !== 'function') return { ok: false, erro: 'Não consegui salvar agora. Atualize a página.' };
-          return window.vdcEmailGravar(st, v);
-        }).catch(function () { return { ok: false, erro: 'Não consegui salvar o e-mail agora. Tente de novo.' }; }).then(function (r) {
+          if (typeof window.vdcCampoGravar !== 'function') return { ok: false, erro: 'Não consegui salvar agora. Atualize a página.' };
+          return window.vdcCampoGravar(st, cfg.campo, env);
+        }).catch(function () { return { ok: false, erro: 'Não consegui salvar agora. Tente de novo.' }; }).then(function (r) {
           if (r && r.ok) {
-            toast('E-mail salvo.');
+            toast('Dado salvo.');
             if (String(O.card) !== card) return;
-            d.documentos.email = v; edita = false; if (caixa.isConnected) montar(); releia();
+            valor = env; opaco = false; edita = false; if (no.isConnected) montar(); releia();
             return;
           }
-          var m = (r && r.erro) || 'Não consegui salvar o e-mail agora. Tente de novo.';
+          var m = (r && r.erro) || 'Não consegui salvar agora. Tente de novo.';
           if (!sv.isConnected) { toast(m); return; }
-          sv.disabled = false; sv.textContent = 'Salvar e-mail'; erro.textContent = m;
+          sv.disabled = false; sv.textContent = 'Salvar'; erro.textContent = m;
         });
       }
     }
     montar();
-    return caixa;
+    return no;
+  }
+  function blocoDados(d, et) {
+    var its = itensDoBloco(et, 'cliente');
+    var b = el('div', 'jor-bloco'); b.appendChild(blocoTitulo('Dados do cliente', its.length ? its : null));
+    var g = el('div', 'jor-campos'); CAMPOS_CLIENTE.forEach(function (cfg) { g.appendChild(campoCadastro(d, et, cfg)); });
+    b.appendChild(g);
+    return b;
+  }
+
+  // ── Etapa 1: contrato e procuração ──────────────────────────────────────────────
+  function blocoPapeis(d, et) {
+    var its = itensDoBloco(et, 'papeis');
+    var b = el('div', 'jor-bloco'); b.appendChild(blocoTitulo('Contrato e procuração', its.length ? its : null));
+    function linhaPapel(rot, tipo, extraCtl, gerarFn) {
+      var l = el('div', 'jor-anexo'); l.appendChild(el('span', 'jor-rot', rot));
+      var gp = d.papeis && d.papeis[tipo];
+      if (extraCtl) l.appendChild(extraCtl);
+      var g = btn('Gerar', '', function () { gerarFn(g); }); g.disabled = !d.pode.gerar_papeis; l.appendChild(g);
+      if (gp) l.appendChild(el('span', 'jor-est ok', 'Gerado em ' + ddmm(String(gp.gerado_em).slice(0, 10))));
+      b.appendChild(l);
+    }
+    linhaPapel('Contrato', 'contrato', null, function (g) { gerarPapel('contrato', {}, g); });
+    var mod = el('select', 'jor-sel'); mod.setAttribute('aria-label', 'Modelo da procuração');
+    [['1', 'Padrão'], ['2', 'Jurídico'], ['3', 'Concessionária e ANEEL']].forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; mod.appendChild(op); });
+    linhaPapel('Procuração', 'procuracao', mod, function (g) { gerarPapel('procuracao', { modelo: Number(mod.value) }, g); });
+    linhaPapel('Recibo (opcional)', 'recibo', null, function (g) { reciboDialogo(d, g); });
+    b.appendChild(el('p', 'jor-nota', 'Gere os papéis, colha as assinaturas e anexe os assinados na etapa 2.'));
+    return b;
+  }
+
+  // ── Etapa 2: contas do excedente (um slot, vários arquivos) ─────────────────────
+  var SLOT_EXCEDENTE = 'conta_luz_beneficiaria';
+  function contasExcedente(d, et) {
+    var CK_NOVA = SLOT_EXCEDENTE + '#novo';
+    var raiz = el('div');
+    raiz.appendChild(subTitulo('Contas que recebem o excedente'));
+    var grade = el('div', 'jor-fotos'); raiz.appendChild(grade);
+    var rodape = el('div'); raiz.appendChild(rodape);
+    var esperou = false;
+    var dica = itemFeito(et, 'conta_excedente') || !!d.slots[SLOT_EXCEDENTE];
+    function pinta() {
+      grade.replaceChildren(); rodape.replaceChildren();
+      var st = quadroDoCard();
+      var lista = (st && !st.carregando && st.docs && Array.isArray(st.docs.arquivos)) ? st.docs.arquivos.filter(function (a) { return a && a.slot === SLOT_EXCEDENTE; }) : null;
+      if (lista === null && !esperou) { esperou = true; quadroPronto(raiz).then(pinta); }
+      if (lista === null && dica) { grade.appendChild(el('p', 'jor-nota', 'Carregando…')); return; }
+      lista = lista || [];
+      if (!lista.length) {
+        var c0 = el('div', 'jor-foto'); var t0 = el('div', 'jor-foto-topo'); t0.appendChild(el('span', '', 'Conta excedente 1')); t0.appendChild(etq('Falta', 'av')); c0.appendChild(t0);
+        c0.appendChild(anexo(SLOT_EXCEDENTE, 'Conta excedente 1', false, { compacto: true, ck: CK_NOVA })); grade.appendChild(c0);
+        return;
+      }
+      lista.forEach(function (a, i) {
+        var rot = 'Conta excedente ' + (i + 1);
+        var c = el('div', 'jor-foto'); var t = el('div', 'jor-foto-topo'); t.appendChild(el('span', '', rot)); t.appendChild(etq('Anexada', 'ok')); c.appendChild(t);
+        c.appendChild(anexo(SLOT_EXCEDENTE, rot, true, { compacto: true, id: a.id })); grade.appendChild(c);
+      });
+      if (O.ocupSlot[CK_NOVA]) { var oc = el('p', 'jor-nota', O.ocupSlot[CK_NOVA]); oc.setAttribute('role', 'status'); rodape.appendChild(oc); return; }
+      rodape.appendChild(seletor('Adicionar conta excedente', ACEITA_PADRAO, false, 'jor-btn', 'contas que recebem o excedente', function (arqs) {
+        enviarArquivo(SLOT_EXCEDENTE, arqs, false, pinta, { ck: CK_NOVA });
+      }));
+      if (O.erroSlot[CK_NOVA]) { var er = el('p', 'jor-erro jor-anexo-msg', O.erroSlot[CK_NOVA]); er.setAttribute('role', 'alert'); rodape.appendChild(er); }
+    }
+    pinta();
+    return raiz;
+  }
+
+  // ── Etapa 3: equipamento (kit, datasheets e KMZ) ────────────────────────────────
+  /** O kit confirmado. Grava pelo mesmo PUT /venda de sempre, com o resto da venda como está. Precisa da venda salva (valor e pagamento). */
+  function kitControle(d, et) {
+    var v = d.venda; var feito = itemFeito(et, 'kit') || !!(v && v.kit_confirmado);
+    var pode = d.pode.confirmar_kit !== undefined ? !!d.pode.confirmar_kit : !!d.pode.editar_venda;
+    var raiz = el('div');
+    var kit = el('input'); kit.type = 'checkbox'; kit.checked = feito; kit.disabled = !pode || !v || !!et.concluida_em;
+    kit.setAttribute('aria-label', 'Todo o equipamento confirmado');
+    var lk = el('label', 'jor-kit' + (feito ? '' : ' falta')); lk.appendChild(kit); lk.appendChild(el('span', '', 'Todo o equipamento confirmado'));
+    var cab = el('div', 'jor-campo-rot'); cab.appendChild(document.createTextNode('Kit vendido')); cab.appendChild(etq(feito ? 'Confirmado' : 'Falta', feito ? 'ok' : 'av'));
+    var info = el('p', 'jor-erro jor-anexo-msg'); info.setAttribute('role', 'alert');
+    kit.addEventListener('change', function () {
+      var marcado = kit.checked; kit.disabled = true; info.textContent = '';
+      var pedido = {
+        valor_centavos: v.valor_centavos, kit_confirmado: marcado, prazo_prometido: v.prazo_prometido || '', nota: v.nota || '',
+        desconto_centavos: v.desconto_centavos === undefined ? null : v.desconto_centavos,
+        pagamento: v.pagamento.map(function (x) { return { forma: x.forma, valor_centavos: x.valor_centavos, obs: x.obs || '' }; }),
+      };
+      api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + '/venda', 'PUT', pedido).then(function (r) {
+        if (r.status === 200 && r.json.ok !== false) { toast(marcado ? 'Equipamento confirmado.' : 'Confirmação do equipamento desfeita.'); carregarObra(); return; }
+        kit.checked = !marcado; kit.disabled = false; info.textContent = msgDe(r, 'Não consegui salvar agora.');
+      });
+    });
+    raiz.appendChild(cab); raiz.appendChild(lk);
+    if (!v) raiz.appendChild(el('p', 'jor-nota', 'Salve o valor e a forma de pagamento na etapa 1 para poder confirmar o equipamento.'));
+    raiz.appendChild(info);
+    return raiz;
+  }
+  function blocoEquipamento(d, et) {
+    var its = itensDoBloco(et, 'equipamento');
+    var b = el('div', 'jor-bloco'); b.appendChild(blocoTitulo('Equipamento', its.length ? its : null));
+    b.appendChild(kitControle(d, et));
+    var g = el('div', 'jor-fotos'); g.style.marginTop = '12px';
+    [['datasheet_modulo', 'Datasheet da placa', null], ['datasheet_inversor', 'Datasheet do inversor', null], ['kmz', 'KMZ do local', ACEITA_KMZ]].forEach(function (x) {
+      var tem = itemFeito(et, x[0]) || !!d.slots[x[0]];
+      var cf = el('div', 'jor-foto'); var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', x[1])); tp.appendChild(etq(tem ? 'Anexado' : 'Falta', tem ? 'ok' : 'av')); cf.appendChild(tp);
+      cf.appendChild(anexo(x[0], x[1], tem, x[2] ? { compacto: true, aceita: x[2] } : { compacto: true })); g.appendChild(cf);
+    });
+    b.appendChild(g);
+    var cartao = d.trello && ((d.trello.url && d.trello.fonte !== 'dossie') || d.trello.tem_cartao);
+    if (!cartao) {
+      b.appendChild(el('p', 'jor-nota', 'O cartão do Trello é criado sozinho quando as fases 1, 2 e 3 fecham.'));
+      var ta = d.trello_auto;
+      if (ta && !ta.pronto && Array.isArray(ta.falta) && ta.falta.length) b.appendChild(el('p', 'jor-nota', 'Falta para criar o cartão: ' + ta.falta.join(', ') + '.'));
+    }
+    return b;
   }
 
   // ── Etapa 2 ─────────────────────────────────────────────────────────────────
@@ -1376,44 +1527,60 @@
   }
 
   function etapa2(esq, d, et) {
-    var vend = nomeBonito(d.card.vendedor) || 'o vendedor';
-    var e1 = d.etapas[0];
-    var b1 = el('div', 'jor-bloco'); b1.appendChild(el('div', 'jor-bloco-t', 'Tudo que a ' + vend + ' juntou'));
-    [['venda', 'Venda'], ['fotos', 'Fotos da vistoria'], ['documentos', 'Documentos']].forEach(function (x) {
-      var li = el('p', 'jor-ok'); li.appendChild(icone('ok')); li.appendChild(document.createTextNode(' ' + x[1] + ': completo')); b1.appendChild(li);
+    // 3. Documentos
+    var b3 = el('div', 'jor-bloco'); b3.appendChild(blocoTitulo('Documentos', itensDoBloco(et, 'documentos')));
+    var gd = el('div', 'jor-fotos');
+    // A caixa olha os dois documentos que o portão aceita (o do contratante e o do titular da homologação).
+    var temDoc = !!(d.slots.documento || d.slots.documento_titular_uc);
+    var chDoc = d.slots.documento ? 'documento_titular' : (d.slots.documento_titular_uc ? 'documento_titular_uc' : 'documento_titular');
+    [['conta_luz', 'Conta de luz', 'Conta de luz', !!d.slots.conta_luz], [chDoc, 'CNH ou documento com foto', 'CNH ou documento com foto', temDoc]].forEach(function (x) {
+      var cf = el('div', 'jor-foto');
+      var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', x[1])); tp.appendChild(etq(x[3] ? 'Anexada' : 'Falta', x[3] ? 'ok' : 'av')); cf.appendChild(tp);
+      cf.appendChild(anexo(x[0], x[2], x[3], { compacto: true })); gd.appendChild(cf);
     });
-    void e1;
-    esq.appendChild(b1);
-    var b2 = el('div', 'jor-bloco'); b2.appendChild(el('div', 'jor-bloco-t', 'Valor e pagamento'));
-    var vv = d.venda;
-    if (vv) {
-      b2.appendChild(el('p', '', reais(vv.valor_centavos) + ' · ' + vv.pagamento.map(function (x) { return x.forma + ' ' + reais(x.valor_centavos) + (x.obs ? ' (' + x.obs + ')' : ''); }).join(', ')));
-      b2.appendChild(el('p', 'jor-nota', 'Combinado por ' + nomeBonito(vv.combinado_por) + ' em ' + ddmm(String(vv.combinado_em).slice(0, 10)) + '.'));
+    b3.appendChild(gd);
+    var q = el('div'); q.appendChild(subTitulo('Tem excedente para outras contas?'));
+    var qs = el('div', 'jor-filtros');
+    [['sim', 'Sim'], ['nao', 'Não']].forEach(function (o) {
+      var b = el('button', 'jor-chip jor-chip-grande' + (d.excedente === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !d.pode.marcar_excedente;
+      b.addEventListener('click', function () {
+        api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card), 'PATCH', { excedente: o[0] }).then(function (r) {
+          if (r.status === 200 && r.json.ok !== false) carregarObra(); else toast(msgDe(r, 'Não consegui agora.'));
+        });
+      });
+      qs.appendChild(b);
+    });
+    q.appendChild(qs); b3.appendChild(q);
+    if (d.excedente === 'sim') {
+      b3.appendChild(contasExcedente(d, et));
+      d.documentos.beneficiarias.forEach(function (b) {
+        var li = el('div', 'jor-conta');
+        li.appendChild(etq(b.mesmo_titular ? 'ok' : 'Titular diferente', b.mesmo_titular ? 'ok' : 'er'));
+        li.appendChild(el('span', b.mesmo_titular ? 'jor-ok' : 'jor-erro', 'UC ' + b.uc + ' · ' + (b.titular || 'sem titular') + ' · ' + (b.mesmo_titular ? 'Mesmo titular' : 'Titular diferente. Todas as contas precisam estar no nome de ' + d.documentos.titular_geradora + '. Troque a titularidade na Cemig ou tire esta conta em "Mais documentos, ligações e cadastro", logo abaixo.')));
+        b3.appendChild(li);
+      });
     }
-    if (d.pode.editar_venda) {
-      var box = el('div'); box.hidden = true;
-      var ed = btn('Editar', '', function () { box.hidden = !box.hidden; });
-      b2.appendChild(ed); formVenda(box, d, carregarObra, e1); b2.appendChild(box);
-    }
-    esq.appendChild(b2);
-    // Papéis
-    var b3 = el('div', 'jor-bloco'); b3.appendChild(el('div', 'jor-bloco-t', 'Papéis'));
-    function linhaPapel(rot, tipo, chaveAssinado, extraCtl, gerarFn) {
-      var l = el('div', 'jor-anexo'); l.appendChild(el('span', 'jor-rot', rot));
-      var gp = d.papeis && d.papeis[tipo];
-      if (extraCtl) l.appendChild(extraCtl);
-      var g = btn('Gerar', '', function () { gerarFn(g); }); g.disabled = !d.pode.gerar_papeis; l.appendChild(g);
-      if (gp) l.appendChild(el('span', 'jor-est ok', 'Gerado em ' + ddmm(String(gp.gerado_em).slice(0, 10))));
-      b3.appendChild(l);
-      if (chaveAssinado) b3.appendChild(anexo(chaveAssinado[0], chaveAssinado[1], !!d.slots[chaveAssinado[0]]));
-    }
-    linhaPapel('Contrato', 'contrato', ['contrato_assinado', 'Contrato assinado'], null, function (g) { gerarPapel('contrato', {}, g); });
-    var mod = el('select', 'jor-sel'); mod.setAttribute('aria-label', 'Modelo da procuração');
-    [['1', 'Padrão'], ['2', 'Jurídico'], ['3', 'Concessionária e ANEEL']].forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; mod.appendChild(op); });
-    linhaPapel('Procuração', 'procuracao', ['procuracao', 'Procuração assinada'], mod, function (g) { gerarPapel('procuracao', { modelo: Number(mod.value) }, g); });
-    linhaPapel('Recibo', 'recibo', null, null, function (g) { reciboDialogo(d, g); });
-    b3.appendChild(el('p', 'jor-nota', 'Colha a assinatura do cliente e anexe aqui o papel assinado.'));
     esq.appendChild(b3);
+    // 2. Fotos da vistoria (e a vistoria da obra, logo abaixo)
+    var b2 = el('div', 'jor-bloco'); b2.appendChild(blocoTitulo('Fotos da vistoria', itensDoBloco(et, 'fotos')));
+    var gf = el('div', 'jor-fotos');
+    [['fachada', 'Fachada'], ['padrao', 'Padrão de entrada'], ['disjuntor', 'Disjuntor'], ['medidor', 'Medidor']].forEach(function (x) {
+      var tem = !!d.slots[x[0]]; var cf = el('div', 'jor-foto');
+      var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', x[1])); tp.appendChild(etq(tem ? 'Anexada' : 'Falta', tem ? 'ok' : 'av')); cf.appendChild(tp);
+      cf.appendChild(anexo(x[0], 'Foto ' + (x[1] === 'Padrão de entrada' ? 'do padrão de entrada' : x[1] === 'Medidor' ? 'do medidor' : x[1] === 'Disjuntor' ? 'do disjuntor' : 'da fachada'), tem, { compacto: true }));
+      gf.appendChild(cf);
+    });
+    b2.appendChild(gf);
+    b2.appendChild(el('p', 'jor-nota', 'As outras fotos (que não travam) e os dados do local ficam em "Mais documentos, ligações e cadastro", logo abaixo.'));
+    esq.appendChild(b2);
+    if (window.Jornada.extras.vistoria) window.Jornada.extras.vistoria(esq, d);
+    // 3. Procuração assinada
+    var itP = itensDoBloco(et, 'portao');
+    var bp = el('div', 'jor-bloco'); bp.appendChild(blocoTitulo('Contrato e procuração assinados', itP.length ? itP : null));
+    bp.appendChild(anexo('contrato_assinado', 'Contrato assinado', itemFeito(et, 'contrato_assinado') || !!d.slots.contrato_assinado));
+    bp.appendChild(anexo('procuracao', 'Procuração assinada', itemFeito(et, 'procuracao') || !!d.slots.procuracao));
+    bp.appendChild(el('p', 'jor-nota', 'O contrato assinado fica arquivado aqui. Só a procuração segue para a homologação.'));
+    esq.appendChild(bp);
     // Número
     var b4 = el('div', 'jor-bloco'); var tt = el('div', 'jor-bloco-t', 'Número da obra'); tt.appendChild(el('span', 'jor-auto', 'Automático')); b4.appendChild(tt);
     var ne = d.numero.estado;
@@ -1514,6 +1681,7 @@
   }
   function etapa3(esq, d, et) {
     var sem = d.numero.estado !== 'tem';
+    esq.appendChild(blocoEquipamento(d, et));
     if (d.excedente === 'sim') {
       var ra = el('div', 'jor-bloco'); ra.appendChild(el('div', 'jor-bloco-t', 'Rateio do excedente'));
       var bens = d.rateio.linhas.filter(function (l) { return l.papel === 'beneficiaria'; });

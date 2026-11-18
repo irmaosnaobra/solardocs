@@ -8,7 +8,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import {
-  BUCKET_DOCS, LIMITE_BYTES, MIMES_ACEITOS, chaveDocs, lerRegistroDocs, normalizarMime,
+  BUCKET_DOCS, LIMITE_BYTES, MIMES_DO_BUCKET, chaveDocs, lerRegistroDocs, normalizarMime,
   type Linha, type RegistroDocs,
 } from './docsCliente';
 
@@ -27,12 +27,11 @@ const naoAchou = (err: unknown): boolean => {
 
 // ── Bucket ───────────────────────────────────────────────────────────────────
 
-const opcoesDoBucket = () => ({ public: false, fileSizeLimit: LIMITE_BYTES, allowedMimeTypes: [...MIMES_ACEITOS] });
+const opcoesDoBucket = () => ({ public: false, fileSizeLimit: LIMITE_BYTES, allowedMimeTypes: [...MIMES_DO_BUCKET] });
 
-const mesmosTipos = (a: unknown): boolean => {
-  const esperado = [...MIMES_ACEITOS].sort();
-  return Array.isArray(a) && a.length === esperado.length && [...a].map(String).sort().every((t, i) => t === esperado[i]);
-};
+// O depósito vale se CONTÉM os 6 tipos (pode ter mais): comparar por igualdade fazia uma instância antiga (só 4 tipos) e uma nova se desfazerem
+// uma à outra a cada 60 s.
+const mesmosTipos = (a: unknown): boolean => Array.isArray(a) && MIMES_DO_BUCKET.every((t) => a.map(String).includes(t));
 
 let bucketOkAte = 0;
 /** Para os testes. */
@@ -97,18 +96,18 @@ export async function sondarObjeto(caminho: string): Promise<SondaObjeto> {
  * Os primeiros 16 bytes do objeto (URL assinada de 60 s + `Range`), para conferir a assinatura do arquivo contra o tipo
  * declarado: o Storage guarda o `content-type` que o navegador mandou, e isso o cliente escolhe. A URL nunca é logada.
  */
-export async function lerPrimeirosBytes(caminho: string): Promise<Uint8Array> {
+export async function lerPrimeirosBytes(caminho: string, quantos = 16): Promise<Uint8Array> {
   const { data, error } = await supabase.storage.from(BUCKET_DOCS).createSignedUrl(caminho, 60);
   if (error || !data?.signedUrl) throw new ErroDocs('assinar_bytes');
   let r: Response;
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
-    try { r = await fetch(data.signedUrl, { headers: { Range: 'bytes=0-15' }, signal: ctrl.signal }); } finally { clearTimeout(t); }
+    try { r = await fetch(data.signedUrl, { headers: { Range: `bytes=0-${quantos - 1}` }, signal: ctrl.signal }); } finally { clearTimeout(t); }
   } catch { throw new ErroDocs('ler_bytes'); }
   if (!r.ok) throw new ErroDocs('ler_bytes');
   // Servidor que ignora o Range devolve o arquivo inteiro (no máximo 10 MB): só os 16 primeiros bytes interessam.
-  return new Uint8Array(await r.arrayBuffer()).subarray(0, 16);
+  return new Uint8Array(await r.arrayBuffer()).subarray(0, quantos);
 }
 
 /** Baixa o objeto inteiro (leitura por IA, feita no servidor). Só o código do erro sobe; o caminho nunca. */
@@ -133,7 +132,16 @@ export async function removerObjeto(caminho: string): Promise<void> {
 export async function assinarVarios(caminhos: string[], segundos: number): Promise<Map<string, string>> {
   const mapa = new Map<string, string>();
   if (!caminhos.length) return mapa;
-  const { data, error } = await supabase.storage.from(BUCKET_DOCS).createSignedUrls(caminhos, segundos);
+  // KMZ e KML saem como DOWNLOAD (Content-Disposition: attachment): o navegador nunca os abre na página.
+  const baixar = caminhos.filter((c) => /\.(?:kmz|kml)$/.test(c));
+  for (const c of baixar) {
+    const { data: d1, error: e1 } = await supabase.storage.from(BUCKET_DOCS).createSignedUrl(c, segundos, { download: true });
+    if (e1 || !d1?.signedUrl) throw new ErroDocs('assinar_leitura');
+    mapa.set(c, d1.signedUrl);
+  }
+  const resto = caminhos.filter((c) => !baixar.includes(c));
+  if (!resto.length) return mapa;
+  const { data, error } = await supabase.storage.from(BUCKET_DOCS).createSignedUrls(resto, segundos);
   if (error || !Array.isArray(data)) throw new ErroDocs('assinar_leitura');
   for (const l of data as Array<{ path?: string | null; signedUrl?: string | null; error?: unknown }>) {
     if (l && typeof l.path === 'string' && l.signedUrl && !l.error) mapa.set(l.path, l.signedUrl);

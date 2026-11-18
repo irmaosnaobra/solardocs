@@ -24,7 +24,7 @@ export const FALHAS_NUMERO: readonly FalhaNumero[] = ['trello', 'trello_grande',
 
 export const ACOES_HISTORICO = [
   'vendido', 'materializada', 'concluir', 'esperar', 'voltar', 'cancelar', 'descancelar', 'papel_contrato', 'papel_procuracao', 'papel_recibo',
-  'excedente', 'rateio', 'protocolo', 'engenheiro', 'trello', 'numero', 'numero_falhou', 'venda_completa', 'trazida',
+  'excedente', 'rateio', 'protocolo', 'engenheiro', 'trello', 'numero', 'numero_falhou', 'venda_completa', 'trazida', 'trello_auto_parou', 'trello_auto_arquivado',
 ] as const;
 export type AcaoHistorico = typeof ACOES_HISTORICO[number];
 
@@ -39,7 +39,8 @@ export interface Etapa3 extends EtapaBase {
   rateio: { conferido_em: string; por: string; marca: string } | null;
   protocolo: { numero: string; em: string } | null;
   engenheiro: 'pago' | 'a_pagar' | null;
-  trello: { url: string; criado_em: string; por: string } | null;
+  /** `completado_em`: o Trello automático já completou este cartão (anexos, checklist e ficha) com as 3 fases fechadas; uma vez só. */
+  trello: { url: string; criado_em: string; por: string; completado_em?: string } | null;
 }
 export interface EstadoJornada {
   v: 1;
@@ -79,8 +80,8 @@ export interface PrivadoJornada {
 
 // ── Etapas e donos ───────────────────────────────────────────────────────────────────────────────────────────────
 
-export const NOMES_ETAPA = ['', 'Venda', 'Contrato e pagamento', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega da obra', 'Pedido de vistoria e liberação', 'Pós-venda'];
-export const CURTOS_ETAPA = ['', 'Venda', 'Contrato', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega', 'Liberação', 'Pós-venda'];
+export const NOMES_ETAPA = ['', 'Venda', 'Documentos e vistoria', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega da obra', 'Pedido de vistoria e liberação', 'Pós-venda'];
+export const CURTOS_ETAPA = ['', 'Venda', 'Documentos', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega', 'Liberação', 'Pós-venda'];
 /** Donos fixos (SPEC 2). 'vendedor' = quem vendeu (o `vendedor` do estado, senão o `vendedor_nome` do card). */
 export const DONOS_ETAPA: Record<number, readonly string[] | 'vendedor'> = {
   1: 'vendedor', 2: ['giovanna'], 3: ['thiago'], 4: ['thiago', 'diego'], 5: ['diego'], 6: ['diego'], 7: ['diego'], 8: ['thiago'], 9: 'vendedor',
@@ -242,7 +243,7 @@ export function marcaDoRateio(cad: Cadastro): string {
 
 // ── O que cada etapa pede para concluir ────────────────────────────────────────────────────────────────────────────
 
-export interface ItemEtapa { chave: string; bloco: 'venda' | 'fotos' | 'documentos' | 'portao'; texto: string; feito: boolean }
+export interface ItemEtapa { chave: string; bloco: 'cliente' | 'venda' | 'papeis' | 'fotos' | 'documentos' | 'portao' | 'equipamento'; texto: string; feito: boolean }
 export interface EntradaItens {
   lig: { proposta: string | null; venda: string | null; trello_card?: string | null };
   /** Slots com arquivo no card MAIS os do dossiê da proposta ligada. */
@@ -258,11 +259,12 @@ export function valorPagamentoFecha(v: PrivadoJornada['venda']): boolean {
 }
 
 /**
- * O bloco Venda da etapa 1 está completo? É o mesmo `every` do bloco `venda` de `itensDaEtapa(1)` (proposta ligada, kit confirmado, valor e
- * forma de pagamento que fecham, prazo prometido). O aviso de venda (Fase 3) nasce na primeira vez em que isto vira verdadeiro.
+ * O bloco Venda da etapa 1 está completo? É o mesmo `every` do bloco `venda` de `itensDaEtapa(1)` (proposta ligada, valor e forma de
+ * pagamento que fecham, prazo prometido). O kit NÃO conta: ele é confirmado na Fase 3 (etapa 3). O aviso de venda nasce na primeira vez
+ * em que isto vira verdadeiro.
  */
 export function blocoVendaCompleto(lig: { proposta: string | null }, privado: PrivadoJornada | null): boolean {
-  return !!lig.proposta && privado?.venda?.kit_confirmado === true && valorPagamentoFecha(privado.venda) && !!privado.venda.prazo_prometido.trim();
+  return !!lig.proposta && valorPagamentoFecha(privado?.venda ?? null) && !!privado?.venda?.prazo_prometido.trim();
 }
 
 /** O excedente 'sim' fecha? Devolve o texto do que falta, ou null quando está tudo certo. */
@@ -281,31 +283,50 @@ function faltaDoExcedente(f: EntradaItens): string | null {
 export function itensDaEtapa(n: number, f: EntradaItens): ItemEtapa[] {
   const tem = (s: string): boolean => f.slots.has(s);
   if (n === 1) {
+    // Fase 1 (Venda): quem é o cliente, a venda combinada e os papéis GERADOS (contrato e procuração). Os assinados são da etapa 2.
     const v = f.privado?.venda ?? null;
-    const falta = faltaDoExcedente(f);
+    const papeis = f.estado?.etapas[2].papeis ?? null;
     return [
+      { chave: 'nome', bloco: 'cliente', texto: 'Nome completo', feito: !!valorDe(f.cad, 'nome') },
+      { chave: 'endereco_usina', bloco: 'cliente', texto: 'Endereço da usina', feito: !!valorDe(f.cad, 'endereco_ponto') },
+      { chave: 'telefone', bloco: 'cliente', texto: 'Telefone de contato', feito: !!valorDe(f.cad, 'telefone') },
+      { chave: 'email', bloco: 'cliente', texto: 'E-mail do cliente', feito: !!valorDe(f.cad, 'email') },
       { chave: 'proposta', bloco: 'venda', texto: 'Proposta aceita ligada', feito: !!f.lig.proposta },
-      { chave: 'kit', bloco: 'venda', texto: 'Kit confirmado', feito: v?.kit_confirmado === true },
       { chave: 'valor', bloco: 'venda', texto: 'Valor e forma de pagamento', feito: valorPagamentoFecha(v) },
       { chave: 'prazo', bloco: 'venda', texto: 'Prazo prometido ao cliente', feito: !!v && v.prazo_prometido.trim().length > 0 },
+      { chave: 'papel_contrato', bloco: 'papeis', texto: 'Contrato gerado', feito: !!papeis?.contrato },
+      { chave: 'papel_procuracao', bloco: 'papeis', texto: 'Procuração gerada', feito: !!papeis?.procuracao },
+    ];
+  }
+  if (n === 2) {
+    // Fase 2 (Documentos e vistoria): CNH, contas de luz, excedente, as 4 fotos e os dois papéis ASSINADOS (o par que dá o número da obra).
+    const falta = faltaDoExcedente(f);
+    const itens: ItemEtapa[] = [
+      { chave: 'documento', bloco: 'documentos', texto: 'CNH ou documento com foto', feito: tem('documento_titular') || tem('documento_titular_uc') },
+      { chave: 'conta_luz', bloco: 'documentos', texto: 'Conta de luz', feito: tem('conta_luz') },
+      { chave: 'excedente', bloco: 'documentos', texto: falta ?? 'Excedente para outras contas', feito: falta === null },
+    ];
+    if (f.estado?.etapas[1].excedente === 'sim') {
+      itens.push({ chave: 'conta_excedente', bloco: 'documentos', texto: 'Conta de luz do excedente', feito: tem('conta_luz_beneficiaria') });
+    }
+    itens.push(
       { chave: 'fachada', bloco: 'fotos', texto: 'Foto da fachada', feito: tem('fachada') },
       { chave: 'padrao', bloco: 'fotos', texto: 'Foto do padrão de entrada', feito: tem('padrao') },
       { chave: 'disjuntor', bloco: 'fotos', texto: 'Foto do disjuntor', feito: tem('disjuntor') },
       { chave: 'medidor', bloco: 'fotos', texto: 'Foto do medidor', feito: tem('medidor') },
-      { chave: 'conta_luz', bloco: 'documentos', texto: 'Conta de luz', feito: tem('conta_luz') },
-      { chave: 'documento', bloco: 'documentos', texto: 'CNH ou documento com foto', feito: tem('documento_titular') || tem('documento_titular_uc') },
-      { chave: 'email', bloco: 'documentos', texto: 'E-mail do cliente', feito: !!valorDe(f.cad, 'email') },
-      { chave: 'excedente', bloco: 'documentos', texto: falta ?? 'Excedente para outras contas', feito: falta === null },
-    ];
-  }
-  if (n === 2) {
-    return [
       { chave: 'contrato_assinado', bloco: 'portao', texto: 'Contrato assinado anexado', feito: tem('contrato_assinado') },
       { chave: 'procuracao', bloco: 'portao', texto: 'Procuração assinada anexada', feito: tem('procuracao') },
-    ];
+    );
+    return itens;
   }
   if (n === 3) {
-    const itens: ItemEtapa[] = [];
+    // Fase 3 (Homologação): primeiro o equipamento (ele libera o cartão do Trello sozinho), depois o que já existia.
+    const itens: ItemEtapa[] = [
+      { chave: 'kit', bloco: 'equipamento', texto: 'Todo o equipamento confirmado', feito: f.privado?.venda?.kit_confirmado === true },
+      { chave: 'datasheet_modulo', bloco: 'equipamento', texto: 'Datasheet da placa', feito: tem('datasheet_modulo') },
+      { chave: 'datasheet_inversor', bloco: 'equipamento', texto: 'Datasheet do inversor', feito: tem('datasheet_inversor') },
+      { chave: 'kmz', bloco: 'equipamento', texto: 'KMZ do local', feito: tem('kmz') },
+    ];
     if (f.estado?.etapas[1].excedente === 'sim') {
       const r = f.estado.etapas[3].rateio;
       itens.push({ chave: 'rateio', bloco: 'portao', texto: 'Rateio do excedente conferido', feito: !!r && r.marca === marcaDoRateio(f.cad) });
@@ -319,6 +340,34 @@ export function itensDaEtapa(n: number, f: EntradaItens): ItemEtapa[] {
     return itens;
   }
   return [];
+}
+
+export const MSG_TRELLO_AUTO_PAROU = 'Confira os cartões parecidos no botão do Trello';
+export const MSG_TRELLO_AUTO_ARQUIVADO = 'O cartão guardado não está aberto no Trello. Confira no botão do Trello.';
+
+/**
+ * Trello automático: o cartão nasce sozinho quando as fases 1 e 2 fecharam e o bloco `equipamento` da etapa 3 está todo feito
+ * (e a obra já tem número e não foi cancelada). `falta` diz o que ainda impede, em texto de tela; vazio quando `pronto`.
+ * `pronto` não olha se o cartão já existe (isso está em `etapas[3].trello`).
+ */
+export function estadoTrelloAuto(f: EntradaItens, temNumero: boolean, opcoes: { ignorarParada?: boolean } = {}): { pronto: boolean; falta: string[] } {
+  const falta: string[] = [];
+  if (f.estado?.cancelada) falta.push('Obra cancelada');
+  // Só age com a Homologação (etapa 3) em andamento: obra que já passou dela não é tocada, nem para completar o cartão.
+  if (f.estado?.etapas[3].concluida_em) falta.push('Homologação já concluída');
+  if (!f.estado?.etapas[1].concluida_em) falta.push('Etapa Venda concluída');
+  if (!f.estado?.etapas[2].concluida_em) falta.push('Etapa Documentos e vistoria concluída');
+  for (const i of itensDaEtapa(3, f)) if (i.bloco === 'equipamento' && !i.feito) falta.push(i.texto);
+  if (!temNumero) falta.push('Número da venda');
+  // O automático parou porque o quadro tem cartões parecidos: a pessoa confere e usa o botão (só vale enquanto não há cartão).
+  if (!opcoes.ignorarParada && f.estado?.historico.some((x) => x.acao === 'trello_auto_parou') && !f.estado.etapas[3].trello && !f.lig.trello_card) {
+    falta.push(MSG_TRELLO_AUTO_PAROU);
+  }
+  // O cartão guardado sumiu do quadro (arquivado ou apagado): o automático parou e a pessoa confere pelo botão.
+  if (!opcoes.ignorarParada && f.estado?.historico.some((x) => x.acao === 'trello_auto_arquivado') && !f.estado.etapas[3].trello?.completado_em) {
+    falta.push(MSG_TRELLO_AUTO_ARQUIVADO);
+  }
+  return { pronto: falta.length === 0, falta };
 }
 
 // ── Comissões (só cálculo e exibição, SPEC 3.4) ───────────────────────────────────────────────────────────────────────
@@ -363,6 +412,8 @@ export function deduzirEtapa(a: {
     if (a.planilhaFora) return { trilho: 'sem_trilho', etapa: null, posvenda: false };
     return doisPapeis ? { trilho: 'deduzida', etapa: 3, posvenda: false } : { trilho: 'sem_trilho', etapa: null, posvenda: false };
   }
+  // Sem número, pelo que dá para ler dos arquivos: o par assinado (contrato + procuração) OU as fotos e documentos da vistoria já colocam a
+  // venda na etapa 2, e é ao concluí-la que o número nasce. A etapa 3 só existe depois dele (ramo `temNumero` acima).
   const fotos = tem('fachada') && tem('padrao') && tem('disjuntor') && tem('medidor') && tem('conta_luz') && (tem('documento_titular') || tem('documento_titular_uc'));
   return { trilho: 'deduzida', etapa: doisPapeis || fotos ? 2 : 1, posvenda: false };
 }

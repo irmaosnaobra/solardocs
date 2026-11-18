@@ -37,7 +37,7 @@ export const SLOTS_LIDOS: readonly string[] = CATALOGO.eletroposto.filter((i) =>
 /** Idem para a venda solar pelo card: ficam de fora as 4 fotos de homologação (fachada, padrão, disjuntor, medidor). */
 /** Datasheet é ficha do fabricante, não documento de pessoa: a IA não lê e não gasta vaga do teto de arquivos lidos. */
 const SLOTS_NAO_LIDOS_SOLAR: ReadonlySet<string> = new Set([
-  'datasheet_modulo', 'datasheet_inversor',
+  'datasheet_modulo', 'datasheet_inversor', 'kmz',
   // Jornada, fase 1: papel de homologação e comprovante não são lidos pela IA.
   'art', 'art_comprovante', 'projeto_comprovante', 'protocolo', 'parecer_acesso',
   // Jornada, fase 2: a IA do cadastro não lê nenhum dos slots das etapas 4 a 8.

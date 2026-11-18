@@ -34543,9 +34543,26 @@ function pvDetRender(id) {
   finEncaixar();
 }
 
+/** Card SOLAR vendido: o detalhe não monta mais documentos, cadastro nem dinheiro. Só leva para a página do cliente (a jornada da obra). */
+function pvObraSolarBloco(agRec) {
+  const el = document.getElementById('crm-det-cadastro');
+  if (!el) return;
+  // O quadro de documentos que estava aqui (de um card de eletroposto) sai e deixa de valer.
+  if (vdcEst && vdcEst.no && el.contains(vdcEst.no.sec)) vdcEst = null;
+  const sec = document.createElement('section'); sec.className = 'vdc'; sec.setAttribute('aria-label', 'Obra do cliente');
+  const h = document.createElement('h3'); h.className = 'vdc-tit'; h.textContent = 'Obra do cliente';
+  const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'vdc-btn vdc-btn-pri'; bt.textContent = 'Abrir na obra';
+  bt.setAttribute('data-vdc-acao', 'abrir-obra');
+  bt.addEventListener('click', () => { try { crmFecharDetalhe(); } catch (e) {} navClientesSolar(String(agRec.id)); });
+  const nota = document.createElement('span'); nota.className = 'vdc-nota'; nota.textContent = 'Documentos, contrato, dinheiro e Trello ficam na página do cliente.';
+  const acoes = document.createElement('div'); acoes.className = 'vdc-acoes'; acoes.appendChild(bt);
+  sec.append(h, acoes, nota);
+  el.replaceChildren(sec); el.hidden = false;
+}
 function pvPintarDetalhe(agRec) {
   finDetalhe(agRec);
-  try { vdcDetalhe(agRec); } catch (e) { console.error('cadastro: o bloco do detalhe não abriu', e); }
+  if (agRec && agRec.id != null && String(agRec.status || '') === 'fechou' && !crmEhEletroposto(agRec)) pvObraSolarBloco(agRec);
+  else try { vdcDetalhe(agRec); } catch (e) { console.error('cadastro: o bloco do detalhe não abriu', e); }
   const bl = document.getElementById('crm-det-posvenda');
   if (!bl) return;
   bl.hidden = true;
@@ -34784,7 +34801,7 @@ async function vdcFetch(rota, metodo, corpo, ms, opc) {
 /** Fase 1 da Jornada: o quadro montado dentro da obra avisa a etapa a cada gravação, para o "Para concluir" não ficar velho. Nunca derruba o quadro. */
 function vdcAvisarMudanca(st) { try { if (st && st.op && typeof st.op.aoMudar === 'function') st.op.aoMudar(); } catch (e) {} }
 (function () {
-  ['vdcAnexar', 'vdcTrocarEnviar', 'vdcExcluir', 'vdcExcluirJa', 'vdcEmailGravar', 'vdcMover', 'vdcMesmo', 'vdcEmailSalvar', 'vdcRatSalvar', 'vdcPesSalvar', 'vdcConfirmar', 'vdcLigar', 'vdcTrEnviar'].forEach(function (nome) {
+  ['vdcAnexar', 'vdcTrocarEnviar', 'vdcExcluir', 'vdcExcluirJa', 'vdcEmailGravar', 'vdcCampoGravar', 'vdcMover', 'vdcMesmo', 'vdcEmailSalvar', 'vdcRatSalvar', 'vdcPesSalvar', 'vdcConfirmar', 'vdcLigar', 'vdcTrEnviar'].forEach(function (nome) {
     const orig = window[nome];
     if (typeof orig !== 'function') return;
     window[nome] = async function (st) { const r = await orig.apply(this, arguments); vdcAvisarMudanca(st); return r; };
@@ -34965,7 +34982,7 @@ function vdcDocsDe(j) {
 function vdcSlotInfo(st, s) {
   const srv = ((st.docs && st.docs.slots) || []).find(x => x && x.chave === s.chave) || s;
   return { chave: s.chave, rot: (typeof srv.rotulo === 'string' && srv.rotulo) ? srv.rotulo : vdcRotuloSlot(st, s.chave),
-    aceita: srv.aceita === 'imagem' || srv.aceita === 'pdf' ? srv.aceita : 'ambos', varios: srv.varios === true };
+    aceita: srv.aceita === 'imagem' || srv.aceita === 'pdf' ? srv.aceita : (srv.aceita === 'kmz' || s.chave === 'kmz') ? 'kmz' : 'ambos', varios: srv.varios === true };
 }
 /** O seletor de arquivo do item, criado na primeira vez que se clica em Anexar. */
 function vdcInputDe(st, s) {
@@ -34984,7 +35001,7 @@ function vdcInputDe(st, s) {
   inp.accept = vdcAccept(s.aceita); inp.multiple = !!s.varios;
   return inp;
 }
-const vdcAccept = (aceita) => aceita === 'imagem' ? 'image/*' : aceita === 'pdf' ? 'application/pdf' : 'image/*,application/pdf';
+const vdcAccept = (aceita) => aceita === 'imagem' ? 'image/*' : aceita === 'pdf' ? 'application/pdf' : aceita === 'kmz' ? '.kmz,.kml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml' : 'image/*,application/pdf';
 
 function vdcPintar(st) {
   if (vdcEst !== st || !st.no) return;
@@ -35459,22 +35476,25 @@ async function vdcEmailSalvar(st) {
   showToast('E-mail salvo.');
 }
 /** Grava só o e-mail pelo PUT parcial do cadastro. Devolve { ok } ou { ok: false, erro }. A Jornada usa a mesma função, com o campo dela. */
-async function vdcEmailGravar(st, v) {
+async function vdcEmailGravar(st, v) { return vdcCampoGravar(st, 'email', v); }
+/** Grava um campo do cadastro (nome, endereco_ponto, telefone, email...) pelo PUT parcial. Devolve { ok } ou { ok: false, erro }. */
+async function vdcCampoGravar(st, campo, v) {
   if (vdcEst !== st) return { ok: false, erro: 'A tela mudou. Tente de novo.' };
   if (!st.cad) return { ok: false, erro: 'Não consegui abrir o cadastro agora. Atualize a tela e tente de novo.' };
   if (st.emailGravando || st.gravando || st.lendo) return { ok: false, erro: 'Espere o outro pedido terminar e tente de novo.' };
   st.emailGravando = true; if (st.email) vdcEmailSincroniza(st);
-  const r = await vdcChamar(st, 'PUT', '/cadastro', { campos: { email: v }, fonte: 'manual' });
+  const r = await vdcChamar(st, 'PUT', '/cadastro', { campos: { [campo]: v }, fonte: 'manual' });
   st.emailGravando = false;
   // Quem chama pode ser a Jornada: o campo e o botão do quadro (o "Salvar e-mail" da lista) precisam sair de "Salvando…" em todo desfecho.
   const volta = (res) => { if (st.email && vdcEst === st) vdcEmailSincroniza(st); return res; };
   if (vdcEst !== st) return { ok: false, erro: 'A tela mudou. Confira o e-mail e tente de novo.' };
   const j = r.json || {};
-  if (r.status === 400 && j.erros && typeof j.erros === 'object' && j.erros.email) return volta({ ok: false, erro: vdcMotivoTxt(j.erros.email) });
-  if (r.status !== 200 || j.ok === false || !j.cadastro) return volta({ ok: false, erro: vdcMsgErro(r, 'Não consegui salvar o e-mail agora.') });
+  if (r.status === 400 && j.erros && typeof j.erros === 'object' && j.erros[campo]) return volta({ ok: false, erro: vdcMotivoTxt(j.erros[campo]) });
+  if (r.status !== 200 || j.ok === false || !j.cadastro) return volta({ ok: false, erro: vdcMsgErro(r, 'Não consegui salvar agora.') });
   // A gravação não leva `sugestoes`: sem zerar, apagar o e-mail traria a sugestão da proposta de volta ao campo.
-  st.cad = j.cadastro; st.analise = vdcAnaliseDe(j); st.sugEmail = ''; vdcGuardaExtras(st, j);
-  if (st.email) { delete st.email.inp.dataset.sujo; vdcPintar(st); }
+  st.cad = j.cadastro; st.analise = vdcAnaliseDe(j); if (campo === 'email') st.sugEmail = ''; vdcGuardaExtras(st, j);
+  if (campo === 'email' && st.email) delete st.email.inp.dataset.sujo;
+  vdcPintar(st);
   return { ok: true };
 }
 
@@ -36657,6 +36677,13 @@ async function vdcReduzir(f) {
 }
 async function vdcPreparar(f, slot) {
   const tipo = String(f.type || '').toLowerCase(), nome = String(f.name || '').toLowerCase();
+  // KMZ do local da usina (Google Earth): .kmz ou .kml, sem redução. O tipo vem do nome, porque o navegador costuma deixá-lo vazio.
+  if (slot.aceita === 'kmz') {
+    if (!/\.(kmz|kml)$/.test(nome)) throw vdcInvalido('Este item aceita só arquivo KMZ ou KML.', 'tipo não aceito');
+    if (!f.size) throw vdcInvalido('O arquivo está vazio.', 'arquivo vazio');
+    if (f.size > VDC_MAX_ARQ) throw vdcInvalido('O arquivo passa de 10 MB.', 'acima de 10 MB');
+    return { blob: f, mime: /\.kml$/.test(nome) ? 'application/vnd.google-earth.kml+xml' : 'application/vnd.google-earth.kmz' };
+  }
   const pdf = tipo === 'application/pdf' || (!tipo && /\.pdf$/.test(nome));
   const img = /^image\//.test(tipo) || (!tipo && /\.(jpe?g|png|webp|gif|heic|heif)$/.test(nome));
   if (pdf) {
@@ -39670,6 +39697,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
   }
   const histCrm = baseHistCrm ? `${linhaCrm}\n\n${baseHistCrm}` : linhaCrm;
   let posVendaFalhou = false;
+  let jornadaAberta = false; // VENDIDO do solar: a etapa 1 abriu (sem jornada:false nem aviso). Só então a tela vai direto para a página do cliente.
   let avisoDoVendido = '';   // o servidor gravou o VENDIDO mas não abriu a etapa 1 (jornada:false): o aviso dele aparece no lugar da frase de sucesso
   try {
     // Fase 1 da Jornada (05/11/2026): o VENDIDO do solar tem um caminho só, o servidor. Ele grava o status, a linha do histórico
@@ -39681,6 +39709,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
       // do histórico velho e apagaria a do VENDIDO.
       if (rv && typeof rv.historico === 'string') ag.historico = rv.historico;
       if (rv && rv.aviso) avisoDoVendido = rv.aviso;
+      jornadaAberta = !!rv && rv.jornada !== false && !rv.aviso;
     } else {
       await supaPatch(`agendamentos?id=eq.${ag.id}`,
         { status: novoStatus, historico: histCrm, ...(extra || {}) });
@@ -39816,13 +39845,16 @@ async function crmAtualizarStatus(novoStatus, extra) {
       fechou:           '🏆 Marcado como VENDIDO',
     };
     if (avisoDoVendido) showToast(avisoDoVendido, 9000);
-    else if (vendidoSolarAgora) showToast('Venda aberta. A etapa 1 é de ' + (ag.vendedor_nome || 'quem vendeu') + '. Abra em Solar, Clientes.');
+    else if (vendidoSolarAgora) showToast('Venda aberta.');
     else showToast((labels[novoStatus] || 'Status atualizado')
       + (extra && extra.ponto_relacao ? ' · ' + extra.ponto_relacao : ''));
     if (posVendaFalhou) showToast('O card virou vendido, mas não deu para guardar o modelo e o valor. Abra o card e informe de novo.');
     crmFecharDetalhe();
     renderCRM();                       // re-render local: card migra/ganha selo, sem refetch
-    if (voltaParaVendas) { pvVoltar = null; pvAbrir(ag.id); }
+    // Solar vendido: cai direto na página do cliente (a jornada da obra), de onde se faz o resto. Sem a jornada criada, fica o aviso.
+    // Vindo do painel Vendas, a obra também vence: o painel só reabre (pvAbrir) quando a jornada não abriu.
+    if (vendidoSolarAgora && jornadaAberta) { if (voltaParaVendas) pvVoltar = null; navClientesSolar(String(ag.id)); }
+    else if (voltaParaVendas) { pvVoltar = null; pvAbrir(ag.id); }
   } catch (e) {
     document.getElementById('crm-det-erro').textContent = 'Erro ao atualizar status.';
     if (novoStatus === 'fechou') showToast((e && e.message) || 'Não consegui marcar a venda agora. Tente de novo.');

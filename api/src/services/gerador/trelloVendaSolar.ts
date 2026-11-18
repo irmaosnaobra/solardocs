@@ -307,6 +307,7 @@ export function planoDeChecklists(slots: ReadonlySet<string>, temTelefone: boole
     'Foto Fachada': tem('fachada'),
     'DataSheet Inversor': tem('datasheet_inversor'),
     'Datasheet Modulo': tem('datasheet_modulo'),
+    KMZ: tem('kmz'),
     'Doc - CNH ou Identidade (Se for CNPJ - contrato social)': tem('documento_titular', 'documento_titular_uc'),
     'Conta de Energia': tem('conta_luz'),
     'Procuração assinada': tem('procuracao'),
@@ -433,7 +434,8 @@ export interface AnexoPlano {
   anexoAntigo?: string | null;
 }
 
-const EXT_MIME: Record<string, string> = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf', 'image/heic': 'heic' };
+const EXT_MIME: Record<string, string> = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf', 'image/heic': 'heic',
+  'application/vnd.google-earth.kmz': 'kmz', 'application/vnd.google-earth.kml+xml': 'kml' };
 export const extDoMime = (mime: string): string => EXT_MIME[mime.toLowerCase()] ?? 'bin';
 
 /** Dá o nome de cada anexo: o rótulo do item; do segundo arquivo do mesmo item em diante, "rótulo 2", "rótulo 3". */
