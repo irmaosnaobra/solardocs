@@ -57,11 +57,12 @@ describe('iluminação pública: sem o campo o documento não muda um byte', () 
 describe('iluminação pública: valores exibidos', () => {
   // brl() usa espaço sem quebra entre "R$" e o número.
   const norm = (s: string) => s.replace(/ /g, ' ');
-  const hoje = (h: string) => norm((h.match(/Hoje você paga<\/div>\s*<div class="compare-value">([^<]*)</) || [])[1] || '');
-  const depois = (h: string) => norm((h.match(/Com energia solar<\/div>\s*<div class="compare-value">([^<]*)</) || [])[1] || '');
-  const depoisSub = (h: string) => norm((h.match(/Com energia solar<\/div>[\s\S]*?<div class="compare-sub">([^<]*)</) || [])[1] || '');
+  // Moderno (folhas A4 desde 18/11/2026): a frase da folha de resumo traz a conta de hoje e a conta com o sistema.
+  const frase = (h: string) => norm((h.match(/<p class="s">(Hoje a sua conta[^<]*)<\/p>/) || [])[1] || '');
+  const hoje = (h: string) => (frase(h).match(/em torno de (R\$ [\d.]+)\./) || [])[1] || '';
+  const depois = (h: string) => (frase(h).match(/cerca de (R\$ [\d.]+):/) || [])[1] || '';
+  const economia = (h: string) => norm((h.match(/<div class="g num">([^<]*) <small>por mês<\/small>/) || [])[1] || '');
   const fin = (h: string, rotulo: string) => norm((h.match(new RegExp(`${rotulo}</div><div class="v num">([^<]*)<`)) || [])[1] || '');
-  const savings = (h: string) => norm((h.match(/<div class="compare-savings">([^<]*)</) || [])[1] || '');
 
   for (const cip of ['30', '25,90', '30.00']) {
     const valor = parseFloat(cip.replace(',', '.'));
@@ -72,20 +73,20 @@ describe('iluminação pública: valores exibidos', () => {
       expect(depois(sem)).toBe('R$ 90');
       expect(hoje(com)).toBe(`R$ ${Math.round(540 + valor)}`);
       expect(depois(com)).toBe(`R$ ${Math.round(90 + valor)}`);
-      expect(depoisSub(sem)).toBe('taxa mínima da concessionária');
-      expect(depoisSub(com)).toContain('taxa mínima da concessionária + iluminação pública R$');
-      expect(depoisSub(com)).toContain(valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
-      // Economia e payback ficam na frase de economia: tem que ser a mesma.
-      expect(savings(com)).toBe(savings(sem));
-      expect(savings(sem)).toContain('R$ 450');
+      expect(frase(sem)).toContain('a taxa mínima da distribuidora.');
+      expect(frase(com)).toContain('a taxa mínima da distribuidora e a iluminação pública.');
+      // A economia por mês não muda com a iluminação pública.
+      expect(economia(com)).toBe(economia(sem));
+      expect(economia(sem)).toBe('R$ 450');
     });
 
     it(`Moderno com CIP "${cip}": economia, payback e gráfico iguais ao caso sem CIP`, () => {
       const sem = render(fixA, {}, 2);
       const com = render(fixA, { iluminacao_publica: cip }, 2);
       expect(com.resumo).toBe(sem.resumo);
-      // Fora do bloco "antes vs depois" o documento é idêntico.
-      const semBloco = (h: string) => h.replace(/<div class="section">\s*<h2>Sua conta de luz: antes vs depois<\/h2>[\s\S]*?<\/div>\s*<\/div>\s*<div class="compare-savings">/, '<SAVINGS>');
+      // Fora da frase de hoje x depois e da nota da iluminação pública, o documento é idêntico.
+      const semBloco = (h: string) => h.replace(/<p class="s">Hoje a sua conta[^<]*<\/p>/, '<FRASE>')
+        .replace(' A iluminação pública fica fora da comparação porque é cobrada com ou sem o sistema.', '');
       expect(semBloco(com.html)).toBe(semBloco(sem.html));
     });
 

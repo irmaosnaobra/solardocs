@@ -58,9 +58,11 @@ describe('rodapé editável da proposta', () => {
     expect(h).toContain('<h4>Empresa</h4>');
   });
 
-  it('moderno: desmarcar contato mata o CTA do WhatsApp', () => {
-    expect(render({}, 2)).toContain('Quero fechar — WhatsApp');
-    expect(render({ mostrar_vendedor_contato: false }, 2)).not.toContain('Quero fechar — WhatsApp');
+  it('moderno: desmarcar contato mata o CTA e o QR do WhatsApp', () => {
+    expect(render({}, 2)).toContain('Quero fechar pelo WhatsApp');
+    expect(render({}, 2)).toContain('class="qb"');
+    expect(render({ mostrar_vendedor_contato: false }, 2)).not.toContain('Quero fechar pelo WhatsApp');
+    expect(render({ mostrar_vendedor_contato: false }, 2)).not.toContain('class="qb"');
   });
 
   it('moderno: CNPJ sai no rodapé e some ao desmarcar', () => {
@@ -70,6 +72,8 @@ describe('rodapé editável da proposta', () => {
 
   it('moderno: nome desmarcado não aparece na legenda da foto nem no texto do WhatsApp', () => {
     const h = render({ mostrar_vendedor_nome: false, foto_telhado_b64: 'data:image/jpeg;base64,AAA' }, 2);
-    expect(h).not.toContain('Vistoria realizada por');
+    expect(h).not.toContain('Vistoria feita por');
+    expect(h).toContain('Local da instalação');
+    expect(render({ foto_telhado_b64: 'data:image/jpeg;base64,AAA' }, 2)).toContain('Vistoria feita por Jair');
   });
 });

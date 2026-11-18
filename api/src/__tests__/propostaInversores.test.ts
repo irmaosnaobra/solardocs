@@ -213,7 +213,7 @@ describe('proposta com uma linha: idêntica à de campos soltos (propostas antig
   });
 
   it('o texto de hoje continua lá', () => {
-    expect(render(solta, 2).html).toContain('1× Growatt 5 kW');
+    expect(render(solta, 2).html).toContain('<tr><td>Inversor</td><td>Growatt, 5 kW</td><td class="q">1</td></tr>');
     expect(render(solta, 1).html).toContain('Incluído · 1 un');
     expect(render(solta, 2).resumo).toContain('1x Growatt 5K');
   });
@@ -224,8 +224,9 @@ describe('proposta com uma linha: idêntica à de campos soltos (propostas antig
   const TRECHOS_HEAD = {
     inversor1Pagina: '<div class="r"><span class="lab">Inversor <em class="mkq">Growatt · 5 kW</em></span><span class="inc">Incluído · 1 un</span></div>',
     garantias1Pagina: '<div class="r"><span class="lab">Garantias (painéis 25 anos · inversor 10 anos)</span><span class="inc">Incluído</span></div>',
-    specModerno: '<div class="spec-label">Inversor</div>\n        <div class="spec-value">1× Growatt 5 kW</div>',
-    seloModerno: '<div class="garantia"><div class="garantia-num">10</div><div class="garantia-label">anos<br/>inversor</div></div>',
+    // Moderno refeito em folhas A4 (18/11/2026): os trechos dele são os do desenho novo.
+    specModerno: '<tr><td>Inversor</td><td>Growatt, 5 kW</td><td class="q">1</td></tr>',
+    seloModerno: '<div><div class="g num">10 <small>anos</small></div><div class="k">Inversor</div></div>',
     resumoSistema: '* 10x Canadian 620W + 1x Growatt 5K',
     resumoGarantia: '* Inversor: 10 anos',
   };
@@ -252,7 +253,8 @@ describe('proposta com dois inversores', () => {
   it('modelos 2 e 3: as duas marcas, juntas por " + "', () => {
     for (const modelo of [2, 3] as const) {
       const { html } = render(duas, modelo);
-      expect(html).toContain('1× Growatt 8 kW + 1× Deye 5 kW');
+      expect(html).toContain('<tr><td>Inversor</td><td>Growatt, 8 kW</td><td class="q">1</td></tr><tr><td>Inversor</td><td>Deye, 5 kW</td><td class="q">1</td></tr>');
+      expect(html).toContain('<tr><td>Inversores no total</td><td>13 kW de potência somada</td>');
     }
   });
 
@@ -283,10 +285,25 @@ describe('proposta com dois inversores', () => {
     expect(render(duas, 2).resumo).toContain('* Inversor: 10 anos');
   });
 
-  it('garantias 10 e 5: o selo mostra 5, o menor', () => {
+  it('garantias 10 e 5: o Moderno mostra uma célula por inversor, com marca e potência', () => {
     const { html } = render(duasGarantiasDiferentes, 2);
-    expect(html).toMatch(/<div class="garantia-num">5<\/div><div class="garantia-label">anos<br\/>inversor<\/div>/);
-    expect(html).not.toMatch(/<div class="garantia-num">10<\/div><div class="garantia-label">anos<br\/>inversor<\/div>/);
+    expect(html).toContain('<div><div class="g num">10 <small>anos</small></div><div class="k">Inversor Growatt 8 kW</div></div>');
+    expect(html).toContain('<div><div class="g num">5 <small>anos</small></div><div class="k">Inversor Deye 5 kW</div></div>');
+    expect(html).not.toContain('<div class="k">Inversores</div>');
+  });
+
+  it('dois da mesma marca com prazos diferentes: o rótulo nunca se repete', () => {
+    const mesmaMarca = { ...duas, inversores: [
+      { qtd: '1', marca: 'Growatt', potencia: '5', garantia: '10' },
+      { qtd: '1', marca: 'Growatt', potencia: '3', garantia: '5' },
+      { qtd: '1', marca: 'Growatt', potencia: '5', garantia: '12' },
+    ] };
+    const { html } = render(mesmaMarca, 2);
+    expect(html).toContain('<div class="g num">10 <small>anos</small></div><div class="k">Inversor Growatt 5 kW</div>');
+    expect(html).toContain('<div class="g num">5 <small>anos</small></div><div class="k">Inversor Growatt 3 kW</div>');
+    expect(html).toContain('<div class="g num">12 <small>anos</small></div><div class="k">Inversor Growatt 5 kW (2)</div>');
+    const rotulos = [...html.matchAll(/<div class="k">(Inversor[^<]*)<\/div><\/div>/g)].map((m) => m[1]);
+    expect(new Set(rotulos).size).toBe(rotulos.length);
   });
 
   it('garantias diferentes: 1 página e resumo dizem o prazo de cada marca', () => {

@@ -288,9 +288,10 @@ describe('modelo 4 Completo: folhas leves, textos e entrada', () => {
     expect(comDesc).toContain('R$' + NB + '26.500,00');
   });
 
-  it('HSP com vírgula só no Completo', () => {
+  it('HSP com vírgula no Completo e no Moderno', () => {
     expect(render({}).html).toMatch(/HSP da região: <strong>\d,\d h\/dia/);
-    expect(render({}, 2).html).toMatch(/HSP da região: <strong>\d\.\d h\/dia/);
+    expect(render({}, 2).html).toMatch(/Média de sol usada no cálculo: \d+(,\d)? horas por dia/);
+    expect(render({}, 2).html).not.toMatch(/Média de sol usada no cálculo: \d\.\d/);
   });
 
   it('entrada: entrada e restante coerentes, sem "hoje"', () => {
@@ -371,20 +372,22 @@ describe('modelos 1, 2 e 3 seguem byte a byte (trechos do origin/main)', () => {
     expect(html).toContain('<div class="pg">Forma de pagamento &amp; contato</div>');
   });
 
-  it('modelo 2: barras, curvas e cartão de 12x', () => {
+  // O Moderno (2 e 3) foi refeito em folhas A4 em 18/11/2026: os números são os mesmos de antes (economia do
+  // ano 1, parcela de 12x, retorno), agora no desenho novo.
+  it('modelo 2: mesmos números do Moderno antigo no desenho novo', () => {
     const { html } = render(full, 2);
-    expect(html).toContain('<rect x="48" y="24" width="39.166666666666664" height="166" rx="3" fill="url(#g1)"/>');
-    expect(html).toContain('<path d="M 70.0 226.2 L 95.4 222.3 L 120.8 218.0 L 146.3 213.6');
-    expect(html).toContain(`<div class="breakdown-val">R$${NB}6.096</div>`);
-    expect(html).toContain(`<div class="invest-cartao-value">12× de R$${NB}2.738</div>`);
+    expect(html).toContain(`<td>Ano 1</td><td class="r">R$${NB}508</td><td class="r">R$${NB}6.096</td>`);
+    expect(html).toContain(`<div class="n">12 parcelas de</div><div class="p">R$${NB}2.738</div>`);
+    expect(html).toContain('4 anos e 4 meses');
   });
 
   it('modelo 3: o mesmo corpo do 2, com a capa', () => {
     const m2 = render(full, 2).html;
     const m3 = render(full, 3).html;
-    expect(m3).toContain('class="capa"');
-    expect(m3).toContain('<rect x="48" y="24" width="39.166666666666664" height="166" rx="3" fill="url(#g1)"/>');
-    expect(m2).not.toContain('class="capa"');
+    expect(m3).toContain('class="page capa"');
+    expect(m3).toContain(`<td class="r">R$${NB}6.096</td>`);
+    expect(m2).not.toContain('class="page capa"');
+    expect((m3.match(/class="page/g) || []).length).toBe((m2.match(/class="page/g) || []).length + 1);
   });
 
   it('resumo de WhatsApp (igual nos modelos 1 a 4)', () => {

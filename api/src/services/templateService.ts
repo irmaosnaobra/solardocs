@@ -1,4 +1,4 @@
-import { getRef, geracaoMensal, MESES_ABREV } from './propostaSolarData';
+import { getRef, geracaoMensal } from './propostaSolarData';
 import { enderecoCompleto } from './enderecoCliente';
 import { propostaOffGrid } from './templates/propostaOffGrid';
 import { propostaOffGridCompleta } from './templates/propostaOffGridCompleta';
@@ -6,13 +6,17 @@ import { inversoresDaProposta, totalKwInversores, type InversorProposta } from '
 import { propostaSolarCompleta } from './templates/propostaSolarCompleta';
 import {
   coresModelo1, cssRaizModelo1, CSS_MODELO1, dadosContato, cabecalhoModelo1, analiseModelo1, linhaMk, linhasInversoresHtml, rodapeModelo1,
+  type CompanyProposta,
 } from './templates/propostaSolarPartes';
+import { propostaModernoHtml } from './templates/propostaModerno';
+import { fotoSegura, logoSegura } from './templates/propostaModernoPaginas';
+import { normalizarAssinatura, formatarCpf, formatarCnpj } from '../utils/documentoBr';
 import {
-  FIN_PRAZOS, NUM_ANOS, anoCivil, calcularFinanceiro, lerFioB, partesBarrasMensais, partesCurvas25, pBRLshort, serieFioB,
+  FIN_PRAZOS, anoCivil, calcularFinanceiro, lerFioB, serieFioB,
   valorParcelaCartao as calcParcelaCartao, valorParcelaFin as calcParcelaFin,
 } from './propostaSolarCalculos';
 import {
-  qrSvg, derivePalette, type Palette, pBRL, pNum, pKwp, pEsc, pGarantiasInversoresDiferentes, pTel, pCnpj, pFlagOn,
+  qrSvg, derivePalette, type Palette, pBRL, pNum, pKwp, pEsc, pGarantiasInversoresDiferentes, pTel, pCnpj,
   pmtPriceCarencia, propostaDiasValidade, propostaEmissao, propostaValidade, str, parseBRL, parseBateria,
 } from './propostaSolarBase';
 
@@ -2409,20 +2413,8 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   // Paleta: SEMPRE a cor de marca da empresa (sem escolha de cor na proposta).
   const palette: Palette = derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa');
   const codigoProposta = str(f.codigo) === '___' ? '' : String(f.codigo);
-  // Vendedor vem fixo do cadastro (sócio admin / razão social + WhatsApp da empresa),
-  // e o form manda o que o consultor editou ou desmarcou — o mesmo formulário
-  // gera os dois modelos, então desmarcar o contato aqui também tem que apagar
-  // o CTA do WhatsApp lá embaixo, senão o checkbox mente.
-  const mostraVendNome = pFlagOn(f.mostrar_vendedor_nome);
-  const mostraVendTel = pFlagOn(f.mostrar_vendedor_contato);
-  const vendedorForm = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome).trim();
-  const vendedor = mostraVendNome ? (vendedorForm || String(company.socio_adm || company.nome || '').trim()) : '';
-  const vendedorWhatsAppForm = (str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '');
-  const vendedorWhatsApp = mostraVendTel
-    ? (vendedorWhatsAppForm || String((company as { whatsapp?: string }).whatsapp || '').replace(/\D/g, ''))
-    : '';
-  const cnpjForm = str(f.empresa_cnpj) === '___' ? '' : String(f.empresa_cnpj).trim();
-  const cnpjDoc = pFlagOn(f.mostrar_cnpj) ? (cnpjForm || String(company.cnpj || '').trim()) : '';
+  // Vendedor, WhatsApp e CNPJ do rodapé: dadosContato (propostaSolarPartes.ts), lá embaixo, com os mesmos
+  // desmarcar do formulário. Desmarcar o contato também apaga o QR e o botão do WhatsApp.
   const fotoTelhado = str(f.foto_telhado_b64) === '___' ? '' : String(f.foto_telhado_b64);
   const tipoTelhado = str(f.tipo_telhado) === '___' ? (client.tipo_telhado || '') : String(f.tipo_telhado);
   const cidade = (str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade)).trim();
@@ -2442,7 +2434,6 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   // Bateria (opcional) — parse compartilhado (mesmo helper dos contratos).
   const bat = parseBateria(f);
   const temBateria = bat.tem;
-  const bateriaMarca = bat.marca;
   const bateriaTitulo = bat.titulo;
   const bateriaGarantia = bat.garantia;
   const bateriaSpecParts = bat.specParts;
@@ -2554,11 +2545,10 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     ? serieFioB({ fio: fioBLido, geracaoMediaMensal: geracaoAnual / 12, inflacao, anoInicial: anoCivil(propostaEmissao(f)) })
     : null;
   const fin = calcularFinanceiro({ consumoKwh, tarifa: ref.tarifa, taxaMinima, inflacao, inflacaoTaxaMin, investimento, ...(fioBSerie ? { fioBMensal: fioBSerie.custoMensal } : {}) });
-  const { paybackAnos, paybackTexto, contaHoje, contaComSolar, economiaMensal } = fin;
+  const { contaHoje, contaComSolar, economiaMensal } = fin;
   // Valores exibidos no antes vs depois: com CIP, os dois lados somam a mesma taxa.
   const contaHojeExib = cip > 0 ? Math.round(consumoKwh * ref.tarifa + cip) : contaHoje;
   const contaComSolarExib = contaComSolar + cip;
-  const cipTxt = cip > 0 ? cip.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
 
   // ── Resumo pra WhatsApp (botão Copiar do form). Montado AQUI de propósito:
   //    usa exatamente as mesmas variáveis do PDF (geração, economia, parcelas,
@@ -2623,543 +2613,84 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     out.resumo = L.join('\n').trim();
   }
 
-  const { semSolarAcum, comSolarAcum, economia25, breakdownAnos, breakdownEconomia } = fin;
-
-  // SVG comparativo 25 anos: 2 áreas (sem/com solar) com gap destacado em verde.
-  const { CW, CH, cYLines, areaEconomia, semPath, comPath, cXLabels } = partesCurvas25(semSolarAcum, comSolarAcum);
-
-  // SVG bar chart 12 meses (puro SVG, sem JS)
-  const { W, H, yLines, bars } = partesBarrasMensais(mensal, MESES_ABREV, palette.c1);
-
-  // Logo da empresa: usa logo_base64 se tiver, senão o nome (fantasia se houver).
-  const empresaCompany = company as Company & { logo_base64?: string; nome_fantasia?: string };
-  const displayNomeM = String(empresaCompany.nome_fantasia || company.nome || '').trim();
-  const logoHtml = empresaCompany.logo_base64
-    ? `<img src="${empresaCompany.logo_base64}" alt="${pEsc(displayNomeM)}" style="max-height: 100px; max-width: 340px; object-fit: contain;"/>`
-    : `<div style="font-size: 24px; font-weight: 800; letter-spacing: -1px;">${pEsc(displayNomeM)}</div>`;
-
-  // Bloco de pagamento: monta os cards que o consultor marcou no form
-  const cards: string[] = [];
-
-  // À vista — usa desconto se houver, senão preço cheio
-  if (pagOpts.vista) {
-    const valorVista = precoAvista > 0 ? precoAvista : investimento;
-    const economia = precoAvista > 0 ? `<div class="invest-avista-economia">economia de ${pBRL(investimento - precoAvista)}</div>` : '';
-    cards.push(`<div class="invest-avista">
-        <div class="invest-avista-label">${precoAvista > 0 ? 'Desconto à vista' : 'À vista'}</div>
-        <div class="invest-avista-value">${pBRL(valorVista)}</div>
-        ${economia}
-      </div>`);
-  }
-
-  // Cartão de crédito — 1x a 21x. Cada parcela tem taxa editável (form ou tabela Elo).
-  if (pagOpts.cartao && investimento > 0) {
-    for (let n = 1; n <= 21; n++) {
-      if (!pagOpts.cartaoAtivo[n]) continue;
-      const valor = valorParcelaCartao(n);
-      if (valor <= 0) continue;
-      cards.push(`<div class="invest-cartao">
-        <div class="invest-cartao-label">Cartão de crédito</div>
-        <div class="invest-cartao-value">${n}× de ${pBRL(valor)}</div>
-        <div class="invest-cartao-sub">no cartão sem entrada</div>
-      </div>`);
-    }
-  }
-
-  // Financiamento bancário — 36x / 48x / 60x / 72x / 84x. Taxa mensal por parcela
-  // (form ou default 2,2% a.m.), Price com 120 dias de carência.
-  if (pagOpts.fin && investimento > 0) {
-    for (const n of FIN_PRAZOS) {
-      if (!pagOpts.finAtivo[n]) continue;
-      const valor = valorParcelaFin(n);
-      if (valor <= 0) continue;
-      cards.push(`<div class="invest-financ">
-        <div class="invest-financ-label">Financiamento bancário</div>
-        <div class="invest-financ-value">${n}× de ${pBRL(valor)}</div>
-        <div class="invest-financ-sub">120 dias de carência</div>
-      </div>`);
-    }
-  }
-
-  // Entrada + saldo — integrador define a entrada e como o restante é quitado.
-  if (pagOpts.entrada && investimento > 0 && entradaValor > 0 && entradaRestante > 0) {
-    cards.push(`<div class="invest-cartao">
-      <div class="invest-cartao-label">Entrada + saldo</div>
-      <div class="invest-cartao-value">${pBRL(entradaValor)} + ${pBRL(entradaRestante)}</div>
-      <div class="invest-cartao-sub">${pBRL(entradaValor)} hoje · ${pBRL(entradaRestante)} ${entradaPrazoLabel}</div>
-    </div>`);
-  }
-
-  // Pagamento customizado — texto livre que o vendedor digitou no form
-  if (pagCustom) {
-    cards.push(`<div class="invest-cartao">
-      <div class="invest-cartao-label">Condição especial</div>
-      <div class="invest-cartao-value">${pEsc(pagCustom)}</div>
-      <div class="invest-cartao-sub">a combinar com o vendedor</div>
-    </div>`);
-  }
-
-  const investCardsCount = cards.length;
-
   const today = dateBR(propostaEmissao(f));
   const validade = propostaValidade(f);
 
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Proposta Solar — ${pEsc(client.nome)}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<style>
-:root { --c1: ${palette.c1}; --c2: ${palette.c2}; --c3: ${palette.c3}; --c-text: #1F2937; --c-muted: #6B7280; }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color: var(--c-text); background: #F9FAFB; line-height: 1.5; -webkit-font-smoothing: antialiased; }
-.page { max-width: 794px; margin: 0 auto; background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
-/* Topo com logo */
-.topbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #F3F4F6; }
-.topbar .meta { font-size: 12px; color: var(--c-muted); text-align: right; }
-.topbar .meta .validade { font-weight: 700; color: var(--c1); white-space: nowrap; }
-/* Hero */
-.hero { background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%); color: white; padding: 56px 40px; text-align: center; position: relative; overflow: hidden; }
-.hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%); pointer-events: none; }
-.hero h1 { font-size: 30px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; position: relative; }
-.hero .subtitle { font-size: 15px; opacity: 0.95; margin-bottom: 32px; position: relative; }
-.hero .economia { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.25); border-radius: 16px; padding: 22px 32px; display: inline-block; backdrop-filter: blur(10px); position: relative; }
-.hero .economia-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2.5px; opacity: 0.9; margin-bottom: 6px; font-weight: 600; }
-.hero .economia-value { font-size: 44px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
-.hero .economia-period { font-size: 12px; opacity: 0.85; margin-top: 6px; }
-/* Stats grid */
-/* Capa (modelo 3) */
-.capa { position: relative; overflow: hidden; background: linear-gradient(150deg, var(--c1) 0%, var(--c2) 100%); color: #fff; padding: 54px 46px 44px; display: flex; flex-direction: column; min-height: 900px; }
-.capa::after { content: ''; position: absolute; right: -180px; bottom: -220px; width: 620px; height: 620px; border-radius: 50%; background: rgba(255,255,255,0.07); }
-/* Cor explicita: quando a empresa nao tem logo, o logoHtml cai num div de texto
-   SEM cor propria. Dentro da capa ele herdaria o branco e sumiria na pastilha
-   branca — foi o que aconteceu no primeiro render. (E nada de crase aqui: este
-   CSS mora dentro de um template literal e a crase fecha a string.) */
-.capa-topo { position: relative; z-index: 1; background: #fff; color: var(--c-text); border-radius: 14px; padding: 16px 20px; align-self: flex-start; }
-.capa-selo { position: relative; z-index: 1; margin-top: 44px; font-size: 12px; letter-spacing: 4px; text-transform: uppercase; font-weight: 700; opacity: 0.85; }
-.capa-cliente { position: relative; z-index: 1; font-size: 46px; line-height: 1.08; font-weight: 800; letter-spacing: -1.4px; margin-top: 10px; }
-.capa-sub { position: relative; z-index: 1; font-size: 16px; opacity: 0.9; margin-top: 14px; max-width: 460px; line-height: 1.45; }
-.capa-endereco { font-size: 14px; margin-top: 10px; }
-.capa-numeros { position: relative; z-index: 1; display: flex; gap: 14px; margin-top: auto; padding-top: 40px; flex-wrap: wrap; }
-.capa-num { background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.22); border-radius: 12px; padding: 14px 18px; min-width: 150px; }
-.capa-num-v { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
-.capa-num-l { font-size: 10px; text-transform: uppercase; letter-spacing: 1.6px; opacity: 0.8; margin-top: 3px; }
-.capa-rodape { position: relative; z-index: 1; margin-top: 34px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.25); font-size: 12px; opacity: 0.9; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 32px 40px; background: var(--c3); }
-.stat { background: white; border-radius: 12px; padding: 18px 12px; text-align: center; border-bottom: 3px solid var(--c1); }
-.stat-icon { font-size: 22px; margin-bottom: 6px; }
-.stat-value { font-size: 22px; font-weight: 800; color: var(--c1); line-height: 1.1; letter-spacing: -0.5px; }
-.stat-label { font-size: 10px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; font-weight: 600; }
-/* Section */
-.section { padding: 28px 40px; }
-.section + .section { border-top: 1px solid #F3F4F6; }
-.section h2 { font-size: 18px; font-weight: 700; margin-bottom: 14px; color: var(--c1); display: flex; align-items: center; gap: 8px; }
-/* Chart */
-.chart-wrap { background: white; padding: 4px 0; border-radius: 8px; overflow: hidden; }
-.chart-wrap svg { width: 100%; height: auto; display: block; }
-.chart-caption { text-align: center; color: var(--c-muted); font-size: 12px; margin-top: 6px; }
-.chart-caption strong { color: var(--c-text); }
-/* Specs */
-.specs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.spec { padding: 14px 16px; background: #F9FAFB; border-radius: 8px; border-left: 3px solid var(--c1); }
-.spec-label { font-size: 10px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-.spec-value { font-size: 14px; font-weight: 700; margin-top: 4px; color: var(--c-text); }
-.spec-endereco { grid-column: 1 / -1; }
-.spec-endereco .spec-value { font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
-/* Investment */
-.invest-box { background: linear-gradient(135deg, var(--c3) 0%, white 100%); padding: 28px 24px; border-radius: 16px; border: 2px solid var(--c1); text-align: center; }
-.invest-label { color: var(--c-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
-.invest-value { font-size: 38px; font-weight: 900; color: var(--c1); margin: 6px 0; line-height: 1; letter-spacing: -1px; }
-.invest-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 18px; }
-.invest-avista { background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02)); border: 2px solid #10B981; border-radius: 12px; padding: 16px; text-align: center; }
-.invest-avista-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #059669; font-weight: 700; }
-.invest-avista-value { font-size: 26px; font-weight: 900; color: #10B981; margin: 6px 0 2px; line-height: 1; letter-spacing: -0.5px; }
-.invest-avista-economia { font-size: 11px; color: #059669; font-weight: 600; }
-.invest-cartao { background: linear-gradient(135deg, var(--c1), var(--c2)); color: white; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
-.invest-cartao-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9; font-weight: 700; }
-.invest-cartao-value { font-size: 24px; font-weight: 900; margin-top: 4px; line-height: 1; letter-spacing: -0.5px; }
-.invest-cartao-sub { font-size: 10px; opacity: 0.85; margin-top: 4px; font-weight: 500; }
-.invest-financ { background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.02)); border: 2px solid #6366F1; border-radius: 12px; padding: 16px; text-align: center; }
-.invest-financ-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #4F46E5; font-weight: 700; }
-.invest-financ-value { font-size: 24px; font-weight: 900; color: #4F46E5; margin: 4px 0 2px; line-height: 1; letter-spacing: -0.5px; }
-.invest-financ-sub { font-size: 10px; color: #4F46E5; font-weight: 600; opacity: 0.85; }
-.invest-grid-1 { grid-template-columns: 1fr; }
-.invest-grid-2 { grid-template-columns: 1fr 1fr; }
-.invest-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-/* Antes vs depois */
-.compare { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; }
-.compare-card { padding: 18px 16px; border-radius: 12px; text-align: center; }
-.compare-antes { background: linear-gradient(135deg, #FEF2F2, #FEE2E2); border: 2px solid #FCA5A5; }
-.compare-depois { background: linear-gradient(135deg, #ECFDF5, #D1FAE5); border: 2px solid #6EE7B7; }
-.compare-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
-.compare-antes .compare-label { color: #DC2626; }
-.compare-depois .compare-label { color: #059669; }
-.compare-value { font-size: 26px; font-weight: 900; margin: 6px 0 2px; line-height: 1; letter-spacing: -0.5px; }
-.compare-antes .compare-value { color: #DC2626; }
-.compare-depois .compare-value { color: #059669; }
-.compare-sub { font-size: 11px; color: var(--c-muted); }
-.compare-arrow { font-size: 28px; color: var(--c1); font-weight: 900; }
-.compare-savings { text-align: center; margin-top: 12px; padding: 10px 14px; background: var(--c3); border-radius: 10px; font-size: 13px; color: var(--c1); font-weight: 700; }
-/* Prazo */
-.prazo-box { display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, var(--c3) 0%, white 100%); border-radius: 12px; padding: 18px 20px; border-left: 4px solid var(--c1); }
-.prazo-num { font-size: 36px; font-weight: 900; color: var(--c1); line-height: 1; letter-spacing: -1px; }
-.prazo-info { flex: 1; }
-.prazo-titulo { font-size: 14px; font-weight: 700; color: var(--c-text); margin-bottom: 2px; }
-.prazo-desc { font-size: 12px; color: var(--c-muted); line-height: 1.4; }
-/* Breakdown 25 anos */
-.breakdown { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.breakdown-card { background: #F9FAFB; padding: 14px 10px; border-radius: 10px; text-align: center; border-bottom: 3px solid var(--c1); }
-.breakdown-ano { font-size: 11px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 4px; }
-.breakdown-val { font-size: 17px; font-weight: 800; color: var(--c1); line-height: 1.1; letter-spacing: -0.3px; }
-.breakdown-nota { text-align: center; color: var(--c-muted); font-size: 11px; margin-top: 10px; font-style: italic; }
-/* Gráfico 25 anos */
-.chart25-legend { display: flex; justify-content: center; gap: 20px; margin-top: 4px; flex-wrap: wrap; }
-.chart25-leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--c-text); font-weight: 600; }
-.chart25-leg-dot { width: 14px; height: 14px; border-radius: 3px; }
-.chart25-economia-card { background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02)); border: 2px solid #10B981; border-radius: 12px; padding: 14px 18px; text-align: center; margin-top: 12px; }
-.chart25-economia-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #059669; font-weight: 700; }
-.chart25-economia-val { font-size: 24px; font-weight: 900; color: #10B981; margin-top: 4px; line-height: 1; letter-spacing: -0.5px; }
-/* Foto do telhado */
-.foto-wrap {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
-  background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 50%, #87CEEB 100%);
-  min-height: 280px;
-  position: relative;
-}
-.foto-wrap img { width: 100%; height: auto; display: block; max-height: 420px; object-fit: cover; }
-.foto-caption { text-align: center; color: var(--c-muted); font-size: 12px; margin-top: 8px; font-style: italic; }
-/* CTA — Quero fechar */
-.cta-box { background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%); color: white; padding: 28px 24px; text-align: center; border-radius: 16px; margin: 8px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
-.cta-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.3px; }
-.cta-sub { font-size: 13px; opacity: 0.95; margin-bottom: 16px; }
-.cta-pill { display: inline-block; background: white; color: var(--c1); padding: 12px 28px; border-radius: 100px; font-weight: 800; font-size: 15px; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-.cta-phone { display: block; margin-top: 10px; font-size: 16px; font-weight: 700; opacity: 0.95; letter-spacing: 0.3px; font-family: 'Inter', monospace; }
-/* Garantias destacadas */
-.garantias { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.garantia { background: var(--c3); padding: 16px 12px; border-radius: 10px; text-align: center; }
-.garantia-num { font-size: 24px; font-weight: 900; color: var(--c1); line-height: 1; }
-.garantia-label { font-size: 11px; color: var(--c-muted); margin-top: 4px; line-height: 1.3; }
-/* Footer */
-.footer { padding: 32px 40px 40px; text-align: center; border-top: 1px solid #F3F4F6; background: #FAFAFA; }
-.footer .vendedor-label { color: var(--c-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; font-weight: 600; }
-.footer .vendedor-nome { font-weight: 700; font-size: 16px; color: var(--c-text); }
-.footer .empresa-info { color: var(--c-muted); font-size: 12px; margin-top: 20px; }
-.footer .gerado { color: #9CA3AF; font-size: 10px; margin-top: 12px; }
-/* Print */
-@page { size: A4; margin: 8mm; }
-@media print {
-  html, body { background: white !important; font-size: 10pt; }
-  body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-  .page { box-shadow: none !important; max-width: 100% !important; margin: 0 !important; }
-  /* A capa ocupa a folha inteira e empurra o corpo pra pagina 2. */
-  .capa { min-height: 0 !important; height: 271mm !important; page-break-after: always; break-after: page; }
-  .topbar { padding: 6px 0 8px !important; }
-  .hero { padding: 22px 20px !important; }
-  .hero h1 { font-size: 20px !important; margin-bottom: 4px !important; }
-  .hero .subtitle { font-size: 12px !important; margin-bottom: 18px !important; }
-  .hero .economia-value { font-size: 28px !important; }
-  .hero .economia { padding: 14px 22px !important; }
-  .stats { padding: 12px 0 !important; gap: 6px !important; }
-  .stat { padding: 10px 6px !important; }
-  .stat-value { font-size: 18px !important; }
-  .stat-label { font-size: 9px !important; }
-  .section { padding: 12px 0 !important; page-break-inside: avoid; break-inside: avoid; }
-  .section h2 { font-size: 15px !important; margin-bottom: 8px !important; }
-  .invest-box { padding: 16px 16px !important; }
-  .invest-value { font-size: 28px !important; margin: 2px 0 !important; }
-  .invest-grid { margin-top: 12px !important; gap: 8px !important; }
-  .invest-avista, .invest-cartao, .invest-financ { padding: 12px !important; }
-  .invest-avista-value, .invest-cartao-value, .invest-financ-value { font-size: 18px !important; }
-  .invest-cartao { border: 2px solid var(--c1) !important; }
-  .compare-card { padding: 12px !important; }
-  .compare-value { font-size: 20px !important; }
-  .compare-arrow { font-size: 22px !important; }
-  .prazo-box { padding: 12px 14px !important; }
-  .prazo-num { font-size: 28px !important; }
-  .breakdown-card { padding: 10px 6px !important; }
-  .breakdown-val { font-size: 14px !important; }
-  .chart25-economia-val { font-size: 18px !important; }
-  .chart25-leg-item { font-size: 10px !important; }
-  .cta-box { padding: 18px 16px !important; }
-  .cta-title { font-size: 17px !important; }
-  .cta-sub { font-size: 12px !important; margin-bottom: 10px !important; }
-  .cta-phone { font-size: 14px !important; margin-top: 6px !important; }
-  .garantia { padding: 12px 8px !important; }
-  .garantia-num { font-size: 20px !important; }
-  .garantia-label { font-size: 9px !important; }
-  .footer { padding: 12px 0 16px !important; }
-  .footer .empresa-info { margin-top: 12px !important; font-size: 10px !important; }
-  .footer .gerado { font-size: 9px !important; margin-top: 6px !important; }
-  .invest-box, .cta-box, .chart-wrap, .foto-wrap { page-break-inside: avoid; break-inside: avoid; }
-  .no-print { display: none !important; }
-}
-/* Mobile */
-@media (max-width: 640px) {
-  .topbar { padding: 12px 20px; flex-direction: column; gap: 8px; align-items: flex-start; }
-  .topbar .meta { text-align: left; }
-  /* Em tela estreita a linha da validade pode quebrar — melhor que estourar a lateral. */
-  .topbar .meta .validade { white-space: normal; }
-  .hero { padding: 40px 20px; }
-  .hero h1 { font-size: 22px; }
-  .hero .subtitle { font-size: 13px; margin-bottom: 24px; }
-  .hero .economia { padding: 18px 20px; display: block; }
-  .hero .economia-value { font-size: 32px; }
-  .stats { grid-template-columns: repeat(2, 1fr); padding: 20px; gap: 10px; }
-  .section { padding: 24px 20px; }
-  .specs, .garantias { grid-template-columns: 1fr 1fr; }
-  .invest-value { font-size: 28px; }
-  .invest-grid, .invest-grid-2, .invest-grid-3 { grid-template-columns: 1fr; }
-  .invest-avista-value, .invest-cartao-value, .invest-financ-value { font-size: 22px; }
-  .compare { grid-template-columns: 1fr; gap: 8px; }
-  .compare-arrow { transform: rotate(90deg); }
-  .breakdown { grid-template-columns: 1fr 1fr; }
-  .footer { padding: 24px 20px 32px; }
-}
-@media (max-width: 400px) {
-  .stats { grid-template-columns: 1fr 1fr; }
-  .garantias { grid-template-columns: 1fr 1fr; }
-}
-</style>
-</head>
-<body>
-<div class="page">
-${comCapa ? `
-  <div class="capa">
-    <div class="capa-topo">${logoHtml}</div>
-    <div class="capa-selo">Proposta comercial</div>
-    <div class="capa-cliente">${pEsc(client.nome.trim())}</div>
-    ${enderecoCli ? `<p class="capa-sub capa-endereco">${pEsc(enderecoCli)}</p>` : ''}
-    <p class="capa-sub">Projeto de energia solar dimensionado para o seu consumo — com o investimento, a economia e o retorno na frente, sem letra miúda.</p>
-    <div class="capa-numeros">
-      <div class="capa-num"><div class="capa-num-v">${pKwp(kwp)} kWp</div><div class="capa-num-l">Sistema</div></div>
-      <div class="capa-num"><div class="capa-num-v">${pNum(mediaMensalGerada)}</div><div class="capa-num-l">kWh por mês</div></div>
-      ${economia25 > 0 ? `<div class="capa-num"><div class="capa-num-v">${pBRL(economia25)}</div><div class="capa-num-l">Economia em 25 anos</div></div>` : ''}
-    </div>
-    <div class="capa-rodape">
-      <span>${pEsc(displayNomeM)}</span>
-      <span>${today}${codigoProposta ? ` · Proposta ${pEsc(codigoProposta)}` : ''} · ${pEsc(validade.longo)}</span>
-    </div>
-  </div>
-` : ''}
-  <div class="topbar">
-    ${logoHtml}
-    <div class="meta">
-      ${codigoProposta ? `Proposta <strong style="font-family: monospace; color: var(--c-text);">${pEsc(codigoProposta)}</strong><br/>` : ''}
-      ${today}<br/>
-      <span class="validade">${pEsc(validade.longo)}</span>
-    </div>
-  </div>
-
-  <div class="hero">
-    <h1>Olá,&nbsp;${pEsc(client.nome.trim())}!</h1>
-    <p class="subtitle">Sua proposta de energia solar pra economizar pelos próximos 25 anos</p>
-    <div class="economia">
-      <div class="economia-label">Economia em 25 anos</div>
-      <div class="economia-value">${pBRL(economia25)}</div>
-      <div class="economia-period">Tarifa cresce ${inflacaoPct.toFixed(0).replace('.', ',')}% a.a. e taxa mínima ${inflacaoTaxaMinPct.toFixed(0).replace('.', ',')}% a.a. — médias históricas ANEEL</div>
-    </div>
-  </div>
-
-  <div class="stats">
-    <div class="stat">
-      <div class="stat-value">${pKwp(kwp)} kWp</div>
-      <div class="stat-label">Sistema</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">${pNum(mediaMensalGerada)}</div>
-      <div class="stat-label">kWh/mês</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">${economiaPercent}%</div>
-      <div class="stat-label">Da sua conta</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">${paybackAnos}</div>
-      <div class="stat-label">${paybackAnos === '—' ? 'Anos pra retorno' : 'Anos pra retorno'}</div>
-    </div>
-  </div>
-
-  ${consumoKwh > 0 && contaHoje > 0 ? `<div class="section">
-    <h2>Sua conta de luz: antes vs depois</h2>
-    <div class="compare">
-      <div class="compare-card compare-antes">
-        <div class="compare-label">Hoje você paga</div>
-        <div class="compare-value">${pBRL(contaHojeExib)}</div>
-        <div class="compare-sub">por mês na sua conta</div>
-      </div>
-      <div class="compare-arrow">→</div>
-      <div class="compare-card compare-depois">
-        <div class="compare-label">Com energia solar</div>
-        <div class="compare-value">${pBRL(contaComSolarExib)}</div>
-        <div class="compare-sub">${cip > 0 ? pEsc(`taxa mínima da concessionária + iluminação pública ${cipTxt}`) : 'taxa mínima da concessionária'}</div>
-      </div>
-    </div>
-    <div class="compare-savings">💰 Economia de ${pBRL(economiaMensal)} todo mês — em ${paybackTexto} o sistema se paga sozinho</div>
-  </div>` : ''}
-
-  <div class="section">
-    <h2>Geração mensal estimada — ${pEsc(cidade)}/${uf}</h2>
-    <div class="chart-wrap">
-      <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="${palette.c1}"/>
-            <stop offset="100%" stop-color="${palette.c2}"/>
-          </linearGradient>
-        </defs>
-        ${yLines}
-        ${bars}
-      </svg>
-    </div>
-    <div class="chart-caption">
-      Geração média anual: <strong>${pNum(geracaoAnual)} kWh</strong> · HSP da região: <strong>${ref.hsp.toFixed(1)} h/dia</strong>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Equipamentos e instalação</h2>
-    <div class="specs">
-      <div class="spec">
-        <div class="spec-label">Módulos fotovoltaicos</div>
-        <div class="spec-value">${qtdModulos > 0 ? pNum(qtdModulos) : '—'} × ${pEsc(marcaModulo) || '—'}${potenciaModulo > 0 ? ' ' + potenciaModulo + ' W' : ''}</div>
-      </div>
-      <div class="spec">
-        <div class="spec-label">Inversor</div>
-        <div class="spec-value">${invLista.map((i) => `${i.qtd}× ${pEsc(i.marcaCrua) || '—'}${i.potenciaKw > 0 ? ' ' + i.potenciaKw.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) + ' kW' : ''}`).join(' + ')}</div>
-      </div>
-      ${temBateria ? `<div class="spec">
-        <div class="spec-label">Bateria</div>
-        <div class="spec-value">${pEsc(bateriaTitulo)}${bateriaSpecParts.length ? ' — ' + bateriaSpecParts.join(' · ') : ''}</div>
-      </div>` : ''}
-      <div class="spec">
-        <div class="spec-label">Localização</div>
-        <div class="spec-value">${pEsc(cidade) || '—'}/${uf}</div>
-      </div>
-      ${enderecoCli ? `<div class="spec spec-endereco">
-        <div class="spec-label">Endereço</div>
-        <div class="spec-value">${pEsc(enderecoCli)}</div>
-      </div>` : ''}
-      <div class="spec">
-        <div class="spec-label">Consumo médio do cliente</div>
-        <div class="spec-value">${consumoKwh > 0 ? pNum(consumoKwh) + ' kWh/mês' : '—'}</div>
-      </div>
-      ${tipoTelhado ? `<div class="spec">
-        <div class="spec-label">Tipo de instalação</div>
-        <div class="spec-value">${pEsc(tipoTelhado)}</div>
-      </div>` : ''}
-    </div>
-  </div>
-
-  ${fotoTelhado ? `<div class="section">
-    <h2>Local da instalação</h2>
-    <div class="foto-wrap">
-      <img src="${fotoTelhado}" alt="Local da instalação"/>
-    </div>
-    <div class="foto-caption">${vendedor ? 'Vistoria realizada por ' + pEsc(vendedor) : 'Foto do local da instalação'}</div>
-  </div>` : ''}
-
-  <div class="section">
-    <h2>Investimento</h2>
-    <div class="invest-box">
-      <div class="invest-label">Preço do projeto</div>
-      <div class="invest-value">${pBRL(investimento)}</div>
-      <div class="invest-grid invest-grid-${Math.max(1, Math.min(3, investCardsCount))}">
-        ${cards.join('\n        ')}
-      </div>
-    </div>
-  </div>
-
-  ${investimento > 0 ? `<div class="section">
-    <h2>Economia ao longo dos anos</h2>
-    <div class="breakdown">
-      ${breakdownAnos.map((ano, i) => `<div class="breakdown-card">
-        <div class="breakdown-ano">em ${ano} ${ano === 1 ? 'ano' : 'anos'}</div>
-        <div class="breakdown-val">${pBRL(breakdownEconomia[i])}</div>
-      </div>`).join('')}
-    </div>
-    <div class="breakdown-nota">Tarifa atual ${ref.tarifa.toFixed(2).replace('.', ',')} R$/kWh · cresce ${inflacaoPct.toFixed(0).replace('.', ',')}% a.a. · taxa mínima cresce ${inflacaoTaxaMinPct.toFixed(0).replace('.', ',')}% a.a.</div>
-  </div>` : ''}
-
-  <div class="section">
-    <h2>Prazo de instalação</h2>
-    <div class="prazo-box">
-      <div class="prazo-num">${prazoDias}</div>
-      <div class="prazo-info">
-        <div class="prazo-titulo">dias úteis do contrato à ligação</div>
-        <div class="prazo-desc">Inclui projeto, vistoria técnica, instalação, homologação na concessionária e ART. Pode variar conforme aprovação do órgão regulador.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Garantias inclusas</h2>
-    <div class="garantias">
-      <div class="garantia"><div class="garantia-num">${garPaineis}</div><div class="garantia-label">anos<br/>painéis</div></div>
-      <div class="garantia"><div class="garantia-num">${garInversor}</div><div class="garantia-label">${garInversor === 1 ? 'ano' : 'anos'}<br/>inversor</div></div>
-      <div class="garantia"><div class="garantia-num">${garEstrutura}</div><div class="garantia-label">${garEstrutura === 1 ? 'ano' : 'anos'}<br/>estrutura</div></div>
-      <div class="garantia"><div class="garantia-num">${garInstalacao}</div><div class="garantia-label">${garInstalacaoUnidade}<br/>instalação</div></div>
-      ${temBateria && bateriaGarantia > 0 ? `<div class="garantia"><div class="garantia-num">${bateriaGarantia}</div><div class="garantia-label">${bateriaGarantia === 1 ? 'ano' : 'anos'}<br/>bateria</div></div>` : ''}
-      ${garExtras.map(g => `<div class="garantia"><div class="garantia-num">${g.anos}</div><div class="garantia-label">${g.anos === 1 ? 'ano' : 'anos'}<br/>${pEsc(g.nome)}</div></div>`).join('')}
-    </div>
-  </div>
-
-  ${consumoKwh > 0 ? `<div class="section">
-    <h2>Conta de luz nos próximos 25 anos</h2>
-    <div class="chart-wrap">
-      <svg viewBox="0 0 ${CW} ${CH}" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="gEco" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#10B981" stop-opacity="0.35"/>
-            <stop offset="100%" stop-color="#10B981" stop-opacity="0.10"/>
-          </linearGradient>
-        </defs>
-        ${cYLines}
-        <path d="${areaEconomia}" fill="url(#gEco)" stroke="none"/>
-        <path d="${semPath}" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-        <path d="${comPath}" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-        ${cXLabels}
-      </svg>
-    </div>
-    <div class="chart25-legend">
-      <div class="chart25-leg-item"><span class="chart25-leg-dot" style="background:#EF4444"></span>Sem energia solar (${pBRLshort(semSolarAcum[NUM_ANOS - 1])} em 25 anos)</div>
-      <div class="chart25-leg-item"><span class="chart25-leg-dot" style="background:#10B981"></span>Com energia solar (${pBRLshort(comSolarAcum[NUM_ANOS - 1])} em 25 anos)</div>
-    </div>
-    <div class="chart25-economia-card">
-      <div class="chart25-economia-label">A área verde é sua economia</div>
-      <div class="chart25-economia-val">${pBRL(economia25)} a mais no seu bolso</div>
-    </div>
-  </div>` : ''}
-
-  ${vendedorWhatsApp ? (() => {
-    const phoneClean = vendedorWhatsApp.replace(/^55/, '');
-    // Formato BR: (XX) XXXXX-XXXX
-    const phonePretty = phoneClean.length === 11
-      ? `(${phoneClean.slice(0,2)}) ${phoneClean.slice(2,7)}-${phoneClean.slice(7)}`
-      : phoneClean;
-    const waLink = `https://wa.me/55${phoneClean}?text=${encodeURIComponent(`Olá ${vendedor || ''}! Quero fechar a proposta — ${client.nome}.`)}`;
-    return `<div class="section">
-    <div class="cta-box">
-      <div class="cta-title">Quer fechar essa proposta?</div>
-      <div class="cta-sub">Me chama no WhatsApp que a gente tira do papel agora</div>
-      <a href="${waLink}" class="cta-pill" target="_blank" rel="noopener noreferrer">Quero fechar — WhatsApp</a>
-      <div class="cta-phone">${phonePretty}</div>
-    </div>
-  </div>`;
-  })() : ''}
-
-  <div class="footer">
-    ${cnpjDoc ? `<div class="empresa-info" style="margin-top:0">${pEsc(displayNomeM)} · CNPJ ${pEsc(pCnpj(cnpjDoc))}</div>` : ''}
-    <div class="gerado">Proposta gerada por SolarDoc Pro · solardoc.app</div>
-  </div>
-</div>
-</body>
-</html>`;
+  // ── HTML: folhas A4 do Moderno (templates/propostaModerno.ts). Tudo o que ele imprime sai das variáveis acima,
+  //    as mesmas do resumo do WhatsApp. Só o modelo 4 chega aqui com fioB e descarta o HTML.
+  const contatoDoc = dadosContato(company as CompanyProposta, f);
+  const emissao = propostaEmissao(f);
+  const validadeAteData = new Date(emissao.getTime() + validade.dias * 86400000);
+  const validadeAte = Number.isNaN(validadeAteData.getTime()) ? '' : dateBR(validadeAteData);
+  const assin = normalizarAssinatura(f.assinatura);
+  const docCliente = (tipo: 'PF' | 'PJ' | '', numero: string): string => {
+    const d = numero.replace(/\D/g, '');
+    if (tipo === 'PJ' || (!tipo && d.length === 14)) return d ? `CNPJ ${formatarCnpj(numero)}` : '';
+    return d.length === 11 ? `CPF ${formatarCpf(d)}` : '';
+  };
+  const cpfCliente = assin?.cliente.documento ? docCliente(assin.cliente.tipo, assin.cliente.documento) : docCliente('', String(client.cpf_cnpj || ''));
+  const nomeCliente = String(client.nome || '').trim();
+  const cidadeEmpresa = String((company as { cidade?: string }).cidade || '').trim();
+  const cnpjEmpresaAssin = assin?.empresa.cnpj ? `CNPJ ${formatarCnpj(assin.empresa.cnpj)}` : (contatoDoc.cnpjDoc ? `CNPJ ${pCnpj(contatoDoc.cnpjDoc)}` : '');
+  return propostaModernoHtml({
+    comCapa,
+    palette,
+    contato: { ...contatoDoc, logo: logoSegura(contatoDoc.logo) },
+    empresa: { endereco: String(company.endereco || '').trim(), cidade: cidadeEmpresa },
+    codigo: codigoProposta.trim(),
+    hoje: today,
+    validadeAte,
+    validadeDias: validade.dias,
+    cliente: {
+      nome: nomeCliente, endereco: enderecoCli, cidade, uf,
+      email: String(client.email || '').trim(), telefone: String(client.telefone || '').trim(), doc: cpfCliente,
+    },
+    assinaturas: {
+      empresa: {
+        nome: assin?.empresa.razao_social || String(company.nome || '').trim() || contatoDoc.displayNome,
+        doc: cnpjEmpresaAssin,
+        detalhe: assin ? [assin.empresa.representante, assin.empresa.cargo].filter(Boolean).join(', ') : '',
+      },
+      cliente: {
+        nome: assin?.cliente.nome || nomeCliente,
+        doc: cpfCliente,
+        detalhe: assin?.cliente.tipo === 'PJ' ? String(assin.cliente.representante || '') : '',
+      },
+      local: [assin?.local || cidadeEmpresa || cidade, today].filter(Boolean).join(', '),
+    },
+    sistema: {
+      kwp, qtdModulos, marcaModulo, potenciaModulo, inversores: invLista, bateria: bat,
+      areaM2: parseBRL(f.area_m2), tipoTelhado: tipoTelhado.trim(), fotoTelhado: fotoSegura(fotoTelhado),
+    },
+    energia: { consumoKwh, mensal, geracaoAnual, mediaMensal: mediaMensalGerada, hsp: hspOverride > 0 ? hspOverride : ref.hsp, economiaPercent, tarifa: ref.tarifa },
+    fin,
+    contaHojeExib,
+    contaComSolarExib,
+    cip,
+    taxaMinima,
+    inflacaoPct,
+    inflacaoTaxaMinPct,
+    pag: {
+      investimento,
+      precoAvista,
+      vista: pagOpts.vista,
+      cartao: pagOpts.cartao && investimento > 0
+        ? Array.from({ length: 21 }, (_, i) => i + 1).filter((n) => cartaoAtivo[n]).map((n) => ({ n, valor: valorParcelaCartao(n) })).filter((p) => p.valor > 0)
+        : [],
+      fin: pagOpts.fin && investimento > 0
+        ? FIN_PRAZOS.filter((n) => finAtivo[n]).map((n) => ({ n: n as number, valor: valorParcelaFin(n) })).filter((p) => p.valor > 0)
+        : [],
+      entrada: pagOpts.entrada && investimento > 0 && entradaValor > 0 && entradaRestante > 0
+        ? { valor: entradaValor, restante: entradaRestante, prazo: entradaPrazoLabel }
+        : null,
+      custom: pagCustom,
+    },
+    prazoDias,
+    gar: {
+      paineis: garPaineis, inversorUnico: garInversor, inversoresDiferentes: garInvDiferentes !== '', estrutura: garEstrutura,
+      instalacao: garInstalacao, instalacaoUnidade: garInstalacaoUnidade, bateria: bateriaGarantia, extras: garExtras,
+    },
+  });
 }
 
 // ════════════════════════════════════════════════════════════
