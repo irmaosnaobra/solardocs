@@ -251,7 +251,7 @@
     function refresh() {
       if (!ctl.salvar) return;
       ctl.salvar.disabled = !est.arq || est.enviando || est.salvando || est.travado;
-      refs.estado.textContent = est.enviando ? 'Lendo o comprovante…' : (est.arq ? 'Anexado: ' + est.arq.nome : 'Escolha o comprovante.');
+      refs.estado.textContent = est.enviando ? 'Lendo o comprovante…' : (est.arq ? 'Pronto para anexar: ' + est.arq.nome : 'Escolha o comprovante.');
       refs.estado.className = 'jor-est' + (est.arq && !est.enviando ? ' ok' : '');
       refs.leu.textContent = est.sug ? resumoDaIa(est.sug) : '';
       refs.erro.textContent = est.erro || '';
@@ -273,7 +273,7 @@
         if (r.status === 200 && r.json.ok !== false && r.json.arquivo) {
           est.arq = r.json.arquivo; est.ler = r.json.leitura || ''; est.sug = r.json.sugestao || null;
           if (r.json.repetido) { est.travado = true; est.erro = 'Este comprovante já foi lançado ' + ondeTxt(r.json.repetido.onde) + '.'; }
-          else if (est.ler === 'nao_e_comprovante') est.aviso = 'A IA não reconheceu como comprovante. Você pode anexar, e o Thiago confere.';
+          else if (est.ler === 'nao_e_comprovante') est.aviso = 'A IA não achou pagamento neste arquivo. Cotação e orçamento não valem como comprovante. Pode anexar assim mesmo, e ' + (eAdm() ? 'a linha fica para você conferir.' : 'o Thiago confere.');
           else if (est.sug && est.sug.valor_centavos && (est.sug.confianca === 'alta' || est.sug.confianca === 'media') && est.sug.valor_centavos !== l.valor_centavos) {
             est.aviso = 'A IA leu ' + h.reais(est.sug.valor_centavos) + '. O lançamento tem ' + h.reais(l.valor_centavos) + '. A linha fica para o Thiago conferir.';
           } else if (est.ler && est.ler !== 'ok') est.aviso = 'A leitura não funcionou. A linha fica para o Thiago conferir.';
@@ -489,7 +489,7 @@
         if (r.status === 200 && r.json.ok !== false && r.json.arquivo) {
           est.arq = r.json.arquivo; est.ler = r.json.leitura || ''; est.sug = r.json.sugestao || null;
           if (r.json.repetido) { est.travado = true; est.erro = 'Este comprovante já foi lançado ' + ondeTxt(r.json.repetido.onde) + '.'; }
-          else if (est.ler === 'nao_e_comprovante') { est.aviso = 'A IA não reconheceu como comprovante. Você pode salvar assim, e o Thiago confere.'; }
+          else if (est.ler === 'nao_e_comprovante') { est.aviso = 'A IA não achou pagamento neste arquivo. Cotação e orçamento não valem como comprovante. Pode salvar assim mesmo, e ' + (eAdm() ? 'a linha fica para você conferir.' : 'o Thiago confere.'); }
           else if (est.sug) { preencher(est.sug); }
           else if (est.ler && est.ler !== 'ok') { est.aviso = 'A leitura não funcionou. Confira os campos à mão, e o Thiago confere.'; }
         } else { est.erro = codSrv(r) === 'heic_nao_suportado' ? MSG_HEIC : msgSrv(r, 'Não consegui enviar o comprovante. Tente de novo.'); }
