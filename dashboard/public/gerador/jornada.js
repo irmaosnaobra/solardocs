@@ -9,7 +9,7 @@
   'use strict';
 
   var L = { dados: null, aba: 'ativas', filtro: 'todas', busca: '', consultor: '', carregando: false, erro: '', menu: null };
-  var O = { card: null, dados: null, fase2: null, fase3: null, dinheiro: null, ficha: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0 };
+  var O = { card: null, dados: null, fase2: null, fase3: null, dinheiro: null, ficha: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0, erroSlot: {}, ocupSlot: {} };
 
   // ── Rede ───────────────────────────────────────────────────────────────────
   function api(rota, metodo, corpo, ms) {
@@ -210,14 +210,21 @@
       '.jor-anexo-bts{display:flex;gap:6px;padding:6px;border:1px dashed var(--n-bd2);border-radius:10px;background:var(--n-sf2)}',
       '.jor-anexo-bt{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:6px 8px;border:1px solid var(--n-bd2);border-radius:8px;background:var(--n-sf);color:var(--n-tx);font-size:13px;font-weight:600;cursor:pointer}',
       '.jor-anexo-bt:hover,.jor-anexo-bt:focus-visible{background:var(--n-sf3)}',
-      '.jor-anexo-ok{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 6px;border:1px solid var(--io-ok-bd);border-radius:10px;background:var(--io-ok-sf)}',
+      '.jor-anexo-ok{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 8px 6px 6px;border:1px solid var(--io-ok-bd);border-radius:10px;background:var(--io-ok-sf)}',
       '.jor-anexo-mini{flex:0 0 44px;width:44px;height:44px;border-radius:8px;background:var(--n-sf3);color:var(--io-ok-tx);display:flex;align-items:center;justify-content:center;overflow:hidden}',
       '.jor-anexo-mini img{width:100%;height:100%;object-fit:cover}',
-      '.jor-anexo-leg{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;line-height:1.35}',
+      '.jor-anexo-leg{flex:1 1 90px;min-width:0;display:flex;flex-direction:column;line-height:1.35}',
       '.jor-anexo-leg b{font-size:13px;font-weight:600;color:var(--n-tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.jor-anexo-leg small{font-size:12px;color:var(--n-tx2)}',
       '.jor-anexo-trocar{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border-radius:8px;background:transparent;color:var(--io-azul-tx);font-size:13px;font-weight:600;cursor:pointer}',
       '.jor-anexo-trocar:hover,.jor-anexo-trocar:focus-visible{background:var(--n-sf)}',
+      '.jor-anexo-trocar:focus-visible{outline:2px solid var(--io-azul-tx);outline-offset:1px}',
+      'button.jor-anexo-trocar{border:0;font-family:inherit}',
+      '.jor-anexo-acoes{display:flex;align-items:center;gap:2px;margin-left:auto}',
+      '.jor-anexo-apagar{color:var(--io-er-tx)}',
+      '.jor-anexo-msg{margin:0;font-size:13px}',
+      '.jor-email-lin{display:flex;flex-wrap:wrap;align-items:center;gap:8px}',
+      '.jor-email-lin .jor-in,.jor-email-lin .jor-campo-lei{flex:1 1 220px;width:auto}',
       // Portao: lista, barra com a frase e o botao.
       '.jor-portao-barra{margin-top:12px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:16px;border-radius:10px;background:var(--n-sf2)}',
       '.jor-portao-frase{flex:1 1 260px;font-size:14px;color:var(--n-tx);margin:0}',
@@ -488,7 +495,7 @@
   // ── A obra ──────────────────────────────────────────────────────────────────
   function sairDaObra() {
     if (O.vdcNo && typeof vdcFechar === 'function') { try { vdcFechar(O.vdcNo); } catch (e) { /* já fechado */ } }
-    O.vdcChave = ''; O.vdcNo = null; O.vdcDet = null; O.vdcPainel = 0; O.obraNo = null; O.fase2 = null; O.dinheiro = null; O.ficha = null;
+    O.vdcChave = ''; O.vdcNo = null; O.vdcDet = null; O.vdcPainel = 0; O.obraNo = null; O.fase2 = null; O.dinheiro = null; O.ficha = null; O.erroSlot = {}; O.ocupSlot = {};
     if (O.debounce) { clearTimeout(O.debounce); O.debounce = 0; }
   }
 
@@ -662,55 +669,162 @@
     return l.length ? l[l.length - 1] : null;
   }
 
-  /** Anexo: o mesmo componente em todo lugar. Chama o vdcAnexar do quadro montado. Vazio: caixa tracejada com Foto, Arquivo e Print. Preenchido: bloco verde com miniatura, data e Trocar. */
+  // ── Anexos: trocar, apagar e o erro do item ─────────────────────────────────
+  // O quadro de documentos (vdcEst) mora no <details> fechado e é quem fala com a API. Aqui a Jornada espera ele carregar, usa as funções dele
+  // e mostra o resultado na própria tela. O erro e o "enviando" de cada item moram em O (a obra se redesenha depois de cada gravação).
+  function quadroDoCard() { var st = (typeof vdcEst !== 'undefined') ? vdcEst : null; return (st && String(st.id) === String(O.card)) ? st : null; }
+  /** Espera o quadro deste card terminar de carregar. Devolve o st, ou null se não carregou ou se `no` saiu da tela. */
+  function quadroPronto(no, ms) {
+    return new Promise(function (ok) {
+      var t0 = Date.now();
+      // A 1ª checagem espera um tick: o nó de quem chama ainda está sendo montado, fora da tela.
+      setTimeout(function volta() {
+        if (no && !no.isConnected) { ok(null); return; }
+        var st = quadroDoCard();
+        if (st && !st.carregando) { ok(st.docs ? st : null); return; }
+        if (Date.now() - t0 > (ms || 25000)) { ok(null); return; }
+        setTimeout(volta, 150);
+      }, 0);
+    });
+  }
+  /** Monta o quadro se ainda não estiver montado (ele nasce junto da obra) e espera ele carregar. */
+  function garantirQuadro() {
+    if (!quadroDoCard()) { O.vdcChave = ''; montarQuadro(); }
+    return quadroPronto(null, 25000);
+  }
+  /** Quem pode trocar e apagar é decidido pelo servidor (pode_remover). null enquanto o quadro não carregou. */
+  function podeMexer() { var st = quadroDoCard(); return (st && !st.carregando && st.docs) ? !!st.docs.pode : null; }
+
+  /** Manda o arquivo: Trocar (troca=true, o antigo sai na mesma gravação) ou anexar o primeiro. Erro vira linha do item e aviso. */
+  function enviarArquivo(chave, arqs, troca, refazer) {
+    if (O.ocupSlot[chave]) return;
+    var card = String(O.card); var falha = '';
+    delete O.erroSlot[chave];
+    O.ocupSlot[chave] = troca ? 'Trocando o arquivo…' : 'Enviando…';
+    refazer();
+    garantirQuadro().then(function (st) {
+      if (!st) { falha = 'Não consegui abrir os documentos agora. Tente de novo.'; return null; }
+      if (troca) {
+        var a = arquivoDoSlot(chave);
+        if (!a || a.fora || a.id == null) { falha = 'Não achei o arquivo atual deste item. Atualize a tela e tente de novo.'; return null; }
+        if (typeof window.vdcTrocarEnviar !== 'function') { falha = 'Não consegui trocar agora. Atualize a página.'; return null; }
+        return window.vdcTrocarEnviar(st, a, arqs[0]).then(function (r) { if (!r || !r.ok) falha = (r && r.erro) || 'Não consegui trocar o arquivo agora. O arquivo atual continua no lugar.'; });
+      }
+      if (typeof window.vdcAnexar !== 'function') { falha = 'Não consegui anexar agora. Atualize a página.'; return null; }
+      return window.vdcAnexar(st, { chave: chave }, arqs).then(function () {
+        var m = st.msgDoc && st.msgDoc[chave]; var rs = st.resDoc && st.resDoc[chave];
+        if (!m && rs && rs.falhas && rs.falhas.length) m = rs.falhas[0].msg;
+        if (m) falha = m;
+      });
+    }).catch(function () { falha = 'Não consegui enviar agora. Tente de novo.'; }).then(function () {
+      delete O.ocupSlot[chave];
+      if (falha) { if (String(O.card) === card) O.erroSlot[chave] = falha; toast(falha); }
+      if (String(O.card) === card) releia();
+    });
+  }
+
+  /** Apagar: confirma na própria tela (diálogo da Jornada) e só então chama o quadro. */
+  function pedirApagar(chave, rotulo) {
+    var card = String(O.card);
+    var a0 = arquivoDoSlot(chave);
+    var nome = (a0 && !a0.fora && (a0.rotulo || a0.nome)) || rotulo;
+    var dlgEl = null;
+    var id0 = (a0 && !a0.fora && a0.id != null) ? String(a0.id) : '';   // o arquivo que a pessoa viu no diálogo: é ele que sai, nenhum outro
+    dialogo('Apagar arquivo', function (c) {
+      c.appendChild(el('p', 'jor-nota', 'Apagar "' + nome + '"? O arquivo é apagado e não dá para desfazer.'));
+      var info = el('p', 'jor-erro'); info.setAttribute('role', 'alert'); c.appendChild(info);
+      return {};
+    }, 'Apagar', function (b, c) {
+      var info = c.querySelector('.jor-erro'); info.textContent = '';
+      b.disabled = true; b.textContent = 'Apagando…';
+      garantirQuadro().then(function (st) {
+        if (!st) return { ok: false, erro: 'Não consegui abrir os documentos agora. Tente de novo.' };
+        var a = arquivoDoSlot(chave);
+        if (!id0 || !a || a.fora || a.id == null) return { ok: false, erro: 'Não achei este arquivo. Atualize a tela.' };
+        if (String(a.id) !== id0) return { ok: false, erro: 'Este item mudou desde que você abriu o aviso. Feche, confira o arquivo e tente de novo.' };
+        if (typeof window.vdcExcluirJa !== 'function') return { ok: false, erro: 'Não consegui apagar agora. Atualize a página.' };
+        return window.vdcExcluirJa(st, a);
+      }).catch(function () { return { ok: false, erro: 'Não consegui apagar agora. Tente de novo.' }; }).then(function (r) {
+        if (r && r.ok) { delete O.erroSlot[chave]; if (dlgEl && dlgEl.isConnected) fecharDlg(); if (String(O.card) === card) releia(); return; }
+        if (!b.isConnected) return;
+        b.disabled = false; b.textContent = 'Apagar'; info.textContent = (r && r.erro) || 'Não consegui apagar agora. Tente de novo.';
+      });
+    });
+    dlgEl = document.querySelector('.jor-dlg');   // o diálogo é este: se a pessoa o fechar e abrir outro, o sucesso daqui não fecha o novo
+  }
+
+  /** Anexo: o mesmo componente em todo lugar. Usa o quadro de documentos montado. Vazio: caixa tracejada com Foto, Arquivo e Print. Preenchido: bloco verde com miniatura, data, Trocar e Apagar. */
   function anexo(chave, rotulo, tem, opts) {
     opts = opts || {};
     var linha = el('div', 'jor-anexo');
-    if (!opts.compacto) {
-      var tp = el('div', 'jor-anexo-topo'); tp.appendChild(el('span', 'jor-rot', rotulo));
-      tp.appendChild(etq(tem ? 'Anexado' : 'Falta', tem ? 'ok' : 'av')); linha.appendChild(tp);
-    }
-    function entrada(rot, aceita, camera, cls) {
+    function entrada(rot, aceita, camera, cls, troca) {
       var lab = el('label', cls, rot);
       var inp = el('input'); inp.type = 'file'; inp.accept = aceita; inp.style.display = 'none'; if (camera) inp.setAttribute('capture', 'environment');
       inp.setAttribute('aria-label', rot + ': ' + rotulo);
       inp.addEventListener('change', function () {
         var arqs = Array.prototype.slice.call(inp.files || []); inp.value = '';
         if (!arqs.length) return;
-        var st = (typeof vdcEst !== 'undefined') ? vdcEst : null;
-        if (!st || String(st.id) !== String(O.card) || st.carregando || typeof window.vdcAnexar !== 'function') { toast('Abra "Mais documentos, ligações e cadastro", logo abaixo, e tente de novo.'); return; }
-        Promise.resolve(window.vdcAnexar(st, { chave: chave }, arqs)).then(releia);
+        enviarArquivo(chave, arqs, !!troca, montar);
       });
       lab.appendChild(inp); lab.tabIndex = 0;
       lab.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } });
       return lab;
     }
-    if (tem) {
-      var fora = arquivoDoSlot(chave);
-      if (fora && fora.fora) {
-        // Já existe em outro depósito: mostra, só leitura. Ninguém sobe de novo.
-        var ok2 = el('div', 'jor-anexo-ok'); var mini2 = el('span', 'jor-anexo-mini');
-        if (fora.url && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(fora.url))) { var im2 = el('img'); im2.src = fora.url; im2.alt = ''; im2.loading = 'lazy'; mini2.appendChild(im2); } else mini2.appendChild(icone('ok'));
-        ok2.appendChild(mini2);
-        var leg2 = el('span', 'jor-anexo-leg'); leg2.appendChild(el('b', '', 'Anexado')); var dt2 = fora.em ? dataBr(fora.em) : ''; if (dt2) leg2.appendChild(el('small', '', dt2));
-        leg2.appendChild(veio({ rotulo: fora.fora })); ok2.appendChild(leg2);
-        if (fora.url && /^https:\/\//.test(fora.url)) { var ab2 = el('a', 'jor-anexo-trocar', 'Abrir'); ab2.href = fora.url; ab2.target = '_blank'; ab2.rel = 'noopener noreferrer'; ok2.appendChild(ab2); }
-        linha.appendChild(ok2); return linha;
+    function montar() {
+      linha.replaceChildren();
+      if (!opts.compacto) {
+        var tp = el('div', 'jor-anexo-topo'); tp.appendChild(el('span', 'jor-rot', rotulo));
+        tp.appendChild(etq(tem ? 'Anexado' : 'Falta', tem ? 'ok' : 'av')); linha.appendChild(tp);
       }
-      var ok = el('div', 'jor-anexo-ok');
-      var mini = el('span', 'jor-anexo-mini'); var arq = arquivoDoSlot(chave);
-      if (arq && arq.url && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(arq.nome || arq.url))) { var im = el('img'); im.src = arq.url; im.alt = ''; im.loading = 'lazy'; mini.appendChild(im); } else mini.appendChild(icone('ok'));
-      ok.appendChild(mini);
-      var leg = el('span', 'jor-anexo-leg'); leg.appendChild(el('b', '', (arq && (arq.nome || arq.rotulo)) || 'Anexado'));
-      var dt = arq && arq.em ? dataBr(arq.em) : ''; if (dt) leg.appendChild(el('small', '', dt));
-      ok.appendChild(leg);
-      ok.appendChild(entrada('Trocar', 'image/*,application/pdf', false, 'jor-anexo-trocar'));
-      linha.appendChild(ok);
-    } else {
-      var bts = el('div', 'jor-anexo-bts');
-      add(bts, entrada('Foto', 'image/*', true, 'jor-anexo-bt'), entrada('Arquivo', 'image/*,application/pdf', false, 'jor-anexo-bt'), entrada('Print', 'image/*', false, 'jor-anexo-bt'));
-      linha.appendChild(bts);
+      if (O.ocupSlot[chave]) { var oc = el('p', 'jor-nota', O.ocupSlot[chave]); oc.setAttribute('role', 'status'); linha.appendChild(oc); return; }
+      if (tem) {
+        var fora = arquivoDoSlot(chave);
+        if (fora && fora.fora) {
+          // Já existe em outro depósito: mostra, só leitura. Ninguém sobe de novo nem apaga.
+          var ok2 = el('div', 'jor-anexo-ok'); var mini2 = el('span', 'jor-anexo-mini');
+          if (fora.url && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(fora.url))) { var im2 = el('img'); im2.src = fora.url; im2.alt = ''; im2.loading = 'lazy'; mini2.appendChild(im2); } else mini2.appendChild(icone('ok'));
+          ok2.appendChild(mini2);
+          var leg2 = el('span', 'jor-anexo-leg'); leg2.appendChild(el('b', '', 'Anexado')); var dt2 = fora.em ? dataBr(fora.em) : ''; if (dt2) leg2.appendChild(el('small', '', dt2));
+          leg2.appendChild(veio({ rotulo: fora.fora })); ok2.appendChild(leg2);
+          if (fora.url && /^https:\/\//.test(fora.url)) { var ab2 = el('a', 'jor-anexo-trocar', 'Abrir'); ab2.href = fora.url; ab2.target = '_blank'; ab2.rel = 'noopener noreferrer'; ok2.appendChild(ab2); }
+          linha.appendChild(ok2);
+        } else {
+          var ok = el('div', 'jor-anexo-ok');
+          var mini = el('span', 'jor-anexo-mini'); var arq = fora;
+          if (arq && arq.url && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(arq.nome || arq.url))) { var im = el('img'); im.src = arq.url; im.alt = ''; im.loading = 'lazy'; mini.appendChild(im); } else mini.appendChild(icone('ok'));
+          ok.appendChild(mini);
+          var leg = el('span', 'jor-anexo-leg'); leg.appendChild(el('b', '', (arq && (arq.nome || arq.rotulo)) || 'Anexado'));
+          var dt = arq && arq.em ? dataBr(arq.em) : ''; if (dt) leg.appendChild(el('small', '', dt));
+          ok.appendChild(leg);
+          // Trocar e Apagar: quem pode é o servidor (pode_remover). Antes do quadro carregar, o Trocar já aparece e o Apagar chega junto com a resposta.
+          var acoes = el('span', 'jor-anexo-acoes'); var pode = podeMexer();
+          var troc = pode === false ? null : entrada('Trocar', 'image/*,application/pdf', false, 'jor-anexo-trocar', true);
+          if (troc) acoes.appendChild(troc);
+          var apagar = function () {
+            var b = el('button', 'jor-anexo-trocar jor-anexo-apagar', 'Apagar'); b.type = 'button'; b.setAttribute('aria-label', 'Apagar arquivo: ' + rotulo);
+            b.addEventListener('click', function () { pedirApagar(chave, rotulo); });
+            return b;
+          };
+          if (pode === true) acoes.appendChild(apagar());
+          else if (pode === null) {
+            quadroPronto(acoes).then(function (st2) {
+              if (!st2 || !acoes.isConnected) return;
+              if (!st2.docs.pode) { if (troc && troc.parentNode) troc.parentNode.removeChild(troc); return; }
+              var a2 = arquivoDoSlot(chave);
+              if (a2 && !a2.fora && a2.id != null) acoes.appendChild(apagar());
+            });
+          }
+          if (acoes.firstChild || pode === null) ok.appendChild(acoes);
+          linha.appendChild(ok);
+        }
+      } else {
+        var bts = el('div', 'jor-anexo-bts');
+        add(bts, entrada('Foto', 'image/*', true, 'jor-anexo-bt'), entrada('Arquivo', 'image/*,application/pdf', false, 'jor-anexo-bt'), entrada('Print', 'image/*', false, 'jor-anexo-bt'));
+        linha.appendChild(bts);
+      }
+      if (O.erroSlot[chave]) { var er = el('p', 'jor-erro jor-anexo-msg', O.erroSlot[chave]); er.setAttribute('role', 'alert'); linha.appendChild(er); }
     }
+    montar();
     return linha;
   }
 
@@ -1127,11 +1241,7 @@
       cf.appendChild(anexo(x[0], x[2], x[3], { compacto: true })); gd.appendChild(cf);
     });
     b3.appendChild(gd);
-    var ge = el('div', 'jor-campos'); ge.style.marginTop = '12px';
-    var emailTxt = d.documentos.email;
-    ge.appendChild(campoRot('E-mail do cliente', el('div', 'jor-campo-lei' + (emailTxt ? '' : ' falta'), emailTxt || 'Falta o e-mail'), emailTxt ? null : etq('Falta', 'av'), true));
-    b3.appendChild(ge);
-    if (!emailTxt) b3.appendChild(el('p', 'jor-erro', 'Falta o e-mail: preencha em "Mais documentos, ligações e cadastro", logo abaixo.'));
+    b3.appendChild(campoEmail(d));
     var q = el('div'); q.appendChild(subTitulo('Tem excedente para outras contas?'));
     var qs = el('div', 'jor-filtros');
     [['sim', 'Sim'], ['nao', 'Não']].forEach(function (o) {
@@ -1153,6 +1263,66 @@
       });
     }
     esq.appendChild(b3);
+  }
+
+  /** O e-mail do cliente, editável ali mesmo. Grava pelo mesmo PUT do cadastro que o quadro usa (vdcEmailGravar). Sem e-mail o campo já nasce aberto. */
+  var EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  function campoEmail(d) {
+    var caixa = el('div', 'jor-campos'); caixa.style.marginTop = '12px';
+    var card = String(O.card);
+    var edita = !d.documentos.email;
+    function montar(foco) {
+      var atual = d.documentos.email || '';
+      var ctl = el('div'); var lin = el('div', 'jor-email-lin'); ctl.appendChild(lin);
+      if (atual && !edita) {
+        lin.appendChild(el('div', 'jor-campo-lei', atual));
+        var ed = btn('Editar', '', function () { edita = true; montar(true); }); ed.setAttribute('aria-label', 'Editar o e-mail do cliente');
+        lin.appendChild(ed);
+      } else {
+        var inp = el('input', 'jor-in' + (atual ? '' : ' falta')); inp.type = 'email'; inp.inputMode = 'email'; inp.autocomplete = 'off'; inp.name = 'email-cliente'; inp.spellcheck = false; inp.maxLength = 120;
+        inp.setAttribute('aria-label', 'E-mail do cliente'); inp.placeholder = 'nome@exemplo.com'; inp.value = atual;
+        var nota = el('p', 'jor-nota'); nota.hidden = true;
+        var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
+        var sv = btn('Salvar e-mail', atual ? '' : 'jor-btn-pri', salvar);
+        lin.appendChild(inp); lin.appendChild(sv);
+        if (atual) lin.appendChild(btn('Cancelar', '', function () { edita = false; montar(); }));
+        ctl.appendChild(nota); ctl.appendChild(erro);
+        inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); salvar(); } });
+        inp.addEventListener('input', function () { inp.dataset.sujo = '1'; nota.hidden = true; erro.textContent = ''; });
+        if (foco) setTimeout(function () { inp.focus(); }, 0);
+        // O e-mail da proposta é só sugestão: preenche o campo, nunca grava sozinho.
+        if (!atual) quadroPronto(caixa).then(function (st) {
+          if (!st || !st.sugEmail || inp.value || inp.dataset.sujo || !inp.isConnected) return;
+          inp.value = st.sugEmail; nota.textContent = 'Veio da proposta. Confira e salve.'; nota.hidden = false;
+        });
+      }
+      caixa.replaceChildren(campoRot('E-mail do cliente', ctl, atual ? null : etq('Falta', 'av'), true));
+      function salvar() {
+        if (sv.disabled) return;
+        var v = inp.value.trim(); erro.textContent = '';
+        if (!v) { erro.textContent = 'Digite o e-mail do cliente.'; inp.focus(); return; }
+        if (!EMAIL_OK.test(v)) { erro.textContent = 'Esse e-mail não parece certo. Confira e tente de novo.'; inp.focus(); return; }
+        if (v === atual) { edita = false; montar(); return; }
+        sv.disabled = true; sv.textContent = 'Salvando…';
+        garantirQuadro().then(function (st) {
+          if (!st) return { ok: false, erro: 'Não consegui abrir o cadastro agora. Tente de novo.' };
+          if (typeof window.vdcEmailGravar !== 'function') return { ok: false, erro: 'Não consegui salvar agora. Atualize a página.' };
+          return window.vdcEmailGravar(st, v);
+        }).catch(function () { return { ok: false, erro: 'Não consegui salvar o e-mail agora. Tente de novo.' }; }).then(function (r) {
+          if (r && r.ok) {
+            toast('E-mail salvo.');
+            if (String(O.card) !== card) return;
+            d.documentos.email = v; edita = false; if (caixa.isConnected) montar(); releia();
+            return;
+          }
+          var m = (r && r.erro) || 'Não consegui salvar o e-mail agora. Tente de novo.';
+          if (!sv.isConnected) { toast(m); return; }
+          sv.disabled = false; sv.textContent = 'Salvar e-mail'; erro.textContent = m;
+        });
+      }
+    }
+    montar();
+    return caixa;
   }
 
   // ── Etapa 2 ─────────────────────────────────────────────────────────────────
