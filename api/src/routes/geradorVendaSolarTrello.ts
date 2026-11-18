@@ -109,9 +109,18 @@ const slugValor = (cad: Cadastro, k: string): string =>
 /** Os slots do catálogo da venda solar, na ordem em que a tela os mostra (para os anexos saírem sempre na mesma ordem). */
 const ORDEM_SLOTS = CATALOGO.vendasolar.map((i) => i.chave);
 
-/** O item não sobe ao Trello: fora do relatório de engenharia, sem item no catálogo, ou `outros` (conteúdo desconhecido). */
+/**
+ * Nunca seguem para a homologação: o contrato assinado (fica arquivado) e o recibo. Os papéis GERADOS pelo sistema (contrato, procuração e recibo)
+ * não são arquivos do catálogo (só a data de quando foram gerados); se algum dia virarem, ficam aqui. A procuração ASSINADA (`procuracao`) vai.
+ */
+const SLOTS_QUE_NAO_SEGUEM: ReadonlySet<string> = new Set(['contrato_assinado', 'recibo', 'contrato', 'contrato_gerado', 'procuracao_gerada', 'recibo_gerado']);
+
+/**
+ * O item não sobe ao Trello: fora do relatório de engenharia, sem item no catálogo, `outros` (conteúdo desconhecido) ou o contrato
+ * assinado (fica arquivado, não segue para a homologação, 18/11/2026). O KMZ está fora do relatório (ele só aceita .kmz/.kml), mas VAI ao Trello.
+ */
 const naoVaiAoTrello = (slot: string): boolean =>
-  slot === 'outros' || SLOTS_FORA_DO_RELATORIO.has(slot) || !itemDoCatalogo('vendasolar', slot);
+  slot === 'outros' || SLOTS_QUE_NAO_SEGUEM.has(slot) || (slot !== 'kmz' && SLOTS_FORA_DO_RELATORIO.has(slot)) || !itemDoCatalogo('vendasolar', slot);
 
 interface Preparo {
   titulo: string;
@@ -211,331 +220,337 @@ async function guardarCartaoNaLigacao(id: number, quem: string, trelloId: string
   });
 }
 
-export function mountVendaSolarTrello(router: Router, base: RequestHandler[], guarda: GuardaDoCard): void {
-  router.post('/vendas-solares/:card/trello', ...base, async (req: Request, res: Response) => {
-    const inicioDoPedido = Date.now();   // os prazos de desistir e de recuperar contam daqui, não de quando uma trava foi pega
-    const g = await guarda(req, res);
-    if (!g) return;
-    const cred = credenciaisTrello();
-    if (!cred) { res.status(503).json({ ok: false, error: MSG_CREDENCIAL, precisa: 'credencial' }); return; }
+/**
+ * O fluxo inteiro do botão "Enviar ao Trello" (prévia e envio). Fica fora do `router.post` para o Trello automático da Jornada
+ * (`geradorJornadaTrelloAuto.ts`) rodar EXATAMENTE o mesmo caminho, com um `res` que só guarda a resposta.
+ */
+export async function rotaTrelloDaVenda(req: Request, res: Response, guarda: GuardaDoCard): Promise<void> {
+  const inicioDoPedido = Date.now();   // os prazos de desistir e de recuperar contam daqui, não de quando uma trava foi pega
+  const g = await guarda(req, res);
+  if (!g) return;
+  const cred = credenciaisTrello();
+  if (!cred) { res.status(503).json({ ok: false, error: MSG_CREDENCIAL, precisa: 'credencial' }); return; }
 
-    // ── Pedido ──
-    const b = corpoDe(req);
-    const previa = b.previa === true;
-    if ((b.previa !== undefined && typeof b.previa !== 'boolean')
-      || (b.etiquetas_extra !== undefined && (!Array.isArray(b.etiquetas_extra) || b.etiquetas_extra.length > 10 || b.etiquetas_extra.some((x) => typeof x !== 'string')))
-      || (b.novo !== undefined && typeof b.novo !== 'boolean')
-      || (b.card_id !== undefined && b.card_id !== null && (typeof b.card_id !== 'string' || !RE_ID.test(b.card_id)))) {
-      res.status(400).json({ ok: false, error: MSG_PEDIDO });
+  // ── Pedido ──
+  const b = corpoDe(req);
+  const previa = b.previa === true;
+  if ((b.previa !== undefined && typeof b.previa !== 'boolean')
+    || (b.etiquetas_extra !== undefined && (!Array.isArray(b.etiquetas_extra) || b.etiquetas_extra.length > 10 || b.etiquetas_extra.some((x) => typeof x !== 'string')))
+    || (b.novo !== undefined && typeof b.novo !== 'boolean')
+    || (b.card_id !== undefined && b.card_id !== null && (typeof b.card_id !== 'string' || !RE_ID.test(b.card_id)))) {
+    res.status(400).json({ ok: false, error: MSG_PEDIDO });
+    return;
+  }
+  const extra = validarEtiquetasExtra(b.etiquetas_extra);
+  if (extra.invalidas.length) {
+    res.status(400).json({ ok: false, error: 'Só equipes e FASTRACK podem ser pedidas como etiqueta extra.', invalidas: extra.invalidas });
+    return;
+  }
+  const escolhido = typeof b.card_id === 'string' ? b.card_id : null;
+  const novo = b.novo === true;
+  const board = String(process.env.TRELLO_BOARD_ID || '').trim() || TRELLO_BOARD_ID;
+  // Fase 1 da Jornada (05/11/2026, SPEC 13): sem número, nada vai ao Trello, nem a prévia. O número nasce na etapa 2.
+  try {
+    if (!(await lerLigacao(g.id)).lig.venda) {
+      res.status(409).json({ ok: false, precisa: 'numero', error: 'A obra ainda não tem número. Ele nasce com o contrato e a procuração assinados.' });
       return;
     }
-    const extra = validarEtiquetasExtra(b.etiquetas_extra);
-    if (extra.invalidas.length) {
-      res.status(400).json({ ok: false, error: 'Só equipes e FASTRACK podem ser pedidas como etiqueta extra.', invalidas: extra.invalidas });
+  } catch (err) { logErro('ligação', err); res.status(503).json({ ok: false, error: MSG_LER }); return; }
+
+  // Tudo o que decide e escreve acontece aqui dentro. Prévia só lê e roda sem trava; o envio roda DENTRO da trava do card
+  // (criação, etiquetas, ficha, checklists, anexos e registro), com o estado lido depois de pegá-la: dois pedidos juntos
+  // (clique duplo) nunca criam dois cartões, duas checklists nem o mesmo anexo duas vezes.
+  const rodar = async (): Promise<void> => {
+    const publico = await trelloQuadroPublico(board);
+    const [p, qr] = await Promise.all([preparar(g, publico), lerQuadro(cred, board)]);
+    if (!qr.ok) { logErro('quadro', { codigo: 'quadro' }); res.status(502).json({ ok: false, error: MSG_QUADRO }); return; }
+    const quadro = qr.dados;
+    // O registro do que já foi enviado é lido SEMPRE: ele guarda o cartão criado mesmo quando a ligação assinada não pôde gravar.
+    // Na prévia, falha nessa leitura vale registro vazio (só mostra o que faria); na criação o erro sobe: sem o registro não dá para
+    // garantir que não duplica.
+    let lido: RegistroTrello = registroTrelloVazio();
+    try { lido = await lerRegistroTrello(g.id); } catch (err) { if (!previa) throw err; logErro('registro (prévia)', err); }
+    const abertoNoQuadro = (id: string | null | undefined): string | null => (id && quadro.cartoes.some((c) => c.id === id) ? id : null);
+    const guardado = abertoNoQuadro(p.lig.trello_card) ?? abertoNoQuadro(lido.card_id);
+    if (escolhido && !quadro.cartoes.some((c) => c.id === escolhido)) {
+      res.status(400).json({ ok: false, error: 'O cartão escolhido não está entre os cartões abertos do quadro.' });
       return;
     }
-    const escolhido = typeof b.card_id === 'string' ? b.card_id : null;
-    const novo = b.novo === true;
-    const board = String(process.env.TRELLO_BOARD_ID || '').trim() || TRELLO_BOARD_ID;
-    // Fase 1 da Jornada (05/11/2026, SPEC 13): sem número, nada vai ao Trello, nem a prévia. O número nasce na etapa 2.
-    try {
-      if (!(await lerLigacao(g.id)).lig.venda) {
-        res.status(409).json({ ok: false, precisa: 'numero', error: 'A obra ainda não tem número. Ele nasce com o contrato e a procuração assinados.' });
-        return;
-      }
-    } catch (err) { logErro('ligação', err); res.status(503).json({ ok: false, error: MSG_LER }); return; }
-
-    // Tudo o que decide e escreve acontece aqui dentro. Prévia só lê e roda sem trava; o envio roda DENTRO da trava do card
-    // (criação, etiquetas, ficha, checklists, anexos e registro), com o estado lido depois de pegá-la: dois pedidos juntos
-    // (clique duplo) nunca criam dois cartões, duas checklists nem o mesmo anexo duas vezes.
-    const rodar = async (): Promise<void> => {
-      const publico = await trelloQuadroPublico(board);
-      const [p, qr] = await Promise.all([preparar(g, publico), lerQuadro(cred, board)]);
-      if (!qr.ok) { logErro('quadro', { codigo: 'quadro' }); res.status(502).json({ ok: false, error: MSG_QUADRO }); return; }
-      const quadro = qr.dados;
-      // O registro do que já foi enviado é lido SEMPRE: ele guarda o cartão criado mesmo quando a ligação assinada não pôde gravar.
-      // Na prévia, falha nessa leitura vale registro vazio (só mostra o que faria); na criação o erro sobe: sem o registro não dá para
-      // garantir que não duplica.
-      let lido: RegistroTrello = registroTrelloVazio();
-      try { lido = await lerRegistroTrello(g.id); } catch (err) { if (!previa) throw err; logErro('registro (prévia)', err); }
-      const abertoNoQuadro = (id: string | null | undefined): string | null => (id && quadro.cartoes.some((c) => c.id === id) ? id : null);
-      const guardado = abertoNoQuadro(p.lig.trello_card) ?? abertoNoQuadro(lido.card_id);
-      if (escolhido && !quadro.cartoes.some((c) => c.id === escolhido)) {
-        res.status(400).json({ ok: false, error: 'O cartão escolhido não está entre os cartões abertos do quadro.' });
-        return;
-      }
-      const tituloCom = (codigo: string | null): string => tituloDoCartao({ codigoVenda: codigo, nome: p.nome, titular: p.titular, local: p.local });
-      const comCodigo = (codigo: string): void => {
-        p.codigoVenda = codigo;
-        p.lig = { ...p.lig, venda: codigo };
-        p.titulo = tituloCom(codigo);
-        p.comentario = comentarioDaFicha({ titulo: p.titulo, descricao: p.descricao });
-      };
-      const avisosPrevia: string[] = [];
-      const avisosDoNumero: string[] = [];
-      let numeroProvisorio = false;
-      // A planilha do Excel só confere o número: fora do ar, o número sai do registro e do quadro, e a resposta diz isso.
-      let planilhaFora = false;
-      const semVenda = !p.codigoVenda;
-
-      // Cartão guardado ANTES do número automático e com `#NNNN` no título: até a fase 1 a rota achava cartão por nome, e ele pode
-      // ser de outro parente. Vira empate de um candidato só; nada é alocado. Sem número no título, não pergunta.
-      // O mesmo vale para o cartão que só está no registro do envio (`card_id` sem assinatura): ele nunca dá o número sozinho.
-      const cartaoGuardado = guardado ? quadro.cartoes.find((c) => c.id === guardado) ?? null : null;
-      const guardadoSoNoRegistro = !!cartaoGuardado && cartaoGuardado.id !== p.lig.trello_card;
-      let achado: ReturnType<typeof acharCartao> | null = null;
-      if (semVenda && !escolhido && !novo && cartaoGuardado && codigoDoTitulo(cartaoGuardado.name)
-        && (guardadoSoNoRegistro || !cartaoConfiavel(cartaoGuardado.id))) {
-        achado = { tipo: 'empate', candidatos: [cartaoGuardado], motivo: guardadoSoNoRegistro ? MOTIVO_GUARDADO_SEM_ASSINATURA : MOTIVO_GUARDADO_ANTIGO };
-      }
-
-      let alocouAgora = false;
-      let reservouAgora = false;
-
-      // `novo` (sem `card_id`): a pessoa já viu os candidatos e disse que nenhum é deste cliente; não procura cartão nenhum.
-      if (!achado) {
-        achado = novo && !escolhido
-          ? { tipo: 'nenhum' }
-          : acharCartao({ cartoes: quadro.cartoes, escolhido, guardado, codigoVenda: p.codigoVenda });
-      }
-      // Achado só pelo NÚMERO (ou guardado com OUTRO número) quando o código é do alocador deste card: a pessoa confirma. Sem isto,
-      // alguém numerando à mão "#N - Outro cliente" no Trello receberia os documentos deste cliente.
-      if (achado.tipo === 'achou' && p.codigoVenda && (achado.por === 'numero' || achado.por === 'guardado')) {
-        const nDoGuardado = achado.por === 'guardado' ? codigoDoTitulo(achado.cartao.name) : null;
-        if (achado.por === 'numero' || (nDoGuardado && nDoGuardado !== p.codigoVenda)) {
-          // O alocador acabou de dar o número neste pedido: vale o resultado dele, sem reler. Senão, registro válido deste card OU
-          // presente com assinatura inválida conta como do alocador (na dúvida, a pessoa confirma).
-          if (alocouAgora || await ehCodigoDoAlocador(p.lig, g.id)) {
-            achado = { tipo: 'empate', candidatos: [achado.cartao], motivo: achado.por === 'numero' ? MOTIVO_NUMERO_DO_GERADOR : MOTIVO_GUARDADO_OUTRO_NUMERO };
-          }
-        }
-      }
-      const desejadas = [...p.desejadas, ...extra.validas.filter((e) => !p.desejadas.includes(e))];
-      const plano = planoDeChecklists(p.slots, p.temTelefone, !!slugValor(p.cad, 'email'));
-
-      if (achado.tipo === 'empate') {
-        const candidatos = achado.candidatos.map((c) => resumoCartao(quadro, c));
-        if (previa) {
-          res.json({ ok: true, previa: true, quadro_publico: publico, anexos_bloqueados: publico && p.anexos.length > 0, cartao: null, candidatos, motivo_empate: achado.motivo, titulo: p.titulo, numero_provisorio: false, lista: null });
-          return;
-        }
-        // O alocador pode já ter gravado o número neste pedido: o aviso dele vai junto.
-        res.status(409).json({
-          ok: false, precisa: 'escolher_cartao', error: 'Mais de um cartão pode ser deste cliente. Escolha o cartão.', motivo: achado.motivo, candidatos,
-          ...(avisosDoNumero.length ? { avisos: avisosDoNumero } : {}),
-        });
-        return;
-      }
-
-      const existente = achado.tipo === 'achou' ? achado.cartao : null;
-      const parecidos = existente ? [] : cartoesParecidos({ cartoes: quadro.cartoes, nome: p.nome, titular: p.titular })
-        .map((c) => ({ id: c.id, titulo: c.name, url: c.shortUrl || c.url || null }));
-      // O cartão guardado (na ligação ou no registro) não está mais aberto no quadro (foi arquivado): um card novo será criado.
-      if (!existente && !guardado && (p.lig.trello_card || lido.card_id)) avisosPrevia.push('O card guardado foi arquivado no Trello. Um card novo será criado.');
-      // `novo` com outro cartão do mesmo número no quadro: o cartão novo vai repetir o número. Só avisa.
-      if (novo && !escolhido && p.codigoVenda && quadro.cartoes.some((c) => codigoDoTitulo(c.name) === p.codigoVenda)) {
-        avisosDoNumero.push(`Já existe outro cartão com o número ${p.codigoVenda} no Trello. Ajuste um dos títulos.`);
-      }
-      if (previa) avisosPrevia.push(...avisosDoNumero);
-      let titulo = p.titulo;
-      const nomesDoCartao = (existente?.labels ?? []).map((l) => String(l.name ?? '')).filter(Boolean);
-      const etiquetas = planoDeEtiquetas(desejadas, quadro.etiquetas, nomesDoCartao);
-      const lista = existente ? nomeDaLista(quadro, existente.idList) : listaDosNovos(quadro)?.nome ?? null;
-
-      // Registro do que já foi enviado (zera se era de outro cartão).
-      let reg: RegistroTrello = registroTrelloVazio();
-      if (existente) reg = lido.card_id === existente.id ? lido : registroTrelloVazio();
-
-      // ── Prévia: o que faria, sem escrever em lugar nenhum ──
-      // Anexo só conta como pendente se ainda precisa subir: quadro público com tudo já enviado não bloqueia nada.
-      const faltamAnexos = p.anexos.filter((a) => !jaEnviado(a, reg, p.dossieAntigo, existente?.id ?? null));
-
-      if (previa) {
-        let passos: ReturnType<typeof passosDeChecklist> = passosDeChecklist(plano, []);
-        if (existente) {
-          const cl = await listarChecklists(cred, existente.id);
-          if (cl.ok) passos = passosDeChecklist(plano, cl.dados);
-        }
-        res.json({
-          ok: true, previa: true, quadro_publico: publico, anexos_bloqueados: publico && faltamAnexos.length > 0,
-          cartao: existente ? { existente: true, ...resumoCartao(quadro, existente), achado_por: achado.tipo === 'achou' ? achado.por : null } : null,
-          titulo, numero_provisorio: numeroProvisorio, ...(planilhaFora ? { planilhaFora: true } : {}), ...(parecidos.length ? { parecidos } : {}), ...(avisosPrevia.length ? { avisos: avisosPrevia } : {}), lista,
-          etiquetas: { aplicar: etiquetas.aplicar.map((e) => e.name), ja_tem: etiquetas.ja_tem, ausentes: etiquetas.ausentes, conflitos: etiquetas.conflitos },
-          checklists: {
-            BACKOFFICE: plano.BACKOFFICE, ENGENHARIA: plano.ENGENHARIA,
-            criar: passos.filter((x) => x.criar).map((x) => x.nome),
-            marcar: passos.flatMap((x) => x.marcar.map((m) => m.nome)),
-          },
-          descricao: existente ? null : p.descricao,
-          comentario: existente ? p.comentario : null,
-          anexos: p.anexos.map((a) => ({
-            nome: a.nome, slot: a.slot, de: a.de,
-            ja_enviado: jaEnviado(a, reg, p.dossieAntigo, existente?.id ?? null),
-          })),
-        });
-        return;
-      }
-
-      // ── Escrever ──
-      const erros: string[] = [];
-      const avisos: string[] = [...avisosDoNumero];
-      let cardId = existente?.id ?? '';
-      let cardUrl: string | null = existente ? (existente.shortUrl || existente.url || null) : null;
-      let cardNome = existente?.name ?? titulo;
-      let criou = false;
-      let aplicadas = etiquetas.aplicar.map((e) => e.name);
-
-      if (!existente) {
-        const dest = listaDosNovos(quadro);
-        if (!dest) { res.status(502).json({ ok: false, error: `Não achei a lista "${LISTA_CARTAO_NOVO}" no quadro.`, precisa: 'lista' }); return; }
-        // Tudo isto roda DENTRO da trava do card (veja o fim do arquivo), com a leitura feita depois de pegá-la. O número já foi
-        // reservado pelo alocador (registro e ligação): aqui só se cria o cartão com ele.
-        type Feito = { erroNumero: string } | { erroNumero: null; r: Awaited<ReturnType<typeof criarCartaoCompleto>> };
-        const criar = async (): Promise<Feito> => {
-          const inicio = inicioDoPedido;
-          const codigo: string | null = p.codigoVenda;
-          // Prazo interno: leituras lentas comeram o tempo. Desiste ANTES do POST, sem criar nada.
-          if (Date.now() - inicio > PRAZO_ANTES_DE_CRIAR_MS) {
-            logErro('prazo', { codigo: 'lento' });
-            return { erroNumero: reservouAgora && codigo ? msgLentoReservado(codigo) : MSG_LENTO };
-          }
-          let r = await criarCartaoCompleto(cred, { idList: dest.id, nome: titulo, desc: p.descricao, idLabels: etiquetas.aplicar.map((e) => e.id) });
-          if (!r.ok && codigo) {
-            // Falhou ou estourou o tempo, mas o Trello pode ter criado o cartão: se há UM cartão aberto, NOVO (que não estava na lista
-            // lida antes do POST), com este #NNNN, é o nosso. Adota. Relê uma 2ª vez depois de uns segundos, se ainda sobra tempo.
-            const jaExistiam = new Set(quadro.cartoes.map((c) => c.id));
-            for (let tentativa = 0; tentativa < 2; tentativa++) {
-              if (tentativa === 1) await dorme(ESPERA_2A_RELEITURA_MS);
-              if (Date.now() - inicio > PRAZO_RECUPERACAO_MS) break;
-              const nasceu = await acharCartaoCriado(cred, board, codigo, jaExistiam);
-              if (nasceu) { r = { ok: true, dados: { id: nasceu.id, url: nasceu.shortUrl || nasceu.url || null } }; break; }
-            }
-          }
-          return { erroNumero: null, r };
-        };
-        const feito = await criar();
-        if (feito.erroNumero !== null) { res.status(502).json({ ok: false, error: feito.erroNumero }); return; }
-        const novoCartao = feito.r;
-        if (!novoCartao.ok) { res.status(502).json({ ok: false, error: `Não consegui criar o cartão: ${novoCartao.motivo}` }); return; }
-        cardNome = titulo;
-        // O id do cartão vai PRIMEIRO para o registro do envio (só ids, nenhum dado pessoal) e depois para a ligação assinada. Se a
-        // ligação falhar (a trava dos vínculos é global e pode estar ocupada), o registro ainda faz o próximo envio achar este cartão.
-        reg = { ...registroTrelloVazio(), card_id: novoCartao.dados.id };
-        let registroGravou = true;
-        try { await gravarRegistroTrello(g.id, reg); } catch (err) { registroGravou = false; logErro('registro do cartão novo', err); }
-        try { await guardarCartaoNaLigacao(g.id, g.nome, novoCartao.dados.id); } catch (err) {
-          logErro('ligação do cartão', err);
-          avisos.push(registroGravou
-            ? 'O cartão foi criado, mas não consegui guardar a ligação com o card agora. O próximo envio o acha pelo registro do envio.'
-            : 'O cartão foi criado, mas não consegui guardar o vínculo dele com o card. Confira o quadro antes de enviar de novo, para não duplicar.');
-        }
-        cardId = novoCartao.dados.id; cardUrl = novoCartao.dados.url; criou = true;
-      } else {
-        if (p.lig.trello_card !== existente.id) {
-          try { await guardarCartaoNaLigacao(g.id, g.nome, existente.id); } catch (err) {
-            logErro('ligação do cartão', err);
-            avisos.push('Não consegui guardar a ligação do cartão com o card agora.');
-          }
-        }
-        // Só acrescenta etiqueta; nunca tira.
-        const postas: string[] = [];
-        for (const e of etiquetas.aplicar) {
-          const r = await adicionarEtiqueta(cred, cardId, e.id);
-          if (r.ok) postas.push(e.name); else erros.push(`etiqueta ${e.name}: ${r.motivo}`);
-        }
-        aplicadas = postas;
-        // A ficha de um cartão que já existia vai num comentário único (editado a cada envio); a descrição ninguém sobrescreve.
-        const c = await comentarNoTrello(cred, cardId, p.comentario, reg.comentario_id);
-        if (c.ok) reg.comentario_id = c.id; else erros.push(`ficha: ${c.motivo}`);
-        reg.card_id = cardId;
-      }
-      if (etiquetas.ausentes.length) avisos.push(`Etiqueta que não existe no quadro (não criei): ${etiquetas.ausentes.join(', ')}.`);
-      if (etiquetas.conflitos.length) avisos.push(`O cartão já tem outra etiqueta do mesmo grupo: ${etiquetas.conflitos.map((c) => `${c.existente} no lugar de ${c.desejada}`).join('; ')}. Não mudei.`);
-
-      // ── Checklists ──
-      const criadas: string[] = [];
-      const marcados: string[] = [];
-      const cl = await listarChecklists(cred, cardId);
-      if (!cl.ok) erros.push(`checklists: ${cl.motivo}`);
-      else {
-        for (const passo of passosDeChecklist(plano, cl.dados)) {
-          if (passo.criar) {
-            const r = await criarChecklist(cred, cardId, passo.nome, passo.criar);
-            if (r.ok) { criadas.push(passo.nome); if (r.dados.falhas) erros.push(`checklist ${passo.nome}: ${r.dados.falhas} item(ns) não entraram`); }
-            else erros.push(`checklist ${passo.nome}: ${r.motivo}`);
-          }
-          for (const m of passo.marcar) {
-            const r = await marcarItem(cred, cardId, m.idItem);
-            if (r.ok) marcados.push(m.nome); else erros.push(`item ${m.nome}: ${r.motivo}`);
-          }
-        }
-      }
-
-      // ── Anexos ──
-      // Quadro público: nada sobe, nunca. Só conta como bloqueado o que ainda precisaria subir.
-      const faltam = p.anexos.filter((a) => !jaEnviado(a, reg, p.dossieAntigo, cardId));
-      const bloqueados = publico && faltam.length > 0;
-      const anexos = { enviados: 0, ja_enviados: 0, falhas: 0, pendentes: 0, bloqueados };
-      if (publico) {
-        anexos.pendentes = faltam.length;
-        anexos.ja_enviados = p.anexos.length - faltam.length;
-      } else if (p.anexos.length) {
-        const noCartao = await idsDosAnexos(cred, cardId);
-        const naoSeiOQueTem = !noCartao.ok;
-        if (naoSeiOQueTem) avisos.push('Não consegui conferir os anexos que o cartão já tem; enviei só o que o registro não conhece.');
-        const tem = noCartao.ok ? noCartao.dados : new Set<string>();
-        const limite = Date.now() + PRAZO_ANEXOS_MS;
-        for (const a of p.anexos) {
-          const jaId = reg.anexados[a.chave];
-          const antigo = a.anexoAntigo && p.dossieAntigo.cartao === cardId ? a.anexoAntigo : null;
-          if ((jaId && (naoSeiOQueTem || tem.has(jaId))) || (antigo && (naoSeiOQueTem || tem.has(antigo)))) {
-            if (!jaId && antigo) reg.anexados[a.chave] = antigo;
-            anexos.ja_enviados++;
-            continue;
-          }
-          if (Date.now() > limite) { anexos.pendentes++; continue; }
-          let bytes: Buffer | null = null;
-          try { bytes = a.de === 'card' ? await baixarObjeto(a.caminho) : await baixarArquivo(a.caminho); } catch { bytes = null; }
-          if (!bytes) { anexos.falhas++; erros.push(`${a.nome}: não consegui ler o arquivo`); continue; }
-          const r = await anexarNoTrello(cred, cardId, `${a.nome}.${extDoMime(a.mime)}`, bytes, a.mime);
-          if (r.ok) { reg.anexados[a.chave] = r.id; anexos.enviados++; } else { anexos.falhas++; erros.push(`${a.nome}: ${r.motivo}`); }
-        }
-        if (anexos.pendentes) avisos.push(`${anexos.pendentes} arquivo(s) ficaram para o próximo envio.`);
-      }
-
-      try { await gravarRegistroTrello(g.id, reg); } catch (err) {
-        logErro('registro do Trello', err);
-        avisos.push('Não consegui guardar o que já foi enviado; um novo envio pode repetir anexos.');
-      }
-
-      // Fase 1 da Jornada: o link do cartão fica na obra (etapa 3). Falha aqui não muda a resposta: só o log.
-      if (cardUrl) { try { await guardarTrelloNaJornada(g.id, String(cardUrl), g.nome, g.card); } catch (err) { logErro('trello na jornada', err); } }
-      const ok = erros.length === 0 && !bloqueados;
-      res.status(ok ? 200 : 207).json({
-        ok, previa: false, criou_cartao: criou, ...(planilhaFora ? { planilhaFora: true } : {}),
-        cartao: { id: cardId, nome: cardNome, url: cardUrl, lista },
-        titulo,
-        etiquetas: { aplicadas, ja_tem: etiquetas.ja_tem, ausentes: etiquetas.ausentes, conflitos: etiquetas.conflitos },
-        checklists: { criadas, marcados },
-        ficha: criou ? 'descricao' : 'comentario',
-        anexos,
-        ...(bloqueados ? { anexos_bloqueados: true, error: MSG_QUADRO_PUBLICO } : {}),
-        erros, avisos,
-      });
+    const tituloCom = (codigo: string | null): string => tituloDoCartao({ codigoVenda: codigo, nome: p.nome, titular: p.titular, local: p.local });
+    const comCodigo = (codigo: string): void => {
+      p.codigoVenda = codigo;
+      p.lig = { ...p.lig, venda: codigo };
+      p.titulo = tituloCom(codigo);
+      p.comentario = comentarioDaFicha({ titulo: p.titulo, descricao: p.descricao });
     };
+    const avisosPrevia: string[] = [];
+    const avisosDoNumero: string[] = [];
+    let numeroProvisorio = false;
+    // A planilha do Excel só confere o número: fora do ar, o número sai do registro e do quadro, e a resposta diz isso.
+    let planilhaFora = false;
+    const semVenda = !p.codigoVenda;
 
-    try {
-      if (previa) await rodar();
-      else await comTrava(`trello:${g.id}`, g.nome, rodar, TTL_TRAVA_TRELLO_MS);
-    } catch (err) {
-      logErro('envio falhou', err);
-      if (err instanceof ErroCadastro && err.codigo === 'ocupado') {
-        res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando agora. Tente de novo.' });
+    // Cartão guardado ANTES do número automático e com `#NNNN` no título: até a fase 1 a rota achava cartão por nome, e ele pode
+    // ser de outro parente. Vira empate de um candidato só; nada é alocado. Sem número no título, não pergunta.
+    // O mesmo vale para o cartão que só está no registro do envio (`card_id` sem assinatura): ele nunca dá o número sozinho.
+    const cartaoGuardado = guardado ? quadro.cartoes.find((c) => c.id === guardado) ?? null : null;
+    const guardadoSoNoRegistro = !!cartaoGuardado && cartaoGuardado.id !== p.lig.trello_card;
+    let achado: ReturnType<typeof acharCartao> | null = null;
+    if (semVenda && !escolhido && !novo && cartaoGuardado && codigoDoTitulo(cartaoGuardado.name)
+      && (guardadoSoNoRegistro || !cartaoConfiavel(cartaoGuardado.id))) {
+      achado = { tipo: 'empate', candidatos: [cartaoGuardado], motivo: guardadoSoNoRegistro ? MOTIVO_GUARDADO_SEM_ASSINATURA : MOTIVO_GUARDADO_ANTIGO };
+    }
+
+    let alocouAgora = false;
+    let reservouAgora = false;
+
+    // `novo` (sem `card_id`): a pessoa já viu os candidatos e disse que nenhum é deste cliente; não procura cartão nenhum.
+    if (!achado) {
+      achado = novo && !escolhido
+        ? { tipo: 'nenhum' }
+        : acharCartao({ cartoes: quadro.cartoes, escolhido, guardado, codigoVenda: p.codigoVenda });
+    }
+    // Achado só pelo NÚMERO (ou guardado com OUTRO número) quando o código é do alocador deste card: a pessoa confirma. Sem isto,
+    // alguém numerando à mão "#N - Outro cliente" no Trello receberia os documentos deste cliente.
+    if (achado.tipo === 'achou' && p.codigoVenda && (achado.por === 'numero' || achado.por === 'guardado')) {
+      const nDoGuardado = achado.por === 'guardado' ? codigoDoTitulo(achado.cartao.name) : null;
+      if (achado.por === 'numero' || (nDoGuardado && nDoGuardado !== p.codigoVenda)) {
+        // O alocador acabou de dar o número neste pedido: vale o resultado dele, sem reler. Senão, registro válido deste card OU
+        // presente com assinatura inválida conta como do alocador (na dúvida, a pessoa confirma).
+        if (alocouAgora || await ehCodigoDoAlocador(p.lig, g.id)) {
+          achado = { tipo: 'empate', candidatos: [achado.cartao], motivo: achado.por === 'numero' ? MOTIVO_NUMERO_DO_GERADOR : MOTIVO_GUARDADO_OUTRO_NUMERO };
+        }
+      }
+    }
+    const desejadas = [...p.desejadas, ...extra.validas.filter((e) => !p.desejadas.includes(e))];
+    const plano = planoDeChecklists(p.slots, p.temTelefone, !!slugValor(p.cad, 'email'));
+
+    if (achado.tipo === 'empate') {
+      const candidatos = achado.candidatos.map((c) => resumoCartao(quadro, c));
+      if (previa) {
+        res.json({ ok: true, previa: true, quadro_publico: publico, anexos_bloqueados: publico && p.anexos.length > 0, cartao: null, candidatos, motivo_empate: achado.motivo, titulo: p.titulo, numero_provisorio: false, lista: null });
         return;
       }
-      if (err instanceof ErroDocs) { res.status(err.http).json({ ok: false, error: err.mensagem }); return; }
-      if (err instanceof ErroCadastro || err instanceof ErroHub) { res.status(503).json({ ok: false, error: MSG_LER }); return; }
-      res.status(500).json({ ok: false, error: MSG_LER });
+      // O alocador pode já ter gravado o número neste pedido: o aviso dele vai junto.
+      res.status(409).json({
+        ok: false, precisa: 'escolher_cartao', error: 'Mais de um cartão pode ser deste cliente. Escolha o cartão.', motivo: achado.motivo, candidatos,
+        ...(avisosDoNumero.length ? { avisos: avisosDoNumero } : {}),
+      });
+      return;
     }
-  });
+
+    const existente = achado.tipo === 'achou' ? achado.cartao : null;
+    const parecidos = existente ? [] : cartoesParecidos({ cartoes: quadro.cartoes, nome: p.nome, titular: p.titular })
+      .map((c) => ({ id: c.id, titulo: c.name, url: c.shortUrl || c.url || null }));
+    // O cartão guardado (na ligação ou no registro) não está mais aberto no quadro (foi arquivado): um card novo será criado.
+    if (!existente && !guardado && (p.lig.trello_card || lido.card_id)) avisosPrevia.push('O card guardado foi arquivado no Trello. Um card novo será criado.');
+    // `novo` com outro cartão do mesmo número no quadro: o cartão novo vai repetir o número. Só avisa.
+    if (novo && !escolhido && p.codigoVenda && quadro.cartoes.some((c) => codigoDoTitulo(c.name) === p.codigoVenda)) {
+      avisosDoNumero.push(`Já existe outro cartão com o número ${p.codigoVenda} no Trello. Ajuste um dos títulos.`);
+    }
+    if (previa) avisosPrevia.push(...avisosDoNumero);
+    let titulo = p.titulo;
+    const nomesDoCartao = (existente?.labels ?? []).map((l) => String(l.name ?? '')).filter(Boolean);
+    const etiquetas = planoDeEtiquetas(desejadas, quadro.etiquetas, nomesDoCartao);
+    const lista = existente ? nomeDaLista(quadro, existente.idList) : listaDosNovos(quadro)?.nome ?? null;
+
+    // Registro do que já foi enviado (zera se era de outro cartão).
+    let reg: RegistroTrello = registroTrelloVazio();
+    if (existente) reg = lido.card_id === existente.id ? lido : registroTrelloVazio();
+
+    // ── Prévia: o que faria, sem escrever em lugar nenhum ──
+    // Anexo só conta como pendente se ainda precisa subir: quadro público com tudo já enviado não bloqueia nada.
+    const faltamAnexos = p.anexos.filter((a) => !jaEnviado(a, reg, p.dossieAntigo, existente?.id ?? null));
+
+    if (previa) {
+      let passos: ReturnType<typeof passosDeChecklist> = passosDeChecklist(plano, []);
+      if (existente) {
+        const cl = await listarChecklists(cred, existente.id);
+        if (cl.ok) passos = passosDeChecklist(plano, cl.dados);
+      }
+      res.json({
+        ok: true, previa: true, quadro_publico: publico, anexos_bloqueados: publico && faltamAnexos.length > 0,
+        cartao: existente ? { existente: true, ...resumoCartao(quadro, existente), achado_por: achado.tipo === 'achou' ? achado.por : null } : null,
+        titulo, numero_provisorio: numeroProvisorio, ...(planilhaFora ? { planilhaFora: true } : {}), ...(parecidos.length ? { parecidos } : {}), ...(avisosPrevia.length ? { avisos: avisosPrevia } : {}), lista,
+        etiquetas: { aplicar: etiquetas.aplicar.map((e) => e.name), ja_tem: etiquetas.ja_tem, ausentes: etiquetas.ausentes, conflitos: etiquetas.conflitos },
+        checklists: {
+          BACKOFFICE: plano.BACKOFFICE, ENGENHARIA: plano.ENGENHARIA,
+          criar: passos.filter((x) => x.criar).map((x) => x.nome),
+          marcar: passos.flatMap((x) => x.marcar.map((m) => m.nome)),
+        },
+        descricao: existente ? null : p.descricao,
+        comentario: existente ? p.comentario : null,
+        anexos: p.anexos.map((a) => ({
+          nome: a.nome, slot: a.slot, de: a.de,
+          ja_enviado: jaEnviado(a, reg, p.dossieAntigo, existente?.id ?? null),
+        })),
+      });
+      return;
+    }
+
+    // ── Escrever ──
+    const erros: string[] = [];
+    const avisos: string[] = [...avisosDoNumero];
+    let cardId = existente?.id ?? '';
+    let cardUrl: string | null = existente ? (existente.shortUrl || existente.url || null) : null;
+    let cardNome = existente?.name ?? titulo;
+    let criou = false;
+    let aplicadas = etiquetas.aplicar.map((e) => e.name);
+
+    if (!existente) {
+      const dest = listaDosNovos(quadro);
+      if (!dest) { res.status(502).json({ ok: false, error: `Não achei a lista "${LISTA_CARTAO_NOVO}" no quadro.`, precisa: 'lista' }); return; }
+      // Tudo isto roda DENTRO da trava do card (veja o fim do arquivo), com a leitura feita depois de pegá-la. O número já foi
+      // reservado pelo alocador (registro e ligação): aqui só se cria o cartão com ele.
+      type Feito = { erroNumero: string } | { erroNumero: null; r: Awaited<ReturnType<typeof criarCartaoCompleto>> };
+      const criar = async (): Promise<Feito> => {
+        const inicio = inicioDoPedido;
+        const codigo: string | null = p.codigoVenda;
+        // Prazo interno: leituras lentas comeram o tempo. Desiste ANTES do POST, sem criar nada.
+        if (Date.now() - inicio > PRAZO_ANTES_DE_CRIAR_MS) {
+          logErro('prazo', { codigo: 'lento' });
+          return { erroNumero: reservouAgora && codigo ? msgLentoReservado(codigo) : MSG_LENTO };
+        }
+        let r = await criarCartaoCompleto(cred, { idList: dest.id, nome: titulo, desc: p.descricao, idLabels: etiquetas.aplicar.map((e) => e.id) });
+        if (!r.ok && codigo) {
+          // Falhou ou estourou o tempo, mas o Trello pode ter criado o cartão: se há UM cartão aberto, NOVO (que não estava na lista
+          // lida antes do POST), com este #NNNN, é o nosso. Adota. Relê uma 2ª vez depois de uns segundos, se ainda sobra tempo.
+          const jaExistiam = new Set(quadro.cartoes.map((c) => c.id));
+          for (let tentativa = 0; tentativa < 2; tentativa++) {
+            if (tentativa === 1) await dorme(ESPERA_2A_RELEITURA_MS);
+            if (Date.now() - inicio > PRAZO_RECUPERACAO_MS) break;
+            const nasceu = await acharCartaoCriado(cred, board, codigo, jaExistiam);
+            if (nasceu) { r = { ok: true, dados: { id: nasceu.id, url: nasceu.shortUrl || nasceu.url || null } }; break; }
+          }
+        }
+        return { erroNumero: null, r };
+      };
+      const feito = await criar();
+      if (feito.erroNumero !== null) { res.status(502).json({ ok: false, error: feito.erroNumero }); return; }
+      const novoCartao = feito.r;
+      if (!novoCartao.ok) { res.status(502).json({ ok: false, error: `Não consegui criar o cartão: ${novoCartao.motivo}` }); return; }
+      cardNome = titulo;
+      // O id do cartão vai PRIMEIRO para o registro do envio (só ids, nenhum dado pessoal) e depois para a ligação assinada. Se a
+      // ligação falhar (a trava dos vínculos é global e pode estar ocupada), o registro ainda faz o próximo envio achar este cartão.
+      reg = { ...registroTrelloVazio(), card_id: novoCartao.dados.id };
+      let registroGravou = true;
+      try { await gravarRegistroTrello(g.id, reg); } catch (err) { registroGravou = false; logErro('registro do cartão novo', err); }
+      try { await guardarCartaoNaLigacao(g.id, g.nome, novoCartao.dados.id); } catch (err) {
+        logErro('ligação do cartão', err);
+        avisos.push(registroGravou
+          ? 'O cartão foi criado, mas não consegui guardar a ligação com o card agora. O próximo envio o acha pelo registro do envio.'
+          : 'O cartão foi criado, mas não consegui guardar o vínculo dele com o card. Confira o quadro antes de enviar de novo, para não duplicar.');
+      }
+      cardId = novoCartao.dados.id; cardUrl = novoCartao.dados.url; criou = true;
+    } else {
+      if (p.lig.trello_card !== existente.id) {
+        try { await guardarCartaoNaLigacao(g.id, g.nome, existente.id); } catch (err) {
+          logErro('ligação do cartão', err);
+          avisos.push('Não consegui guardar a ligação do cartão com o card agora.');
+        }
+      }
+      // Só acrescenta etiqueta; nunca tira.
+      const postas: string[] = [];
+      for (const e of etiquetas.aplicar) {
+        const r = await adicionarEtiqueta(cred, cardId, e.id);
+        if (r.ok) postas.push(e.name); else erros.push(`etiqueta ${e.name}: ${r.motivo}`);
+      }
+      aplicadas = postas;
+      // A ficha de um cartão que já existia vai num comentário único (editado a cada envio); a descrição ninguém sobrescreve.
+      const c = await comentarNoTrello(cred, cardId, p.comentario, reg.comentario_id);
+      if (c.ok) reg.comentario_id = c.id; else erros.push(`ficha: ${c.motivo}`);
+      reg.card_id = cardId;
+    }
+    if (etiquetas.ausentes.length) avisos.push(`Etiqueta que não existe no quadro (não criei): ${etiquetas.ausentes.join(', ')}.`);
+    if (etiquetas.conflitos.length) avisos.push(`O cartão já tem outra etiqueta do mesmo grupo: ${etiquetas.conflitos.map((c) => `${c.existente} no lugar de ${c.desejada}`).join('; ')}. Não mudei.`);
+
+    // ── Checklists ──
+    const criadas: string[] = [];
+    const marcados: string[] = [];
+    const cl = await listarChecklists(cred, cardId);
+    if (!cl.ok) erros.push(`checklists: ${cl.motivo}`);
+    else {
+      for (const passo of passosDeChecklist(plano, cl.dados)) {
+        if (passo.criar) {
+          const r = await criarChecklist(cred, cardId, passo.nome, passo.criar);
+          if (r.ok) { criadas.push(passo.nome); if (r.dados.falhas) erros.push(`checklist ${passo.nome}: ${r.dados.falhas} item(ns) não entraram`); }
+          else erros.push(`checklist ${passo.nome}: ${r.motivo}`);
+        }
+        for (const m of passo.marcar) {
+          const r = await marcarItem(cred, cardId, m.idItem);
+          if (r.ok) marcados.push(m.nome); else erros.push(`item ${m.nome}: ${r.motivo}`);
+        }
+      }
+    }
+
+    // ── Anexos ──
+    // Quadro público: nada sobe, nunca. Só conta como bloqueado o que ainda precisaria subir.
+    const faltam = p.anexos.filter((a) => !jaEnviado(a, reg, p.dossieAntigo, cardId));
+    const bloqueados = publico && faltam.length > 0;
+    const anexos = { enviados: 0, ja_enviados: 0, falhas: 0, pendentes: 0, bloqueados };
+    if (publico) {
+      anexos.pendentes = faltam.length;
+      anexos.ja_enviados = p.anexos.length - faltam.length;
+    } else if (p.anexos.length) {
+      const noCartao = await idsDosAnexos(cred, cardId);
+      const naoSeiOQueTem = !noCartao.ok;
+      if (naoSeiOQueTem) avisos.push('Não consegui conferir os anexos que o cartão já tem; enviei só o que o registro não conhece.');
+      const tem = noCartao.ok ? noCartao.dados : new Set<string>();
+      const limite = Date.now() + PRAZO_ANEXOS_MS;
+      for (const a of p.anexos) {
+        const jaId = reg.anexados[a.chave];
+        const antigo = a.anexoAntigo && p.dossieAntigo.cartao === cardId ? a.anexoAntigo : null;
+        if ((jaId && (naoSeiOQueTem || tem.has(jaId))) || (antigo && (naoSeiOQueTem || tem.has(antigo)))) {
+          if (!jaId && antigo) reg.anexados[a.chave] = antigo;
+          anexos.ja_enviados++;
+          continue;
+        }
+        if (Date.now() > limite) { anexos.pendentes++; continue; }
+        let bytes: Buffer | null = null;
+        try { bytes = a.de === 'card' ? await baixarObjeto(a.caminho) : await baixarArquivo(a.caminho); } catch { bytes = null; }
+        if (!bytes) { anexos.falhas++; erros.push(`${a.nome}: não consegui ler o arquivo`); continue; }
+        const r = await anexarNoTrello(cred, cardId, `${a.nome}.${extDoMime(a.mime)}`, bytes, a.mime);
+        if (r.ok) { reg.anexados[a.chave] = r.id; anexos.enviados++; } else { anexos.falhas++; erros.push(`${a.nome}: ${r.motivo}`); }
+      }
+      if (anexos.pendentes) avisos.push(`${anexos.pendentes} arquivo(s) ficaram para o próximo envio.`);
+    }
+
+    try { await gravarRegistroTrello(g.id, reg); } catch (err) {
+      logErro('registro do Trello', err);
+      avisos.push('Não consegui guardar o que já foi enviado; um novo envio pode repetir anexos.');
+    }
+
+    // Fase 1 da Jornada: o link do cartão fica na obra (etapa 3). Falha aqui não muda a resposta: só o log.
+    if (cardUrl) { try { await guardarTrelloNaJornada(g.id, String(cardUrl), g.nome, g.card); } catch (err) { logErro('trello na jornada', err); } }
+    const ok = erros.length === 0 && !bloqueados;
+    res.status(ok ? 200 : 207).json({
+      ok, previa: false, criou_cartao: criou, ...(planilhaFora ? { planilhaFora: true } : {}),
+      cartao: { id: cardId, nome: cardNome, url: cardUrl, lista },
+      titulo,
+      etiquetas: { aplicadas, ja_tem: etiquetas.ja_tem, ausentes: etiquetas.ausentes, conflitos: etiquetas.conflitos },
+      checklists: { criadas, marcados },
+      ficha: criou ? 'descricao' : 'comentario',
+      anexos,
+      ...(bloqueados ? { anexos_bloqueados: true, error: MSG_QUADRO_PUBLICO } : {}),
+      erros, avisos,
+    });
+  };
+
+  try {
+    if (previa) await rodar();
+    else await comTrava(`trello:${g.id}`, g.nome, rodar, TTL_TRAVA_TRELLO_MS);
+  } catch (err) {
+    logErro('envio falhou', err);
+    if (err instanceof ErroCadastro && err.codigo === 'ocupado') {
+      res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando agora. Tente de novo.' });
+      return;
+    }
+    if (err instanceof ErroDocs) { res.status(err.http).json({ ok: false, error: err.mensagem }); return; }
+    if (err instanceof ErroCadastro || err instanceof ErroHub) { res.status(503).json({ ok: false, error: MSG_LER }); return; }
+    res.status(500).json({ ok: false, error: MSG_LER });
+  }
+}
+
+export function mountVendaSolarTrello(router: Router, base: RequestHandler[], guarda: GuardaDoCard): void {
+  router.post('/vendas-solares/:card/trello', ...base, async (req: Request, res: Response) => rotaTrelloDaVenda(req, res, guarda));
 }

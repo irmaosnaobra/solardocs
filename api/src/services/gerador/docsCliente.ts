@@ -37,9 +37,33 @@ export const ehLinha = (x: unknown): x is Linha => x === 'solar' || x === 'eletr
 export const LIMITE_BYTES = 10 * 1024 * 1024;
 export const BUCKET_DOCS = 'fichas-docs';
 export const MIMES_ACEITOS: readonly string[] = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+/**
+ * KMZ e KML do Google Earth (18/11/2026): SÓ o item `kmz` aceita estes tipos (`mimeServeAoItem`). Ficam fora de `MIMES_ACEITOS`, que
+ * continua sendo a lista dos outros itens; o bucket aceita as duas listas (`MIMES_DO_BUCKET`).
+ */
+export const MIMES_KMZ: readonly string[] = ['application/vnd.google-earth.kmz', 'application/vnd.google-earth.kml+xml'];
+export const MIMES_DO_BUCKET: readonly string[] = [...MIMES_ACEITOS, ...MIMES_KMZ];
 export const EXT_POR_MIME: Record<string, string> = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf',
+  'application/vnd.google-earth.kmz': 'kmz', 'application/vnd.google-earth.kml+xml': 'kml',
 };
+
+/** A extensão (sem ponto, minúscula) de um nome de arquivo ou da própria extensão. O nome NUNCA é guardado: só serve para decidir o tipo. */
+export function extDoArquivo(x: unknown): string {
+  const m = /\.?([a-z0-9]{2,5})$/.exec(String(x ?? '').trim().toLowerCase());
+  return m ? m[1] : '';
+}
+
+/**
+ * O tipo certo de um envio para o item `kmz`, ou null quando não é KMZ nem KML. O navegador costuma mandar `application/zip` ou
+ * `application/octet-stream` (ou nada) para .kmz: esses só valem com a extensão .kmz (octet-stream também com .kml) e viram o tipo do Google Earth.
+ */
+export function mimeDoKmz(mime: string, ext: string): string | null {
+  if (MIMES_KMZ.includes(mime)) return mime;
+  if (mime === 'application/zip' || mime === 'application/x-zip-compressed') return ext === 'kmz' ? 'application/vnd.google-earth.kmz' : null;
+  if (mime === 'application/octet-stream') return ext === 'kmz' ? 'application/vnd.google-earth.kmz' : ext === 'kml' ? 'application/vnd.google-earth.kml+xml' : null;
+  return null;
+}
 const MAX_ARQUIVOS = 100;         // por venda
 const MAX_POR_ITEM_VARIOS = 40;   // fotos de um item que aceita vários (o `outros` vai até o teto da venda)
 const MAX_TRILHA = 50;
@@ -51,7 +75,7 @@ export const tetoDaVenda = (linha?: string): number => (linha === 'vendasolar' ?
 
 // ── Catálogo ─────────────────────────────────────────────────────────────────
 
-export type Aceita = 'imagem' | 'pdf' | 'ambos';
+export type Aceita = 'imagem' | 'pdf' | 'ambos' | 'kmz';
 export interface ItemDoc { chave: string; rotulo: string; aceita: Aceita; obrigatorio: boolean; varios: boolean; /** Jornada, fase 2: a etapa (4 a 8) a que o item pertence; a tela do quadro `vdc` só mostra os de etapa menor que 4. */ etapa?: number }
 
 const it = (chave: string, rotulo: string, aceita: Aceita, obrigatorio: boolean, varios = false, etapa?: number): ItemDoc =>
@@ -129,6 +153,8 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
     // Obrigatório só pesa no relatório (lista de pendências e o selo "preliminar"); não trava contrato, Trello nem envio.
     it('datasheet_modulo', 'Datasheet dos módulos', 'ambos', true, true),
     it('datasheet_inversor', 'Datasheet do inversor', 'ambos', true, true),
+    // KMZ do local (18/11/2026): um arquivo .kmz ou .kml do Google Earth. Fora do relatório e da leitura por IA; sobe ao Trello.
+    it('kmz', 'KMZ do local', 'kmz', false),
     it('contrato_assinado', 'Contrato assinado', 'ambos', true),
     it('procuracao', 'Procuração assinada', 'ambos', true),
     // Etapa 3 da Jornada (fase 1, 05/11/2026): a obrigação mora no portão da etapa, não aqui (o relatório não vira "preliminar").
@@ -180,16 +206,20 @@ export const SLOTS_FORA_DO_RELATORIO: ReadonlySet<string> = new Set([
   'documento_avalista', 'documento_outra_pessoa',
   'comprovante_endereco_comprador', 'comprovante_endereco_cedente', 'comprovante_endereco_avalista',
   'documento_financiamento', 'comprovante_endereco_financiamento',
-  'art_comprovante', 'projeto_comprovante',
+  'art_comprovante', 'projeto_comprovante', 'kmz',
   // Jornada, fase 2: nada das etapas 4 a 8 vai ao relatório de engenharia nem ao Trello.
   'cert_modulo', 'cert_inversor', 'log_documento', 'log_conferencia', 'log_avaria', 'log_assinatura', 'obra_foto', 'ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo', 'ent_termo_assinado', 'lib_pedido', 'lib_vistoria', 'lib_medidor', 'lib_liberacao', 'lib_exigencia',
 ]);
 
-export const itemDoCatalogo = (linha: Linha, chave: unknown): ItemDoc | null =>
+/** Os arquivos da venda solar que, ao chegarem, podem fechar o bloco equipamento da etapa 3 (ou dar o número, que o cartão exige) e disparar o Trello automático. */
+export const SLOTS_DO_TRELLO_AUTO: readonly string[] = ['datasheet_modulo', 'datasheet_inversor', 'kmz', 'contrato_assinado', 'procuracao'];
+
+export const itemDoCatalogo =(linha: Linha, chave: unknown): ItemDoc | null =>
   typeof chave === 'string' ? (CATALOGO[linha].find((x) => x.chave === chave) ?? null) : null;
 
 /** O mime serve para o item? (a lista geral é a do bucket; o item restringe a imagem ou a PDF) */
 export function mimeServeAoItem(item: ItemDoc, mime: string): boolean {
+  if (item.aceita === 'kmz') return MIMES_KMZ.includes(mime);   // KMZ/KML: só neste item, e este item não aceita mais nada
   if (!MIMES_ACEITOS.includes(mime)) return false;
   if (item.aceita === 'ambos') return true;
   return item.aceita === 'pdf' ? mime === 'application/pdf' : mime !== 'application/pdf';
@@ -222,7 +252,7 @@ export function novoCaminho(linha: Linha, codigo: string, mime: string): string 
   return `${linha}/${codigo}/${crypto.randomUUID()}.${EXT_POR_MIME[mime] ?? 'bin'}`;
 }
 
-const RE_CAMINHO = /^(solar|eletroposto|vendasolar)\/(\d{1,12})\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(jpg|png|webp|pdf)$/;
+const RE_CAMINHO = /^(solar|eletroposto|vendasolar)\/(\d{1,12})\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(jpg|png|webp|pdf|kmz|kml)$/;
 
 /** O caminho INTEIRO tem que casar o formato que o servidor gera. Qualquer outra coisa (`..`, barra extra, outra extensão) é null. */
 export function lerCaminho(caminho: unknown): { linha: Linha; codigo: string; uuid: string; ext: string; mime: string } | null {
@@ -370,6 +400,27 @@ export function nomesParecidos(a: string, b: string): boolean {
   return tokens(a).filter((t) => tb.includes(t)).length >= 2;
 }
 
+/**
+ * KML de verdade: depois do BOM, dos espaços, do prólogo <?xml ... ?> e de comentários, a RAIZ é <kml (nada de DOCTYPE nem de outra raiz).
+ * Recusa <script em qualquer ponto do texto recebido (a rota passa o arquivo inteiro) e raiz/namespace XHTML; <html dentro de <description> passa.
+ */
+export function kmlValido(texto: string): boolean {
+  let t = texto.replace(/^\uFEFF/, '');
+  for (;;) {
+    t = t.trimStart();
+    if (t.startsWith('<?')) { const f = t.indexOf('?>'); if (f < 0) return false; t = t.slice(f + 2); continue; }
+    if (t.startsWith('<!--')) { const f = t.indexOf('-->'); if (f < 0) return false; t = t.slice(f + 3); continue; }
+    break;
+  }
+  if (!/^<kml[\s>/]/.test(t)) return false;
+  // O HTML dentro de <description> (CDATA do Google Earth) é normal e o link sai como download: só <script (em qualquer ponto) e a raiz em XHTML são recusados.
+  const raiz = t.slice(0, t.indexOf('>') + 1);
+  return !/<\s*script\b/i.test(t) && !/xhtml/i.test(raiz);
+}
+
+/** Este tipo precisa do arquivo INTEIRO para conferir a assinatura (o KML é texto: o perigo pode estar em qualquer ponto). */
+export const assinaturaPedeArquivoInteiro = (mime: string): boolean => mime === 'application/vnd.google-earth.kml+xml';
+
 /** A assinatura (primeiros bytes) do arquivo bate com o tipo? JPEG FF D8 FF, PNG 89 50 4E 47, WebP RIFF....WEBP, PDF %PDF. */
 export function assinaturaBate(mime: string, b: Uint8Array): boolean {
   const ascii = (de: number, n: number): string => Buffer.from(b.subarray(de, de + n)).toString('latin1');
@@ -378,6 +429,9 @@ export function assinaturaBate(mime: string, b: Uint8Array): boolean {
     case 'image/png': return b.length >= 4 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
     case 'image/webp': return b.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP';
     case 'application/pdf': return b.length >= 4 && ascii(0, 4) === '%PDF';
+    // KMZ é um ZIP (PK 03 04); KML é XML (com ou sem BOM e espaços antes de `<?xml` ou `<kml`).
+    case 'application/vnd.google-earth.kmz': return b.length >= 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
+    case 'application/vnd.google-earth.kml+xml': return kmlValido(Buffer.from(b).toString('utf8'));
     default: return false;
   }
 }

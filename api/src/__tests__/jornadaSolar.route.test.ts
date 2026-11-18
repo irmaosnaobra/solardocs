@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
   aloc: { chamadas: [] as any[], resultado: { ok: true, acao: 'criou', codigo: '#0070' } as any },
   tique: 0,
   fetchs: 0,
+  disparos: [] as Array<{ card: number; nome: string }>,
 }));
 
 const jsonb = (v: unknown): unknown => {
@@ -126,6 +127,11 @@ vi.mock('../services/gerador/cadastroVenda', async (orig) => ({
     v: 1, alteracoes: [], em: null,
     campos: Object.fromEntries(Object.entries(h.cad).map(([k, valor]) => [k, { valor, por: 'nilce', em: '2026-11-01T10:00:00.000Z', fonte: 'manual' }])),
   }),
+}));
+// O Trello automático é provado à parte (trelloAutomatico.test.ts): aqui só se confere QUEM o dispara e QUANDO.
+vi.mock('../routes/geradorJornadaTrelloAuto', () => ({
+  dispararTrelloAutomatico: (card: { id: number }, quem: { nome: string }) => { h.disparos.push({ card: card.id, nome: quem.nome }); },
+  tentarTrelloAutomatico: async () => ({ acao: 'nao_pronto', falta: [] }),
 }));
 vi.mock('../routes/geradorClientesDocs', async (orig) => ({
   ...(await orig<typeof import('../routes/geradorClientesDocs')>()),
@@ -234,7 +240,7 @@ beforeEach(() => {
     { codigo: 'P1', cliente_nome: 'Cliente Inventado', cliente_cidade: 'Uberlândia', consultor_nome: 'Nilce', kwp: 8.25, created_at: '2026-10-25T10:00:00.000Z', tipo: 'solar', vendido: false, tel: '34999990001', tel2: null, qtd_placas: 14, inversor: 'Growatt 10K', qtd_inversor: 1, dados: { tab: { mod: 'Canadian CS7N', pot: 590 } } },
     { codigo: 'P2', cliente_nome: 'Cliente Inventado', cliente_cidade: 'Uberlândia', consultor_nome: 'Carla', kwp: 5, created_at: '2026-10-25T10:00:00.000Z', tipo: 'solar', vendido: false, tel: '34999990001', tel2: null, dados: {} },
   ];
-  h.linhas = new Map(); h.priv = new Map(); h.cad = {}; h.obrasPlanilha = []; h.planilhaCai = false; h.tique = 0; h.fetchs = 0;
+  h.linhas = new Map(); h.priv = new Map(); h.cad = {}; h.obrasPlanilha = []; h.planilhaCai = false; h.tique = 0; h.fetchs = 0; h.disparos = [];
   h.aloc.chamadas = []; h.aloc.resultado = { ok: true, acao: 'criou', codigo: '#0070' };
   process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste';
   process.env.TRELLO_KEY = 'chave-trello-falsa'; process.env.TRELLO_TOKEN = 'token-trello-falso';
@@ -376,7 +382,7 @@ describe('venda e proposta', () => {
     expect((await post('/jornada-solar/obra/304/proposta', { codigo: 'P1' })).status).toBe(200);
     expect(h.propostas.find((p) => p.codigo === 'P1')).toMatchObject({ vendido: true, valor_vendido: 500, forma_pagamento: 'cartao' });
   });
-  it('preencher: o arquivo que a Planilha (#NNNN) já tem conta no portão da etapa 1, com a origem; contrato e procuração não contam', async () => {
+  it('preencher: o arquivo que a Planilha (#NNNN) já tem conta no portão da etapa 2, com a origem; contrato e procuração não contam', async () => {
     semear(304);
     const { assinarLigacao } = await import('../services/gerador/vendaSolarHub');
     const lig = { proposta: null, venda: '#0057', por: 'nilce', em: AGORA };
@@ -389,7 +395,7 @@ describe('venda e proposta', () => {
     const res = await obra(304);
     expect(res.status).toBe(200);
     const item = (n: number, chave: string) => res.body.etapas[n - 1].itens.find((i: any) => i.chave === chave);
-    expect(item(1, 'fachada').feito).toBe(true);
+    expect(item(2, 'fachada').feito).toBe(true);
     expect(item(2, 'contrato_assinado').feito).toBe(false);
     expect(res.body.origem_slots).toEqual({ fachada: 'planilha' });
     expect(res.body.slots.contrato_assinado).toBe(false);
@@ -412,7 +418,7 @@ describe('venda e proposta', () => {
     const g = await obra(304, GIOVANNA);
     expect(g.status).toBe(200);
     expect(g.body.slots.fachada).toBe(true);
-    expect(g.body.etapas[0].itens.find((i: any) => i.chave === 'fachada').feito).toBe(true);
+    expect(g.body.etapas[1].itens.find((i: any) => i.chave === 'fachada').feito).toBe(true);
     expect(g.body.origem_slots).toEqual({});
     expect(JSON.stringify(g.body)).not.toContain('"planilha"');
     const t = await obra(304, THIAGO);
@@ -439,11 +445,17 @@ describe('concluir a etapa', () => {
     expect(falta.body.falta.length).toBeGreaterThan(5);
     expect((await post('/jornada-solar/obra/304/etapa', { etapa: 1 }, GIOVANNA)).status).toBe(403);
     expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA)).status).toBe(409);   // não é a da vez
-    semear(304, concluida1);
-    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA)).status).toBe(409);   // faltam os papéis
+    semear(304, (e) => { concluida1(e); e.etapas[1].excedente = 'nao'; });
+    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA)).status).toBe(409);   // faltam os documentos, as fotos e a procuração
     anexos(304, ['contrato_assinado', 'procuracao']);
+    const quase = await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA);
+    expect(quase.status).toBe(409);
+    expect(quase.body.falta.map((i: any) => i.chave)).toEqual(['documento', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor']);   // o par assinado já está anexado
+    expect(h.disparos).toEqual([]);
+    anexos(304, ['contrato_assinado', 'procuracao', 'documento_titular', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor']);
     const ok = await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA);
     expect(ok.status).toBe(200);
+    expect(h.disparos).toEqual([{ card: 304, nome: 'giovanna' }]);   // o Trello automático foi pedido, depois do número
     expect(ok.body).toMatchObject({ etapa_atual: 3, numero: { ok: true, codigo: '#0070' } });
     expect(h.aloc.chamadas).toEqual([{ novo: true, card: 304 }]);
     expect(estadoGravado(304)!.etapas[3].aberta_em).not.toBeNull();
@@ -628,6 +640,98 @@ describe('etapa 3 e a forja', () => {
     expect(e.card).toBe(304);
     // a Carla não ganha acesso por um estado que diz vendedor carla
     expect((await obra(304, CARLA)).status).toBe(404);
+  });
+});
+
+describe('fases 1 a 3 (18/11/2026): permissões e o Trello automático', () => {
+  const cadastroBase = () => {
+    h.cad = { nome: 'Marcos Andrade', cpf_cnpj: '52998224725', endereco: 'Rua A, 10', bairro: 'Centro', cidade: 'Uberlândia', uf: 'MG', unidade_consumidora: '3012345678', endereco_ponto: 'Rua A, 10' };
+    h.priv.set('vendasolar/304.jornada.json', JSON.stringify({ v: 1, venda: { valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: '' }], desconto_centavos: null, prazo_prometido: 'x', nota: '', kit_confirmado: false, combinado_por: 'nilce', combinado_em: AGORA, editado: [] }, cancelamento: null, descancelamentos: [] }));
+  };
+  const na3 = (e: EstadoJornada): void => {
+    concluida1(e); e.etapas[2].concluida_em = AGORA; e.etapas[2].concluida_por = 'giovanna'; e.etapas[3].aberta_em = AGORA;
+  };
+  it('gerar_papeis vale com a etapa 1 ABERTA (o vendedor gera o contrato antes de concluir) e continua recusando quem não pode, cancelada e conta fechada', async () => {
+    semear(304); cadastroBase();
+    const aberta = await obra(304);
+    expect(aberta.body.pode.gerar_papeis).toBe(true);
+    const x = await post('/jornada-solar/obra/304/papel', { tipo: 'contrato' });
+    expect(x.status).toBe(200);
+    expect(estadoGravado(304)!.etapas[2].papeis.contrato).toMatchObject({ por: 'nilce' });
+    expect(estadoGravado(304)!.etapas[1].concluida_em).toBeNull();
+    // o item da etapa 1 enxerga o papel gerado
+    const item = (await obra(304)).body.etapas[0].itens.find((i: any) => i.chave === 'papel_contrato');
+    expect(item).toMatchObject({ bloco: 'papeis', texto: 'Contrato gerado', feito: true });
+    expect((await post('/jornada-solar/obra/304/papel', { tipo: 'contrato' }, DIEGO)).status).toBe(403);
+    semear(304, (e) => { e.cancelada = { em: AGORA, por: 'thiago', etapa: 1, com_numero: false }; });
+    expect((await obra(304)).body.pode.gerar_papeis).toBe(false);
+  });
+  it('marcar_excedente vale enquanto a etapa 2 não conclui (com a etapa 1 aberta ou concluída) e fecha depois', async () => {
+    semear(304);
+    expect((await obra(304)).body.pode.marcar_excedente).toBe(true);
+    expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' })).status).toBe(200);
+    semear(304, concluida1);
+    expect((await obra(304)).body.pode.marcar_excedente).toBe(true);
+    expect((await patch('/jornada-solar/obra/304', { excedente: 'nao' })).status).toBe(200);
+    expect(estadoGravado(304)!.etapas[1].excedente).toBe('nao');
+    expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' }, DIEGO)).status).toBe(403);
+    expect((await obra(304, GIOVANNA)).body.pode.marcar_excedente).toBe(true);
+    expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' }, GIOVANNA)).status).toBe(200);
+    expect(estadoGravado(304)!.etapas[1].excedente).toBe('sim');
+    semear(304, na3);
+    expect((await patch('/jornada-solar/obra/304', { excedente: 'nao' }, GIOVANNA)).status).toBe(403);
+    expect((await obra(304)).body.pode.marcar_excedente).toBe(false);
+    expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' })).status).toBe(403);
+  });
+  it('kit: confirmar na etapa 3 funciona (Giovanna), o PUT pede o Trello automático, e o GET diz pode.confirmar_kit só até a etapa 3 concluir', async () => {
+    semear(304, na3); cadastroBase();
+    const g = await obra(304, GIOVANNA);
+    expect(g.body.pode).toMatchObject({ confirmar_kit: true, editar_venda: true });
+    expect((await obra(304)).body.pode.confirmar_kit).toBe(false);   // a Nilce não mexe na venda depois da etapa 1: mesma regra de hoje
+    const kitFalso = await put('/jornada-solar/obra/304/venda', { ...PAGAMENTO, valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: '' }], prazo_prometido: 'x', kit_confirmado: false }, GIOVANNA);
+    expect(kitFalso.status).toBe(200);
+    expect(h.disparos).toEqual([]);   // kit não confirmado: nada a disparar
+    const ok = await put('/jornada-solar/obra/304/venda', { valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: '' }], prazo_prometido: 'x', kit_confirmado: true }, GIOVANNA);
+    expect(ok.status).toBe(200);
+    expect(ok.body.venda.kit_confirmado).toBe(true);
+    expect(h.disparos).toEqual([{ card: 304, nome: 'giovanna' }]);
+    expect(ok.body.venda.editado.at(-1)).toMatchObject({ campos: ['kit'] });   // só o kit mudou: valor, pagamento e prazo ficaram como estavam
+    expect((await put('/jornada-solar/obra/304/venda', { ...PAGAMENTO }, DIEGO)).status).toBe(403);
+    semear(304, (e) => { na3(e); e.etapas[3].concluida_em = AGORA; });
+    expect((await obra(304, GIOVANNA)).body.pode.confirmar_kit).toBe(false);
+    // etapa 3 concluída: o PUT recusa MUDAR o kit (desfazer), mas segue aceitando a venda com o kit como estava
+    const desfaz = await put('/jornada-solar/obra/304/venda', { valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: '' }], prazo_prometido: 'x', kit_confirmado: false }, GIOVANNA);
+    expect(desfaz.status).toBe(403);
+    expect(JSON.parse(h.priv.get('vendasolar/304.jornada.json')!).venda.kit_confirmado).toBe(true);
+    const mantem = await put('/jornada-solar/obra/304/venda', { valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: '' }], prazo_prometido: 'y', kit_confirmado: true }, GIOVANNA);
+    expect(mantem.status).toBe(200);
+  });
+  it('GET: trello_auto diz o que falta (pronto: false) e dados_cliente leva os 4 campos do bloco cliente', async () => {
+    semear(304, na3); cadastroBase();
+    h.cad.telefone = '34999990000'; h.cad.email = 'a@b.c';
+    const r = await obra(304, GIOVANNA);
+    expect(r.body.trello_auto).toEqual({
+      pronto: false, falta: ['Todo o equipamento confirmado', 'Datasheet da placa', 'Datasheet do inversor', 'KMZ do local', 'Número da venda'],
+    });
+    expect(r.body.dados_cliente).toEqual({ nome: 'Marcos Andrade', endereco_ponto: 'Rua A, 10', telefone: '34999990000', email: 'a@b.c' });
+    expect(r.body.slots).toMatchObject({ kmz: false, datasheet_modulo: false, datasheet_inversor: false, conta_luz_beneficiaria: false });
+    expect(r.body.etapas[0].nome).toBe('Venda');
+    expect(r.body.etapas[0].itens.map((i: any) => i.chave)).not.toContain('contrato_assinado');
+    expect(r.body.etapas[1].itens.slice(-2).map((i: any) => [i.bloco, i.chave])).toEqual([['portao', 'contrato_assinado'], ['portao', 'procuracao']]);
+    expect(r.body.kit_vendido).toBeNull();   // sem proposta ligada
+    const { assinarLigacao } = await import('../services/gerador/vendaSolarHub');
+    const lig = { proposta: 'P1', venda: null, por: 'nilce', em: AGORA };
+    h.linhas.set('venda_solar:304', { updated_at: 'v', value: { ...lig, sig: assinarLigacao(304, lig) } });
+    expect((await obra(304, GIOVANNA)).body.kit_vendido).toEqual({ placas: '14 × Canadian CS7N 590 W', inversor: '1 × Growatt 10K', kwp: 8.26 });
+    expect(r.body.etapas[1].nome).toBe('Documentos e vistoria');
+    expect(r.body.etapas[2].itens.slice(0, 4).map((i: any) => i.chave)).toEqual(['kit', 'datasheet_modulo', 'datasheet_inversor', 'kmz']);
+  });
+  it('blocoVendaCompleto sem o kit: com proposta, valor e prazo, ligar a proposta já conta como venda completa', async () => {
+    semear(304); cadastroBase();
+    const { lerJornadaComVersao } = await import('../services/gerador/jornadaSolarBanco');
+    expect((await post('/jornada-solar/obra/304/proposta', { codigo: 'P1' })).status).toBe(200);
+    const estado = (await lerJornadaComVersao(304)).estado!;
+    expect(estado.historico.some((x) => x.acao === 'venda_completa')).toBe(true);
   });
 });
 

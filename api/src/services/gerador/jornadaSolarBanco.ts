@@ -73,6 +73,7 @@ export function normalizarJornada(card: number, value: unknown): EstadoJornada |
   const tre = obj(e3.trello);
   const treUrl = tre && typeof tre.url === 'string' && /^https:\/\/trello\.com\/c\/[A-Za-z0-9]{6,12}$/.test(tre.url) ? tre.url : null;
   const treEm = tre ? dataIso(tre.criado_em) : null;
+  const treCompl = tre ? dataIso(tre.completado_em) : null;
 
   const esp = obj(o.esperando);
   const espMotivo = esp && MOTIVOS_ESPERA.includes(esp.motivo as MotivoEspera) ? esp.motivo as MotivoEspera : null;
@@ -110,7 +111,7 @@ export function normalizarJornada(card: number, value: unknown): EstadoJornada |
         rateio: rat && ratEm && ratMarca ? { conferido_em: ratEm, por: nome(rat.por), marca: ratMarca } : null,
         protocolo: prot && protNum && protEm ? { numero: protNum, em: protEm } : null,
         engenheiro: e3.engenheiro === 'pago' ? 'pago' : e3.engenheiro === 'a_pagar' ? 'a_pagar' : null,
-        trello: tre && treUrl && treEm ? { url: treUrl, criado_em: treEm, por: nome(tre.por) } : null,
+        trello: tre && treUrl && treEm ? { url: treUrl, criado_em: treEm, por: nome(tre.por), ...(treCompl ? { completado_em: treCompl } : {}) } : null,
       },
       4: { aberta_em: dataIso(e4.aberta_em) },
     },

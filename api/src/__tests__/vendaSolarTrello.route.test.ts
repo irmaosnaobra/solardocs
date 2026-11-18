@@ -179,6 +179,20 @@ vi.mock('../utils/supabase', () => ({
           h.linhas.set(l.key, { value: l.value, updated_at: l.key.startsWith('cadastro_trava:') ? String(l.updated_at) : stamp() });
           return { error: null };
         },
+        // Compare-and-swap do `mudarJornada`: `update(...).eq('key', k).eq('updated_at', versão).select('key')`.
+        update: (v: { value: unknown }) => ({
+          eq: (_c: string, k: string) => {
+            const swap = (ok: (l: { updated_at: string }) => boolean) => ({
+              select: async () => {
+                const l = h.linhas.get(k);
+                if (!l || !ok(l)) return { data: [], error: null };
+                h.linhas.set(k, { value: v.value, updated_at: stamp() });
+                return { data: [{ key: k }], error: null };
+              },
+            });
+            return { eq: (_c2: string, versao: string) => swap((l) => l.updated_at === versao), is: () => swap(() => false) };
+          },
+        }),
         upsert: async (l: { key: string; value: unknown }) => { h.linhas.set(l.key, { value: l.value, updated_at: stamp() }); return { error: null }; },
         delete: () => ({
           eq: (_c: string, k: string) => ({
@@ -832,10 +846,11 @@ describe('cartão novo', () => {
     ]);
     const previa = await trello(201, { previa: true });
     expect(previa.body.anexos.map((a: any) => a.slot)).not.toContain('outros');
-    expect(previa.body.anexos.map((a: any) => a.slot)).toContain('contrato_assinado');
+    expect(previa.body.anexos.map((a: any) => a.slot)).not.toContain('contrato_assinado');   // o contrato fica arquivado: não segue para a homologação
     const res = await trello(201, {});
-    expect(res.body.anexos.enviados).toBe(6);
+    expect(res.body.anexos.enviados).toBe(5);
     expect(anexosEnviados().map((a) => a.nome)).not.toContain('Outros documentos.pdf');
+    expect(anexosEnviados().map((a) => a.nome)).not.toContain('Contrato assinado.pdf');
   });
 
   it('dois pedidos juntos (clique duplo) não duplicam cartão, checklist nem anexo: ou o segundo espera e vê tudo pronto, ou volta 409', async () => {
@@ -1414,5 +1429,119 @@ describe('dossiê da proposta com o quadro público', () => {
     const res = await enviar();
     expect(res.status).toBe(200);
     expect(res.body.anexos_bloqueados).toBeUndefined();
+  });
+});
+
+describe('Trello automático da Jornada (o caminho de verdade, não o botão simulado)', () => {
+  beforeEach(() => { process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste'; });   // a obra grava estado assinado (o afterEach geral o apaga)
+
+  const jsonb = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(jsonb);
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a.length - b.length) || (a < b ? -1 : 1)).map(([k, x]) => [k, jsonb(x)]));
+    return v;
+  };
+  const semear = async () => {
+    const { estadoMaterializado } = await import('../services/gerador/jornadaSolar');
+    const { assinarJornada, normalizarJornada, reiniciarLogsDaJornada } = await import('../services/gerador/jornadaSolarBanco');
+    reiniciarLogsDaJornada();
+    const e = normalizarJornada(201, { ...estadoMaterializado(201, 'Nilce', 3, '2026-10-20T10:00:00.000Z'), origem: 'vendido', vendido_em: '2026-10-20T10:00:00.000Z', vendido_por: 'nilce' })!;
+    h.linhas.set('jornada_solar:201', { updated_at: 'j0', value: jsonb({ ...e, sig: assinarJornada(201, e) }) });
+    h.cad.set('vendasolar/201.jornada.json', Buffer.from(JSON.stringify({
+      v: 1, cancelamento: null, descancelamentos: [],
+      venda: { valor_centavos: 100, pagamento: [{ forma: 'pix', valor_centavos: 100, obs: '' }], desconto_centavos: null, prazo_prometido: 'x', nota: '', kit_confirmado: true, combinado_por: 'nilce', combinado_em: '2026-10-20T10:00:00.000Z', editado: [] },
+    })));
+  };
+  const KMZ = 'application/vnd.google-earth.kmz';
+  const completo = () => anexa(201, [
+    { slot: 'padrao', mime: 'image/jpeg', ext: 'jpg' }, { slot: 'contrato_assinado', mime: 'application/pdf', ext: 'pdf' }, { slot: 'procuracao', mime: 'application/pdf', ext: 'pdf' },
+    { slot: 'datasheet_modulo', mime: 'application/pdf', ext: 'pdf' }, { slot: 'datasheet_inversor', mime: 'application/pdf', ext: 'pdf' }, { slot: 'kmz', mime: KMZ, ext: 'kmz' },
+  ]);
+  const cartao201 = () => h.cards.find((c) => c.id === 201) as never;
+
+  it('o que sobe ao cartão: as 4 fotos, a procuração ASSINADA, os datasheets e o KMZ; fora ficam contrato assinado, recibo, papéis gerados, outros e os documentos de terceiros', async () => {
+    venda201();
+    const foto = (slot: string) => ({ slot, mime: 'image/jpeg', ext: 'jpg' });
+    const pdf = (slot: string) => ({ slot, mime: 'application/pdf', ext: 'pdf' });
+    anexa(201, [
+      foto('fachada'), foto('padrao'), foto('disjuntor'), foto('medidor'), pdf('procuracao'), pdf('contrato_assinado'), pdf('recibo'),
+      pdf('outros'), pdf('documento_financiamento'), pdf('documento_imovel'),
+    ]);
+    const previa = await trello(201, { previa: true });
+    const slots = previa.body.anexos.map((a: any) => a.slot);
+    expect(slots).toEqual(expect.arrayContaining(['fachada', 'padrao', 'disjuntor', 'medidor', 'procuracao', 'documento_imovel']));
+    for (const fora of ['contrato_assinado', 'recibo', 'outros', 'documento_financiamento']) {
+      expect(slots, fora).not.toContain(fora);
+    }
+  });
+  it('cria o cartão sozinho: NÃO anexa o contrato assinado, anexa o KMZ (e a procuração), marca o item KMZ e registra o cartão na obra', async () => {
+    venda201(); await semear(); completo();
+    const { tentarTrelloAutomatico } = await import('../routes/geradorJornadaTrelloAuto');
+    expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'criou' });
+    const nomes = anexosEnviados().map((a) => a.nome);
+    expect(nomes).toEqual(expect.arrayContaining(['KMZ do local.kmz', 'Procuração assinada.pdf', 'Datasheet dos módulos.pdf']));
+    expect(nomes).not.toContain('Contrato assinado.pdf');
+    const cartoes = t.quadro.cards.filter((c: any) => /Ana Souza/.test(c.name));
+    expect(cartoes).toHaveLength(1);
+    const back = t.checklists.get(cartoes[0].id)![0];
+    expect(Object.fromEntries(back.checkItems.map((i: any) => [i.name, i.state])).KMZ).toBe('complete');
+    const { lerJornadaComVersao } = await import('../services/gerador/jornadaSolarBanco');
+    expect((await lerJornadaComVersao(201)).estado!.etapas[3].trello).toMatchObject({ url: expect.stringContaining('https://trello.com/c/') });
+    // a segunda chamada vê o cartão: nada novo no Trello
+    t.chamadas = [];
+    expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'ja_tem' });
+    expect(t.chamadas).toEqual([]);
+  });
+  it('cartão que JÁ existe (criado cedo pelo botão): completa uma vez só: anexa o que faltava (sem repetir e sem o contrato), marca o KMZ, atualiza a ficha e grava completado_em', async () => {
+    venda201(); await semear();
+    anexa(201, [{ slot: 'padrao', mime: 'image/jpeg', ext: 'jpg' }, { slot: 'medidor', mime: 'image/jpeg', ext: 'jpg' }, { slot: 'contrato_assinado', mime: 'application/pdf', ext: 'pdf' }]);
+    const { tentarTrelloAutomatico } = await import('../routes/geradorJornadaTrelloAuto');
+    const { lerJornadaComVersao } = await import('../services/gerador/jornadaSolarBanco');
+    // 1. o cartão nasce cedo, pelo botão (só com o que havia)
+    const cedo = await trello(201, {});
+    expect(cedo.status).toBe(200);
+    const id = cedo.body.cartao.id;
+    expect((await lerJornadaComVersao(201)).estado!.etapas[3].trello).toMatchObject({ url: expect.any(String) });
+    expect((await lerJornadaComVersao(201)).estado!.etapas[3].trello!.completado_em).toBeUndefined();
+    expect(anexosEnviados().map((a) => a.nome)).not.toContain('Contrato assinado.pdf');
+    const antes = anexosEnviados().length;
+    // 2. chegam os datasheets e o KMZ; o automático completa o MESMO cartão
+    completo();
+    t.chamadas = [];
+    expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'completou' });
+    expect(t.quadro.cards.filter((c: any) => /Ana Souza/.test(c.name))).toHaveLength(1);   // nenhum cartão novo
+    const nomes = anexosEnviados().map((a) => a.nome);
+    expect(nomes).toEqual(expect.arrayContaining(['KMZ do local.kmz', 'Datasheet dos módulos.pdf', 'Datasheet do inversor.pdf']));
+    expect(nomes).not.toContain('Contrato assinado.pdf');
+    expect(nomes.filter((n) => n === 'Foto do padrão de entrada.jpg')).toHaveLength(0);   // o que já estava no cartão não sobe de novo
+    expect(anexosEnviados().length).toBeGreaterThan(0);
+    expect(antes).toBeGreaterThan(0);
+    const back = t.checklists.get(id)![0];
+    expect(Object.fromEntries(back.checkItems.map((i: any) => [i.name, i.state])).KMZ).toBe('complete');
+    expect(t.chamadas.some((c) => /comments|actions/.test(c.caminho))).toBe(true);   // a ficha foi atualizada
+    expect((await lerJornadaComVersao(201)).estado!.etapas[3].trello!.completado_em).toEqual(expect.any(String));
+    // 3. de novo: nada (idempotente)
+    t.chamadas = [];
+    expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'ja_tem' });
+    expect(t.chamadas).toEqual([]);
+  });
+  it('cartão PARECIDO no quadro: desiste (não cria nada), marca a parada e o GET fala em "Confira os cartões parecidos no botão do Trello"', async () => {
+    venda201(); await semear(); completo();
+    t.quadro.cards.push(cartaoTrello('c'.repeat(24), '#0099 - Ana Souza Oliveira - Uberlândia MG'));
+    const antes = t.quadro.cards.length;
+    const { tentarTrelloAutomatico } = await import('../routes/geradorJornadaTrelloAuto');
+    const r = await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false });
+    expect(r).toEqual({ acao: 'parecidos' });
+    expect(t.quadro.cards).toHaveLength(antes);
+    expect(t.chamadas.some((c) => c.metodo === 'POST' && /\/cards$/.test(c.caminho))).toBe(false);
+    expect(anexosEnviados()).toHaveLength(0);
+    const { lerJornadaComVersao } = await import('../services/gerador/jornadaSolarBanco');
+    const estado = (await lerJornadaComVersao(201)).estado!;
+    expect(estado.historico.some((x) => x.acao === 'trello_auto_parou')).toBe(true);
+    expect(estado.etapas[3].trello).toBeNull();
+    const { estadoTrelloAuto, MSG_TRELLO_AUTO_PAROU } = await import('../services/gerador/jornadaSolar');
+    const f = { lig: { proposta: 'P1', venda: '#0061' }, slots: new Set(['datasheet_modulo', 'datasheet_inversor', 'kmz']), cad: { v: 1, campos: {}, alteracoes: [], em: null } as never, privado: null, estado };
+    expect(estadoTrelloAuto({ ...f, privado: { v: 1, cancelamento: null, descancelamentos: [], trazidas: [], venda: { valor_centavos: 100, pagamento: [], desconto_centavos: null, prazo_prometido: 'x', nota: '', kit_confirmado: true, combinado_por: 'a', combinado_em: 'a', editado: [] } }, estado }, true))
+      .toEqual({ pronto: false, falta: [MSG_TRELLO_AUTO_PAROU] });
+    expect(MSG_TRELLO_AUTO_PAROU).toBe('Confira os cartões parecidos no botão do Trello');
   });
 });
