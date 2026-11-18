@@ -108,14 +108,15 @@ function cobrancaGuardada(): Cobranca | null {
 interface Props {
   origem: string; // 'retomada' quando a LP abriu sozinha com um contrato guardado
   whatsappUrl: string; // https://wa.me/<número da 5040>
+  emailInicial?: string; // já validado pela LP (link de recuperação com ?email=)
   onFechar: () => void;
   onCartao?: () => void; // fecha o modal e vai ao checkout do cartão
 }
 
 type FbqWindow = Window & { fbq?: (...args: unknown[]) => void };
 
-export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar, onCartao }: Props) {
-  const [email, setEmail] = useState('');
+export default function PixAutomaticoModal({ origem, whatsappUrl, emailInicial = '', onFechar, onCartao }: Props) {
+  const [email, setEmail] = useState(() => (EMAIL_RE.test(emailInicial) ? emailInicial : ''));
   const [fone, setFone] = useState('');
   const [doc, setDoc] = useState('');
   const [erroEmail, setErroEmail] = useState('');
@@ -207,7 +208,8 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar, onCa
     const abriu = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    campoEmail.current?.focus();
+    // E-mail já veio do link: o foco vai direto ao WhatsApp, o próximo campo.
+    if (campoEmail.current?.value) document.getElementById('pix-fone')?.focus(); else campoEmail.current?.focus();
     if (!jaMediu.current) {
       jaMediu.current = true;
       if (origem !== 'retomada') registrarEvento('pix_abriu', { tela: 'lp', origem });

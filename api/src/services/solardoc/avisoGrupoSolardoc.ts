@@ -38,16 +38,24 @@
 //    entra no texto.
 //  - Pendente com mais de 24 h não some calado: vira e-mail e `expirado`.
 //  - Lead de teste (utm_source = 'raio-x-teste') nunca gera aviso.
+//  - SEM id de grupo (18/11/2026, decisão do dono): o destino passa a ser a GIOVANNA (telefone da tabela `consultores`, conferido: 10 a 13 dígitos;
+//    sem telefone dela, ou com a leitura falha, o dono, com uma linha no começo dizendo para encaminhar), por `sendWhatsApp(tel, texto, 'io')`, o molde de
+//    agentes5040/fichaEnvio.ts. Valem o mesmo claim, a vez, o cartão de 10 min, 1 bolha por envio, os tetos de 12 e de 40 por hora, o espaçamento, a trava
+//    de 4xx e a pausa da linha, a expiração de 24 h e, SÓ para a Giovanna, a janela de 9h às 20h de Brasília (fora dela o aviso fica `pendente`).
+//    A duplicata `compra_<canal>` NUNCA vai à Giovanna (a venda já chega a Thiago e Diego por vendaAviso.ts): sem grupo ela grava `sem_grupo` e fica ali.
+//    Claim antigo `sem_grupo` é terminal: nada o reenvia.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendOpsAlert } from '../../utils/mailer';
-import { sendToGroup, linhaEmCooldown } from '../agents/zapiClient';
+import { sendToGroup, sendWhatsApp, linhaEmCooldown } from '../agents/zapiClient';
+import { carregarTelefonesConsultores, telefoneDoConsultor, telefoneDoDono } from '../agentes5040/fichaEnvio';
 import { prefixosTotalDaLinha, PREFIXOS_AGENDA } from '../agents/whatsapp/lineThrottle';
 import { classificarErroEnvio } from '../chefe/decidir';
 import { hmacDe } from '../agentes5040/hmac';
+import { horaBRT as horaBRTRelogio } from '../agentes5040/relogio';
 import { pessoaDoContratoIdPagou } from './pixPendentePagou';
 import { vendasRecentes, type VendasRecentes } from './compraQuizSolardoc';
 import { chaveDoTelefone, codigoDoQuiz, leadIdDoQuiz, normalizarTelefoneSd } from './quizSolardoc';
@@ -110,6 +118,38 @@ export function grupoVendas(): string {
   }
   return id;
 }
+
+/** Para onde o aviso vai: o grupo (id configurado) ou, sem grupo, a Giovanna (ou o dono, quando falta o telefone dela). */
+export type DestinoAviso = { tipo: 'grupo'; id: string } | { tipo: 'giovanna'; tel: string; paraDono: boolean };
+
+const AVISO_SEM_TEL_GIOVANNA = 'Sem telefone da Giovanna agora. Encaminhe este aviso a ela.';
+const telefoneValido = (t: unknown): boolean => /^\d{10,13}$/.test(dig(t));
+
+/**
+ * O destino de agora, ou null (sem grupo e sem telefone nenhum: o aviso fica `sem_grupo`). Lido a cada chamada. Nunca lança.
+ * Sem grupo: a Giovanna (tabela `consultores`, com o reserva de fichaEnvio.ts) com o telefone conferido; sem o telefone dela ou com a leitura
+ * falha, o dono (vivo.ts:2118-2121), e o envio leva o motivo na 1ª linha.
+ */
+export async function destinoDosAvisos(): Promise<DestinoAviso | null> {
+  const id = grupoVendas();
+  if (id) return { tipo: 'grupo', id };
+  try {
+    const t = await carregarTelefonesConsultores();
+    const daGiovanna = t.ok ? telefoneDoConsultor(t.mapa, 'Giovanna') : null;
+    if (daGiovanna && telefoneValido(daGiovanna)) return { tipo: 'giovanna', tel: dig(daGiovanna), paraDono: false };
+    const dono = telefoneDoDono();
+    return telefoneValido(dono) ? { tipo: 'giovanna', tel: dig(dono), paraDono: true } : null;
+  } catch (e) {
+    logger.warn('solardoc-aviso', 'achar o destino do aviso falhou', { erro: String(e) });
+    return null;
+  }
+}
+
+/** A janela de envio para a Giovanna: 9h até antes das 20h, hora de Brasília. */
+export const dentroDaJanelaDaGiovanna = (ms: number = Date.now()): boolean => { const h = horaBRTRelogio(ms); return h >= 9 && h < 20; };
+
+/** Compra (Stripe, Asaas e comprovante): só vai ao GRUPO. A venda já chega a Thiago e Diego por vendaAviso.ts, então a Giovanna não recebe a duplicata. */
+const ehCompra = (tipo: unknown, chave?: string): boolean => String(tipo ?? '').startsWith('compra_') || String(chave ?? '').startsWith(PREFIXO_CLAIM_COMPRA);
 
 // ── o lead do quiz ───────────────────────────────────────────────────────────
 
@@ -478,11 +518,11 @@ const status4xx = (e: unknown): string | null => {
 };
 
 /**
- * O envio físico ao grupo: carimbo da linha antes. Falhou: o carimbo FICA (5xx e timeout podem ter saído). Erro de linha
+ * O envio físico ao grupo (ou, sem grupo, à Giovanna, pela mesma linha 'io'): carimbo da linha antes. Falhou: o carimbo FICA (5xx e timeout podem ter saído). Erro de linha
  * (classificarErroEnvio diferente de 'destino') conta nos 2 seguidos que pausam a linha; só o 4xx de DESTINO grava a trava de 1 h.
  * Envio ok zera a conta de erros.
  */
-async function enviarAoGrupo(grupo: string, texto: string, chaves: string[] = []): Promise<{ ok: true } | { ok: false; erro: unknown }> {
+async function enviarAoDestino(destino: DestinoAviso, texto: string, chaves: string[] = []): Promise<{ ok: true } | { ok: false; erro: unknown }> {
   const carimbo = `${PREFIXO_CARIMBO_AVISO}${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
   const em = agoraIso();
   // O carimbo leva as chaves dos avisos que vão neste envio: se o envio der certo e o `marcar(enviado)` falhar, o claim fica `novo`/`pendente`
@@ -490,7 +530,8 @@ async function enviarAoGrupo(grupo: string, texto: string, chaves: string[] = []
   const { error: erroCarimbo } = await supabase.from('system_state').insert({ key: carimbo, value: { em, chaves }, updated_at: em });
   if (erroCarimbo) logger.warn('solardoc-aviso', 'carimbo do envio não gravou (envia mesmo assim)', { erro: erroCarimbo.message });
   try {
-    await sendToGroup(grupo, texto, 'io');
+    if (destino.tipo === 'giovanna') await sendWhatsApp(destino.tel, destino.paraDono ? [AVISO_SEM_TEL_GIOVANNA, '', texto].join('\n') : texto, 'io');
+    else await sendToGroup(destino.id, texto, 'io');
   } catch (erro) {
     if (classificarErroEnvio(erro) === 'destino') {
       const st = status4xx(erro);
@@ -523,10 +564,11 @@ async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
   if (r === 'duplicado') return 'duplicado';
   if (r === 'erro') return 'erro';
 
-  const grupo = grupoVendas();
-  if (!grupo) {
+  // Sem grupo, o destino é a Giovanna; a duplicata de compra não vai a ninguém (o grupo é o único destino dela).
+  const destino = ehCompra(o.tipo, o.chave) && !grupoVendas() ? null : await destinoDosAvisos();
+  if (!destino) {
     await marcar(o.chave, o.tipo, 'sem_grupo');
-    logger.warn('solardoc-aviso', `sem id do grupo de vendas: aviso de ${o.tipo} não enviado`);
+    logger.warn('solardoc-aviso', `sem destino para o aviso de ${o.tipo}: não enviado`);
     o.coletorSemGrupo?.push({ chave: o.chave, tipo: o.tipo, texto: o.texto });
     return 'sem_grupo';
   }
@@ -536,6 +578,7 @@ async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
     return 'pendente';
   };
   if (o.soReivindicar) return pendente();
+  if (destino.tipo === 'giovanna' && !dentroDaJanelaDaGiovanna()) return pendente();   // fora de 9h às 20h: espera o cartão da manhã
   const parada = await paradaDoGrupo();
   if (parada && o.urgente && parada.tipo !== 'duvida') {
     await marcarMail(o.chave);   // a marca vai ANTES: se o `marcar` falhar, o claim `novo` velho não vira pendente e não vai ao grupo depois do e-mail
@@ -548,15 +591,15 @@ async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
   if (!(await linhaEspacada())) return pendente();   // antes das chaves: o espaçamento que falha não gasta a vez de ninguém
   if (!(await tomarChave(CHAVE_VEZ_AVULSA, VEZ_ESPERA_MS))) return pendente();
 
-  const env = await enviarAoGrupo(grupo, o.texto, [o.chave]);
+  const env = await enviarAoDestino(destino, o.texto, [o.chave]);
   if (env.ok) {
     await marcar(o.chave, o.tipo, 'enviado');
     return 'enviado';
   }
   await devolverChave(CHAVE_VEZ_AVULSA);
   await marcar(o.chave, o.tipo, 'falhou');
-  logger.error('solardoc-aviso', `envio ao grupo falhou (${o.tipo})`, { erro: String(env.erro) });
-  await emailOps(`Aviso do SolarDoc não chegou ao grupo (${o.tipo})`, o.texto, 'O WhatsApp falhou ao enviar este aviso ao grupo de vendas. Segue o conteúdo:');
+  logger.error('solardoc-aviso', `envio do aviso falhou (${o.tipo})`, { erro: String(env.erro) });
+  await emailOps(`Aviso do SolarDoc não chegou ao destino (${o.tipo})`, o.texto, 'O WhatsApp falhou ao enviar este aviso ao destino (grupo de vendas ou Giovanna). Segue o conteúdo:');
   return 'falhou';
 }
 
@@ -783,13 +826,16 @@ export async function descarregarPendentes(
     );
     for (const p of vencidos) await marcar(p.key, p.value?.tipo ?? 'aviso', 'expirado');
   }
-  const pendentes = todos.filter(r => !vencidos.includes(r));
+  const naFila = todos.filter(r => !vencidos.includes(r));
   const expirados = vencidos.length || undefined;
 
   // 2) O cartão.
-  const grupo = grupoVendas();
-  if (!grupo) return { enviados: 0, expirados, motivo: 'sem_grupo' };
+  const destino = await destinoDosAvisos();
+  if (!destino) return { enviados: 0, expirados, motivo: 'sem_grupo' };
+  // Na Giovanna não vai a duplicata de compra (só o grupo recebe).
+  const pendentes = destino.tipo === 'grupo' ? naFila : naFila.filter(p => !ehCompra(p.value?.tipo, p.key));
   if (!pendentes.length) return { enviados: 0, expirados, motivo: 'nada_pendente' };
+  if (destino.tipo === 'giovanna' && !dentroDaJanelaDaGiovanna()) return { enviados: 0, expirados, motivo: 'fora_da_janela' };
   const parada = await paradaDoGrupo();
   if (parada) {
     // Trava de 4xx ou pausa da linha: desistência e sem vaga não esperam, viram UM e-mail e saem da fila. Compra espera.
@@ -824,11 +870,11 @@ export async function descarregarPendentes(
     incluidos.push(p);
   }
   const texto = incluidos.length === 1 ? incluidos[0]!.value!.texto! : `📋 ${incluidos.length} avisos que esperaram o teto da linha\n\n${corpo}`;
-  const env = await enviarAoGrupo(grupo, texto, incluidos.map(p => p.key));
+  const env = await enviarAoDestino(destino, texto, incluidos.map(p => p.key));
   if (!env.ok) {
     logger.error('solardoc-aviso', 'cartão de pendentes falhou', { erro: String(env.erro) });
     await devolverChave(CHAVE_VEZ_AVULSA);
-    await emailOps('Avisos do SolarDoc não chegaram ao grupo', texto, 'O WhatsApp falhou ao enviar o cartão de avisos pendentes ao grupo de vendas. Segue o conteúdo:');
+    await emailOps('Avisos do SolarDoc não chegaram ao destino', texto, 'O WhatsApp falhou ao enviar o cartão de avisos pendentes ao destino (grupo de vendas ou Giovanna). Segue o conteúdo:');
     for (const p of incluidos) await marcar(p.key, p.value?.tipo ?? 'aviso', 'falhou');
     return { enviados: 0, expirados, motivo: 'falhou' };
   }

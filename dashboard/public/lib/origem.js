@@ -95,6 +95,16 @@
     try { window.localStorage && window.localStorage.setItem(LS_ORIGEM, json); } catch (e) {}
   }
 
+  // O link de recuperação do Pix (/?pagar=pix&email=...) traz o e-mail na URL: ele só preenche o campo e nunca vai para landing_url (a mesma limpeza do useLpTracking.ts).
+  function urlSemEmail(href) {
+    try {
+      var u = new URL(href);
+      if (!u.searchParams.has('email')) return href;
+      u.searchParams.delete('email');
+      return u.toString();
+    } catch (e) { return String(href).replace(/([?&])email=[^&#]*(&|(?=#)|$)/i, function (m, a, b) { return b ? a : ''; }); }
+  }
+
   function tocar() {
     try {
       var url = parametrosDaUrl();
@@ -115,7 +125,7 @@
       }
       if (fbc) conj.fbc = fbc;
 
-      try { conj.landing_url = String(window.location.href || '').slice(0, 500); } catch (e) {}
+      try { conj.landing_url = urlSemEmail(String(window.location.href || '')).slice(0, 500); } catch (e) {}
       try { conj.referrer = String(document.referrer || '').slice(0, 500); } catch (e) {}
       conj.ts = Date.now();
       guardar(conj);

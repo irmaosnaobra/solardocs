@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ── banco em memória: só o suficiente para system_state, leads_meta, sales e users ──
 type Linha = Record<string, any>;
-const tabelas: Record<string, Linha[]> = { system_state: [], leads_meta: [], sales: [], users: [], asaas_pix_assinaturas: [] };
+const tabelas: Record<string, Linha[]> = { system_state: [], leads_meta: [], sales: [], users: [], asaas_pix_assinaturas: [], consultores: [] };
 const DUP = { code: '23505', message: 'duplicate key' };
 const valorDe = (r: Linha, col: string): unknown => {
   if (col.includes('->>')) { const [c, k] = col.split('->>'); return r[c!]?.[k!]; }
@@ -111,6 +111,17 @@ vi.mock('../services/solardoc/recuperacaoCarla', () => ({
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   prefixosTotalDaLinha: () => ['linha_x:'], PREFIXOS_AGENDA: ['agenda_x:'], dentroDaJanelaDaBaseLinha: () => av.janela,
 }));
+// O destino sem grupo (18/11/2026): por padrão NÃO há telefone nenhum (nem da Giovanna, nem do dono), então os testes antigos de "sem grupo" seguem valendo.
+const ficha = vi.hoisted(() => ({ ok: true, giovanna: null as string | null, dono: '' }));
+vi.mock('../services/agentes5040/fichaEnvio', async (original) => {
+  const real = await original<typeof import('../services/agentes5040/fichaEnvio')>();
+  return {
+    ...real,
+    carregarTelefonesConsultores: async () => (ficha.ok ? { ok: true as const, mapa: new Map<string, string>() } : { ok: false as const, codigo: 'x' }),
+    telefoneDoConsultor: () => ficha.giovanna,
+    telefoneDoDono: () => ficha.dono,
+  };
+});
 vi.mock('../services/agentes5040/posse', () => ({ lerPosse: (...a: unknown[]) => av.posse(...a) }));
 
 import {
@@ -162,7 +173,7 @@ const textoDe = (k: string): string => String(chave(k)!.value.texto);
 
 beforeEach(() => {
   for (const k of Object.keys(tabelas)) tabelas[k] = [];
-  falhaSelect = null; pessoas.clear();
+  falhaSelect = null; pessoas.clear(); ficha.ok = true; ficha.giovanna = null; ficha.dono = '';
   sendToGroup.mockReset(); sendWhatsApp.mockClear(); sendOpsAlert.mockClear(); emCooldown.mockReset();
   sendToGroup.mockImplementation(async () => ({ messageId: 'm1' }));
   emCooldown.mockReturnValue(false);
@@ -1501,5 +1512,150 @@ describe('sem id de grupo: o ROBÔ da Carla manda UM e-mail por rodada (27/10), 
     expect(lerFonte('desistenciaQuizTick.ts')).not.toContain('coletorSemGrupo');
     const aviso = lerFonte('avisoGrupoSolardoc.ts');
     expect(aviso.slice(aviso.indexOf('export async function avisarCompra'))).not.toContain('coletorSemGrupo');
+  });
+});
+
+describe('sem id de grupo: o aviso vai para a Giovanna, pela linha io, de 9h às 20h (18/11/2026)', () => {
+  const fake = (n: number): string => `55349${String(87000000 + n)}`;
+  const TEL_G = fake(1);
+  const TEL_DONO = fake(2);
+  const DENTRO = new Date('2026-11-18T15:00:00Z');   // 12h em Brasília
+  const FORA = new Date('2026-11-18T23:30:00Z');     // 20h30 em Brasília
+  const NA_MANHA = new Date('2026-11-19T12:00:00Z'); // 9h em Brasília
+  const pix = (id: string) => avisarPixPendente({ contratoId: id, minutos: 45, nome: 'Carlos', empresa: null, telefone: '34991234567', linhaCarla: 'A Carla chama no próximo horário.' });
+  const contratoPendente = (id: string) => tabelas.asaas_pix_assinaturas!.push({
+    contract_id: id, email: 'carlos@exemplo.com', user_id: null, status: 'pendente', created_at: minAtras(45), ultimo_pagamento_id: null, ultimo_pagamento_em: null,
+  });
+  const chamada = (i = 0) => sendWhatsApp.mock.calls[i] as unknown as [string, string, string];
+
+  beforeEach(() => {
+    delete process.env.ZAPI_SOLARDOC_GRUPO_ID;
+    ficha.giovanna = TEL_G; ficha.dono = TEL_DONO;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(DENTRO);
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('pix_pendente sem grupo vai para o telefone da Giovanna, em uma bolha, pela linha io', async () => {
+    contratoPendente('g1');
+    expect(await pix('g1')).toBe('pendente');
+    liberarTudo();
+    expect((await descarregarPendentes()).enviados).toBe(1);
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(sendWhatsApp).toHaveBeenCalledTimes(1);
+    const [tel, texto, linha] = chamada();
+    expect(tel).toBe(TEL_G);
+    expect(linha).toBe('io');
+    expect(texto).not.toMatch(/^Sem telefone da Giovanna/);
+    expect(chave('quiz_aviso:pixpend:g1')!.value.estado).toBe('enviado_cartao');
+    expect(tabelas.system_state!.some(r => r.key.startsWith('solardoc_aviso_sent:'))).toBe(true);
+  });
+
+  it('sem telefone da Giovanna o aviso vai para o dono, com o motivo na 1ª linha', async () => {
+    ficha.giovanna = null;
+    contratoPendente('g2');
+    await pix('g2');
+    liberarTudo();
+    expect((await descarregarPendentes()).enviados).toBe(1);
+    const [tel, texto] = chamada();
+    expect(tel).toBe(TEL_DONO);
+    const linhas = texto.split('\n');
+    expect(linhas[0]).toBe('Sem telefone da Giovanna agora. Encaminhe este aviso a ela.');
+    expect(linhas.length).toBeGreaterThan(2);
+  });
+
+  it('leitura dos consultores que falha ou telefone fora de 10 a 13 dígitos: também o dono', async () => {
+    ficha.ok = false;
+    contratoPendente('g3');
+    await pix('g3');
+    liberarTudo();
+    await descarregarPendentes();
+    expect(chamada()[0]).toBe(TEL_DONO);
+    sendWhatsApp.mockClear();
+    ficha.ok = true; ficha.giovanna = '12345';
+    contratoPendente('g3b');
+    await pix('g3b');
+    liberarTudo();
+    await descarregarPendentes();
+    expect(chamada()[0]).toBe(TEL_DONO);
+  });
+
+  it('sem grupo, sem Giovanna e sem dono: nada sai e o claim fica sem_grupo', async () => {
+    ficha.giovanna = null; ficha.dono = '';
+    expect(await avisarDesistencia(lead({ whatsapp: telDe('n1') }))).toBe('sem_grupo');
+    expect(sendWhatsApp).not.toHaveBeenCalled();
+    expect(sendToGroup).not.toHaveBeenCalled();
+  });
+
+  it('claim antigo em sem_grupo é terminal: o cartão não o reenvia e a mesma pessoa dá duplicado', async () => {
+    const em = minAtras(600);
+    const l = lead({ whatsapp: telDe('v1') });
+    const h = hmacDe(chaveDoTelefone(normalizarTelefoneSd(l.whatsapp) as string));
+    tabelas.system_state!.push({ key: `quiz_aviso:${h}`, value: { tipo: 'desistencia', estado: 'sem_grupo', em, texto: 'texto antigo' }, updated_at: em });
+    tabelas.system_state!.push({ key: 'quiz_aviso:pixpend:velho', value: { tipo: 'pix_pendente', estado: 'sem_grupo', em, texto: 'texto antigo' }, updated_at: em });
+    liberarTudo();
+    const r = await descarregarPendentes();
+    expect(r.enviados).toBe(0);
+    expect(sendWhatsApp).not.toHaveBeenCalled();
+    expect(await avisarDesistencia(l)).toBe('duplicado');
+    expect(sendWhatsApp).not.toHaveBeenCalled();
+    expect(chave(`quiz_aviso:${h}`)!.value.estado).toBe('sem_grupo');
+  });
+
+  it('com grupo configurado continua indo ao grupo, nunca à Giovanna', async () => {
+    process.env.ZAPI_SOLARDOC_GRUPO_ID = GRUPO;
+    expect(await avulso('c1')).toBe('enviado');
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+    expect(sendToGroup.mock.calls[0]![0]).toBe(GRUPO);
+    expect(sendWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it('desistência avulsa sem grupo sai direto para a Giovanna', async () => {
+    expect(await avulso('d1')).toBe('enviado');
+    expect(chamada()[0]).toBe(TEL_G);
+    expect(sendToGroup).not.toHaveBeenCalled();
+  });
+
+  it('a compra nunca vai à Giovanna: grava sem_grupo, não vira pendente e o cartão a ignora', async () => {
+    expect(await compra('cs_g1')).toBe('sem_grupo');
+    expect(chave('compra_aviso:cs_g1')!.value.estado).toBe('sem_grupo');
+    const velha = minAtras(30);
+    tabelas.system_state!.push({ key: 'compra_aviso:cs_g2', value: { tipo: 'compra_cartao', estado: 'pendente', em: velha, texto: 'compra antiga' }, updated_at: velha });
+    liberarTudo();
+    expect((await descarregarPendentes()).enviados).toBe(0);
+    expect(sendWhatsApp).not.toHaveBeenCalled();
+    expect(chave('compra_aviso:cs_g2')!.value.estado).toBe('pendente');
+  });
+
+  it('janela: desistência às 20h30 fica pendente, nada sai, e o cartão das 9h a leva', async () => {
+    vi.setSystemTime(FORA);
+    expect(await avulso('j1')).toBe('pendente');
+    expect(sendWhatsApp).not.toHaveBeenCalled();
+    liberarTudo();
+    const fora = await descarregarPendentes();
+    expect(fora.enviados).toBe(0);
+    expect(fora.motivo).toBe('fora_da_janela');
+    expect(sendWhatsApp).not.toHaveBeenCalled();
+    vi.setSystemTime(NA_MANHA);
+    liberarTudo();
+    expect((await descarregarPendentes()).enviados).toBe(1);
+    expect(chamada()[0]).toBe(TEL_G);
+  });
+
+  it('pendente com mais de 24 h vira e-mail e expirado mesmo fora da janela', async () => {
+    vi.setSystemTime(FORA);
+    const velha = new Date(FORA.getTime() - 25 * 3600_000).toISOString();
+    tabelas.system_state!.push({ key: 'quiz_aviso:pixpend:antigo', value: { tipo: 'pix_pendente', estado: 'pendente', em: velha, texto: 'aviso parado' }, updated_at: velha });
+    const r = await descarregarPendentes();
+    expect(r.expirados).toBe(1);
+    expect(chave('quiz_aviso:pixpend:antigo')!.value.estado).toBe('expirado');
+    expect(sendOpsAlert).toHaveBeenCalledTimes(1);
+    expect(sendWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it('o teto de 12 avisos por hora vale também para a Giovanna', async () => {
+    for (let i = 0; i < 12; i++) tabelas.system_state!.push({ key: `quiz_aviso:x${i}`, value: { tipo: 'desistencia', estado: 'enviado' }, updated_at: minAtras(5) });
+    expect(await avulso('t1')).toBe('pendente');
+    expect(sendWhatsApp).not.toHaveBeenCalled();
   });
 });
