@@ -18,15 +18,15 @@ export const DEP_GSI =
 
 // ── 1. Código vivo (1º toque, 1 bolha; o código vai sozinho na 2ª mensagem) ──────────────────────────────────────────────────────────────────────
 export const TEXTO_CODIGO_VIVO =
-  'Oi, [nome], aqui é a Carla, da SolarDoc. Seu Pix da [empresa] continua valendo [validade]. [depoimento] É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. É só copiar e colar no Pix copia e cola do seu banco. O código vai logo abaixo.';
+  'Oi, [nome], aqui é a Carla, da SolarDoc. Seu Pix da [empresa] continua valendo [validade]. [depoimento] É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. É só copiar e colar no Pix copia e cola do seu banco. Se o banco não mostrar a autorização ou der erro, é só me falar que você paga no cartão. O código vai logo abaixo.';
 
 // ── 2a. Código novo, mesmo dia ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 export const TEXTO_CODIGO_NOVO_HOJE =
-  'Oi, [nome], aqui é a Carla, da SolarDoc. O Pix que você gerou venceu, então gerei um novo para você. [depoimento] É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. É só copiar e colar no Pix copia e cola do seu banco. O código novo vai logo abaixo.';
+  'Oi, [nome], aqui é a Carla, da SolarDoc. O Pix que você gerou venceu, então gerei um novo para você. [depoimento] É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. É só copiar e colar no Pix copia e cola do seu banco. Se o banco não mostrar a autorização ou der erro, é só me falar que você paga no cartão. O código novo vai logo abaixo.';
 
 // ── 2b. Código novo, dia seguinte (2º toque) ─────────────────────────────────────────────────────────────────────────────────────────────────────
 export const TEXTO_CODIGO_NOVO_DIA2 =
-  '[saudacao], [nome], aqui é a Carla, da SolarDoc. Voltei porque o Pix que você gerou venceu, então já deixei um novo pronto. [depoimento] É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. É só copiar e colar no Pix copia e cola do seu banco. O código vai logo abaixo.';
+  '[saudacao], [nome], aqui é a Carla, da SolarDoc. Voltei porque o Pix que você gerou venceu, então já deixei um novo pronto. [depoimento] É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. É só copiar e colar no Pix copia e cola do seu banco. Se o banco não mostrar a autorização ou der erro, é só me falar que você paga no cartão. O código vai logo abaixo.';
 
 // ── 3. Abandono da LP sem Pix (frio, 1 bolha, sem código) ────────────────────────────────────────────────────────────────────────────────────────
 export const TEXTO_ABANDONO_LP =
@@ -78,6 +78,8 @@ export const EMAIL_CODIGO_CORPO = [
   '',
   'É o Pix automático: R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc. O banco debita sozinho e você cancela quando quiser pelo app do banco.',
   '',
+  'Se o banco não mostrar a autorização ou der erro, é só me falar que você paga no cartão.',
+  '',
   'Se preferir, abra a página e gere o pagamento por lá: [link]',
   '',
   'Carla',
@@ -85,7 +87,7 @@ export const EMAIL_CODIGO_CORPO = [
 ].join('\n');
 
 // ── limites (conferidos no teste, no pior caso já preenchido) ────────────────────────────────────────────────────────────────────────────────────
-export const LIMITE_TEXTO_CODIGO = 600;
+export const LIMITE_TEXTO_CODIGO = 720;
 export const LIMITE_TEXTO_CURTO = 160;
 export const LIMITE_TEXTO_LP_SEM_LINK = 400;
 export const MAX_NOME = 20;

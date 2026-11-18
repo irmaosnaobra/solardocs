@@ -443,6 +443,28 @@ async function conversaViva(telefone: string): Promise<boolean> {
   return Date.now() - quando < CONVERSA_VIVA_MS;
 }
 
+// ─── teto de frio por dia (E9, 17/11/2026) ───────────────────────────
+// A LimpaPro cedeu vaga do frio da linha 5040 para a retomada da base grátis da SolarDoc: no máximo `LIMPAPRO_FRIO_DIA` (padrão 3) envios frios em 24 h.
+// Conta os carimbos dos 4 toques (os prefixos de BOT_SENT_PREFIXES) nas últimas 24 h, ANTES de enviar. Só o frio: a resposta (P1, biaInboundService) não passa aqui.
+export const LIMPAPRO_FRIO_DIA_PADRAO = 3;
+export function tetoFrioLimpapro(env: string | undefined = process.env.LIMPAPRO_FRIO_DIA): number {
+  const t = String(env ?? '').trim();
+  const n = t === '' ? NaN : Number(t);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : LIMPAPRO_FRIO_DIA_PADRAO;
+}
+const CARIMBOS_FRIOS_LIMPAPRO = ['limpapro_recovery:', CUPOM_SENT_PREFIX, FECHAMENTO_SENT_PREFIX, GRUPO_SENT_PREFIX] as const;
+/** O frio da LimpaPro já bateu o teto do dia? Leitura que falha vale "bateu" (não envia). */
+export async function limpaproFrioNoTeto(agora: Date = new Date()): Promise<boolean> {
+  const teto = tetoFrioLimpapro();
+  try {
+    const { data, error } = await supabase.from('system_state').select('key')
+      .or(CARIMBOS_FRIOS_LIMPAPRO.map(p => `key.like.${p}%`).join(','))
+      .gte('updated_at', new Date(agora.getTime() - 24 * 60 * 60 * 1000).toISOString()).limit(teto + 1);
+    if (error) return true;
+    return (data?.length ?? 0) >= teto;
+  } catch { return true; }
+}
+
 // ─── throttle por hora (anti-ban) ───────────────────────────────────
 // Teto ÚNICO da linha física IO: conta os envios de TODOS os bots (Bia opener+cupom E
 // followup do /gerador) na última hora. Mora em lineThrottle.ts pra que Bia e gerador
@@ -948,6 +970,8 @@ export async function runLimpaproRecoveryConsumer(opts: { dry?: boolean } = {}):
     if (!opts.dry && !dentroDaJanelaDiurna()) { out.mantidos++; bump('fora_da_janela_diurna'); break; }
     // `robo`: só para a contagem da sombra da vaga da Base (B4c, lineThrottle); com a env desligada nada é segurado por isso.
     if (!opts.dry && !(await dentroDoTetoHorario({ robo: 'bia_recuperacao' }))) { out.mantidos++; bump('teto_horario'); break; }
+    // Teto de frio do dia (E9): a LimpaPro cedeu vaga à retomada da SolarDoc. O marcador sobrevive (break) e volta quando a janela de 24 h liberar.
+    if (!opts.dry && (await limpaproFrioNoTeto())) { out.mantidos++; bump('teto_frio_dia'); break; }
     // Margem de 5 min entre dois envios da linha (anti-rajada). Na prática limita o
     // tick a 1 envio, já que o /process-messages roda de 5 em 5 min — MAX_ENVIOS_POR_TICK
     // fica como teto de segurança, não como ritmo.

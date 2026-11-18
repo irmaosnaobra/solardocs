@@ -231,13 +231,13 @@ describe('motivoDeParadaAgora: só leitura, na ordem da tabela', () => {
     expect(await motivoDeParadaAgora(AGORA)).toMatchObject({ motivo: 'sem_texto', bloqueio: true, texto: 'Sem o texto do redator: não envia' });
   });
 
-  it('o carimbo de teste da sonda não conta no teto de 25 nem aparece como reservado/enviado no painel', async () => {
-    for (let i = 0; i < 24; i++) sentinela(`usu_rec_sent:x${i}`, antes(3 * HORA));
+  it('o carimbo de teste da sonda não conta no teto de 6 nem aparece como reservado/enviado no painel', async () => {
+    for (let i = 0; i < 5; i++) sentinela(`usu_rec_sent:x${i}`, antes(3 * HORA));
     banco.poe('system_state', { key: `usu_rec_sent:sonda:${INICIO_RETOMADA_ISO}`, value: { estado: 'reservado', sonda: true }, updated_at: antes(60_000) });
     expect(await motivoDeParadaAgora(AGORA)).not.toMatchObject({ motivo: 'teto_da_campanha' });
     const p = await lerPainelRetomada(AGORA);
     expect(p).toMatchObject({ enviadas_total: 0, enviadas_hoje: 0, enviadas_24h: 0 });
-    sentinela('usu_rec_sent:x24', antes(3 * HORA));
+    sentinela('usu_rec_sent:x5', antes(3 * HORA));
     expect(await motivoDeParadaAgora(AGORA)).toMatchObject({ motivo: 'teto_da_campanha' });
   });
 

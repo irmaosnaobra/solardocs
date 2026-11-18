@@ -127,10 +127,16 @@ export function formaPorLink(toque: 1 | 2 | 3, lead: LeadRec, daLp: boolean, utm
   return destino === 'pix' ? { tipo: 'link_pix', link: linkPesado('pix', utmTerm) } : { tipo: 'link_cartao', link: linkPesado('cartao', utmTerm) };
 }
 
+/** O índice do diagnóstico ("37"), ou null (lead sem índice, ou da LP). */
+export function indiceDoQuiz(lead: LeadRec): string | null {
+  const indice = campoFd(lead.field_data, 'Índice');
+  return /^\d{1,3}$/.test(indice) ? indice : null;
+}
+
 /** "O seu diagnóstico deu 37 de 100, com velocidade pesando mais." ou null (lead sem índice, ou da LP). */
 export function resultadoDoQuiz(lead: LeadRec): string | null {
-  const indice = campoFd(lead.field_data, 'Índice');
-  if (!/^\d{1,3}$/.test(indice)) return null;
+  const indice = indiceDoQuiz(lead);
+  if (!indice) return null;
   const pilar = campoFd(lead.field_data, 'Pilar mais fraco').replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 30).toLocaleLowerCase('pt-BR');
   return pilar ? `O seu diagnóstico deu ${indice} de 100, com ${pilar} pesando mais.` : `O seu diagnóstico deu ${indice} de 100.`;
 }

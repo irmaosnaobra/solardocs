@@ -59,39 +59,29 @@ const iso = (msAntes: number): string => new Date(AGORA.getTime() - msAntes).toI
 
 // ── os 3 textos ──────────────────────────────────────────────────────────────
 
-describe('os 3 textos do grupo pagou', () => {
-  const TEXTOS = [
-    'Oi, aqui é a Carla, da SolarDoc. O que fez você parar de usar, ou o que faltou pra continuar?',
-    'Carla aqui, da SolarDoc. Se pudesse mudar uma coisa na SolarDoc pra você ter ficado, qual seria?',
-    'Oi, é a Carla, da SolarDoc. Pode ser sincero, não vou me ofender: o que pesou pra você sair?',
-  ];
-
-  it('são exatamente estes 3, e passam no motivosDoTexto com e sem nome', () => {
-    expect([...VARIACOES_RETOMADA.pagou]).toEqual(TEXTOS);
-    for (const t of VARIACOES_RETOMADA.pagou) {
-      expect(motivosDoTexto(t), t).toEqual([]);
-      expect(t.length).toBeLessThanOrEqual(160);
-      expect(t.match(/\?/g)).toHaveLength(1);
-      expect(t).not.toMatch(/https?:|www\./i);
-    }
+describe('o texto do grupo pagou (17/11/2026: oferta de volta, LONGA B Seg3)', () => {
+  it('é a oferta de volta: com preço, sem link, 1 pergunta, passa no motivosDoTexto com e sem nome, em 1 bolha', () => {
+    expect(VARIACOES_RETOMADA.pagou).toHaveLength(1);
+    const t0 = VARIACOES_RETOMADA.pagou[0]!;
+    expect(t0).toContain('Desde que você saiu, a gente mudou bastante coisa.');
+    expect(t0).toContain('Se quiser voltar, é R$ 67 por mês no Pix automático, sem fidelidade. Te mando o código?');
     for (const nome of ['Ana', null, '']) {
-      for (const h8 of ['00000000', '00000001', '00000002', 'ffffffff']) {
-        const r = textoDaRetomada('pagou', nome, h8 + '0'.repeat(56));
-        expect(r.ok, `${nome} ${h8}`).toBe(true);
-        if (r.ok) expect(TEXTOS).toContain(r.texto);
-      }
+      const r = textoDaRetomada('pagou', nome, '00000000' + '0'.repeat(56));
+      expect(r.ok, String(nome)).toBe(true);
+      if (!r.ok) continue;
+      expect(motivosDoTexto(r.texto), r.texto).toEqual([]);
+      expect(r.texto.length).toBeLessThanOrEqual(450);
+      expect(r.texto.match(/\?/g)).toHaveLength(1);
+      expect(r.texto).not.toMatch(/https?:|www\./i);
+      expect(emBolhas(r.texto, { maxBolhas: 1, max: 900 })).toHaveLength(1);
     }
   });
 
-  it('cada texto sai em 1 bolha (emBolhas = 1)', () => {
-    for (const t of VARIACOES_RETOMADA.pagou) expect(emBolhas(t, { maxBolhas: 1, max: 900 }), t).toHaveLength(1);
-  });
-
-  it('o incerto fica como estava; quem nunca pagou tem 2 textos por perfil (usou e nunca usou), decisão de 05/11', () => {
+  it('o incerto fica como estava; quem nunca pagou tem 1 texto por perfil (usou e nunca usou), LONGAS B de 17/11', () => {
     expect(VARIACOES_RETOMADA.incerto).toHaveLength(1);
     expect(VARIACOES_RETOMADA.incerto[0]).toMatch(/Passando pra contar que a plataforma mudou bastante/);
-    expect(VARIACOES_RETOMADA.nunca_pagou_usou).toHaveLength(2);
-    expect(VARIACOES_RETOMADA.nunca_pagou_nunca_usou).toHaveLength(2);
+    expect(VARIACOES_RETOMADA.nunca_pagou_usou).toHaveLength(1);
+    expect(VARIACOES_RETOMADA.nunca_pagou_nunca_usou).toHaveLength(1);
     for (const m of [...VARIACOES_RETOMADA.nunca_pagou_usou, ...VARIACOES_RETOMADA.nunca_pagou_nunca_usou]) expect(m).toMatch(/Carla, da SolarDoc/);
   });
 });
@@ -146,6 +136,15 @@ describe('a persona da Carla', () => {
     const sem = fatosDaRetomada(CONTA, AGORA.toISOString()).join('\n');
     expect(sem).not.toContain('entrevista de saída');
     expect(sem).not.toContain('registrar_feedback_saida');
+  });
+
+  it('a oferta de volta (oferta_volta) manda a Carla tratar o "sim" como compra no pix_automatico, sem entrevista', () => {
+    const com = fatosDaRetomada({ ...CONTA, oferta_volta: true }, AGORA.toISOString()).join('\n');
+    expect(com).toContain('Te mando o código?');
+    expect(com).toContain('peça pix_automatico agora');
+    expect(com).toContain('CPF e o e-mail só se faltarem');
+    expect(com).not.toContain('registrar_feedback_saida');
+    expect(fatosDaRetomada(CONTA, AGORA.toISOString()).join('\n')).not.toContain('oferta de volta');
   });
 
   it('a ação registrar_feedback_saida existe na Carla', () => {

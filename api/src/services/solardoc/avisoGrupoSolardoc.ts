@@ -48,9 +48,11 @@ import { sendToGroup, linhaEmCooldown } from '../agents/zapiClient';
 import { prefixosTotalDaLinha, PREFIXOS_AGENDA } from '../agents/whatsapp/lineThrottle';
 import { classificarErroEnvio } from '../chefe/decidir';
 import { hmacDe } from '../agentes5040/hmac';
+import { pessoaDoContratoIdPagou } from './pixPendentePagou';
+import { vendasRecentes, type VendasRecentes } from './compraQuizSolardoc';
 import { chaveDoTelefone, codigoDoQuiz, leadIdDoQuiz, normalizarTelefoneSd } from './quizSolardoc';
 import {
-  montarAviso, ROTULO_PROPOSTAS, ROTULO_QUANDO, type CamposAviso, type ModeloAviso,
+  montarAviso, montarAvisoPixPendente, ROTULO_PROPOSTAS, ROTULO_QUANDO, type CamposAviso, type ModeloAviso,
 } from './avisoGrupoTextos';
 
 import { GRUPO_VENDAS_SOLARDOC } from './grupoVendasId';
@@ -64,6 +66,8 @@ const GRUPO_ELETROPOSTO = '120363410228854732-group';
 
 export const PREFIXO_CLAIM_QUIZ = 'quiz_aviso:';
 export const PREFIXO_CLAIM_COMPRA = 'compra_aviso:';
+/** Pix automático gerado e não pago (17/11/2026): UM aviso por contrato. Mora sob `quiz_aviso:` para o cartão de pendentes (descarregarPendentes) levá-lo. */
+export const PREFIXO_CLAIM_PIX_PENDENTE = 'quiz_aviso:pixpend:';
 /** Carimbo do envio físico. O MESMO texto está em PREFIXOS_RESPOSTA_AGENTES (lineThrottle.ts). */
 export const PREFIXO_CARIMBO_AVISO = 'solardoc_aviso_sent:';
 export const CHAVE_VEZ_AVULSA = 'quiz_aviso_vez';
@@ -620,6 +624,37 @@ export async function avisarSemVaga(lead: LeadQuizLinha, opts: { coletorSemGrupo
   return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}:semvaga`, tipo: 'sem_vaga', texto, urgente: true, coletorSemGrupo: opts.coletorSemGrupo });
 }
 
+/**
+ * Pix automático gerado há 30 min ou mais e não pago (17/11/2026): o time é avisado UMA vez por contrato (`quiz_aviso:pixpend:<contrato>`, para sempre).
+ * Só reivindica o claim e fica `pendente`: quem envia é o cartão do tick (descarregarPendentes), com o espaçamento, o teto e a trava dele. Nunca lança.
+ * Quem decide a janela (9h às 20h) e o que é "não pago" é o chamador; aqui só o claim e o texto.
+ */
+export async function avisarPixPendente(
+  c: { contratoId: string; minutos: number; nome?: string | null; empresa?: string | null; telefone?: string | null; linhaCarla: string },
+): Promise<ResultadoAviso> {
+  try {
+    const id = String(c.contratoId ?? '').trim();
+    if (!id) return 'ignorado';
+    return await emitir({ chave: `${PREFIXO_CLAIM_PIX_PENDENTE}${id}`, tipo: 'pix_pendente', texto: montarAvisoPixPendente(c), soReivindicar: true });
+  } catch (e) {
+    logger.error('solardoc-aviso', 'aviso de Pix pendente falhou', { erro: String(e) });
+    return 'erro';
+  }
+}
+
+/** O contrato não vai mais ao grupo (a pessoa já pagou por outro meio, ou já foi avisada nas últimas 24 h): claim com estado `descartado`, SEM envio. Já existir não é erro. Nunca lança. */
+export async function descartarPixPendente(contratoId: string, motivo: string): Promise<void> {
+  try {
+    const id = String(contratoId ?? '').trim();
+    if (!id) return;
+    const em = agoraIso();
+    const { error } = await supabase.from('system_state').insert({ key: `${PREFIXO_CLAIM_PIX_PENDENTE}${id}`, value: { tipo: 'pix_pendente', estado: 'descartado', motivo, em }, updated_at: em });
+    if (error && (error as { code?: string }).code !== '23505') logger.warn('solardoc-aviso', 'descartar o aviso do Pix pendente falhou', { erro: error.message });
+  } catch (e) {
+    logger.warn('solardoc-aviso', 'descartar o aviso do Pix pendente falhou', { erro: String(e) });
+  }
+}
+
 export type CanalCompra = 'cartao' | 'asaas' | 'comprovante';
 const MODELO_DO_CANAL: Record<CanalCompra, ModeloAviso> = { cartao: 'compraCartao', asaas: 'compraAsaas', comprovante: 'compraComprovante' };
 
@@ -722,6 +757,20 @@ export async function descarregarPendentes(
   } catch (e) {
     logger.warn('solardoc-aviso', 'conferir o que já saiu falhou: nada é enviado nesta rodada', { erro: String(e) });
     return { enviados: 0, motivo: 'erro_leitura' };
+  }
+
+  // 0b) Aviso de Pix pendente de quem JÁ PAGOU (cartão, outro contrato, plano liberado) é descartado SEM enviar. Leitura que falha: o aviso espera a próxima rodada.
+  const pixPend = todos.filter(p => p.value?.tipo === 'pix_pendente' && p.key.startsWith(PREFIXO_CLAIM_PIX_PENDENTE));
+  if (pixPend.length) {
+    const fora = new Set<string>();
+    let vendas: VendasRecentes | null = null;
+    try { vendas = await vendasRecentes(Date.now()); } catch (e) { logger.warn('solardoc-aviso', 'ler vendas para conferir o Pix pendente falhou', { erro: String(e) }); }
+    for (const p of pixPend) {
+      const r = vendas ? await pessoaDoContratoIdPagou(p.key.slice(PREFIXO_CLAIM_PIX_PENDENTE.length), Date.now(), vendas) : 'erro';
+      if (r === 'pagou') { await marcar(p.key, 'pix_pendente', 'descartado', { motivo: 'pagou_no_envio' }); fora.add(p.key); }
+      else if (r === 'erro') fora.add(p.key);
+    }
+    todos = todos.filter(p => !fora.has(p.key));
   }
 
   // 1) Vencidos (mais de 24 h): não somem calados.

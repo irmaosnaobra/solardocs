@@ -16,7 +16,7 @@
 //   0. estado (ligada?), segredo de HMAC e o texto do redator (sem texto não envia);   1. a largada (gravada na 1ª rodada);
 //   2. o início: nunca antes do piso (inicioEfetivoMs), a sonda (falhou ou rodando = não envia), depois a janela 9h-20h BRT, segunda a sábado;
 //   3. as travas, nesta ordem: a Carla atende todos > IA > linha pausada > teto do frio {robo} > espaçamento > CEDE À AGENDA >
-//      teto de 25 em 24 h;   3b. a SONDA AUTOMÁTICA, uma vez por piso, só aqui (linha calma): rodarSondaRetomada;
+//      teto de 24 h (padrão 6, env RETOMADA_USUARIOS_DIA);   3b. a SONDA AUTOMÁTICA, uma vez por piso, só aqui (linha calma): rodarSondaRetomada;
 //      4. a vez (insert usu_rec_vez:<faixa de 10 min>);
 //   5. o público (uma leitura por rodada), a fila e o resumo;   6. por pessoa, ANTES do claim e do barato ao caro: supressão, bloqueio,
 //      número de teste, posse, conversa, pausa humana, outro robô, Carla atende, texto; depois o phone-exists;
@@ -58,7 +58,7 @@ import {
   ADIANTO_DO_DOCUMENTO_MS, AVALIACOES_POR_RODADA, CHAVE_RESUMO_RET, INICIO_RETOMADA_ISO, JANELA_DOC_ATIVO_MS, PREFIXO_CARIMBO_RET, PREFIXO_FORA_RET,
   PREFIXO_SONDA_CARIMBO_RET, PREFIXO_SONDA_CLAIM_RET, PREFIXO_SONDA_FALHOU_RET, PREFIXO_SONDA_OK_RET, PREFIXO_VEZ_RET, SONDA_TETO_DIA_MAX,
   SONDA_TETO_HORA_MAX, VARIACOES_RETOMADA, usouAPlataforma,
-  ROBO_RETOMADA_USUARIOS, TELEFONE_DA_LINHA_5040, RESERVA_DO_QUIZ_24H, TETO_CAMPANHA_24H, chaveVezRet, chavesRepetidas, classificarUsuario, cnpjDe14, inicioEfetivoMs,
+  ROBO_RETOMADA_USUARIOS, TELEFONE_DA_LINHA_5040, RESERVA_DO_QUIZ_24H, tetoCampanha24h, chaveVezRet, chavesRepetidas, classificarUsuario, cnpjDe14, inicioEfetivoMs,
   limiteCedeAAgenda, marcaDoMotivo, montarChavesDaCasa, motivoDaConversa, ordenarFila, pagaHoje, pisoDoCodigoMs, telefoneDoUsuario, textoDaRetomada,
   textosVazios, type Classificacao, type ExtrasRet, type MarcaForaRet, type UsuarioRet, type VendaRet,
 } from './retomadaUsuariosRegras';
@@ -373,8 +373,8 @@ export async function runRetomadaUsuariosTick(opts: OpcoesRet = {}, deps?: DepsR
       const em = agoraEnvio.toISOString();
       const retomada = {
         ...base, primeiro_nome: av.primeiro || null, texto: av.texto, em,
-        // O toque do grupo `pagou` é a entrevista de saída: a Carla lê isto (retomadaUsuariosConta.ts) e conduz as 3 perguntas.
-        ...(item.grupo === 'pagou' ? { entrevista_saida: true } : {}),
+        // O toque do grupo `pagou` é a oferta de volta (17/11/2026): a Carla lê isto (retomadaUsuariosConta.ts) e trata o "sim" como compra no Pix automático.
+        ...(item.grupo === 'pagou' ? { oferta_volta: true } : {}),
         ate: new Date(Date.parse(em) + RETOMADA_VALE_MS).toISOString(),
       };
       let posse = await d.assumirPosse(item.chave, em, { origem: ORIGEM_RETOMADA_USUARIOS, retomada });
@@ -883,12 +883,12 @@ export function depsReais(): DepsRet {
     limiteAgenda: () => limiteCedeAAgenda(process.env.EP_CONFIRMA_TETO_HORA),
     async tetoCampanha(agora) {
       try {
-        // O carimbo de teste da sonda (`usu_rec_sent:sonda:`) conta para o frio da LINHA, mas não é envio da campanha: fora deste teto de 25.
+        // O carimbo de teste da sonda (`usu_rec_sent:sonda:`) conta para o frio da LINHA, mas não é envio da campanha: fora deste teto (6 por padrão).
         const { data, error } = await supabase.from('system_state').select('key').like('key', `${PREFIXO_CARIMBO_RET}%`)
-          .gte('updated_at', new Date(agora.getTime() - 24 * 3_600_000).toISOString()).limit(TETO_CAMPANHA_24H + 2);
+          .gte('updated_at', new Date(agora.getTime() - 24 * 3_600_000).toISOString()).limit(tetoCampanha24h() + 2);
         if (error) return 'erro';
         const envios = (data ?? []).filter(l => !String((l as { key?: string }).key ?? '').startsWith(PREFIXO_SONDA_CARIMBO_RET)).length;
-        return envios >= TETO_CAMPANHA_24H ? 'cheio' : 'ok';
+        return envios >= tetoCampanha24h() ? 'cheio' : 'ok';
       } catch { return 'erro'; }
     },
     async vagasDoFrio() { try { return await vagasDoFrioLinha(); } catch { return null; } },

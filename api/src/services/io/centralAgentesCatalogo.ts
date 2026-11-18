@@ -538,7 +538,7 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
   e({
     id: 'retomada_usuarios', nome: 'Carla, retomada dos usuários', area: 'solardoc', canal: 'whatsapp', linha: 'io',
     resumo: 'Chama quem tem conta e não paga, uma mensagem por pessoa',
-    papel: 'Chama, uma pessoa por vez, quem tem conta no SolarDoc e não paga hoje (grátis ou ex-assinante), com WhatsApp no cadastro. Uma mensagem só, sem link, para sempre uma por pessoa, das 9h às 20h de segunda a sábado, fora de feriado, na vaga do envio frio da 5040, no máximo 25 em 24 horas, e cede a vez à agenda quando a linha já tem 4 envios na hora. Quem responde é a Carla, com a situação da conta e as novidades. Nasce ligada: CARLA_RETOMADA_USUARIOS_OFF=1 ou a chave usu_rec_pausa no banco desligam.',
+    papel: 'Chama, uma pessoa por vez, quem tem conta no SolarDoc e não paga hoje (grátis ou ex-assinante), com WhatsApp no cadastro. Uma mensagem só, sem link, para sempre uma por pessoa, das 9h às 20h de segunda a sábado, fora de feriado, na vaga do envio frio da 5040, dentro do teto de envios em 24 horas (o número fica em Enviadas hoje, na Central; a env RETOMADA_USUARIOS_DIA muda), e cede a vez à agenda quando a linha já tem 4 envios na hora. Quem responde é a Carla, com a situação da conta e as novidades. Nasce ligada: CARLA_RETOMADA_USUARIOS_OFF=1 ou a chave usu_rec_pausa no banco desligam.',
     regra: { tipo: 'banco_retomada_usuarios' }, fonte: 'services/solardoc/retomadaUsuarios.ts',
     robos: ['carla_retomada_usuarios'],
   }),

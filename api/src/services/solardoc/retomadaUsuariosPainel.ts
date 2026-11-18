@@ -11,7 +11,7 @@ import { carimbosDaLinhaNaHora, dentroDaJanelaDaBaseLinha, vagasDoFrioLinha } fr
 import { diaBRT } from '../agentes5040/relogio';
 import { ORIGEM_RETOMADA_USUARIOS } from '../agentes5040/posse';
 import {
-  CHAVE_RESUMO_RET, INICIO_RETOMADA_ISO, PREFIXO_CARIMBO_RET, PREFIXO_SONDA_CARIMBO_RET, SONDA_TRAVADA_MS, TETO_CAMPANHA_24H, carimboReconhecido, inicioEfetivoMs, limiteCedeAAgenda, paradaDoMotivo,
+  CHAVE_RESUMO_RET, INICIO_RETOMADA_ISO, PREFIXO_CARIMBO_RET, PREFIXO_SONDA_CARIMBO_RET, SONDA_TRAVADA_MS, tetoCampanha24h, carimboReconhecido, inicioEfetivoMs, limiteCedeAAgenda, paradaDoMotivo,
   pisoDoCodigoMs, textosVazios, type ParadaRet,
 } from './retomadaUsuariosRegras';
 import {
@@ -81,17 +81,17 @@ async function lerCarimbos(): Promise<Carimbo[]> {
   return out;
 }
 
-/** O teto de 25 em 24 h conta as chaves `usu_rec_sent:` por `updated_at`, como o robô, SEM o carimbo de teste da sonda (`usu_rec_sent:sonda:`). */
+/** O teto de 24 h (padrão 6, `RETOMADA_USUARIOS_DIA`) conta as chaves `usu_rec_sent:` por `updated_at`, como o robô, SEM o carimbo de teste da sonda (`usu_rec_sent:sonda:`). */
 async function carimbosNas24h(agora: Date): Promise<number> {
   const { data, error } = await supabase.from('system_state').select('key').like('key', `${PREFIXO_CARIMBO_RET}%`)
-    .gte('updated_at', new Date(agora.getTime() - DIA).toISOString()).limit(TETO_CAMPANHA_24H + 2);
+    .gte('updated_at', new Date(agora.getTime() - DIA).toISOString()).limit(tetoCampanha24h() + 2);
   if (error) throw new Error('contar o teto da campanha');
   return (data ?? []).filter(l => !String((l as { key?: string }).key ?? '').startsWith(PREFIXO_SONDA_CARIMBO_RET)).length;
 }
 
 /**
  * Por que a campanha NÃO envia agora, só lendo (D26). Confere, nesta ordem: o texto do redator, a Carla atender todos, a IA, a linha
- * pausada, o início (D35), a sonda automática, a janela, o teto de 25, o teto do frio da linha e a agenda usando a linha. null = nada a dizer. Leitura que
+ * pausada, o início (D35), a sonda automática, a janela, o teto de 24 h da campanha, o teto do frio da linha e a agenda usando a linha. null = nada a dizer. Leitura que
  * falha devolve `leitura_falhou` com bloqueio. O espaçamento NÃO entra: é a folga de 10 a 15 min entre envios, não é parada.
  * `pre` traz leituras já feitas pelo painel, para não repetir a consulta.
  */
@@ -119,7 +119,7 @@ export async function motivoDeParadaAgora(
     if (sonda.estado === 'em_andamento') return dar(agora.getTime() - sonda.desdeMs > SONDA_TRAVADA_MS ? 'sonda_travada' : 'sonda_rodando');
     if (!dentroDaJanelaDaBaseLinha(agora)) return dar('fora_da_janela');
     const n24 = pre.enviadas24h !== undefined && pre.enviadas24h !== null ? pre.enviadas24h : await carimbosNas24h(agora);
-    if (n24 >= TETO_CAMPANHA_24H) return dar('teto_da_campanha');
+    if (n24 >= tetoCampanha24h()) return dar('teto_da_campanha');
     const vagas = await vagasDoFrioLinha(agora);
     if (vagas.hora.usadas >= vagas.hora.teto || vagas.dia.usadas >= vagas.dia.teto) return dar('teto_da_linha');
     const naHora = pre.linhaNaHora !== undefined && pre.linhaNaHora !== null ? pre.linhaNaHora : await carimbosDaLinhaNaHora(agora, 5);

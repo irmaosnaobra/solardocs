@@ -52,6 +52,7 @@ import {
   type ChavesDoBanco, type RegraDaChave, type Selo,
 } from '../services/io/centralAgentesCatalogo';
 import { CLASSE_POR_ROBO, ROBOS_META } from '../services/chefe/classes';
+import { tetoCampanha24h } from '../services/solardoc/retomadaUsuariosRegras';
 
 const SEM_BANCO: ChavesDoBanco = { recepcaoAtiva: false, helenaOff: false };
 const porId = (id: string) => CATALOGO.find(c => c.id === id)!;
@@ -295,7 +296,7 @@ describe('a retomada dos usuários pela Carla (03/11/2026): a chave, o cartão e
     const c = porId('retomada_usuarios');
     expect(c.robos).toEqual(['carla_retomada_usuarios']);
     expect(c).toMatchObject({ area: 'solardoc', canal: 'whatsapp', linha: 'io', fonte: 'services/solardoc/retomadaUsuarios.ts' });
-    expect(c.papel).toMatch(/no máximo 25 em 24 horas/);
+    expect(c.papel).toMatch(/dentro do teto de envios em 24 horas/);
     expect(c.papel).toMatch(/cede a vez à agenda/);
     const g = porId('giovanna');
     expect(g.nome).toBe('Giovanna, atendimento da plataforma');
@@ -359,7 +360,7 @@ describe('a resposta da Central', () => {
     expect(c.metricas.map(m => [m.label, m.valor])).toEqual([
       ['Enviadas hoje', 4], ['Enviadas (total)', 31], ['Responderam', 8], ['Pediram para parar', 2], ['Voltaram a assinar', 1],
     ]);
-    expect(c.metricas[0]!.sub).toBe('Teto de 25 em 24 h');
+    expect(c.metricas[0]!.sub).toBe(`Teto de ${tetoCampanha24h()} em 24 h`);
     expect(c.destaque).toEqual([0, 2]);
     expect(c.fila).toBe(41);
     expect(c.ultima_atividade).toBe('2026-10-14T14:00:00.000Z');

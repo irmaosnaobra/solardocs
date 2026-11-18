@@ -898,7 +898,7 @@ describe('a Carla chama quem fez o quiz, gerou o Pix e não pagou', () => {
     expect(e.enviados).toHaveLength(2);
     // contrato criado 13:50 BRT: o código vale até amanhã 13:50, "13h" (arredondado para baixo)
     expect(e.enviados[0]!.texto).toBe(
-      'Oi, Carlos, aqui é a Carla, da SolarDoc. Seu Pix da Solar Andrade continua valendo até amanhã às 13h. O Alessandro Goulart, da Força Solar, de Feliz/RS, conta: "Aqui, com quatro, cinco cliques eu consigo montar uma proposta." É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. É só copiar e colar no Pix copia e cola do seu banco. O código vai logo abaixo.',
+      'Oi, Carlos, aqui é a Carla, da SolarDoc. Seu Pix da Solar Andrade continua valendo até amanhã às 13h. O Alessandro Goulart, da Força Solar, de Feliz/RS, conta: "Aqui, com quatro, cinco cliques eu consigo montar uma proposta." É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. É só copiar e colar no Pix copia e cola do seu banco. Se o banco não mostrar a autorização ou der erro, é só me falar que você paga no cartão. O código vai logo abaixo.',
     );
     expect(e.enviados[1]!.texto).toMatch(/^000201[^\r\n]+6304[0-9A-F]{4}$/);
     expect(e.enviados[1]!.texto).toBe(QR);

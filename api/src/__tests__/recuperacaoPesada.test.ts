@@ -195,7 +195,7 @@ describe('o lote: quem deixou o WhatsApp no quiz desde 14/11, com ou sem CNPJ', 
     expect(e.enviados).toHaveLength(1);
     expect(e.enviados[0]!.tel).toBe(normalizarTelefoneSd(semCnpj.whatsapp));
     const t = e.enviados[0]!.texto;
-    expect(t).toMatch(/problema/);
+    expect(t).toMatch(/8 documentos|documentos com a logo|montar orçamento|sem limite de documentos/);
     expect(t).toContain('https://solardoc.app/assinar?utm_source=recuperacao&utm_medium=whatsapp&utm_campaign=pesada&utm_term=1203');
     expect(t).not.toMatch(/diagnostico\b|venceu|falhou|travou|fora do ar/);
     expect(e.ordem.indexOf('claim quiz_rec_sent')).toBeLessThan(e.ordem.indexOf('enviar'));
@@ -349,11 +349,11 @@ describe('o lote: o Pix automático recusado ou pendente desde 01/11, sem pagame
 });
 
 describe('a régua permanente', () => {
-  it('o 15 min de quem fez o quiz, SEM CNPJ, entra com a pesada (já sem o lote): pergunta se houve problema e leva 1 link (tipo pesada1)', async () => {
+  it('o 15 min de quem fez o quiz, SEM CNPJ, entra com a pesada (já sem o lote): mostra o que o sistema faz e leva 1 link (tipo pesada1)', async () => {
     const l = leadQuiz({ created_time: '2026-11-25T14:30:00.000Z' }, { cnpj: 'abrindo' });
     const { d, e } = montar([l]);
     await rodar(d, new Date('2026-11-25T15:00:00.000Z'));
-    expect(e.enviados[0]!.texto).toMatch(/problema/);
+    expect(e.enviados[0]!.texto).toMatch(/documentos/);
     expect(e.enviados).toHaveLength(1);
     expect(e.enviados[0]!.texto).toContain('https://solardoc.app/?pagar=pix');
     expect(e.estados.get(`quiz_rec_sent:${hm(String(l.whatsapp))}`)).toMatchObject({ tipo: 'pesada1' });
@@ -436,7 +436,7 @@ describe('os textos: 1 bolha de até 900, sem travessão, sem emoji, sem dizer q
         for (const forma of formas) {
           for (const hmac of ['000000', '000001', '000002']) {
             for (const [nome, valorMensal] of [['Maximilianoooooooooooooo', 97.9], [null, null], ['Ana', 67]] as const) {
-              const t = montarToquePesado({ toque, situacao, nome, resultado: 'O seu diagnóstico deu 100 de 100, com apresentação visual pesando mais.', forma, hmac, valorMensal });
+              const t = montarToquePesado({ toque, situacao, nome, resultado: 'O seu diagnóstico deu 100 de 100, com apresentação visual pesando mais.', forma, hmac, valorMensal, empresa: 'Empresa Solar Energia Renovavel e Servicos Ltda Matriz', indice: '100' });
               expect(t.length).toBeLessThanOrEqual(900);
               expect(emBolhas(t, { maxBolhas: 1, max: 900 })).toEqual([t]);
               expect(t).not.toMatch(/[–—]|\p{Extended_Pictographic}|\[|\]|venceu|falhou|travou|travar|fora do ar|diagnostico\?|bit\.ly/u);
@@ -504,6 +504,30 @@ describe('a fila não trava na cabeça: quem pula por motivo que não fica grava
     const r3 = await rodar(d, new Date(AGORA.getTime() + 20 * 60_000));
     expect(r3.enviou).toBe(true);
     expect(e.enviados.map(x => x.tel)).toContain(normalizarTelefoneSd(telPix));
+  });
+
+  it('lead NOVO (quiz há 20 min) passa na frente do lote de resgate: é o 1º das decisões e o 1º a receber; o lote vem na rodada seguinte', async () => {
+    const velho = leadQuiz({ created_time: '2026-11-14T10:00:00.000Z' });
+    const novo = leadQuiz({ created_time: new Date(AGORA.getTime() - 20 * 60_000).toISOString() });
+    const { d, e } = montar([velho, novo]);
+    const r1 = await rodar(d);
+    expect(r1.decisoes[0]!.hmac8).toBe(hm(String(novo.whatsapp)).slice(0, 8));
+    expect(e.enviados[0]!.tel).toBe(normalizarTelefoneSd(novo.whatsapp));
+    const r2 = await rodar(d, new Date(AGORA.getTime() + 10 * 60_000));
+    expect(r2.enviou).toBe(true);
+    expect(e.enviados[1]!.tel).toBe(normalizarTelefoneSd(velho.whatsapp));
+  });
+
+  it('lead NOVO preso (posse de outra agente) não trava: vai ao fim e o lote recebe na mesma rodada, sem passar de 8 avaliações', async () => {
+    const velho = leadQuiz({ created_time: '2026-11-14T10:00:00.000Z' });
+    const novo = leadQuiz({ created_time: new Date(AGORA.getTime() - 20 * 60_000).toISOString() });
+    const presa = chaveDaPosse(normalizarTelefoneSd(novo.whatsapp) as string);
+    const { d, e } = montar([velho, novo], { over: { posse: async (chave) => (chave === presa ? 'ocupada' : 'livre') } });
+    const r1 = await rodar(d);
+    expect(r1.decisoes[0]!.hmac8).toBe(hm(String(novo.whatsapp)).slice(0, 8));
+    expect(r1.decisoes[0]!.resultado).toBe('pulou');
+    expect(r1.avaliados).toBeLessThanOrEqual(8);
+    expect(e.enviados[0]!.tel).toBe(normalizarTelefoneSd(velho.whatsapp));
   });
 
   it('o adiado volta à ordem de sempre depois de 2 h', async () => {

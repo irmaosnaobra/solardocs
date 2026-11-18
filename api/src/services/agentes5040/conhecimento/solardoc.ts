@@ -87,6 +87,12 @@ export const NOVIDADES_SOLARDOC: readonly string[] = [
   'Tela de atalhos no celular com a cor e a logo da sua empresa: Nova proposta e Ler conta de luz logo no topo, e os últimos documentos a um toque.',
   'Tudo organizado pelo que mais se usa, e a pasta Arquivos guarda todos os documentos, agora com opção de excluir.',
   'Manutenção preventiva: o registro das visitas de manutenção de cada cliente.',
+  'A IA lê a conta de luz e preenche o cadastro do cliente, separando rua, número e bairro.',
+  'Proposta com vários inversores de marcas diferentes.',
+  'Proposta Completa + Banco, com 12 bancos e Fio B.',
+  'Vistoria completa, com assinatura do cliente e PDF.',
+  'Você vê quando o cliente abre o link da proposta.',
+  'Documentos na nuvem, editáveis e organizados por cliente.',
 ];
 
 /**
