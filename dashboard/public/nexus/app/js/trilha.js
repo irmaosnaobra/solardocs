@@ -189,8 +189,9 @@
   function rotDe(lista, v) { for (var i = 0; i < lista.length; i++) if (lista[i][0] === v) return lista[i][1]; return ''; }
   function respondida(k, r) {
     var v = r[k];
-    if (k === 'clientes_em_vista' || k === 'capacidades' || k === 'dificuldades') return Array.isArray(v) && v.length > 0;
-    if (k === 'simulacao') return !!(v && num(v.kwh_mes) > 0);
+    if (k === 'clientes_em_vista') return Array.isArray(v);   /* [] vale: foi o toque em "Ainda não tenho cliente em vista" (a nota não paga carteira por isso) */
+    if (k === 'capacidades' || k === 'dificuldades') return Array.isArray(v) && v.length > 0;
+    if (k === 'simulacao') return !!(v && v.feita === true && num(v.kwh_mes) > 0);   /* o valor de fábrica da tela não conta */
     return v != null && v !== '';
   }
 
@@ -208,7 +209,7 @@
     var cli = Array.isArray(r.clientes_em_vista) ? r.clientes_em_vista.length : 0;
     n += cli >= 2 ? 20 : cli === 1 ? 15 : 0; if (cli < 2) f.push({ item: 'carteira', pontos: cli ? 5 : 20, texto: cli ? 'Mais 1 cliente em vista' : 'Escolha clientes em vista' });
     if (num(r.demanda_12m) > 0) n += 10; else f.push({ item: 'demanda_12m', pontos: 10, texto: 'Diga quantos pontos fecha' });
-    if (r.simulacao && num(r.simulacao.kwh_mes) > 0) n += 15; else f.push({ item: 'simulacao', pontos: 15, texto: 'Faça a simulação' });
+    if (respondida('simulacao', r)) n += 15; else f.push({ item: 'simulacao', pontos: 15, texto: 'Simule um ponto real da sua região' });
     return { nota: Math.min(100, n), faltas: f };
   }
   var FALTA_Q = { experiencia: 'anos_solar', capacidades: 'capacidades', mercado: 'ja_montou_eletroposto', dificuldades: 'dificuldades', carteira: 'clientes_em_vista', demanda_12m: 'demanda_12m', demanda: 'demanda_12m', simulacao: 'simulacao', raio_km: 'raio_km' };
@@ -500,14 +501,15 @@
     if (!pj.length && !extras.length) h += '<li class="tr-vazio">Nenhum cliente empresa na SolarDoc ainda.</li>';
     h += '</ul>';
     if (l.length < 10) {
-      h += '<details class="tr-add"><summary>' + ic('mais', 'p') + 'Outro cliente</summary><div class="tr-add-c">' +
+      h += '<details class="tr-add"' + (!pj.length ? ' open' : '') + '><summary>' + ic('mais', 'p') + 'Outro cliente</summary><div class="tr-add-c">' +
         '<div class="nx-campo"><label for="tr-add-nome">Nome</label><input type="text" id="tr-add-nome" name="cliente_nome" maxlength="120" autocomplete="off"></div>' +
         '<div class="tr-dois"><div class="nx-campo"><label for="tr-add-cid">Cidade</label><input type="text" id="tr-add-cid" name="cliente_cidade" maxlength="80" autocomplete="off"></div>' +
         '<div class="nx-campo"><label for="tr-add-uf">UF</label><input type="text" id="tr-add-uf" name="cliente_uf" maxlength="2" autocomplete="off" style="text-transform:uppercase"></div></div>' +
         '<button type="button" class="tr-bt sec" data-tr="cliAdd">Adicionar</button></div></details>';
     }
-    var falta = l.filter(function (c) { return !c.tipo_local || !c.fase; }).length;
-    h += '<button type="button" class="tr-bt az lg tr-cont" data-tr="rxSegue">' + (l.length ? 'Continuar com ' + l.length : 'Continuar sem cliente') + '</button>';
+    /* Sem cliente marcado o único caminho é o botão que diz isso e grava []: nunca mais um "Continuar" que pula calado. */
+    if (l.length) h += '<button type="button" class="tr-bt az lg tr-cont" data-tr="rxSegue">Continuar com ' + l.length + '</button>';
+    else h += '<button type="button" class="tr-bt sec lg tr-cont" data-tr="cliNenhum">Ainda não tenho cliente em vista</button>';
     return h;
   }
 
@@ -517,7 +519,7 @@
     var ps = C.produtos(), mod = s.modelo || (ps[0] && ps[0].id) || '';
     var cli = r.cliente_nome || (cl[0] && cl[0].nome) || '';
     var tipo = s.tipo_local || (cl[0] && cl[0].tipo_local) || 'posto';
-    return { cliente: cli, tipo: tipo, modelo: mod, recargas: num(r.recargas_dia, 10) || 10, kwh: num(r.kwh_recarga, 20) || 20, preco: num(s.preco_kwh, 2.35) || 2.35, custo: num(r.custo_kwh, 0.7) || 0.7 };
+    return { feita: s.feita === true, cliente: cli, tipo: tipo, modelo: mod, recargas: num(r.recargas_dia, 10) || 10, kwh: num(r.kwh_recarga, 20) || 20, preco: num(s.preco_kwh, 2.35) || 2.35, custo: num(r.custo_kwh, 0.7) || 0.7 };
   }
   function simConta(x) {
     var calc = window.NexusCalc, ps = C.produtos(), prod = null;
@@ -528,7 +530,7 @@
   }
   function simulacaoHTML() {
     var x = st.rx.sim || (st.rx.sim = simPadrao()), cl = carteira(), ps = C.produtos();
-    var h = '<h2 class="tr-qz-h" id="tr-q-t" tabindex="-1">Simule um ponto</h2><p class="tr-dica">Mude os números e veja a conta na hora.</p>';
+    var h = '<h2 class="tr-qz-h" id="tr-q-t" tabindex="-1">Simule um ponto</h2><p class="tr-dica">Mude os números ou toque em Simular. Só a sua simulação vale na nota.</p>';
     if (cl.length) {
       h += '<div class="nx-campo"><label for="tr-sim-cli">Lugar <span class="tr-veio">Da sua carteira</span></label><select id="tr-sim-cli" data-tr-in="simCli">' +
         cl.map(function (c) { return '<option' + (c.nome === x.cliente ? ' selected' : '') + '>' + esc(c.nome) + '</option>'; }).join('') + '</select></div>';
@@ -543,6 +545,7 @@
       '<div class="tr-dois"><div class="nx-campo"><label for="tr-sim-pr">Venda, R$ por kWh</label><input type="number" id="tr-sim-pr" name="preco_kwh" inputmode="decimal" step="0.05" min="0" value="' + x.preco + '" data-tr-in="simNum" data-c="preco"></div>' +
       '<div class="nx-campo"><label for="tr-sim-cu">Energia, R$ por kWh</label><input type="number" id="tr-sim-cu" name="custo_kwh" inputmode="decimal" step="0.05" min="0" value="' + x.custo + '" data-tr-in="simNum" data-c="custo"></div></div>' +
       '<div class="tr-sim-res" id="tr-sim-res" aria-live="polite">' + simResHTML(x) + '</div>' +
+      '<button type="button" class="tr-bt sec lg tr-cont" data-tr="simFaz">Simular este ponto</button>' +
       '<button type="button" class="tr-bt az lg tr-cont" data-tr="rxEnviar">Ver minha nota</button>';
     return h;
   }
@@ -580,12 +583,16 @@
     C.repintar(false);
     var h = $('#tr-q-t'); if (h) try { h.focus({ preventScroll: true }); } catch (e) { /* ok */ }
   }
-  function enviarRx(btn) {
+  /* `feita` só vale se o parceiro mexeu num número ou tocou em Simular: a tela já nasce preenchida e isso não é simulação. */
+  function salvarSim() {
     var x = st.rx.sim || simPadrao(), c = simConta(x);
-    if (c) {
-      salvarRx('simulacao', { tipo_local: x.tipo, modelo: x.modelo, kwh_mes: Math.round(c.kwh), preco_kwh: x.preco,
-        resultado: { receita_mes: Math.round(c.receita), sobra_mes: Math.round(c.sobra), retorno_meses: c.retorno ? Math.ceil(c.retorno) : null, recargas_dia: x.recargas, kwh_recarga: x.kwh, custo_kwh: x.custo, cliente_nome: x.cliente } });
-    }
+    if (!c) return false;
+    salvarRx('simulacao', { tipo_local: x.tipo, modelo: x.modelo, kwh_mes: Math.round(c.kwh), preco_kwh: x.preco, feita: x.feita === true,
+      resultado: { receita_mes: Math.round(c.receita), sobra_mes: Math.round(c.sobra), retorno_meses: c.retorno ? Math.ceil(c.retorno) : null, recargas_dia: x.recargas, kwh_recarga: x.kwh, custo_kwh: x.custo, cliente_nome: x.cliente } });
+    return true;
+  }
+  function enviarRx(btn) {
+    salvarSim();
     clearTimeout(st.rx.t);
     btn.disabled = true; btn.textContent = 'Calculando a nota';
     enviarFila().then(function () {
@@ -625,7 +632,7 @@
       }).join('') + '</ul>' : '<span class="tr-sub">Nenhum cliente em vista</span>') + '</div>' +
       '<div class="tr-rx-s"><span class="tr-rot">' + ic('alvo', 'p') + 'Em 12 meses</span>' + (num(r.demanda_12m) > 0 ? '<span class="tr-big num">' + esc(rotOp('demanda_12m', r.demanda_12m) || r.demanda_12m) + (num(r.demanda_12m) === 1 ? ' ponto' : ' pontos') + '</span>' : SEM) + '</div>' +
       '<div class="tr-rx-s"><span class="tr-rot">' + ic('pino', 'p') + 'Região</span>' + (num(r.raio_km) > 0 ? '<span><b class="tr-big num">' + num(r.raio_km) + ' km</b> de raio</span>' : SEM) + '</div>' +
-      '<div class="tr-rx-s"><span class="tr-rot">' + ic('planilha', 'p') + 'Simulação</span>' + (num(sim.kwh_mes) > 0 ? '<span><b class="tr-big num">' + rs(sr.sobra_mes) + '</b> por mês' + (sr.cliente_nome ? ' no ' + esc(sr.cliente_nome) : '') + '</span>' : '<span class="tr-sub">Ainda não feita</span>') + '</div></div>';
+      '<div class="tr-rx-s"><span class="tr-rot">' + ic('planilha', 'p') + 'Simulação</span>' + (sim.feita === true && num(sim.kwh_mes) > 0 ? '<span><b class="tr-big num">' + rs(sr.sobra_mes) + '</b> por mês' + (sr.cliente_nome ? ' no ' + esc(sr.cliente_nome) : '') + '</span>' : '<span class="tr-sub">Ainda não feita</span>') + '</div></div>';
   }
   function telaNota() {
     var r = rx(), resp = st.rx.resp, loc = notaLocal(resp);
@@ -1142,6 +1149,7 @@
       var q = Q[st.rx.i];
       if (q.multi && !(Array.isArray(st.rx.resp[q.k]) && st.rx.resp[q.k].length)) { C.toast('Marque pelo menos 1.'); return; }
       if (q.tipo === 'carteira') {
+        if (!carteira().length) { C.toast('Marque um cliente ou toque em "Ainda não tenho cliente em vista".'); return; }
         var falta = carteira().filter(function (c) { return !c.tipo_local || !c.fase; });
         if (falta.length) { C.toast('Diga o tipo do lugar e o estágio de ' + falta[0].nome + '.'); var s0 = $('.tr-cli.on select'); if (s0) s0.focus(); return; }
         var semLocal = carteira().filter(function (c) { return !c.cidade || !c.uf; });
@@ -1150,6 +1158,13 @@
       irPergunta(st.rx.i + 1);
     },
     rxEnviar: function (el) { enviarRx(el); },
+    simFaz: function () {
+      if (!st.rx.sim) st.rx.sim = simPadrao();
+      st.rx.sim.feita = true;
+      if (salvarSim()) C.toast('Simulação registrada. Agora toque em Ver minha nota.');
+      else C.toast('A conta carrega em instantes. Toque de novo.', true);
+    },
+    cliNenhum: function () { salvarRx('clientes_em_vista', []); irPergunta(st.rx.i + 1); },
     cliFase: function (el) {
       var l = carteira().slice(), i = achaCli(el.dataset.c);
       if (i < 0) return;
@@ -1229,13 +1244,13 @@
     dgWa: function (el) { st.diag.whatsapp = el.value; if (st.diag.erro && st.diag.erro.campo === 'whatsapp') { st.diag.erro = null; el.removeAttribute('aria-invalid'); var e2 = $('#tr-dg-whatsapp-e'); if (e2) e2.remove(); } },
     reuTipo: function (el) { st.reu.tipo = el.value; C.repintar(true); },
     simCli: function (el) {
-      var x = st.rx.sim; x.cliente = el.value;
+      var x = st.rx.sim; x.cliente = el.value; x.feita = true;
       carteira().forEach(function (c) { if (c.nome === el.value && c.tipo_local) x.tipo = c.tipo_local; });
       atualizarSim();
     },
-    simTipo: function (el) { st.rx.sim.tipo = el.value; atualizarSim(); },
-    simMod: function (el) { st.rx.sim.modelo = el.value; $$('.tr-mod-op').forEach(function (l) { l.classList.toggle('on', !!$('input:checked', l)); }); atualizarSim(); },
-    simNum: function (el) { var v = num(String(el.value).replace(',', '.'), 0); if (v >= 0) { st.rx.sim[el.dataset.c] = v; atualizarSim(); } }
+    simTipo: function (el) { st.rx.sim.tipo = el.value; st.rx.sim.feita = true; atualizarSim(); },
+    simMod: function (el) { st.rx.sim.modelo = el.value; st.rx.sim.feita = true; $$('.tr-mod-op').forEach(function (l) { l.classList.toggle('on', !!$('input:checked', l)); }); atualizarSim(); },
+    simNum: function (el) { var v = num(String(el.value).replace(',', '.'), 0); if (v >= 0) { st.rx.sim[el.dataset.c] = v; st.rx.sim.feita = true; atualizarSim(); } }
   };
   function atualizarSim() { var r = $('#tr-sim-res'); if (r && st.rx.sim) r.innerHTML = simResHTML(st.rx.sim); }
   function aoMudar(e) {
@@ -1335,7 +1350,7 @@
         { cliente_id: 'c2', nome: 'Supermercado Bom Preço', cidade: 'Uberaba', uf: 'MG', tipo_local: 'outro', fase: 'conversando' },
         { cliente_id: 'c3', nome: 'Hotel Serra Azul', cidade: 'Araguari', uf: 'MG', tipo_local: 'hotel', fase: 'ideia' }],
       demanda_12m: 3,
-      simulacao: { tipo_local: 'posto', modelo: 'nexus-dc-80', kwh_mes: 6000, preco_kwh: 2.35, resultado: { receita_mes: 14460, sobra_mes: 6290, retorno_meses: 12, recargas_dia: 10, kwh_recarga: 20, custo_kwh: 0.7, cliente_nome: 'Posto Cerrado Ltda.' } }
+      simulacao: { tipo_local: 'posto', modelo: 'nexus-dc-80', kwh_mes: 6000, preco_kwh: 2.35, feita: true, resultado: { receita_mes: 14460, sobra_mes: 6290, retorno_meses: 12, recargas_dia: 10, kwh_recarga: 20, custo_kwh: 0.7, cliente_nome: 'Posto Cerrado Ltda.' } }
     } : {};
     var t1 = dia(-24), t2 = dia(-21), t3 = dia(-8), t4 = dia(-3), t5 = dia(-1);
     var et = { p1: { em: p >= 2 ? t1 : null }, p2: { em: p >= 3 ? t2 : null }, p3: { em: p >= 4 ? t3 : null }, p4: { em: p >= 5 ? t4 : null }, p5: { em: p >= 6 ? t5 : null }, p6: { em: p >= 7 ? dia(0) : null } };

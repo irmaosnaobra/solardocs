@@ -20,7 +20,7 @@ const cliente = (n: number) => ({ nome: `Posto ${n}`, cidade: 'Araguari', uf: 'M
 const tudoMenosClientes = (): Respostas => ({
   anos_solar: '3-5', usinas: '20-100', equipe: '3-5', raio_km: 150, capacidades: ['eletrica_bt'], ja_montou_eletroposto: 'nunca',
   conhece_mercado: 'pouco', papel: 'ambos', quando: 'agora', dificuldades: ['cliente'], demanda_12m: 6,
-  simulacao: { tipo_local: 'posto', modelo: 'nexus-dc-80', kwh_mes: 6300, preco_kwh: 2.1, resultado: {} },
+  simulacao: { tipo_local: 'posto', modelo: 'nexus-dc-80', kwh_mes: 6300, preco_kwh: 2.1, resultado: {}, feita: true },
 });
 
 describe('nota do Raio-X', () => {
@@ -54,6 +54,48 @@ describe('nota do Raio-X', () => {
   it('simulação sem consumo e demanda zero não pontuam', () => {
     const r = calcularNota({ ...tudoMenosClientes(), demanda_12m: 0, simulacao: { tipo_local: 'posto', modelo: 'x', kwh_mes: 0, preco_kwh: 1 } }, EMPRESA);
     expect(r.faltas.map((f) => f.item)).toEqual(expect.arrayContaining(['demanda', 'simulacao']));
+  });
+});
+
+describe('simulação e carteira vazia na nota', () => {
+  it('simulação sem feita (valor de fábrica) não soma e aparece em faltas', () => {
+    const sim = { tipo_local: 'posto', modelo: 'nexus-dc-80', kwh_mes: 6000, preco_kwh: 2.35, resultado: {} };
+    const r = calcularNota({ ...tudoMenosClientes(), simulacao: sim }, EMPRESA);
+    expect(r.nota).toBe(65);
+    expect(r.passou).toBe(false);
+    expect(r.faltas).toContainEqual({ item: 'simulacao', pontos: 15, texto: 'Simule um ponto real da sua região' });
+    expect(calcularNota({ ...tudoMenosClientes(), simulacao: { ...sim, feita: false } }, EMPRESA).nota).toBe(65);
+  });
+
+  it('simulação com feita true e consumo maior que zero soma os 15; feita true sem consumo não', () => {
+    expect(calcularNota(tudoMenosClientes(), EMPRESA).nota).toBe(80);
+    const sem = calcularNota({ ...tudoMenosClientes(), simulacao: { tipo_local: 'posto', modelo: 'x', kwh_mes: 0, preco_kwh: 1, feita: true } }, EMPRESA);
+    expect(sem.faltas.map((f) => f.item)).toContain('simulacao');
+  });
+
+  it('clientes_em_vista vazio é aceito, não soma pontos de carteira e a falta continua', () => {
+    const v = validarRespostas({ clientes_em_vista: [] });
+    expect(v).toEqual({ ok: true, valor: { clientes_em_vista: [] } });
+    const r = calcularNota({ ...tudoMenosClientes(), clientes_em_vista: [] }, EMPRESA);
+    expect(r.nota).toBe(80);
+    expect(r.faltas).toEqual([{ item: 'carteira', pontos: 20, texto: 'Adicionar ao menos um cliente em vista' }]);
+  });
+
+  it('cliente da carteira com tipo e fase grava; sem tipo ou sem fase é recusado', () => {
+    const id = 'aaaaaaaa-0000-4000-8000-000000000002';
+    const ok = validarRespostas({ clientes_em_vista: [{ cliente_id: id, nome: 'Posto Cerrado', cidade: 'Uberlândia', uf: 'MG', tipo_local: 'hotel', fase: 'quente' }] });
+    expect(ok).toEqual({ ok: true, valor: { clientes_em_vista: [{ cliente_id: id, nome: 'Posto Cerrado', cidade: 'Uberlândia', uf: 'MG', tipo_local: 'hotel', fase: 'quente' }] } });
+    expect(validarRespostas({ clientes_em_vista: [{ nome: 'A', cidade: 'B', uf: 'MG', tipo_local: '', fase: 'quente' }] })).toMatchObject({ ok: false, campo: 'clientes_em_vista' });
+    expect(validarRespostas({ clientes_em_vista: [{ nome: 'A', cidade: 'B', uf: 'MG', tipo_local: 'hotel', fase: '' }] })).toMatchObject({ ok: false, campo: 'clientes_em_vista' });
+  });
+
+  it('a validação guarda o feita da simulação e recusa feita que não é booleano', () => {
+    const base = { tipo_local: 'posto', modelo: 'nexus-dc-80', kwh_mes: 5000, preco_kwh: 2.3 };
+    const v = validarRespostas({ simulacao: { ...base, feita: true } });
+    expect(v.ok && (v.valor.simulacao as Record<string, unknown>).feita).toBe(true);
+    const sem = validarRespostas({ simulacao: base });
+    expect(sem.ok && (sem.valor.simulacao as Record<string, unknown>).feita).toBe(false);
+    expect(validarRespostas({ simulacao: { ...base, feita: 'sim' } })).toMatchObject({ ok: false, campo: 'simulacao' });
   });
 });
 

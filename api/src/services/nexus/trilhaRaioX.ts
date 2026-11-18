@@ -85,18 +85,20 @@ function clientesDe(v: unknown): ClienteEmVista[] | null {
 
 function simulacaoDe(v: unknown): Record<string, unknown> | null {
   if (!ehObjeto(v)) return null;
-  const permitidas = ['tipo_local', 'modelo', 'kwh_mes', 'preco_kwh', 'resultado'];
+  const permitidas = ['tipo_local', 'modelo', 'kwh_mes', 'preco_kwh', 'resultado', 'feita'];
   if (Object.keys(v).some((k) => !permitidas.includes(k))) return null;
   const kwh = numeroEntre(v.kwh_mes, 0, 10_000_000);
   const preco = v.preco_kwh === undefined ? 0 : numeroEntre(v.preco_kwh, 0, 100);
   const modelo = texto(v.modelo, 60);
+  if (v.feita !== undefined && typeof v.feita !== 'boolean') return null;
   if (kwh === null || preco === null || !modelo || !noConjunto(OPCOES.tipo_local, v.tipo_local)) return null;
   let resultado: Record<string, unknown> = {};
   if (v.resultado !== undefined) {
     if (!ehObjeto(v.resultado) || JSON.stringify(v.resultado).length > 4000) return null;
     resultado = v.resultado;
   }
-  return { tipo_local: v.tipo_local, modelo, kwh_mes: kwh, preco_kwh: preco, resultado };
+  // `feita`: o parceiro mexeu num valor ou tocou em simular. Sem isso é o valor de fábrica da tela e não pontua.
+  return { tipo_local: v.tipo_local, modelo, kwh_mes: kwh, preco_kwh: preco, resultado, feita: v.feita === true };
 }
 
 /** Valida UM valor de UMA chave. */
@@ -183,7 +185,8 @@ export function calcularNota(r: Respostas, e: EmpresaDoSolarDoc): { nota: number
 
   grupo('demanda', PESOS.demanda, Number(r.demanda_12m) > 0, 'Estimar a demanda de carregadores em 12 meses');
   const sim = ehObjeto(r.simulacao) ? r.simulacao : null;
-  grupo('simulacao', PESOS.simulacao, !!sim && Number(sim.kwh_mes) > 0, 'Fazer a simulação com o consumo mensal');
+  // Só vale a simulação que o parceiro fez: sem `feita === true` é o número de fábrica da tela.
+  grupo('simulacao', PESOS.simulacao, !!sim && sim.feita === true && Number(sim.kwh_mes) > 0, 'Simule um ponto real da sua região');
 
   return { nota, passou: nota >= NOTA_MINIMA, faltas };
 }

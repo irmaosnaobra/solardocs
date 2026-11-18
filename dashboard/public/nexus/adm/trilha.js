@@ -97,7 +97,7 @@ var T = {
   fila: '', patamar: '', uf: '', q: '',
   ficha: null, fichaId: null, carregandoFicha: false,
   acao: null, confirmar: null, salvando: false, erroAcao: '',
-  hist: 'tudo', foco: null,
+  hist: 'tudo', foco: null, rot: null,
   funil: null, carregandoFunil: null, mais: {}, abrirId: null, hashAntes: ''
 };
 var EX = null; // dados de exemplo (fichas completas, por user_id)
@@ -349,7 +349,8 @@ function abrir(qual, forcar) {
 
 function faixaExemplo() {
   return '<div class="tr-ex" role="note"><span>Exemplo. Dados fictícios, nada é gravado.</span>' +
-    '<button type="button" class="btn ghost sm" data-tr="sair-exemplo">Sair do exemplo</button></div>';
+    '<span class="tr-ex-bt"><button type="button" class="btn sm" data-tr="ficha" data-v="ex-13">Ver o roteiro de um parceiro apto</button>' +
+    '<button type="button" class="btn ghost sm" data-tr="sair-exemplo">Sair do exemplo</button></span></div>';
 }
 function telaOff() {
   return '<div class="tr-off">' + ic('mapa') +
@@ -594,7 +595,7 @@ function desenharFunil() {
 /* ═════════════ Ficha ═════════════ */
 function abrirFicha(id) {
   if (!T.fichaId) T.hashAntes = /^#trilha\//.test(location.hash) ? '#trilha' : (location.hash || hashDaAba(U.aba()));
-  T.fichaId = id; T.acao = null; T.confirmar = null; T.erroAcao = ''; T.hist = 'tudo'; T.ficha = null; T.erroFicha = '';
+  T.fichaId = id; T.acao = null; T.confirmar = null; T.erroAcao = ''; T.hist = 'tudo'; T.ficha = null; T.erroFicha = ''; T.rot = null;
   T.foco = document.activeElement;
   trocarHash('#trilha/' + id);
   var fundo = garantirGaveta();
@@ -611,7 +612,7 @@ function fecharFicha() {
   var fundo = document.getElementById('tr-fundo');
   if (fundo) fundo.hidden = true;
   if (T.fichaId) trocarHash(T.hashAntes || hashDaAba(U.aba()));
-  T.fichaId = null; T.ficha = null; T.acao = null; T.confirmar = null;
+  T.fichaId = null; T.ficha = null; T.acao = null; T.confirmar = null; T.rot = null;
   document.body.style.overflow = '';
   esconderBalao();
   if (T.foco && T.foco.focus && document.contains(T.foco)) { try { T.foco.focus(); } catch (e) { /* segue */ } }
@@ -659,6 +660,7 @@ function desenharFicha() {
     (ct.periodo && PERIODO[ct.periodo] ? '<span class="peq">' + PERIODO[ct.periodo] + '</span>' : '') + '</div>' : '';
   var parPill = pat === 7 ? '' : (parado == null ? '' :
     '<span class="pill ' + (parado > 7 ? 'er' : (parado > 3 ? 'av' : '')) + '">Parado há ' + (parado === 0 ? 'menos de 1 dia' : diasTxt(parado)) + '</span>');
+  var rt = blocoRoteiro(f, pat, empresa);
 
   box.innerHTML =
     '<div class="tr-f-topo"><div style="min-width:0">' +
@@ -669,9 +671,10 @@ function desenharFicha() {
         (f.assinante ? '<span class="pill ok">Assinante</span>' : '<span class="pill">Sem plano pago</span>') +
         (T.exemplo ? '<span class="tr-tag-ex">Exemplo</span>' : '') +
       '</div>' + contatoLinha + '</div>' + botaoFechar() + '</div>' +
-    '<div class="tr-f-corpo">' +
+    '<div class="tr-f-corpo">' + (rt.pend ? rt.html : '') +
       '<div class="tr-f-col">' + blocoAcoes(f, pat, empresa) + blocoPassos(f, pat) + blocoNota(f) + '</div>' +
       '<div class="tr-f-col">' + blocoRaioX(f) + blocoCarteira(f) + blocoSimulacao(f) + blocoSolarDoc(f) + blocoHistorico(hist) + '</div>' +
+      (rt.pend ? '' : rt.html) +
     '</div>';
 }
 
@@ -709,6 +712,7 @@ function rotuloAcao(k, f) {
 function blocoAcoes(f, pat, empresa) {
   var a = acoesDe(f, pat);
   var bt = function (k, primaria) {
+    if (k === 'diagnostico_feito') return '<button type="button" class="btn" data-tr="rt-ir"><span>Registrar o diagnóstico</span>' + ic('seta') + '</button>';
     var aberto = T.acao === k;
     return '<button type="button" class="btn' + (primaria ? '' : ' ghost') + '" data-tr="acao" data-v="' + k + '" aria-expanded="' + aberto + '">' +
       '<span>' + esc(rotuloAcao(k, f)) + '</span>' + ic(aberto ? 'x' : (primaria ? ACOES[k].ic : 'mais')) + '</button>' + (aberto ? formAcao(k, f, pat, empresa) : '');
@@ -745,10 +749,6 @@ function formAcao(k, f, pat, empresa) {
     c = (dias.length ? '<p class="dica">Prefere ' + esc(dias.join(', ')) + (pref.periodo ? ', de ' + (pref.periodo === 'manha' ? 'manhã' : 'tarde') : '') + '.</p>' : '') +
       '<div><label for="tr-a-quando">Data e hora</label><input id="tr-a-quando" type="datetime-local" required value="' + esc(paraCampo(d.agendado_para)) + '"></div>' +
       '<div><label for="tr-a-link">Link da reunião</label><input id="tr-a-link" type="url" inputmode="url" placeholder="https://meet.google.com/…" value="' + esc(d.link || '') + '"></div>';
-  } else if (k === 'diagnostico_feito') {
-    c = '<fieldset class="tr-fs"><legend>Resultado</legend>' +
-      '<div class="tr-escolha"><label><input type="radio" name="tr-a-res" value="aprovado">Aprovado</label><label><input type="radio" name="tr-a-res" value="ainda_nao">Ainda não</label></div></fieldset>' +
-      '<div><label for="tr-a-plano">Plano de entrada</label><textarea id="tr-a-plano" placeholder="Por onde começa, qual cliente, o que precisa">' + esc(d.plano || '') + '</textarea></div>';
   } else if (k === 'mentoria_paga') {
     c = '<p class="dica">Libera os 4 encontros da mentoria.</p>';
   } else if (k === 'mentoria_encontro') {
@@ -789,12 +789,6 @@ function lerForm(k, form, f, pat, empresa) {
       if (link && !/^https:\/\/\S+\.\S+$/i.test(link)) return { erro: 'O link precisa começar com https://' };
       if (link) corpo.link = link;
     }
-  } else if (k === 'diagnostico_feito') {
-    var r = form.querySelector('input[name="tr-a-res"]:checked');
-    if (!r) return { erro: 'Escolha Aprovado ou Ainda não.' };
-    corpo.resultado = r.value;
-    var plano = v('tr-a-plano'); if (plano) corpo.plano = plano;
-    if (r.value === 'aprovado') muda = fecha(2);
   } else if (k === 'mentoria_encontro') {
     if ((num((f.preparo || {}).encontros) || 0) + 1 >= 4) muda = fecha(3);
   } else if (k === 'reuniao_feita') {
@@ -831,6 +825,7 @@ function enviarAcao(corpo) {
   desenharFicha();
   var feito = function () {
     T.salvando = false; T.acao = null; T.confirmar = null;
+    if (corpo.acao === 'diagnostico_feito') T.rot = null;
     U.toast(T.exemplo ? 'Feito no exemplo. Nada foi gravado.' : 'Salvo.');
   };
   if (T.exemplo) {
@@ -898,6 +893,280 @@ function blocoNota(f) {
   return '<div class="tr-cx"><h3>Nota da equipe</h3><p style="margin:0;white-space:pre-wrap;line-height:1.5;overflow-wrap:anywhere">' + esc(o) + '</p></div>';
 }
 
+/* ═════════════ Roteiro da reunião de diagnóstico ═════════════
+   30 minutos, seis blocos. As falas trazem as respostas do Raio-X do parceiro; o que ele não respondeu aparece em cinza.
+   Os 4 critérios ficam só na tela. O resultado grava pela ação diagnostico_feito (plano em até 4 linhas). */
+var NUM_ROT = {
+  usinas: { '0-20': 'até 20', '20-100': '20 a 100', '100-500': '100 a 500', '500+': 'mais de 500' },
+  equipe: { '1-2': '1 a 2', '3-5': '3 a 5', '6-15': '6 a 15', '16+': '16 ou mais' }
+};
+var QUANDO_ROT = { agora: 'agora', '3m': 'em até 3 meses', '6m': 'em até 6 meses', sem_pressa: 'sem pressa' };
+var PAPEL_ROT = { revenda: 'revenda', montagem: 'montagem', ambos: 'revenda e montagem' };
+var LOCAL_ROT = { posto: 'um posto', hotel: 'um hotel', shopping: 'um shopping', condominio: 'um condomínio', empresa_frota: 'uma empresa com frota',
+  restaurante: 'um restaurante', estacionamento: 'um estacionamento', outro: 'um local' };
+var CRITERIOS = [
+  ['Tem pelo menos 1 cliente real em vista (conversando ou quente).', 'Cliente real em vista'],
+  ['Tem equipe ou parceiro para montar.', 'Equipe ou parceiro para montar'],
+  ['Quer entrar em até 6 meses.', 'Entrada em até 6 meses'],
+  ['Entende que simulação é projeção e que prazo da distribuidora não se promete.', 'Simulação é projeção e prazo não se promete']
+];
+var OBJECOES = [
+  ['Qual o preço para mim?', 'Preço de parceiro é do comercial, depois desta reunião. Hoje vemos se faz sentido entrar.'],
+  ['E se meu cliente não tiver dinheiro?', 'Financiamento é uma dificuldade comum. Vemos isso com ele no Nível 4. Não prometo aprovação.'],
+  ['Vocês vão pegar meu cliente?', 'Não. A NEXUS importa e distribui, não concorre. Cliente com proposta sua é seu.']
+];
+function lowerFirst(s) { s = String(s || ''); return s.charAt(0).toLowerCase() + s.slice(1); }
+function upperFirst(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+function listaTxt(a) {
+  a = a.filter(Boolean);
+  return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' e ' + a[a.length - 1];
+}
+function numRot(mapa, v) { return v == null || v === '' ? '' : (NUM_ROT[mapa][v] || String(v)); }
+
+// Tudo o que as falas pedem, já em texto de gente. Vazio quer dizer "não respondeu".
+function dadosRoteiro(f) {
+  var pre = f.prefill || {}, par = f.parceiro || {}, r = (f.raio_x || {}).respostas || {}, ct = contatoDe(f) || {};
+  var clis = (Array.isArray(r.clientes_em_vista) ? r.clientes_em_vista : []).filter(Boolean);
+  var q = null;
+  ['quente', 'conversando'].some(function (fase) {
+    var c = clis.filter(function (x) { return x.fase === fase; })[0];
+    if (c) { q = c; return true; }
+    return false;
+  });
+  if (!q && clis.length) q = clis[0];
+  var s = r.simulacao, ponto = '';
+  if (s && s.feita === true && num(s.kwh_mes)) {
+    var loc = s.tipo_local ? (LOCAL_ROT[s.tipo_local] || lowerFirst(rot('tipo_local', s.tipo_local))) : '';
+    ponto = loc && s.modelo ? loc + ' com ' + s.modelo : (loc || s.modelo || '');
+  }
+  var dem = num(r.demanda_12m);
+  return {
+    nome: String(ct.nome || '').trim().split(/\s+/)[0] || '',
+    empresa: pre.empresa || par.empresa || fichaG(f, 'empresa') || '',
+    local: cidadeUf(pre.cidade || par.cidade, pre.uf || par.uf),
+    usinas: numRot('usinas', r.usinas),
+    equipe: numRot('equipe', r.equipe),
+    capacidades: listaTxt((Array.isArray(r.capacidades) ? r.capacidades : []).map(function (c) { return lowerFirst(rot('capacidades', c)); })),
+    papel: r.papel ? (PAPEL_ROT[r.papel] || lowerFirst(rot('papel', r.papel))) : '',
+    quando: r.quando ? (QUANDO_ROT[r.quando] || lowerFirst(rot('quando', r.quando))) : '',
+    dificuldades: listaTxt((Array.isArray(r.dificuldades) ? r.dificuldades : []).map(function (c) { return lowerFirst(rot('dificuldades', c)); })),
+    demanda: dem,
+    ponto: ponto,
+    cli: q,
+    cliNome: q ? String(q.nome || '').trim() : '',
+    cliCidade: q ? cidadeUf(q.cidade, q.uf) : '',
+    cliFase: q && q.fase ? lowerFirst(rot('fase', q.fase)) : ''
+  };
+}
+
+function rotEstado(f, d) {
+  var id = String(f.user_id || T.fichaId);
+  if (!T.rot || T.rot.id !== id) {
+    T.rot = { id: id, crit: [false, false, false, false], res: null, resManual: false, preparo: '', erro: '', aberto: null, objAberto: false,
+      cli: d.cliNome ? d.cliNome + (d.cliCidade ? ' (' + d.cliCidade + ')' : '') : '', papel: upperFirst(d.papel), prazo: upperFirst(d.quando) };
+  }
+  return T.rot;
+}
+function critCont(R) { return R.crit.filter(Boolean).length; }
+function critFaltam(R) {
+  var l = [];
+  CRITERIOS.forEach(function (c, i) { if (!R.crit[i]) l.push(lowerFirst(c[1])); });
+  return l;
+}
+function nd() { return '<span class="tr-nd">(não respondeu)</span>'; }
+function dd(v) { return v == null || v === '' ? nd() : '<b class="tr-dd">' + esc(v) + '</b>'; }
+// Falas: texto fixo (string) e dado (objeto { d }). Tudo passa pelo esc(); { html } só recebe o que esta função mesma montou.
+function falaHtml(partes) {
+  return '<li>“' + partes.map(function (p) {
+    if (typeof p === 'string') return esc(p);
+    if (p.html != null) return p.html;
+    return dd(p.d);
+  }).join('') + '”</li>';
+}
+function decisaoHtml(R) {
+  var n = critCont(R);
+  return n ? '<b class="tr-dd">' + (n === 4 ? 'aprovado para seguir' : 'ainda não') + '</b>' : '<span class="tr-nd">(veja os critérios abaixo)</span>';
+}
+function faltaHtml(R) {
+  var n = critCont(R);
+  if (!n) return '<span class="tr-nd">(veja os critérios abaixo)</span>';
+  return '<b class="tr-dd">' + (n === 4 ? 'nada' : esc(critFaltam(R).join(', '))) + '</b>';
+}
+function sugInfo(R) {
+  var n = critCont(R);
+  if (!n) return { cls: 'zero', html: '<b>Sem sugestão ainda</b><span>Marque os critérios conforme a conversa.</span>' };
+  if (n === 4) return { cls: 'ok', html: ic('check') + '<b>Aprovado para seguir</b><span>Os 4 critérios estão marcados.</span>' };
+  return { cls: 'no', html: ic('x') + '<b>Ainda não</b><span>Falta: ' + esc(critFaltam(R).join(', ')) + '.</span>' };
+}
+function blocosRoteiro(d, R) {
+  var dem = d.demanda;
+  var nome = d.cliNome ? { d: d.cliNome } : 'primeiro cliente';
+  return [
+    { min: '0 a 3 min', t: 'Abrir', obj: 'Criar clima e combinar o tempo.', f: [
+      ['Oi, ', { d: d.nome }, ', parabéns por fechar o Nível 1.'],
+      ['Vi na ficha que a ', { d: d.empresa }, ' já fez ', { d: d.usinas }, ' usinas em ', { d: d.local }, '. Confere?']] },
+    { min: '3 a 8 min', t: 'A empresa', obj: 'Confirmar equipe, capacidades e raio.', f: [
+      ['Com ', { d: d.equipe }, ' pessoas, quem faz a parte elétrica e a obra civil?'],
+      ['Você marcou ', { d: d.capacidades }, '. Falta algo para montar um ponto DC?']] },
+    { min: '8 a 15 min', t: 'O cliente', obj: 'Achar o cliente real para começar.', f: [
+      d.cli ? ['Em que pé está o ', { d: d.cliNome }, ', em ', { d: d.cliCidade }, '?'] : ['Você tem algum cliente em vista agora?'],
+      ['Quem decide lá e para quando?'],
+      ['Ele já recebeu proposta sua? Então ele é seu.']] },
+    { min: '15 a 21 min', t: 'Papel e prazo', obj: 'Fechar o papel e a janela de entrada.', f: [
+      ['Você quer ', { d: d.papel }, '. Faz sentido para o ', nome, '?'],
+      ['Entrar ', { d: d.quando }, ': o que pode atrasar?'],
+      ['Das dificuldades que você marcou (', { d: d.dificuldades }, '), qual pesa mais?']] },
+    { min: '21 a 25 min', t: 'Simulação e demanda', obj: 'Alinhar a expectativa com a simulação.', f: [
+      ['A simulação de ', { d: d.ponto }, ' é projeção, não promessa de retorno.'],
+      ['Você prevê ', { d: dem == null ? '' : String(dem) }, dem === 1 ? ' carregador' : ' carregadores', ' em 12 meses. Em que base?'],
+      ['A NEXUS importa DC 80 kW e DC 120 kW. Qual cabe nesse ponto?']] },
+    { min: '25 a 30 min', t: 'Decisão e preparo', obj: 'Dar a decisão e indicar o preparo do Nível 3.', f: [
+      ['Minha leitura: ', { html: '<span id="tr-rt-dec">' + decisaoHtml(R) + '</span>' }, '. Se faltar algo: ', { html: '<span id="tr-rt-falta">' + faltaHtml(R) + '</span>' }, '.'],
+      ['Para o Nível 3, tem a mentoria (4 encontros, preço combinado com a equipe) ou a Academia grátis (12 aulas curtas).'],
+      ['Depois vêm o Nível 4, reunião com o seu cliente junto com a NEXUS, e o Nível 5, o 1º pedido.']] }
+  ];
+}
+function dicaCriterio(i, d) {
+  var v = '';
+  if (i === 0) v = d.cli ? d.cliNome + (d.cliFase ? ', ' + d.cliFase : '') : 'nenhum cliente em vista';
+  else if (i === 1) v = d.equipe ? d.equipe + ' pessoas' : '';
+  else if (i === 2) v = d.quando;
+  else return '';
+  return '<span class="dica">Na ficha: ' + (v ? esc(v) : 'não respondeu') + '</span>';
+}
+
+function blocoRoteiro(f, pat, empresa) {
+  var a = acoesDe(f, pat), dg = a.d;
+  var pend = a.agora.indexOf('diagnostico_feito') >= 0;
+  var d = dadosRoteiro(f), R = rotEstado(f, d);
+  var aberto = R.aberto == null ? pend : R.aberto;
+  var s = sugInfo(R);
+  var h = '<details class="tr-rot' + (pend ? ' pend' : '') + '" id="tr-rot"' + (aberto ? ' open' : '') + '>' +
+    '<summary><span class="t">Roteiro da reunião</span><span class="s">30 minutos, 6 blocos</span>' +
+    (pend ? '<span class="pill az">Diagnóstico a fazer</span>' : '') + '<span class="chev" aria-hidden="true">' + ic('mais') + '</span></summary>' +
+    '<ol class="tr-rt-lista">' + blocosRoteiro(d, R).map(function (b) {
+      return '<li class="tr-rt-b"><div class="cab"><span class="min num">' + esc(b.min) + '</span><h4>' + esc(b.t) + '</h4><p>' + esc(b.obj) + '</p></div>' +
+        '<ul class="falas">' + b.f.map(falaHtml).join('') + '</ul></li>';
+    }).join('') + '</ol>' +
+    '<section class="tr-rt-sec"><h4>Critérios <span class="aj-l">' + aj('Aprovado se tiver os 4. As caixas valem só nesta tela e não são gravadas.') + '</span>' +
+      '<span class="dir num" id="tr-rt-cont">' + critCont(R) + ' de 4</span></h4>' +
+    '<div class="tr-rt-crit">' + CRITERIOS.map(function (c, i) {
+      return '<label class="tr-ck"><input type="checkbox" data-rt="crit" data-i="' + i + '"' + (R.crit[i] ? ' checked' : '') + '><span><b>' + esc(c[0]) + '</b>' + dicaCriterio(i, d) + '</span></label>';
+    }).join('') + '</div>' +
+    '<div id="tr-rt-sug" class="tr-rt-sug ' + s.cls + '" role="status">' + s.html + '</div></section>' +
+    resultadoRoteiro(f, pat, empresa, pend, dg, R) +
+    '<details class="tr-rt-obj" id="tr-rt-obj" data-rt-det="obj"' + (R.objAberto ? ' open' : '') + '><summary><span>Se perguntarem e o que nunca prometer</span><span class="chev" aria-hidden="true">' + ic('mais') + '</span></summary>' +
+    '<div class="corpo"><ul class="obj">' + OBJECOES.map(function (o) {
+      return '<li><b>“' + esc(o[0]) + '”</b><span>' + esc(o[1]) + '</span></li>';
+    }).join('') + '</ul>' +
+    '<p class="nunca"><b>Nunca prometer:</b> obra, cliente, retorno, preço ou prazo da distribuidora. Pedido é pago pela K EMA EASY (NEXUS Eletroposto).</p></div></details>' +
+    '</details>';
+  return { html: h, pend: pend };
+}
+
+function resultadoRoteiro(f, pat, empresa, pend, dg, R) {
+  var cab = '<h4 id="tr-rt-res-t">Resultado ' + aj('O botão grava o resultado e o plano de entrada no histórico do parceiro. Aprovado fecha o Nível 2.') + '</h4>';
+  if (!pend) {
+    var txt;
+    if (dg.feito_em) {
+      txt = '<p class="feito">Diagnóstico registrado em ' + esc(dt(dg.feito_em)) + ': <b>' + (dg.resultado === 'aprovado' ? 'Aprovado para seguir' : 'Ainda não') + '</b>.</p>' +
+        (dg.plano ? '<p class="plano">' + esc(dg.plano) + '</p>' : '');
+    } else {
+      txt = '<p class="vz">O resultado só se registra quando o parceiro pede o diagnóstico.</p>';
+    }
+    return '<section class="tr-rt-sec" id="tr-rt-res" tabindex="-1">' + cab + txt + '</section>';
+  }
+  var conf = T.confirmar && T.confirmar.acao === 'diagnostico_feito' ? T.confirmar : null;
+  var erro = conf ? T.erroAcao : R.erro;
+  var erroH = erro ? '<p class="erro" id="tr-rt-erro" role="alert" tabindex="-1">' + esc(erro) + '</p>' : '';
+  var rd = function (nome, valor, rotulo, marcado, extra) {
+    return '<label><input type="radio" name="' + nome + '" value="' + valor + '" data-rt="' + (nome === 'tr-rt-res' ? 'res' : 'prep') + '"' + (marcado ? ' checked' : '') + '>' + rotulo + (extra ? '<small>' + extra + '</small>' : '') + '</label>';
+  };
+  var campo = function (k, rotulo, v) {
+    return '<div><label for="tr-rt-' + k + '">' + rotulo + '</label><input id="tr-rt-' + k + '" type="text" maxlength="80" autocomplete="off" data-rt-campo="' + k + '" value="' + esc(v) + '"></div>';
+  };
+  return '<section class="tr-rt-sec" id="tr-rt-res" tabindex="-1" aria-labelledby="tr-rt-res-t">' + cab +
+    '<fieldset class="tr-rt-fs"' + (conf ? ' disabled' : '') + '>' +
+      '<fieldset class="tr-fs"><legend>Decisão</legend><div class="tr-escolha">' +
+        rd('tr-rt-res', 'aprovado', 'Aprovado', R.res === 'aprovado') + rd('tr-rt-res', 'ainda_nao', 'Ainda não', R.res === 'ainda_nao') + '</div></fieldset>' +
+      '<fieldset class="tr-fs"><legend>Plano de entrada</legend><div class="tr-rt-plano">' +
+        campo('cli', 'Cliente por onde começar', R.cli) + campo('papel', 'Papel', R.papel) + campo('prazo', 'Prazo', R.prazo) + '</div></fieldset>' +
+      '<fieldset class="tr-fs"><legend>Preparo recomendado</legend><div class="tr-escolha">' +
+        rd('tr-rt-prep', 'mentoria', 'Mentoria', R.preparo === 'mentoria', '4 encontros') + rd('tr-rt-prep', 'academia', 'Academia', R.preparo === 'academia', '12 aulas grátis') + '</div></fieldset>' +
+    '</fieldset>' + erroH +
+    (conf
+      ? '<div class="tr-conf" role="alertdialog" aria-labelledby="tr-conf-t"><p id="tr-conf-t">' + esc(conf.texto) + '<small>' + esc(conf.sub) + '</small></p>' +
+        '<div class="linha"><button type="button" class="btn tr-ok" data-tr="confirmar"' + (T.salvando ? ' disabled' : '') + '>' + (T.salvando ? 'Salvando…' : 'Confirmar') + '</button>' +
+        '<button type="button" class="btn ghost" data-tr="voltar"' + (T.salvando ? ' disabled' : '') + '>Voltar</button></div></div>'
+      : '<button type="button" class="btn tr-rt-gravar" id="tr-rt-gravar" data-tr="rt-gravar">Registrar o diagnóstico</button>') +
+    '</section>';
+}
+
+// Atualiza só o que depende dos critérios, sem redesenhar a ficha (o foco e a rolagem ficam onde estão).
+function rotAtualizarVivo() {
+  var R = T.rot; if (!R) return;
+  var s = sugInfo(R), el = document.getElementById('tr-rt-sug');
+  if (el) { el.className = 'tr-rt-sug ' + s.cls; el.innerHTML = s.html; }
+  var x = document.getElementById('tr-rt-dec'); if (x) x.innerHTML = decisaoHtml(R);
+  x = document.getElementById('tr-rt-falta'); if (x) x.innerHTML = faltaHtml(R);
+  x = document.getElementById('tr-rt-cont'); if (x) x.textContent = critCont(R) + ' de 4';
+  var rs = document.querySelectorAll('#tr-ficha input[name="tr-rt-res"]');
+  for (var i = 0; i < rs.length; i++) rs[i].checked = rs[i].value === R.res;
+}
+function rotLimparErro() { if (T.rot) T.rot.erro = ''; var e = document.getElementById('tr-rt-erro'); if (e && !T.confirmar) e.remove(); }
+function rotIr() {
+  if (T.rot) T.rot.aberto = true;
+  var d = document.getElementById('tr-rot'); if (d) d.open = true;
+  var h = document.getElementById('tr-rt-res');
+  if (h) { h.scrollIntoView({ block: 'start' }); h.focus({ preventScroll: true }); }
+}
+function rotGravar() {
+  var f = T.ficha, R = T.rot;
+  if (!f || !R || T.salvando) return;
+  var pre = f.prefill || {};
+  var empresa = pre.empresa || (f.parceiro || {}).empresa || 'este parceiro';
+  var falha = function (m) { R.erro = m; desenharFicha(); var e = document.getElementById('tr-rt-erro'); if (e) e.focus(); };
+  if (!R.res) return falha('Escolha Aprovado ou Ainda não.');
+  if (R.res === 'aprovado' && !R.preparo) return falha('Escolha o preparo: Mentoria ou Academia.');
+  var lim = function (v) { return String(v || '').replace(/\s+/g, ' ').trim(); };
+  var l = [];
+  if (lim(R.cli)) l.push('Cliente: ' + lim(R.cli));
+  if (lim(R.papel)) l.push('Papel: ' + lim(R.papel));
+  if (lim(R.prazo)) l.push('Prazo: ' + lim(R.prazo));
+  if (R.preparo) l.push('Preparo: ' + (R.preparo === 'mentoria' ? 'Mentoria' : 'Academia'));
+  var corpo = { acao: 'diagnostico_feito', resultado: R.res };
+  if (l.length) corpo.plano = l.join('\n');
+  var ap = R.res === 'aprovado';
+  R.erro = ''; T.erroAcao = '';
+  T.confirmar = { acao: 'diagnostico_feito', corpo: corpo,
+    texto: ap ? 'Fecha o Nível 2 (' + PATAMARES[2] + ') de ' + empresa + '.' : 'Registra o diagnóstico de ' + empresa + ' como Ainda não.',
+    sub: ap ? 'O parceiro passa para o Nível 3 na hora.' : 'O parceiro continua no Nível 2.' };
+  desenharFicha();
+  var cb = document.querySelector('#tr-ficha [data-tr="confirmar"]'); if (cb) cb.focus();
+}
+document.addEventListener('change', function (ev) {
+  var el = ev.target, k = el && el.getAttribute && el.getAttribute('data-rt'), R = T.rot;
+  if (!k || !R) return;
+  if (k === 'crit') {
+    R.crit[Number(el.getAttribute('data-i'))] = el.checked;
+    if (!R.resManual) { var n = critCont(R); R.res = n ? (n === 4 ? 'aprovado' : 'ainda_nao') : null; }
+    rotAtualizarVivo();
+  } else if (k === 'res') { R.res = el.value; R.resManual = true; }
+  else if (k === 'prep') R.preparo = el.value;
+  rotLimparErro();
+});
+document.addEventListener('input', function (ev) {
+  var el = ev.target, k = el && el.getAttribute && el.getAttribute('data-rt-campo');
+  if (k && T.rot) T.rot[k] = el.value;
+});
+// O "toggle" não borbulha: escuta na captura para lembrar se o roteiro e as objeções estão abertos.
+document.addEventListener('toggle', function (ev) {
+  var el = ev.target;
+  if (!T.rot || !el || !el.id) return;
+  if (el.id === 'tr-rot' && el === document.getElementById('tr-rot')) T.rot.aberto = el.open;
+  else if (el.id === 'tr-rt-obj') T.rot.objAberto = el.open;
+}, true);
+
 function chips(lista) {
   lista = lista.filter(Boolean);
   if (!lista.length) return '<span class="tr-chip vz">Não respondeu</span>';
@@ -951,6 +1220,7 @@ function blocoSimulacao(f) {
   var s = ((f.raio_x || {}).respostas || {}).simulacao;
   var h = '<div class="tr-cx"><h3>Simulação ' + aj('Conta que o parceiro fez no simulador, para um cliente dele. Não é preço de parceiro.') + '</h3>';
   if (!s || !num(s.kwh_mes)) return h + '<p class="vz">Não fez a simulação.</p></div>';
+  if (s.feita !== true) return h + '<p class="vz">Ficou com os números de exemplo. Não simulou um ponto real.</p></div>';
   var kv = [['Local', rot('tipo_local', s.tipo_local)], ['Modelo', s.modelo || ''], ['Energia por mês', fmtN(s.kwh_mes) + ' kWh'],
     ['Preço do kWh', num(s.preco_kwh) != null ? 'R$ ' + num(s.preco_kwh).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '']];
   var res = s.resultado && typeof s.resultado === 'object' ? s.resultado : {};
@@ -1116,13 +1386,13 @@ function notaDe(r) {
   var c = (r.clientes_em_vista || []).length;
   if (c >= 2) n += 20; else if (c === 1) { n += 15; f.push({ item: 'carteira', pontos: 5, texto: 'Mais um cliente em vista' }); } else f.push({ item: 'carteira', pontos: 20, texto: 'Clientes em vista' });
   if (num(r.demanda_12m) > 0) n += 10; else f.push({ item: 'demanda', pontos: 10, texto: 'Demanda em 12 meses' });
-  if (r.simulacao && num(r.simulacao.kwh_mes) > 0) n += 15; else f.push({ item: 'simulacao', pontos: 15, texto: 'Simulação' });
+  if (r.simulacao && r.simulacao.feita === true && num(r.simulacao.kwh_mes) > 0) n += 15; else f.push({ item: 'simulacao', pontos: 15, texto: 'Simulação' });
   return { nota: n, faltas: f };
 }
 function cli(nome, cidade, uf, tipo, fase) { return { nome: nome, cidade: cidade, uf: uf, tipo_local: tipo, fase: fase }; }
 function sim(tipo, modelo, kwh, preco) {
   var receita = Math.round(kwh * preco);
-  return { tipo_local: tipo, modelo: modelo, kwh_mes: kwh, preco_kwh: preco, resultado: { receita_mes: receita, recargas_mes: Math.round(kwh / 28), payback_meses: Math.round(150000 / (receita * 0.55)) } };
+  return { tipo_local: tipo, modelo: modelo, kwh_mes: kwh, preco_kwh: preco, feita: true, resultado: { receita_mes: receita, recargas_mes: Math.round(kwh / 28), payback_meses: Math.round(150000 / (receita * 0.55)) } };
 }
 var EQ = ['ana@exemplo.com', 'bruno@exemplo.com', 'carla@exemplo.com'];
 var DEFS = [
@@ -1433,8 +1703,10 @@ document.addEventListener('click', function (ev) {
     if (T.acao && foco) foco.focus();
     else { var bb = document.querySelector('#tr-ficha [data-tr="acao"][data-v="' + v + '"]'); if (bb) bb.focus(); }
   }
+  else if (o === 'rt-ir') rotIr();
+  else if (o === 'rt-gravar') rotGravar();
   else if (o === 'confirmar' && T.confirmar) enviarAcao(T.confirmar.corpo);
-  else if (o === 'voltar') { T.confirmar = null; T.erroAcao = ''; desenharFicha(); var vb = document.querySelector('#tr-ficha [data-tr-form] button[type=submit]'); if (vb) vb.focus(); }
+  else if (o === 'voltar') { T.confirmar = null; T.erroAcao = ''; desenharFicha(); var vb = document.querySelector('#tr-ficha [data-tr-form] button[type=submit], #tr-rt-gravar'); if (vb) vb.focus(); }
 });
 document.addEventListener('submit', function (ev) {
   var form = ev.target.closest ? ev.target.closest('[data-tr-form]') : null;

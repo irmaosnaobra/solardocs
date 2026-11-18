@@ -62,7 +62,7 @@ const respostasCheias = () => ({
     { nome: 'Posto A', cidade: 'Araguari', uf: 'MG', tipo_local: 'posto', fase: 'quente' },
     { nome: 'Hotel B', cidade: 'Uberaba', uf: 'MG', tipo_local: 'hotel', fase: 'ideia' },
   ],
-  simulacao: { tipo_local: 'posto', modelo: 'nexus-dc-80', kwh_mes: 6300, preco_kwh: 2.1, resultado: {} },
+  simulacao: { tipo_local: 'posto', modelo: 'nexus-dc-80', kwh_mes: 6300, preco_kwh: 2.1, resultado: {}, feita: true },
 });
 
 const get = (uid: string, url = '/gerador/nexus/trilha') => request(app()).get(url).set(bearer(uid));

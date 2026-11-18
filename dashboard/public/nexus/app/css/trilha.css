@@ -92,6 +92,7 @@ html.np-embed .tr-embed { display: block; }
 .tr-bt:focus-visible { outline: 2px solid var(--nx-azul-tx); outline-offset: 2px; }
 .tr-bt.br:focus-visible, .tr-ment .tr-bt:focus-visible { outline-color: var(--nx-verde); }
 .tr-cont { width: 100%; }
+.tr-cont + .tr-cont { margin-top: 10px; }
 .tr-seg { align-self: flex-start; }
 .tr-lnk { align-self: center; display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; color: var(--nx-azul-tx); font-weight: 700; font-size: 14px; }
 
