@@ -194,7 +194,7 @@ export default function ClientModal({ client, onClose, onSave, seed, notice }: C
                 type="text"
                 value={form.cpf_cnpj}
                 onChange={e => handleCpfCnpj(e.target.value)}
-                placeholder={isPJ ? '00.000.000/0000-00' : '000.000.000-00'}
+                placeholder={isPJ ? '00.000.000/0000-00' : 'Opcional'}
                 className="input-field"
                 maxLength={isPJ ? 18 : 14}
               />
