@@ -14,11 +14,14 @@
 export type SituacaoPesada = 'quiz' | 'pix';
 export type FormaPesada = { tipo: 'codigo' } | { tipo: 'link_pix'; link: string } | { tipo: 'link_cartao'; link: string };
 
-// ── 1º toque, quem fez o quiz e chegou na hora de pagar (Texto 1 A e B do redator; a C é o toque 1 A do Texto 3) ─────────────────────────────────
+// ── 1º toque, quem terminou o quiz e NÃO abriu o pagamento (17/11/2026: A1 a A3 do redator, aprovadas pelo dono e pelo chefe anti-ban) ──────────────
+// Mostra o que o sistema faz em vez de perguntar se houve problema: quem não abriu o pagamento não teve problema nenhum. O [link] fica DENTRO da 1ª bolha
+// (frase curta de pagamento, sem a do débito: o preço vai no corpo, por {valor}). `{?empresa|com|sem}` e `{?indice|com|sem}` escolhem o trecho conforme o
+// dado exista: lead sem empresa ou sem índice não vira "da ." nem "deu de 100".
 export const T1_QUIZ: readonly string[] = [
-  'Oi, [nome], aqui é a Carla, da SolarDoc.\nVi que você fez seu diagnóstico e chegou na hora de pagar, mas não concluiu.\nTeve algum problema ou dúvida nessa hora?\nSe teve, me conta que eu te ajudo por aqui.\nJá te mando o jeito de pagar.\n[pagamento]',
-  'Oi, [nome], é a Carla, da SolarDoc.\nPassando para saber se deu algum problema na hora de pagar.\nÀs vezes é só uma dúvida, e eu te respondo rapidinho.\nJá te mando o jeito de pagar.\n[pagamento]',
-  'Oi, [nome], aqui é a Carla, da SolarDoc.\nVocê deixou seu WhatsApp no diagnóstico e não chegou a assinar.\nTeve algum problema para pagar?\nJá te mando o jeito de pagar, caso queira terminar agora.\n[pagamento]',
+  'Oi, [nome], aqui é a Carla, da SolarDoc.\nVi que você terminou o diagnóstico{?empresa| da [empresa]|}{?indice| e a nota deu [indice]|}.\nDeixa eu te mostrar o que a gente faz.\nSão 8 documentos com a sua logo, cor e CNPJ.\nOrçamento de 1 página, proposta comercial, contrato, procuração, recibo, prestação de serviço, checklist de vistoria e proposta pro banco.\nA IA lê a conta de luz e preenche o cadastro do cliente.\nVocê vê quando o cliente abre a proposta, e tudo fica na nuvem, por cliente.\n[[É {valor} por mês|É uma mensalidade]], sem limite de documentos e sem fidelidade.\nQual desses te ajudaria mais hoje?\n[pagamento]',
+  'Antes de você decidir, [nome], deixa eu te mostrar o que a SolarDoc faz.\nDá pra montar orçamento de 1 página, proposta comercial, contrato, procuração, recibo, prestação de serviço, checklist de vistoria e proposta pro banco.\nTudo com a logo, a cor e o CNPJ{?empresa| da [empresa]| da sua empresa}.\nTem proposta com vários inversores de marcas diferentes, proposta Completa + Banco com 12 bancos e Fio B, e vistoria com assinatura e lista de compras.\nTudo fica na nuvem, organizado por cliente.\n[[São {valor} por mês|É uma mensalidade]], sem fidelidade e sem limite de documentos.\nO que você mais precisa resolver hoje?\n[pagamento]',
+  '{?indice|Sua nota no diagnóstico foi [indice] de 100, [nome]. Aqui é a Carla, da SolarDoc, e queria|Oi, [nome], aqui é a Carla, da SolarDoc, e queria} te mostrar o que vem no sistema.\nSão 8 documentos com a logo, a cor e o CNPJ{?empresa| da [empresa]| da sua empresa}, incluindo proposta pro banco e checklist de vistoria.\nA IA lê a conta de luz e preenche o cadastro do cliente, separando rua, número e bairro.\nVocê é avisado quando o cliente abre a proposta.\nTem também Manutenção preventiva com registro de visitas.\n[[É {valor} por mês|É uma mensalidade]], sem fidelidade, com 7 dias de garantia.\nQual deles você quer ver primeiro?\n[pagamento]',
 ];
 
 // ── 1º toque, quem começou o Pix automático e não concluiu (Texto 2 A e B do redator; a C segue o mesmo tom) ────────────────────────────────────────
@@ -53,6 +56,7 @@ const PAG_LINK_CARTAO_CURTO = 'Para assinar no cartão, é só abrir [link] e te
 
 export const LIMITE_TEXTO_PESADA = 900;
 const MAX_NOME = 20;
+const MAX_EMPRESA = 30;
 
 /** Escolhe a variação pelo hmac: estável para a pessoa, espalhada entre pessoas. */
 export function variacaoDoHmac(hmac: string, n: number): number {
@@ -69,6 +73,11 @@ export function valorPorExtenso(v: number | null): string | null {
 /** Resolve `[[com valor|sem valor]]` e `{valor}`. */
 function comValor(t: string, valor: string | null): string {
   return t.replace(/\[\[([^|\]]*)\|([^\]]*)\]\]/g, (_m, com: string, sem: string) => (valor ? com.replace('{valor}', () => valor) : sem));
+}
+
+/** Resolve `{?chave|com|sem}`: o trecho `com` quando o dado existe, o `sem` quando não. */
+function escolhas(t: string, dados: Record<string, string>): string {
+  return t.replace(/\{\?(\w+)\|([^|}]*)\|([^}]*)\}/g, (_m, chave: string, com: string, sem: string) => (dados[chave] ? com : sem));
 }
 
 function frasePagamento(f: FormaPesada, completo: boolean): string {
@@ -92,6 +101,9 @@ export interface EntradaPesada {
   hmac: string;
   /** A mensalidade REAL desta pessoa (R$ 67 no link; a do contrato no código), ou null: o texto não cita valor. Obrigatório de propósito. */
   valorMensal: number | null;
+  /** O nome da empresa do diagnóstico e o índice (0 a 100), só para o 1º toque de quem fez o quiz. Ausentes: o trecho sai. */
+  empresa?: string | null;
+  indice?: string | null;
 }
 
 /** O texto do toque, 1 bolha. Sem nome: "Oi, aqui é a Carla". Sem resultado: a linha sai. Nunca leva o código (ele vai sozinho na 2ª mensagem). */
@@ -99,9 +111,16 @@ export function montarToquePesado(e: EntradaPesada): string {
   const lista = e.toque === 1 ? (e.situacao === 'pix' ? T1_PIX : T1_QUIZ) : e.toque === 2 ? T2 : T3;
   const modelo = lista[variacaoDoHmac(e.hmac, lista.length)] as string;
   const nome = e.nome ? e.nome.trim().slice(0, MAX_NOME).trim() : '';
-  const texto = (nome ? modelo : modelo.replace(', [nome],', ','))
+  const empresa = (e.empresa ?? '').trim().slice(0, MAX_EMPRESA).trim();
+  const indice = /^\d{1,3}$/.test(String(e.indice ?? '')) ? String(e.indice) : '';
+  // O pagamento "completo" leva a frase do débito; o 1º toque do quiz já traz o preço no corpo e usa a curta (cabe em 900 com o pior link).
+  const completo = e.toque === 3 || (e.toque === 1 && e.situacao === 'pix');
+  const texto = escolhas(modelo, { empresa, indice })
+    .replace(/\[empresa\]/g, () => empresa)
+    .replace(/\[indice\]/g, () => indice)
+    .replace(/, \[nome\]([.,])/, (m, fim: string) => (nome ? m : fim))
     .replace('[nome]', () => nome)
-    .replace('[pagamento]', () => frasePagamento(e.forma, e.toque !== 2))
+    .replace('[pagamento]', () => frasePagamento(e.forma, completo))
     .replace('[resultado]', () => (e.resultado ?? '').trim());
   return comValor(texto, valorPorExtenso(e.valorMensal)).split('\n').map(l => l.trim()).filter(Boolean).join('\n');
 }

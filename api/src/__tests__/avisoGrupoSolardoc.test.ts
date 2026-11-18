@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ── banco em memória: só o suficiente para system_state, leads_meta, sales e users ──
 type Linha = Record<string, any>;
-const tabelas: Record<string, Linha[]> = { system_state: [], leads_meta: [], sales: [], users: [] };
+const tabelas: Record<string, Linha[]> = { system_state: [], leads_meta: [], sales: [], users: [], asaas_pix_assinaturas: [] };
 const DUP = { code: '23505', message: 'duplicate key' };
 const valorDe = (r: Linha, col: string): unknown => {
   if (col.includes('->>')) { const [c, k] = col.split('->>'); return r[c!]?.[k!]; }
@@ -114,7 +114,7 @@ vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
 vi.mock('../services/agentes5040/posse', () => ({ lerPosse: (...a: unknown[]) => av.posse(...a) }));
 
 import {
-  avisarDesistencia, avisarSemVaga, avisarCompra, descarregarPendentes, grupoVendas, idDeVenda, TEMPOS_AVISO, fecharSemGrupo, type ColetorSemGrupo,
+  avisarDesistencia, avisarSemVaga, avisarCompra, avisarPixPendente, descarregarPendentes, grupoVendas, idDeVenda, TEMPOS_AVISO, fecharSemGrupo, type ColetorSemGrupo,
   type LeadQuizLinha,
 } from '../services/solardoc/avisoGrupoSolardoc';
 import { montarAviso, MODELOS, telefoneComDdi, type ModeloAviso } from '../services/solardoc/avisoGrupoTextos';
@@ -372,6 +372,43 @@ describe('compra', () => {
     delete process.env.ZAPI_SOLARDOC_GRUPO_ID;
     expect(await compra('cs_5')).toBe('sem_grupo');
     expect(sendOpsAlert).not.toHaveBeenCalled();
+  });
+});
+
+describe('Pix pendente: quem pagou entre o claim e o envio é descartado', () => {
+  const pix = (id: string) => avisarPixPendente({ contratoId: id, minutos: 45, nome: 'Carlos', empresa: null, telefone: '34991234567', linhaCarla: 'A Carla chama no próximo horário.' });
+  const contratoPendente = (id: string) => tabelas.asaas_pix_assinaturas!.push({
+    contract_id: id, email: 'carlos@exemplo.com', user_id: null, status: 'pendente', created_at: minAtras(45), ultimo_pagamento_id: null, ultimo_pagamento_em: null,
+  });
+
+  it('pagou no cartão depois do claim: o aviso não sai e o claim vira descartado', async () => {
+    contratoPendente('c1');
+    expect(await pix('c1')).toBe('pendente');
+    tabelas.sales!.push({ email: 'carlos@exemplo.com', phone: null, attribution_session_id: null, created_at: minAtras(5), status: 'paid', valor: 67 });
+    liberarTudo();
+    const r = await descarregarPendentes();
+    expect(r.enviados).toBe(0);
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(chave('quiz_aviso:pixpend:c1')!.value.estado).toBe('descartado');
+  });
+
+  it('segue sem pagamento: o aviso sai no cartão normalmente', async () => {
+    contratoPendente('c2');
+    expect(await pix('c2')).toBe('pendente');
+    liberarTudo();
+    expect((await descarregarPendentes()).enviados).toBe(1);
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+    expect(chave('quiz_aviso:pixpend:c2')!.value.estado).toBe('enviado_cartao');
+  });
+
+  it('outro contrato Pix da mesma pessoa já ativo: descartado', async () => {
+    contratoPendente('c3');
+    tabelas.asaas_pix_assinaturas!.push({ contract_id: 'c3b', email: 'carlos@exemplo.com', user_id: null, status: 'ativo', created_at: minAtras(10), ultimo_pagamento_id: 'pay_9', ultimo_pagamento_em: minAtras(9) });
+    expect(await pix('c3')).toBe('pendente');
+    liberarTudo();
+    expect((await descarregarPendentes()).enviados).toBe(0);
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(chave('quiz_aviso:pixpend:c3')!.value.estado).toBe('descartado');
   });
 });
 

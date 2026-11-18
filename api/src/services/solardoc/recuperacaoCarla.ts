@@ -52,7 +52,7 @@ import { avisarDesistencia, avisarSemVaga, avisarTentouPagar, ehLeadDeTeste, fec
 import { comprouLead, comprouPorEmail, vendasRecentes, type VendasRecentes } from './compraQuizSolardoc';
 import { estadoRecuperacaoCarla, garantirLargada, lerLargada, pesadaLigada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import {
-  CHAVE_FILA_REC, LOTE_RESGATE, PREFIXO_ADIADO_REC, VALOR_PLANO, formaPorLink, lerFilaPesada, loteVale, nomePesado, pagamentoDoToque, resultadoDoQuiz,
+  CHAVE_FILA_REC, LOTE_RESGATE, PREFIXO_ADIADO_REC, VALOR_PLANO, formaPorLink, indiceDoQuiz, lerFilaPesada, loteVale, nomePesado, pagamentoDoToque, resultadoDoQuiz,
   type CarimboLido, type ContratoLote, type ItemPesada,
 } from './recuperacaoPesada';
 import { montarToquePesado } from './recuperacaoPesadaTextos';
@@ -75,6 +75,8 @@ const SEM_VAGA_AVALIACOES = 15;
 const ERROS_PARA_PAUSAR = 2;
 const PAUSA_LINHA_MS = 15 * 60_000;
 const JANELA_FECHA_H = 20;
+/** Lead NOVO: terminou o quiz há menos disto. Com a pesada ligada, o 1º toque dele passa na frente do lote de resgate (T2/T3). */
+const LEAD_NOVO_MS = 2 * 3600_000;
 /** O "sem vaga" é UMA vez por lead, para sempre: `quiz_aviso:<hmac>:semvaga`. */
 const SUFIXO_SEM_VAGA = ':semvaga';
 
@@ -866,9 +868,14 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
     const lote = (pz?.lote ?? []).filter(i => i.toque !== 1 || !pagto.hmacs.has(i.hmac));
     // Ordem do robô (uma vez só por rodada): 1º toque do Pix, o lote de resgate (e o aviso de quem já falou), a mensagem de 15 min, o abandono da LP e,
     // por último, o 2º e o 3º toque.
+    // E1: o lead NOVO (quiz terminado há menos de 2 h) entra logo depois do Pix e ANTES do lote de resgate: a chance de venda dele é a mais quente.
+    // Só com a pesada ligada; o resto da ordem e o corte de avaliações não mudam.
+    const ehNovo = (l: LeadRec): boolean => { const t = Date.parse(String(l.created_time ?? '')); return Number.isFinite(t) && agora.getTime() - t < LEAD_NOVO_MS; };
+    const novos = pesada ? lida.fila.filter(ehNovo) : [];
+    const demais = pesada ? lida.fila.filter(l => !ehNovo(l)) : lida.fila;
     const brutos: ItemFila[] = [
-      ...doPix, ...lote.map(i => ({ lead: i.lead, pesada: i })), ...(pz?.avisos ?? []).map(i => ({ lead: i.lead, pesada: i })),
-      ...lida.fila.map(l => ({ lead: l })), ...lpItens.map(l => ({ lead: l.lead, lp: l })),
+      ...doPix, ...novos.map(l => ({ lead: l })), ...lote.map(i => ({ lead: i.lead, pesada: i })), ...(pz?.avisos ?? []).map(i => ({ lead: i.lead, pesada: i })),
+      ...demais.map(l => ({ lead: l })), ...lpItens.map(l => ({ lead: l.lead, lp: l })),
       ...toque2.map(t => ({ lead: t.lead, toque2: t })), ...(pz?.regua ?? []).map(i => ({ lead: i.lead, pesada: i })),
     ];
     // Uma pessoa, um item por rodada: duas filas podem achar a mesma pessoa (o claim seguraria, mas a avaliação seria gasta duas vezes).
@@ -960,7 +967,7 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       const texto = (pp || lp || pz1) ? null : pesada
         ? { ok: true as const, texto: montarToquePesado({
           toque: 1, situacao: 'quiz', nome: nomePesado(lead), resultado: null, forma: formaPorLink(1, lead, false, campoFd(lead.field_data, 'utm_term') || null), hmac,
-          valorMensal: VALOR_PLANO,
+          valorMensal: VALOR_PLANO, empresa: empresaDoQuiz(lead.field_data), indice: indiceDoQuiz(lead),
         }) }
         : textoDaCarla(lead, { pixPorAqui });
       if (texto && !texto.ok) { nota('pulou', texto.motivo); continue; }
@@ -1084,7 +1091,7 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
             textoPz = {
               texto: montarToquePesado({
                 toque: pz1.toque, situacao: pag.situacao, nome: nomePesado(lead), resultado: pz1.daLp ? null : resultadoDoQuiz(lead), forma: pag.forma, hmac,
-                valorMensal: pag.valorMensal,
+                valorMensal: pag.valorMensal, empresa: pz1.daLp ? null : empresaDoQuiz(lead.field_data), indice: pz1.daLp ? null : indiceDoQuiz(lead),
               }),
               segundo: pag.codigo,
             };

@@ -42,7 +42,7 @@ describe('os modelos de WhatsApp', () => {
   });
 });
 
-describe('texto 1 (código vivo), 2a (novo no mesmo dia) e 2b (novo no 2º toque): até 600 no pior caso, 1 bolha', () => {
+describe('texto 1 (código vivo), 2a (novo no mesmo dia) e 2b (novo no 2º toque): até o limite no pior caso, 1 bolha', () => {
   const vivo = (nome: string | null, empresa: string | null, dep: string) => montarTextoCodigoVivo({ nome, empresa, validade: VALIDADE_PIOR, depoimento: dep });
   it('com nome e empresa enormes e o depoimento mais comprido', () => {
     const textos = [
@@ -62,7 +62,7 @@ describe('texto 1 (código vivo), 2a (novo no mesmo dia) e 2b (novo no 2º toque
   });
   it('o texto 1 diz até quando vale, termina em "O código vai logo abaixo." e [validade] vem sempre preenchido', () => {
     const t = vivo('Carlos', 'Solar Andrade', DEP_ALESSANDRO);
-    expect(t).toBe(`Oi, Carlos, aqui é a Carla, da SolarDoc. Seu Pix da Solar Andrade continua valendo ${VALIDADE_PIOR}. ${DEP_ALESSANDRO} É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. É só copiar e colar no Pix copia e cola do seu banco. O código vai logo abaixo.`);
+    expect(t).toBe(`Oi, Carlos, aqui é a Carla, da SolarDoc. Seu Pix da Solar Andrade continua valendo ${VALIDADE_PIOR}. ${DEP_ALESSANDRO} É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona da SolarDoc, e você cancela quando quiser pelo app do banco. É só copiar e colar no Pix copia e cola do seu banco. Se o banco não mostrar a autorização ou der erro, é só me falar que você paga no cartão. O código vai logo abaixo.`);
     expect(t.endsWith('O código vai logo abaixo.')).toBe(true);
     expect(t).not.toMatch(/\[validade\]|\{validade\}/);
   });
@@ -72,6 +72,13 @@ describe('texto 1 (código vivo), 2a (novo no mesmo dia) e 2b (novo no 2º toque
     expect(vivo(null, null, DEP_ALESSANDRO).startsWith('Oi, aqui é a Carla, da SolarDoc. Seu Pix continua valendo')).toBe(true);
     expect(montarTextoCodigoNovoHoje({ nome: null, depoimento: DEP_ALESSANDRO }).startsWith('Oi, aqui é a Carla, da SolarDoc. O Pix que você gerou venceu')).toBe(true);
     expect(montarTextoCodigoNovoDia2({ nome: null, depoimento: DEP_VANDERLEI, saudacao: 'Bom dia' }).startsWith('Bom dia, aqui é a Carla, da SolarDoc. Voltei porque')).toBe(true);
+  });
+  it('a frase do cartão como plano B vem antes de "O código vai logo abaixo" e o limite nunca passa de 900', () => {
+    const C = 'Se o banco não mostrar a autorização ou der erro, é só me falar que você paga no cartão.';
+    for (const t of [vivo('Ana', 'Solar', DEP_GSI), montarTextoCodigoNovoHoje({ nome: 'Ana', depoimento: DEP_GSI }), montarTextoCodigoNovoDia2({ nome: 'Ana', depoimento: DEP_GSI, saudacao: 'Oi' })]) {
+      expect(t).toContain(`${C} O código`);
+    }
+    expect(LIMITE_TEXTO_CODIGO).toBeLessThanOrEqual(900);
   });
   it('2a e 2b terminam prometendo o código logo abaixo', () => {
     expect(montarTextoCodigoNovoHoje({ nome: 'Ana', depoimento: DEP_ALESSANDRO }).endsWith('O código novo vai logo abaixo.')).toBe(true);
@@ -190,6 +197,7 @@ describe('texto 6 (e-mail da noite com o código)', () => {
     expect(e.corpo).toContain('Ele continua valendo até amanhã às 21h.');
     expect(e.corpo.split('\n')).toContain(CODIGO);
     expect(e.corpo).toContain(`gere o pagamento por lá: ${LINK}`);
+    expect(e.corpo).toContain('Se o banco não mostrar a autorização ou der erro, é só me falar que você paga no cartão.');
     expect(e.corpo.endsWith('Carla\nSolarDoc')).toBe(true);
     for (const t of [e.assunto, e.corpo]) {
       expect(t).not.toMatch(/[—–]/);

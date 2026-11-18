@@ -6,7 +6,7 @@
 // Os ajudantes de agentes5040/relogio.ts e de utils/feriadosBR.ts só convertem o instante que recebem.
 //
 // O desenho (plano de 31/10, revisto em 03/11, e os pareceres do chefe-antiban):
-//   · UMA mensagem por pessoa, para sempre, numa bolha de até 160 caracteres, sem link e sem emoji;
+//   · UMA mensagem por pessoa, para sempre, numa bolha de até 450 caracteres, sem link e sem emoji (o preço entrou em 17/11/2026);
 //   · público: conta que NÃO paga hoje e tem WhatsApp no cadastro (grátis que nunca pagou, ou ex-assinante);
 //   · ordem: o mais quente primeiro (ex-assinante que respondeu, quem já respondeu alguma vez, o resto);
 //   · o texto vai pelo GRUPO DE PAGAMENTO: "assinou" só para quem tem pagamento provado (sales status paid e valor > 0);
@@ -16,6 +16,7 @@
 import { diaBRT, horaBRT } from '../agentes5040/relogio';
 import { chaveDoTelefone, normalizarTelefoneSd } from './quizSolardoc';
 import type { MsgConversa } from '../agentes5040/tipos';
+import { PLANO_MENSAL } from '../agentes5040/conhecimento/solardoc';
 
 // ── nomes e chaves (fonte única) ─────────────────────────────────────────────
 
@@ -53,10 +54,17 @@ export const CHAVES_TEXTO = ['pagou', 'nunca_pagou_usou', 'nunca_pagou_nunca_uso
 export type ChaveTexto = typeof CHAVES_TEXTO[number];
 export type Segmento = 'ex_assinante' | 'gratis_ativo' | 'gratis_cnpj' | 'gratis';
 
-export const TETO_CAMPANHA_24H = 25;
-/** A reserva do quiz (parecer do chefe-antiban, P4 antes de P5): a campanha para quando o frio da linha em 24 h chega ao teto frio menos isto (pico medido do quiz: 7 por dia). */
-export const RESERVA_DO_QUIZ_24H = 8;
-export const MAX_CARACTERES_RETOMADA = 160;
+/** O teto de envios da retomada em 24 h (E9, 17/11/2026: era 25; a LimpaPro cedeu vaga do frio da linha). Env `RETOMADA_USUARIOS_DIA` muda, lida a cada chamada. */
+export const TETO_RETOMADA_PADRAO = 6;
+export function tetoCampanha24h(env: string | undefined = process.env.RETOMADA_USUARIOS_DIA): number {
+  const t = String(env ?? '').trim();
+  const n = t === '' ? NaN : Number(t);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : TETO_RETOMADA_PADRAO;
+}
+/** A reserva do quiz (parecer do chefe-antiban, P4 antes de P5): a campanha para quando o frio da linha em 24 h chega ao teto frio da linha (vagasDoFrioLinha, lineThrottle.ts) menos isto. 17/11/2026: de 8 para 2 (o dono decidiu; o quiz continua na frente pela vaga guardada e pelo corte). */
+export const RESERVA_DO_QUIZ_24H = 2;
+/** 17/11/2026: as mensagens LONGAS aprovadas (Seg1 a Seg3) passam de 160; a bolha do envio frio aceita até 900. */
+export const MAX_CARACTERES_RETOMADA = 450;
 export const AVALIACOES_POR_RODADA = 8;
 
 const MIN = 60_000;
@@ -92,31 +100,31 @@ export const TELEFONE_DA_LINHA_5040 = '5534998165040';
 
 // ── os textos (redator, 31/10, aceitos pelo chefe-antiban) ───────────────────
 
+/** O valor do plano nos textos (uma fonte: conhecimento/solardoc.ts). */
+const VALOR_RET = `R$ ${PLANO_MENSAL.valor}`;
+
 const C = '{oi} Aqui é a Carla, da SolarDoc. Passando pra contar que a plataforma mudou bastante. Quer ver o que tem de novo?';
 
 /** O marcador do nome nos textos de quem nunca pagou: `, {nome}` vira `, Ana` ou some inteiro. */
 export const MARCADOR_NOME = ', {nome}';
 
 /**
- * Uma bolha de até 160 caracteres, sem link, sem emoji, sem preço. `{oi}` vira "Oi, Ana." ou "Oi."; `, {nome}` vira ", Ana" ou some.
+ * Uma bolha de até 450 caracteres (o `incerto` segue curto), sem link e sem emoji; o preço é permitido desde 17/11/2026 (as LONGAS B). `{oi}` vira "Oi, Ana." ou "Oi."; `, {nome}` vira ", Ana" ou some.
  * O grupo `pagou` leva a entrevista de saída (decisão do dono de 04/11) e o `incerto` só a C, que não afirma nada sobre a conta.
  * 05/11/2026 (chefe-antiban): quem nunca pagou recebe um de dois textos por perfil (usou ou nunca usou), A ou B pelo hash do id da conta.
  */
 export const VARIACOES_RETOMADA: Readonly<Record<ChaveTexto, readonly string[]>> = Object.freeze({
-  // 04/11/2026: quem já pagou e saiu recebe a ENTREVISTA DE SAÍDA (pedido do dono), não a novidade. Uma pergunta só, sem link e sem {oi}
-  // (o "Oi," já está no texto aprovado). O retomadaUsuarios.ts grava `entrevista_saida: true` na posse, e a Carla sabe que o toque foi este.
+  // 17/11/2026: as LONGAS B do redator, aprovadas pelo dono e pelo chefe-antiban. Sem link (o código vem depois do "sim"), com o preço e 1 pergunta.
+  // Ex-assinante (grupo `pagou`): o toque é uma OFERTA de volta, não mais a entrevista de saída. O retomadaUsuarios.ts grava `oferta_volta: true` na posse e
+  // a Carla trata o "sim" como compra (pix_automatico, pedindo CPF e e-mail se faltar).
   pagou: Object.freeze([
-    'Oi, aqui é a Carla, da SolarDoc. O que fez você parar de usar, ou o que faltou pra continuar?',
-    'Carla aqui, da SolarDoc. Se pudesse mudar uma coisa na SolarDoc pra você ter ficado, qual seria?',
-    'Oi, é a Carla, da SolarDoc. Pode ser sincero, não vou me ofender: o que pesou pra você sair?',
+    `Oi, {nome}, aqui é a Carla, da SolarDoc. Desde que você saiu, a gente mudou bastante coisa. A IA lê a conta de luz e preenche o cadastro do cliente. Tem proposta com vários inversores de marcas diferentes e a Completa + Banco, com 12 bancos e Fio B. Você vê quando o cliente abre a proposta, e tudo fica na nuvem por cliente. Se quiser voltar, é ${VALOR_RET} por mês no Pix automático, sem fidelidade. Te mando o código?`,
   ]),
   nunca_pagou_usou: Object.freeze([
-    'Olá, {nome}. Aqui é a Carla, da SolarDoc. Você já usou a SolarDoc, e agora a proposta aceita inversores de marcas diferentes. Quer ver?',
-    'Opa, {nome}. Sou a Carla, da SolarDoc. Você testou a SolarDoc. Agora a IA lê a conta de luz e preenche o cadastro do cliente. Quer testar?',
+    `Oi, {nome}, aqui é a Carla, da SolarDoc. Você já usou o sistema, e de lá pra cá mudou bastante coisa. A IA lê a conta de luz e preenche o cadastro do cliente. Tem proposta com vários inversores de marcas diferentes e a Completa + Banco, com 12 bancos e Fio B. Você vê quando o cliente abre a proposta. A vistoria tem assinatura e PDF. Hoje são ${VALOR_RET} por mês no Pix automático, e cancela quando quiser. Te mando o código?`,
   ]),
   nunca_pagou_nunca_usou: Object.freeze([
-    'E aí, {nome}! Aqui é a Carla, da SolarDoc. Você criou sua conta e ainda não montou nenhuma proposta. Quer que eu te mostre como é?',
-    'Aqui é a Carla, da SolarDoc. Sua conta ficou parada, e o menu novo traz Nova proposta e Ler conta de luz no topo. Quer um passo a passo, {nome}?',
+    `Oi, {nome}, aqui é a Carla, da SolarDoc. Você criou a conta e ainda não montou uma proposta, então vale ver o que mudou. A IA lê a conta de luz e preenche o cadastro do cliente. Dá pra fazer orçamento de 1 página, proposta pro banco e vistoria com assinatura. Tudo com a sua logo, e você vê quando o cliente abre a proposta. Plano único de ${VALOR_RET} por mês no Pix automático, sem fidelidade. Te mando o código?`,
   ]),
   incerto: Object.freeze([C]),
 });
@@ -168,13 +176,12 @@ export function variacaoDe(hmac: string, n: number): number {
 export function motivosDoTexto(texto: string): string[] {
   const m: string[] = [];
   const t = String(texto ?? '');
-  if (t.length > MAX_CARACTERES_RETOMADA) m.push('passa_de_160');
+  if (t.length > MAX_CARACTERES_RETOMADA) m.push('passa_do_limite');
   if (/https?:|www\.|\.(?:com|app|br|net|org)\b/i.test(t)) m.push('link');
   if (/\p{Extended_Pictographic}/u.test(t)) m.push('emoji');
   if (/[—–]/.test(t)) m.push('travessao');
   if (!/^\p{Lu}/u.test(t)) m.push('sem_maiuscula_no_comeco');
   if ((t.match(/\?/g) ?? []).length !== 1) m.push('perguntas');
-  if (/R\$|\bhoje\b/i.test(t)) m.push('preco_ou_hoje');
   if (/[{}]/.test(t)) m.push('modelo_sobrando');
   return m;
 }
@@ -188,8 +195,8 @@ export interface PerfilTexto { usou?: boolean; idUsuario?: string | null }
 
 /**
  * O texto desta pessoa: pela lista (grupo e uso), pela variação estável e pelo nome.
- *  · `pagou` e `incerto`: a variação vem do hmac do telefone e o nome entra em `{oi}` ("Oi, Ana."), só se o texto couber em 160;
- *  · `nunca_pagou`: A ou B pelo hash do id da conta; `, {nome}` vira `, Ana` (1ª maiúscula, resto minúsculo) e, sem nome ou se passar de 160
+ *  · `pagou` e `incerto`: a variação vem do hmac do telefone e o nome entra em `{oi}` ("Oi, Ana."), só se o texto couber no limite;
+ *  · `nunca_pagou`: A ou B pelo hash do id da conta; `, {nome}` vira `, Ana` (1ª maiúscula, resto minúsculo) e, sem nome ou se passar do limite
  *    com ele, some inteiro.
  */
 export function textoDaRetomada(
@@ -281,7 +288,7 @@ export type MotivoDeFora =
   | 'sem_telefone' | 'sem_segredo' | 'telefone_fora_do_padrao' | 'admin_ou_teste' | 'linha_nossa' | 'paga_hoje' | 'opt_out'
   | 'saiu_ha_pouco' | 'kit_integrador' | 'plugcash'
   | 'depois_da_largada' | 'data_ilegivel' | 'telefone_em_mais_de_uma_conta' | 'mudo_antigo' | 'ja_na_campanha' | 'email_nexus_24h'
-  | 'respondeu_pesquisa_saida' | 'email_saida_hoje' | 'recepcao_14d'
+  | 'respondeu_pesquisa_saida' | 'email_saida_hoje' | 'recepcao_14d' | 'estorno_ou_contestacao'
   | `fora_marcado:${string}`;
 
 export interface ItemDaFila {
@@ -389,6 +396,9 @@ export function saidaDaConta(
 }
 
 /** Há pagamento PROVADO? Venda de status `paid` com valor maior que 0. Venda só com valor (teste) e plano vencido não provam (D29). */
+/** Status de `sales` de quem pediu o dinheiro de volta: reembolso, estorno ou contestação (chargeback, disputa). */
+export const ESTORNO_OU_CONTESTACAO = /refund|reembols|estorn|charge|disput|contest/i;
+
 export const provaDePagamento = (vendas: readonly VendaRet[]): boolean =>
   vendas.some(v => String(v.status ?? '') === 'paid' && Number(v.valor) > 0);
 
@@ -463,6 +473,8 @@ export function classificarUsuario(u: UsuarioRet, x: ExtrasRet, ctx: ContextoCla
   // A recepção de usuários novos (09/11/2026) falou com a conta há menos de 14 dias: a retomada da Carla espera (o mesmo prazo do toque recente).
   if (x.recepcaoEnviadaEmMs != null && ctx.agoraMs - x.recepcaoEnviadaEmMs < JANELA_RECEPCAO_RECENTE_MS) return { ok: false, motivo: 'recepcao_14d' };
 
+  // 17/11/2026: quem saiu com estorno ou contestação (venda marcada reembolsada, estornada ou contestada) não recebe oferta de volta.
+  if (x.vendas.some(v => ESTORNO_OU_CONTESTACAO.test(String(v.status ?? '')))) return { ok: false, motivo: 'estorno_ou_contestacao' };
   const s = segmentoDaConta(u, x, ctx.agoraMs);
   const grupo = grupoDoTexto(s.segmento, provaDePagamento(x.vendas));
   // A entrevista de saída (04/11/2026) é só do grupo `pagou`: quem já respondeu o formulário não leva a mesma pergunta pelo WhatsApp, e o
@@ -627,7 +639,7 @@ const PARADAS: Readonly<Record<string, { texto: string; bloqueio: boolean }>> = 
   sem_data_de_inicio: { texto: 'Sem data de início: não envia', bloqueio: true },
   leitura_falhou: { texto: 'Não consegui ler o estado da retomada', bloqueio: true },
   fora_da_janela: { texto: 'Fora da janela: segunda a sábado, das 9h às 20h, fora de feriado', bloqueio: false },
-  teto_da_campanha: { texto: `Teto de ${TETO_CAMPANHA_24H} em 24 horas atingido`, bloqueio: false },
+  teto_da_campanha: { texto: 'Teto de envios em 24 horas atingido', bloqueio: false },
   reserva_do_quiz: { texto: 'O frio da linha está perto do teto: a campanha deixa a vaga para o quiz', bloqueio: false },
   teto_da_linha: { texto: 'O envio frio da linha está cheio agora', bloqueio: false },
   cede_a_agenda: { texto: 'A agenda está usando a linha: o frio espera', bloqueio: false },
@@ -645,6 +657,8 @@ export function paradaDoMotivo(motivo: string, opts: { inicioMs?: number } = {})
     return { motivo, texto: `Começa em ${dia} às ${horaEmTexto(opts.inicioMs as number)}`, bloqueio: false };
   }
   const p = PARADAS[motivo];
+  // O teto muda pela env `RETOMADA_USUARIOS_DIA`: o número é lido na hora, não ao carregar o módulo.
+  if (motivo === 'teto_da_campanha') return { motivo, texto: `Teto de ${tetoCampanha24h()} em 24 horas atingido`, bloqueio: false };
   return p ? { motivo, texto: p.texto, bloqueio: p.bloqueio } : null;
 }
 

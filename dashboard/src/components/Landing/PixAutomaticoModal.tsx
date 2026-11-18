@@ -32,10 +32,34 @@ const msgCarla = (c: string) =>
   'Oi, Carla! Gerei meu Pix da SolarDoc e quero ajuda para ativar.' + (c ? ' Código ' + c : '');
 const CODIGO_RE = /^SD-[A-Z0-9]{4,6}$/;
 
+// Passo a passo do Pix automático, sempre visível abaixo do código.
+const PASSOS = [
+  'Toque em Copiar código.',
+  'No app do seu banco, entre em Pix e escolha Pix copia e cola.',
+  'Cole o código. O banco mostra um pedido de Pix Automático de R$ 67 por mês. Confira e toque em Autorizar.',
+] as const;
+
 const ESPERA_MAX_MS = 60 * 60 * 1000; // vale quando a API não manda expiraEm
+const PLANO_B_MS = 15 * 60 * 1000; // esperando há 15 min sem confirmar: oferece o cartão
 const COPIADO_MS = 3000;
 const SK_LEAD_SESSAO = 'sd-pix-lead-sessao';
 const TELA = 'lp'; // chave do contrato guardado
+
+// Eventos da espera saem uma vez por código, mesmo com a LP recarregada.
+const CHAVE_MEDIDO = 'sd-pix-lp-medido';
+const medidosMemoria = new Set<string>();
+function primeiraVez(evento: string, id: string): boolean {
+  const k = evento + ':' + id;
+  if (!id || medidosMemoria.has(k)) return false;
+  medidosMemoria.add(k);
+  try {
+    const lista = JSON.parse(localStorage.getItem(CHAVE_MEDIDO) || '[]') as unknown;
+    const ks = Array.isArray(lista) ? lista.filter((x): x is string => typeof x === 'string') : [];
+    if (ks.includes(k)) return false;
+    localStorage.setItem(CHAVE_MEDIDO, JSON.stringify([...ks, k].slice(-60)));
+  } catch { /* sem armazenamento: a trava da memória basta nesta aba */ }
+  return true;
+}
 
 // Celular completo: DDD (11 a 99) + 9 + 8 dígitos. É o que a captura exige.
 const celularCompleto = (d: string) => /^\d{2}9\d{8}$/.test(d) && Number(d.slice(0, 2)) >= 11;
@@ -61,6 +85,7 @@ interface Cobranca {
   temConta: boolean;
   email: string;
   codigo: string; // SD-XXXX, quando a API devolve; '' se não
+  desdeMs: number; // quando o código foi gerado: conta os 15 min do plano B
   fimMs: number; // até quando esperar o pagamento (expiraEm da API, ou 60 min)
   validade: string; // "hoje às 14:30"; '' quando a API não mandou expiraEm
   retomada: boolean; // veio do aparelho (aba fechada, página recarregada)
@@ -76,7 +101,7 @@ function cobrancaGuardada(): Cobranca | null {
   if (!g) return null;
   return {
     id: g.id, payload: g.payload, imagem: '', temConta: g.temConta, email: '',
-    codigo: '', fimMs: g.fimMs, validade: g.fimMs > Date.now() ? validadeTexto(g.fimMs) : '', retomada: true,
+    codigo: '', desdeMs: g.t, fimMs: g.fimMs, validade: g.fimMs > Date.now() ? validadeTexto(g.fimMs) : '', retomada: true,
   };
 }
 
@@ -102,6 +127,7 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar, onCa
   const [leadCodigo, setLeadCodigo] = useState('');
   const [copiado, setCopiado] = useState(false);
   const [saindo, setSaindo] = useState(false);
+  const [planoB, setPlanoB] = useState<string | null>(null); // id do código que já mostra o cartão
 
   const painel = useRef<HTMLDivElement>(null);
   const campoEmail = useRef<HTMLInputElement>(null);
@@ -138,6 +164,41 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar, onCa
   useEffect(() => {
     if (pagou || encerrou || sumiu) limparPixGuardado(TELA);
   }, [pagou, encerrou, sumiu]);
+
+  // 15 min esperando sem confirmar: o banco pode não ter mostrado a autorização.
+  // Aparece o cartão como plano B, contado de quando o código foi gerado. Só
+  // depois da 1ª resposta da api: um código guardado que já venceu vai direto ao
+  // encerrado, sem passar pelo plano B.
+  const desdeMs = cobranca?.desdeMs ?? 0;
+  const fimCodigo = cobranca?.fimMs ?? 0;
+  // Só conta a resposta da api (o código segue sem pagamento). Sem conexão não prova nada: o plano B do cartão não abre às cegas.
+  const respondeu = espera.dados !== null;
+  useEffect(() => {
+    if (!polling || !respondeu || !idCobranca || planoB === idCobranca || Date.now() >= fimCodigo) return;
+    const falta = Math.max(0, desdeMs + PLANO_B_MS - Date.now());
+    const t = setTimeout(() => {
+      setPlanoB(idCobranca);
+      if (primeiraVez('pix_espera_15min', idCobranca)) {
+        registrarEvento('pix_espera_15min', { tela: 'lp', modo: 'automatico', contrato: idCobranca });
+      }
+    }, falta);
+    return () => clearTimeout(t);
+  }, [polling, respondeu, idCobranca, desdeMs, fimCodigo, planoB]);
+
+  // A espera acabou sem pagamento (venceu ou o banco recusou): mede o motivo.
+  const fimEspera = espera.fim;
+  useEffect(() => {
+    if (!encerrou || !idCobranca || !primeiraVez('pix_encerrado', idCobranca)) return;
+    registrarEvento('pix_encerrado', { tela: 'lp', modo: 'automatico', contrato: idCobranca, motivo: fimEspera });
+  }, [encerrou, idCobranca, fimEspera]);
+
+  const irCartao = useCallback((de: 'espera' | 'encerrado') => {
+    if (!onCartao) return;
+    if (idCobranca && primeiraVez('pix_cartao_plano_b', idCobranca)) {
+      registrarEvento('pix_cartao_plano_b', { tela: 'lp', modo: 'automatico', contrato: idCobranca, de });
+    }
+    onCartao();
+  }, [onCartao, idCobranca]);
 
   // Abriu: mede uma vez (StrictMode monta duas vezes em dev), guarda quem abriu
   // para devolver o foco, trava a rolagem da página e leva o foco ao 1º campo.
@@ -277,6 +338,7 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar, onCa
         temConta: Boolean(data.temConta),
         email: em,
         codigo: typeof data.codigo === 'string' && CODIGO_RE.test(data.codigo) ? data.codigo : '',
+        desdeMs: Date.now(),
         fimMs: comExpira ? expira : Date.now() + ESPERA_MAX_MS,
         validade: comExpira ? validadeTexto(expira) : '',
         retomada: false,
@@ -350,11 +412,11 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar, onCa
             <PixSemPagamentoBloco
               fim={espera.fim}
               nadaCobrado={espera.nadaCobrado}
-              classeBotao={styles.btnPrincipal}
-              classeBotao2={styles.btnSecundario}
+              classeBotao={onCartao ? styles.btnPar : styles.btnPrincipal}
+              classeBotao2={styles.btnPar}
               onGerar={gerarOutro}
               gerando={criando}
-              cartao={onCartao ? { onClick: onCartao } : null}
+              cartao={onCartao ? { onClick: () => irCartao('encerrado') } : null}
               idTitulo="pix-modal-titulo"
             />
             {erro && <p className={styles.erro} role="alert">{erro}</p>}
@@ -380,6 +442,24 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar, onCa
                   classeBotao={styles.btnPrincipal}
                   idCodigo="pix-codigo"
                 />
+                <section className={styles.passos} aria-labelledby="pix-passos-titulo">
+                  <h3 id="pix-passos-titulo" className={styles.passosTitulo}>Como pagar</h3>
+                  <ol className={styles.passosLista}>
+                    {PASSOS.map((p, i) => (
+                      <li key={i}><span className={styles.passoNum} aria-hidden="true">{i + 1}</span><span>{p}</span></li>
+                    ))}
+                  </ol>
+                  <p className={styles.passosNota}>O primeiro mês é cobrado agora. Você cancela quando quiser no app do banco.</p>
+                </section>
+                {onCartao && respondeu && planoB === cobranca.id && (
+                  <section className={styles.planoB} aria-labelledby="pix-plano-b-titulo">
+                    <h3 id="pix-plano-b-titulo" className={styles.planoBTitulo}>Seu banco não mostrou a autorização ou deu erro?</h3>
+                    <button type="button" className={styles.btnSecundario} onClick={() => irCartao('espera')}>
+                      Assinar no cartão
+                    </button>
+                    <p className={styles.planoBNota}>Também é mensal e você cancela quando quiser.</p>
+                  </section>
+                )}
                 <a
                   className={styles.btnSecundario}
                   href={zapUrl}

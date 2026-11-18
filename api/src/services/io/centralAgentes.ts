@@ -23,7 +23,7 @@ import { logger } from '../../utils/logger';
 import { mapaDosInterruptores } from '../agentes5040/interruptores';
 import { pausaDoValor } from '../solardoc/recuperacaoCarlaEstado';
 import { lerPainelRetomada } from '../solardoc/retomadaUsuariosPainel';
-import { TETO_CAMPANHA_24H } from '../solardoc/retomadaUsuariosRegras';
+import { tetoCampanha24h } from '../solardoc/retomadaUsuariosRegras';
 import { tetosVigentesLinha } from '../agents/whatsapp/lineThrottle';
 import { MAX_CARLA_POR_HORA } from '../agents/whatsapp/carlaThrottle';
 import { solardocViaIo } from '../agents/zapiClient';
@@ -559,7 +559,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ultima_atividade: painelRet?.ultima ?? null,
       ...(painelRet?.fila !== null && painelRet?.fila !== undefined ? { fila: painelRet.fila } : {}),
       metricas: [
-        { label: 'Enviadas hoje', valor: painelRet?.enviadas_hoje ?? null, sub: `Teto de ${TETO_CAMPANHA_24H} em 24 h` },
+        { label: 'Enviadas hoje', valor: painelRet?.enviadas_hoje ?? null, sub: `Teto de ${tetoCampanha24h()} em 24 h` },
         { label: 'Enviadas (total)', valor: painelRet?.enviadas_total ?? null },
         { label: 'Responderam', valor: painelRet?.responderam ?? null },
         { label: 'Pediram para parar', valor: painelRet?.pararam ?? null },

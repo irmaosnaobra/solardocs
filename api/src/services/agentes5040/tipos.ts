@@ -114,6 +114,8 @@ export interface ContaRetomada {
   enviado_em: string | null;
   /** O toque foi a entrevista de saída (grupo `pagou`, 04/11/2026). Ausente = não foi. */
   entrevista_saida?: boolean;
+  /** O toque foi a OFERTA de volta do ex-assinante (17/11/2026): o "sim" dele é compra no Pix automático. Ausente = não foi. */
+  oferta_volta?: boolean;
 }
 
 /** Tudo o que a persona vê do lead. Montado por contexto.ts (só leitura). */

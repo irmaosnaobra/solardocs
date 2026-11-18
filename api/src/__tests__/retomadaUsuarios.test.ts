@@ -107,6 +107,16 @@ const motivoDe = (u: UsuarioRet, x: ExtrasRet = EXTRAS_VAZIOS, over: Partial<Con
   return c.ok ? 'ok' : c.motivo;
 };
 const venda = (over: Partial<VendaRet> = {}): VendaRet => ({ email: 'x@y.com', valor: 67, status: 'paid', subscription_id: 'sub_1', ...over });
+
+describe('quem saiu com estorno ou contestação fica fora do alvo (17/11/2026)', () => {
+  it('venda reembolsada, estornada ou contestada tira a pessoa; venda paga comum segue', () => {
+    const u = usuario({ last_canceled_at: ISO(AGORA.getTime() - 40 * DIA) });
+    for (const status of ['refunded', 'chargeback', 'chargedback', 'disputed', 'estornado']) {
+      expect(motivoDe(u, { ...EXTRAS_VAZIOS, vendas: [venda(), venda({ status })] }), status).toBe('estorno_ou_contestacao');
+    }
+    expect(motivoDe(u, { ...EXTRAS_VAZIOS, vendas: [venda()] })).toBe('ok');
+  });
+});
 const msg = (autor: 'lead' | 'robo' | 'equipe', antesMs: number, id = 1): MsgConversa => ({
   id, from_me: autor !== 'lead', from_api: autor === 'robo', autor, texto: 'oi', tipo: 'texto', media_url: null,
   momment: new Date(AGORA.getTime() - antesMs).toISOString(),
@@ -432,20 +442,18 @@ describe('texto da retomada', () => {
   const H = hmacs(1)[0]!;
   /** Um id de conta que cai no texto A (0) ou B (1) pelo hash estável. */
   const idDaVariacao = (v: 0 | 1): string => { for (let i = 0; i < 1000; i++) if (hashEstavel(`conta-${i}`) % 2 === v) return `conta-${i}`; throw new Error('sem id'); };
+  // 17/11/2026: as LONGAS B (uma por perfil), com o preço e sem link.
   const TEXTOS_LITERAIS = {
-    usouA: 'Olá, {nome}. Aqui é a Carla, da SolarDoc. Você já usou a SolarDoc, e agora a proposta aceita inversores de marcas diferentes. Quer ver?',
-    usouB: 'Opa, {nome}. Sou a Carla, da SolarDoc. Você testou a SolarDoc. Agora a IA lê a conta de luz e preenche o cadastro do cliente. Quer testar?',
-    nuncaA: 'E aí, {nome}! Aqui é a Carla, da SolarDoc. Você criou sua conta e ainda não montou nenhuma proposta. Quer que eu te mostre como é?',
-    nuncaB: 'Aqui é a Carla, da SolarDoc. Sua conta ficou parada, e o menu novo traz Nova proposta e Ler conta de luz no topo. Quer um passo a passo, {nome}?',
+    usou: 'Oi, {nome}, aqui é a Carla, da SolarDoc. Você já usou o sistema, e de lá pra cá mudou bastante coisa. A IA lê a conta de luz e preenche o cadastro do cliente. Tem proposta com vários inversores de marcas diferentes e a Completa + Banco, com 12 bancos e Fio B. Você vê quando o cliente abre a proposta. A vistoria tem assinatura e PDF. Hoje são R$ 67 por mês no Pix automático, e cancela quando quiser. Te mando o código?',
+    nunca: 'Oi, {nome}, aqui é a Carla, da SolarDoc. Você criou a conta e ainda não montou uma proposta, então vale ver o que mudou. A IA lê a conta de luz e preenche o cadastro do cliente. Dá pra fazer orçamento de 1 página, proposta pro banco e vistoria com assinatura. Tudo com a sua logo, e você vê quando o cliente abre a proposta. Plano único de R$ 67 por mês no Pix automático, sem fidelidade. Te mando o código?',
   } as const;
   const casos: Array<{ rotulo: keyof typeof TEXTOS_LITERAIS; usou: boolean; variante: 0 | 1 }> = [
-    { rotulo: 'usouA', usou: true, variante: 0 }, { rotulo: 'usouB', usou: true, variante: 1 },
-    { rotulo: 'nuncaA', usou: false, variante: 0 }, { rotulo: 'nuncaB', usou: false, variante: 1 },
+    { rotulo: 'usou', usou: true, variante: 0 }, { rotulo: 'nunca', usou: false, variante: 0 },
   ];
   const gera = (usou: boolean, variante: 0 | 1, nome: string | null) =>
     textoDaRetomada('nunca_pagou', nome, H, VARIACOES_RETOMADA, { usou, idUsuario: idDaVariacao(variante) });
 
-  it('os 4 textos de quem nunca pagou saem literais, com o nome em "Aaaa" (1ª maiúscula, resto minúsculo)', () => {
+  it('os 2 textos de quem nunca pagou saem literais, com o nome em "Aaaa" (1ª maiúscula, resto minúsculo)', () => {
     for (const c of casos) {
       for (const nome of ['ana', 'ANA', 'aNa']) {
         const r = gera(c.usou, c.variante, nome);
@@ -457,12 +465,10 @@ describe('texto da retomada', () => {
     }
   });
 
-  it('sem nome, o ", {nome}" some inteiro ("Olá, {nome}." vira "Olá."), e nunca sobra { ou }', () => {
+  it('sem nome, o ", {nome}" some inteiro ("Oi, {nome}, aqui" vira "Oi, aqui"), e nunca sobra { ou }', () => {
     const esperado = {
-      usouA: 'Olá. Aqui é a Carla, da SolarDoc. Você já usou a SolarDoc, e agora a proposta aceita inversores de marcas diferentes. Quer ver?',
-      usouB: 'Opa. Sou a Carla, da SolarDoc. Você testou a SolarDoc. Agora a IA lê a conta de luz e preenche o cadastro do cliente. Quer testar?',
-      nuncaA: 'E aí! Aqui é a Carla, da SolarDoc. Você criou sua conta e ainda não montou nenhuma proposta. Quer que eu te mostre como é?',
-      nuncaB: 'Aqui é a Carla, da SolarDoc. Sua conta ficou parada, e o menu novo traz Nova proposta e Ler conta de luz no topo. Quer um passo a passo?',
+      usou: TEXTOS_LITERAIS.usou.replace('Oi, {nome}, aqui', 'Oi, aqui'),
+      nunca: TEXTOS_LITERAIS.nunca.replace('Oi, {nome}, aqui', 'Oi, aqui'),
     };
     for (const c of casos) {
       for (const nome of ['', '   ', null, undefined, 'ana@gmail.com', '{nome}', 'A{B', 'x.com', '11999990000']) {
@@ -473,26 +479,22 @@ describe('texto da retomada', () => {
     }
   });
 
-  it('com nome curto e com nome de 25 letras: até 160 caracteres, motivosDoTexto vazio, sem { }; o que não cabe com o nome perde o nome', () => {
+  it('com nome curto e com nome de 25 letras: até 450 caracteres, motivosDoTexto vazio, sem { }; o que não cabe com o nome perde o nome', () => {
     for (const c of casos) {
       for (const nome of ['Ana', NOME_25]) {
         const r = gera(c.usou, c.variante, nome);
         expect(r.ok, `${c.rotulo} ${nome}`).toBe(true);
         if (!r.ok) continue;
-        expect(r.texto.length).toBeLessThanOrEqual(160);
+        expect(r.texto.length).toBeLessThanOrEqual(450);
         expect(motivosDoTexto(r.texto), r.texto).toEqual([]);
         expect(r.texto).not.toMatch(/[{}]/);
         const comNome = TEXTOS_LITERAIS[c.rotulo].replace('{nome}', nomeParaTexto(nome));
-        if (comNome.length <= 160) expect(r.texto).toBe(comNome);
+        if (comNome.length <= 450) expect(r.texto).toBe(comNome);
         else expect(r.texto).toBe(TEXTOS_LITERAIS[c.rotulo].replace(', {nome}', ''));
       }
     }
-    // O B de quem nunca usou passa de 160 com 25 letras: o nome cai (a conta é feita aqui, não de cabeça).
-    expect(TEXTOS_LITERAIS.nuncaB.replace('{nome}', NOME_25).length).toBeGreaterThan(160);
-    const nuncaB = gera(false, 1, NOME_25);
-    expect(nuncaB.ok && nuncaB.texto.endsWith('passo a passo?')).toBe(true);
     // O nome de 30 letras (o maior do primeiroNome) também sai inteiro e válido.
-    for (const c of casos) { const r = gera(c.usou, c.variante, NOME_30); expect(r.ok && r.texto.length <= 160 && !/[{}]/.test(r.texto), c.rotulo).toBe(true); }
+    for (const c of casos) { const r = gera(c.usou, c.variante, NOME_30); expect(r.ok && r.texto.length <= 450 && !/[{}]/.test(r.texto), c.rotulo).toBe(true); }
   });
 
   it('usou = documentos_usados > 0; nunca usou é o resto (zero, vazio, ilegível)', () => {
@@ -510,18 +512,15 @@ describe('texto da retomada', () => {
     for (let i = 0; i < 40; i++) {
       const u = textoDaRetomada('nunca_pagou', 'Ana', H, VARIACOES_RETOMADA, { usou: true, idUsuario: `c${i}` });
       const n = textoDaRetomada('nunca_pagou', 'Ana', H, VARIACOES_RETOMADA, { usou: false, idUsuario: `c${i}` });
-      expect(u.ok && /^(Olá|Opa)/.test(u.texto)).toBe(true);
-      expect(n.ok && /^(E aí|Aqui é a Carla)/.test(n.texto)).toBe(true);
+      expect(u.ok && u.texto.includes('Você já usou o sistema')).toBe(true);
+      expect(n.ok && n.texto.includes('ainda não montou uma proposta')).toBe(true);
     }
   });
 
-  it('A e B alternam pelo hash estável do id da conta, não pelo hmac do telefone', () => {
-    const ids = Array.from({ length: 60 }, (_, i) => `id-${i}`);
-    const vars = ids.map(id => (textoDaRetomada('nunca_pagou', 'Ana', H, VARIACOES_RETOMADA, { usou: true, idUsuario: id }) as { variacao: number }).variacao);
-    expect(new Set(vars)).toEqual(new Set([0, 1]));
-    for (let i = 0; i < ids.length; i++) {
-      const outra = textoDaRetomada('nunca_pagou', 'Ana', hmacs(3)[2]!, VARIACOES_RETOMADA, { usou: true, idUsuario: ids[i] });
-      expect(outra.ok && outra.variacao, ids[i]).toBe(vars[i]);
+  it('uma só variação por perfil (17/11/2026): sempre a 0, qualquer id de conta; o hash segue estável', () => {
+    const ids = Array.from({ length: 30 }, (_, i) => `id-${i}`);
+    for (const id of ids) {
+      for (const usou of [true, false]) expect((textoDaRetomada('nunca_pagou', 'Ana', H, VARIACOES_RETOMADA, { usou, idUsuario: id }) as { variacao: number }).variacao).toBe(0);
     }
     expect(hashEstavel('abc')).toBe(hashEstavel('abc'));
     expect(hashEstavel('abc')).not.toBe(hashEstavel('abd'));
@@ -548,42 +547,37 @@ describe('texto da retomada', () => {
     }
   });
 
-  it('com o maior nome aceito (30 letras) cabe em 160; passando de 160, cai em "Oi."', () => {
+  it('com o maior nome aceito (30 letras) cabe no limite de 450', () => {
     expect(primeiroNome(NOME_30)).toBe(NOME_30);
     for (const grupo of ['pagou', 'nunca_pagou', 'incerto'] as GrupoTexto[]) {
       for (const h8 of hmacs(3)) {
         const r = textoDaRetomada(grupo, NOME_30, h8);
         expect(r.ok, `${grupo} ${h8}`).toBe(true);
-        if (r.ok) expect(r.texto.length).toBeLessThanOrEqual(160);
+        if (r.ok) expect(r.texto.length).toBeLessThanOrEqual(450);
       }
     }
-    const enorme = 'N'.repeat(80);
-    const r = textoDaRetomada('incerto', enorme, hmacs(2)[1]!);
-    expect(r.ok && r.texto.startsWith('Oi. Aqui é a Carla')).toBe(true);
   });
 
-  it('os 8 textos passam em motivosDoTexto sem nome e com o nome de 25 letras, e o pagou segue a entrevista de saída', () => {
-    expect(VARIACOES_RETOMADA.pagou).toHaveLength(3);
-    expect(VARIACOES_RETOMADA.nunca_pagou_usou).toHaveLength(2);
-    expect(VARIACOES_RETOMADA.nunca_pagou_nunca_usou).toHaveLength(2);
-    expect(VARIACOES_RETOMADA.incerto).toHaveLength(1);
-    expect(VARIACOES_RETOMADA.pagou.map(t => t.length)).toEqual([93, 96, 92]);
+  it('os 4 textos passam em motivosDoTexto sem nome e com o nome de 25 letras; o pagou agora é a oferta de volta', () => {
+    for (const k of CHAVES_TEXTO) expect(VARIACOES_RETOMADA[k], k).toHaveLength(1);
+    expect(VARIACOES_RETOMADA.pagou[0]).toContain('Se quiser voltar, é R$ 67 por mês no Pix automático');
+    expect(VARIACOES_RETOMADA.pagou[0]).not.toMatch(/entrevista|por que você saiu|o que fez você parar/i);
     for (const k of CHAVES_TEXTO) {
       for (const m of VARIACOES_RETOMADA[k]) {
         const sem = m.replace(', {nome}', '').replace('{oi}', 'Oi.');
         expect(motivosDoTexto(sem), sem).toEqual([]);
-        expect(sem.length, sem).toBeLessThanOrEqual(160);
+        expect(sem.length, sem).toBeLessThanOrEqual(450);
         const com = m.replace('{nome}', NOME_25).replace('{oi}', saudacao(NOME_25));
-        if (com.length <= 160) expect(motivosDoTexto(com), com).toEqual([]);
+        if (com.length <= 450) expect(motivosDoTexto(com), com).toEqual([]);
       }
     }
   });
 
-  it('não leva link, emoji, travessão, R$ nem "hoje", e tem um "?" só, no fim', () => {
+  it('não leva link, emoji nem travessão, e tem um "?" só, no fim (o preço agora pode)', () => {
     for (const g of CHAVES_TEXTO) {
       for (const m of VARIACOES_RETOMADA[g]) {
         const t = m.replace('{oi}', 'Oi, Ana.').replace('{nome}', 'Ana');
-        expect(t).not.toMatch(/https?:|www\.|R\$|\bhoje\b|[—–]/i);
+        expect(t).not.toMatch(/https?:|www\.|[—–]/i);
         expect(t).not.toMatch(/\p{Extended_Pictographic}/u);
         expect(t.match(/\?/g)).toHaveLength(1);
         expect(t.endsWith('?')).toBe(true);
@@ -593,7 +587,8 @@ describe('texto da retomada', () => {
   });
 
   it('motivosDoTexto reprova cada defeito', () => {
-    expect(motivosDoTexto('Oi. ' + 'x'.repeat(200) + '?')).toContain('passa_de_160');
+    expect(motivosDoTexto('Oi. ' + 'x'.repeat(500) + '?')).toContain('passa_do_limite');
+    expect(motivosDoTexto('Oi. ' + 'x'.repeat(300) + '?')).toEqual([]);
     expect(motivosDoTexto('Oi. Veja solardoc.app?')).toContain('link');
     expect(motivosDoTexto('Oi. Veja https://x.com agora?')).toContain('link');
     expect(motivosDoTexto(`Oi ${String.fromCodePoint(0x1F600)} tudo bem?`)).toContain('emoji');
@@ -602,8 +597,7 @@ describe('texto da retomada', () => {
     expect(motivosDoTexto('oi, tudo bem?')).toContain('sem_maiuscula_no_comeco');
     expect(motivosDoTexto('Oi. Tudo bem?? Quer ver?')).toContain('perguntas');
     expect(motivosDoTexto('Oi. Tudo bem.')).toContain('perguntas');
-    expect(motivosDoTexto('Oi. Por R$ 67, quer ver?')).toContain('preco_ou_hoje');
-    expect(motivosDoTexto('Oi. Só hoje, quer ver?')).toContain('preco_ou_hoje');
+    expect(motivosDoTexto('Oi. Hoje são R$ 67 por mês, quer ver?')).toEqual([]);   // o preço e o "hoje" passaram a valer em 17/11/2026
     expect(motivosDoTexto('{oi} Quer ver?')).toContain('modelo_sobrando');
     expect(motivosDoTexto('Olá, {nome}. Quer ver?')).toContain('modelo_sobrando');
     expect(motivosDoTexto('Oi, Ana. Quer ver o que tem de novo?')).toEqual([]);
@@ -621,14 +615,11 @@ describe('texto da retomada', () => {
     }
   });
 
-  it('a variação do pagou é estável pelo hmac e cobre as 3', () => {
-    expect(variacaoDe('00000000' + '0'.repeat(56), 3)).toBe(0);
-    expect(variacaoDe('00000001' + '0'.repeat(56), 3)).toBe(1);
-    expect(variacaoDe('00000002' + '0'.repeat(56), 3)).toBe(2);
+  it('a variação do pagou é estável pelo hmac (hoje há uma só)', () => {
     const h1 = hmacs(1)[0]!;
     expect(textoDaRetomada('pagou', 'Ana', h1)).toEqual(textoDaRetomada('pagou', 'Ana', h1));
     const usadas = new Set(hmacs(9).map(x => (textoDaRetomada('pagou', 'Ana', x) as { variacao: number }).variacao));
-    expect(usadas).toEqual(new Set([0, 1, 2]));
+    expect(usadas).toEqual(new Set([0]));
   });
 
   it('com uma lista vazia, devolve sem_texto, e textosVazios acusa (qualquer das 4)', () => {
@@ -1010,12 +1001,14 @@ describe('rodada: o início (D35), a janela e as travas, em ordem', () => {
     expect(e.chamadas).not.toContain('garantirLargada');
   });
 
-  it('a reserva do quiz: com o frio de 24 h a 8 do teto a campanha para (reserva_do_quiz) e não toma a vez; com folga, segue', async () => {
-    const cheio = falsas(gente(1), { vagasDoFrio: async () => ({ hora: { teto: 6, usadas: 0 }, dia: { teto: 30, usadas: 22 } }) });
+  it('a reserva do quiz (E9: 2 do teto): com o frio de 24 h em 28 de 30 a campanha para (reserva_do_quiz) e não toma a vez; em 24 (ou 27) ela envia', async () => {
+    const cheio = falsas(gente(1), { vagasDoFrio: async () => ({ hora: { teto: 6, usadas: 0 }, dia: { teto: 30, usadas: 28 } }) });
     expect(await rodar(cheio.d)).toMatchObject({ motivo: 'reserva_do_quiz', enviou: false });
     expect(cheio.e.chamadas).not.toContain('tomarVez');
-    const folga = falsas(gente(1), { vagasDoFrio: async () => ({ hora: { teto: 6, usadas: 0 }, dia: { teto: 30, usadas: 21 } }) });
-    expect((await rodar(folga.d)).motivo).not.toBe('reserva_do_quiz');
+    const folga = falsas(gente(1), { vagasDoFrio: async () => ({ hora: { teto: 6, usadas: 0 }, dia: { teto: 30, usadas: 24 } }) });
+    expect(await rodar(folga.d)).toMatchObject({ enviou: true });
+    const quase = falsas(gente(1), { vagasDoFrio: async () => ({ hora: { teto: 6, usadas: 0 }, dia: { teto: 30, usadas: 27 } }) });
+    expect((await rodar(quase.d)).motivo).not.toBe('reserva_do_quiz');
     const sem = falsas(gente(1), { vagasDoFrio: async () => null });
     expect(await rodar(sem.d)).toMatchObject({ motivo: 'leitura_do_teto_falhou', enviou: false });
   });
@@ -1096,20 +1089,20 @@ describe('rodada: o início (D35), a janela e as travas, em ordem', () => {
     expect(e.chamadas).not.toContain('enviar');
   });
 
-  it('teto de 25 em 24 h pelo banco: com 24 carimbos envia, com 25 não (a chave da sonda fica de fora)', async () => {
+  it('teto de 6 em 24 h pelo banco (E9; env RETOMADA_USUARIOS_DIA muda): com 5 carimbos envia, com 6 não (a chave da sonda fica de fora)', async () => {
     const reais = depsReais();
     const poe = (n: number) => { banco.reset(); for (let i = 0; i < n; i++) banco.poe('system_state', { key: `usu_rec_sent:x${i}`, value: {}, updated_at: ISO(AGORA.getTime() - 2 * HORA) }); };
-    poe(24);
+    poe(5);
     expect(await rodar(falsas(gente(1), { tetoCampanha: reais.tetoCampanha }).d)).toMatchObject({ enviou: true });
-    poe(25);
+    poe(6);
     expect(await rodar(falsas(gente(1), { tetoCampanha: reais.tetoCampanha }).d)).toMatchObject({ motivo: 'teto_da_campanha', enviou: false });
     banco.reset();
-    for (let i = 0; i < 25; i++) banco.poe('system_state', { key: `usu_rec_sent:x${i}`, value: {}, updated_at: ISO(AGORA.getTime() - 25 * HORA) });
-    expect(await reais.tetoCampanha(AGORA)).toBe('ok');                // 25 envios de mais de 24 h atrás não pesam
-    poe(24);
+    for (let i = 0; i < 6; i++) banco.poe('system_state', { key: `usu_rec_sent:x${i}`, value: {}, updated_at: ISO(AGORA.getTime() - 25 * HORA) });
+    expect(await reais.tetoCampanha(AGORA)).toBe('ok');                // 6 envios de mais de 24 h atrás não pesam
+    poe(5);
     expect(await reais.tetoCampanha(AGORA)).toBe('ok');
     banco.poe('system_state', { key: 'usu_rec_sent:sonda:2026-11-05', value: { sonda: true }, updated_at: ISO(AGORA.getTime() - HORA) });
-    expect(await reais.tetoCampanha(AGORA)).toBe('ok');                // a chave da sonda (usu_rec_sent:sonda:) pesa no frio da linha, não no teto de 25 da campanha
+    expect(await reais.tetoCampanha(AGORA)).toBe('ok');                // a chave da sonda (usu_rec_sent:sonda:) pesa no frio da linha, não no teto da campanha
     banco.poe('system_state', { key: 'usu_rec_sent:x24', value: {}, updated_at: ISO(AGORA.getTime() - HORA) });
     expect(await reais.tetoCampanha(AGORA)).toBe('cheio');
     banco.falhas['system_state.select'] = { erro: { message: 'caiu' } };
@@ -1139,7 +1132,7 @@ describe('rodada: uma mensagem por vez', () => {
     expect(r).toMatchObject({ ok: true, enviou: true, candidatos: 5, avaliados: 1 });
     expect(e.enviados).toHaveLength(1);
     expect(e.enviados[0]!.tel).toMatch(/^55\d{11}$/);
-    expect(e.enviados[0]!.texto).toMatch(/^(E aí, Ana! Aqui é a Carla, da SolarDoc\.|Aqui é a Carla, da SolarDoc\..* passo a passo, Ana\?$)/);
+    expect(e.enviados[0]!.texto).toMatch(/^Oi, Ana, aqui é a Carla, da SolarDoc\. .*Te mando o código\?$/);
     expect(e.claims.size).toBe(1);
   });
 
@@ -1312,7 +1305,8 @@ describe('rodada: claim, posse e releitura', () => {
     expect(p.chave).toBe(chaveDe(u));
     expect(p.extra).toMatchObject({ origem: 'retomada_usuarios' });
     const ret = p.extra.retomada as Record<string, unknown>;
-    expect(ret).toMatchObject({ user_id: u.id, segmento: 'ex_assinante', grupo: 'pagou', primeiro_nome: 'Ana', em: p.em });
+    expect(ret).toMatchObject({ user_id: u.id, segmento: 'ex_assinante', grupo: 'pagou', primeiro_nome: 'Ana', em: p.em, oferta_volta: true });
+    expect(ret.entrevista_saida).toBeUndefined();   // 17/11/2026: a marca da entrevista de saída saiu; é a oferta de volta
     expect(ret.texto).toBe(e.enviados[0]!.texto);
     expect(Date.parse(String(ret.ate)) - Date.parse(String(ret.em))).toBe(30 * DIA);
     // a ordem: claim, posse, releitura e só então o envio
@@ -1513,7 +1507,7 @@ describe('modo seco', () => {
     expect(s.linhas[0]!.texto).toMatch(/^Oi, Carlos\. Aqui é a Carla, da SolarDoc\. Passando pra contar/);
     expect(s.linhas[1]).toMatchObject({ situacao: 'pulado', motivo: 'suprimido', texto: null });
     expect(s.linhas[2]).toMatchObject({ situacao: 'elegivel' });
-    expect(s.linhas[2]!.texto).toMatch(/^(E aí, \w+! Aqui é a Carla, da SolarDoc\.|Aqui é a Carla, da SolarDoc\..* passo a passo, \w+\?$)/);
+    expect(s.linhas[2]!.texto).toMatch(/^Oi, \w+, aqui é a Carla, da SolarDoc\. .*Te mando o código\?$/);
   });
 
   it('traz a linha na hora, o limite, o início efetivo, a janela, as vagas do frio e os estados da trava', async () => {
@@ -1906,14 +1900,14 @@ describe('a sonda de verdade (lineThrottle e banco em memória) e o estado dela'
     expect(chaves()).toEqual([`${PREFIXO_SONDA_CLAIM_RET}${PISO_ISO}`]);
   });
 
-  it('o carimbo de teste da sonda conta para o frio da LINHA (vagasDoFrioLinha) mas não para o teto de 25 da campanha', async () => {
+  it('o carimbo de teste da sonda conta para o frio da LINHA (vagasDoFrioLinha) mas não para o teto da campanha (6)', async () => {
     const quando = agoraReal().toISOString();
-    for (let i = 0; i < 24; i++) banco.poe('system_state', { key: `${PREFIXO_CARIMBO_RET}f${i}`, value: { estado: 'enviado', user_id: `u${i}` }, updated_at: quando });
+    for (let i = 0; i < 5; i++) banco.poe('system_state', { key: `${PREFIXO_CARIMBO_RET}f${i}`, value: { estado: 'enviado', user_id: `u${i}` }, updated_at: quando });
     banco.poe('system_state', { key: `${PREFIXO_SONDA_CARIMBO_RET}${PISO_ISO}`, value: { estado: 'reservado', sonda: true }, updated_at: quando });
-    expect(await reais.tetoCampanha(agoraReal())).toBe('ok');                       // 24 envios + a sonda: 24, não 25
+    expect(await reais.tetoCampanha(agoraReal())).toBe('ok');                       // 5 envios + a sonda: 5, não 6
     const { vagasDoFrioLinha } = await import('../services/agents/whatsapp/lineThrottle');
-    expect((await vagasDoFrioLinha()).dia.usadas).toBe(25);                          // a linha conta a chave
-    banco.poe('system_state', { key: `${PREFIXO_CARIMBO_RET}f24`, value: { estado: 'enviado', user_id: 'u24' }, updated_at: quando });
+    expect((await vagasDoFrioLinha()).dia.usadas).toBe(6);                          // a linha conta a chave
+    banco.poe('system_state', { key: `${PREFIXO_CARIMBO_RET}f5`, value: { estado: 'enviado', user_id: 'u5' }, updated_at: quando });
     expect(await reais.tetoCampanha(agoraReal())).toBe('cheio');
   });
 
@@ -2075,10 +2069,10 @@ describe('"usou" = contador > 0 OU linha em documents (05/11/2026)', () => {
     const pub = { usuarios: [u], extras: () => ({ ...EXTRAS_VAZIOS, temDocumento: true }), chavesDaCasa: new Set<string>() };
     const { d, e } = falsas([u], { lerPublico: async () => pub });
     await rodar(d);
-    expect(e.enviados[0]!.texto).toMatch(/^(Olá|Opa)/);
+    expect(e.enviados[0]!.texto).toContain('Você já usou o sistema');
     const semDoc = falsas([u], { lerPublico: async () => ({ ...pub, extras: () => EXTRAS_VAZIOS }) });
     await rodar(semDoc.d);
-    expect(semDoc.e.enviados[0]!.texto).toMatch(/^(E aí|Aqui é a Carla)/);
+    expect(semDoc.e.enviados[0]!.texto).toContain('ainda não montou uma proposta');
   });
 });
 
@@ -2087,7 +2081,7 @@ describe('o perfil do texto chega ao envio (documentos_usados e id da conta)', (
     const usou = usuario({ documentos_usados: 3 });
     const nunca = usuario({ documentos_usados: 0 });
     const semCampo = usuario();
-    for (const [u, esperado] of [[usou, /^(Olá|Opa)/], [nunca, /^(E aí|Aqui é a Carla)/], [semCampo, /^(E aí|Aqui é a Carla)/]] as const) {
+    for (const [u, esperado] of [[usou, /Você já usou o sistema/], [nunca, /ainda não montou uma proposta/], [semCampo, /ainda não montou uma proposta/]] as const) {
       const { d, e } = falsas([u]);
       await rodar(d);
       expect(e.enviados, u.id).toHaveLength(1);

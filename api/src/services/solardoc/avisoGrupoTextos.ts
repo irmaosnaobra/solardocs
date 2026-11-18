@@ -94,3 +94,20 @@ export function montarAviso(modelo: ModeloAviso, c: CamposAviso): string {
   };
   return MODELOS[modelo].replace(/\[([a-z_]+)\]/g, (m, k: string) => (campos[k] !== undefined ? campos[k] : m));
 }
+
+/** "35 min" até 2 h; depois "3 h" (hora cheia, para baixo). */
+export function duracaoCurta(minutos: number): string {
+  const m = Math.max(0, Math.floor(Number.isFinite(minutos) ? minutos : 0));
+  return m < 120 ? `${m} min` : `${Math.floor(m / 60)} h`;
+}
+
+/**
+ * Aviso interno do Pix automático gerado e não pago (17/11/2026). `linhaCarla` diz se a Carla já chamou ou chama no próximo horário.
+ * Sem empresa a frase não cita empresa; sem nome sai "Nome não informado". Sem emoji, sem e-mail do cliente.
+ */
+export function montarAvisoPixPendente(c: { minutos: number; nome?: string | null; empresa?: string | null; telefone?: string | null; linhaCarla: string }): string {
+  const nome = preenchido(c.nome, 'Nome não informado');
+  const empresa = String(c.empresa ?? '').replace(/\s+/g, ' ').trim();
+  const quem = empresa ? `${nome}, da ${empresa}, telefone ${telefoneComDdi(c.telefone)}.` : `${nome}, telefone ${telefoneComDdi(c.telefone)}.`;
+  return [`Pix automático gerado e não pago há ${duracaoCurta(c.minutos)}.`, quem, 'Vale um humano chamar agora.', c.linhaCarla].join('\n');
+}

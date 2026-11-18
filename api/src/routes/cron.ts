@@ -85,6 +85,7 @@ import { rodarSentinelaFerramentas, depsRodadaReais } from '../services/agentes5
 import { enviarAviso } from '../services/io/sentinelaEnvio';
 import { novoAnthropic } from '../utils/anthropicClient';
 import { runFichaConsultorTick } from '../services/agentes5040/fichaTick';
+import { runAvisoPixPendenteTick } from '../services/solardoc/avisoPixPendenteTick';
 import { runSolarQuizAvisosTick } from '../services/io/solarQuizAviso';
 import { executarComandoPendente, depsDoBanco, type MapaAcoes } from '../services/agentes5040/comandos';
 
@@ -464,6 +465,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['lembrete_followup', () => runLembreteFollowupTick()],       // follow-up: 1 card parado por consultor a cada 30 min, 10h-20h, no celular dele (LEMBRETE_OFF desliga)
       ['reagenda_solar', () => runReagendaSolarTick()],          // solar: quem nao atendeu volta pra agenda no outro dia; desde 24/10 o card da Giovanna vai pra Nilce e o da Nilce fica com ela (SOLAR_NAO_ATENDEU_TROCA_ON=1 religa a troca antiga entre as duas), o resto fica com o mesmo consultor. 1 por tick e rampa de 10/dia (SOLAR_REAGENDA_OFF desliga)
       ['ficha_5040', () => runFichaConsultorTick()],            // agentes 5040 (A4): todo cliente agendado de solar e eletroposto gera a ficha no card e no celular do consultor dono; o MESMO interruptor faz os 5 avisos antigos saírem cedo (nasce desligada: interruptor `ficha`, ver interruptores.ts)
+      ['pix_pendente_aviso', () => runAvisoPixPendenteTick()],   // SolarDoc: Pix automático gerado e não pago há 30 min ou mais vira UM aviso por contrato no grupo da equipe, das 9h às 20h; sai no cartão do tick de avisos (AVISO_PIX_PENDENTE_OFF=true desliga)
     ];
     const assentados = await Promise.allSettled(TAREFAS.map(([, roda]) => roda()));
     // Quiz do SolarDoc (24/10/2026): quem deixou o WhatsApp e não comprou em 15 min vira aviso no grupo de vendas, e os

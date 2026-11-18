@@ -153,6 +153,13 @@
   box-shadow: 0 12px 32px rgba(245, 158, 11, 0.35);
 }
 .btnPrincipal:disabled { opacity: 0.7; cursor: not-allowed; }
+/* Dois caminhos com o mesmo peso (código vencido: gerar outro ou ir ao cartão). */
+.btnPar {
+  composes: btnPrincipal;
+  min-height: 52px;
+  box-shadow: none;
+}
+.btnPar:focus-visible { outline: 3px solid #fbbf24; outline-offset: 2px; }
 .btnSecundario {
   display: flex;
   align-items: center;
@@ -202,6 +209,90 @@
   font-size: 14px;
   line-height: 1.5;
   color: #f1f5f9;
+}
+
+/* Passo a passo do Pix automático, logo abaixo do código. */
+.passos {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #334155;
+}
+.passosTitulo {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #f1f5f9;
+}
+.passosLista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.passosLista li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: #f1f5f9;
+  text-wrap: pretty;
+}
+.passoNum {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid #fbbf24;
+  color: #fbbf24;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.passosNota {
+  margin: 12px 0 0;
+  padding-left: 36px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+
+/* Plano B: aparece depois de 15 min esperando. */
+.planoB {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  background: #253347;
+  animation: planoBEntra 0.28s ease-out both;
+}
+.planoBTitulo {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: #f1f5f9;
+  text-wrap: balance;
+}
+.planoB .btnSecundario { margin-top: 12px; }
+.planoBNota {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  color: #cbd5e1;
+}
+@keyframes planoBEntra {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .planoB { animation: none; }
 }
 
 @media (max-width: 420px) {
