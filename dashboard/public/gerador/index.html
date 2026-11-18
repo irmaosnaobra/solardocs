@@ -34784,7 +34784,7 @@ async function vdcFetch(rota, metodo, corpo, ms, opc) {
 /** Fase 1 da Jornada: o quadro montado dentro da obra avisa a etapa a cada gravação, para o "Para concluir" não ficar velho. Nunca derruba o quadro. */
 function vdcAvisarMudanca(st) { try { if (st && st.op && typeof st.op.aoMudar === 'function') st.op.aoMudar(); } catch (e) {} }
 (function () {
-  ['vdcAnexar', 'vdcTrocarEnviar', 'vdcExcluir', 'vdcMover', 'vdcMesmo', 'vdcEmailSalvar', 'vdcRatSalvar', 'vdcPesSalvar', 'vdcConfirmar', 'vdcLigar', 'vdcTrEnviar'].forEach(function (nome) {
+  ['vdcAnexar', 'vdcTrocarEnviar', 'vdcExcluir', 'vdcExcluirJa', 'vdcEmailGravar', 'vdcMover', 'vdcMesmo', 'vdcEmailSalvar', 'vdcRatSalvar', 'vdcPesSalvar', 'vdcConfirmar', 'vdcLigar', 'vdcTrEnviar'].forEach(function (nome) {
     const orig = window[nome];
     if (typeof orig !== 'function') return;
     window[nome] = async function (st) { const r = await orig.apply(this, arguments); vdcAvisarMudanca(st); return r; };
@@ -35451,24 +35451,31 @@ async function vdcEmailSalvar(st) {
   const v = em.inp.value.trim();
   em.erro.hidden = true; em.erro.textContent = '';
   if (v === vdcV(st.cad, 'email')) { showToast('Nada mudou no e-mail.'); return; }
-  st.emailGravando = true; vdcEmailSincroniza(st);
-  const r = await vdcChamar(st, 'PUT', '/cadastro', { campos: { email: v }, fonte: 'manual' });
+  const r = await vdcEmailGravar(st, v);
   if (vdcEst !== st) return;
-  st.emailGravando = false;
-  const j = r.json || {};
-  if (r.status === 400 && j.erros && typeof j.erros === 'object' && j.erros.email) {
-    em.erro.textContent = vdcMotivoTxt(j.erros.email); em.erro.hidden = false;
-    vdcEmailSincroniza(st); return;
-  }
-  if (r.status !== 200 || j.ok === false || !j.cadastro) {
-    em.erro.textContent = vdcMsgErro(r, 'Não consegui salvar o e-mail agora.'); em.erro.hidden = false;
-    vdcEmailSincroniza(st); return;
-  }
-  // A gravação não leva `sugestoes`: sem zerar, apagar o e-mail traria a sugestão da proposta de volta ao campo.
-  st.cad = j.cadastro; st.analise = vdcAnaliseDe(j); st.sugEmail = ''; vdcGuardaExtras(st, j);
+  if (!r.ok) { em.erro.textContent = r.erro; em.erro.hidden = false; vdcEmailSincroniza(st); return; }
   delete em.inp.dataset.sujo;
   vdcPintar(st);
   showToast('E-mail salvo.');
+}
+/** Grava só o e-mail pelo PUT parcial do cadastro. Devolve { ok } ou { ok: false, erro }. A Jornada usa a mesma função, com o campo dela. */
+async function vdcEmailGravar(st, v) {
+  if (vdcEst !== st) return { ok: false, erro: 'A tela mudou. Tente de novo.' };
+  if (!st.cad) return { ok: false, erro: 'Não consegui abrir o cadastro agora. Atualize a tela e tente de novo.' };
+  if (st.emailGravando || st.gravando || st.lendo) return { ok: false, erro: 'Espere o outro pedido terminar e tente de novo.' };
+  st.emailGravando = true; if (st.email) vdcEmailSincroniza(st);
+  const r = await vdcChamar(st, 'PUT', '/cadastro', { campos: { email: v }, fonte: 'manual' });
+  st.emailGravando = false;
+  // Quem chama pode ser a Jornada: o campo e o botão do quadro (o "Salvar e-mail" da lista) precisam sair de "Salvando…" em todo desfecho.
+  const volta = (res) => { if (st.email && vdcEst === st) vdcEmailSincroniza(st); return res; };
+  if (vdcEst !== st) return { ok: false, erro: 'A tela mudou. Confira o e-mail e tente de novo.' };
+  const j = r.json || {};
+  if (r.status === 400 && j.erros && typeof j.erros === 'object' && j.erros.email) return volta({ ok: false, erro: vdcMotivoTxt(j.erros.email) });
+  if (r.status !== 200 || j.ok === false || !j.cadastro) return volta({ ok: false, erro: vdcMsgErro(r, 'Não consegui salvar o e-mail agora.') });
+  // A gravação não leva `sugestoes`: sem zerar, apagar o e-mail traria a sugestão da proposta de volta ao campo.
+  st.cad = j.cadastro; st.analise = vdcAnaliseDe(j); st.sugEmail = ''; vdcGuardaExtras(st, j);
+  if (st.email) { delete st.email.inp.dataset.sujo; vdcPintar(st); }
+  return { ok: true };
 }
 
 // ── Solar: criar ou atualizar o card no Trello (20/10/2026) ─────────────────
@@ -36283,55 +36290,66 @@ function vdcEscolherTroca(st, a) {
   };
   inp.click();
 }
+/** Devolve { ok } ou { ok: false, erro }: a Jornada usa o resultado para mostrar o erro na própria tela (a lista só lê `st.lin`). */
 async function vdcTrocarEnviar(st, a, f) {
-  if (vdcEst !== st) return;
+  const TELA_MUDOU = { ok: false, erro: 'A tela mudou no meio do envio. Confira o item e tente de novo.' };
+  if (vdcEst !== st) return TELA_MUDOU;
   const lin = st.lin[a.id] = { ocupado: true, erro: '' };
   vdcRedesenhar(st);
   try {
     const slot = vdcSlotInfo(st, { chave: a.slot });
     const p = await vdcPreparar(f, slot);
-    if (vdcEst !== st) return;
+    if (vdcEst !== st) return TELA_MUDOU;
     await vdcEnviar(st, slot, p, a.id);
   } catch (e) {
-    if (vdcEst !== st) return;
+    if (vdcEst !== st) return TELA_MUDOU;
     lin.ocupado = false;
     lin.erro = ((e && e.msg) || 'Não consegui trocar o arquivo agora.') + ' O arquivo antigo continua no lugar.';
     await vdcRecarregarDocs(st);
-    if (vdcEst !== st) return;
+    if (vdcEst !== st) return TELA_MUDOU;
     vdcRedesenhar(st);
-    return;
+    return { ok: false, erro: lin.erro };
   }
   delete st.lin[a.id];
   await vdcRecarregarDocs(st);
-  if (vdcEst !== st) return;
+  if (vdcEst !== st) return { ok: true };
   vdcAvisoPessoas(st, [a.slot]);
   vdcRedesenhar(st);
   showToast('Arquivo trocado.');
+  return { ok: true };
 }
 
 /** "Excluir": pede confirmação e apaga o arquivo (o servidor tira o registro e o objeto). */
 async function vdcExcluir(st, a) {
   if (vdcEst !== st || !st.docs || !st.docs.pode) return;
   if (!confirm('Excluir "' + vdcNomeArq(st, a) + '"? O arquivo é apagado e não dá para desfazer.')) return;
+  await vdcExcluirJa(st, a);
+}
+/** Apaga sem perguntar (quem chama já confirmou: o confirm() da lista ou o diálogo da Jornada). Devolve { ok } ou { ok: false, erro }. */
+async function vdcExcluirJa(st, a) {
+  const TELA_MUDOU = { ok: false, erro: 'A tela mudou no meio do pedido. Confira o item e tente de novo.' };
+  if (vdcEst !== st) return TELA_MUDOU;
+  if (!st.docs || !st.docs.pode) return { ok: false, erro: 'Você não pode apagar este arquivo.' };
   const lin = st.lin[a.id] = { ocupado: true, erro: '' };
   vdcRedesenhar(st);
   const r = await vdcChamar(st, 'DELETE', '/docs/' + encodeURIComponent(String(a.id)));
-  if (vdcEst !== st) return;
+  if (vdcEst !== st) return TELA_MUDOU;
   const j = r.json || {};
   if (r.status === 200 && j.ok !== false) {
     delete st.lin[a.id];
     await vdcRecarregarDocs(st);
-    if (vdcEst !== st) return;
+    if (vdcEst !== st) return { ok: true };
     vdcAvisoPessoas(st, [a.slot]);
     vdcRedesenhar(st);
-    showToast('Documento excluído.');
-    return;
+    showToast('Arquivo apagado.');
+    return { ok: true };
   }
   lin.ocupado = false;
-  lin.erro = vdcMsgPatch(r, 'Não consegui excluir agora.');
+  lin.erro = vdcMsgPatch(r, 'Não consegui apagar agora.');
   if (r.status === 409 || r.status === 404) await vdcRecarregarDocs(st);
-  if (vdcEst !== st) return;
+  if (vdcEst !== st) return TELA_MUDOU;
   vdcRedesenhar(st);
+  return { ok: false, erro: lin.erro };
 }
 
 /** O que a leitura arrumou: "Organizei N documentos." e até 5 linhas. */
