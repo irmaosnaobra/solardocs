@@ -1615,7 +1615,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)
     ['meta-purchase-redrive',       () => reDrivePendingPurchases()], // reenvia Purchase que não confirmou entrega (garante Meta = card-pass)
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
-    ['email-retomada',              () => rodarEmailRetomada()],    // [18/11/2026] e-mail único para a base que não paga (grátis e ex-assinante): DESLIGADO até EMAIL_RETOMADA_LIGADA=true, 8h às 20h BRT, até 25 por rodada
+    ['email-retomada',              () => rodarEmailRetomada()],    // [18/11/2026] e-mail único para a base que não paga (grátis e ex-assinante): liga com EMAIL_RETOMADA_LIGADA=true (LIGADO na Vercel em 18/11/2026 a pedido do dono), 8h às 20h BRT, até 25 por rodada
     // ['pix-vip-reminder', ...] saiu desta lista: roda em sequência DEPOIS do dunning (ver `emSequencia`, abaixo).
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
     ['capi-lead-qualificado',       () => runCapiLeadQualificado()], // solar >700 kWh que orçou → Meta aprende o perfil do cliente bom (CAPI_QUALIFICADO_OFF desliga)
