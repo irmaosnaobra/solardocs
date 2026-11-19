@@ -12,7 +12,7 @@
 //   Eletroposto: sem agente (a Helena está pausada). O Ponto Certo já mostra a fila dos dois lados.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { ComponentType } from 'react';
-import { EvCharger, FileText, Package, SolarPanel, type LucideIcon } from 'lucide-react';
+import { AtSign, EvCharger, FileText, Package, SolarPanel, type LucideIcon } from 'lucide-react';
 import FunilSolarDocPanel from '../_components/FunilSolarDocPanel';
 import MembrosPanel from '../_components/MembrosPanel';
 // Pix automático: quantos chegam na tela de Pix e quantos saem pagando (/admin/pix-funil)
@@ -128,7 +128,7 @@ export const PRODUCTS: Product[] = [
   // Quem quer eletroposto (as seis frentes) ou mobilidade elétrica, para quê, quanto investe e como paga.
   // O azul é o da área NEXUS dentro da SolarDoc.
   {
-    id: 'nexus-instagram', nome: 'NEXUS Instagram', emoji: '◆', cor: '#0060C7',
+    id: 'nexus-instagram', nome: 'NEXUS Instagram', Icone: AtSign, cor: '#0060C7',
     tabs: [
       { key: 'lista', label: 'Lista de interesse', status: 'pronto', Comp: NexusInstagramPanel },
     ],
