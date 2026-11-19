@@ -21,7 +21,7 @@ import { dentroDaJanelaDiurna } from '../agents/whatsapp/lineThrottle';
 import { destinoDe, valorEmMil, valorOk, type LinhaOrigem } from './eletropostoPares';
 import { agendaAbre, diaBRT, horasDoDia, livrePara, type Compromisso } from './eletropostoVagas';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
-import { ehCardSemAvisoAutomatico, ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ehCardDoLote, ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { ultimaLinhaEhDePessoa } from './investidorAgenteEquipe';
 import {
   ABERTURAS_POR_TIPO, moldeSemNome, REGRAS_DO_PROMPT, OFERTA_HORARIOS, CONFIRMACAO,
@@ -411,7 +411,9 @@ export function cardReabre(c: CardDoContato, agoraMs: number): boolean {
   const st = statusDoCard(c);
   if (STATUS_REABRIVEIS.has(st)) return true;
   if (st !== 'agendado') return false;
-  if (ehCardSemAvisoAutomatico(c.origem)) return !reuniaoDaEquipe(c, agoraMs);
+  // Só o LOTE (cadastro_eletroposto). O card mudo da lista do Instagram (lista_ig_eletroposto) segue a regra das outras origens:
+  // a Helena só entra depois que ele vence sem atendimento (19/11/2026, chefe anti-ban).
+  if (ehCardDoLote(c.origem)) return !reuniaoDaEquipe(c, agoraMs);
   const q = Date.parse(String(c.quando ?? ''));
   return Number.isFinite(q) && q < agoraMs - REUNIAO_VENCIDA_MS;
 }
@@ -422,7 +424,7 @@ export function cardReabre(c: CardDoContato, agoraMs: number): boolean {
  * lote mudo: alguém combinou aquele horário com o cliente, então é reunião viva. Passadas as 24h volta a ser não atendido.
  */
 export function reuniaoDaEquipe(c: CardDoContato, agoraMs: number): boolean {
-  if (statusDoCard(c) !== 'agendado' || !ehCardSemAvisoAutomatico(c.origem)) return false;
+  if (statusDoCard(c) !== 'agendado' || !ehCardDoLote(c.origem)) return false;
   const q = Date.parse(String(c.quando ?? ''));
   return Number.isFinite(q) && q >= agoraMs - REUNIAO_VENCIDA_MS && ultimaLinhaEhDePessoa(c.historico);
 }
@@ -614,7 +616,7 @@ export function montarFila(linhas: LinhaOrigem[], f: FiltrosDaFila): ResultadoFi
 
     const reabriveis = cards.filter(c => cardReabre(c, f.agora));
     // "Card parado" = já pediu reunião uma vez (cancelado, nao_atendeu ou agendado vencido de origem própria).
-    const faixa: FaixaDaFila = reabriveis.some(c => !ehCardSemAvisoAutomatico(c.origem)) ? 'card_parado' : 'lote_mudo';
+    const faixa: FaixaDaFila = reabriveis.some(c => !ehCardDoLote(c.origem)) ? 'card_parado' : 'lote_mudo';
 
     passaram.push({
       chave: g.chave, telefone: g.telefone, nome, valorTxt,

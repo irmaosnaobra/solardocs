@@ -34,6 +34,9 @@ import { motivoDescarteSolar, cidadeUfDoDescarte, CHAVE_DESCARTADO, type MotivoD
 import { soDigitosSolar, telKeySolar, donoDoTelefone } from '../services/io/solarTelefone';
 import { quizCardLimiter } from '../middleware/rateLimiter';
 import { paginaFalei, TEXTOS_FALEI, horaBonita, type DadosDaFicha, type OndeSaiu } from '../services/io/solarQuizTextos';
+import { cadastrarInteresseIo, ioInteresseLimiter, listarInteresseIoAdmin } from './ioInteresse';
+import { authMiddleware } from '../middleware/auth';
+import { adminMiddleware } from '../middleware/adminAuth';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP de Energia Solar (/io/solar) no WhatsApp da equipe.
@@ -854,5 +857,9 @@ router.post('/falei/:codigo', async (req: Request, res: Response): Promise<void>
   const hora = horaBonita(r.em);
   res.send(paginaFalei({ titulo: r.estado === 'marcado' ? TEXTOS_FALEI.marcado(r.nome, hora) : TEXTOS_FALEI.jaEstava(hora), frase: '' }));
 });
+
+// LISTA DE INTERESSE DA IRMÃOS NA OBRA (19/11/2026): solardoc.app/io/interesse. O handler mora em ./ioInteresse.ts.
+router.post('/lista-interesse', ioInteresseLimiter, cadastrarInteresseIo);
+router.get('/lista-interesse/admin', authMiddleware, adminMiddleware, listarInteresseIoAdmin);
 
 export default router;

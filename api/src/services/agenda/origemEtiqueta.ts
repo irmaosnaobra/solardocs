@@ -54,6 +54,19 @@ export const ORIGEM_CADASTRO_EP = 'cadastro_eletroposto';
  * NÃO passa por aqui e continua normal.
  */
 export function ehCardSemAvisoAutomatico(createdBy: unknown): boolean {
+  const o = norm(createdBy);
+  return o === ORIGEM_CADASTRO_EP || o === ORIGEM_LISTA_IG_EP;
+}
+
+/**
+ * A origem do card que a lista de interesse do Instagram cria (solardoc.app/io/interesse, 19/11/2026): a pessoa escolheu
+ * Eletroposto, deixou o contato e NÃO marcou reunião. Mudo como o lote (ehCardSemAvisoAutomatico), mas NÃO é lote: a Helena
+ * só entra se o card não for atendido (ehCardDoLote, abaixo). Guarda a palavra "eletroposto" (quadro, CRM e repasse).
+ */
+export const ORIGEM_LISTA_IG_EP = 'lista_ig_eletroposto';
+
+/** O card é do LOTE (`cadastro_eletroposto`)? Só ele: a Helena reabre o `agendado` do lote em qualquer data (investidorAgentePuro). */
+export function ehCardDoLote(createdBy: unknown): boolean {
   return norm(createdBy) === ORIGEM_CADASTRO_EP;
 }
 
@@ -81,6 +94,8 @@ const MAPA: Record<string, string> = {
   // Agenda em lote dos investidores frios (13/10/2026). Espelha o gêmeo
   // dashboard/public/gerador/etiqueta.js.
   [ORIGEM_CADASTRO_EP]: 'EP Cadastro',
+  // Lista de interesse do Instagram (19/11/2026): nasce sempre com src=ig, então a etiqueta já sai EP Organic antes do mapa.
+  [ORIGEM_LISTA_IG_EP]: 'EP Organic',
   'prosp_solar': 'Solar Prospec',
   'crm-bulk': 'Import',
   'import': 'Import',

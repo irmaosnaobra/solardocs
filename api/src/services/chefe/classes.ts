@@ -344,6 +344,12 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   jornada_etapa_aviso: robo('aviso_interno_p2', ['services/io/jornadaAvisoEquipe.ts'], { nasceDeEvento: true, maxBolhas: 1 }),
   jornada_fila_manha: robo('aviso_interno_p2', ['services/io/jornadaAvisoEquipe.ts'], { maxBolhas: 1 }),
 
+  // [19/11] Lista de interesse do Instagram (solardoc.app/io/interesse): o lead de eletroposto vira aviso a Thiago E Diego, um depois
+  // do outro (o dono do card primeiro, o outro 25 s + 0 a 35 s depois), e quem ficou sem aviso (teto ou fora da janela) entra no resumo
+  // por pessoa (Nilce, Thiago, Diego). 1 bolha por mensagem; carimbo `io_lista_env:` por INSERT antes do envio; 1 lead por balde de
+  // 5 min, 12 mensagens por hora e 60 em 24 h somando os três; nada com 40 na linha na última hora. Sem o rodapé "o lead foi avisado".
+  io_lista_aviso: robo('aviso_interno_p2', ['services/io/listaIgAviso.ts'], { nasceDeEvento: true, maxBolhas: 1 }),
+
   // ── P3 · transacional do dia (agenda; vira P1 com prazo perto) ─────────────
   // Confirmação de backlog, bom dia, diário; e os lembretes de 1h e 5 min e a
   // ficha fresca, que chegam aqui com prazo e saem como P1. A pausa segue o HEAD

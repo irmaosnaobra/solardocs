@@ -81,7 +81,7 @@ import { carregarCompromissos, aindaLivre } from './eletropostoVagas';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { guardarTipoDoCard } from '../agenda/etiquetaCard';
 import { TIPO_CARD_PREFIX } from '../agenda/salaDeEspera';
-import { ehCardSemAvisoAutomatico, ORIGEM_CADASTRO_EP } from '../agenda/origemEtiqueta';
+import { ehCardDoLote, ORIGEM_CADASTRO_EP } from '../agenda/origemEtiqueta';
 import { avisarMarcacao, iniciarRodadaDeAvisos, rodarAvisosDaEquipe } from './investidorAgenteAvisos';
 import { cedeEmLote } from './investidorAgenteCede';
 import { ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from './eletropostoCard';
@@ -763,7 +763,7 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
       tipo: c.tipo, ...(c.retorno ? { retorno: true } : {}),
       card_id: c.card?.id ?? null,
       cards_conhecidos: c.cardsConhecidos,
-      card_antigo: c.card ? { status: String(c.card.status), lote: ehCardSemAvisoAutomatico(c.card.origem) } : null,
+      card_antigo: c.card ? { status: String(c.card.status), lote: ehCardDoLote(c.card.origem) } : null,
       nota: c.nota,
       ...(c.fatosDoCard.length ? { fatos_do_card: c.fatosDoCard } : {}),
     };

@@ -384,6 +384,7 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/io/ioSend.ts': { robos: ['avisos_pauta'], classeMaxima: 'frio_p5' },
   'services/io/jornadaAniversario.ts': { robos: ['jornada_aniversario'], classeMaxima: 'frio_p5' },
   'services/io/jornadaAvisoEquipe.ts': { robos: ['jornada_etapa_aviso', 'jornada_fila_manha', 'jornada_venda_aviso'], classeMaxima: 'aviso_interno_p2' },
+  'services/io/listaIgAviso.ts': { robos: ['io_lista_aviso'], classeMaxima: 'aviso_interno_p2' },
   'services/io/jornadaLiberacao.ts': { robos: ['jornada_liberacao'], classeMaxima: 'transacional_agenda_p3' },
   'services/io/lembreteFollowupService.ts': { robos: ['lembrete_followup'], classeMaxima: 'aviso_interno_p2' },
   'services/io/placarGiovanna.ts': { robos: ['placar_giovanna'], classeMaxima: 'aviso_interno_p2' },
