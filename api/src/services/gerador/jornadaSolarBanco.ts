@@ -13,6 +13,7 @@ import { supabase } from '../../utils/supabase';
 import { segredoDoVinculo } from './vendaSolarHub';
 import { nomeSimples } from './solarObras';
 import { lerJsonBruto, gravarJsonBruto, comTrava } from './cadastroVendaBanco';
+import { marcaIa } from './jornadaSolarMarcaIa';
 import {
   ACOES_HISTORICO, CHAVES_CONFIRMAR, CHAVES_PEDIDO, FALHAS_NUMERO, FORMAS_PAGAMENTO, MOTIVOS_ESPERA,
   type AcaoHistorico, type Confirmacao, type EstadoJornada, type FalhaNumero, type FormaPagamento, type MotivoEspera, type PapelGerado, type PrivadoJornada,
@@ -277,14 +278,6 @@ export const privadoVazio = (): PrivadoJornada => ({ v: 1, venda: null, cancelam
 
 export const MAX_NOTA = 500;
 export const MAX_PRAZO = 200;
-
-/** As marcas de "a IA gravou" do valor, do pagamento e do prazo: só chave conhecida e slot em forma de chave. Vazio = sem a propriedade. */
-function marcaIa(v: unknown): { ia?: Partial<Record<'valor' | 'pagamento' | 'prazo', string>> } {
-  const o = obj(v);
-  const ia: Partial<Record<'valor' | 'pagamento' | 'prazo', string>> = {};
-  for (const k of ['valor', 'pagamento', 'prazo'] as const) { const s = o ? txt(o[k], 40) : ''; if (/^[a-z0-9_]{1,40}$/.test(s)) ia[k] = s; }
-  return Object.keys(ia).length ? { ia } : {};
-}
 
 export function normalizarPrivado(value: unknown): PrivadoJornada {
   const o = obj(value);
