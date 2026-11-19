@@ -7,7 +7,7 @@ import {
   type EventoMonjour, N_POR_CHAVE, chaveDaResposta, ETAPA_CHECKOUT, ETAPA_COMPRA,
 } from './monjourCatalogo';
 
-export interface ContextoMonjour { pais: string; disp: string; so: string; nav: string; anuncio: string }
+export interface ContextoMonjour { pais: string; regiao: string; cidade: string; disp: string; so: string; nav: string; anuncio: string }
 
 export interface SessaoMonjour {
   id: string;
@@ -56,7 +56,7 @@ function centavosUsd(d: Record<string, unknown>): number {
 
 function sessaoVazia(id: string, primeiro: number): SessaoMonjour {
   return {
-    id, primeiro, ctx: { pais: '', disp: '', so: '', nav: '', anuncio: '' }, visitante: false, nivel: 0,
+    id, primeiro, ctx: { pais: '', regiao: '', cidade: '', disp: '', so: '', nav: '', anuncio: '' }, visitante: false, nivel: 0,
     vistas: new Map(), respostas: new Map(), lead: false, destinos: new Set(), plano: null,
     receitaCentavos: 0, receitaCompraCentavos: 0, receitaUpgradeCentavos: 0, checkoutTs: null, checkoutCriado: null, compraCriada: null, upgrade: false,
     acoesApp: new Set(),
@@ -93,6 +93,8 @@ function aplicar(s: SessaoMonjour, e: EventoMonjour, criado: number): void {
   if (!doWebhook(e)) {
     const c = s.ctx;
     if (!c.pais) c.pais = texto(d.pais, 4).toUpperCase();
+    if (!c.regiao) c.regiao = texto(d.regiao, 60);
+    if (!c.cidade) c.cidade = texto(d.cidade, 60);
     if (!c.disp) c.disp = texto(d.disp, 20).toLowerCase();
     if (!c.so) c.so = texto(d.so, 20).toLowerCase();
     if (!c.nav) c.nav = texto(d.nav, 20).toLowerCase();

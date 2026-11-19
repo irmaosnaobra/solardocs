@@ -15,13 +15,14 @@
 // As porcentagens de etapa, recorte e conversão saem das contagens, não dos
 // campos pct da resposta, para não depender da escala (0 a 1 ou 0 a 100).
 // ───────────────────────────────────────────────────────────────────────────
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import api from '@/services/api';
 import admin from '../../admin.module.css';
 import s from './MonjourFunilPanel.module.css';
 import { Numero, Titulo, fmtData, fmtHora, fmtInt, fmtPct, fmtUsd } from './monjourComum';
 import MonjourFunilDesenho from './MonjourFunilDesenho';
 import { MonjourRecortes, MonjourRespostas } from './MonjourRecortes';
+import MonjourSessoesGaveta, { type AlvoSessoes } from './MonjourSessoesGaveta';
 import type { FunilMonjour } from './hubMonjour.types';
 
 const PERIODOS = [
@@ -52,6 +53,7 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
   const [f, setF] = useState<FunilMonjour | null>(null);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
+  const [gaveta, setGaveta] = useState<AlvoSessoes | null>(null);
 
   // O estado só muda na volta da leitura; quem clica acende o "Atualizando…".
   useEffect(() => {
@@ -100,6 +102,22 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
 
   const t = f?.totais;
   const vazio = f && t && t.sessoes === 0;
+
+  // A gaveta de quem passou usa os mesmos filtros do funil, escritos no subtítulo.
+  const filtrosGaveta = useMemo(() => ({
+    periodo, pais, disp,
+    anuncio: origem.startsWith('a:') ? origem.slice(2) : '',
+    conjunto: origem.startsWith('c:') ? origem.slice(2) : '',
+  }), [periodo, pais, disp, origem]);
+  const resumoFiltros = [
+    PERIODOS.find((p) => p.k === periodo)?.label ?? periodo,
+    pais ? (paises.find((p) => p.codigo === pais)?.nome ?? pais) : 'Todos os países',
+    disp ? APARELHO[disp] : 'Todos os aparelhos',
+    origem.startsWith('c:') ? (conjuntos.find((c) => `c:${c.id}` === origem)?.nome ?? 'Um conjunto')
+      : origem.startsWith('a:') ? (anuncios.find((a) => `a:${a.id}` === origem)?.nome ?? 'Um anúncio') : 'Todos os anúncios',
+  ].join(' · ');
+  const nomeEtapa = (n: number) => f?.etapas.find((e) => e.n === n)?.rotulo ?? `Tela ${n}`;
+  const ultimaEtapa = f ? Math.max(...f.etapas.map((e) => e.n)) : 0;
 
   return (
     <div className={s.raiz}>
@@ -188,7 +206,7 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
           <section className={s.bloco} aria-labelledby="mj-funil">
             <div className={s.blocoTopo}>
               <span id="mj-funil">
-                <Titulo dica="Cada faixa é uma tela do quiz. A largura é quanta gente chegou nela. Saíram ali = chegaram e não viram a próxima. Na oferta, saíram = não clicaram em comprar. Tempo = mediana até a próxima tela.">
+                <Titulo dica="Cada faixa é uma tela do quiz. A largura é quanta gente chegou nela. Entre uma tela e a próxima: quantos passaram e quantos saíram ali. Na oferta, saíram = não clicaram em comprar. Tempo = mediana até a próxima tela. Toque num número sublinhado para ver quem são.">
                   Funil do quiz
                 </Titulo>
               </span>
@@ -196,7 +214,11 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
                 {fmtInt(t.sessoes)} entraram · {fmtInt(t.compras)} {t.compras === 1 ? 'comprou' : 'compraram'}
               </span>
             </div>
-            <MonjourFunilDesenho etapas={f.etapas} total={t.sessoes} />
+            <MonjourFunilDesenho
+              etapas={f.etapas}
+              total={t.sessoes}
+              onAbrir={(e, tipo) => setGaveta({ n: e.n, rotulo: e.rotulo, chegaram: e.chegaram, sairam: e.sairam, temSaida: e.n !== ultimaEtapa, tipo })}
+            />
           </section>
 
           <div className={s.duas}>
@@ -234,6 +256,14 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
           <MonjourRespostas f={f} escala={escala} />
         </>
       )}
+
+      <MonjourSessoesGaveta
+        alvo={gaveta}
+        filtros={filtrosGaveta}
+        resumoFiltros={resumoFiltros}
+        nomeEtapa={nomeEtapa}
+        aoFechar={() => setGaveta(null)}
+      />
     </div>
   );
 }
