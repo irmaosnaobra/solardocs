@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
-  comissoesDaVenda, deduzirEtapa, diasUteisDepois, donosDaEtapa, estadoMaterializado, iniciais, itensDaEtapa, marcaDoRateio, podeConcluir,
-  prazoDaEtapa, rateioDoCadastro, situacao, somarDiasUteis, totalDoRateio, veObra, type EstadoJornada, type PrivadoJornada,
+  CURTOS_ETAPA, NOMES_ETAPA, bancoPreenchido, comissoesDaVenda, confirmadosValidos, excedenteCpf, marcaDoValor, valorConfirmavel, vistoriaPct, deduzirEtapa, diasUteisDepois, donosDaEtapa, estadoMaterializado, iniciais, itensDaEtapa, marcaDoRateio, podeConcluir,
+  prazoDaEtapa, rateioDoCadastro, situacao, somarDiasUteis, totalDoRateio, veObra, type ChaveConfirmar, type EstadoJornada, type PrivadoJornada,
 } from '../services/gerador/jornadaSolar';
+import type { BancoObra, VistoriaObra } from '../services/gerador/jornadaObra';
 import {
   assinarJornada, jornadaAssinada, normalizarJornada, reiniciarLogsDaJornada, normalizarPrivado,
 } from '../services/gerador/jornadaSolarBanco';
@@ -128,82 +129,182 @@ describe('itensDaEtapa', () => {
       desconto_centavos: null, prazo_prometido: 'até 60 dias', nota: '', kit_confirmado: true, combinado_por: 'nilce', combinado_em: AGORA, editado: [] },
     cancelamento: null, descancelamentos: [],
   });
-  const cadOk = () => cad({ nome: 'Marcos Andrade', endereco_ponto: 'Rua A, 10', telefone: '34999990000', email: 'a@b.c' });
+  const cadOk = () => cad({
+    nome: 'Marcos Andrade', telefone: '34999990000', email: 'a@b.c', endereco_ponto: 'Rua A, 10', endereco: 'Rua B, 20', bairro: 'Centro', cidade: 'Uberlândia', uf: 'MG', cep: '38400000',
+  });
+  const equip = { qtdPlacas: 14, modeloPlaca: 'Canadian CS7N', potPlaca: 590, qtdInversor: 1, inversor: 'Growatt 10K' };
   const falta = (itens: ReturnType<typeof itensDaEtapa>) => itens.filter((i) => !i.feito).map((i) => i.chave);
   const papeisGerados = (e: EstadoJornada) => {
     e.etapas[2].papeis = { contrato: { gerado_em: AGORA, por: 'nilce' }, procuracao: { gerado_em: AGORA, por: 'nilce' }, recibo: null };
   };
-  it('etapa 1 (Venda): blocos cliente, venda e papeis, nesta ordem e com estas chaves; o kit NÃO está aqui', () => {
+  /** Confirma (com a marca em dia) cada chave pedida, como a rota /confirmar faz. */
+  const confirma = (e: EstadoJornada, chaves: ChaveConfirmar[], f: ReturnType<typeof base>): void => {
+    e.etapas[1].confirmados = Object.fromEntries(chaves.map((k) => [k, { em: AGORA, por: 'nilce', marca: marcaDoValor(k, valorConfirmavel(k, f)) }]));
+  };
+  const TODAS: ChaveConfirmar[] = ['nome', 'telefone', 'endereco', 'endereco_usina', 'email', 'placas', 'inversor', 'valor', 'pagamento'];
+  it('etapa 1 (Venda): blocos cliente, venda, papeis, pedidos, excedente e vistoria, nesta ordem e com estas chaves; o kit NÃO está aqui', () => {
     const e = novo();
-    const itens = itensDaEtapa(1, base(e, new Set(), cadOk(), privadoOk()));
+    const itens = itensDaEtapa(1, { ...base(e, new Set(), cadOk(), privadoOk()), equip });
     expect(itens.map((i) => [i.bloco, i.chave])).toEqual([
-      ['cliente', 'nome'], ['cliente', 'endereco_usina'], ['cliente', 'telefone'], ['cliente', 'email'],
-      ['venda', 'proposta'], ['venda', 'valor'], ['venda', 'prazo'],
+      ['cliente', 'nome'], ['cliente', 'telefone'], ['cliente', 'endereco'], ['cliente', 'endereco_usina'], ['cliente', 'email'],
+      ['venda', 'proposta'], ['venda', 'prazo'], ['venda', 'placas'], ['venda', 'inversor'], ['venda', 'valor'], ['venda', 'pagamento'], ['venda', 'financiamento'],
       ['papeis', 'papel_contrato'], ['papeis', 'papel_procuracao'],
+      ['pedidos', 'pedido_cnh'], ['pedidos', 'pedido_conta_luz'], ['pedidos', 'pedido_fachada'], ['pedidos', 'pedido_padrao'], ['pedidos', 'pedido_disjuntor'], ['pedidos', 'pedido_medidor'],
+      ['excedente', 'excedente'], ['vistoria', 'vistoria'],
     ]);
-    expect(itens.map((i) => i.texto)).toEqual([
-      'Nome completo', 'Endereço da usina', 'Telefone de contato', 'E-mail do cliente', 'Proposta aceita ligada', 'Valor e forma de pagamento',
-      'Prazo prometido ao cliente', 'Contrato gerado', 'Procuração gerada',
+    expect(itens.filter((i) => i.bloco !== 'pedidos').map((i) => i.texto)).toEqual([
+      'Nome completo', 'Telefone de contato', 'Endereço completo', 'Endereço da usina', 'E-mail do cliente', 'Proposta aceita ligada', 'Prazo prometido ao cliente',
+      'Placas: quantidade e marca', 'Inversor: quantidade e marca', 'Valor vendido', 'Forma de pagamento', 'Precisa de proposta de banco ou financiamento?',
+      'Contrato gerado', 'Procuração gerada', 'Diga se tem excedente para outras contas', 'Relatório de vistoria 80% preenchido',
     ]);
-    expect(itens.some((i) => i.chave === 'kit')).toBe(false);
-    expect(itens.some((i) => i.chave === 'contrato_assinado')).toBe(false);   // o assinado é da etapa 2
-    expect(falta(itens)).toEqual(['papel_contrato', 'papel_procuracao']);
+    expect(itens.some((i) => i.chave === 'kit' || i.chave === 'contrato_assinado')).toBe(false);
   });
-  it('etapa 1: contrato e procuração gerados vêm de etapas[2].papeis (recibo não é item); sem cadastro, o bloco cliente falta inteiro', () => {
+  it('etapa 1: dado presente SÓ fecha confirmado; mudou o valor, a confirmação deixa de valer e o item volta a pedir', () => {
     const e = novo();
+    const f0 = { ...base(e, new Set(), cadOk(), privadoOk()), equip };
+    expect(falta(itensDaEtapa(1, f0)).filter((k) => TODAS.includes(k as ChaveConfirmar))).toEqual(TODAS);   // tudo presente, nada confirmado
+    confirma(e, TODAS, f0);
+    const f1 = { ...f0, estado: e };
+    expect(falta(itensDaEtapa(1, f1)).filter((k) => TODAS.includes(k as ChaveConfirmar))).toEqual([]);
+    expect(Object.keys(confirmadosValidos(f1)).sort()).toEqual([...TODAS].sort());
+    // o cadastro mudou o telefone e o endereço da usina; a proposta trocou o inversor; o valor vendido mudou
+    const mudou = privadoOk(); mudou.venda!.valor_centavos = 3890100; mudou.venda!.pagamento[0].valor_centavos += 100;
+    const f2 = { ...f1, cad: cad({ nome: 'Marcos Andrade', telefone: '34988880000', email: 'a@b.c', endereco_ponto: 'Rua Nova, 1', endereco: 'Rua B, 20', bairro: 'Centro', cidade: 'Uberlândia', uf: 'MG', cep: '38400000' }),
+      equip: { ...equip, inversor: 'Fronius 10K' }, privado: mudou };
+    expect(falta(itensDaEtapa(1, f2)).filter((k) => TODAS.includes(k as ChaveConfirmar))).toEqual(['telefone', 'endereco_usina', 'inversor', 'valor', 'pagamento']);
+    expect(Object.keys(confirmadosValidos(f2)).sort()).toEqual(['email', 'endereco', 'nome', 'placas']);
+    // sem o dado, a confirmação guardada não vale
+    const f3 = { ...f1, cad: cad({}) };
+    expect(falta(itensDaEtapa(1, f3))).toEqual(expect.arrayContaining(['nome', 'telefone', 'endereco', 'endereco_usina', 'email']));
+    expect(valorConfirmavel('nome', f3)).toBe('');
+    // endereço completo: faltando cidade, não é endereço
+    expect(valorConfirmavel('endereco', { ...f1, cad: cad({ endereco: 'Rua B, 20', uf: 'MG' }) })).toBe('');
+    // pagamento que não fecha com o valor não é confirmável
+    const aberto = privadoOk(); aberto.venda!.pagamento[0].valor_centavos = 1;
+    expect(valorConfirmavel('pagamento', { ...f1, privado: aberto })).toBe('');
+    expect(valorConfirmavel('placas', { ...f1, equip: { ...equip, modeloPlaca: '' } })).toBe('');
+  });
+  it('etapa 1: financiamento fecha quando respondido (sim ou não); só com "sim" entra proposta_banco, que pede banco, agência e conta da obra', () => {
+    const e = novo();
+    const f = (fin: 'sim' | 'nao' | null, banco: BancoObra | null) => {
+      if (fin) e.etapas[1].financiamento = fin; else delete e.etapas[1].financiamento;
+      return { ...base(e, new Set(), cadOk(), privadoOk()), equip, obra: { vistoria: null, banco } };
+    };
+    const so = (x: ReturnType<typeof f>, chave: string) => itensDaEtapa(1, x).find((i) => i.chave === chave);
+    expect(so(f(null, null), 'financiamento')).toMatchObject({ bloco: 'venda', feito: false });
+    expect(so(f(null, null), 'proposta_banco')).toBeUndefined();
+    expect(so(f('nao', null), 'financiamento')!.feito).toBe(true);
+    expect(so(f('nao', null), 'proposta_banco')).toBeUndefined();
+    const banco = { banco: 'BV', agencia: '0001', conta: '123-4', validade: '', prazo: '', origem: '', nota: '', desc: '', ger: '', eq_centavos: null, mo_centavos: null, fin: null };
+    expect(so(f('sim', null), 'financiamento')!.feito).toBe(true);
+    expect(so(f('sim', null), 'proposta_banco')).toMatchObject({ bloco: 'venda', texto: 'Proposta de banco preenchida', feito: false });
+    expect(so(f('sim', { ...banco, conta: ' ' }), 'proposta_banco')!.feito).toBe(false);
+    expect(so(f('sim', banco), 'proposta_banco')!.feito).toBe(true);
+    expect(bancoPreenchido(banco)).toBe(true);
+    expect(bancoPreenchido({ ...banco, agencia: '' })).toBe(false);
+    expect(bancoPreenchido(null)).toBe(false);
+  });
+  it('etapa 1: contrato e procuração gerados vêm de etapas[2].papeis (recibo não é item)', () => {
+    const e = novo();
+    expect(falta(itensDaEtapa(1, base(e, new Set(), cadOk(), privadoOk())))).toEqual(expect.arrayContaining(['papel_contrato', 'papel_procuracao']));
     papeisGerados(e);
     const todos = itensDaEtapa(1, base(e, new Set(), cadOk(), privadoOk()));
-    expect(falta(todos)).toEqual([]);
+    expect(falta(todos)).not.toEqual(expect.arrayContaining(['papel_contrato']));
+    expect(falta(todos)).not.toEqual(expect.arrayContaining(['papel_procuracao']));
     expect(todos.some((i) => i.chave.includes('recibo'))).toBe(false);
-    expect(falta(itensDaEtapa(1, base(e, new Set(), cad({}), privadoOk())))).toEqual(['nome', 'endereco_usina', 'telefone', 'email']);
-    expect(falta(itensDaEtapa(1, base(null, new Set(), cadOk(), null)))).toEqual(['valor', 'prazo', 'papel_contrato', 'papel_procuracao']);
   });
-  it('etapa 2 (Documentos e vistoria): documentos, fotos e os DOIS papéis assinados (contrato e procuração), no bloco portao', () => {
+  it('etapa 1: pedido ao cliente fecha ticado OU com o arquivo do slot (CNH vale com documento_titular ou documento_titular_uc)', () => {
     const e = novo();
+    const pedidos = (slots: string[]) => itensDaEtapa(1, base(e, new Set(slots), cadOk(), privadoOk())).filter((i) => i.bloco === 'pedidos').map((i) => [i.chave, i.feito]);
+    expect(pedidos([])).toEqual([['pedido_cnh', false], ['pedido_conta_luz', false], ['pedido_fachada', false], ['pedido_padrao', false], ['pedido_disjuntor', false], ['pedido_medidor', false]]);
+    expect(pedidos(['documento_titular_uc', 'conta_luz', 'medidor'])).toEqual([['pedido_cnh', true], ['pedido_conta_luz', true], ['pedido_fachada', false], ['pedido_padrao', false], ['pedido_disjuntor', false], ['pedido_medidor', true]]);
+    e.etapas[1].pedidos = { pedido_fachada: { em: AGORA, por: 'nilce' }, pedido_padrao: { em: AGORA, por: 'nilce' } };
+    expect(pedidos(['documento_titular'])).toEqual([['pedido_cnh', true], ['pedido_conta_luz', false], ['pedido_fachada', true], ['pedido_padrao', true], ['pedido_disjuntor', false], ['pedido_medidor', false]]);
+  });
+  it('etapa 1: vistoria fecha com 80% dos campos de texto, data e escolha preenchidos (fotos e adequações não contam)', () => {
+    const e = novo();
+    const v = (cheios: number): VistoriaObra => {
+      const campos = ['data', 'quem', 'acomp', 'concl', 'obs'];
+      const t = ['tipo', 'estado', 'orient', 'incl', 'area', 'sombra', 'estr', 'acesso'];
+      const en = ['padrao', 'tensao', 'disj', 'apto', 'aterr', 'quadro'];
+      const iv = ['local', 'dist', 'abrig', 'wifi'];
+      const todos = [...campos.map((k) => ['', k]), ...t.map((k) => ['telhado', k]), ...en.map((k) => ['entrada', k]), ...iv.map((k) => ['inversor', k])];
+      const r: any = { data: '', quem: '', acomp: '', concl: '', adeq: ['x', 'y'], obs: '', telhado: {}, entrada: {}, inversor: {}, fotos: [{ arquivo_id: 'a', leg: '', txt: '' }] };
+      for (const k of ['tipo', 'estado', 'orient', 'incl', 'area', 'sombra', 'estr', 'acesso']) r.telhado[k] = '';
+      for (const k of en) r.entrada[k] = '';
+      for (const k of iv) r.inversor[k] = '';
+      todos.slice(0, cheios).forEach(([g, k]) => { if (g) r[g][k] = 'x'; else r[k] = k === 'concl' ? 'ok' : 'x'; });
+      return r as VistoriaObra;
+    };
+    const feito = (vis: VistoriaObra | null) => itensDaEtapa(1, { ...base(e, new Set(), cadOk(), privadoOk()), obra: { vistoria: vis, banco: null } }).find((i) => i.chave === 'vistoria')!.feito;
+    expect(vistoriaPct(null)).toBe(0);
+    expect(vistoriaPct(v(0))).toBe(0);   // fotos e adequações não contam
+    expect(vistoriaPct(v(23))).toBe(100);
+    expect(vistoriaPct(v(18))).toBe(78);
+    expect(vistoriaPct(v(19))).toBe(82);
+    expect(feito(v(18))).toBe(false);   // 78%
+    expect(feito(v(19))).toBe(true);    // 82%
+    expect(feito(null)).toBe(false);
+    expect(itensDaEtapa(1, base(e, new Set(), cadOk(), privadoOk())).find((i) => i.chave === 'vistoria')!.feito).toBe(false);   // sem a obra lida
+  });
+  it('etapa 1: excedente com CPF das duas pontas compara só dígitos; diferente não fecha e diz para passar para o mesmo CPF; sem CPF vale o nome', () => {
+    const e = novo();
+    e.etapas[1].excedente = 'sim';
+    const dono = { cpf_cnpj: '529.982.247-25', titular_conta: 'Marcos Andrade', benef_1_uc: '3012', benef_1_titular: 'Maria Andrade' };
+    const item = (c: Record<string, string>, slots: string[] = []) => itensDaEtapa(1, base(e, new Set(slots), cad({ ...dono, ...c }))).filter((i) => i.bloco === 'excedente');
+    // CPF igual (com e sem máscara): fecha mesmo com o nome da conta diferente
+    expect(item({ benef_1_doc: '52998224725' })[0]).toMatchObject({ chave: 'excedente', feito: true });
+    expect(excedenteCpf(cad({ ...dono, benef_1_doc: '52998224725' }), true)).toEqual({ ok: true, texto: null });
+    // CPF diferente: não fecha, com o texto da regra, mesmo com o nome igual
+    const outro = item({ benef_1_doc: '111.444.777-35', benef_1_titular: 'Marcos Andrade' })[0];
+    expect(outro).toMatchObject({ feito: false, texto: 'Conta do excedente em outro CPF. Peça ao cliente para passar para o mesmo CPF.' });
+    expect(excedenteCpf(cad({ ...dono, benef_1_doc: '11144477735' }), true)).toEqual({ ok: false, texto: 'Conta do excedente em outro CPF. Peça ao cliente para passar para o mesmo CPF.' });
+    // sem CPF de um dos lados: regra de nome de hoje
+    expect(item({})[0]).toMatchObject({ feito: false, texto: 'Todas as contas do excedente no nome de Marcos Andrade' });
+    expect(excedenteCpf(cad(dono), true)).toEqual({ ok: null, texto: null });
+    expect(item({ benef_1_titular: 'Marcos Andrade' })[0].feito).toBe(true);
+    expect(excedenteCpf(cad({ ...dono, cpf_cnpj: '', benef_1_doc: '52998224725' }), true)).toEqual({ ok: null, texto: null });
+    // homologação em nome de outra pessoa: vale o CPF do titular da homologação
+    const tuc = { homologacao_mesmo: 'outra_pessoa', tuc_cpf_cnpj: '111.444.777-35', benef_1_doc: '11144477735' };
+    expect(excedenteCpf(cad({ ...dono, ...tuc }), true)).toEqual({ ok: true, texto: null });
+    expect(excedenteCpf(cad({ ...dono, ...tuc, benef_1_doc: '52998224725' }), true).ok).toBe(false);
+    // conta_excedente só com "sim"; conta o slot conta_luz_beneficiaria
+    expect(item({}).map((i) => [i.chave, i.feito])).toEqual([['excedente', false], ['conta_excedente', false]]);
+    expect(item({}, ['conta_luz_beneficiaria']).find((i) => i.chave === 'conta_excedente')).toMatchObject({ bloco: 'excedente', texto: 'Conta de luz do excedente', feito: true });
     e.etapas[1].excedente = 'nao';
+    expect(item({}).map((i) => [i.chave, i.feito])).toEqual([['excedente', true]]);
+    expect(excedenteCpf(cad(dono), false)).toEqual({ ok: null, texto: null });
+  });
+  it('etapa 2 (Anexos): contrato e procuração assinados, CNH, conta de luz e as 4 fotos, no bloco anexos; sem excedente aqui', () => {
+    const e = novo();
+    e.etapas[1].excedente = 'sim';
     const itens = itensDaEtapa(2, base(e, new Set(), cadOk()));
     expect(itens.map((i) => [i.bloco, i.chave])).toEqual([
-      ['documentos', 'documento'], ['documentos', 'conta_luz'], ['documentos', 'excedente'],
-      ['fotos', 'fachada'], ['fotos', 'padrao'], ['fotos', 'disjuntor'], ['fotos', 'medidor'], ['portao', 'contrato_assinado'], ['portao', 'procuracao'],
+      ['anexos', 'contrato_assinado'], ['anexos', 'procuracao'], ['anexos', 'documento'], ['anexos', 'conta_luz'],
+      ['anexos', 'fachada'], ['anexos', 'padrao'], ['anexos', 'disjuntor'], ['anexos', 'medidor'],
     ]);
-    expect(itens.find((i) => i.chave === 'procuracao')!.texto).toBe('Procuração assinada anexada');
-    expect(falta(itens)).toEqual(['documento', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor', 'contrato_assinado', 'procuracao']);
-    expect(itens.find((i) => i.chave === 'contrato_assinado')!.texto).toBe('Contrato assinado anexado');
+    expect(itens.map((i) => i.texto)).toEqual([
+      'Contrato assinado anexado', 'Procuração assinada anexada', 'CNH ou identidade', 'Conta de luz', 'Foto da fachada', 'Foto do padrão de entrada', 'Foto do disjuntor', 'Foto do medidor',
+    ]);
+    expect(falta(itens)).toHaveLength(8);
     expect(falta(itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor', 'procuracao']), cadOk())))).toEqual(['contrato_assinado']);
-    expect(falta(itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor', 'procuracao', 'contrato_assinado']), cadOk())))).toEqual([]);
+    expect(falta(itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor', 'procuracao', 'contrato_assinado', 'outros']), cadOk())))).toEqual([]);   // `outros` é opcional
+    expect(NOMES_ETAPA[2]).toBe('Anexos');
+    expect(CURTOS_ETAPA[2]).toBe('Anexos');
   });
-  it('etapa 2: conta_excedente só entra com excedente "sim" e conta o slot conta_luz_beneficiaria', () => {
-    const e = novo();
-    e.etapas[1].excedente = 'nao';
-    expect(itensDaEtapa(2, base(e, new Set(), cadOk())).some((i) => i.chave === 'conta_excedente')).toBe(false);
-    e.etapas[1].excedente = 'sim';
-    const c = cad({ email: 'a@b.c', titular_conta: 'Marcos Andrade', benef_1_uc: '3012', benef_1_titular: 'Maria Andrade' });
-    const sem = itensDaEtapa(2, base(e, slotsOk, c));
-    expect(sem.find((i) => i.chave === 'conta_excedente')).toMatchObject({ bloco: 'documentos', texto: 'Conta de luz do excedente', feito: false });
-    expect(sem.find((i) => i.chave === 'excedente')!.texto).toBe('Todas as contas do excedente no nome de Marcos Andrade');
-    expect(itensDaEtapa(2, base(e, new Set([...slotsOk, 'conta_luz_beneficiaria']), c)).find((i) => i.chave === 'conta_excedente')!.feito).toBe(true);
-  });
-  it('excedente null falta; "nao" não pede beneficiária', () => {
-    const e = novo();
-    const c = cad({ email: 'a@b.c' });
-    const ex = () => itensDaEtapa(2, base(e, slotsOk, c, privadoOk())).find((i) => i.chave === 'excedente')!;
-    expect(ex()).toMatchObject({ feito: false, texto: 'Diga se tem excedente para outras contas' });
-    e.etapas[1].excedente = 'nao';
-    expect(ex().feito).toBe(true);
-  });
-  it('etapa 3: o bloco equipamento vem PRIMEIRO (kit, datasheets e KMZ) e o resto segue como era', () => {
+  it('etapa 3: o bloco equipamento vem PRIMEIRO (datasheets e KMZ; o kit saiu para a etapa 1) e o resto segue como era', () => {
     const e = novo();
     const itens = itensDaEtapa(3, base(e, new Set(), cadOk(), null));
     expect(itens.map((i) => [i.bloco, i.chave])).toEqual([
-      ['equipamento', 'kit'], ['equipamento', 'datasheet_modulo'], ['equipamento', 'datasheet_inversor'], ['equipamento', 'kmz'],
+      ['equipamento', 'datasheet_modulo'], ['equipamento', 'datasheet_inversor'], ['equipamento', 'kmz'],
       ['portao', 'trello'], ['portao', 'art'], ['portao', 'protocolo'], ['portao', 'parecer'],
     ]);
-    expect(itens.slice(0, 4).map((i) => i.texto)).toEqual(['Todo o equipamento confirmado', 'Datasheet da placa', 'Datasheet do inversor', 'KMZ do local']);
-    const tudo = itensDaEtapa(3, base(e, new Set(['datasheet_modulo', 'datasheet_inversor', 'kmz']), cadOk(), privadoOk())).slice(0, 4);
-    expect(tudo.map((i) => i.feito)).toEqual([true, true, true, true]);
+    expect(itens.slice(0, 3).map((i) => i.texto)).toEqual(['Datasheet da placa', 'Datasheet do inversor', 'KMZ do local']);
+    const tudo = itensDaEtapa(3, base(e, new Set(['datasheet_modulo', 'datasheet_inversor', 'kmz']), cadOk(), privadoOk())).slice(0, 3);
+    expect(tudo.map((i) => i.feito)).toEqual([true, true, true]);
     const semKit = privadoOk();
     semKit.venda!.kit_confirmado = false;
-    expect(itensDaEtapa(3, base(e, new Set(['kmz']), cadOk(), semKit))[0].feito).toBe(false);
+    expect(itensDaEtapa(3, base(e, new Set(['kmz']), cadOk(), semKit)).some((i) => i.chave === 'kit')).toBe(false);
   });
   it('etapa 3: o rateio que mudou depois da conferência volta a faltar; sem excedente o item não entra; engenheiro a pagar não trava', () => {
     const e = novo();

@@ -22,6 +22,8 @@ const h = vi.hoisted(() => ({
   tique: 0,
   fetchs: 0,
   disparos: [] as Array<{ card: number; nome: string }>,
+  relatorios: [] as Array<{ card: number; nome: string }>,
+  relatorioFalha: null as null | 'grande' | 'chromium',
 }));
 
 const jsonb = (v: unknown): unknown => {
@@ -132,6 +134,15 @@ vi.mock('../services/gerador/cadastroVenda', async (orig) => ({
 vi.mock('../routes/geradorJornadaTrelloAuto', () => ({
   dispararTrelloAutomatico: (card: { id: number }, quem: { nome: string }) => { h.disparos.push({ card: card.id, nome: quem.nome }); },
   tentarTrelloAutomatico: async () => ({ acao: 'nao_pronto', falta: [] }),
+  anexarRelatorioManual: async () => 'sem_cartao',
+}));
+// O PDF do relatório final é provado à parte (vendaSolarTrello.route.test.ts, com o Chromium simulado): aqui só a rota, a permissão e as respostas.
+vi.mock('../routes/geradorJornadaRelatorioFinal', () => ({
+  gerarRelatorioFinal: async (g: { nome: string; card: { id: number } }) => {
+    if (h.relatorioFalha === 'chromium') throw new Error('chromium fora');
+    h.relatorios.push({ card: g.card.id, nome: g.nome });
+    return h.relatorioFalha === 'grande' ? null : { pdf: Buffer.from('%PDF-1.4'), gerado_em: '2026-09-15T13:00:00.000Z' };
+  },
 }));
 vi.mock('../routes/geradorClientesDocs', async (orig) => ({
   ...(await orig<typeof import('../routes/geradorClientesDocs')>()),
@@ -240,7 +251,7 @@ beforeEach(() => {
     { codigo: 'P1', cliente_nome: 'Cliente Inventado', cliente_cidade: 'Uberlândia', consultor_nome: 'Nilce', kwp: 8.25, created_at: '2026-10-25T10:00:00.000Z', tipo: 'solar', vendido: false, tel: '34999990001', tel2: null, qtd_placas: 14, inversor: 'Growatt 10K', qtd_inversor: 1, dados: { tab: { mod: 'Canadian CS7N', pot: 590 } } },
     { codigo: 'P2', cliente_nome: 'Cliente Inventado', cliente_cidade: 'Uberlândia', consultor_nome: 'Carla', kwp: 5, created_at: '2026-10-25T10:00:00.000Z', tipo: 'solar', vendido: false, tel: '34999990001', tel2: null, dados: {} },
   ];
-  h.linhas = new Map(); h.priv = new Map(); h.cad = {}; h.obrasPlanilha = []; h.planilhaCai = false; h.tique = 0; h.fetchs = 0; h.disparos = [];
+  h.linhas = new Map(); h.priv = new Map(); h.cad = {}; h.obrasPlanilha = []; h.planilhaCai = false; h.tique = 0; h.fetchs = 0; h.disparos = []; h.relatorios = []; h.relatorioFalha = null;
   h.aloc.chamadas = []; h.aloc.resultado = { ok: true, acao: 'criou', codigo: '#0070' };
   process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste';
   process.env.TRELLO_KEY = 'chave-trello-falsa'; process.env.TRELLO_TOKEN = 'token-trello-falso';
@@ -666,21 +677,19 @@ describe('fases 1 a 3 (18/11/2026): permissões e o Trello automático', () => {
     semear(304, (e) => { e.cancelada = { em: AGORA, por: 'thiago', etapa: 1, com_numero: false }; });
     expect((await obra(304)).body.pode.gerar_papeis).toBe(false);
   });
-  it('marcar_excedente vale enquanto a etapa 2 não conclui (com a etapa 1 aberta ou concluída) e fecha depois', async () => {
+  it('marcar_excedente vale até a etapa 1 concluir (o vendedor, a Giovanna e o ADM) e fecha depois', async () => {
     semear(304);
     expect((await obra(304)).body.pode.marcar_excedente).toBe(true);
     expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' })).status).toBe(200);
-    semear(304, concluida1);
-    expect((await obra(304)).body.pode.marcar_excedente).toBe(true);
     expect((await patch('/jornada-solar/obra/304', { excedente: 'nao' })).status).toBe(200);
     expect(estadoGravado(304)!.etapas[1].excedente).toBe('nao');
     expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' }, DIEGO)).status).toBe(403);
     expect((await obra(304, GIOVANNA)).body.pode.marcar_excedente).toBe(true);
     expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' }, GIOVANNA)).status).toBe(200);
     expect(estadoGravado(304)!.etapas[1].excedente).toBe('sim');
-    semear(304, na3);
-    expect((await patch('/jornada-solar/obra/304', { excedente: 'nao' }, GIOVANNA)).status).toBe(403);
+    semear(304, concluida1);
     expect((await obra(304)).body.pode.marcar_excedente).toBe(false);
+    expect((await patch('/jornada-solar/obra/304', { excedente: 'nao' }, GIOVANNA)).status).toBe(403);
     expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' })).status).toBe(403);
   });
   it('kit: confirmar na etapa 3 funciona (Giovanna), o PUT pede o Trello automático, e o GET diz pode.confirmar_kit só até a etapa 3 concluir', async () => {
@@ -711,20 +720,20 @@ describe('fases 1 a 3 (18/11/2026): permissões e o Trello automático', () => {
     h.cad.telefone = '34999990000'; h.cad.email = 'a@b.c';
     const r = await obra(304, GIOVANNA);
     expect(r.body.trello_auto).toEqual({
-      pronto: false, falta: ['Todo o equipamento confirmado', 'Datasheet da placa', 'Datasheet do inversor', 'KMZ do local', 'Número da venda'],
+      pronto: false, falta: ['Datasheet da placa', 'Datasheet do inversor', 'KMZ do local', 'Número da venda'],
     });
-    expect(r.body.dados_cliente).toEqual({ nome: 'Marcos Andrade', endereco_ponto: 'Rua A, 10', telefone: '34999990000', email: 'a@b.c' });
+    expect(r.body.dados_cliente).toMatchObject({ nome: 'Marcos Andrade', endereco_ponto: 'Rua A, 10', telefone: '34999990000', email: 'a@b.c' });
     expect(r.body.slots).toMatchObject({ kmz: false, datasheet_modulo: false, datasheet_inversor: false, conta_luz_beneficiaria: false });
     expect(r.body.etapas[0].nome).toBe('Venda');
     expect(r.body.etapas[0].itens.map((i: any) => i.chave)).not.toContain('contrato_assinado');
-    expect(r.body.etapas[1].itens.slice(-2).map((i: any) => [i.bloco, i.chave])).toEqual([['portao', 'contrato_assinado'], ['portao', 'procuracao']]);
-    expect(r.body.kit_vendido).toBeNull();   // sem proposta ligada
+    expect(r.body.etapas[1].itens.slice(0, 2).map((i: any) => [i.bloco, i.chave])).toEqual([['anexos', 'contrato_assinado'], ['anexos', 'procuracao']]);
+    expect(r.body.kit_vendido).toEqual({ placas: '', inversor: '', kwp: null, faltando: ['placas', 'inversor'] });   // sem proposta ligada
     const { assinarLigacao } = await import('../services/gerador/vendaSolarHub');
     const lig = { proposta: 'P1', venda: null, por: 'nilce', em: AGORA };
     h.linhas.set('venda_solar:304', { updated_at: 'v', value: { ...lig, sig: assinarLigacao(304, lig) } });
-    expect((await obra(304, GIOVANNA)).body.kit_vendido).toEqual({ placas: '14 × Canadian CS7N 590 W', inversor: '1 × Growatt 10K', kwp: 8.26 });
-    expect(r.body.etapas[1].nome).toBe('Documentos e vistoria');
-    expect(r.body.etapas[2].itens.slice(0, 4).map((i: any) => i.chave)).toEqual(['kit', 'datasheet_modulo', 'datasheet_inversor', 'kmz']);
+    expect((await obra(304, GIOVANNA)).body.kit_vendido).toEqual({ placas: '14 × Canadian CS7N 590 W', inversor: '1 × Growatt 10K', kwp: 8.26, faltando: [] });
+    expect(r.body.etapas[1].nome).toBe('Anexos');
+    expect(r.body.etapas[2].itens.slice(0, 3).map((i: any) => i.chave)).toEqual(['datasheet_modulo', 'datasheet_inversor', 'kmz']);
   });
   it('blocoVendaCompleto sem o kit: com proposta, valor e prazo, ligar a proposta já conta como venda completa', async () => {
     semear(304); cadastroBase();
@@ -732,6 +741,198 @@ describe('fases 1 a 3 (18/11/2026): permissões e o Trello automático', () => {
     expect((await post('/jornada-solar/obra/304/proposta', { codigo: 'P1' })).status).toBe(200);
     const estado = (await lerJornadaComVersao(304)).estado!;
     expect(estado.historico.some((x) => x.acao === 'venda_completa')).toBe(true);
+  });
+});
+
+describe('Fase 1 (versão final): confirmar, pedidos, financiamento, vistoria e relatório final', () => {
+  const ligarP1 = async () => {
+    const { assinarLigacao } = await import('../services/gerador/vendaSolarHub');
+    const lig = { proposta: 'P1', venda: null, por: 'nilce', em: AGORA };
+    h.linhas.set('venda_solar:304', { updated_at: 'v', value: { ...lig, sig: assinarLigacao(304, lig) } });
+  };
+  const cadastroCompleto = () => {
+    h.cad = { nome: 'Marcos Andrade', telefone: '34999990000', email: 'a@b.c', endereco_ponto: 'Rua A, 10', endereco: 'Rua B, 20', bairro: 'Centro', cidade: 'Uberlândia', uf: 'MG', cep: '38400000' };
+    h.priv.set('vendasolar/304.jornada.json', JSON.stringify({ v: 1, venda: { valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: '' }], desconto_centavos: null, prazo_prometido: 'x', nota: '', kit_confirmado: false, combinado_por: 'nilce', combinado_em: AGORA, editado: [] }, cancelamento: null, descancelamentos: [] }));
+  };
+  const confirmar = (chave: string, confirmarValor = true, auth = NILCE) => post('/jornada-solar/obra/304/confirmar', { chave, confirmar: confirmarValor }, auth);
+  const kitGravado = (): boolean => JSON.parse(h.priv.get('vendasolar/304.jornada.json')!).venda.kit_confirmado;
+
+  it('confirmar grava a marca do valor de agora; mudou o valor, a confirmação some do GET e o item volta a pedir; confirmar:false remove', async () => {
+    semear(304); cadastroCompleto(); await ligarP1();
+    const antes = await obra(304);
+    expect(antes.body.confirmados).toEqual({});
+    expect(antes.body.etapas[0].itens.find((i: any) => i.chave === 'nome')).toMatchObject({ bloco: 'cliente', feito: false });
+    const ok = await confirmar('nome');
+    expect(ok.status).toBe(200);
+    expect(Object.keys(ok.body.confirmados)).toEqual(['nome']);
+    expect(estadoGravado(304)!.etapas[1].confirmados!.nome).toMatchObject({ por: 'nilce', marca: expect.stringMatching(/^[0-9a-f]{16}$/) });
+    const depois = await obra(304);
+    expect(depois.body.confirmados).toEqual({ nome: { em: AGORA, por: 'nilce' } });
+    expect(depois.body.etapas[0].itens.find((i: any) => i.chave === 'nome').feito).toBe(true);
+    h.cad.nome = 'Marcos A. Andrade';   // o valor mudou
+    const mudou = await obra(304);
+    expect(mudou.body.confirmados).toEqual({});
+    expect(mudou.body.etapas[0].itens.find((i: any) => i.chave === 'nome').feito).toBe(false);
+    expect(estadoGravado(304)!.etapas[1].confirmados!.nome).toBeDefined();   // a marca velha fica guardada, mas não vale
+    expect((await confirmar('nome')).status).toBe(200);
+    expect((await obra(304)).body.confirmados).toHaveProperty('nome');
+    expect((await confirmar('nome', false)).body.confirmados).toEqual({});
+    expect(estadoGravado(304)!.etapas[1].confirmados).toBeUndefined();
+  });
+  it('confirmar: chave ou corpo inválido 400; sem o dado 409; quem não edita 403 e a Giovanna pode; etapa 1 concluída ou cancelada recusa; nada de valor no estado nem no log', async () => {
+    semear(304); cadastroCompleto(); await ligarP1();
+    expect((await confirmar('kit')).status).toBe(400);
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'nome' })).status).toBe(400);
+    delete h.cad.telefone;
+    const sem = await confirmar('telefone');
+    expect(sem.status).toBe(409);
+    expect(sem.body.error).toBe('Falta o dado para confirmar.');
+    expect((await confirmar('nome', true, DIEGO)).status).toBe(403);
+    expect((await confirmar('valor', true, GIOVANNA)).status).toBe(200);
+    expect((await confirmar('pagamento')).status).toBe(200);
+    expect(JSON.stringify([...h.linhas.values()])).not.toContain('3890000');
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain('3890000');
+    semear(304, concluida1);
+    expect((await confirmar('nome')).status).toBe(403);
+    expect((await obra(304)).body.pode.confirmar).toBe(false);
+    semear(304, (e) => { e.cancelada = { em: AGORA, por: 'thiago', etapa: 1, com_numero: false }; });
+    expect((await confirmar('nome')).status).toBe(409);
+  });
+  it('confirmar placas E inversor grava kit_confirmado=true (compatibilidade); desfazer um deles volta a false; a proposta que muda invalida', async () => {
+    semear(304); cadastroCompleto(); await ligarP1();
+    expect((await confirmar('placas')).status).toBe(200);
+    expect(kitGravado()).toBe(false);
+    expect((await confirmar('inversor')).status).toBe(200);
+    expect(kitGravado()).toBe(true);
+    expect((await obra(304)).body.kit_vendido).toMatchObject({ placas: '14 × Canadian CS7N 590 W', inversor: '1 × Growatt 10K' });
+    h.propostas.find((p) => p.codigo === 'P1')!.inversor = 'Fronius 10K';
+    expect(Object.keys((await obra(304)).body.confirmados)).toEqual(['placas']);
+    expect((await confirmar('inversor')).status).toBe(200);
+    expect((await confirmar('placas', false)).status).toBe(200);
+    expect(kitGravado()).toBe(false);
+  });
+  it('proposta SEM marca ou quantidade: confirmar aceita `texto` (3 a 120), a confirmação é sobre o texto, kit_vendido lista o que falta; com dado na proposta, sem texto funciona como sempre', async () => {
+    semear(304); cadastroCompleto(); await ligarP1();
+    const p1 = h.propostas.find((p) => p.codigo === 'P1')!;
+    p1.dados = {};   // sem marca da placa e sem potência
+    p1.inversor = null;   // sem inversor
+    const sem = await obra(304);
+    expect(sem.body.kit_vendido).toEqual({ placas: '14', inversor: '1', kwp: null, faltando: ['placas', 'inversor'] });
+    // sem dado e sem texto: não dá para confirmar
+    expect((await confirmar('placas')).status).toBe(409);
+    expect((await confirmar('inversor')).status).toBe(409);
+    // texto inválido ou na chave errada
+    for (const corpo of [{ chave: 'placas', confirmar: true, texto: 'ab' }, { chave: 'placas', confirmar: true, texto: 'x'.repeat(121) }, { chave: 'placas', confirmar: true, texto: 12 },
+      { chave: 'nome', confirmar: true, texto: 'Marcos' }, { chave: 'placas', confirmar: true, texto: 'a\u0001b c' }]) {
+      expect((await post('/jornada-solar/obra/304/confirmar', corpo)).status, JSON.stringify(corpo)).toBe(400);
+    }
+    const ok = await post('/jornada-solar/obra/304/confirmar', { chave: 'placas', confirmar: true, texto: '14 x Canadian 590 W' });
+    expect(ok.status).toBe(200);
+    expect(estadoGravado(304)!.etapas[1].kit_texto).toEqual({ placas: '14 x Canadian 590 W' });
+    expect(Object.keys(ok.body.confirmados)).toEqual(['placas']);
+    expect(kitGravado()).toBe(false);   // falta o inversor
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'inversor', confirmar: true, texto: '1 x Growatt 10K' })).status).toBe(200);
+    expect(kitGravado()).toBe(true);
+    const g = await obra(304);
+    expect(g.body.kit_vendido).toMatchObject({ placas: '14 x Canadian 590 W', inversor: '1 x Growatt 10K', faltando: [] });
+    expect(g.body.etapas[0].itens.filter((i: any) => i.chave === 'placas' || i.chave === 'inversor').map((i: any) => i.feito)).toEqual([true, true]);
+    // mudou o texto: a confirmação antiga deixa de valer até confirmar de novo (a marca é do texto)
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'placas', confirmar: false })).status).toBe(200);
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'placas', confirmar: true, texto: '16 x Canadian 590 W' })).status).toBe(200);
+    expect(estadoGravado(304)!.etapas[1].kit_texto!.placas).toBe('16 x Canadian 590 W');
+    // a proposta ganhou os dados: vale o da proposta; confirmar sem texto funciona; o texto mandado agora é ignorado
+    p1.dados = { tab: { mod: 'Canadian CS7N', pot: 590 } }; p1.inversor = 'Growatt 10K'; p1.qtd_inversor = 1;
+    const comDado = await obra(304);
+    expect(comDado.body.kit_vendido).toMatchObject({ placas: '14 × Canadian CS7N 590 W', inversor: '1 × Growatt 10K', faltando: [] });
+    expect(comDado.body.confirmados).not.toHaveProperty('placas');   // a confirmação era do texto, não deste dado
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'placas', confirmar: true, texto: 'qualquer coisa aqui' })).status).toBe(200);
+    expect(estadoGravado(304)!.etapas[1].kit_texto!.placas).toBe('16 x Canadian 590 W');   // não regravou: a proposta tem dado
+    expect((await obra(304)).body.confirmados).toHaveProperty('placas');
+  });
+  it('PATCH dos pedidos ao cliente: grava {em, por}, o item fecha, feito:false remove; pedido sem feito ou desconhecido 400; só quem edita; só com a etapa 1 aberta', async () => {
+    semear(304); cadastroCompleto();
+    expect((await patch('/jornada-solar/obra/304', { pedido: 'pedido_cnh', feito: true })).status).toBe(200);
+    expect(estadoGravado(304)!.etapas[1].pedidos).toEqual({ pedido_cnh: { em: AGORA, por: 'nilce' } });
+    const g = await obra(304);
+    expect(g.body.pedidos).toEqual({ pedido_cnh: { em: AGORA, por: 'nilce' } });
+    expect(g.body.etapas[0].itens.filter((i: any) => i.bloco === 'pedidos').map((i: any) => [i.chave, i.feito])[0]).toEqual(['pedido_cnh', true]);
+    expect((await patch('/jornada-solar/obra/304', { pedido: 'pedido_cnh', feito: false })).status).toBe(200);
+    expect(estadoGravado(304)!.etapas[1].pedidos).toBeUndefined();
+    expect((await patch('/jornada-solar/obra/304', { pedido: 'pedido_cnh' })).status).toBe(400);
+    expect((await patch('/jornada-solar/obra/304', { feito: true })).status).toBe(400);
+    expect((await patch('/jornada-solar/obra/304', { pedido: 'pedido_x', feito: true })).status).toBe(400);
+    expect((await patch('/jornada-solar/obra/304', { pedido: 'pedido_cnh', feito: true }, DIEGO)).status).toBe(403);
+    expect((await patch('/jornada-solar/obra/304', { pedido: 'pedido_fachada', feito: true }, GIOVANNA)).status).toBe(200);
+    // o arquivo do slot também fecha o pedido, sem tique
+    anexos(304, ['conta_luz', 'medidor']);
+    expect((await obra(304)).body.etapas[0].itens.filter((i: any) => i.bloco === 'pedidos').map((i: any) => [i.chave, i.feito]))
+      .toEqual([['pedido_cnh', false], ['pedido_conta_luz', true], ['pedido_fachada', true], ['pedido_padrao', false], ['pedido_disjuntor', false], ['pedido_medidor', true]]);
+    semear(304, concluida1);
+    expect((await patch('/jornada-solar/obra/304', { pedido: 'pedido_cnh', feito: true })).status).toBe(403);
+  });
+  it('financiamento no mesmo PATCH do excedente: sim abre o item proposta_banco (banco, agência e conta da obra), não some; GET traz a resposta', async () => {
+    semear(304); cadastroCompleto();
+    expect((await obra(304)).body.financiamento).toBeNull();
+    expect((await patch('/jornada-solar/obra/304', { financiamento: 'talvez' })).status).toBe(400);
+    expect((await patch('/jornada-solar/obra/304', { financiamento: 'sim', excedente: 'nao' })).status).toBe(200);
+    expect(estadoGravado(304)!.etapas[1]).toMatchObject({ financiamento: 'sim', excedente: 'nao' });
+    const g = await obra(304);
+    expect(g.body.financiamento).toBe('sim');
+    const itens = g.body.etapas[0].itens;
+    expect(itens.find((i: any) => i.chave === 'financiamento')).toMatchObject({ bloco: 'venda', feito: true });
+    expect(itens.find((i: any) => i.chave === 'proposta_banco')).toMatchObject({ bloco: 'venda', feito: false });
+    h.priv.set('vendasolar/304.obra.json', JSON.stringify({ v: 1, banco: { banco: 'BV', agencia: '0001', conta: '123-4' } }));
+    expect((await obra(304)).body.etapas[0].itens.find((i: any) => i.chave === 'proposta_banco').feito).toBe(true);
+    expect((await patch('/jornada-solar/obra/304', { financiamento: 'nao' })).status).toBe(200);
+    expect((await obra(304)).body.etapas[0].itens.some((i: any) => i.chave === 'proposta_banco')).toBe(false);
+  });
+  it('GET: vistoria_pct, fase2 (vistoria e proposta de banco, versões e pode.secoes), excedente_cpf, relatorio_final e dados_cliente com o endereço (valor só para quem mexe na venda)', async () => {
+    semear(304); cadastroCompleto(); await ligarP1();
+    const vazio = await obra(304);
+    expect(vazio.body).toMatchObject({ vistoria_pct: 0, excedente_cpf: { ok: null, texto: null }, relatorio_final: null });
+    expect(vazio.body.fase2.dados).toEqual({ vistoria: null, banco: null });
+    expect(vazio.body.fase2.pode.secoes).toEqual(['vistoria', 'banco']);
+    expect((await obra(304, DIEGO)).body.fase2.pode.secoes).toEqual([]);
+    expect((await obra(304, GIOVANNA)).body.fase2.pode.secoes).toEqual(['vistoria', 'banco']);
+    const v = { data: '2026-11-18', quem: 'Nilce', acomp: 'Marcos', concl: 'ok', obs: 'ok', telhado: { tipo: 'colonial', estado: 'bom', orient: 'norte', incl: '20', area: '40', sombra: 'não', estr: 'madeira', acesso: 'fácil' },
+      entrada: { padrao: 'monofásico', tensao: '220', disj: '50', apto: 'sim', aterr: 'sim', quadro: 'sim' }, inversor: { local: 'garagem', dist: '', abrig: '', wifi: '' } };
+    h.priv.set('vendasolar/304.obra.json', JSON.stringify({ v: 1, vistoria: v, versoes: { vistoria: 3 } }));
+    const cheio = await obra(304);
+    expect(cheio.body.vistoria_pct).toBe(86);   // 20 de 23 campos
+    expect(cheio.body.fase2.dados.vistoria).toMatchObject({ data: '2026-11-18', concl: 'ok' });
+    expect(cheio.body.fase2.versoes.vistoria).toBe(3);
+    expect(cheio.body.etapas[0].itens.find((i: any) => i.chave === 'vistoria').feito).toBe(true);
+    // o endereço completo e o dinheiro: o vendedor e a Giovanna veem o valor; o Diego, não
+    const nilce = await obra(304);
+    expect(nilce.body.dados_cliente).toMatchObject({ nome: 'Marcos Andrade', endereco: 'Rua B, 20', bairro: 'Centro', cidade: 'Uberlândia', uf: 'MG', cep: '38400000', endereco_ponto: 'Rua A, 10', telefone: '34999990000' });
+    expect(nilce.body.dados_cliente.valor_centavos).toBe(3890000);
+    expect(nilce.body.dados_cliente.pagamento).toEqual([{ forma: 'pix', valor_centavos: 3890000 }]);
+    expect((await obra(304, GIOVANNA)).body.dados_cliente.valor_centavos).toBe(3890000);
+    expect((await obra(304, THIAGO)).body.dados_cliente.valor_centavos).toBe(3890000);   // ADM
+    expect(Object.keys((await obra(304, DIEGO)).body.dados_cliente)).not.toContain('valor_centavos');
+    // CPF do excedente
+    semear(304, (e) => { e.etapas[1].excedente = 'sim'; });
+    h.cad = { ...h.cad, cpf_cnpj: '52998224725', titular_conta: 'Marcos Andrade', benef_1_uc: '3012', benef_1_titular: 'Marcos Andrade', benef_1_doc: '11144477735' };
+    const cpf = await obra(304);
+    expect(cpf.body.excedente_cpf).toEqual({ ok: false, texto: 'Conta do excedente em outro CPF. Peça ao cliente para passar para o mesmo CPF.' });
+    expect(cpf.body.etapas[0].itens.find((i: any) => i.chave === 'excedente')).toMatchObject({ bloco: 'excedente', feito: false });
+  });
+  it('relatório final: o vendedor e os donos de etapa geram; outro consultor 404; cancelada 403; PDF grande 413; Chromium fora 503', async () => {
+    semear(304); cadastroCompleto();
+    h.relatorios = [];
+    const ok = await post('/jornada-solar/obra/304/relatorio-final', {});
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ ok: true, gerado_em: expect.any(String), trello: 'sem_cartao' });   // o anexo ao cartão é provado em vendaSolarTrello.route.test.ts
+    expect(h.relatorios).toEqual([{ card: 304, nome: 'nilce' }]);
+    expect((await post('/jornada-solar/obra/304/relatorio-final', {}, DIEGO)).status).toBe(200);
+    expect((await post('/jornada-solar/obra/304/relatorio-final', {}, CARLA)).status).toBe(404);
+    h.relatorioFalha = 'grande';
+    expect((await post('/jornada-solar/obra/304/relatorio-final', {})).status).toBe(413);
+    h.relatorioFalha = 'chromium';
+    expect((await post('/jornada-solar/obra/304/relatorio-final', {})).status).toBe(503);
+    h.relatorioFalha = null;
+    semear(304, (e) => { e.cancelada = { em: AGORA, por: 'thiago', etapa: 1, com_numero: false }; });
+    expect((await post('/jornada-solar/obra/304/relatorio-final', {})).status).toBe(403);
   });
 });
 

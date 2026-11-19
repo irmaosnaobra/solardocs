@@ -40,7 +40,7 @@ describe('os textos', () => {
       '📌 É sua: Compra da obra #0065', 'Marcos · Uberlândia-MG', '*Prazo:* 2 dias úteis, até 09/11.', '*Para concluir:* cada item comprado com comprovante.',
     ]);
     const sem = textoSua({ n: 2, codigo: null, nome: 'Marcos', cidade: 'Uberlândia-MG', vence: '2026-11-10' }).split('\n');
-    expect(sem[0]).toBe('📌 É sua: Documentos e vistoria de Marcos');
+    expect(sem[0]).toBe('📌 É sua: Anexos de Marcos');
     expect(sem[1]).toBe('Uberlândia-MG');
     expect(sem.slice(0, 2).join('\n')).not.toContain('*');
     expect(textoSua({ n: 5, codigo: '#0065', nome: 'M', cidade: '', vence: null })).toContain('*Prazo:* marque os dias da obra na etapa 6.');
@@ -152,7 +152,7 @@ describe('a fila, a escalada, o placar e o dinheiro', () => {
     const doThiago = obra(3, { js: js(3, 3, 'nilce', [], '2026-10-01T12:00:00.000Z') });
     const e = paradosComAEquipe([recente, doThiago, parada], HOJE);
     expect(e).toHaveLength(1);
-    expect(e[0]).toMatchObject({ card: 1, dono: 'Giovanna', etapaCurta: 'Documentos' });
+    expect(e[0]).toMatchObject({ card: 1, dono: 'Giovanna', etapaCurta: 'Anexos' });
     expect(e[0].dias).toBeGreaterThanOrEqual(3);
   });
   it('placarDaSemana: no prazo, atrasada, as abertas atrasadas e só a semana anterior', () => {
@@ -294,10 +294,14 @@ describe('blocoVendaCompleto', () => {
       ['P1', venda({ prazo_prometido: '   ' })], ['P1', null], ['P1', venda({ pagamento: [{ forma: 'pix', valor_centavos: 50, obs: '' }] })], [null, null],
     ];
     expect(casos).toHaveLength(8);
-    for (const [proposta, privado] of casos) {
+    // O gatilho do aviso de venda: proposta ligada + valor e pagamento que fecham + prazo. NÃO depende de confirmação nem do kit.
+    const esperado = [true, false, true, false, false, false, false, false];
+    casos.forEach(([proposta, privado], i) => {
+      expect(blocoVendaCompleto({ proposta }, privado as never), JSON.stringify([proposta, privado?.venda])).toBe(esperado[i]);
+      // ...e concorda com os itens proposta e prazo da etapa 1 (o valor e o pagamento ainda pedem confirmação lá)
       const f = { lig: { proposta, venda: null }, slots: new Set<string>(), cad: { campos: {} } as never, privado: privado as never, estado: null };
-      const esperado = itensDaEtapa(1, f).filter((i) => i.bloco === 'venda').every((i) => i.feito);
-      expect(blocoVendaCompleto({ proposta }, privado as never), JSON.stringify([proposta, privado?.venda])).toBe(esperado);
-    }
+      const itens = itensDaEtapa(1, f);
+      expect(['proposta', 'prazo'].every((k) => itens.find((x) => x.chave === k)!.feito) && !!privado && esperado[i]).toBe(esperado[i]);
+    });
   });
 });

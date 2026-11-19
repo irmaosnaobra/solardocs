@@ -14,8 +14,8 @@ import { segredoDoVinculo } from './vendaSolarHub';
 import { nomeSimples } from './solarObras';
 import { lerJsonBruto, gravarJsonBruto, comTrava } from './cadastroVendaBanco';
 import {
-  ACOES_HISTORICO, FALHAS_NUMERO, FORMAS_PAGAMENTO, MOTIVOS_ESPERA,
-  type AcaoHistorico, type EstadoJornada, type FalhaNumero, type FormaPagamento, type MotivoEspera, type PapelGerado, type PrivadoJornada,
+  ACOES_HISTORICO, CHAVES_CONFIRMAR, CHAVES_PEDIDO, FALHAS_NUMERO, FORMAS_PAGAMENTO, MOTIVOS_ESPERA,
+  type AcaoHistorico, type Confirmacao, type EstadoJornada, type FalhaNumero, type FormaPagamento, type MotivoEspera, type PapelGerado, type PrivadoJornada,
 } from './jornadaSolar';
 
 export const PREFIXO_JORNADA = 'jornada_solar:';
@@ -45,6 +45,35 @@ function etapaBase(v: unknown): { aberta_em: string | null; concluida_em: string
   const o = obj(v) ?? {};
   return { aberta_em: dataIso(o.aberta_em), concluida_em: dataIso(o.concluida_em), concluida_por: nome(o.concluida_por) };
 }
+/** As confirmações da etapa 1, só as chaves conhecidas e na ordem do contrato (a assinatura depende da ordem). */
+function confirmacoes(v: unknown): Record<string, Confirmacao> {
+  const o = obj(v) ?? {};
+  const r: Record<string, Confirmacao> = {};
+  for (const k of CHAVES_CONFIRMAR) {
+    const c = obj(o[k]);
+    const em = c ? dataIso(c.em) : null;
+    const marca = c && typeof c.marca === 'string' && /^[0-9a-f]{16}$/.test(c.marca) ? c.marca : null;
+    if (c && em && marca) r[k] = { em, por: nome(c.por), marca };
+  }
+  return r;
+}
+/** Texto do kit escrito à mão: só placas e inversor, de 3 a 120 caracteres, nesta ordem. */
+function kitTexto(v: unknown): { placas?: string; inversor?: string } {
+  const o = obj(v) ?? {};
+  const r: { placas?: string; inversor?: string } = {};
+  for (const k of ['placas', 'inversor'] as const) { const t = txt(o[k], 120); if (t.length >= 3) r[k] = t; }
+  return r;
+}
+function pedidos(v: unknown): Record<string, { em: string; por: string }> {
+  const o = obj(v) ?? {};
+  const r: Record<string, { em: string; por: string }> = {};
+  for (const k of CHAVES_PEDIDO) {
+    const c = obj(o[k]);
+    const em = c ? dataIso(c.em) : null;
+    if (c && em) r[k] = { em, por: nome(c.por) };
+  }
+  return r;
+}
 function papel(v: unknown): PapelGerado | null {
   const o = obj(v);
   const em = o ? dataIso(o.gerado_em) : null;
@@ -61,6 +90,9 @@ export function normalizarJornada(card: number, value: unknown): EstadoJornada |
   const e3 = obj(et['3']) ?? {};
   const e4 = obj(et['4']) ?? {};
   const b1 = etapaBase(e1);
+  const conf1 = confirmacoes(e1.confirmados);
+  const kt1 = kitTexto(e1.kit_texto);
+  const ped1 = pedidos(e1.pedidos);
   const b2 = etapaBase(e2);
   const b3 = etapaBase(e3);
 
@@ -101,7 +133,15 @@ export function normalizarJornada(card: number, value: unknown): EstadoJornada |
     vendido_por: nome(o.vendido_por),
     vendedor: nome(o.vendedor),
     etapas: {
-      1: { aberta_em: b1.aberta_em, concluida_em: b1.concluida_em, concluida_por: b1.concluida_por, excedente: e1.excedente === 'sim' ? 'sim' : e1.excedente === 'nao' ? 'nao' : null },
+      // Os campos novos só entram quando existem: o objeto de uma obra que nunca os teve sai IGUAL ao de antes (a assinatura continua valendo).
+      1: {
+        aberta_em: b1.aberta_em, concluida_em: b1.concluida_em, concluida_por: b1.concluida_por,
+        excedente: e1.excedente === 'sim' ? 'sim' : e1.excedente === 'nao' ? 'nao' : null,
+        ...(e1.financiamento === 'sim' || e1.financiamento === 'nao' ? { financiamento: e1.financiamento as 'sim' | 'nao' } : {}),
+        ...(Object.keys(kt1).length ? { kit_texto: kt1 } : {}),
+        ...(Object.keys(conf1).length ? { confirmados: conf1 } : {}),
+        ...(Object.keys(ped1).length ? { pedidos: ped1 } : {}),
+      },
       2: {
         aberta_em: b2.aberta_em, concluida_em: b2.concluida_em, concluida_por: b2.concluida_por,
         papeis: { contrato: papel(pp.contrato), procuracao: papel(pp.procuracao), recibo: papel(pp.recibo) },

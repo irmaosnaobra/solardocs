@@ -98,6 +98,12 @@
       '.jor-din-c b{font-size:20px;font-weight:700;line-height:1.3;font-variant-numeric:tabular-nums;color:var(--io-titulo,#F1F5F9);overflow-wrap:anywhere}',
       '.jor-din-c.neg{border-color:var(--io-er-bd,rgba(248,113,113,.4))}',
       '.jor-din-c.neg b{color:var(--io-er-tx,#FCA5A5)}',
+      '.jor-din-painel{padding:16px 24px;margin:0 0 16px}',
+      '.jor-din-tit{font-size:18px;margin:0 0 10px!important}',
+      '.jor-din-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;margin-top:12px}',
+      '.jor-din-col{min-width:0}',
+      '.jor-din-etp{display:flex;justify-content:space-between;gap:10px;margin:12px 0 2px;padding-top:8px;border-top:2px solid var(--n-bd2,#475569);font-size:13px}',
+      '.jor-din-etp .jor-din-v{font-variant-numeric:tabular-nums;font-weight:700}',
       '.jor-din-ret{grid-column:1/-1;color:var(--n-tx2,#B4C0D1);font-size:13px;margin:0}',
       '.jor-din-oculto{border:1px solid var(--n-bd,#334155);background:var(--n-sf2,#182338);color:var(--n-tx2,#B4C0D2);border-radius:12px;padding:10px 14px;margin:0 0 12px}',
       '.jor-din-lin{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:8px 0;border-top:1px solid var(--n-bd,#334155)}',
@@ -124,6 +130,8 @@
       '.jor-din-anx{display:flex;flex-wrap:wrap;gap:8px;align-items:center}',
       '.jor-din-anx .jor-btn{display:inline-flex;align-items:center}',
       '@media (max-width:760px){',
+      '.jor-din-painel{padding:14px 16px}',
+      '.jor-din-cols{grid-template-columns:minmax(0,1fr)}',
       '.jor-din-faixa{grid-template-columns:repeat(2,minmax(0,1fr))}',
       '.jor-dlg:has(>div.jor-din-dlg){padding:0}',
       '.jor-dlg>div.jor-din-dlg{width:100%!important;height:100%;max-height:100%;border-radius:0}',
@@ -154,13 +162,67 @@
     if (!din) { if (O().dinErro) erroParte(raiz); return; }
     if (din.visivel === false) { raiz.appendChild(h.el('p', 'jor-din-oculto', 'O dinheiro desta obra fica com o Thiago e a Giovanna.')); return; }
     var l = din.livro; if (!l) return;
-    var f = h.el('div', 'jor-din-faixa'); f.setAttribute('aria-label', 'Dinheiro da obra');
+    // O painel de Dinheiro: os totais do livro (o servidor faz a conta), os recebimentos e os gastos, tudo à vista.
+    var box = h.el('section', 'jor-din-painel jor-cartao'); box.setAttribute('aria-label', 'Dinheiro da obra');
+    box.appendChild(h.el('h3', 'jor-din-tit', 'Dinheiro'));
+    var f = h.el('div', 'jor-din-faixa');
     f.appendChild(celula('Recebido', h.rs(l.recebido)));
     f.appendChild(celula('A receber', l.a_receber === null || l.a_receber === undefined ? 'Sem valor de venda' : h.rs(l.a_receber)));
     f.appendChild(celula('Gasto', h.rs(l.gasto)));
     f.appendChild(celula('Saldo', h.rs(l.saldo), l.saldo < 0));
-    if (h.atual() >= 2 && l.retirada !== undefined && l.retirada !== null && Number(l.retirada) > 0) f.appendChild(h.el('p', 'jor-din-ret', 'Já tirada a comissão dos sócios: ' + h.rs(l.retirada)));
-    raiz.appendChild(f);
+    box.appendChild(f);
+    var veRet = l.retirada !== undefined && l.retirada !== null;   // a retirada só vem para quem já a via (ADM e Giovanna)
+    if (h.atual() >= 2 && veRet && Number(l.retirada) > 0) box.appendChild(h.el('p', 'jor-din-ret', 'Já tirada a comissão dos sócios: ' + h.rs(l.retirada)));
+    var cols = h.el('div', 'jor-din-cols');
+    cols.appendChild(painelRecebimentos(din, l));
+    cols.appendChild(painelGastos(din, l, veRet));
+    box.appendChild(cols);
+    raiz.appendChild(box);
+  }
+  var FORMA_RECIBO = { pix: 'pix', transferencia: 'ted', ted: 'ted', boleto: 'boleto', cartao: 'cartao', dinheiro: 'dinheiro', financiamento: 'financiamento' };
+  /** O recibo de UM recebimento: POST .../papel tipo 'recibo' com os dados daquela linha. */
+  function reciboDaLinha(l, botao) {
+    var h = H(); var d = O().dados || {};
+    var num = (d.codigo ? String(d.codigo).replace('#', '') : 'S/N') + '/' + String(l.data || d.hoje || '').slice(0, 4);
+    return h.gerarPapel('recibo', { recibo: { numero: num, pagamentos: [{ forma: FORMA_RECIBO[l.forma] || 'pix', data: String(l.data || '').slice(0, 10), valor_centavos: l.valor_centavos }] } }, botao);
+  }
+  function painelRecebimentos(din, l) {
+    var h = H(); var c = h.el('div', 'jor-din-col');
+    c.appendChild(h.el('div', 'jor-din-sub', 'Recebimentos'));
+    var ent = (l.linhas || []).filter(function (x) { return x.grupo === 'entrada'; });
+    if (!ent.length) c.appendChild(h.el('p', 'jor-nota', 'Nenhum recebimento lançado.'));
+    ent.forEach(function (x) {
+      var r = linhaDe(x, din); var m = r.lastChild;
+      if (!x.estornada && !x.estorno_de && m) {
+        var br = h.btn('Recibo', 'jor-btn-link', function () { reciboDaLinha(x, br); });
+        br.setAttribute('aria-label', 'Gerar o recibo de ' + h.reais(x.valor_centavos));
+        var dd = O().dados || {}; if (!(dd.pode && dd.pode.gerar_papeis)) { br.disabled = true; br.title = 'Você não tem permissão para gerar o recibo.'; }
+        m.appendChild(br);
+      }
+      c.appendChild(r);
+    });
+    var tot = h.el('div', 'jor-din-tot'); tot.appendChild(h.el('span', '', 'Total recebido')); tot.appendChild(h.el('span', 'jor-din-v', h.rs(l.recebido))); c.appendChild(tot);
+    var p = din.pode || {};
+    if (p.lancar_entrada) { var ac = h.el('div', 'jor-din-acoes'); ac.appendChild(h.btn('Lançar recebimento', 'jor-btn-pri', function () { lancar({ tipo: 'entrada', etapa: 2 }); })); c.appendChild(ac); }
+    return c;
+  }
+  function painelGastos(din, l, veRet) {
+    var h = H(); var c = h.el('div', 'jor-din-col');
+    c.appendChild(h.el('div', 'jor-din-sub', 'Gastos'));
+    var tot = h.el('div', 'jor-din-tot'); tot.appendChild(h.el('span', '', 'Total de gastos')); tot.appendChild(h.el('span', 'jor-din-v', h.rs(l.gasto))); c.appendChild(tot);
+    var linhas = l.linhas || []; var atual = h.atual() || 1; var algum = false;
+    for (var n = 1; n <= 8; n++) {
+      var custo = linhas.filter(function (x) { return Number(x.etapa) === n && x.grupo === 'custo'; });
+      if (n > atual && !custo.length) continue;
+      var cab = h.el('div', 'jor-din-etp'); cab.appendChild(h.el('b', '', 'Etapa ' + n + (nomeEtapa(n) ? ' · ' + nomeEtapa(n) : ''))); cab.appendChild(h.el('span', 'jor-din-v', h.rs(porEtapa(l, n)))); c.appendChild(cab);
+      custo.forEach(function (x) { c.appendChild(linhaDe(x, din)); algum = true; });
+    }
+    if (!algum) c.appendChild(h.el('p', 'jor-nota', 'Nenhum gasto lançado.'));
+    if (veRet) {
+      var ret = linhas.filter(function (x) { return x.grupo === 'retirada'; });
+      if (ret.length) { c.appendChild(h.el('div', 'jor-din-sub', 'Retirada dos sócios, fora do custo')); ret.forEach(function (x) { c.appendChild(linhaDe(x, din)); }); }
+    }
+    return c;
   }
   /** O gasto embaixo de cada passo da régua: feita, o da etapa; da vez, o de agora; futura, "A vir". */
   function gastoDaRegua(din, n, atual) {
@@ -322,23 +384,15 @@
 
   function gastosDaEtapa(alvo, n, din) {
     injetarCss(); var h = H();
-    var b = h.el('div', 'jor-bloco'); var tit = h.el('div', 'jor-bloco-t', 'Gastos desta etapa'); b.appendChild(tit);
+    var b = h.el('div', 'jor-bloco'); var tit = h.el('div', 'jor-bloco-t', 'Gastos'); b.appendChild(tit);
     if (!din || din.visivel === false || !din.livro) { return; }
     var linhas = (din.livro.linhas || []).filter(function (l) { return Number(l.etapa) === n; });
     var custo = linhas.filter(function (l) { return l.grupo === 'custo'; });
-    var ret = linhas.filter(function (l) { return l.grupo === 'retirada'; });
-    var ent = linhas.filter(function (l) { return l.grupo === 'entrada'; });
     if (!custo.length) b.appendChild(h.el('p', 'jor-nota', 'Nenhum gasto nesta etapa.'));
     custo.forEach(function (l) { b.appendChild(linhaDe(l, din)); });
     var tot = h.el('div', 'jor-din-tot'); tot.appendChild(h.el('span', '', 'Total da etapa')); tot.appendChild(h.el('span', 'jor-din-v', h.rs(porEtapa(din.livro, n)))); b.appendChild(tot);
-    if (n === 2 && ent.length) { b.appendChild(h.el('div', 'jor-din-sub', 'Recebimentos')); ent.forEach(function (l) { b.appendChild(linhaDe(l, din)); }); }
-    var veRet = din.livro.retirada !== undefined && din.livro.retirada !== null;   // a retirada só vem para o ADM e para a Giovanna
-    if (n === 2 && ret.length && veRet) { b.appendChild(h.el('div', 'jor-din-sub', 'Retirada dos sócios, fora do custo')); ret.forEach(function (l) { b.appendChild(linhaDe(l, din)); }); }
     var p = din.pode || {};
-    var ac = h.el('div', 'jor-din-acoes');
     if (p.lancar_saida) tit.appendChild(h.btn('Lançar gasto', 'jor-btn-pri', function () { lancar({ tipo: 'saida', etapa: n }); }));
-    if (n === 2 && p.lancar_entrada) ac.appendChild(h.btn('Lançar recebimento', 'jor-btn-pri', function () { lancar({ tipo: 'entrada', etapa: n }); }));
-    if (ac.childNodes.length) b.appendChild(ac);
     alvo.appendChild(b);
   }
 
@@ -775,7 +829,7 @@
     n.replaceChildren(raiz);
   }
   function formPrevisto(pai, l) {
-    var h = H(); var box = h.el('details'); box.appendChild(h.el('summary', 'jor-vdc-sum', 'Previsto da obra'));
+    var h = H(); var box = h.el('details'); box.open = true; box.appendChild(h.el('summary', 'jor-vdc-sum', 'Previsto da obra'));
     var g = h.el('div', 'jor-din-pc'); var ins = {};
     var dig = (O().dinheiro && O().dinheiro.previsto) || {};
     [['homologacao', 'Homologação'], ['material', 'Material'], ['frete', 'Frete'], ['mao_de_obra', 'Mão de obra'], ['outros', 'Outros']].forEach(function (c) {

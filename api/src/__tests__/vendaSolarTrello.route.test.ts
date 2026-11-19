@@ -47,6 +47,17 @@ const t = vi.hoisted(() => ({
   travaVinculosAoCriar: false,        // o POST do cartão toma a trava global dos vínculos (outra pessoa gravando agora)
 }));
 
+// O Chromium do relatório final é simulado: guarda o HTML de cada página e devolve um PDF de mentira.
+const rel = vi.hoisted(() => ({ htmls: [] as string[], falha: false, travou: false, aoGerar: null as null | (() => void), travasNoAnexo: null as null | string[] }));
+vi.mock('../controllers/pdfController', () => ({
+  abrirNavegador: async () => {
+    if (rel.falha) throw new Error('sem chromium');
+    return {
+      newPage: async () => ({ setJavaScriptEnabled: async () => undefined, setContent: async (html: string) => { rel.htmls.push(html); }, pdf: async () => { rel.aoGerar?.(); if (rel.travou) await new Promise(() => undefined); return Buffer.from('%PDF-1.4 relatorio de mentira'); }, close: async () => undefined }),
+      close: async () => undefined,
+    };
+  },
+}));
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 // Só a lista de códigos da planilha mãe é simulada (a numeração a lê); o resto do módulo segue de verdade.
 vi.mock('../routes/geradorClientes', async (orig) => ({
@@ -146,6 +157,8 @@ vi.mock('../utils/supabase', () => ({
           },
           upload: async (p: string, corpo: Buffer) => { mapa.set(p, Buffer.from(corpo)); return { data: { path: p }, error: null }; },
           remove: async (ps: string[]) => { for (const p of ps) mapa.delete(p); return { data: [], error: null }; },
+          createSignedUrls: async (ps: string[]) => ({ data: ps.map((p) => ({ path: p, signedUrl: `https://assinada.test/${encodeURIComponent(p)}`, error: null })), error: null }),
+          createSignedUrl: async (p: string) => ({ data: { signedUrl: `https://assinada.test/${encodeURIComponent(p)}` }, error: null }),
         };
       },
     },
@@ -367,6 +380,7 @@ async function trelloFalso(url: string, init?: RequestInit): Promise<Response> {
   if (metodo === 'GET' && m) return json(t.anexos.get(m[1]) ?? []);
   if (metodo === 'POST' && m) {
     const a = { id: novoId(), name: nome ?? '' };
+    if (nome === 'Relatório final.pdf') rel.travasNoAnexo = [...h.linhas.keys()].filter((k) => k.startsWith('cadastro_trava:'));
     t.anexos.set(m[1], [...(t.anexos.get(m[1]) ?? []), a]);
     return json({ id: a.id });
   }
@@ -1523,6 +1537,110 @@ describe('Trello automático da Jornada (o caminho de verdade, não o botão sim
     t.chamadas = [];
     expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'ja_tem' });
     expect(t.chamadas).toEqual([]);
+  });
+  it('relatório final em PDF no cartão (criar e completar): gerado como o Book, SEM dinheiro, contrato assinado e recibo; anexado uma vez; falha do Chromium não impede o cartão', async () => {
+    venda201(); await semear(); completo();
+    const p1 = h.propostas.find((p) => p.codigo === 'P1')!;
+    p1.qtd_placas = 10; p1.inversor = 'Growatt MID'; p1.qtd_inversor = 1; p1.dados = { tab: { mod: 'Canadian CS7N', pot: 590 } };
+    h.cad.set('vendasolar/201.obra.json', Buffer.from(JSON.stringify({ v: 1, vistoria: { data: '2026-11-18', quem: 'Nilce', concl: 'ok', telhado: { tipo: 'colonial' }, entrada: {}, inversor: {}, adeq: [], fotos: [] } })));
+    h.cad.set('vendasolar/201.jornada.json', Buffer.from(JSON.stringify({
+      v: 1, cancelamento: null, descancelamentos: [],
+      venda: { valor_centavos: 4567891, pagamento: [{ forma: 'pix', valor_centavos: 4567891, obs: 'entrada de 30%' }], desconto_centavos: null, prazo_prometido: 'x', nota: 'nota interna', kit_confirmado: true, combinado_por: 'nilce', combinado_em: '2026-10-20T10:00:00.000Z', editado: [] },
+    })));
+    rel.htmls = [];
+    const { tentarTrelloAutomatico } = await import('../routes/geradorJornadaTrelloAuto');
+    expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'criou' });
+    expect(anexosEnviados().filter((a) => a.nome === 'Relatório final.pdf')).toHaveLength(1);
+    const html = rel.htmls[rel.htmls.length - 1];
+    expect(html).toContain('Relatório final');
+    expect(html).toContain('Ana Souza Oliveira');
+    expect(html).toContain('10 × Canadian CS7N 590 W');
+    expect(html).toContain('colonial');
+    expect(html).toContain('KMZ do local');
+    expect(html).toContain('Datasheet dos módulos');
+    expect(html).toContain('Procuração assinada');
+    expect(html).toMatch(/<img src="https:\/\//);   // miniatura da foto da vistoria
+    // nada de dinheiro, de contrato assinado nem de recibo
+    expect(html).not.toMatch(/4567891|45\.678|R\$|entrada de 30|nota interna|pagamento|Contrato assinado|recibo/i);
+    // o PDF e o registro ficam no bucket privado; o registro do envio guarda a chave própria do anexo
+    expect(h.cad.has('vendasolar/201.relatorio.pdf')).toBe(true);
+    expect(JSON.parse(h.cad.get('vendasolar/201.relatorio.json')!.toString())).toMatchObject({ v: 1, por: 'giovanna', tamanho: expect.any(Number) });
+    const reg = h.linhas.get('trello_venda_solar:201')!.value as { anexados: Record<string, string> };
+    expect(Object.keys(reg.anexados)).toContain('relatorio_final');
+    // completar de novo (marca limpa) NÃO repete o relatório: já está no cartão
+    const { mudarJornada } = await import('../services/gerador/jornadaSolarBanco');
+    await mudarJornada(201, () => { throw new Error('existe'); }, (e) => ({ ...e, etapas: { ...e.etapas, 3: { ...e.etapas[3], trello: { url: e.etapas[3].trello!.url, criado_em: e.etapas[3].trello!.criado_em, por: e.etapas[3].trello!.por } } } }));
+    expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'completou' });
+    expect(anexosEnviados().filter((a) => a.nome === 'Relatório final.pdf')).toHaveLength(1);
+  });
+  it('relatório final: Chromium fora ou quadro público não impedem o cartão; o relatório só não sobe', async () => {
+    venda201(); await semear(); completo();
+    rel.falha = true;
+    const { tentarTrelloAutomatico } = await import('../routes/geradorJornadaTrelloAuto');
+    expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'criou' });
+    expect(anexosEnviados().map((a) => a.nome)).not.toContain('Relatório final.pdf');
+    expect(t.quadro.cards.filter((c: any) => /Ana Souza/.test(c.name))).toHaveLength(1);
+    expect(h.cad.has('vendasolar/201.relatorio.pdf')).toBe(false);
+    rel.falha = false;
+  });
+  it('relatório final manual ("Gerar de novo"): sem cartão não anexa; com cartão sem relatório anexa o normal; com relatório já lá anexa DATADO e registra, sem apagar o antigo; quadro público não anexa', async () => {
+    venda201(); await semear(); completo();
+    const { anexarRelatorioManual, tentarTrelloAutomatico } = await import('../routes/geradorJornadaTrelloAuto');
+    const quem = { nome: 'nilce' };
+    const pdf = Buffer.from('%PDF-1.4 novo');
+    expect(await anexarRelatorioManual(cartao201(), quem, pdf)).toBe('sem_cartao');
+    expect(anexosEnviados()).toHaveLength(0);
+    // o cartão nasce, mas o Chromium falhou: não há relatório nele; o botão anexa o normal
+    rel.falha = true;
+    expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'criou' });
+    rel.falha = false;
+    const nomes = (): string[] => anexosEnviados().map((a) => a.nome ?? '');
+    expect(nomes()).not.toContain('Relatório final.pdf');
+    expect(await anexarRelatorioManual(cartao201(), quem, pdf)).toBe('anexado');
+    expect(nomes().filter((n) => n === 'Relatório final.pdf')).toHaveLength(1);
+    // já há um relatório no cartão: o novo entra datado, o antigo fica
+    expect(await anexarRelatorioManual(cartao201(), quem, pdf)).toBe('anexado_datado');
+    expect(nomes().filter((n) => n === 'Relatório final.pdf')).toHaveLength(1);
+    expect(nomes().filter((n) => /^Relatório final \d{2}-\d{2}-\d{4}\.pdf$/.test(n))).toHaveLength(1);
+    const reg = h.linhas.get('trello_venda_solar:201')!.value as { anexados: Record<string, string> };
+    expect(Object.keys(reg.anexados).filter((k) => k.startsWith('relatorio_final'))).toHaveLength(2);
+    expect(Object.keys(reg.anexados)).toContain('relatorio_final');
+    // dentro da trava do cartão
+    rel.travasNoAnexo = null;
+    expect(await anexarRelatorioManual(cartao201(), quem, pdf)).toBe('anexado_datado');
+    // quadro público: nada sobe
+    const antes = nomes().length;
+    t.publico = true;
+    expect(await anexarRelatorioManual(cartao201(), quem, pdf)).toBe('quadro_publico');
+    expect(nomes()).toHaveLength(antes);
+  });
+  it('relatório final: o anexo e o registro rodam DENTRO da trava do cartão, com o registro relido: o anexo gravado no meio da geração (pelo botão) não se perde', async () => {
+    venda201(); await semear(); completo();
+    rel.travasNoAnexo = null;
+    // enquanto o PDF é gerado, o botão grava outro anexo no registro do envio
+    rel.aoGerar = () => {
+      const l = h.linhas.get('trello_venda_solar:201')!;
+      h.linhas.set('trello_venda_solar:201', { updated_at: l.updated_at + 'x', value: { ...(l.value as object), anexados: { ...(l.value as { anexados: object }).anexados, do_botao: 'abcdef0123456789abcdef01' } } });
+    };
+    const { tentarTrelloAutomatico } = await import('../routes/geradorJornadaTrelloAuto');
+    expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'criou' });
+    rel.aoGerar = null;
+    const reg = h.linhas.get('trello_venda_solar:201')!.value as { anexados: Record<string, string> };
+    expect(Object.keys(reg.anexados)).toEqual(expect.arrayContaining(['do_botao', 'relatorio_final']));
+    expect(rel.travasNoAnexo).toContain('cadastro_trava:trello:201');   // o anexo saiu com a trava do cartão em mãos
+  });
+  it('relatório final: o Chromium que trava estoura o limite, loga e o cartão (já marcado como completado) segue sem esperar', async () => {
+    venda201(); await semear(); completo();
+    process.env.RELATORIO_FINAL_TIMEOUT_MS = '50';
+    rel.travou = true;
+    const { tentarTrelloAutomatico } = await import('../routes/geradorJornadaTrelloAuto');
+    const t0 = Date.now();
+    expect(await tentarTrelloAutomatico(cartao201(), { nome: 'giovanna', socio: false })).toEqual({ acao: 'criou' });
+    expect(Date.now() - t0).toBeLessThan(5000);
+    rel.travou = false; delete process.env.RELATORIO_FINAL_TIMEOUT_MS;
+    expect(anexosEnviados().map((a) => a.nome)).not.toContain('Relatório final.pdf');
+    const { lerJornadaComVersao } = await import('../services/gerador/jornadaSolarBanco');
+    expect((await lerJornadaComVersao(201)).estado!.etapas[3].trello!.completado_em).toEqual(expect.any(String));
   });
   it('cartão PARECIDO no quadro: desiste (não cria nada), marca a parada e o GET fala em "Confira os cartões parecidos no botão do Trello"', async () => {
     venda201(); await semear(); completo();

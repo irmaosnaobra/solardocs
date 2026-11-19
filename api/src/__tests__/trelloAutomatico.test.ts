@@ -105,12 +105,11 @@ describe('tentarTrelloAutomatico', () => {
     expect(h.rotas).toBe(1);
   });
   it.each([
-    ['falta o kit', () => { h.privado = privado(false); }, 'Todo o equipamento confirmado'],
     ['falta o datasheet da placa', () => { h.slots = ['datasheet_inversor', 'kmz']; }, 'Datasheet da placa'],
     ['falta o datasheet do inversor', () => { h.slots = ['datasheet_modulo', 'kmz']; }, 'Datasheet do inversor'],
     ['falta o KMZ', () => { h.slots = ['datasheet_modulo', 'datasheet_inversor']; }, 'KMZ do local'],
     ['falta o número da venda', () => { h.lig.venda = null; }, 'Número da venda'],
-    ['a etapa 2 não concluiu', () => { (h.estado as EstadoJornada).etapas[2].concluida_em = null; }, 'Etapa Documentos e vistoria concluída'],
+    ['a etapa 2 não concluiu', () => { (h.estado as EstadoJornada).etapas[2].concluida_em = null; }, 'Etapa Anexos concluída'],
     ['a etapa 1 não concluiu', () => { (h.estado as EstadoJornada).etapas[1].concluida_em = null; }, 'Etapa Venda concluída'],
     ['a obra foi cancelada', () => { (h.estado as EstadoJornada).cancelada = { em: AGORA, por: 'thiago', etapa: 3, com_numero: true }; }, 'Obra cancelada'],
   ])('não cria quando %s', async (_n, mexe, texto) => {
@@ -215,9 +214,9 @@ describe('regras puras', () => {
     const f = (estado: EstadoJornada | null, slots: string[], pv: PrivadoJornada | null) => ({ lig: { proposta: 'P1', venda: '#1' }, slots: new Set(slots), cad, privado: pv, estado });
     expect(estadoTrelloAuto(f(estadoPronto(), TUDO, privado(true)), true)).toEqual({ pronto: true, falta: [] });
     expect(estadoTrelloAuto(f(null, [], null), false).falta).toEqual([
-      'Etapa Venda concluída', 'Etapa Documentos e vistoria concluída', 'Todo o equipamento confirmado', 'Datasheet da placa', 'Datasheet do inversor', 'KMZ do local', 'Número da venda',
+      'Etapa Venda concluída', 'Etapa Anexos concluída', 'Datasheet da placa', 'Datasheet do inversor', 'KMZ do local', 'Número da venda',
     ]);
-    expect(itensDaEtapa(3, f(estadoPronto(), TUDO, privado(true))).slice(0, 4).every((i) => i.bloco === 'equipamento' && i.feito)).toBe(true);
+    expect(itensDaEtapa(3, f(estadoPronto(), TUDO, privado(true))).slice(0, 3).every((i) => i.bloco === 'equipamento' && i.feito)).toBe(true);
   });
 });
 

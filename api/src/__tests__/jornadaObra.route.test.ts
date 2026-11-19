@@ -438,6 +438,31 @@ describe('GET fase2 e a seção Compra', () => {
     expect((await put(F2(SOLAR, '/compra'), { dados: {} }, THIAGO)).status).toBe(400);
   });
 
+  it('vistoria e proposta de banco valem já na ETAPA 1 (obra sem a Fase 2 materializada): GET /fase2 traz os dados, e o vendedor, a Giovanna e o ADM gravam; os outros não', async () => {
+    semearJs(SOLAR, 1);   // etapa 1 aberta, nenhuma jornada_obra gravada
+    expect(h.linhas.has(`jornada_obra:${SOLAR}`)).toBe(false);
+    const g = await get(F2(SOLAR), NILCE);
+    expect(g.status).toBe(200);
+    expect(g.body.etapa_atual).toBe(1);
+    expect(g.body.pode.secoes).toEqual(expect.arrayContaining(['vistoria', 'banco']));
+    expect(g.body.dados).toMatchObject({ vistoria: null, banco: null });
+    expect(g.body.versoes).toMatchObject({ vistoria: 0, banco: 0 });
+    const v = { data: '2026-11-18', concl: 'ok', obs: 'Telhado ok', telhado: { tipo: 'colonial' } };
+    expect((await put(F2(SOLAR, '/vistoria'), { versao: 0, dados: v }, NILCE)).status).toBe(200);
+    expect(privadaGravada(SOLAR)!.vistoria).toMatchObject({ data: '2026-11-18', concl: 'ok', telhado: { tipo: 'colonial' } });
+    expect((await put(F2(SOLAR, '/vistoria'), { versao: 1, dados: { ...v, quem: 'Giovanna' } }, GIOVANNA)).status).toBe(200);   // a Giovanna também preenche a vistoria da Fase 1
+    expect(privadaGravada(SOLAR)!.vistoria).toMatchObject({ quem: 'Giovanna' });
+    expect((await put(F2(SOLAR, '/banco'), { versao: 0, dados: { banco: 'BV', agencia: '0001', conta: '123-4' } }, GIOVANNA)).status).toBe(200);
+    expect(privadaGravada(SOLAR)!.banco).toMatchObject({ banco: 'BV', agencia: '0001', conta: '123-4' });
+    expect((await put(F2(SOLAR, '/vistoria'), { versao: 2, dados: v }, DIEGO)).status).toBe(403);
+    expect((await put(F2(SOLAR, '/banco'), { versao: 1, dados: {} }, DIEGO)).status).toBe(403);
+    // nada disso materializou a obra de pós-venda
+    expect(h.linhas.has(`jornada_obra:${SOLAR}`)).toBe(false);
+    const depois = await get(F2(SOLAR), GIOVANNA);
+    expect(depois.body.dados.vistoria).toMatchObject({ quem: 'Giovanna' });
+    expect(depois.body.dados.banco).toMatchObject({ banco: 'BV' });
+  });
+
   it('quem mexe em cada seção: o Diego não grava a liberação; o Thiago só o plano da obra; a Nilce só a vistoria da dela; conta fechada e venda cancelada travam', async () => {
     expect((await put(F2(SOLAR, '/liberacao'), { versao: 0, dados: { passos: {} } }, DIEGO)).status).toBe(403);
     expect((await put(F2(SOLAR, '/liberacao'), { versao: 0, dados: { passos: {} } }, THIAGO)).status).toBe(200);

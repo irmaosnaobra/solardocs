@@ -97,7 +97,7 @@
     var lin = el('div', 'jor-pos-toque');
     add(lin, el('span', 'jor-pos-n', t.n), el('span', 'jor-pos-rot', rot + (t.data ? ' · ' + dataBR(t.data) : '')), el('span', 'jor-pos-sit ' + s.cls, s.txt));
     if (t.texto) {
-      var det = el('details', 'jor-pos-ver'); det.appendChild(el('summary', '', 'Ver a mensagem')); det.appendChild(el('pre', '', t.texto));
+      var det = el('details', 'jor-pos-ver'); det.open = true; det.appendChild(el('summary', '', 'Ver a mensagem')); det.appendChild(el('pre', '', t.texto));
       lin.appendChild(det);
     }
     return lin;

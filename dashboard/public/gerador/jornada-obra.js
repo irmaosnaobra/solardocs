@@ -1094,20 +1094,56 @@
   function limpaArq(n) { return (typeof solLimpaArq === 'function' ? solLimpaArq(n) : String(n || '').replace(/[^A-Za-z0-9]+/g, '_')) || 'Cliente'; }
   function numTxt(x) { return typeof fsVNum === 'function' ? fsVNum(String(x)) : String(x).replace(/\./g, ','); }
 
+  /** O /fase2 falhou: a seção não some calada. Mostra o erro e Tentar de novo. */
+  function semFase2(esq, titulo, texto) {
+    var b = el('div', 'jor-bloco'); var t = el('div', 'jor-bloco-t'); t.appendChild(el('span', '', titulo)); t.appendChild(el('em', 'jor-etq jor-etq-av', 'Não carregou')); b.appendChild(t);
+    var p = el('p', 'jor-erro', texto); p.setAttribute('role', 'alert'); b.appendChild(p);
+    b.appendChild(btn('Tentar de novo', '', function () { H().recarregar(); }));
+    esq.appendChild(b);
+  }
   // Etapa 1 · Relatório de vistoria
   function extraVistoria(esq, d) {
-    var f2 = O().fase2; if (!f2) return; injetarCss(); var h = H();
+    var f2 = O().fase2; injetarCss(); var h = H();
+    if (!f2) { semFase2(esq, 'Relatório de vistoria', 'O relatório de vistoria não carregou, e a trava de 80% depende dele.'); return; }
     var pode = podeSecao(f2, 'vistoria'); var v = clone(dados(f2).vistoria) || {};
     var sg = (H().sugs && H().sugs('vistoria')) || {};
     ['telhado', 'entrada', 'inversor'].forEach(function (k) { v[k] = v[k] || {}; }); v.adeq = v.adeq || [];
-    var box = el('details', 'jor-bloco'); box.appendChild(el('summary', 'jor-vdc-sum', 'Relatório de vistoria'));
+    var box = el('div', 'jor-bloco');
+    // O quanto do relatório já está preenchido (vistoria_pct, do servidor). Com 80% ou mais a etapa pode concluir.
+    var pct = Math.max(0, Math.min(100, Math.round(Number(d.vistoria_pct) || 0)));
+    var tit = el('div', 'jor-bloco-t'); tit.appendChild(el('span', '', 'Relatório de vistoria'));
+    tit.appendChild(el('em', 'jor-etq jor-etq-' + (pct >= 80 ? 'ok' : 'av'), pct + '% preenchido')); box.appendChild(tit);
+    var barra = el('div', 'jor-prog' + (pct >= 80 ? ' ok' : '')); barra.setAttribute('role', 'progressbar'); barra.setAttribute('aria-valuemin', '0'); barra.setAttribute('aria-valuemax', '100'); barra.setAttribute('aria-valuenow', String(pct)); barra.setAttribute('aria-label', 'Relatório de vistoria preenchido');
+    var barraI = el('i'); barraI.style.width = pct + '%'; barra.appendChild(barraI); box.appendChild(barra);
+    box.appendChild(el('p', 'jor-nota', 'Precisa de pelo menos 80% para concluir a etapa. Na dúvida, fale com o técnico para ajudar na avaliação.'));
     var ins = {};
+    // Opções rápidas: um toque preenche o campo (a pessoa ainda pode digitar outra coisa).
+    var SIM3 = ['Sim', 'Não', 'Precisa adequar'];
+    var OPCOES = {
+      'telhado.tipo': ['Cerâmico', 'Fibrocimento', 'Metálico', 'Laje', 'Solo'], 'telhado.estado': ['Bom', 'Regular', 'Ruim'],
+      'telhado.orient': ['Norte', 'Nordeste', 'Leste', 'Oeste', 'Noroeste', 'Sul'], 'telhado.incl': ['0 a 10°', '10 a 20°', '20 a 30°', 'Acima de 30°'],
+      'telhado.sombra': ['Sem sombra', 'Pouca', 'Muita'], 'telhado.estr': ['Madeira', 'Metálica', 'Concreto'], 'telhado.acesso': ['Fácil', 'Médio', 'Difícil'],
+      'entrada.padrao': ['Monofásico', 'Bifásico', 'Trifásico'], 'entrada.tensao': ['127 V', '220 V', '380 V'], 'entrada.apto': SIM3, 'entrada.aterr': SIM3,
+      'inversor.local': ['Garagem', 'Parede externa', 'Área de serviço', 'Quadro'], 'inversor.abrig': ['Abrigado', 'Exposto'], 'inversor.wifi': ['Tem sinal', 'Sem sinal'],
+    };
+    function chips(lb, i, obj, chave, opcoes) {
+      var cx = el('div', 'jor-opcoes'); cx.setAttribute('role', 'group'); cx.setAttribute('aria-label', 'Opções rápidas');
+      var bs = opcoes.map(function (o) {
+        var b = el('button', 'jor-chip', o); b.type = 'button'; b.disabled = !pode;
+        b.addEventListener('click', function () { i.value = o; obj[chave] = o; i.dispatchEvent(new Event('input', { bubbles: true })); });
+        cx.appendChild(b); return b;
+      });
+      function marca() { bs.forEach(function (b) { var on = String(i.value).trim().toLowerCase() === b.textContent.toLowerCase(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }); }
+      i.addEventListener('input', marca); marca(); lb.appendChild(cx);
+    }
     function lin(grupo, chave, rot, tipo) {
       var obj = grupo ? v[grupo] : v; var s = sg[(grupo ? grupo + '.' : '') + chave];
       if (s && !String(obj[chave] || '').trim()) obj[chave] = String(s.valor); else s = null;
       var i = entrada(tipo || 'text', obj[chave] || '', rot); i.disabled = !pode; ins[(grupo || '') + '.' + chave] = i;
       i.addEventListener('input', function () { obj[chave] = i.value; });
-      var lb = campo(rot, i); if (s && H().veio) lb.appendChild(H().veio(s, i)); return lb;
+      var lb = campo(rot, i); if (s && H().veio) lb.appendChild(H().veio(s, i));
+      var op = OPCOES[(grupo ? grupo + '.' : '') + chave]; if (op) chips(lb, i, obj, chave, op);
+      return lb;
     }
     var g0 = el('div', 'jor-ob-par'); add(g0, lin('', 'data', 'Data da vistoria', 'date'), lin('', 'quem', 'Quem vistoriou'), lin('', 'acomp', 'Acompanhou no local')); box.appendChild(g0);
     box.appendChild(el('div', 'jor-ob-grupo', 'Telhado'));
@@ -1153,14 +1189,15 @@
 
   // Etapa 2 · Proposta de banco
   function extraBanco(esq, d) {
-    var f2 = O().fase2; if (!f2) return; injetarCss(); var h = H();
+    var f2 = O().fase2; injetarCss(); var h = H();
+    if (!f2) { semFase2(esq, 'Proposta de banco', 'A proposta de banco não carregou.'); return; }
     var pode = podeSecao(f2, 'banco'); var bk = clone(dados(f2).banco) || {};
     var sg = (H().sugs && H().sugs('banco')) || {};
     var vendaOk = !!(d.venda && d.venda.valor_centavos > 0);
     var bloc = el('div', 'jor-bloco'); var t = el('div', 'jor-bloco-t'); t.appendChild(el('span', '', 'Proposta de banco' + (bk.banco ? ' · para o ' + bk.banco : ''))); bloc.appendChild(t);
     var falta = [];
     function atualiza() { falta = []; if (!(bk.banco || '').trim()) falta.push('o banco'); if (!(bk.agencia || '').trim()) falta.push('a agência'); if (!(bk.conta || '').trim()) falta.push('a conta'); if (!vendaOk) falta.push('o valor vendido'); aviso.textContent = falta.length ? 'Falta ' + falta.join(', ') + '.' : ''; gerar.disabled = falta.length > 0; }
-    var box = el('details'); box.appendChild(el('summary', 'jor-vdc-sum', 'Preencher a proposta de banco'));
+    var box = el('details'); box.open = true; box.appendChild(el('summary', 'jor-vdc-sum', 'Preencher a proposta de banco'));
     function lin(chave, rot, tipo) {
       var s = sg[chave]; if (s && !String(bk[chave] || '').trim()) bk[chave] = String(s.valor); else s = null;
       var i = entrada(tipo || 'text', bk[chave] || '', rot); i.disabled = !pode; i.addEventListener('input', function () { bk[chave] = i.value; atualiza(); });
@@ -1168,7 +1205,7 @@
     }
     function reais0(chave, rot) { var i = entrada('text', Number(bk[chave]) > 0 ? txtCents(bk[chave]) : '', rot); i.inputMode = 'decimal'; i.disabled = !pode; i.addEventListener('input', function () { var v = h.cents(i.value); bk[chave] = (typeof v === 'number' && v > 0) ? v : null; }); return campo(rot + ' (R$, opcional)', i); }
     var g = el('div', 'jor-ob-par'); add(g, lin('banco', 'Banco'), lin('agencia', 'Agência'), lin('conta', 'Conta corrente'), lin('validade', 'Validade (dias)'), lin('prazo', 'Prazo de entrega'), lin('origem', 'Origem dos recursos'), lin('nota', 'Nota da entrada'), lin('desc', 'Descrição do sistema'), lin('ger', 'Geração (kWh/mês)'), reais0('eq_centavos', 'Equipamento'), reais0('mo_centavos', 'Mão de obra')); box.appendChild(g);
-    var det = el('details'); det.appendChild(el('summary', 'jor-vdc-sum', 'Titular do financiamento (opcional)')); var fin = bk.fin || {};
+    var det = el('details'); det.open = true; det.appendChild(el('summary', 'jor-vdc-sum', 'Titular do financiamento (opcional)')); var fin = bk.fin || {};
     var gf = el('div', 'jor-ob-par'); var abrirFin = false;
     // Preencher: o titular do financiamento do cadastro (quando já se sabe quem é). Qualificação e endereço saem montados como nos papéis.
     var q = {}; ['nacionalidade', 'estado_civil', 'profissao', 'orgao_emissor'].forEach(function (k) { var s = sg['fin.qualif.' + k]; if (s) q[k] = String(s.valor); });

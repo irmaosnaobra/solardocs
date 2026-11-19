@@ -208,7 +208,7 @@ function podeSecao(g: GuardaObra, f: Fase2, secao: string): boolean {
   const eh = !!f.vend && g.nome === f.vend;
   const noPosVenda = f.etapa !== null && f.etapa >= 4;
   switch (secao) {
-    case 'vistoria': return eh || g.adm;
+    case 'vistoria': return eh || g.nome === 'giovanna' || g.adm;   // vale já na etapa 1 (o relatório de vistoria é item da Venda)
     case 'banco': return g.nome === 'giovanna' || eh || g.adm;
     case 'compra': return noPosVenda && (g.nome === 'thiago' || g.nome === 'diego' || g.adm);
     case 'logistica': return noPosVenda && (g.nome === 'diego' || g.adm);
