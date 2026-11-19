@@ -166,7 +166,8 @@ function analisar(p: Px, folgaMin = 0.015): Analise | null {
   return { caixa, fundo: f1.tipo, cor: f1.cor, clara: f1.tipo === 'transparente' && ehClara(p, caixa) };
 }
 
-type Sharp = typeof import('sharp');
+// Tipo pela assinatura, não pela forma do módulo: na Vercel o @vercel/node compila com outra interop e `typeof import('sharp')` vira namespace sem chamada.
+type Sharp = (input?: Buffer, options?: import('sharp').SharpOptions) => import('sharp').Sharp;
 
 async function pixels(sharp: Sharp, buf: Buffer, opcoes: { density?: number } = {}): Promise<Px> {
   const { data, info } = await sharp(buf, { limitInputPixels: MAX_PIXELS, ...opcoes })
@@ -273,7 +274,8 @@ export async function ajustarLogo(dataUrl: string, opcoes: { prazoMs?: number } 
   if (guardada) return guardada.r;
   const prazoMs = opcoes.prazoMs ?? PRAZO_MS;
   const trabalho = (async (): Promise<LogoAjustada> => {
-    const sharp = (await import('sharp')).default as unknown as Sharp;
+    const mod = (await import('sharp')) as unknown as Sharp & { default?: Sharp };
+    const sharp: Sharp = typeof mod.default === 'function' ? mod.default : mod;
     const buf = Buffer.from(m[2], 'base64');
     return (m[1] === 'svg+xml' ? await ajustarSvg(sharp, buf) : await ajustarBitmap(sharp, buf, m[1], dataUrl)) ?? original;
   })();
