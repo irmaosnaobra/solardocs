@@ -23,7 +23,7 @@ const PERIODS: { k: string; label: string }[] = [
 const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
 export default function LpVendaPanel() {
-  const [period, setPeriod] = useState('7dias');
+  const [period, setPeriod] = useState('hoje');
   const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(false);
 

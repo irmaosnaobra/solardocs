@@ -49,7 +49,7 @@ function dataBR(iso: string | null): string {
 }
 
 export default function PixFunilPanel() {
-  const [period, setPeriod] = useState<Period>('30dias');
+  const [period, setPeriod] = useState<Period>('hoje');
   const [data, setData] = useState<PixFunil | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

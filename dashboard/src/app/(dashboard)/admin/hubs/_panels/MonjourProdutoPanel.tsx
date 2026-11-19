@@ -3,6 +3,7 @@
 // O Monjour Natural dentro do hub "Produtos" (19/11/2026), ao lado dos outros produtos.
 // Um período só para todas as sub-abas: escolheu 30 dias na Visão geral, o Funil já abre
 // em 30 dias. Vendas, leads e app vêm de /admin/monjour/resumo; o funil, de /quiz-funil.
+// No topo, acima das sub-abas, a faixa dos países: bandeira, hora local e vendas no período.
 import MonjourFunilPanel from './MonjourFunilPanel';
 import MonjourVisaoPanel from './MonjourVisaoPanel';
 import MonjourVendasPanel from './MonjourVendasPanel';
@@ -10,10 +11,11 @@ import MonjourLeadsPanel from './MonjourLeadsPanel';
 import { MonjourAnunciosPanel, MonjourAppPanel } from './MonjourAppAnuncios';
 import { MonjourResumoProvider, useResumoMonjour } from './MonjourResumoContexto';
 import SubAbas, { type SubAba } from './SubAbas';
+import MonjourPaises from './MonjourPaises';
 
 function FunilNoPeriodo() {
-  const { periodo, trocarPeriodo } = useResumoMonjour();
-  return <MonjourFunilPanel periodo={periodo} onPeriodo={trocarPeriodo} />;
+  const { periodo, trocarPeriodo, informarVisitas } = useResumoMonjour();
+  return <MonjourFunilPanel periodo={periodo} onPeriodo={trocarPeriodo} onVisitas={informarVisitas} />;
 }
 
 const ABAS: SubAba[] = [
@@ -28,6 +30,7 @@ const ABAS: SubAba[] = [
 export default function MonjourProdutoPanel() {
   return (
     <MonjourResumoProvider>
+      <MonjourPaises />
       <SubAbas abas={ABAS} />
     </MonjourResumoProvider>
   );

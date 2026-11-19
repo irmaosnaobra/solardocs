@@ -47,6 +47,7 @@ function corDe(et: string, i: number): string {
 }
 
 const JANELAS: { label: string; dias: number }[] = [
+  { label: 'Hoje', dias: 1 },
   { label: '7 dias', dias: 7 },
   { label: '30 dias', dias: 30 },
   { label: '90 dias', dias: 90 },
@@ -69,7 +70,7 @@ export default function LeadsOrigemPanel() {
   const [data, setData] = useState<Resp | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [janela, setJanela] = useState(30); // default 30d — legado (import/manual antigos) não afoga o sinal
+  const [janela, setJanela] = useState(1); // abre sempre em Hoje (pedido do dono); o legado (import/manual antigos) fica fora do recorte
   const [ocultas, setOcultas] = useState<Record<string, boolean>>({});
 
   const carregar = useCallback(async () => {

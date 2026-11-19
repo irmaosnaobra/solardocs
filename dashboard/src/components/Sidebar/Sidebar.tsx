@@ -16,7 +16,7 @@ import { trilhaPendente, useNexusTrilhaResumo } from '@/hooks/useNexusTrilhaResu
 import { produtoPorId } from '@/lib/produtos';
 import { logMenu, type EventoMenu } from '@/utils/logMenu';
 import PlanBadge from '../PlanBadge/PlanBadge';
-import Logo from '../Logo/Logo';
+import LogoTexto from '../Logo/LogoTexto';
 import {
   novaPropostaItem, lerContaItem, lojaItem, nexusItem, papeladaItems, outrosDocsItems,
   hrefVendaDoProduto, organizarMenu,
@@ -354,12 +354,12 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
     <aside className={`${styles.sidebar} ${open ? styles.sidebarOpen : ''}`}>
       <div className={styles.logoWrap}>
         {(isVip || isAdmin) ? (
-          <Link href="/dashboard" className={styles.logo}>
-            <Logo className={styles.logoImg} />
+          <Link href="/dashboard" className={styles.logo} aria-label="SolarDoc, início">
+            <LogoTexto className={styles.logoImg} />
           </Link>
         ) : (
           <button className={styles.logo} onClick={onUpgradeClick} title="Disponível para assinantes">
-            <Logo className={styles.logoImg} />
+            <LogoTexto className={styles.logoImg} />
           </button>
         )}
         {greetingName && (
@@ -480,15 +480,15 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
         <button className={styles.hamburger} onClick={() => setOpen(true)} aria-label="Abrir menu">
           <span /><span /><span />
         </button>
-        {/* O padding (não o tamanho da logo) é o que dá alvo de dedo aos três
-            controles deste header: a logo continua com os mesmos 28px. */}
+        {/* A marca é a mesma do topo no computador (LogoTexto). O padding, não o
+            tamanho dela, é o que dá alvo de dedo aos três controles deste header. */}
         {(isVip || isAdmin) ? (
-          <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', padding: '10px 12px' }}>
-            <Logo className={styles.mobileLogoImg} />
+          <Link href="/dashboard" aria-label="SolarDoc, início" style={{ display: 'flex', alignItems: 'center', padding: '10px 12px' }}>
+            <LogoTexto className={styles.mobileLogoImg} />
           </Link>
         ) : (
           <button onClick={onUpgradeClick} style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', padding: '10px 12px', cursor: 'pointer' }} title="Disponível para assinantes">
-            <Logo className={styles.mobileLogoImg} />
+            <LogoTexto className={styles.mobileLogoImg} />
           </button>
         )}
         {/* Voltar pra tela de atalho (launcher), só faz sentido com empresa pronta.

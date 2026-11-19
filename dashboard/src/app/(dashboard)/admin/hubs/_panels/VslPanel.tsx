@@ -44,7 +44,7 @@ const px = (i: number, n: number) => L + (n <= 1 ? 0 : (i / (n - 1)) * (W - L - 
 const py = (p: number) => T + (1 - p / 100) * (H - T - B);
 
 export default function VslPanel({ lp }: { lp: string }) {
-  const [period, setPeriod] = useState('7dias');
+  const [period, setPeriod] = useState('hoje');
   const [dados, setDados] = useState<Retencao | null>(null);
   const [erro, setErro] = useState(false);
   const [loading, setLoading] = useState(false);

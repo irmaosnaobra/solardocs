@@ -38,8 +38,11 @@ const CONJUNTOS: { id: string; nome: string }[] = [
 
 // ── painel ──────────────────────────────────────────────────────────────────
 // Dentro do hub Produtos o período vem de fora (o mesmo das outras sub-abas do Monjour).
-export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo }: { periodo?: string; onPeriodo?: (p: string) => void } = {}) {
-  const [periodoLocal, setPeriodoLocal] = useState('7dias');
+// onVisitas: quem está em volta recebe os visitantes por país da leitura sem filtro (a faixa de países usa).
+export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onVisitas }: {
+  periodo?: string; onPeriodo?: (p: string) => void; onVisitas?: (periodo: string, porPais: Record<string, number>) => void;
+} = {}) {
+  const [periodoLocal, setPeriodoLocal] = useState('hoje');
   const periodo = periodoFora ?? periodoLocal;
   const setPeriodo = onPeriodo ?? setPeriodoLocal;
   const [pais, setPais] = useState('');
@@ -65,12 +68,19 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo }: {
         const d = r.data as Partial<FunilMonjour> | null;
         const valido = !!d && typeof d === 'object' && Array.isArray(d.etapas) && !!d.totais && !!d.filtros
           && !!d.recortes && !!d.saidas && !!d.app && Array.isArray(d.respostas);
-        if (valido) { setF(d as FunilMonjour); setErro(''); } else setErro('Resposta inesperada da api. Tente atualizar.');
+        if (valido) {
+          setF(d as FunilMonjour); setErro('');
+          if (onVisitas && !pais && !disp && !origem) {
+            const porPais: Record<string, number> = {};
+            for (const l of (d as FunilMonjour).recortes.pais ?? []) if (/^[A-Z]{2}$/.test(l.chave)) porPais[l.chave] = l.sessoes;
+            onVisitas(periodo, porPais);
+          }
+        } else setErro('Resposta inesperada da api. Tente atualizar.');
       })
       .catch((e) => { if (vivo) setErro(String(e?.response?.data?.error || e?.message || e)); })
       .finally(() => { if (vivo) setCarregando(false); });
     return () => { vivo = false; };
-  }, [periodo, pais, disp, origem, versao]);
+  }, [periodo, pais, disp, origem, versao, onVisitas]);
 
   const mudar = <T,>(set: (v: T) => void) => (v: T) => { setCarregando(true); set(v); };
   const trocarPeriodo = (p: string) => { if (p !== periodo) mudar(setPeriodo)(p); };

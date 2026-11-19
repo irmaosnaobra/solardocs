@@ -12,6 +12,7 @@
 //   Eletroposto: sem agente (a Helena está pausada). O Ponto Certo já mostra a fila dos dois lados.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { ComponentType } from 'react';
+import { EvCharger, FileText, Package, SolarPanel, type LucideIcon } from 'lucide-react';
 import FunilSolarDocPanel from '../_components/FunilSolarDocPanel';
 import MembrosPanel from '../_components/MembrosPanel';
 // Pix automático: quantos chegam na tela de Pix e quantos saem pagando (/admin/pix-funil)
@@ -65,14 +66,15 @@ export interface HubTab {
 export interface Product {
   id: string;
   nome: string;
-  emoji: string;
+  /** Ícone de traço (lucide), monocromático: a cor vem da navegação. */
+  Icone: LucideIcon;
   cor: string;
   tabs: HubTab[];
 }
 
 export const PRODUCTS: Product[] = [
   {
-    id: 'solardoc', nome: 'SolarDoc', emoji: '☀️', cor: '#B4801E',
+    id: 'solardoc', nome: 'SolarDoc', Icone: FileText, cor: '#B4801E',
     tabs: [
       { key: 'visao',     label: 'Visão Geral',      status: 'pronto',    Comp: () => <VisaoGeralPanel produto="solardoc" /> },
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: FunilSolarDocPanel },
@@ -93,7 +95,7 @@ export const PRODUCTS: Product[] = [
     ],
   },
   {
-    id: 'solar', nome: 'Solar', emoji: '🔆', cor: '#3E6C9E',
+    id: 'solar', nome: 'Solar', Icone: SolarPanel, cor: '#3E6C9E',
     tabs: [
       { key: 'visao',     label: 'Visão Geral',      status: 'pronto',    Comp: () => <VisaoGeralPanel produto="solar" /> },
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: () => <GeradorFunilPanel produto="solar" /> },
@@ -105,7 +107,7 @@ export const PRODUCTS: Product[] = [
     ],
   },
   {
-    id: 'eletroposto', nome: 'Eletroposto', emoji: '🔌', cor: '#8B857A',
+    id: 'eletroposto', nome: 'Eletroposto', Icone: EvCharger, cor: '#8B857A',
     tabs: [
       { key: 'visao',     label: 'Visão Geral',      status: 'pronto',    Comp: () => <VisaoGeralPanel produto="eletroposto" /> },
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: () => <GeradorFunilPanel produto="eletroposto" /> },
@@ -135,7 +137,7 @@ export const PRODUCTS: Product[] = [
   // saiu da frente e mora aqui. O Kit Fecha Vendas (funil da isca e comentários do curso)
   // saiu do hub SolarDoc e mora só aqui.
   {
-    id: 'produtos', nome: 'Produtos', emoji: '▦', cor: '#6E6A86',
+    id: 'produtos', nome: 'Produtos', Icone: Package, cor: '#6E6A86',
     tabs: [
       // Cobranças da loja no Pix (Asaas, desde 10/11/2026), lidas de produto_cobrancas: geradas, pagas e
       // valor pago por produto. As abas abaixo mostram os acessos (entitlements) de cada produto.

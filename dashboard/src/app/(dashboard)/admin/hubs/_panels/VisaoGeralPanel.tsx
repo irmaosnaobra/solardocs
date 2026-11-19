@@ -21,12 +21,20 @@ interface LimpaproFunnel { faturamento: number; stats: { clientes: number; venda
 
 interface Tile { label: string; value: string; sub?: string; color?: string; }
 
+// A barra abre sempre em Hoje (pedido do dono): os números do topo seguem o período escolhido.
+const PERIODS: { k: string; label: string; curto: string }[] = [
+  { k: 'hoje', label: 'Hoje', curto: 'hoje' }, { k: '7dias', label: '7 dias', curto: '7d' },
+  { k: 'mes', label: 'Mês', curto: 'mês' }, { k: 'maximo', label: 'Máximo', curto: 'total' },
+];
+
 const fmtBRL = (v: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtN = (v: number) => (v ?? 0).toLocaleString('pt-BR');
 
 export default function VisaoGeralPanel({ produto }: { produto: string }) {
   const [tiles, setTiles] = useState<Tile[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [period, setPeriod] = useState('hoje');
+  const rotulo = PERIODS.find((p) => p.k === period)?.curto ?? period;
 
   const load = useCallback(() => {
     setLoading(true);
@@ -34,30 +42,30 @@ export default function VisaoGeralPanel({ produto }: { produto: string }) {
 
     if (produto === 'solardoc') {
       Promise.all([
-        api.get('/admin/analytics?limit=1&period=7dias').then((r) => r.data as Analytics).catch(() => null),
-        api.get('/admin/revenue?period=mes').then((r) => r.data as RevenueData).catch(() => null),
+        api.get(`/admin/analytics?limit=1&period=${period}`).then((r) => r.data as Analytics).catch(() => null),
+        api.get(`/admin/revenue?period=${period}`).then((r) => r.data as RevenueData).catch(() => null),
         fu,
       ]).then(([an, rv, f]) => {
         setTiles([
-          { label: 'MRR (mês)', value: fmtBRL(rv?.total_mrr ?? 0), color: 'var(--color-primary)' },
+          { label: `MRR (${rotulo})`, value: fmtBRL(rv?.total_mrr ?? 0), color: 'var(--color-primary)' },
           { label: 'Assinantes', value: fmtN(rv?.total_users ?? 0) },
-          { label: 'Visitas LP (7d)', value: fmtN(an?.total ?? 0), sub: `${an?.today ?? 0} hoje` },
-          { label: 'Cadastros (7d)', value: fmtN(an?.conversion?.cadastros ?? 0) },
-          { label: 'Empresas (7d)', value: fmtN(an?.conversion?.empresas ?? 0) },
+          { label: `Visitas LP (${rotulo})`, value: fmtN(an?.total ?? 0), sub: `${an?.today ?? 0} hoje` },
+          { label: `Cadastros (${rotulo})`, value: fmtN(an?.conversion?.cadastros ?? 0) },
+          { label: `Empresas (${rotulo})`, value: fmtN(an?.conversion?.empresas ?? 0) },
           { label: 'Giovanna em conversa', value: fmtN(f?.summary?.em_conversa ?? 0), sub: `${f?.summary?.handoff ?? 0} handoff`, color: '#2C9C67' },
         ]);
       }).finally(() => setLoading(false));
     } else if (produto === 'limpapro') {
       Promise.all([
-        api.get('/admin/funnel-limpapro?period=mes').then((r) => r.data as LimpaproFunnel).catch(() => null),
+        api.get(`/admin/funnel-limpapro?period=${period}`).then((r) => r.data as LimpaproFunnel).catch(() => null),
         fu,
       ]).then(([lf, f]) => {
         const step = (k: string) => lf?.steps?.find((s) => s.key === k)?.count ?? 0;
         setTiles([
-          { label: 'Faturamento (mês)', value: fmtBRL(lf?.faturamento ?? 0), color: 'var(--color-primary)' },
+          { label: `Faturamento (${rotulo})`, value: fmtBRL(lf?.faturamento ?? 0), color: 'var(--color-primary)' },
           { label: 'Vendas', value: fmtN(lf?.stats?.vendas ?? 0) },
           { label: 'Compradores', value: fmtN(lf?.stats?.clientes ?? 0) },
-          { label: 'Visitas LP', value: fmtN(step('visita')) },
+          { label: `Visitas LP (${rotulo})`, value: fmtN(step('visita')) },
           { label: 'Checkout', value: fmtN(step('checkout')), sub: `${lf?.stats?.abandonos ?? 0} abandonos` },
           { label: 'Bia em conversa', value: fmtN(f?.summary?.em_conversa ?? 0), sub: `${f?.summary?.handoff ?? 0} handoff`, color: '#2C9C67' },
         ]);
@@ -88,15 +96,18 @@ export default function VisaoGeralPanel({ produto }: { produto: string }) {
     } else {
       fu.then((f) => setTiles([{ label: 'Sessões do agente', value: fmtN(f?.summary?.total ?? 0) }])).finally(() => setLoading(false));
     }
-  }, [produto]);
+  }, [produto, period]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(); }, [load]);
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-        <button className={styles.periodBtn} disabled={loading} onClick={load}>{loading ? 'Atualizando…' : '↻ Atualizar'}</button>
+      <div className={styles.periodTabs}>
+        {PERIODS.map((p) => (
+          <button key={p.k} className={period === p.k ? styles.periodActive : styles.periodBtn} onClick={() => setPeriod(p.k)}>{p.label}</button>
+        ))}
+        <button className={styles.periodBtn} disabled={loading} onClick={load} style={{ marginLeft: 'auto' }}>{loading ? 'Atualizando…' : '↻ Atualizar'}</button>
       </div>
       {!tiles ? (
         <div className={styles.card}><p className={styles.empty} style={{ margin: 0 }}>Carregando…</p></div>
@@ -112,7 +123,7 @@ export default function VisaoGeralPanel({ produto }: { produto: string }) {
         </div>
       )}
       <p style={{ marginTop: 12, color: 'var(--color-text-muted)', fontSize: 12.5 }}>
-        Pulso agregado dos endpoints do produto (analytics / revenue / funil + atividade do agente). Só leitura.
+        Pulso agregado dos endpoints do produto (analytics / revenue / funil + atividade do agente). Só leitura. Os números de receita e visitas seguem o período escolhido; leads e agente mostram o estado atual.
       </p>
     </div>
   );

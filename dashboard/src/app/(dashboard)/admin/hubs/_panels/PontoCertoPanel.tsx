@@ -92,7 +92,7 @@ const PONTO: Record<string, string> = {
 
 export default function PontoCertoPanel() {
   const [data, setData] = useState<Funil | null>(null);
-  const [dias, setDias] = useState(30);
+  const [dias, setDias] = useState(1); // abre sempre em Hoje; 1 = dia de calendário de São Paulo
   const [loading, setLoading] = useState(false);
 
   const load = useCallback((d: number) => {
@@ -133,13 +133,13 @@ export default function PontoCertoPanel() {
           {f?.redirect_desde ? dia(f.redirect_desde) : '01/09'}
         </span>
         <div style={{ display: 'flex', gap: 6 }}>
-          {[7, 30, 90].map((d) => (
+          {[1, 7, 30, 90].map((d) => (
             <button
               key={d}
               className={`${styles.periodBtn} ${dias === d ? styles.periodActive : ''}`}
               onClick={() => setDias(d)}
             >
-              {d}d
+              {d === 1 ? 'Hoje' : `${d}d`}
             </button>
           ))}
           <button className={styles.periodBtn} disabled={loading} onClick={() => load(dias)}>

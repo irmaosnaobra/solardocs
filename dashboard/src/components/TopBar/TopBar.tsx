@@ -7,6 +7,7 @@ import { FolderOpen, HelpCircle, User, Building2, LogOut, Smartphone, TrendingUp
 import { removeToken } from '@/services/auth';
 import { logMenu } from '@/utils/logMenu';
 import { WA_SUPORTE } from '@/utils/suporte';
+import LogoTexto from '../Logo/LogoTexto';
 import styles from './TopBar.module.css';
 
 interface TopBarProps {
@@ -38,7 +39,7 @@ export default function TopBar({ userEmail, companyLogo }: TopBarProps) {
   return (
     <header className={styles.topbar}>
       <Link href="/documentos?tipo=proposta" className={styles.brand}>
-        <span className={styles.brandSolar}>Solar</span><span className={styles.brandDoc}>Doc</span>
+        <LogoTexto />
       </Link>
 
       <div className={styles.spacer} />

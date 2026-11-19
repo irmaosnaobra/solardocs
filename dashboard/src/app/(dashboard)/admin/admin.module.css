@@ -1,7 +1,7 @@
 .page { max-width: 100%; }
-.header { margin-bottom: 24px; }
-.title { font-size: 22px; font-weight: 700; color: var(--color-text); margin-bottom: 4px; }
-.subtitle { font-size: 14px; color: var(--color-text-muted); }
+.header { margin-bottom: 20px; }
+.title { margin: 0 0 4px; font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -0.015em; color: var(--color-text); text-wrap: balance; }
+.subtitle { margin: 0; font-size: 14px; line-height: 1.45; color: var(--color-text-muted); }
 .loading { color: var(--color-text-muted); font-size: 14px; padding: 40px 0; }
 
 /* ─── cards ─────────────────────────── */
@@ -135,25 +135,114 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ─── period tabs ─────────────────────── */
-.periodTabs { display: flex; gap: 4px; }
+/* ─── período: um controle segmentado só ───
+   Os painéis montam a fileira de jeitos diferentes: uns com .periodTabs, outros
+   (Monjour, filtros) com classe própria. O :has() acha a fileira pelo botão ativo,
+   então toda fileira de escolha única vira a mesma bandeja, sem mexer nos painéis.
+   .periodBtn solto (Atualizar, Mostrar mais) é botão de contorno na mesma altura. */
 .periodBtn, .periodActive {
-  padding: 5px 14px;
-  border-radius: 6px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
-  border: 1px solid var(--color-border);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.periodBtn:hover:not(:disabled) { background: var(--color-surface-2); border-color: #BCC5D0; }
+.periodBtn:disabled { opacity: 0.6; cursor: progress; }
+.periodBtn:focus-visible, .periodActive:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+/* a bandeja */
+.periodTabs,
+div:has(> .periodActive) {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(11, 18, 32, 0.06);
+  overflow-x: auto;
+  scrollbar-width: none;
+  vertical-align: middle;
+}
+/* respiro entre a bandeja e o que vem embaixo dela */
+.periodTabs + :is(.cards, .card, .tableWrap) { margin-top: 16px; }
+.periodTabs::-webkit-scrollbar,
+div:has(> .periodActive)::-webkit-scrollbar { display: none; }
+
+/* as opções dentro da bandeja */
+:is(.periodTabs, div:has(> .periodActive)) > .periodBtn {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
   background: transparent;
-  color: var(--color-text-muted);
-  transition: all 0.15s;
+  color: #4B5563;
+  font-weight: 500;
 }
-.periodActive {
-  background: var(--color-accent-soft);
-  color: var(--color-primary);
-  border-color: var(--color-accent-border);
+:is(.periodTabs, div:has(> .periodActive)) > .periodBtn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.7); color: var(--color-text); }
+:is(.periodTabs, div:has(> .periodActive)) > .periodActive {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(11, 18, 32, 0.12), 0 0 0 1px rgba(11, 18, 32, 0.06);
 }
-.periodBtn:hover { color: var(--color-text); }
+:is(.periodTabs, div:has(> .periodActive)) > :is(.periodBtn, .periodActive):focus-visible { outline-offset: -2px; }
+
+/* Atualizar que mora dentro da bandeja (margem à esquerda escrita no painel):
+   fica no fim, depois de um fio, como último segmento. */
+:is(.periodTabs, div:has(> .periodActive)) > .periodBtn[style*="margin-left"] {
+  margin-left: 4px !important;
+  padding-left: 14px;
+  border-radius: 0 9px 9px 0;
+  box-shadow: inset 1px 0 0 rgba(11, 18, 32, 0.12);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* Atualizar logo depois da bandeja (Monjour): colado nela, com o ícone. */
+div:has(> .periodActive) + .periodBtn { margin-left: 0; }
+div:has(> .periodActive) + .periodBtn::before {
+  content: '';
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3Cpath d='M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16'/%3E%3Cpath d='M8 16H3v5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3Cpath d='M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16'/%3E%3Cpath d='M8 16H3v5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+div:has(> .periodActive) + .periodBtn:disabled::before { animation: spin 0.9s linear infinite; }
+
+@media (max-width: 768px) {
+  .periodBtn, .periodActive { min-height: 44px; }
+  :is(.periodTabs, div:has(> .periodActive)) > :is(.periodBtn, .periodActive) { min-height: 38px; padding: 0 10px; }
+}
+@media (max-width: 480px) {
+  :is(.periodTabs, div:has(> .periodActive)) > :is(.periodBtn, .periodActive) { padding: 0 9px; }
+  /* no celular o Atualizar ao lado da bandeja vira só o ícone (o nome continua para o leitor de tela) */
+  div:has(> .periodActive) + .periodBtn { width: 44px; padding: 0; font-size: 0; gap: 0; }
+  div:has(> .periodActive) + .periodBtn::before { width: 18px; height: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  div:has(> .periodActive) + .periodBtn:disabled::before { animation: none; }
+}
 
 /* ─── callout setup ──────────────────── */
 .setupCallout {

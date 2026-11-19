@@ -32,9 +32,8 @@
 }
 
 .logoImg {
-  display: block;
-  width: 130px;
-  height: auto;
+  /* marca escrita (LogoTexto) no topo do menu do celular */
+  font-size: 26px;
 }
 
 .userGreeting {
@@ -622,7 +621,7 @@
     top: 0;                /* gaveta cobre tela toda, não começa abaixo da topbar */
     align-items: stretch;  /* desfaz o center do rail */
     background: var(--chrome-bg);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+    /* sombra só com a gaveta aberta: fechada, ela vazava 24px escuros na borda esquerda da tela */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -670,7 +669,7 @@
   /* Drawer ABERTO precisa ficar ACIMA do overlay (150) e do mobileHeader (100),
      senão o overlay escurece o próprio menu (efeito "lavado") e o header corta
      a logo. z-index só no estado aberto e só no mobile — não afeta o desktop. */
-  .sidebarOpen { transform: translateX(0); z-index: 160; }
+  .sidebarOpen { transform: translateX(0); z-index: 160; box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4); }
 
   .mobileHeader {
     display: flex;
@@ -687,9 +686,9 @@
   }
   .hamburger span { background: #fff; }  /* hambúrguer branco sobre header escuro */
 
+  /* a mesma marca do topo no computador, um degrau menor para o cabeçalho de 56px */
   .mobileLogoImg {
-    height: 28px;
-    width: auto;
+    font-size: 21px;
   }
 
   .overlay {

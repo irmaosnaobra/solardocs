@@ -23,7 +23,7 @@ interface LojaPix {
 }
 
 const PERIODS = [
-  { k: '7d', label: '7 dias' }, { k: '30d', label: '30 dias' }, { k: '90d', label: '90 dias' },
+  { k: 'hoje', label: 'Hoje' }, { k: '7d', label: '7 dias' }, { k: '30d', label: '30 dias' }, { k: '90d', label: '90 dias' },
 ];
 
 const STATUS: Record<string, { label: string; cor: string }> = {
@@ -40,7 +40,7 @@ const dataHora = (s: string) => new Date(s).toLocaleString('pt-BR', {
 });
 
 export default function LojaPanel() {
-  const [period, setPeriod] = useState('30d');
+  const [period, setPeriod] = useState('hoje');
   const [dados, setDados] = useState<LojaPix | null>(null);
   const [erro, setErro] = useState(false);
   const [loading, setLoading] = useState(false);

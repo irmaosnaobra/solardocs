@@ -5,7 +5,7 @@
 // Uma leitura de GET /admin/monjour/resumo serve Visão geral, Vendas, Leads,
 // App e Anúncios; o Funil lê a própria rota com o mesmo período.
 // ───────────────────────────────────────────────────────────────────────────
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import api from '@/services/api';
 import admin from '../../admin.module.css';
 import s from './MonjourFunilPanel.module.css';
@@ -25,6 +25,9 @@ type Ctx = {
   dados: ResumoMonjour | null;
   erro: string;
   carregando: boolean;
+  /** Visitantes por país (ISO) que o Funil já leu sem filtro, neste período. Null antes disso. */
+  visitasPais: Record<string, number> | null;
+  informarVisitas: (periodo: string, porPais: Record<string, number>) => void;
 };
 const Contexto = createContext<Ctx | null>(null);
 
@@ -35,11 +38,12 @@ export function useResumoMonjour(): Ctx {
 }
 
 export function MonjourResumoProvider({ children }: { children: ReactNode }) {
-  const [periodo, setPeriodo] = useState('7dias');
+  const [periodo, setPeriodo] = useState('hoje');
   const [versao, setVersao] = useState(0);
   const [dados, setDados] = useState<ResumoMonjour | null>(null);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
+  const [visitas, setVisitas] = useState<{ periodo: string; porPais: Record<string, number> } | null>(null);
 
   // O estado só muda na volta da leitura; quem clica acende o "Atualizando…".
   useEffect(() => {
@@ -57,9 +61,12 @@ export function MonjourResumoProvider({ children }: { children: ReactNode }) {
 
   const trocarPeriodo = (p: string) => { if (p !== periodo) { setCarregando(true); setPeriodo(p); } };
   const atualizar = () => { setCarregando(true); setVersao((v) => v + 1); };
+  // O Funil já lê os visitantes por país; a faixa de países aproveita sem outra chamada.
+  const informarVisitas = useCallback((p: string, porPais: Record<string, number>) => setVisitas({ periodo: p, porPais }), []);
+  const visitasPais = visitas && visitas.periodo === periodo ? visitas.porPais : null;
 
   return (
-    <Contexto.Provider value={{ periodo, trocarPeriodo, atualizar, dados, erro, carregando }}>
+    <Contexto.Provider value={{ periodo, trocarPeriodo, atualizar, dados, erro, carregando, visitasPais, informarVisitas }}>
       {children}
     </Contexto.Provider>
   );

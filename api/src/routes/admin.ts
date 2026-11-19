@@ -1256,7 +1256,7 @@ router.get('/eletroposto-parceria', async (_req: Request, res: Response): Promis
 // estimativa na tela.
 router.get('/ponto-certo-funil', async (req: Request, res: Response): Promise<void> => {
   try {
-    const dias = Math.min(180, Math.max(7, Number(req.query.dias) || 30));
+    const dias = Math.min(180, Math.max(1, Number(req.query.dias) || 30));
     const desde = pc.inicioDaJanela(dias);
 
     const [fichasQ, cadastrosQ, filaQ, eventosQ, vendasQ, todasFichasQ, agendaQ] = await Promise.all([
