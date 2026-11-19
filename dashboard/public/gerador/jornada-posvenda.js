@@ -276,6 +276,23 @@
     return [cx, pre, vs];
   }
 
+  /** Os 3 pedidos ao cliente e o estado de cada um (a régua e o ponto da aba usam a mesma conta). */
+  function pedidosPos(f2) {
+    var pv = pvDe(f2); var q = (f2.posvenda_info || {}).quando || {}; var hoje = hojeYmd();
+    var ger = pv.geracao_mes1, co = pv.conta1, av = pv.avaliacao;
+    var temPrint = arqsSlot(f2, 'pos_geracao').length > 0, temConta = arqsSlot(f2, 'pos_conta').length > 0;
+    var feitoGer = Number(ger.kwh) > 0 && temPrint;
+    var feitoConta = temConta && Number(co.valor_antes_centavos) > 0 && co.valor_depois_centavos != null;
+    return [
+      { k: 'avaliacao', ord: 0, titulo: 'Avaliação no Google', dias: '+7 dias', quando: q.avaliacao, est: estadoPedido(q.avaliacao, av.avaliou_em ? 'Avaliou em ' + dataCurta(av.avaliou_em) : '', av.pedida_em, hoje), corpo: cartaoAvaliacao },
+      { k: 'geracao_mes1', ord: 1, titulo: 'Geração do 1º mês', dias: '+30 dias', quando: q.geracao_mes1, est: estadoPedido(q.geracao_mes1, feitoGer ? 'Recebida' : '', ger.pedida_em, hoje), corpo: cartaoGeracao },
+      { k: 'conta1', ord: 2, titulo: 'Primeira conta de luz', dias: '+30 dias', quando: q.conta1, est: estadoPedido(q.conta1, feitoConta ? 'Recebida' : '', co.pedida_em, hoje), corpo: cartaoConta },
+    ];
+  }
+  /** Pedido que já venceu (hoje, atrasado ou pedido sem resposta) e não chegou: falta, mas não trava nada. Amarelo. */
+  function pedidoEmFalta(est) { return est.k === 'atrasado' || est.k === 'hoje' || est.k === 'pedido'; }
+  function pendenciaPos(f2) { if (!f2 || !f2.dados) return ''; return pedidosPos(f2).some(function (p) { return pedidoEmFalta(p.est); }) ? 'op' : ''; }
+
   function acompanhamento(esq, d, f3, prim) {
     var h = H(); var f2 = O().fase2;
     if (!f2 || !f2.dados) {
@@ -283,16 +300,8 @@
       pf.appendChild(el('p', 'jor-erro', 'Não consegui ler o pós-venda agora.')); pf.appendChild(btn('Tentar de novo', '', function () { h.recarregar(); }));
       esq.appendChild(pf); return;
     }
-    var pv = pvDe(f2); var info = f2.posvenda_info || {}; var q = info.quando || {}; var msg = info.mensagens || {}; var pode = podePv(f2); var hoje = hojeYmd();
-    var ger = pv.geracao_mes1, co = pv.conta1, av = pv.avaliacao;
-    var temPrint = arqsSlot(f2, 'pos_geracao').length > 0, temConta = arqsSlot(f2, 'pos_conta').length > 0;
-    var feitoGer = Number(ger.kwh) > 0 && temPrint;
-    var feitoConta = temConta && Number(co.valor_antes_centavos) > 0 && co.valor_depois_centavos != null;
-    var PED = [
-      { k: 'avaliacao', ord: 0, titulo: 'Avaliação no Google', dias: '+7 dias', quando: q.avaliacao, est: estadoPedido(q.avaliacao, av.avaliou_em ? 'Avaliou em ' + dataCurta(av.avaliou_em) : '', av.pedida_em, hoje), corpo: cartaoAvaliacao },
-      { k: 'geracao_mes1', ord: 1, titulo: 'Geração do 1º mês', dias: '+30 dias', quando: q.geracao_mes1, est: estadoPedido(q.geracao_mes1, feitoGer ? 'Recebida' : '', ger.pedida_em, hoje), corpo: cartaoGeracao },
-      { k: 'conta1', ord: 2, titulo: 'Primeira conta de luz', dias: '+30 dias', quando: q.conta1, est: estadoPedido(q.conta1, feitoConta ? 'Recebida' : '', co.pedida_em, hoje), corpo: cartaoConta },
-    ];
+    var pv = pvDe(f2); var info = f2.posvenda_info || {}; var msg = info.mensagens || {}; var pode = podePv(f2); var hoje = hojeYmd();
+    var PED = pedidosPos(f2);
     PED.sort(function (a, b) { return String(a.quando || '9') < String(b.quando || '9') ? -1 : String(a.quando || '9') > String(b.quando || '9') ? 1 : a.ord - b.ord; });
     var feitos = PED.filter(function (p) { return p.est.k === 'feito'; }).length;
     var atras = PED.filter(function (p) { return p.est.k === 'atrasado'; }).length;
@@ -309,7 +318,7 @@
       var li = el('li', 'jor-pv-it ' + p.est.k);
       var mk = el('div', 'jor-pv-mk'); mk.setAttribute('aria-hidden', 'true');
       mk.appendChild(el('b', '', p.quando ? dataCurta(p.quando) : '--')); mk.appendChild(el('small', '', p.dias)); li.appendChild(mk);
-      var c = el('div', 'jor-pv-card');
+      var c = el('div', 'jor-pv-card'); h.marcaFalta(c, pedidoEmFalta(p.est) ? 'op' : '');
       var ct = el('div', 'jor-pv-card-t'); ct.appendChild(el('h4', '', p.titulo)); ct.appendChild(el('span', 'jor-pv-est ' + p.est.cls, p.est.t)); c.appendChild(ct);
       p.corpo(c, d, f2, pv, info, msg, pode, p.est);
       li.appendChild(c); ol.appendChild(li);
@@ -361,7 +370,7 @@
     if (est.k !== 'feito') c.appendChild(el('p', 'jor-pv-txt', g.pedida_em ? 'Pedido em ' + dataBR(g.pedida_em) + '. Anexe o print e digite os kWh do mês.' : 'Peça o print do aplicativo do inversor com a geração do primeiro mês.'));
     if (pode && est.k !== 'feito') botoesPedir(d, 'geracao_mes1', msg.geracao_mes1 || '', g.pedida_em ? 'Pedir de novo' : 'Pedir no WhatsApp', !g.pedida_em, 'Pedido marcado.').forEach(function (x) { c.appendChild(x); });
     var grade = el('div', 'jor-pv-grade');
-    grade.appendChild(h.anexo('pos_geracao', 'Print da geração', temPrint));
+    grade.appendChild(h.anexo('pos_geracao', 'Print da geração', temPrint, { nivel: 'op', rotFalta: 'Falta', semContorno: true }));
     var lado = el('div', 'jor-pv-lado');
     var r0 = rasc('kwh'); var kw = el('input', 'jor-in'); kw.type = 'text'; kw.inputMode = 'decimal'; kw.autocomplete = 'off'; kw.value = r0 !== undefined ? r0 : (Number(g.kwh) > 0 ? String(Math.round(g.kwh)).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''); kw.disabled = !pode; kw.placeholder = 'Ex.: 1.020';
     var lb = el('label', 'jor-pv-campo', 'Geração do mês (kWh)'); lb.appendChild(kw); lado.appendChild(lb);
@@ -384,7 +393,7 @@
     if (est.k !== 'feito') c.appendChild(el('p', 'jor-pv-txt', co.pedida_em ? 'Pedido em ' + dataBR(co.pedida_em) + '. Anexe a conta e digite os dois valores.' : 'Peça a primeira conta de luz depois da liberação, em foto ou PDF.'));
     if (pode && est.k !== 'feito') botoesPedir(d, 'conta1', msg.conta1 || '', co.pedida_em ? 'Pedir de novo' : 'Pedir no WhatsApp', !co.pedida_em, 'Pedido marcado.').forEach(function (x) { c.appendChild(x); });
     var grade = el('div', 'jor-pv-grade');
-    grade.appendChild(h.anexo('pos_conta', 'Conta de luz', temConta));
+    grade.appendChild(h.anexo('pos_conta', 'Conta de luz', temConta, { nivel: 'op', rotFalta: 'Falta', semContorno: true }));
     var lado = el('div', 'jor-pv-lado');
     function campoR(k, rot, ex, val) {
       var r0 = rasc(k); var i = el('input', 'jor-in'); i.type = 'text'; i.inputMode = 'decimal'; i.autocomplete = 'off'; i.placeholder = ex; i.disabled = !pode;
@@ -685,6 +694,7 @@
   }
 
   window.Jornada.etapas[9] = etapa9;
+  window.Jornada.extras.pendenciaPos = pendenciaPos;
   window.Jornada.extras.indicacao = indicacao;
   window.Jornada.extras.mensagens = mensagens;
   window.Jornada.extras.avisos = avisos;
