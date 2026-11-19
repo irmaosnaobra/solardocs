@@ -26,6 +26,7 @@ import { registrarSchedulePagina } from '../services/meta/capiPagina';
 // agente de investidores grava o mesmo card e não pode importar a rota.
 import { cidadeParaGravar } from '../services/io/cidadeCanonica';
 import { rastreioDaRequisicao } from '../services/rastreio/gravarRastreioCard';
+import { cadastrarInteresse } from './nexusInteresse';
 import { DONOS_EP, ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from '../services/io/eletropostoCard';
 // A marca da etiqueta de negócio do card (`etiqueta_card:<id>`), a mesma que o
 // /gerador grava: desde 13/10/2026 o card da LP já nasce com ela.
@@ -1496,5 +1497,8 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     }
   })();
 });
+
+// Cadastro de intenção da NEXUS (link da bio): só grava. Handler em ./nexusInteresse.
+router.post('/nexus-interesse', cadastrarInteresse);
 
 export default router;
