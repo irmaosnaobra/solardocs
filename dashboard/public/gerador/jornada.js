@@ -1823,9 +1823,8 @@
   function itensPorChave(et, chaves) { return (et.itens || []).filter(function (i) { return chaves.indexOf(i.chave) >= 0; }); }
   function situacao(ok) { return [{ feito: !!ok }]; }
   function conf(d, chave) { return (d.confirmados && d.confirmados[chave]) || null; }
-  /** Por que a pessoa não pode confirmar agora ('' = pode): sem permissão ou com a etapa 1 já concluída. */
+  /** Por que a pessoa não pode confirmar agora ('' = pode): quem manda é `pode.confirmar` da api (com a etapa 1 concluída, Giovanna e ADM ainda completam). */
   function semConfirmar(d, et) {
-    if (et && et.concluida_em) return 'A etapa 1 já foi concluída.';
     if (!d.pode || !d.pode.confirmar) return 'Você não tem permissão para confirmar.';
     return '';
   }
