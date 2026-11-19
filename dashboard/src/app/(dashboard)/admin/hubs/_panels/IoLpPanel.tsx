@@ -21,7 +21,7 @@ const PERIODS: { k: string; label: string }[] = [
 const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
 export default function IoLpPanel({ match }: { match: string }) {
-  const [period, setPeriod] = useState('7dias');
+  const [period, setPeriod] = useState('hoje');
   const [rows, setRows] = useState<SessionRow[] | null>(null);
   const [loading, setLoading] = useState(false);
 

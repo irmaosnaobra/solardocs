@@ -36,7 +36,7 @@ const PERIODS: { k: number; label: string }[] = [
 ];
 
 export default function LpLimpaproPanel() {
-  const [dias, setDias] = useState(7);
+  const [dias, setDias] = useState(1);
   const [data, setData] = useState<Jornada | null>(null);
   const [loading, setLoading] = useState(false);
 

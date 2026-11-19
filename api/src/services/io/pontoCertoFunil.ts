@@ -23,6 +23,8 @@
 // Zero seria mentira: zero diz "ninguém abriu", e o que acontece é "ninguém
 // contou".
 // ─────────────────────────────────────────────────────────────────────────────
+import { inicioDaJanelaSP } from '../../utils/inicioDoDiaSP';
+
 
 /** O dia em que o investidor deixou de parar na tela de "cadastro recebido". */
 export const REDIRECT_DESDE = '2026-09-01';
@@ -107,7 +109,8 @@ const fmtSP = new Intl.DateTimeFormat('en-CA', {
 export const diaSP = (iso: string): string => fmtSP.format(new Date(iso));
 
 export function inicioDaJanela(dias: number, agora: number = Date.now()): string {
-  return new Date(agora - dias * 86400_000).toISOString();
+  // dias = 1 é "Hoje": o dia de calendário de São Paulo, não as últimas 24 h.
+  return inicioDaJanelaSP(dias, agora).toISOString();
 }
 
 const temCapital = (faixa: string | null): boolean =>

@@ -1,0 +1,204 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Navegação do Painel SolarDoc: três níveis num sistema só, na mesma borda esquerda.
+   1. Produto: trilho com ícone de traço. O ativo é cheio na cor do menu escuro.
+   2. Área do produto: pílulas. A ativa fica em laranja suave.
+   3. Seção (SubAbas): texto com sublinhado discreto.
+   No computador cada nível quebra linha se precisar. No celular vira uma faixa que
+   rola de lado, com a borda esmaecida do lado que ainda tem coisa (data-ini, data-fim).
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.trilho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* ── nível 1: produto ─────────────────────────────── */
+.produtos { gap: 4px; }
+
+.produto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.produto svg { flex-shrink: 0; color: var(--ink-slate); transition: color 0.15s ease; }
+.produto:hover { background: rgba(11, 18, 32, 0.06); color: var(--color-text); }
+.produto:hover svg { color: currentColor; }
+.produto[aria-selected='true'] {
+  background: var(--chrome-bg);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(11, 18, 32, 0.2);
+}
+.produto[aria-selected='true'] svg { color: var(--color-primary); }
+
+/* Estúdio e Meta Ads não são produto: ficam depois de um fio. */
+.divisor {
+  flex-shrink: 0;
+  width: 1px;
+  height: 22px;
+  margin: 0 6px;
+  background: var(--color-border-strong);
+}
+
+/* ── nível 2: área do produto ─────────────────────── */
+.area {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.area:hover { border-color: var(--color-border-strong); color: var(--color-text); }
+.area[aria-selected='true'] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-border);
+  color: var(--ink-orange);
+}
+
+/* Bolinha só quando a área não está pronta: parcial ou a construir. */
+.status { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; }
+.parcial { background: #C87A1E; }
+.construir { background: #3E6C9E; }
+
+/* ── nível 3: seção ───────────────────────────────── */
+.secoes {
+  gap: 0 24px;
+  margin-bottom: 16px;
+  box-shadow: inset 0 -1px 0 var(--color-border-strong);
+}
+.secao {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #4B5563;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.secao::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+.secao:hover { color: var(--color-text); }
+.secao[aria-selected='true'] { color: var(--color-text); }
+.secao[aria-selected='true']::after { background: var(--color-primary); }
+
+.produto, .area, .secao { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+.produto:focus-visible,
+.area:focus-visible,
+.secao:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.secao:focus-visible { outline-offset: -2px; border-radius: 4px; }
+
+/* ── placeholder da área que ainda não tem painel ─── */
+.vazio { text-align: center; padding: 44px 24px; }
+.vazioIcone {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: var(--color-surface-2);
+  color: var(--ink-slate);
+}
+.vazioTitulo { margin: 0 0 6px; font-size: 18px; font-weight: 700; color: var(--color-text); }
+.vazioTexto { margin: 0 auto; max-width: 54ch; color: var(--color-text-muted); font-size: 14px; }
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── celular: faixas que rolam de lado ────────────── */
+@media (max-width: 768px) {
+  .nav { gap: 10px; padding-bottom: 12px; margin-bottom: 16px; }
+
+  .trilho {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    /* folga para o anel de foco não ser cortado pela rolagem */
+    padding: 4px 3px;
+    margin: -4px -3px;
+  }
+  .trilho::-webkit-scrollbar { display: none; }
+  .trilho[data-ini='1'] { mask-image: linear-gradient(to right, transparent 0, #000 32px); }
+  .trilho[data-fim='1'] { mask-image: linear-gradient(to left, transparent 0, #000 32px); }
+  .trilho[data-ini='1'][data-fim='1'] {
+    mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 calc(100% - 32px), transparent 100%);
+  }
+
+  .produto, .area, .secao, .divisor { flex-shrink: 0; }
+  .produto { height: 44px; padding: 0 14px; }
+  /* pílula de 36 com alvo de 44 */
+  .area { height: 36px; }
+  .area::before { content: ''; position: absolute; inset: -4px 0; }
+  .secoes { gap: 0 22px; padding-bottom: 0; margin-bottom: 14px; }
+  .secao { height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trilho { scroll-behavior: auto; }
+  .produto, .produto svg, .area, .secao, .secao::after { transition: none; }
+}

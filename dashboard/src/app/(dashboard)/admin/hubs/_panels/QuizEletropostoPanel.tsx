@@ -375,7 +375,7 @@ function ConjuntosCard({ f, conjunto, escolher, produto = 'eletroposto' }: { f: 
 }
 
 export default function QuizEletropostoPanel({ produto = 'eletroposto' }: { produto?: Produto } = {}) {
-  const [periodo, setPeriodo] = useState('7dias');
+  const [periodo, setPeriodo] = useState('hoje');
   const [f, setF] = useState<Funil | null>(null);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);

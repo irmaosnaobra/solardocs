@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "axios": "^1.14.0",
+    "country-flag-icons": "1.6.20",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.14.0",
     "js-cookie": "^3.0.5",

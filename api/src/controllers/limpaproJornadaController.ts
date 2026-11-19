@@ -8,6 +8,7 @@
 // linhas nem precisa saber SQL.
 import { Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
+import { inicioDaJanelaSP } from '../utils/inicioDoDiaSP';
 
 // Nomes de gente para os ids das seções. Bloco novo na landing? Acrescente aqui.
 const NOMES_SECAO: Record<string, string> = {
@@ -61,7 +62,8 @@ export async function jornadaLimpapro(req: Request, res: Response): Promise<void
   }
 
   const dias = Math.min(90, Math.max(1, parseInt(String(req.query.dias || '7'), 10) || 7));
-  const desde = new Date(Date.now() - dias * 864e5).toISOString();
+  // dias = 1 é "Hoje": o dia de calendário de São Paulo, não as últimas 24 h.
+  const desde = inicioDaJanelaSP(dias).toISOString();
   const inicio = desde > INICIO_DA_MEDICAO ? desde : INICIO_DA_MEDICAO;
 
   const { data, error } = await supabase

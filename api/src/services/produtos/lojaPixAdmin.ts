@@ -9,10 +9,11 @@
  * como gerada e não soma no valor pago (o dinheiro voltou).
  */
 import { supabase } from '../../utils/supabase';
+import { inicioDoDiaSP } from '../../utils/inicioDoDiaSP';
 import { produtoPorId } from './catalogo';
 import { ORDEM_PRODUTOS_PIX } from './produtoPix';
 
-export type PeriodoLoja = '7d' | '30d' | '90d';
+export type PeriodoLoja = 'hoje' | '7d' | '30d' | '90d';
 
 export interface LojaPixProduto {
   slug: string;
@@ -39,11 +40,11 @@ export interface LojaPixResumo {
   ultimas: LojaPixUltima[];
 }
 
-const DIAS: Record<PeriodoLoja, number> = { '7d': 7, '30d': 30, '90d': 90 };
+const DIAS: Record<PeriodoLoja, number> = { hoje: 1, '7d': 7, '30d': 30, '90d': 90 };
 const PAGINA = 1000;
 
 export function periodoLoja(bruto: unknown): PeriodoLoja {
-  return bruto === '30d' || bruto === '90d' ? bruto : '7d';
+  return bruto === 'hoje' || bruto === '30d' || bruto === '90d' ? bruto : '7d';
 }
 
 const reais = (n: number): number => Math.round(n * 100) / 100;
@@ -51,7 +52,8 @@ const reais = (n: number): number => Math.round(n * 100) / 100;
 type Linha = { user_id: string | null; produto: string; valor: number | string; status: string; criado_em: string };
 
 export async function resumoLojaPix(period: PeriodoLoja, agora: number = Date.now()): Promise<LojaPixResumo> {
-  const desde = new Date(agora - DIAS[period] * 86_400_000).toISOString();
+  // Hoje é o dia de calendário de São Paulo; os demais são "agora menos N dias".
+  const desde = (period === 'hoje' ? inicioDoDiaSP(agora) : new Date(agora - DIAS[period] * 86_400_000)).toISOString();
 
   const linhas: Linha[] = [];
   for (let de = 0; ; de += PAGINA) {

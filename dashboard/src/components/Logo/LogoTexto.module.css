@@ -1,0 +1,13 @@
+/* A marca escrita da SolarDoc, a mesma da barra do topo no computador:
+   "Solar" branco + "Doc" laranja, sobre o fundo escuro do menu.
+   O tamanho vem de quem usa (font-size no pai ou no className). */
+.marca {
+  display: inline-flex;
+  align-items: baseline;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.solar { color: #fff; }
+.doc { color: var(--color-primary); }

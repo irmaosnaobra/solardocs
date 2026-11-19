@@ -19,7 +19,7 @@ const PERIODS: { k: string; label: string }[] = [
 const fmtBRL = (v: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function ReceitaPanel() {
-  const [period, setPeriod] = useState('mes');
+  const [period, setPeriod] = useState('hoje');
   const [rev, setRev] = useState<RevenueData | null>(null);
   const [meta, setMeta] = useState<MetaFunnelData | null>(null);
   const [loading, setLoading] = useState(false);
