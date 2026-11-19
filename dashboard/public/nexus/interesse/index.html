@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- LISTA DE INTERESSE NEXUS (link da bio do Instagram).
+     O Eduardo está na China visitando fábricas. Quem chega marca o que quer ver,
+     diz para quem é e deixa o WhatsApp. Três passos, um por tela, sem recarregar.
+
+     DESENHO: lista de espera de lançamento, não formulário de concessionária.
+     Escuro institucional da NEXUS (#0B1A2B), raio curto, sem brilho. O VERDE É SÓ
+     DA AÇÃO (botão principal). Seleção e progresso em azul. Ícones em traço,
+     desenhados aqui: não há foto de carro e não se usa marca de montadora.
+
+     CONTRATO: POST /_api/io/eletroposto/nexus-interesse. Em localhost a resposta
+     é simulada ({ok:true,posicao:42,novo:true}) para conferir o fluxo inteiro.
+     Pixel: conjunto "Eletroposto". Nunca track('Lead') aqui: o evento é custom.
+
+     Todo asset com caminho absoluto: o servidor tira a barra final e ./ quebra. -->
+<title>Lista de interesse NEXUS | Eduardo na China</title>
+<meta name="description" content="O Eduardo, sócio da NEXUS, está na China visitando fábricas de carros elétricos, carregadores e baterias. Marque o que te interessa e receba primeiro.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://solardoc.app/nexus/interesse">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="NEXUS">
+<meta property="og:url" content="https://solardoc.app/nexus/interesse">
+<meta property="og:title" content="Lista de interesse NEXUS: o Eduardo está na China">
+<meta property="og:description" content="Marque o que te interessa. Você recebe primeiro as fotos, os vídeos e as condições.">
+<meta property="og:image" content="https://solardoc.app/nexus/interesse/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Lista de interesse NEXUS. Eduardo na China agora.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://solardoc.app/nexus/interesse/og.jpg">
+<meta name="theme-color" content="#0B1A2B">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="/nexus/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/nexus/img/icone-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/nexus/img/icone-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap">
+<link rel="preload" as="image" href="/nexus/interesse/logo-nexus.webp">
+
+<style>
+:root{
+  --tinta:#0B1A2B; --tinta-2:#0F2438; --tinta-3:#132C45;
+  --linha:rgba(255,255,255,.12); --linha-2:rgba(255,255,255,.22);
+  --texto:#EAEEF3; --suave:#9BAEC4; --fraco:#8296AE;
+  --acao:#39FF14; --acao-tinta:#06121F; --acao-hover:#5BFF3D;
+  --azul:#0085FF; --azul-fundo:rgba(0,133,255,.12); --azul-texto:#5CB0FF;
+  --erro:#FF8A80; --erro-fundo:rgba(255,99,88,.10);
+  --sans:"Montserrat","Helvetica Neue",Arial,sans-serif;
+  --r:10px; --r-s:8px;
+  --col:480px; --pad:20px;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;background:var(--tinta);scroll-padding-bottom:110px}
+body{
+  min-height:100vh;min-height:100dvh;background:var(--tinta);color:var(--texto);
+  font-family:var(--sans);font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  -webkit-tap-highlight-color:transparent;overflow-x:hidden;
+}
+img,svg{display:block}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;touch-action:manipulation}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--azul);outline-offset:3px;border-radius:6px}
+[hidden]{display:none!important}
+fieldset{border:0;min-width:0}
+.sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- casca: uma coluna no celular, painel + coluna no computador ---------- */
+.casca{min-height:100vh;min-height:100dvh;display:grid}
+.painel{display:none}
+.col{
+  width:100%;max-width:calc(var(--col) + var(--pad)*2);margin:0 auto;
+  padding:0 var(--pad);display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;
+}
+
+/* ---------- topo ---------- */
+.topo{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0 14px}
+.marca{display:block;width:100px;height:15px}
+.relogio{
+  display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;
+  border:1px solid var(--linha);border-radius:999px;background:var(--tinta-2);
+  font-size:12.5px;font-weight:600;color:var(--suave);white-space:nowrap;
+}
+.relogio b{color:var(--texto);font-weight:700}
+.vivo{position:relative;width:7px;height:7px;border-radius:50%;background:var(--azul);flex:none}
+.vivo::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--azul);opacity:0;animation:pulso 2.4s var(--ease) infinite}
+@keyframes pulso{0%{transform:scale(.5);opacity:.8}70%,100%{transform:scale(1.4);opacity:0}}
+.pisca{animation:pisca 2s steps(1) infinite}
+@keyframes pisca{50%{opacity:.25}}
+
+/* ---------- progresso ---------- */
+.trilho{margin:6px 0 8px}
+.trilho-linha{display:flex;align-items:center;justify-content:space-between;height:44px}
+.trilho .olho{margin:0}
+.voltar{
+  display:inline-flex;align-items:center;gap:4px;height:44px;margin-left:-10px;padding:0 10px;
+  border-radius:8px;font-size:13.5px;font-weight:600;color:var(--suave);
+  transition:color .15s,background-color .15s,opacity .2s;
+}
+.voltar:hover{color:var(--texto);background:rgba(255,255,255,.05)}
+.barras{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.barras span{height:3px;border-radius:3px;background:var(--linha);overflow:hidden;position:relative}
+.barras span::after{content:"";position:absolute;inset:0;background:var(--azul);transform:scaleX(0);transform-origin:left;transition:transform .45s var(--ease)}
+.barras span.on::after{transform:scaleX(1)}
+.passoN{font-size:12.5px;font-weight:600;color:var(--suave)}
+
+/* ---------- passos ---------- */
+form{flex:1;display:flex;flex-direction:column}
+.passo{flex:1;display:flex;flex-direction:column}
+.passo[hidden],.fim[hidden]{display:none}
+.entra{animation:entra .38s var(--ease) both}
+@keyframes entra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.olho{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--azul-texto)}
+h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
+.tit{font-size:30px;outline:none}
+.sub{margin-top:10px;font-size:15px;color:var(--suave);line-height:1.5;text-wrap:pretty;max-width:42ch}
+
+/* status do Eduardo (só no celular; no computador o painel faz esse papel) */
+.status{
+  display:flex;align-items:center;gap:12px;padding:9px 12px 9px 9px;margin:2px 0 20px;
+  border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2);
+}
+.status img{width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none}
+.status p{font-size:13px;line-height:1.4;color:var(--suave)}
+.status strong{display:block;font-size:14px;color:var(--texto);font-weight:700}
+
+/* ajuda (?) */
+.ajuda{position:relative;display:inline-block;vertical-align:baseline}
+.ajuda>button{
+  display:inline-grid;place-items:center;width:22px;height:22px;margin-left:4px;vertical-align:-5px;
+  border:1px solid var(--linha-2);border-radius:50%;font-size:12px;font-weight:700;color:var(--suave);
+  position:relative;
+}
+.ajuda>button::before{content:"";position:absolute;inset:-11px}
+.ajuda>button:hover,.ajuda>button[aria-expanded="true"]{color:var(--texto);border-color:var(--azul)}
+.balao{
+  position:absolute;z-index:5;left:50%;top:calc(100% + 10px);transform:translateX(-50%);
+  width:min(280px,calc(100vw - 40px));padding:10px 12px;border-radius:var(--r-s);
+  background:#1A3654;border:1px solid var(--linha-2);box-shadow:0 12px 32px rgba(0,0,0,.35);
+  font-size:13px;line-height:1.45;color:var(--texto);font-weight:500;
+}
+.balao[hidden]{display:none}
+
+/* ---------- passo 1: cartões ---------- */
+.grade{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.cartao{position:relative;display:block;cursor:pointer}
+.cartao input{position:absolute;opacity:0;width:1px;height:1px}
+.cartao .caixa{
+  display:flex;flex-direction:column;gap:10px;height:100%;padding:12px 14px 13px;
+  border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2);
+  transition:border-color .18s,background-color .18s,transform .18s var(--ease);
+}
+.cartao:hover .caixa{border-color:var(--linha-2)}
+.cartao:active .caixa{transform:scale(.98)}
+.cartao input:focus-visible+.caixa{outline:2px solid var(--azul);outline-offset:2px}
+.cartao input:checked+.caixa{border-color:var(--azul);background:var(--azul-fundo)}
+.ico{width:26px;height:26px;color:var(--suave);transition:color .18s}
+.ico svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.cartao input:checked+.caixa .ico{color:var(--texto)}
+.rot{font-size:15px;font-weight:700;line-height:1.25;color:var(--texto)}
+.rot small{display:block;margin-top:2px;font-size:12.5px;font-weight:500;color:var(--suave);line-height:1.35}
+.marca-ok{
+  position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;
+  border:1.5px solid var(--linha-2);display:grid;place-items:center;transition:background-color .18s,border-color .18s;
+}
+.marca-ok svg{width:12px;height:12px;fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.4);transition:opacity .18s,transform .25s var(--ease)}
+.cartao input:checked+.caixa .marca-ok{background:var(--azul);border-color:var(--azul)}
+.cartao input:checked+.caixa .marca-ok svg{opacity:1;transform:none}
+
+.outro{grid-column:1/-1;display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s var(--ease)}
+.outro.on{grid-template-rows:1fr}
+.outro>div{overflow:hidden}
+.outro .campo{padding-top:4px}
+
+/* ---------- campos ---------- */
+.campo{display:flex;flex-direction:column;gap:7px}
+.campo label{font-size:13.5px;font-weight:600;color:var(--texto)}
+.campo input,.campo select,.campo textarea{
+  width:100%;height:52px;padding:0 14px;border-radius:var(--r-s);
+  background:var(--tinta-2);border:1px solid var(--linha-2);font-size:16px;font-weight:500;
+  transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none;
+}
+.campo textarea{height:auto;min-height:84px;padding:12px 14px;resize:vertical;line-height:1.45}
+.campo input::placeholder,.campo textarea::placeholder{color:#7B90A8}
+.campo input:hover,.campo select:hover,.campo textarea:hover{border-color:rgba(255,255,255,.34)}
+.campo input:focus-visible,.campo select:focus-visible,.campo textarea:focus-visible{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(0,133,255,.28)}
+.campo select{
+  padding-right:36px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%239BAEC4' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;
+}
+.campo select option{background:var(--tinta-2);color:var(--texto)}
+.campo .conta{align-self:flex-end;font-size:12px;color:var(--fraco)}
+.campo.ruim input,.campo.ruim select{border-color:var(--erro)}
+.msg{font-size:13px;font-weight:600;color:var(--erro);min-height:0}
+.msg:empty{display:none}
+.linha2{display:grid;grid-template-columns:1fr 104px;gap:10px}
+.campos{display:flex;flex-direction:column;gap:16px;margin-top:22px}
+.mel{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+
+/* resumo do que marcou (passo 3) */
+.resumo{
+  display:flex;align-items:flex-start;gap:10px;margin-top:18px;padding:12px 14px;
+  border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2);
+  font-size:13.5px;color:var(--suave);line-height:1.45;
+}
+.resumo b{color:var(--texto);font-weight:600}
+.resumo button{margin-left:auto;flex:none;font-size:13px;font-weight:700;color:var(--azul-texto);padding:10px 4px;margin:-10px -4px -10px auto}
+.resumo button:hover{text-decoration:underline;text-underline-offset:3px}
+
+/* ---------- passo 2: resposta única ---------- */
+.opcoes{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.opcao{
+  display:flex;align-items:center;gap:14px;width:100%;min-height:76px;padding:14px 16px 14px 14px;text-align:left;
+  border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2);
+  transition:border-color .18s,background-color .18s,transform .18s var(--ease);
+}
+.opcao:hover{border-color:var(--linha-2)}
+.opcao:active{transform:scale(.985)}
+.opcao.on{border-color:var(--azul);background:var(--azul-fundo)}
+.opcao .quadro{width:44px;height:44px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.05);flex:none;color:var(--suave)}
+.opcao.on .quadro{color:var(--texto);background:rgba(0,133,255,.22)}
+.opcao .quadro svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.opcao .rot{flex:1}
+.seta{width:18px;height:18px;fill:none;stroke:var(--suave);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;transition:transform .2s var(--ease)}
+.opcao:hover .seta{transform:translateX(3px)}
+
+/* ---------- ação fixa no pé ---------- */
+.pe{
+  position:sticky;bottom:0;margin-top:auto;padding:22px 0 calc(16px + env(safe-area-inset-bottom));
+  background:linear-gradient(to bottom,rgba(11,26,43,0),var(--tinta) 26px);
+}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:54px;padding:0 20px;
+  border-radius:var(--r);font-size:16px;font-weight:700;letter-spacing:-.005em;
+  transition:background-color .15s,transform .15s var(--ease),opacity .2s,box-shadow .15s;
+}
+.btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.btn-acao{background:var(--acao);color:var(--acao-tinta)}
+.btn-acao:hover{background:var(--acao-hover)}
+.btn-acao:active{transform:scale(.985)}
+.btn-acao:focus-visible{outline:2px solid var(--texto);outline-offset:3px}
+.btn-acao[disabled]{opacity:.7;cursor:progress}
+.btn-sec{border:1px solid var(--linha-2);color:var(--texto);background:transparent}
+.btn-sec:hover{background:rgba(255,255,255,.05)}
+.aparece{transition:opacity .25s var(--ease),transform .3s var(--ease)}
+.aparece.fora{opacity:0;transform:translateY(12px);pointer-events:none;visibility:hidden}
+.vaga{display:grid}
+.vaga>*{grid-area:1/1}
+.dica{
+  display:flex;align-items:center;justify-content:center;height:54px;border-radius:var(--r);
+  border:1px dashed var(--linha-2);font-size:14px;font-weight:600;color:var(--suave);transition:opacity .2s;
+}
+.dica.fora{opacity:0;visibility:hidden}
+.erroEnvio{
+  display:none;margin-bottom:10px;padding:10px 12px;border-radius:var(--r-s);
+  background:var(--erro-fundo);border:1px solid rgba(255,138,128,.4);color:var(--erro);font-size:13.5px;font-weight:600;line-height:1.45;
+}
+.erroEnvio.on{display:block}
+.aceite{margin-top:12px;font-size:12px;line-height:1.5;color:var(--suave);text-align:center;text-wrap:balance}
+.aceite a{color:var(--texto);text-underline-offset:3px;text-decoration-color:rgba(234,238,243,.4)}
+.aceite a:hover{text-decoration-color:var(--texto)}
+.gira{width:18px;height:18px;border-radius:50%;border:2.2px solid rgba(6,18,31,.25);border-top-color:var(--acao-tinta);animation:gira .7s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+
+/* ---------- tela final ---------- */
+.fim{flex:1;display:flex;flex-direction:column;padding-top:8px}
+.fim-selo{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--azul-fundo);border:1px solid rgba(0,133,255,.5);margin-bottom:22px}
+.fim-selo svg{width:22px;height:22px;fill:none;stroke:var(--azul-texto);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.fim-selo path{stroke-dasharray:24;stroke-dashoffset:24;animation:traco .5s .15s var(--ease) forwards}
+@keyframes traco{to{stroke-dashoffset:0}}
+.fim-tit{outline:none;font-weight:800;letter-spacing:-.025em}
+.fim-tit span{display:block}
+.fim-pre,.fim-pos{font-size:22px;line-height:1.2;color:var(--texto)}
+.fim-num{font-size:88px;line-height:1;margin:6px 0 8px;letter-spacing:-.045em}
+.fim-num i{font-style:normal;font-size:.42em;font-weight:700;color:var(--suave);letter-spacing:-.01em;margin-right:.12em;vertical-align:.62em}
+.fim-txt{margin-top:18px;font-size:15px;line-height:1.55;color:var(--suave);max-width:40ch;text-wrap:pretty}
+.fim-txt b{color:var(--texto);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chips li{list-style:none;display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--linha-2);font-size:13px;font-weight:600;color:var(--texto)}
+.fim-share{margin-top:auto;padding:28px 0 calc(16px + env(safe-area-inset-bottom))}
+.fim-share p{font-size:13.5px;color:var(--suave);margin-bottom:10px;text-wrap:balance}
+.fim-mudar{display:block;margin:10px auto 0;height:44px;padding:0 12px;font-size:13.5px;font-weight:600;color:var(--suave);border-radius:8px}
+.fim-mudar:hover{color:var(--texto)}
+.copiado{min-height:18px;margin-top:8px;text-align:center;font-size:13px;font-weight:600;color:var(--azul-texto)}
+
+.rodape{padding:6px 0 18px;font-size:12px;color:var(--fraco);display:flex;gap:6px;justify-content:center}
+.rodape a{color:var(--suave);text-underline-offset:3px}
+
+/* ---------- computador ---------- */
+@media (min-width:960px){
+  :root{--pad:48px}
+  .casca{grid-template-columns:minmax(0,1fr) minmax(560px,640px)}
+  .painel{
+    display:block;position:sticky;top:0;height:100vh;height:100dvh;overflow:hidden;
+    border-right:1px solid var(--linha);
+  }
+  .painel img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:30% 50%}
+  .painel::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(11,26,43,.55) 0%,rgba(11,26,43,.12) 26%,rgba(11,26,43,.8) 50%,rgba(11,26,43,.97) 72%);
+  }
+  .painel-topo,.painel-pe{position:absolute;left:48px;right:48px;z-index:1}
+  .painel-topo{top:36px;display:flex;align-items:center;justify-content:space-between}
+  .painel-topo .marca{width:120px;height:18px}
+  .painel-pe{bottom:44px}
+  .painel-olho{display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--texto)}
+  .painel-hora{font-size:112px;font-weight:800;letter-spacing:-.05em;line-height:1;margin:14px 0 10px}
+  .painel-quando{font-size:15px;color:var(--suave);font-weight:500}
+  .painel-quando b{color:var(--texto);font-weight:600}
+  .painel-txt{margin-top:22px;max-width:44ch;font-size:16px;line-height:1.55;color:#C9D5E2;text-wrap:pretty}
+  .painel-leg{margin-top:26px;padding-top:14px;border-top:1px solid var(--linha);font-size:12px;color:var(--suave)}
+  .col{max-width:none;margin:0;padding:0 64px;}
+  .col>*{width:100%;max-width:var(--col);margin-left:auto;margin-right:auto}
+  .topo{display:none}
+  .status{display:none}
+  .tit{font-size:36px}
+  .trilho{margin-top:30px;margin-bottom:12px}
+  .fim{padding-top:72px}
+  .grade{gap:12px}
+  .cartao .caixa{padding:14px 16px 15px}
+}
+@media (max-width:359px){
+  :root{--pad:16px}
+  .tit{font-size:26px}
+  .relogio span.lbl{display:none}
+  .dica{font-size:13px}
+  .fim-num{font-size:72px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .vivo::after{display:none}
+  .fim-selo path{stroke-dashoffset:0}
+}
+</style>
+</head>
+<body>
+<div class="casca">
+
+  <!-- Painel do computador: foto real do galpão + hora da China ao vivo -->
+  <aside class="painel" aria-label="Eduardo na China agora">
+    <img src="/nexus/img/estoque-fila-1200.webp" width="1200" height="900" alt="Fila de carregadores rápidos NEXUS sobre paletes no galpão, prontos para embarque" loading="lazy" decoding="async">
+    <div class="painel-topo">
+      <img class="marca" src="/nexus/interesse/logo-nexus.webp" width="320" height="48" alt="NEXUS">
+    </div>
+    <div class="painel-pe">
+      <p class="painel-olho"><span class="vivo" aria-hidden="true"></span>Agora na China</p>
+      <p class="painel-hora num" aria-live="off"><span data-hh>--</span><span class="pisca">:</span><span data-mm>--</span></p>
+      <p class="painel-quando"><b data-periodo>Horário de Pequim</b>, 11 horas à frente de Brasília</p>
+      <p class="painel-txt">O Eduardo, sócio da NEXUS, está visitando fábricas de carros elétricos, carregadores e baterias. Marque o que você quer ver e receba primeiro.</p>
+      <p class="painel-leg">Na foto, carregadores NEXUS no galpão, prontos para embarque.</p>
+    </div>
+  </aside>
+
+  <main class="col">
+    <header class="topo">
+      <img class="marca" src="/nexus/interesse/logo-nexus.webp" width="320" height="48" alt="NEXUS">
+      <p class="relogio"><span class="vivo" aria-hidden="true"></span><span class="lbl">Agora na China</span> <b class="num"><span data-hh>--</span><span class="pisca">:</span><span data-mm>--</span></b></p>
+    </header>
+
+    <div class="trilho" id="trilho">
+      <div class="barras" aria-hidden="true"><span class="on"></span><span></span><span></span></div>
+      <div class="trilho-linha">
+        <p class="olho" id="olho">Lista de interesse</p>
+        <button type="button" class="voltar" id="voltar" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Voltar
+        </button>
+        <p class="passoN num" id="passoN">Passo 1 de 3</p>
+      </div>
+    </div>
+
+    <form id="f" novalidate autocomplete="on">
+      <!-- campo isca: gente não vê nem alcança pelo teclado; robô preenche -->
+      <div class="mel" aria-hidden="true">
+        <label for="site">Site</label>
+        <input id="site" name="site" type="text" tabindex="-1" autocomplete="off" value="">
+      </div>
+
+      <!-- PASSO 1 -->
+      <section class="passo" data-passo="1" aria-labelledby="t1">
+        <div class="status">
+          <img src="/nexus/interesse/galpao-160.webp" width="44" height="44" alt="">
+          <p><strong>Eduardo na China agora</strong>Visitando fábricas de carros elétricos, carregadores e baterias.</p>
+        </div>
+        <h1 class="tit" id="t1" tabindex="-1">O que te interessa?</h1>
+        <p class="sub">Marque quantos quiser. Você recebe primeiro o que o Eduardo encontrar.<span class="ajuda"><button type="button" aria-expanded="false" aria-controls="b1" aria-label="Como funciona">?</button><span class="balao" id="b1" role="note" hidden>A NEXUS traz direto da fábrica. Quem está na lista recebe as fotos, os vídeos e as condições pelo WhatsApp antes de todo mundo.</span></span></p>
+
+        <fieldset class="grade" id="grade">
+          <legend class="sr">Produtos de interesse. Marque um ou mais.</legend>
+
+          <label class="cartao"><input type="checkbox" name="itens" value="carro_compacto"><span class="caixa">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.6 16.5H3.6a.6.6 0 0 1-.6-.6v-2.6c0-.5.3-.9.8-1.1L6 11.3 8 8c.3-.6.9-.9 1.5-.9h4.7c.6 0 1.1.2 1.5.7l2.9 3.5 1.8.6c.6.2 1 .7 1 1.3v2.7c0 .3-.3.6-.6.6h-1.1"/><path d="M9.2 16.5h5.6"/><circle cx="7" cy="16.6" r="2.1"/><circle cx="17" cy="16.6" r="2.1"/><path d="M6 11.3h12.6M12 7.2v4.1"/></svg></span>
+            <span class="rot">Carro compacto<small>Elétrico para a cidade</small></span>
+            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
+          </span></label>
+
+          <label class="cartao"><input type="checkbox" name="itens" value="carro_familia"><span class="caixa">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.6 17.2H3.5a.5.5 0 0 1-.5-.5v-4.2c0-.4.2-.8.6-1L5 10.6l1.5-4c.2-.6.8-1 1.4-1h8.3c.6 0 1.1.3 1.3.8l1.8 4.2 1.4.8c.4.2.6.5.6.9v4.4a.5.5 0 0 1-.5.5h-1.2"/><path d="M9.4 17.2h5.2"/><circle cx="7" cy="17.2" r="2.3"/><circle cx="17" cy="17.2" r="2.3"/><path d="M5 10.6h14.3M12 5.6v5"/></svg></span>
+            <span class="rot">SUV ou sedã<small>Elétrico para a família</small></span>
+            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
+          </span></label>
+
+          <label class="cartao"><input type="checkbox" name="itens" value="utilitario"><span class="caixa">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.8 16.8H3.5a.5.5 0 0 1-.5-.5V6.5c0-.6.4-1 1-1h9.5c.6 0 1 .4 1 1v10.3H9.2"/><path d="M14.5 9h3.4c.4 0 .8.2 1 .5l2 2.8c.1.2.1.4.1.6v3.4a.5.5 0 0 1-.5.5h-1.3"/><path d="M14.5 16.8h1.2M14.5 12.6H21"/><circle cx="7" cy="16.9" r="2.1"/><circle cx="17.6" cy="16.9" r="2.1"/></svg></span>
+            <span class="rot">Utilitário<small>Van, picape ou carga</small></span>
+            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
+          </span></label>
+
+          <label class="cartao"><input type="checkbox" name="itens" value="moto"><span class="caixa">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="5.5" cy="16.5" r="2.7"/><circle cx="18.5" cy="16.5" r="2.7"/><path d="M8.2 16.5h5.6l2.6-6.3"/><path d="M15.4 6h2.1l1 4.2 0 0"/><path d="M5.5 16.5l2.8-4.6h5.3"/><path d="M16.4 10.2l2.1 6.3"/></svg></span>
+            <span class="rot">Duas rodas<small>Moto, scooter ou bike</small></span>
+            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
+          </span></label>
+
+          <label class="cartao"><input type="checkbox" name="itens" value="wallbox"><span class="caixa">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="10" height="13" rx="2"/><path d="M10.6 6.5 9 9.4h2.4L9.8 12.4"/><path d="M10 16v2.2c0 1.5 1.2 2.8 2.8 2.8h2.7c1.5 0 2.5-1.1 2.5-2.5v-4.7"/><path d="M16.5 13.8h3M17 11.2v2.6M19 11.2v2.6"/></svg></span>
+            <span class="rot">Carregador de casa<small>Wallbox de parede</small></span>
+            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
+          </span></label>
+
+          <label class="cartao"><input type="checkbox" name="itens" value="eletroposto"><span class="caixa">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 21h13"/><rect x="7" y="5.6" width="5" height="3.6" rx=".6"/><path d="M10.2 11.6 8.8 14h2.4l-1.4 2.6"/><path d="M14.5 9.5h1.3c.8 0 1.4.6 1.4 1.4v4.8a1.4 1.4 0 0 0 2.8 0V8.4l-1.6-2"/></svg></span>
+            <span class="rot">Eletroposto<small>Carregador rápido DC</small></span>
+            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
+          </span></label>
+
+          <label class="cartao"><input type="checkbox" name="itens" value="bateria"><span class="caixa">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.5" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.5v3"/><path d="M11.8 9.4 9.8 12.2h3l-2 2.8"/></svg></span>
+            <span class="rot">Bateria<small>Armazenamento de energia</small></span>
+            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
+          </span></label>
+
+          <label class="cartao"><input type="checkbox" name="itens" value="outro" id="cOutro"><span class="caixa">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.6-4.6"/><path d="M10.5 8v5M8 10.5h5"/></svg></span>
+            <span class="rot">Outra coisa<small>Você diz o que procura</small></span>
+            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
+          </span></label>
+
+          <div class="outro" id="caixaOutro"><div>
+            <div class="campo" id="w-outro">
+              <label for="outro">Pede para o Eduardo procurar na feira</label>
+              <textarea id="outro" name="outro" maxlength="300" rows="3" placeholder="Ex.: Triciclo elétrico de carga" autocomplete="off" disabled aria-describedby="contaOutro"></textarea>
+              <span class="conta num" id="contaOutro" aria-live="polite">0 de 300</span>
+            </div>
+          </div></div>
+        </fieldset>
+
+        <div class="pe">
+          <div class="vaga">
+            <p class="dica" id="dica1">Marque pelo menos um para continuar</p>
+            <button type="button" class="btn btn-acao aparece fora" id="seguir1">Continuar<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- PASSO 2 -->
+      <section class="passo" data-passo="2" aria-labelledby="t2" hidden>
+        <h2 class="tit" id="t2" tabindex="-1">Para quem é?</h2>
+        <p class="sub">Toque em uma opção.</p>
+        <div class="opcoes" role="group" aria-labelledby="t2">
+          <button type="button" class="opcao" data-uso="proprio">
+            <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.7 3.6-5.6 7-5.6s6.2 1.9 7 5.6"/></svg></span>
+            <span class="rot">Para mim<small>Uso pessoal ou da família</small></span>
+            <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button type="button" class="opcao" data-uso="empresa">
+            <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 21V5.5C4 4.7 4.7 4 5.5 4h7c.8 0 1.5.7 1.5 1.5V21"/><path d="M14 10h4.5c.8 0 1.5.7 1.5 1.5V21"/><path d="M2.5 21h19"/><path d="M7.5 8h3M7.5 11.5h3M7.5 15h3M17 14v.01M17 17.5v.01"/></svg></span>
+            <span class="rot">Para minha empresa ou frota<small>Uso no trabalho, um ou vários</small></span>
+            <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button type="button" class="opcao" data-uso="revenda">
+            <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 12.6V5c0-.8.7-1.5 1.5-1.5h7.6l7.9 7.9c.6.6.6 1.5 0 2.1l-7 7c-.6.6-1.5.6-2.1 0Z"/><circle cx="8" cy="8" r="1.5"/></svg></span>
+            <span class="rot">Quero revender<small>Loja, revenda ou representação</small></span>
+            <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- PASSO 3 -->
+      <section class="passo" data-passo="3" aria-labelledby="t3" hidden>
+        <h2 class="tit" id="t3" tabindex="-1">Para onde a gente manda?</h2>
+        <p class="sub">As novidades chegam pelo WhatsApp. Só o que você marcou.</p>
+
+        <div class="resumo" id="resumo">
+          <p id="resumoTxt"></p>
+          <button type="button" id="alterar">Alterar</button>
+        </div>
+
+        <div class="campos">
+          <div class="campo" id="w-nome">
+            <label for="nome">Nome</label>
+            <input id="nome" name="nome" type="text" autocomplete="name" autocapitalize="words" enterkeyhint="next" placeholder="Seu nome" maxlength="80" aria-describedby="m-nome">
+            <p class="msg" id="m-nome" role="alert"></p>
+          </div>
+          <div class="campo" id="w-tel">
+            <label for="tel">WhatsApp com DDD</label>
+            <input id="tel" name="telefone" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="next" placeholder="(34) 99999-9999" maxlength="22" spellcheck="false" aria-describedby="m-tel">
+            <p class="msg" id="m-tel" role="alert"></p>
+          </div>
+          <div>
+            <div class="linha2">
+              <div class="campo" id="w-cidade">
+                <label for="cidade">Cidade</label>
+                <input id="cidade" name="cidade" type="text" autocomplete="address-level2" autocapitalize="words" enterkeyhint="done" placeholder="Uberlândia" maxlength="80" aria-describedby="m-cidade">
+              </div>
+              <div class="campo" id="w-uf">
+                <label for="uf">Estado</label>
+                <select id="uf" name="uf" autocomplete="address-level1" aria-describedby="m-cidade">
+                  <option value="">UF</option>
+                  <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+                  <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+                  <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+                  <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+                  <option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+                  <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+                  <option>SP</option><option>SE</option><option>TO</option>
+                </select>
+              </div>
+            </div>
+            <p class="msg" id="m-cidade" role="alert" style="margin-top:7px"></p>
+          </div>
+        </div>
+
+        <div class="pe">
+          <p class="erroEnvio" id="erroEnvio" role="alert"></p>
+          <button type="submit" class="btn btn-acao" id="entrar"><span>Entrar na lista</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          <p class="aceite">Ao entrar, você aceita receber contato da NEXUS pelo WhatsApp. <a href="/privacidade">Privacidade</a></p>
+        </div>
+      </section>
+    </form>
+
+    <!-- TELA FINAL -->
+    <section class="fim" id="fim" aria-labelledby="tFim" hidden>
+      <div class="fim-selo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+      <h2 class="fim-tit" id="tFim" tabindex="-1">
+        <span class="fim-pre" id="fimPre">Você é o</span>
+        <span class="fim-num num"><i>nº</i><b id="pos" style="font-weight:800">0</b></span>
+        <span class="fim-pos">da lista</span>
+      </h2>
+      <p class="fim-txt" id="fimTxt">Quando o Eduardo encontrar o que você marcou, você recebe primeiro <b>as fotos, os vídeos e as condições</b> pelo WhatsApp.</p>
+      <ul class="chips" id="chips" aria-label="O que você marcou"></ul>
+      <div class="fim-share">
+        <p>Conhece alguém de olho em elétrico? Mande o link.</p>
+        <button type="button" class="btn btn-acao" id="compartilhar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8"/><path d="M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16"/></svg><span>Compartilhar a lista</span></button>
+        <p class="copiado" id="copiado" aria-live="polite"></p>
+        <button type="button" class="fim-mudar" id="mudar">Marcar mais coisas</button>
+      </div>
+    </section>
+
+    <footer class="rodape"><span translate="no">NEXUS</span><span aria-hidden="true">·</span><a href="/privacidade">Privacidade</a></footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  var ENDPOINT = '/_api/io/eletroposto/nexus-interesse';
+  var LINK = 'https://solardoc.app/nexus/interesse';
+  var CH_RASCUNHO = 'nexus_interesse_rascunho';
+  var CH_FEITO = 'nexus_interesse_feito';
+  var CH_UTM = 'nexus_interesse_utm';
+  var ROTULO = {
+    carro_compacto: 'Carro compacto', carro_familia: 'SUV ou sedã', utilitario: 'Utilitário',
+    moto: 'Duas rodas', wallbox: 'Carregador de casa', eletroposto: 'Eletroposto',
+    bateria: 'Bateria', outro: 'Outra coisa'
+  };
+  var USO = { proprio: 'Para mim', empresa: 'Para minha empresa ou frota', revenda: 'Quero revender' };
+  var MOVE = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  function $(id) { return document.getElementById(id); }
+  function todos(sel) { return [].slice.call(document.querySelectorAll(sel)); }
+
+  /* ---------- hora da China (UTC+8, sem horário de verão) ---------- */
+  function dois(n) { return (n < 10 ? '0' : '') + n; }
+  function pintaHora() {
+    var d = new Date(Date.now() + 8 * 3600e3);
+    var h = d.getUTCHours(), m = d.getUTCMinutes();
+    todos('[data-hh]').forEach(function (el) { el.textContent = dois(h); });
+    todos('[data-mm]').forEach(function (el) { el.textContent = dois(m); });
+    var per = h < 6 ? 'Madrugada' : h < 12 ? 'Manhã' : h < 18 ? 'Tarde' : 'Noite';
+    todos('[data-periodo]').forEach(function (el) { el.textContent = per + ' em Pequim'; });
+  }
+  pintaHora();
+  setInterval(pintaHora, 15000);
+
+  /* ---------- telefone e origem (mesma regra do /nexusev) ---------- */
+  /* A API exige 12 ou 13 dígitos começando em 55. Número que já vem com 55 não
+     leva outro na frente, senão vira 5555 e é recusado. */
+  function telefoneBR(bruto) {
+    var d = String(bruto || '').replace(/\D+/g, '');
+    if (d.length === 10 || d.length === 11) d = '55' + d;
+    if ((d.length === 12 || d.length === 13) && d.indexOf('55') === 0) return d;
+    return '';
+  }
+  function utm() {
+    var chaves = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+    var q = new URLSearchParams(location.search), out = {}, achou = false;
+    for (var i = 0; i < chaves.length; i++) { var v = q.get(chaves[i]); if (v) { out[chaves[i]] = v.slice(0, 200); achou = true; } }
+    try {
+      if (achou) localStorage.setItem(CH_UTM, JSON.stringify(out));
+      else { var s = localStorage.getItem(CH_UTM); if (s) out = JSON.parse(s); }
+    } catch (e) { /* sem storage a origem some, o cadastro não */ }
+    return out;
+  }
+  utm(); // grava a campanha já na chegada, antes de a pessoa navegar
+
+  /* ---------- funil no banco (mesmo beacon do /io/eletroposto) ---------- */
+  var evt = function () {};
+  if (!LOCAL) {
+    (function () {
+      var KEY = 'io_sd_session', SENT = 'io_sd_visit_sent', sid = '';
+      function uuid() {
+        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+      }
+      try { sid = sessionStorage.getItem(KEY) || ''; if (!sid) { sid = uuid(); sessionStorage.setItem(KEY, sid); } } catch (e) { sid = uuid(); }
+      function send(path, body) { try { fetch('/_api' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(function () {}); } catch (e) {} }
+      try {
+        if (!sessionStorage.getItem(SENT)) {
+          var q = new URLSearchParams(location.search), b = { session_id: sid, landing_url: location.href, referrer: document.referrer || null };
+          ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach(function (k) { var v = q.get(k); if (v) b[k] = v; });
+          send('/_t/v', b); sessionStorage.setItem(SENT, '1');
+        }
+      } catch (e) {}
+      evt = function (tipo, dados) { var d = dados || {}; d.lp = 'nexus_interesse'; send('/_t/e', { session_id: sid, event_type: tipo, event_data: d }); };
+    })();
+  }
+
+  /* ---------- estado ---------- */
+  var estado = { itens: [], outro: '', uso: '' };
+  var passo = 1;
+  function guardar() {
+    try {
+      sessionStorage.setItem(CH_RASCUNHO, JSON.stringify({
+        itens: estado.itens, outro: estado.outro, uso: estado.uso,
+        nome: $('nome').value, tel: $('tel').value, cidade: $('cidade').value, uf: $('uf').value
+      }));
+    } catch (e) {}
+  }
+  function lerRascunho() {
+    try { var s = sessionStorage.getItem(CH_RASCUNHO); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+  }
+
+  /* ---------- passos ---------- */
+  var secoes = todos('.passo');
+  var barras = todos('.barras span');
+  function mostrar(n, opts) {
+    opts = opts || {};
+    passo = n;
+    $('f').hidden = false; $('fim').hidden = true; $('trilho').hidden = false;
+    secoes.forEach(function (s) {
+      var eu = Number(s.getAttribute('data-passo')) === n;
+      s.hidden = !eu;
+      s.classList.remove('entra');
+      if (eu && MOVE && !opts.semAnim) { void s.offsetWidth; s.classList.add('entra'); }
+    });
+    barras.forEach(function (b, i) { b.classList.toggle('on', i < n); });
+    $('passoN').textContent = 'Passo ' + n + ' de 3';
+    $('voltar').hidden = n === 1;
+    $('olho').hidden = n !== 1;
+    if (n === 3) pintaResumo();
+    if (!opts.semFoco) {
+      var t = $('t' + n);
+      if (t) t.focus({ preventScroll: true });
+      window.scrollTo(0, 0);
+    }
+    evt('interesse_passo', { passo: n });
+  }
+  function ir(n) {
+    try { history.pushState({ passo: n }, '', location.search ? location.pathname + location.search : location.pathname); } catch (e) {}
+    mostrar(n);
+  }
+  window.addEventListener('popstate', function (e) {
+    if (!$('fim').hidden) return;
+    var n = e.state && e.state.passo ? e.state.passo : 1;
+    mostrar(n);
+  });
+  try { history.replaceState({ passo: 1 }, ''); } catch (e) {}
+  $('voltar').addEventListener('click', function () { if (passo > 1) history.back(); });
+
+  /* ---------- passo 1 ---------- */
+  var caixas = todos('input[name="itens"]');
+  function lerItens() {
+    estado.itens = caixas.filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+    var tem = estado.itens.length > 0;
+    $('seguir1').classList.toggle('fora', !tem);
+    $('seguir1').tabIndex = tem ? 0 : -1;
+    $('seguir1').setAttribute('aria-hidden', tem ? 'false' : 'true');
+    $('dica1').classList.toggle('fora', tem);
+    $('seguir1').firstChild.nodeValue = tem && estado.itens.length > 1 ? 'Continuar com ' + estado.itens.length + ' ' : 'Continuar';
+    var outroOn = $('cOutro').checked;
+    $('caixaOutro').classList.toggle('on', outroOn);
+    $('outro').disabled = !outroOn;
+    guardar();
+  }
+  caixas.forEach(function (c) {
+    c.addEventListener('change', function () {
+      lerItens();
+      if (c.value === 'outro' && c.checked) setTimeout(function () { $('outro').focus({ preventScroll: true }); $('caixaOutro').scrollIntoView({ block: 'nearest', behavior: MOVE ? 'smooth' : 'auto' }); }, 180);
+    });
+  });
+  $('outro').addEventListener('input', function () {
+    estado.outro = this.value;
+    $('contaOutro').textContent = this.value.length + ' de 300';
+    guardar();
+  });
+  $('seguir1').addEventListener('click', function () {
+    if (!estado.itens.length) return;
+    ir(2);
+  });
+
+  /* ---------- passo 2: um toque avança ---------- */
+  var opcoes = todos('.opcao');
+  function marcarUso() { opcoes.forEach(function (o) { o.classList.toggle('on', o.getAttribute('data-uso') === estado.uso); }); }
+  opcoes.forEach(function (o) {
+    o.addEventListener('click', function () {
+      estado.uso = o.getAttribute('data-uso');
+      marcarUso(); guardar();
+      setTimeout(function () { ir(3); }, MOVE ? 220 : 0);
+    });
+  });
+
+  /* ---------- passo 3 ---------- */
+  function pintaResumo() {
+    var nomes = estado.itens.map(function (k) { return ROTULO[k]; });
+    var t = $('resumoTxt'); t.textContent = '';
+    var b = document.createElement('b'); b.textContent = nomes.join(', ');
+    t.appendChild(document.createTextNode('Você marcou '));
+    t.appendChild(b);
+    t.appendChild(document.createTextNode('. ' + (USO[estado.uso] || '') + '.'));
+  }
+  $('alterar').addEventListener('click', function () { ir(1); });
+  ['nome', 'tel', 'cidade', 'uf'].forEach(function (id) {
+    $(id).addEventListener('input', function () { limpar(id === 'uf' ? 'cidade' : id); guardar(); });
+    $(id).addEventListener('change', guardar);
+  });
+  function limpar(id) {
+    var w = $('w-' + id); if (w) w.classList.remove('ruim');
+    if (id === 'cidade') { $('w-uf').classList.remove('ruim'); $('uf').removeAttribute('aria-invalid'); }
+    var el = $(id); if (el) el.removeAttribute('aria-invalid');
+    var m = $('m-' + id); if (m) m.textContent = '';
+  }
+  function ruim(id, msg, campo) {
+    var alvo = campo || id;
+    $('w-' + alvo).classList.add('ruim');
+    $(alvo).setAttribute('aria-invalid', 'true');
+    $('m-' + id).textContent = msg;
+    return alvo;
+  }
+
+  var enviando = false;
+  $('f').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (enviando || passo !== 3) return;
+    $('erroEnvio').classList.remove('on');
+    ['nome', 'tel', 'cidade'].forEach(limpar);
+
+    var nome = $('nome').value.trim().replace(/\s+/g, ' ');
+    var tel = telefoneBR($('tel').value);
+    var cidade = $('cidade').value.trim().replace(/\s+/g, ' ');
+    var uf = $('uf').value;
+    var primeiro = null;
+    if (nome.length < 2) primeiro = primeiro || ruim('nome', 'Escreva o seu nome.');
+    if (!tel) primeiro = primeiro || ruim('tel', 'Confira o número: DDD e mais 8 ou 9 dígitos.');
+    if (cidade.length < 2) primeiro = primeiro || ruim('cidade', 'Diga a sua cidade.');
+    else if (!uf) primeiro = primeiro || ruim('cidade', 'Escolha o estado.', 'uf');
+    if (primeiro) { $(primeiro).focus(); return; }
+
+    var u = utm();
+    var corpo = {
+      itens: estado.itens.slice(),
+      uso: estado.uso,
+      nome: nome,
+      telefone: tel,
+      cidade: cidade + ', ' + uf,
+      origem: u.utm_source || 'link_direto',
+      utm: { source: u.utm_source || '', medium: u.utm_medium || '', campaign: u.utm_campaign || '', content: u.utm_content || '', term: u.utm_term || '' },
+      site: $('site').value
+    };
+    if (estado.itens.indexOf('outro') >= 0 && estado.outro.trim()) corpo.outro = estado.outro.trim().slice(0, 300);
+    if (/[?&]teste=1\b/.test(location.search)) corpo.teste = true;
+
+    carregando(true);
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var demorou = false;
+    var relogio = setTimeout(function () { demorou = true; if (ctrl) ctrl.abort(); }, 10000);
+
+    var pedido = LOCAL
+      ? new Promise(function (ok) { setTimeout(function () { ok({ ok: true, posicao: 42, novo: true }); }, 700); })
+      : fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: ctrl ? ctrl.signal : undefined })
+          .then(function (r) { return r.json().catch(function () { return { ok: false }; }); });
+
+    pedido.then(function (j) {
+      clearTimeout(relogio);
+      if (!j || !j.ok) { var x = new Error('api'); x.erro = (j && j.erro) || ''; throw x; }
+      var feito = { posicao: Number(j.posicao) || 0, novo: j.novo !== false, itens: corpo.itens, uso: corpo.uso, outro: corpo.outro || '' };
+      try { localStorage.setItem(CH_FEITO, JSON.stringify(feito)); sessionStorage.removeItem(CH_RASCUNHO); } catch (e) {}
+      if (window.fbq) window.fbq('trackCustom', 'NexusInteresse', { itens: corpo.itens.join(','), uso: corpo.uso });
+      evt('interesse_concluido', { itens: corpo.itens.join(','), uso: corpo.uso, novo: feito.novo });
+      carregando(false);
+      final(feito, true);
+    }).catch(function (e) {
+      clearTimeout(relogio);
+      carregando(false);
+      var msg = e && typeof e.erro === 'string' ? e.erro : '';
+      var caixa = $('erroEnvio');
+      caixa.textContent = demorou
+        ? 'A conexão demorou demais. Tente de novo.'
+        : (msg || 'Não consegui enviar agora. Confira a internet e tente de novo.');
+      caixa.classList.add('on');
+    });
+  });
+  function carregando(sim) {
+    enviando = sim;
+    var b = $('entrar');
+    b.disabled = sim;
+    b.setAttribute('aria-busy', sim ? 'true' : 'false');
+    b.innerHTML = sim
+      ? '<span class="gira" aria-hidden="true"></span><span>Entrando na lista…</span>'
+      : '<span>Entrar na lista</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  }
+
+  /* ---------- tela final ---------- */
+  function final(feito, agora) {
+    $('f').hidden = true; $('trilho').hidden = true;
+    var fim = $('fim'); fim.hidden = false;
+    fim.classList.remove('entra'); if (MOVE) { void fim.offsetWidth; fim.classList.add('entra'); }
+    try { history.replaceState({ passo: 'fim' }, ''); } catch (e) {}
+    $('fimPre').textContent = feito.novo ? 'Você é o' : 'Você já está na lista. É o';
+    $('tFim').setAttribute('aria-label', (feito.novo ? 'Você é o' : 'Você já está na lista. É o') + ' número ' + feito.posicao + ' da lista');
+    $('fimTxt').innerHTML = (feito.novo ? '' : 'Atualizamos o que você marcou. ') +
+      'Quando o Eduardo encontrar o que você marcou, você recebe primeiro <b>as fotos, os vídeos e as condições</b> pelo WhatsApp.';
+    var ul = $('chips'); ul.textContent = '';
+    (feito.itens || []).forEach(function (k) {
+      var li = document.createElement('li'); li.textContent = ROTULO[k] || k; ul.appendChild(li);
+    });
+    if (USO[feito.uso]) { var li = document.createElement('li'); li.textContent = USO[feito.uso]; ul.appendChild(li); }
+    contar($('pos'), feito.posicao, agora && MOVE);
+    window.scrollTo(0, 0);
+    $('tFim').focus({ preventScroll: true });
+  }
+  function contar(el, alvo, anima) {
+    if (!anima || alvo < 2) { el.textContent = String(alvo); return; }
+    var t0 = performance.now(), dur = Math.min(900, 400 + alvo * 4);
+    (function quadro(t) {
+      var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = String(Math.round(alvo * e));
+      if (p < 1) requestAnimationFrame(quadro);
+    })(t0);
+  }
+
+  $('compartilhar').addEventListener('click', function () {
+    var url = LINK + '?utm_source=compartilhamento';
+    var dados = { title: 'Lista de interesse NEXUS', text: 'O Eduardo, da NEXUS, está na China vendo carros elétricos, carregadores e baterias. Entra na lista e recebe primeiro.', url: url };
+    evt('interesse_compartilhar', {});
+    if (navigator.share) {
+      navigator.share(dados).catch(function () {});
+      return;
+    }
+    copiar(url);
+  });
+  function copiar(txt) {
+    var ok = function () { $('copiado').textContent = 'Link copiado. Agora é só colar.'; setTimeout(function () { $('copiado').textContent = ''; }, 3500); };
+    if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(txt).then(ok, function () { velho(txt) && ok(); }); }
+    else if (velho(txt)) ok();
+  }
+  function velho(txt) {
+    try {
+      var t = document.createElement('textarea'); t.value = txt; t.setAttribute('readonly', '');
+      t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select();
+      var r = document.execCommand('copy'); document.body.removeChild(t); return r;
+    } catch (e) { return false; }
+  }
+  if (!navigator.share) $('compartilhar').querySelector('span').textContent = 'Copiar o link da lista';
+
+  $('mudar').addEventListener('click', function () {
+    try {
+      var f = JSON.parse(localStorage.getItem(CH_FEITO) || 'null');
+      if (f) { estado.itens = f.itens || []; estado.uso = f.uso || ''; estado.outro = f.outro || ''; }
+      localStorage.removeItem(CH_FEITO);
+    } catch (e) {}
+    caixas.forEach(function (c) { c.checked = estado.itens.indexOf(c.value) >= 0; });
+    $('outro').value = estado.outro; $('contaOutro').textContent = estado.outro.length + ' de 300';
+    lerItens(); marcarUso();
+    try { history.replaceState({ passo: 1 }, ''); } catch (e) {}
+    mostrar(1);
+  });
+
+  /* ---------- (?) ---------- */
+  todos('.ajuda>button').forEach(function (b) {
+    var bal = $(b.getAttribute('aria-controls'));
+    function fecha() { b.setAttribute('aria-expanded', 'false'); bal.hidden = true; }
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var abre = b.getAttribute('aria-expanded') !== 'true';
+      b.setAttribute('aria-expanded', abre ? 'true' : 'false'); bal.hidden = !abre;
+    });
+    document.addEventListener('click', function (e) { if (!bal.hidden && !bal.contains(e.target)) fecha(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !bal.hidden) { fecha(); b.focus(); } });
+  });
+
+  /* ---------- volta de onde parou ---------- */
+  var feito = null;
+  try { feito = JSON.parse(localStorage.getItem(CH_FEITO) || 'null'); } catch (e) {}
+  if (feito && feito.posicao) {
+    feito.novo = false;
+    final(feito, false);
+  } else {
+    var r = lerRascunho();
+    if (r) {
+      estado.itens = r.itens || []; estado.outro = r.outro || ''; estado.uso = r.uso || '';
+      caixas.forEach(function (c) { c.checked = estado.itens.indexOf(c.value) >= 0; });
+      $('outro').value = estado.outro; $('contaOutro').textContent = estado.outro.length + ' de 300';
+      $('nome').value = r.nome || ''; $('tel').value = r.tel || ''; $('cidade').value = r.cidade || ''; $('uf').value = r.uf || '';
+      marcarUso();
+    }
+    lerItens();
+    mostrar(1, { semAnim: true, semFoco: true });
+  }
+})();
+</script>
+
+<script>
+/* Pixel do conjunto "Eletroposto" (o mesmo do /io/eletroposto). Fora do
+   localhost só. Aqui NUNCA track('Lead'): a conclusão sai como trackCustom. */
+if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+  document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '26788759654130722');
+  fbq('track', 'PageView');
+}
+</script>
+<script src="/lib/telemetria.js" defer></script>
+</body>
+</html>
