@@ -48,7 +48,7 @@ export default function VisaoGeralPanel({ produto }: { produto: string }) {
       ]).then(([an, rv, f]) => {
         setTiles([
           { label: `MRR (${rotulo})`, value: fmtBRL(rv?.total_mrr ?? 0), color: 'var(--color-primary)' },
-          { label: 'Assinantes', value: fmtN(rv?.total_users ?? 0) },
+          { label: `Assinantes (${rotulo})`, value: fmtN(rv?.total_users ?? 0) },
           { label: `Visitas LP (${rotulo})`, value: fmtN(an?.total ?? 0), sub: `${an?.today ?? 0} hoje` },
           { label: `Cadastros (${rotulo})`, value: fmtN(an?.conversion?.cadastros ?? 0) },
           { label: `Empresas (${rotulo})`, value: fmtN(an?.conversion?.empresas ?? 0) },
@@ -63,10 +63,10 @@ export default function VisaoGeralPanel({ produto }: { produto: string }) {
         const step = (k: string) => lf?.steps?.find((s) => s.key === k)?.count ?? 0;
         setTiles([
           { label: `Faturamento (${rotulo})`, value: fmtBRL(lf?.faturamento ?? 0), color: 'var(--color-primary)' },
-          { label: 'Vendas', value: fmtN(lf?.stats?.vendas ?? 0) },
-          { label: 'Compradores', value: fmtN(lf?.stats?.clientes ?? 0) },
+          { label: `Vendas (${rotulo})`, value: fmtN(lf?.stats?.vendas ?? 0) },
+          { label: `Compradores (${rotulo})`, value: fmtN(lf?.stats?.clientes ?? 0) },
           { label: `Visitas LP (${rotulo})`, value: fmtN(step('visita')) },
-          { label: 'Checkout', value: fmtN(step('checkout')), sub: `${lf?.stats?.abandonos ?? 0} abandonos` },
+          { label: `Checkout (${rotulo})`, value: fmtN(step('checkout')), sub: `${lf?.stats?.abandonos ?? 0} abandonos` },
           { label: 'Bia em conversa', value: fmtN(f?.summary?.em_conversa ?? 0), sub: `${f?.summary?.handoff ?? 0} handoff`, color: '#2C9C67' },
         ]);
       }).finally(() => setLoading(false));
@@ -96,7 +96,7 @@ export default function VisaoGeralPanel({ produto }: { produto: string }) {
     } else {
       fu.then((f) => setTiles([{ label: 'Sessões do agente', value: fmtN(f?.summary?.total ?? 0) }])).finally(() => setLoading(false));
     }
-  }, [produto, period]);
+  }, [produto, period, rotulo]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- Carrega os dados ao montar, o estado só muda quando a resposta chega.
   useEffect(() => { load(); }, [load]);
