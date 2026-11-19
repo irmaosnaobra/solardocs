@@ -430,9 +430,10 @@ export function itensDaEtapa(n: number, f: EntradaItens): ItemEtapa[] {
       { chave: 'financiamento', bloco: 'venda', texto: 'Precisa de proposta de banco ou financiamento?', feito: fin !== null },
     ];
     if (fin === 'sim') itens.push({ chave: 'proposta_banco', bloco: 'venda', texto: 'Proposta de banco preenchida', feito: bancoPreenchido(f.obra?.banco) });
+    // O papel assinado anexado prova que o papel existiu: obra antiga fez o papel fora do sistema e só anexou o assinado.
     itens.push(
-      { chave: 'papel_contrato', bloco: 'papeis', texto: 'Contrato gerado', feito: !!papeis?.contrato },
-      { chave: 'papel_procuracao', bloco: 'papeis', texto: 'Procuração gerada', feito: !!papeis?.procuracao },
+      { chave: 'papel_contrato', bloco: 'papeis', texto: 'Contrato gerado', feito: !!papeis?.contrato || tem('contrato_assinado') },
+      { chave: 'papel_procuracao', bloco: 'papeis', texto: 'Procuração gerada', feito: !!papeis?.procuracao || tem('procuracao') },
     );
     // Primeiro se pede a lista de documentos ao cliente, depois se anexa: cada item fecha quando o ARQUIVO existe (o tique de pedido continua
     // gravado em `etapas[1].pedidos`, mas não é mais item).

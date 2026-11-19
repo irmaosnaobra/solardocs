@@ -692,7 +692,7 @@ describe('fases 1 a 3 (18/11/2026): permissões e o Trello automático', () => {
     semear(304, (e) => { e.cancelada = { em: AGORA, por: 'thiago', etapa: 1, com_numero: false }; });
     expect((await obra(304)).body.pode.gerar_papeis).toBe(false);
   });
-  it('marcar_excedente vale até a etapa 1 concluir (o vendedor, a Giovanna e o ADM) e fecha depois', async () => {
+  it('marcar_excedente: com a etapa 1 aberta, o vendedor, a Giovanna e o ADM; depois de concluída, só a Giovanna e o ADM (o vendedor perde)', async () => {
     semear(304);
     expect((await obra(304)).body.pode.marcar_excedente).toBe(true);
     expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' })).status).toBe(200);
@@ -704,8 +704,67 @@ describe('fases 1 a 3 (18/11/2026): permissões e o Trello automático', () => {
     expect(estadoGravado(304)!.etapas[1].excedente).toBe('sim');
     semear(304, concluida1);
     expect((await obra(304)).body.pode.marcar_excedente).toBe(false);
-    expect((await patch('/jornada-solar/obra/304', { excedente: 'nao' }, GIOVANNA)).status).toBe(403);
+    expect((await obra(304, GIOVANNA)).body.pode.marcar_excedente).toBe(true);
+    expect((await patch('/jornada-solar/obra/304', { excedente: 'nao' }, GIOVANNA)).status).toBe(200);
     expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' })).status).toBe(403);
+    expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' }, DIEGO)).status).toBe(403);
+  });
+  it('etapa 1 concluída (obra antiga): Giovanna e ADM confirmam e respondem o financiamento; o vendedor leva 403; a conclusão não muda', async () => {
+    semear(304, concluida1); cadastroBase();
+    h.cad.telefone = '34999990000';
+    const conclusao = (): unknown => JSON.stringify([estadoGravado(304)!.etapas[1].concluida_em, estadoGravado(304)!.etapas[1].concluida_por, estadoGravado(304)!.etapas[2].aberta_em]);
+    const antes = conclusao();
+    for (const auth of [GIOVANNA, THIAGO]) {
+      const pode = (await obra(304, auth)).body.pode;
+      expect(pode).toMatchObject({ confirmar: true, marcar_excedente: true });
+      expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'nome', confirmar: true }, auth)).status).toBe(200);
+      expect(estadoGravado(304)!.etapas[1].confirmados!.nome).toMatchObject({ marca: expect.any(String) });
+      expect((await patch('/jornada-solar/obra/304', { financiamento: 'sim' }, auth)).status).toBe(200);
+      expect((await patch('/jornada-solar/obra/304', { excedente: 'nao' }, auth)).status).toBe(200);
+      expect((await patch('/jornada-solar/obra/304', { pedido: 'pedido_cnh', feito: true }, auth)).status).toBe(200);
+      expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'nome', confirmar: false }, auth)).status).toBe(200);
+    }
+    expect(estadoGravado(304)!.etapas[1]).toMatchObject({ financiamento: 'sim', excedente: 'nao' });
+    expect(conclusao()).toBe(antes);
+    const vend = (await obra(304, NILCE)).body.pode;
+    expect(vend).toMatchObject({ confirmar: false, marcar_excedente: false });
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'nome', confirmar: true }, NILCE)).status).toBe(403);
+    expect((await patch('/jornada-solar/obra/304', { financiamento: 'nao' }, NILCE)).status).toBe(403);
+    expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' }, NILCE)).status).toBe(403);
+    expect(estadoGravado(304)!.etapas[1].financiamento).toBe('sim');
+    // cancelada: ninguém
+    semear(304, (e) => { concluida1(e); e.cancelada = { em: AGORA, por: 'thiago', etapa: 2, com_numero: false }; });
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'nome', confirmar: true }, GIOVANNA)).status).toBe(409);
+  });
+  it('obra só deduzida (sem estado gravado): Giovanna e ADM não confirmam nem respondem, e nada é gravado', async () => {
+    cadastroBase();
+    const { assinarLigacao } = await import('../services/gerador/vendaSolarHub');
+    const lig = { proposta: null, venda: '#0057', por: 'nilce', em: AGORA };
+    h.linhas.set('venda_solar:304', { updated_at: 'v', value: { ...lig, sig: assinarLigacao(304, lig) } });
+    h.obrasPlanilha = [obraPlanilha({ codigo: '#0057', consultor: 'Nilce' })];
+    for (const auth of [GIOVANNA, THIAGO]) {
+      const o = await obra(304, auth);
+      expect(o.body.trilho).toBe('deduzida');
+      expect(o.body.pode).toMatchObject({ confirmar: false, marcar_excedente: false });
+      expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'nome', confirmar: true }, auth)).status).toBe(403);
+      expect((await patch('/jornada-solar/obra/304', { financiamento: 'sim' }, auth)).status).toBe(403);
+      expect((await patch('/jornada-solar/obra/304', { excedente: 'sim' }, auth)).status).toBe(403);
+    }
+    expect(estadoGravado(304)).toBeNull();
+  });
+  it('confirmar placas e inversor só enquanto o kit pode mudar: com a etapa 3 concluída, 403 e nada gravado; nome ainda passa', async () => {
+    semear(304, (e) => { na3(e); e.etapas[3].concluida_em = AGORA; e.etapas[3].concluida_por = 'thiago'; });
+    cadastroBase();
+    const antes = JSON.stringify(estadoGravado(304));
+    for (const chave of ['placas', 'inversor']) {
+      for (const auth of [GIOVANNA, THIAGO]) {
+        const r = await post('/jornada-solar/obra/304/confirmar', { chave, confirmar: true, texto: '14 x Canadian 590 W' }, auth);
+        expect(r.status, `${chave} ${auth}`).toBe(403);
+        expect(r.body.error).toBe('O kit só muda até a homologação.');
+      }
+    }
+    expect(JSON.stringify(estadoGravado(304))).toBe(antes);
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'nome', confirmar: true }, GIOVANNA)).status).toBe(200);
   });
   it('kit: confirmar na etapa 3 funciona (Giovanna), o PUT pede o Trello automático, e o GET diz pode.confirmar_kit só até a etapa 3 concluir', async () => {
     semear(304, na3); cadastroBase();

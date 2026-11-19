@@ -234,6 +234,16 @@ describe('itensDaEtapa', () => {
     expect(falta(todos)).not.toEqual(expect.arrayContaining(['papel_procuracao']));
     expect(todos.some((i) => i.chave.includes('recibo'))).toBe(false);
   });
+  it('etapa 1: o papel assinado anexado conta como papel gerado (obra feita fora do sistema)', () => {
+    const e = novo();
+    const feito = (slots: string[], chave: string): boolean => itensDaEtapa(1, base(e, new Set(slots), cadOk(), privadoOk())).find((i) => i.chave === chave)!.feito;
+    expect(feito([], 'papel_contrato')).toBe(false);
+    expect(feito([], 'papel_procuracao')).toBe(false);
+    expect(feito(['contrato_assinado'], 'papel_contrato')).toBe(true);
+    expect(feito(['contrato_assinado'], 'papel_procuracao')).toBe(false);
+    expect(feito(['procuracao'], 'papel_procuracao')).toBe(true);
+    expect(feito(['procuracao'], 'papel_contrato')).toBe(false);
+  });
   it('etapa 1: documentos e fotos do cliente fecham pelo ARQUIVO (CNH vale com documento_titular ou documento_titular_uc); o tique de pedido não é mais item', () => {
     const e = novo();
     const docs = (slots: string[]) => itensDaEtapa(1, base(e, new Set(slots), cadOk(), privadoOk())).filter((i) => i.bloco === 'documentos' || i.bloco === 'fotos').map((i) => [i.bloco, i.chave, i.feito]);

@@ -229,7 +229,10 @@ function podeDe(g: Guarda, l: Leitura, pos: Posicao) {
   const etapa = pos.etapa;
   const e1Aberta = l.estado ? !l.estado.etapas[1].concluida_em : pos.etapa === 1;
   const e1Feita = !!l.estado?.etapas[1].concluida_em || (pos.trilho !== 'jornada' && pos.etapa !== null && pos.etapa > 1);
-  // O kit se confirma (PUT /venda) até a etapa 3 concluir; o excedente, os pedidos e as confirmações valem até a etapa 1 concluir.
+  // O kit se confirma (PUT /venda) até a etapa 3 concluir. O excedente, os pedidos e as confirmações valem com a etapa 1 aberta (vendedor, Giovanna e ADM);
+  // com ela concluída e GRAVADA no estado, só Giovanna e ADM completam o que ficou pendente. Conclusão só deduzida (sem estado) não vale: o POST
+  // e o PATCH leem a posição sem a planilha e gravariam um estado novo na etapa 3, voltando a obra.
+  const e1Gravada = !!l.estado?.etapas[1].concluida_em;
   const e3Aberta = l.estado ? !l.estado.etapas[3].concluida_em : pos.etapa !== null && pos.etapa <= 3;
   const no123 = etapa !== null && etapa >= 1 && etapa <= 3;
   const par = l.slotsDoCard.has('contrato_assinado') && l.slotsDoCard.has('procuracao');
@@ -241,9 +244,10 @@ function podeDe(g: Guarda, l: Leitura, pos: Posicao) {
     esperar: !cancelada && no123 && (g.adm || donosDaEtapa(etapa as number, vend).includes(g.nome)),
     editar_venda: !cancelada && (e1Aberta ? (ehVend || g.adm) : (e1Feita && (giov || g.adm))),
     gerar_papeis: !cancelada && !l.obraEstado?.fechada && (giov || ehVend || g.adm),
-    marcar_excedente: !cancelada && (ehVend || giov || g.adm) && e1Aberta,
-    // Confirmar dados, ticar pedidos ao cliente e responder o financiamento (etapa 1 aberta): quem edita a venda e o cadastro.
-    confirmar: !cancelada && (ehVend || giov || g.adm) && e1Aberta,
+    // Excedente, financiamento e pedidos: com a etapa 1 aberta, vendedor, Giovanna e ADM; com ela concluída, só Giovanna e ADM completam o que ficou pendente (só grava o dado, não reabre a etapa).
+    marcar_excedente: !cancelada && !l.obraEstado?.fechada && (e1Aberta ? (ehVend || giov || g.adm) : (e1Gravada && (giov || g.adm))),
+    // Confirmar dados, ticar pedidos ao cliente e responder o financiamento: a mesma regra de `marcar_excedente`.
+    confirmar: !cancelada && !l.obraEstado?.fechada && (e1Aberta ? (ehVend || giov || g.adm) : (e1Gravada && (giov || g.adm))),
     // O relatório final em PDF: dono da obra, sócios e quem tem a etapa de qualquer obra.
     relatorio_final: !cancelada && (ehVend || g.adm || DONOS_FIXOS.has(g.nome)),
     // Confirmar o kit (etapa 3): as mesmas pessoas de `editar_venda` (a regra de quem mexe na venda não muda), enquanto a etapa 3 não conclui.
@@ -983,11 +987,13 @@ async function rotaConfirmar(req: Request, res: Response): Promise<void> {
     const estadoDoValor = usaTexto ? (() => { const x = l.estado ?? baseDe(g, l)(); return { ...x, etapas: { ...x.etapas, 1: { ...x.etapas[1], kit_texto: { ...(x.etapas[1].kit_texto ?? {}), [chave]: texto as string } } } }; })() : l.estado;
     const valor = valorConfirmavel(chave, entradaDe(l, estadoDoValor));
     if (b.confirmar && !valor) { res.status(409).json({ ok: false, error: 'Falta o dado para confirmar.' }); return; }
+    // Placas e inversor são o kit: depois da homologação ele não muda (a mesma trava do PUT /venda).
+    // Trava pela etapa, não pelo papel: quem confirma o resto (pode.confirmar) confirma o kit até a homologação concluir.
+    if ((chave === 'placas' || chave === 'inversor') && (!!l.estado?.etapas[3].concluida_em || !!l.obraEstado?.fechada)) { res.status(403).json({ ok: false, error: 'O kit só muda até a homologação.' }); return; }
     const agora = new Date().toISOString();
     const marca = valor ? marcaDoValor(chave, valor) : '';
     const r = await mudarJornada(g.id, baseDe(g, l), (e) => {
       if (e.cancelada) return { recusa: 'Venda cancelada.', http: 409 } as Recusa;
-      if (e.etapas[1].concluida_em) return { recusa: 'A etapa Venda já foi concluída.', http: 409 } as Recusa;
       const conf = { ...(e.etapas[1].confirmados ?? {}) };
       if (b.confirmar) conf[chave] = { em: agora, por: g.nome, marca }; else delete conf[chave];
       const { confirmados: _antes, ...resto0 } = e.etapas[1];
