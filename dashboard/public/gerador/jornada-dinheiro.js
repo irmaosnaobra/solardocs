@@ -66,6 +66,8 @@
     var d = O().dados; var e = d && d.etapas && d.etapas[n - 1];
     return e ? e.nome : '';
   }
+  /** O nome da etapa como a página do cliente mostra (19/11/2026): a etapa 1 da api são os passos 1 e 2, e assim por diante. */
+  function rotEtapa(n) { var h = H(); return h.rotEtapa ? h.rotEtapa(n) : 'Etapa ' + n + (nomeEtapa(n) ? ' · ' + nomeEtapa(n) : ''); }
 
   var TIPOS_LIDOS = { pix: 'Pix', ted: 'TED', boleto: 'Boleto', cartao: 'Cartão', dinheiro: 'Dinheiro', recibo: 'Recibo', nota_fiscal: 'Nota fiscal', cupom: 'Cupom' };
   var FORMA_DO_TIPO = { pix: 'pix', ted: 'transferencia', boleto: 'boleto', cartao: 'cartao', dinheiro: 'dinheiro' };
@@ -100,6 +102,11 @@
       '.jor-din-c.neg b{color:var(--io-er-tx,#FCA5A5)}',
       '.jor-din-painel{padding:16px 24px;margin:0 0 16px}',
       '.jor-din-tit{font-size:18px;margin:0 0 10px!important}',
+      '.jor-din-tt{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 10px}',
+      '.jor-din-tt .jor-din-tit{margin:0!important}',
+      '.jor-din-tt .jor-btn-link{margin-left:auto}',
+      '.jor-din-etapa{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500;color:var(--n-tx2)}',
+      '.jor-din-etapa .jor-sel{width:100%}',
       '.jor-din-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;margin-top:12px}',
       '.jor-din-col{min-width:0}',
       '.jor-din-etp{display:flex;justify-content:space-between;gap:10px;margin:12px 0 2px;padding-top:8px;border-top:2px solid var(--n-bd2,#475569);font-size:13px}',
@@ -164,7 +171,9 @@
     var l = din.livro; if (!l) return;
     // O painel de Dinheiro: os totais do livro (o servidor faz a conta), os recebimentos e os gastos, tudo à vista.
     var box = h.el('section', 'jor-din-painel jor-cartao'); box.setAttribute('aria-label', 'Dinheiro da obra');
-    box.appendChild(h.el('h3', 'jor-din-tit', 'Dinheiro'));
+    var tt = h.el('div', 'jor-din-tt'); tt.appendChild(h.el('h3', 'jor-din-tit', 'Caixa'));
+    if (!O().livroAberto) tt.appendChild(h.btn('Livro do dinheiro', 'jor-btn-link', function () { abrirLivro(); }));
+    box.appendChild(tt);
     var f = h.el('div', 'jor-din-faixa');
     f.appendChild(celula('Recebido', h.rs(l.recebido)));
     f.appendChild(celula('A receber', l.a_receber === null || l.a_receber === undefined ? 'Sem valor de venda' : h.rs(l.a_receber)));
@@ -188,9 +197,9 @@
   }
   function painelRecebimentos(din, l) {
     var h = H(); var c = h.el('div', 'jor-din-col');
-    c.appendChild(h.el('div', 'jor-din-sub', 'Recebimentos'));
+    c.appendChild(h.el('div', 'jor-din-sub', 'Entradas'));
     var ent = (l.linhas || []).filter(function (x) { return x.grupo === 'entrada'; });
-    if (!ent.length) c.appendChild(h.el('p', 'jor-nota', 'Nenhum recebimento lançado.'));
+    if (!ent.length) c.appendChild(h.el('p', 'jor-nota', 'Nenhuma entrada lançada.'));
     ent.forEach(function (x) {
       var r = linhaDe(x, din); var m = r.lastChild;
       if (!x.estornada && !x.estorno_de && m) {
@@ -203,21 +212,23 @@
     });
     var tot = h.el('div', 'jor-din-tot'); tot.appendChild(h.el('span', '', 'Total recebido')); tot.appendChild(h.el('span', 'jor-din-v', h.rs(l.recebido))); c.appendChild(tot);
     var p = din.pode || {};
-    if (p.lancar_entrada) { var ac = h.el('div', 'jor-din-acoes'); ac.appendChild(h.btn('Lançar recebimento', 'jor-btn-pri', function () { lancar({ tipo: 'entrada', etapa: 2 }); })); c.appendChild(ac); }
+    if (p.lancar_entrada) { var ac = h.el('div', 'jor-din-acoes'); ac.appendChild(h.btn('Lançar entrada', 'jor-btn-pri', function () { lancar({ tipo: 'entrada', etapa: 2 }); })); c.appendChild(ac); }
     return c;
   }
   function painelGastos(din, l, veRet) {
     var h = H(); var c = h.el('div', 'jor-din-col');
-    c.appendChild(h.el('div', 'jor-din-sub', 'Gastos'));
-    var tot = h.el('div', 'jor-din-tot'); tot.appendChild(h.el('span', '', 'Total de gastos')); tot.appendChild(h.el('span', 'jor-din-v', h.rs(l.gasto))); c.appendChild(tot);
+    c.appendChild(h.el('div', 'jor-din-sub', 'Saídas'));
+    var tot = h.el('div', 'jor-din-tot'); tot.appendChild(h.el('span', '', 'Total de saídas')); tot.appendChild(h.el('span', 'jor-din-v', h.rs(l.gasto))); c.appendChild(tot);
     var linhas = l.linhas || []; var atual = h.atual() || 1; var algum = false;
     for (var n = 1; n <= 8; n++) {
       var custo = linhas.filter(function (x) { return Number(x.etapa) === n && x.grupo === 'custo'; });
       if (n > atual && !custo.length) continue;
-      var cab = h.el('div', 'jor-din-etp'); cab.appendChild(h.el('b', '', 'Etapa ' + n + (nomeEtapa(n) ? ' · ' + nomeEtapa(n) : ''))); cab.appendChild(h.el('span', 'jor-din-v', h.rs(porEtapa(l, n)))); c.appendChild(cab);
+      var cab = h.el('div', 'jor-din-etp'); cab.appendChild(h.el('b', '', rotEtapa(n))); cab.appendChild(h.el('span', 'jor-din-v', h.rs(porEtapa(l, n)))); c.appendChild(cab);
       custo.forEach(function (x) { c.appendChild(linhaDe(x, din)); algum = true; });
     }
-    if (!algum) c.appendChild(h.el('p', 'jor-nota', 'Nenhum gasto lançado.'));
+    if (!algum) c.appendChild(h.el('p', 'jor-nota', 'Nenhuma saída lançada.'));
+    var ps = din.pode || {};
+    if (ps.lancar_saida) { var as = h.el('div', 'jor-din-acoes'); as.appendChild(h.btn('Lançar saída', 'jor-btn-pri', function () { lancar({ tipo: 'saida', escolherEtapa: true }); })); c.appendChild(as); }
     if (veRet) {
       var ret = linhas.filter(function (x) { return x.grupo === 'retirada'; });
       if (ret.length) { c.appendChild(h.el('div', 'jor-din-sub', 'Retirada dos sócios, fora do custo')); ret.forEach(function (x) { c.appendChild(linhaDe(x, din)); }); }
@@ -483,7 +494,7 @@
     var h = H(); var din = O().dinheiro; if (!din || !din.livro) return;
     var com = o.comissao || null;
     var tipo = o.tipo === 'entrada' ? 'entrada' : 'saida';
-    var etapa = com ? 2 : (Number(o.etapa) || h.atual() || 1);
+    var etapa = com ? 2 : (Number(o.etapa) || Math.min(8, h.atual() || 1));
     var cats = categoriasDe(din, tipo);
     var est = { arq: null, sug: null, ler: '', enviando: false, salvando: false, travado: false, erro: '', aviso: '', id: novoId(), tocado: {}, auto: {}, escolha: null, dup: null, confirmarDup: false, salvou: false };
     var ctl = {}; var refs = {};
@@ -616,15 +627,26 @@
       if (conf === 'divergente') c.appendChild(h.el('p', 'jor-aviso', 'O valor ficou diferente do comprovante. O Thiago confere.'));
       else if (conf === 'sem_leitura' || conf === 'baixa_confianca') c.appendChild(h.el('p', 'jor-nota', 'A IA não conseguiu conferir o valor. O Thiago confere.'));
       var bt = h.el('div', 'jor-dlg-bt');
-      if (!com) h.add(bt, h.btn(tipo === 'entrada' ? 'Lançar outro' : 'Lançar outro', '', function () { h.fecharDlg(); lancar({ tipo: tipo, etapa: etapa, categoria: o.categoria, compra_id: o.compra_id, carga_id: o.carga_id }); }));
-      h.add(bt, h.btn('Voltar à etapa', 'jor-btn-pri', function () { h.fecharDlg(); h.recarregar(); if (o.depois) o.depois(); }));
+      if (!com) h.add(bt, h.btn('Lançar outro', '', function () { h.fecharDlg(); lancar({ tipo: tipo, etapa: etapa, categoria: o.categoria, compra_id: o.compra_id, carga_id: o.carga_id, escolherEtapa: o.escolherEtapa }); }));
+      h.add(bt, h.btn('Fechar', 'jor-btn-pri', function () { h.fecharDlg(); h.recarregar(); if (o.depois) o.depois(); }));
       c.appendChild(bt);
     }
 
     var api2 = h.dialogo(com ? 'Pagar comissão' : (tipo === 'entrada' ? 'Lançar recebimento' : 'Lançar gasto'), function (c) {
       c.classList.add('jor-din-dlg'); ctl.caixa = c;
-      var et = h.el('p', 'jor-nota'); et.appendChild(document.createTextNode('Etapa ' + etapa + ' · ' + nomeEtapa(etapa) + ' '));
-      et.appendChild(h.el('span', 'jor-din-chip', 'Já marcada')); c.appendChild(et);
+      if (o.escolherEtapa && !com) {
+        var le = h.el('label', 'jor-din-etapa', 'Etapa');
+        refs.etapa_in = h.el('select', 'jor-sel'); refs.etapa_in.name = 'etapa';
+        var abertas = Math.min(8, h.atual() || 1);
+        for (var x = 1; x <= abertas; x++) { var op = h.el('option', '', rotEtapa(x)); op.value = String(x); refs.etapa_in.appendChild(op); }
+        etapa = Math.min(abertas, Math.max(1, etapa));
+        refs.etapa_in.value = String(etapa);
+        refs.etapa_in.addEventListener('change', function () { etapa = Number(refs.etapa_in.value) || etapa; });
+        le.appendChild(refs.etapa_in); c.appendChild(le);
+      } else if (tipo === 'saida' || com) {
+        var et = h.el('p', 'jor-nota'); et.appendChild(document.createTextNode(rotEtapa(etapa) + ' '));
+        et.appendChild(h.el('span', 'jor-din-chip', 'Já marcada')); c.appendChild(et);
+      }
       if (com) c.appendChild(h.el('p', '', (com.rotulo || (h.nomeBonito(com.nome) + ' · ' + (com.papel === 'venda' ? 'venda' : 'sócio'))) + ' · ' + h.rs(com.valor_centavos)));
       // 1. Anexo
       var bl = h.el('div'); bl.appendChild(h.el('b', '', 'Comprovante'));
@@ -770,7 +792,7 @@
     topo.appendChild(h.btn('Voltar à obra', '', function () { h.desenhar(); }));
     raiz.appendChild(topo);
     raiz.appendChild(h.el('p', 'jor-nota', d.card.cliente));
-    faixa(raiz, din);
+    ob.livroAberto = true; faixa(raiz, din); ob.livroAberto = false;
     var fil = h.el('div', 'jor-filtros'); fil.setAttribute('aria-label', 'Filtrar por etapa');
     [['todas', 'Todas']].concat([1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (x) { return [String(x), String(x)]; })).forEach(function (f) {
       var b = h.el('button', 'jor-chip' + (S.filtro === f[0] ? ' on' : ''), f[1]); b.type = 'button';

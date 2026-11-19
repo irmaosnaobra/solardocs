@@ -205,6 +205,26 @@ describe('itensDaEtapa', () => {
     expect(bancoPreenchido({ ...banco, agencia: '' })).toBe(false);
     expect(bancoPreenchido(null)).toBe(false);
   });
+  it('etapa 1: com financiamento "sim" entram os documentos do titular do financiamento (feito pelo arquivo); com "nao" ou sem resposta não existem; a etapa 2 não os herda', () => {
+    const e = novo();
+    const CH = ['documento_financiamento', 'comprovante_endereco_financiamento'];
+    const dos = (fin: 'sim' | 'nao' | null, slots: string[]) => {
+      if (fin) e.etapas[1].financiamento = fin; else delete e.etapas[1].financiamento;
+      return itensDaEtapa(1, base(e, new Set(slots), cadOk(), privadoOk())).filter((i) => CH.includes(i.chave));
+    };
+    expect(dos('sim', []).map((i) => [i.bloco, i.chave, i.texto, i.feito])).toEqual([
+      ['documentos', 'documento_financiamento', 'Documento do titular do financiamento', false],
+      ['documentos', 'comprovante_endereco_financiamento', 'Comprovante de endereço do titular do financiamento', false],
+    ]);
+    expect(dos('sim', ['documento_financiamento']).map((i) => [i.chave, i.feito])).toEqual([['documento_financiamento', true], ['comprovante_endereco_financiamento', false]]);
+    expect(dos('sim', CH).every((i) => i.feito)).toBe(true);
+    expect(dos('nao', CH)).toEqual([]);
+    expect(dos(null, CH)).toEqual([]);
+    // obra antiga com financiamento "sim": a etapa 2 não lista os documentos do financiamento como pendência
+    e.etapas[1].financiamento = 'sim';
+    const e2 = itensDaEtapa(2, base(e, new Set(), cadOk(), privadoOk()));
+    expect(e2.some((i) => CH.includes(i.chave))).toBe(false);
+  });
   it('etapa 1: contrato e procuração gerados vêm de etapas[2].papeis (recibo não é item)', () => {
     const e = novo();
     expect(falta(itensDaEtapa(1, base(e, new Set(), cadOk(), privadoOk())))).toEqual(expect.arrayContaining(['papel_contrato', 'papel_procuracao']));
