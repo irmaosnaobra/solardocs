@@ -37,8 +37,11 @@ const CONJUNTOS: { id: string; nome: string }[] = [
 ];
 
 // ── painel ──────────────────────────────────────────────────────────────────
-export default function MonjourFunilPanel() {
-  const [periodo, setPeriodo] = useState('7dias');
+// Dentro do hub Produtos o período vem de fora (o mesmo das outras sub-abas do Monjour).
+export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo }: { periodo?: string; onPeriodo?: (p: string) => void } = {}) {
+  const [periodoLocal, setPeriodoLocal] = useState('7dias');
+  const periodo = periodoFora ?? periodoLocal;
+  const setPeriodo = onPeriodo ?? setPeriodoLocal;
   const [pais, setPais] = useState('');
   const [disp, setDisp] = useState('');
   const [origem, setOrigem] = useState('');   // 'a:<id>' anúncio, 'c:<id>' conjunto, '' todos
