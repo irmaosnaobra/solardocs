@@ -2,25 +2,29 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <!-- LISTA NEXUS (link da bio do Instagram). Lista permanente de interesse em
-     eletroposto e mobilidade elétrica. Cinco passos, um por tela, sem recarregar:
-     1 o que procura (múltipla), 2 para quê, 3 quanto investir, 4 como pagar
-     (resposta única avança no toque), 5 dados. Tela final: "nº X da lista".
+     eletroposto e mobilidade elétrica. Seis telas por ramo, sem recarregar:
+     1 a porta (Eletroposto ou Mobilidade elétrica).
+     Eletroposto: 2 o caminho, 3 a 5 as três perguntas daquele caminho, 6 dados.
+     Mobilidade: 2 itens (múltipla), 3 para quê, 4 quanto investir, 5 como pagar, 6 dados.
+     Resposta única avança no toque. Tela final: "nº X da lista" e o resumo.
 
      DESENHO: escuro institucional da NEXUS (#0B1A2B), raio curto, sem brilho. O
-     VERDE É SÓ DA AÇÃO (botão principal). Seleção e progresso em azul. O bloco do
-     Eletroposto NEXUS vem primeiro e maior, com as seis frentes e o "(?)" de cada.
-     Ícones em traço, desenhados aqui: nada de marca de montadora.
+     VERDE É SÓ DA AÇÃO (botão principal). Seleção e progresso em azul. A porta do
+     Eletroposto vem primeiro e maior. Ícones em traço, desenhados aqui.
 
-     CONTRATO: POST /_api/io/eletroposto/nexus-interesse. Os slugs (value) são os
-     que o backend aceita: rótulo pode mudar, slug não. Em localhost a resposta é
-     simulada ({ok:true,posicao:42,novo:true}) para conferir o fluxo inteiro.
+     CONTRATO: POST /_api/io/eletroposto/nexus-interesse (spec nexus v2). Os slugs
+     (data-v e as chaves de PERG) são os que o backend aceita: rótulo pode mudar,
+     slug não. A resposta pode trazer aviso:'sem_whatsapp' (o cadastro grava mesmo
+     assim) e a tela final pede para conferir o número.
+     Em localhost a resposta é simulada ({ok:true,posicao:42,novo:true}); com
+     ?simular=semwhats a primeira resposta vem com o aviso.
      Pixel: conjunto "Eletroposto". Nunca track('Lead') aqui: o evento é custom.
 
      Todo asset com caminho absoluto: o servidor tira a barra final e ./ quebra. -->
 <title>Lista NEXUS | Eletroposto e mobilidade elétrica</title>
-<meta name="description" content="Eletroposto, carros, motos, bikes e carregadores elétricos. Diga o que você procura e quanto pretende investir. A equipe NEXUS fala com você.">
+<meta name="description" content="Eletroposto, carros, motos, bikes e carregadores elétricos. Escolha o seu caminho, responda poucas perguntas e a equipe NEXUS fala com você.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://solardoc.app/nexus/interesse">
 <meta property="og:type" content="website">
@@ -53,6 +57,7 @@
   --acao:#39FF14; --acao-tinta:#06121F; --acao-hover:#5BFF3D;
   --azul:#0085FF; --azul-fundo:rgba(0,133,255,.12); --azul-texto:#5CB0FF; --azul-borda:rgba(0,133,255,.5);
   --erro:#FF8A80; --erro-fundo:rgba(255,99,88,.10);
+  --alerta:#FFD27A; --alerta-fundo:rgba(255,196,77,.09); --alerta-borda:rgba(255,196,77,.45);
   --sans:"Montserrat","Helvetica Neue",Arial,sans-serif;
   --r:10px; --r-s:8px;
   --col:480px; --pad:20px;
@@ -99,18 +104,19 @@ fieldset{border:0;min-width:0}
   transition:color .15s,background-color .15s;
 }
 .voltar:hover{color:var(--texto);background:rgba(255,255,255,.05)}
-.barras{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.barras{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
 .barras span{height:3px;border-radius:3px;background:var(--linha);overflow:hidden;position:relative}
 .barras span::after{content:"";position:absolute;inset:0;background:var(--azul);transform:scaleX(0);transform-origin:left;transition:transform .45s var(--ease)}
 .barras span.on::after{transform:scaleX(1)}
 .passoN{font-size:12.5px;font-weight:600;color:var(--suave)}
 
-/* ---------- passos ---------- */
+/* ---------- telas ---------- */
 form{flex:1;display:flex;flex-direction:column}
 .passo{flex:1;display:flex;flex-direction:column}
 .entra{animation:entra .38s var(--ease) both}
 @keyframes entra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .olho{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--azul-texto)}
+.olho-q{margin-bottom:10px}
 h1,h2,h3{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
 .tit{font-size:30px;outline:none}
 .sub{margin-top:10px;font-size:15px;color:var(--suave);line-height:1.5;text-wrap:pretty;max-width:42ch}
@@ -125,55 +131,74 @@ h1,h2,h3{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balan
 .q:hover,.q[aria-expanded="true"]{color:var(--texto);border-color:var(--azul)}
 .q[aria-expanded="true"]{background:var(--azul-fundo)}
 
-/* ---------- passo 1: Eletroposto NEXUS (o destaque) ---------- */
-.ep{
-  margin-top:22px;border:1px solid var(--azul-borda);border-radius:14px;overflow:hidden;
-  background:linear-gradient(180deg,#12304F 0%,var(--tinta-2) 62%);
+/* ---------- tela 1: as duas portas ---------- */
+.portas{display:grid;gap:12px;margin-top:24px}
+.porta{
+  position:relative;display:flex;width:100%;text-align:left;border-radius:14px;
+  border:1px solid var(--linha);background:var(--tinta-2);
+  transition:border-color .18s,background-color .18s,transform .18s var(--ease);
+}
+.porta:active{transform:scale(.99)}
+.porta:hover{border-color:var(--linha-2)}
+.porta-ep{
+  align-items:stretch;gap:14px;padding:18px 16px 16px 18px;min-height:208px;
+  border-color:var(--azul-borda);background:linear-gradient(180deg,#12304F 0%,var(--tinta-2) 72%);
   box-shadow:0 0 0 4px rgba(0,133,255,.06);
 }
-.ep-topo{display:flex;align-items:center;gap:14px;padding:16px 16px 14px}
-.ep-txt{flex:1;min-width:0}
+.porta-ep:hover{border-color:var(--azul)}
+.porta.on{border-color:var(--azul)}
+.porta-txt{flex:1;min-width:0;display:flex;flex-direction:column}
 .selo{
-  display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;
+  align-self:flex-start;display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;
   background:rgba(0,133,255,.18);border:1px solid var(--azul-borda);
-  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9FD0FF;
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9FD0FF;white-space:nowrap;
 }
 .selo svg{width:12px;height:12px;fill:currentColor}
-.ep h2{margin-top:10px;font-size:23px;line-height:1.1}
-.ep-sub{margin-top:5px;font-size:13.5px;line-height:1.45;color:var(--suave)}
-.ep-foto{
-  flex:none;width:78px;height:96px;border-radius:10px;background:#F3F5F8;
+.porta-nome{display:block;font-size:27px;font-weight:800;letter-spacing:-.03em;line-height:1.08}
+.porta-ep .porta-nome{margin-top:12px}
+.porta-sub{display:block;margin-top:6px;font-size:14px;line-height:1.45;color:#C9D5E2;text-wrap:pretty}
+.porta-cta{
+  margin-top:auto;padding-top:14px;display:inline-flex;align-items:center;gap:6px;
+  font-size:14px;font-weight:700;color:var(--azul-texto);
+}
+.porta-cta svg,.porta-mob .seta{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s var(--ease)}
+.porta:hover .porta-cta svg,.porta:hover .seta{transform:translateX(3px)}
+.porta-foto{
+  flex:none;width:96px;align-self:center;height:150px;border-radius:10px;background:#F3F5F8;
   display:grid;place-items:center;overflow:hidden;
 }
-.ep-foto img{width:70px;height:86px;object-fit:contain}
-.frentes{display:grid;gap:8px;padding:0 12px 12px}
-.frente{
-  position:relative;border:1px solid var(--linha);border-radius:var(--r);background:rgba(11,26,43,.55);
+.porta-foto img{width:86px;height:105px;object-fit:contain}
+.porta-mob{align-items:center;gap:14px;padding:14px 16px 14px 14px;min-height:96px}
+.porta-mob .porta-nome{font-size:19px}
+.porta-mob .porta-sub{margin-top:3px;font-size:13.5px;color:var(--suave)}
+.porta-mob .seta{flex:none;stroke:var(--suave)}
+.icones4{
+  flex:none;display:grid;grid-template-columns:1fr 1fr;gap:6px;width:68px;height:68px;padding:8px;
+  border-radius:10px;background:rgba(255,255,255,.05);color:var(--suave);
+}
+.icones4 svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- tela 2 do eletroposto: o caminho ---------- */
+.cams{display:flex;flex-direction:column;gap:8px;margin-top:22px}
+.cam{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+  border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2);
   transition:border-color .18s,background-color .18s;
 }
-.frente:hover{border-color:var(--linha-2)}
-.frente.on{border-color:var(--azul);background:rgba(0,133,255,.16)}
-.frente-linha{display:flex;align-items:center;gap:10px;padding-right:12px}
-.frente label{flex:1;display:flex;align-items:center;gap:12px;min-height:54px;padding:0 0 0 14px;cursor:pointer}
-.frente input{position:absolute;opacity:0;width:1px;height:1px}
-.frente .nome{font-size:15.5px;font-weight:700;line-height:1.25}
-.frente input:focus-visible~.quad{outline:2px solid var(--azul);outline-offset:3px}
-.expl{padding:0 14px 13px 46px;font-size:13px;line-height:1.45;color:#C9D5E2}
-
-/* caixinha de marcar (quadrada = múltipla escolha) */
-.quad{
-  width:20px;height:20px;flex:none;border-radius:5px;border:1.5px solid var(--linha-2);
-  display:grid;place-items:center;transition:background-color .18s,border-color .18s;
+.cam:hover{border-color:var(--linha-2)}
+.cam.on{border-color:var(--azul);background:var(--azul-fundo)}
+.cam-btn{
+  display:flex;align-items:center;gap:14px;min-height:64px;padding:10px 8px 10px 12px;text-align:left;
+  border-radius:var(--r);transition:transform .18s var(--ease);
 }
-.quad svg{width:12px;height:12px;fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.4);transition:opacity .18s,transform .25s var(--ease)}
-input:checked~.quad{background:var(--azul);border-color:var(--azul)}
-input:checked~.quad svg{opacity:1;transform:none}
+.cam-btn:active{transform:scale(.985)}
+.cam-btn .rot{flex:1;font-size:15.5px;font-weight:700;line-height:1.25}
+.cam .q{margin:0 16px 0 4px}
+.cam .expl{grid-column:1/-1;padding:0 16px 14px 66px;font-size:13px;line-height:1.45;color:#C9D5E2}
+.cam.on .quadro{color:var(--texto);background:rgba(0,133,255,.22)}
 
-/* ---------- passo 1: mobilidade elétrica ---------- */
-.mob{margin-top:28px}
-.mob-tit{font-size:19px}
-.mob-sub{margin-top:4px;font-size:13.5px;color:var(--suave)}
-.grupo{margin-top:18px}
+/* ---------- mobilidade: itens ---------- */
+.grupo{margin-top:20px}
 .grupo-tit{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);margin-bottom:8px}
 .grade{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .item{position:relative;display:block;cursor:pointer}
@@ -191,11 +216,13 @@ input:checked~.quad svg{opacity:1;transform:none}
 .ico svg,.quadro svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .item input:checked+.caixa .ico{color:var(--texto)}
 .item .rot{flex:1;min-width:0;font-size:14px;font-weight:600;line-height:1.25}
-.item .quad{width:18px;height:18px;border-radius:50%}
-.item .quad svg{width:10px;height:10px}
+.quad{
+  width:18px;height:18px;flex:none;border-radius:50%;border:1.5px solid var(--linha-2);
+  display:grid;place-items:center;transition:background-color .18s,border-color .18s;
+}
+.quad svg{width:10px;height:10px;fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.4);transition:opacity .18s,transform .25s var(--ease)}
 .item input:checked+.caixa .quad{background:var(--azul);border-color:var(--azul)}
 .item input:checked+.caixa .quad svg{opacity:1;transform:none}
-
 .naoachou{margin-top:24px;padding-top:20px;border-top:1px solid var(--linha)}
 
 /* ---------- campos ---------- */
@@ -230,17 +257,17 @@ input:checked~.quad svg{opacity:1;transform:none}
 .bloco-tit{margin-top:10px;padding-top:18px;border-top:1px solid var(--linha);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--suave)}
 .mel{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
 
-/* resumo do que marcou (passo 5) */
+/* resumo do que respondeu (tela de dados) */
 .resumo{
   display:flex;align-items:flex-start;gap:10px;margin-top:18px;padding:12px 14px;
   border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2);
   font-size:13.5px;color:var(--suave);line-height:1.45;
 }
 .resumo b{color:var(--texto);font-weight:600}
-.resumo button{flex:none;font-size:13px;font-weight:700;color:var(--azul-texto);padding:10px 6px;margin:-10px -6px -10px auto}
+.resumo button{flex:none;min-height:44px;font-size:13px;font-weight:700;color:var(--azul-texto);padding:0 8px;margin:-12px -8px -12px auto}
 .resumo button:hover{text-decoration:underline;text-underline-offset:3px}
 
-/* ---------- passos 2 a 4: resposta única ---------- */
+/* ---------- resposta única ---------- */
 .opcoes{display:flex;flex-direction:column;gap:10px;margin-top:22px}
 .opcao{
   display:flex;align-items:center;gap:14px;width:100%;min-height:72px;padding:12px 16px 12px 14px;text-align:left;
@@ -255,8 +282,13 @@ input:checked~.quad svg{opacity:1;transform:none}
 .opcao .rot{flex:1;font-size:15.5px;font-weight:700;line-height:1.25}
 .opcao .rot small{display:block;margin-top:2px;font-size:12.5px;font-weight:500;color:var(--suave);line-height:1.35}
 .opcoes.faixas{gap:8px}
-.faixas .opcao{min-height:56px;padding:0 16px}
+.faixas .opcao{min-height:56px;padding:10px 16px}
 .faixas .opcao .rot{font-size:16px}
+.opcoes.duas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.duas .opcao{min-height:58px;padding:10px 14px}
+.duas .opcao .rot{font-size:15px}
+.duas .opcao .seta{display:none}
+.duas .opcao:last-child:nth-child(odd){grid-column:1/-1}
 .seta{width:18px;height:18px;fill:none;stroke:var(--suave);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;transition:transform .2s var(--ease)}
 .opcao:hover .seta{transform:translateX(3px)}
 
@@ -309,20 +341,46 @@ input:checked~.quad svg{opacity:1;transform:none}
 .fim-num i{font-style:normal;font-size:.42em;font-weight:700;color:var(--suave);letter-spacing:-.01em;margin-right:.12em;vertical-align:.62em}
 .fim-txt{margin-top:18px;font-size:15px;line-height:1.55;color:var(--suave);max-width:40ch;text-wrap:pretty}
 .fim-txt b{color:var(--texto);font-weight:600}
-.chips-tit{margin-top:22px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--suave)}
+.fim-ok{margin-top:14px;font-size:13.5px;font-weight:600;color:var(--azul-texto)}
+.fim-ok:empty{margin:0}
+.chips-tit{margin-top:24px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--suave)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .chips li{list-style:none;display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:4px 12px;border-radius:999px;border:1px solid var(--linha-2);font-size:13px;font-weight:600;color:var(--texto);line-height:1.3}
 .chips li.ep-chip{border-color:var(--azul);background:rgba(0,133,255,.16)}
 .chips li.ep-chip svg{width:12px;height:12px;fill:var(--azul-texto)}
 .chips li.leve{color:var(--suave);border-color:var(--linha)}
+.resp{margin-top:10px;border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2)}
+.resp div{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:11px 14px;border-top:1px solid var(--linha)}
+.resp div:first-child{border-top:0}
+.resp dt{flex:none;max-width:46%;font-size:13px;color:var(--suave);line-height:1.4}
+.resp dd{font-size:14px;font-weight:600;line-height:1.4;text-align:right;text-wrap:pretty}
+.resp .ep-dd{color:var(--azul-texto)}
 .fim-share{margin-top:auto;padding:28px 0 calc(16px + env(safe-area-inset-bottom))}
 .fim-share p{font-size:13.5px;color:var(--suave);margin-bottom:10px;text-wrap:balance}
 .fim-mudar{display:block;margin:10px auto 0;height:44px;padding:0 12px;font-size:13.5px;font-weight:600;color:var(--suave);border-radius:8px}
 .fim-mudar:hover{color:var(--texto)}
 .copiado{min-height:18px;margin-top:8px;text-align:center;font-size:13px;font-weight:600;color:var(--azul-texto)}
 
+/* cartão "esse número não aparece no WhatsApp" */
+.aviso{margin-top:20px;padding:16px;border-radius:12px;border:1px solid var(--alerta-borda);background:var(--alerta-fundo)}
+.aviso-tit{display:flex;align-items:flex-start;gap:10px;font-size:15.5px;font-weight:700;line-height:1.35;color:var(--alerta)}
+.aviso-tit svg{width:20px;height:20px;flex:none;margin-top:1px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.aviso-sub{margin:6px 0 0 30px;font-size:13.5px;line-height:1.45;color:var(--suave)}
+.aviso .campo{margin-top:14px}
+.aviso-acoes{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.btn-claro{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 22px;border-radius:var(--r);
+  background:var(--texto);color:var(--tinta);font-size:15px;font-weight:700;transition:background-color .15s,transform .15s var(--ease);
+}
+.btn-claro:hover{background:#fff}
+.btn-claro:active{transform:scale(.985)}
+.btn-claro[disabled]{opacity:.7;cursor:progress}
+.btn-claro .gira{border-color:rgba(11,26,43,.25);border-top-color:var(--tinta)}
+.btn-fant{height:48px;padding:0 12px;border-radius:var(--r);font-size:14px;font-weight:600;color:var(--suave)}
+.btn-fant:hover{color:var(--texto);background:rgba(255,255,255,.05)}
+
 .rodape{padding:6px 0 18px;font-size:12px;color:var(--fraco);display:flex;gap:6px;justify-content:center}
-.rodape a{color:var(--suave);text-underline-offset:3px}
+.rodape a{color:var(--suave);text-underline-offset:3px;padding:13px 6px;margin:-13px -6px}
 
 /* ---------- computador ---------- */
 @media (min-width:960px){
@@ -355,10 +413,16 @@ input:checked~.quad svg{opacity:1;transform:none}
   .trilho{margin-top:30px;margin-bottom:12px}
   .fim{padding-top:72px}
   .grade{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .frentes{grid-template-columns:1fr 1fr;padding:0 14px 14px}
-  .frente.aberta{grid-column:1/-1}
-  .ep-topo{padding:20px 20px 16px}
-  .ep h2{font-size:26px}
+  .porta-ep{min-height:232px;padding:22px 20px 20px 22px}
+  .porta-ep .porta-nome{font-size:32px}
+  .porta-foto{width:124px;height:180px}
+  .porta-foto img{width:112px;height:137px}
+}
+@media (max-width:374px){
+  .porta-ep{gap:12px;padding-right:14px}
+  .porta-foto{width:84px}
+  .porta-foto img{width:76px;height:93px}
+  .selo{font-size:10.5px;letter-spacing:.03em;padding:0 8px;gap:5px}
 }
 @media (max-width:359px){
   :root{--pad:16px}
@@ -368,6 +432,15 @@ input:checked~.quad svg{opacity:1;transform:none}
   .item .rot{font-size:13px}
   .linha-cep{grid-template-columns:1fr}
   .linha-cep .cep-st{padding-bottom:0}
+  .porta-foto{width:80px}
+  .porta-foto img{width:72px;height:88px}
+  .porta-nome{font-size:24px}
+}
+/* tela baixa (Android pequeno ou teclado aberto): o pé fixo encolhe para não tampar o campo */
+@media (max-height:520px){
+  .pe{padding-top:10px;background:var(--tinta)}
+  .pe .aceite{margin-top:6px;font-size:11px;line-height:1.4}
+  html{scroll-padding-bottom:130px}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -387,7 +460,7 @@ input:checked~.quad svg{opacity:1;transform:none}
     <div class="painel-pe">
       <p class="painel-olho">Lista NEXUS</p>
       <p class="painel-h">Eletroposto e mobilidade elétrica</p>
-      <p class="painel-txt">Diga o que você procura, para quê e quanto pretende investir. A equipe NEXUS fala com você pelo WhatsApp.</p>
+      <p class="painel-txt">Escolha o que você procura e responda poucas perguntas, cada uma com um toque. A equipe NEXUS fala com você pelo WhatsApp.</p>
       <ul class="painel-lista" aria-label="O que tem na lista">
         <li>Eletroposto</li><li>Carros</li><li>Motos e scooters</li><li>Bikes</li><li>Carregadores</li>
       </ul>
@@ -402,13 +475,13 @@ input:checked~.quad svg{opacity:1;transform:none}
     </header>
 
     <div class="trilho" id="trilho">
-      <div class="barras" aria-hidden="true"><span class="on"></span><span></span><span></span><span></span><span></span></div>
+      <div class="barras" id="barras" aria-hidden="true"></div>
       <div class="trilho-linha">
         <p class="olho" id="olho">Lista de interesse</p>
         <button type="button" class="voltar" id="voltar" hidden>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Voltar
         </button>
-        <p class="passoN num" id="passoN">Passo 1 de 5</p>
+        <p class="passoN num" id="passoN">Passo 1 de 6</p>
       </div>
     </div>
 
@@ -419,62 +492,53 @@ input:checked~.quad svg{opacity:1;transform:none}
         <input id="site" name="site" type="text" tabindex="-1" autocomplete="off" value="">
       </div>
 
-      <!-- PASSO 1: o que procura (múltipla) -->
-      <section class="passo" data-passo="1" aria-labelledby="t1">
-        <h1 class="tit" id="t1" tabindex="-1">O que você procura?</h1>
-        <p class="sub">Marque quantos quiser. Se não estiver aqui, escreva no fim.</p>
-
-        <!-- ELETROPOSTO NEXUS: primeiro e maior -->
-        <fieldset class="ep" aria-describedby="epSub">
-          <legend class="sr">Eletroposto NEXUS. Marque uma ou mais frentes.</legend>
-          <div class="ep-topo">
-            <div class="ep-txt">
+      <!-- TELA 1: a porta -->
+      <section class="passo" data-tela="porta" aria-labelledby="t-porta">
+        <h1 class="tit" id="t-porta" tabindex="-1">O que você procura?</h1>
+        <p class="sub">Toque em uma opção.</p>
+        <div class="portas" role="group" aria-labelledby="t-porta">
+          <button type="button" class="porta porta-ep" data-porta="eletroposto">
+            <span class="porta-txt">
               <span class="selo"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7 .8 2.2 7h3.1L4.6 11.2 9.8 4.8H6.6Z"/></svg>Carro-chefe da NEXUS</span>
-              <h2>Eletroposto NEXUS</h2>
-              <p class="ep-sub" id="epSub">Seis jeitos de entrar no negócio de recarga.</p>
-            </div>
-            <div class="ep-foto"><img src="/nexus/img/dc-3q-dir.webp" width="660" height="807" alt="Carregador rápido NEXUS" decoding="async"></div>
-          </div>
-          <div class="frentes" id="frentes">
-            <div class="frente" data-frente="cotista"><div class="frente-linha">
-              <label><input type="checkbox" name="eletroposto" value="cotista"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Cotista</span></label>
-              <button type="button" class="q" aria-expanded="false" aria-controls="x-cotista" aria-label="O que é Cotista">?</button>
-            </div><p class="expl" id="x-cotista" hidden>Compra uma cota de um eletroposto e recebe a sua parte do faturamento.</p></div>
-
-            <div class="frente" data-frente="investidor"><div class="frente-linha">
-              <label><input type="checkbox" name="eletroposto" value="investidor"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Investidor</span></label>
-              <button type="button" class="q" aria-expanded="false" aria-controls="x-investidor" aria-label="O que é Investidor">?</button>
-            </div><p class="expl" id="x-investidor" hidden>Investe em sociedade com a NEXUS, meio a meio, num ou mais postos.</p></div>
-
-            <div class="frente" data-frente="arrendamento"><div class="frente-linha">
-              <label><input type="checkbox" name="eletroposto" value="arrendamento"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Arrendamento</span></label>
-              <button type="button" class="q" aria-expanded="false" aria-controls="x-arrendamento" aria-label="O que é Arrendamento">?</button>
-            </div><p class="expl" id="x-arrendamento" hidden>Você cede o espaço, a NEXUS investe 100% e você recebe pelo uso do local.</p></div>
-
-            <div class="frente" data-frente="chave_na_mao"><div class="frente-linha">
-              <label><input type="checkbox" name="eletroposto" value="chave_na_mao"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Chave na mão</span></label>
-              <button type="button" class="q" aria-expanded="false" aria-controls="x-chave_na_mao" aria-label="O que é Chave na mão">?</button>
-            </div><p class="expl" id="x-chave_na_mao" hidden>Você investe e o posto é seu. A NEXUS entrega projeto, obra, equipamento e software.</p></div>
-
-            <div class="frente" data-frente="parceiro"><div class="frente-linha">
-              <label><input type="checkbox" name="eletroposto" value="parceiro"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Parceiro instalador</span></label>
-              <button type="button" class="q" aria-expanded="false" aria-controls="x-parceiro" aria-label="O que é Parceiro instalador">?</button>
-            </div><p class="expl" id="x-parceiro" hidden>Empresa de instalação que revende e instala carregadores NEXUS.</p></div>
-
-            <div class="frente" data-frente="so_carregador"><div class="frente-linha">
-              <label><input type="checkbox" name="eletroposto" value="so_carregador"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Só o carregador</span></label>
-              <button type="button" class="q" aria-expanded="false" aria-controls="x-so_carregador" aria-label="O que é Só o carregador">?</button>
-            </div><p class="expl" id="x-so_carregador" hidden>Carregador NEXUS para o seu negócio, com garantia de 2 anos.</p></div>
-          </div>
-        </fieldset>
-
-        <!-- MOBILIDADE ELÉTRICA -->
-        <div class="mob">
-          <h2 class="mob-tit">Mobilidade elétrica</h2>
-          <p class="mob-sub">Para usar, para a frota ou para revender.</p>
-          <div id="grupos"></div>
+              <span class="porta-nome">Eletroposto</span>
+              <span class="porta-sub">Investir, ceder o local, instalar ou comprar o carregador.</span>
+              <span class="porta-cta">Escolher o caminho<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+            </span>
+            <span class="porta-foto"><img src="/nexus/img/dc-3q-dir.webp" width="660" height="807" alt="" decoding="async"></span>
+          </button>
+          <button type="button" class="porta porta-mob" data-porta="mobilidade">
+            <span class="icones4" id="icones4" aria-hidden="true"></span>
+            <span class="porta-txt">
+              <span class="porta-nome">Mobilidade elétrica</span>
+              <span class="porta-sub">Carros, motos, bikes e carregadores. Para usar, para a frota ou para revender.</span>
+            </span>
+            <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
         </div>
+      </section>
 
+      <!-- ELETROPOSTO, TELA 2: o caminho -->
+      <section class="passo" data-tela="caminho" aria-labelledby="t-caminho" hidden>
+        <p class="olho olho-q">Eletroposto</p>
+        <h2 class="tit" id="t-caminho" tabindex="-1">Qual é o seu caminho?</h2>
+        <p class="sub">Toque em um. O (?) explica cada caminho.</p>
+        <div class="cams" id="cams" role="group" aria-labelledby="t-caminho"></div>
+      </section>
+
+      <!-- ELETROPOSTO, TELAS 3 a 5: as três perguntas do caminho (montadas pelo script) -->
+      <section class="passo" data-tela="q" aria-labelledby="t-q" hidden>
+        <p class="olho olho-q" id="qOlho"></p>
+        <h2 class="tit" id="t-q" tabindex="-1"></h2>
+        <p class="sub">Toque em uma opção.</p>
+        <div class="opcoes faixas" id="qOpcoes" role="group" aria-labelledby="t-q"></div>
+      </section>
+
+      <!-- MOBILIDADE, TELA 2: itens (múltipla) -->
+      <section class="passo" data-tela="itens" aria-labelledby="t-itens" hidden>
+        <p class="olho olho-q">Mobilidade elétrica</p>
+        <h2 class="tit" id="t-itens" tabindex="-1">O que te interessa?</h2>
+        <p class="sub">Marque quantos quiser. Se não estiver aqui, escreva no fim.</p>
+        <div id="grupos"></div>
         <div class="naoachou">
           <div class="campo">
             <label for="outro">Não achou? Escreva o que você procura</label>
@@ -482,20 +546,20 @@ input:checked~.quad svg{opacity:1;transform:none}
             <span class="conta num" id="contaOutro" aria-live="polite">0 de 300</span>
           </div>
         </div>
-
         <div class="pe">
           <div class="vaga">
-            <p class="dica" id="dica1">Marque uma opção ou escreva o que procura</p>
-            <button type="button" class="btn btn-acao aparece fora" id="seguir1"><span id="seguir1Txt">Continuar</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            <p class="dica" id="dicaItens">Marque uma opção ou escreva o que procura</p>
+            <button type="button" class="btn btn-acao aparece fora" id="seguirItens"><span id="seguirItensTxt">Continuar</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
           </div>
         </div>
       </section>
 
-      <!-- PASSO 2: para quê -->
-      <section class="passo" data-passo="2" aria-labelledby="t2" hidden>
-        <h2 class="tit" id="t2" tabindex="-1">Para quê?</h2>
+      <!-- MOBILIDADE, TELA 3: para quê -->
+      <section class="passo" data-tela="objetivo" aria-labelledby="t-objetivo" hidden>
+        <p class="olho olho-q">Mobilidade elétrica</p>
+        <h2 class="tit" id="t-objetivo" tabindex="-1">Para quê?</h2>
         <p class="sub">Toque em uma opção.</p>
-        <div class="opcoes" role="group" aria-labelledby="t2" data-campo="objetivo">
+        <div class="opcoes" role="group" aria-labelledby="t-objetivo" data-campo="objetivo">
           <button type="button" class="opcao" data-v="proprio">
             <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.7 3.6-5.6 7-5.6s6.2 1.9 7 5.6"/></svg></span>
             <span class="rot">Para mim<small>Uso pessoal ou da família</small></span>
@@ -513,19 +577,18 @@ input:checked~.quad svg{opacity:1;transform:none}
           </button>
           <button type="button" class="opcao" data-v="investir">
             <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 17.5l6-6 4 4 7.5-7.5"/><path d="M15 8h5.5v5.5"/><path d="M3 21h18"/></svg></span>
-            <span class="rot">Quero investir<small>Eletroposto ou outro negócio</small></span>
+            <span class="rot">Quero investir<small>Num negócio de mobilidade elétrica</small></span>
             <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
           </button>
         </div>
       </section>
 
-      <!-- PASSO 3: quanto investir -->
-      <section class="passo" data-passo="3" aria-labelledby="t3" hidden>
-        <h2 class="tit" id="t3" tabindex="-1">Quanto pretende investir?</h2>
+      <!-- MOBILIDADE, TELA 4: quanto investir -->
+      <section class="passo" data-tela="investimento" aria-labelledby="t-investimento" hidden>
+        <p class="olho olho-q">Mobilidade elétrica</p>
+        <h2 class="tit" id="t-investimento" tabindex="-1">Quanto pretende investir?</h2>
         <p class="sub">Uma ideia já ajuda. Toque em uma faixa.</p>
-        <div class="opcoes faixas" role="group" aria-labelledby="t3" data-campo="investimento">
-          <button type="button" class="opcao" data-v="ate_10"><span class="rot num">Até R$ 10 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
-          <button type="button" class="opcao" data-v="10_50"><span class="rot num">R$ 10 a 50 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        <div class="opcoes faixas" role="group" aria-labelledby="t-investimento" data-campo="investimento">
           <button type="button" class="opcao" data-v="50_100"><span class="rot num">R$ 50 a 100 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
           <button type="button" class="opcao" data-v="100_250"><span class="rot num">R$ 100 a 250 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
           <button type="button" class="opcao" data-v="250_500"><span class="rot num">R$ 250 a 500 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
@@ -534,11 +597,12 @@ input:checked~.quad svg{opacity:1;transform:none}
         </div>
       </section>
 
-      <!-- PASSO 4: como pagar -->
-      <section class="passo" data-passo="4" aria-labelledby="t4" hidden>
-        <h2 class="tit" id="t4" tabindex="-1">Como pretende pagar?</h2>
+      <!-- MOBILIDADE, TELA 5: como pagar -->
+      <section class="passo" data-tela="recurso" aria-labelledby="t-recurso" hidden>
+        <p class="olho olho-q">Mobilidade elétrica</p>
+        <h2 class="tit" id="t-recurso" tabindex="-1">Como pretende pagar?</h2>
         <p class="sub">Toque em uma opção.</p>
-        <div class="opcoes" role="group" aria-labelledby="t4" data-campo="recurso">
+        <div class="opcoes" role="group" aria-labelledby="t-recurso" data-campo="recurso">
           <button type="button" class="opcao" data-v="proprio">
             <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7.5V18a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1v-3"/><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H17v2.5"/><path d="M20 10.5h-4a2 2 0 0 0 0 4h4a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5Z"/><path d="M4 7.5h15a1 1 0 0 1 1 1v2"/></svg></span>
             <span class="rot">Recurso próprio<small>Dinheiro seu, sem banco</small></span>
@@ -562,9 +626,9 @@ input:checked~.quad svg{opacity:1;transform:none}
         </div>
       </section>
 
-      <!-- PASSO 5: dados -->
-      <section class="passo" data-passo="5" aria-labelledby="t5" hidden>
-        <h2 class="tit" id="t5" tabindex="-1">Seus dados</h2>
+      <!-- TELA 6 (as duas portas): dados -->
+      <section class="passo" data-tela="contato" aria-labelledby="t-contato" hidden>
+        <h2 class="tit" id="t-contato" tabindex="-1">Seus dados</h2>
         <p class="sub">A equipe NEXUS fala com você pelo WhatsApp.</p>
 
         <div class="resumo" id="resumo">
@@ -578,6 +642,10 @@ input:checked~.quad svg{opacity:1;transform:none}
             <input id="nome" name="nome" type="text" autocomplete="name" autocapitalize="words" enterkeyhint="next" placeholder="Seu nome" maxlength="80" aria-describedby="m-nome">
             <p class="msg" id="m-nome" role="alert"></p>
           </div>
+          <div class="campo" id="w-empresa" hidden>
+            <label for="empresa">Empresa <small>(opcional)</small></label>
+            <input id="empresa" name="empresa" type="text" autocomplete="organization" autocapitalize="words" enterkeyhint="next" placeholder="Nome da sua empresa" maxlength="80">
+          </div>
           <div class="campo" id="w-tel">
             <label for="tel">WhatsApp com DDD</label>
             <input id="tel" name="telefone" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="next" placeholder="(34) 99999-9999" maxlength="22" spellcheck="false" aria-describedby="m-tel">
@@ -589,7 +657,7 @@ input:checked~.quad svg{opacity:1;transform:none}
             <p class="msg" id="m-email" role="alert"></p>
           </div>
 
-          <p class="bloco-tit">Onde você está</p>
+          <p class="bloco-tit" id="blocoOnde">Onde você está</p>
           <div class="linha-cep">
             <div class="campo" id="w-cep">
               <label for="cep">CEP</label>
@@ -599,8 +667,8 @@ input:checked~.quad svg{opacity:1;transform:none}
           </div>
           <p class="msg" id="m-cep" role="alert" style="margin-top:-8px"></p>
           <div class="campo" id="w-endereco">
-            <label for="endereco">Endereço <small>(rua e número)</small></label>
-            <input id="endereco" name="endereco" type="text" autocomplete="street-address" enterkeyhint="next" placeholder="Rua das Flores, 120" maxlength="160">
+            <label for="endereco"><span id="endRot">Endereço</span> <small>(rua e número)</small></label>
+            <input id="endereco" name="endereco" type="text" autocomplete="address-line1" enterkeyhint="next" placeholder="Rua das Flores, 120" maxlength="160">
           </div>
           <div class="campo" id="w-bairro">
             <label for="bairro">Bairro</label>
@@ -646,9 +714,27 @@ input:checked~.quad svg{opacity:1;transform:none}
         <span class="fim-num num"><i>nº</i><b id="pos" style="font-weight:800">0</b></span>
         <span class="fim-pos">da lista</span>
       </h2>
+
+      <!-- Só aparece quando a API responde aviso:'sem_whatsapp'. O cadastro já gravou. -->
+      <div class="aviso" id="aviso" hidden>
+        <p class="aviso-tit" id="avisoTit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 2.5 20h19Z"/><path d="M12 10v4.5M12 17.2v.01"/></svg><span id="avisoTitTxt">Esse número não aparece no WhatsApp. Confere?</span></p>
+        <p class="aviso-sub">A equipe NEXUS fala com você por lá.</p>
+        <div class="campo" id="w-telFix">
+          <label for="telFix">WhatsApp com DDD</label>
+          <input id="telFix" type="tel" inputmode="tel" autocomplete="tel" placeholder="(34) 99999-9999" maxlength="22" spellcheck="false" aria-describedby="m-telFix">
+          <p class="msg" id="m-telFix" role="alert"></p>
+        </div>
+        <div class="aviso-acoes">
+          <button type="button" class="btn-claro" id="corrigir">Corrigir</button>
+          <button type="button" class="btn-fant" id="numCerto">O número está certo</button>
+        </div>
+      </div>
+
+      <p class="fim-ok" id="fimOk" role="status"></p>
       <p class="fim-txt" id="fimTxt"></p>
-      <p class="chips-tit">O que você marcou</p>
-      <ul class="chips" id="chips" aria-label="O que você marcou"></ul>
+      <p class="chips-tit" id="respTit">O que você respondeu</p>
+      <dl class="resp" id="resp" aria-labelledby="respTit"></dl>
+      <ul class="chips" id="chips" aria-labelledby="respTit"></ul>
       <div class="fim-share">
         <p>Conhece alguém de olho em eletroposto ou elétrico? Mande o link.</p>
         <button type="button" class="btn btn-acao" id="compartilhar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8"/><path d="M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16"/></svg><span>Compartilhar a lista</span></button>
@@ -666,19 +752,15 @@ input:checked~.quad svg{opacity:1;transform:none}
   'use strict';
 
   var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  var SIMULA_SEM_WHATS = LOCAL && /[?&]simular=semwhats\b/.test(location.search);
   var ENDPOINT = '/_api/io/eletroposto/nexus-interesse';
   var LINK = 'https://solardoc.app/nexus/interesse';
-  var CH_RASCUNHO = 'nexus_interesse_rascunho_v2';
-  var CH_FEITO = 'nexus_interesse_feito_v2';
+  var CH_RASCUNHO = 'nexus_interesse_rascunho_v3';
+  var CH_FEITO = 'nexus_interesse_feito_v3';
   var CH_UTM = 'nexus_interesse_utm';
-  var TOTAL = 5;
   var MOVE = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  /* Slugs aceitos pelo backend. Rótulo pode mudar, slug não. */
-  var FRENTE = {
-    cotista: 'Cotista', investidor: 'Investidor', arrendamento: 'Arrendamento',
-    chave_na_mao: 'Chave na mão', parceiro: 'Parceiro instalador', so_carregador: 'Só o carregador'
-  };
+  /* ---------- ícones de traço ---------- */
   var I = {
     carro: '<path d="M4.6 16.5H3.6a.6.6 0 0 1-.6-.6v-2.6c0-.5.3-.9.8-1.1L6 11.3 8 8c.3-.6.9-.9 1.5-.9h4.7c.6 0 1.1.2 1.5.7l2.9 3.5 1.8.6c.6.2 1 .7 1 1.3v2.7c0 .3-.3.6-.6.6h-1.1"/><path d="M9.2 16.5h5.6"/><circle cx="7" cy="16.6" r="2.1"/><circle cx="17" cy="16.6" r="2.1"/><path d="M6 11.3h12.6M12 7.2v4.1"/>',
     suv: '<path d="M4.6 17.2H3.5a.5.5 0 0 1-.5-.5v-4.2c0-.4.2-.8.6-1L5 10.6l1.5-4c.2-.6.8-1 1.4-1h8.3c.6 0 1.1.3 1.3.8l1.8 4.2 1.4.8c.4.2.6.5.6.9v4.4a.5.5 0 0 1-.5.5h-1.2"/><path d="M9.4 17.2h5.2"/><circle cx="7" cy="17.2" r="2.3"/><circle cx="17" cy="17.2" r="2.3"/><path d="M5 10.6h14.3M12 5.6v5"/>',
@@ -696,8 +778,78 @@ input:checked~.quad svg{opacity:1;transform:none}
     wallbox: '<rect x="5" y="3" width="10" height="13" rx="2"/><path d="M10.6 6.5 9 9.4h2.4L9.8 12.4"/><path d="M10 16v2.2c0 1.5 1.2 2.8 2.8 2.8h2.7c1.5 0 2.5-1.1 2.5-2.5v-4.7"/><path d="M16.5 13.8h3M17 11.2v2.6M19 11.2v2.6"/>',
     rapido: '<path d="M4.5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 21h13"/><rect x="7" y="5.6" width="5" height="3.6" rx=".6"/><path d="M10.2 11.6 8.8 14h2.4l-1.4 2.6"/><path d="M14.5 9.5h1.3c.8 0 1.4.6 1.4 1.4v4.8a1.4 1.4 0 0 0 2.8 0V8.4l-1.6-2"/>',
     bateria: '<rect x="2.5" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.5v3"/><path d="M11.8 9.4 9.8 12.2h3l-2 2.8"/>',
-    solar: '<path d="M5 4h14l2 10H3z"/><path d="M4 9h16M9.7 4l-.7 10M14.3 4l.7 10"/><path d="M12 14v5M8 20h8"/>'
+    solar: '<path d="M5 4h14l2 10H3z"/><path d="M4 9h16M9.7 4l-.7 10M14.3 4l.7 10"/><path d="M12 14v5M8 20h8"/>',
+    cota: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/>',
+    meio: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17"/><path d="M15 9.5h2.5M15 14.5h2.5"/>',
+    loja: '<path d="M4.5 10.5V20h15v-9.5"/><path d="M3 10l1.6-5h14.8L21 10"/><path d="M3 10c0 1.4 1.3 2.5 3 2.5S9 11.4 9 10c0 1.4 1.3 2.5 3 2.5s3-1.1 3-2.5c0 1.4 1.3 2.5 3 2.5s3-1.1 3-2.5"/><path d="M10 20v-4.5h4V20"/>',
+    chave: '<circle cx="8" cy="15" r="4.5"/><path d="M11.3 11.7 20 3M16.5 6.5 19 9M14 9l2 2"/>',
+    capacete: '<path d="M3 17.5h18v2.5H3z"/><path d="M5 17.5V15a7 7 0 0 1 14 0v2.5"/><path d="M10 8.2V12M14 8.2V12"/>'
   };
+
+  /* ---------- eletroposto: caminhos e perguntas (slugs da spec v2) ---------- */
+  var CAMINHOS = [
+    ['cotista', 'Cotista', I.cota, 'Compra uma cota de um eletroposto e recebe a sua parte do faturamento.'],
+    ['investidor', 'Investidor', I.meio, 'Investe em sociedade com a NEXUS, meio a meio, num ou mais postos.'],
+    ['arrendamento', 'Arrendamento', I.loja, 'Você cede o espaço, a NEXUS investe 100% e você recebe pelo uso do local.'],
+    ['chave_na_mao', 'Chave na mão', I.chave, 'Você investe e o posto é seu. A NEXUS entrega projeto, obra, equipamento e software.'],
+    ['parceiro', 'Parceiro instalador', I.capacete, 'Empresa de instalação que revende e instala carregadores NEXUS.'],
+    ['so_carregador', 'Só o carregador', I.rapido, 'Carregador NEXUS para o seu negócio, com garantia de 2 anos.']
+  ];
+  var CAMINHO = {};
+  CAMINHOS.forEach(function (c) { CAMINHO[c[0]] = c[1]; });
+
+  // k = chave no payload; t = pergunta na tela; c = rótulo curto (resumo e painel)
+  var Q_RECURSO = { k: 'recurso', t: 'Como pretende investir?', c: 'Como investir', o: [
+    ['proprio', 'Recurso próprio'], ['proprio_credito', 'Próprio mais financiamento'],
+    ['financiamento', 'Financiamento'], ['naosei', 'Ainda não sei']] };
+  var Q_LOCAL = { k: 'local', t: 'E o local, você já tem?', c: 'Local', o: [
+    ['meu', 'Tenho um local meu ou que eu administro'], ['em_vista', 'Tenho um lugar em vista'], ['nao', 'Não tenho local']] };
+  var Q_CAPITAL = { k: 'capital', t: 'Quanto você pensa em investir?', c: 'Quanto investir', o: [
+    ['50', 'R$ 50 mil'], ['70', 'R$ 70 mil'], ['100', 'R$ 100 mil'], ['140', 'R$ 140 mil'],
+    ['280', 'R$ 280 mil'], ['500', 'R$ 500 mil'], ['500_mais', 'Mais de R$ 500 mil'], ['naosei', 'Ainda não sei']] };
+  var PERG = {
+    cotista: [Q_LOCAL, Q_CAPITAL, Q_RECURSO],
+    investidor: [Q_LOCAL, Q_CAPITAL, Q_RECURSO],
+    arrendamento: [
+      { k: 'ponto_tipo', t: 'Que tipo de local é?', c: 'Tipo de local', o: [
+        ['posto', 'Posto de combustível'], ['mercado', 'Mercado ou atacarejo'], ['restaurante', 'Restaurante'],
+        ['academia', 'Academia'], ['farmacia', 'Farmácia'], ['hotel', 'Hotel ou pousada'],
+        ['estacionamento', 'Estacionamento'], ['condominio', 'Condomínio'], ['outro', 'Outro']] },
+      { k: 'relacao', t: 'O local é seu?', c: 'O local é seu?', o: [
+        ['proprietario', 'Sou o dono'], ['administro', 'Eu administro'], ['represento', 'Represento o dono'], ['inquilino', 'Sou inquilino']] },
+      { k: 'vagas', t: 'Quantas vagas dá para usar?', c: 'Vagas', o: [
+        ['1_2', '1 ou 2'], ['3_5', '3 a 5'], ['6_10', '6 a 10'], ['10_mais', 'Mais de 10']] }
+    ],
+    chave_na_mao: [
+      { k: 'ponto', t: 'Você já tem o local?', c: 'Local', o: [
+        ['definido', 'Sim, já está definido'], ['negociando', 'Estou negociando'], ['em_vista', 'Tenho um em vista'], ['sem_ideia', 'Ainda não']] },
+      { k: 'valor', t: 'Quanto pretende investir?', c: 'Quanto investir', o: [
+        ['70', 'R$ 70 mil'], ['140', 'R$ 140 mil'], ['280', 'R$ 280 mil'], ['500', 'R$ 500 mil'],
+        ['500_mais', 'Mais de R$ 500 mil'], ['naosei', 'Ainda não sei']] },
+      Q_RECURSO
+    ],
+    parceiro: [
+      { k: 'atuacao', t: 'O que você faz hoje?', c: 'O que faz', o: [
+        ['integrador_solar', 'Integrador solar'], ['eletricista', 'Eletricista ou instalador'], ['engenheiro', 'Engenheiro eletricista'],
+        ['empresa_instalacao', 'Empresa de instalação ou construtora'], ['vendedor', 'Vendedor ou representante técnico'], ['nao_atuo', 'Ainda não atuo na área']] },
+      { k: 'experiencia', t: 'Já instalou carregador?', c: 'Já instalou?', o: [
+        ['nunca', 'Nunca instalei'], ['1_3', '1 a 3'], ['mais_3', 'Mais de 3'], ['certificado', 'Sou certificado por fabricante']] },
+      { k: 'interesse', t: 'Como quer trabalhar com eletroposto?', c: 'Como quer trabalhar', o: [
+        ['vender', 'Vendo e a NEXUS executa'], ['executar', 'Executo a obra na minha região'], ['vender_executar', 'Vendo e executo'],
+        ['comprar_equipamento', 'Compro o equipamento e faço por conta'], ['naosei', 'Ainda não sei']] }
+    ],
+    so_carregador: [
+      { k: 'potencia', t: 'Qual potência você precisa?', c: 'Potência', o: [
+        ['80', '80 kW'], ['120', '120 kW'], ['outra', 'Outra ou não sei']] },
+      { k: 'qtd', t: 'Quantas unidades?', c: 'Unidades', o: [
+        ['1', '1'], ['2_5', '2 a 5'], ['6_10', '6 a 10'], ['mais_10', 'Mais de 10']] },
+      { k: 'instala', t: 'Quem instala?', c: 'Quem instala', o: [
+        ['voces_montam', 'A NEXUS instala'], ['obra_minha_projeto_voces', 'Faço a obra, a NEXUS faz o projeto'],
+        ['obra_e_projeto_meus', 'Obra e projeto por minha conta'], ['eu_monto', 'Eu mesmo monto'], ['nao_sei', 'Ainda não sei']] }
+    ]
+  };
+
+  /* ---------- mobilidade ---------- */
   var GRUPOS = [
     { tit: 'Carros', itens: [['carro_compacto', 'Carro compacto', I.carro], ['carro_suv', 'SUV', I.suv], ['carro_sedan', 'Sedã', I.sedan], ['picape', 'Picape', I.picape], ['van', 'Van e utilitário', I.van], ['caminhao', 'Caminhão leve', I.caminhao]] },
     { tit: 'Duas rodas', itens: [['moto', 'Moto', I.moto], ['scooter', 'Scooter', I.scooter], ['bike', 'Bike elétrica', I.bike], ['patinete', 'Patinete', I.patinete]] },
@@ -707,26 +859,44 @@ input:checked~.quad svg{opacity:1;transform:none}
   var MOB = {};
   GRUPOS.forEach(function (g) { g.itens.forEach(function (it) { MOB[it[0]] = it[1]; }); });
   var OBJ = { proprio: 'Para mim', frota: 'Para empresa ou frota', revenda: 'Para revender', investir: 'Para investir' };
-  var INV = { ate_10: 'Até R$ 10 mil', '10_50': 'R$ 10 a 50 mil', '50_100': 'R$ 50 a 100 mil', '100_250': 'R$ 100 a 250 mil', '250_500': 'R$ 250 a 500 mil', '500_mais': 'Acima de R$ 500 mil', naosei: 'Investimento a definir' };
+  var INV = { '50_100': 'R$ 50 a 100 mil', '100_250': 'R$ 100 a 250 mil', '250_500': 'R$ 250 a 500 mil', '500_mais': 'Acima de R$ 500 mil', naosei: 'Investimento a definir' };
   var REC = { proprio: 'Recurso próprio', financiamento: 'Financiamento', os_dois: 'Próprio e financiamento', naosei: 'Pagamento a definir' };
   var CHECK = '<span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>';
+  var SETA = '<svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+
+  var SEQ = {
+    eletroposto: ['porta', 'caminho', 'q0', 'q1', 'q2', 'contato'],
+    mobilidade: ['porta', 'itens', 'objetivo', 'investimento', 'recurso', 'contato']
+  };
 
   function $(id) { return document.getElementById(id); }
   function todos(sel) { return [].slice.call(document.querySelectorAll(sel)); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
-  /* ---------- monta os grupos de mobilidade ---------- */
+  /* ---------- monta o que é repetido ---------- */
   (function () {
-    var html = '';
-    GRUPOS.forEach(function (g, gi) {
-      html += '<fieldset class="grupo"><legend class="grupo-tit">' + g.tit + '</legend><div class="grade">';
-      g.itens.forEach(function (it) {
-        html += '<label class="item"><input type="checkbox" name="mobilidade" value="' + it[0] + '"><span class="caixa">' +
+    $('icones4').innerHTML = [I.carro, I.moto, I.bike, I.wallbox].map(function (p) { return '<svg viewBox="0 0 24 24">' + p + '</svg>'; }).join('');
+    var h = '';
+    CAMINHOS.forEach(function (c) {
+      h += '<div class="cam" data-c="' + c[0] + '">' +
+        '<button type="button" class="cam-btn" data-v="' + c[0] + '" aria-pressed="false">' +
+        '<span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24">' + c[2] + '</svg></span>' +
+        '<span class="rot">' + c[1] + '</span></button>' +
+        '<button type="button" class="q" aria-expanded="false" aria-controls="x-' + c[0] + '" aria-label="O que é ' + c[1] + '">?</button>' +
+        '<p class="expl" id="x-' + c[0] + '" hidden>' + c[3] + '</p></div>';
+    });
+    $('cams').innerHTML = h;
+    var g = '';
+    GRUPOS.forEach(function (gr) {
+      g += '<fieldset class="grupo"><legend class="grupo-tit">' + gr.tit + '</legend><div class="grade">';
+      gr.itens.forEach(function (it) {
+        g += '<label class="item"><input type="checkbox" name="mobilidade" value="' + it[0] + '"><span class="caixa">' +
           '<span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24">' + it[2] + '</svg></span>' +
           '<span class="rot">' + it[1] + '</span>' + CHECK + '</span></label>';
       });
-      html += '</div></fieldset>';
+      g += '</div></fieldset>';
     });
-    $('grupos').innerHTML = html;
+    $('grupos').innerHTML = g;
   })();
 
   /* ---------- telefone e origem (mesma regra do /nexusev) ---------- */
@@ -737,6 +907,12 @@ input:checked~.quad svg{opacity:1;transform:none}
     if (d.length === 10 || d.length === 11) d = '55' + d;
     if ((d.length === 12 || d.length === 13) && d.indexOf('55') === 0) return d;
     return '';
+  }
+  function fmtTel(t) {
+    var d = String(t || '').replace(/\D/g, ''), n = d.indexOf('55') === 0 && d.length > 11 ? d.slice(2) : d;
+    if (n.length === 11) return '(' + n.slice(0, 2) + ') ' + n.slice(2, 7) + '-' + n.slice(7);
+    if (n.length === 10) return '(' + n.slice(0, 2) + ') ' + n.slice(2, 6) + '-' + n.slice(6);
+    return t;
   }
   function utm() {
     var chaves = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
@@ -773,9 +949,12 @@ input:checked~.quad svg{opacity:1;transform:none}
   }
 
   /* ---------- estado ---------- */
-  var estado = { eletroposto: [], mobilidade: [], outro: '', objetivo: '', investimento: '', recurso: '' };
-  var CAMPOS = ['nome', 'tel', 'email', 'cep', 'endereco', 'bairro', 'cidade', 'uf'];
-  var passo = 1;
+  function vazio() {
+    return { porta: '', caminho: '', respostas: {}, mobilidade: [], outro: '', objetivo: '', investimento: '', recurso: '' };
+  }
+  var estado = vazio();
+  var CAMPOS = ['nome', 'empresa', 'tel', 'email', 'cep', 'endereco', 'bairro', 'cidade', 'uf'];
+  var tela = 'porta';
   function guardar() {
     try {
       var r = { e: estado };
@@ -786,130 +965,219 @@ input:checked~.quad svg{opacity:1;transform:none}
   function lerRascunho() {
     try { var s = sessionStorage.getItem(CH_RASCUNHO); return s ? JSON.parse(s) : null; } catch (e) { return null; }
   }
+  function seq() { return SEQ[estado.porta] || SEQ.eletroposto; }
+  function perguntas() { return PERG[estado.caminho] || []; }
+  function rotulo(q, v) { for (var i = 0; i < q.o.length; i++) if (q.o[i][0] === v) return q.o[i][1]; return v; }
+  function par(c, v) { return /\?$/.test(c) ? c + ' ' + v : c + ': ' + v; }
 
-  /* ---------- passos ---------- */
+  /* ---------- navegação ---------- */
   var secoes = todos('.passo');
-  var barras = todos('.barras span');
-  function mostrar(n, opts) {
+  function valida(t) {
+    if (t === 'porta') return t;
+    if (!estado.porta) return 'porta';
+    var s = seq();
+    if (s.indexOf(t) < 0) return 'porta';
+    if (estado.porta === 'eletroposto') {
+      if (t !== 'caminho' && !PERG[estado.caminho]) return 'caminho';
+      var ate = t === 'contato' ? 3 : (/^q\d$/.test(t) ? Number(t.slice(1)) : 0);
+      for (var i = 0; i < ate; i++) if (!estado.respostas[perguntas()[i].k]) return 'q' + i;
+    } else {
+      var ordem = ['itens', 'objetivo', 'investimento', 'recurso', 'contato'];
+      var temItem = estado.mobilidade.length || estado.outro.trim();
+      if (ordem.indexOf(t) > 0 && !temItem) return 'itens';
+      for (var j = 1; j < ordem.indexOf(t); j++) if (!estado[ordem[j]]) return ordem[j];
+    }
+    return t;
+  }
+  function mostrar(t, opts) {
     opts = opts || {};
-    passo = n;
+    t = valida(t);
+    tela = t;
+    var sec = /^q\d$/.test(t) ? 'q' : t;
     $('f').hidden = false; $('fim').hidden = true; $('trilho').hidden = false;
+    if (sec === 'q') pintaPergunta(Number(t.slice(1)));
     secoes.forEach(function (s) {
-      var eu = Number(s.getAttribute('data-passo')) === n;
+      var eu = s.getAttribute('data-tela') === sec;
       s.hidden = !eu;
       s.classList.remove('entra');
       if (eu && MOVE && !opts.semAnim) { void s.offsetWidth; s.classList.add('entra'); }
     });
-    barras.forEach(function (b, i) { b.classList.toggle('on', i < n); });
-    $('passoN').textContent = 'Passo ' + n + ' de ' + TOTAL;
-    $('voltar').hidden = n === 1;
-    $('olho').hidden = n !== 1;
-    if (n === TOTAL) pintaResumo();
-    marcarOpcoes();
+    var s = seq(), n = s.indexOf(t) + 1;
+    var barras = $('barras');
+    if (barras.children.length !== s.length) barras.innerHTML = new Array(s.length + 1).join('<span></span>');
+    [].slice.call(barras.children).forEach(function (b, i) { b.classList.toggle('on', i < n); });
+    $('passoN').textContent = 'Passo ' + n + ' de ' + s.length;
+    $('voltar').hidden = t === 'porta';
+    $('olho').hidden = t !== 'porta';
+    if (t === 'contato') prepararContato();
+    marcar();
     if (!opts.semFoco) {
-      var t = $('t' + n);
-      if (t) t.focus({ preventScroll: true });
+      var tit = sec === 'q' ? $('t-q') : $('t-' + sec);
+      if (tit) tit.focus({ preventScroll: true });
       window.scrollTo(0, 0);
     }
-    evt('interesse_passo', { passo: n });
+    evt('interesse_passo', { passo: n, tela: t, porta: estado.porta, caminho: estado.caminho });
   }
-  function ir(n) {
-    try { history.pushState({ passo: n }, '', location.search ? location.pathname + location.search : location.pathname); } catch (e) {}
-    mostrar(n);
+  function ir(t) {
+    try { history.pushState({ tela: t }, '', location.search ? location.pathname + location.search : location.pathname); } catch (e) {}
+    mostrar(t);
   }
+  function seguir() { var s = seq(); ir(s[s.indexOf(tela) + 1] || 'contato'); }
+  function depoisDoToque(fn) { setTimeout(fn, MOVE ? 220 : 0); }
   window.addEventListener('popstate', function (e) {
     if (!$('fim').hidden) return;
-    var n = e.state && typeof e.state.passo === 'number' ? e.state.passo : 1;
-    mostrar(n);
+    mostrar(e.state && typeof e.state.tela === 'string' ? e.state.tela : 'porta');
   });
-  try { history.replaceState({ passo: 1 }, ''); } catch (e) {}
-  $('voltar').addEventListener('click', function () { if (passo > 1) history.back(); });
+  try { history.replaceState({ tela: 'porta' }, ''); } catch (e) {}
+  $('voltar').addEventListener('click', function () { if (tela !== 'porta') history.back(); });
 
-  /* ---------- passo 1 ---------- */
-  var caixasEp = todos('input[name="eletroposto"]');
+  /* marca o que já foi escolhido em cada tela (aria-pressed + .on) */
+  function liga(el, on) { el.classList.toggle('on', on); el.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  function marcar() {
+    todos('.porta').forEach(function (b) { liga(b, b.getAttribute('data-porta') === estado.porta); });
+    todos('.cam').forEach(function (c) {
+      var on = c.getAttribute('data-c') === estado.caminho;
+      c.classList.toggle('on', on);
+      c.querySelector('.cam-btn').setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    todos('.opcoes[data-campo]').forEach(function (g) {
+      var campo = g.getAttribute('data-campo');
+      [].slice.call(g.querySelectorAll('.opcao')).forEach(function (o) { liga(o, o.getAttribute('data-v') === estado[campo]); });
+    });
+  }
+
+  /* ---------- tela 1: a porta ---------- */
+  todos('.porta').forEach(function (b) {
+    b.addEventListener('click', function () {
+      estado.porta = b.getAttribute('data-porta');
+      marcar(); guardar();
+      depoisDoToque(seguir);
+    });
+  });
+
+  /* ---------- eletroposto: caminho ---------- */
+  todos('.cam-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var v = b.getAttribute('data-v');
+      if (v !== estado.caminho) estado.respostas = {};
+      estado.caminho = v;
+      marcar(); guardar();
+      depoisDoToque(seguir);
+    });
+  });
+  todos('.cam .q').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var abre = b.getAttribute('aria-expanded') !== 'true';
+      todos('.cam .q').forEach(function (o) {
+        o.setAttribute('aria-expanded', 'false');
+        $(o.getAttribute('aria-controls')).hidden = true;
+      });
+      if (abre) { b.setAttribute('aria-expanded', 'true'); $(b.getAttribute('aria-controls')).hidden = false; }
+    });
+  });
+
+  /* ---------- eletroposto: as três perguntas do caminho ---------- */
+  function pintaPergunta(i) {
+    var q = perguntas()[i]; if (!q) return;
+    $('qOlho').textContent = CAMINHO[estado.caminho];
+    $('t-q').textContent = q.t;
+    var box = $('qOpcoes');
+    box.className = 'opcoes ' + (q.o.length >= 7 ? 'duas' : 'faixas');
+    box.innerHTML = q.o.map(function (o) {
+      var on = estado.respostas[q.k] === o[0];
+      return '<button type="button" class="opcao' + (on ? ' on' : '') + '" data-v="' + o[0] + '" aria-pressed="' + on + '"><span class="rot num">' + esc(o[1]) + '</span>' + SETA + '</button>';
+    }).join('');
+    [].slice.call(box.querySelectorAll('.opcao')).forEach(function (b) {
+      b.addEventListener('click', function () {
+        estado.respostas[q.k] = b.getAttribute('data-v');
+        [].slice.call(box.querySelectorAll('.opcao')).forEach(function (o) { liga(o, o === b); });
+        guardar();
+        depoisDoToque(seguir);
+      });
+    });
+  }
+
+  /* ---------- mobilidade: itens ---------- */
   var caixasMob = todos('input[name="mobilidade"]');
-  function marcados(lista) { return lista.filter(function (c) { return c.checked; }).map(function (c) { return c.value; }); }
   function lerItens() {
-    estado.eletroposto = marcados(caixasEp);
-    estado.mobilidade = marcados(caixasMob);
+    estado.mobilidade = caixasMob.filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
     estado.outro = $('outro').value;
-    caixasEp.forEach(function (c) { c.closest('.frente').classList.toggle('on', c.checked); });
-    var n = estado.eletroposto.length + estado.mobilidade.length;
+    var n = estado.mobilidade.length;
     var tem = n > 0 || estado.outro.trim().length > 0;
-    var b = $('seguir1');
+    var b = $('seguirItens');
     b.classList.toggle('fora', !tem);
     b.tabIndex = tem ? 0 : -1;
     b.setAttribute('aria-hidden', tem ? 'false' : 'true');
-    $('dica1').classList.toggle('fora', tem);
-    $('seguir1Txt').textContent = n > 1 ? 'Continuar com ' + n : 'Continuar';
+    $('dicaItens').classList.toggle('fora', tem);
+    $('seguirItensTxt').textContent = n > 1 ? 'Continuar com ' + n : 'Continuar';
     guardar();
   }
-  caixasEp.concat(caixasMob).forEach(function (c) { c.addEventListener('change', lerItens); });
+  caixasMob.forEach(function (c) { c.addEventListener('change', lerItens); });
   $('outro').addEventListener('input', function () {
     $('contaOutro').textContent = this.value.length + ' de 300';
     lerItens();
   });
-  $('seguir1').addEventListener('click', function () {
+  $('seguirItens').addEventListener('click', function () {
     lerItens();
-    if (!estado.eletroposto.length && !estado.mobilidade.length && !estado.outro.trim()) return;
-    ir(2);
+    if (!estado.mobilidade.length && !estado.outro.trim()) return;
+    ir('objetivo');
   });
 
-  /* (?) de cada frente: abre a explicação embaixo, uma por vez */
-  todos('.frente .q').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var abre = b.getAttribute('aria-expanded') !== 'true';
-      todos('.frente .q').forEach(function (o) {
-        o.setAttribute('aria-expanded', 'false');
-        $(o.getAttribute('aria-controls')).hidden = true;
-        o.closest('.frente').classList.remove('aberta');
-      });
-      if (abre) {
-        b.setAttribute('aria-expanded', 'true');
-        $(b.getAttribute('aria-controls')).hidden = false;
-        b.closest('.frente').classList.add('aberta');
-      }
-    });
-  });
-
-  /* ---------- passos 2, 3 e 4: um toque avança ---------- */
-  function marcarOpcoes() {
-    todos('.opcoes[data-campo]').forEach(function (g) {
-      var campo = g.getAttribute('data-campo');
-      [].slice.call(g.querySelectorAll('.opcao')).forEach(function (o) {
-        var on = o.getAttribute('data-v') === estado[campo];
-        o.classList.toggle('on', on);
-        o.setAttribute('aria-pressed', on ? 'true' : 'false');
-      });
-    });
-  }
+  /* ---------- mobilidade: para quê, quanto, como pagar (um toque avança) ---------- */
   todos('.opcoes[data-campo]').forEach(function (g) {
     var campo = g.getAttribute('data-campo');
-    var proximo = Number(g.closest('.passo').getAttribute('data-passo')) + 1;
     [].slice.call(g.querySelectorAll('.opcao')).forEach(function (o) {
       o.addEventListener('click', function () {
         estado[campo] = o.getAttribute('data-v');
-        marcarOpcoes(); guardar();
-        setTimeout(function () { ir(proximo); }, MOVE ? 220 : 0);
+        marcar(); guardar();
+        depoisDoToque(seguir);
       });
     });
   });
 
-  /* ---------- passo 5 ---------- */
-  function nomesMarcados(e) {
-    var out = e.eletroposto.map(function (k) { return 'Eletroposto ' + (FRENTE[k] || k).toLowerCase(); })
-      .concat(e.mobilidade.map(function (k) { return MOB[k] || k; }));
-    if (e.outro && e.outro.trim()) out.push('“' + e.outro.trim().slice(0, 40) + (e.outro.trim().length > 40 ? '…' : '') + '”');
+  /* ---------- tela de dados ---------- */
+  function linhasEp(e) {
+    var ps = PERG[e.caminho] || [], out = [];
+    ps.forEach(function (q) { var v = e.respostas && e.respostas[q.k]; if (v) out.push([q.c, rotulo(q, v)]); });
+    if (e.caminho === 'parceiro' && e.respostas && e.respostas.empresa) out.push(['Empresa', e.respostas.empresa]);
     return out;
   }
-  function pintaResumo() {
-    var t = $('resumoTxt'); t.textContent = '';
-    var b = document.createElement('b'); b.textContent = nomesMarcados(estado).join(', ');
-    t.appendChild(b);
-    var resto = [OBJ[estado.objetivo], INV[estado.investimento], REC[estado.recurso]].filter(Boolean);
-    if (resto.length) t.appendChild(document.createTextNode('. ' + resto.join(', ') + '.'));
+  function nomesMob(e) {
+    var out = (e.mobilidade || []).map(function (k) { return MOB[k] || k; });
+    var o = (e.outro || '').trim();
+    if (o) out.push('“' + o.slice(0, 40) + (o.length > 40 ? '…' : '') + '”');
+    return out;
   }
-  $('alterar').addEventListener('click', function () { ir(1); });
+  function prepararContato() {
+    var arr = estado.porta === 'eletroposto' && estado.caminho === 'arrendamento';
+    $('blocoOnde').textContent = arr ? 'Onde fica o local' : 'Onde você está';
+    $('endRot').textContent = arr ? 'Endereço do local' : 'Endereço';
+    $('w-empresa').hidden = !(estado.porta === 'eletroposto' && estado.caminho === 'parceiro');
+    var t = $('resumoTxt'); t.textContent = '';
+    var b = document.createElement('b');
+    if (estado.porta === 'eletroposto') {
+      b.textContent = 'Eletroposto, ' + (CAMINHO[estado.caminho] || '').toLowerCase();
+      t.appendChild(b);
+      var ls = linhasEp(estado).map(function (l) { return par(l[0], l[1]); });
+      if (ls.length) t.appendChild(document.createTextNode('. ' + ls.join('. ') + '.'));
+    } else {
+      b.textContent = nomesMob(estado).join(', ');
+      t.appendChild(b);
+      var resto = [OBJ[estado.objetivo], INV[estado.investimento], REC[estado.recurso]].filter(Boolean);
+      if (resto.length) t.appendChild(document.createTextNode('. ' + resto.join(', ') + '.'));
+    }
+  }
+  $('alterar').addEventListener('click', function () { ir('porta'); });
+  /* Enter (ou "Próximo" do teclado do celular) leva ao campo seguinte; no último, envia. */
+  $('f').addEventListener('keydown', function (e) {
+    var el = e.target;
+    if (e.key !== 'Enter' || tela !== 'contato' || el.tagName !== 'INPUT') return;
+    var ordem = ['nome', 'empresa', 'tel', 'email', 'cep', 'endereco', 'bairro', 'cidade'].filter(function (id) { return !$(id).closest('[hidden]'); });
+    var i = ordem.indexOf(el.id);
+    if (i < 0 || i === ordem.length - 1) return; // cidade: deixa o Enter enviar o formulário
+    e.preventDefault();
+    $(ordem[i + 1]).focus();
+  });
   CAMPOS.forEach(function (id) {
     $(id).addEventListener('input', function () { limpar(id === 'uf' ? 'cidade' : id); guardar(); });
     $(id).addEventListener('change', guardar);
@@ -971,10 +1239,33 @@ input:checked~.quad svg{opacity:1;transform:none}
     else { cepSeq++; cepStatus(CEP_HINT, false); } // apagou ou editou: invalida a busca em voo
   });
 
+  /* ---------- envio ---------- */
+  var simulados = 0;
+  function enviar(corpo) {
+    if (LOCAL) {
+      simulados++;
+      var r = { ok: true, posicao: 42, novo: simulados === 1 };
+      if (SIMULA_SEM_WHATS && simulados === 1) r.aviso = 'sem_whatsapp';
+      return new Promise(function (ok) { setTimeout(function () { ok(r); }, 700); });
+    }
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var relogio = setTimeout(function () { if (ctrl) ctrl.abort(); }, 10000);
+    return fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { clearTimeout(relogio); return r.json().catch(function () { return { ok: false }; }); },
+        function (e) { clearTimeout(relogio); var x = new Error('rede'); x.demorou = !!(e && e.name === 'AbortError'); throw x; })
+      .then(function (j) {
+        if (!j || !j.ok) { var x = new Error('api'); x.erro = (j && j.erro) || ''; throw x; }
+        return j;
+      });
+  }
+
   var enviando = false;
+  var ultimoCorpo = null;
   $('f').addEventListener('submit', function (ev) {
     ev.preventDefault();
-    if (enviando || passo !== TOTAL) return;
+    if (enviando || tela !== 'contato') return;
+    var falta = valida('contato');
+    if (falta !== 'contato') { ir(falta); return; }
     $('erroEnvio').classList.remove('on');
     ['nome', 'tel', 'email', 'cep', 'cidade'].forEach(limpar);
 
@@ -995,22 +1286,26 @@ input:checked~.quad svg{opacity:1;transform:none}
 
     var u = utm();
     var corpo = {
-      eletroposto: estado.eletroposto.slice(),
-      mobilidade: estado.mobilidade.slice(),
-      objetivo: estado.objetivo,
-      investimento: estado.investimento,
-      recurso: estado.recurso,
-      nome: nome,
-      telefone: tel,
-      email: email,
-      cidade: cidade,
-      uf: uf,
+      porta: estado.porta,
+      nome: nome, telefone: tel, email: email, cidade: cidade, uf: uf,
       origem: u.utm_source || 'link_direto',
       utm: { source: u.utm_source || '', medium: u.utm_medium || '', campaign: u.utm_campaign || '', content: u.utm_content || '', term: u.utm_term || '' },
       site: $('site').value
     };
-    var outro = estado.outro.trim();
-    if (outro) corpo.outro = outro.slice(0, 300);
+    if (estado.porta === 'eletroposto') {
+      corpo.caminho = estado.caminho;
+      corpo.respostas = {};
+      perguntas().forEach(function (q) { corpo.respostas[q.k] = estado.respostas[q.k]; });
+      var emp = $('empresa').value.trim().replace(/\s+/g, ' ');
+      if (estado.caminho === 'parceiro' && emp) corpo.respostas.empresa = emp.slice(0, 80);
+    } else {
+      corpo.mobilidade = estado.mobilidade.slice();
+      var outro = estado.outro.trim();
+      if (outro) corpo.outro = outro.slice(0, 300);
+      corpo.objetivo = estado.objetivo;
+      corpo.investimento = estado.investimento;
+      corpo.recurso = estado.recurso;
+    }
     if (cep) corpo.cep = cep;
     var end = $('endereco').value.trim().replace(/[\s,]+$/, '');
     if (end) corpo.endereco = end.slice(0, 160);
@@ -1019,79 +1314,135 @@ input:checked~.quad svg{opacity:1;transform:none}
     if (/[?&]teste=1\b/.test(location.search)) corpo.teste = true;
 
     carregando(true);
-    var ctrl = window.AbortController ? new AbortController() : null;
-    var demorou = false;
-    var relogio = setTimeout(function () { demorou = true; if (ctrl) ctrl.abort(); }, 10000);
-
-    var pedido = LOCAL
-      ? new Promise(function (ok) { setTimeout(function () { ok({ ok: true, posicao: 42, novo: true }); }, 700); })
-      : fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: ctrl ? ctrl.signal : undefined })
-          .then(function (r) { return r.json().catch(function () { return { ok: false }; }); });
-
-    pedido.then(function (j) {
-      clearTimeout(relogio);
-      if (!j || !j.ok) { var x = new Error('api'); x.erro = (j && j.erro) || ''; throw x; }
+    enviar(corpo).then(function (j) {
+      ultimoCorpo = corpo;
       var feito = {
         posicao: Number(j.posicao) || 0, novo: j.novo !== false,
-        eletroposto: corpo.eletroposto, mobilidade: corpo.mobilidade, outro: corpo.outro || '',
-        objetivo: corpo.objetivo, investimento: corpo.investimento, recurso: corpo.recurso
+        porta: corpo.porta, caminho: corpo.caminho || '', respostas: corpo.respostas || {},
+        mobilidade: corpo.mobilidade || [], outro: corpo.outro || '',
+        objetivo: corpo.objetivo || '', investimento: corpo.investimento || '', recurso: corpo.recurso || ''
       };
       try { localStorage.setItem(CH_FEITO, JSON.stringify(feito)); sessionStorage.removeItem(CH_RASCUNHO); } catch (e) {}
-      if (window.fbq) window.fbq('trackCustom', 'NexusInteresse', {
-        eletroposto: corpo.eletroposto.join(','), mobilidade: corpo.mobilidade.join(','),
-        objetivo: corpo.objetivo, investimento: corpo.investimento, recurso: corpo.recurso
-      });
-      evt('interesse_concluido', { eletroposto: corpo.eletroposto.join(','), mobilidade: corpo.mobilidade.join(','), objetivo: corpo.objetivo, investimento: corpo.investimento, recurso: corpo.recurso, novo: feito.novo });
+      var px = { porta: corpo.porta, caminho: corpo.caminho || '' };
+      if (corpo.porta === 'mobilidade') {
+        px.mobilidade = corpo.mobilidade.join(','); px.objetivo = corpo.objetivo; px.investimento = corpo.investimento; px.recurso = corpo.recurso;
+      }
+      if (window.fbq) window.fbq('trackCustom', 'NexusInteresse', px);
+      px.novo = feito.novo; px.sem_whatsapp = j.aviso === 'sem_whatsapp';
+      evt('interesse_concluido', px);
       carregando(false);
       final(feito, true);
+      if (j.aviso === 'sem_whatsapp') abrirAviso(corpo.telefone, false);
     }).catch(function (e) {
-      clearTimeout(relogio);
       carregando(false);
       var msg = e && typeof e.erro === 'string' ? e.erro : '';
       var caixa = $('erroEnvio');
-      caixa.textContent = demorou
+      caixa.textContent = e && e.demorou
         ? 'A conexão demorou demais. Tente de novo.'
         : (msg || 'Não consegui enviar agora. Confira a internet e tente de novo.');
       caixa.classList.add('on');
     });
   });
+  var GIRA = '<span class="gira" aria-hidden="true"></span>';
   function carregando(sim) {
     enviando = sim;
     var b = $('entrar');
     b.disabled = sim;
     b.setAttribute('aria-busy', sim ? 'true' : 'false');
     b.innerHTML = sim
-      ? '<span class="gira" aria-hidden="true"></span><span>Entrando na lista…</span>'
+      ? GIRA + '<span>Entrando na lista…</span>'
       : '<span>Entrar na lista</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   }
 
+  /* ---------- aviso: o número não aparece no WhatsApp ----------
+     O cadastro já gravou. "Corrigir" reenvia o mesmo payload com o número novo;
+     "O número está certo" só fecha o cartão. */
+  function abrirAviso(tel, denovo) {
+    $('avisoTitTxt').textContent = denovo
+      ? 'Esse também não aparece no WhatsApp. Confere de novo?'
+      : 'Esse número não aparece no WhatsApp. Confere?';
+    $('telFix').value = fmtTel(tel);
+    limpar('telFix');
+    $('aviso').hidden = false;
+    $('fimOk').textContent = '';
+  }
+  function fecharAviso(msg) {
+    $('aviso').hidden = true;
+    $('fimOk').textContent = msg || '';
+  }
+  $('telFix').addEventListener('input', function () { limpar('telFix'); });
+  $('telFix').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('corrigir').click(); } });
+  $('numCerto').addEventListener('click', function () {
+    fecharAviso('');
+    evt('interesse_whats_confirmado', {});
+    $('compartilhar').focus();
+  });
+  var corrigindo = false;
+  $('corrigir').addEventListener('click', function () {
+    if (corrigindo || !ultimoCorpo) return;
+    limpar('telFix');
+    var tel = telefoneBR($('telFix').value);
+    if (!tel) { ruim('telFix', 'Confira o número: DDD e mais 8 ou 9 dígitos.'); $('telFix').focus(); return; }
+    if (tel === ultimoCorpo.telefone) { ruim('telFix', 'É o mesmo número. Se ele está certo, toque em “O número está certo”.'); return; }
+    var corpo = JSON.parse(JSON.stringify(ultimoCorpo));
+    corpo.telefone = tel;
+    var b = this;
+    corrigindo = true; b.disabled = true; b.setAttribute('aria-busy', 'true'); b.innerHTML = GIRA + 'Corrigindo…';
+    enviar(corpo).then(function (j) {
+      ultimoCorpo = corpo;
+      if (Number(j.posicao)) $('pos').textContent = String(Number(j.posicao));
+      evt('interesse_whats_corrigido', { sem_whatsapp: j.aviso === 'sem_whatsapp' });
+      if (j.aviso === 'sem_whatsapp') abrirAviso(tel, true);
+      else fecharAviso('Número corrigido. A equipe NEXUS fala com você nele.');
+      $('tel').value = fmtTel(tel);
+    }).catch(function () {
+      ruim('telFix', 'Não consegui enviar agora. Tente de novo.');
+    }).then(function () {
+      corrigindo = false; b.disabled = false; b.removeAttribute('aria-busy'); b.textContent = 'Corrigir';
+    });
+  });
+
   /* ---------- tela final ---------- */
   var RAIO = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7 .8 2.2 7h3.1L4.6 11.2 9.8 4.8H6.6Z"/></svg>';
-  function chip(ul, txt, cls, raio) {
+  function chip(ul, txt, cls) {
     var li = document.createElement('li');
     if (cls) li.className = cls;
-    if (raio) li.innerHTML = RAIO;
     li.appendChild(document.createTextNode(txt));
     ul.appendChild(li);
+  }
+  function linhaResp(dl, dt, dd, cls) {
+    var d = document.createElement('div');
+    var a = document.createElement('dt'); a.textContent = dt;
+    var b = document.createElement('dd'); b.textContent = dd; if (cls) b.className = cls;
+    d.appendChild(a); d.appendChild(b); dl.appendChild(d);
   }
   function final(feito, agora) {
     $('f').hidden = true; $('trilho').hidden = true;
     var fim = $('fim'); fim.hidden = false;
     fim.classList.remove('entra'); if (MOVE) { void fim.offsetWidth; fim.classList.add('entra'); }
-    try { history.replaceState({ passo: 'fim' }, ''); } catch (e) {}
+    $('aviso').hidden = true; $('fimOk').textContent = '';
+    try { history.replaceState({ tela: 'fim' }, ''); } catch (e) {}
     var pre = feito.novo ? 'Você é o' : 'Você já está na lista. É o';
     $('fimPre').textContent = pre;
     $('tFim').setAttribute('aria-label', pre + ' número ' + feito.posicao + ' da lista');
     var txt = $('fimTxt'); txt.textContent = '';
-    if (!feito.novo) txt.appendChild(document.createTextNode('Somamos o que você marcou agora ao que já estava lá. '));
+    if (!feito.novo) txt.appendChild(document.createTextNode('Somamos o que você respondeu agora ao que já estava lá. '));
     txt.appendChild(document.createTextNode('A equipe NEXUS fala com você '));
     var b = document.createElement('b'); b.textContent = 'pelo WhatsApp'; txt.appendChild(b);
-    txt.appendChild(document.createTextNode(' sobre o que você marcou.'));
-    var ul = $('chips'); ul.textContent = '';
-    (feito.eletroposto || []).forEach(function (k) { chip(ul, 'Eletroposto: ' + (FRENTE[k] || k), 'ep-chip', true); });
-    (feito.mobilidade || []).forEach(function (k) { chip(ul, MOB[k] || k); });
-    if (feito.outro) chip(ul, '“' + feito.outro.slice(0, 60) + (feito.outro.length > 60 ? '…' : '') + '”');
-    [OBJ[feito.objetivo], INV[feito.investimento], REC[feito.recurso]].forEach(function (t) { if (t) chip(ul, t, 'leve'); });
+    txt.appendChild(document.createTextNode(' sobre o que você respondeu.'));
+
+    var dl = $('resp'), ul = $('chips');
+    dl.textContent = ''; ul.textContent = '';
+    if (feito.porta === 'eletroposto') {
+      linhaResp(dl, 'Eletroposto', CAMINHO[feito.caminho] || feito.caminho, 'ep-dd');
+      linhasEp(feito).forEach(function (l) { linhaResp(dl, l[0], l[1]); });
+    } else {
+      (feito.mobilidade || []).forEach(function (k) { chip(ul, MOB[k] || k); });
+      if (feito.outro) chip(ul, '“' + feito.outro.slice(0, 60) + (feito.outro.length > 60 ? '…' : '') + '”');
+      [OBJ[feito.objetivo], INV[feito.investimento], REC[feito.recurso]].forEach(function (t) { if (t) chip(ul, t, 'leve'); });
+    }
+    dl.hidden = !dl.children.length;
+    ul.hidden = !ul.children.length;
     contar($('pos'), feito.posicao, agora && MOVE);
     window.scrollTo(0, 0);
     $('tFim').focus({ preventScroll: true });
@@ -1127,29 +1478,28 @@ input:checked~.quad svg{opacity:1;transform:none}
   }
   if (!navigator.share) $('compartilhar').querySelector('span').textContent = 'Copiar o link da lista';
 
-  /* O backend só soma: marcar mais coisas nunca apaga o que já estava. */
+  /* "Marcar mais coisas": volta para a tela 1 com as respostas limpas. Os dados
+     de contato ficam na tela. O backend só soma: nada do que já estava se perde. */
   function aplicar(e) {
-    estado.eletroposto = e.eletroposto || []; estado.mobilidade = e.mobilidade || []; estado.outro = e.outro || '';
-    estado.objetivo = e.objetivo || ''; estado.investimento = e.investimento || ''; estado.recurso = e.recurso || '';
-    caixasEp.forEach(function (c) { c.checked = estado.eletroposto.indexOf(c.value) >= 0; });
+    estado = vazio();
+    Object.keys(estado).forEach(function (k) { if (e && e[k] != null) estado[k] = e[k]; });
+    if (typeof estado.respostas !== 'object' || !estado.respostas) estado.respostas = {};
     caixasMob.forEach(function (c) { c.checked = estado.mobilidade.indexOf(c.value) >= 0; });
     $('outro').value = estado.outro; $('contaOutro').textContent = estado.outro.length + ' de 300';
   }
   $('mudar').addEventListener('click', function () {
-    try {
-      var f = JSON.parse(localStorage.getItem(CH_FEITO) || 'null');
-      if (f) aplicar(f);
-      localStorage.removeItem(CH_FEITO);
-    } catch (e) {}
+    try { localStorage.removeItem(CH_FEITO); } catch (e) {}
+    aplicar(null);
+    ultimoCorpo = null;
     lerItens();
-    try { history.replaceState({ passo: 1 }, ''); } catch (e) {}
-    mostrar(1);
+    try { history.replaceState({ tela: 'porta' }, ''); } catch (e) {}
+    mostrar('porta');
   });
 
   /* ---------- volta de onde parou ---------- */
   var feito = null;
   try { feito = JSON.parse(localStorage.getItem(CH_FEITO) || 'null'); } catch (e) {}
-  if (feito && feito.posicao) {
+  if (feito && feito.posicao && feito.porta) {
     feito.novo = false;
     final(feito, false);
   } else {
@@ -1159,7 +1509,7 @@ input:checked~.quad svg{opacity:1;transform:none}
       CAMPOS.forEach(function (id) { if (typeof r[id] === 'string') $(id).value = r[id]; });
     }
     lerItens();
-    mostrar(1, { semAnim: true, semFoco: true });
+    mostrar('porta', { semAnim: true, semFoco: true });
   }
 })();
 </script>

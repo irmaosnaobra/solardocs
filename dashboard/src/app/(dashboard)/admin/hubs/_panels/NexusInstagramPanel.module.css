@@ -31,6 +31,34 @@ button.numeroEp:hover { border-color: var(--nx); }
 .numeroEp .numRot { color: var(--nx); }
 .numVal { font-size: 30px; font-weight: 700; line-height: 1; }
 
+/* WhatsApp: contadores que filtram */
+.whatsLinha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.whatsRot { font-size: 12px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; color: var(--color-text-muted); margin-right: 4px; }
+.whatsBtn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--color-border-strong); border-radius: 999px; background: var(--color-surface); font: inherit; font-size: 13px; font-weight: 600; color: var(--color-text); cursor: pointer; transition: border-color .15s, background-color .15s; }
+.whatsBtn b { font-weight: 800; }
+.whatsBtn::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.whats_ok::before { background: #1E9E55; }
+.whats_sem::before { background: #C93434; }
+.whats_nv::before { background: #8B95A3; }
+.whatsBtn:hover { border-color: var(--color-text-muted); }
+.whatsOn { border-color: var(--nx); background: var(--nx-fundo); color: var(--nx); }
+.whatsBtn:focus-visible { outline: 2px solid var(--nx); outline-offset: 2px; }
+
+/* selo do WhatsApp na linha (cor + texto, nunca só cor) */
+.selo { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px; padding: 1px 7px 1px 5px; border-radius: 999px; border: 1px solid; font-size: 11px; font-weight: 700; line-height: 1.5; white-space: nowrap; }
+.selo svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.seloOk { color: #127A3E; background: #E7F6EC; border-color: #B5E2C4; }
+.seloSem { color: #A12A2A; background: #FDECEC; border-color: #F5C2C2; }
+.seloNv { color: var(--color-text-muted); background: var(--color-surface-2); border-color: var(--color-border-strong); }
+
+/* respostas do eletroposto */
+.respCurta { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12.5px; line-height: 1.4; }
+.respCurta span, .respBloco li span { color: var(--color-text-muted); }
+.respBloco { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--nx-borda); border-radius: 8px; background: var(--color-surface); }
+.respTit { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--nx); }
+.respBloco ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 22px; font-size: 13px; }
+.respBloco li { font-weight: 600; }
+
 /* rankings */
 .rankings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
 .rank { padding: 16px 18px 12px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
@@ -73,6 +101,7 @@ button.numeroEp:hover { border-color: var(--nx); }
 .nome strong { display: block; font-weight: 700; }
 .sob { display: block; margin-top: 2px; font-size: 12px; color: var(--color-text-muted); }
 .contato { min-width: 170px; }
+.contato .selo { display: flex; }
 .wa { display: inline-block; white-space: nowrap; font-weight: 600; color: #127A3E; text-decoration: none; border-bottom: 1px solid rgba(18, 122, 62, .3); }
 .wa:hover { border-bottom-color: #127A3E; }
 .email { display: block; max-width: 220px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--color-text-muted); text-decoration: none; }
@@ -81,7 +110,7 @@ button.numeroEp:hover { border-color: var(--nx); }
 .chip, .chipEp { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; line-height: 1.5; white-space: nowrap; }
 .chip { background: var(--color-surface-2); border: 1px solid var(--color-border-strong); color: var(--color-text); }
 .chipEp { background: var(--nx-fundo); border: 1px solid var(--nx-borda); color: var(--nx); }
-.perfil { min-width: 150px; }
+.perfil { min-width: 190px; }
 .perfil strong { display: block; font-weight: 700; }
 .faixa { display: block; margin-top: 2px; white-space: nowrap; font-weight: 600; }
 .outro { margin-top: 6px; max-width: 360px; font-size: 12px; font-style: italic; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -100,8 +129,48 @@ button.numeroEp:hover { border-color: var(--nx); }
 }
 @media (max-width: 760px) {
   .numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .numero { padding: 12px 14px; }
+  .numVal { font-size: 26px; }
   .rankings { grid-template-columns: 1fr; }
-  .rank li button { grid-template-columns: 120px minmax(0, 1fr) 32px; }
+  .rank li button { grid-template-columns: 120px minmax(0, 1fr) 32px; min-height: 40px; }
   .grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .conta { margin-left: 0; }
+  .whatsBtn { min-height: 40px; }
+  .filtros { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .busca, .conta { grid-column: 1 / -1; }
+  .filtros input, .filtros select { width: 100%; height: 44px; font-size: 16px; }
+  .conta { margin-left: 0; justify-content: space-between; }
+  .conta button { min-height: 44px; }
+
+  /* tabela vira cartões */
+  .tabelaWrap { background: none; border: 0; overflow: visible; }
+  .tabela { min-width: 0; display: block; }
+  .tabela thead { display: none; }
+  .tabela tbody { display: grid; gap: 10px; }
+  .tabela tbody tr:hover > td { background: none; }
+  .linha {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nome abrir" "contato contato" "int int" "perfil perfil" "data data";
+    padding: 14px 14px 10px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  }
+  .linhaAberta { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+  .linha > td { display: block; padding: 0 !important; border: 0 !important; background: none !important; min-width: 0; }
+  .linha .colAbrir { grid-area: abrir; width: auto; }
+  .linha .abrir { width: 44px; height: 44px; margin: -8px -8px 0 0; border: 0; background: none; }
+  .linha .abrir svg { transform: rotate(90deg); }
+  .linha .abrir[aria-expanded="true"] svg { transform: rotate(-90deg); }
+  .linha .nome { grid-area: nome; }
+  .linha .nome strong { font-size: 15px; }
+  .linha .contato { grid-area: contato; display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; margin-top: 8px; }
+  .linha .wa { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border: 1px solid #B5E2C4; border-radius: 8px; background: #E7F6EC; font-size: 14px; }
+  .linha .contato .selo { margin-top: 0; }
+  .linha .email { flex-basis: 100%; max-width: none; margin-top: 2px; }
+  .linha .interesses, .linha .perfil { margin-top: 10px; padding-top: 10px !important; border-top: 1px solid var(--color-border) !important; }
+  .linha .interesses { grid-area: int; }
+  .linha .perfil { grid-area: perfil; }
+  .linha .chips { min-width: 0; }
+  .linha .outro { white-space: normal; }
+  .linha .data { grid-area: data; margin-top: 10px; font-size: 12px; }
+  .detalhe { display: block; margin-top: -10px; }
+  .detalhe > td { display: block; padding: 4px 14px 14px !important; border: 1px solid var(--color-border); border-top: 0; border-radius: 0 0 12px 12px; }
+  .respBloco ul { flex-direction: column; }
+  .vazio { display: block; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
 }
