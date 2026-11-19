@@ -11,23 +11,29 @@ import { adminMiddleware } from '../middleware/adminAuth';
 const CHAVE = 'estudio_snapshot';
 const LIMITE_BYTES = 1024 * 1024;
 
-/** Segredo da máquina: ESTUDIO_SYNC_TOKEN; sem ele, cai para o CRON_SECRET. Vazio = nenhum definido. */
-function segredoEsperado(): string {
-  return (process.env.ESTUDIO_SYNC_TOKEN || '').trim() || (process.env.CRON_SECRET || '').trim();
+// Impressão digital (SHA-256) da credencial que só existe no PC do publicador de vídeos (19/11/2026).
+// Não é segredo: não dá para chegar ao valor original a partir dela, como uma chave pública.
+// Para trocar, gere outra no .env do estúdio e ponha a nova impressão aqui (ou na env abaixo).
+const DIGITAL_PUBLICADOR = 'a09f5415e4f91831dfa21329738c6e2ec7aec1f6926c43e26cc6625e79bd3aa6';
+
+/** Hash SHA-256 esperado: ESTUDIO_SYNC_TOKEN (valor), senão ESTUDIO_SYNC_TOKEN_SHA256 (64 hex), senão a embutida. */
+function hashEsperado(): Buffer {
+  const s = (process.env.ESTUDIO_SYNC_TOKEN || '').trim();
+  if (s) return crypto.createHash('sha256').update(s).digest();
+  const h = (process.env.ESTUDIO_SYNC_TOKEN_SHA256 || '').trim().toLowerCase();
+  return Buffer.from(/^[0-9a-f]{64}$/.test(h) ? h : DIGITAL_PUBLICADOR, 'hex');
 }
 
-function tokenConfere(recebido: string, esperado: string): boolean {
+function tokenConfere(recebido: string, esperado: Buffer): boolean {
   const a = crypto.createHash('sha256').update(recebido).digest();
-  const b = crypto.createHash('sha256').update(esperado).digest();
-  return crypto.timingSafeEqual(a, b); // hash dos dois: mesmo tamanho, sem vazar o comprimento
+  return crypto.timingSafeEqual(a, esperado); // hash dos dois: mesmo tamanho, sem vazar o comprimento
 }
 
 /** Router do publicador: POST /estudio/snapshot. */
 export const estudioMaquinaRouter = Router();
 
 estudioMaquinaRouter.post('/snapshot', async (req: Request, res: Response): Promise<void> => {
-  const esperado = segredoEsperado();
-  if (!esperado) { res.status(503).json({ error: 'estudio_sem_token' }); return; }
+  const esperado = hashEsperado();
 
   const cab = String(req.headers.authorization || '');
   const recebido = cab.startsWith('Bearer ') ? cab.slice(7).trim() : '';
