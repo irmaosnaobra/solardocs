@@ -4,12 +4,18 @@
 // O topo tem a largura de quem chegou nesta etapa e a base a de quem chegou na
 // próxima, e as faixas emendam num funil só. A maior queda (em pessoas) fica
 // pintada cheia, com aviso no topo e botão que rola até ela.
+// Entre uma etapa e a seguinte fica a passagem: "passou X (Y%)" e "saiu Z". Os números
+// de chegaram e de saíram são botões: abrem a gaveta com quem são (onAbrir).
 import { Fragment, useMemo, useRef } from 'react';
+import { CornerDownRight } from 'lucide-react';
 import s from './MonjourFunilPanel.module.css';
 import { TIPO, fmtInt, fmtPct, fmtTempo } from './monjourComum';
 import type { EtapaMonjour } from './hubMonjour.types';
+import type { TipoSessoes } from './hubMonjourJornadas.types';
 
-export default function MonjourFunilDesenho({ etapas, total }: { etapas: EtapaMonjour[]; total: number }) {
+export default function MonjourFunilDesenho({ etapas, total, onAbrir }: {
+  etapas: EtapaMonjour[]; total: number; onAbrir?: (e: EtapaMonjour, tipo: TipoSessoes) => void;
+}) {
   const rolagem = useRef<HTMLDivElement>(null);
   const ordem = useMemo(() => [...etapas].sort((a, b) => a.n - b.n), [etapas]);
   const topo = Math.max(1, total, ...ordem.map((e) => e.chegaram));
@@ -55,6 +61,7 @@ export default function MonjourFunilDesenho({ etapas, total }: { etapas: EtapaMo
             const pctTxt = fmtPct(e.chegaram, topo, 1);
             const cabeDentro = topoW >= 16;
             const fracSaida = e.chegaram ? e.sairam / e.chegaram : 0;
+            const passou = Math.max(0, e.chegaram - e.sairam);
             const extra = e.pularam ? `${fmtInt(e.pularam)} pularam` : '';
             const resumo = `${e.n}. ${e.rotulo}: chegaram ${e.chegaram} (${pctTxt} do início), saíram ali ${e.sairam}`
               + `${e.chegaram ? ` (${fmtPct(e.sairam, e.chegaram)})` : ''}, tempo mediano ${fmtTempo(e.medianaSegundos)}`
@@ -87,29 +94,53 @@ export default function MonjourFunilDesenho({ etapas, total }: { etapas: EtapaMo
                       {pctTxt}
                     </span>
                   </div>
-                  <div className={`${s.num} ${s.numForte} ${s.numChegaram}`}>{fmtInt(e.chegaram)}</div>
-                  <div className={s.saida}>
-                    <div className={s.saidaTrilho}>
-                      <div className={s.saidaBarra} style={{ width: `${(fracSaida / maxSaida) * 100}%` }} />
-                    </div>
-                    <div className={s.saidaNum}>
-                      {prox ? (
-                        <>
-                          <span className={s.soCelular}>saíram </span>{fmtInt(e.sairam)}
-                          {e.chegaram > 0 && <small>{fmtPct(e.sairam, e.chegaram)}</small>}
-                        </>
-                      ) : <span className={s.numFraco}>fim</span>}
-                    </div>
+                  <div className={`${s.num} ${s.numForte} ${s.numChegaram}`}>
+                    <Numero valor={e.chegaram} rotulo={`Ver quem chegou em ${e.n}. ${e.rotulo}`} abrir={onAbrir && (() => onAbrir(e, 'chegaram'))} />
                   </div>
+                  <div className={s.saidaVazia} aria-hidden="true" />
                   <div className={`${s.num} ${s.numFraco} ${s.numTempo}`}>
                     <span className={s.soCelular}>tempo </span>{fmtTempo(e.medianaSegundos)}
                   </div>
                 </li>
+                {prox && (
+                  <li className={`${s.passagem} ${ehQueda ? s.passagemQueda : ''}`}>
+                    <div className={s.passagemTexto}>
+                      <CornerDownRight size={13} aria-hidden="true" className={s.passagemSeta} />
+                      <span>passou <b>{fmtInt(passou)}</b> ({fmtPct(passou, e.chegaram)})</span>
+                      <span className={s.soCelular}>
+                        {' · saiu '}<Numero valor={e.sairam} rotulo={`Ver quem saiu em ${e.n}. ${e.rotulo}`} abrir={onAbrir && (() => onAbrir(e, 'sairam'))} />
+                      </span>
+                    </div>
+                    <div className={s.faixaTrilho} aria-hidden="true">
+                      <div className={`${s.pescoco} ${pos ? s.faixaPos : ''}`} style={{ width: `${baseW}%` }} />
+                    </div>
+                    <div aria-hidden="true" />
+                    <div className={s.saida}>
+                      <div className={s.saidaTrilho} title={`Saíram ${fmtPct(e.sairam, e.chegaram)} de quem chegou`}>
+                        <div className={s.saidaBarra} style={{ width: `${(fracSaida / maxSaida) * 100}%` }} />
+                      </div>
+                      <div className={s.saidaNum}>
+                        saiu <Numero valor={e.sairam} rotulo={`Ver quem saiu em ${e.n}. ${e.rotulo}`} abrir={onAbrir && (() => onAbrir(e, 'sairam'))} />
+                      </div>
+                    </div>
+                    <div aria-hidden="true" />
+                  </li>
+                )}
               </Fragment>
             );
           })}
         </ol>
       </div>
     </>
+  );
+}
+
+// Número que abre a gaveta. Sem onAbrir (ou com zero) fica texto.
+function Numero({ valor, rotulo, abrir }: { valor: number; rotulo: string; abrir?: () => void }) {
+  if (!abrir || valor <= 0) return <span>{fmtInt(valor)}</span>;
+  return (
+    <button type="button" className={s.numBotao} onClick={abrir} aria-label={`${fmtInt(valor)}. ${rotulo}`}>
+      {fmtInt(valor)}
+    </button>
   );
 }

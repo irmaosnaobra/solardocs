@@ -54,7 +54,7 @@
 
 /* ── desenho do funil ─────────────────── */
 .funilRolagem { position: relative; max-height: 640px; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid var(--color-border); scrollbar-width: thin; scrollbar-color: var(--color-border-strong) transparent; }
-.funilCab, .etapa {
+.funilCab, .etapa, .passagem {
   display: grid;
   grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) 72px 150px 64px;
   align-items: center;
@@ -90,8 +90,38 @@
 .saidaNum { font-size: 13px; text-align: right; color: var(--color-text); min-width: 58px; }
 .saidaNum small { font-size: 11px; color: var(--color-text-dim); margin-left: 3px; }
 
+/* ── passagem entre uma etapa e a seguinte ─
+   Fica sob a etapa: à esquerda quantos passaram, no meio o funil segue reto na
+   largura da próxima, à direita a barra e o número de quem saiu. */
+.saidaVazia { min-height: 1px; }
+.passagem { min-height: 24px; padding: 0 10px; border-radius: 8px; }
+.passagemTexto { display: flex; align-items: center; gap: 5px; min-width: 0; padding-left: 26px; font-size: 12px; color: var(--color-text-dim); white-space: nowrap; }
+.passagemTexto b { color: var(--color-text-muted); font-weight: 700; }
+.passagemSeta { flex-shrink: 0; color: var(--color-border-strong); }
+.passagem .faixaTrilho { height: 24px; }
+.pescoco { position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); background: var(--mj-meio); opacity: 0.55; }
+.pescoco.faixaPos { background: var(--salvia-meio); }
+.passagem .saidaNum { color: var(--color-text-dim); font-size: 12px; }
+.passagemQueda { background: var(--mj-suave); }
+.passagemQueda .passagemTexto, .passagemQueda .saidaNum { color: var(--mj-faixa-txt); }
+.passagemQueda .saidaBarra { opacity: 1; }
+.passagemQueda .pescoco { background: var(--mj); opacity: 0.8; }
+.etapaQueda { border-radius: 8px 8px 0 0; }
+.passagemQueda { border-radius: 0 0 8px 8px; box-shadow: inset 1px 0 0 var(--mj-meio), inset -1px 0 0 var(--mj-meio), inset 0 -1px 0 var(--mj-meio); }
+
+/* Número que abre a gaveta: sublinhado pontilhado sempre, para dizer que clica. */
+.numBotao {
+  font: inherit; color: inherit; font-weight: inherit; background: none; border: 0; cursor: pointer;
+  padding: 2px 4px; margin: -2px -4px; border-radius: 6px;
+  text-decoration: underline dotted; text-decoration-color: var(--mj-meio); text-decoration-thickness: 1.5px; text-underline-offset: 3px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.numBotao:hover { background: var(--mj-suave); color: var(--mj-escura); text-decoration-style: solid; text-decoration-color: var(--mj); }
+.passagem .numBotao { color: var(--color-text); font-weight: 800; }
+.passagemQueda .numBotao { color: var(--mj-escura); }
+
 /* maior queda em destaque */
-.etapaQueda { background: var(--mj-suave); box-shadow: inset 0 0 0 1px var(--mj-meio); }
+.etapaQueda { background: var(--mj-suave); box-shadow: inset 1px 0 0 var(--mj-meio), inset -1px 0 0 var(--mj-meio), inset 0 1px 0 var(--mj-meio); }
 .etapaQueda:hover { background: var(--mj-suave); }
 .etapaQueda .faixa { background: var(--mj); }
 .etapaQueda .faixaRotulo { color: #fff; }
@@ -153,7 +183,7 @@
 
 /* ── responsivo ───────────────────────── */
 @media (max-width: 1100px) {
-  .funilCab, .etapa { grid-template-columns: minmax(150px, 180px) minmax(0, 1fr) 64px 130px 56px; column-gap: 10px; }
+  .funilCab, .etapa, .passagem { grid-template-columns: minmax(150px, 180px) minmax(0, 1fr) 64px 130px 56px; column-gap: 10px; }
 }
 @media (max-width: 900px) {
   .duas, .perguntas { grid-template-columns: 1fr; }
@@ -175,7 +205,7 @@
     grid-template-areas:
       'nome chegaram'
       'faixa faixa'
-      'saida tempo';
+      'tempo tempo';
     row-gap: 3px;
     padding: 6px 8px;
     scroll-margin-top: 8px;
@@ -186,7 +216,13 @@
   .etapa > .saida { grid-area: saida; display: block; }
   .etapa .saidaTrilho { display: none; }
   .etapa .saidaNum { text-align: left; }
-  .numTempo { grid-area: tempo; min-width: 72px; }
+  .numTempo { grid-area: tempo; min-width: 72px; text-align: left; font-size: 12px; }
+  .saidaVazia { display: none; }
+  .passagem { grid-template-columns: minmax(0, 1fr); padding: 0 8px 6px; min-height: 0; }
+  .passagem > :not(.passagemTexto) { display: none; }
+  .passagemTexto { padding-left: 0; white-space: normal; flex-wrap: wrap; font-size: 12.5px; }
+  .passagemTexto .numBotao { display: inline-flex; align-items: center; min-height: 32px; }
+  .numChegaram .numBotao { display: inline-flex; align-items: center; min-height: 32px; }
   .etapaExtra { display: none; }
   .tabela { min-width: 640px; }
 }

@@ -34,7 +34,7 @@ export function medianaDe(valores: number[]): number | null {
 
 const chegou = (s: SessaoMonjour, n: number): boolean => s.nivel >= n;
 
-function passaNosFiltros(s: SessaoMonjour, f: FiltrosMonjour): boolean {
+export function passaNosFiltros(s: SessaoMonjour, f: FiltrosMonjour): boolean {
   if (f.pais && s.ctx.pais !== f.pais.toUpperCase()) return false;
   if (f.disp && s.ctx.disp !== f.disp.toLowerCase()) return false;
   if (f.anuncio && (s.ctx.anuncio || SEM_ANUNCIO) !== f.anuncio) return false;

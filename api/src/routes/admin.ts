@@ -25,6 +25,7 @@ import { lerTudo, lerFunilQuizSolar } from '../services/io/painelQuizSolar';
 import { lerFunilQuizSolardoc } from '../services/solardoc/painelQuizSolardoc';
 import { lerFunilMonjour } from '../services/monjour/painelQuizMonjour';
 import { lerResumoMonjour } from '../services/monjour/resumoMonjour';
+import adminMonjourRouter from './adminMonjour';
 import { sondarRecuperacaoQuiz } from '../services/solardoc/recuperacaoCarla';
 import { vagasDoFrioLinha } from '../services/agents/whatsapp/lineThrottle';
 import { novoAnthropic } from "../utils/anthropicClient";
@@ -1050,6 +1051,9 @@ router.get('/monjour/quiz-funil', async (req: Request, res: Response): Promise<v
     res.status(500).json({ error: String((err as Error)?.message || err) });
   }
 });
+
+// Quem passou em cada tela, jornada da sessão, membros e "o que mais gostam" (19/11/2026): routes/adminMonjour.ts.
+router.use('/monjour', adminMonjourRouter);
 
 // O RESUMO DO MONJOUR (19/11/2026): vendas e leads da Stripe (lidos pelo site do Monjour) mais o app de lp_events.
 // Site fora ou sem MONJOUR_ADMIN_TOKEN: 200 com indisponivel, para o painel avisar em vez de quebrar.
