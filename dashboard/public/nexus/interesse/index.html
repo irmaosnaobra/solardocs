@@ -3,34 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- LISTA DE INTERESSE NEXUS (link da bio do Instagram).
-     O Eduardo está na China visitando fábricas. Quem chega marca o que quer ver,
-     diz para quem é e deixa o WhatsApp. Três passos, um por tela, sem recarregar.
+<!-- LISTA NEXUS (link da bio do Instagram). Lista permanente de interesse em
+     eletroposto e mobilidade elétrica. Cinco passos, um por tela, sem recarregar:
+     1 o que procura (múltipla), 2 para quê, 3 quanto investir, 4 como pagar
+     (resposta única avança no toque), 5 dados. Tela final: "nº X da lista".
 
-     DESENHO: lista de espera de lançamento, não formulário de concessionária.
-     Escuro institucional da NEXUS (#0B1A2B), raio curto, sem brilho. O VERDE É SÓ
-     DA AÇÃO (botão principal). Seleção e progresso em azul. Ícones em traço,
-     desenhados aqui: não há foto de carro e não se usa marca de montadora.
+     DESENHO: escuro institucional da NEXUS (#0B1A2B), raio curto, sem brilho. O
+     VERDE É SÓ DA AÇÃO (botão principal). Seleção e progresso em azul. O bloco do
+     Eletroposto NEXUS vem primeiro e maior, com as seis frentes e o "(?)" de cada.
+     Ícones em traço, desenhados aqui: nada de marca de montadora.
 
-     CONTRATO: POST /_api/io/eletroposto/nexus-interesse. Em localhost a resposta
-     é simulada ({ok:true,posicao:42,novo:true}) para conferir o fluxo inteiro.
+     CONTRATO: POST /_api/io/eletroposto/nexus-interesse. Os slugs (value) são os
+     que o backend aceita: rótulo pode mudar, slug não. Em localhost a resposta é
+     simulada ({ok:true,posicao:42,novo:true}) para conferir o fluxo inteiro.
      Pixel: conjunto "Eletroposto". Nunca track('Lead') aqui: o evento é custom.
 
      Todo asset com caminho absoluto: o servidor tira a barra final e ./ quebra. -->
-<title>Lista de interesse NEXUS | Eduardo na China</title>
-<meta name="description" content="O Eduardo, sócio da NEXUS, está na China visitando fábricas de carros elétricos, carregadores e baterias. Marque o que te interessa e receba primeiro.">
+<title>Lista NEXUS | Eletroposto e mobilidade elétrica</title>
+<meta name="description" content="Eletroposto, carros, motos, bikes e carregadores elétricos. Diga o que você procura e quanto pretende investir. A equipe NEXUS fala com você.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://solardoc.app/nexus/interesse">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="pt_BR">
 <meta property="og:site_name" content="NEXUS">
 <meta property="og:url" content="https://solardoc.app/nexus/interesse">
-<meta property="og:title" content="Lista de interesse NEXUS: o Eduardo está na China">
-<meta property="og:description" content="Marque o que te interessa. Você recebe primeiro as fotos, os vídeos e as condições.">
+<meta property="og:title" content="Lista NEXUS: eletroposto e mobilidade elétrica">
+<meta property="og:description" content="Eletroposto, carros, motos, bikes e carregadores. Diga o que você procura e entre na lista.">
 <meta property="og:image" content="https://solardoc.app/nexus/interesse/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Lista de interesse NEXUS. Eduardo na China agora.">
+<meta property="og:image:alt" content="Lista NEXUS de eletroposto e mobilidade elétrica, com carregadores NEXUS no galpão.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://solardoc.app/nexus/interesse/og.jpg">
 <meta name="theme-color" content="#0B1A2B">
@@ -49,7 +51,7 @@
   --linha:rgba(255,255,255,.12); --linha-2:rgba(255,255,255,.22);
   --texto:#EAEEF3; --suave:#9BAEC4; --fraco:#8296AE;
   --acao:#39FF14; --acao-tinta:#06121F; --acao-hover:#5BFF3D;
-  --azul:#0085FF; --azul-fundo:rgba(0,133,255,.12); --azul-texto:#5CB0FF;
+  --azul:#0085FF; --azul-fundo:rgba(0,133,255,.12); --azul-texto:#5CB0FF; --azul-borda:rgba(0,133,255,.5);
   --erro:#FF8A80; --erro-fundo:rgba(255,99,88,.10);
   --sans:"Montserrat","Helvetica Neue",Arial,sans-serif;
   --r:10px; --r-s:8px;
@@ -83,19 +85,9 @@ fieldset{border:0;min-width:0}
 }
 
 /* ---------- topo ---------- */
-.topo{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0 14px}
+.topo{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0 10px}
 .marca{display:block;width:100px;height:15px}
-.relogio{
-  display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;
-  border:1px solid var(--linha);border-radius:999px;background:var(--tinta-2);
-  font-size:12.5px;font-weight:600;color:var(--suave);white-space:nowrap;
-}
-.relogio b{color:var(--texto);font-weight:700}
-.vivo{position:relative;width:7px;height:7px;border-radius:50%;background:var(--azul);flex:none}
-.vivo::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--azul);opacity:0;animation:pulso 2.4s var(--ease) infinite}
-@keyframes pulso{0%{transform:scale(.5);opacity:.8}70%,100%{transform:scale(1.4);opacity:0}}
-.pisca{animation:pisca 2s steps(1) infinite}
-@keyframes pisca{50%{opacity:.25}}
+.topo-tag{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--suave)}
 
 /* ---------- progresso ---------- */
 .trilho{margin:6px 0 8px}
@@ -104,10 +96,10 @@ fieldset{border:0;min-width:0}
 .voltar{
   display:inline-flex;align-items:center;gap:4px;height:44px;margin-left:-10px;padding:0 10px;
   border-radius:8px;font-size:13.5px;font-weight:600;color:var(--suave);
-  transition:color .15s,background-color .15s,opacity .2s;
+  transition:color .15s,background-color .15s;
 }
 .voltar:hover{color:var(--texto);background:rgba(255,255,255,.05)}
-.barras{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.barras{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .barras span{height:3px;border-radius:3px;background:var(--linha);overflow:hidden;position:relative}
 .barras span::after{content:"";position:absolute;inset:0;background:var(--azul);transform:scaleX(0);transform-origin:left;transition:transform .45s var(--ease)}
 .barras span.on::after{transform:scaleX(1)}
@@ -116,74 +108,100 @@ fieldset{border:0;min-width:0}
 /* ---------- passos ---------- */
 form{flex:1;display:flex;flex-direction:column}
 .passo{flex:1;display:flex;flex-direction:column}
-.passo[hidden],.fim[hidden]{display:none}
 .entra{animation:entra .38s var(--ease) both}
 @keyframes entra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .olho{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--azul-texto)}
-h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
+h1,h2,h3{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
 .tit{font-size:30px;outline:none}
 .sub{margin-top:10px;font-size:15px;color:var(--suave);line-height:1.5;text-wrap:pretty;max-width:42ch}
 
-/* status do Eduardo (só no celular; no computador o painel faz esse papel) */
-.status{
-  display:flex;align-items:center;gap:12px;padding:9px 12px 9px 9px;margin:2px 0 20px;
-  border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2);
-}
-.status img{width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none}
-.status p{font-size:13px;line-height:1.4;color:var(--suave)}
-.status strong{display:block;font-size:14px;color:var(--texto);font-weight:700}
-
-/* ajuda (?) */
-.ajuda{position:relative;display:inline-block;vertical-align:baseline}
-.ajuda>button{
-  display:inline-grid;place-items:center;width:22px;height:22px;margin-left:4px;vertical-align:-5px;
+/* (?) */
+.q{
+  position:relative;display:inline-grid;place-items:center;width:24px;height:24px;flex:none;
   border:1px solid var(--linha-2);border-radius:50%;font-size:12px;font-weight:700;color:var(--suave);
-  position:relative;
+  transition:color .15s,border-color .15s,background-color .15s;
 }
-.ajuda>button::before{content:"";position:absolute;inset:-11px}
-.ajuda>button:hover,.ajuda>button[aria-expanded="true"]{color:var(--texto);border-color:var(--azul)}
-.balao{
-  position:absolute;z-index:5;left:50%;top:calc(100% + 10px);transform:translateX(-50%);
-  width:min(280px,calc(100vw - 40px));padding:10px 12px;border-radius:var(--r-s);
-  background:#1A3654;border:1px solid var(--linha-2);box-shadow:0 12px 32px rgba(0,0,0,.35);
-  font-size:13px;line-height:1.45;color:var(--texto);font-weight:500;
-}
-.balao[hidden]{display:none}
+.q::before{content:"";position:absolute;inset:-10px}
+.q:hover,.q[aria-expanded="true"]{color:var(--texto);border-color:var(--azul)}
+.q[aria-expanded="true"]{background:var(--azul-fundo)}
 
-/* ---------- passo 1: cartões ---------- */
-.grade{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
-.cartao{position:relative;display:block;cursor:pointer}
-.cartao input{position:absolute;opacity:0;width:1px;height:1px}
-.cartao .caixa{
-  display:flex;flex-direction:column;gap:10px;height:100%;padding:12px 14px 13px;
+/* ---------- passo 1: Eletroposto NEXUS (o destaque) ---------- */
+.ep{
+  margin-top:22px;border:1px solid var(--azul-borda);border-radius:14px;overflow:hidden;
+  background:linear-gradient(180deg,#12304F 0%,var(--tinta-2) 62%);
+  box-shadow:0 0 0 4px rgba(0,133,255,.06);
+}
+.ep-topo{display:flex;align-items:center;gap:14px;padding:16px 16px 14px}
+.ep-txt{flex:1;min-width:0}
+.selo{
+  display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;
+  background:rgba(0,133,255,.18);border:1px solid var(--azul-borda);
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9FD0FF;
+}
+.selo svg{width:12px;height:12px;fill:currentColor}
+.ep h2{margin-top:10px;font-size:23px;line-height:1.1}
+.ep-sub{margin-top:5px;font-size:13.5px;line-height:1.45;color:var(--suave)}
+.ep-foto{
+  flex:none;width:78px;height:96px;border-radius:10px;background:#F3F5F8;
+  display:grid;place-items:center;overflow:hidden;
+}
+.ep-foto img{width:70px;height:86px;object-fit:contain}
+.frentes{display:grid;gap:8px;padding:0 12px 12px}
+.frente{
+  position:relative;border:1px solid var(--linha);border-radius:var(--r);background:rgba(11,26,43,.55);
+  transition:border-color .18s,background-color .18s;
+}
+.frente:hover{border-color:var(--linha-2)}
+.frente.on{border-color:var(--azul);background:rgba(0,133,255,.16)}
+.frente-linha{display:flex;align-items:center;gap:10px;padding-right:12px}
+.frente label{flex:1;display:flex;align-items:center;gap:12px;min-height:54px;padding:0 0 0 14px;cursor:pointer}
+.frente input{position:absolute;opacity:0;width:1px;height:1px}
+.frente .nome{font-size:15.5px;font-weight:700;line-height:1.25}
+.frente input:focus-visible~.quad{outline:2px solid var(--azul);outline-offset:3px}
+.expl{padding:0 14px 13px 46px;font-size:13px;line-height:1.45;color:#C9D5E2}
+
+/* caixinha de marcar (quadrada = múltipla escolha) */
+.quad{
+  width:20px;height:20px;flex:none;border-radius:5px;border:1.5px solid var(--linha-2);
+  display:grid;place-items:center;transition:background-color .18s,border-color .18s;
+}
+.quad svg{width:12px;height:12px;fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.4);transition:opacity .18s,transform .25s var(--ease)}
+input:checked~.quad{background:var(--azul);border-color:var(--azul)}
+input:checked~.quad svg{opacity:1;transform:none}
+
+/* ---------- passo 1: mobilidade elétrica ---------- */
+.mob{margin-top:28px}
+.mob-tit{font-size:19px}
+.mob-sub{margin-top:4px;font-size:13.5px;color:var(--suave)}
+.grupo{margin-top:18px}
+.grupo-tit{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);margin-bottom:8px}
+.grade{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.item{position:relative;display:block;cursor:pointer}
+.item input{position:absolute;opacity:0;width:1px;height:1px}
+.item .caixa{
+  display:flex;align-items:center;gap:10px;height:100%;min-height:56px;padding:8px 10px 8px 12px;
   border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2);
   transition:border-color .18s,background-color .18s,transform .18s var(--ease);
 }
-.cartao:hover .caixa{border-color:var(--linha-2)}
-.cartao:active .caixa{transform:scale(.98)}
-.cartao input:focus-visible+.caixa{outline:2px solid var(--azul);outline-offset:2px}
-.cartao input:checked+.caixa{border-color:var(--azul);background:var(--azul-fundo)}
-.ico{width:26px;height:26px;color:var(--suave);transition:color .18s}
-.ico svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.cartao input:checked+.caixa .ico{color:var(--texto)}
-.rot{font-size:15px;font-weight:700;line-height:1.25;color:var(--texto)}
-.rot small{display:block;margin-top:2px;font-size:12.5px;font-weight:500;color:var(--suave);line-height:1.35}
-.marca-ok{
-  position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;
-  border:1.5px solid var(--linha-2);display:grid;place-items:center;transition:background-color .18s,border-color .18s;
-}
-.marca-ok svg{width:12px;height:12px;fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.4);transition:opacity .18s,transform .25s var(--ease)}
-.cartao input:checked+.caixa .marca-ok{background:var(--azul);border-color:var(--azul)}
-.cartao input:checked+.caixa .marca-ok svg{opacity:1;transform:none}
+.item:hover .caixa{border-color:var(--linha-2)}
+.item:active .caixa{transform:scale(.98)}
+.item input:focus-visible+.caixa{outline:2px solid var(--azul);outline-offset:2px}
+.item input:checked+.caixa{border-color:var(--azul);background:var(--azul-fundo)}
+.ico{width:24px;height:24px;flex:none;color:var(--suave);transition:color .18s}
+.ico svg,.quadro svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.item input:checked+.caixa .ico{color:var(--texto)}
+.item .rot{flex:1;min-width:0;font-size:14px;font-weight:600;line-height:1.25}
+.item .quad{width:18px;height:18px;border-radius:50%}
+.item .quad svg{width:10px;height:10px}
+.item input:checked+.caixa .quad{background:var(--azul);border-color:var(--azul)}
+.item input:checked+.caixa .quad svg{opacity:1;transform:none}
 
-.outro{grid-column:1/-1;display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s var(--ease)}
-.outro.on{grid-template-rows:1fr}
-.outro>div{overflow:hidden}
-.outro .campo{padding-top:4px}
+.naoachou{margin-top:24px;padding-top:20px;border-top:1px solid var(--linha)}
 
 /* ---------- campos ---------- */
-.campo{display:flex;flex-direction:column;gap:7px}
+.campo{display:flex;flex-direction:column;gap:7px;min-width:0}
 .campo label{font-size:13.5px;font-weight:600;color:var(--texto)}
+.campo label small{font-size:12.5px;font-weight:500;color:var(--suave)}
 .campo input,.campo select,.campo textarea{
   width:100%;height:52px;padding:0 14px;border-radius:var(--r-s);
   background:var(--tinta-2);border:1px solid var(--linha-2);font-size:16px;font-weight:500;
@@ -194,55 +212,63 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
 .campo input:hover,.campo select:hover,.campo textarea:hover{border-color:rgba(255,255,255,.34)}
 .campo input:focus-visible,.campo select:focus-visible,.campo textarea:focus-visible{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(0,133,255,.28)}
 .campo select{
-  padding-right:36px;cursor:pointer;
+  padding-right:34px;cursor:pointer;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%239BAEC4' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 14px center;
+  background-repeat:no-repeat;background-position:right 13px center;
 }
 .campo select option{background:var(--tinta-2);color:var(--texto)}
 .campo .conta{align-self:flex-end;font-size:12px;color:var(--fraco)}
 .campo.ruim input,.campo.ruim select{border-color:var(--erro)}
-.msg{font-size:13px;font-weight:600;color:var(--erro);min-height:0}
+.msg{font-size:13px;font-weight:600;color:var(--erro)}
 .msg:empty{display:none}
-.linha2{display:grid;grid-template-columns:1fr 104px;gap:10px}
+.cep-st{font-size:12.5px;color:var(--suave);min-height:18px}
+.cep-st.ruim{color:var(--erro)}
+.linha2{display:grid;grid-template-columns:1fr 96px;gap:10px}
+.linha-cep{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:end}
+.linha-cep .cep-st{padding-bottom:16px}
 .campos{display:flex;flex-direction:column;gap:16px;margin-top:22px}
+.bloco-tit{margin-top:10px;padding-top:18px;border-top:1px solid var(--linha);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--suave)}
 .mel{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
 
-/* resumo do que marcou (passo 3) */
+/* resumo do que marcou (passo 5) */
 .resumo{
   display:flex;align-items:flex-start;gap:10px;margin-top:18px;padding:12px 14px;
   border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2);
   font-size:13.5px;color:var(--suave);line-height:1.45;
 }
 .resumo b{color:var(--texto);font-weight:600}
-.resumo button{margin-left:auto;flex:none;font-size:13px;font-weight:700;color:var(--azul-texto);padding:10px 4px;margin:-10px -4px -10px auto}
+.resumo button{flex:none;font-size:13px;font-weight:700;color:var(--azul-texto);padding:10px 6px;margin:-10px -6px -10px auto}
 .resumo button:hover{text-decoration:underline;text-underline-offset:3px}
 
-/* ---------- passo 2: resposta única ---------- */
+/* ---------- passos 2 a 4: resposta única ---------- */
 .opcoes{display:flex;flex-direction:column;gap:10px;margin-top:22px}
 .opcao{
-  display:flex;align-items:center;gap:14px;width:100%;min-height:76px;padding:14px 16px 14px 14px;text-align:left;
+  display:flex;align-items:center;gap:14px;width:100%;min-height:72px;padding:12px 16px 12px 14px;text-align:left;
   border:1px solid var(--linha);border-radius:var(--r);background:var(--tinta-2);
   transition:border-color .18s,background-color .18s,transform .18s var(--ease);
 }
 .opcao:hover{border-color:var(--linha-2)}
 .opcao:active{transform:scale(.985)}
 .opcao.on{border-color:var(--azul);background:var(--azul-fundo)}
-.opcao .quadro{width:44px;height:44px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.05);flex:none;color:var(--suave)}
+.quadro{width:44px;height:44px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.05);flex:none;color:var(--suave)}
 .opcao.on .quadro{color:var(--texto);background:rgba(0,133,255,.22)}
-.opcao .quadro svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.opcao .rot{flex:1}
+.opcao .rot{flex:1;font-size:15.5px;font-weight:700;line-height:1.25}
+.opcao .rot small{display:block;margin-top:2px;font-size:12.5px;font-weight:500;color:var(--suave);line-height:1.35}
+.opcoes.faixas{gap:8px}
+.faixas .opcao{min-height:56px;padding:0 16px}
+.faixas .opcao .rot{font-size:16px}
 .seta{width:18px;height:18px;fill:none;stroke:var(--suave);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;transition:transform .2s var(--ease)}
 .opcao:hover .seta{transform:translateX(3px)}
 
 /* ---------- ação fixa no pé ---------- */
 .pe{
   position:sticky;bottom:0;margin-top:auto;padding:22px 0 calc(16px + env(safe-area-inset-bottom));
-  background:linear-gradient(to bottom,rgba(11,26,43,0),var(--tinta) 26px);
+  background:linear-gradient(to bottom,rgba(11,26,43,0),var(--tinta) 26px);z-index:2;
 }
 .btn{
   display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:54px;padding:0 20px;
   border-radius:var(--r);font-size:16px;font-weight:700;letter-spacing:-.005em;
-  transition:background-color .15s,transform .15s var(--ease),opacity .2s,box-shadow .15s;
+  transition:background-color .15s,transform .15s var(--ease),opacity .2s;
 }
 .btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .btn-acao{background:var(--acao);color:var(--acao-tinta)}
@@ -250,15 +276,13 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
 .btn-acao:active{transform:scale(.985)}
 .btn-acao:focus-visible{outline:2px solid var(--texto);outline-offset:3px}
 .btn-acao[disabled]{opacity:.7;cursor:progress}
-.btn-sec{border:1px solid var(--linha-2);color:var(--texto);background:transparent}
-.btn-sec:hover{background:rgba(255,255,255,.05)}
 .aparece{transition:opacity .25s var(--ease),transform .3s var(--ease)}
 .aparece.fora{opacity:0;transform:translateY(12px);pointer-events:none;visibility:hidden}
 .vaga{display:grid}
 .vaga>*{grid-area:1/1}
 .dica{
-  display:flex;align-items:center;justify-content:center;height:54px;border-radius:var(--r);
-  border:1px dashed var(--linha-2);font-size:14px;font-weight:600;color:var(--suave);transition:opacity .2s;
+  display:flex;align-items:center;justify-content:center;height:54px;border-radius:var(--r);padding:0 12px;text-align:center;
+  border:1px dashed var(--linha-2);background:var(--tinta);font-size:14px;font-weight:600;color:var(--suave);transition:opacity .2s;
 }
 .dica.fora{opacity:0;visibility:hidden}
 .erroEnvio{
@@ -274,7 +298,7 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
 
 /* ---------- tela final ---------- */
 .fim{flex:1;display:flex;flex-direction:column;padding-top:8px}
-.fim-selo{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--azul-fundo);border:1px solid rgba(0,133,255,.5);margin-bottom:22px}
+.fim-selo{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--azul-fundo);border:1px solid var(--azul-borda);margin-bottom:22px}
 .fim-selo svg{width:22px;height:22px;fill:none;stroke:var(--azul-texto);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .fim-selo path{stroke-dasharray:24;stroke-dashoffset:24;animation:traco .5s .15s var(--ease) forwards}
 @keyframes traco{to{stroke-dashoffset:0}}
@@ -285,8 +309,12 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
 .fim-num i{font-style:normal;font-size:.42em;font-weight:700;color:var(--suave);letter-spacing:-.01em;margin-right:.12em;vertical-align:.62em}
 .fim-txt{margin-top:18px;font-size:15px;line-height:1.55;color:var(--suave);max-width:40ch;text-wrap:pretty}
 .fim-txt b{color:var(--texto);font-weight:600}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
-.chips li{list-style:none;display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--linha-2);font-size:13px;font-weight:600;color:var(--texto)}
+.chips-tit{margin-top:22px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--suave)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chips li{list-style:none;display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:4px 12px;border-radius:999px;border:1px solid var(--linha-2);font-size:13px;font-weight:600;color:var(--texto);line-height:1.3}
+.chips li.ep-chip{border-color:var(--azul);background:rgba(0,133,255,.16)}
+.chips li.ep-chip svg{width:12px;height:12px;fill:var(--azul-texto)}
+.chips li.leve{color:var(--suave);border-color:var(--linha)}
 .fim-share{margin-top:auto;padding:28px 0 calc(16px + env(safe-area-inset-bottom))}
 .fim-share p{font-size:13.5px;color:var(--suave);margin-bottom:10px;text-wrap:balance}
 .fim-mudar{display:block;margin:10px auto 0;height:44px;padding:0 12px;font-size:13.5px;font-weight:600;color:var(--suave);border-radius:8px}
@@ -298,47 +326,51 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
 
 /* ---------- computador ---------- */
 @media (min-width:960px){
-  :root{--pad:48px}
-  .casca{grid-template-columns:minmax(0,1fr) minmax(560px,640px)}
+  :root{--pad:48px;--col:520px}
+  .casca{grid-template-columns:minmax(0,1fr) minmax(600px,680px)}
   .painel{
     display:block;position:sticky;top:0;height:100vh;height:100dvh;overflow:hidden;
     border-right:1px solid var(--linha);
   }
-  .painel img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:30% 50%}
+  .painel>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:30% 50%}
   .painel::after{
     content:"";position:absolute;inset:0;
     background:linear-gradient(180deg,rgba(11,26,43,.55) 0%,rgba(11,26,43,.12) 26%,rgba(11,26,43,.8) 50%,rgba(11,26,43,.97) 72%);
   }
   .painel-topo,.painel-pe{position:absolute;left:48px;right:48px;z-index:1}
-  .painel-topo{top:36px;display:flex;align-items:center;justify-content:space-between}
+  .painel-topo{top:36px}
   .painel-topo .marca{width:120px;height:18px}
   .painel-pe{bottom:44px}
-  .painel-olho{display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--texto)}
-  .painel-hora{font-size:112px;font-weight:800;letter-spacing:-.05em;line-height:1;margin:14px 0 10px}
-  .painel-quando{font-size:15px;color:var(--suave);font-weight:500}
-  .painel-quando b{color:var(--texto);font-weight:600}
-  .painel-txt{margin-top:22px;max-width:44ch;font-size:16px;line-height:1.55;color:#C9D5E2;text-wrap:pretty}
+  .painel-olho{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--azul-texto)}
+  .painel-h{margin-top:14px;font-size:48px;font-weight:800;letter-spacing:-.035em;line-height:1.04;max-width:13ch}
+  .painel-txt{margin-top:18px;max-width:44ch;font-size:16px;line-height:1.55;color:#C9D5E2;text-wrap:pretty}
+  .painel-lista{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .painel-lista li{list-style:none;height:30px;display:inline-flex;align-items:center;padding:0 12px;border-radius:999px;border:1px solid var(--linha-2);background:rgba(11,26,43,.6);font-size:13px;font-weight:600;color:var(--texto)}
+  .painel-lista li:first-child{border-color:var(--azul);background:rgba(0,133,255,.2)}
   .painel-leg{margin-top:26px;padding-top:14px;border-top:1px solid var(--linha);font-size:12px;color:var(--suave)}
-  .col{max-width:none;margin:0;padding:0 64px;}
+  .col{max-width:none;margin:0;padding:0 64px}
   .col>*{width:100%;max-width:var(--col);margin-left:auto;margin-right:auto}
   .topo{display:none}
-  .status{display:none}
   .tit{font-size:36px}
   .trilho{margin-top:30px;margin-bottom:12px}
   .fim{padding-top:72px}
-  .grade{gap:12px}
-  .cartao .caixa{padding:14px 16px 15px}
+  .grade{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .frentes{grid-template-columns:1fr 1fr;padding:0 14px 14px}
+  .frente.aberta{grid-column:1/-1}
+  .ep-topo{padding:20px 20px 16px}
+  .ep h2{font-size:26px}
 }
 @media (max-width:359px){
   :root{--pad:16px}
   .tit{font-size:26px}
-  .relogio span.lbl{display:none}
   .dica{font-size:13px}
   .fim-num{font-size:72px}
+  .item .rot{font-size:13px}
+  .linha-cep{grid-template-columns:1fr}
+  .linha-cep .cep-st{padding-bottom:0}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
-  .vivo::after{display:none}
   .fim-selo path{stroke-dashoffset:0}
 }
 </style>
@@ -346,17 +378,19 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
 <body>
 <div class="casca">
 
-  <!-- Painel do computador: foto real do galpão + hora da China ao vivo -->
-  <aside class="painel" aria-label="Eduardo na China agora">
-    <img src="/nexus/img/estoque-fila-1200.webp" width="1200" height="900" alt="Fila de carregadores rápidos NEXUS sobre paletes no galpão, prontos para embarque" loading="lazy" decoding="async">
+  <!-- Painel do computador: foto real do galpão -->
+  <aside class="painel" aria-label="Lista NEXUS">
+    <img src="/nexus/img/estoque-fila-1200.webp" width="1200" height="900" alt="Fila de carregadores rápidos NEXUS sobre paletes no galpão" loading="lazy" decoding="async">
     <div class="painel-topo">
       <img class="marca" src="/nexus/interesse/logo-nexus.webp" width="320" height="48" alt="NEXUS">
     </div>
     <div class="painel-pe">
-      <p class="painel-olho"><span class="vivo" aria-hidden="true"></span>Agora na China</p>
-      <p class="painel-hora num" aria-live="off"><span data-hh>--</span><span class="pisca">:</span><span data-mm>--</span></p>
-      <p class="painel-quando"><b data-periodo>Horário de Pequim</b>, 11 horas à frente de Brasília</p>
-      <p class="painel-txt">O Eduardo, sócio da NEXUS, está visitando fábricas de carros elétricos, carregadores e baterias. Marque o que você quer ver e receba primeiro.</p>
+      <p class="painel-olho">Lista NEXUS</p>
+      <p class="painel-h">Eletroposto e mobilidade elétrica</p>
+      <p class="painel-txt">Diga o que você procura, para quê e quanto pretende investir. A equipe NEXUS fala com você pelo WhatsApp.</p>
+      <ul class="painel-lista" aria-label="O que tem na lista">
+        <li>Eletroposto</li><li>Carros</li><li>Motos e scooters</li><li>Bikes</li><li>Carregadores</li>
+      </ul>
       <p class="painel-leg">Na foto, carregadores NEXUS no galpão, prontos para embarque.</p>
     </div>
   </aside>
@@ -364,17 +398,17 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
   <main class="col">
     <header class="topo">
       <img class="marca" src="/nexus/interesse/logo-nexus.webp" width="320" height="48" alt="NEXUS">
-      <p class="relogio"><span class="vivo" aria-hidden="true"></span><span class="lbl">Agora na China</span> <b class="num"><span data-hh>--</span><span class="pisca">:</span><span data-mm>--</span></b></p>
+      <span class="topo-tag">Lista NEXUS</span>
     </header>
 
     <div class="trilho" id="trilho">
-      <div class="barras" aria-hidden="true"><span class="on"></span><span></span><span></span></div>
+      <div class="barras" aria-hidden="true"><span class="on"></span><span></span><span></span><span></span><span></span></div>
       <div class="trilho-linha">
         <p class="olho" id="olho">Lista de interesse</p>
         <button type="button" class="voltar" id="voltar" hidden>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Voltar
         </button>
-        <p class="passoN num" id="passoN">Passo 1 de 3</p>
+        <p class="passoN num" id="passoN">Passo 1 de 5</p>
       </div>
     </div>
 
@@ -385,110 +419,153 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
         <input id="site" name="site" type="text" tabindex="-1" autocomplete="off" value="">
       </div>
 
-      <!-- PASSO 1 -->
+      <!-- PASSO 1: o que procura (múltipla) -->
       <section class="passo" data-passo="1" aria-labelledby="t1">
-        <div class="status">
-          <img src="/nexus/interesse/galpao-160.webp" width="44" height="44" alt="">
-          <p><strong>Eduardo na China agora</strong>Visitando fábricas de carros elétricos, carregadores e baterias.</p>
-        </div>
-        <h1 class="tit" id="t1" tabindex="-1">O que te interessa?</h1>
-        <p class="sub">Marque quantos quiser. Você recebe primeiro o que o Eduardo encontrar.<span class="ajuda"><button type="button" aria-expanded="false" aria-controls="b1" aria-label="Como funciona">?</button><span class="balao" id="b1" role="note" hidden>A NEXUS traz direto da fábrica. Quem está na lista recebe as fotos, os vídeos e as condições pelo WhatsApp antes de todo mundo.</span></span></p>
+        <h1 class="tit" id="t1" tabindex="-1">O que você procura?</h1>
+        <p class="sub">Marque quantos quiser. Se não estiver aqui, escreva no fim.</p>
 
-        <fieldset class="grade" id="grade">
-          <legend class="sr">Produtos de interesse. Marque um ou mais.</legend>
-
-          <label class="cartao"><input type="checkbox" name="itens" value="carro_compacto"><span class="caixa">
-            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.6 16.5H3.6a.6.6 0 0 1-.6-.6v-2.6c0-.5.3-.9.8-1.1L6 11.3 8 8c.3-.6.9-.9 1.5-.9h4.7c.6 0 1.1.2 1.5.7l2.9 3.5 1.8.6c.6.2 1 .7 1 1.3v2.7c0 .3-.3.6-.6.6h-1.1"/><path d="M9.2 16.5h5.6"/><circle cx="7" cy="16.6" r="2.1"/><circle cx="17" cy="16.6" r="2.1"/><path d="M6 11.3h12.6M12 7.2v4.1"/></svg></span>
-            <span class="rot">Carro compacto<small>Elétrico para a cidade</small></span>
-            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
-          </span></label>
-
-          <label class="cartao"><input type="checkbox" name="itens" value="carro_familia"><span class="caixa">
-            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.6 17.2H3.5a.5.5 0 0 1-.5-.5v-4.2c0-.4.2-.8.6-1L5 10.6l1.5-4c.2-.6.8-1 1.4-1h8.3c.6 0 1.1.3 1.3.8l1.8 4.2 1.4.8c.4.2.6.5.6.9v4.4a.5.5 0 0 1-.5.5h-1.2"/><path d="M9.4 17.2h5.2"/><circle cx="7" cy="17.2" r="2.3"/><circle cx="17" cy="17.2" r="2.3"/><path d="M5 10.6h14.3M12 5.6v5"/></svg></span>
-            <span class="rot">SUV ou sedã<small>Elétrico para a família</small></span>
-            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
-          </span></label>
-
-          <label class="cartao"><input type="checkbox" name="itens" value="utilitario"><span class="caixa">
-            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.8 16.8H3.5a.5.5 0 0 1-.5-.5V6.5c0-.6.4-1 1-1h9.5c.6 0 1 .4 1 1v10.3H9.2"/><path d="M14.5 9h3.4c.4 0 .8.2 1 .5l2 2.8c.1.2.1.4.1.6v3.4a.5.5 0 0 1-.5.5h-1.3"/><path d="M14.5 16.8h1.2M14.5 12.6H21"/><circle cx="7" cy="16.9" r="2.1"/><circle cx="17.6" cy="16.9" r="2.1"/></svg></span>
-            <span class="rot">Utilitário<small>Van, picape ou carga</small></span>
-            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
-          </span></label>
-
-          <label class="cartao"><input type="checkbox" name="itens" value="moto"><span class="caixa">
-            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="5.5" cy="16.5" r="2.7"/><circle cx="18.5" cy="16.5" r="2.7"/><path d="M8.2 16.5h5.6l2.6-6.3"/><path d="M15.4 6h2.1l1 4.2 0 0"/><path d="M5.5 16.5l2.8-4.6h5.3"/><path d="M16.4 10.2l2.1 6.3"/></svg></span>
-            <span class="rot">Duas rodas<small>Moto, scooter ou bike</small></span>
-            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
-          </span></label>
-
-          <label class="cartao"><input type="checkbox" name="itens" value="wallbox"><span class="caixa">
-            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="10" height="13" rx="2"/><path d="M10.6 6.5 9 9.4h2.4L9.8 12.4"/><path d="M10 16v2.2c0 1.5 1.2 2.8 2.8 2.8h2.7c1.5 0 2.5-1.1 2.5-2.5v-4.7"/><path d="M16.5 13.8h3M17 11.2v2.6M19 11.2v2.6"/></svg></span>
-            <span class="rot">Carregador de casa<small>Wallbox de parede</small></span>
-            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
-          </span></label>
-
-          <label class="cartao"><input type="checkbox" name="itens" value="eletroposto"><span class="caixa">
-            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 21h13"/><rect x="7" y="5.6" width="5" height="3.6" rx=".6"/><path d="M10.2 11.6 8.8 14h2.4l-1.4 2.6"/><path d="M14.5 9.5h1.3c.8 0 1.4.6 1.4 1.4v4.8a1.4 1.4 0 0 0 2.8 0V8.4l-1.6-2"/></svg></span>
-            <span class="rot">Eletroposto<small>Carregador rápido DC</small></span>
-            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
-          </span></label>
-
-          <label class="cartao"><input type="checkbox" name="itens" value="bateria"><span class="caixa">
-            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.5" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.5v3"/><path d="M11.8 9.4 9.8 12.2h3l-2 2.8"/></svg></span>
-            <span class="rot">Bateria<small>Armazenamento de energia</small></span>
-            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
-          </span></label>
-
-          <label class="cartao"><input type="checkbox" name="itens" value="outro" id="cOutro"><span class="caixa">
-            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.6-4.6"/><path d="M10.5 8v5M8 10.5h5"/></svg></span>
-            <span class="rot">Outra coisa<small>Você diz o que procura</small></span>
-            <span class="marca-ok" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>
-          </span></label>
-
-          <div class="outro" id="caixaOutro"><div>
-            <div class="campo" id="w-outro">
-              <label for="outro">Pede para o Eduardo procurar na feira</label>
-              <textarea id="outro" name="outro" maxlength="300" rows="3" placeholder="Ex.: Triciclo elétrico de carga" autocomplete="off" disabled aria-describedby="contaOutro"></textarea>
-              <span class="conta num" id="contaOutro" aria-live="polite">0 de 300</span>
+        <!-- ELETROPOSTO NEXUS: primeiro e maior -->
+        <fieldset class="ep" aria-describedby="epSub">
+          <legend class="sr">Eletroposto NEXUS. Marque uma ou mais frentes.</legend>
+          <div class="ep-topo">
+            <div class="ep-txt">
+              <span class="selo"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7 .8 2.2 7h3.1L4.6 11.2 9.8 4.8H6.6Z"/></svg>Carro-chefe da NEXUS</span>
+              <h2>Eletroposto NEXUS</h2>
+              <p class="ep-sub" id="epSub">Seis jeitos de entrar no negócio de recarga.</p>
             </div>
-          </div></div>
+            <div class="ep-foto"><img src="/nexus/img/dc-3q-dir.webp" width="660" height="807" alt="Carregador rápido NEXUS" decoding="async"></div>
+          </div>
+          <div class="frentes" id="frentes">
+            <div class="frente" data-frente="cotista"><div class="frente-linha">
+              <label><input type="checkbox" name="eletroposto" value="cotista"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Cotista</span></label>
+              <button type="button" class="q" aria-expanded="false" aria-controls="x-cotista" aria-label="O que é Cotista">?</button>
+            </div><p class="expl" id="x-cotista" hidden>Compra uma cota de um eletroposto e recebe a sua parte do faturamento.</p></div>
+
+            <div class="frente" data-frente="investidor"><div class="frente-linha">
+              <label><input type="checkbox" name="eletroposto" value="investidor"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Investidor</span></label>
+              <button type="button" class="q" aria-expanded="false" aria-controls="x-investidor" aria-label="O que é Investidor">?</button>
+            </div><p class="expl" id="x-investidor" hidden>Investe em sociedade com a NEXUS, meio a meio, num ou mais postos.</p></div>
+
+            <div class="frente" data-frente="arrendamento"><div class="frente-linha">
+              <label><input type="checkbox" name="eletroposto" value="arrendamento"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Arrendamento</span></label>
+              <button type="button" class="q" aria-expanded="false" aria-controls="x-arrendamento" aria-label="O que é Arrendamento">?</button>
+            </div><p class="expl" id="x-arrendamento" hidden>Você cede o espaço, a NEXUS investe 100% e você recebe pelo uso do local.</p></div>
+
+            <div class="frente" data-frente="chave_na_mao"><div class="frente-linha">
+              <label><input type="checkbox" name="eletroposto" value="chave_na_mao"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Chave na mão</span></label>
+              <button type="button" class="q" aria-expanded="false" aria-controls="x-chave_na_mao" aria-label="O que é Chave na mão">?</button>
+            </div><p class="expl" id="x-chave_na_mao" hidden>Você investe e o posto é seu. A NEXUS entrega projeto, obra, equipamento e software.</p></div>
+
+            <div class="frente" data-frente="parceiro"><div class="frente-linha">
+              <label><input type="checkbox" name="eletroposto" value="parceiro"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Parceiro instalador</span></label>
+              <button type="button" class="q" aria-expanded="false" aria-controls="x-parceiro" aria-label="O que é Parceiro instalador">?</button>
+            </div><p class="expl" id="x-parceiro" hidden>Empresa de instalação que revende e instala carregadores NEXUS.</p></div>
+
+            <div class="frente" data-frente="so_carregador"><div class="frente-linha">
+              <label><input type="checkbox" name="eletroposto" value="so_carregador"><span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span><span class="nome">Só o carregador</span></label>
+              <button type="button" class="q" aria-expanded="false" aria-controls="x-so_carregador" aria-label="O que é Só o carregador">?</button>
+            </div><p class="expl" id="x-so_carregador" hidden>Carregador NEXUS para o seu negócio, com garantia de 2 anos.</p></div>
+          </div>
         </fieldset>
+
+        <!-- MOBILIDADE ELÉTRICA -->
+        <div class="mob">
+          <h2 class="mob-tit">Mobilidade elétrica</h2>
+          <p class="mob-sub">Para usar, para a frota ou para revender.</p>
+          <div id="grupos"></div>
+        </div>
+
+        <div class="naoachou">
+          <div class="campo">
+            <label for="outro">Não achou? Escreva o que você procura</label>
+            <textarea id="outro" name="outro" maxlength="300" rows="3" placeholder="Ex.: Ônibus elétrico, barco elétrico, peças" autocomplete="off" aria-describedby="contaOutro"></textarea>
+            <span class="conta num" id="contaOutro" aria-live="polite">0 de 300</span>
+          </div>
+        </div>
 
         <div class="pe">
           <div class="vaga">
-            <p class="dica" id="dica1">Marque pelo menos um para continuar</p>
-            <button type="button" class="btn btn-acao aparece fora" id="seguir1">Continuar<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            <p class="dica" id="dica1">Marque uma opção ou escreva o que procura</p>
+            <button type="button" class="btn btn-acao aparece fora" id="seguir1"><span id="seguir1Txt">Continuar</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
           </div>
         </div>
       </section>
 
-      <!-- PASSO 2 -->
+      <!-- PASSO 2: para quê -->
       <section class="passo" data-passo="2" aria-labelledby="t2" hidden>
-        <h2 class="tit" id="t2" tabindex="-1">Para quem é?</h2>
+        <h2 class="tit" id="t2" tabindex="-1">Para quê?</h2>
         <p class="sub">Toque em uma opção.</p>
-        <div class="opcoes" role="group" aria-labelledby="t2">
-          <button type="button" class="opcao" data-uso="proprio">
+        <div class="opcoes" role="group" aria-labelledby="t2" data-campo="objetivo">
+          <button type="button" class="opcao" data-v="proprio">
             <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.7 3.6-5.6 7-5.6s6.2 1.9 7 5.6"/></svg></span>
             <span class="rot">Para mim<small>Uso pessoal ou da família</small></span>
             <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
           </button>
-          <button type="button" class="opcao" data-uso="empresa">
+          <button type="button" class="opcao" data-v="frota">
             <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 21V5.5C4 4.7 4.7 4 5.5 4h7c.8 0 1.5.7 1.5 1.5V21"/><path d="M14 10h4.5c.8 0 1.5.7 1.5 1.5V21"/><path d="M2.5 21h19"/><path d="M7.5 8h3M7.5 11.5h3M7.5 15h3M17 14v.01M17 17.5v.01"/></svg></span>
             <span class="rot">Para minha empresa ou frota<small>Uso no trabalho, um ou vários</small></span>
             <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
           </button>
-          <button type="button" class="opcao" data-uso="revenda">
+          <button type="button" class="opcao" data-v="revenda">
             <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 12.6V5c0-.8.7-1.5 1.5-1.5h7.6l7.9 7.9c.6.6.6 1.5 0 2.1l-7 7c-.6.6-1.5.6-2.1 0Z"/><circle cx="8" cy="8" r="1.5"/></svg></span>
             <span class="rot">Quero revender<small>Loja, revenda ou representação</small></span>
+            <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button type="button" class="opcao" data-v="investir">
+            <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 17.5l6-6 4 4 7.5-7.5"/><path d="M15 8h5.5v5.5"/><path d="M3 21h18"/></svg></span>
+            <span class="rot">Quero investir<small>Eletroposto ou outro negócio</small></span>
             <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
           </button>
         </div>
       </section>
 
-      <!-- PASSO 3 -->
+      <!-- PASSO 3: quanto investir -->
       <section class="passo" data-passo="3" aria-labelledby="t3" hidden>
-        <h2 class="tit" id="t3" tabindex="-1">Para onde a gente manda?</h2>
-        <p class="sub">As novidades chegam pelo WhatsApp. Só o que você marcou.</p>
+        <h2 class="tit" id="t3" tabindex="-1">Quanto pretende investir?</h2>
+        <p class="sub">Uma ideia já ajuda. Toque em uma faixa.</p>
+        <div class="opcoes faixas" role="group" aria-labelledby="t3" data-campo="investimento">
+          <button type="button" class="opcao" data-v="ate_10"><span class="rot num">Até R$ 10 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          <button type="button" class="opcao" data-v="10_50"><span class="rot num">R$ 10 a 50 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          <button type="button" class="opcao" data-v="50_100"><span class="rot num">R$ 50 a 100 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          <button type="button" class="opcao" data-v="100_250"><span class="rot num">R$ 100 a 250 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          <button type="button" class="opcao" data-v="250_500"><span class="rot num">R$ 250 a 500 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          <button type="button" class="opcao" data-v="500_mais"><span class="rot num">Acima de R$ 500 mil</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          <button type="button" class="opcao" data-v="naosei"><span class="rot">Ainda não sei</span><svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        </div>
+      </section>
+
+      <!-- PASSO 4: como pagar -->
+      <section class="passo" data-passo="4" aria-labelledby="t4" hidden>
+        <h2 class="tit" id="t4" tabindex="-1">Como pretende pagar?</h2>
+        <p class="sub">Toque em uma opção.</p>
+        <div class="opcoes" role="group" aria-labelledby="t4" data-campo="recurso">
+          <button type="button" class="opcao" data-v="proprio">
+            <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7.5V18a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1v-3"/><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H17v2.5"/><path d="M20 10.5h-4a2 2 0 0 0 0 4h4a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5Z"/><path d="M4 7.5h15a1 1 0 0 1 1 1v2"/></svg></span>
+            <span class="rot">Recurso próprio<small>Dinheiro seu, sem banco</small></span>
+            <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button type="button" class="opcao" data-v="financiamento">
+            <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 9.5 12 4l9 5.5"/><path d="M4.5 9.5h15"/><path d="M6 10v7M10 10v7M14 10v7M18 10v7"/><path d="M3.5 20.5h17M4.5 17.5h15"/></svg></span>
+            <span class="rot">Financiamento<small>Banco ou linha de crédito</small></span>
+            <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button type="button" class="opcao" data-v="os_dois">
+            <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg></span>
+            <span class="rot">Os dois<small>Uma parte própria, outra financiada</small></span>
+            <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button type="button" class="opcao" data-v="naosei">
+            <span class="quadro" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6"/><path d="M12 17.2v.01"/></svg></span>
+            <span class="rot">Ainda não sei<small>A equipe ajuda a decidir</small></span>
+            <svg class="seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- PASSO 5: dados -->
+      <section class="passo" data-passo="5" aria-labelledby="t5" hidden>
+        <h2 class="tit" id="t5" tabindex="-1">Seus dados</h2>
+        <p class="sub">A equipe NEXUS fala com você pelo WhatsApp.</p>
 
         <div class="resumo" id="resumo">
           <p id="resumoTxt"></p>
@@ -505,6 +582,29 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
             <label for="tel">WhatsApp com DDD</label>
             <input id="tel" name="telefone" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="next" placeholder="(34) 99999-9999" maxlength="22" spellcheck="false" aria-describedby="m-tel">
             <p class="msg" id="m-tel" role="alert"></p>
+          </div>
+          <div class="campo" id="w-email">
+            <label for="email">E-mail</label>
+            <input id="email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" enterkeyhint="next" placeholder="voce@email.com" maxlength="120" spellcheck="false" aria-describedby="m-email">
+            <p class="msg" id="m-email" role="alert"></p>
+          </div>
+
+          <p class="bloco-tit">Onde você está</p>
+          <div class="linha-cep">
+            <div class="campo" id="w-cep">
+              <label for="cep">CEP</label>
+              <input id="cep" name="cep" type="text" inputmode="numeric" autocomplete="postal-code" enterkeyhint="next" placeholder="00000-000" maxlength="9" spellcheck="false" aria-describedby="cepSt m-cep">
+            </div>
+            <p class="cep-st" id="cepSt" aria-live="polite">Preenche o resto sozinho</p>
+          </div>
+          <p class="msg" id="m-cep" role="alert" style="margin-top:-8px"></p>
+          <div class="campo" id="w-endereco">
+            <label for="endereco">Endereço <small>(rua e número)</small></label>
+            <input id="endereco" name="endereco" type="text" autocomplete="street-address" enterkeyhint="next" placeholder="Rua das Flores, 120" maxlength="160">
+          </div>
+          <div class="campo" id="w-bairro">
+            <label for="bairro">Bairro</label>
+            <input id="bairro" name="bairro" type="text" autocomplete="address-level3" autocapitalize="words" enterkeyhint="next" placeholder="Centro" maxlength="80">
           </div>
           <div>
             <div class="linha2">
@@ -533,7 +633,7 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
         <div class="pe">
           <p class="erroEnvio" id="erroEnvio" role="alert"></p>
           <button type="submit" class="btn btn-acao" id="entrar"><span>Entrar na lista</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-          <p class="aceite">Ao entrar, você aceita receber contato da NEXUS pelo WhatsApp. <a href="/privacidade">Privacidade</a></p>
+          <p class="aceite">Ao entrar, você aceita receber contato da NEXUS por WhatsApp e e-mail. <a href="/privacidade">Privacidade</a></p>
         </div>
       </section>
     </form>
@@ -546,10 +646,11 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
         <span class="fim-num num"><i>nº</i><b id="pos" style="font-weight:800">0</b></span>
         <span class="fim-pos">da lista</span>
       </h2>
-      <p class="fim-txt" id="fimTxt">Quando o Eduardo encontrar o que você marcou, você recebe primeiro <b>as fotos, os vídeos e as condições</b> pelo WhatsApp.</p>
+      <p class="fim-txt" id="fimTxt"></p>
+      <p class="chips-tit">O que você marcou</p>
       <ul class="chips" id="chips" aria-label="O que você marcou"></ul>
       <div class="fim-share">
-        <p>Conhece alguém de olho em elétrico? Mande o link.</p>
+        <p>Conhece alguém de olho em eletroposto ou elétrico? Mande o link.</p>
         <button type="button" class="btn btn-acao" id="compartilhar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8"/><path d="M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16"/></svg><span>Compartilhar a lista</span></button>
         <p class="copiado" id="copiado" aria-live="polite"></p>
         <button type="button" class="fim-mudar" id="mudar">Marcar mais coisas</button>
@@ -567,32 +668,66 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
   var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   var ENDPOINT = '/_api/io/eletroposto/nexus-interesse';
   var LINK = 'https://solardoc.app/nexus/interesse';
-  var CH_RASCUNHO = 'nexus_interesse_rascunho';
-  var CH_FEITO = 'nexus_interesse_feito';
+  var CH_RASCUNHO = 'nexus_interesse_rascunho_v2';
+  var CH_FEITO = 'nexus_interesse_feito_v2';
   var CH_UTM = 'nexus_interesse_utm';
-  var ROTULO = {
-    carro_compacto: 'Carro compacto', carro_familia: 'SUV ou sedã', utilitario: 'Utilitário',
-    moto: 'Duas rodas', wallbox: 'Carregador de casa', eletroposto: 'Eletroposto',
-    bateria: 'Bateria', outro: 'Outra coisa'
-  };
-  var USO = { proprio: 'Para mim', empresa: 'Para minha empresa ou frota', revenda: 'Quero revender' };
+  var TOTAL = 5;
   var MOVE = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* Slugs aceitos pelo backend. Rótulo pode mudar, slug não. */
+  var FRENTE = {
+    cotista: 'Cotista', investidor: 'Investidor', arrendamento: 'Arrendamento',
+    chave_na_mao: 'Chave na mão', parceiro: 'Parceiro instalador', so_carregador: 'Só o carregador'
+  };
+  var I = {
+    carro: '<path d="M4.6 16.5H3.6a.6.6 0 0 1-.6-.6v-2.6c0-.5.3-.9.8-1.1L6 11.3 8 8c.3-.6.9-.9 1.5-.9h4.7c.6 0 1.1.2 1.5.7l2.9 3.5 1.8.6c.6.2 1 .7 1 1.3v2.7c0 .3-.3.6-.6.6h-1.1"/><path d="M9.2 16.5h5.6"/><circle cx="7" cy="16.6" r="2.1"/><circle cx="17" cy="16.6" r="2.1"/><path d="M6 11.3h12.6M12 7.2v4.1"/>',
+    suv: '<path d="M4.6 17.2H3.5a.5.5 0 0 1-.5-.5v-4.2c0-.4.2-.8.6-1L5 10.6l1.5-4c.2-.6.8-1 1.4-1h8.3c.6 0 1.1.3 1.3.8l1.8 4.2 1.4.8c.4.2.6.5.6.9v4.4a.5.5 0 0 1-.5.5h-1.2"/><path d="M9.4 17.2h5.2"/><circle cx="7" cy="17.2" r="2.3"/><circle cx="17" cy="17.2" r="2.3"/><path d="M5 10.6h14.3M12 5.6v5"/>',
+    sedan: '<path d="M4.9 16H3.4a.5.5 0 0 1-.5-.5v-2c0-.6.4-1.1 1-1.3l3.1-.9 2.6-2.6c.4-.4.9-.6 1.4-.6h3.7c.6 0 1.1.3 1.5.7l2.4 2.5 2.1.5c.6.2 1 .7 1 1.3v1.9a.5.5 0 0 1-.5.5h-1.4"/><path d="M9.3 16h5.4"/><circle cx="7.1" cy="16" r="2.1"/><circle cx="16.9" cy="16" r="2.1"/><path d="M7 11.3h11.6"/>',
+    picape: '<path d="M4.7 16.5H3.5a.5.5 0 0 1-.5-.5v-3.3c0-.5.3-.9.8-1l2.4-.6 1.7-3.4c.2-.4.6-.7 1.1-.7h3.4c.6 0 1 .4 1 1V12h6.6c.4 0 .9.4.9.9v3.1a.5.5 0 0 1-.5.5h-1.2"/><path d="M9.3 16.5h5.4"/><circle cx="7" cy="16.6" r="2.1"/><circle cx="17" cy="16.6" r="2.1"/><path d="M6.2 11.1h7.2"/>',
+    van: '<path d="M4.8 16.8H3.5a.5.5 0 0 1-.5-.5V6.5c0-.6.4-1 1-1h9.5c.6 0 1 .4 1 1v10.3H9.2"/><path d="M14.5 9h3.4c.4 0 .8.2 1 .5l2 2.8c.1.2.1.4.1.6v3.4a.5.5 0 0 1-.5.5h-1.3"/><path d="M14.5 16.8h1.2M14.5 12.6H21"/><circle cx="7" cy="16.9" r="2.1"/><circle cx="17.6" cy="16.9" r="2.1"/>',
+    caminhao: '<rect x="2.5" y="5" width="11.5" height="11" rx="1"/><path d="M14 8.5h3.6c.4 0 .7.2.9.5l2.3 3.3c.1.2.2.4.2.6v2.6a.5.5 0 0 1-.5.5H19"/><path d="M14 12.5h6.8"/><circle cx="6.5" cy="17.5" r="1.9"/><circle cx="17" cy="17.5" r="1.9"/><path d="M8.4 17.5h6.7"/>',
+    moto: '<circle cx="5.5" cy="16.5" r="2.7"/><circle cx="18.5" cy="16.5" r="2.7"/><path d="M8.2 16.5h5.6l2.6-6.3"/><path d="M15.4 6h2.1l1 4.2"/><path d="M5.5 16.5l2.8-4.6h5.3"/><path d="M16.4 10.2l2.1 6.3"/>',
+    scooter: '<circle cx="5.5" cy="17" r="2.4"/><circle cx="18.5" cy="17" r="2.4"/><path d="M7.9 17h7.4a3.6 3.6 0 0 1 3.2-3.6"/><path d="M17.4 13.4 15.6 5H13"/><path d="M4.5 12.5h6.5l1.2 4.5"/>',
+    bike: '<circle cx="5.5" cy="16" r="3.5"/><circle cx="18.5" cy="16" r="3.5"/><path d="M5.5 16 9 9h6.5l3 7M9 9l3.5 7h-7M12.5 16 15.5 9"/><path d="M7.5 7h3M14.5 6.5H17"/>',
+    patinete: '<circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 18h10"/><path d="M17.2 17.6 15 4.5"/><path d="M12.8 4.5h4.4"/>',
+    triciclo: '<rect x="2.5" y="7" width="9" height="7" rx="1"/><circle cx="5" cy="17.5" r="2"/><circle cx="18.5" cy="17.5" r="2"/><path d="M7 17.5h4.5l3-5.5h2.5"/><path d="M11.5 12H14l-1.2-4.5h-1.5"/><path d="M14.5 12l4 5.5"/>',
+    quadriciclo: '<circle cx="6" cy="16.5" r="2.8"/><circle cx="18" cy="16.5" r="2.8"/><path d="M8.8 16.5h6.4"/><path d="M3.5 13.5 5.5 10h12l3 3.5"/><path d="M10.5 10V7.5h3.5"/>',
+    golfe: '<path d="M4 5h15"/><path d="M6 5v8.5M17 5v8.5"/><path d="M3.5 13.5h17v2.5h-17z"/><path d="M9 13.5V11h5.5v2.5"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
+    wallbox: '<rect x="5" y="3" width="10" height="13" rx="2"/><path d="M10.6 6.5 9 9.4h2.4L9.8 12.4"/><path d="M10 16v2.2c0 1.5 1.2 2.8 2.8 2.8h2.7c1.5 0 2.5-1.1 2.5-2.5v-4.7"/><path d="M16.5 13.8h3M17 11.2v2.6M19 11.2v2.6"/>',
+    rapido: '<path d="M4.5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 21h13"/><rect x="7" y="5.6" width="5" height="3.6" rx=".6"/><path d="M10.2 11.6 8.8 14h2.4l-1.4 2.6"/><path d="M14.5 9.5h1.3c.8 0 1.4.6 1.4 1.4v4.8a1.4 1.4 0 0 0 2.8 0V8.4l-1.6-2"/>',
+    bateria: '<rect x="2.5" y="7" width="17" height="10" rx="2"/><path d="M21.5 10.5v3"/><path d="M11.8 9.4 9.8 12.2h3l-2 2.8"/>',
+    solar: '<path d="M5 4h14l2 10H3z"/><path d="M4 9h16M9.7 4l-.7 10M14.3 4l.7 10"/><path d="M12 14v5M8 20h8"/>'
+  };
+  var GRUPOS = [
+    { tit: 'Carros', itens: [['carro_compacto', 'Carro compacto', I.carro], ['carro_suv', 'SUV', I.suv], ['carro_sedan', 'Sedã', I.sedan], ['picape', 'Picape', I.picape], ['van', 'Van e utilitário', I.van], ['caminhao', 'Caminhão leve', I.caminhao]] },
+    { tit: 'Duas rodas', itens: [['moto', 'Moto', I.moto], ['scooter', 'Scooter', I.scooter], ['bike', 'Bike elétrica', I.bike], ['patinete', 'Patinete', I.patinete]] },
+    { tit: 'Trabalho e lazer', itens: [['triciclo', 'Triciclo e cargo', I.triciclo], ['quadriciclo', 'Quadriciclo e UTV', I.quadriciclo], ['golfe', 'Carrinho de golfe', I.golfe]] },
+    { tit: 'Energia', itens: [['wallbox', 'Carregador para casa', I.wallbox], ['carregador_rapido', 'Carregador rápido', I.rapido], ['bateria', 'Baterias', I.bateria], ['solar', 'Energia solar', I.solar]] }
+  ];
+  var MOB = {};
+  GRUPOS.forEach(function (g) { g.itens.forEach(function (it) { MOB[it[0]] = it[1]; }); });
+  var OBJ = { proprio: 'Para mim', frota: 'Para empresa ou frota', revenda: 'Para revender', investir: 'Para investir' };
+  var INV = { ate_10: 'Até R$ 10 mil', '10_50': 'R$ 10 a 50 mil', '50_100': 'R$ 50 a 100 mil', '100_250': 'R$ 100 a 250 mil', '250_500': 'R$ 250 a 500 mil', '500_mais': 'Acima de R$ 500 mil', naosei: 'Investimento a definir' };
+  var REC = { proprio: 'Recurso próprio', financiamento: 'Financiamento', os_dois: 'Próprio e financiamento', naosei: 'Pagamento a definir' };
+  var CHECK = '<span class="quad" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></span>';
 
   function $(id) { return document.getElementById(id); }
   function todos(sel) { return [].slice.call(document.querySelectorAll(sel)); }
 
-  /* ---------- hora da China (UTC+8, sem horário de verão) ---------- */
-  function dois(n) { return (n < 10 ? '0' : '') + n; }
-  function pintaHora() {
-    var d = new Date(Date.now() + 8 * 3600e3);
-    var h = d.getUTCHours(), m = d.getUTCMinutes();
-    todos('[data-hh]').forEach(function (el) { el.textContent = dois(h); });
-    todos('[data-mm]').forEach(function (el) { el.textContent = dois(m); });
-    var per = h < 6 ? 'Madrugada' : h < 12 ? 'Manhã' : h < 18 ? 'Tarde' : 'Noite';
-    todos('[data-periodo]').forEach(function (el) { el.textContent = per + ' em Pequim'; });
-  }
-  pintaHora();
-  setInterval(pintaHora, 15000);
+  /* ---------- monta os grupos de mobilidade ---------- */
+  (function () {
+    var html = '';
+    GRUPOS.forEach(function (g, gi) {
+      html += '<fieldset class="grupo"><legend class="grupo-tit">' + g.tit + '</legend><div class="grade">';
+      g.itens.forEach(function (it) {
+        html += '<label class="item"><input type="checkbox" name="mobilidade" value="' + it[0] + '"><span class="caixa">' +
+          '<span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24">' + it[2] + '</svg></span>' +
+          '<span class="rot">' + it[1] + '</span>' + CHECK + '</span></label>';
+      });
+      html += '</div></fieldset>';
+    });
+    $('grupos').innerHTML = html;
+  })();
 
   /* ---------- telefone e origem (mesma regra do /nexusev) ---------- */
   /* A API exige 12 ou 13 dígitos começando em 55. Número que já vem com 55 não
@@ -638,14 +773,14 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
   }
 
   /* ---------- estado ---------- */
-  var estado = { itens: [], outro: '', uso: '' };
+  var estado = { eletroposto: [], mobilidade: [], outro: '', objetivo: '', investimento: '', recurso: '' };
+  var CAMPOS = ['nome', 'tel', 'email', 'cep', 'endereco', 'bairro', 'cidade', 'uf'];
   var passo = 1;
   function guardar() {
     try {
-      sessionStorage.setItem(CH_RASCUNHO, JSON.stringify({
-        itens: estado.itens, outro: estado.outro, uso: estado.uso,
-        nome: $('nome').value, tel: $('tel').value, cidade: $('cidade').value, uf: $('uf').value
-      }));
+      var r = { e: estado };
+      CAMPOS.forEach(function (id) { r[id] = $(id).value; });
+      sessionStorage.setItem(CH_RASCUNHO, JSON.stringify(r));
     } catch (e) {}
   }
   function lerRascunho() {
@@ -666,10 +801,11 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
       if (eu && MOVE && !opts.semAnim) { void s.offsetWidth; s.classList.add('entra'); }
     });
     barras.forEach(function (b, i) { b.classList.toggle('on', i < n); });
-    $('passoN').textContent = 'Passo ' + n + ' de 3';
+    $('passoN').textContent = 'Passo ' + n + ' de ' + TOTAL;
     $('voltar').hidden = n === 1;
     $('olho').hidden = n !== 1;
-    if (n === 3) pintaResumo();
+    if (n === TOTAL) pintaResumo();
+    marcarOpcoes();
     if (!opts.semFoco) {
       var t = $('t' + n);
       if (t) t.focus({ preventScroll: true });
@@ -683,65 +819,98 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
   }
   window.addEventListener('popstate', function (e) {
     if (!$('fim').hidden) return;
-    var n = e.state && e.state.passo ? e.state.passo : 1;
+    var n = e.state && typeof e.state.passo === 'number' ? e.state.passo : 1;
     mostrar(n);
   });
   try { history.replaceState({ passo: 1 }, ''); } catch (e) {}
   $('voltar').addEventListener('click', function () { if (passo > 1) history.back(); });
 
   /* ---------- passo 1 ---------- */
-  var caixas = todos('input[name="itens"]');
+  var caixasEp = todos('input[name="eletroposto"]');
+  var caixasMob = todos('input[name="mobilidade"]');
+  function marcados(lista) { return lista.filter(function (c) { return c.checked; }).map(function (c) { return c.value; }); }
   function lerItens() {
-    estado.itens = caixas.filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
-    var tem = estado.itens.length > 0;
-    $('seguir1').classList.toggle('fora', !tem);
-    $('seguir1').tabIndex = tem ? 0 : -1;
-    $('seguir1').setAttribute('aria-hidden', tem ? 'false' : 'true');
+    estado.eletroposto = marcados(caixasEp);
+    estado.mobilidade = marcados(caixasMob);
+    estado.outro = $('outro').value;
+    caixasEp.forEach(function (c) { c.closest('.frente').classList.toggle('on', c.checked); });
+    var n = estado.eletroposto.length + estado.mobilidade.length;
+    var tem = n > 0 || estado.outro.trim().length > 0;
+    var b = $('seguir1');
+    b.classList.toggle('fora', !tem);
+    b.tabIndex = tem ? 0 : -1;
+    b.setAttribute('aria-hidden', tem ? 'false' : 'true');
     $('dica1').classList.toggle('fora', tem);
-    $('seguir1').firstChild.nodeValue = tem && estado.itens.length > 1 ? 'Continuar com ' + estado.itens.length + ' ' : 'Continuar';
-    var outroOn = $('cOutro').checked;
-    $('caixaOutro').classList.toggle('on', outroOn);
-    $('outro').disabled = !outroOn;
+    $('seguir1Txt').textContent = n > 1 ? 'Continuar com ' + n : 'Continuar';
     guardar();
   }
-  caixas.forEach(function (c) {
-    c.addEventListener('change', function () {
-      lerItens();
-      if (c.value === 'outro' && c.checked) setTimeout(function () { $('outro').focus({ preventScroll: true }); $('caixaOutro').scrollIntoView({ block: 'nearest', behavior: MOVE ? 'smooth' : 'auto' }); }, 180);
-    });
-  });
+  caixasEp.concat(caixasMob).forEach(function (c) { c.addEventListener('change', lerItens); });
   $('outro').addEventListener('input', function () {
-    estado.outro = this.value;
     $('contaOutro').textContent = this.value.length + ' de 300';
-    guardar();
+    lerItens();
   });
   $('seguir1').addEventListener('click', function () {
-    if (!estado.itens.length) return;
+    lerItens();
+    if (!estado.eletroposto.length && !estado.mobilidade.length && !estado.outro.trim()) return;
     ir(2);
   });
 
-  /* ---------- passo 2: um toque avança ---------- */
-  var opcoes = todos('.opcao');
-  function marcarUso() { opcoes.forEach(function (o) { o.classList.toggle('on', o.getAttribute('data-uso') === estado.uso); }); }
-  opcoes.forEach(function (o) {
-    o.addEventListener('click', function () {
-      estado.uso = o.getAttribute('data-uso');
-      marcarUso(); guardar();
-      setTimeout(function () { ir(3); }, MOVE ? 220 : 0);
+  /* (?) de cada frente: abre a explicação embaixo, uma por vez */
+  todos('.frente .q').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var abre = b.getAttribute('aria-expanded') !== 'true';
+      todos('.frente .q').forEach(function (o) {
+        o.setAttribute('aria-expanded', 'false');
+        $(o.getAttribute('aria-controls')).hidden = true;
+        o.closest('.frente').classList.remove('aberta');
+      });
+      if (abre) {
+        b.setAttribute('aria-expanded', 'true');
+        $(b.getAttribute('aria-controls')).hidden = false;
+        b.closest('.frente').classList.add('aberta');
+      }
     });
   });
 
-  /* ---------- passo 3 ---------- */
+  /* ---------- passos 2, 3 e 4: um toque avança ---------- */
+  function marcarOpcoes() {
+    todos('.opcoes[data-campo]').forEach(function (g) {
+      var campo = g.getAttribute('data-campo');
+      [].slice.call(g.querySelectorAll('.opcao')).forEach(function (o) {
+        var on = o.getAttribute('data-v') === estado[campo];
+        o.classList.toggle('on', on);
+        o.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    });
+  }
+  todos('.opcoes[data-campo]').forEach(function (g) {
+    var campo = g.getAttribute('data-campo');
+    var proximo = Number(g.closest('.passo').getAttribute('data-passo')) + 1;
+    [].slice.call(g.querySelectorAll('.opcao')).forEach(function (o) {
+      o.addEventListener('click', function () {
+        estado[campo] = o.getAttribute('data-v');
+        marcarOpcoes(); guardar();
+        setTimeout(function () { ir(proximo); }, MOVE ? 220 : 0);
+      });
+    });
+  });
+
+  /* ---------- passo 5 ---------- */
+  function nomesMarcados(e) {
+    var out = e.eletroposto.map(function (k) { return 'Eletroposto ' + (FRENTE[k] || k).toLowerCase(); })
+      .concat(e.mobilidade.map(function (k) { return MOB[k] || k; }));
+    if (e.outro && e.outro.trim()) out.push('“' + e.outro.trim().slice(0, 40) + (e.outro.trim().length > 40 ? '…' : '') + '”');
+    return out;
+  }
   function pintaResumo() {
-    var nomes = estado.itens.map(function (k) { return ROTULO[k]; });
     var t = $('resumoTxt'); t.textContent = '';
-    var b = document.createElement('b'); b.textContent = nomes.join(', ');
-    t.appendChild(document.createTextNode('Você marcou '));
+    var b = document.createElement('b'); b.textContent = nomesMarcados(estado).join(', ');
     t.appendChild(b);
-    t.appendChild(document.createTextNode('. ' + (USO[estado.uso] || '') + '.'));
+    var resto = [OBJ[estado.objetivo], INV[estado.investimento], REC[estado.recurso]].filter(Boolean);
+    if (resto.length) t.appendChild(document.createTextNode('. ' + resto.join(', ') + '.'));
   }
   $('alterar').addEventListener('click', function () { ir(1); });
-  ['nome', 'tel', 'cidade', 'uf'].forEach(function (id) {
+  CAMPOS.forEach(function (id) {
     $(id).addEventListener('input', function () { limpar(id === 'uf' ? 'cidade' : id); guardar(); });
     $(id).addEventListener('change', guardar);
   });
@@ -759,36 +928,94 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
     return alvo;
   }
 
+  /* ---------- CEP: ViaCEP preenche rua, bairro, cidade e UF ----------
+     É conveniência, não dependência: se a API cair, expirar ou o CEP não existir,
+     a pessoa preenche na mão e nada bloqueia o envio. cepSeq descarta resposta
+     velha (digitou outro CEP enquanto a primeira vinha). */
+  var CEP_HINT = 'Preenche o resto sozinho';
+  var cepSeq = 0;
+  function cepStatus(txt, bad) { var s = $('cepSt'); s.textContent = txt; s.classList.toggle('ruim', !!bad); }
+  function buscaCep(digitos) {
+    var seq = ++cepSeq;
+    cepStatus('Buscando…', false);
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, 6000); // sem isto, rede ruim trava o "Buscando…"
+    fetch('https://viacep.com.br/ws/' + digitos + '/json/', { signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) {
+        if (seq !== cepSeq) return null;
+        if (!r.ok) { cepStatus('CEP não encontrado. Preencha abaixo.', true); return null; }
+        return r.json();
+      })
+      .then(function (d) {
+        if (!d || seq !== cepSeq) return;
+        if (d.erro) { cepStatus('CEP não encontrado. Preencha abaixo.', true); return; }
+        // Busca que deu certo substitui o bloco inteiro, inclusive com vazio: preencher só
+        // o que veio misturava a rua da cidade antiga com a cidade nova.
+        $('endereco').value = d.logradouro ? d.logradouro + ', ' : '';
+        $('bairro').value = d.bairro || '';
+        $('cidade').value = d.localidade || '';
+        if (d.uf) $('uf').value = d.uf;
+        ['endereco', 'bairro', 'cidade'].forEach(limpar);
+        cepStatus('Endereço preenchido. Confira o número.', false);
+        guardar();
+        var alvo = $('endereco'); alvo.focus();
+        try { var fim = alvo.value.length; alvo.setSelectionRange(fim, fim); } catch (e) {}
+      })
+      .catch(function () { if (seq === cepSeq) cepStatus(CEP_HINT, false); })
+      .then(function () { clearTimeout(t); });
+  }
+  $('cep').addEventListener('input', function () {
+    var v = this.value.replace(/\D/g, '').slice(0, 8);
+    this.value = v.length > 5 ? v.slice(0, 5) + '-' + v.slice(5) : v;
+    if (v.length === 8) buscaCep(v);
+    else { cepSeq++; cepStatus(CEP_HINT, false); } // apagou ou editou: invalida a busca em voo
+  });
+
   var enviando = false;
   $('f').addEventListener('submit', function (ev) {
     ev.preventDefault();
-    if (enviando || passo !== 3) return;
+    if (enviando || passo !== TOTAL) return;
     $('erroEnvio').classList.remove('on');
-    ['nome', 'tel', 'cidade'].forEach(limpar);
+    ['nome', 'tel', 'email', 'cep', 'cidade'].forEach(limpar);
 
     var nome = $('nome').value.trim().replace(/\s+/g, ' ');
     var tel = telefoneBR($('tel').value);
+    var email = $('email').value.trim().toLowerCase();
+    var cep = $('cep').value.replace(/\D/g, '');
     var cidade = $('cidade').value.trim().replace(/\s+/g, ' ');
     var uf = $('uf').value;
     var primeiro = null;
     if (nome.length < 2) primeiro = primeiro || ruim('nome', 'Escreva o seu nome.');
     if (!tel) primeiro = primeiro || ruim('tel', 'Confira o número: DDD e mais 8 ou 9 dígitos.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) primeiro = primeiro || ruim('email', 'Confira o e-mail.');
+    if (cep && cep.length !== 8) primeiro = primeiro || ruim('cep', 'O CEP tem 8 dígitos. Ou deixe em branco.');
     if (cidade.length < 2) primeiro = primeiro || ruim('cidade', 'Diga a sua cidade.');
     else if (!uf) primeiro = primeiro || ruim('cidade', 'Escolha o estado.', 'uf');
     if (primeiro) { $(primeiro).focus(); return; }
 
     var u = utm();
     var corpo = {
-      itens: estado.itens.slice(),
-      uso: estado.uso,
+      eletroposto: estado.eletroposto.slice(),
+      mobilidade: estado.mobilidade.slice(),
+      objetivo: estado.objetivo,
+      investimento: estado.investimento,
+      recurso: estado.recurso,
       nome: nome,
       telefone: tel,
-      cidade: cidade + ', ' + uf,
+      email: email,
+      cidade: cidade,
+      uf: uf,
       origem: u.utm_source || 'link_direto',
       utm: { source: u.utm_source || '', medium: u.utm_medium || '', campaign: u.utm_campaign || '', content: u.utm_content || '', term: u.utm_term || '' },
       site: $('site').value
     };
-    if (estado.itens.indexOf('outro') >= 0 && estado.outro.trim()) corpo.outro = estado.outro.trim().slice(0, 300);
+    var outro = estado.outro.trim();
+    if (outro) corpo.outro = outro.slice(0, 300);
+    if (cep) corpo.cep = cep;
+    var end = $('endereco').value.trim().replace(/[\s,]+$/, '');
+    if (end) corpo.endereco = end.slice(0, 160);
+    var bairro = $('bairro').value.trim();
+    if (bairro) corpo.bairro = bairro.slice(0, 80);
     if (/[?&]teste=1\b/.test(location.search)) corpo.teste = true;
 
     carregando(true);
@@ -804,10 +1031,17 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
     pedido.then(function (j) {
       clearTimeout(relogio);
       if (!j || !j.ok) { var x = new Error('api'); x.erro = (j && j.erro) || ''; throw x; }
-      var feito = { posicao: Number(j.posicao) || 0, novo: j.novo !== false, itens: corpo.itens, uso: corpo.uso, outro: corpo.outro || '' };
+      var feito = {
+        posicao: Number(j.posicao) || 0, novo: j.novo !== false,
+        eletroposto: corpo.eletroposto, mobilidade: corpo.mobilidade, outro: corpo.outro || '',
+        objetivo: corpo.objetivo, investimento: corpo.investimento, recurso: corpo.recurso
+      };
       try { localStorage.setItem(CH_FEITO, JSON.stringify(feito)); sessionStorage.removeItem(CH_RASCUNHO); } catch (e) {}
-      if (window.fbq) window.fbq('trackCustom', 'NexusInteresse', { itens: corpo.itens.join(','), uso: corpo.uso });
-      evt('interesse_concluido', { itens: corpo.itens.join(','), uso: corpo.uso, novo: feito.novo });
+      if (window.fbq) window.fbq('trackCustom', 'NexusInteresse', {
+        eletroposto: corpo.eletroposto.join(','), mobilidade: corpo.mobilidade.join(','),
+        objetivo: corpo.objetivo, investimento: corpo.investimento, recurso: corpo.recurso
+      });
+      evt('interesse_concluido', { eletroposto: corpo.eletroposto.join(','), mobilidade: corpo.mobilidade.join(','), objetivo: corpo.objetivo, investimento: corpo.investimento, recurso: corpo.recurso, novo: feito.novo });
       carregando(false);
       final(feito, true);
     }).catch(function (e) {
@@ -832,20 +1066,32 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
   }
 
   /* ---------- tela final ---------- */
+  var RAIO = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7 .8 2.2 7h3.1L4.6 11.2 9.8 4.8H6.6Z"/></svg>';
+  function chip(ul, txt, cls, raio) {
+    var li = document.createElement('li');
+    if (cls) li.className = cls;
+    if (raio) li.innerHTML = RAIO;
+    li.appendChild(document.createTextNode(txt));
+    ul.appendChild(li);
+  }
   function final(feito, agora) {
     $('f').hidden = true; $('trilho').hidden = true;
     var fim = $('fim'); fim.hidden = false;
     fim.classList.remove('entra'); if (MOVE) { void fim.offsetWidth; fim.classList.add('entra'); }
     try { history.replaceState({ passo: 'fim' }, ''); } catch (e) {}
-    $('fimPre').textContent = feito.novo ? 'Você é o' : 'Você já está na lista. É o';
-    $('tFim').setAttribute('aria-label', (feito.novo ? 'Você é o' : 'Você já está na lista. É o') + ' número ' + feito.posicao + ' da lista');
-    $('fimTxt').innerHTML = (feito.novo ? '' : 'Atualizamos o que você marcou. ') +
-      'Quando o Eduardo encontrar o que você marcou, você recebe primeiro <b>as fotos, os vídeos e as condições</b> pelo WhatsApp.';
+    var pre = feito.novo ? 'Você é o' : 'Você já está na lista. É o';
+    $('fimPre').textContent = pre;
+    $('tFim').setAttribute('aria-label', pre + ' número ' + feito.posicao + ' da lista');
+    var txt = $('fimTxt'); txt.textContent = '';
+    if (!feito.novo) txt.appendChild(document.createTextNode('Somamos o que você marcou agora ao que já estava lá. '));
+    txt.appendChild(document.createTextNode('A equipe NEXUS fala com você '));
+    var b = document.createElement('b'); b.textContent = 'pelo WhatsApp'; txt.appendChild(b);
+    txt.appendChild(document.createTextNode(' sobre o que você marcou.'));
     var ul = $('chips'); ul.textContent = '';
-    (feito.itens || []).forEach(function (k) {
-      var li = document.createElement('li'); li.textContent = ROTULO[k] || k; ul.appendChild(li);
-    });
-    if (USO[feito.uso]) { var li = document.createElement('li'); li.textContent = USO[feito.uso]; ul.appendChild(li); }
+    (feito.eletroposto || []).forEach(function (k) { chip(ul, 'Eletroposto: ' + (FRENTE[k] || k), 'ep-chip', true); });
+    (feito.mobilidade || []).forEach(function (k) { chip(ul, MOB[k] || k); });
+    if (feito.outro) chip(ul, '“' + feito.outro.slice(0, 60) + (feito.outro.length > 60 ? '…' : '') + '”');
+    [OBJ[feito.objetivo], INV[feito.investimento], REC[feito.recurso]].forEach(function (t) { if (t) chip(ul, t, 'leve'); });
     contar($('pos'), feito.posicao, agora && MOVE);
     window.scrollTo(0, 0);
     $('tFim').focus({ preventScroll: true });
@@ -862,17 +1108,14 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
 
   $('compartilhar').addEventListener('click', function () {
     var url = LINK + '?utm_source=compartilhamento';
-    var dados = { title: 'Lista de interesse NEXUS', text: 'O Eduardo, da NEXUS, está na China vendo carros elétricos, carregadores e baterias. Entra na lista e recebe primeiro.', url: url };
+    var dados = { title: 'Lista NEXUS', text: 'Lista NEXUS de eletroposto e mobilidade elétrica: carros, motos, bikes e carregadores. Entre na lista.', url: url };
     evt('interesse_compartilhar', {});
-    if (navigator.share) {
-      navigator.share(dados).catch(function () {});
-      return;
-    }
+    if (navigator.share) { navigator.share(dados).catch(function () {}); return; }
     copiar(url);
   });
   function copiar(txt) {
     var ok = function () { $('copiado').textContent = 'Link copiado. Agora é só colar.'; setTimeout(function () { $('copiado').textContent = ''; }, 3500); };
-    if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(txt).then(ok, function () { velho(txt) && ok(); }); }
+    if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(txt).then(ok, function () { if (velho(txt)) ok(); }); }
     else if (velho(txt)) ok();
   }
   function velho(txt) {
@@ -884,30 +1127,23 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
   }
   if (!navigator.share) $('compartilhar').querySelector('span').textContent = 'Copiar o link da lista';
 
+  /* O backend só soma: marcar mais coisas nunca apaga o que já estava. */
+  function aplicar(e) {
+    estado.eletroposto = e.eletroposto || []; estado.mobilidade = e.mobilidade || []; estado.outro = e.outro || '';
+    estado.objetivo = e.objetivo || ''; estado.investimento = e.investimento || ''; estado.recurso = e.recurso || '';
+    caixasEp.forEach(function (c) { c.checked = estado.eletroposto.indexOf(c.value) >= 0; });
+    caixasMob.forEach(function (c) { c.checked = estado.mobilidade.indexOf(c.value) >= 0; });
+    $('outro').value = estado.outro; $('contaOutro').textContent = estado.outro.length + ' de 300';
+  }
   $('mudar').addEventListener('click', function () {
     try {
       var f = JSON.parse(localStorage.getItem(CH_FEITO) || 'null');
-      if (f) { estado.itens = f.itens || []; estado.uso = f.uso || ''; estado.outro = f.outro || ''; }
+      if (f) aplicar(f);
       localStorage.removeItem(CH_FEITO);
     } catch (e) {}
-    caixas.forEach(function (c) { c.checked = estado.itens.indexOf(c.value) >= 0; });
-    $('outro').value = estado.outro; $('contaOutro').textContent = estado.outro.length + ' de 300';
-    lerItens(); marcarUso();
+    lerItens();
     try { history.replaceState({ passo: 1 }, ''); } catch (e) {}
     mostrar(1);
-  });
-
-  /* ---------- (?) ---------- */
-  todos('.ajuda>button').forEach(function (b) {
-    var bal = $(b.getAttribute('aria-controls'));
-    function fecha() { b.setAttribute('aria-expanded', 'false'); bal.hidden = true; }
-    b.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var abre = b.getAttribute('aria-expanded') !== 'true';
-      b.setAttribute('aria-expanded', abre ? 'true' : 'false'); bal.hidden = !abre;
-    });
-    document.addEventListener('click', function (e) { if (!bal.hidden && !bal.contains(e.target)) fecha(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !bal.hidden) { fecha(); b.focus(); } });
   });
 
   /* ---------- volta de onde parou ---------- */
@@ -918,12 +1154,9 @@ h1,h2{font-weight:800;letter-spacing:-.025em;line-height:1.12;text-wrap:balance}
     final(feito, false);
   } else {
     var r = lerRascunho();
-    if (r) {
-      estado.itens = r.itens || []; estado.outro = r.outro || ''; estado.uso = r.uso || '';
-      caixas.forEach(function (c) { c.checked = estado.itens.indexOf(c.value) >= 0; });
-      $('outro').value = estado.outro; $('contaOutro').textContent = estado.outro.length + ' de 300';
-      $('nome').value = r.nome || ''; $('tel').value = r.tel || ''; $('cidade').value = r.cidade || ''; $('uf').value = r.uf || '';
-      marcarUso();
+    if (r && r.e) {
+      aplicar(r.e);
+      CAMPOS.forEach(function (id) { if (typeof r[id] === 'string') $(id).value = r[id]; });
     }
     lerItens();
     mostrar(1, { semAnim: true, semFoco: true });
