@@ -15,7 +15,7 @@ import { nomeSimples } from './solarObras';
 import { lerJsonBruto, gravarJsonBruto, comTrava } from './cadastroVendaBanco';
 import { marcaIa } from './jornadaSolarMarcaIa';
 import {
-  ACOES_HISTORICO, CHAVES_CONFIRMAR, CHAVES_PEDIDO, FALHAS_NUMERO, FORMAS_PAGAMENTO, MOTIVOS_ESPERA,
+  ACOES_HISTORICO, CHAVES_CONFIRMAR, CHAVES_PEDIDO, FALHAS_NUMERO, FINANCIAMENTOS, FORMAS_PAGAMENTO, MOTIVOS_ESPERA, type TipoFinanciamento,
   type AcaoHistorico, type Confirmacao, type EstadoJornada, type FalhaNumero, type FormaPagamento, type MotivoEspera, type PapelGerado, type PrivadoJornada,
 } from './jornadaSolar';
 
@@ -80,7 +80,6 @@ function papel(v: unknown): PapelGerado | null {
   const em = o ? dataIso(o.gerado_em) : null;
   return o && em ? { gerado_em: em, por: nome(o.por) } : null;
 }
-
 export function normalizarJornada(card: number, value: unknown): EstadoJornada | null {
   const o = obj(value);
   if (!o || o.v !== 1 || !Number.isInteger(card) || card <= 0 || o.card !== card) return null;
@@ -96,7 +95,6 @@ export function normalizarJornada(card: number, value: unknown): EstadoJornada |
   const ped1 = pedidos(e1.pedidos);
   const b2 = etapaBase(e2);
   const b3 = etapaBase(e3);
-
   const rat = obj(e3.rateio);
   const ratEm = rat ? dataIso(rat.conferido_em) : null;
   const ratMarca = rat && typeof rat.marca === 'string' && /^[0-9a-f]{16}$/.test(rat.marca) ? rat.marca : null;
@@ -107,7 +105,6 @@ export function normalizarJornada(card: number, value: unknown): EstadoJornada |
   const treUrl = tre && typeof tre.url === 'string' && /^https:\/\/trello\.com\/c\/[A-Za-z0-9]{6,12}$/.test(tre.url) ? tre.url : null;
   const treEm = tre ? dataIso(tre.criado_em) : null;
   const treCompl = tre ? dataIso(tre.completado_em) : null;
-
   const esp = obj(o.esperando);
   const espMotivo = esp && MOTIVOS_ESPERA.includes(esp.motivo as MotivoEspera) ? esp.motivo as MotivoEspera : null;
   const espAte = esp ? ymd(esp.ate) : null;
@@ -117,7 +114,6 @@ export function normalizarJornada(card: number, value: unknown): EstadoJornada |
   const canEm = can ? dataIso(can.em) : null;
   const canEtapa = can ? inteiro(can.etapa, 1, 9) : null;
   const num = obj(o.numero) ?? {};
-
   const hist: EstadoJornada['historico'] = [];
   for (const h of Array.isArray(o.historico) ? o.historico : []) {
     const ho = obj(h);
@@ -125,7 +121,6 @@ export function normalizarJornada(card: number, value: unknown): EstadoJornada |
     if (!ho || !em || !ACOES_HISTORICO.includes(ho.acao as AcaoHistorico)) continue;
     hist.push({ em, por: nome(ho.por), acao: ho.acao as AcaoHistorico, etapa: inteiro(ho.etapa, 1, 9) });
   }
-
   return {
     v: 1,
     card,
@@ -138,7 +133,7 @@ export function normalizarJornada(card: number, value: unknown): EstadoJornada |
       1: {
         aberta_em: b1.aberta_em, concluida_em: b1.concluida_em, concluida_por: b1.concluida_por,
         excedente: e1.excedente === 'sim' ? 'sim' : e1.excedente === 'nao' ? 'nao' : null,
-        ...(e1.financiamento === 'sim' || e1.financiamento === 'nao' ? { financiamento: e1.financiamento as 'sim' | 'nao' } : {}),
+        ...(FINANCIAMENTOS.includes(e1.financiamento as TipoFinanciamento) ? { financiamento: e1.financiamento as TipoFinanciamento } : e1.financiamento === 'sim' ? { financiamento: 'proprio' as const } : {}),
         ...(Object.keys(kt1).length ? { kit_texto: kt1 } : {}),
         ...(Object.keys(conf1).length ? { confirmados: conf1 } : {}),
         ...(Object.keys(ped1).length ? { pedidos: ped1 } : {}),
@@ -170,15 +165,15 @@ export function normalizarJornada(card: number, value: unknown): EstadoJornada |
 
 // ── Assinatura ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
+const hmacJornada = (card: number, n: EstadoJornada): string | null => {
+  const segredo = segredoDoVinculo();
+  return segredo ? crypto.createHmac('sha256', segredo).update(`jornada|${card}|${JSON.stringify(n)}`).digest('hex') : null;
+};
 /** HMAC de `jornada|card|JSON` do objeto normalizado (sem `sig`), ou null sem segredo. */
 export function assinarJornada(card: number, e: EstadoJornada): string | null {
-  const segredo = segredoDoVinculo();
-  if (!segredo) return null;
   const n = normalizarJornada(card, e);
-  if (!n) return null;
-  return crypto.createHmac('sha256', segredo).update(`jornada|${card}|${JSON.stringify(n)}`).digest('hex');
+  return n ? hmacJornada(card, n) : null;
 }
-
 const jaLogadas = new Set<number>();
 /** Para os testes. */
 export function reiniciarLogsDaJornada(): void { jaLogadas.clear(); }
@@ -188,8 +183,8 @@ export function jornadaAssinada(card: number, value: unknown): EstadoJornada | n
   const n = normalizarJornada(card, value);
   const sig = obj(value)?.sig;
   const esperada = n ? assinarJornada(card, n) : null;
-  if (n && esperada && typeof sig === 'string' && sig.length === esperada.length
-    && crypto.timingSafeEqual(Buffer.from(sig, 'utf8'), Buffer.from(esperada, 'utf8'))) return n;
+  const legado = n && n.etapas[1].financiamento === 'proprio' ? hmacJornada(card, { ...n, etapas: { ...n.etapas, 1: { ...n.etapas[1], financiamento: 'sim' as never } } }) : null; // assinado antes dos 3 tipos: `sim` (hoje `proprio`) vale até a próxima gravação
+  if (n && typeof sig === 'string' && [esperada, legado].some((x) => !!x && sig.length === x.length && crypto.timingSafeEqual(Buffer.from(sig, 'utf8'), Buffer.from(x, 'utf8')))) return n;
   if (!jaLogadas.has(card)) {
     jaLogadas.add(card);
     console.error('[jornada-solar] estado sem assinatura válida, ignorado', 'sig_invalida');

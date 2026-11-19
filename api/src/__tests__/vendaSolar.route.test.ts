@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import crypto from 'crypto';
 import express, { Router } from 'express';
 import request from 'supertest';
 
@@ -1870,7 +1871,7 @@ describe('leitura ampliada (19/11): contrato, procuração, orçamento e comprov
   it('gatilho: comprovante, contrato, procuração e orçamento entram na leitura automática; datasheet, foto e pós-venda não; o slot orcamento é opcional, só dinheiro, fora do relatório e do Trello', async () => {
     const { SLOTS_LEITURA_AUTO } = await import('../services/gerador/cadastroLeituraAuto');
     expect(SLOTS_LEITURA_AUTO).toEqual(expect.arrayContaining(['comprovante_endereco_comprador', 'contrato_assinado', 'procuracao', 'orcamento', 'documento_titular', 'conta_luz']));
-    for (const fora of ['outros', 'datasheet_modulo', 'fachada', 'pos_conta']) expect(SLOTS_LEITURA_AUTO).not.toContain(fora);
+    for (const fora of ['datasheet_modulo', 'fachada', 'pos_conta']) expect(SLOTS_LEITURA_AUTO).not.toContain(fora);
     const { CATALOGO, SLOTS_FORA_DO_RELATORIO, SLOTS_DO_TRELLO_AUTO } = await import('../services/gerador/docsCliente');
     expect(CATALOGO.vendasolar.find((i) => i.chave === 'orcamento')).toMatchObject({ rotulo: 'Orçamento ou proposta', aceita: 'ambos', obrigatorio: false });
     expect(SLOTS_FORA_DO_RELATORIO.has('orcamento')).toBe(true);
@@ -2133,5 +2134,203 @@ describe('leitura ampliada (19/11): contrato, procuração, orçamento e comprov
       expect(JSON.parse(h.cad.get('vendasolar/201.leitura.json')!.toString()).lidos).toHaveLength(0);
       expect(JSON.parse(h.cad.get('leitura-pessoa/nilce.json')!.toString()).lidos).toHaveLength(0);
     } finally { delete process.env.LEITURA_AUTO_TIMEOUT_MS; }
+  });
+});
+
+describe('leitura automática de todo item legível e dos pendentes da obra (19/11)', () => {
+  const idDe = (i: number): string => `0000000${i}-0000-4000-8000-000000000000`;
+  const indiceDe = (c: any[], slot: string, depois = 0): number =>
+    Number(/^Arquivo (\d+),/.exec(c.filter((b) => b?.type === 'text' && new RegExp(`^Arquivo \\d+, slot "${slot}"`).test(b.text))[depois].text)![1]);
+  type Slot = string;
+  const resposta = (o: { campos?: Array<[Slot, string, string]>; comercial?: Array<[Slot, string, string]>; docs?: Array<[Slot, string, string]> }) => ({
+    saida: (c: any[]) => ({
+      campos: (o.campos ?? []).map(([s, k, v]) => ({ campo: k, valor: v, indice: indiceDe(c, s), confianca: 'alta', nota: '' })),
+      comercial: (o.comercial ?? []).map(([s, k, v]) => ({ campo: k, valor: v, indice: indiceDe(c, s), confianca: 'alta' })),
+      documentos: (o.docs ?? []).map(([s, tipo, pessoa]) => ({ indice: indiceDe(c, s), tipo, rotulo: '', nota: '', pessoa })),
+    }),
+  });
+  const bytesDe = (i: number): Buffer => Buffer.concat([JPG, Buffer.from([i])]);
+  const sha = (i: number): string => crypto.createHash('sha256').update(bytesDe(i)).digest('hex');
+  const semear = (slots: string[]): void => {
+    anexa(201, slots.map((s, i) => ({ slot: s, uuid: `1111111${i}-1111-4111-8111-111111111111`, ext: 'jpg', mime: 'image/jpeg', bytes: JPG.length + 1, em: `2026-10-20T10:0${i}:00.000Z` })));
+    slots.forEach((_s, i) => h.objetos.set(`vendasolar/201/1111111${i}-1111-4111-8111-111111111111.jpg`, bytesDe(i)));
+  };
+  const arquivos = (): any[] => (h.linhas.get('docs_cliente:vendasolar:201')!.value as { arquivos: any[] }).arquivos;
+  const cad = (): Record<string, { valor: string; fonte: string; doc?: string }> => (h.cad.has('vendasolar/201.json') ? JSON.parse(h.cad.get('vendasolar/201.json')!.toString()).campos : {});
+  const registro = (): any => (h.cad.has('vendasolar/201.leitura.json') ? JSON.parse(h.cad.get('vendasolar/201.leitura.json')!.toString()) : null);
+  const gravaRegistro = (o: Record<string, unknown>): void => { h.cad.set('vendasolar/201.leitura.json', Buffer.from(JSON.stringify({ v: 1, lidos: [], arquivos: [], ...o }))); };
+  const minutosAtras = (m: number): string => new Date(Date.now() - m * 60_000).toISOString();
+  const esperar = async (ok: () => boolean): Promise<void> => { for (let i = 0; i < 120 && !ok(); i++) await new Promise((r) => setTimeout(r, 25)); };
+  const acabou = (): boolean => !!registro() && registro().rodando === null;
+  const obra = async (nome = 'nilce') => (await import('../services/gerador/leituraPendente')).leituraDaObra({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome, arquivos: arquivos() });
+  const nomeAna = async (): Promise<void> => { expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'Ana Souza' } })).status).toBe(200); };
+
+  it('todo item legível dispara a leitura (fotos, datasheet, KMZ e papéis das etapas 4 em diante não)', async () => {
+    const { SLOTS_LEITURA_AUTO } = await import('../services/gerador/cadastroLeituraAuto');
+    const { SLOTS_LIDOS_SOLAR } = await import('../services/gerador/cadastroVendaLeitura');
+    expect([...SLOTS_LEITURA_AUTO]).toEqual([...SLOTS_LIDOS_SOLAR]);
+    for (const dentro of ['documento_financiamento', 'comprovante_endereco_financiamento', 'documento_avalista', 'comprovante_endereco_avalista', 'conta_luz_beneficiaria', 'documento_imovel', 'documento_outra_pessoa', 'documento_titular_uc', 'outros']) expect(SLOTS_LEITURA_AUTO, dentro).toContain(dentro);
+    for (const fora of ['fachada', 'padrao', 'disjuntor', 'medidor', 'obra_foto', 'ent_vista_geral', 'datasheet_modulo', 'datasheet_inversor', 'kmz', 'art', 'lib_pedido', 'pos_conta']) expect(SLOTS_LEITURA_AUTO, fora).not.toContain(fora);
+  });
+
+  it('envio de documento_financiamento dispara a IA em segundo plano e grava em fin_* (com o slot de origem); o que for do contratante vindo dali é descartado', async () => {
+    await nomeAna();
+    h.ia.fila.push(resposta({
+      campos: [['documento_financiamento', 'fin_nome', 'Carlos Financiador'], ['documento_financiamento', 'fin_cpf_cnpj', '529.982.247-25'], ['documento_financiamento', 'nome', 'Carlos Financiador'], ['documento_financiamento', 'email', 'carlos@exemplo.com']],
+      docs: [['documento_financiamento', 'documento_financiamento', 'Carlos Financiador']],
+    }));
+    const u = await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'documento_financiamento', mime: 'image/jpeg', bytes: JPG.length });
+    h.objetos.set(u.body.caminho, JPG);
+    expect((await post('/clientes/vendasolar/201/docs', { slot: 'documento_financiamento', caminho: u.body.caminho })).status).toBe(200);
+    await esperar(() => !!cad().fin_cpf_cnpj);
+    expect(cad().fin_nome).toMatchObject({ valor: 'Carlos Financiador', fonte: 'ia', doc: 'documento_financiamento' });
+    expect(cad().fin_cpf_cnpj).toMatchObject({ fonte: 'ia', doc: 'documento_financiamento' });
+    expect(cad().nome).toMatchObject({ valor: 'Ana Souza', fonte: 'manual' });   // o contratante não vira o financiador
+    expect(cad().email).toBeUndefined();
+    expect(h.ia.chamadas).toHaveLength(1);
+    // o arquivo lido já conta como lido, com o id
+    await esperar(() => !!registro()?.arquivos?.length);
+    expect(registro().arquivos).toHaveLength(1);
+  });
+
+  it('a conta de cada beneficiária chega à IA com o número dela (da mais antiga para a mais nova), lida uma de cada vez', async () => {
+    semear(['conta_luz_beneficiaria', 'conta_luz_beneficiaria']);
+    const { lerCadastroAutomatico } = await import('../services/gerador/cadastroLeituraAuto');
+    h.ia.fila.push(resposta({ campos: [['conta_luz_beneficiaria', 'benef_2_uc', '7654321']], docs: [['conta_luz_beneficiaria', 'conta_luz_beneficiaria', '']] }));
+    await lerCadastroAutomatico({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome: 'nilce', arquivoId: idDe(1) });
+    const texto = (h.ia.chamadas[0].corpo.messages[0].content as any[]).filter((b) => b?.type === 'text').map((b) => b.text).join(' ');
+    expect(texto).toContain('conta da beneficiária número 2: use benef_2_uc');
+    expect(cad().benef_2_uc).toMatchObject({ valor: '7654321', fonte: 'ia', doc: 'conta_luz_beneficiaria' });
+  });
+
+  it('GET com arquivo pendente: UMA leitura em lote (só os pendentes, numa chamada), com o marcador, e depois não há mais pendentes', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado', 'documento_financiamento']);
+    gravaRegistro({ arquivos: [{ id: idDe(0) }] });   // o 1º já foi lido
+    h.ia.fila.push(resposta({
+      campos: [['contrato_assinado', 'email', 'ana@exemplo.com'], ['documento_financiamento', 'fin_nome', 'Carlos Financiador']],
+      docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza'], ['documento_financiamento', 'documento_financiamento', 'Carlos Financiador']],
+    }));
+    const a = await obra();
+    expect(a).toMatchObject({ rodando: true, pendentes: 2, ultima_em: null });
+    await esperar(acabou);
+    expect(h.ia.chamadas).toHaveLength(1);
+    const blocos = (h.ia.chamadas[0].corpo.messages[0].content as any[]).filter((b) => b?.type === 'text' && /^Arquivo \d+, slot/.test(b.text));
+    expect(blocos).toHaveLength(2);                                  // o já lido não vai de novo
+    expect(cad().email).toMatchObject({ valor: 'ana@exemplo.com', fonte: 'ia', doc: 'contrato_assinado' });
+    expect(cad().fin_nome).toMatchObject({ fonte: 'ia', doc: 'documento_financiamento' });
+    expect(registro().arquivos.map((x: any) => x.id).sort()).toEqual([idDe(0), idDe(1), idDe(2)]);
+    expect(registro().ultima_em).not.toBeNull();
+    expect(registro().lidos).toHaveLength(1);                         // uma chamada, uma leitura na cota da venda
+    expect(h.cad.has('leitura-pessoa/nilce.json')).toBe(false);       // e nada na da pessoa
+    const b = await obra();
+    expect(b).toMatchObject({ rodando: false, pendentes: 0 });
+    expect(b.ultima_em).not.toBeNull();
+    expect(h.ia.chamadas).toHaveLength(1);
+  });
+
+  it('dois GETs juntos, ou um GET durante a leitura, não disparam outra: o marcador e a trava deixam uma só', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado']);
+    h.ia.fila.push({ espera: 900, ...resposta({ campos: [['contrato_assinado', 'email', 'ana@exemplo.com']], docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza']] }) });
+    const [x, y] = await Promise.all([obra(), obra()]);
+    expect([x.rodando, y.rodando]).toEqual([true, true]);
+    const z = await obra();                                          // a leitura ainda está rodando
+    expect(z).toMatchObject({ rodando: true, pendentes: 2 });
+    await esperar(acabou);
+    expect(h.ia.chamadas).toHaveLength(1);
+  });
+
+  it('IA falhou: nada fica marcado como lido, a cota é devolvida e o GET só tenta de novo depois de 10 min', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado']);
+    h.ia.fila.push({ erro: new Error('IA fora') });
+    await obra();
+    await esperar(acabou);
+    expect(h.ia.chamadas).toHaveLength(1);
+    expect(registro().arquivos).toEqual([]);
+    expect(registro().lidos).toEqual([]);
+    expect(registro().falha_em).not.toBeNull();
+    // logo depois: não chama a IA outra vez, e os pendentes seguem contados
+    expect(await obra()).toMatchObject({ rodando: false, pendentes: 2 });
+    expect(h.ia.chamadas).toHaveLength(1);
+    // passados 10 min: tenta de novo
+    gravaRegistro({ falha_em: minutosAtras(11) });
+    h.ia.fila.push(resposta({ campos: [['contrato_assinado', 'email', 'ana@exemplo.com']], docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza']] }));
+    expect(await obra()).toMatchObject({ rodando: true, pendentes: 2 });
+    await esperar(() => h.ia.chamadas.length === 2 && acabou());
+    expect(registro().arquivos).toHaveLength(2);
+    expect(registro().falha_em).toBeNull();
+  });
+
+  it('cota da venda cheia (20 na última hora): não começa, e nada é gasto; com 19 começa', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado']);
+    const lidos = (n: number) => Array.from({ length: n }, (_, i) => ({ sha: String(i).padStart(64, 'a'), em: new Date(Date.now() - i * 1000).toISOString() }));
+    gravaRegistro({ lidos: lidos(20) });
+    expect(await obra()).toMatchObject({ rodando: false, pendentes: 2 });
+    expect(h.ia.chamadas).toHaveLength(0);
+    expect(registro().rodando).toBeFalsy();
+    gravaRegistro({ lidos: lidos(19) });
+    h.ia.fila.push(resposta({ campos: [['contrato_assinado', 'email', 'ana@exemplo.com']], docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza']] }));
+    expect(await obra()).toMatchObject({ rodando: true });
+    await esperar(acabou);
+    expect(h.ia.chamadas).toHaveLength(1);
+    expect(registro().lidos).toHaveLength(20);
+  });
+
+  it('obra antiga: arquivo cujo sha já foi lido (registro sem id) é só marcado como lido, sem chamar a IA; baixa uma vez; os novos vão para a IA', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado', 'orcamento']);
+    gravaRegistro({ lidos: [{ sha: sha(0), em: minutosAtras(600) }, { sha: sha(1), em: minutosAtras(600) }] });
+    h.ia.fila.push(resposta({ campos: [['orcamento', 'email', 'ana@exemplo.com']], docs: [['orcamento', 'orcamento', 'Ana Souza']] }));
+    expect(await obra()).toMatchObject({ rodando: true, pendentes: 3 });
+    await esperar(acabou);
+    expect(h.ia.chamadas).toHaveLength(1);
+    const blocos = (h.ia.chamadas[0].corpo.messages[0].content as any[]).filter((b) => b?.type === 'text' && /^Arquivo \d+, slot/.test(b.text));
+    expect(blocos).toHaveLength(1);                                  // só o orçamento, que ninguém tinha lido
+    expect(registro().arquivos.map((x: any) => x.id).sort()).toEqual([idDe(0), idDe(1), idDe(2)]);
+    expect((await obra()).pendentes).toBe(0);
+    // se só houver arquivo já lido por sha: marca tudo e não chama a IA
+    gravaRegistro({ lidos: [{ sha: sha(0), em: minutosAtras(600) }, { sha: sha(1), em: minutosAtras(600) }, { sha: sha(2), em: minutosAtras(600) }] });
+    expect(await obra()).toMatchObject({ rodando: true, pendentes: 3 });
+    await esperar(acabou);
+    expect(h.ia.chamadas).toHaveLength(1);
+    expect(registro().arquivos).toHaveLength(3);
+    expect(registro().ultima_em).toBeNull();
+  });
+
+  it('marcador velho (mais de 3 min) não vale e a leitura começa; marcador novo vale e não começa', async () => {
+    await nomeAna();
+    semear(['contrato_assinado']);
+    gravaRegistro({ rodando: minutosAtras(1) });
+    expect(await obra()).toMatchObject({ rodando: true, pendentes: 1 });
+    expect(h.ia.chamadas).toHaveLength(0);
+    gravaRegistro({ rodando: minutosAtras(4) });
+    h.ia.fila.push(resposta({ campos: [['contrato_assinado', 'email', 'ana@exemplo.com']], docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza']] }));
+    await obra();
+    await esperar(acabou);
+    expect(h.ia.chamadas).toHaveLength(1);
+  });
+
+  it('o Ler tudo manual também marca os arquivos lidos, para o GET não ler de novo', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado']);
+    h.ia.fila.push(resposta({ campos: [['contrato_assinado', 'email', 'ana@exemplo.com']], docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza']] }));
+    const { lerTudoDaVenda } = await import('../services/gerador/cadastroLeituraAuto');
+    expect(await lerTudoDaVenda({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome: 'nilce' })).toMatchObject({ acao: 'ok' });
+    expect(await obra()).toMatchObject({ rodando: false, pendentes: 0 });
+    expect(h.ia.chamadas).toHaveLength(1);
+  });
+
+  it('falha da IA no envio deixa o arquivo pendente para o GET (a reserva volta)', async () => {
+    await nomeAna();
+    semear(['contrato_assinado']);
+    const { lerCadastroAutomatico } = await import('../services/gerador/cadastroLeituraAuto');
+    h.ia.fila.push({ erro: new Error('IA fora') });
+    expect(await lerCadastroAutomatico({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome: 'nilce', arquivoId: idDe(0) })).toEqual({ acao: 'falhou' });
+    expect(registro().arquivos).toEqual([]);                          // continua pendente para o GET
+    expect(await obra()).toMatchObject({ pendentes: 1 });
+    await esperar(() => h.ia.chamadas.length >= 1 && acabou());
   });
 });

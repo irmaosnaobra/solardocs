@@ -185,9 +185,9 @@ describe('itensDaEtapa', () => {
     expect(valorConfirmavel('pagamento', { ...f1, privado: aberto })).toBe('');
     expect(valorConfirmavel('placas', { ...f1, equip: { ...equip, modeloPlaca: '' } })).toBe('');
   });
-  it('etapa 1: financiamento fecha quando respondido (sim ou não); só com "sim" entra proposta_banco, que pede banco, agência e conta da obra', () => {
+  it('etapa 1: financiamento fecha quando respondido (não, próprio ou financeira); só com "proprio" entra proposta_banco, que pede banco, agência e conta da obra', () => {
     const e = novo();
-    const f = (fin: 'sim' | 'nao' | null, banco: BancoObra | null) => {
+    const f = (fin: 'nao' | 'proprio' | 'financeira' | null, banco: BancoObra | null) => {
       if (fin) e.etapas[1].financiamento = fin; else delete e.etapas[1].financiamento;
       return { ...base(e, new Set(), cadOk(), privadoOk()), equip, obra: { vistoria: null, banco } };
     };
@@ -196,34 +196,31 @@ describe('itensDaEtapa', () => {
     expect(so(f(null, null), 'proposta_banco')).toBeUndefined();
     expect(so(f('nao', null), 'financiamento')!.feito).toBe(true);
     expect(so(f('nao', null), 'proposta_banco')).toBeUndefined();
+    expect(so(f('financeira', null), 'financiamento')!.feito).toBe(true);
+    expect(so(f('financeira', null), 'proposta_banco')).toBeUndefined();
     const banco = { banco: 'BV', agencia: '0001', conta: '123-4', validade: '', prazo: '', origem: '', nota: '', desc: '', ger: '', eq_centavos: null, mo_centavos: null, fin: null };
-    expect(so(f('sim', null), 'financiamento')!.feito).toBe(true);
-    expect(so(f('sim', null), 'proposta_banco')).toMatchObject({ bloco: 'venda', texto: 'Proposta de banco preenchida', feito: false });
-    expect(so(f('sim', { ...banco, conta: ' ' }), 'proposta_banco')!.feito).toBe(false);
-    expect(so(f('sim', banco), 'proposta_banco')!.feito).toBe(true);
+    expect(so(f('proprio', null), 'financiamento')!.feito).toBe(true);
+    expect(so(f('proprio', null), 'proposta_banco')).toMatchObject({ bloco: 'venda', texto: 'Proposta de banco preenchida', feito: false });
+    expect(so(f('proprio', { ...banco, conta: ' ' }), 'proposta_banco')!.feito).toBe(false);
+    expect(so(f('proprio', banco), 'proposta_banco')!.feito).toBe(true);
     expect(bancoPreenchido(banco)).toBe(true);
     expect(bancoPreenchido({ ...banco, agencia: '' })).toBe(false);
     expect(bancoPreenchido(null)).toBe(false);
   });
-  it('etapa 1: com financiamento "sim" entram os documentos do titular do financiamento (feito pelo arquivo); com "nao" ou sem resposta não existem; a etapa 2 não os herda', () => {
+  it('etapa 1: financeira não acrescenta item nenhum (os documentos do titular são extras opcionais, não item); a etapa 2 também não', () => {
     const e = novo();
-    const CH = ['documento_financiamento', 'comprovante_endereco_financiamento'];
-    const dos = (fin: 'sim' | 'nao' | null, slots: string[]) => {
-      if (fin) e.etapas[1].financiamento = fin; else delete e.etapas[1].financiamento;
-      return itensDaEtapa(1, base(e, new Set(slots), cadOk(), privadoOk())).filter((i) => CH.includes(i.chave));
+    const chaves = (n: 1 | 2, fin: 'nao' | 'proprio' | 'financeira'): string[] => {
+      e.etapas[1].financiamento = fin;
+      return itensDaEtapa(n, base(e, new Set(['documento_financiamento']), cadOk(), privadoOk())).map((i) => i.chave);
     };
-    expect(dos('sim', []).map((i) => [i.bloco, i.chave, i.texto, i.feito])).toEqual([
-      ['documentos', 'documento_financiamento', 'Documento do titular do financiamento', false],
-      ['documentos', 'comprovante_endereco_financiamento', 'Comprovante de endereço do titular do financiamento', false],
-    ]);
-    expect(dos('sim', ['documento_financiamento']).map((i) => [i.chave, i.feito])).toEqual([['documento_financiamento', true], ['comprovante_endereco_financiamento', false]]);
-    expect(dos('sim', CH).every((i) => i.feito)).toBe(true);
-    expect(dos('nao', CH)).toEqual([]);
-    expect(dos(null, CH)).toEqual([]);
-    // obra antiga com financiamento "sim": a etapa 2 não lista os documentos do financiamento como pendência
-    e.etapas[1].financiamento = 'sim';
-    const e2 = itensDaEtapa(2, base(e, new Set(), cadOk(), privadoOk()));
-    expect(e2.some((i) => CH.includes(i.chave))).toBe(false);
+    expect(chaves(1, 'financeira')).toEqual(chaves(1, 'nao'));
+    expect(chaves(1, 'proprio')).toContain('proposta_banco');
+    for (const fin of ['nao', 'proprio', 'financeira'] as const) {
+      for (const n of [1, 2] as const) {
+        expect(chaves(n, fin)).not.toContain('documento_financiamento');
+        expect(chaves(n, fin)).not.toContain('comprovante_endereco_financiamento');
+      }
+    }
   });
   it('etapa 1: contrato e procuração gerados vêm de etapas[2].papeis (recibo não é item)', () => {
     const e = novo();

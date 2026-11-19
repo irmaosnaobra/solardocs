@@ -10,7 +10,7 @@
 
   var L = { dados: null, aba: 'ativas', filtro: 'todas', busca: '', consultor: '', carregando: false, erro: '', menu: null, ajuda: false };
   var O = { card: null, dados: null, fase2: null, fase3: null, dinheiro: null, ficha: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0, erroSlot: {}, ocupSlot: {},
-    lendo: null, lendoFalhou: '', lendoT: 0, lerTudo: null, novos: null, novosT: 0, edita: {}, rascunho: {}, confirmando: {}, erroSec: {}, vendaEdita: false, aba: null, abaVista: '', organizar: false, outroTipo: '', ratEdita: false };
+    lendo: null, lendoFalhou: '', lendoT: 0, leit: null, novos: null, novosT: 0, edita: {}, rascunho: {}, confirmando: {}, erroSec: {}, vendaEdita: false, aba: null, abaVista: '', organizar: false, outroTipo: '', ratEdita: false };
 
   // ── Rede ───────────────────────────────────────────────────────────────────
   function api(rota, metodo, corpo, ms) {
@@ -89,6 +89,7 @@
       '.jor-chip:disabled{cursor:not-allowed;background:var(--n-sf3);color:var(--n-tx3)}',
       '.jor-chip.on:disabled{background:var(--io-marcado);color:var(--n-inv);opacity:.75}',
       '.jor-chip-grande{min-height:48px;padding:10px 28px;border-radius:12px;font-size:15px}',
+      '.jor-chip-grande.jor-chip-3{padding:10px 16px}',
       // Campos do sistema: o mesmo desenho dos campos do io2 (contorno --io-borda-campo, raio 10, seta do select vinda do io2).
       '.jor-busca,.jor-sel,.jor-in,.jor-ta{width:100%;min-height:40px;padding:8px 12px;border:1px solid var(--io-borda-campo);border-radius:10px;background-color:var(--n-sf);color:var(--n-tx);font:inherit;font-size:14px;font-weight:500;max-width:100%}',
       '.jor-busca{width:300px;border-radius:999px;background-color:var(--n-sf2)}',
@@ -292,6 +293,10 @@
       '.jor-lendo{display:flex;align-items:center;gap:10px;padding:8px 12px;margin:0 0 10px;border-radius:10px;background:var(--io-azul-sf);color:var(--io-azul-tx);font-weight:600}',
       '.jor-lendo i{flex:0 0 10px;width:10px;height:10px;border-radius:50%;background:currentColor;animation:jor-pulso 1.2s ease-in-out infinite}',
       '.jor-doc .jor-lendo{grid-column:1/-1;margin:0;padding:6px 10px;font-size:13px}',
+      '.jor-lendo.jor-lendo-auto{padding:0;background:none;border-radius:0;font-size:13px;font-weight:500;color:var(--n-tx2)}',
+      '.jor-lendo-auto i{flex:0 0 14px;width:14px;height:14px;background:none;border:2px solid currentColor;border-right-color:transparent;animation:jor-gira .8s linear infinite}',
+      '@keyframes jor-gira{to{transform:rotate(360deg)}}',
+      '@media (prefers-reduced-motion:reduce){.jor-lendo-auto i{animation:none}}',
       '@keyframes jor-pulso{0%,100%{opacity:.35;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}',
       '@media (prefers-reduced-motion:reduce){.jor-lendo i{animation:none}}',
       '.jor-perg{display:flex;align-items:center;flex-wrap:wrap;margin:14px 0 8px;font-size:14px;font-weight:600;color:var(--io-titulo)}',
@@ -590,18 +595,8 @@
       '.jor-sel.jor-in{width:100%}',
       '.jor-fc>.jor-email-cmp{flex:0 0 auto}',
       '.jor-grp-org{font-size:12px;font-weight:600;color:var(--io-azul-tx)}',
-      '.jor-ler{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:4px 12px;font-size:13px}',
-      '.jor-ler svg{flex:0 0 16px}',
-      '.jor-grp-t .jor-ler{margin-left:auto}',
-      '.jor-sub-t .jor-ler{margin-left:auto}',
-      '.jor-ler-st{margin:0 0 10px}',
-      '.jor-ler-st.jor-lendo{margin:0 0 10px}',
-      '.jor-ler-ok{display:flex;align-items:center;gap:6px;margin:0 0 10px;font-size:13px;font-weight:600;color:var(--io-ok-fg)}',
-      '.jor-ler-ok.nada{color:var(--n-tx2)}',
-      '.jor-ler-er{margin:0 0 10px}',
       '.jor-doc-est .st-opc{color:var(--n-tx2)}',
       '@media (prefers-reduced-motion:reduce){.jor-fc,.jor-rc{transition:none}}',
-      '@media (max-width:760px){.jor-ler{min-height:44px}.jor-grp-t .jor-ler,.jor-sub-t .jor-ler{margin-left:0}}',
     ].join('\n');
     var st = document.createElement('style'); st.id = 'jor-css'; st.textContent = comReserva(css); document.head.appendChild(st);
   }
@@ -919,7 +914,7 @@
   function sairDaObra() {
     if (O.vdcNo && typeof vdcFechar === 'function') { try { vdcFechar(O.vdcNo); } catch (e) { /* já fechado */ } }
     O.vdcChave = ''; O.vdcNo = null; O.vdcDet = null; O.obraNo = null; O.fase2 = null; O.dinheiro = null; O.ficha = null; O.erroSlot = {}; O.ocupSlot = {};
-    O.lendo = null; O.lendoFalhou = ''; if (O.lendoT) { clearTimeout(O.lendoT); O.lendoT = 0; } O.lerTudo = null; O.novos = null; if (O.novosT) { clearTimeout(O.novosT); O.novosT = 0; } O.edita = {}; O.rascunho = {}; O.confirmando = {}; O.erroSec = {}; O.vendaEdita = false; O.aba = null; O.abaVista = ''; O.organizar = false; O.outroTipo = ''; O.ratEdita = false;
+    O.lendo = null; O.lendoFalhou = ''; if (O.lendoT) { clearTimeout(O.lendoT); O.lendoT = 0; } if (O.leit) { if (O.leit.t) clearTimeout(O.leit.t); O.leit = null; } O.novos = null; if (O.novosT) { clearTimeout(O.novosT); O.novosT = 0; } O.edita = {}; O.rascunho = {}; O.confirmando = {}; O.erroSec = {}; O.vendaEdita = false; O.aba = null; O.abaVista = ''; O.organizar = false; O.outroTipo = ''; O.ratEdita = false;
     if (O.debounce) { clearTimeout(O.debounce); O.debounce = 0; }
   }
 
@@ -956,7 +951,7 @@
       O.fase3 = (r3 && r3.status === 200 && r3.json && r3.json.ok !== false && Array.isArray(r3.json.toques)) ? r3.json : null;
       if (r.status === 200 && r.json && r.json.ok !== false && r.json.finalizada) { O.dados = r.json; sairDoQuadro(); desenharFinalizada(r.json, O.obraNo, O.card); return; }
       if (r.status === 200 && r.json && r.json.ok !== false) {
-        O.dados = r.json;
+        O.dados = r.json; acompanharLeitura();
         // Depois do Trazer (ou de qualquer volta de finalizada), o desenharObra põe o quadro de documentos de volta na etapa.
         montarQuadro(); desenharObra();
       } else {
@@ -1153,7 +1148,7 @@
       if (falha) { if (String(O.card) === card) O.erroSlot[ck] = falha; toast(falha); }
       // CNH e conta de luz: o servidor lê o documento sozinho depois do upload. A tela espera a ficha do cliente mudar,
       // mas só quando há campo vazio para preencher e o arquivo é novo (arquivo repetido não cria linha nova no item: nada novo para ler).
-      if (!falha && String(O.card) === card && SLOTS_LIDOS[chave]) {
+      if (!falha && String(O.card) === card && leSlot(chave)) {
         var idsDepois = idsDoSlot(chave);
         var repetido = !troca && !!idsAntes && !!idsDepois && idsDepois.every(function (i) { return idsAntes.indexOf(i) >= 0; });
         depoisDoUpload(chave, repetido);
@@ -1474,7 +1469,9 @@
   function etapaFeita(e, atual) { return !!(e && (e.concluida_em || atual > e.n)); }
   function dataCurta(iso) { return ddmm(String(iso || '').slice(0, 10)); }
 
-  // Os documentos que só entram com financiamento e os que entram só se precisar (avalista, imóvel, titular da homologação).
+  /** O tipo de financiamento: 'nao', 'proprio' ou 'financeira'. O legado 'sim' vale Próprio. Sem resposta, ''. */
+  function tipoFin(d) { var f = d && d.financiamento; return f === 'sim' ? 'proprio' : (f === 'proprio' || f === 'financeira' || f === 'nao') ? f : ''; }
+  // Os documentos que o banco ou a financeira podem pedir a mais: opcionais, nunca travam o passo. Depois, os que entram só se precisar (avalista, imóvel, titular da homologação).
   var FIN_DOCS = [
     { slot: 'documento_financiamento', rot: 'Documento do titular do financiamento', msg: 'CNH ou documento do titular do financiamento' },
     { slot: 'comprovante_endereco_financiamento', rot: 'Comprovante de endereço do titular do financiamento', msg: 'Comprovante de endereço do titular do financiamento' },
@@ -1504,7 +1501,7 @@
   /** O que falta no passo 1, em palavras. Vazio = o passo está pronto. */
   function faltaDoP1(d) {
     var out = [];
-    if (d.financiamento !== 'sim' && d.financiamento !== 'nao') out.push('responder se tem financiamento');
+    if (!tipoFin(d)) out.push('responder se tem financiamento');
     if (d.excedente !== 'sim' && d.excedente !== 'nao') out.push('responder se tem excedente');
     PEDIDOS.forEach(function (p) { if (!docRecebido(d, p)) out.push(minus(p.rot)); });
     if (d.excedente === 'sim') {
@@ -1512,7 +1509,6 @@
       if (!temSlot(d, 'conta_luz_beneficiaria')) out.push('conta do excedente');
       else if ((ie && !ie.feito) || (!ie && cpf.ok === false)) out.push('a conta do excedente no CPF do titular');
     }
-    if (d.financiamento === 'sim') FIN_DOCS.forEach(function (f) { if (!temSlot(d, f.slot) && !itemOk(d, f.slot)) out.push(minus(f.rot)); });
     return out;
   }
   function faltaDoP3(d) {
@@ -1794,6 +1790,7 @@
 
   // ── O Resumo ────────────────────────────────────────────────────────────────────────────────────────────────
   function abaResumo(c, d, m) {
+    var ll = linhaLendo(d); if (ll) c.appendChild(ll);
     var g = el('div', 'jor-res-g');
     var esq = el('div', 'jor-res-col'); var dir = el('div', 'jor-res-col');
     esq.appendChild(grupoCliente(d)); esq.appendChild(grupoConta(d)); esq.appendChild(grupoVenda(d));
@@ -1813,9 +1810,7 @@
     var falta = its.filter(function (i) { return !i.feito; }).length;
     var tg = tituloGrupo('Cliente', its.length ? etq(falta ? 'Falta confirmar ' + falta : 'Confirmado', falta ? 'av' : 'ok') : null);
     tg.appendChild(ajudaQ('A IA lê a CNH, a conta de luz, o contrato, a procuração, o orçamento e o comprovante, e preenche o que estiver vazio. Ela nunca troca um dado já preenchido. Ao lado de cada dado aparece de onde ele veio. Nome, CPF, telefone, e-mail e endereços editados voltam a pedir confirmação no passo 2.'));
-    var bl = botaoLerTudo(d); if (bl) tg.appendChild(bl);
     box.appendChild(tg);
-    estadoLerTudo(box);
     var g = el('div', 'jor-ficha-g'); var et1 = d.etapas[0];
     fichaCliente().forEach(function (x) { g.appendChild(campoFicha(d, et1, x[0], !!x[1])); });
     box.appendChild(g);
@@ -1927,7 +1922,7 @@
       var pend = pendentesDe(d);
       if (p.aviso) { s.className += ' av'; return txt('Concluído com pendência: ' + juntar(pend.map(function (i) { var q = PEDIDOS.filter(function (x) { return x.item === i.chave; })[0]; return minus(q ? q.rot : i.texto); })) + '.'); }
       var f = faltaDoP1(d);
-      var extras = [d.excedente === 'sim' ? 'com excedente' : d.excedente === 'nao' ? 'sem excedente' : '', d.financiamento === 'sim' ? 'com financiamento' : d.financiamento === 'nao' ? 'sem financiamento' : ''].filter(Boolean);
+      var extras = [d.excedente === 'sim' ? 'com excedente' : d.excedente === 'nao' ? 'sem excedente' : '', { proprio: 'com financiamento próprio', financeira: 'com financeira', nao: 'sem financiamento' }[tipoFin(d)] || ''].filter(Boolean);
       return txt((f.length ? 'Falta ' + plural(f.length, 'item', 'itens') : 'Tudo recebido') + (extras.length ? ', ' + extras.join(', ') : '') + '.');
     }
     if (p.id === 'p2') {
@@ -2044,7 +2039,7 @@
   /** Depois do upload: recarrega a obra a cada 3 s até um dado do Resumo mudar. Só espera quando havia dado vazio para a leitura preencher. */
   function iniciarLeitura(slot) {
     if (O.lendoT) clearTimeout(O.lendoT);
-    O.lendo = { slot: slot, qual: SLOTS_LIDOS[slot], t0: Date.now(), antes: valoresCelulas(O.dados), card: String(O.card), ate: ESPERA_LEITURA_MS[slot] || 20000 }; O.lendoFalhou = '';
+    O.lendo = { slot: slot, qual: SLOTS_LIDOS[slot] || 'o documento', t0: Date.now(), antes: valoresCelulas(O.dados), card: String(O.card), ate: ESPERA_LEITURA_MS[slot] || 20000 }; O.lendoFalhou = '';
     O.lendoT = setTimeout(passoLeitura, 3000);
   }
   function passoLeitura() {
@@ -2062,10 +2057,13 @@
       O.lendoT = setTimeout(passoLeitura, 3000);
     });
   }
-  /** Fim do upload de um documento lido: espera a leitura só se há o que ela preencher e o arquivo é novo. */
+  /** Fotos, datasheets e KMZ a IA não lê: a tela não espera. Todo o resto que se anexa é lido pelo servidor.
+  var SLOTS_SEM_LEITURA = { fachada: 1, padrao: 1, disjuntor: 1, medidor: 1, obra_foto: 1, ent_extra: 1, datasheet_modulo: 1, datasheet_inversor: 1, kmz: 1 };
+  function leSlot(chave) { return !SLOTS_SEM_LEITURA[chave] && !/^(ent_|log_|pos_)/.test(chave); }
+  /** Fim do upload de um documento lido: espera a leitura. Nos seis documentos que a ficha conhece, só se há o que ela preencher e o arquivo é novo. */
   function depoisDoUpload(chave, repetido) {
-    if (!SLOTS_LIDOS[chave]) return;
-    if (repetido || !vaziosDaLeitura(O.dados, chave).length) { toast(MSG_NADA_NOVO); return; }
+    if (!leSlot(chave)) return;
+    if (repetido || (CAMPOS_LIDOS[chave] && !vaziosDaLeitura(O.dados, chave).length)) { toast(MSG_NADA_NOVO); return; }
     iniciarLeitura(chave);
   }
 
@@ -2084,71 +2082,30 @@
     }, 6000);
   }
 
-  // ── Ler todos os documentos: a IA relê tudo o que o cliente mandou e completa o que está vazio ──────────────────────────
-  // O que a rota devolve em `preenchidos` (campo do cadastro ou parte da venda) -> a célula do Resumo.
-  var CAD_CEL = { nome: 'nome', cpf_cnpj: 'cpf', rg_ie: 'rg', nascimento: 'nascimento', estado_civil: 'estado_civil', profissao: 'profissao', telefone: 'telefone', email: 'email',
-    endereco: 'endereco', bairro: 'endereco', cidade: 'endereco', uf: 'endereco', cep: 'endereco', endereco_ponto: 'endereco_usina', unidade_consumidora: 'unidade_consumidora',
-    concessionaria: 'concessionaria', titular_conta: 'titular_conta', uc_classe: 'uc_classe', consumo_medio_kwh: 'consumo_medio_kwh',
-    valor: 'v-valor', pagamento: 'v-pagamento', prazo: 'v-prazo', placas: 'v-placas', inversor: 'v-inversor' };
-  function lerTudoAgora() { return !!(O.lerTudo && O.lerTudo.card === String(O.card) && O.lerTudo.estado === 'lendo'); }
-  /** Há algum documento que a IA lê? Sem nenhum, o botão fica desligado com o motivo. */
-  function temDocLido(d) { return !!(d.slots && d.slots.documento) || Object.keys(SLOTS_LIDOS).concat(['documento_titular_uc']).some(function (s) { return temSlot(d, s); }); }
-  function botaoLerTudo(d) {
-    if (!d.pode || !d.pode.ler_tudo) return null;
-    var lendo = lerTudoAgora();
-    var b = btn(lendo ? 'Lendo…' : 'Ler todos os documentos', 'jor-ler', lerTudo);
-    b.insertBefore(icone('doc'), b.firstChild);
-    if (lendo) { b.disabled = true; b.setAttribute('aria-busy', 'true'); }
-    else if (!temDocLido(d)) negar(b, 'Anexe um documento no passo 1 antes.');
-    return b;
-  }
-  /** A linha de situação da leitura (lendo, resultado ou erro). `comLink`: fora do Resumo, leva até ele. */
-  function estadoLerTudo(pai, comLink) {
-    var s = O.lerTudo; if (!s || s.card !== String(O.card)) return;
-    if (s.estado === 'lendo') {
-      var ld = el('p', 'jor-lendo jor-ler-st'); ld.setAttribute('role', 'status'); ld.appendChild(el('i'));
-      ld.appendChild(document.createTextNode('Lendo os documentos. Pode levar até 2 minutos.')); pai.appendChild(ld); return;
+  // ── Leitura automática: o servidor lê todo documento novo sozinho; a tela só mostra e acompanha ─────────────────────────
+  // GET da obra traz `leitura: { rodando, pendentes, ultima_em }`. Enquanto lê, a tela recarrega a cada 15 s (no máximo 8 vezes).
+  var LEIT_MS = 15000, LEIT_MAX = 8;
+  function leituraAtiva(d) { var l = d && d.leitura; return !!(l && (l.rodando || Number(l.pendentes) > 0)); }
+  /** Chamada a cada carga da obra. Começa a acompanhar quando há leitura, e ao terminar acende o que mudou. */
+  function acompanharLeitura() {
+    var d = O.dados; var card = String(O.card); var s = O.leit;
+    if (s && s.card !== card) { if (s.t) clearTimeout(s.t); s = O.leit = null; }
+    if (O.lendo && O.lendo.card === card) return;   // a espera do upload (3 s) já cuida da tela
+    if (leituraAtiva(d)) {
+      if (!s) s = O.leit = { card: card, n: 0, antes: valoresCelulas(d), t: 0 };
+      if (!s.t && s.n < LEIT_MAX) s.t = setTimeout(function () { s.t = 0; s.n++; if (O.leit === s && String(O.card) === card) carregarObra(); }, LEIT_MS);
+      return;
     }
-    if (s.estado === 'erro') { var er = el('p', 'jor-erro jor-ler-er', s.msg); er.setAttribute('role', 'alert'); pai.appendChild(er); return; }
-    var ok = el('p', 'jor-ler-ok' + (s.n ? '' : ' nada')); ok.setAttribute('role', 'status');
-    if (s.n) ok.appendChild(icone('ok'));
-    ok.appendChild(document.createTextNode(s.n ? 'Preenchi ' + plural(s.n, 'dado', 'dados') + '.' : 'Nada novo para preencher.'));
-    if (s.ignorados) ok.appendChild(document.createTextNode(' ' + (s.ignorados === 1 ? '1 arquivo ficou de fora.' : s.ignorados + ' arquivos ficaram de fora.')));
-    if (comLink && s.n) ok.appendChild(btn('Ver no Resumo', 'jor-btn-link', function () { irResumo('jor-s-cliente'); }));
-    pai.appendChild(ok);
+    if (!s) return;
+    if (s.t) clearTimeout(s.t); O.leit = null;
+    var novos = mudaram(s.antes, valoresCelulas(d));
+    if (novos.length) { toast('Preenchi ' + plural(novos.length, 'dado', 'dados') + '.'); marcarNovos(novos); }
   }
-  function lerTudo() {
-    var card = String(O.card);
-    if (lerTudoAgora()) return;
-    O.lerTudo = { card: card, estado: 'lendo' };
-    var antes = valoresCelulas(O.dados);
-    desenharObra();
-    api('/gerador/jornada-solar/obra/' + enc(card) + '/ler-tudo', 'POST', {}, 120000).then(function (r) {
-      if (String(O.card) !== card) return null;
-      if (r.status === 200 && r.json && r.json.ok !== false) {
-        var pre = Array.isArray(r.json.preenchidos) ? r.json.preenchidos : [];
-        var cels = {}; var soltos = 0;
-        pre.forEach(function (k) { var c = CAD_CEL[k]; if (c) cels[c] = true; else soltos++; });
-        var n = Object.keys(cels).length + soltos;
-        O.lerTudo = { card: card, estado: n ? 'ok' : 'nada', n: n, ignorados: Number(r.json.ignorados) || 0 };
-        // Antes de recarregar: o redesenho da obra já pinta o destaque.
-        if (O.novosT) { clearTimeout(O.novosT); O.novosT = 0; }
-        O.novos = n ? cels : null;
-        toast(n ? 'Preenchi ' + plural(n, 'dado', 'dados') + '.' : 'Nada novo para preencher.');
-        return Promise.resolve(carregarObra()).then(function () {
-          if (String(O.card) !== card) return;
-          // O que mudou na tela e a rota não listou também acende. O relógio do destaque começa aqui.
-          marcarNovos(Object.keys(cels).concat(O.dados ? mudaram(antes, valoresCelulas(O.dados)) : []));
-          releia();
-        });
-      }
-      var m = r.status === 0 ? 'A leitura demorou demais. Confira o Resumo daqui a pouco.' : msgDe(r, 'Não consegui ler os documentos agora. Tente de novo.');
-      O.lerTudo = { card: card, estado: 'erro', msg: m }; toast(m); desenharObra();
-      return null;
-    }).catch(function () {
-      if (String(O.card) !== card) return;
-      O.lerTudo = { card: card, estado: 'erro', msg: 'Não consegui ler os documentos agora. Tente de novo.' }; desenharObra();
-    });
+  /** A linha discreta do topo do Resumo e do passo 1 enquanto o servidor lê. */
+  function linhaLendo(d) {
+    if (!leituraAtiva(d)) return null;
+    var p = el('p', 'jor-lendo jor-lendo-auto'); p.setAttribute('role', 'status'); p.appendChild(el('i')); p.appendChild(document.createTextNode('Lendo os documentos novos.'));
+    return p;
   }
 
   // ── Confirmar em lote: um botão confirma todas as chaves de um grupo, uma depois da outra ──────────────────────────
@@ -2496,11 +2453,10 @@
     var n = String((d.dados_cliente && d.dados_cliente.nome) || (d.card && d.card.cliente) || '').trim().split(/\s+/)[0] || '';
     return n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
   }
-  function mensagemPedido(d, faltam, excedente, fin) {
+  function mensagemPedido(d, faltam, excedente) {
     var nome = primeiroNome(d);
     var linhas = faltam.map(function (p) { return '- ' + p.msg; });
     if (excedente) linhas.push('- Conta de luz de cada imóvel que vai receber o excedente');
-    (fin || []).forEach(function (f) { linhas.push('- ' + f.msg); });
     return (nome ? 'Olá, ' + nome + '.' : 'Olá.') + ' Para seguir com o seu projeto de energia solar, preciso destes documentos e fotos:\n'
       + linhas.join('\n') + '\nPode mandar por aqui mesmo. Obrigado!';
   }
@@ -2574,10 +2530,12 @@
   }
 
   // ── Passo 1: documentos (as duas perguntas, a lista para o cliente e os anexos) ───────────────────────────────
-  function simNao(d, campo, valorAtual, pode, rotulo) {
+  /** Escolha única em chips que grava na hora. `opcoes`: [valor, texto]; sem ela, Sim e Não. */
+  function simNao(d, campo, valorAtual, pode, rotulo, opcoes) {
     var qs = el('div', 'jor-filtros'); qs.setAttribute('role', 'group'); if (rotulo) qs.setAttribute('aria-label', rotulo);
-    [['sim', 'Sim'], ['nao', 'Não']].forEach(function (o) {
-      var b = el('button', 'jor-chip jor-chip-grande' + (valorAtual === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !pode; b.setAttribute('aria-pressed', valorAtual === o[0] ? 'true' : 'false');
+    var ops = opcoes || [['sim', 'Sim'], ['nao', 'Não']];
+    ops.forEach(function (o) {
+      var b = el('button', 'jor-chip jor-chip-grande' + (ops.length > 2 ? ' jor-chip-3' : '') + (valorAtual === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !pode; b.setAttribute('aria-pressed', valorAtual === o[0] ? 'true' : 'false');
       if (!pode) b.title = 'Você não tem permissão para mudar.';
       b.addEventListener('click', function () {
         if (valorAtual === o[0]) return;
@@ -2598,6 +2556,7 @@
   }
   function corpoP1(c) {
     var d = O.dados; var et = d.etapas[0];
+    var ll = linhaLendo(d); if (ll) c.appendChild(ll);
     var pend = pendentesDe(d);
     if (pend.length && etapaFeita(et, atualEtapa())) {
       var nomes = pend.map(function (i) { var q = PEDIDOS.filter(function (p) { return p.item === i.chave; })[0]; return minus(q ? q.rot : i.texto); });
@@ -2611,24 +2570,25 @@
     }
     // As duas perguntas que mudam a lista.
     var pq = el('div', 'jor-pergs');
-    var q1 = el('div', 'jor-perg-c'); q1.appendChild(pergunta('Tem financiamento?', 'Com financiamento, a lista pede o documento e o comprovante de endereço de quem financia, e o passo 2 pede a proposta de banco.'));
-    q1.appendChild(simNao(d, 'financiamento', d.financiamento === 'sim' || d.financiamento === 'nao' ? d.financiamento : null, !!d.pode.marcar_excedente, 'Tem financiamento?'));
+    var q1 = el('div', 'jor-perg-c'); q1.appendChild(pergunta('Tem financiamento?', 'Próprio: o passo 2 pede os dados da proposta de banco. Financeira: só se ela pedir algum documento a mais, em Documentos extras.'));
+    q1.appendChild(simNao(d, 'financiamento', tipoFin(d) || null, !!d.pode.marcar_excedente, 'Tem financiamento?', [['nao', 'Não'], ['proprio', 'Próprio'], ['financeira', 'Financeira']]));
     var q2 = el('div', 'jor-perg-c'); q2.appendChild(pergunta('Tem excedente?', 'Excedente é a energia das placas que vai para outra conta de luz. Com excedente, a lista pede a conta de cada imóvel que recebe.'));
     q2.appendChild(simNao(d, 'excedente', d.excedente, !!d.pode.marcar_excedente, 'Tem excedente?'));
     add(pq, q1, q2); c.appendChild(pq);
     c.appendChild(blocoMandarLista(d));
-    // Os documentos: sempre os 6 do cliente; o excedente e o financiamento só quando a resposta é Sim.
-    var stc = subTitulo('Do cliente', ajudaQ('A IA lê cada documento assim que ele chega e preenche o Resumo. Ler todos os documentos relê tudo de uma vez e completa o que ainda falta.'));
-    var bl = botaoLerTudo(d); if (bl) stc.appendChild(bl);
-    c.appendChild(stc); estadoLerTudo(c, true);
+    // Os documentos: sempre os 6 do cliente; o excedente só com Sim; os do financiamento são extras, opcionais.
+    var stc = subTitulo('Do cliente', ajudaQ('A IA lê cada documento assim que ele chega e preenche o Resumo.'));
+    c.appendChild(stc);
     var lista = el('div', 'jor-docs-l'); PEDIDOS.forEach(function (p) { lista.appendChild(linhaDoc(d, p)); }); c.appendChild(lista);
     // O que o cliente já tem assinado ou orçado: opcional aqui, e a IA tira dele a ficha e a venda.
     c.appendChild(subTitulo('Contrato e orçamento', etq('Se tiver')));
-    var lco = el('div', 'jor-docs-l'); DOCS_LIDOS_OPC.forEach(function (o) { if (o.slot === 'orcamento' && !vendaDe(d).vede) return; lco.appendChild(linhaSlot(d, o.slot, o.rot, true)); });   // o orçamento tem preço: só quem vê o valor c.appendChild(lco);
+    var lco = el('div', 'jor-docs-l'); DOCS_LIDOS_OPC.forEach(function (o) { if (o.slot === 'orcamento' && !vendaDe(d).vede) return; lco.appendChild(linhaSlot(d, o.slot, o.rot, true)); }); c.appendChild(lco);   // o orçamento tem preço: só quem vê o valor
     if (d.excedente === 'sim') blocoExcedente(c, d, et);
-    if (d.financiamento === 'sim') {
-      c.appendChild(subTitulo('Financiamento'));
-      var lf2 = el('div', 'jor-docs-l'); FIN_DOCS.forEach(function (f) { lf2.appendChild(linhaSlot(d, f.slot, f.rot)); }); c.appendChild(lf2);
+    // Com Próprio ou Financeira entram os dois, opcionais. Com Não (ou sem resposta) só os que já têm arquivo: documento anexado nunca some.
+    var finExtras = FIN_DOCS.filter(function (f) { return tipoFin(d) === 'proprio' || tipoFin(d) === 'financeira' || temSlot(d, f.slot); });
+    if (finExtras.length) {
+      c.appendChild(subTitulo('Documentos extras', etq('Se pedirem')));
+      var lf2 = el('div', 'jor-docs-l'); finExtras.forEach(function (f) { lf2.appendChild(linhaSlot(d, f.slot, f.rot, true)); }); c.appendChild(lf2);
     }
     blocoOutrosDocs(c, d);
   }
@@ -2637,15 +2597,14 @@
     var box = el('div', 'jor-mandar');
     var faltam = PEDIDOS.filter(function (p) { return !docRecebido(d, p); });
     var excFalta = d.excedente === 'sim' && !temSlot(d, 'conta_luz_beneficiaria');
-    var finFalta = d.financiamento === 'sim' ? FIN_DOCS.filter(function (f) { return !temSlot(d, f.slot); }) : [];
-    var nomes = faltam.map(function (p) { return p.rot; }); if (excFalta) nomes.push('Conta do excedente'); finFalta.forEach(function (f) { nomes.push(f.rot); });
+    var nomes = faltam.map(function (p) { return p.rot; }); if (excFalta) nomes.push('Conta do excedente');
     var t = el('div', 'jor-mandar-t'); t.appendChild(el('b', '', 'Mandar a lista ao cliente'));
     if (!nomes.length) { t.appendChild(el('span', 'jor-pe-ok', 'Tudo recebido')); box.appendChild(t); return box; }
     t.appendChild(etq('Falta ' + nomes.length, 'av'));
     t.appendChild(ajudaQ('Quem envia é você, pela sua conversa com o cliente. O que for na lista fica marcado como pedido.'));
     box.appendChild(t);
     var ul = el('ul', 'jor-vai'); nomes.forEach(function (x) { ul.appendChild(el('li', '', x)); }); box.appendChild(ul);
-    var txt = mensagemPedido(d, faltam, excFalta, finFalta); var tel = telefoneWa(d);
+    var txt = mensagemPedido(d, faltam, excFalta); var tel = telefoneWa(d);
     var pre = el('pre', 'jor-ped-msg', txt); pre.hidden = true;
     var ac = el('div', 'jor-docs-ac');
     if (tel) ac.appendChild(btn('WhatsApp', 'jor-btn-pri', function () { abrirWa(tel, txt); marcarPedidos(d, faltam); }));
@@ -2654,7 +2613,7 @@
       marcarPedidos(d, faltam);
     }));
     if (!tel) ac.appendChild(el('p', 'jor-nota', 'Sem telefone do cliente: só dá para copiar.'));
-    if ((d.excedente !== 'sim' && d.excedente !== 'nao') || (d.financiamento !== 'sim' && d.financiamento !== 'nao')) ac.appendChild(el('p', 'jor-nota', 'Responda as duas perguntas antes, para a lista sair completa.'));
+    if ((d.excedente !== 'sim' && d.excedente !== 'nao') || !tipoFin(d)) ac.appendChild(el('p', 'jor-nota', 'Responda as duas perguntas antes, para a lista sair completa.'));
     box.appendChild(ac); box.appendChild(pre);
     return box;
   }
@@ -2853,7 +2812,7 @@
     ligarProposta(d, et, c);
     c.appendChild(subTitulo('Conferir os dados', ajudaQ('Os dados vêm da proposta e dos documentos lidos pela IA. Para mudar um dado, edite no Resumo. Dado editado volta a pedir confirmação aqui.')));
     var gc = el('div', 'jor-conf-g'); add(gc, cartaoConfCliente(d, et), cartaoConfVenda(d, et)); c.appendChild(gc);
-    if (d.financiamento === 'sim') {
+    if (tipoFin(d) === 'proprio') {
       c.appendChild(el('div', 'jor-sep'));
       if (window.Jornada.extras.banco) window.Jornada.extras.banco(c, d);
       else c.appendChild(el('p', 'jor-nota', 'A proposta de banco não carregou. Atualize a página.'));
