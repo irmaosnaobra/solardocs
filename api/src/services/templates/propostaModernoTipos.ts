@@ -4,6 +4,7 @@ import type { Palette, Bateria } from '../propostaSolarBase';
 import type { InversorProposta } from '../inversoresProposta';
 import type { Financeiro } from '../propostaSolarCalculos';
 import type { DadosContato } from './propostaSolarPartes';
+import type { LogoMedidas } from './logoAjuste';
 
 export interface Parcela { n: number; valor: number }
 export interface Assinante { nome: string; doc: string; detalhe: string }
@@ -12,6 +13,8 @@ export interface DadosModerno {
   comCapa: boolean;
   palette: Palette;
   contato: DadosContato;
+  /** Medidas da logo ajustada pelo servidor (logoAjuste.ts). Sem elas, a logo sai como antes. */
+  logoInfo?: LogoMedidas | null;
   empresa: { endereco: string; cidade: string };
   codigo: string;
   hoje: string;

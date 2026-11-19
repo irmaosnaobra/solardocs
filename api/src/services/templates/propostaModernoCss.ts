@@ -18,6 +18,9 @@ body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 /* Cabeçalho e rodapé de cada folha */
 .hd{ height:64px; display:flex; align-items:center; justify-content:space-between; gap:24px; border-bottom:1px solid var(--line); flex-shrink:0; }
 .hd img{ width:auto; height:auto; max-height:34px; max-width:170px; object-fit:contain; object-position:left center; display:block; }
+.hd img.aj{ max-width:none; max-height:none; object-fit:contain; }
+.hd .placa{ display:inline-flex; align-items:center; padding:7px 12px; background:var(--ink); border-radius:8px; }
+.hd .placa img{ display:block; }
 .hd .mk{ font-size:15px; font-weight:800; letter-spacing:-.01em; color:var(--c1); max-width:58%; line-height:1.25; }
 .hd .ref{ font-size:10.5px; color:var(--mut); text-align:right; line-height:1.4; max-width:40%; }
 .hd .ref b{ color:var(--ink); font-weight:600; }
@@ -40,6 +43,10 @@ h3{ font-size:14px; font-weight:700; letter-spacing:-.005em; margin-bottom:12px;
 .capa{ padding:0; height:1122px; }
 .capa .palco{ height:640px; min-height:480px; flex-shrink:1; display:flex; align-items:center; justify-content:center; padding:44px 24px; background:#fff; }
 .capa .palco img{ display:block; width:auto; height:auto; max-width:100%; max-height:100%; object-fit:contain; }
+.capa .palco.aj{ min-height:0; flex-shrink:0; padding:40px 54px; }
+.capa .palco.escuro{ background:var(--ink); }
+.capa .palco img.aj{ max-width:none; max-height:none; }
+.capa .palco img.selo{ box-shadow:0 1px 2px rgba(18,22,30,.08),0 14px 36px rgba(18,22,30,.14); }
 .capa .palco img.vet{ width:100%; height:100%; }
 .capa .palco .nm.longo{ font-size:54px; }
 .capa .palco .nm{ font-size:76px; line-height:1.02; font-weight:800; letter-spacing:-.03em; color:var(--c1); text-align:center; text-wrap:balance; overflow-wrap:break-word; max-width:720px; }

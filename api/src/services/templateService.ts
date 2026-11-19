@@ -10,6 +10,7 @@ import {
 } from './templates/propostaSolarPartes';
 import { propostaModernoHtml } from './templates/propostaModerno';
 import { fotoSegura, logoSegura } from './templates/propostaModernoPaginas';
+import { medidasLogo } from './templates/propostaModernoLogo';
 import { normalizarAssinatura, formatarCpf, formatarCnpj, CPF_OCULTO, documentoVazio } from '../utils/documentoBr';
 import {
   FIN_PRAZOS, anoCivil, calcularFinanceiro, lerFioB, serieFioB,
@@ -2639,6 +2640,8 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     comCapa,
     palette,
     contato: { ...contatoDoc, logo: logoSegura(contatoDoc.logo) },
+    // Logo ajustada no controller (empresaComLogoAjustada): as medidas só valem com a logo que passou no logoSegura.
+    logoInfo: logoSegura(contatoDoc.logo) ? medidasLogo((company as { logo_ajuste?: unknown }).logo_ajuste) : null,
     empresa: { endereco: String(company.endereco || '').trim(), cidade: cidadeEmpresa },
     codigo: codigoProposta.trim(),
     hoje: today,
