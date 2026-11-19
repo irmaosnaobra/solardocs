@@ -23,7 +23,8 @@ import type { Campo } from './cadastroVenda';
  */
 export type DonoArquivo =
   | 'comprador' | 'cedente' | 'avalista' | 'instalacao' | 'geradora' | 'beneficiaria' | 'outra_pessoa' | 'imovel'
-  | 'titular_uc' | 'titular_financiamento' | 'unidade_geradora' | 'unidade_beneficiaria';
+  | 'titular_uc' | 'titular_financiamento' | 'unidade_geradora' | 'unidade_beneficiaria'
+  | 'documento_comercial';
 /** A que papel do cadastro um campo pertence. */
 export type PapelCampo = 'comprador' | 'cedente' | 'avalista' | 'imovel' | 'ponto' | 'titular_uc' | 'financiamento' | 'beneficiaria';
 /** As linhas que têm leitura por IA. */
@@ -60,6 +61,11 @@ export const DONO_DO_ITEM_SOLAR: Readonly<Record<string, DonoArquivo>> = {
   documento_imovel: 'imovel',
   conta_luz: 'unidade_geradora',
   conta_luz_beneficiaria: 'unidade_beneficiaria',
+  // Contrato, procuração e orçamento (19/11/2026): papel do CONTRATANTE. Alimentam os campos dele e o ponto, desde que o servidor confira
+  // que o nome do documento é o do contratante conhecido (`documentoDeOutroContratante`, leituraComercial.ts). Só na venda solar.
+  contrato_assinado: 'documento_comercial',
+  procuracao: 'documento_comercial',
+  orcamento: 'documento_comercial',
 };
 
 const donosDa = (linha: LinhaLeitura): Readonly<Record<string, DonoArquivo>> => (linha === 'vendasolar' ? DONO_DO_ITEM_SOLAR : DONO_DO_ITEM);
@@ -98,6 +104,7 @@ const PODE_ALIMENTAR: Readonly<Record<DonoArquivo, readonly PapelCampo[]>> = {
   titular_financiamento: ['financiamento'],
   unidade_geradora: ['ponto'],
   unidade_beneficiaria: ['beneficiaria'],
+  documento_comercial: ['comprador', 'ponto'],
 };
 
 /**

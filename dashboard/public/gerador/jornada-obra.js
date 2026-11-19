@@ -19,6 +19,8 @@
   var FORMAS = [['pix', 'Pix'], ['transferencia', 'TED'], ['boleto', 'Boleto'], ['cartao', 'Cartão'], ['dinheiro', 'Dinheiro'], ['financiamento', 'Financiamento'], ['outro', 'Outro']];
   var CHECK = [['estrutura', 'Estrutura fixada e vedada'], ['placas', 'Placas alinhadas e aterradas'], ['strings', 'Strings 1 e 2 ligadas'], ['inversor', 'Inversor fixado'], ['dps', 'DPS CC e CA'], ['aterramento', 'Aterramento'], ['cabos', 'Cabos identificados'], ['padrao', 'Padrão ligado']];
   var FOTOS_ENTREGA = [['ent_vista_geral', 'Vista geral das placas'], ['ent_arranjo', 'Arranjo de perto'], ['ent_inversor', 'Inversor ligado, com o visor'], ['ent_quadro', 'Quadro de proteção'], ['ent_aterramento', 'Aterramento'], ['ent_padrao', 'Padrão com placa de advertência'], ['ent_etiquetas', 'Etiquetas'], ['ent_local_limpo', 'Local limpo']];
+  /** Os álbuns (itens de vários arquivos) e o limite de fotos de cada um, igual ao do servidor. */
+  var ALBUNS = { obra_foto: 400, ent_extra: 100 };
   var TERMO_ITENS = [
     'Instalação concluída, com o local limpo e sem sobra de material.',
     'Sistema ligado e gerando energia na presença do cliente.',
@@ -108,6 +110,56 @@
     if (!d && mm) partes.push(H().plural(mm, 'minuto', 'minutos'));
     return partes.join(' e ') || '0 minuto';
   }
+  // CPF e placa de quem buscou a carga: máscara enquanto digita, só dígitos (CPF) e maiúscula sem hífen (placa) no que vai ao servidor.
+  function soDig(s) { return String(s || '').replace(/\D/g, ''); }
+  function cpfMasc(s) {
+    var d = soDig(s).slice(0, 11);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return d.slice(0, 3) + '.' + d.slice(3);
+    if (d.length <= 9) return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6);
+    return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6, 9) + '-' + d.slice(9);
+  }
+  function cpfOk(s) {
+    var d = soDig(s); if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+    for (var t = 9; t < 11; t++) { var soma = 0; for (var i = 0; i < t; i++) soma += Number(d[i]) * (t + 1 - i); if (((soma * 10) % 11) % 10 !== Number(d[t])) return false; }
+    return true;
+  }
+  /** A placa crua: 3 letras, 1 número, letra ou número, 2 números (Mercosul ABC1D23 ou antiga ABC1234). */
+  function placaCrua(s) {
+    var t = String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); var out = '';
+    for (var i = 0; i < t.length && out.length < 7; i++) {
+      var c = t[i]; var n = out.length;
+      if (n < 3 ? /[A-Z]/.test(c) : n === 4 ? /[A-Z0-9]/.test(c) : /\d/.test(c)) out += c;
+    }
+    return out;
+  }
+  function placaMasc(s) { var p = placaCrua(s); return p.length > 3 ? p.slice(0, 3) + '-' + p.slice(3) : p; }
+  function placaOk(s) { return /^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(placaCrua(s)); }
+  /** O campo com máscara: mostra formatado, guarda pelo `guardar(cru)` e diz embaixo quando o valor completo não vale. */
+  function campoMascara(rot, valor, aria, masc, cru, valido, erroTxt, guardar, pode, modo) {
+    var i = entrada('text', masc(valor), aria); i.disabled = !pode; i.autocomplete = 'off'; i.spellcheck = false;
+    if (modo) i.inputMode = modo; else i.autocapitalize = 'characters';
+    var lb = campo(rot, i); var er = el('small', 'jor-ob-campo-er'); er.setAttribute('aria-live', 'polite'); lb.appendChild(er);
+    function confere(final) {
+      var v = cru(i.value); var ruim = !!v && !valido(i.value) && (final || v.length >= (modo ? 11 : 7));
+      er.textContent = ruim ? erroTxt : ''; i.setAttribute('aria-invalid', ruim ? 'true' : 'false'); i.classList.toggle('falta', ruim);
+    }
+    i.addEventListener('input', function () { var p = i.selectionStart === i.value.length; i.value = masc(i.value); if (p) i.setSelectionRange(i.value.length, i.value.length); guardar(cru(i.value)); confere(false); });
+    i.addEventListener('blur', function () { confere(true); });
+    confere(false);
+    return lb;
+  }
+  /** O que falta numa carga entregue (a mesma regra do portão da etapa 5). */
+  function faltaTrajeto(cg) {
+    if (!cg.chegada.em) return null;
+    var f = [];
+    if (!String(cg.transporte.motorista || '').trim()) f.push('quem buscou');
+    if (!cpfOk(cg.transporte.cpf)) f.push('o CPF de quem buscou');
+    if (!placaOk(cg.transporte.placa)) f.push('a placa');
+    if (!String(cg.recebido_por.nome || '').trim()) f.push('quem recebeu');
+    return f;
+  }
+
   function agoraLocal() { var d = new Date(); var p = function (n) { return ('0' + n).slice(-2); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
   function dtTxt(s) { s = String(s || ''); return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s) ? H().ddmm(s) + ' ' + s.slice(11, 16) : ''; }
 
@@ -150,7 +202,35 @@
       '.jor-ob-trava li.ok{color:var(--io-ok-tx,#4ADE80)}',
       '.jor-ob-trava li.er{color:var(--io-er-tx,#FCA5A5)}',
       '.jor-ob-barra-p{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}',
+      // A ficha do trajeto: Retirada e Entrega lado a lado, ligadas pelo tempo de estrada.
+      '.jor-ob-traj-t{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:14px 0 8px;padding-top:10px;border-top:1px solid var(--n-bd,#334155)}',
+      '.jor-ob-cl0{font-weight:800;color:var(--n-tx,#E5E7EB)}',
+      '.jor-ob-traj-est{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px 8px}',
+      '.jor-ob-traj{display:grid;grid-template-columns:minmax(0,1fr) 104px minmax(0,1fr);align-items:stretch}',
+      '.jor-ob-ponta{display:flex;flex-direction:column;gap:10px;min-width:0;padding:12px 14px 14px;border:1px solid var(--n-bd,#334155);border-radius:12px;background:var(--n-sf,#1E293B)}',
+      '.jor-ob-ponta label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--n-tx2,#B4C0D2);min-width:0}',
+      '.jor-ob-ponta label .jor-auto{align-self:flex-start;margin:0}',
+      '.jor-ob-ponta-t{display:flex;align-items:center;gap:8px;margin:0;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--n-tx2,#B4C0D2)}',
+      '.jor-ob-pino{flex:none;width:12px;height:12px;border-radius:50%;border:3px solid var(--io-marcado,#2E6CEA);background:var(--n-sf,#1E293B)}',
+      '.jor-ob-ponta.ent .jor-ob-pino{background:var(--io-marcado,#2E6CEA)}',
+      '.jor-ob-traj-meio{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 6px;text-align:center}',
+      '.jor-ob-traj-meio::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px dashed var(--n-bd2,#475569)}',
+      '.jor-ob-traj-meio.ok::before{border-top-style:solid;border-color:var(--io-marcado,#2E6CEA)}',
+      '.jor-ob-traj-meio>*{position:relative;background:var(--n-sf2,#182338);padding:0 4px}',
+      '.jor-ob-traj-meio small{font-size:11.5px;color:var(--n-tx2,#B4C0D2)}',
+      '.jor-ob-tempo{font-size:13px;color:var(--n-tx,#E5E7EB)}',
+      '.jor-ob-dupla{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}',
+      '.jor-ob-cpfpl{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}',
+      '.jor-ob-campo-er{color:var(--io-er-tx,#FCA5A5);font-size:12px;font-weight:600}',
+      '.jor-ob-campo-er:empty{display:none}',
+      '.jor-ob-fotos8{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 18px}',
       '@media (max-width:760px){',
+      '.jor-ob-traj{grid-template-columns:minmax(0,1fr)}',
+      '.jor-ob-traj-meio{flex-direction:row;justify-content:flex-start;gap:8px;min-height:52px;padding:0 0 0 30px}',
+      '.jor-ob-traj-meio::before{left:19px;right:auto;top:0;bottom:0;border-top:0;border-left:2px dashed var(--n-bd2,#475569)}',
+      '.jor-ob-traj-meio.ok::before{border-left-style:solid;border-color:var(--io-marcado,#2E6CEA)}',
+      '.jor-ob-traj-meio>*{background:none;padding:0}',
+      '.jor-ob-ent-dupla{grid-template-columns:minmax(0,1fr)}',
       '.jor-ob-par{grid-template-columns:minmax(0,1fr)}',
       '.jor-ob-cel{display:inline-flex}',
       '.jor-ob-grade thead{display:none}',
@@ -547,8 +627,8 @@
 
   // ── Etapa 5 · Logística ────────────────────────────────────────────────────
   function cargaNova(n) {
-    return { id: null, nome: 'Carga ' + n, itens: [], saida: { lugar: '', em: '' }, chegada: { lugar: '', destino: 'obra', em: '' }, transporte: { empresa: '', motorista: '' }, compras: [],
-      recebido_por: { nome: '', assinatura_id: '' }, conferencia: { itens_ok: [], foto_id: '' }, avaria: { tem: false, descricao: '', foto_id: '', o_que_fazer: '', resolvida: false },
+    return { id: null, nome: 'Carga ' + n, itens: [], saida: { lugar: '', em: '' }, chegada: { lugar: '', destino: 'obra', em: '' }, transporte: { empresa: '', motorista: '', cpf: '', placa: '' }, compras: [],
+      recebido_por: { nome: '', cpf: '', assinatura_id: '' }, conferencia: { itens_ok: [], foto_id: '' }, avaria: { tem: false, descricao: '', foto_id: '', o_que_fazer: '', resolvida: false },
       frete: { valor_centavos: 0, forma: 'pix' }, documentos: [] };
   }
   function etapa5(esq, d, et, f2) {
@@ -583,33 +663,51 @@
       m.input.addEventListener('change', function () { var k = cg.itens.indexOf(i.id); if (m.input.checked && k < 0) cg.itens.push(i.id); if (!m.input.checked && k >= 0) cg.itens.splice(k, 1); });
       bx.appendChild(m);
     });
-    // 2. Saída
-    bx.appendChild(el('span', 'jor-ob-cl', 'Saída'));
+    // 2. O trajeto: a ficha da Retirada e a da Entrega, lado a lado (no celular, uma embaixo da outra, ligadas por um trilho).
+    cg.transporte = cg.transporte || {}; cg.recebido_por = cg.recebido_por || {}; cg.saida = cg.saida || {}; cg.chegada = cg.chegada || {};
+    var tjT = el('div', 'jor-ob-traj-t'); tjT.appendChild(el('span', 'jor-ob-cl0', 'Trajeto')); var tjEst = el('span', 'jor-ob-traj-est'); tjT.appendChild(tjEst); bx.appendChild(tjT);
+    function pintaEstado() {
+      var f = faltaTrajeto(cg); tjEst.replaceChildren();
+      if (f === null) { if (cg.saida.em) tjEst.appendChild(h.etq('A caminho', '')); return; }
+      if (!f.length) { tjEst.appendChild(h.etq('Entregue', 'ok')); return; }
+      var e = h.etq('Falta ' + f.length, 'av'); e.title = 'Falta ' + f.join(', ') + '.'; tjEst.appendChild(e);
+      tjEst.appendChild(el('span', 'jor-ob-sub', 'Falta ' + f.join(', ') + '.'));
+    }
+    var traj = el('div', 'jor-ob-traj'); bx.appendChild(traj);
+    function ponta(cls, titulo) { var p = el('section', 'jor-ob-ponta ' + cls); var t = el('h4', 'jor-ob-ponta-t'); t.appendChild(el('i', 'jor-ob-pino')); t.appendChild(el('span', '', titulo)); p.appendChild(t); p.setAttribute('aria-label', titulo); return p; }
+    var pRet = ponta('ret', 'Retirada'); var meio = el('div', 'jor-ob-traj-meio'); var pEnt = ponta('ent', 'Entrega');
+    add(traj, pRet, meio, pEnt);
     var fornDe = ''; cg.itens.forEach(function (id) { var it = itensCompra.filter(function (x) { return x.id === id; })[0]; var cp = it && c.compras.filter(function (x) { return x.id === it.compra_id; })[0]; if (cp && cp.cidade && !fornDe) fornDe = cp.cidade + (cp.fornecedor ? ' · ' + cp.fornecedor : ''); });
-    var sl = entrada('text', cg.saida.lugar || fornDe, 'Lugar de saída'); sl.disabled = !pode; sl.addEventListener('input', function () { cg.saida.lugar = sl.value; });
+    var sl = entrada('text', cg.saida.lugar || fornDe, 'Onde buscou'); sl.disabled = !pode; sl.addEventListener('input', function () { cg.saida.lugar = sl.value; });
     if (!cg.saida.lugar && fornDe) cg.saida.lugar = fornDe;
-    var sem = entrada('datetime-local', cg.saida.em || '', 'Saiu em'); sem.disabled = !pode;
-    var par = el('div', 'jor-ob-par'); par.appendChild(add(campo('Lugar', sl), !cg.saida.lugar || cg.saida.lugar === fornDe ? automatico() : null)); par.appendChild(campo('Saiu em', sem)); bx.appendChild(par);
-    // 3. Chegada
-    bx.appendChild(el('span', 'jor-ob-cl', 'Chegada'));
+    var sem = entrada('datetime-local', cg.saida.em || '', 'Quando buscou'); sem.disabled = !pode;
+    var lOnde = campo('Onde', sl); if (!cg.saida.lugar || cg.saida.lugar === fornDe) { var au0 = automatico(); au0.title = 'Veio da cidade do fornecedor, na Compra.'; lOnde.firstChild.after(au0); }
+    var mot = entrada('text', cg.transporte.motorista || '', 'Quem buscou'); mot.disabled = !pode; mot.autocomplete = 'off';
+    mot.addEventListener('input', function () { cg.transporte.motorista = mot.value; pintaEstado(); });
+    var cpfB = campoMascara('CPF', cg.transporte.cpf || '', 'CPF de quem buscou', cpfMasc, soDig, cpfOk, 'CPF inválido. Confira os 11 números.', function (v) { cg.transporte.cpf = v; pintaEstado(); }, pode, 'numeric');
+    var placa = campoMascara('Placa', cg.transporte.placa || '', 'Placa do veículo de quem buscou', placaMasc, placaCrua, placaOk, 'Use ABC1D23 ou ABC1234.', function (v) { cg.transporte.placa = v; pintaEstado(); }, pode, '');
+    var emp = entrada('text', cg.transporte.empresa || '', 'Empresa ou transportadora'); emp.disabled = !pode; emp.addEventListener('input', function () { cg.transporte.empresa = emp.value; });
+    var g2c = el('div', 'jor-ob-dupla jor-ob-cpfpl'); add(g2c, cpfB, placa);
+    add(pRet, lOnde, campo('Quando', sem), campo('Quem buscou', mot), g2c, campo('Empresa (opcional)', emp));
+    // A Entrega
     var dest = selecao([['obra', 'Obra'], ['deposito', 'Depósito']], cg.chegada.destino || 'obra', 'Destino');
     var endObra = (f2.dados && f2.dados.endereco_obra) || (d.card && d.card.cidade) || '';
     function lugarAuto() { return dest.value === 'obra' ? 'Obra · ' + endObra : 'Depósito'; }
-    var cl = entrada('text', cg.chegada.lugar || lugarAuto(), 'Lugar de chegada'); cl.disabled = !pode;
+    var cl = entrada('text', cg.chegada.lugar || lugarAuto(), 'Endereço da entrega'); cl.disabled = !pode;
     if (!cg.chegada.lugar) cg.chegada.lugar = lugarAuto();
-    var cem = entrada('datetime-local', cg.chegada.em || '', 'Chegou em'); cem.disabled = !pode; dest.disabled = !pode;
-    var tempo = el('b', '', duracao(sem.value, cem.value) || 'Falta a data');
-    function atualizaTempo() { tempo.textContent = duracao(sem.value, cem.value) || 'Falta a data'; }
-    sem.addEventListener('input', function () { cg.saida.em = sem.value; atualizaTempo(); }); cem.addEventListener('input', function () { cg.chegada.em = cem.value; atualizaTempo(); });
+    var cem = entrada('datetime-local', cg.chegada.em || '', 'Quando entregou'); cem.disabled = !pode; dest.disabled = !pode;
+    var tempo = el('b', 'jor-ob-tempo'); var tempoR = el('small', '', 'Tempo de trajeto');
+    function atualizaTempo() { var t = duracao(sem.value, cem.value); tempo.textContent = t || (sem.value ? 'Na estrada' : 'Sem data'); meio.classList.toggle('ok', !!t); }
+    add(meio, tempoR, tempo);
+    sem.addEventListener('input', function () { cg.saida.em = sem.value; atualizaTempo(); pintaEstado(); }); cem.addEventListener('input', function () { cg.chegada.em = cem.value; atualizaTempo(); pintaEstado(); });
     cl.addEventListener('input', function () { cg.chegada.lugar = cl.value; });
     dest.addEventListener('change', function () { cg.chegada.destino = dest.value; if (!cl.value || /^(Obra ·|Depósito)/.test(cl.value)) { cl.value = lugarAuto(); cg.chegada.lugar = cl.value; } });
-    var par2 = el('div', 'jor-ob-par'); par2.appendChild(add(campo('Lugar', cl), automatico())); add(par2, campo('Destino', dest), campo('Chegou em', cem));
-    var lt = el('label', '', 'Tempo'); lt.appendChild(tempo); lt.appendChild(automatico()); par2.appendChild(lt); bx.appendChild(par2);
-    // 4. Quem leva
-    bx.appendChild(el('span', 'jor-ob-cl', 'Quem leva'));
-    var emp = entrada('text', cg.transporte.empresa, 'Empresa ou carro'); var mot = entrada('text', cg.transporte.motorista, 'Motorista'); emp.disabled = mot.disabled = !pode;
-    emp.addEventListener('input', function () { cg.transporte.empresa = emp.value; }); mot.addEventListener('input', function () { cg.transporte.motorista = mot.value; });
-    var par3 = el('div', 'jor-ob-par'); add(par3, campo('Empresa ou carro', emp), campo('Motorista', mot)); bx.appendChild(par3);
+    var lEnd = campo('Endereço', cl); var au1 = automatico(); au1.title = 'Veio da ficha do cliente.'; lEnd.firstChild.after(au1);
+    var rn = entrada('text', cg.recebido_por.nome || '', 'Quem recebeu'); rn.disabled = !pode; rn.autocomplete = 'off'; rn.addEventListener('input', function () { cg.recebido_por.nome = rn.value; pintaEstado(); });
+    var cpfR = campoMascara('CPF (opcional)', cg.recebido_por.cpf || '', 'CPF de quem recebeu', cpfMasc, soDig, cpfOk, 'CPF inválido. Confira os 11 números.', function (v) { cg.recebido_por.cpf = v; }, pode, 'numeric');
+    var gEnt = el('div', 'jor-ob-dupla jor-ob-ent-dupla'); add(gEnt, campo('Destino', dest), campo('Quando', cem));
+    add(pEnt, lEnd, gEnt, campo('Quem recebeu', rn), cpfR);
+    atualizaTempo(); pintaEstado();
     // 5. Nota fiscal
     bx.appendChild(el('span', 'jor-ob-cl', 'Nota fiscal'));
     var cps = {}; cg.itens.forEach(function (id) { var it = itensCompra.filter(function (x) { return x.id === id; })[0]; if (it && it.compra_id) cps[it.compra_id] = 1; });
@@ -623,10 +721,9 @@
       if (pode || podeSecao(f2, 'compra')) lin.appendChild(botoesNota(cp, c.itens, c, f2, function (m) { st2.textContent = m; }, !!cp.nota));
       bx.appendChild(lin);
     });
-    // 6. Quem recebeu
-    bx.appendChild(el('span', 'jor-ob-cl', 'Quem recebeu'));
-    var rn = entrada('text', cg.recebido_por.nome, 'Nome de quem recebeu'); rn.disabled = !pode; rn.addEventListener('input', function () { cg.recebido_por.nome = rn.value; });
-    bx.appendChild(campo('Nome', rn));
+    // 6. A assinatura de quem recebeu
+    bx.appendChild(el('span', 'jor-ob-cl', 'Assinatura de quem recebeu'));
+    if (!pode) bx.appendChild(el('p', 'jor-nota', existe(f2, cg.recebido_por.assinatura_id) ? 'Assinatura guardada.' : 'Sem assinatura.'));
     if (pode) bx.appendChild(assinaturaBloco(f2, 'log_assinatura', cg.recebido_por.assinatura_id, function (id) { cg.recebido_por.assinatura_id = id; return gravar('Assinatura guardada.'); }));
     // 7. Conferência
     bx.appendChild(el('span', 'jor-ob-cl', 'Conferência contra a compra'));
@@ -671,7 +768,7 @@
     if (pode) {
       var bt = el('div', 'jor-din-acoes');
       bt.appendChild(btn('Salvar a carga', 'jor-btn-pri', function () { gravar('Carga salva.'); }));
-      bt.appendChild(btn('Confirmar entrega', 'jor-ob-cel', function () { cg.chegada.em = agoraLocal(); cem.value = cg.chegada.em; atualizaTempo(); gravar('Entrega confirmada.'); }));
+      bt.appendChild(btn('Confirmar entrega', 'jor-ob-cel', function () { cg.chegada.em = agoraLocal(); cem.value = cg.chegada.em; atualizaTempo(); pintaEstado(); gravar('Entrega confirmada.'); }));
       bx.appendChild(bt);
     }
     return bx;
@@ -732,6 +829,25 @@
     var u = urlDe(id); if (u) { var im = el('img'); im.alt = ''; im.src = u; im.loading = 'lazy'; b.appendChild(im); }
     b.appendChild(el('span', '', rot)); if (aoClicar) b.addEventListener('click', aoClicar); return b;
   }
+  /** O álbum de fotos (vários arquivos no mesmo item): a grade de miniaturas e o Adicionar. `resumo` é a linha de cima; sem ela, a contagem. */
+  function blocoAlbum(f2, slot, titulo, resumo, podeAdd, opc) {
+    var h = H(); opc = opc || {}; var album = arqs(f2, slot); var lim = ALBUNS[slot] || 100;
+    var b = bloco(titulo, opc.etq || null);
+    if (opc.nota) b.appendChild(el('p', 'jor-nota', opc.nota));
+    var linha1 = resumo || (album.length ? (opc.etq ? '' : h.plural(album.length, 'foto', 'fotos') + ' de ' + lim + '.') : 'Nenhuma foto ainda.');
+    if (linha1) b.appendChild(el('p', album.length ? '' : 'jor-nota', linha1));
+    if (album.length) { var alb = el('div', 'jor-ob-album'); album.forEach(function (a) { var dd = a.em ? h.ddmm(String(a.em).slice(0, 10)) + (String(a.em).length > 10 ? ' ' + String(a.em).slice(11, 16) : '') : 'foto'; alb.appendChild(fotoMini(a.id, dd, false, null)); }); b.appendChild(alb); }
+    if (podeAdd && album.length < lim) {
+      var ax = el('div', 'jor-anexo'); ax.appendChild(el('span', 'jor-rot', opc.rotAdd || 'Adicionar ao álbum'));
+      ax.appendChild(D().botoesAnexo(opc.aria || titulo, function (arquivos) {
+        var st = vdcAgora();
+        if (!st || String(st.id) !== String(O().card) || st.carregando || typeof window.vdcAnexar !== 'function') { h.toast('Abra o quadro Documentos e cadastro, logo abaixo, e tente de novo.'); return; }
+        Promise.resolve(window.vdcAnexar(st, { chave: slot }, arquivos)).then(function () { h.recarregar(); });
+      }, true));
+      b.appendChild(ax);
+    } else if (podeAdd) b.appendChild(el('p', 'jor-nota', 'O álbum chegou ao limite de ' + lim + ' fotos.'));
+    return b;
+  }
   function etapa6(esq, d, et, f2) {
     injetarCss(); var h = H(); var pode = podeSecao(f2, 'obra'); var l = livro();
     var ob = clone(dados(f2).obra) || {}; ob.plano = ob.plano || []; ob.diario = ob.diario || []; ob.checklist = ob.checklist || {}; ob.equipe = ob.equipe || { combinado_centavos: null, descricao: '' };
@@ -765,17 +881,9 @@
     }
     esq.appendChild(b2);
     // 4. Álbum
-    var album = arqs(f2, 'obra_foto'); var b4 = bloco('Fotos da obra inteira');
+    var album = arqs(f2, 'obra_foto');
     var porDia = {}; album.forEach(function (a) { var dia = String(a.em || '').slice(0, 10); var k = ob.plano.map(function (p) { return p.data; }).indexOf(dia); var rot = k >= 0 ? 'dia ' + (k + 1) : 'sem dia'; porDia[rot] = (porDia[rot] || 0) + 1; });
-    b4.appendChild(el('p', '', h.plural(album.length, 'foto', 'fotos') + (album.length ? ' (' + Object.keys(porDia).map(function (k) { return k + ': ' + porDia[k]; }).join('; ') + ')' : '')));
-    var alb = el('div', 'jor-ob-album'); album.forEach(function (a) { var dd = a.em ? h.ddmm(String(a.em).slice(0, 10)) + ' ' + String(a.em).slice(11, 16) : 'foto'; alb.appendChild(fotoMini(a.id, dd, false, null)); }); b4.appendChild(alb);
-    var ax = el('div', 'jor-anexo'); ax.appendChild(el('span', 'jor-rot', 'Adicionar ao álbum'));
-    ax.appendChild(D().botoesAnexo('álbum da obra', function (arquivos) {
-      var st = vdcAgora();
-      if (!st || String(st.id) !== String(O().card) || st.carregando || typeof window.vdcAnexar !== 'function') { h.toast('Abra o quadro Documentos e cadastro, logo abaixo, e tente de novo.'); return; }
-      Promise.resolve(window.vdcAnexar(st, { chave: 'obra_foto' }, arquivos)).then(function () { h.recarregar(); });
-    }, true));
-    b4.appendChild(ax); esq.appendChild(b4);
+    esq.appendChild(blocoAlbum(f2, 'obra_foto', 'Fotos da obra inteira', h.plural(album.length, 'foto', 'fotos') + (album.length ? ' (' + Object.keys(porDia).map(function (k) { return k + ': ' + porDia[k]; }).join('; ') + ')' : ''), true));
     // 5. Diário
     var b5 = bloco('Diário de obra');
     if (!ob.plano.length) b5.appendChild(el('p', 'jor-nota', 'Marque os dias da obra no plano para abrir o diário.'));
@@ -863,9 +971,11 @@
     function grava(aviso) { return botaoSalvar('Salvar', 'entrega', function () { return { testes: en.testes, monitoramento: en.monitoramento, garantias: en.garantias, termo: en.termo, responsavel: en.responsavel || '' }; }, aviso); }
     // 1. Fotos
     var tem = FOTOS_ENTREGA.filter(function (x) { return arqs(f2, x[0]).length > 0; }).length;
-    var b1 = bloco('Fotos de tudo pronto', tag(tem + ' de 8'));
-    FOTOS_ENTREGA.forEach(function (x) { b1.appendChild(h.anexo(x[0], x[1], arqs(f2, x[0]).length > 0)); });
+    var b1 = bloco('Fotos de tudo pronto', h.etq(tem + ' de 8', tem === 8 ? 'ok' : 'av'));
+    var g8 = el('div', 'jor-ob-fotos8'); FOTOS_ENTREGA.forEach(function (x) { g8.appendChild(h.anexo(x[0], x[1], arqs(f2, x[0]).length > 0)); }); b1.appendChild(g8);
     esq.appendChild(b1);
+    var nExtra = arqs(f2, 'ent_extra').length;
+    esq.appendChild(blocoAlbum(f2, 'ent_extra', 'Outras fotos da conclusão', '', pode, { etq: h.etq(nExtra ? nExtra + ' de 100' : 'Opcional', ''), rotAdd: 'Adicionar fotos', aria: 'outras fotos da conclusão', nota: nExtra ? '' : 'Telhado, cabos, o cliente com o app e o que mais valer guardar.' }));
     // 2. Testes
     var T = en.testes; var b2 = bloco('Está tudo certo');
     var s1 = entrada('text', T.string1_voc || '', 'String 1, Voc em volts'); var s2 = entrada('text', T.string2_voc || '', 'String 2, Voc em volts'); var gk = entrada('text', T.gerando_kw || '', 'Inversor gerando, em kW'); var gh = entrada('time', T.gerando_hora || '', 'Hora da leitura');

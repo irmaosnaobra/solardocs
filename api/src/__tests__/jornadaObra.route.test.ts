@@ -981,8 +981,8 @@ describe('o dinheiro escondido não some no PUT', () => {
       p.compra.itens = [itemBase('i-1', 100_000)];
       p.obra.equipe = { combinado_centavos: 165_000, descricao: '15 placas' };
       p.logistica.cargas = [{
-        id: 'g-1', nome: 'Carga 1', itens: ['i-1'], saida: { lugar: '', em: '' }, chegada: { lugar: '', destino: 'obra', em: '' }, transporte: { empresa: '', motorista: '' }, compras: [],
-        recebido_por: { nome: '', assinatura_id: '' }, conferencia: { itens_ok: [], foto_id: '' }, avaria: { tem: false, descricao: '', foto_id: '', o_que_fazer: '', resolvida: false },
+        id: 'g-1', nome: 'Carga 1', itens: ['i-1'], saida: { lugar: '', em: '' }, chegada: { lugar: '', destino: 'obra', em: '' }, transporte: { empresa: '', motorista: '', cpf: '', placa: '' }, compras: [],
+        recebido_por: { nome: '', cpf: '', assinatura_id: '' }, conferencia: { itens_ok: [], foto_id: '' }, avaria: { tem: false, descricao: '', foto_id: '', o_que_fazer: '', resolvida: false },
         frete: { valor_centavos: 25_000, forma: 'pix' }, documentos: [],
       }];
     });
@@ -1538,6 +1538,210 @@ describe('o pós-venda: GET fase3 (só lê)', () => {
     expect(g.body.indicacoes).toEqual([{ em: expect.any(String), card: NOVA, cliente: 'Carla Andrade', situacao: 'vendida', codigo: null, vendedor: 'nilce' }]);
     expect(g.body.placar).toEqual({ indicacoes: 1, vendas: 1 });
     expect(g.body.geral.indicacoes_mes).toBe(1);
+  });
+});
+
+describe('a Logística: CPF e placa de quem buscou a carga', () => {
+  const cargaBruta = (o: Record<string, unknown> = {}) => ({
+    id: 'g-1', nome: 'Carga 1', itens: [], saida: { lugar: 'Uberlândia', em: '2026-10-20T08:00' }, chegada: { lugar: 'Obra', destino: 'obra', em: '2026-10-22T10:00' },
+    transporte: { empresa: 'Frete', motorista: 'Zé', cpf: '529.982.247-25', placa: 'abc-1d23' }, compras: [], recebido_por: { nome: 'Diego', cpf: '', assinatura_id: '' },
+    conferencia: { itens_ok: [], foto_id: '' }, avaria: { tem: false, descricao: '', foto_id: '', o_que_fazer: '', resolvida: false }, frete: { valor_centavos: null, forma: '' }, documentos: [], ...o,
+  });
+  it('grava o CPF só com dígitos e a placa em maiúsculas sem hífen; CPF e placa inválidos dão 400 com a frase e nada é gravado', async () => {
+    semearJo(SOLAR, undefined, 5);
+    const ok = await put(F2(SOLAR, '/logistica'), { versao: 0, dados: { cargas: [cargaBruta()] } }, DIEGO);
+    expect(ok.status).toBe(200);
+    expect(privadaGravada(SOLAR)!.logistica.cargas[0]).toMatchObject({ transporte: { motorista: 'Zé', cpf: '52998224725', placa: 'ABC1D23' }, recebido_por: { nome: 'Diego', cpf: '' } });
+    const v = ok.body.versoes.logistica;
+    const cpfRuim = await put(F2(SOLAR, '/logistica'), { versao: v, dados: { cargas: [cargaBruta({ transporte: { empresa: '', motorista: 'Zé', cpf: '111.111.111-11', placa: 'ABC1234' } })] } }, DIEGO);
+    expect(cpfRuim.status).toBe(400);
+    expect(cpfRuim.body.error).toBe('Carga 1: o CPF de quem buscou não é válido.');
+    const placaRuim = await put(F2(SOLAR, '/logistica'), { versao: v, dados: { cargas: [cargaBruta({ transporte: { empresa: '', motorista: 'Zé', cpf: '52998224725', placa: 'AB123' } })] } }, DIEGO);
+    expect(placaRuim.status).toBe(400);
+    expect(placaRuim.body.error).toContain('Carga 1: a placa de quem buscou não é válida');
+    const cpfRecebeu = await put(F2(SOLAR, '/logistica'), { versao: v, dados: { cargas: [cargaBruta({ recebido_por: { nome: 'Diego', cpf: '123', assinatura_id: '' } })] } }, DIEGO);
+    expect(cpfRecebeu.status).toBe(400);
+    expect(privadaGravada(SOLAR)!.logistica.cargas[0].transporte.placa).toBe('ABC1D23');   // nada novo gravado
+    // O CPF de quem recebeu, quando válido, fica (é opcional).
+    const rec = await put(F2(SOLAR, '/logistica'), { versao: v, dados: { cargas: [cargaBruta({ recebido_por: { nome: 'Diego', cpf: '529.982.247-25', assinatura_id: '' } })] } }, DIEGO);
+    expect(rec.status).toBe(200);
+    expect(privadaGravada(SOLAR)!.logistica.cargas[0].recebido_por.cpf).toBe('52998224725');
+  });
+  it('o portão da etapa 5 mostra "Carga 1: falta a placa de quem buscou" e fecha quando a placa entra; com a etapa 5 concluída não ganha item', async () => {
+    semearJo(SOLAR, undefined, 5);
+    await put(F2(SOLAR, '/logistica'), { versao: 0, dados: { cargas: [cargaBruta({ transporte: { empresa: '', motorista: 'Zé', cpf: '52998224725', placa: '' } })] } }, DIEGO);
+    const a = await get(F2(SOLAR), DIEGO);
+    expect(a.body.etapas.find((e: any) => e.n === 5).itens.find((i: any) => String(i.chave).startsWith('retirada_'))).toMatchObject({ feito: false, texto: 'Carga 1: falta a placa de quem buscou' });
+    const c = await post(`/jornada-solar/obra/${SOLAR}/etapa-obra`, { etapa: 5 }, DIEGO);
+    expect(c.status).toBe(409);
+    expect(c.body.falta.map((x: any) => x.texto)).toContain('Carga 1: falta a placa de quem buscou');
+    await put(F2(SOLAR, '/logistica'), { versao: a.body.versoes.logistica, dados: { cargas: [cargaBruta({ id: privadaGravada(SOLAR)!.logistica.cargas[0].id })] } }, DIEGO);
+    const b = await get(F2(SOLAR), DIEGO);
+    expect(b.body.etapas.find((e: any) => e.n === 5).itens.find((i: any) => String(i.chave).startsWith('retirada_'))).toMatchObject({ feito: true });
+    // Obra antiga que já passou da etapa 5, com a carga sem placa: a etapa 5 não mostra item novo nem falta nova.
+    semearJo(ALHEIA, undefined, 7);
+    semearPrivada(ALHEIA, (p) => { p.logistica.cargas = [cargaBruta({ transporte: { empresa: '', motorista: '', cpf: '', placa: '' } }) as never]; });
+    const velha = await get(F2(ALHEIA), THIAGO);
+    expect(velha.body.etapas.find((e: any) => e.n === 5).itens.some((i: any) => String(i.chave).startsWith('retirada_'))).toBe(false);
+  });
+});
+
+describe('o pós-venda (etapa 9): a seção `posvenda`, o `posvenda_info` e o link nos Ajustes', () => {
+  const noPosVenda = (id = SOLAR): void => {
+    semearJo(id, (e) => { for (const i of [4, 5, 6, 7, 8] as const) e.etapas[i] = { aberta_em: AGORA, concluida_em: AGORA, concluida_por: 'thiago' }; e.fechada = { em: AGORA, por: 'thiago' }; }, 9);
+  };
+  const PV = (id = SOLAR) => F2(id, '/posvenda');
+  const LINK = 'https://g.page/r/exemplo/review';
+  const comLink = (): void => {
+    const a = normalizarAjustes({ ...AJUSTES_PADRAO, link_avaliacao_google: LINK, editado_em: AGORA, editado_por: 'thiago' })!;
+    h.linhas.set('jornada_solar_ajustes', { updated_at: 'a0', value: jsonb({ ...a, sig: assinarAjustes(a) }) });
+  };
+
+  it('quem grava: Giovanna, ADM e o dono da etapa 9 (quem vendeu); o Diego não; a obra de outra vendedora some para a Nilce; antes da etapa 9 ninguém grava', async () => {
+    semearJo(SOLAR, undefined, 8);
+    for (const quem of [GIOVANNA, THIAGO, NILCE, DIEGO]) expect((await put(PV(), { versao: 0, dados: {} }, quem)).status, 'antes da 9').toBe(403);
+    expect((await get(F2(SOLAR), GIOVANNA)).body.pode.secoes).not.toContain('posvenda');
+    noPosVenda();
+    expect((await get(F2(SOLAR), GIOVANNA)).body.pode.secoes).toContain('posvenda');
+    expect((await get(F2(SOLAR), DIEGO)).body.pode.secoes).not.toContain('posvenda');
+    expect((await put(PV(), { versao: 0, dados: {} }, DIEGO)).status).toBe(403);
+    expect((await put(PV(), { versao: 0, dados: {} }, GIOVANNA)).status).toBe(200);   // a conta fechada NÃO trava o pós-venda
+    expect((await put(PV(), { versao: 1, dados: {} }, THIAGO)).status).toBe(200);
+    expect((await put(PV(), { versao: 2, dados: {} }, NILCE)).status).toBe(200);
+    noPosVenda(ALHEIA);
+    expect((await put(PV(ALHEIA), { versao: 0, dados: {} }, NILCE)).status).toBe(404);   // não vê a obra de outra vendedora
+    expect((await put(PV(ALHEIA), { versao: 0, dados: {} }, GIOVANNA)).status).toBe(200);
+  });
+
+  it('as outras seções seguem travadas pela conta fechada', async () => {
+    noPosVenda();
+    expect((await put(F2(SOLAR, '/compra'), { versao: 0, dados: { itens: [], compras: [] } }, THIAGO)).status).toBe(409);
+    expect((await put(F2(SOLAR, '/logistica'), { versao: 0, dados: { cargas: [] } }, THIAGO)).status).toBe(409);
+  });
+
+  it('grava na versão certa; o servidor dá o id e a data das linhas novas e protege as que já existem; o arquivo só vale no slot certo', async () => {
+    noPosVenda();
+    anexos(SOLAR, [['a-print', 'pos_geracao'], ['a-conta', 'pos_conta'], ['a-foto', 'obra_foto']]);
+    const dados = {
+      avaliacao: { pedida_em: '2026-11-12', avaliou_em: null },
+      geracao_mes1: { pedida_em: '2026-12-05', kwh: 431.5, print_id: 'a-print' },
+      conta1: { pedida_em: '2026-12-05', arquivo_id: 'a-foto', valor_antes_centavos: 45_000, valor_depois_centavos: 3_900, compensado_kwh: 410 },
+      ocorrencias: [{ id: 'forjado', problema: 'Inversor sem wi-fi', resolvido_em: null, solucao: '' }],
+      indicacoes: [{ nome: 'João', telefone: '(34) 99999-0000' }],
+    };
+    const r = await put(PV(), { versao: 0, dados }, GIOVANNA);
+    expect(r.status).toBe(200);
+    const g = privadaGravada(SOLAR)!.posvenda;
+    expect(g.geracao_mes1).toEqual({ pedida_em: '2026-12-05', kwh: 431.5, print_id: 'a-print' });
+    expect(g.conta1.arquivo_id).toBe('');   // a-foto é do álbum da obra, não do pos_conta
+    expect(g.conta1).toMatchObject({ valor_antes_centavos: 45_000, valor_depois_centavos: 3_900, compensado_kwh: 410 });
+    expect(g.ocorrencias[0].id).not.toBe('forjado');
+    expect(g.ocorrencias[0]).toMatchObject({ em: '2026-11-05', problema: 'Inversor sem wi-fi' });
+    expect(g.indicacoes[0]).toMatchObject({ nome: 'João', telefone: '34999990000', em: '2026-11-05' });
+    expect(r.body.versoes.posvenda).toBe(1);
+    expect(r.body.dados.posvenda.conta1.valor_antes_centavos).toBe(45_000);
+    // Segunda gravação: o id e a data da ocorrência que já existia ficam, mesmo que o navegador mande outros.
+    const id = g.ocorrencias[0].id;
+    const r2 = await put(PV(), { versao: 1, dados: { ...dados, conta1: { ...dados.conta1, arquivo_id: 'a-conta' }, ocorrencias: [{ id, em: '2020-01-01', problema: 'Inversor sem wi-fi', resolvido_em: '2026-11-06', solucao: 'Troquei o roteador' }] } }, THIAGO);
+    expect(r2.status).toBe(200);
+    const g2 = privadaGravada(SOLAR)!.posvenda;
+    expect(g2.ocorrencias).toEqual([{ id, em: '2026-11-05', problema: 'Inversor sem wi-fi', resolvido_em: '2026-11-06', solucao: 'Troquei o roteador' }]);
+    expect(g2.conta1.arquivo_id).toBe('a-conta');
+    // Versão velha: 409 `mudou`.
+    expect((await put(PV(), { versao: 1, dados }, THIAGO)).status).toBe(409);
+  });
+
+  it('limite de 50 ocorrências e de 50 indicações: 50 passa, 51 dá 400 e nada é gravado', async () => {
+    noPosVenda();
+    const oc = (n: number) => Array.from({ length: n }, (_, i) => ({ problema: `p${i}` }));
+    const ind = (n: number) => Array.from({ length: n }, (_, i) => ({ nome: `N${i}`, telefone: '' }));
+    const mais = await put(PV(), { versao: 0, dados: { ocorrencias: oc(51) } }, GIOVANNA);
+    expect(mais.status).toBe(400);
+    expect(mais.body.error).toBe('No máximo 50 ocorrências.');
+    const mais2 = await put(PV(), { versao: 0, dados: { indicacoes: ind(51) } }, GIOVANNA);
+    expect(mais2.status).toBe(400);
+    expect(mais2.body.error).toBe('No máximo 50 indicações.');
+    expect(privadaGravada(SOLAR)?.posvenda.ocorrencias ?? []).toHaveLength(0);
+    const ok = await put(PV(), { versao: 0, dados: { ocorrencias: oc(50), indicacoes: ind(50) } }, GIOVANNA);
+    expect(ok.status).toBe(200);
+    expect(privadaGravada(SOLAR)!.posvenda.ocorrencias).toHaveLength(50);
+    expect(privadaGravada(SOLAR)!.posvenda.indicacoes).toHaveLength(50);
+  });
+
+  it('o GET devolve `posvenda_info` com a data da liberação, os prazos, a geração esperada nula sem proposta e os textos com o primeiro nome e o link', async () => {
+    noPosVenda();
+    comLink();
+    semearPrivada(SOLAR, (p) => {
+      p.entrega.termo = { assinado_em: '2026-11-03T12:00:00.000Z', nome: 'Cliente', arquivo_id: '', chk: [], ressalva: '' };
+      p.entrega.garantias = { registrada_em: '2026-11-04', treinado: true };
+      p.compra.itens = [{
+        id: 'i-m', origem: 'manual', tipo: 'modulo', descricao: 'Módulo', quantidade: 10, unidade: 'un', marca: 'X', modelo: 'Y', potencia_w: 550, potencia_kw: null,
+        garantia_fabricacao_anos: 12, garantia_desempenho_anos: 30, garantia_anos: null, compra_id: null, fornecedor: '', valor_centavos: null, data: null, etapa: 4, criado_por: 'thiago', criado_em: AGORA,
+      }];
+    });
+    // Quem vê a obra vê o pós-venda, inclusive o Diego e quem não vê dinheiro.
+    for (const quem of [NILCE, DIEGO, GIOVANNA]) {
+      const g = await get(F2(SOLAR), quem);
+      expect(g.status).toBe(200);
+      const info = g.body.posvenda_info;
+      expect(info).toMatchObject({
+        liberada_em: '2026-11-05', esperado_kwh_mes: null, falta_link_avaliacao: false,
+        quando: { avaliacao: '2026-11-12', geracao_mes1: '2026-12-05', conta1: '2026-12-05' },
+      });
+      expect(info.mensagens.avaliacao).toBe(['☀️ Cliente, tudo bem?', 'A sua usina já está ligada e liberada.', 'Se você gostou do atendimento da Irmãos na Obra, pode deixar uma avaliação no Google?', 'Isso ajuda muito a gente.', LINK].join('\n'));
+      expect(info.mensagens.geracao_mes1.split('\n')[0]).toBe('☀️ Cliente, tudo bem?');
+      expect(info.garantias.registrada_em).toBe('2026-11-04');
+      expect(info.garantias.itens.find((i: any) => i.chave === 'instalacao')).toMatchObject({ base: 'entrega', inicio: '2026-11-03' });
+      expect(info.garantias.itens.find((i: any) => i.chave === 'modulos')).toMatchObject({ base: 'liberacao', inicio: '2026-11-05' });
+      expect(info.garantias.itens.find((i: any) => i.chave === 'desempenho_modulos')).toMatchObject({ vence_em: '2056-11-05' });
+      expect(g.body.dados.posvenda).toBeTruthy();
+    }
+  });
+
+  it('sem link nos Ajustes e sem nome do cliente: a mensagem de avaliação sai sem a linha do link e começa com "Olá", e `falta_link_avaliacao` é true', async () => {
+    h.agendamentos.push(cardBase(640, { cliente_nome: '' }));
+    semearJs(640, 4); venda(640);
+    noPosVenda(640);
+    const g = await get(F2(640), THIAGO);
+    expect(g.status).toBe(200);
+    expect(g.body.posvenda_info.falta_link_avaliacao).toBe(true);
+    expect(g.body.posvenda_info.mensagens.avaliacao.split('\n')).toEqual([
+      '☀️ Olá, tudo bem?', 'A sua usina já está ligada e liberada.', 'Se você gostou do atendimento da Irmãos na Obra, pode deixar uma avaliação no Google?', 'Isso ajuda muito a gente.',
+    ]);
+  });
+
+  it('antes da liberação o `posvenda_info` não tem datas; obra antiga materializada sem a data do passo "liberada" também não', async () => {
+    semearJo(SOLAR, undefined, 8);
+    const a = await get(F2(SOLAR), THIAGO);
+    expect(a.body.posvenda_info).toMatchObject({ liberada_em: null, quando: { avaliacao: null, geracao_mes1: null, conta1: null } });
+    semearJo(SOLAR, undefined, 9);   // materializada por `leitura`, sem passo
+    expect((await get(F2(SOLAR), THIAGO)).body.posvenda_info.liberada_em).toBeNull();
+    semearPrivada(SOLAR, (p) => { p.liberacao.passos.liberada = { data: '2026-10-01', arquivo_id: '' }; });
+    expect((await get(F2(SOLAR), THIAGO)).body.posvenda_info).toMatchObject({ liberada_em: '2026-10-01', quando: { avaliacao: '2026-10-08', geracao_mes1: '2026-10-31' } });
+  });
+
+  it('Ajustes: só o ADM muda o link; link ausente mantém, vazio apaga, http dá 400; o GET devolve o link', async () => {
+    const corpo = (extra: Record<string, unknown>) => ({ comissoes: AJUSTES_PADRAO.comissoes, dinheiro_aberto: true, ...extra });
+    expect((await put('/jornada-solar/ajustes', corpo({ link_avaliacao_google: LINK }), NILCE)).status).toBe(403);
+    expect((await put('/jornada-solar/ajustes', corpo({ link_avaliacao_google: LINK }), GIOVANNA)).status).toBe(403);
+    expect((await get('/jornada-solar/ajustes', THIAGO)).body.ajustes.link_avaliacao_google).toBe('');
+    const ok = await put('/jornada-solar/ajustes', corpo({ link_avaliacao_google: LINK }), THIAGO);
+    expect(ok.status).toBe(200);
+    expect(ok.body.ajustes.link_avaliacao_google).toBe(LINK);
+    expect((await get('/jornada-solar/ajustes', THIAGO)).body).toMatchObject({ valido: true, ajustes: { link_avaliacao_google: LINK } });
+    expect((await put('/jornada-solar/ajustes', corpo({}), THIAGO)).body.ajustes.link_avaliacao_google).toBe(LINK);   // ausente mantém
+    for (const ruim of ['http://g.page/r/abc', 'g.page/r/abc', 12]) {
+      const r = await put('/jornada-solar/ajustes', corpo({ link_avaliacao_google: ruim }), THIAGO);
+      expect(r.status, String(ruim)).toBe(400);
+      expect(r.body.error).toBe('link_invalido');
+    }
+    expect((await get('/jornada-solar/ajustes', THIAGO)).body.ajustes.link_avaliacao_google).toBe(LINK);   // o ruim não gravou nada
+    noPosVenda();
+    expect((await get(F2(SOLAR), THIAGO)).body.posvenda_info.mensagens.avaliacao.endsWith(LINK)).toBe(true);
+    const vazio = await put('/jornada-solar/ajustes', corpo({ link_avaliacao_google: '  ' }), THIAGO);
+    expect(vazio.status).toBe(200);
+    expect(vazio.body.ajustes.link_avaliacao_google).toBe('');
+    expect((await get(F2(SOLAR), THIAGO)).body.posvenda_info.falta_link_avaliacao).toBe(true);
   });
 });
 

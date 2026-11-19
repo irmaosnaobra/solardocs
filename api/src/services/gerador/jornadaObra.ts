@@ -8,6 +8,7 @@
 import { diaDeBrasilia } from '../agenda/viradaDoDia';
 import { ehDiaUtil, etapaAtualDoEstado, situacaoComPrazo, somarDiasUteis, type EstadoJornada, type Situacao } from './jornadaSolar';
 import type { LancamentoObra, Livro, Pendencia } from './jornadaDinheiro';
+import { cpfValido } from '../../utils/documento';
 
 // ── Equipes ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -64,7 +65,7 @@ export function etapaAtualCompleta(js: EstadoJornada | null, jo: EstadoObra | nu
 
 // ── O JSON privado da obra (bucket `cadastros-venda`, `vendasolar/<card>.obra.json`) ───────────────────────────────────
 
-export const SECOES_OBRA = ['vistoria', 'banco', 'compra', 'logistica', 'obra', 'entrega', 'liberacao', 'previsto'] as const;
+export const SECOES_OBRA = ['vistoria', 'banco', 'compra', 'logistica', 'obra', 'entrega', 'liberacao', 'previsto', 'posvenda'] as const;
 export type SecaoObra = typeof SECOES_OBRA[number];
 
 export const CAMPOS_CONTRATO = [
@@ -115,14 +116,48 @@ export interface CargaObra {
   id: string; nome: string; itens: string[];
   saida: { lugar: string; em: string };
   chegada: { lugar: string; destino: 'deposito' | 'obra'; em: string };
-  transporte: { empresa: string; motorista: string };
+  /** `motorista`, `cpf` (11 dígitos) e `placa` (maiúscula, sem hífen) são de quem BUSCOU a carga. */
+  transporte: { empresa: string; motorista: string; cpf: string; placa: string };
   compras: string[];
-  recebido_por: { nome: string; assinatura_id: string };
+  /** `cpf` de quem recebeu é opcional (11 dígitos, ou vazio). */
+  recebido_por: { nome: string; cpf: string; assinatura_id: string };
   conferencia: { itens_ok: string[]; foto_id: string };
   avaria: { tem: boolean; descricao: string; foto_id: string; o_que_fazer: string; resolvida: boolean };
   frete: { valor_centavos: number | null; forma: string };
   documentos: string[];
 }
+export const MAX_OCORRENCIAS_POSVENDA = 50;
+export const MAX_INDICACOES_POSVENDA = 50;
+/** O pós-venda (etapa 9): o que se pede ao cliente e o que se registra depois da liberação. Datas em `YYYY-MM-DD`. Nada aqui é valor de venda. */
+export interface PosVendaObra {
+  avaliacao: { pedida_em: string | null; avaliou_em: string | null };
+  geracao_mes1: { pedida_em: string | null; kwh: number | null; print_id: string };
+  /** Os valores são da CONTA DE LUZ do cliente (não da venda). */
+  conta1: { pedida_em: string | null; arquivo_id: string; valor_antes_centavos: number | null; valor_depois_centavos: number | null; compensado_kwh: number | null };
+  ocorrencias: Array<{ id: string; em: string; problema: string; resolvido_em: string | null; solucao: string }>;
+  indicacoes: Array<{ id: string; nome: string; telefone: string; em: string }>;
+}
+export const posVendaVazio = (): PosVendaObra => ({
+  avaliacao: { pedida_em: null, avaliou_em: null },
+  geracao_mes1: { pedida_em: null, kwh: null, print_id: '' },
+  conta1: { pedida_em: null, arquivo_id: '', valor_antes_centavos: null, valor_depois_centavos: null, compensado_kwh: null },
+  ocorrencias: [], indicacoes: [],
+});
+
+// ── CPF e placa de quem buscou a carga ───────────────────────────────────────────────────────────────────────────────
+
+/** A placa em maiúsculas e sem hífen nem espaço (só se for Mercosul ABC1D23 ou antiga ABC1234); senão ''. */
+export function normalizarPlaca(v: unknown): string {
+  const t = typeof v === 'string' ? v.replace(/[\s-]/g, '').toUpperCase() : '';
+  return /^[A-Z]{3}\d[A-Z]\d{2}$/.test(t) || /^[A-Z]{3}\d{4}$/.test(t) ? t : '';
+}
+export const placaValida = (v: unknown): boolean => normalizarPlaca(v) !== '';
+/** Os 11 dígitos do CPF (com dígito verificador batendo); senão ''. Aceita máscara. */
+export function normalizarCpf(v: unknown): string {
+  const d = typeof v === 'string' ? v.replace(/\D/g, '') : '';
+  return d.length === 11 && cpfValido(d) ? d : '';
+}
+
 export const CHAVES_CHECKLIST = ['estrutura', 'placas', 'strings', 'inversor', 'dps', 'aterramento', 'cabos', 'padrao'] as const;
 export interface ObraPrivada {
   v: 1;
@@ -153,6 +188,7 @@ export interface ObraPrivada {
     passos: { pedido: PassoLiberacao | null; vistoria: PassoLiberacao | null; medidor: PassoLiberacao | null; liberada: PassoLiberacao | null };
     exigencias: Array<{ em: string; por: string; texto: string }>;
   };
+  posvenda: PosVendaObra;
   reaberturas: Array<{ em: string; por: string; motivo: string }>;
 }
 export type PassoLiberacao = { data: string; arquivo_id: string };
@@ -284,6 +320,34 @@ export const SLOTS_FOTO_ENTREGA = ['ent_vista_geral', 'ent_arranjo', 'ent_invers
 
 const mesmoConjunto = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && a.every((x) => b.includes(x));
 
+/** O que falta numa carga entregue (com data de chegada): quem buscou (nome, CPF e placa) e o nome de quem recebeu. */
+export function faltaDaRetirada(c: CargaObra): string[] {
+  const falta: string[] = [];
+  if (!c.transporte.motorista.trim()) falta.push('o nome de quem buscou');
+  if (!normalizarCpf(c.transporte.cpf)) falta.push('o CPF de quem buscou');
+  if (!placaValida(c.transporte.placa)) falta.push('a placa de quem buscou');
+  if (!c.recebido_por.nome.trim()) falta.push('o nome de quem recebeu');
+  return falta;
+}
+const listaE = (l: string[]): string => (l.length < 2 ? l.join('') : `${l.slice(0, -1).join(', ')} e ${l[l.length - 1]}`);
+
+/**
+ * Um item por carga entregue ("Carga 1: falta a placa de quem buscou"). Obra com a etapa 5 JÁ CONCLUÍDA não ganha item novo (não regride).
+ */
+function retiradasDasCargas(f: FonteItens): ItemObra[] {
+  if (f.jo?.etapas[5].concluida_em) return [];
+  const out: ItemObra[] = [];
+  f.privada.logistica.cargas.forEach((c, i) => {
+    if (!c.chegada.em) return;
+    const falta = faltaDaRetirada(c);
+    out.push({
+      chave: `retirada_${c.id}`, bloco: 'portao', feito: falta.length === 0,
+      texto: falta.length ? `Carga ${i + 1}: falta ${listaE(falta)}` : `Carga ${i + 1}: quem buscou e quem recebeu`,
+    });
+  });
+  return out;
+}
+
 export function itensDaEtapaObra(n: number, f: FonteItens): ItemObra[] {
   const p = f.privada;
   const it = (chave: string, texto: string, feito: boolean): ItemObra => ({ chave, bloco: 'portao', texto, feito });
@@ -307,6 +371,7 @@ export function itensDaEtapaObra(n: number, f: FonteItens): ItemObra[] {
       it('notas', `Nota fiscal das ${p.compra.compras.length} compras anexada`, p.compra.compras.length > 0 && p.compra.compras.every((c) => !!c.nota)),
       it('avarias', 'Avarias resolvidas', cargas.every((c) => !c.avaria.tem || c.avaria.resolvida)),
       it('frete', 'Frete com comprovante', !pend('frete')),
+      ...retiradasDasCargas(f),
     ];
   }
   if (n === 6) {

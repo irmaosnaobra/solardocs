@@ -110,7 +110,8 @@ export const ehCampo = (x: unknown, linha: LinhaCadastro = 'eletroposto'): x is 
 
 export type Fonte = 'manual' | 'ia' | 'ficha' | 'contrato';   // 'contrato': a identidade editada num papel do /gerador e levada ao cadastro no Gerar
 export type Tipo = 'PF' | 'PJ';
-export interface CampoGravado { valor: string; por: string; em: string; fonte: Fonte }
+/** `doc`: só quando a IA gravou o campo, o item (slot) do documento de onde ele veio. Edição à mão apaga. */
+export interface CampoGravado { valor: string; por: string; em: string; fonte: Fonte; doc?: string }
 export interface TrilhaCadastro { campo: Campo; por: string; em: string; fonte: Fonte }
 export interface Cadastro {
   v: 1;
@@ -428,7 +429,8 @@ export function normalizarCadastro(raw: unknown, linha: LinhaCadastro = 'eletrop
     const x = g as Record<string, unknown>;
     const valor = txt(x.valor);
     if (!valor) continue;
-    c.campos[k] = { valor, por: txt(x.por), em: txt(x.em), fonte: fonteDe(x.fonte) };
+    const doc = txt(x.doc);
+    c.campos[k] = { valor, por: txt(x.por), em: txt(x.em), fonte: fonteDe(x.fonte), ...(/^[a-z0-9_]{1,40}$/.test(doc) ? { doc } : {}) };
   }
   if (Array.isArray(v.alteracoes)) {
     for (const a of v.alteracoes) {
@@ -555,7 +557,7 @@ const TENTATIVAS_LIMPEZA = 4;
  */
 export async function escreverCadastro(
   id: number, mudancas: Partial<Record<string, string>>, por: string, fonte: Fonte, agora: string = new Date().toISOString(),
-  linha: LinhaCadastro = 'eletroposto', opcoes: { soVazios?: boolean } = {},
+  linha: LinhaCadastro = 'eletroposto', opcoes: { soVazios?: boolean; /** campo -> item do documento de onde a IA leu (só venda solar, só fonte 'ia') */ docs?: Record<string, string> } = {},
 ): Promise<ResultadoEscrita> {
   const pedido: Array<[Campo, string]> = [];
   for (const [k, v] of Object.entries(mudancas)) {
@@ -567,7 +569,7 @@ export async function escreverCadastro(
     const t = doc ? tipoPeloDocumento(doc[1]) : null;
     if (t) pedido.push(['tipo', t]);
   }
-  if (linha === 'vendasolar') return escreverCadastroSolar(id, pedido, por, fonte, agora, opcoes.soVazios === true);
+  if (linha === 'vendasolar') return escreverCadastroSolar(id, pedido, por, fonte, agora, opcoes.soVazios === true, opcoes.docs);
   return comTrava(id, por, async () => {
     const noBucket = await lerCadastro(id);
     const ficha = await lerFichaComVersao(id);
@@ -607,7 +609,7 @@ export async function escreverCadastro(
  * rótulos). Não há ficha nem legado: só o bucket. Sempre `migrado: true`. `limpou` é sempre true (não há o que limpar).
  */
 async function escreverCadastroSolar(
-  id: number, pedido: Array<[Campo, string]>, por: string, fonte: Fonte, agora: string, soVazios = false,
+  id: number, pedido: Array<[Campo, string]>, por: string, fonte: Fonte, agora: string, soVazios = false, docs: Record<string, string> = {},
 ): Promise<ResultadoEscrita> {
   const doc = pedido.find(([k, v]) => k === 'cpf_cnpj' && v);
   const t = !pedido.some(([k]) => k === 'tipo') && doc ? tipoPeloDocumento(doc[1]) : null;
@@ -639,7 +641,7 @@ async function escreverCadastroSolar(
         delete campos[k];
       } else {
         if (campos[k]?.valor === v) continue;
-        campos[k] = { valor: v, por, em: agora, fonte };
+        campos[k] = { valor: v, por, em: agora, fonte, ...(fonte === 'ia' && docs[k] ? { doc: docs[k] } : {}) };
       }
       trilha.push({ campo: k, por, em: agora, fonte });
       mudou = true;

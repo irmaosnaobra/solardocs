@@ -19,8 +19,9 @@ import {
 import { ehRecusa, lerPrivadoJornada, mudarJornada, type Recusa } from '../services/gerador/jornadaSolarBanco';
 import {
   EQUIPES_LISTA, IDS_EQUIPE, bancoSemValor, LISTA_PRONTA, SECOES_OBRA, etapaAtualCompleta, itensDaEtapaObra, itensIniciais, obraMaterializada, pagoDaCompra, prazoDaEtapaObra,
-  situacaoObra, somaItens, type EstadoObra, type ObraPrivada, type SecaoObra,
+  situacaoObra, somaItens, MAX_INDICACOES_POSVENDA, MAX_OCORRENCIAS_POSVENDA, normalizarCpf, normalizarPlaca, type EstadoObra, type ObraPrivada, type SecaoObra,
 } from '../services/gerador/jornadaObra';
+import { posvendaInfo } from '../services/gerador/jornadaPosVendaObra';
 import {
   buscarNotaViva, gravarRegistroNota, liberarRegistroNota, reservarChaveNfe, lerObraComVersao, lerObraPrivada, lerTodasObras, mudarObra, mudarObraPrivada, normalizarObraPrivada, obraVazia,
   obraPrivadaVazia,
@@ -66,7 +67,8 @@ const lista = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const novoId = (p: string): string => `${p}-${randomUUID().slice(0, 12)}`;
 const SLOTS_DA_FASE = [
   'cert_modulo', 'cert_inversor', 'log_documento', 'log_conferencia', 'log_avaria', 'log_assinatura', 'obra_foto', 'ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro',
-  'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo', 'ent_termo_assinado', 'lib_pedido', 'lib_vistoria', 'lib_medidor', 'lib_liberacao', 'lib_exigencia',
+  'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo', 'ent_termo_assinado', 'ent_extra', 'lib_pedido', 'lib_vistoria', 'lib_medidor', 'lib_liberacao', 'lib_exigencia',
+  'pos_geracao', 'pos_conta',
 ];
 const DEZ_DEZ = /•••/;
 const mascara = (conta: string): string => {
@@ -204,7 +206,8 @@ async function dadosDoBook(g: GuardaObra, lida?: Fase2): Promise<{ trava: string
 // ── Quem mexe em quê ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 function podeSecao(g: GuardaObra, f: Fase2, secao: string): boolean {
-  if (f.din.cancelada || f.din.fechada) return false;
+  // A conta fechada (a etapa 8 fecha) trava o dinheiro e as etapas 4 a 8; o pós-venda (etapa 9) nasce justamente depois dela.
+  if (f.din.cancelada || (f.din.fechada && secao !== 'posvenda')) return false;
   const eh = !!f.vend && g.nome === f.vend;
   const noPosVenda = f.etapa !== null && f.etapa >= 4;
   switch (secao) {
@@ -215,6 +218,8 @@ function podeSecao(g: GuardaObra, f: Fase2, secao: string): boolean {
     case 'obra': return noPosVenda && (g.nome === 'diego' || g.nome === 'thiago' || g.adm);
     case 'entrega': return noPosVenda && (g.nome === 'diego' || g.adm);
     case 'liberacao': return noPosVenda && (g.nome === 'thiago' || g.adm);
+    // Pós-venda: só com a etapa 9 aberta (a 8 concluída). Giovanna, ADM e o dono da etapa 9 (quem vendeu).
+    case 'posvenda': return f.etapa === 9 && (g.nome === 'giovanna' || g.adm || donosDaEtapa(9, f.vend).includes(g.nome));
     default: return false;
   }
 }
@@ -245,6 +250,35 @@ function itensParaQuem(n: number, f: Fase2, g: GuardaObra) {
 }
 
 const fonteItens = (f: Fase2) => ({ jo: f.joView, privada: f.privada, livro: f.din.livro, slots: f.slotsMap, docsIds: f.docsIds });
+
+/** O dia (Brasília) em que a usina foi liberada: a conclusão da etapa 8. Obra antiga materializada só vale se o passo "liberada" tem data. */
+function liberadaEmDe(f: Fase2): string | null {
+  const e8 = f.joView?.etapas[8];
+  if (!e8?.concluida_em) return null;
+  const doPasso = f.privada.liberacao.passos.liberada?.data ?? '';
+  const passoOk = /^\d{4}-\d{2}-\d{2}$/.test(doPasso);
+  if (e8.concluida_por === 'leitura') return passoOk ? doPasso : null;
+  return diaDeBrasilia(e8.concluida_em);
+}
+
+/** O `posvenda_info` do GET: datas, geração esperada, garantias e os 3 textos prontos (só para a pessoa mandar à mão). Nada aqui é valor de venda. */
+function posvendaDaObra(g: GuardaObra, f: Fase2) {
+  const c = contratoDe(f);
+  const itens = f.privada.compra.itens;
+  const mod = itens.find((i) => i.tipo === 'modulo' && (i.garantia_fabricacao_anos || i.garantia_desempenho_anos));
+  const inv = itens.find((i) => i.tipo === 'inversor' && i.garantia_anos);
+  const t = f.privada.entrega.termo;
+  const dados = f.proposta?.dados ?? {};
+  return posvendaInfo({
+    liberadaEm: liberadaEmDe(f), entregaEm: t?.assinado_em ? diaDeBrasilia(t.assinado_em) : null,
+    registradaEm: f.privada.entrega.garantias.registrada_em, treinado: f.privada.entrega.garantias.treinado,
+    modulosAnos: c.garantia_modulos_anos || mod?.garantia_fabricacao_anos, desempenhoModulosAnos: mod?.garantia_desempenho_anos,
+    inversorAnos: c.garantia_inversor_anos || inv?.garantia_anos,
+    instalacaoValor: c.garantia_instalacao_anos, instalacaoUnidade: c.garantia_instalacao_unidade,
+    esperadoKwhMes: dados.mediaMensalGerada, nomeDoCliente: vCad(f)('nome') || String(g.card.cliente_nome ?? ''),
+    linkAvaliacao: f.din.ajustes.link_avaliacao_google ?? '',
+  });
+}
 
 // ── O corpo do GET (e da resposta de todo PUT) ────────────────────────────────────────────────────────────────────────
 
@@ -306,6 +340,7 @@ async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): P
         cofre_revelado: e.cofre_revelado, garantias: e.garantias, termo: e.termo, responsavel: e.responsavel,
       },
       liberacao: p.liberacao,
+      posvenda: p.posvenda,
       contrato_garantias: {
         modulos: contrato.garantia_modulos_anos, inversor: contrato.garantia_inversor_anos,
         instalacao: garantiaInstalacaoExtenso({ garantia_instalacao_anos: contrato.garantia_instalacao_anos, garantia_instalacao_unidade: contrato.garantia_instalacao_unidade }),
@@ -313,6 +348,7 @@ async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): P
       },
     },
     versoes: p.versoes,
+    posvenda_info: posvendaDaObra(g, f),
     book: { pode: book.length === 0, trava: book },
     lista_pronta: LISTA_PRONTA, equipes: EQUIPES_LISTA,
     arquivos: f.arquivos.filter((a) => SLOTS_DA_FASE.includes(a.slot)),
@@ -366,6 +402,17 @@ function aplicarSecao(secao: SecaoObra, p: ObraPrivada, dadosBrutos: Record<stri
     return novo;
   }
   if (secao === 'logistica') {
+    // CPF e placa digitados têm que valer (vazio pode: a obrigação mora no portão da etapa 5).
+    const brutas = lista(d.cargas).slice(0, 12);
+    for (let i = 0; i < brutas.length; i++) {
+      const o = obj(brutas[i]) ?? {};
+      const tr = obj(o.transporte) ?? {};
+      const rb = obj(o.recebido_por) ?? {};
+      const preenchido = (v: unknown): boolean => typeof v === 'string' && v.trim() !== '';
+      if (preenchido(tr.cpf) && !normalizarCpf(tr.cpf)) return { recusa: `Carga ${i + 1}: o CPF de quem buscou não é válido.`, http: 400 };
+      if (preenchido(tr.placa) && !normalizarPlaca(tr.placa)) return { recusa: `Carga ${i + 1}: a placa de quem buscou não é válida. Use ABC1D23 ou ABC1234.`, http: 400 };
+      if (preenchido(rb.cpf) && !normalizarCpf(rb.cpf)) return { recusa: `Carga ${i + 1}: o CPF de quem recebeu não é válido.`, http: 400 };
+    }
     const idsItens = new Set(p.compra.itens.map((i) => i.id));
     const idsCompras = new Set(p.compra.compras.map((c) => c.id));
     const cargas = lista(d.cargas).slice(0, 12).map((c) => {
@@ -414,6 +461,27 @@ function aplicarSecao(secao: SecaoObra, p: ObraPrivada, dadosBrutos: Record<stri
     });
     return normalizarObraPrivada({ ...p, liberacao: { passos: d.passos, exigencias } });
   }
+  if (secao === 'posvenda') {
+    const ocIn = lista(d.ocorrencias);
+    const inIn = lista(d.indicacoes);
+    if (ocIn.length > MAX_OCORRENCIAS_POSVENDA) return { recusa: `No máximo ${MAX_OCORRENCIAS_POSVENDA} ocorrências.`, http: 400 };
+    if (inIn.length > MAX_INDICACOES_POSVENDA) return { recusa: `No máximo ${MAX_INDICACOES_POSVENDA} indicações.`, http: 400 };
+    const hoje = hojeBr();
+    // O arquivo só vale se está mesmo no slot certo desta obra.
+    const noSlot = (slot: string, id: unknown): string => (typeof id === 'string' && (f.slotsMap.get(slot) ?? []).includes(id) ? id : '');
+    const ge = obj(d.geracao_mes1) ?? {};
+    const co = obj(d.conta1) ?? {};
+    // O servidor protege id e data de criação das linhas que já existem; linha nova ganha id novo e a data de hoje.
+    const ocorrencias = ocIn.map((x) => { const o = obj(x) ?? {}; const ex = p.posvenda.ocorrencias.find((y) => y.id === o.id); return { ...o, id: ex ? ex.id : novoId('o'), em: ex?.em ?? hoje }; });
+    const indicacoes = inIn.map((x) => { const o = obj(x) ?? {}; const ex = p.posvenda.indicacoes.find((y) => y.id === o.id); return { ...o, id: ex ? ex.id : novoId('n'), em: ex?.em ?? hoje }; });
+    return normalizarObraPrivada({
+      ...p,
+      posvenda: {
+        avaliacao: d.avaliacao, geracao_mes1: { ...ge, print_id: noSlot('pos_geracao', ge.print_id) },
+        conta1: { ...co, arquivo_id: noSlot('pos_conta', co.arquivo_id) }, ocorrencias, indicacoes,
+      },
+    });
+  }
   return { recusa: MSG_PEDIDO, http: 400 };
 }
 
@@ -447,7 +515,7 @@ export function mountJornadaObra(router: Router): void {
     const corpo = async (): Promise<void> => {
       const f = await lerFase2(g);
       if (f.din.cancelada) { res.status(409).json({ ok: false, error: MSG_CANCELADA }); return; }
-      if (f.din.fechada) { res.status(409).json({ ok: false, error: MSG_FECHADA }); return; }
+      if (f.din.fechada && secao !== 'posvenda') { res.status(409).json({ ok: false, error: MSG_FECHADA }); return; }
       if (!podeSecao(g, f, secao)) { res.status(403).json({ ok: false, error: 'Você não pode mexer nesta parte agora.' }); return; }
       if (secao !== 'vistoria' && secao !== 'banco') await prepararEscrita(g, f);
       const numeroPedido = secao === 'liberacao'

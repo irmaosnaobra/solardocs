@@ -93,6 +93,8 @@
   function injetarCss() {
     if (document.getElementById('jor-din-css')) return;
     var css = [
+      '.jor-aj-campo{display:block;margin:0 0 4px;font-size:13px;font-weight:600;color:var(--n-tx2,#B4C0D1)}',
+      '#jor-aj-link{max-width:560px}',
       // As 4 fichas do desenho: o número de 20 px em cima (Inter, tabular-nums), o rótulo embaixo; saldo negativo em vermelho pelo token.
       '.jor-din-faixa{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;border:1px solid var(--n-bd,#334155);background:var(--n-sf,#1E293B);border-radius:12px;box-shadow:var(--sombra,none);padding:16px 24px;margin:0 0 16px}',
       '.jor-din-c{display:flex;flex-direction:column-reverse;justify-content:center;gap:2px;min-width:0;box-sizing:border-box;border:1px solid var(--n-bd,#334155);border-radius:12px;padding:10px 12px;text-align:center}',
@@ -887,7 +889,7 @@
     c.replaceChildren(raiz); raiz.appendChild(h.el('p', 'jor-nota', 'Carregando…'));
     h.api('/gerador/jornada-solar/ajustes', 'GET').then(function (r) {
       if (!(r.status === 200 && r.json && r.json.ajustes)) { raiz.appendChild(h.el('p', 'jor-erro', msgSrv(r, 'Não consegui abrir os Ajustes agora.'))); return; }
-      AJ.dados = r.json; AJ.aberto = r.json.ajustes.dinheiro_aberto !== false;
+      AJ.dados = r.json; AJ.aberto = r.json.ajustes.dinheiro_aberto !== false; AJ.link = String(r.json.ajustes.link_avaliacao_google || '');
       var com = r.json.ajustes.comissoes || {};
       AJ.linhas = {};
       Object.keys(com).forEach(function (k) { AJ.linhas[k] = (com[k] || []).map(function (x) { return { nome: x.nome, papel: x.papel, pb: x.pb }; }); });
@@ -930,9 +932,19 @@
       fil.appendChild(b);
     });
     b2.appendChild(fil); raiz.appendChild(b2);
+    // O link que vai no pedido de avaliação do pós-venda (etapa 9). Vazio apaga.
+    var b3 = h.el('div', 'jor-bloco'); b3.appendChild(h.el('div', 'jor-bloco-t', 'Avaliação no Google'));
+    var lk = h.el('input', 'jor-in'); lk.type = 'url'; lk.id = 'jor-aj-link'; lk.inputMode = 'url'; lk.autocomplete = 'off'; lk.spellcheck = false; lk.maxLength = 300;
+    lk.placeholder = 'https://g.page/r/…'; lk.value = AJ.link || ''; lk.addEventListener('input', function () { AJ.link = lk.value; lkEr.textContent = ''; lk.removeAttribute('aria-invalid'); });
+    var lkRot = h.el('label', 'jor-aj-campo', 'Link de avaliação do Google'); lkRot.setAttribute('for', 'jor-aj-link');
+    var lkEr = h.el('p', 'jor-erro'); lkEr.id = 'jor-aj-link-er'; lkEr.setAttribute('role', 'status'); lk.setAttribute('aria-describedby', 'jor-aj-link-er');
+    h.add(b3, lkRot, lk, lkEr, h.el('p', 'jor-nota', 'Entra no fim da mensagem que pede a avaliação ao cliente. Deixe vazio para tirar.'));
+    raiz.appendChild(b3);
     var info = h.el('p', 'jor-erro'); info.setAttribute('role', 'status');
     var sv = h.btn('Salvar', 'jor-btn-pri', function () {
-      var ruim = false; var corpo = { comissoes: {}, dinheiro_aberto: AJ.aberto };
+      var link = String(AJ.link || '').trim();
+      if (link && !/^https:\/\/[^\s]+\.[^\s]+/i.test(link)) { lkEr.textContent = 'O link precisa começar com https://.'; lk.setAttribute('aria-invalid', 'true'); lk.focus(); return; }
+      var ruim = false; var corpo = { comissoes: {}, dinheiro_aberto: AJ.aberto, link_avaliacao_google: link };
       Object.keys(AJ.linhas).forEach(function (k) {
         corpo.comissoes[k] = AJ.linhas[k].map(function (x) { if (!isFinite(x.pb) || x.pb < 0 || x.pb > 2000) ruim = true; return { nome: x.nome, papel: x.papel, pb: x.pb }; });
       });
@@ -940,7 +952,9 @@
       sv.disabled = true; info.textContent = '';
       h.api('/gerador/jornada-solar/ajustes', 'PUT', corpo).then(function (r) {
         sv.disabled = false;
-        if (r.status === 200 && r.json.ok !== false) { h.toast('Ajustes salvos.'); } else info.textContent = msgSrv(r, 'Não consegui salvar agora.');
+        if (r.status === 200 && r.json.ok !== false) { if (r.json.ajustes) { AJ.link = String(r.json.ajustes.link_avaliacao_google || ''); lk.value = AJ.link; } h.toast('Ajustes salvos.'); }
+        else if (r.json && r.json.error === 'link_invalido') { lkEr.textContent = msgSrv(r, 'O link precisa começar com https://.'); lk.setAttribute('aria-invalid', 'true'); }
+        else info.textContent = msgSrv(r, 'Não consegui salvar agora.');
       });
     });
     h.add(raiz, info, sv);

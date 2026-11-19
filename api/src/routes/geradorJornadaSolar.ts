@@ -39,6 +39,8 @@ import {
 } from '../services/gerador/jornadaSolarBanco';
 import { lerObraComVersao, lerObraPrivada, lerTodasObras, mudarObra, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
 import { gerarRelatorioFinal } from './geradorJornadaRelatorioFinal';
+import { mountJornadaLerTudo } from './geradorJornadaLerTudo';
+import { podeLerTudo } from '../services/gerador/leituraGravacao';
 import { kitVendido, lerRelatorioFinal } from '../services/gerador/relatorioFinal';
 import { lerAjustes, lerResumoDoDinheiro } from '../services/gerador/jornadaDinheiroBanco';
 import { podeVerValorDaObra } from '../services/gerador/jornadaDinheiro';
@@ -197,6 +199,26 @@ function origemDoCampo(cad: Cadastro, campo: string): 'ia' | 'manual' | 'card' |
   return g.fonte === 'ia' ? 'ia' : g.fonte === 'ficha' ? 'card' : 'manual';
 }
 
+/** O item (slot) do documento de onde a IA leu o dado do cadastro; null quando o dado é manual, da ficha ou não existe. */
+function docDoCampo(cad: Cadastro, campo: string): string | null {
+  const g = (cad.campos as Record<string, { valor?: string; fonte?: string; doc?: string } | undefined>)[campo];
+  return g && String(g.valor ?? '').trim() && g.fonte === 'ia' && g.doc ? g.doc : null;
+}
+
+/** Os dados do bloco `cliente` da etapa 1 que mostram de onde vieram: a chave da tela -> o campo do cadastro. */
+const CAMPOS_COM_ORIGEM = [
+  ['nome', 'nome'], ['telefone', 'telefone'], ['endereco', 'endereco'], ['endereco_ponto', 'endereco_ponto'], ['email', 'email'], ['cpf', 'cpf_cnpj'],
+  ['rg', 'rg_ie'], ['nascimento', 'nascimento'], ['estado_civil', 'estado_civil'], ['profissao', 'profissao'],
+  ['unidade_consumidora', 'unidade_consumidora'], ['concessionaria', 'concessionaria'], ['titular_conta', 'titular_conta'],
+  ['uc_classe', 'uc_classe'], ['consumo_medio_kwh', 'consumo_medio_kwh'],
+] as const;
+
+/** De onde veio o valor, o pagamento e o prazo da venda: 'ia' (lido de contrato ou orçamento, com o item do documento) ou 'manual'. Vazio = null. Só sai com o dinheiro. */
+function vendaOrigem(v: PrivadoJornada['venda']): Record<'valor' | 'pagamento' | 'prazo', { fonte: 'ia' | 'manual' | 'proposta'; doc: string | null } | null> {
+  const de = (tem: boolean, k: 'valor' | 'pagamento' | 'prazo') => (!tem ? null : v?.ia?.[k] ? { fonte: 'ia' as const, doc: v.ia[k] as string } : { fonte: 'manual' as const, doc: null });
+  return { valor: de((v?.valor_centavos ?? 0) > 0, 'valor'), pagamento: de(!!v?.pagamento.length, 'pagamento'), prazo: de(!!v?.prazo_prometido.trim(), 'prazo') };
+}
+
 /** A venda sem o dinheiro: fica o que a tela usa de quem não vê valor (prazo, kit e quem combinou, quando). */
 function vendaSemDinheiro(v: PrivadoJornada['venda']): Record<string, unknown> | null {
   return v ? { prazo_prometido: v.prazo_prometido, kit_confirmado: v.kit_confirmado, combinado_por: v.combinado_por, combinado_em: v.combinado_em } : null;
@@ -242,6 +264,8 @@ function podeDe(g: Guarda, l: Leitura, pos: Posicao) {
     cancelar: !cancelada && (g.adm || (!l.lig.venda && (ehVend || giov))),
     descancelar: cancelada && g.adm,
     esperar: !cancelada && no123 && (g.adm || donosDaEtapa(etapa as number, vend).includes(g.nome)),
+    // "Ler tudo": a IA lê todos os documentos do card e completa o cadastro e os dados da venda (só o que está vazio). Quem vendeu, a Giovanna e o ADM.
+    ler_tudo: podeLerTudo(g, vend, cancelada),
     editar_venda: !cancelada && (e1Aberta ? (ehVend || g.adm) : (e1Feita && (giov || g.adm))),
     gerar_papeis: !cancelada && !l.obraEstado?.fechada && (giov || ehVend || g.adm),
     // Excedente, financiamento e pedidos: com a etapa 1 aberta, vendedor, Giovanna e ADM; com ela concluída, só Giovanna e ADM completam o que ficou pendente (só grava o dado, não reabre a etapa).
@@ -638,14 +662,22 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       dados_cliente: {
         nome: cadValor('nome'), endereco_ponto: cadValor('endereco_ponto'), telefone: cadValor('telefone'), email: cadValor('email'),
         endereco: cadValor('endereco'), bairro: cadValor('bairro'), cidade: cadValor('cidade'), uf: cadValor('uf'), cep: cadValor('cep'),
+        // Do cadastro (19/11/2026): identidade, estado civil, profissão e a unidade geradora lidos dos documentos (ou digitados). Vazio = falta.
+        rg: cadValor('rg_ie'), nascimento: cadValor('nascimento'), estado_civil: cadValor('estado_civil'), profissao: cadValor('profissao'),
+        unidade_consumidora: cadValor('unidade_consumidora'), concessionaria: cadValor('concessionaria'), titular_conta: cadValor('titular_conta'),
+        uc_classe: cadValor('uc_classe'), consumo_medio_kwh: cadValor('consumo_medio_kwh'),
         // O CPF/CNPJ como o cadastro o mostra (o quadro do cadastro não o mascara).
         cpf: cadValor('cpf_cnpj'),
         // De onde veio cada dado: 'ia' (lido dos documentos), 'manual' (digitado ou vindo de um papel), 'card' (migrado da ficha do card) ou null (sem dado).
-        origem: Object.fromEntries(([['nome', 'nome'], ['telefone', 'telefone'], ['endereco', 'endereco'], ['endereco_ponto', 'endereco_ponto'], ['email', 'email'], ['cpf', 'cpf_cnpj']] as const)
-          .map(([k, campo]) => [k, origemDoCampo(l.cad, campo)])),
+        origem: Object.fromEntries(CAMPOS_COM_ORIGEM.map(([k, campo]) => [k, origemDoCampo(l.cad, campo)])),
+        // De qual item de documento a IA leu cada dado (null = não foi a IA, ou foi de antes de guardarmos o item).
+        origem_doc: Object.fromEntries(CAMPOS_COM_ORIGEM.map(([k, campo]) => [k, docDoCampo(l.cad, campo)])),
         // Valor e forma de pagamento: só para quem vê o valor da obra (`podeVerValorDaObra`).
         ...(veValor
-          ? { valor_centavos: l.privado?.venda?.valor_centavos ?? null, pagamento: (l.privado?.venda?.pagamento ?? []).map((x) => ({ forma: x.forma, valor_centavos: x.valor_centavos })) } : {}),
+          ? {
+            valor_centavos: l.privado?.venda?.valor_centavos ?? null, pagamento: (l.privado?.venda?.pagamento ?? []).map((x) => ({ forma: x.forma, valor_centavos: x.valor_centavos })),
+            venda_origem: vendaOrigem(l.privado?.venda ?? null),
+          } : {}),
       },
       documentos: {
         titular_geradora: titularGeradora, email: cadValor('email'),
@@ -801,6 +833,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
       };
       if (ant) {
         const campos: string[] = [];
+        // Quem salva a venda aceita o que a leitura por IA gravou: `venda` é montada sem a marca `ia` (os dados passam a valer como da pessoa).
         if (ant.valor_centavos !== valor) campos.push('valor');
         if (JSON.stringify(ant.pagamento) !== JSON.stringify(pagamento)) campos.push('pagamento');
         if (ant.desconto_centavos !== desconto) campos.push('desconto');
@@ -858,7 +891,8 @@ async function rotaProposta(req: Request, res: Response): Promise<void> {
       const jaTem = String(ant?.vendido_em ?? '');
       // Preencher (06/11/2026): a venda já combinada na obra vai para a proposta que acabou de ser ligada (o mesmo espelho do PUT /venda).
       // Só o que a proposta ainda não tem: valor ou forma que alguém gravou no Histórico ficam.
-      const vv = l.privado?.venda ?? null;
+      // Valor e forma que a leitura por IA gravou e ninguém aceitou (`venda.ia`) não vão para a proposta: o espelho sai quando uma pessoa aceita (confirmar).
+      const vv = l.privado?.venda && !l.privado.venda.ia?.valor && !l.privado.venda.ia?.pagamento ? l.privado.venda : null;
       const espelho: Record<string, unknown> = {};
       if (vv && vv.valor_centavos > 0 && ant?.valor_vendido == null) espelho.valor_vendido = vv.valor_centavos / 100;
       if (vv && vv.pagamento.length && (ant?.forma_pagamento == null || ant?.forma_pagamento === '')) espelho.forma_pagamento = formaDoEspelho(vv.pagamento.map((p) => p.forma));
@@ -1002,6 +1036,23 @@ async function rotaConfirmar(req: Request, res: Response): Promise<void> {
       return { ...e, etapas: { ...e.etapas, 1: Object.keys(conf).length ? { ...resto, confirmados: conf } : resto } };
     });
     if (ehRecusa(r)) { res.status(r.http).json({ ok: false, error: r.recusa }); return; }
+    // Confirmar o valor ou o pagamento é aceitar o bloco Venda que a leitura por IA preencheu: apaga as marcas `ia` (valor, pagamento e prazo; o prazo não
+    // tem confirmação própria), espelha na proposta ligada e, se o bloco ficou completo, dá o aviso à equipe (uma vez só). Sem marca, nada disto roda.
+    if (b.confirmar && (chave === 'valor' || chave === 'pagamento') && l.privado?.venda?.ia && Object.keys(l.privado.venda.ia).length) {
+      const completoAntes = blocoVendaCompleto(l.lig, l.privado);   // false: as marcas o impedem
+      const aceita = await mudarPrivadoJornada(g.id, g.nome, (p) => {
+        if (!p.venda?.ia) return p;
+        const { ia: _marcas, ...resto } = p.venda;
+        void _marcas;
+        return { ...p, venda: resto };
+      });
+      if (l.lig.proposta && aceita.venda) {
+        const { error } = await supabaseGerador.from('propostas')
+          .update({ vendido: true, valor_vendido: aceita.venda.valor_centavos / 100, forma_pagamento: formaDoEspelho(aceita.venda.pagamento.map((p) => p.forma)) }).eq('codigo', l.lig.proposta);
+        if (error) logErro('espelho na proposta', { codigo: 'espelho' });
+      }
+      await marcarVendaCompleta(g.id, g.nome, completoAntes);
+    }
     // Placas e inversor confirmados = kit confirmado (o campo antigo segue gravado para quem ainda o lê).
     if (chave === 'placas' || chave === 'inversor') {
       const nova = entradaDe(l, r);
@@ -1395,4 +1446,5 @@ export function mountJornadaSolar(router: Router): void {
   router.post('/jornada-solar/obra/:card/descancelar', ...base, (req, res) => rotaCancelar(req, res, true));
   router.post('/jornada-solar/obra/:card/papel', ...base, rotaPapel);
   router.post('/jornada-solar/obra/:card/numero', ...base, rotaNumero);
+  mountJornadaLerTudo(router);
 }

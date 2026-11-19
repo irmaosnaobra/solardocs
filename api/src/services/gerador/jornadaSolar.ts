@@ -83,6 +83,8 @@ export interface PrivadoJornada {
     combinado_por: string;
     combinado_em: string;
     editado: Array<{ em: string; por: string; campos: string[] }>;
+    /** O que a leitura por IA gravou e ninguém editou depois: campo -> item (slot) do documento de onde veio. Edição à mão apaga a marca. Não é confirmação. */
+    ia?: Partial<Record<'valor' | 'pagamento' | 'prazo', string>>;
   } | null;
   cancelamento: { motivo: string; em: string; por: string } | null;
   descancelamentos: Array<{ motivo: string; em: string; por: string }>;
@@ -279,7 +281,11 @@ export function valorPagamentoFecha(v: PrivadoJornada['venda']): boolean {
  * em que isto vira verdadeiro.
  */
 export function blocoVendaCompleto(lig: { proposta: string | null }, privado: PrivadoJornada | null): boolean {
-  return !!lig.proposta && valorPagamentoFecha(privado?.venda ?? null) && !!privado?.venda?.prazo_prometido.trim();
+  const v = privado?.venda ?? null;
+  // Valor ou pagamento que a leitura por IA gravou e nenhuma pessoa aceitou ainda (`venda.ia.valor` e `venda.ia.pagamento`) não completam o bloco: o
+  // aviso à equipe e o espelho na proposta são sobre dinheiro e só saem depois que uma pessoa salva a venda (PUT /venda) ou confirma o valor ou o
+  // pagamento, o que apaga as marcas. A marca do prazo não conta: ele não tem confirmação própria e não é dinheiro.
+  return !!lig.proposta && valorPagamentoFecha(v) && !!v?.prazo_prometido.trim() && !v?.ia?.valor && !v?.ia?.pagamento;
 }
 
 export const MSG_EXCEDENTE_OUTRO_CPF = 'Conta do excedente em outro CPF. Peça ao cliente para passar para o mesmo CPF.';

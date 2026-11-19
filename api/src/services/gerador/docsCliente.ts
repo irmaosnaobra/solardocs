@@ -70,6 +70,8 @@ const MAX_TRILHA = 50;
 export const LIMITES = { total: MAX_ARQUIVOS, porItem: MAX_POR_ITEM_VARIOS, outros: MAX_ARQUIVOS, trilha: MAX_TRILHA } as const;
 /** Jornada, fase 2: o álbum da obra (400 fotos) e o teto da venda solar (600 arquivos). Os outros catálogos seguem em 100. */
 export const LIMITE_ALBUM = 400;
+/** O álbum opcional "Outras fotos da conclusão" (`ent_extra`, etapa 7). */
+export const LIMITE_ALBUM_CONCLUSAO = 100;
 export const TETO_VENDA_SOLAR = 600;
 export const tetoDaVenda = (linha?: string): number => (linha === 'vendasolar' ? TETO_VENDA_SOLAR : MAX_ARQUIVOS);
 
@@ -157,6 +159,8 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
     it('kmz', 'KMZ do local', 'kmz', false),
     it('contrato_assinado', 'Contrato assinado', 'ambos', true),
     it('procuracao', 'Procuração assinada', 'ambos', true),
+    // Orçamento ou proposta (19/11/2026): opcional. Tem valor em dinheiro: fora do relatório e do Trello; a IA lê dele o kit, o valor e o prazo.
+    it('orcamento', 'Orçamento ou proposta', 'ambos', false),
     // Etapa 3 da Jornada (fase 1, 05/11/2026): a obrigação mora no portão da etapa, não aqui (o relatório não vira "preliminar").
     it('art', 'ART (documento)', 'ambos', false),
     it('art_comprovante', 'Comprovante de pagamento da ART', 'ambos', false),
@@ -180,11 +184,16 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
     it('ent_etiquetas', 'Etiquetas', 'imagem', false, false, 7),
     it('ent_local_limpo', 'Local limpo', 'imagem', false, false, 7),
     it('ent_termo_assinado', 'Termo de entrega assinado na tela', 'imagem', false, false, 7),
+    // Álbum opcional da conclusão (até 100 fotos): fora do portão da etapa 7, do Trello e do relatório final.
+    it('ent_extra', 'Outras fotos da conclusão', 'imagem', false, true, 7),
     it('lib_pedido', 'Print do pedido de vistoria', 'ambos', false, false, 8),
     it('lib_vistoria', 'Vistoria aprovada', 'ambos', false, false, 8),
     it('lib_medidor', 'Medidor trocado', 'ambos', false, false, 8),
     it('lib_liberacao', 'Liberação da usina', 'ambos', false, false, 8),
     it('lib_exigencia', 'Exigência da Cemig', 'ambos', false, true, 8),
+    // Pós-venda (etapa 9, 19/11/2026): print da geração do mês 1 e a primeira conta de luz depois da liberação. Sem portão, fora do Trello e do relatório.
+    it('pos_geracao', 'Print da geração do mês 1', 'imagem', false, false, 9),
+    it('pos_conta', 'Primeira conta de luz depois da liberação', 'ambos', false, false, 9),
     it('outros', 'Outros documentos', 'ambos', false, true),
   ],
 };
@@ -206,13 +215,17 @@ export const SLOTS_FORA_DO_RELATORIO: ReadonlySet<string> = new Set([
   'documento_avalista', 'documento_outra_pessoa',
   'comprovante_endereco_comprador', 'comprovante_endereco_cedente', 'comprovante_endereco_avalista',
   'documento_financiamento', 'comprovante_endereco_financiamento',
-  'art_comprovante', 'projeto_comprovante', 'kmz',
+  'art_comprovante', 'projeto_comprovante', 'kmz', 'orcamento',
   // Jornada, fase 2: nada das etapas 4 a 8 vai ao relatório de engenharia nem ao Trello.
   'cert_modulo', 'cert_inversor', 'log_documento', 'log_conferencia', 'log_avaria', 'log_assinatura', 'obra_foto', 'ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo', 'ent_termo_assinado', 'lib_pedido', 'lib_vistoria', 'lib_medidor', 'lib_liberacao', 'lib_exigencia',
+  'ent_extra', 'pos_geracao', 'pos_conta',
 ]);
 
 /** Os arquivos da venda solar que, ao chegarem, podem fechar o bloco equipamento da etapa 3 (ou dar o número, que o cartão exige) e disparar o Trello automático. */
 export const SLOTS_DO_TRELLO_AUTO: readonly string[] = ['datasheet_modulo', 'datasheet_inversor', 'kmz', 'contrato_assinado', 'procuracao'];
+
+/** Itens da venda solar que mostram PREÇO: só quem vê o valor da obra (`podeVerValorDaObra`) lista, abre, envia, move ou remove o arquivo deles. */
+export const SLOTS_COM_DINHEIRO: readonly string[] = ['orcamento'];
 
 export const itemDoCatalogo =(linha: Linha, chave: unknown): ItemDoc | null =>
   typeof chave === 'string' ? (CATALOGO[linha].find((x) => x.chave === chave) ?? null) : null;
@@ -367,6 +380,7 @@ export function comVinculo(reg: RegistroDocs, proposta: string, por: string, em:
 export function limiteDoItem(item: ItemDoc): number {
   if (!item.varios) return 1;
   if (item.chave === 'obra_foto') return LIMITE_ALBUM;
+  if (item.chave === 'ent_extra') return LIMITE_ALBUM_CONCLUSAO;
   return item.chave === 'outros' ? LIMITES.outros : LIMITES.porItem;
 }
 

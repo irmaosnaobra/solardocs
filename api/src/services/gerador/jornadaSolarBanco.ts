@@ -278,6 +278,14 @@ export const privadoVazio = (): PrivadoJornada => ({ v: 1, venda: null, cancelam
 export const MAX_NOTA = 500;
 export const MAX_PRAZO = 200;
 
+/** As marcas de "a IA gravou" do valor, do pagamento e do prazo: só chave conhecida e slot em forma de chave. Vazio = sem a propriedade. */
+function marcaIa(v: unknown): { ia?: Partial<Record<'valor' | 'pagamento' | 'prazo', string>> } {
+  const o = obj(v);
+  const ia: Partial<Record<'valor' | 'pagamento' | 'prazo', string>> = {};
+  for (const k of ['valor', 'pagamento', 'prazo'] as const) { const s = o ? txt(o[k], 40) : ''; if (/^[a-z0-9_]{1,40}$/.test(s)) ia[k] = s; }
+  return Object.keys(ia).length ? { ia } : {};
+}
+
 export function normalizarPrivado(value: unknown): PrivadoJornada {
   const o = obj(value);
   if (!o || o.v !== 1) return privadoVazio();
@@ -309,6 +317,7 @@ export function normalizarPrivado(value: unknown): PrivadoJornada {
       combinado_por: nome(v.combinado_por),
       combinado_em: dataIso(v.combinado_em) ?? '',
       editado: editado.slice(-30),
+      ...marcaIa(v.ia),
     };
   }
   const motivoDe = (x: unknown): { motivo: string; em: string; por: string } | null => {

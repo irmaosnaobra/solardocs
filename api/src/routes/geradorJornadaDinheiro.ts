@@ -17,7 +17,7 @@ import { lerNota } from '../services/gerador/notaLeitura';
 import { lerObraComVersao, lerObraPrivada, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
 import {
   AJUSTES_PADRAO, CATEGORIAS_OBRA, podeVerLivroDaObra, recortarLivro, veRetiradaDosSocios, categoriaObra, idDoEstorno, lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, regraDoVendedor, reaisBR, premioVivo,
-  validarAjustes, type AjustesSolar, type Conferencia, type Livro, type LancamentoObra, type LinhaLivro, type LinhaRegra, type Pendencia,
+  validarAjustes, linkAvaliacaoValido, type AjustesSolar, type Conferencia, type Livro, type LancamentoObra, type LinhaLivro, type LinhaRegra, type Pendencia,
 } from '../services/gerador/jornadaDinheiro';
 import {
   atualizarLancamentoObra, buscarNoFinanceiro, gravarAjustes, inserirLancamentoObra, lerAjustes, lerLancamentoObra, lerLancamentoObraComVersao, lerLancamentosDaObra,
@@ -783,7 +783,7 @@ export function mountJornadaDinheiro(router: Router): void {
   router.get('/jornada-solar/ajustes', ...base, exigeAdm, async (_req: Request, res: Response) => {
     try {
       const { ajustes, valido } = await lerAjustes();
-      res.json({ ok: true, ajustes, padrao: AJUSTES_PADRAO, valido, socios: listaSocios() });
+      res.json({ ok: true, ajustes: { ...ajustes, link_avaliacao_google: ajustes.link_avaliacao_google ?? '' }, padrao: AJUSTES_PADRAO, valido, socios: listaSocios() });
     } catch (err) { falhouJornada(res, 'ajustes', err, true); }
   });
 
@@ -792,10 +792,17 @@ export function mountJornadaDinheiro(router: Router): void {
     if (!b || typeof b.dinheiro_aberto !== 'boolean') { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
     const v = validarAjustes(b.comissoes);
     if (!v.ok) { res.status(400).json({ ok: false, error: v.erro, mensagem: 'Ajustes inválidos. Confira as linhas.' }); return; }
+    // Link de avaliação do Google (pós-venda): ausente mantém o que já está; vazio apaga; senão tem que ser um https válido.
+    let link: string | undefined;
+    if (b.link_avaliacao_google !== undefined) {
+      if (typeof b.link_avaliacao_google !== 'string') { res.status(400).json({ ok: false, error: 'link_invalido', mensagem: 'O link de avaliação precisa começar com https://.' }); return; }
+      link = b.link_avaliacao_google.trim() === '' ? '' : linkAvaliacaoValido(b.link_avaliacao_google);
+      if (link === '' && b.link_avaliacao_google.trim() !== '') { res.status(400).json({ ok: false, error: 'link_invalido', mensagem: 'O link de avaliação precisa começar com https://.' }); return; }
+    }
     try {
       const nome = String((req as any).consultor?.nome || '').trim().toLowerCase();
-      const ajustes = await gravarAjustes({ comissoes: v.comissoes, dinheiro_aberto: b.dinheiro_aberto }, nome);
-      res.json({ ok: true, ajustes, padrao: AJUSTES_PADRAO, valido: true, socios: listaSocios() });
+      const ajustes = await gravarAjustes({ comissoes: v.comissoes, dinheiro_aberto: b.dinheiro_aberto, link_avaliacao_google: link }, nome);
+      res.json({ ok: true, ajustes: { ...ajustes, link_avaliacao_google: ajustes.link_avaliacao_google ?? '' }, padrao: AJUSTES_PADRAO, valido: true, socios: listaSocios() });
     } catch (err) { falhouJornada(res, 'ajustes', err); }
   });
 }

@@ -19,6 +19,9 @@ const h = vi.hoisted(() => ({
   priv: new Map<string, string>(),
   cad: {} as Record<string, string>,
   fontes: {} as Record<string, string>,
+  /** campo -> item do documento de onde a IA leu (CampoGravado.doc). */
+  docs: {} as Record<string, string>,
+  lerTudo: { resultado: { acao: 'ok', preenchidos: ['rg_ie'], ignorados: 1 } as any, chamadas: [] as any[] },
   obrasPlanilha: [] as any[],
   planilhaCai: false,
   aloc: { chamadas: [] as any[], resultado: { ok: true, acao: 'criou', codigo: '#0070' } as any },
@@ -64,6 +67,8 @@ function tabela(nome: string, fonte: () => Array<Record<string, any>>) {
   return b;
 }
 
+// O limite por minuto do ler-tudo (aiLimiter) não é o assunto aqui: o teste faz mais de 10 pedidos seguidos.
+vi.mock('../middleware/rateLimiter', async (orig) => ({ ...(await orig<typeof import('../middleware/rateLimiter')>()), aiLimiter: (_q: unknown, _s: unknown, next: () => void) => next() }));
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 vi.mock('../utils/supabaseGerador', () => ({
   geradorComServiceKey: false,
@@ -130,8 +135,13 @@ vi.mock('../services/gerador/cadastroVenda', async (orig) => ({
   ...(await orig<typeof import('../services/gerador/cadastroVenda')>()),
   lerCadastroVisto: async () => ({
     v: 1, alteracoes: [], em: null,
-    campos: Object.fromEntries(Object.entries(h.cad).map(([k, valor]) => [k, { valor, por: 'nilce', em: '2026-11-01T10:00:00.000Z', fonte: h.fontes[k] ?? 'manual' }])),
+    campos: Object.fromEntries(Object.entries(h.cad).map(([k, valor]) => [k, { valor, por: 'nilce', em: '2026-11-01T10:00:00.000Z', fonte: h.fontes[k] ?? 'manual', ...(h.docs[k] ? { doc: h.docs[k] } : {}) }])),
   }),
+}));
+// "Ler tudo": a leitura em si é provada em vendaSolar.route.test.ts; aqui só a rota, a permissão e as respostas.
+vi.mock('../services/gerador/cadastroLeituraAuto', async (orig) => ({
+  ...(await orig<typeof import('../services/gerador/cadastroLeituraAuto')>()),
+  lerTudoDaVenda: async (g: unknown) => { h.lerTudo.chamadas.push(g); return h.lerTudo.resultado; },
 }));
 // O Trello automático é provado à parte (trelloAutomatico.test.ts): aqui só se confere QUEM o dispara e QUANDO.
 vi.mock('../routes/geradorJornadaTrelloAuto', () => ({
@@ -256,7 +266,7 @@ beforeEach(() => {
     { codigo: 'P1', cliente_nome: 'Cliente Inventado', cliente_cidade: 'Uberlândia', consultor_nome: 'Nilce', kwp: 8.25, created_at: '2026-10-25T10:00:00.000Z', tipo: 'solar', vendido: false, tel: '34999990001', tel2: null, qtd_placas: 14, inversor: 'Growatt 10K', qtd_inversor: 1, dados: { tab: { mod: 'Canadian CS7N', pot: 590 } } },
     { codigo: 'P2', cliente_nome: 'Cliente Inventado', cliente_cidade: 'Uberlândia', consultor_nome: 'Carla', kwp: 5, created_at: '2026-10-25T10:00:00.000Z', tipo: 'solar', vendido: false, tel: '34999990001', tel2: null, dados: {} },
   ];
-  h.linhas = new Map(); h.priv = new Map(); h.cad = {}; h.obrasPlanilha = []; h.planilhaCai = false; h.tique = 0; h.fetchs = 0; h.disparos = []; h.relatorios = []; h.relatorioFalha = null; h.fontes = {};
+  h.linhas = new Map(); h.priv = new Map(); h.cad = {}; h.obrasPlanilha = []; h.planilhaCai = false; h.tique = 0; h.fetchs = 0; h.disparos = []; h.relatorios = []; h.relatorioFalha = null; h.fontes = {}; h.docs = {}; h.lerTudo = { resultado: { acao: 'ok', preenchidos: ['rg_ie'], ignorados: 1 }, chamadas: [] };
   h.aloc.chamadas = []; h.aloc.resultado = { ok: true, acao: 'criou', codigo: '#0070' };
   process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste';
   process.env.TRELLO_KEY = 'chave-trello-falsa'; process.env.TRELLO_TOKEN = 'token-trello-falso';
@@ -989,7 +999,7 @@ describe('Fase 1 (versão final): confirmar, pedidos, financiamento, vistoria e 
     delete h.cad.email;
     const g = await obra(304);
     expect(g.body.dados_cliente.cpf).toBe('529.982.247-25');
-    expect(g.body.dados_cliente.origem).toEqual({ nome: 'ia', telefone: 'card', endereco: 'manual', endereco_ponto: 'manual', email: null, cpf: 'ia' });
+    expect(g.body.dados_cliente.origem).toMatchObject({ nome: 'ia', telefone: 'card', endereco: 'manual', endereco_ponto: 'manual', email: null, cpf: 'ia' });
     // quem não vê dinheiro vê o CPF como o cadastro mostra (não é dado de dinheiro) e a origem também
     expect((await obra(304, DIEGO)).body.dados_cliente).toMatchObject({ cpf: '529.982.247-25', origem: { nome: 'ia' } });
     h.cad = {}; h.fontes = {};
@@ -1092,5 +1102,204 @@ describe('estrutura', () => {
     }
     const src = fs.readFileSync(path.join(__dirname, '..', 'routes', 'geradorJornadaSolar.ts'), 'utf8');
     expect(src).toMatch(/supabaseGerador\.from\('agendamentos'\)/);
+  });
+});
+
+describe('Leitura por IA na obra (19/11): dados do cadastro, origem por documento, venda_origem e "Ler tudo"', () => {
+  const seedPrivado = (venda: Record<string, unknown> | null): void => {
+    h.priv.set('vendasolar/304.jornada.json', JSON.stringify({ v: 1, cancelamento: null, descancelamentos: [], trazidas: [], venda: venda && {
+      valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: 'Entrada' }], desconto_centavos: null, prazo_prometido: 'até 60 dias', nota: '',
+      kit_confirmado: false, combinado_por: '', combinado_em: '', editado: [], ...venda,
+    } }));
+  };
+
+  it('GET: dados_cliente traz rg, nascimento, estado civil, profissão e a unidade geradora; origem e origem_doc cobrem os campos novos', async () => {
+    semear(304);
+    h.cad = { nome: 'Ana Souza', rg_ie: 'MG1234567', nascimento: '17/05/1980', estado_civil: 'casada', profissao: 'Professora', unidade_consumidora: '12345678', concessionaria: 'Cemig', titular_conta: 'Ana Souza', uc_classe: 'residencial', consumo_medio_kwh: '412.5' };
+    h.fontes = { nome: 'ia', rg_ie: 'ia', nascimento: 'ia', profissao: 'manual', unidade_consumidora: 'ia', consumo_medio_kwh: 'ia' };
+    h.docs = { nome: 'documento_titular', rg_ie: 'documento_titular', unidade_consumidora: 'conta_luz', consumo_medio_kwh: 'conta_luz', profissao: 'contrato_assinado' };
+    const d = (await obra(304)).body.dados_cliente;
+    expect(d).toMatchObject({
+      rg: 'MG1234567', nascimento: '17/05/1980', estado_civil: 'casada', profissao: 'Professora', unidade_consumidora: '12345678',
+      concessionaria: 'Cemig', titular_conta: 'Ana Souza', uc_classe: 'residencial', consumo_medio_kwh: '412.5',
+    });
+    expect(d.origem).toMatchObject({ nome: 'ia', rg: 'ia', profissao: 'manual', unidade_consumidora: 'ia', concessionaria: 'manual', uc_classe: 'manual' });
+    expect(d.origem_doc).toMatchObject({ nome: 'documento_titular', rg: 'documento_titular', unidade_consumidora: 'conta_luz', consumo_medio_kwh: 'conta_luz', concessionaria: null, nascimento: null });
+    expect(d.origem_doc.profissao).toBeNull();   // o slot só vale quando foi a IA que gravou
+    h.cad = {}; h.fontes = {}; h.docs = {};
+    const vazio = (await obra(304)).body.dados_cliente;
+    expect(vazio).toMatchObject({ rg: '', nascimento: '', consumo_medio_kwh: '' });
+    expect(Object.values(vazio.origem_doc).every((v) => v === null)).toBe(true);
+  });
+
+  it('GET: venda_origem (valor, pagamento, prazo) diz ia com o slot ou manual; só sai com o valor, para quem vê o dinheiro', async () => {
+    semear(304);
+    seedPrivado({ ia: { valor: 'orcamento', prazo: 'contrato_assinado' } });
+    const v = (await obra(304)).body.dados_cliente;
+    expect(v.valor_centavos).toBe(3890000);
+    expect(v.venda_origem).toEqual({ valor: { fonte: 'ia', doc: 'orcamento' }, pagamento: { fonte: 'manual', doc: null }, prazo: { fonte: 'ia', doc: 'contrato_assinado' } });
+    seedPrivado({ valor_centavos: 0, pagamento: [], prazo_prometido: '' });
+    expect((await obra(304)).body.dados_cliente.venda_origem).toEqual({ valor: null, pagamento: null, prazo: null });
+    // quem não vê o dinheiro (Diego não é o vendedor, a Giovanna nem ADM) não recebe valor nem venda_origem
+    seedPrivado({ ia: { valor: 'orcamento' } });
+    await fecharDinheiro();
+    const diego = await obra(304, DIEGO);
+    expect(diego.status).toBe(200);
+    expect(diego.body.dados_cliente).not.toHaveProperty('valor_centavos');
+    expect(diego.body.dados_cliente).not.toHaveProperty('venda_origem');
+    expect(JSON.stringify(diego.body)).not.toContain('3890000');
+    expect(JSON.stringify(diego.body)).not.toContain('orcamento');
+    // a Giovanna vê
+    expect((await obra(304, GIOVANNA)).body.dados_cliente.venda_origem.valor).toEqual({ fonte: 'ia', doc: 'orcamento' });
+  });
+
+  const ligarP1 = async (): Promise<void> => {
+    const { assinarLigacao } = await import('../services/gerador/vendaSolarHub');
+    const lig = { proposta: 'P1', venda: null, por: 'nilce', em: AGORA };
+    h.linhas.set('venda_solar:304', { updated_at: 'v', value: { ...lig, sig: assinarLigacao(304, lig) } });
+  };
+  const avisos = (): number => (estadoGravado(304)?.historico ?? []).filter((x) => x.acao === 'venda_completa').length;
+  const MARCAS = { ia: { valor: 'orcamento', pagamento: 'orcamento', prazo: 'contrato_assinado' } };
+  const proposta = () => h.propostas.find((x) => x.codigo === 'P1')!;
+
+  it('o que a IA gravou não completa o bloco Venda: ligar a proposta não dá o aviso nem espelha; o PUT de uma pessoa aceita (apaga as marcas), espelha e avisa UMA vez', async () => {
+    semear(304);
+    seedPrivado(MARCAS);
+    expect((await post('/jornada-solar/obra/304/proposta', { codigo: 'P1' })).status).toBe(200);
+    expect(avisos()).toBe(0);                                     // valor, pagamento e prazo ainda são da IA
+    expect(proposta().valor_vendido).toBeUndefined();             // e nada foi espelhado
+    const corpo = { valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: 'Entrada' }], prazo_prometido: 'até 60 dias' };
+    expect((await put('/jornada-solar/obra/304/venda', corpo)).status).toBe(200);
+    expect(avisos()).toBe(1);
+    expect(proposta().valor_vendido).toBe(38900);
+    expect(JSON.parse(h.priv.get('vendasolar/304.jornada.json')!).venda.ia).toBeUndefined();
+    expect((await obra(304)).body.dados_cliente.venda_origem).toEqual({ valor: { fonte: 'manual', doc: null }, pagamento: { fonte: 'manual', doc: null }, prazo: { fonte: 'manual', doc: null } });
+    expect((await put('/jornada-solar/obra/304/venda', corpo)).status).toBe(200);
+    expect(avisos()).toBe(1);                                     // uma vez só
+  });
+
+  it('confirmar o valor (ou o pagamento) aceita o bloco: apaga as marcas, espelha na proposta ligada e dá o aviso UMA vez; confirmar outro dado não mexe nas marcas', async () => {
+    semear(304); await ligarP1();
+    h.cad = { nome: 'Marcos Andrade' };
+    seedPrivado(MARCAS);
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'nome', confirmar: true })).status).toBe(200);
+    expect(avisos()).toBe(0);
+    expect(JSON.parse(h.priv.get('vendasolar/304.jornada.json')!).venda.ia).toEqual(MARCAS.ia);
+    expect((await get('/jornada-solar/obra/304')).status).toBe(200);
+    const c = await post('/jornada-solar/obra/304/confirmar', { chave: 'valor', confirmar: true });
+    expect(c.status).toBe(200);
+    expect(avisos()).toBe(1);
+    expect(proposta().valor_vendido).toBe(38900);
+    expect(JSON.parse(h.priv.get('vendasolar/304.jornada.json')!).venda.ia).toBeUndefined();
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'pagamento', confirmar: true })).status).toBe(200);
+    expect(avisos()).toBe(1);                                     // sem marcas, nada roda de novo
+  });
+
+  it('venda com as marcas ia de valor ou pagamento e proposta ligada: blocoVendaCompleto é falso até uma pessoa aceitar; a marca só do prazo não pesa', async () => {
+    const { blocoVendaCompleto } = await import('../services/gerador/jornadaSolar');
+    const venda = { valor_centavos: 100, pagamento: [{ forma: 'pix' as const, valor_centavos: 100, obs: '' }], desconto_centavos: null, prazo_prometido: '30 dias', nota: '', kit_confirmado: false, combinado_por: '', combinado_em: '', editado: [] };
+    const base = { v: 1 as const, cancelamento: null, descancelamentos: [], trazidas: [] };
+    expect(blocoVendaCompleto({ proposta: 'P1' }, { ...base, venda })).toBe(true);
+    expect(blocoVendaCompleto({ proposta: 'P1' }, { ...base, venda: { ...venda, ia: { prazo: 'contrato_assinado' } } })).toBe(true);    // o prazo não é dinheiro nem tem confirmação própria
+    expect(blocoVendaCompleto({ proposta: 'P1' }, { ...base, venda: { ...venda, ia: { valor: 'orcamento' } } })).toBe(false);
+    expect(blocoVendaCompleto({ proposta: 'P1' }, { ...base, venda: { ...venda, ia: { pagamento: 'orcamento', prazo: 'orcamento' } } })).toBe(false);
+  });
+
+  it('pode.ler_tudo: o vendedor, a Giovanna e o ADM; outro consultor com acesso à obra não; venda cancelada ninguém', async () => {
+    semear(304);
+    expect((await obra(304)).body.pode.ler_tudo).toBe(true);                 // Nilce, a vendedora
+    expect((await obra(304, GIOVANNA)).body.pode.ler_tudo).toBe(true);
+    expect((await obra(304, THIAGO)).body.pode.ler_tudo).toBe(true);         // ADM (sócio)
+    const diego = await obra(304, DIEGO);
+    if (diego.status === 200) expect(diego.body.pode.ler_tudo).toBe(false);
+    semear(304, (e) => { e.cancelada = { em: AGORA, por: 'thiago', etapa: 1, com_numero: false }; });
+    for (const auth of [NILCE, GIOVANNA, THIAGO]) expect((await obra(304, auth)).body.pode.ler_tudo).toBe(false);
+  });
+
+  it('POST ler-tudo: o vendedor, a Giovanna e o ADM leem; devolve { ok, preenchidos, ignorados }; nome do card e de quem pediu vão ao serviço', async () => {
+    semear(304);
+    for (const auth of [NILCE, GIOVANNA, THIAGO]) {
+      const r = await post('/jornada-solar/obra/304/ler-tudo', {}, auth);
+      expect(r.status).toBe(200);
+      expect(r.body).toEqual({ ok: true, preenchidos: ['rg_ie'], ignorados: 1 });
+    }
+    expect(h.lerTudo.chamadas).toHaveLength(3);
+    expect(h.lerTudo.chamadas[0]).toMatchObject({ card: { id: 304 }, nome: 'nilce' });
+    expect(h.lerTudo.chamadas.map((c: any) => c.nome)).toEqual(['nilce', 'giovanna', 'thiago']);
+  });
+
+  it('POST ler-tudo: sem permissão não lê (403 ou 404 igual para alheio), venda cancelada dá 403, cota dá 429 e erro da IA dá 502 com mensagem curta', async () => {
+    semear(304);
+    const carla = await post('/jornada-solar/obra/304/ler-tudo', {}, CARLA);   // consultora de outra venda: a guarda da obra responde 404
+    expect(carla.status).toBe(404);
+    const diego = await post('/jornada-solar/obra/304/ler-tudo', {}, DIEGO);
+    expect([403, 404]).toContain(diego.status);
+    expect(h.lerTudo.chamadas).toHaveLength(0);
+    h.lerTudo.resultado = { acao: 'cota' };
+    const cota = await post('/jornada-solar/obra/304/ler-tudo', {});
+    expect(cota.status).toBe(429);
+    expect(cota.body).toMatchObject({ ok: false });
+    h.lerTudo.resultado = { acao: 'falhou' };
+    const ia = await post('/jornada-solar/obra/304/ler-tudo', {});
+    expect(ia.status).toBe(502);
+    expect(ia.body.error.length).toBeLessThan(80);
+    h.lerTudo.resultado = { acao: 'sem_arquivo' };
+    expect((await post('/jornada-solar/obra/304/ler-tudo', {})).body).toEqual({ ok: true, preenchidos: [], ignorados: 0 });
+    h.lerTudo.chamadas = [];
+    semear(304, (e) => { e.cancelada = { em: AGORA, por: 'thiago', etapa: 1, com_numero: false }; });
+    for (const auth of [NILCE, GIOVANNA, THIAGO]) expect((await post('/jornada-solar/obra/304/ler-tudo', {}, auth)).status).toBe(403);
+    expect(h.lerTudo.chamadas).toHaveLength(0);
+  });
+});
+
+describe('Orçamento é item com preço: só quem vê o valor da obra lista, abre, envia, move ou remove (19/11)', () => {
+  const docs = (auth = NILCE) => get('/clientes/vendasolar/304/docs', auth);
+  const chavesDe = (r: any): string[] => r.body.slots.map((i: any) => i.chave);
+  const slotsDe = (r: any): string[] => r.body.arquivos.map((a: any) => a.slot);
+  const registro = () => h.linhas.get('docs_cliente:vendasolar:304')!.value.arquivos.map((a: any) => a.slot);
+
+  it('com o dinheiro fechado: a lista de quem não vê (Diego) não traz o item nem o arquivo do orçamento, mas traz o contrato; o vendedor, a Giovanna e o ADM veem os dois', async () => {
+    semear(304);
+    anexos(304, ['contrato_assinado', 'orcamento']);
+    await fecharDinheiro();
+    const diego = await docs(DIEGO);
+    expect(diego.status).toBe(200);
+    expect(chavesDe(diego)).toContain('contrato_assinado');
+    expect(chavesDe(diego)).not.toContain('orcamento');
+    expect(slotsDe(diego)).toEqual(['contrato_assinado']);
+    expect(JSON.stringify(diego.body)).not.toContain('orcamento');
+    for (const auth of [NILCE, GIOVANNA, THIAGO]) {
+      const r = await docs(auth);
+      expect(r.status).toBe(200);
+      expect(chavesDe(r)).toContain('orcamento');
+      expect(slotsDe(r).sort()).toEqual(['contrato_assinado', 'orcamento']);
+    }
+  });
+
+  it('com o dinheiro aberto todo mundo com acesso à venda vê o orçamento (a mesma regra do valor da obra)', async () => {
+    semear(304);
+    anexos(304, ['orcamento']);
+    expect(chavesDe(await docs(DIEGO))).toContain('orcamento');
+  });
+
+  it('quem não vê o dinheiro leva 403 ao enviar (URL de envio e registro), mover para o orçamento, e ao mexer no arquivo que já está lá; o contrato segue livre', async () => {
+    semear(304);
+    anexos(304, ['contrato_assinado', 'orcamento']);
+    await fecharDinheiro();
+    const envio = await post('/clientes/vendasolar/304/docs/upload-url', { slot: 'orcamento', mime: 'application/pdf', bytes: 10 }, DIEGO);
+    expect(envio.status).toBe(403);
+    expect((await post('/clientes/vendasolar/304/docs', { slot: 'orcamento', caminho: 'vendasolar/304/qualquer.pdf' }, DIEGO)).status).toBe(403);
+    expect((await post('/clientes/vendasolar/304/docs/upload-url', { slot: 'contrato_assinado', mime: 'application/pdf', bytes: 10 }, DIEGO)).status).not.toBe(403);
+    // arquivos com id de verdade para as rotas de remover e mover
+    const ID_CON = '11111111-1111-4111-8111-111111111111'; const ID_ORC = '22222222-2222-4222-8222-222222222222';
+    h.linhas.set('docs_cliente:vendasolar:304', { updated_at: 'd2', value: { arquivos: [
+      { id: ID_CON, slot: 'contrato_assinado', caminho: `vendasolar/304/${ID_CON}.pdf`, mime: 'application/pdf', bytes: 10, em: AGORA, por: 'x' },
+      { id: ID_ORC, slot: 'orcamento', caminho: `vendasolar/304/${ID_ORC}.pdf`, mime: 'application/pdf', bytes: 10, em: AGORA, por: 'x' },
+    ], alteracoes: [], apagados: [] } });
+    expect((await request(app).delete(`/gerador/clientes/vendasolar/304/docs/${ID_ORC}`).set('Authorization', DIEGO)).status).toBe(403);
+    expect((await request(app).patch(`/gerador/clientes/vendasolar/304/docs/${ID_ORC}`).set('Authorization', DIEGO).send({ rotulo: 'Meu orçamento' })).status).toBe(403);
+    expect((await request(app).patch(`/gerador/clientes/vendasolar/304/docs/${ID_CON}`).set('Authorization', DIEGO).send({ slot: 'orcamento' })).status).toBe(403);
+    expect((await request(app).patch(`/gerador/clientes/vendasolar/304/docs/${ID_CON}`).set('Authorization', DIEGO).send({ rotulo: 'Contrato do Marcos' })).status).not.toBe(403);   // o contrato segue como era
+    expect(registro().sort()).toEqual(['contrato_assinado', 'orcamento']);
   });
 });

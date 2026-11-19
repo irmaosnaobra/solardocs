@@ -1817,3 +1817,321 @@ describe('Jornada, fase 1: ligar a venda da planilha é só do ADM', () => {
     expect((await ligar(201, { venda: '#0057' }, THIAGO)).status).toBe(200);
   });
 });
+
+describe('leitura ampliada (19/11): contrato, procuração, orçamento e comprovante; valor, pagamento, prazo e kit; "Ler tudo"', () => {
+  const idDe = (i: number): string => `0000000${i}-0000-4000-8000-000000000000`;
+  const indiceDe = (c: any[], slot: string): number => Number(/^Arquivo (\d+),/.exec(c.find((b) => b?.type === 'text' && new RegExp(`^Arquivo \\d+, slot "${slot}"`).test(b.text)).text)![1]);
+  const campo = (k: string, indice: number, valor: string, confianca = 'alta') => ({ campo: k, valor, indice, confianca, nota: '' });
+  type Slot = string;
+  /** A resposta da IA de mentira: campos (slot, campo, valor), comercial (slot, campo, valor) e a classificação de cada arquivo (slot, tipo, pessoa). */
+  const resposta = (o: { campos?: Array<[Slot, string, string]>; comercial?: Array<[Slot, string, string]>; docs?: Array<[Slot, string, string]> }) => ({
+    saida: (c: any[]) => ({
+      campos: (o.campos ?? []).map(([s, k, v]) => campo(k, indiceDe(c, s), v)),
+      comercial: (o.comercial ?? []).map(([s, k, v]) => ({ campo: k, valor: v, indice: indiceDe(c, s), confianca: 'alta' })),
+      documentos: (o.docs ?? []).map(([s, tipo, pessoa]) => ({ indice: indiceDe(c, s), tipo, rotulo: '', nota: '', pessoa })),
+    }),
+  });
+  const caminhoDe = (i: number): string => `vendasolar/201/1111111${i}-1111-4111-8111-111111111111.jpg`;
+  const semear = (slots: string[]): void => {
+    anexa(201, slots.map((s, i) => ({ slot: s, uuid: `1111111${i}-1111-4111-8111-111111111111`, ext: 'jpg', mime: 'image/jpeg', bytes: JPG.length + 1, em: '2026-10-20T10:00:00.000Z' })));
+    slots.forEach((_s, i) => h.objetos.set(caminhoDe(i), Buffer.concat([JPG, Buffer.from([i])])));
+  };
+  /** Troca os bytes do arquivo 0 (outro sha) e zera o registro de leituras: vale como um arquivo novo no mesmo item. */
+  const arquivoNovo = (n: number): void => { h.cad.delete('vendasolar/201.leitura.json'); h.objetos.set(caminhoDe(0), Buffer.concat([JPG, Buffer.from([n, n])])); };
+  const cad = (): Record<string, { valor: string; fonte: string; doc?: string }> => (h.cad.has('vendasolar/201.json') ? JSON.parse(h.cad.get('vendasolar/201.json')!.toString()).campos : {});
+  const privado = (): any => (h.cad.has('vendasolar/201.jornada.json') ? JSON.parse(h.cad.get('vendasolar/201.jornada.json')!.toString()) : null);
+  const semearPrivado = (venda: Record<string, unknown>): void => {
+    h.cad.set('vendasolar/201.jornada.json', Buffer.from(JSON.stringify({
+      v: 1, cancelamento: null, descancelamentos: [], trazidas: [],
+      venda: { valor_centavos: 0, pagamento: [], desconto_centavos: null, prazo_prometido: '', nota: '', kit_confirmado: false, combinado_por: 'nilce', combinado_em: '2026-10-20T10:00:00.000Z', editado: [], ...venda },
+    })));
+  };
+  const semearEstado = async (mut: (e: any) => void = () => undefined): Promise<void> => {
+    const { estadoMaterializado } = await import('../services/gerador/jornadaSolar');
+    const { normalizarJornada, assinarJornada } = await import('../services/gerador/jornadaSolarBanco');
+    const e: any = { ...estadoMaterializado(201, 'Nilce', 1, '2026-10-20T10:00:00.000Z'), origem: 'vendido', vendido_em: '2026-10-20T10:00:00.000Z', vendido_por: 'nilce' };
+    mut(e);
+    const n = normalizarJornada(201, e)!;
+    h.linhas.set('jornada_solar:201', { updated_at: 'j0', value: { ...n, sig: assinarJornada(201, n) } });
+  };
+  const estado = async (): Promise<any> => {
+    const { normalizarJornada } = await import('../services/gerador/jornadaSolarBanco');
+    return normalizarJornada(201, h.linhas.get('jornada_solar:201')!.value);
+  };
+  const rodar = async (i: number) => (await import('../services/gerador/cadastroLeituraAuto')).lerCadastroAutomatico({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome: 'nilce', arquivoId: idDe(i) });
+  const tudo = async () => (await import('../services/gerador/cadastroLeituraAuto')).lerTudoDaVenda({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome: 'nilce' });
+  const COMERCIAL: Array<[Slot, string, string]> = [
+    ['orcamento', 'valor_total', 'R$ 38.900,00'], ['orcamento', 'pagamento_forma', 'pix'], ['orcamento', 'pagamento_descricao', 'Entrada de 10 mil e 12x no cartão'],
+    ['orcamento', 'prazo_instalacao', 'Até 45 dias após a aprovação'], ['orcamento', 'placas_qtd', '10'], ['orcamento', 'placas_marca', 'Jinko Tiger'], ['orcamento', 'placas_potencia_w', '610'],
+    ['orcamento', 'inversor_qtd', '1'], ['orcamento', 'inversor_marca', 'Growatt'], ['orcamento', 'inversor_potencia_kw', '5'], ['orcamento', 'kwp', '6,1'],
+  ];
+  const nomeAna = async (): Promise<void> => { expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'Ana Souza' } })).status).toBe(200); };
+
+  it('gatilho: comprovante, contrato, procuração e orçamento entram na leitura automática; datasheet, foto e pós-venda não; o slot orcamento é opcional, só dinheiro, fora do relatório e do Trello', async () => {
+    const { SLOTS_LEITURA_AUTO } = await import('../services/gerador/cadastroLeituraAuto');
+    expect(SLOTS_LEITURA_AUTO).toEqual(expect.arrayContaining(['comprovante_endereco_comprador', 'contrato_assinado', 'procuracao', 'orcamento', 'documento_titular', 'conta_luz']));
+    for (const fora of ['outros', 'datasheet_modulo', 'fachada', 'pos_conta']) expect(SLOTS_LEITURA_AUTO).not.toContain(fora);
+    const { CATALOGO, SLOTS_FORA_DO_RELATORIO, SLOTS_DO_TRELLO_AUTO } = await import('../services/gerador/docsCliente');
+    expect(CATALOGO.vendasolar.find((i) => i.chave === 'orcamento')).toMatchObject({ rotulo: 'Orçamento ou proposta', aceita: 'ambos', obrigatorio: false });
+    expect(SLOTS_FORA_DO_RELATORIO.has('orcamento')).toBe(true);
+    expect(SLOTS_DO_TRELLO_AUTO).not.toContain('orcamento');
+    const { SLOTS_LIDOS_SOLAR } = await import('../services/gerador/cadastroVendaLeitura');
+    expect(SLOTS_LIDOS_SOLAR).toContain('orcamento');
+    // pelo envio de verdade: o orçamento dispara a IA em segundo plano
+    h.ia.fila.push(resposta({ campos: [['orcamento', 'email', 'ana@exemplo.com']], docs: [['orcamento', 'orcamento', '']] }));
+    const u = await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'orcamento', mime: 'image/jpeg', bytes: JPG.length });
+    h.objetos.set(u.body.caminho, JPG);
+    expect((await post('/clientes/vendasolar/201/docs', { slot: 'orcamento', caminho: u.body.caminho })).status).toBe(200);
+    for (let i = 0; i < 80 && !h.ia.chamadas.length; i++) await new Promise((r) => setTimeout(r, 25));
+    expect(h.ia.chamadas).toHaveLength(1);
+  });
+
+  it('orçamento: grava o cadastro (fonte ia e o slot de origem), valor, pagamento e prazo em privado.venda com a marca ia, e o kit em texto; nada vira confirmado', async () => {
+    await nomeAna();
+    await semearEstado();
+    semear(['orcamento']);
+    h.ia.fila.push(resposta({ campos: [['orcamento', 'email', 'ana@exemplo.com'], ['orcamento', 'estado_civil', 'Casada']], comercial: COMERCIAL, docs: [['orcamento', 'orcamento', 'Ana Souza']] }));
+    const r = await rodar(0);
+    expect(r).toMatchObject({ acao: 'gravou' });
+    expect(cad().email).toMatchObject({ valor: 'ana@exemplo.com', fonte: 'ia', doc: 'orcamento' });
+    expect(cad().nome).toMatchObject({ valor: 'Ana Souza', fonte: 'manual' });
+    expect(cad().nome.doc).toBeUndefined();   // à mão: sem slot
+    expect(privado().venda).toMatchObject({
+      valor_centavos: 3_890_000, prazo_prometido: 'Até 45 dias após a aprovação', kit_confirmado: false, combinado_por: '',
+      pagamento: [{ forma: 'pix', valor_centavos: 3_890_000, obs: 'Entrada de 10 mil e 12x no cartão' }],
+      ia: { valor: 'orcamento', pagamento: 'orcamento', prazo: 'orcamento' },
+    });
+    const e = await estado();
+    expect(e.etapas[1].kit_texto).toEqual({ placas: '10 placas Jinko Tiger 610 W', inversor: '1 inversor Growatt 5 kW' });
+    expect(e.etapas[1].confirmados ?? {}).toEqual({});   // nada confirmado
+    expect(privado().venda.editado).toEqual([{ em: expect.any(String), por: 'leitura', campos: ['valor', 'pagamento', 'prazo'] }]);   // na trilha, como edição da leitura
+    expect(e.historico.some((x: any) => x.acao === 'venda_completa')).toBe(false);   // e a equipe não é avisada
+    expect(r.acao === 'gravou' && r.campos).toEqual(expect.arrayContaining(['email', 'valor', 'pagamento', 'prazo', 'placas', 'inversor']));
+  });
+
+  it('contrato de OUTRA pessoa (nome diferente do contratante) não grava nada: nem cadastro, nem valor, nem kit; o mesmo nome com outra caixa e sem acento grava', async () => {
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'José Antônio Pereira' } })).status).toBe(200);
+    await semearEstado();
+    semear(['contrato_assinado']);
+    const doContrato = (pessoa: string) => resposta({
+      campos: [['contrato_assinado', 'email', 'outro@exemplo.com'], ['contrato_assinado', 'profissao', 'Engenheiro']],
+      comercial: COMERCIAL.map(([, k, v]) => ['contrato_assinado', k, v] as [Slot, string, string]), docs: [['contrato_assinado', 'contrato_assinado', pessoa]],
+    });
+    h.ia.fila.push(doContrato('Marcos Vinicius de Souza'));
+    expect(await rodar(0)).toEqual({ acao: 'nada' });
+    expect(cad().email).toBeUndefined();
+    expect(cad().profissao).toBeUndefined();
+    expect(privado()).toBeNull();
+    expect((await estado()).etapas[1].kit_texto).toBeUndefined();
+    // outro arquivo no mesmo item, com o nome do contratante em outra grafia: grava
+    arquivoNovo(9);
+    h.ia.fila.push(doContrato('JOSE ANTONIO PEREIRA'));
+    expect(await rodar(0)).toMatchObject({ acao: 'gravou' });
+    expect(cad().email).toMatchObject({ valor: 'outro@exemplo.com', fonte: 'ia', doc: 'contrato_assinado' });
+    expect(privado().venda.valor_centavos).toBe(3_890_000);
+  });
+
+  it('procuração só preenche com contratante conhecido e do mesmo nome', async () => {
+    semear(['procuracao']);
+    h.ia.fila.push(resposta({ campos: [['procuracao', 'nome', 'Maria Outorgante'], ['procuracao', 'profissao', 'Professora']], docs: [['procuracao', 'procuracao', 'Maria Outorgante']] }));
+    expect(await rodar(0)).toEqual({ acao: 'nada' });   // sem contratante conhecido a procuração (do titular da conta) não preenche nada
+    expect(cad().nome).toBeUndefined();
+    await nomeAna();
+    arquivoNovo(7);
+    h.ia.fila.push(resposta({ campos: [['procuracao', 'profissao', 'Professora']], docs: [['procuracao', 'procuracao', 'Maria Outorgante']] }));
+    expect(await rodar(0)).toEqual({ acao: 'nada' });   // outorgante diferente do contratante
+    arquivoNovo(8);
+    h.ia.fila.push(resposta({ campos: [['procuracao', 'profissao', 'Professora']], docs: [['procuracao', 'procuracao', 'Ana Souza']] }));
+    expect(await rodar(0)).toMatchObject({ acao: 'gravou' });
+    expect(cad().profissao).toMatchObject({ valor: 'Professora', fonte: 'ia', doc: 'procuracao' });
+  });
+
+  it('valor, pagamento e prazo nunca sobrescrevem o que já existe; o valor vendido da proposta ligada também vale', async () => {
+    await nomeAna();
+    semear(['orcamento']);
+    // 1) valor já digitado à mão: fica; o pagamento (vazio) e o prazo (vazio) entram sobre o valor que existe
+    semearPrivado({ valor_centavos: 1_000_000 });
+    h.ia.fila.push(resposta({ comercial: COMERCIAL, docs: [['orcamento', 'orcamento', 'Ana Souza']] }));
+    const a = await rodar(0);
+    expect(a).toMatchObject({ acao: 'gravou' });
+    expect(a.acao === 'gravou' && a.campos).toEqual(['pagamento', 'prazo']);
+    expect(privado().venda).toMatchObject({ valor_centavos: 1_000_000, pagamento: [{ forma: 'pix', valor_centavos: 1_000_000 }], ia: { pagamento: 'orcamento', prazo: 'orcamento' } });
+    expect(privado().venda.ia.valor).toBeUndefined();
+    // 2) tudo já preenchido: nada muda
+    const antes = h.cad.get('vendasolar/201.jornada.json')!.toString();
+    arquivoNovo(5);
+    h.ia.fila.push(resposta({ comercial: [['orcamento', 'valor_total', '99.000,00'], ['orcamento', 'pagamento_forma', 'boleto'], ['orcamento', 'prazo_instalacao', 'Em 10 dias']], docs: [['orcamento', 'orcamento', 'Ana Souza']] }));
+    expect(await rodar(0)).toEqual({ acao: 'nada' });
+    expect(h.cad.get('vendasolar/201.jornada.json')!.toString()).toBe(antes);
+    // 3) a proposta ligada já tem valor vendido: a leitura não grava valor (nem o que depende dele)
+    h.cad.delete('vendasolar/201.jornada.json');
+    h.propostas.push(prop('P8', 'Ana Souza', { valor_vendido: 40_000, dados: {} }));
+    injeta(201, { proposta: 'P8' });
+    arquivoNovo(6);
+    h.ia.fila.push(resposta({ comercial: [['orcamento', 'valor_total', '38.900,00'], ['orcamento', 'prazo_instalacao', 'Em 30 dias']], docs: [['orcamento', 'orcamento', 'Ana Souza']] }));
+    expect(await rodar(0)).toEqual({ acao: 'nada' });
+    expect(privado()).toBeNull();
+  });
+
+  it('o valor de confiança baixa ou lido de outro tipo de documento não entra; centavosDe lê o formato brasileiro e recusa o que não parece preço do sistema', async () => {
+    await nomeAna();
+    semear(['orcamento', 'documento_titular']);
+    h.ia.fila.push({
+      saida: (c: any[]) => ({
+        campos: [], documentos: [{ indice: indiceDe(c, 'orcamento'), tipo: 'orcamento', rotulo: '', nota: '', pessoa: '' }],
+        comercial: [
+          { campo: 'valor_total', valor: '38.900,00', indice: indiceDe(c, 'orcamento'), confianca: 'baixa' },
+          { campo: 'prazo_instalacao', valor: 'em 30 dias', indice: indiceDe(c, 'documento_titular'), confianca: 'alta' },   // CNH não tem dado comercial
+        ],
+      }),
+    });
+    expect(await tudo()).toMatchObject({ acao: 'ok', preenchidos: [] });
+    expect(privado()).toBeNull();
+    const { centavosDe } = await import('../services/gerador/leituraComercial');
+    expect([centavosDe('R$ 38.900,00'), centavosDe('38900,5'), centavosDe('38.900'), centavosDe('R$ 450,00'), centavosDe('abc')]).toEqual([3_890_000, 3_890_050, 3_890_000, null, null]);
+  });
+
+  it('kit: só a parte que a proposta ligada não traz e que está sem texto; com a etapa 3 concluída não grava', async () => {
+    await nomeAna();
+    // proposta com as placas completas (10 × Jinko) e sem inversor
+    h.propostas.push(prop('P8', 'Ana Souza', { valor_vendido: null, qtd_placas: 10, inversor: null, qtd_inversor: null, dados: { tab: { mod: 'Jinko', pot: 610 } } }));
+    injeta(201, { proposta: 'P8' });
+    await semearEstado();
+    semear(['orcamento']);
+    h.ia.fila.push(resposta({ comercial: COMERCIAL, docs: [['orcamento', 'orcamento', 'Ana Souza']] }));
+    expect(await rodar(0)).toMatchObject({ acao: 'gravou' });
+    expect((await estado()).etapas[1].kit_texto).toEqual({ inversor: '1 inversor Growatt 5 kW' });   // placas: a proposta já traz completo
+    // o texto que já existe não é sobrescrito
+    await semearEstado((e) => { e.etapas[1].kit_texto = { inversor: 'Inversor Fronius 6 kW' }; });
+    arquivoNovo(3);
+    h.ia.fila.push(resposta({ comercial: COMERCIAL, docs: [['orcamento', 'orcamento', 'Ana Souza']] }));
+    await rodar(0);
+    expect((await estado()).etapas[1].kit_texto).toEqual({ inversor: 'Inversor Fronius 6 kW' });
+    // sem proposta e com a etapa 3 concluída: o kit não entra
+    h.linhas.delete('venda_solar:201');
+    await semearEstado((e) => { e.etapas[3].concluida_em = '2026-10-21T10:00:00.000Z'; e.etapas[3].concluida_por = 'thiago'; });
+    arquivoNovo(4);
+    h.ia.fila.push(resposta({ comercial: COMERCIAL, docs: [['orcamento', 'orcamento', 'Ana Souza']] }));
+    await rodar(0);
+    expect((await estado()).etapas[1].kit_texto).toBeUndefined();
+  });
+
+  it('Ler tudo: uma chamada à IA para todos os arquivos, sem o dedupe por sha, e cada pedido conta na cota de 20 por hora da venda', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado', 'orcamento', 'fachada']);
+    const fila = () => h.ia.fila.push(resposta({
+      campos: [['documento_titular', 'cpf_cnpj', '529.982.247-25'], ['contrato_assinado', 'email', 'ana@exemplo.com']],
+      comercial: COMERCIAL.slice(0, 2), docs: [['documento_titular', 'documento_titular', 'Ana Souza'], ['contrato_assinado', 'contrato_assinado', 'Ana Souza'], ['orcamento', 'orcamento', 'Ana Souza']],
+    }));
+    const { MAX_LEITURAS_POR_HORA } = await import('../services/gerador/cadastroLeituraAuto');
+    fila();
+    const a = await tudo();
+    expect(a).toMatchObject({ acao: 'ok' });
+    expect(a.acao === 'ok' && a.preenchidos).toEqual(expect.arrayContaining(['cpf_cnpj', 'email', 'valor', 'pagamento']));
+    expect(h.ia.chamadas).toHaveLength(1);
+    const blocos = h.ia.chamadas[0].corpo.messages[0].content as any[];
+    expect(blocos.filter((b) => b?.type === 'text' && /^Arquivo \d+, slot/.test(b.text))).toHaveLength(3);   // a fachada (foto) não é lida
+    expect(cad().cpf_cnpj).toMatchObject({ fonte: 'ia', doc: 'documento_titular' });
+    expect(cad().email).toMatchObject({ fonte: 'ia', doc: 'contrato_assinado' });
+    // de novo, os MESMOS arquivos: lê outra vez (sem dedupe) e conta mais uma na cota
+    fila();
+    expect(await tudo()).toMatchObject({ acao: 'ok', preenchidos: [] });
+    expect(h.ia.chamadas).toHaveLength(2);
+    expect(JSON.parse(h.cad.get('vendasolar/201.leitura.json')!.toString()).lidos).toHaveLength(2);
+    // cota cheia: não chama a IA
+    h.cad.set('vendasolar/201.leitura.json', Buffer.from(JSON.stringify({ v: 1, lidos: Array.from({ length: MAX_LEITURAS_POR_HORA }, (_, i) => ({ sha: String(i).padStart(64, 'a'), em: new Date(Date.now() - i * 1000).toISOString() })) })));
+    expect(await tudo()).toEqual({ acao: 'cota' });
+    expect(h.ia.chamadas).toHaveLength(2);
+    // erro da IA: devolve a reserva e responde "falhou"
+    h.cad.set('vendasolar/201.leitura.json', Buffer.from(JSON.stringify({ v: 1, lidos: [] })));
+    h.ia.fila.push({ erro: new Error('IA fora') });
+    expect(await tudo()).toEqual({ acao: 'falhou' });
+    expect(JSON.parse(h.cad.get('vendasolar/201.leitura.json')!.toString()).lidos).toHaveLength(0);
+  });
+
+  it('Ler tudo sem nenhum arquivo legível não gasta cota nem chama a IA', async () => {
+    semear(['fachada']);
+    expect(await tudo()).toEqual({ acao: 'sem_arquivo' });
+    expect(h.ia.chamadas).toHaveLength(0);
+    expect(h.cad.has('vendasolar/201.leitura.json')).toBe(false);
+  });
+
+  it('contrato, procuração e orçamento com o contratante conhecido e SEM nome lido pela IA (pessoa vazia, ou arquivo fora de `documentos`) não gravam nada', async () => {
+    await nomeAna();
+    await semearEstado();
+    semear(['contrato_assinado']);
+    const doContrato = (docs: Array<[Slot, string, string]>) => resposta({
+      campos: [['contrato_assinado', 'email', 'sem-dono@exemplo.com']],
+      comercial: COMERCIAL.map(([, k, v]) => ['contrato_assinado', k, v] as [Slot, string, string]), docs,
+    });
+    h.ia.fila.push(doContrato([['contrato_assinado', 'contrato_assinado', '']]));
+    expect(await rodar(0)).toEqual({ acao: 'nada' });
+    arquivoNovo(2);
+    h.ia.fila.push(doContrato([]));
+    expect(await rodar(0)).toEqual({ acao: 'nada' });
+    expect(cad().email).toBeUndefined();
+    expect(privado()).toBeNull();
+    expect((await estado()).etapas[1].kit_texto).toBeUndefined();
+  });
+
+  it('Ler tudo: 30 por hora por PESSOA (em todas as vendas), com trava; estourou, não chama a IA nem gasta a cota da venda; outra pessoa segue lendo', async () => {
+    await nomeAna();
+    semear(['documento_titular']);
+    const { lerTudoDaVenda, MAX_LEITURAS_POR_PESSOA_HORA } = await import('../services/gerador/cadastroLeituraAuto');
+    expect(MAX_LEITURAS_POR_PESSOA_HORA).toBe(30);
+    const recentes = (n: number) => Buffer.from(JSON.stringify({ v: 1, lidos: Array.from({ length: n }, (_, i) => ({ sha: String(i).padStart(64, 'b'), em: new Date(Date.now() - i * 1000).toISOString() })) }));
+    const pessoa = (nome: string) => JSON.parse(h.cad.get(`leitura-pessoa/${nome}.json`)!.toString()).lidos.length;
+    h.cad.set('leitura-pessoa/nilce.json', recentes(30));   // 30 pedidos dela, em outras vendas
+    expect(await tudo()).toEqual({ acao: 'cota' });
+    expect(h.ia.chamadas).toHaveLength(0);
+    expect(h.cad.has('vendasolar/201.leitura.json') ? JSON.parse(h.cad.get('vendasolar/201.leitura.json')!.toString()).lidos : []).toHaveLength(0);   // a da venda foi devolvida
+    expect(pessoa('nilce')).toBe(30);
+    // 29: ainda lê, e passa a 30 na pessoa e 1 na venda
+    h.cad.set('leitura-pessoa/nilce.json', recentes(29));
+    h.ia.fila.push(resposta({ campos: [['documento_titular', 'cpf_cnpj', '529.982.247-25']], docs: [['documento_titular', 'documento_titular', 'Ana Souza']] }));
+    expect(await tudo()).toMatchObject({ acao: 'ok' });
+    expect(pessoa('nilce')).toBe(30);
+    expect(JSON.parse(h.cad.get('vendasolar/201.leitura.json')!.toString()).lidos).toHaveLength(1);
+    // outra pessoa tem a cota dela
+    h.ia.fila.push(resposta({ campos: [['documento_titular', 'rg_ie', 'MG1234567']], docs: [['documento_titular', 'documento_titular', 'Ana Souza']] }));
+    expect(await lerTudoDaVenda({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome: 'giovanna' })).toMatchObject({ acao: 'ok' });
+    expect(pessoa('giovanna')).toBe(1);
+    // a leitura automática só conta na cota da venda
+    expect(h.cad.has('leitura-pessoa/nilce.json')).toBe(true);
+    // erro da IA devolve as DUAS reservas
+    h.cad.set('leitura-pessoa/nilce.json', recentes(3));
+    h.cad.set('vendasolar/201.leitura.json', Buffer.from(JSON.stringify({ v: 1, lidos: [] })));
+    h.ia.fila.push({ erro: new Error('IA fora') });
+    expect(await tudo()).toEqual({ acao: 'falhou' });
+    expect(pessoa('nilce')).toBe(3);
+    expect(JSON.parse(h.cad.get('vendasolar/201.leitura.json')!.toString()).lidos).toHaveLength(0);
+  });
+
+  it('tempo esgotado: quem ainda estava rodando NÃO grava nada (cadastro, valor, kit) e devolve as reservas das cotas', async () => {
+    await nomeAna();
+    await semearEstado();
+    semear(['orcamento']);
+    const cheia = { campos: [['orcamento', 'email', 'ana@exemplo.com']] as Array<[Slot, string, string]>, comercial: COMERCIAL, docs: [['orcamento', 'orcamento', 'Ana Souza']] as Array<[Slot, string, string]> };
+    process.env.LEITURA_AUTO_TIMEOUT_MS = '30';
+    try {
+      // leitura automática
+      h.ia.fila.push({ espera: 250, ...resposta(cheia) });
+      expect(await rodar(0)).toEqual({ acao: 'falhou' });
+      await new Promise((r) => setTimeout(r, 500));
+      expect(h.ia.chamadas).toHaveLength(1);   // a IA respondeu depois do limite
+      expect(cad().email).toBeUndefined();
+      expect(privado()).toBeNull();
+      expect((await estado()).etapas[1].kit_texto).toBeUndefined();
+      expect(JSON.parse(h.cad.get('vendasolar/201.leitura.json')!.toString()).lidos).toHaveLength(0);
+      // Ler tudo
+      h.ia.fila.push({ espera: 250, ...resposta(cheia) });
+      expect(await tudo()).toEqual({ acao: 'falhou' });
+      await new Promise((r) => setTimeout(r, 500));
+      expect(h.ia.chamadas).toHaveLength(2);
+      expect(cad().email).toBeUndefined();
+      expect(privado()).toBeNull();
+      expect(JSON.parse(h.cad.get('vendasolar/201.leitura.json')!.toString()).lidos).toHaveLength(0);
+      expect(JSON.parse(h.cad.get('leitura-pessoa/nilce.json')!.toString()).lidos).toHaveLength(0);
+    } finally { delete process.env.LEITURA_AUTO_TIMEOUT_MS; }
+  });
+});
