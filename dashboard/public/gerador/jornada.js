@@ -9,7 +9,8 @@
   'use strict';
 
   var L = { dados: null, aba: 'ativas', filtro: 'todas', busca: '', consultor: '', carregando: false, erro: '', menu: null };
-  var O = { card: null, dados: null, fase2: null, fase3: null, dinheiro: null, ficha: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0, erroSlot: {}, ocupSlot: {} };
+  var O = { card: null, dados: null, fase2: null, fase3: null, dinheiro: null, ficha: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0, erroSlot: {}, ocupSlot: {},
+    lendo: null, lendoFalhou: '', lendoT: 0, edita: {}, rascunho: {}, confirmando: {}, erroSec: {}, abertos: {}, vendaEdita: false };
 
   // ── Rede ───────────────────────────────────────────────────────────────────
   function api(rota, metodo, corpo, ms) {
@@ -42,7 +43,7 @@
     s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', '14'); s.setAttribute('height', '14'); s.setAttribute('aria-hidden', 'true');
     s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2.4'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
     var p = document.createElementNS(SVG, 'path');
-    p.setAttribute('d', tipo === 'ok' ? 'M5 12.5l4.5 4.5L19 7.5' : 'M7 11V8a5 5 0 0110 0v3M6 11h12v9H6z');
+    p.setAttribute('d', tipo === 'ok' ? 'M5 12.5l4.5 4.5L19 7.5' : tipo === 'baixo' ? 'M12 5v13M6.5 12.5L12 18l5.5-5.5' : 'M7 11V8a5 5 0 0110 0v3M6 11h12v9H6z');
     s.appendChild(p);
     return s;
   }
@@ -290,7 +291,166 @@
       '.jor-cl-menu{position:absolute;right:0;top:100%;z-index:20;margin-top:4px;min-width:180px;padding:4px;border:1px solid var(--n-bd);border-radius:10px;background:var(--n-sf);box-shadow:var(--sombra)}',
       '.jor-cl-menu button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--io-er-tx);font:inherit;font-size:13px;font-weight:600;padding:8px 10px;border-radius:8px;cursor:pointer}',
       '.jor-cl-menu button:hover{background:var(--io-er-sf)}',
+      // A página do cliente (18/11/2026): o resumo no topo e a linha do tempo. Cor só por token.
+      '.jor-q{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-left:6px;border-radius:50%;border:1px solid var(--n-bd2);color:var(--n-tx2);font-size:12px;font-weight:700;font-style:normal;cursor:help;vertical-align:middle;flex:0 0 22px}',
+      '.jor-q:focus-visible{outline:2px solid var(--io-azul-tx);outline-offset:2px}',
+      // Resumo
+      '.jor-res{padding:20px 24px;margin:0 0 16px}',
+      '.jor-res-topo{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding-bottom:16px;border-bottom:1px solid var(--n-bd)}',
+      '.jor-res-topo .jor-num{font-size:16px;color:var(--io-titulo);background:var(--n-sf3);border-radius:8px;padding:2px 10px}',
+      '.jor-res-topo h2{font-size:22px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}',
+      '.jor-res-g{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:20px 24px;margin-top:18px}',
+      '.jor-grp{min-width:0;scroll-margin-top:16px}',
+      '.jor-grp:focus{outline:none}',
+      '.jor-grp-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 10px}',
+      '.jor-grp-t h3{font-size:15px;font-weight:700;line-height:1.3}',
+      '.jor-grp-sit{margin-top:20px}',
+      '.jor-ficha-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}',
+      '.jor-fc{min-width:0;padding:8px 12px;border:1px solid var(--n-bd);border-radius:10px;background:var(--n-sf);display:flex;flex-direction:column;gap:2px}',
+      '.jor-fc.vazio{border-style:dashed;border-color:var(--n-bd2);background:var(--n-sf2)}',
+      '.jor-fc.edita{grid-column:1/-1;border-color:var(--io-borda-campo);padding:12px}',
+      '.jor-fc-rot{display:flex;align-items:center;gap:6px;min-height:20px;font-size:12px;font-weight:600;color:var(--n-tx2)}',
+      '.jor-fc-rot svg,.jor-rc-rot svg{flex:0 0 14px;color:var(--io-ok-fg)}',
+      '.jor-fc-org{margin-left:auto;font-size:12px;font-weight:500;color:var(--n-tx3);white-space:nowrap}',
+      '.jor-fc-org.ia{color:var(--io-azul-tx);font-weight:600}',
+      '.jor-fc-v{display:flex;align-items:center;gap:8px;min-height:32px}',
+      '.jor-fc-v>span{flex:1 1 auto;min-width:0;font-size:14px;font-weight:600;line-height:1.35;color:var(--io-titulo);overflow-wrap:anywhere}',
+      '.jor-fc.nome .jor-fc-v>span{font-size:16px;font-weight:700}',
+      '.jor-fc.cpf .jor-fc-v>span{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-variant-numeric:normal}',
+      '.jor-fc.vazio .jor-fc-v>span{font-size:14px;font-weight:500;color:var(--n-tx3);font-family:inherit}',
+      '.jor-fc-ed{flex:0 0 auto;min-height:32px;padding:4px 10px;border:0;border-radius:8px;background:transparent;color:var(--io-azul-tx);font:inherit;font-size:13px;font-weight:600;cursor:pointer}',
+      '.jor-fc-ed:hover:not(:disabled){background:var(--n-sf3)}',
+      '.jor-fc-ed:focus-visible{outline:2px solid var(--io-azul-tx);outline-offset:1px}',
+      '.jor-fc-ed:disabled{color:var(--n-tx3);cursor:not-allowed}',
+      '.jor-resumo{display:grid;grid-template-columns:minmax(0,1fr);border:1px solid var(--n-bd);border-radius:12px;background:var(--n-sf);overflow:hidden}',
+      '.jor-rc{min-width:0;display:flex;align-items:baseline;gap:12px;padding:8px 12px;border-top:1px solid var(--n-bd)}',
+      '.jor-rc:first-child{border-top:0}',
+      '.jor-rc-rot{flex:0 0 92px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--n-tx2)}',
+      '.jor-rc-v{flex:1 1 auto;min-width:0;font-size:14px;font-weight:600;line-height:1.4;color:var(--io-titulo);overflow-wrap:anywhere}',
+      '.jor-rc-v.vazio{color:var(--n-tx3);font-weight:500}',
+      '.jor-rc-v small{display:block;font-size:12px;font-weight:500;color:var(--n-tx2)}',
+      '.jor-rc-lin{display:block}',
+      '.jor-sit{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}',
+      '.jor-sit-c{min-width:0;padding:8px 12px;border:1px solid var(--n-bd);border-radius:10px;background:var(--n-sf)}',
+      '.jor-sit-c small{display:block;font-size:12px;font-weight:600;color:var(--n-tx2)}',
+      '.jor-sit-c b{display:block;font-size:14px;font-weight:600;line-height:1.4;color:var(--io-titulo);overflow-wrap:anywhere}',
+      '.jor-sit-c.vazio{border-style:dashed;border-color:var(--n-bd2);background:var(--n-sf2)}',
+      '.jor-sit-c.vazio b{color:var(--n-tx3);font-weight:500}',
+      '.jor-sit-c.av b{color:var(--io-ambar-tx)}',
+      '.jor-sit-c a{color:var(--io-azul-tx);font-weight:600;text-underline-offset:2px}',
+      '.jor-res-din{margin-top:20px;padding-top:18px;border-top:1px solid var(--n-bd)}',
+      '.jor-res-din .jor-din-painel{border:0;box-shadow:none;padding:0;margin:0;background:transparent}',
+      '.jor-res-din .jor-din-tit{font-size:15px;font-weight:700;margin:0 0 10px}',
+      '.jor-res-din .jor-din-faixa{border:0;box-shadow:none;padding:0;background:transparent;gap:8px}',
+      '.jor-res-din .jor-din-c{background:var(--n-sf2)}',
+      '.jor-res-din .jor-bloco-t{font-size:15px;font-weight:700}',
+      '.jor-tl>li:last-child::before{display:none}',
+      '.jor-res-din>.jor-bloco{margin-top:18px;padding-top:16px;border-top:1px solid var(--n-bd)}',
+      '.jor-lendo{display:flex;align-items:center;gap:10px;padding:8px 12px;margin:0 0 10px;border-radius:10px;background:var(--io-azul-sf);color:var(--io-azul-tx);font-weight:600}',
+      '.jor-lendo i{flex:0 0 10px;width:10px;height:10px;border-radius:50%;background:currentColor;animation:jor-pulso 1.2s ease-in-out infinite}',
+      '.jor-doc .jor-lendo{grid-column:1/-1;margin:0;padding:6px 10px;font-size:13px}',
+      '@keyframes jor-pulso{0%,100%{opacity:.35;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}',
+      '@media (prefers-reduced-motion:reduce){.jor-lendo i{animation:none}}',
+      // Linha do tempo: um nó por passo, o marcador numa linha vertical; o atual aberto, o feito em uma linha, o futuro apagado.
+      '.jor-tl{list-style:none;margin:16px 0 0;padding:0}',
+      '.jor-tl-no,.jor-tl-portao{position:relative;display:grid;grid-template-columns:32px minmax(0,1fr);gap:0 14px;padding:0 0 20px;scroll-margin-top:16px}',
+      '.jor-tl-no:focus{outline:none}',
+      '.jor-tl-no::before{content:"";position:absolute;left:15px;top:36px;bottom:4px;width:2px;border-radius:2px;background:var(--n-bd)}',
+      '.jor-tl-no.feito::before{background:var(--io-ok)}',
+      '.jor-tl-mk{position:relative;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;background:var(--n-sf);border:2px solid var(--n-bd2);color:var(--n-tx2)}',
+      '.jor-tl-mk.vazio{border:0;background:transparent}',
+      '.jor-tl-no.feito .jor-tl-mk{background:var(--io-ok);border-color:var(--io-ok);color:var(--n-inv)}',
+      '.jor-tl-no.atual .jor-tl-mk{background:var(--io-amarelo);border-color:var(--io-tinta);color:var(--io-tinta);box-shadow:0 0 0 4px var(--io-amarelo-sf)}',
+      '.jor-tl-no.pendente .jor-tl-mk{border-color:var(--io-ambar-tx);color:var(--io-ambar-tx)}',
+      '.jor-tl-no.futuro .jor-tl-mk{border-style:dashed;color:var(--n-tx3)}',
+      '.jor-tl-cx{min-width:0;padding-top:4px}',
+      '.jor-tl-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-height:28px}',
+      '.jor-tl-t h4{margin:0;font-size:16px;font-weight:700;line-height:1.3;color:var(--io-titulo)}',
+      '.jor-tl-no.feito .jor-tl-t h4{font-weight:600}',
+      '.jor-tl-no.futuro .jor-tl-t h4{color:var(--n-tx3);font-weight:600}',
+      '.jor-tl-t .jor-tl-ac{margin-left:auto}',
+      '.jor-tl-res{margin:2px 0 0;font-size:13px;color:var(--n-tx2)}',
+      '.jor-tl-no.futuro .jor-tl-res{color:var(--n-tx3)}',
+      '.jor-tl-corpo{position:relative;z-index:1;margin-top:10px;padding:16px;border:1px solid var(--n-bd);border-radius:12px;background:var(--n-sf)}',
+      '.jor-tl-no.atual .jor-tl-corpo{border-color:var(--io-borda-campo);box-shadow:var(--sombra)}',
+      '.jor-tl-corpo>.jor-bloco+.jor-bloco{margin-top:16px;padding-top:16px;border-top:1px solid var(--n-bd)}',
+      '.jor-tl-corpo .jor-bloco-t{font-size:15px}',
+      '.jor-tl-corpo>.jor-nota:first-child,.jor-tl-corpo>.jor-docs-ac:first-child,.jor-tl-corpo>.jor-perg:first-child{margin-top:0}',
+      '.jor-tl-corpo>.jor-bloco>.jor-nota:first-child{margin-top:0}',
+      '.jor-tl-fase{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:4px 0 16px;padding:10px 12px;border-radius:10px;background:var(--n-sf2);border:1px solid var(--n-bd)}',
+      '.jor-tl-fase b{font-size:14px;color:var(--io-titulo)}',
+      '.jor-tl-fase .jor-avatar{width:28px;height:28px;flex:0 0 28px;font-size:12px}',
+      '.jor-tl-fase .jor-nota{margin:0}',
+      '.jor-tl-fase-g{margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px;color:var(--n-tx2)}',
+      '.jor-tl-portao .jor-portao-barra{margin-top:0}',
+      '.jor-tl-portao .jor-nota{margin:8px 0 0}',
+      '.jor-perg{display:flex;align-items:center;flex-wrap:wrap;margin:14px 0 8px;font-size:14px;font-weight:600;color:var(--io-titulo)}',
+      '.jor-sep{height:1px;background:var(--n-bd);margin:16px 0}',
+      '.jor-vai{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0 0 12px;padding:0}',
+      '.jor-vai li{padding:4px 10px;border-radius:999px;background:var(--io-av-sf);color:var(--io-ambar-tx);font-size:13px;font-weight:600}',
+      '.jor-conf{padding:12px 0;border-top:1px solid var(--n-bd)}',
+      '.jor-conf-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:14px}',
+      '.jor-conf-t b{color:var(--io-titulo)}',
+      '.jor-conf .jor-nota{margin:4px 0 0}',
+      '.jor-conf .jor-din-acoes{margin-top:8px}',
+      '.jor-conf .jor-erro:empty{display:none}',
+      '.jor-pe-ok{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--io-ok-fg)}',
+      // Documentos: uma lista só, pedido e anexo na mesma linha.
+      '.jor-docs-ac{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 12px}',
+      '.jor-docs-ac .jor-nota{margin:0}',
+      '.jor-docs-l{border:1px solid var(--n-bd);border-radius:12px;background:var(--n-sf)}',
+      '.jor-doc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,320px);gap:8px 16px;align-items:center;padding:10px 14px;border-top:1px solid var(--n-bd)}',
+      '.jor-doc:first-child{border-top:0}',
+      '.jor-doc-nome{display:block;font-weight:600;color:var(--io-titulo)}',
+      '.jor-doc-est{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:13px;color:var(--n-tx2)}',
+      '.jor-doc-est .st{font-weight:600}',
+      '.jor-doc-est .st-falta{color:var(--io-ambar-tx)}',
+      '.jor-doc-est .st-ped{color:var(--io-azul-tx)}',
+      '.jor-doc-est .st-ok{color:var(--io-ok-fg)}',
+      '.jor-passos{display:inline-flex;align-items:center}',
+      '.jor-passos i{display:block;width:10px;height:10px;border-radius:50%;border:2px solid var(--n-bd2);background:var(--n-sf)}',
+      '.jor-passos b{display:block;width:10px;height:2px;background:var(--n-bd2)}',
+      '.jor-passos.p0 i:first-child{background:var(--io-ambar-tx);border-color:var(--io-ambar-tx)}',
+      '.jor-passos.p1 .on{background:var(--io-azul-tx);border-color:var(--io-azul-tx)}',
+      '.jor-passos.ok i,.jor-passos.ok b{background:var(--io-ok);border-color:var(--io-ok)}',
+      '.jor-doc-ped{display:inline-flex;align-items:center;gap:8px;min-height:40px;font-size:13px;font-weight:500;color:var(--n-tx2);cursor:pointer}',
+      '.jor-doc .jor-anexo{padding:0;border:0}',
+      '.jor-papel{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;align-items:center;padding:12px 14px;border-top:1px solid var(--n-bd)}',
+      '.jor-papel:first-child{border-top:0}',
+      '.jor-papel-ac{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:flex-end}',
+      '.jor-venda-form{margin-top:12px;padding:16px;border:1px solid var(--io-borda-campo);border-radius:12px;background:var(--n-sf2)}',
+      '.jor-venda-form>.jor-sub-t:first-child{margin-top:0}',
+      '.jor-rolar{overflow-x:auto;-webkit-overflow-scrolling:touch}',
+      '.jor-grade-bt{display:flex;align-items:flex-end}',
+      '#jor-s-vistoria .jor-ob-par{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}',
+      '#jor-s-vistoria .jor-bloco>label{display:flex;flex-direction:column;gap:4px;margin:10px 0 0;font-size:13px;font-weight:500;color:var(--n-tx2)}',
+      '#jor-s-vistoria .jor-bloco>label .jor-sel{align-self:flex-start}',
+      '#jor-s-vistoria .jor-ob-grupo{margin-top:18px;font-size:14px;color:var(--io-titulo)}',
+      '.jor-quadro{margin:0 0 32px;padding:8px 24px 24px}',
+      '.jor-quadro>.jor-vdc-sum{font-size:18px;font-weight:700;padding:14px 0 6px}',
+      '.jor-quadro.jor-vdc-det{margin-top:0;border-top:0}',
+      // Celular: atalho logo abaixo do cabeçalho da ficha, para pular direto ao passo atual. Nada da ficha some.
+      '.jor-ir-atual{display:none}',
+      '@media (max-width:599px){',
+      '.jor-ir-atual{display:flex;width:100%;min-height:44px;margin:12px 0 0;justify-content:center;touch-action:manipulation}',
+      '}',
       '@media (max-width:760px){',
+      '.jor-res{padding:16px}',
+      '.jor-res-g,.jor-ficha-g{grid-template-columns:minmax(0,1fr)}',
+      '.jor-sit{grid-template-columns:repeat(2,minmax(0,1fr))}',
+      '.jor-doc,.jor-papel{grid-template-columns:minmax(0,1fr)}',
+      '.jor-papel-ac{justify-content:flex-start}',
+      '.jor-fc-ed{min-height:44px}',
+      '.jor-tl-no,.jor-tl-portao{grid-template-columns:28px minmax(0,1fr);gap:0 10px}',
+      '.jor-tl-mk{width:28px;height:28px;font-size:13px}',
+      '.jor-tl-no::before{left:13px;top:32px}',
+      '.jor-tl-corpo{padding:12px;margin-left:-38px}',
+      '.jor-tl-fase-g{margin-left:0;width:100%}',
+      '.jor-tl .jor-btn-link,.jor-tl .jor-btn{min-height:44px}',
+      '.jor-rc-rot{flex-basis:84px}',
+      '.jor-res-din .jor-din-c b{font-size:17px}',
+      '.jor-cols>.jor-dir{order:-1}',
+      '.jor-quadro{padding:4px 16px 16px}',
       '.jor-dl{grid-template-columns:minmax(0,1fr)}',
       '.jor-cols{grid-template-columns:minmax(0,1fr)}',
       '.jor-campos,.jor-fotos{grid-template-columns:minmax(0,1fr)}',
@@ -511,6 +671,7 @@
   function sairDaObra() {
     if (O.vdcNo && typeof vdcFechar === 'function') { try { vdcFechar(O.vdcNo); } catch (e) { /* já fechado */ } }
     O.vdcChave = ''; O.vdcNo = null; O.vdcDet = null; O.vdcPainel = 0; O.obraNo = null; O.fase2 = null; O.dinheiro = null; O.ficha = null; O.erroSlot = {}; O.ocupSlot = {};
+    O.lendo = null; O.lendoFalhou = ''; if (O.lendoT) { clearTimeout(O.lendoT); O.lendoT = 0; } O.edita = {}; O.rascunho = {}; O.confirmando = {}; O.erroSec = {}; O.abertos = {}; O.vendaEdita = false;
     if (O.debounce) { clearTimeout(O.debounce); O.debounce = 0; }
   }
 
@@ -523,7 +684,7 @@
     if (!O.obraNo) { O.obraNo = el('div'); O.obraNo.id = 'jor-obra'; }
     if (!O.vdcNo) { O.vdcNo = el('div'); O.vdcNo.id = 'jor-vdc'; }
     // O quadro de documentos mora num <details> fechado, que o desenharObra põe dentro da etapa 1 a 3 (e esconde nas outras). O #jor-vdc continua o mesmo nó.
-    if (!O.vdcDet) { O.vdcDet = el('details', 'jor-vdc-det'); O.vdcDet.open = true; O.vdcDet.appendChild(el('summary', 'jor-vdc-sum', 'Mais documentos, ligações e cadastro')); O.vdcDet.appendChild(O.vdcNo); O.vdcPainel = 0; }
+    if (!O.vdcDet) { O.vdcDet = el('details', 'jor-vdc-det'); O.vdcDet.open = true; O.vdcDet.appendChild(el('summary', 'jor-vdc-sum', 'Todos os documentos e cadastro')); O.vdcDet.appendChild(O.vdcNo); O.vdcPainel = 0; }
     if (!c.contains(O.obraNo)) c.replaceChildren(O.obraNo);
     O.obraNo.replaceChildren(el('p', 'jor-nota', 'Carregando…'));
     carregarObra();
@@ -719,12 +880,13 @@
   function enviarArquivo(chave, arqs, troca, refazer, opc) {
     opc = opc || {}; var ck = opc.ck || chave;   // ck: a chave do estado na tela (item com vários arquivos tem uma por arquivo)
     if (O.ocupSlot[ck]) return;
-    var card = String(O.card); var falha = '';
+    var card = String(O.card); var falha = ''; var idsAntes = null;
     delete O.erroSlot[ck];
     O.ocupSlot[ck] = troca ? 'Trocando o arquivo…' : 'Enviando…';
     refazer();
     garantirQuadro().then(function (st) {
       if (!st) { falha = 'Não consegui abrir os documentos agora. Tente de novo.'; return null; }
+      idsAntes = idsDoSlot(chave);
       if (troca) {
         var a = arquivoDoSlot(chave, opc.id);
         if (!a || a.fora || a.id == null) { falha = 'Não achei o arquivo atual deste item. Atualize a tela e tente de novo.'; return null; }
@@ -740,6 +902,13 @@
     }).catch(function () { falha = 'Não consegui enviar agora. Tente de novo.'; }).then(function () {
       delete O.ocupSlot[ck];
       if (falha) { if (String(O.card) === card) O.erroSlot[ck] = falha; toast(falha); }
+      // CNH e conta de luz: o servidor lê o documento sozinho depois do upload. A tela espera a ficha do cliente mudar,
+      // mas só quando há campo vazio para preencher e o arquivo é novo (arquivo repetido não cria linha nova no item: nada novo para ler).
+      if (!falha && String(O.card) === card && SLOTS_LIDOS[chave]) {
+        var idsDepois = idsDoSlot(chave);
+        var repetido = !troca && !!idsAntes && !!idsDepois && idsDepois.every(function (i) { return idsAntes.indexOf(i) >= 0; });
+        depoisDoUpload(chave, repetido);
+      }
       if (String(O.card) === card) releia();
     });
   }
@@ -883,160 +1052,6 @@
   }
 
   function abrirQuadro() { if (O.vdcDet) { O.vdcDet.open = true; if (O.vdcNo && O.vdcNo.scrollIntoView) O.vdcNo.scrollIntoView({ behavior: 'smooth' }); } }
-  /** Os blocos de cada etapa, na ordem da tela: [bloco do servidor, título]. */
-  var BLOCOS_ETAPA = {
-    1: [['cliente', 'Dados do cliente'], ['venda', 'Venda'], ['papeis', 'Contrato e procuração'], ['pedidos', 'Pedido ao cliente'], ['excedente', 'Excedente'], ['vistoria', 'Relatório de vistoria']],
-    2: [['anexos', 'Anexos']],
-    3: [['equipamento', 'Equipamento']],
-  };
-  var RESUMO_QUADRO = { 1: 'Mais documentos, ligações e cadastro', 2: 'Mais documentos, ligações e cadastro', 3: 'Trello, rateio e arquivos do cliente' };
-
-  function desenharObra() {
-    var d = O.dados; var n = O.obraNo; if (!d || !n) return;
-    var raiz = el('div');
-    // Cabeçalho
-    var cab = el('div', 'jor-cab jor-cartao');
-    cab.appendChild(el('span', 'jor-num', d.codigo || '*'));
-    var t = el('div', 'jor-cab-t'); t.appendChild(el('b', '', d.card.cliente));
-    var vend = d.etapas[0] && d.etapas[0].dono && d.etapas[0].dono[0] ? nomeBonito(d.etapas[0].dono[0].nome) : nomeBonito(d.card.vendedor);
-    var vEm = d.etapas[0] && d.etapas[0].aberta_em ? quando(d.etapas[0].aberta_em).split(' ')[0] : '';
-    var kwpTxt = d.proposta && d.proposta.kwp ? String(d.proposta.kwp).replace('.', ',') + ' kWp' : '';
-    t.appendChild(el('span', '', [kwpTxt, cidadeUF(d.card.cidade), 'Vendido por ' + (nomeBonito(d.card.vendedor) || vend) + (vEm ? ' em ' + vEm : '')].filter(Boolean).join(' · ')));
-    cab.appendChild(t);
-    var cac = el('div', 'jor-cab-ac');
-    if (atualEtapa()) cac.appendChild(el('span', 'jor-pilula', 'Etapa ' + atualEtapa() + ' de 9'));
-    if (window.Jornada.extras.bookPdf && O.fase3 && O.fase3.pode && O.fase3.pode.book) { var bdoc = btn('Documento da obra', '', function () { window.Jornada.extras.bookPdf(O.card, bdoc); }); cac.appendChild(bdoc); }
-    if (O.dinheiro && O.dinheiro.visivel !== false && O.dinheiro.livro && window.Jornada.dinheiro) add(cac, btn('Dinheiro', '', function () { window.Jornada.dinheiro.abrirLivro(); }));
-    add(cac, btn('Clientes', '', abrirLista));
-    if (d.pode.cancelar) add(cac, btn('Venda cancelada', 'jor-btn-disc', function () { cancelarDialogo(O.card, carregarObra); }));
-    cab.appendChild(cac);
-    raiz.appendChild(cab);
-    if (window.Jornada.dinheiro && window.Jornada.dinheiro.faixa) window.Jornada.dinheiro.faixa(raiz, O.dinheiro);
-    if (d.cancelada) {
-      var fx = el('div', 'jor-faixa', 'Venda cancelada em ' + ddmm(d.cancelada.em) + ' por ' + nomeBonito(d.cancelada.por) + '. Motivo: ' + (d.cancelada.motivo || ''));
-      if (d.pode.descancelar) fx.appendChild(btn('Desfazer o cancelamento', '', function () { desfazerDialogo(); }));
-      raiz.appendChild(fx);
-    }
-    if (d.aviso) raiz.appendChild(el('p', 'jor-aviso', d.aviso));
-    // Régua: círculos de 32 px ligados por linha, a pílula "N · sigla" e o gasto embaixo.
-    var atual = atualEtapa();
-    if (O.painel === null) O.painel = (atual >= 1 && atual <= 9) ? atual : 1;
-    var ets = etapasMescladas();
-    var regCx = el('div', 'jor-regua-cx jor-cartao'); var reg = el('div', 'jor-regua'); var temGasto = false;
-    ets.forEach(function (e, i) {
-      var feita = !!e.concluida_em || (atual > e.n);
-      var davez = e.n === atual;
-      var b = el('button', 'jor-passo ' + (feita ? 'feita' : davez ? 'davez' : 'futura') + (O.painel === e.n ? ' sel' : '')); b.type = 'button';
-      var tr = el('span', 'jor-passo-trilha');
-      tr.appendChild(el('span', 'jor-passo-linha ' + (i === 0 ? 'nada' : (e.n <= atual ? 'ok' : ''))));
-      var bola = el('span', 'jor-passo-bola'); if (feita) bola.appendChild(icone('ok')); else if (davez) bola.textContent = String(e.n); else bola.appendChild(icone('lock'));
-      tr.appendChild(bola);
-      tr.appendChild(el('span', 'jor-passo-linha ' + (i === ets.length - 1 ? 'nada' : (e.n < atual ? 'ok' : ''))));
-      b.appendChild(tr);
-      b.appendChild(el('span', 'jor-passo-nome', e.curto));
-      b.appendChild(el('span', 'jor-passo-dono', e.n + ' · ' + (e.dono || []).map(function (x) { return x.iniciais; }).join(' ')));
-      var gp = window.Jornada.dinheiro && window.Jornada.dinheiro.gastoDaRegua ? window.Jornada.dinheiro.gastoDaRegua(O.dinheiro, e.n, atual) : '';
-      if (gp) { b.appendChild(el('span', 'jor-passo-gasto', gp)); temGasto = true; }
-      b.setAttribute('aria-label', 'Etapa ' + e.n + ' ' + e.nome + (feita ? ', concluída' : davez ? ', da vez' : ', ainda não chegou'));
-      if (e.n === 9 && atual < 9) { b.setAttribute('aria-disabled', 'true'); }
-      else if (e.n > 3 && !O.fase2) { b.title = 'Não consegui ler esta parte agora.'; b.setAttribute('aria-disabled', 'true'); }
-      else if (e.n > atual) { b.setAttribute('aria-disabled', 'true'); }
-      else {
-        b.addEventListener('click', function () { O.painel = e.n; desenharObra(); });
-      }
-      reg.appendChild(b);
-    });
-    regCx.appendChild(reg);
-    if (temGasto) regCx.appendChild(el('p', 'jor-regua-pe', 'O valor embaixo de cada etapa é o gasto dela.'));
-    raiz.appendChild(regCx);
-    // Duas colunas: a etapa num cartão só, e o prazo na coluna ao lado.
-    var et = ets[(O.painel || 1) - 1];
-    var f2 = O.fase2; var f2et = et.n >= 4 && et.n <= 8;
-    var cols = el('div', 'jor-cols'); var esq = el('div', 'jor-esq jor-cartao'); var dir = el('div', 'jor-dir');
-    var topo = el('div', 'jor-etapa-topo'); var idc = el('div', 'jor-etapa-id');
-    idc.appendChild(el('h3', 'jor-etapa-t', 'Etapa ' + et.n + ' · ' + et.nome));
-    if (et.n === atual && !et.concluida_em) idc.appendChild(etq('Da vez', 'vez'));
-    topo.appendChild(idc);
-    var qd = et.aberta_em ? quando(et.aberta_em) : '';
-    if (qd) topo.appendChild(el('span', 'jor-etapa-quando', 'Aberta em ' + qd));
-    esq.appendChild(topo);
-    (et.dono || []).forEach(function (x) {
-      var dn = el('div', 'jor-dono'); dn.appendChild(el('span', 'jor-avatar', x.iniciais));
-      var tx = el('div'); tx.appendChild(el('div', 'jor-dono-nome', nomeBonito(x.nome))); tx.appendChild(el('div', 'jor-dono-papel', 'Responsável pela etapa')); dn.appendChild(tx);
-      esq.appendChild(dn);
-    });
-    if (et.n === 1) etapa1(esq, d, et); else if (et.n === 2) etapa2(esq, d, et); else if (et.n === 3) etapa3(esq, d, et);
-    else if (et.n === 9 && window.Jornada.etapas[9]) window.Jornada.etapas[9](esq, d, et, O.fase3);
-    else if (f2 && window.Jornada.etapas[et.n]) window.Jornada.etapas[et.n](esq, d, et, f2);
-    else if (f2et) { var pf = el('div', 'jor-bloco'); pf.appendChild(el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); pf.appendChild(btn('Tentar de novo', '', carregarObra)); esq.appendChild(pf); }
-    // A vistoria e o banco moram na etapa 1 (etapa1 os chama dentro das suas seções). A indicação segue o contrato.
-    if (et.n === 1 && window.Jornada.extras.indicacao) window.Jornada.extras.indicacao(esq, d, O.fase3);
-    if (et.n <= 8 && window.Jornada.dinheiro && window.Jornada.dinheiro.gastosDaEtapa && (et.n <= 3 || f2)) window.Jornada.dinheiro.gastosDaEtapa(esq, et.n, O.dinheiro);
-    // Portão
-    if (et.n <= 3 || (f2et && f2)) {
-      var pt = el('div', 'jor-portao'); pt.appendChild(el('div', 'jor-bloco-t', 'Para concluir'));
-      function listaItens(itens) {
-        var ul = el('ul', 'jor-itens');
-        itens.forEach(function (i) {
-          var li = el('li', i.feito ? 'ok' : 'falta'); var ck = el('span', 'jor-ck'); if (i.feito) ck.appendChild(icone('ok')); li.appendChild(ck); li.appendChild(el('span', '', i.texto)); ul.appendChild(li);
-        });
-        return ul;
-      }
-      // Etapas 1 a 3: os itens agrupados pelo bloco da tela; o que não tem grupo (o resto da homologação) entra numa lista só, no fim.
-      var grupos = BLOCOS_ETAPA[et.n] || []; var usados = {};
-      grupos.forEach(function (g) {
-        var its = itensDoBloco(et, g[0]); if (!its.length) return;
-        usados[g[0]] = true; pt.appendChild(subTitulo(g[1])); pt.appendChild(listaItens(its));
-      });
-      var resto = et.itens.filter(function (i) { return !usados[i.bloco]; });
-      if (resto.length) pt.appendChild(listaItens(resto));
-      var concluida = !!et.concluida_em;
-      var podeLista = et.n <= 3 ? d.pode.concluir : ((f2 && f2.pode && f2.pode.concluir) || []);
-      var pode = podeLista.indexOf(et.n) >= 0 && et.falta === 0 && !concluida;
-      var barra = el('div', 'jor-portao-barra');
-      if (concluida) {
-        var selo = el('span', 'jor-portao-feito'); selo.appendChild(icone('ok')); selo.appendChild(document.createTextNode('Etapa concluída')); barra.appendChild(selo);
-      } else {
-        barra.appendChild(el('p', 'jor-portao-frase', et.falta > 0
-          ? 'Falta ' + plural(et.falta, 'item', 'itens') + ': ' + et.itens.filter(function (i) { return !i.feito; }).map(function (i) { return i.texto; }).join(', ') + '.'
-          : 'Tudo pronto para concluir.'));
-        var bc = btn(et.n === 8 ? 'Finalizar a obra' : 'Concluir etapa', 'jor-btn-pri jor-btn-grande', function () { concluir(et.n, bc); });
-        bc.disabled = !pode; barra.appendChild(bc);
-      }
-      pt.appendChild(barra);
-      var prox = ets[et.n];
-      if (prox && et.n !== 3 && et.n !== 8) pt.appendChild(el('p', 'jor-nota', 'Ao concluir: abre ' + prox.nome + ' e ' + (prox.dono || []).map(function (x) { return nomeBonito(x.nome); }).join(' e ') + ' recebe o aviso.'));
-      if (et.n === 2) pt.appendChild(el('p', 'jor-nota', 'Entrada, financiamento e comissões não travam esta etapa.'));
-      if (et.n === 3) pt.appendChild(el('p', 'jor-nota', 'Ao concluir: abre Compra (Thiago e Diego).'));
-      if (et.n === 8) pt.appendChild(el('p', 'jor-nota', 'Fechada, a conta trava. Só o Thiago reabre, com motivo.'));
-      esq.appendChild(pt);
-      if (O.msg) { var mm = el('p', 'jor-erro', O.msg); mm.setAttribute('role', 'status'); esq.appendChild(mm); }
-    }
-    // O quadro de documentos e cadastro continua montado (os anexos e o Trello dependem dele), agora dentro da etapa 1 a 3, fechado.
-    if (O.vdcDet) {
-      O.vdcPainel = et.n;
-      if (et.n <= 3) { O.vdcDet.firstChild.textContent = RESUMO_QUADRO[et.n]; esq.appendChild(O.vdcDet); }
-      else { var oculto = el('div'); oculto.hidden = true; oculto.appendChild(O.vdcDet); raiz.appendChild(oculto); }
-    }
-    // Prazo e cobrança
-    var pz = el('div', 'jor-bloco'); pz.appendChild(el('div', 'jor-bloco-t', 'Prazo e cobrança'));
-    if (et.prazo && et.prazo.vence) pz.appendChild(el('p', '', et.prazo.rotulo + ' · ' + ddmm(et.prazo.vence)));
-    var sit = et.situacao || { tipo: 'sem_prazo', texto: '' };
-    var sp = el('p', sit.tipo === 'atrasada' || sit.tipo === 'travada' ? 'jor-erro' : sit.tipo === 'no_prazo' || sit.tipo === 'vence_hoje' ? 'jor-ok' : '', sit.texto); pz.appendChild(sp);
-    var esp = et.n <= 3 ? d.esperando : (f2 ? f2.esperando : null);
-    var podeEsp = et.n <= 3 ? d.pode.esperar : !!(f2 && f2.pode && f2.pode.esperar);
-    if (esp && esp.etapa === et.n) {
-      pz.appendChild(el('p', '', 'Esperando até ' + ddmm(esp.ate) + ' · ' + nomeBonito(esp.motivo)));
-      if (podeEsp) pz.appendChild(btn('Voltar a cobrar', '', function () { esperar({ voltar: true }, et.n); }));
-    } else if (podeEsp && et.n <= 8 && !et.concluida_em) {
-      pz.appendChild(btn('Esperando', '', function () { esperarDialogo(et.n); }));
-    }
-    if (window.Jornada.extras.avisos) window.Jornada.extras.avisos(pz, O.fase3, et.n);
-    dir.appendChild(pz);
-    add(cols, esq, dir); raiz.appendChild(cols);
-    n.replaceChildren(raiz);
-  }
-
   function concluir(etapa, botao) {
     botao.disabled = true; O.msg = '';
     api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + (etapa >= 4 ? '/etapa-obra' : '/etapa'), 'POST', { etapa: etapa }, 200000).then(function (r) {
@@ -1093,7 +1108,6 @@
   }
 
   // ── Etapa 1 ─────────────────────────────────────────────────────────────────
-  function itensDoBloco(et, bloco) { return et.itens.filter(function (i) { return i.bloco === bloco; }); }
   function itemFeito(et, chave) { var x = et.itens.filter(function (i) { return i.chave === chave; })[0]; return !!(x && x.feito); }
   function cidadeUF(c) { return String(c || '').replace(/\s+-\s+/, '-').trim(); }
   /** Campo rotulado do desenho: rótulo (com etiqueta opcional) em cima, o controle embaixo. */
@@ -1101,10 +1115,6 @@
     var c = el('div', 'jor-campo' + (larga ? ' jor-campo-larga' : ''));
     var r = el('div', 'jor-campo-rot'); r.appendChild(document.createTextNode(rot)); if (etiq) r.appendChild(etiq);
     c.appendChild(r); c.appendChild(ctl); return c;
-  }
-  function campoLeitura(rot, valor, falta) {
-    var v = el('div', 'jor-campo-lei' + (falta ? ' falta' : ''), valor || 'Sem dado');
-    return campoRot(rot, v);
   }
   function subTitulo(txt, etiq) { var t = el('div', 'jor-sub-t'); t.appendChild(el('span', '', txt)); if (etiq) t.appendChild(etiq); return t; }
 
@@ -1186,87 +1196,455 @@
     pai.appendChild(f);
   }
 
-  /** A bolha do aviso de venda: o texto que o robô manda (jornadaMensagensPuro.textoVenda), sem as placas, que a tela não tem. */
-  function bolhaAvisoVenda(d) {
-    var vend = nomeBonito(d.card.vendedor) || '';
-    var partes = [cidadeUF(d.card.cidade), d.proposta && d.proposta.kwp ? Number(d.proposta.kwp).toFixed(2).replace('.', ',') + ' kWp' : ''].filter(Boolean);
-    var z = el('div', 'jor-zap'); z.setAttribute('role', 'group'); z.setAttribute('aria-label', 'Prévia do aviso de venda no WhatsApp');
-    var b = el('div', 'jor-zap-bolha');
-    b.appendChild(el('p', 'jor-zap-lin', '🎉🎉🎉 VENDEU! ☀️☀️☀️'));
-    var l2 = el('p', 'jor-zap-lin'); l2.appendChild(el('b', '', d.card.cliente || '')); l2.appendChild(document.createTextNode(' 🏠')); b.appendChild(l2);
-    if (partes.length) b.appendChild(el('p', 'jor-zap-lin', partes.join(' · ') + ' ⚡'));
-    var l4 = el('p', 'jor-zap-lin'); l4.appendChild(document.createTextNode('Quem vendeu: ')); l4.appendChild(el('b', '', vend)); l4.appendChild(document.createTextNode(' 🏆👏')); b.appendChild(l4);
-    b.appendChild(el('p', 'jor-zap-lin', 'Agora é a vistoria. Bora, time! 🚀'));
-    z.appendChild(b); return z;
+  // ── A página do cliente (18/11/2026): o RESUMO no topo e a LINHA DO TEMPO embaixo ────────────────────────────────
+  // O resumo junta a ficha do cliente, a venda, a situação e o dinheiro, e vai se preenchendo ("Aguardando") conforme os passos andam.
+  // A linha do tempo segue a ordem do trabalho, um passo por vez: o passo atual fica aberto; o feito mostra o resultado em uma linha
+  // com Editar; o futuro aparece apagado com o que vai pedir. Dado que está no resumo não se repete no passo: o passo só tem a ação.
+
+  /** O "?" com a explicação longa no title (e no leitor de tela). */
+  function ajudaQ(txt) { var q = el('span', 'jor-q', '?'); q.title = txt; q.tabIndex = 0; q.setAttribute('role', 'img'); q.setAttribute('aria-label', 'Ajuda: ' + txt); return q; }
+  /** Texto só para o leitor de tela. */
+  function srTxt(t) { var s = el('span', '', t); s.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap'; return s; }
+  function juntar(l) { return l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1]; }
+  /** Os itens do servidor das etapas 1 a 3 por chave (o passo não depende de em qual etapa a api pôs o item). */
+  function itensDe(d, chaves) {
+    var out = []; (d.etapas || []).slice(0, 3).forEach(function (e) { (e.itens || []).forEach(function (i) { if (chaves.indexOf(i.chave) >= 0) out.push(i); }); });
+    return out;
+  }
+  function todosFeitos(l) { return l.every(function (i) { return i.feito; }); }
+  function irPara(id) {
+    var a = document.getElementById(id); if (!a) return;
+    var reduz = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    a.scrollIntoView({ behavior: reduz ? 'auto' : 'smooth', block: 'start' });
+    try { a.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
+  }
+  /** Celular: rola até o passo atual da linha do tempo (ou o primeiro pendente, ou o título "Passo a passo" se não houver nenhum). */
+  function irAoPassoAtual() {
+    var no = document.querySelector('#jor-obra .jor-tl-no.atual') || document.querySelector('#jor-obra .jor-tl-no.pendente');
+    irPara(no && no.id ? no.id : 'jor-tl-tit');
+  }
+  function quem(c) { var q = c && c.em ? quando(c.em) : ''; return (c && c.por ? ' por ' + nomeBonito(c.por) : '') + (q ? ' em ' + q : ''); }
+  function ultimaMarca(d, chaves) { return chaves.map(function (k) { return conf(d, k); }).filter(Boolean).sort(function (a, b) { return String(b.em || '').localeCompare(String(a.em || '')); })[0] || null; }
+  function etapaFeita(e, atual) { return !!(e && (e.concluida_em || atual > e.n)); }
+
+  // ── A página ───────────────────────────────────────────────────────────────────────────────────────────────
+  var TITULO_QUADRO = 'Todos os documentos e cadastro';
+  function desenharObra() {
+    var d = O.dados; var n = O.obraNo; if (!d || !n) return;
+    var raiz = el('div');
+    var atual = atualEtapa(); var ets = etapasMescladas();
+    raiz.appendChild(resumoObra(d, atual));
+    if (d.cancelada) {
+      var fx = el('div', 'jor-faixa', 'Venda cancelada em ' + ddmm(d.cancelada.em) + ' por ' + nomeBonito(d.cancelada.por) + '. Motivo: ' + (d.cancelada.motivo || ''));
+      if (d.pode.descancelar) fx.appendChild(btn('Desfazer o cancelamento', '', function () { desfazerDialogo(); }));
+      raiz.appendChild(fx);
+    }
+    if (d.aviso) raiz.appendChild(el('p', 'jor-aviso', d.aviso));
+    var cols = el('div', 'jor-cols'); var esq = el('section', 'jor-esq jor-cartao'); var dir = el('div', 'jor-dir');
+    esq.setAttribute('aria-labelledby', 'jor-tl-tit');
+    var topo = el('div', 'jor-etapa-topo'); var idc = el('div', 'jor-etapa-id');
+    var ht = el('h3', 'jor-etapa-t', 'Passo a passo'); ht.id = 'jor-tl-tit'; idc.appendChild(ht);
+    if (atual) idc.appendChild(el('span', 'jor-pilula', 'Etapa ' + atual + ' de 9'));
+    topo.appendChild(idc); esq.appendChild(topo);
+    esq.appendChild(linhaDoTempo(d, ets, atual));
+    if (O.msg) { var mm = el('p', 'jor-erro', O.msg); mm.setAttribute('role', 'status'); esq.appendChild(mm); }
+    // Prazo e cobrança da etapa atual, ao lado.
+    var et = ets[(atual || 1) - 1]; var f2 = O.fase2;
+    var pz = el('div', 'jor-bloco'); pz.appendChild(el('div', 'jor-bloco-t', 'Prazo e cobrança'));
+    pz.appendChild(el('p', 'jor-nota', 'Etapa ' + et.n + ' · ' + et.nome)); pz.lastChild.style.marginTop = '0';
+    if (et.prazo && et.prazo.vence) pz.appendChild(el('p', '', et.prazo.rotulo + ' · ' + ddmm(et.prazo.vence)));
+    var sit = et.situacao || { tipo: 'sem_prazo', texto: '' };
+    pz.appendChild(el('p', sit.tipo === 'atrasada' || sit.tipo === 'travada' ? 'jor-erro' : sit.tipo === 'no_prazo' || sit.tipo === 'vence_hoje' ? 'jor-ok' : '', sit.texto));
+    var esp = et.n <= 3 ? d.esperando : (f2 ? f2.esperando : null);
+    var podeEsp = et.n <= 3 ? d.pode.esperar : !!(f2 && f2.pode && f2.pode.esperar);
+    if (esp && esp.etapa === et.n) {
+      pz.appendChild(el('p', '', 'Esperando até ' + ddmm(esp.ate) + ' · ' + nomeBonito(esp.motivo)));
+      if (podeEsp) pz.appendChild(btn('Voltar a cobrar', '', function () { esperar({ voltar: true }, et.n); }));
+    } else if (podeEsp && et.n <= 8 && !et.concluida_em) {
+      pz.appendChild(btn('Esperando', '', function () { esperarDialogo(et.n); }));
+    }
+    if (window.Jornada.extras.avisos) window.Jornada.extras.avisos(pz, O.fase3, et.n);
+    dir.appendChild(pz);
+    add(cols, esq, dir); raiz.appendChild(cols);
+    // O quadro completo (documentos, ligações e cadastro): uma vez só, no fim da página, aberto. Os anexos e o Trello dependem dele montado.
+    if (O.vdcDet) {
+      O.vdcPainel = atual;
+      O.vdcDet.firstChild.textContent = TITULO_QUADRO; O.vdcDet.className = 'jor-vdc-det jor-quadro jor-cartao'; O.vdcDet.id = 'jor-quadro';
+      raiz.appendChild(O.vdcDet);
+    }
+    n.replaceChildren(raiz);
   }
 
-  function etapa1(esq, d, et) {
-    var concluida = !!et.concluida_em;
-    esq.appendChild(el('p', 'jor-intro', 'Tudo está aberto e o que já existe vem preenchido. Confira, ajuste se precisar e confirme.'));
-    // 1. Dados do cliente
-    esq.appendChild(blocoDados(d, et));
-    // 1. Venda
-    var b1 = el('div', 'jor-bloco'); b1.appendChild(blocoTitulo('Venda (kit, valor e pagamento)', itensDoBloco(et, 'venda').filter(function (i) { return i.chave !== 'financiamento' && i.chave !== 'proposta_banco'; })));
-    b1.appendChild(subTitulo('Veio do card', etq('Automático', 'auto')));
-    if (d.proposta) {
-      var gv = el('div', 'jor-campos');
-      add(gv, campoLeitura('Cliente', d.card.cliente), campoLeitura('Telefone', d.card.telefone), campoLeitura('Cidade', cidadeUF(d.card.cidade)),
-        campoLeitura('Proposta aceita', d.proposta.codigo + (d.proposta.cliente ? ' · ' + d.proposta.cliente : '')), campoLeitura('Potência', d.proposta.kwp ? String(d.proposta.kwp).replace('.', ',') + ' kWp' : ''),
-        campoLeitura('Quem vendeu', nomeBonito(d.card.vendedor)));
-      b1.appendChild(gv);
-    } else {
-      var g0 = el('div', 'jor-campos'); add(g0, campoLeitura('Cliente', d.card.cliente), campoLeitura('Telefone', d.card.telefone), campoLeitura('Cidade', cidadeUF(d.card.cidade))); b1.appendChild(g0);
-      if (d.pode.ligar_proposta && d.propostas_candidatas && d.propostas_candidatas.length) {
-        b1.appendChild(el('p', 'jor-nota', 'Propostas deste cliente:'));
-        d.propostas_candidatas.forEach(function (p) {
-          var li = el('div', 'jor-anexo'); var tp = el('div', 'jor-anexo-topo');
-          tp.appendChild(el('span', 'jor-rot', p.codigo + ' · ' + p.cliente + (p.kwp ? ' · ' + String(p.kwp).replace('.', ',') + ' kWp' : '') + (p.data ? ' · ' + ddmm(p.data) : '')));
-          tp.appendChild(btn('Ligar', '', function () {
-            api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + '/proposta', 'POST', { codigo: p.codigo }).then(function (r) {
-              if (r.status === 200 && r.json.ok !== false) carregarObra(); else toast(msgDe(r, 'Não consegui ligar agora.'));
-            });
-          }));
-          li.appendChild(tp); b1.appendChild(li);
-        });
-      } else if (!concluida) {
-        b1.appendChild(el('p', 'jor-nota', 'Ligue a proposta em "Mais documentos, ligações e cadastro", logo abaixo, em Ligações.'));
+  // ── O resumo ────────────────────────────────────────────────────────────────────────────────────────────────
+  function resumoObra(d, atual) {
+    var box = el('section', 'jor-res jor-cartao'); box.setAttribute('aria-labelledby', 'jor-res-tit');
+    var topo = el('div', 'jor-res-topo');
+    topo.appendChild(el('span', 'jor-num jor-res-cod', d.codigo || '*'));
+    var t = el('div', 'jor-cab-t'); var h = el('h2', '', d.card.cliente); h.id = 'jor-res-tit'; t.appendChild(h);
+    var kwpTxt = d.proposta && d.proposta.kwp ? String(d.proposta.kwp).replace('.', ',') + ' kWp' : '';
+    t.appendChild(el('span', '', [kwpTxt, cidadeUF(d.card.cidade)].filter(Boolean).join(' · ')));
+    topo.appendChild(t);
+    var cac = el('div', 'jor-cab-ac');
+    if (window.Jornada.extras.bookPdf && O.fase3 && O.fase3.pode && O.fase3.pode.book) { var bdoc = btn('Documento da obra', '', function () { window.Jornada.extras.bookPdf(O.card, bdoc); }); cac.appendChild(bdoc); }
+    if (O.dinheiro && O.dinheiro.visivel !== false && O.dinheiro.livro && window.Jornada.dinheiro) add(cac, btn('Livro do dinheiro', '', function () { window.Jornada.dinheiro.abrirLivro(); }));
+    add(cac, btn('Clientes', '', abrirLista));
+    if (d.pode.cancelar) add(cac, btn('Venda cancelada', 'jor-btn-disc', function () { cancelarDialogo(O.card, carregarObra); }));
+    topo.appendChild(cac);
+    box.appendChild(topo);
+    var ir = btn('Ir para o passo atual', 'jor-btn-link jor-ir-atual', irAoPassoAtual); ir.appendChild(icone('baixo')); box.appendChild(ir);
+    var g = el('div', 'jor-res-g');
+    g.appendChild(grupoCliente(d)); g.appendChild(grupoVenda(d));
+    box.appendChild(g);
+    box.appendChild(grupoSituacao(d));
+    var dz = el('div', 'jor-res-din');
+    if (window.Jornada.dinheiro && window.Jornada.dinheiro.faixa) window.Jornada.dinheiro.faixa(dz, O.dinheiro);
+    // Comissões (da etapa 2 em diante) e o prêmio de quem indicou moram com o dinheiro.
+    if (atual >= 2 && O.dinheiro && O.dinheiro.visivel !== false && window.Jornada.dinheiro && window.Jornada.dinheiro.blocoComissoes) window.Jornada.dinheiro.blocoComissoes(dz, d, O.dinheiro);
+    if (window.Jornada.extras.indicacao) window.Jornada.extras.indicacao(dz, d, O.fase3);
+    if (dz.firstChild) box.appendChild(dz);
+    return box;
+  }
+  function tituloGrupo(txt, etiq) { var t = el('div', 'jor-grp-t'); t.appendChild(el('h3', '', txt)); if (etiq) t.appendChild(etiq); return t; }
+  function grupoCliente(d) {
+    var box = el('div', 'jor-grp'); box.id = 'jor-s-cliente'; box.tabIndex = -1;
+    var its = itensDe(d, CAMPOS_CLIENTE.map(function (c) { return c.chave; }));
+    var falta = its.filter(function (i) { return !i.feito; }).length;
+    var tg = tituloGrupo('Cliente', its.length ? etq(falta ? 'Falta confirmar ' + falta : 'Confirmado', falta ? 'av' : 'ok') : null);
+    tg.appendChild(ajudaQ('A IA lê a CNH (nome e CPF) e a conta de luz (endereço) e preenche aqui. Dado editado volta a pedir confirmação no passo 4.'));
+    box.appendChild(tg);
+    if (O.lendo && O.lendo.card === String(O.card)) {
+      var l = el('p', 'jor-lendo'); l.setAttribute('role', 'status'); l.appendChild(el('i')); l.appendChild(document.createTextNode('Lendo ' + O.lendo.qual + '…')); box.appendChild(l);
+    } else if (O.lendoFalhou) {
+      var f = el('p', 'jor-aviso', 'Não consegui ler ' + O.lendoFalhou + '. Preencha à mão.'); f.setAttribute('role', 'alert'); f.style.margin = '0 0 10px'; box.appendChild(f);
+    }
+    var g = el('div', 'jor-ficha-g'); var et1 = d.etapas[0];
+    ficha().forEach(function (cfg) { g.appendChild(campoFicha(d, et1, cfg)); });
+    box.appendChild(g);
+    return box;
+  }
+  /** Uma linha de leitura do resumo: vazio vira "Aguardando", em tom apagado. */
+  function linhaRes(rot, valor, ok, cls) {
+    var v = valor ? (typeof valor === 'string' ? el('div', 'jor-rc-v' + (cls ? ' ' + cls : ''), valor) : valor) : el('div', 'jor-rc-v vazio', 'Aguardando');
+    return celula(rot, v, ok && !!valor);
+  }
+  function grupoVenda(d) {
+    var box = el('div', 'jor-grp');
+    var vv = d.venda; var dc = d.dados_cliente || {}; var kv = d.kit_vendido || {};
+    var vede = !!(vv && vv.valor_centavos !== undefined) || (dc && dc.valor_centavos !== undefined);   // quem vê o valor é decidido pela api (o vendedor vê, mesmo sem o Livro)
+    box.appendChild(tituloGrupo('Venda'));
+    var g = el('div', 'jor-resumo uma');
+    var kw = kv.kwp || (d.proposta && d.proposta.kwp);
+    g.appendChild(linhaRes('Proposta', d.proposta ? d.proposta.codigo + (kw ? ' · ' + String(kw).replace('.', ',') + ' kWp' : '') : ''));
+    g.appendChild(linhaRes('Placas', txtKit(kv.placas), !!conf(d, 'placas')));
+    g.appendChild(linhaRes('Inversor', txtKit(kv.inversor), !!conf(d, 'inversor')));
+    var valorC = vv && vv.valor_centavos > 0 ? vv.valor_centavos : (typeof dc.valor_centavos === 'number' && dc.valor_centavos > 0 ? dc.valor_centavos : 0);
+    var pgs = vv && vv.pagamento && vv.pagamento.length ? vv.pagamento : (Array.isArray(dc.pagamento) ? dc.pagamento : []);
+    var temDin = vede && ((vv && vv.valor_centavos !== undefined) || dc.valor_centavos !== undefined);
+    if (temDin) {
+      var vc = null; if (valorC) { vc = el('div', 'jor-rc-v', reais(valorC)); if (vv && vv.desconto_centavos > 0) vc.appendChild(el('small', '', 'Desconto de ' + reais(vv.desconto_centavos))); }
+      g.appendChild(linhaRes('Valor', vc, !!conf(d, 'valor')));
+      var pv = null; if (pgs.length) { pv = el('div', 'jor-rc-v'); pgs.forEach(function (x) { pv.appendChild(el('span', 'jor-rc-lin', (FORMAS_ROT[x.forma] || x.forma) + ' ' + reais(x.valor_centavos) + (x.obs ? ' · ' + x.obs : ''))); }); }
+      g.appendChild(linhaRes('Pagamento', pv, !!conf(d, 'pagamento')));
+    }
+    g.appendChild(linhaRes('Prazo', vv && vv.prazo_prometido ? vv.prazo_prometido : ''));
+    var e1 = d.etapas[0]; var vEm = e1 && e1.aberta_em ? quando(e1.aberta_em).split(' ')[0] : '';
+    g.appendChild(linhaRes('Vendedor', nomeBonito(d.card.vendedor) + (vEm ? ' · ' + vEm : '')));
+    if (vv && vv.nota) g.appendChild(linhaRes('Nota', vv.nota));
+    box.appendChild(g);
+    return box;
+  }
+  function sitCel(rot, valor, cls, link) {
+    var c = el('div', 'jor-sit-c' + (valor ? (cls ? ' ' + cls : '') : ' vazio'));
+    c.appendChild(el('small', '', rot));
+    var b = el('b', '', valor || 'Aguardando'); c.appendChild(b);
+    if (link && /^https:\/\//.test(link.url)) { var a = el('a', '', link.rot); a.href = link.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', link.rot + ': ' + rot); b.appendChild(document.createTextNode(' ')); b.appendChild(a); }
+    return c;
+  }
+  function papelTxt(d, tipo, slot) {
+    if (d.slots && d.slots[slot]) return 'Assinado';
+    var gp = d.papeis && d.papeis[tipo]; return gp ? 'Gerado em ' + ddmm(String(gp.gerado_em).slice(0, 10)) : '';
+  }
+  function grupoSituacao(d) {
+    var box = el('div', 'jor-grp jor-grp-sit'); box.appendChild(tituloGrupo('Situação'));
+    var g = el('div', 'jor-sit');
+    var fin = d.financiamento === 'sim' ? 'Sim' : d.financiamento === 'nao' ? 'Não' : '';
+    g.appendChild(sitCel('Financiamento', fin));
+    var cpf = d.excedente_cpf || { ok: null };
+    var exc = d.excedente === 'nao' ? 'Não' : d.excedente === 'sim' ? (cpf.ok === false ? 'Sim · outro CPF' : cpf.ok === true ? 'Sim · mesmo CPF' : 'Sim') : '';
+    g.appendChild(sitCel('Excedente', exc, cpf.ok === false && d.excedente === 'sim' ? 'av' : ''));
+    g.appendChild(sitCel('Contrato', papelTxt(d, 'contrato', 'contrato_assinado')));
+    g.appendChild(sitCel('Procuração', papelTxt(d, 'procuracao', 'procuracao')));
+    g.appendChild(sitCel('Número da venda', d.numero && d.numero.estado === 'tem' ? String(d.numero.codigo || '') : ''));
+    var tr = d.trello || {}; var temCartao = (tr.url && tr.fonte !== 'dossie') || tr.tem_cartao;
+    g.appendChild(sitCel('Trello', temCartao ? 'Criado' : '', '', temCartao && tr.url ? { url: tr.url, rot: 'Abrir' } : null));
+    var rf = d.relatorio_final; var temRel = !!(rf && rf.url && /^https:\/\//.test(rf.url));
+    g.appendChild(sitCel('Relatório final', temRel ? 'Gerado' + (rf.gerado_em ? ' em ' + ddmm(String(rf.gerado_em).slice(0, 10)) : '') : '', '', temRel ? { url: rf.url, rot: 'Abrir' } : null));
+    box.appendChild(g);
+    return box;
+  }
+
+  // ── A linha do tempo ────────────────────────────────────────────────────────────────────────────────────────
+  /**
+   * Os passos na ordem do trabalho. n = a etapa do servidor que o passo fecha; chaves = os itens dele (a situação vem do servidor);
+   * feito() = reserva quando a api não manda os itens; linha() = o resultado em uma linha; prev = o que o passo vai pedir; corpo(c) = a ação.
+   */
+  function passosDaObra(d, ets) {
+    var exc = d.excedente === 'sim';
+    function por(chaves, reserva) { var l = itensDe(d, chaves); return l.length ? todosFeitos(l) : !!reserva(); }
+    var P = [
+      { id: 'vendido', n: 1, titulo: 'Vendido', chaves: [], feito: function () { return true; }, semCorpo: true,
+        linha: function () { var e1 = d.etapas[0]; var q = e1 && e1.aberta_em ? quando(e1.aberta_em).split(' ')[0] : ''; return 'Vendido' + (q ? ' em ' + q : '') + ' por ' + nomeBonito(d.card.vendedor) + '.'; } },
+      { id: 'lista', n: 1, titulo: 'Mandar a lista de documentos', chaves: ['pedido_cnh', 'pedido_conta_luz', 'pedido_fachada', 'pedido_padrao', 'pedido_disjuntor', 'pedido_medidor'], prev: 'Perguntar se tem excedente e mandar ao cliente a lista do que falta.',
+        feito: function () { return (d.excedente === 'sim' || d.excedente === 'nao') && PEDIDOS.every(function (p) { return docRecebido(d, p) || (d.pedidos && d.pedidos[p.chave]); }); },
+        linha: function () {
+          var em = Object.keys(d.pedidos || {}).map(function (k) { return String((d.pedidos[k] || {}).em || ''); }).filter(Boolean).sort().pop();
+          var todos = PEDIDOS.every(function (p) { return docRecebido(d, p); });
+          return (todos ? 'Tudo recebido.' : 'Lista enviada' + (em ? ' em ' + ddmm(em.slice(0, 10)) : '') + '.') + (exc ? ' Com excedente.' : d.excedente === 'nao' ? ' Sem excedente.' : '');
+        }, corpo: corpoLista },
+      { id: 'anexos', n: 1, titulo: 'Anexar tudo da lista', chaves: ['documento', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor', 'excedente', 'conta_excedente'],
+        abreSozinho: function () { return pendentesDe(d).length > 0; },
+        prev: pendentesDe(d).length ? 'Pendente da etapa 1: ' + juntar(pendentesDe(d).map(function (i) { var q = PEDIDOS.filter(function (p) { return p.item === i.chave; })[0]; return q ? q.rot : i.texto; })) + '.' : 'CNH, conta de luz e 4 fotos. A ficha do cliente se preenche sozinha.',
+        feito: function () { if (pendentesDe(d).length) return false; var cpf = d.excedente_cpf || {}; return PEDIDOS.every(function (p) { return docRecebido(d, p); }) && (!exc || (!!d.slots.conta_luz_beneficiaria && cpf.ok !== false)); },
+        linha: function () { var cpf = d.excedente_cpf || {}; return 'Tudo anexado.' + (exc ? (cpf.ok === true ? ' Conta do excedente no mesmo CPF.' : ' Conta do excedente anexada.') : ''); }, corpo: corpoAnexos },
+      { id: 'ficha', n: 1, titulo: 'Conferir a ficha', chaves: ['nome', 'telefone', 'endereco', 'endereco_usina', 'email', 'proposta', 'prazo', 'placas', 'inversor', 'valor', 'pagamento'], prev: 'Confirmar os dados do cliente e da venda no resumo.',
+        feito: function () { return false; },
+        linha: function () { var m = ultimaMarca(d, ['nome', 'telefone', 'endereco', 'endereco_usina', 'email', 'placas', 'inversor', 'valor', 'pagamento']); return 'Cliente e venda confirmados' + quem(m) + '.'; }, corpo: corpoFicha },
+      { id: 'papeis', n: 1, titulo: 'Contrato e procuração', chaves: ['financiamento', 'proposta_banco', 'papel_contrato', 'papel_procuracao'], prev: 'Financiamento, contrato e procuração.',
+        feito: function () { return (d.financiamento === 'sim' || d.financiamento === 'nao') && !!(d.papeis && d.papeis.contrato && d.papeis.procuracao); },
+        linha: function () { var p = d.papeis || {}; return [p.contrato ? 'Contrato gerado em ' + ddmm(String(p.contrato.gerado_em).slice(0, 10)) : '', p.procuracao ? 'Procuração gerada em ' + ddmm(String(p.procuracao.gerado_em).slice(0, 10)) : '', d.financiamento === 'sim' ? 'Com proposta de banco' : 'Sem financiamento'].filter(Boolean).join(' · ') + '.'; }, corpo: corpoPapeis },
+      { id: 'assinaturas', n: 2, titulo: 'Assinaturas', chaves: ['contrato_assinado', 'procuracao'], prev: 'Anexar o contrato e a procuração assinados.',
+        feito: function () { return !!(d.slots.contrato_assinado && d.slots.procuracao); },
+        linha: function () { return 'Contrato e procuração assinados anexados.' + (d.numero && d.numero.estado === 'tem' ? ' Número ' + d.numero.codigo + '.' : ''); }, corpo: corpoAssinaturas },
+      { id: 'vistoria', n: 2, titulo: 'Vistoria', chaves: ['vistoria'], prev: 'Relatório de vistoria com pelo menos 80% preenchido.',
+        feito: function () { return (Number(d.vistoria_pct) || 0) >= 80; },
+        linha: function () { return 'Relatório ' + Math.round(Number(d.vistoria_pct) || 0) + '% preenchido.'; }, corpo: corpoVistoria,
+        etiqueta: function () { var p = Math.round(Number(d.vistoria_pct) || 0); return p + '% de 80%'; } },
+      { id: 'equipamento', n: 3, titulo: 'Homologação', chaves: ['datasheet_modulo', 'datasheet_inversor', 'kmz'], prev: 'Datasheet da placa, datasheet do inversor e KMZ do local.',
+        feito: function () { return !!(d.slots.datasheet_modulo && d.slots.datasheet_inversor && d.slots.kmz); },
+        linha: function () { return 'Datasheets e KMZ anexados.'; }, corpo: corpoEquipamento },
+      { id: 'trello', n: 3, titulo: 'Trello e relatório final', chaves: ['trello'], prev: 'O cartão do Trello nasce sozinho quando tudo acima fica pronto.',
+        feito: function () { var tr = d.trello || {}; return !!((tr.url && tr.fonte !== 'dossie') || tr.tem_cartao); },
+        linha: function () { var tr = d.trello || {}; var rf = d.relatorio_final; return 'Cartão do Trello criado' + (tr.criado_em ? ' em ' + ddmm(String(tr.criado_em).slice(0, 10)) : '') + '.' + (rf && rf.url ? ' Relatório final gerado.' : ''); }, corpo: corpoTrello },
+    ];
+    if (exc) P.push({ id: 'rateio', n: 3, titulo: 'Rateio do excedente', chaves: ['rateio'], prev: 'Conferir o rateio do excedente no protocolo.',
+      feito: function () { return !!(d.rateio_conferido && d.rateio && d.rateio_conferido.marca === d.rateio.marca); },
+      linha: function () { var r = d.rateio_conferido || {}; return 'Rateio conferido' + (r.por ? ' por ' + nomeBonito(r.por) : '') + (r.conferido_em ? ' em ' + ddmm(String(r.conferido_em).slice(0, 10)) : '') + '.'; }, corpo: corpoRateio });
+    P.push(
+      { id: 'art', n: 3, titulo: 'ART e engenheiro', chaves: ['art'], prev: 'ART com documento e comprovante. O pagamento do engenheiro.',
+        feito: function () { return !!(d.slots.art && d.slots.art_comprovante); }, linha: function () { return 'ART anexada com o comprovante.' + (d.engenheiro === 'pago' ? ' Engenheiro pago.' : d.engenheiro === 'a_pagar' ? ' Engenheiro a pagar.' : ''); }, corpo: corpoArt },
+      { id: 'protocolo', n: 3, titulo: 'Protocolo', chaves: ['protocolo'], prev: 'Número e print do protocolo.',
+        feito: function () { return !!(d.protocolo && d.protocolo.numero && d.slots.protocolo); }, linha: function () { var p = d.protocolo || {}; return 'Protocolo ' + (p.numero || '') + (p.em ? ' em ' + ddmm(p.em) : '') + '.'; }, corpo: corpoProtocolo },
+      { id: 'parecer', n: 3, titulo: 'Parecer de acesso', chaves: ['parecer'], prev: 'Parecer de acesso aprovado.',
+        feito: function () { return !!d.slots.parecer_acesso; }, linha: function () { return 'Parecer de acesso anexado.'; }, corpo: corpoParecer }
+    );
+    P.forEach(function (p) { var reserva = p.feito; p.feito = p.chaves.length ? por(p.chaves, reserva) : reserva(); });
+    // As etapas 4 a 9 entram como um passo cada, no mesmo desenho.
+    ets.forEach(function (e) {
+      if (e.n < 4) return;
+      P.push({ id: 'etapa' + e.n, n: e.n, titulo: e.nome, chaves: [], etapa: e, feito: !!e.concluida_em,
+        prev: (e.itens || []).length ? 'Pede: ' + juntar(e.itens.map(function (i) { return i.texto; }).slice(0, 4)) + (e.itens.length > 4 ? ' e mais' : '') + '.' : '',
+        linha: function () { return 'Concluída' + (e.concluida_em ? ' em ' + ddmm(String(e.concluida_em).slice(0, 10)) : '') + '.'; },
+        corpo: function (c) { corpoEtapaObra(c, d, e); } });
+    });
+    return P;
+  }
+  /** Qual passo cada chave fecha (para o portão dizer o nome do passo e não o do item). */
+  function passoDaChave(passos, chave) { return passos.filter(function (p) { return p.chaves.indexOf(chave) >= 0; })[0] || null; }
+
+  function linhaDoTempo(d, ets, atual) {
+    var ol = el('ol', 'jor-tl');
+    var passos = passosDaObra(d, ets);
+    var idAtual = null;
+    passos.forEach(function (p) { if (!idAtual && !p.feito && p.n <= atual && !etapaFeita(ets[p.n - 1], atual)) idAtual = p.id; });
+    var ultima = 0;
+    passos.forEach(function (p, i) {
+      var e = ets[p.n - 1];
+      if (p.n !== ultima && p.n <= 3) { ol.appendChild(cabFase(e, atual)); }
+      if (p.n !== ultima && p.n === 4) ol.appendChild(cabFase(null, atual));
+      ultima = p.n;
+      var est = p.feito ? 'feito' : p.id === idAtual ? 'atual' : (p.n <= atual ? 'pendente' : 'futuro');
+      ol.appendChild(noPasso(d, p, i + 1, est));
+      var prox = passos[i + 1];
+      if ((!prox || prox.n !== p.n) && p.n === atual && p.n <= 8 && e && !e.concluida_em) ol.appendChild(portaoEtapa(d, e, passos));
+    });
+    return ol;
+  }
+  /** O separador de cada etapa na linha do tempo: nome, dono, situação e um Lançar gasto discreto (a soma dos gastos está no resumo). Etapas 4 a 9: um só, "Obra". */
+  function cabFase(e, atual) {
+    var li = el('li', 'jor-tl-fase');
+    if (!e) { li.appendChild(el('b', '', 'Obra')); li.appendChild(el('span', 'jor-nota', 'Etapas 4 a 9')); return li; }
+    var feita = etapaFeita(e, atual);
+    li.appendChild(el('b', '', 'Etapa ' + e.n + ' · ' + e.nome));
+    (e.dono || []).forEach(function (x) { var a = el('span', 'jor-avatar', x.iniciais); a.title = nomeBonito(x.nome); a.setAttribute('aria-label', 'Responsável: ' + nomeBonito(x.nome)); li.appendChild(a); });
+    li.appendChild(etq(feita ? 'Concluída' + (e.concluida_em ? ' em ' + ddmm(String(e.concluida_em).slice(0, 10)) : '') : e.n === atual ? 'Em andamento' : 'A seguir', feita ? 'ok' : e.n === atual ? 'vez' : ''));
+    var gx = el('span', 'jor-tl-fase-g');
+    var din = O.dinheiro;
+    if (din && din.visivel !== false && din.pode && din.pode.lancar_saida && e.n <= atual && window.Jornada.dinheiro && window.Jornada.dinheiro.lancar) {
+      var bg = btn('Lançar gasto', 'jor-btn-link', function () { window.Jornada.dinheiro.lancar({ tipo: 'saida', etapa: e.n }); }); bg.setAttribute('aria-label', 'Lançar gasto na etapa ' + e.n); gx.appendChild(bg);
+    }
+    if (gx.firstChild) li.appendChild(gx);
+    return li;
+  }
+  function noPasso(d, p, num, est) {
+    var sozinho = !!(p.abreSozinho && est === 'pendente' && p.abreSozinho() && O.abertos[p.id] !== false);   // pendência da etapa 1: abre sozinho até a pessoa fechar
+    var aberto = !p.semCorpo && (est === 'atual' || sozinho || (est !== 'futuro' && !!O.abertos[p.id]));
+    var li = el('li', 'jor-tl-no ' + est + (aberto ? ' aberto' : '')); li.id = 'jor-p-' + p.id; li.tabIndex = -1;
+    var mk = el('span', 'jor-tl-mk'); mk.setAttribute('aria-hidden', 'true');
+    if (est === 'feito') mk.appendChild(icone('ok')); else mk.textContent = String(num);
+    li.appendChild(mk);
+    var cx = el('div', 'jor-tl-cx');
+    var t = el('div', 'jor-tl-t'); var h = el('h4', '', p.titulo); h.insertBefore(srTxt('Passo ' + num + ', ' + ({ feito: 'feito', atual: 'atual', pendente: 'pendente', futuro: 'ainda não chegou' })[est] + ': '), h.firstChild); t.appendChild(h);
+    if (est === 'atual') t.appendChild(etq('Agora', 'vez'));
+    var falta = itensDe(d, p.chaves).filter(function (i) { return !i.feito; }).length;
+    if (p.etiqueta && est !== 'feito' && est !== 'futuro') t.appendChild(etq(p.etiqueta(), 'av'));
+    else if (est === 'pendente' && falta) t.appendChild(etq('Falta ' + falta, 'av'));
+    if (!p.semCorpo && est !== 'futuro' && est !== 'atual') {
+      var bt = btn(aberto ? 'Fechar' : (est === 'feito' ? 'Editar' : 'Abrir'), 'jor-btn-link jor-tl-ac', function () { if (aberto) { if (p.abreSozinho) O.abertos[p.id] = false; else delete O.abertos[p.id]; } else O.abertos[p.id] = true; desenharObra(); var x = document.getElementById('jor-p-' + p.id); if (x && !aberto) try { x.focus({ preventScroll: true }); } catch (e) { /* sem foco */ } });
+      bt.setAttribute('aria-expanded', aberto ? 'true' : 'false'); bt.setAttribute('aria-label', (aberto ? 'Fechar: ' : est === 'feito' ? 'Editar: ' : 'Abrir: ') + p.titulo);
+      t.appendChild(bt);
+    }
+    cx.appendChild(t);
+    if (est === 'feito' || !aberto) cx.appendChild(el('p', 'jor-tl-res', est === 'feito' ? p.linha() : (p.prev || '')));
+    if (aberto) { var corpoP = el('div', 'jor-tl-corpo'); corpoP.id = 'jor-s-' + p.id; p.corpo(corpoP, p); cx.appendChild(corpoP); }
+    li.appendChild(cx);
+    return li;
+  }
+  /** O Concluir no fim do último passo da etapa: o que falta, pelo nome do passo (nunca a lista item por item). */
+  function portaoEtapa(d, e, passos) {
+    var li = el('li', 'jor-tl-portao'); li.appendChild(el('span', 'jor-tl-mk vazio'));
+    var cx = el('div', 'jor-tl-cx'); var barra = el('div', 'jor-portao-barra');
+    var falta = [];
+    // Na ordem dos passos: primeiro o que fecha um passo da linha do tempo, depois o item solto pelo texto dele.
+    var soltos = [];
+    // Os 'pendentes' da etapa 1 entram um a um, pelo texto da api ("CNH ou identidade (pendente da etapa 1)").
+    (e.itens || []).forEach(function (i) { if (i.feito) return; var p = e.n <= 3 && i.bloco !== 'pendentes' ? passoDaChave(passos, i.chave) : null; if (!p && soltos.indexOf(i.texto) < 0) soltos.push(i.texto); });
+    passos.forEach(function (p) { if (e.n <= 3 && (e.itens || []).some(function (i) { return !i.feito && i.bloco !== 'pendentes' && p.chaves.indexOf(i.chave) >= 0; })) falta.push(p.titulo); });
+    falta = falta.concat(soltos);
+    var f2 = O.fase2;
+    var podeLista = e.n <= 3 ? (O.dados.pode.concluir || []) : ((f2 && f2.pode && f2.pode.concluir) || []);
+    var pode = podeLista.indexOf(e.n) >= 0 && e.falta === 0;
+    barra.appendChild(el('p', 'jor-portao-frase', e.falta > 0 ? 'Para concluir a etapa ' + e.n + ', falta: ' + juntar(falta.length ? falta : [plural(e.falta, 'item', 'itens')]) + '.' : 'Tudo pronto para concluir a etapa ' + e.n + '.'));
+    var bc = btn(e.n === 8 ? 'Finalizar a obra' : 'Concluir etapa ' + e.n, 'jor-btn-pri jor-btn-grande', function () { concluir(e.n, bc); });
+    bc.disabled = !pode; barra.appendChild(bc);
+    cx.appendChild(barra);
+    // Pendências da etapa 1 no que falta: um link rola até o passo de anexar.
+    if ((e.itens || []).some(function (i) { return i.bloco === 'pendentes' && !i.feito; })) {
+      var ia = 0; passos.forEach(function (q, k) { if (q.id === 'anexos') ia = k + 1; });
+      if (ia) { var lk = el('p', 'jor-nota'); lk.appendChild(btn('Ir para o passo ' + ia, 'jor-btn-link', function () { irPara('jor-p-anexos'); })); cx.appendChild(lk); }
+    }
+    var prox = etapasMescladas()[e.n];
+    if (prox && e.n !== 3 && e.n !== 8) cx.appendChild(el('p', 'jor-nota', 'Ao concluir: abre ' + prox.nome + ' e ' + (prox.dono || []).map(function (x) { return nomeBonito(x.nome); }).join(' e ') + ' recebe o aviso.'));
+    if (e.n === 2) cx.appendChild(el('p', 'jor-nota', 'Entrada, financiamento e comissões não travam esta etapa.'));
+    if (e.n === 3) cx.appendChild(el('p', 'jor-nota', 'Ao concluir: abre Compra (Thiago e Diego).'));
+    if (e.n === 8) cx.appendChild(el('p', 'jor-nota', 'Fechada, a conta trava. Só o Thiago reabre, com motivo.'));
+    li.appendChild(cx);
+    return li;
+  }
+  /** Etapas 4 a 9: o que jornada-obra.js e jornada-posvenda.js desenham, dentro do passo. */
+  function corpoEtapaObra(c, d, e) {
+    if (e.n === 9) { if (window.Jornada.etapas[9]) window.Jornada.etapas[9](c, d, e, O.fase3); return; }
+    if (O.fase2 && window.Jornada.etapas[e.n]) { window.Jornada.etapas[e.n](c, d, e, O.fase2); return; }
+    c.appendChild(el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); c.appendChild(btn('Tentar de novo', '', carregarObra));
+  }
+
+  // ── A leitura dos documentos: CNH e conta de luz preenchem a ficha sozinhas ───────────────────────────────────────
+  // Só a CNH do contratante e a conta de luz são lidas sozinhas. A CNH do titular da homologação (documento_titular_uc) não preenche a ficha.
+  var SLOTS_LIDOS = { documento_titular: 'a CNH', conta_luz: 'a conta de luz' };
+  // O que cada leitura preenche em dados_cliente: a CNH dá nome e CPF, a conta de luz dá o endereço.
+  var CAMPOS_LIDOS = { documento_titular: ['nome', 'cpf'], conta_luz: ['endereco'] };
+  var MSG_NADA_NOVO = 'Recebido. Nada novo para preencher na ficha.';
+  function assinaturaDC(d) { var c = (d && d.dados_cliente) || {}; return JSON.stringify([c.nome, c.cpf, c.endereco, c.bairro, c.cidade, c.uf, c.cep, c.endereco_ponto, c.telefone, c.email, c.origem || null]); }
+  /** Os campos que a leitura deste item preencheria e que estão vazios na ficha agora. Lista vazia = não há o que preencher. */
+  function vaziosDaLeitura(d, slot) {
+    var c = (d && d.dados_cliente) || {};
+    return (CAMPOS_LIDOS[slot] || []).filter(function (k) { return !String(c[k] == null ? '' : c[k]).trim(); });
+  }
+  /** Os ids dos arquivos do item no quadro. null enquanto o quadro não carregou. */
+  function idsDoSlot(chave) {
+    var st = quadroDoCard(); if (!st || !st.docs || !Array.isArray(st.docs.arquivos)) return null;
+    return st.docs.arquivos.filter(function (a) { return a && a.slot === chave; }).map(function (a) { return String(a.id); });
+  }
+  /** Depois do upload: recarrega a obra a cada 3 s até a ficha mudar. Só espera quando havia campo vazio para a leitura preencher. */
+  function iniciarLeitura(slot) {
+    if (O.lendoT) clearTimeout(O.lendoT);
+    O.lendo = { slot: slot, qual: SLOTS_LIDOS[slot], t0: Date.now(), antes: assinaturaDC(O.dados), card: String(O.card) }; O.lendoFalhou = '';
+    O.lendoT = setTimeout(passoLeitura, 3000);
+  }
+  function passoLeitura() {
+    O.lendoT = 0; var l = O.lendo; if (!l || l.card !== String(O.card)) return;
+    Promise.resolve(carregarObra()).then(function () {
+      if (O.lendo !== l || l.card !== String(O.card)) return;
+      if (O.dados && assinaturaDC(O.dados) !== l.antes) { O.lendo = null; toast('Li ' + l.qual + '. Confira a ficha do cliente.'); desenharObra(); return; }
+      if (Date.now() - l.t0 > 20000) {
+        O.lendo = null;
+        // Falha de verdade só quando o campo vazio continuou vazio. Se ele foi preenchido por outra via, não há falha para mostrar.
+        if (vaziosDaLeitura(O.dados, l.slot).length) O.lendoFalhou = l.qual; else toast(MSG_NADA_NOVO);
+        desenharObra(); return;
       }
+      O.lendoT = setTimeout(passoLeitura, 3000);
+    });
+  }
+  /** Fim do upload de CNH ou conta de luz: espera a leitura só se há o que ela preencher e o arquivo é novo. */
+  function depoisDoUpload(chave, repetido) {
+    if (!SLOTS_LIDOS[chave]) return;
+    if (repetido || !vaziosDaLeitura(O.dados, chave).length) { toast(MSG_NADA_NOVO); return; }
+    iniciarLeitura(chave);
+  }
+
+  // ── Confirmar em lote: um botão confirma todas as chaves de um grupo, uma depois da outra ──────────────────────────
+  function confirmarLote(d, sec, lista) {
+    if (!lista.length || O.confirmando[sec]) return;
+    var card = String(O.card); var falhou = '';
+    O.confirmando[sec] = true; delete O.erroSec[sec]; desenharObra();
+    var seq = Promise.resolve();
+    lista.forEach(function (x) {
+      seq = seq.then(function () {
+        if (falhou) return null;
+        return confirmarChave(d, x.chave, true, x.texto, true).then(function (r) { if (!r.ok) falhou = r.erro; else if (x.depois) x.depois(); });
+      });
+    });
+    seq.catch(function () { falhou = 'Não consegui confirmar agora. Tente de novo.'; }).then(function () {
+      delete O.confirmando[sec];
+      if (String(O.card) !== card) return;
+      if (falhou) O.erroSec[sec] = falhou; else toast('Confirmado.');
+      desenharObra(); releia();
+    });
+  }
+  /**
+   * Uma linha de confirmação: Confirmar (as chaves com valor e ainda sem marca), quem confirmou por último e o que falta preencher.
+   * cfg: sec, titulo, chaves, rotulo, aria, temValor(k), rotDe(k), coletar (opcional: campos abertos que entram junto, como o kit escrito à mão).
+   */
+  function linhaConfirmar(d, et, cfg) {
+    var box = el('div', 'jor-conf');
+    var abertos = cfg.coletar ? cfg.coletar.chaves() : [];
+    var pend = cfg.chaves.filter(function (k) { return abertos.indexOf(k) < 0 && !conf(d, k) && cfg.temValor(k); });
+    var vazios = cfg.chaves.filter(function (k) { return abertos.indexOf(k) < 0 && !cfg.temValor(k); });
+    var marca = ultimaMarca(d, cfg.chaves);
+    var cab = el('div', 'jor-conf-t'); cab.appendChild(el('b', '', cfg.titulo));
+    if (!pend.length && !abertos.length && !vazios.length) {
+      var ok = el('span', 'jor-pe-ok'); ok.appendChild(icone('ok')); ok.appendChild(document.createTextNode('Confirmado' + quem(marca))); cab.appendChild(ok);
+      box.appendChild(cab); return box;
     }
-    // Placas e inversor (do kit vendido), valor e forma de pagamento: cada um com Confirmar.
-    linhasDaVenda(d, b1, et);
-    if (concluida) {
-      var vv = d.venda;
-      if (vv) {
-        b1.appendChild(subTitulo('Você confirmou'));
-        b1.appendChild(el('p', '', 'Valor ' + reais(vv.valor_centavos) + ' · ' + vv.pagamento.map(function (x) { return x.forma + ' ' + reais(x.valor_centavos); }).join(', ')));
-        b1.appendChild(el('p', 'jor-nota', 'Combinado por ' + nomeBonito(vv.combinado_por) + ' em ' + ddmm(String(vv.combinado_em).slice(0, 10)) + '.'));
-      }
-      if (d.pode.editar_venda) {
-        var caixaVenda = el('div'); caixaVenda.hidden = true;
-        b1.appendChild(btn('Editar', '', function () { caixaVenda.hidden = !caixaVenda.hidden; }));
-        formVenda(caixaVenda, d, carregarObra, et); b1.appendChild(caixaVenda);
-      }
-    } else if (d.pode.editar_venda) {
-      b1.appendChild(subTitulo('Você confirma'));
-      formVenda(b1, d, carregarObra, et);
+    box.appendChild(cab);
+    var info = [];
+    if (pend.length) info.push('Falta confirmar: ' + juntar(pend.map(cfg.rotDe)) + '.');
+    if (vazios.length) info.push('Falta preencher: ' + juntar(vazios.map(cfg.rotDe)) + '.');
+    if (info.length) box.appendChild(el('p', 'jor-nota', info.join(' ')));
+    var ac = el('div', 'jor-din-acoes');
+    var erro = el('p', 'jor-erro', O.erroSec[cfg.sec] || ''); erro.setAttribute('role', 'alert');
+    if (pend.length || abertos.length) {
+      var ocup = !!O.confirmando[cfg.sec];
+      var b = btn(ocup ? 'Confirmando…' : cfg.rotulo, 'jor-btn-pri', function () {
+        var lista = [];
+        if (cfg.coletar) { var r = cfg.coletar.lista(); if (r.erro) { O.erroSec[cfg.sec] = r.erro; erro.textContent = r.erro; return; } lista = r.itens; }
+        confirmarLote(d, cfg.sec, lista.concat(pend.map(function (k) { return { chave: k }; })));
+      });
+      b.setAttribute('aria-label', cfg.aria); negar(b, semConfirmar(d, et)); if (ocup) b.disabled = true;
+      ac.appendChild(b);
     }
-    var com = (d.comissoes || []).filter(function (x) { return x.papel === 'venda'; })[0];
-    if (com && com.nome === (d.etapas[0].dono[0] && d.etapas[0].dono[0].nome) && d.pode.editar_venda) {
-      b1.appendChild(subTitulo('Sua comissão'));
-      var cm = el('div', 'jor-comis'); cm.appendChild(el('span', 'jor-comis-num', reais(com.valor_centavos)));
-      cm.appendChild(etq((com.pb / 100) + '% do vendido')); cm.appendChild(el('span', 'jor-nota', 'Paga depois que a entrada entrar.')); b1.appendChild(cm);
-    }
-    if (!concluida) {
-      var sv = subTitulo('Aviso de venda'); sv.appendChild(el('span', 'jor-nota', 'Sai para toda a equipe quando este bloco ficar completo.'));
-      b1.appendChild(sv); b1.appendChild(bolhaAvisoVenda(d));
-    }
-    esq.appendChild(b1);
-    // 3. Dados de banco, contrato e procuração, pedido ao cliente, excedente e o relatório de vistoria
-    esq.appendChild(secaoBanco(d, et));
-    esq.appendChild(blocoPapeis(d, et));
-    esq.appendChild(blocoPedidos(d, et));
-    esq.appendChild(secaoExcedente(d, et));
-    if (window.Jornada.extras.vistoria) window.Jornada.extras.vistoria(esq, d);
+    box.appendChild(ac);
+    box.appendChild(erro);
+    return box;
   }
 
   // ── Seções da etapa: título com a situação ao lado (Completo ou Falta N) e divisória grossa ──────────────────────────
@@ -1287,13 +1665,13 @@
   /** Desabilita o botão com um title curto explicando. */
   function negar(b, motivo) { if (motivo) { b.disabled = true; b.title = motivo; } return b; }
   function enc(x) { return encodeURIComponent(String(x)); }
-  function confirmarChave(d, chave, on, texto) {
+  function confirmarChave(d, chave, on, texto, semReler) {
     var corpo = { chave: chave, confirmar: !!on }; if (texto) corpo.texto = texto;
     return api('/gerador/jornada-solar/obra/' + enc(O.card) + '/confirmar', 'POST', corpo).then(function (r) {
       if (r.status === 200 && r.json.ok !== false) {
         d.confirmados = d.confirmados || {};
         if (on) d.confirmados[chave] = { em: new Date().toISOString(), por: '' }; else delete d.confirmados[chave];
-        releia(); return { ok: true };
+        if (!semReler) releia(); return { ok: true };
       }
       return { ok: false, erro: msgDe(r, 'Não consegui confirmar agora. Tente de novo.') };
     });
@@ -1344,10 +1722,11 @@
   function valorDoCadastro(st, campo) { var c = st && st.cad && st.cad.campos && st.cad.campos[campo]; return String((c && c.valor) == null ? '' : c.valor).trim(); }
   /** Os valores de um campo composto. De onde vêm: dados_cliente do servidor > cadastro do quadro (quando carregar). null = ainda não sei. */
   function lerCampos(d, cfg) {
-    var out = {}; var st = quadroDoCard(); var pronto = !!(st && !st.carregando && st.cad);
+    var out = {}; var st = quadroDoCard(); var pronto = !!(st && !st.carregando && st.cad); var dc = d.dados_cliente || {};
     for (var i = 0; i < cfg.campos.length; i++) {
-      var k = cfg.campos[i].k; var x = d.dados_cliente && d.dados_cliente[k];
+      var k = cfg.campos[i].k; var dk = cfg.campos[i].dc || k; var x = dc[dk];
       if (typeof x === 'string') out[k] = x.trim();
+      else if (x === null && Object.prototype.hasOwnProperty.call(dc, dk)) out[k] = '';
       else if (k === 'email' && d.documentos && typeof d.documentos.email === 'string') out[k] = d.documentos.email.trim();
       else if (pronto) out[k] = valorDoCadastro(st, k);
       else return null;
@@ -1360,86 +1739,101 @@
     var c = cfg.campos[0]; return c.fmt ? c.fmt(v[c.k]) : v[c.k];
   }
 
+  // ── A ficha do cliente (no resumo): cada dado com a origem e Editar na própria célula ─────────────────────────────
+  function fmtDoc(v) {
+    var x = soDig(v);
+    if (x.length === 11) return x.slice(0, 3) + '.' + x.slice(3, 6) + '.' + x.slice(6, 9) + '-' + x.slice(9);
+    if (x.length === 14) return x.slice(0, 2) + '.' + x.slice(2, 5) + '.' + x.slice(5, 8) + '/' + x.slice(8, 12) + '-' + x.slice(12);
+    return String(v || '');
+  }
+  /** O CPF entra na ficha e no cadastro (cpf_cnpj), mas não tem chave de confirmação no servidor. */
+  var CPF_CFG = { chave: 'cpf', semConfirmar: true, rot: 'CPF', campos: [{ k: 'cpf_cnpj', dc: 'cpf', rot: 'CPF', tipo: 'text', ex: '000.000.000-00', fmt: fmtDoc, norm: soDig }],
+    valida: function (v) { var n = soDig(v.cpf_cnpj).length; return n === 11 || n === 14 ? '' : 'CPF com 11 dígitos (ou CNPJ com 14).'; } };
+  function cfgCliente(chave) { return CAMPOS_CLIENTE.filter(function (c) { return c.chave === chave; })[0]; }
+  function ficha() { return [cfgCliente('nome'), CPF_CFG, cfgCliente('telefone'), cfgCliente('email'), cfgCliente('endereco'), cfgCliente('endereco_usina')]; }
+  var VAZIO = { nome: 'Aguardando a CNH', cpf: 'Aguardando a CNH', endereco: 'Aguardando a conta de luz', endereco_usina: 'Aguardando a conta de luz', telefone: 'Aguardando', email: 'Aguardando' };
+  /** De onde veio o dado (dados_cliente.origem do servidor). 'ia' diz qual documento: nome e CPF saem da CNH, endereço da conta de luz. */
+  function origemDe(d, cfg) {
+    var o = d.dados_cliente && d.dados_cliente.origem; if (!o || typeof o !== 'object') return '';
+    var v = o[cfg.chave]; if (v == null && cfg.chave === 'endereco_usina') v = o.endereco_ponto;
+    if (v === 'ia') return cfg.chave === 'nome' || cfg.chave === 'cpf' ? 'da CNH' : (cfg.chave === 'endereco' || cfg.chave === 'endereco_usina' ? 'da conta de luz' : 'do documento');
+    return { manual: 'digitado', card: 'do card', proposta: 'da proposta' }[v] || '';
+  }
+
   /**
-   * Um dado do cliente: o valor pré-preenchido e Confirmar. Confirmado vira selo ok e Editar; editar e salvar volta a pedir a confirmação.
-   * Sem valor, os campos já nascem abertos. Grava pelo PUT /cadastro do quadro de documentos (vdcCamposGravar).
+   * Um dado da ficha. Leitura: valor, origem e Editar (vazio: "Aguardando a CNH" e Preencher). Edição: os campos, Salvar e Cancelar, na mesma
+   * célula, que ocupa a largura toda. Salvar grava pelo PUT /cadastro do quadro (vdcCamposGravar) e tira a confirmação do dado, se tinha.
+   * O que está em edição e o que foi digitado moram em O (a obra se redesenha a cada gravação e a cada leitura de documento).
    */
-  function campoDado(d, et, cfg) {
-    var no = el('div', 'jor-campo jor-campo-larga');
-    var card = String(O.card); var edita = false; var opaco = false;
+  function campoFicha(d, et, cfg) {
+    var card = String(O.card);
+    var no = el('div', 'jor-fc ' + cfg.chave);
     var vals = lerCampos(d, cfg);
-    function feitoNoItem() { var x = et && et.itens ? et.itens.filter(function (i) { return i.chave === cfg.chave || (cfg.chave === 'endereco_usina' && i.chave === 'endereco_usina'); })[0] : null; return !!(x && x.feito); }
-    if (vals === null) {
-      quadroPronto(no).then(function () { var v = lerCampos(d, cfg); if (v === null) { opaco = feitoNoItem(); vals = {}; cfg.campos.forEach(function (c) { vals[c.k] = ''; }); } else vals = v; montar(); });
-    }
+    if (vals === null) quadroPronto(no).then(function () { if (!no.isConnected) return; vals = lerCampos(d, cfg) || vazioDe(); montar(); });
+    function vazioDe() { var o = {}; cfg.campos.forEach(function (c) { o[c.k] = ''; }); return o; }
+    function rasc(k) { return O.rascunho[cfg.chave + '.' + k]; }
+    function limparRasc() { cfg.campos.forEach(function (c) { delete O.rascunho[cfg.chave + '.' + c.k]; }); }
     function montar(foco) {
-      var ok = !!conf(d, cfg.chave);
-      var temValor = vals !== null && (cheio(cfg, vals) || opaco);
-      var ctl = el('div'); var lin = el('div', 'jor-email-lin'); ctl.appendChild(lin);
-      var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
-      var selo = null;
-      if (vals === null) {
-        lin.appendChild(el('div', 'jor-campo-lei', 'Carregando…'));
-      } else if (temValor && !edita) {
-        lin.appendChild(el('div', 'jor-campo-lei', opaco ? 'Preenchido' : mostra(cfg, vals)));
-        if (!ok) {
-          var bc = btn('Confirmar', 'jor-btn-pri', function () {
-            bc.disabled = true; bc.textContent = 'Confirmando…';
-            confirmarChave(d, cfg.chave, true).then(function (r) { if (r.ok) { montar(); return; } bc.disabled = false; bc.textContent = 'Confirmar'; erro.textContent = r.erro; });
-          });
-          bc.setAttribute('aria-label', 'Confirmar: ' + cfg.rot); negar(bc, semConfirmar(d, et)); lin.appendChild(bc);
-        }
-        var ed = btn('Editar', '', function () { edita = true; montar(true); }); ed.setAttribute('aria-label', 'Editar: ' + cfg.rot); negar(ed, semConfirmar(d, et)); lin.appendChild(ed);
-        selo = etq(ok ? 'Confirmado' : 'Falta confirmar', ok ? 'ok' : 'av');
-      } else {
-        var inps = {}; var grade = el('div', cfg.campos.length > 1 ? 'jor-campos' : 'jor-email-cmp');
-        cfg.campos.forEach(function (c) {
-          var inp = el('input', 'jor-in' + (temValor ? '' : ' falta')); inp.type = c.tipo; inp.inputMode = c.tipo === 'tel' ? 'tel' : c.tipo === 'email' ? 'email' : 'text';
-          inp.autocomplete = 'off'; inp.name = 'cliente-' + c.k; inp.maxLength = c.max || 160; if (c.tipo !== 'text') inp.spellcheck = false;
-          inp.setAttribute('aria-label', cfg.campos.length > 1 ? cfg.rot + ': ' + c.rot : cfg.rot); inp.placeholder = c.ex || '';
-          var base = temValor && !opaco ? vals[c.k] : '';
-          inp.value = c.fmt ? c.fmt(base) : base;
-          inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); salvar(); } });
-          inp.addEventListener('input', function () { inp.dataset.sujo = '1'; nota.hidden = true; erro.textContent = ''; });
-          inps[c.k] = inp;
-          if (cfg.campos.length > 1) { var lb = el('label', '', c.rot); lb.appendChild(inp); grade.appendChild(lb); } else grade.appendChild(inp);
-        });
-        var nota = el('p', 'jor-nota'); nota.hidden = true;
-        var sv = btn('Salvar', temValor ? '' : 'jor-btn-pri', salvar); sv.setAttribute('aria-label', 'Salvar: ' + cfg.rot);
-        if (cfg.campos.length > 1) { ctl.replaceChildren(grade); var ac = el('div', 'jor-email-lin'); ac.appendChild(sv); if (temValor) ac.appendChild(btn('Cancelar', '', function () { edita = false; montar(); })); ctl.appendChild(ac); }
-        else { lin.appendChild(grade); lin.appendChild(sv); if (temValor) lin.appendChild(btn('Cancelar', '', function () { edita = false; montar(); })); }
-        if (cfg.atalho) {
-          var ca = CAMPOS_CLIENTE.filter(function (x) { return x.chave === 'endereco'; })[0]; var va = ca && lerCampos(d, ca);
-          if (va && cheio(ca, va)) {
-            var at = btn(cfg.atalho, 'jor-btn-link', function () { inps[cfg.campos[0].k].value = enderecoTxt(va); inps[cfg.campos[0].k].dataset.sujo = '1'; nota.hidden = true; });
-            ctl.appendChild(at);
-          }
-        }
-        ctl.appendChild(nota); ctl.appendChild(erro);
-        if (foco) setTimeout(function () { var p0 = inps[cfg.campos[0].k]; if (p0) p0.focus(); }, 0);
-        // O que já existe em outro lugar (card, proposta) é só sugestão: preenche o campo, nunca grava sozinho nem confirma.
-        var sugerir = function () {
-          if (!cfg.sug) return; var sg = cfg.sug(d, quadroDoCard()); if (!sg) return;
-          var sujo = cfg.campos.some(function (c) { return inps[c.k].value || inps[c.k].dataset.sujo; }); if (sujo) return;
-          cfg.campos.forEach(function (c) { if (sg[c.k]) inps[c.k].value = c.fmt ? c.fmt(sg[c.k]) : sg[c.k]; });
-          nota.textContent = 'Veio do ' + (cfg.chave === 'email' ? 'proposta' : 'card') + '. Confira e salve.'; nota.hidden = false;
-        };
-        if (!temValor) { sugerir(); quadroPronto(no).then(function () { if (no.isConnected) sugerir(); }); }
-        selo = temValor ? etq(ok ? 'Confirmado' : 'Falta confirmar', ok ? 'ok' : 'av') : etq('Falta', 'av');
+      var edita = !!O.edita[cfg.chave] && vals !== null;
+      var temValor = vals !== null && cheio(cfg, vals);
+      no.className = 'jor-fc ' + cfg.chave + (edita ? ' edita' : (vals !== null && !temValor ? ' vazio' : ''));
+      no.replaceChildren();
+      var ok = !cfg.semConfirmar && temValor && !!conf(d, cfg.chave);
+      var rot = el('div', 'jor-fc-rot'); rot.appendChild(document.createTextNode(cfg.rot));
+      if (ok) { rot.appendChild(icone('ok')); rot.appendChild(srTxt('confirmado')); }
+      var org = temValor && !edita ? origemDe(d, cfg) : ''; if (org) rot.appendChild(el('span', 'jor-fc-org' + (/^da (CNH|conta)|^do doc/.test(org) ? ' ia' : ''), org));
+      no.appendChild(rot);
+      if (vals === null) { var lv = el('div', 'jor-fc-v'); lv.appendChild(el('span', '', 'Carregando…')); no.appendChild(lv); return; }
+      if (!edita) {
+        var v = el('div', 'jor-fc-v'); v.appendChild(el('span', '', temValor ? mostra(cfg, vals) : VAZIO[cfg.chave]));
+        var bE = el('button', 'jor-fc-ed', temValor ? 'Editar' : 'Preencher'); bE.type = 'button'; bE.setAttribute('aria-label', (temValor ? 'Editar: ' : 'Preencher: ') + cfg.rot);
+        bE.addEventListener('click', function () { O.edita[cfg.chave] = true; montar(true); });
+        negar(bE, semConfirmar(d, et)); v.appendChild(bE); no.appendChild(v);
+        return;
       }
-      var rotulo = el('div', 'jor-campo-rot'); rotulo.appendChild(document.createTextNode(cfg.rot)); if (selo && vals !== null) rotulo.appendChild(selo);
-      no.replaceChildren(rotulo, ctl);
-      if (!erro.parentNode && vals !== null) ctl.appendChild(erro);
+      var inps = {}; var grade = el('div', cfg.campos.length > 1 ? 'jor-campos' : 'jor-email-cmp');
+      var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
+      var nota = el('p', 'jor-nota'); nota.hidden = true;
+      cfg.campos.forEach(function (c) {
+        var inp = el('input', 'jor-in' + (temValor ? '' : ' falta')); inp.type = c.tipo; inp.inputMode = c.tipo === 'tel' ? 'tel' : c.tipo === 'email' ? 'email' : (c.norm ? 'numeric' : 'text');
+        inp.autocomplete = 'off'; inp.name = 'cliente-' + c.k; inp.maxLength = c.max || 160; if (c.tipo !== 'text' || c.norm) inp.spellcheck = false;
+        inp.setAttribute('aria-label', cfg.campos.length > 1 ? cfg.rot + ': ' + c.rot : cfg.rot); inp.placeholder = c.ex || '';
+        inp.value = rasc(c.k) != null ? rasc(c.k) : (temValor ? (c.fmt ? c.fmt(vals[c.k]) : vals[c.k]) : '');
+        inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); salvar(); } if (e.key === 'Escape') { e.preventDefault(); cancelar(); } });
+        inp.addEventListener('input', function () { O.rascunho[cfg.chave + '.' + c.k] = inp.value; nota.hidden = true; erro.textContent = ''; });
+        inps[c.k] = inp;
+        if (cfg.campos.length > 1) { var lb = el('label', '', c.rot); lb.appendChild(inp); grade.appendChild(lb); } else grade.appendChild(inp);
+      });
+      var ac = el('div', 'jor-email-lin'); ac.style.marginTop = '8px';
+      var sv = btn('Salvar', 'jor-btn-pri', salvar); sv.setAttribute('aria-label', 'Salvar: ' + cfg.rot);
+      var cn = btn('Cancelar', '', cancelar); cn.setAttribute('aria-label', 'Cancelar: ' + cfg.rot);
+      add(ac, sv, cn);
+      if (cfg.atalho) {
+        var va = lerCampos(d, cfgCliente('endereco'));
+        if (va && cheio(cfgCliente('endereco'), va)) ac.appendChild(btn(cfg.atalho, 'jor-btn-link', function () { var i0 = inps[cfg.campos[0].k]; i0.value = enderecoTxt(va); O.rascunho[cfg.chave + '.' + cfg.campos[0].k] = i0.value; nota.hidden = true; }));
+      }
+      add(no, grade, ac, nota, erro);
+      if (foco) setTimeout(function () { var p0 = inps[cfg.campos[0].k]; if (p0) p0.focus(); }, 0);
+      // O que já existe em outro lugar (card, proposta) é só sugestão: preenche o campo vazio, nunca grava sozinho nem confirma.
+      if (!temValor && cfg.sug) {
+        var sugerir = function () {
+          var sg = cfg.sug(d, quadroDoCard()); if (!sg) return;
+          if (cfg.campos.some(function (c) { return inps[c.k].value; })) return;
+          cfg.campos.forEach(function (c) { if (sg[c.k]) inps[c.k].value = c.fmt ? c.fmt(sg[c.k]) : sg[c.k]; });
+          nota.textContent = 'Veio ' + (cfg.chave === 'email' ? 'da proposta' : 'do card') + '. Confira e salve.'; nota.hidden = false;
+        };
+        sugerir(); quadroPronto(no).then(function () { if (no.isConnected) sugerir(); });
+      }
+      function cancelar() { delete O.edita[cfg.chave]; limparRasc(); montar(); }
       function salvar() {
         if (sv.disabled) return;
-        var v = {}; var env = {}; erro.textContent = '';
-        cfg.campos.forEach(function (c) { var t = inps[c.k].value.trim(); if (c.up) t = t.toUpperCase(); v[c.k] = t; });
-        var vazio = cfg.campos.every(function (c) { return !v[c.k]; });
-        if (vazio) { erro.textContent = 'Preencha este dado.'; inps[cfg.campos[0].k].focus(); return; }
-        var msg = cfg.valida(v); if (msg) { erro.textContent = msg; inps[cfg.campos[0].k].focus(); return; }
-        cfg.campos.forEach(function (c) { env[c.k] = c.norm ? c.norm(v[c.k]) : v[c.k]; });
-        var igual = !opaco && cfg.campos.every(function (c) { var a = c.norm ? c.norm(vals[c.k]) : vals[c.k]; return a === env[c.k]; });
-        if (igual) { edita = false; montar(); return; }
+        var val = {}; var env = {}; erro.textContent = '';
+        cfg.campos.forEach(function (c) { var t = inps[c.k].value.trim(); if (c.up) t = t.toUpperCase(); val[c.k] = t; });
+        if (cfg.campos.every(function (c) { return !val[c.k]; })) { erro.textContent = 'Preencha este dado.'; inps[cfg.campos[0].k].focus(); return; }
+        var msg = cfg.valida(val); if (msg) { erro.textContent = msg; inps[cfg.campos[0].k].focus(); return; }
+        cfg.campos.forEach(function (c) { env[c.k] = c.norm ? c.norm(val[c.k]) : val[c.k]; });
+        var igual = temValor && cfg.campos.every(function (c) { var a = c.norm ? c.norm(vals[c.k]) : vals[c.k]; return a === env[c.k]; });
+        if (igual) { cancelar(); return; }
         sv.disabled = true; sv.textContent = 'Salvando…';
         garantirQuadro().then(function (st) {
           if (!st) return { ok: false, erro: 'Não consegui abrir o cadastro agora. Tente de novo.' };
@@ -1447,174 +1841,51 @@
           return window.vdcCamposGravar(st, env);
         }).catch(function () { return { ok: false, erro: 'Não consegui salvar agora. Tente de novo.' }; }).then(function (r) {
           if (r && r.ok) {
-            toast('Dado salvo. Confirme para fechar.');
+            toast(cfg.semConfirmar ? 'Salvo.' : 'Salvo. Confirme no passo 4.');
             if (String(O.card) !== card) return;
-            vals = env; opaco = false; edita = false;
-            // Editar volta a pedir a confirmação.
-            var desf = conf(d, cfg.chave) ? confirmarChave(d, cfg.chave, false) : Promise.resolve({ ok: true });
-            desf.then(function () { if (no.isConnected) montar(); releia(); });
+            vals = env; delete O.edita[cfg.chave]; limparRasc(); O.lendoFalhou = '';
+            // A tela mostra o novo valor já, sem esperar a releitura: o dado foi digitado.
+            var dc = d.dados_cliente = d.dados_cliente || {};
+            cfg.campos.forEach(function (c) { dc[c.dc || c.k] = env[c.k]; });
+            if (dc.origem && typeof dc.origem === 'object') dc.origem[cfg.chave] = 'manual';
+            // Dado alterado volta a pedir a confirmação.
+            var desf = !cfg.semConfirmar && conf(d, cfg.chave) ? confirmarChave(d, cfg.chave, false, null, true) : Promise.resolve({ ok: true });
+            desf.then(function () { desenharObra(); releia(); });
             return;
           }
-          var m = (r && r.erro) || 'Não consegui salvar agora. Tente de novo.';
-          if (!sv.isConnected) { toast(m); return; }
-          sv.disabled = false; sv.textContent = 'Salvar'; erro.textContent = m;
+          var m2 = (r && r.erro) || 'Não consegui salvar agora. Tente de novo.';
+          if (!sv.isConnected) { toast(m2); return; }
+          sv.disabled = false; sv.textContent = 'Salvar'; erro.textContent = m2;
         });
       }
     }
     montar();
     return no;
   }
-  function blocoDados(d, et) {
-    var its = itensDoBloco(et, 'cliente');
-    var b = secao('Dados do cliente', its);
-    var g = el('div', 'jor-campos'); CAMPOS_CLIENTE.forEach(function (cfg) { g.appendChild(campoDado(d, et, cfg)); });
-    b.appendChild(g);
-    return b;
-  }
 
-  /** Uma linha de leitura com Confirmar (placas, inversor, valor, pagamento). O valor vem pronto; a pessoa confere e confirma. */
-  function linhaConfirma(d, rot, valor, chave, et) {
-    var no = el('div', 'jor-campo jor-campo-larga');
-    function montar() {
-      var ok = !!conf(d, chave);
-      var r = el('div', 'jor-campo-rot'); r.appendChild(document.createTextNode(rot)); r.appendChild(etq(ok ? 'Confirmado' : (valor ? 'Falta confirmar' : 'Falta'), ok ? 'ok' : 'av'));
-      var lin = el('div', 'jor-email-lin'); lin.appendChild(el('div', 'jor-campo-lei', valor || 'Sem dado'));
-      var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
-      var b = btn(ok ? 'Desfazer' : 'Confirmar', ok ? '' : 'jor-btn-pri', function () {
-        b.disabled = true; var antes = b.textContent; b.textContent = ok ? 'Desfazendo…' : 'Confirmando…';
-        confirmarChave(d, chave, !ok).then(function (x) { if (x.ok) { montar(); return; } b.disabled = false; b.textContent = antes; erro.textContent = x.erro; });
-      });
-      b.disabled = !valor; b.setAttribute('aria-label', (ok ? 'Desfazer a confirmação: ' : 'Confirmar: ') + rot);
-      negar(b, semConfirmar(d, et));
-      lin.appendChild(b);
-      var ctl = el('div'); ctl.appendChild(lin); ctl.appendChild(erro);
-      no.replaceChildren(r, ctl);
-    }
-    montar();
-    return no;
-  }
-  /** Kit sem dado na proposta (a api manda `faltando`): em vez do valor, um campo de texto e Confirmar, que grava o texto junto da confirmação. */
-  function linhaConfirmaTexto(d, rot, chave, exemplo, et) {
-    var no = el('div', 'jor-campo jor-campo-larga');
-    var r = el('div', 'jor-campo-rot'); r.appendChild(document.createTextNode(rot)); r.appendChild(etq('Falta', 'av'));
-    var lin = el('div', 'jor-email-lin');
-    var inp = el('input', 'jor-in falta'); inp.type = 'text'; inp.maxLength = 120; inp.autocomplete = 'off'; inp.name = 'kit-' + chave; inp.placeholder = exemplo; inp.setAttribute('aria-label', rot);
-    var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
-    var b = btn('Confirmar', 'jor-btn-pri', confirmar); b.setAttribute('aria-label', 'Confirmar: ' + rot); negar(b, semConfirmar(d, et)); inp.disabled = b.disabled;
-    function confirmar() {
-      if (b.disabled && !b.title) return;
-      var t = inp.value.trim(); erro.textContent = '';
-      if (t.length < 3) { erro.textContent = 'Digite a quantidade e a marca.'; inp.focus(); return; }
-      b.disabled = true; b.textContent = 'Confirmando…';
-      confirmarChave(d, chave, true, t).then(function (x) {
-        if (x.ok) {
-          if (d.kit_vendido) { d.kit_vendido[chave] = t; if (Array.isArray(d.kit_vendido.faltando)) d.kit_vendido.faltando = d.kit_vendido.faltando.filter(function (k) { return k !== chave; }); }
-          if (no.isConnected) no.replaceWith(linhaConfirma(d, rot, t, chave, et));
-          return;
-        }
-        b.disabled = false; b.textContent = 'Confirmar'; erro.textContent = x.erro;
-      });
-    }
-    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); confirmar(); } });
-    lin.appendChild(inp); lin.appendChild(b);
-    var ctl = el('div'); ctl.appendChild(lin); ctl.appendChild(erro);
-    no.appendChild(r); no.appendChild(ctl);
-    return no;
-  }
-  function txtKit(x) {
-    if (x === null || x === undefined || x === '') return '';
-    if (typeof x === 'object') { var q = x.quantidade || x.qtd || ''; var m = [x.marca, x.modelo, x.potencia_w ? x.potencia_w + ' W' : ''].filter(Boolean).join(' '); return [q ? q + ' x' : '', m].filter(Boolean).join(' '); }
-    return String(x);
-  }
-  var FORMAS_ROT = { pix: 'Pix', ted: 'TED', boleto: 'Boleto', cartao: 'Cartão', financiamento: 'Financiamento', dinheiro: 'Dinheiro' };
-  /** Placas e Inversor (do kit vendido) e, só para quem vê dinheiro, Valor vendido e Forma de pagamento: cada um com Confirmar. */
-  function linhasDaVenda(d, b1, et) {
-    var kv = d.kit_vendido; var g = el('div', 'jor-campos'); g.style.marginTop = '12px';
-    if (kv && (kv.placas || kv.inversor || kv.kwp || (kv.faltando && kv.faltando.length))) {
-      var falt = Array.isArray(kv.faltando) ? kv.faltando : [];
-      g.appendChild(falt.indexOf('placas') >= 0 ? linhaConfirmaTexto(d, 'Placas (quantidade e marca)', 'placas', 'Ex.: 14 x Canadian 590 W', et) : linhaConfirma(d, 'Placas (quantidade e marca)', txtKit(kv.placas), 'placas', et));
-      g.appendChild(falt.indexOf('inversor') >= 0 ? linhaConfirmaTexto(d, 'Inversor (quantidade e marca)', 'inversor', 'Ex.: 1 x Growatt 10K', et) : linhaConfirma(d, 'Inversor (quantidade e marca)', txtKit(kv.inversor), 'inversor', et));
-      if (kv.kwp) g.appendChild(campoLeitura('Potência do kit', String(kv.kwp).replace('.', ',') + ' kWp'));
-    }
-    var din = O.dinheiro; var vede = !(din && din.visivel === false);
-    var vv = d.venda; var dc = d.dados_cliente || {};
-    var valor = vv && vv.valor_centavos > 0 ? reais(vv.valor_centavos) : (typeof dc.valor === 'number' && dc.valor > 0 ? reais(dc.valor) : '');
-    var pgs = vv && vv.pagamento && vv.pagamento.length ? vv.pagamento : (Array.isArray(dc.pagamento) ? dc.pagamento : []);
-    var pagTxt = pgs.map(function (x) { return (FORMAS_ROT[x.forma] || x.forma) + ' ' + reais(x.valor_centavos); }).join(', ');
-    if (vede && (vv || dc.valor !== undefined)) {
-      g.appendChild(linhaConfirma(d, 'Valor vendido', valor, 'valor', et));
-      g.appendChild(linhaConfirma(d, 'Forma de pagamento', pagTxt, 'pagamento', et));
-    }
-    if (g.childNodes.length) b1.appendChild(g);
-  }
-
-  // ── Etapa 1: dados de banco (financiamento e proposta de banco) ─────────────────
-  function simNao(d, campo, valorAtual, pode) {
-    var qs = el('div', 'jor-filtros');
-    [['sim', 'Sim'], ['nao', 'Não']].forEach(function (o) {
-      var b = el('button', 'jor-chip jor-chip-grande' + (valorAtual === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !pode; b.setAttribute('aria-pressed', valorAtual === o[0] ? 'true' : 'false');
-      b.addEventListener('click', function () {
-        var corpo = {}; corpo[campo] = o[0];
-        api('/gerador/jornada-solar/obra/' + enc(O.card), 'PATCH', corpo).then(function (r) {
-          if (r.status === 200 && r.json.ok !== false) carregarObra(); else toast(msgDe(r, 'Não consegui agora.'));
-        });
-      });
-      qs.appendChild(b);
-    });
-    return qs;
-  }
-  function secaoBanco(d, et) {
-    var fin = d.financiamento === 'sim' || d.financiamento === 'nao' ? d.financiamento : null;
-    // A situação vem dos itens financiamento e proposta_banco (a api os manda no bloco 'venda'). Sim sem a proposta de banco é Falta, nunca Completo.
-    var itB = itensPorChave(et, ['financiamento', 'proposta_banco']);
-    var b = secao('Dados de banco', itB.length ? itB : situacao(fin === 'nao'));
-    b.appendChild(subTitulo('Precisa de proposta de banco ou financiamento?'));
-    b.appendChild(simNao(d, 'financiamento', fin, !!d.pode.marcar_excedente));
-    if (fin === 'sim') {
-      if (window.Jornada.extras.banco) window.Jornada.extras.banco(b, d);
-      else b.appendChild(el('p', 'jor-nota', 'A proposta de banco não carregou. Atualize a página.'));
-    }
-    return b;
-  }
-
-  // ── Etapa 1: contrato e procuração (só gerar) ───────────────────────────────────
-  function blocoPapeis(d, et) {
-    var its = itensDoBloco(et, 'papeis');
-    var b = secao('Contrato e procuração', its);
-    function linhaPapel(rot, tipo, extraCtl, gerarFn) {
-      var l = el('div', 'jor-anexo'); l.appendChild(el('span', 'jor-rot', rot));
-      var gp = d.papeis && d.papeis[tipo];
-      if (extraCtl) l.appendChild(extraCtl);
-      var g = btn('Gerar ' + (tipo === 'contrato' ? 'contrato' : 'procuração'), '', function () { gerarFn(g); }); negar(g, d.pode.gerar_papeis ? '' : 'Você não tem permissão para gerar os papéis.'); l.appendChild(g);
-      if (gp) l.appendChild(el('span', 'jor-est ok', 'Gerado em ' + ddmm(String(gp.gerado_em).slice(0, 10))));
-      b.appendChild(l);
-    }
-    linhaPapel('Contrato', 'contrato', null, function (g) { gerarPapel('contrato', {}, g); });
-    var mod = el('select', 'jor-sel'); mod.setAttribute('aria-label', 'Modelo da procuração');
-    [['1', 'Padrão'], ['2', 'Jurídico'], ['3', 'Concessionária e ANEEL']].forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; mod.appendChild(op); });
-    linhaPapel('Procuração', 'procuracao', mod, function (g) { gerarPapel('procuracao', { modelo: Number(mod.value) }, g); });
-    b.appendChild(el('p', 'jor-nota', 'Gere os papéis, colha as assinaturas e anexe os assinados na etapa 2. O recibo sai do painel de Dinheiro, no topo.'));
-    return b;
-  }
-
-  // ── Etapa 1: pedido ao cliente (checklist, copiar a lista e enviar no WhatsApp) ─
+  // ── Documentos do cliente: o pedido e o anexo na mesma linha ───────────────────────────────────────────────
   var PEDIDOS = [
-    { chave: 'pedido_cnh', rot: 'CNH ou identidade', msg: 'CNH ou identidade', slots: ['documento', 'documento_titular', 'documento_titular_uc'] },
-    { chave: 'pedido_conta_luz', rot: 'Conta de luz', msg: 'Conta de luz', slots: ['conta_luz'] },
-    { chave: 'pedido_fachada', rot: 'Foto da fachada', msg: 'Foto da fachada da casa', slots: ['fachada'] },
-    { chave: 'pedido_padrao', rot: 'Foto do padrão de entrada', msg: 'Foto do padrão de entrada', slots: ['padrao'] },
-    { chave: 'pedido_disjuntor', rot: 'Foto do disjuntor do padrão', msg: 'Foto do disjuntor do padrão', slots: ['disjuntor'] },
-    { chave: 'pedido_medidor', rot: 'Foto do medidor (relógio de luz)', msg: 'Foto do medidor (relógio de luz)', slots: ['medidor'] },
+    { chave: 'pedido_cnh', item: 'documento', rot: 'CNH ou identidade', msg: 'CNH ou identidade', slots: ['documento', 'documento_titular', 'documento_titular_uc'] },
+    { chave: 'pedido_conta_luz', item: 'conta_luz', rot: 'Conta de luz', msg: 'Conta de luz', slots: ['conta_luz'] },
+    { chave: 'pedido_fachada', item: 'fachada', rot: 'Foto da fachada', msg: 'Foto da fachada da casa', slots: ['fachada'] },
+    { chave: 'pedido_padrao', item: 'padrao', rot: 'Foto do padrão de entrada', msg: 'Foto do padrão de entrada', slots: ['padrao'] },
+    { chave: 'pedido_disjuntor', item: 'disjuntor', rot: 'Foto do disjuntor do padrão', msg: 'Foto do disjuntor do padrão', slots: ['disjuntor'] },
+    { chave: 'pedido_medidor', item: 'medidor', rot: 'Foto do medidor (relógio de luz)', msg: 'Foto do medidor (relógio de luz)', slots: ['medidor'] },
   ];
   function recebido(d, p) { return p.slots.some(function (s) { return !!(d.slots && d.slots[s]); }); }
+  function docRecebido(d, p) { if (pendentesDe(d).some(function (i) { return i.chave === p.item; })) return false; var x = itensDe(d, [p.item]).filter(function (i) { return i.bloco === 'documentos' || i.bloco === 'fotos'; })[0]; return (x && !!x.feito) || recebido(d, p); }
+  /** O slot do documento: o do contratante, ou o do titular da homologação quando só ele existe. */
+  function slotDoc(d, p) { if (p.item !== 'documento') return p.item; return d.slots.documento ? 'documento_titular' : (d.slots.documento_titular_uc ? 'documento_titular_uc' : 'documento_titular'); }
   function primeiroNome(d) {
     var n = String((d.dados_cliente && d.dados_cliente.nome) || (d.card && d.card.cliente) || '').trim().split(/\s+/)[0] || '';
     return n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
   }
-  function mensagemPedido(d, faltam) {
+  function mensagemPedido(d, faltam, excedente) {
     var nome = primeiroNome(d);
+    var linhas = faltam.map(function (p) { return '- ' + p.msg; });
+    if (excedente) linhas.push('- Conta de luz de cada imóvel que vai receber o excedente');
     return (nome ? 'Olá, ' + nome + '.' : 'Olá.') + ' Para seguir com o seu projeto de energia solar, preciso destes documentos e fotos:\n'
-      + faltam.map(function (p) { return '- ' + p.msg; }).join('\n') + '\nPode mandar por aqui mesmo. Obrigado!';
+      + linhas.join('\n') + '\nPode mandar por aqui mesmo. Obrigado!';
   }
   function copiarTexto(t) {
     function plano() {
@@ -1632,6 +1903,30 @@
     if ((x.length === 12 || x.length === 13) && x.indexOf('55') === 0) return x;
     return '';
   }
+  function abrirWa(tel, txt) { try { window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(txt), '_blank', 'noopener'); } catch (e) { toast('Não consegui abrir o WhatsApp.'); } }
+  /** A UC (ou, sem UC, o endereço) da conta do excedente em outro CPF. Vazio quando o cadastro não tem nenhum dos dois. */
+  function contaDoExcedente(d) {
+    var bens = ((d.documentos && d.documentos.beneficiarias) || []).filter(function (b) { return b && b.uc; });
+    var b = bens.filter(function (x) { return !x.mesmo_titular; })[0] || bens[0];
+    if (b) return 'UC ' + b.uc;
+    var st = quadroDoCard();
+    for (var i = 1; i <= 5; i++) {
+      var uc = valorDoCadastro(st, 'benef_' + i + '_uc'); if (uc) return 'UC ' + uc;
+      var end = valorDoCadastro(st, 'benef_' + i + '_endereco'); if (end) return end;
+    }
+    return '';
+  }
+  /** O pedido de troca de titularidade do excedente: versão 1 quando dá para dizer qual conta (UC ou endereço), versão 2 quando não. */
+  function mensagemTitularidade(d) {
+    var nome = primeiroNome(d); var conta = contaDoExcedente(d);
+    var linhas = [nome ? 'Olá, ' + nome + '.' : 'Olá.'];
+    linhas.push(conta ? 'A conta ' + conta + ' está em outro CPF, diferente do seu.' : 'A conta que vai receber a sobra de energia das placas está em outro CPF, diferente do seu.');
+    linhas.push(conta ? 'A concessionária só divide a energia que sobra das placas entre contas do mesmo CPF.' : 'A concessionária só divide essa energia entre contas do mesmo CPF.');
+    linhas.push('Por isso, peça na concessionária a troca de titularidade dessa conta para o seu CPF.');
+    linhas.push('Se preferir, nos mande a conta de outra unidade que já esteja no seu nome.');
+    linhas.push('Qualquer dúvida, é só chamar.');
+    return linhas.join('\n');
+  }
   /** Marca como pedido o que foi listado na mensagem (PATCH dos pedidos). Quem envia é a pessoa: nada sai pelo sistema. */
   function marcarPedidos(d, itens) {
     d.pedidos = d.pedidos || {};
@@ -1646,70 +1941,264 @@
     });
     return seq.then(function () { if (fila.length) releia(); });
   }
-  function blocoPedidos(d, et) {
-    var its = itensDoBloco(et, 'pedidos');
-    var b = secao('Pedido ao cliente', its);
-    b.appendChild(el('p', 'jor-nota', 'Tique o que você já pediu. O que o cliente já mandou aparece tiquado sozinho.'));
-    var ul = el('div', 'jor-ped-lista');
-    PEDIDOS.forEach(function (p) {
-      var rec = recebido(d, p); var ped = (d.pedidos && d.pedidos[p.chave]) || null;
-      var lb = el('label', 'jor-ped'); var cb = el('input'); cb.type = 'checkbox'; cb.checked = rec || !!ped; cb.disabled = rec;
-      cb.setAttribute('aria-label', p.rot);
+  /** Uma linha: o nome, os 3 passos (Falta pedir, Pedido em, Recebido), o "Já pedi" e o anexo (Foto, Arquivo, Print ou a miniatura com Trocar e Apagar). */
+  function linhaDoc(d, p, opc) {
+    opc = opc || {};
+    var rec = docRecebido(d, p); var ped = (d.pedidos && d.pedidos[p.chave]) || null; var slot = slotDoc(d, p);
+    var row = el('div', 'jor-doc');
+    var info = el('div'); info.appendChild(el('span', 'jor-doc-nome', p.rot));
+    var est = el('div', 'jor-doc-est');
+    var passo = rec ? 2 : ped ? 1 : 0;
+    var ps = el('span', 'jor-passos p' + passo + (rec ? ' ok' : '')); ps.setAttribute('aria-hidden', 'true');
+    [0, 1, 2].forEach(function (i) { if (i) ps.appendChild(el('b', i <= passo ? 'on' : '')); ps.appendChild(el('i', i <= passo ? 'on' : '')); });
+    if (!opc.semPedido) est.appendChild(ps);   // pendência da etapa 1: só o anexo (o pedido só vale com a etapa 1 aberta)
+    if (!opc.semPedido) est.appendChild(el('span', 'st ' + (rec ? 'st-ok' : ped ? 'st-ped' : 'st-falta'), rec ? 'Recebido' : ped ? 'Pedido' + (ped.em ? ' em ' + ddmm(String(ped.em).slice(0, 10)) : '') : 'Falta pedir'));
+    if (!rec && !opc.semPedido) {
+      var lb = el('label', 'jor-doc-ped'); var cb = el('input'); cb.type = 'checkbox'; cb.checked = !!ped; cb.setAttribute('aria-label', 'Já pedi: ' + p.rot);
       cb.addEventListener('change', function () {
         var on = cb.checked; cb.disabled = true;
         api('/gerador/jornada-solar/obra/' + enc(O.card), 'PATCH', { pedido: p.chave, feito: on }).then(function (r) {
-          if (r.status === 200 && r.json.ok !== false) { d.pedidos = d.pedidos || {}; if (on) d.pedidos[p.chave] = { em: new Date().toISOString(), por: '' }; else delete d.pedidos[p.chave]; cb.disabled = false; releia(); return; }
+          if (r.status === 200 && r.json.ok !== false) { d.pedidos = d.pedidos || {}; if (on) d.pedidos[p.chave] = { em: new Date().toISOString(), por: '' }; else delete d.pedidos[p.chave]; desenharObra(); releia(); return; }
           cb.checked = !on; cb.disabled = false; toast(msgDe(r, 'Não consegui marcar agora.'));
         });
       });
-      lb.appendChild(cb); lb.appendChild(el('span', 'jor-ped-t', p.rot));
-      if (rec) lb.appendChild(etq('Recebido', 'ok')); else if (ped) lb.appendChild(etq('Pedido' + (ped.em ? ' em ' + ddmm(String(ped.em).slice(0, 10)) : ''), 'auto'));
-      ul.appendChild(lb);
-    });
-    b.appendChild(ul);
-    var faltam = PEDIDOS.filter(function (p) { return !recebido(d, p); });
-    var ac = el('div', 'jor-din-acoes');
-    if (!faltam.length) { b.appendChild(el('p', 'jor-ok', 'Tudo recebido.')); return b; }
-    var txt = mensagemPedido(d, faltam); var tel = telefoneWa(d);
-    var bc = btn('Copiar lista', '', function () {
-      copiarTexto(txt).then(function (ok) { toast(ok ? 'Lista copiada. Cole na conversa com o cliente.' : 'Não consegui copiar. Selecione e copie a mensagem abaixo.'); });
-      marcarPedidos(d, faltam);
-    });
-    ac.appendChild(bc);
-    if (tel) {
-      var bw = btn('Enviar no WhatsApp', 'jor-btn-pri', function () {
-        try { window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(txt), '_blank', 'noopener'); } catch (e) { toast('Não consegui abrir o WhatsApp.'); }
-        marcarPedidos(d, faltam);
-      });
-      ac.appendChild(bw);
-    } else ac.appendChild(el('span', 'jor-nota', 'Sem telefone do cliente: só dá para copiar a lista.'));
-    b.appendChild(ac);
-    var pre = el('pre', 'jor-ped-msg', txt); b.appendChild(pre);
-    return b;
+      lb.appendChild(cb); lb.appendChild(document.createTextNode('Já pedi')); est.appendChild(lb);
+    }
+    if (est.firstChild) info.appendChild(est); row.appendChild(info);
+    row.appendChild(anexo(slot, p.rot, rec, { compacto: true }));
+    if (O.lendo && O.lendo.slot === slot && O.lendo.card === String(O.card)) {
+      var ld = el('p', 'jor-lendo'); ld.setAttribute('role', 'status'); ld.appendChild(el('i')); ld.appendChild(document.createTextNode('Lendo o documento…')); row.appendChild(ld);
+    }
+    return row;
   }
 
-  // ── Etapa 1: excedente (Sim ou Não, contas e a conferência do CPF) ──────────────
-  function secaoExcedente(d, et) {
-    var its = itensPorChave(et, ['excedente', 'conta_excedente']).concat(itensDoBloco(et, 'excedente')).filter(function (x, i, a) { return a.indexOf(x) === i; });
-    var b = secao('Excedente', its.length ? its : situacao(d.excedente === 'sim' || d.excedente === 'nao'));
-    b.appendChild(subTitulo('Tem excedente para outras contas?'));
-    b.appendChild(simNao(d, 'excedente', d.excedente, !!d.pode.marcar_excedente));
+  // ── Passo 2: mandar a lista (com a pergunta do excedente) ───────────────────────────────────────────────────
+  function simNao(d, campo, valorAtual, pode, rotulo) {
+    var qs = el('div', 'jor-filtros'); qs.setAttribute('role', 'group'); if (rotulo) qs.setAttribute('aria-label', rotulo);
+    [['sim', 'Sim'], ['nao', 'Não']].forEach(function (o) {
+      var b = el('button', 'jor-chip jor-chip-grande' + (valorAtual === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !pode; b.setAttribute('aria-pressed', valorAtual === o[0] ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        var corpo = {}; corpo[campo] = o[0];
+        api('/gerador/jornada-solar/obra/' + enc(O.card), 'PATCH', corpo).then(function (r) {
+          if (r.status === 200 && r.json.ok !== false) carregarObra(); else toast(msgDe(r, 'Não consegui agora.'));
+        });
+      });
+      qs.appendChild(b);
+    });
+    return qs;
+  }
+  function pergunta(txt, q) { var t = el('p', 'jor-perg', txt); if (q) t.appendChild(ajudaQ(q)); return t; }
+  function corpoLista(c) {
+    var d = O.dados;
+    c.appendChild(pergunta('Tem excedente para outra conta de luz?', 'Se sim, a conta de cada imóvel que vai receber o excedente entra na lista.'));
+    c.appendChild(simNao(d, 'excedente', d.excedente, !!d.pode.marcar_excedente, 'Tem excedente para outra conta de luz?'));
+    var faltam = PEDIDOS.filter(function (p) { return !docRecebido(d, p); });
+    var excFalta = d.excedente === 'sim' && !(d.slots && d.slots.conta_luz_beneficiaria);
+    var sep = el('div', 'jor-sep'); c.appendChild(sep);
+    if (!faltam.length && !excFalta) { c.appendChild(el('p', 'jor-ok', 'Tudo recebido. Nada para pedir.')); return; }
+    var nomes = faltam.map(function (p) { return p.rot; }); if (excFalta) nomes.push('Conta do excedente');
+    c.appendChild(pergunta('Vai na lista (' + nomes.length + '):'));
+    var ul = el('ul', 'jor-vai'); nomes.forEach(function (x) { ul.appendChild(el('li', '', x)); }); c.appendChild(ul);
+    var txt = mensagemPedido(d, faltam, excFalta); var tel = telefoneWa(d);
+    var pre = el('pre', 'jor-ped-msg', txt); pre.hidden = true;
+    var ac = el('div', 'jor-docs-ac');
+    if (tel) ac.appendChild(btn('Enviar no WhatsApp', 'jor-btn-pri', function () { abrirWa(tel, txt); marcarPedidos(d, faltam); }));
+    ac.appendChild(btn('Copiar lista', '', function () {
+      copiarTexto(txt).then(function (ok) { if (!ok) pre.hidden = false; toast(ok ? 'Lista copiada. Cole na conversa com o cliente.' : 'Não consegui copiar. Selecione e copie a mensagem abaixo.'); });
+      marcarPedidos(d, faltam);
+    }));
+    ac.appendChild(el('p', 'jor-nota', (tel ? '' : 'Sem telefone do cliente: só dá para copiar. ') + 'O que for na lista fica marcado como pedido.'));
+    c.appendChild(ac); c.appendChild(pre);
+  }
+
+  // ── Passo 3: anexar tudo (documentos, fotos e as contas do excedente com a conferência do CPF) ────────────────────
+  /** Obra que concluiu a etapa 1 pela regra antiga: a api manda na etapa 2 o bloco 'pendentes' (só enquanto faltam), um item por documento ou foto. */
+  function pendentesDe(d) {
+    var e2 = (d.etapas || [])[1];
+    return ((e2 && e2.itens) || []).filter(function (i) { return i && i.bloco === 'pendentes' && !i.feito; });
+  }
+  function corpoAnexos(c) {
+    var d = O.dados; var et = d.etapas[0];
+    var pend = pendentesDe(d);
+    if (pend.length) {
+      // Só o que faltou na etapa 1: a CNH, a conta de luz e as fotos que a api listou, para anexar aqui mesmo.
+      var chaves = pend.map(function (i) { return i.chave; });
+      c.appendChild(el('p', 'jor-nota jor-nota-topo', 'Pendente da etapa 1. Anexe só o que falta.'));
+      var lp = el('div', 'jor-docs-l'); PEDIDOS.forEach(function (p) { if (chaves.indexOf(p.item) >= 0) lp.appendChild(linhaDoc(d, p, { semPedido: true })); }); c.appendChild(lp);
+      return;
+    }
+    c.appendChild(el('p', 'jor-nota jor-nota-topo', 'Anexe o que o cliente mandar. A CNH e a conta de luz preenchem a ficha do cliente sozinhas.'));
+    var lista = el('div', 'jor-docs-l'); PEDIDOS.forEach(function (p) { lista.appendChild(linhaDoc(d, p)); }); c.appendChild(lista);
     if (d.excedente === 'sim') {
-      b.appendChild(listaVarios(d, et, { slot: 'conta_luz_beneficiaria', rotBase: 'Conta excedente', add: 'Adicionar conta excedente', item: 'conta_excedente', titulo: 'Contas que recebem o excedente', cartaoVazio: true }));
+      c.appendChild(subTitulo('Contas que recebem o excedente'));
+      c.appendChild(listaVarios(d, et, { slot: 'conta_luz_beneficiaria', rotBase: 'Conta excedente', add: 'Adicionar conta excedente', item: 'conta_excedente', titulo: '', cartaoVazio: true }));
       // A api sempre manda o objeto: ok false = aviso com o texto dela; ok true = mesmo CPF; ok nulo = ainda não deu para conferir (a lista UC por UC).
       var cpf = d.excedente_cpf || { ok: null };
-      if (cpf.ok === false) b.appendChild(el('p', 'jor-aviso', cpf.texto || 'O CPF da conta do excedente não confere com o da conta principal.'));
-      else if (cpf.ok === true) b.appendChild(el('p', 'jor-ok', 'Mesmo CPF da conta principal.'));
+      if (cpf.ok === false) {
+        var av = el('p', 'jor-aviso', cpf.texto || 'O CPF da conta do excedente não confere com o da conta principal.'); av.style.marginTop = '10px'; c.appendChild(av);
+        // Pedido de troca de titularidade (texto final do redator). Quem envia é a pessoa: nada sai pelo sistema.
+        var tel = telefoneWa(d);
+        var txt = mensagemTitularidade(d);
+        var pre = el('pre', 'jor-ped-msg', txt); pre.hidden = true;
+        var ac = el('div', 'jor-docs-ac'); ac.style.marginTop = '10px';
+        if (tel) ac.appendChild(btn('Enviar no WhatsApp', '', function () { abrirWa(tel, txt); }));
+        ac.appendChild(btn('Copiar', '', function () { copiarTexto(txt).then(function (ok) { if (!ok) pre.hidden = false; toast(ok ? 'Pedido copiado. Cole na conversa com o cliente.' : 'Não consegui copiar. Selecione e copie a mensagem abaixo.'); }); }));
+        c.appendChild(ac); c.appendChild(pre);
+      } else if (cpf.ok === true) c.appendChild(el('p', 'jor-ok', 'Mesmo CPF da conta principal.'));
       else {
-        (d.documentos.beneficiarias || []).forEach(function (bn) {
+        ((d.documentos && d.documentos.beneficiarias) || []).forEach(function (bn) {
           var li = el('div', 'jor-conta');
           li.appendChild(etq(bn.mesmo_titular ? 'ok' : 'Titular diferente', bn.mesmo_titular ? 'ok' : 'er'));
           li.appendChild(el('span', bn.mesmo_titular ? 'jor-ok' : 'jor-erro', 'UC ' + bn.uc + ' · ' + (bn.titular || 'sem titular') + ' · ' + (bn.mesmo_titular ? 'Mesmo titular' : 'Titular diferente. Todas as contas precisam estar no nome de ' + d.documentos.titular_geradora + '.')));
-          b.appendChild(li);
+          c.appendChild(li);
         });
       }
+    } else if (d.excedente !== 'nao') c.appendChild(el('p', 'jor-nota', 'Diga no passo 2 se tem excedente.'));
+  }
+
+  // ── Passo 4: conferir a ficha (confirmar cliente e venda; os dados ficam no resumo) ───────────────────────────────
+  function txtKit(x) {
+    if (x === null || x === undefined || x === '') return '';
+    if (typeof x === 'object') { var q = x.quantidade || x.qtd || ''; var m = [x.marca, x.modelo, x.potencia_w ? x.potencia_w + ' W' : ''].filter(Boolean).join(' '); return [q ? q + ' x' : '', m].filter(Boolean).join(' '); }
+    return String(x);
+  }
+  var FORMAS_ROT = { pix: 'Pix', ted: 'TED', boleto: 'Boleto', cartao: 'Cartão', financiamento: 'Financiamento', dinheiro: 'Dinheiro' };
+  var KITS = [['placas', 'Placas', 'Ex.: 14 x Canadian 590 W'], ['inversor', 'Inversor', 'Ex.: 1 x Growatt 10K']];
+  /** Uma célula de leitura: rótulo (com o tique quando confirmado) e o valor. */
+  function celula(rot, v, ok, larga) {
+    var c = el('div', 'jor-rc' + (larga ? ' larga' : ''));
+    var r = el('div', 'jor-rc-rot', rot); if (ok) { r.appendChild(icone('ok')); r.appendChild(srTxt('confirmado')); } c.appendChild(r);
+    c.appendChild(typeof v === 'string' ? el('div', 'jor-rc-v', v) : v);
+    return c;
+  }
+  function abrirLigacoes() {
+    abrirQuadro();
+    quadroPronto(null, 8000).then(function (st) { var alvo = st && st.no && st.no.vinc; if (alvo && alvo.scrollIntoView) alvo.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  }
+  function ligarProposta(d, et, c) {
+    if (d.proposta) return;
+    c.appendChild(el('p', 'jor-aviso', 'Esta venda ainda não tem a proposta aceita ligada.'));
+    if (d.pode.ligar_proposta && d.propostas_candidatas && d.propostas_candidatas.length) {
+      d.propostas_candidatas.forEach(function (p) {
+        var l = el('div', 'jor-email-lin'); l.style.marginTop = '8px';
+        l.appendChild(el('span', '', p.codigo + ' · ' + p.cliente + (p.kwp ? ' · ' + String(p.kwp).replace('.', ',') + ' kWp' : '') + (p.data ? ' · ' + ddmm(p.data) : '')));
+        var bl = btn('Ligar', '', function () {
+          bl.disabled = true;
+          api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + '/proposta', 'POST', { codigo: p.codigo }).then(function (r) {
+            if (r.status === 200 && r.json.ok !== false) carregarObra(); else { bl.disabled = false; toast(msgDe(r, 'Não consegui ligar agora.')); }
+          });
+        });
+        bl.setAttribute('aria-label', 'Ligar a proposta ' + p.codigo); l.appendChild(bl); c.appendChild(l);
+      });
+    } else if (!et.concluida_em) c.appendChild(btn('Ligar a proposta', '', abrirLigacoes));
+  }
+  function corpoFicha(c) {
+    var d = O.dados; var et = d.etapas[0];
+    var vv = d.venda; var dc = d.dados_cliente || {}; var kv = d.kit_vendido || null;
+    var vede = !!(vv && vv.valor_centavos !== undefined) || (dc && dc.valor_centavos !== undefined);   // quem vê o valor é decidido pela api (o vendedor vê, mesmo sem o Livro)
+    var topo = el('div', 'jor-docs-ac'); topo.appendChild(el('p', 'jor-nota', 'Os dados estão no resumo, no topo. Confira lá e confirme aqui.'));
+    var bv = btn('Ver a ficha', 'jor-btn-link', function () { irPara('jor-s-cliente'); }); topo.appendChild(bv); c.appendChild(topo);
+    // Cliente
+    c.appendChild(linhaConfirmar(d, et, {
+      sec: 'cliente', titulo: 'Dados do cliente', chaves: CAMPOS_CLIENTE.map(function (x) { return x.chave; }), rotulo: 'Confirmar dados do cliente', aria: 'Confirmar dados do cliente',
+      temValor: function (k) { var x = cfgCliente(k); var v = lerCampos(d, x); return !!(v && cheio(x, v)); },
+      rotDe: function (k) { return cfgCliente(k).rot.replace(' do cliente', '').toLowerCase(); },
+    }));
+    // Venda: o kit escrito à mão (quando a proposta não tem), a proposta ligada e o Confirmar venda.
+    ligarProposta(d, et, c);
+    var kitIn = {};
+    if (kv) KITS.forEach(function (k) {
+      var ch = k[0]; var ek = 'kit.' + ch; var falta = Array.isArray(kv.faltando) && kv.faltando.indexOf(ch) >= 0;
+      if (!falta && !O.edita[ek]) return;
+      var rot = k[1] + ' (quantidade e marca)';
+      var lin = el('div', 'jor-email-lin');
+      var inp = el('input', 'jor-in' + (falta ? ' falta' : '')); inp.type = 'text'; inp.maxLength = 120; inp.autocomplete = 'off'; inp.name = 'kit-' + ch; inp.placeholder = k[2]; inp.setAttribute('aria-label', rot);
+      inp.value = O.rascunho[ek] != null ? O.rascunho[ek] : (falta ? '' : txtKit(kv[ch]));
+      inp.addEventListener('input', function () { O.rascunho[ek] = inp.value; });
+      inp.disabled = !!semConfirmar(d, et); lin.appendChild(inp);
+      if (!falta) { var cn = btn('Cancelar', '', function () { delete O.edita[ek]; delete O.rascunho[ek]; desenharObra(); }); cn.setAttribute('aria-label', 'Cancelar a edição: ' + k[1]); lin.appendChild(cn); }
+      kitIn[ch] = inp; c.appendChild(campoRot(rot, lin, falta ? etq('A proposta não diz', 'av') : null, true));
+    });
+    var valorC = vv && vv.valor_centavos > 0 ? vv.valor_centavos : (typeof dc.valor_centavos === 'number' && dc.valor_centavos > 0 ? dc.valor_centavos : 0);
+    var pgs = vv && vv.pagamento && vv.pagamento.length ? vv.pagamento : (Array.isArray(dc.pagamento) ? dc.pagamento : []);
+    var temDin = vede && ((vv && vv.valor_centavos !== undefined) || dc.valor_centavos !== undefined);
+    var rotK = { placas: 'placas', inversor: 'inversor', valor: 'valor', pagamento: 'forma de pagamento' };
+    var lc = linhaConfirmar(d, et, {
+      sec: 'venda', titulo: 'Venda', chaves: (kv ? ['placas', 'inversor'] : []).concat(temDin ? ['valor', 'pagamento'] : []), rotulo: 'Confirmar venda', aria: 'Confirmar a venda',
+      temValor: function (k) { if (k === 'valor') return valorC > 0; if (k === 'pagamento') return pgs.length > 0; return !!txtKit(kv && kv[k]); },
+      rotDe: function (k) { return rotK[k]; },
+      coletar: {
+        chaves: function () { return Object.keys(kitIn); },
+        lista: function () {
+          var erro = ''; var itens = [];
+          Object.keys(kitIn).forEach(function (ch) {
+            var t = kitIn[ch].value.trim();
+            if (t.length < 3 && !erro) { erro = 'Digite a quantidade e a marca ' + (ch === 'placas' ? 'das placas.' : 'do inversor.'); kitIn[ch].focus(); }
+            itens.push({ chave: ch, texto: t, depois: function () {
+              var k2 = d.kit_vendido; if (k2) { k2[ch] = t; if (Array.isArray(k2.faltando)) k2.faltando = k2.faltando.filter(function (x) { return x !== ch; }); var mn = Array.isArray(k2.manual) ? k2.manual : (k2.manual = []); if (mn.indexOf(ch) < 0) mn.push(ch); }
+              delete O.edita['kit.' + ch]; delete O.rascunho['kit.' + ch];
+            } });
+          });
+          return { erro: erro, itens: itens };
+        },
+      },
+    });
+    c.appendChild(lc);
+    // Os botões de editar a venda ficam na linha da venda: valor, pagamento e prazo (o formulário de sempre) e o kit escrito à mão.
+    var editaVenda = !!d.pode.editar_venda && (O.vendaEdita || !vv);
+    var acs = lc.querySelector('.jor-din-acoes'); if (!acs) { acs = el('div', 'jor-din-acoes'); lc.appendChild(acs); }
+    if (d.pode.editar_venda && !editaVenda) acs.appendChild(btn('Editar valor, pagamento e prazo', '', function () { O.vendaEdita = true; desenharObra(); }));
+    if (kv && Array.isArray(kv.manual) && !semConfirmar(d, et)) kv.manual.forEach(function (ch) {
+      if (O.edita['kit.' + ch] || (kv.faltando || []).indexOf(ch) >= 0) return;
+      var be = btn('Editar ' + (ch === 'placas' ? 'placas' : 'inversor'), '', function () { O.edita['kit.' + ch] = true; desenharObra(); }); acs.appendChild(be);
+    });
+    if (editaVenda) {
+      var fx = el('div', 'jor-venda-form'); fx.appendChild(subTitulo(vv ? 'Editar valor, pagamento e prazo' : 'Valor, pagamento e prazo'));
+      formVenda(fx, d, function () { O.vendaEdita = false; carregarObra(); }, et);
+      if (vv) fx.appendChild(btn('Cancelar', '', function () { O.vendaEdita = false; desenharObra(); }));
+      c.appendChild(fx);
     }
-    return b;
+    var com = (d.comissoes || []).filter(function (x) { return x.papel === 'venda'; })[0];
+    if (com && d.etapas[0].dono[0] && com.nome === d.etapas[0].dono[0].nome && d.pode.editar_venda) {
+      c.appendChild(el('p', 'jor-nota', 'Sua comissão: ' + reais(com.valor_centavos) + ' (' + (com.pb / 100) + '% do vendido). Paga depois que a entrada entrar.'));
+    }
+    if (!et.concluida_em) lc.firstChild.appendChild(ajudaQ('Com a venda confirmada, a equipe toda recebe o aviso de venda no WhatsApp.'));
+  }
+
+  // ── Passo 5: financiamento, contrato e procuração (e o recibo, se quiser) ────────────────────────────────────────
+  function corpoPapeis(c) {
+    var d = O.dados; var fin = d.financiamento === 'sim' || d.financiamento === 'nao' ? d.financiamento : null;
+    c.appendChild(pergunta('Precisa de proposta de banco ou financiamento?'));
+    c.appendChild(simNao(d, 'financiamento', fin, !!d.pode.marcar_excedente, 'Precisa de proposta de banco ou financiamento?'));
+    if (fin === 'sim') {
+      if (window.Jornada.extras.banco) window.Jornada.extras.banco(c, d);
+      else c.appendChild(el('p', 'jor-nota', 'A proposta de banco não carregou. Atualize a página.'));
+    }
+    c.appendChild(el('div', 'jor-sep'));
+    var lista = el('div', 'jor-docs-l');
+    function linhaPapel(rot, tipo, extraCtl, gerarFn) {
+      var gp = d.papeis && d.papeis[tipo];
+      var l = el('div', 'jor-papel'); var info = el('div'); info.appendChild(el('span', 'jor-doc-nome', rot));
+      var est = el('div', 'jor-doc-est'); est.appendChild(el('span', 'st ' + (gp ? 'st-ok' : 'st-falta'), gp ? 'Gerado em ' + ddmm(String(gp.gerado_em).slice(0, 10)) : 'Falta gerar')); info.appendChild(est);
+      l.appendChild(info);
+      var ac = el('div', 'jor-papel-ac'); if (extraCtl) ac.appendChild(extraCtl);
+      var g = btn(gp ? 'Gerar de novo' : 'Gerar ' + rot.toLowerCase(), gp ? '' : 'jor-btn-pri', function () { gerarFn(g); });
+      g.setAttribute('aria-label', (gp ? 'Gerar de novo: ' : 'Gerar: ') + rot);
+      negar(g, d.pode.gerar_papeis ? '' : 'Você não tem permissão para gerar os papéis.'); ac.appendChild(g);
+      l.appendChild(ac); lista.appendChild(l);
+    }
+    linhaPapel('Contrato', 'contrato', null, function (g) { gerarPapel('contrato', {}, g); });
+    var mod = el('select', 'jor-sel'); mod.setAttribute('aria-label', 'Modelo da procuração');
+    [['1', 'Padrão'], ['2', 'Jurídico'], ['3', 'Concessionária e ANEEL']].forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; mod.appendChild(op); });
+    linhaPapel('Procuração', 'procuracao', mod, function (g) { gerarPapel('procuracao', { modelo: Number(mod.value) }, g); });
+    c.appendChild(lista);
+    var pe = el('div', 'jor-docs-ac'); pe.style.marginTop = '12px';
+    pe.appendChild(el('p', 'jor-nota', 'Assinados, eles entram no passo 6.'));
+    // O recibo mostra o valor: aparece quando a api mandou o valor (mesma regra do resumo), não pela regra do Livro.
+    var vv = d.venda; var dcr = d.dados_cliente || {};
+    var vede = !!(vv && vv.valor_centavos !== undefined) || dcr.valor_centavos !== undefined;
+    if (d.pode.gerar_papeis && vede) { var br = btn('Gerar recibo (opcional)', 'jor-btn-link', function () { reciboDialogo(d, br); }); pe.appendChild(br); }
+    c.appendChild(pe);
   }
 
   // ── Itens com vários arquivos num slot só (contas do excedente e outros anexos) ──
@@ -1756,16 +2245,7 @@
     return cf;
   }
 
-  // ── Etapa 3: equipamento (datasheets e KMZ) e Trello com o relatório final ─────
-  function blocoEquipamento(d, et) {
-    var b = secao('Equipamento', itensPorChave(et, ['datasheet_inversor', 'datasheet_modulo', 'kmz']));
-    var g = el('div', 'jor-fotos');
-    g.appendChild(cartaoAnexo(d, et, 'datasheet_inversor', 'Datasheet do inversor', 'datasheet_inversor'));
-    g.appendChild(cartaoAnexo(d, et, 'datasheet_modulo', 'Datasheet da placa', 'datasheet_modulo'));
-    g.appendChild(cartaoAnexo(d, et, 'kmz', 'KMZ do local', 'kmz', ACEITA_KMZ));
-    b.appendChild(g);
-    return b;
-  }
+  // ── Trello e relatório final ─────────────────────────────────────────────────
   function relatorioFinalDe(r) { var j = r.json || {}; return (j.relatorio_final && j.relatorio_final.url) || j.url || (j.relatorio && j.relatorio.url) || ''; }
   function blocoTrelloRelatorio(d, et) {
     var b = secao('Trello e relatório final', itensPorChave(et, ['trello']));
@@ -1851,75 +2331,6 @@
     });
   }
 
-  function etapa2(esq, d, et) {
-    // 1. Anexos assinados
-    var bs = secao('Anexos assinados', itensPorChave(et, ['contrato_assinado', 'procuracao']));
-    var gs = el('div', 'jor-fotos');
-    gs.appendChild(cartaoAnexo(d, et, 'contrato_assinado', 'Contrato assinado', 'contrato_assinado'));
-    gs.appendChild(cartaoAnexo(d, et, 'procuracao', 'Procuração assinada', 'procuracao'));
-    bs.appendChild(gs);
-    bs.appendChild(el('p', 'jor-nota', 'O contrato assinado fica arquivado aqui. Só a procuração segue para a homologação.'));
-    esq.appendChild(bs);
-    // 2. Documentos
-    var bd = secao('Documentos', itensPorChave(et, ['documento', 'conta_luz']));
-    var gd = el('div', 'jor-fotos');
-    // A caixa olha os dois documentos que o portão aceita (o do contratante e o do titular da homologação).
-    var temDoc = !!(d.slots.documento || d.slots.documento_titular_uc);
-    var chDoc = d.slots.documento ? 'documento_titular' : (d.slots.documento_titular_uc ? 'documento_titular_uc' : 'documento_titular');
-    var cDoc = cartaoAnexo(d, et, chDoc, 'CNH ou identidade', null);
-    if (temDoc !== !!d.slots[chDoc]) { cDoc = el('div', 'jor-foto'); var tpd = el('div', 'jor-foto-topo'); tpd.appendChild(el('span', '', 'CNH ou identidade')); tpd.appendChild(etq(temDoc ? 'Anexado' : 'Falta', temDoc ? 'ok' : 'av')); cDoc.appendChild(tpd); cDoc.appendChild(anexo(chDoc, 'CNH ou identidade', temDoc, { compacto: true })); }
-    gd.appendChild(cDoc);
-    gd.appendChild(cartaoAnexo(d, et, 'conta_luz', 'Conta de luz', 'conta_luz'));
-    bd.appendChild(gd); esq.appendChild(bd);
-    // 3. Fotos da vistoria
-    var bf = secao('Fotos da vistoria', itensPorChave(et, ['fachada', 'padrao', 'disjuntor', 'medidor']));
-    var gf = el('div', 'jor-fotos');
-    [['fachada', 'Fachada'], ['padrao', 'Padrão de entrada'], ['disjuntor', 'Disjuntor do padrão'], ['medidor', 'Medidor']].forEach(function (x) { gf.appendChild(cartaoAnexo(d, et, x[0], x[1], x[0])); });
-    bf.appendChild(gf); esq.appendChild(bf);
-    // 4. Outros anexos (opcional, vários)
-    var bo = secao('Outros anexos', null);
-    bo.appendChild(el('p', 'jor-nota', 'Opcional. Qualquer outro papel ou foto da obra.'));
-    bo.appendChild(listaVarios(d, et, { slot: 'outros', rotBase: 'Anexo', add: 'Adicionar anexo', item: null, titulo: '', cartaoVazio: false }));
-    esq.appendChild(bo);
-    // Número
-    var b4 = el('div', 'jor-bloco'); var tt = el('div', 'jor-bloco-t', 'Número da obra'); tt.appendChild(el('span', 'jor-auto', 'Automático')); b4.appendChild(tt);
-    var ne = d.numero.estado;
-    if (ne === 'tem') b4.appendChild(el('p', 'jor-ok', 'Nasceu ' + d.numero.codigo + ', com o contrato e a procuração assinados.'));
-    else if (ne === 'cancelada') b4.appendChild(el('p', 'jor-nota', 'Venda cancelada não ganha número.'));
-    else if (ne === 'falta_papeis') b4.appendChild(el('p', 'jor-nota', 'Nasce quando o contrato e a procuração assinados estiverem anexados.'));
-    else if (ne === 'pronto' || ne === 'falhou') {
-      var motivos = { trello: 'o Trello não respondeu', trello_grande: 'o quadro do Trello é grande demais', lento: 'o Trello está lento', ocupado: 'outra pessoa estava gravando', sem_credencial: 'falta a chave do Trello', sem_segredo: 'falta a chave de assinatura', banco: 'o banco não respondeu', sequencia: 'a sequência acabou' };
-      b4.appendChild(el('p', 'jor-erro', ne === 'falhou' ? 'Não consegui dar o número agora (' + (motivos[d.numero.motivo] || 'tente de novo') + ').' : 'Os dois papéis assinados estão anexados. O número ainda não saiu.'));
-      if (d.pode.numero) {
-        var bn = btn('Tentar o número de novo', '', function () { tentarNumero(false, bn); }); b4.appendChild(bn);
-      }
-    } else if (ne === 'confirmar') {
-      if (d.pode.numero_novo) {
-        b4.appendChild(el('p', 'jor-aviso', 'Pode já estar na planilha.'));
-        (d.numero.candidatos || []).forEach(function (cd) { b4.appendChild(el('p', 'jor-nota', cd.codigo + ' · ' + cd.cliente)); });
-        var bnn = btn('Criar o número novo', '', function () { tentarNumero(true, bnn); }); b4.appendChild(bnn);
-        b4.appendChild(btn('Ligar a venda antiga', '', function () { abrirQuadro(); }));
-      } else b4.appendChild(el('p', 'jor-nota', 'O Thiago confere a planilha antes de dar o número.'));
-    }
-    esq.appendChild(b4);
-    // Comissões
-    if (window.Jornada.dinheiro && window.Jornada.dinheiro.blocoComissoes) { window.Jornada.dinheiro.blocoComissoes(esq, d, O.dinheiro); return; }
-    var b5 = el('div', 'jor-bloco'); b5.appendChild(el('div', 'jor-bloco-t', 'Comissões'));
-    if (d.comissoes && d.comissoes.length) {
-      b5.appendChild(el('p', '', 'Vendeu: ' + nomeBonito(d.card.vendedor)));
-      d.comissoes.forEach(function (x) {
-        b5.appendChild(el('p', 'jor-nota', nomeBonito(x.nome) + ' · ' + (x.papel === 'venda' ? 'venda' : 'sócio') + ' ' + (x.pb / 100) + '% · ' + reais(x.valor_centavos) + ' · ' + (x.onde === 'custo' ? 'custo da obra' : 'retirada')));
-      });
-      if (d.comissoes_aviso) b5.appendChild(el('p', 'jor-aviso', d.comissoes_aviso));
-    }
-    var rg = el('table', 'jor-tbl'); var th = el('tr'); ['Quem vendeu', 'Quem vendeu', 'Sócios'].forEach(function () { }); rg.appendChild(th);
-    [['Nilce', '5% custo · Thiago 2% · Diego 2%'], ['Diego', '5% custo · Diego 2% · Thiago 2%'], ['Thiago', '5% custo · Thiago 2% · Diego 2%'], ['Giovanna', '3% custo · Thiago 2% · Diego 2%']].forEach(function (x) {
-      var tr = el('tr'); tr.appendChild(el('td', '', x[0])); tr.appendChild(el('td', '', x[1])); rg.appendChild(tr);
-    });
-    b5.appendChild(el('div', 'jor-nota', 'A regra das comissões')); b5.appendChild(rg);
-    b5.appendChild(el('p', 'jor-nota', 'A parte de quem vendeu entra no custo da obra. Os 2% de cada sócio ficam à parte.'));
-    esq.appendChild(b5);
-  }
   function tentarNumero(novo, botao) {
     botao.disabled = true;
     api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + '/numero', 'POST', novo ? { novo: true } : {}, 200000).then(function (r) {
@@ -1979,75 +2390,121 @@
       toast(msgDe(r, aviso || 'Não consegui agora.')); return false;
     });
   }
-  function etapa3(esq, d, et) {
-    var sem = d.numero.estado !== 'tem';
-    esq.appendChild(blocoEquipamento(d, et));
-    esq.appendChild(blocoTrelloRelatorio(d, et));
-    if (d.excedente === 'sim') {
-      var ra = el('div', 'jor-bloco'); ra.appendChild(el('div', 'jor-bloco-t', 'Rateio do excedente'));
-      var bens = d.rateio.linhas.filter(function (l) { return l.papel === 'beneficiaria'; });
-      ra.appendChild(el('p', '', 'Esta usina manda excedente para ' + plural(bens.length, 'conta', 'contas') + ', além da geradora.'));
-      var tb = el('table', 'jor-tbl');
-      d.rateio.linhas.forEach(function (l) {
-        var tr = el('tr'); [l.papel === 'geradora' ? 'Geradora' : 'Beneficiária', 'UC ' + l.uc, l.titular, l.endereco, l.pct === null ? '' : String(l.pct).replace('.', ',') + '%'].forEach(function (x) { tr.appendChild(el('td', '', x)); }); tb.appendChild(tr);
-      });
-      ra.appendChild(tb);
-      ra.appendChild(el('p', '', 'Total ' + String(d.rateio.total).replace('.', ',') + '%'));
-      ra.appendChild(el('p', 'jor-nota', 'Este rateio vai no projeto, no protocolo e no cartão do Trello. Confira no protocolo da Cemig antes de concluir.'));
-      var conf = d.rateio_conferido && d.rateio_conferido.marca === d.rateio.marca;
-      if (conf) ra.appendChild(el('p', 'jor-ok', 'Conferido por ' + nomeBonito(d.rateio_conferido.por) + ' em ' + ddmm(String(d.rateio_conferido.conferido_em).slice(0, 10)) + '.'));
-      else {
-        var bc = btn('Conferi o rateio', 'jor-btn-pri', function () { bc.disabled = true; patch({ rateio_conferido: true }); });
-        bc.disabled = !(d.rateio.total === 100 && d.pode.etapa3); ra.appendChild(bc);
-      }
-      ra.appendChild(el('p', 'jor-nota', 'O percentual se edita no quadro abaixo.'));
-      esq.appendChild(ra);
+  // ── Passo 6: assinaturas (contrato e procuração assinados, outros anexos e o número da obra) ─────────────────────────
+  function blocoNumero(d) {
+    var b4 = el('div');
+    var ne = d.numero.estado;
+    if (ne === 'tem') b4.appendChild(el('p', 'jor-ok', 'Nasceu ' + d.numero.codigo + ', com o contrato e a procuração assinados.'));
+    else if (ne === 'cancelada') b4.appendChild(el('p', 'jor-nota', 'Venda cancelada não ganha número.'));
+    else if (ne === 'falta_papeis') b4.appendChild(el('p', 'jor-nota', 'Nasce sozinho quando o contrato e a procuração assinados estiverem anexados.'));
+    else if (ne === 'pronto' || ne === 'falhou') {
+      var motivos = { trello: 'o Trello não respondeu', trello_grande: 'o quadro do Trello é grande demais', lento: 'o Trello está lento', ocupado: 'outra pessoa estava gravando', sem_credencial: 'falta a chave do Trello', sem_segredo: 'falta a chave de assinatura', banco: 'o banco não respondeu', sequencia: 'a sequência acabou' };
+      b4.appendChild(el('p', 'jor-erro', ne === 'falhou' ? 'Não consegui dar o número agora (' + (motivos[d.numero.motivo] || 'tente de novo') + ').' : 'Os dois papéis assinados estão anexados. O número ainda não saiu.'));
+      if (d.pode.numero) { var bn = btn('Tentar o número de novo', '', function () { tentarNumero(false, bn); }); b4.appendChild(bn); }
+    } else if (ne === 'confirmar') {
+      if (d.pode.numero_novo) {
+        b4.appendChild(el('p', 'jor-aviso', 'Pode já estar na planilha.'));
+        (d.numero.candidatos || []).forEach(function (cd) { b4.appendChild(el('p', 'jor-nota', cd.codigo + ' · ' + cd.cliente)); });
+        var ac = el('div', 'jor-din-acoes');
+        var bnn = btn('Criar o número novo', '', function () { tentarNumero(true, bnn); }); ac.appendChild(bnn);
+        ac.appendChild(btn('Ligar a venda antiga', '', function () { abrirLigacoes(); }));
+        b4.appendChild(ac);
+      } else b4.appendChild(el('p', 'jor-nota', 'O Thiago confere a planilha antes de dar o número.'));
     }
-    var tr = el('div', 'jor-bloco'); tr.appendChild(el('div', 'jor-bloco-t', 'Cartão no Trello'));
-    if (d.trello.url && d.trello.fonte !== 'dossie') {
-      tr.appendChild(el('p', 'jor-ok', 'Criado em ' + ddmm(String(d.trello.criado_em).slice(0, 10)) + ' por ' + nomeBonito(d.trello.por)));
-      var a = el('a', 'jor-btn', 'Abrir card no Trello'); a.href = d.trello.url; a.target = '_blank'; a.rel = 'noopener'; tr.appendChild(a);
-    } else if (d.trello.tem_cartao) {
-      tr.appendChild(el('p', 'jor-nota', 'Cartão criado. Envie de novo para guardar o link.'));
-    } else {
-      if (d.trello.url) {
+    return b4;
+  }
+  function corpoAssinaturas(c) {
+    var d = O.dados; var et = d.etapas[1];
+    var gs = el('div', 'jor-fotos');
+    gs.appendChild(cartaoAnexo(d, et, 'contrato_assinado', 'Contrato assinado', 'contrato_assinado'));
+    gs.appendChild(cartaoAnexo(d, et, 'procuracao', 'Procuração assinada', 'procuracao'));
+    c.appendChild(gs);
+    c.appendChild(el('p', 'jor-nota', 'O contrato assinado fica arquivado aqui. Só a procuração segue para a homologação.'));
+    c.appendChild(subTitulo('Outros anexos', etq('Opcional')));
+    c.appendChild(listaVarios(d, et, { slot: 'outros', rotBase: 'Anexo', add: 'Adicionar anexo', item: null, titulo: '', cartaoVazio: false }));
+    if (d.numero && d.numero.estado !== 'tem') { c.appendChild(subTitulo('Número da obra', etq('Automático', 'auto'))); c.appendChild(blocoNumero(d)); }
+  }
+
+  // ── Passo 7: vistoria (o formulário de jornada-obra.js, sem o título: o passo já diz) ─────────────────────────────
+  function corpoVistoria(c) {
+    var d = O.dados;
+    if (!window.Jornada.extras.vistoria) { c.appendChild(el('p', 'jor-erro', 'O relatório de vistoria não carregou. Atualize a página.')); return; }
+    window.Jornada.extras.vistoria(c, d);
+    var t = c.querySelector('.jor-bloco > .jor-bloco-t'); if (t && t.parentNode) t.parentNode.removeChild(t);
+  }
+
+  // ── Passos 8 em diante: a homologação ────────────────────────────────────────────────────────────────────────
+  function corpoEquipamento(c) {
+    var d = O.dados; var et = d.etapas[2];
+    var g = el('div', 'jor-fotos');
+    g.appendChild(cartaoAnexo(d, et, 'datasheet_modulo', 'Datasheet da placa', 'datasheet_modulo'));
+    g.appendChild(cartaoAnexo(d, et, 'datasheet_inversor', 'Datasheet do inversor', 'datasheet_inversor'));
+    g.appendChild(cartaoAnexo(d, et, 'kmz', 'KMZ do local', 'kmz', ACEITA_KMZ));
+    c.appendChild(g);
+  }
+  function corpoTrello(c) {
+    var d = O.dados; var sem = d.numero.estado !== 'tem';
+    var b = blocoTrelloRelatorio(d, d.etapas[2]); var t = b.querySelector('.jor-bloco-t'); if (t) b.removeChild(t);
+    c.appendChild(b);
+    var tr = d.trello || {};
+    if (!((tr.url && tr.fonte !== 'dossie') || tr.tem_cartao)) {
+      c.appendChild(subTitulo('Se o cartão não nascer sozinho'));
+      if (tr.url) {
         // O cartão antigo, do dossiê da proposta: aparece, mas não conclui a etapa (ela pede o cartão padrão).
-        var aa = el('a', 'jor-btn', 'Abrir o cartão antigo no Trello'); aa.href = d.trello.url; aa.target = '_blank'; aa.rel = 'noopener'; tr.appendChild(aa);
-        tr.appendChild(veio({ rotulo: d.trello.rotulo }));
-        tr.appendChild(el('p', 'jor-nota', 'Este é o cartão do dossiê da proposta. Crie o cartão padrão para concluir a etapa.'));
+        var aa = el('a', 'jor-btn', 'Abrir o cartão antigo no Trello'); aa.href = tr.url; aa.target = '_blank'; aa.rel = 'noopener'; c.appendChild(aa);
+        c.appendChild(veio({ rotulo: tr.rotulo }));
+        c.appendChild(el('p', 'jor-nota', 'Este é o cartão do dossiê da proposta. Crie o cartão padrão para concluir a etapa.'));
       }
-      var bt = btn('Criar cartão no Trello', 'jor-btn-pri', function () {
+      var bt = btn('Criar cartão no Trello', '', function () {
         abrirQuadro();
         if (typeof vdcEst !== 'undefined' && vdcEst && typeof window.vdcTrPrevia === 'function') window.vdcTrPrevia(vdcEst);
       });
-      bt.disabled = sem; tr.appendChild(bt);
-      if (sem) tr.appendChild(el('p', 'jor-nota', 'A obra ainda não tem número. Ele nasce com o contrato e a procuração assinados.'));
+      bt.disabled = sem; c.appendChild(bt);
+      if (sem) c.appendChild(el('p', 'jor-nota', 'A obra ainda não tem número. Ele nasce com o contrato e a procuração assinados.'));
+    } else if (tr.url && tr.fonte !== 'dossie' && tr.criado_em) {
+      c.appendChild(el('p', 'jor-nota', 'Criado em ' + ddmm(String(tr.criado_em).slice(0, 10)) + (tr.por ? ' por ' + nomeBonito(tr.por) : '') + '. O link está no resumo.'));
     }
-    esq.appendChild(tr);
-    var art = el('div', 'jor-bloco'); art.appendChild(el('div', 'jor-bloco-t', 'ART (obrigatória)'));
-    art.appendChild(anexo('art', 'ART (documento)', !!d.slots.art)); art.appendChild(anexo('art_comprovante', 'Comprovante de pagamento da ART', !!d.slots.art_comprovante));
-    esq.appendChild(art);
-    var eng = el('div', 'jor-bloco'); eng.appendChild(el('div', 'jor-bloco-t', 'Engenheiro, projeto elétrico'));
-    var fe = el('div', 'jor-filtros');
+  }
+  function corpoRateio(c) {
+    var d = O.dados;
+    var bens = d.rateio.linhas.filter(function (l) { return l.papel === 'beneficiaria'; });
+    c.appendChild(el('p', '', 'Esta usina manda excedente para ' + plural(bens.length, 'conta', 'contas') + ', além da geradora.'));
+    var tb = el('table', 'jor-tbl');
+    d.rateio.linhas.forEach(function (l) {
+      var tr = el('tr'); [l.papel === 'geradora' ? 'Geradora' : 'Beneficiária', 'UC ' + l.uc, l.titular, l.endereco, l.pct === null ? '' : String(l.pct).replace('.', ',') + '%'].forEach(function (x) { tr.appendChild(el('td', '', x)); }); tb.appendChild(tr);
+    });
+    var rol = el('div', 'jor-rolar'); rol.appendChild(tb); c.appendChild(rol);
+    c.appendChild(el('p', '', 'Total ' + String(d.rateio.total).replace('.', ',') + '%'));
+    var cf = d.rateio_conferido && d.rateio_conferido.marca === d.rateio.marca;
+    if (cf) c.appendChild(el('p', 'jor-ok', 'Conferido por ' + nomeBonito(d.rateio_conferido.por) + ' em ' + ddmm(String(d.rateio_conferido.conferido_em).slice(0, 10)) + '.'));
+    else {
+      var bc = btn('Conferi o rateio', 'jor-btn-pri', function () { bc.disabled = true; patch({ rateio_conferido: true }); });
+      bc.disabled = !(d.rateio.total === 100 && d.pode.etapa3); c.appendChild(bc);
+    }
+    c.appendChild(el('p', 'jor-nota', 'Confira no protocolo da Cemig antes de concluir. O percentual se edita no quadro do fim da página.'));
+  }
+  function corpoArt(c) {
+    var d = O.dados;
+    c.appendChild(anexo('art', 'ART (documento)', !!d.slots.art)); c.appendChild(anexo('art_comprovante', 'Comprovante de pagamento da ART', !!d.slots.art_comprovante));
+    c.appendChild(subTitulo('Engenheiro, projeto elétrico'));
+    var fe = el('div', 'jor-filtros'); fe.setAttribute('role', 'group'); fe.setAttribute('aria-label', 'Pagamento do engenheiro');
     [['pago', 'Pago'], ['a_pagar', 'A pagar']].forEach(function (o) {
-      var b = el('button', 'jor-chip' + (d.engenheiro === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !d.pode.etapa3;
+      var b = el('button', 'jor-chip' + (d.engenheiro === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !d.pode.etapa3; b.setAttribute('aria-pressed', d.engenheiro === o[0] ? 'true' : 'false');
       b.addEventListener('click', function () { patch({ engenheiro: o[0] }); }); fe.appendChild(b);
     });
-    eng.appendChild(fe); eng.appendChild(anexo('projeto_comprovante', 'Comprovante do engenheiro', !!d.slots.projeto_comprovante));
-    eng.appendChild(el('p', 'jor-nota', 'O pagamento do engenheiro pode ficar pendente. Pendente, ele não trava a etapa. O comprovante entra aqui quando pagar.'));
-    esq.appendChild(eng);
-    var pr = el('div', 'jor-bloco'); pr.appendChild(el('div', 'jor-bloco-t', 'Protocolo'));
-    var num = el('input', 'jor-in'); num.type = 'text'; num.maxLength = 40; num.setAttribute('aria-label', 'Número do protocolo'); num.value = d.protocolo ? d.protocolo.numero : '';
-    var dt = el('input', 'jor-in'); dt.type = 'date'; dt.setAttribute('aria-label', 'Data do protocolo'); dt.value = d.protocolo ? d.protocolo.em : '';
+    c.appendChild(fe); c.appendChild(anexo('projeto_comprovante', 'Comprovante do engenheiro', !!d.slots.projeto_comprovante));
+    c.appendChild(el('p', 'jor-nota', 'Pendente, o pagamento do engenheiro não trava a etapa. O comprovante entra aqui quando pagar.'));
+  }
+  function corpoProtocolo(c) {
+    var d = O.dados;
+    var num = el('input', 'jor-in'); num.type = 'text'; num.maxLength = 40; num.name = 'protocolo-numero'; num.autocomplete = 'off'; num.setAttribute('aria-label', 'Número do protocolo'); num.value = d.protocolo ? d.protocolo.numero : '';
+    var dt = el('input', 'jor-in'); dt.type = 'date'; dt.name = 'protocolo-data'; dt.setAttribute('aria-label', 'Data do protocolo'); dt.value = d.protocolo ? d.protocolo.em : '';
     var sv = btn('Salvar', 'jor-btn-pri', function () { sv.disabled = true; patch({ protocolo: { numero: num.value.trim(), em: dt.value } }).then(function () { sv.disabled = false; }); });
     sv.disabled = !d.pode.etapa3; num.disabled = !d.pode.etapa3; dt.disabled = !d.pode.etapa3;
-    var g = el('div', 'jor-grade'); var lp = el('label', '', 'Protocolo'); lp.appendChild(num); var ld = el('label', '', 'Data do protocolo'); ld.appendChild(dt); var ls = el('label', '', ' '); ls.appendChild(sv); add(g, lp, ld, ls); pr.appendChild(g);
-    pr.appendChild(anexo('protocolo', 'Print do protocolo', !!d.slots.protocolo));
-    esq.appendChild(pr);
-    var pa = el('div', 'jor-bloco'); pa.appendChild(el('div', 'jor-bloco-t', 'Parecer de acesso'));
-    pa.appendChild(anexo('parecer_acesso', 'Parecer de acesso aprovado', !!d.slots.parecer_acesso));
-    esq.appendChild(pa);
+    var g = el('div', 'jor-grade'); var lp = el('label', '', 'Protocolo'); lp.appendChild(num); var ld = el('label', '', 'Data do protocolo'); ld.appendChild(dt); var ls = el('div', 'jor-grade-bt'); ls.appendChild(sv); add(g, lp, ld, ls); c.appendChild(g);
+    c.appendChild(anexo('protocolo', 'Print do protocolo', !!d.slots.protocolo));
   }
+  function corpoParecer(c) { c.appendChild(anexo('parecer_acesso', 'Parecer de acesso aprovado', !!O.dados.slots.parecer_acesso)); }
 
   // ── O Vendido pelo servidor (commit 3) ──────────────────────────────────────
   function vendido(card, linha) {

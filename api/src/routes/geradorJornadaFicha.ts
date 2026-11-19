@@ -8,6 +8,9 @@ import { arquivosDaPlanilha, linhaDaPlanilha, RE_CODIGO_PROPOSTA } from './gerad
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { lerCadastroVisto } from '../services/gerador/cadastroVenda';
 import { lerPrivadoJornada } from '../services/gerador/jornadaSolarBanco';
+import { lerAjustes } from '../services/gerador/jornadaDinheiroBanco';
+import { podeVerValorDaObra } from '../services/gerador/jornadaDinheiro';
+import { nomeSimples } from '../services/gerador/solarObras';
 import { lerProposta } from '../services/gerador/dossieVenda';
 import { dadosDaPlanilha } from '../services/gerador/jornadaFinalizada';
 import { assinarVarios } from '../services/gerador/docsClienteBanco';
@@ -52,6 +55,9 @@ async function rotaFicha(req: Request, res: Response): Promise<void> {
     // A planilha: só o que a pessoa já vê na Planilha de clientes (a linha pelo `podeVer`, o dinheiro só para sócio).
     const vista = pl.achou ? dadosDaPlanilha(pl.achou.bruta, pl.achou.m, g.nome) : null;
     const veValor = !!vista && vista.campos.some((c) => c.chave === 'valor_vendido');
+    // Valor da venda: regra (a), a mesma do GET da obra. Quem não vê não recebe valor, forma nem nota por fonte nenhuma (obra, proposta ou planilha).
+    const veValorVenda = podeVerValorDaObra(g, d.ajustes, !!d.vendedor && g.nome === d.vendedor);
+    const CHAVES_DINHEIRO = ['valor_vendido', 'forma_pagamento', 'recebido', 'a_receber'];
     const urls = vista && arqPl.length
       ? await assinarVarios(arqPl.map((a) => a.caminho), 3600).catch(() => new Map<string, string>())
       : new Map<string, string>();
@@ -65,10 +71,11 @@ async function rotaFicha(req: Request, res: Response): Promise<void> {
         dados: prop.dados, qtd_placas: prop.qtd_placas, inversor: prop.inversor, qtd_inversor: prop.qtd_inversor, cliente_uf: prop.cliente_uf,
         dossie: { campos: prop.dossie.campos, trello: { card_id: prop.dossie.trello.card_id, card_url: prop.dossie.trello.card_url ?? null } },
       } : null,
-      propostaVenda: pv,
+      semValorDaVenda: !veValorVenda,
+      propostaVenda: veValorVenda ? pv : null,
       planilha: vista ? {
-        campos: vista.campos.map((c) => ({ chave: c.chave, valor: c.valor })),
-        valorVendaCentavos: veValor && pl.achou && pl.achou.m.valores.venda > 0 ? Math.round(pl.achou.m.valores.venda * 100) : null,
+        campos: vista.campos.filter((c) => veValorVenda || !CHAVES_DINHEIRO.includes(c.chave)).map((c) => ({ chave: c.chave, valor: c.valor })),
+        valorVendaCentavos: veValorVenda && veValor && pl.achou && pl.achou.m.valores.venda > 0 ? Math.round(pl.achou.m.valores.venda * 100) : null,
       } : null,
       entradas: d.veDinheiro
         ? d.livro.linhas.filter((l) => l.tipo === 'entrada' && !l.estornada && !l.estorno_de && !l.devolucao).map((l) => ({ forma: l.forma, valor_centavos: l.valor_centavos }))
@@ -83,7 +90,7 @@ async function rotaFicha(req: Request, res: Response): Promise<void> {
 }
 
 async function rotaVendaDaProposta(req: Request, res: Response): Promise<void> {
-  const { nome, socio } = quem(req);
+  const { nome, socio, adm } = quem(req);
   const codigo = String(req.params.codigo ?? '').trim();
   if (!RE_CODIGO_PROPOSTA.test(codigo)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
   try {
@@ -92,7 +99,11 @@ async function rotaVendaDaProposta(req: Request, res: Response): Promise<void> {
     // Proposta em nenhum card, ou em dois, não escolhe obra: 404, igual a alheia.
     const card = ids.length === 1 ? await acessoVendaSolar(nome, socio, ids[0]) : null;
     if (!card) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return; }
-    const v = (await lerPrivadoJornada(ids[0]))?.venda ?? null;
+    const priv = (await lerPrivadoJornada(ids[0]))?.venda ?? null;
+    // Valor da venda: regra (a), a mesma do GET da obra. Falha ao ler os Ajustes fecha o valor.
+    const ajustes = await lerAjustes().then((a) => a.ajustes, () => ({ dinheiro_aberto: false }));
+    const vendedor = nomeSimples(card.vendedor_nome);
+    const v = podeVerValorDaObra({ nome, adm }, ajustes, !!vendedor && nome === vendedor) ? priv : null;
     // Só valor e forma (as duas que o PUT /venda já espelha na proposta). A nota é do JSON privado e NUNCA sai daqui.
     res.json({
       ok: true, card: ids[0],

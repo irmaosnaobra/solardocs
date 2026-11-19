@@ -16,7 +16,7 @@ import { etapaAtualCompleta, materialDaCompra, pendenciasDaObra, type EstadoObra
 import { lerNota } from '../services/gerador/notaLeitura';
 import { lerObraComVersao, lerObraPrivada, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
 import {
-  AJUSTES_PADRAO, CATEGORIAS_OBRA, recortarLivro, veRetiradaDosSocios, categoriaObra, idDoEstorno, lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, regraDoVendedor, reaisBR, premioVivo,
+  AJUSTES_PADRAO, CATEGORIAS_OBRA, podeVerLivroDaObra, recortarLivro, veRetiradaDosSocios, categoriaObra, idDoEstorno, lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, regraDoVendedor, reaisBR, premioVivo,
   validarAjustes, type AjustesSolar, type Conferencia, type Livro, type LancamentoObra, type LinhaLivro, type LinhaRegra, type Pendencia,
 } from '../services/gerador/jornadaDinheiro';
 import {
@@ -108,7 +108,7 @@ export async function lerDinheiro(g: GuardaObra): Promise<DadosDinheiro> {
   return {
     livro, lancamentos, ajustes, ajustesValido: valido, js, jo, privada, lig, vendedor, venda, regra,
     fechada: !!jo?.fechada, cancelada: !!js?.cancelada,
-    veDinheiro: ajustes.dinheiro_aberto || g.adm || g.nome === 'giovanna',
+    veDinheiro: podeVerLivroDaObra(g, ajustes),
   };
 }
 

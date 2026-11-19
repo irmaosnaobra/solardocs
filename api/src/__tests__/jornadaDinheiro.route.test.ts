@@ -701,6 +701,16 @@ describe('a retirada pelo financeiro antigo', () => {
     const t = await velho(THIAGO);
     expect(t.body.lancamentos.map((x: any) => x.categoria).sort()).toEqual(['entrada', 'frete', 'retirada_socio']);
     expect(t.body.totais).toMatchObject({ gasto: 25_000 + 77_800, qtd_saidas: 2 });
+    // regra (b): com o dinheiro fechado o livro do solar não sai pelo caminho antigo para quem não é ADM nem Giovanna (nem o vendedor, nem o Diego)
+    ajustes(false);
+    for (const a of [DIEGO, NILCE]) {
+      const f = await velho(a);
+      expect(f.status).toBe(200);
+      expect(f.body.lancamentos).toEqual([]);
+      expect(f.text).not.toMatch(/1167000|25000|77800/);
+    }
+    expect((await velho(THIAGO)).body.lancamentos.length).toBe(3);
+    expect((await velho(GIOVANNA)).body.lancamentos.length).toBeGreaterThan(0);
   });
 });
 

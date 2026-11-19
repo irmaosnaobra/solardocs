@@ -1194,10 +1194,11 @@
     var pode = podeSecao(f2, 'banco'); var bk = clone(dados(f2).banco) || {};
     var sg = (H().sugs && H().sugs('banco')) || {};
     var vendaOk = !!(d.venda && d.venda.valor_centavos > 0);
-    var bloc = el('div', 'jor-bloco'); var t = el('div', 'jor-bloco-t'); t.appendChild(el('span', '', 'Proposta de banco' + (bk.banco ? ' · para o ' + bk.banco : ''))); bloc.appendChild(t);
+    // Mora dentro do passo Contrato e procuração (depois do Sim do financiamento): sem título próprio nem caixa que fecha, tudo à vista.
+    var bloc = el('div', 'jor-banco'); bloc.appendChild(H().subTitulo('Proposta de banco' + (bk.banco ? ' · para o ' + bk.banco : '')));
     var falta = [];
     function atualiza() { falta = []; if (!(bk.banco || '').trim()) falta.push('o banco'); if (!(bk.agencia || '').trim()) falta.push('a agência'); if (!(bk.conta || '').trim()) falta.push('a conta'); if (!vendaOk) falta.push('o valor vendido'); aviso.textContent = falta.length ? 'Falta ' + falta.join(', ') + '.' : ''; gerar.disabled = falta.length > 0; }
-    var box = el('details'); box.open = true; box.appendChild(el('summary', 'jor-vdc-sum', 'Preencher a proposta de banco'));
+    var box = el('div');
     function lin(chave, rot, tipo) {
       var s = sg[chave]; if (s && !String(bk[chave] || '').trim()) bk[chave] = String(s.valor); else s = null;
       var i = entrada(tipo || 'text', bk[chave] || '', rot); i.disabled = !pode; i.addEventListener('input', function () { bk[chave] = i.value; atualiza(); });
@@ -1205,8 +1206,8 @@
     }
     function reais0(chave, rot) { var i = entrada('text', Number(bk[chave]) > 0 ? txtCents(bk[chave]) : '', rot); i.inputMode = 'decimal'; i.disabled = !pode; i.addEventListener('input', function () { var v = h.cents(i.value); bk[chave] = (typeof v === 'number' && v > 0) ? v : null; }); return campo(rot + ' (R$, opcional)', i); }
     var g = el('div', 'jor-ob-par'); add(g, lin('banco', 'Banco'), lin('agencia', 'Agência'), lin('conta', 'Conta corrente'), lin('validade', 'Validade (dias)'), lin('prazo', 'Prazo de entrega'), lin('origem', 'Origem dos recursos'), lin('nota', 'Nota da entrada'), lin('desc', 'Descrição do sistema'), lin('ger', 'Geração (kWh/mês)'), reais0('eq_centavos', 'Equipamento'), reais0('mo_centavos', 'Mão de obra')); box.appendChild(g);
-    var det = el('details'); det.open = true; det.appendChild(el('summary', 'jor-vdc-sum', 'Titular do financiamento (opcional)')); var fin = bk.fin || {};
-    var gf = el('div', 'jor-ob-par'); var abrirFin = false;
+    var det = el('div'); det.appendChild(H().subTitulo('Titular do financiamento', H().etq('Opcional'))); var fin = bk.fin || {};
+    var gf = el('div', 'jor-ob-par');
     // Preencher: o titular do financiamento do cadastro (quando já se sabe quem é). Qualificação e endereço saem montados como nos papéis.
     var q = {}; ['nacionalidade', 'estado_civil', 'profissao', 'orgao_emissor'].forEach(function (k) { var s = sg['fin.qualif.' + k]; if (s) q[k] = String(s.valor); });
     var en = {}; ['endereco', 'bairro', 'cidade', 'uf'].forEach(function (k) { var s = sg['fin.end.' + k]; if (s) en[k] = String(s.valor); });
@@ -1222,11 +1223,10 @@
     [['nome', 'Nome'], ['doc', 'CPF ou CNPJ'], ['rg', 'RG'], ['qualif', 'Qualificação'], ['end', 'Endereço'], ['cep', 'CEP'], ['tel', 'Telefone'], ['email', 'E-mail']].forEach(function (x) {
       var s = x[0] === 'qualif' ? sQualif : (x[0] === 'end' ? sEnd : sg['fin.' + x[0]]);
       if (x[0] !== 'qualif' && x[0] !== 'end') { if (s && !String(fin[x[0]] || '').trim()) fin[x[0]] = String(s.valor); else s = null; }
-      if (s) { abrirFin = true; bk.fin = fin; }
+      if (s) bk.fin = fin;
       var i = entrada('text', fin[x[0]] || '', 'Titular: ' + x[1]); i.disabled = !pode; i.addEventListener('input', function () { fin[x[0]] = i.value; bk.fin = fin; });
       var lb = campo(x[1], i); if (s && H().veio) lb.appendChild(H().veio(s, i)); gf.appendChild(lb);
     });
-    if (abrirFin) det.open = true;
     det.appendChild(gf); box.appendChild(det);
     var aviso = el('p', 'jor-erro'); aviso.setAttribute('role', 'status'); var gerar = btn('Gerar', 'jor-btn-pri', function () { gerarBanco(d, bk, f2, aviso); });
     var ac = el('div', 'jor-din-acoes'); if (pode) ac.appendChild(botaoSalvar('Salvar', 'banco', function () { return bk; }, 'Proposta de banco salva.')); ac.appendChild(gerar);

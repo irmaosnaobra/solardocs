@@ -555,7 +555,7 @@ const TENTATIVAS_LIMPEZA = 4;
  */
 export async function escreverCadastro(
   id: number, mudancas: Partial<Record<string, string>>, por: string, fonte: Fonte, agora: string = new Date().toISOString(),
-  linha: LinhaCadastro = 'eletroposto',
+  linha: LinhaCadastro = 'eletroposto', opcoes: { soVazios?: boolean } = {},
 ): Promise<ResultadoEscrita> {
   const pedido: Array<[Campo, string]> = [];
   for (const [k, v] of Object.entries(mudancas)) {
@@ -567,7 +567,7 @@ export async function escreverCadastro(
     const t = doc ? tipoPeloDocumento(doc[1]) : null;
     if (t) pedido.push(['tipo', t]);
   }
-  if (linha === 'vendasolar') return escreverCadastroSolar(id, pedido, por, fonte, agora);
+  if (linha === 'vendasolar') return escreverCadastroSolar(id, pedido, por, fonte, agora, opcoes.soVazios === true);
   return comTrava(id, por, async () => {
     const noBucket = await lerCadastro(id);
     const ficha = await lerFichaComVersao(id);
@@ -607,7 +607,7 @@ export async function escreverCadastro(
  * rótulos). Não há ficha nem legado: só o bucket. Sempre `migrado: true`. `limpou` é sempre true (não há o que limpar).
  */
 async function escreverCadastroSolar(
-  id: number, pedido: Array<[Campo, string]>, por: string, fonte: Fonte, agora: string,
+  id: number, pedido: Array<[Campo, string]>, por: string, fonte: Fonte, agora: string, soVazios = false,
 ): Promise<ResultadoEscrita> {
   const doc = pedido.find(([k, v]) => k === 'cpf_cnpj' && v);
   const t = !pedido.some(([k]) => k === 'tipo') && doc ? tipoPeloDocumento(doc[1]) : null;
@@ -628,7 +628,8 @@ async function escreverCadastroSolar(
       const pedida = todos.find(([k]) => k === decisao);
       if ((pedida ? pedida[1] : base.campos[decisao]?.valor) === 'contratante') for (const k of campos) ignorados.add(k);
     }
-    const aplicar = todos.filter(([k, v]) => v === '' || !ignorados.has(k));
+    // `soVazios` (a leitura automática dos documentos): só entra campo que está VAZIO agora, lido sob a trava; o preenchido (à mão ou não) nunca é tocado.
+    const aplicar = todos.filter(([k, v]) => (v === '' || !ignorados.has(k)) && (!soVazios || (v !== '' && !base.campos[k]?.valor)));
     const campos = { ...base.campos };
     const trilha = [...base.alteracoes];
     let mudou = !base.migrado;

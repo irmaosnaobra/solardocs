@@ -9,7 +9,7 @@ import request from 'supertest';
 // desligar não religa, unicidade dentro da trava), o dossiê da proposta ligada (aparece nos documentos e entra na leitura, sem
 // copiar nada) e a leitura por IA por papel.
 
-type Entrada = { erro?: unknown; saida?: unknown; parada?: string };
+type Entrada = { erro?: unknown; saida?: unknown; parada?: string; espera?: number };
 const h = vi.hoisted(() => ({
   usuarios: {} as Record<string, string>,
   csv: '',
@@ -58,6 +58,7 @@ vi.mock('../utils/anthropicClient', () => ({
         const e = h.ia.fila.shift() ?? { erro: new Error('fila vazia') };
         return {
           finalMessage: async () => {
+            if (e.espera) await new Promise((r) => setTimeout(r, e.espera));
             if (e.erro) throw e.erro;
             const saida = typeof e.saida === 'function' ? (e.saida as (c: unknown) => unknown)(corpo?.messages?.[0]?.content) : e.saida;
             return { stop_reason: e.parada ?? 'end_turn', content: [{ type: 'text', text: JSON.stringify(saida) }] };
@@ -1139,6 +1140,167 @@ describe('dossiê da proposta ligada, só leitura', () => {
     for (const t of ['Cabo 1.500,00', 'sinal de 30%', 'kit por R$ 3 mil']) {
       expect((await put('/clientes/vendasolar/201/cadastro', { campos: { materiais: t } })).status, t).toBe(400);
     }
+  });
+});
+
+describe('cabeçalho automático: leitura por IA depois do envio de CNH ou conta de luz', () => {
+  const indiceDe = (content: any[], slot: string): number => {
+    const n = content.filter((b) => b?.type === 'text' && new RegExp(`^Arquivo \\d+, slot "${slot}"`).test(b.text)).map((b) => Number(/^Arquivo (\d+),/.exec(b.text)![1]));
+    return n[0];
+  };
+  const campo = (c: string, indice: number, valor: string, confianca = 'alta') => ({ campo: c, valor, indice, confianca, nota: '' });
+  const cadastroGravado = (): Record<string, { valor: string; fonte: string }> => (h.cad.has('vendasolar/201.json') ? JSON.parse(h.cad.get('vendasolar/201.json')!.toString()).campos : {});
+  const registroDeLeitura = (): { lidos: Array<{ sha: string; em: string }> } | null => (h.cad.has('vendasolar/201.leitura.json') ? JSON.parse(h.cad.get('vendasolar/201.leitura.json')!.toString()) : null);
+  const enviar = async (slot: string, bytes: Buffer = JPG) => {
+    const u = await post('/clientes/vendasolar/201/docs/upload-url', { slot, mime: 'image/jpeg', bytes: bytes.length });
+    h.objetos.set(u.body.caminho, bytes);
+    return post('/clientes/vendasolar/201/docs', { slot, caminho: u.body.caminho });
+  };
+  const esperar = async (ok: () => boolean): Promise<void> => { for (let i = 0; i < 80 && !ok(); i++) await new Promise((r) => setTimeout(r, 25)); };
+  const lerDoc = (slot: string, campos: Array<[string, string, string?]>) => ({
+    saida: (c: any[]) => ({ campos: campos.map(([k, v, conf]) => campo(k, indiceDe(c, slot), v, conf)), documentos: [] }),
+  });
+
+  it('CNH enviada: lê em segundo plano e grava SÓ os campos vazios, com fonte ia; o que foi digitado à mão não é sobrescrito; o envio responde 200 sem esperar', async () => {
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'Nome Digitado', telefone: '34999990000' } })).status).toBe(200);
+    h.ia.fila.push(lerDoc('documento_titular', [['nome', 'Nome Digitado Silva'], ['cpf_cnpj', '529.982.247-25'], ['rg_ie', 'MG1234567'], ['nascimento', '1980-05-17'], ['cidade', 'Uberlândia'], ['uf', 'MG'], ['bairro', 'Centro', 'baixa']]));
+    const r = await enviar('documento_titular');
+    expect(r.status).toBe(200);
+    await esperar(() => !!cadastroGravado().cpf_cnpj);
+    const c = cadastroGravado();
+    expect(c.nome).toMatchObject({ valor: 'Nome Digitado', fonte: 'manual' });   // à mão: intocado
+    expect(c.telefone).toMatchObject({ valor: '34999990000', fonte: 'manual' });
+    expect(c.cpf_cnpj).toMatchObject({ valor: '529.982.247-25', fonte: 'ia' });
+    expect(c.rg_ie).toMatchObject({ fonte: 'ia' });
+    expect(c.cidade).toMatchObject({ valor: 'Uberlândia', fonte: 'ia' });
+    expect(c.bairro).toBeUndefined();   // confiança baixa não entra
+    expect(h.ia.chamadas).toHaveLength(1);
+    // a leitura é só deste arquivo (e do slot certo)
+    const blocos = h.ia.chamadas[0].corpo.messages[0].content as any[];
+    expect(blocos.filter((b) => b?.type === 'text' && /^Arquivo \d+, slot/.test(b.text))).toHaveLength(1);
+  });
+  const lerDocComTipo = (slot: string, tipo: string, campos: Array<[string, string]>) => ({
+    saida: (c: any[]) => ({ campos: campos.map(([k, v]) => campo(k, indiceDe(c, slot), v)), documentos: [{ indice: indiceDe(c, slot), tipo, rotulo: '', nota: '' }] }),
+  });
+  it('a leitura automática passa as mesmas pessoas do botão Ler (financiamento e avalista) e o nome que a pessoa deu ao arquivo', async () => {
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'Ana Souza', fin_nome: 'Carlos Financiador', aval_nome: 'Paulo Avalista' } })).status).toBe(200);
+    h.ia.fila.push(lerDoc('documento_titular', [['cpf_cnpj', '529.982.247-25']]));
+    expect((await enviar('documento_titular')).status).toBe(200);
+    await esperar(() => !!cadastroGravado().cpf_cnpj);
+    const blocos = h.ia.chamadas[0].corpo.messages[0].content as any[];
+    const pedido = blocos.filter((b) => b?.type === 'text').map((b) => b.text).join(' ');
+    expect(pedido).toContain('titular_financiamento: ');
+    expect(pedido).toContain('Carlos Financiador');
+    expect(pedido).toContain('avalista: ');
+    expect(pedido).toContain('Paulo Avalista');
+  });
+  it('CNH do financiador no item do titular com o cadastro vazio NÃO vira contratante (o leitor a marca como do financiamento)', async () => {
+    h.ia.fila.push(lerDocComTipo('documento_titular', 'documento_financiamento', [['nome', 'Carlos Financiador'], ['cpf_cnpj', '529.982.247-25'], ['rg_ie', 'MG1234567']]));
+    expect((await enviar('documento_titular')).status).toBe(200);
+    await esperar(() => h.ia.chamadas.length === 1);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(cadastroGravado().nome).toBeUndefined();
+    expect(cadastroGravado().cpf_cnpj).toBeUndefined();
+    expect(cadastroGravado().rg_ie).toBeUndefined();
+  });
+  it('documento com nome diferente do contratante já cadastrado, ou igual ao do financiador conhecido, não grava nos campos do contratante; nome igual (ou mais completo) grava', async () => {
+    // contratante conhecido e nome lido de outra pessoa
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'Ana Souza' } })).status).toBe(200);
+    h.ia.fila.push(lerDoc('documento_titular', [['nome', 'Carlos Financiador'], ['cpf_cnpj', '529.982.247-25']]));
+    expect((await enviar('documento_titular')).status).toBe(200);
+    await esperar(() => h.ia.chamadas.length === 1);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(cadastroGravado().cpf_cnpj).toBeUndefined();
+    expect(cadastroGravado().nome).toMatchObject({ valor: 'Ana Souza' });
+  });
+  it('o nome lido igual ao do contratante cadastrado (caixa e acento diferentes, ou mais completo) grava nos campos vazios do contratante', async () => {
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'Ana Souza' } })).status).toBe(200);
+    h.ia.fila.push(lerDoc('documento_titular', [['nome', 'ANA SOUZA PEREIRA'], ['cpf_cnpj', '529.982.247-25']]));
+    expect((await enviar('documento_titular')).status).toBe(200);
+    await esperar(() => !!cadastroGravado().cpf_cnpj);
+    expect(cadastroGravado().cpf_cnpj).toMatchObject({ valor: '529.982.247-25', fonte: 'ia' });
+    expect(cadastroGravado().nome).toMatchObject({ valor: 'Ana Souza', fonte: 'manual' });
+  });
+  it('sem contratante conhecido, o nome lido igual ao do financiador cadastrado não vira contratante', async () => {
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { fin_nome: 'Carlos Financiador' } })).status).toBe(200);
+    h.ia.fila.push(lerDoc('documento_titular', [['nome', 'Carlos Financiador'], ['cpf_cnpj', '529.982.247-25']]));
+    expect((await enviar('documento_titular')).status).toBe(200);
+    await esperar(() => h.ia.chamadas.length === 1);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(cadastroGravado().cpf_cnpj).toBeUndefined();
+    expect(cadastroGravado().nome).toBeUndefined();
+  });
+  it('a conta de luz também completa o cabeçalho (UC, concessionária, titular) e um campo preenchido depois, à mão, nunca é refeito', async () => {
+    h.ia.fila.push(lerDoc('conta_luz', [['unidade_consumidora', '0012345678'], ['concessionaria', 'CEMIG'], ['titular_conta', 'Maria Souza'], ['endereco_ponto', 'Rua A, 10']]));
+    expect((await enviar('conta_luz')).status).toBe(200);
+    await esperar(() => !!cadastroGravado().unidade_consumidora);
+    const c = cadastroGravado();
+    expect(c).toMatchObject({ unidade_consumidora: { valor: '0012345678', fonte: 'ia' }, concessionaria: { fonte: 'ia' }, titular_conta: { valor: 'Maria Souza', fonte: 'ia' } });
+  });
+  it('o mesmo arquivo (mesmo sha) nunca é lido duas vezes; arquivo novo lê; o item fora da lista (foto da fachada) não lê', async () => {
+    h.ia.fila.push(lerDoc('documento_titular', [['cpf_cnpj', '529.982.247-25']]));
+    await enviar('documento_titular');
+    await esperar(() => !!cadastroGravado().cpf_cnpj);
+    expect(h.ia.chamadas).toHaveLength(1);
+    expect(registroDeLeitura()!.lidos).toHaveLength(1);
+    // os MESMOS bytes em outro item: não lê de novo
+    await enviar('documento_titular_uc');
+    await esperar(() => (registroDeLeitura()?.lidos.length ?? 0) > 1);
+    await new Promise((r) => setTimeout(r, 120));
+    expect(h.ia.chamadas).toHaveLength(1);
+    // a foto da fachada não dispara leitura
+    await enviar('fachada', Buffer.concat([JPG, Buffer.from([9, 9, 9])]));
+    await new Promise((r) => setTimeout(r, 120));
+    expect(h.ia.chamadas).toHaveLength(1);
+    // bytes diferentes no item lido: lê
+    h.ia.fila.push(lerDoc('conta_luz', [['unidade_consumidora', '0099']]));
+    await enviar('conta_luz', Buffer.concat([JPG, Buffer.from([1, 2, 3])]));
+    await esperar(() => h.ia.chamadas.length === 2);
+    expect(h.ia.chamadas).toHaveLength(2);
+  });
+  it('leitura que não acha nada não grava; falha da IA não derruba o envio e devolve a reserva (reenviar lê de novo); a cota por hora segura a venda', async () => {
+    h.ia.fila.push({ saida: { campos: [], documentos: [] } });
+    expect((await enviar('documento_titular')).status).toBe(200);
+    await esperar(() => h.ia.chamadas.length === 1);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(cadastroGravado()).toEqual({});   // nada gravado: nem o cadastro existe
+    // a IA cai: o envio segue 200 e o sha volta para a fila
+    const outro = Buffer.concat([JPG, Buffer.from([7, 7])]);
+    h.ia.fila.push({ erro: Object.assign(new Error('ia fora'), { status: 500 }) });
+    expect((await enviar('conta_luz', outro)).status).toBe(200);
+    await esperar(() => h.ia.chamadas.length === 2);
+    await new Promise((r) => setTimeout(r, 100));
+    const aposFalha = registroDeLeitura()!.lidos.length;
+    expect(aposFalha).toBe(1);   // só o do 1º arquivo: a reserva do que falhou foi devolvida
+    // reenviar (troca) o mesmo arquivo agora lê
+    h.ia.fila.push(lerDoc('documento_titular_uc', [['tuc_nome', 'Maria Souza']]));
+    expect((await enviar('documento_titular_uc', outro)).status).toBe(200);
+    await esperar(() => !!cadastroGravado().tuc_nome);
+    expect(cadastroGravado().tuc_nome).toMatchObject({ valor: 'Maria Souza', fonte: 'ia' });
+  });
+  it('cota: 20 leituras na última hora na venda e a próxima NÃO chama a IA', async () => {
+    const agora = Date.now();
+    h.cad.set('vendasolar/201.leitura.json', Buffer.from(JSON.stringify({ v: 1, lidos: Array.from({ length: 20 }, (_, i) => ({ sha: String(i).padStart(64, 'a'), em: new Date(agora - i * 1000).toISOString() })) })));
+    expect((await enviar('documento_titular')).status).toBe(200);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(h.ia.chamadas).toHaveLength(0);
+    expect(cadastroGravado()).toEqual({});
+  });
+  it('tempo esgotado: devolve "falhou" sem esperar a IA (o envio nunca fica preso) e o módulo não lança', async () => {
+    const { lerCadastroAutomatico } = await import('../services/gerador/cadastroLeituraAuto');
+    const u = await post('/clientes/vendasolar/201/docs/upload-url', { slot: 'documento_titular', mime: 'image/jpeg', bytes: JPG.length });
+    h.objetos.set(u.body.caminho, JPG);
+    // registra sem disparar (sem o hook): grava o metadado direto
+    h.linhas.set('docs_cliente:vendasolar:201', { updated_at: 'd9', value: { arquivos: [{ id: 'a1', slot: 'documento_titular', caminho: u.body.caminho, mime: 'image/jpeg', bytes: JPG.length, em: '2026-10-20T10:00:00.000Z', por: 'nilce' }], alteracoes: [], apagados: [] } });
+    process.env.LEITURA_AUTO_TIMEOUT_MS = '30';
+    h.ia.fila.push({ espera: 300, saida: { campos: [], documentos: [] } });
+    const t0 = Date.now();
+    expect(await lerCadastroAutomatico({ card: { id: 201, cliente_nome: 'Ana' }, nome: 'nilce', arquivoId: 'a1' })).toEqual({ acao: 'falhou' });
+    expect(Date.now() - t0).toBeLessThan(250);
+    delete process.env.LEITURA_AUTO_TIMEOUT_MS;
+    await new Promise((r) => setTimeout(r, 400));   // a IA de mentira termina sozinha
+    // arquivo que não existe mais: nada a fazer, sem lançar
+    expect(await lerCadastroAutomatico({ card: { id: 201, cliente_nome: 'Ana' }, nome: 'nilce', arquivoId: 'zzz' })).toEqual({ acao: 'sem_arquivo' });
   });
 });
 

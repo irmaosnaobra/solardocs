@@ -461,6 +461,15 @@ describe('GET fase2 e a seção Compra', () => {
     const depois = await get(F2(SOLAR), GIOVANNA);
     expect(depois.body.dados.vistoria).toMatchObject({ quem: 'Giovanna' });
     expect(depois.body.dados.banco).toMatchObject({ banco: 'BV' });
+    // o mesmo na ETAPA 2 (a vistoria agora é item dela): GET e PUT seguem aceitando
+    semearJs(SOLAR, 2);
+    const e2 = await get(F2(SOLAR), NILCE);
+    expect(e2.status).toBe(200);
+    expect(e2.body.etapa_atual).toBe(2);
+    expect(e2.body.pode.secoes).toEqual(expect.arrayContaining(['vistoria', 'banco']));
+    expect((await put(F2(SOLAR, '/vistoria'), { versao: 2, dados: { ...v, obs: 'revisada na etapa 2' } }, NILCE)).status).toBe(200);
+    expect(privadaGravada(SOLAR)!.vistoria).toMatchObject({ obs: 'revisada na etapa 2' });
+    expect((await put(F2(SOLAR, '/vistoria'), { versao: 3, dados: v }, DIEGO)).status).toBe(403);
   });
 
   it('quem mexe em cada seção: o Diego não grava a liberação; o Thiago só o plano da obra; a Nilce só a vistoria da dela; conta fechada e venda cancelada travam', async () => {
@@ -1287,12 +1296,20 @@ describe('a lista e o papel', () => {
     expect((await get(`/jornada-solar/obra/${SOLAR}`, GIOVANNA)).body.pode.gerar_papeis).toBe(false);
   });
 
-  it('a Fase 1 só leva os 2% dos sócios para o ADM e para a Giovanna; a comissão de quem vendeu fica para todos', async () => {
+  it('a Fase 1 só leva os 2% dos sócios para o ADM e para a Giovanna; a comissão de quem vendeu só para quem vê dinheiro (vendedor, Giovanna, ADM)', async () => {
     const n = await get(`/jornada-solar/obra/${SOLAR}`, NILCE);
     expect(n.body.comissoes.map((c: any) => [c.nome, c.papel])).toEqual([['nilce', 'venda']]);
     expect(JSON.stringify(n.body)).not.toMatch(/"papel":"socio"/);
     for (const a of [GIOVANNA, THIAGO]) expect((await get(`/jornada-solar/obra/${SOLAR}`, a)).body.comissoes.map((c: any) => c.papel)).toEqual(['venda', 'socio', 'socio']);
-    expect((await get(`/jornada-solar/obra/${SOLAR}`, DIEGO)).body.comissoes.map((c: any) => c.papel)).toEqual(['venda']);
+    // quem não vê dinheiro (o Diego, com o "dinheiro aberto" desligado) não recebe comissão nenhuma: ela entregaria o valor vendido (5% dele)
+    const fechado = normalizarAjustes({ ...AJUSTES_PADRAO, dinheiro_aberto: false, editado_em: AGORA, editado_por: 'thiago' })!;
+    h.linhas.set('jornada_solar_ajustes', { updated_at: 'a0', value: jsonb({ ...fechado, sig: assinarAjustes(fechado) }) });
+    expect((await get(`/jornada-solar/obra/${SOLAR}`, DIEGO)).body.comissoes).toEqual([]);
+    // duas regras: o valor da venda (a) segue com o vendedor da obra; o LIVRO (b) é só de dinheiro aberto, ADM e Giovanna
+    expect((await get(`/jornada-solar/obra/${SOLAR}`, NILCE)).body.venda.valor_centavos).toBeGreaterThan(0);
+    expect((await get(DIN(SOLAR), NILCE)).body).toEqual({ ok: true, visivel: false });
+    expect((await get(DIN(SOLAR), DIEGO)).body).toEqual({ ok: true, visivel: false });
+    for (const a of [GIOVANNA, THIAGO]) expect((await get(DIN(SOLAR), a)).body.visivel).toBe(true);
   });
 
   it('gerar o contrato grava as garantias, o kit e o emitente no `obra.json`', async () => {

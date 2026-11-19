@@ -318,6 +318,23 @@ const regraPadrao = (): Record<string, LinhaRegra[]> => ({
 });
 export const AJUSTES_PADRAO: AjustesSolar = { v: 1, comissoes: regraPadrao(), dinheiro_aberto: true, editado_em: '', editado_por: '' };
 
+/**
+ * Regra (a): quem vê o VALOR da venda (valor vendido, pagamento, comissão, valores da proposta de banco): o ajuste "dinheiro aberto" dos
+ * Ajustes do Solar, o ADM, a Giovanna e o vendedor da obra. Toda rota que entrega valor da venda usa esta função. O relatório final nunca
+ * leva dinheiro.
+ */
+export function podeVerValorDaObra(g: { nome: string; adm: boolean }, ajustes: Pick<AjustesSolar, 'dinheiro_aberto'>, ehVendedor: boolean): boolean {
+  return ajustes.dinheiro_aberto === true || g.adm || g.nome === 'giovanna' || ehVendedor;
+}
+
+/**
+ * Regra (b): quem vê o LIVRO da obra (gastos, saldo, recebimentos, ficha de dinheiro e os PUTs que dependem dele). Regra da casa: só sócio vê
+ * gasto, então o vendedor NÃO entra: dinheiro aberto, ADM ou Giovanna. A retirada dos sócios tem regra própria (`veRetiradaDosSocios`).
+ */
+export function podeVerLivroDaObra(g: { nome: string; adm: boolean }, ajustes: Pick<AjustesSolar, 'dinheiro_aberto'>): boolean {
+  return ajustes.dinheiro_aberto === true || g.adm || g.nome === 'giovanna';
+}
+
 export const MAX_NOMES_EXTRAS = 6;
 export const MAX_PB = 2000;
 

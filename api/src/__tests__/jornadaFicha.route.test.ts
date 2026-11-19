@@ -336,6 +336,34 @@ describe('1. a guarda da obra', () => {
   });
 });
 
+describe('2b. valor da venda na ficha (regra única)', () => {
+  const fechar = (): void => {
+    const a = normalizarAjustes({ ...AJUSTES_PADRAO, dinheiro_aberto: false, editado_em: AGORA, editado_por: 'thiago' })!;
+    h.linhas.set('jornada_solar_ajustes', { updated_at: 'a0', value: jsonb({ ...a, sig: assinarAjustes(a) }) });
+  };
+  const chaves = (x: unknown, acc: string[] = []): string[] => {
+    if (Array.isArray(x)) x.forEach((i) => chaves(i, acc));
+    else if (x && typeof x === 'object') for (const [k, v] of Object.entries(x)) { acc.push(k); chaves(v, acc); }
+    return acc;
+  };
+  it('com o dinheiro fechado, quem não é vendedor, Giovanna nem ADM (o Diego) recebe a ficha sem valor, forma nem nota da venda, por nenhuma fonte; o vendedor e o ADM seguem recebendo', async () => {
+    fechar();
+    // com a venda gravada na obra e, depois, só com a proposta ligada (venda da proposta no modal antigo)
+    for (const cenario of ['obra', 'proposta']) {
+      if (cenario === 'proposta') { h.priv.delete(`vendasolar/${SOLAR}.jornada.json`); ligar(SOLAR, { proposta: 'P1', venda: null }); }
+      const sem = await get(FICHA(SOLAR), DIEGO);
+      expect(sem.status).toBe(200);
+      const txt = JSON.stringify(sem.body.ficha);
+      expect(chaves(sem.body.ficha).filter((k) => k.endsWith('_centavos'))).toEqual([]);
+      for (const k of ['venda.valor_centavos', 'venda.forma', 'venda.nota']) expect(Object.keys(sem.body.ficha.campos)).not.toContain(k);
+      expect(txt).not.toContain('3890000');
+      expect(txt).not.toContain('38000');
+    }
+    h.priv.set(`vendasolar/${SOLAR}.jornada.json`, JSON.stringify({ v: 1, venda: { valor_centavos: 3_890_000, pagamento: [{ forma: 'pix', valor_centavos: 3_890_000, obs: '' }], desconto_centavos: null, prazo_prometido: '60 dias', nota: 'Nota privada', kit_confirmado: false, combinado_por: 'nilce', combinado_em: AGORA, editado: [] }, cancelamento: null, descancelamentos: [] }));
+    for (const a of [NILCE, THIAGO]) expect((await get(FICHA(SOLAR), a)).body.ficha.campos['venda.valor_centavos']).toMatchObject({ valor: 3_890_000 });
+  });
+});
+
 describe('2. o dono abre', () => {
   it('200, versão 1 e as cinco listas de sugestões', async () => {
     const res = await get(FICHA(SOLAR));
@@ -484,6 +512,13 @@ describe('9. GET /jornada-solar/proposta/:codigo/venda (o modal antigo)', () => 
     expect((await get('/jornada-solar/proposta/P9/venda')).status).toBe(404);
     expect((await get('/jornada-solar/proposta/a%20b/venda')).status).toBe(400);
     expect((await request(app).get('/gerador/jornada-solar/proposta/P1/venda')).status).toBe(401);
+  });
+  it('com o dinheiro fechado, quem não é vendedor, Giovanna nem ADM (o Diego) recebe venda nula; o vendedor segue recebendo o valor', async () => {
+    const a = normalizarAjustes({ ...AJUSTES_PADRAO, dinheiro_aberto: false, editado_em: AGORA, editado_por: 'thiago' })!;
+    h.linhas.set('jornada_solar_ajustes', { updated_at: 'a0', value: jsonb({ ...a, sig: assinarAjustes(a) }) });
+    ligarProposta(SOLAR, 'P1');
+    expect((await get('/jornada-solar/proposta/P1/venda', DIEGO)).body.venda).toBeNull();
+    expect((await get('/jornada-solar/proposta/P1/venda')).body.venda).toMatchObject({ valor_centavos: 3_890_000 });
   });
   it('proposta ligada a obra sem venda gravada: venda nula', async () => {
     h.priv.delete(`vendasolar/${SOLAR}.jornada.json`);

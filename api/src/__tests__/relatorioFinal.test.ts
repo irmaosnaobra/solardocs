@@ -9,7 +9,7 @@ import type { VistoriaObra } from '../services/gerador/jornadaObra';
 const entrada = (o: Partial<EntradaRelatorio> = {}): EntradaRelatorio => ({
   cliente: 'Ana Souza', codigo: '#0061', emitidoEm: '2026-11-18T12:00:00.000Z',
   secoes: [{ numero: 2, titulo: 'Informações do cliente', campos: [{ rotulo: 'Nome', valor: 'Ana Souza' }, { rotulo: 'Telefone', valor: '(34) 99999-0001' }] }, { numero: 9, titulo: 'Vazia', campos: [] }],
-  kit: { placas: '14 × Canadian CS7N 590 W', inversor: '1 × Growatt 10K', kwp: 8.26, faltando: [] },
+  kit: { placas: '14 × Canadian CS7N 590 W', inversor: '1 × Growatt 10K', kwp: 8.26, faltando: [], manual: [] },
   excedente: { tem: true, linhas: [{ papel: 'geradora', uc: '123', titular: 'Ana Souza', pct: 80 }, { papel: 'beneficiaria', uc: '456', titular: 'Ana Souza', pct: 20 }] },
   vistoria: [{ grupo: 'Telhado', campos: [['Tipo', 'colonial']] }],
   documentos: [{ rotulo: 'KMZ do local', data: '18/11/2026' }, { rotulo: 'Datasheet do inversor', data: '17/11/2026' }],
@@ -56,15 +56,15 @@ describe('relatorioFinalHtml', () => {
 describe('kitVendido e resumoDaVistoria', () => {
   it('kitVendido: texto, kWp da proposta ou calculado, null sem proposta', () => {
     const e = { qtdPlacas: 14, modeloPlaca: 'Canadian', potPlaca: 590, qtdInversor: 1, inversor: 'Growatt' };
-    expect(kitVendido(e, undefined)).toEqual({ placas: '14 × Canadian 590 W', inversor: '1 × Growatt', kwp: 8.26, faltando: [] });
+    expect(kitVendido(e, undefined)).toEqual({ placas: '14 × Canadian 590 W', inversor: '1 × Growatt', kwp: 8.26, faltando: [], manual: [] });
     expect(kitVendido(e, 8.5).kwp).toBe(8.5);
     expect(kitVendido(e, 'x').kwp).toBe(8.26);
-    expect(kitVendido(null, null)).toEqual({ placas: '', inversor: '', kwp: null, faltando: ['placas', 'inversor'] });
+    expect(kitVendido(null, null)).toEqual({ placas: '', inversor: '', kwp: null, faltando: ['placas', 'inversor'], manual: [] });
     expect(kitVendido({ ...e, qtdPlacas: null, potPlaca: null }, null).kwp).toBeNull();
     // proposta incompleta: o texto escrito à mão ocupa o lugar; sem texto, o que falta é listado
     const sem = { ...e, modeloPlaca: '', inversor: '' };
-    expect(kitVendido(sem, null, { placas: '14 x Canadian 590 W' })).toMatchObject({ placas: '14 x Canadian 590 W', inversor: '1', faltando: ['inversor'] });
-    expect(kitVendido(sem, null, { placas: '14 x Canadian 590 W', inversor: '1 x Growatt' })).toMatchObject({ inversor: '1 x Growatt', faltando: [] });
+    expect(kitVendido(sem, null, { placas: '14 x Canadian 590 W' })).toMatchObject({ placas: '14 x Canadian 590 W', inversor: '1', faltando: ['inversor'], manual: ['placas'] });
+    expect(kitVendido(sem, null, { placas: '14 x Canadian 590 W', inversor: '1 x Growatt' })).toMatchObject({ inversor: '1 x Growatt', faltando: [], manual: ['placas', 'inversor'] });
     expect(kitVendido(sem, null).faltando).toEqual(['placas', 'inversor']);
     expect(kitVendido(e, null, { placas: 'texto ignorado', inversor: 'idem' }).placas).toBe('14 × Canadian 590 W');   // com dado na proposta, o dela vale
   });

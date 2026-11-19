@@ -31,6 +31,7 @@ vi.mock('../services/gerador/jornadaSolarBanco', () => ({
 }));
 vi.mock('../routes/geradorJornadaNumero', () => ({ baseDaJornada: () => () => h.estado }));
 vi.mock('../services/gerador/cadastroVenda', () => ({ lerCadastroVisto: async () => ({ v: 1, campos: {}, alteracoes: [], em: null }) }));
+vi.mock('../routes/geradorJornadaRelatorioFinal', () => ({ gerarRelatorioFinal: async () => null }));
 vi.mock('../services/gerador/jornadaCorte', () => ({ obraFinalizada: async () => h.finalizada }));
 vi.mock('../services/gerador/cadastroVendaBanco', () => ({
   // Trava de uma tentativa só, como a chamada do Trello automático pede.
@@ -109,7 +110,7 @@ describe('tentarTrelloAutomatico', () => {
     ['falta o datasheet do inversor', () => { h.slots = ['datasheet_modulo', 'kmz']; }, 'Datasheet do inversor'],
     ['falta o KMZ', () => { h.slots = ['datasheet_modulo', 'datasheet_inversor']; }, 'KMZ do local'],
     ['falta o número da venda', () => { h.lig.venda = null; }, 'Número da venda'],
-    ['a etapa 2 não concluiu', () => { (h.estado as EstadoJornada).etapas[2].concluida_em = null; }, 'Etapa Anexos concluída'],
+    ['a etapa 2 não concluiu', () => { (h.estado as EstadoJornada).etapas[2].concluida_em = null; }, 'Etapa Assinaturas e vistoria concluída'],
     ['a etapa 1 não concluiu', () => { (h.estado as EstadoJornada).etapas[1].concluida_em = null; }, 'Etapa Venda concluída'],
     ['a obra foi cancelada', () => { (h.estado as EstadoJornada).cancelada = { em: AGORA, por: 'thiago', etapa: 3, com_numero: true }; }, 'Obra cancelada'],
   ])('não cria quando %s', async (_n, mexe, texto) => {
@@ -214,7 +215,7 @@ describe('regras puras', () => {
     const f = (estado: EstadoJornada | null, slots: string[], pv: PrivadoJornada | null) => ({ lig: { proposta: 'P1', venda: '#1' }, slots: new Set(slots), cad, privado: pv, estado });
     expect(estadoTrelloAuto(f(estadoPronto(), TUDO, privado(true)), true)).toEqual({ pronto: true, falta: [] });
     expect(estadoTrelloAuto(f(null, [], null), false).falta).toEqual([
-      'Etapa Venda concluída', 'Etapa Anexos concluída', 'Datasheet da placa', 'Datasheet do inversor', 'KMZ do local', 'Número da venda',
+      'Etapa Venda concluída', 'Etapa Assinaturas e vistoria concluída', 'Datasheet da placa', 'Datasheet do inversor', 'KMZ do local', 'Número da venda',
     ]);
     expect(itensDaEtapa(3, f(estadoPronto(), TUDO, privado(true))).slice(0, 3).every((i) => i.bloco === 'equipamento' && i.feito)).toBe(true);
   });
