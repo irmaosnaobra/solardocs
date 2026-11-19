@@ -304,8 +304,20 @@ export interface AjustesSolar {
   v: 1;
   comissoes: Record<string, LinhaRegra[]>;
   dinheiro_aberto: boolean;
+  /** O link de avaliação no Google (https), usado no texto do pós-venda. Só o ADM muda. Sem ele a chave nem existe (a assinatura antiga segue valendo). */
+  link_avaliacao_google?: string;
   editado_em: string;
   editado_por: string;
+}
+/** O link de avaliação normalizado (https, até 300 caracteres, sem espaço nem controle); '' quando não vale. */
+export function linkAvaliacaoValido(v: unknown): string {
+  if (typeof v !== 'string') return '';
+  const t = v.trim();
+  if (!t || t.length > 300 || /[\s\u0000-\u001f\u007f]/.test(t)) return '';
+  try {
+    const u = new URL(t);
+    return u.protocol === 'https:' && !!u.hostname.includes('.') && !u.username && !u.password ? t : '';
+  } catch { return ''; }
 }
 const L = (nome: string, papel: 'venda' | 'socio', pb: number): LinhaRegra => ({ nome, papel, pb });
 export const CHAVES_FIXAS_AJUSTES = ['nilce', 'diego', 'thiago', 'giovanna', 'padrao'] as const;
@@ -392,7 +404,11 @@ export function normalizarAjustes(value: unknown): AjustesSolar | null {
   const comissoes: Record<string, LinhaRegra[]> = {};
   for (const k of ordemDasChaves(r.comissoes)) comissoes[k] = r.comissoes[k].map((l) => ({ nome: l.nome, papel: l.papel, pb: l.pb }));
   const em = typeof v.editado_em === 'string' && /^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|[+-]\d{2}:\d{2})$/.test(v.editado_em) ? v.editado_em : '';
-  return { v: 1, comissoes, dinheiro_aberto: v.dinheiro_aberto !== false, editado_em: em, editado_por: nomeSimples(txt(v.editado_por, 60)).slice(0, 60) };
+  const link = linkAvaliacaoValido(v.link_avaliacao_google);
+  return {
+    v: 1, comissoes, dinheiro_aberto: v.dinheiro_aberto !== false, editado_em: em, editado_por: nomeSimples(txt(v.editado_por, 60)).slice(0, 60),
+    ...(link ? { link_avaliacao_google: link } : {}),
+  };
 }
 
 /** HMAC de `ajustes_solar|JSON`, ou null sem segredo ou sem formato válido. */

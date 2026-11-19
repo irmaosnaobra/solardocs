@@ -195,11 +195,13 @@ export async function lerAjustes(): Promise<{ ajustes: AjustesSolar; valido: boo
 }
 
 /** Grava os Ajustes assinados, com compare-and-swap pelo `updated_at`. Até 4 voltas; perdeu as 4: `ErroJornada('ocupado')`. */
-export async function gravarAjustes(a: Pick<AjustesSolar, 'comissoes' | 'dinheiro_aberto'>, por: string): Promise<AjustesSolar> {
+export async function gravarAjustes(a: Pick<AjustesSolar, 'comissoes' | 'dinheiro_aberto' | 'link_avaliacao_google'>, por: string): Promise<AjustesSolar> {
   for (let t = 0; t < 4; t++) {
-    const { versao } = await lerAjustes();
+    const { versao, ajustes: atual } = await lerAjustes();
     const agora = new Date().toISOString();
-    const n = normalizarAjustes({ v: 1, comissoes: a.comissoes, dinheiro_aberto: a.dinheiro_aberto, editado_em: agora, editado_por: por });
+    // `link_avaliacao_google` ausente (undefined) mantém o que já está gravado; '' apaga.
+    const link = a.link_avaliacao_google === undefined ? atual.link_avaliacao_google : a.link_avaliacao_google;
+    const n = normalizarAjustes({ v: 1, comissoes: a.comissoes, dinheiro_aberto: a.dinheiro_aberto, link_avaliacao_google: link, editado_em: agora, editado_por: por });
     const sig = n ? assinarAjustes(n) : null;
     if (!n || !sig) throw new ErroJornada('sem_segredo');
     const value = { ...n, sig };

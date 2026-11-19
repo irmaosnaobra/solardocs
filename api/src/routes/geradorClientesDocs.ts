@@ -1,7 +1,9 @@
 import crypto from 'crypto';
 import { Router, Request, Response, NextFunction } from 'express';
 import { exigeConsultor } from './geradorDossie';
-import { ehSocio, podeVer } from '../services/gerador/solarObras';
+import { ehAdm, ehSocio, nomeSimples, podeVer } from '../services/gerador/solarObras';
+import { podeVerValorDaObra } from '../services/gerador/jornadaDinheiro';
+import { lerAjustes } from '../services/gerador/jornadaDinheiroBanco';
 import {
   vendaSolarDoDono, codigosSolar, acessoVendaSolar, ErroVendaSolar, equipamentoDoCardParaRelatorio, type VendaSolarDoDono,
 } from './geradorClientes';
@@ -22,7 +24,7 @@ import {
   CATALOGO, SLOTS_FORA_DO_RELATORIO, SLOTS_DO_TRELLO_AUTO, extDoArquivo, mimeDoKmz, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
   lerCaminho, comArquivo, semArquivo, comVinculo, motivoSemEspaco, nomesParecidos, dadosSolarPlanilha, dadosVendaSolar, dadosEletroposto,
   equipamentoDaPlanilha, montarRelatorio, assinaturaBate, assinaturaPedeArquivoInteiro, comArquivoMovido, motivoSemEspacoParaMover, TIPOS_FORA_DA_HOMOLOGACAO,
-  limiteDoItem, tetoDaVenda, SLOT_DO_DOSSIE_NA_VENDASOLAR, comArquivosTrocados, type ArquivoDoc, type Linha, type RegistroDocs, type DocBruto, type DadosHomologacao, type ItemDoc,
+  limiteDoItem, tetoDaVenda, SLOT_DO_DOSSIE_NA_VENDASOLAR, comArquivosTrocados, SLOTS_COM_DINHEIRO, type ArquivoDoc, type Linha, type RegistroDocs, type DocBruto, type DadosHomologacao, type ItemDoc,
 } from '../services/gerador/docsCliente';
 import {
   ErroDocs, garantirBucketDocs, lerPrimeirosBytes, assinarEnvio, sondarObjeto, removerObjeto, assinarVarios, lerDocsComVersao, gravarDocs,
@@ -204,6 +206,18 @@ export async function contexto(req: Request, res: Response, linhaFixa?: Linha): 
   }
 }
 
+/**
+ * Quem vê os itens com preço (`SLOTS_COM_DINHEIRO`, o orçamento) da venda solar: a regra única `podeVerValorDaObra` (dinheiro aberto, ADM, Giovanna ou o
+ * vendedor do card). Falha ao ler os Ajustes fecha o dinheiro. Fora da venda solar pelo card, não há item com preço: vale para todos.
+ */
+async function veDinheiroDaVenda(ctx: Ctx): Promise<boolean> {
+  if (ctx.linha !== 'vendasolar' || !ctx.card) return true;
+  const ajustes = await lerAjustes().then((a) => a.ajustes, (e) => { logErro('ajustes', e); return { dinheiro_aberto: false }; });
+  const vendedor = nomeSimples((ctx.card as { vendedor_nome?: unknown }).vendedor_nome);
+  return podeVerValorDaObra({ nome: ctx.nome, adm: ehAdm(ctx.nome) }, ajustes, !!vendedor && ctx.nome === vendedor);
+}
+const MSG_SEM_DINHEIRO = 'Você não vê o valor desta venda.';
+
 /** Corpo precisa ser objeto simples; chave a mais é ignorada (nunca gravada). */
 const corpoDe = (req: Request): Record<string, unknown> | null => {
   const b = req.body;
@@ -375,13 +389,15 @@ export function mountClientesDocs(router: Router): void {
     if (!ctx) return;
     try {
       await garantirBucketDocs();
-      const [{ reg }, { rot, indisponivel }] = await Promise.all([lerDocs(ctx), rotulosOuNulo(ctx)]);
-      const urls = await assinarVarios(reg.arquivos.map((a) => a.caminho), SEG_URL_DOCS);
+      const [{ reg }, { rot, indisponivel }, veDinheiro] = await Promise.all([lerDocs(ctx), rotulosOuNulo(ctx), veDinheiroDaVenda(ctx)]);
+      // Quem não vê o dinheiro da venda não recebe o item com preço (o orçamento) nem o arquivo, nem a URL assinada dele.
+      const arquivos = veDinheiro ? reg.arquivos : reg.arquivos.filter((a) => !SLOTS_COM_DINHEIRO.includes(a.slot));
+      const urls = await assinarVarios(arquivos.map((a) => a.caminho), SEG_URL_DOCS);
       res.json({
         ok: true,
-        slots: CATALOGO[ctx.linha],
+        slots: veDinheiro ? CATALOGO[ctx.linha] : CATALOGO[ctx.linha].filter((i) => !SLOTS_COM_DINHEIRO.includes(i.chave)),
         limite_bytes: LIMITE_BYTES,
-        arquivos: reg.arquivos.map((a) => lerNaTela(a, urls, rot)),
+        arquivos: arquivos.map((a) => lerNaTela(a, urls, rot)),
         ...(indisponivel ? { rotulos_indisponivel: true } : {}),
         vinculo: ctx.linha === 'solar' ? await blocoVinculo(ctx, reg, SEG_URL_DOCS) : null,
         // Venda solar pelo card: o dossiê da proposta ligada, só leitura, já nos itens da `vendasolar`.
@@ -402,6 +418,7 @@ export function mountClientesDocs(router: Router): void {
     const b = corpoDe(req);
     const item = b ? itemDoCatalogo(ctx.linha, b.slot) : null;
     if (!b || !item) { res.status(400).json({ ok: false, error: 'Item não encontrado.' }); return; }
+    if (ctx.linha === 'vendasolar' && SLOTS_COM_DINHEIRO.includes(item.chave) && !(await veDinheiroDaVenda(ctx))) { res.status(403).json({ ok: false, error: MSG_SEM_DINHEIRO }); return; }
     // KMZ/KML: o navegador manda zip, octet-stream ou nada; a extensão (`ext` ou `nome`, nunca guardados) decide e o tipo vira o do Google Earth.
     // Só o item `kmz` passa por aqui: em qualquer outro, zip e octet-stream continuam recusados por `mimeServeAoItem`.
     const mime = item.aceita === 'kmz' ? (mimeDoKmz(normalizarMime(b.mime), extDoArquivo(b.ext ?? b.nome)) ?? '') : normalizarMime(b.mime);
@@ -441,6 +458,7 @@ export function mountClientesDocs(router: Router): void {
     const b = corpoDe(req);
     const item = b ? itemDoCatalogo(ctx.linha, b.slot) : null;
     if (!b || !item) { res.status(400).json({ ok: false, error: 'Item não encontrado.' }); return; }
+    if (ctx.linha === 'vendasolar' && SLOTS_COM_DINHEIRO.includes(item.chave) && !(await veDinheiroDaVenda(ctx))) { res.status(403).json({ ok: false, error: MSG_SEM_DINHEIRO }); return; }
     // O caminho inteiro tem que ser o que o servidor gera E ser desta venda (linha e código).
     const c = lerCaminho(b.caminho);
     if (!c || c.linha !== ctx.linha || c.codigo !== ctx.codigo) { res.status(400).json({ ok: false, error: 'Caminho inválido.' }); return; }
@@ -557,6 +575,7 @@ export function mountClientesDocs(router: Router): void {
         const { reg, versao } = await lerDocs(ctx);
         const a = reg.arquivos.find((x) => x.id === id);
         if (!a) { res.status(404).json({ ok: false, error: 'Arquivo não encontrado.' }); return; }
+        if (ctx.linha === 'vendasolar' && SLOTS_COM_DINHEIRO.includes(a.slot) && !(await veDinheiroDaVenda(ctx))) { res.status(403).json({ ok: false, error: MSG_SEM_DINHEIRO }); return; }
         await removerObjeto(a.caminho);   // 1º o objeto: se falhar, o metadado fica e a pessoa tenta de novo
         const agora = new Date().toISOString();
         if (!(await gravarDocs(ctx.linha, ctx.codigo, semArquivo(reg, id, ctx.nome, agora), versao, agora))) continue;
@@ -590,6 +609,9 @@ export function mountClientesDocs(router: Router): void {
     }
     const itemNovo = querSlot ? itemDoCatalogo(ctx.linha, b.slot) : null;
     if (querSlot && !itemNovo) { res.status(400).json({ ok: false, error: 'Item não encontrado.' }); return; }
+    // Quem não vê o dinheiro da venda não mexe no item com preço: nem move para ele, nem renomeia ou move o que já está nele.
+    const semDinheiro = ctx.linha === 'vendasolar' && !(await veDinheiroDaVenda(ctx));
+    if (semDinheiro && itemNovo && SLOTS_COM_DINHEIRO.includes(itemNovo.chave)) { res.status(403).json({ ok: false, error: MSG_SEM_DINHEIRO }); return; }
     try {
       await garantirBucketDocs();
       const feito = await comTrava(travaDaVenda(ctx.linha, ctx.codigo), ctx.nome, async () => {
@@ -599,6 +621,7 @@ export function mountClientesDocs(router: Router): void {
           const { reg, versao } = await lerDocs(ctx);
           const a = reg.arquivos.find((x) => x.id === id);
           if (!a) return { status: 404 as const, corpo: { ok: false, error: 'Arquivo não encontrado.' } };
+          if (semDinheiro && SLOTS_COM_DINHEIRO.includes(a.slot)) return { status: 403 as const, corpo: { ok: false, error: MSG_SEM_DINHEIRO } };
           let atual = a;
           let trocado: ArquivoDoc | null = null;
           if (itemNovo && itemNovo.chave !== a.slot) {

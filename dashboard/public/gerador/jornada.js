@@ -8,9 +8,9 @@
 (function () {
   'use strict';
 
-  var L = { dados: null, aba: 'ativas', filtro: 'todas', busca: '', consultor: '', carregando: false, erro: '', menu: null };
+  var L = { dados: null, aba: 'ativas', filtro: 'todas', busca: '', consultor: '', carregando: false, erro: '', menu: null, ajuda: false };
   var O = { card: null, dados: null, fase2: null, fase3: null, dinheiro: null, ficha: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0, erroSlot: {}, ocupSlot: {},
-    lendo: null, lendoFalhou: '', lendoT: 0, edita: {}, rascunho: {}, confirmando: {}, erroSec: {}, vendaEdita: false, aba: null, abaVista: '', organizar: false, outroTipo: '', ratEdita: false };
+    lendo: null, lendoFalhou: '', lendoT: 0, lerTudo: null, novos: null, novosT: 0, edita: {}, rascunho: {}, confirmando: {}, erroSec: {}, vendaEdita: false, aba: null, abaVista: '', organizar: false, outroTipo: '', ratEdita: false };
 
   // ── Rede ───────────────────────────────────────────────────────────────────
   function api(rota, metodo, corpo, ms) {
@@ -43,7 +43,7 @@
     s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', '14'); s.setAttribute('height', '14'); s.setAttribute('aria-hidden', 'true');
     s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2.4'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
     var p = document.createElementNS(SVG, 'path');
-    p.setAttribute('d', tipo === 'ok' ? 'M5 12.5l4.5 4.5L19 7.5' : tipo === 'baixo' ? 'M12 5v13M6.5 12.5L12 18l5.5-5.5' : 'M7 11V8a5 5 0 0110 0v3M6 11h12v9H6z');
+    p.setAttribute('d', tipo === 'ok' ? 'M5 12.5l4.5 4.5L19 7.5' : tipo === 'doc' ? 'M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5' : tipo === 'baixo' ? 'M12 5v13M6.5 12.5L12 18l5.5-5.5' : 'M7 11V8a5 5 0 0110 0v3M6 11h12v9H6z');
     s.appendChild(p);
     return s;
   }
@@ -340,11 +340,6 @@
       '.jor-campos,.jor-fotos{grid-template-columns:minmax(0,1fr)}',
       '.jor-busca{width:100%}',
       '.jor-pg{grid-template-columns:minmax(0,1fr)}',
-      '.jor-tab thead{display:none}',
-      '.jor-tab,.jor-tab tbody,.jor-tab tr,.jor-tab td{display:block;width:100%}',
-      '.jor-tab tr{border-bottom:1px solid var(--n-bd);padding:8px 10px}',
-      '.jor-tab td{border:0;padding:2px 0;white-space:normal}',
-      '.jor-tab td[data-r]::before{content:attr(data-r) ": ";color:var(--n-tx3);font-size:12px}',
       '}',
     
       // A página do cliente (19/11/2026): cabeçalho, barra de abas fixa, o painel do passo e o Resumo. Cor só por token.
@@ -453,6 +448,160 @@
       '.jor-prazo-ac{margin-left:0}',
       '.jor-and-l .jor-btn-link,a.jor-rdocs-ab,.jor-grp-t .jor-btn-link{min-height:44px}',
       '}',
+      // A lista de clientes (19/11/2026): título com "?", abas, uma barra de filtros, tabela no computador e cartão no celular. Cor só por token.
+      '.jor-lt-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 16px;margin:0 0 8px}',
+      '.jor-lt-tit{display:flex;align-items:center;gap:8px}',
+      '.jor-lt-tit h2{font-size:20px;font-weight:700;line-height:1.2}',
+      '.jor-lt-q{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border-radius:50%;border:1px solid var(--n-bd2);background:var(--n-sf);color:var(--n-tx2);font:inherit;font-size:13px;font-weight:700;cursor:pointer;position:relative}',
+      '.jor-lt-q::after{content:"";position:absolute;inset:-8px}',
+      '.jor-lt-q:hover,.jor-lt-q[aria-expanded=true]{background:var(--n-sf3);color:var(--n-tx)}',
+      '.jor-lt-nav{display:flex;flex-wrap:wrap;gap:8px}',
+      '.jor-lt-navb{min-height:40px;padding:6px 14px 6px 12px;font-size:14px;color:var(--n-tx)}',
+      '.jor-lt-navb svg{color:var(--n-tx2);flex:0 0 auto}',
+      '.jor-lt-ajuda{max-width:640px;margin:0 0 12px;padding:10px 14px;border:1px solid var(--n-bd);border-radius:10px;background:var(--n-sf2);color:var(--n-tx2);font-size:13px}',
+      '.jor-lt-ajuda p{margin:0}',
+      '.jor-lt-ajuda p+p{margin-top:6px}',
+      '.jor-lt-abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:0 0 16px;border-bottom:1px solid var(--n-bd)}',
+      '.jor-lt-abas::-webkit-scrollbar{display:none}',
+      '.jor-lt-aba{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;margin-bottom:-1px;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--n-tx2);font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}',
+      '.jor-lt-aba:hover{color:var(--n-tx)}',
+      '.jor-lt-aba.on{color:var(--io-titulo);font-weight:700;border-bottom-color:var(--io-amarelo)}',
+      '.jor-lt-ct{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:var(--n-sf3);color:var(--n-tx2);font-size:12px;font-weight:700}',
+      '.jor-lt-aba.on .jor-lt-ct{background:var(--io-amarelo);color:var(--io-tinta)}',
+      '.jor-lt-ct.er{background:var(--io-er-sf);color:var(--io-er-tx)}',
+      '.jor-lt-fil{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 12px}',
+      '.jor-lt-seg{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--n-bd2);border-radius:12px;background:var(--n-sf)}',
+      '.jor-lt-segb{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:var(--n-tx2);font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}',
+      '.jor-lt-segb:hover:not(.on){background:var(--n-sf3);color:var(--n-tx)}',
+      '.jor-lt-segb.on{background:var(--io-marcado);color:var(--n-inv)}',
+      '.jor-lt-segb.on .jor-lt-ct{background:var(--n-sf);color:var(--io-titulo)}',
+      '.jor-lt-segb.on .jor-lt-ct.er{background:var(--io-er-sf);color:var(--io-er-tx)}',
+      '.jor-lt-sel{min-height:40px}',
+      '.jor-lt-busca{width:280px;margin-left:auto}',
+      '.jor-lt-aba:focus-visible{outline:2px solid var(--io-azul-tx);outline-offset:-2px;border-radius:8px 8px 0 0}',
+      '.jor-lt-segb:focus-visible,.jor-lt-q:focus-visible,.jor-lt-din:focus-visible,.jor-lt-mais:focus-visible{outline:2px solid var(--io-azul-tx);outline-offset:2px}',
+      '.jor-lt-wrap{border:1px solid var(--n-bd);border-radius:12px;background:var(--n-sf)}',
+      '.jor-lt-tab{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;color:var(--n-tx);font-variant-numeric:tabular-nums}',
+      '.jor-lt-tab th{padding:10px 12px;background:var(--n-sf2);color:var(--n-tx2);font-size:12px;font-weight:600;text-align:left;white-space:nowrap;border-bottom:1px solid var(--n-bd)}',
+      '.jor-lt-tab th:first-child{border-top-left-radius:11px}',
+      '.jor-lt-tab th:last-child{border-top-right-radius:11px}',
+      '.jor-lt-tab td{padding:12px;border-bottom:1px solid var(--n-bd);vertical-align:middle;text-align:left;color:var(--n-tx);font-size:14px;font-weight:400;background:transparent}',
+      '.jor-lt-tab tbody tr:last-child td{border-bottom:0}',
+      '.jor-lt-tab tbody tr:last-child td:first-child{border-bottom-left-radius:11px}',
+      '.jor-lt-tab tbody tr:last-child td:last-child{border-bottom-right-radius:11px}',
+      '.jor-lt-linha.abre{cursor:pointer}',
+      '.jor-lt button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}',
+      '.jor-lt-linha:hover td{background:var(--n-sf2)}',
+      '.jor-lt-n{width:84px}',
+      '.jor-lt-dt{width:76px;white-space:nowrap;color:var(--n-tx2)}',
+      'td.jor-lt-dt{color:var(--n-tx2)}',
+      '.jor-lt-and{width:250px}',
+      '.jor-lt-pz{width:200px}',
+      '.jor-lt-din{width:190px}',
+      'th.jor-lt-ac,td.jor-lt-ac{width:1%;white-space:nowrap}',
+      '.jor-lt-meta{display:none}',
+      '.jor-lt-cod{display:inline-block;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:13px;font-weight:600;color:var(--io-titulo);background:var(--n-sf3);border-radius:6px;padding:2px 8px;white-space:nowrap}',
+      '.jor-lt-cod.vazio{font-family:inherit;font-weight:500;font-size:12px;color:var(--n-tx3);background:transparent;padding:2px 0}',
+      '.jor-lt-cod.pend{font-family:inherit;font-size:12px;background:var(--io-av-sf);color:var(--io-ambar-tx)}',
+      '.jor-lt-nome{display:block;font-size:14px;font-weight:600;color:var(--io-titulo);line-height:1.35}',
+      '.jor-lt-sub{display:block;font-size:12px;color:var(--n-tx2);margin-top:2px}',
+      '.jor-lt-andw{display:flex;align-items:center;gap:10px}',
+      '.jor-lt-av{flex:0 0 28px;width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--io-azul-sf);color:var(--io-titulo);font-size:11px;font-weight:700}',
+      '.jor-lt-av.vazio{background:transparent}',
+      '.jor-lt-andt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:6px}',
+      '.jor-lt-fase{font-size:13px;font-weight:600;color:var(--n-tx);line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.jor-lt-fase.apagada{font-weight:500;color:var(--n-tx3)}',
+      '.jor-lt-trena{position:relative;display:block;height:8px;max-width:180px;border-radius:4px;background:var(--n-sf3);overflow:hidden}',
+      '.jor-lt-trena i{position:absolute;top:0;bottom:0;left:0;background:var(--io-amarelo)}',
+      '.jor-lt-trena i.jor-lt-vez{opacity:.4}',
+      '.jor-lt-trena::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:var(--io-trena-marca,.5);background:repeating-linear-gradient(90deg,transparent 0,transparent calc(10% - 1px),var(--io-tinta) calc(10% - 1px),var(--io-tinta) 10%)}',
+      '.jor-lt-pzw{display:flex;flex-direction:column;gap:2px;min-width:0}',
+      '.jor-lt-pzp{font-size:13px;font-weight:600;color:var(--n-tx);display:inline-flex;align-items:center;gap:6px}',
+      '.jor-lt-pzp::before{content:"";flex:0 0 8px;width:8px;height:8px;border-radius:50%;background:var(--n-bd2)}',
+      '.jor-lt-pzd{font-size:12px;color:var(--n-tx2);padding-left:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}',
+      '.jor-lt-pzw.no_prazo .jor-lt-pzp::before{background:var(--io-ok-tx)}',
+      '.jor-lt-pzw.vence_hoje .jor-lt-pzp{color:var(--io-ambar-tx)}',
+      '.jor-lt-pzw.vence_hoje .jor-lt-pzp::before{background:var(--io-av-tx)}',
+      '.jor-lt-pzw.atrasada .jor-lt-pzp,.jor-lt-pzw.travada .jor-lt-pzp,.jor-lt-pzw.travada .jor-lt-pzd{color:var(--io-er-tx)}',
+      '.jor-lt-pzw.atrasada .jor-lt-pzp::before,.jor-lt-pzw.travada .jor-lt-pzp::before{background:var(--io-er-tx)}',
+      '.jor-lt-pzw.esperando .jor-lt-pzp::before{background:var(--io-azul-tx)}',
+      '.jor-lt-pzw.sem_prazo .jor-lt-pzp,.jor-lt-pzw.cancelada .jor-lt-pzp{font-weight:500;color:var(--n-tx2)}',
+      'button.jor-lt-din{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:auto;min-height:40px;margin:-4px -8px;padding:4px 8px;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:help}',
+      'button.jor-lt-din:hover{background:var(--n-sf3)}',
+      '.jor-lt-dinp{display:inline-flex;align-items:baseline;gap:6px;white-space:nowrap}',
+      '.jor-lt-dink{font-size:12px;color:var(--n-tx2)}',
+      '.jor-lt-dinp b{font-size:14px;font-weight:600;color:var(--n-tx)}',
+      '.jor-lt-dinp b.neg,.jor-lt-popl b.neg{color:var(--io-er-tx)}',
+      '.jor-lt-dind{font-size:12px;color:var(--n-tx2);white-space:nowrap}',
+      '.jor-lt-dinx{font-size:13px;color:var(--n-tx2)}',
+      '.jor-lt-pop{display:none;position:absolute;z-index:25;top:calc(100% + 6px);right:0;min-width:220px;padding:8px 12px;border:1px solid var(--io-borda-campo);border-radius:10px;background:var(--n-sf);box-shadow:var(--sombra);cursor:default}',
+      'button.jor-lt-din:hover .jor-lt-pop,button.jor-lt-din:focus .jor-lt-pop{display:block}',
+      '.jor-lt-popl{display:flex;justify-content:space-between;gap:16px;padding:3px 0;font-size:13px;color:var(--n-tx2);white-space:nowrap}',
+      '.jor-lt-popl b{font-weight:600;color:var(--n-tx)}',
+      '.jor-lt-popl.tot{margin-top:4px;padding-top:7px;border-top:1px solid var(--n-bd)}',
+      '.jor-lt-abrir{min-height:36px;padding:4px 14px;font-size:13px}',
+      '.jor-lt-mais{width:36px;min-height:36px;padding:0;border-color:transparent;background:transparent;color:var(--n-tx2)}',
+      '.jor-lt-mais:hover:not(:disabled),.jor-lt-mais[aria-expanded=true]{background:var(--n-sf3);color:var(--n-tx)}',
+      '.jor-lt-vazio td{padding:32px 12px;text-align:center;color:var(--n-tx2)}',
+      '@media (max-width:1100px){.jor-lt-dt{display:none}.jor-lt-and{width:210px}}',
+      '@media (max-width:860px){',
+      '.jor-lt-busca{width:100%;margin-left:0;order:-1;font-size:16px;min-height:44px}',
+      '.jor-lt-sel{flex:1 1 auto;min-height:44px;font-size:16px}',
+      '.jor-lt-segb{min-height:38px}',
+      '.jor-lt-topo{gap:12px}',
+      '.jor-lt-nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;width:100%}',
+      '.jor-lt-navb{flex-direction:column;gap:4px;min-height:56px;padding:6px 4px;font-size:12px}',
+      '.jor-lt-seg{display:flex;width:100%}',
+      '.jor-lt-segb{flex:1 1 0;justify-content:center;padding:0 8px}',
+      '.jor-lt-aba{padding:0 10px}',
+      '.jor-lt-wrap{border:0;background:transparent}',
+      '.jor-lt-tab thead{display:none}',
+      '.jor-lt-tab,.jor-lt-tab tbody{display:block}',
+      '.jor-lt-tab tbody{display:flex;flex-direction:column;gap:10px}',
+      '.jor-lt-linha{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"cl ac" "and and" "pz din";gap:12px 12px;padding:14px 14px 14px 16px;border:1px solid var(--n-bd);border-radius:12px;background:var(--n-sf)}',
+      '.jor-lt-linha:hover td{background:transparent}',
+      '.jor-lt-tab td,.jor-lt-tab tbody tr:last-child td{display:block;width:auto;padding:0;border:0;border-radius:0}',
+      '.jor-lt-tab td.jor-lt-n,.jor-lt-tab td.jor-lt-dt,.jor-lt-tab tbody tr:last-child td.jor-lt-n,.jor-lt-tab tbody tr:last-child td.jor-lt-dt{display:none}',
+      'td.jor-lt-cl{grid-area:cl;align-self:center}',
+      'td.jor-lt-ac{grid-area:ac;align-self:start}',
+      'td.jor-lt-and{grid-area:and;padding:10px 0 0;border-top:1px solid var(--n-bd)}',
+      'td.jor-lt-pz{grid-area:pz;grid-column:1 / -1}',
+      '.com-din td.jor-lt-pz{grid-column:auto}',
+      'td.jor-lt-din{grid-area:din;justify-self:end;text-align:right}',
+      'button.jor-lt-din{align-items:flex-end;text-align:right;margin:-4px -8px -4px 0;min-height:44px}',
+      '.jor-lt-pop{right:0}',
+      '.jor-lt-trena{max-width:none}',
+      '.jor-lt-pzd{max-width:none;white-space:normal}',
+      '.jor-lt-abrir{min-height:44px;padding:4px 16px}',
+      '.jor-lt-meta{display:flex;align-items:center;gap:8px;margin:0 0 4px;font-size:12px;color:var(--n-tx2)}',
+      '.jor-lt-mais{width:44px;min-height:44px}',
+      '.jor-lt-vazio{display:block;border:1px dashed var(--n-bd2);border-radius:12px}',
+      '.jor-lt-vazio td{display:block}',
+      '}',
+      // Leitura por IA ampliada (19/11/2026): ficha com identidade e conta de luz, origem por documento, "Ler todos os documentos" e o destaque do que entrou.
+      '.jor-fc.largo{grid-column:1/-1}',
+      '.jor-fc.vazio .jor-fc-v>span{font-size:13px;font-weight:500;color:var(--n-tx2)}',
+      '.jor-fc{transition:background-color .9s ease,border-color .9s ease}',
+      '.jor-fc.jor-novo{background:var(--io-azul-sf);border-color:var(--io-azul-tx)}',
+      '.jor-rc{transition:background-color .9s ease}',
+      '.jor-rc.jor-novo{background:var(--io-azul-sf)}',
+      '.jor-rc-org{flex:0 0 auto;margin-left:auto;align-self:center;font-size:12px;font-weight:600;color:var(--io-azul-tx);white-space:nowrap}',
+      '.jor-rc-org.mao{font-weight:500;color:var(--n-tx3)}',
+      '.jor-sel.jor-in{width:100%}',
+      '.jor-fc>.jor-email-cmp{flex:0 0 auto}',
+      '.jor-grp-org{font-size:12px;font-weight:600;color:var(--io-azul-tx)}',
+      '.jor-ler{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:4px 12px;font-size:13px}',
+      '.jor-ler svg{flex:0 0 16px}',
+      '.jor-grp-t .jor-ler{margin-left:auto}',
+      '.jor-sub-t .jor-ler{margin-left:auto}',
+      '.jor-ler-st{margin:0 0 10px}',
+      '.jor-ler-st.jor-lendo{margin:0 0 10px}',
+      '.jor-ler-ok{display:flex;align-items:center;gap:6px;margin:0 0 10px;font-size:13px;font-weight:600;color:var(--io-ok-fg)}',
+      '.jor-ler-ok.nada{color:var(--n-tx2)}',
+      '.jor-ler-er{margin:0 0 10px}',
+      '.jor-doc-est .st-opc{color:var(--n-tx2)}',
+      '@media (prefers-reduced-motion:reduce){.jor-fc,.jor-rc{transition:none}}',
+      '@media (max-width:760px){.jor-ler{min-height:44px}.jor-grp-t .jor-ler,.jor-sub-t .jor-ler{margin-left:0}}',
     ].join('\n');
     var st = document.createElement('style'); st.id = 'jor-css'; st.textContent = comReserva(css); document.head.appendChild(st);
   }
@@ -534,45 +683,126 @@
     });
   }
 
+  // A lista fala a língua da página do cliente: os passos 1 a 5 e as etapas da obra. A api manda a etapa de 1 a 9
+  // (a 1 são os passos 1 e 2, a 2 os passos 3 e 4, a 3 o passo 5). A trena tem 10 marcas: 5 passos e 5 etapas da obra; o Pós-venda enche a fita.
+  var FASES = [null,
+    { nome: 'Documentos e contrato', onde: 'Passos 1 e 2 de 5', feito: 0, vez: 2 },
+    { nome: 'Assinaturas e vistoria', onde: 'Passos 3 e 4 de 5', feito: 2, vez: 2 },
+    { nome: 'Homologação', onde: 'Passo 5 de 5', feito: 4, vez: 1 },
+    { nome: 'Compra', onde: 'Obra, etapa 1 de 5', feito: 5, vez: 1 },
+    { nome: 'Logística', onde: 'Obra, etapa 2 de 5', feito: 6, vez: 1 },
+    { nome: 'Obra', onde: 'Obra, etapa 3 de 5', feito: 7, vez: 1 },
+    { nome: 'Entrega', onde: 'Obra, etapa 4 de 5', feito: 8, vez: 1 },
+    { nome: 'Liberação', onde: 'Obra, etapa 5 de 5', feito: 9, vez: 1 },
+    { nome: 'Pós-venda', onde: 'Obra entregue', feito: 10, vez: 0 },
+  ];
+  var ICONES = {
+    mapa: 'M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11zM12 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z',
+    indica: 'M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2.5 20a6.5 6.5 0 0113 0M16 4.5a3.5 3.5 0 010 6.5M18.5 14.5a6.5 6.5 0 013 5.5',
+    painel: 'M4 20V10M10 20V4M16 20v-7M21.5 20h-19',
+    ajustes: 'M4 7h10M18 7h2M4 17h4M12 17h8M16 4.5v5M10 14.5v5',
+    mais: 'M5 12h.01M12 12h.01M19 12h.01',
+  };
+  function iconeL(nome, tam) {
+    var s = document.createElementNS(SVG, 'svg');
+    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', String(tam || 18)); s.setAttribute('height', String(tam || 18)); s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', nome === 'mais' ? '3.2' : '1.9'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
+    var p = document.createElementNS(SVG, 'path'); p.setAttribute('d', ICONES[nome]); s.appendChild(p);
+    return s;
+  }
+  /** A trena da linha: o que já foi feito em amarelo cheio, a fase da vez em amarelo claro. */
+  function trena(feito, vez) {
+    var t = el('span', 'jor-lt-trena'); t.setAttribute('aria-hidden', 'true');
+    var f = el('i', 'jor-lt-feito'); f.style.width = (feito * 10) + '%'; t.appendChild(f);
+    if (vez) { var v = el('i', 'jor-lt-vez'); v.style.left = (feito * 10) + '%'; v.style.width = (vez * 10) + '%'; t.appendChild(v); }
+    return t;
+  }
+  /** "Recebido R$ 1,00 · A receber ... · Saldo R$ -2,00" em pares. Texto que não segue o molde volta vazio. */
+  function partesDinheiro(txt) {
+    var out = {}; var achou = 0;
+    String(txt || '').split(' · ').forEach(function (p) {
+      var m = /^(Recebido|A receber|Gasto|Saldo) (.+)$/.exec(p); if (!m) return;
+      achou++; var neg = /-/.test(m[2]); out[m[1]] = { txt: (neg ? '-' : '') + m[2].replace('-', ''), neg: neg };
+    });
+    return achou ? out : null;
+  }
+  /** O prazo em duas partes: o principal e o detalhe (o que vem depois do " · " ou do ": "). */
+  function prazoPartes(l) {
+    if (l.finalizada) return { tipo: 'sem_prazo', p: 'Fora da cobrança', d: '' };
+    if (l.grupo === 'canceladas' && l.cancelada) return { tipo: 'cancelada', p: 'Cancelada em ' + ddmm(l.cancelada.em), d: ['Por ' + nomeBonito(l.cancelada.por), l.cancelada.motivo].filter(Boolean).join(' · ') };
+    var t = String((l.situacao && l.situacao.texto) || ''); var tipo = (l.situacao && l.situacao.tipo) || 'sem_prazo';
+    var i = t.indexOf(' · '); var j = t.indexOf(': ');
+    var corte = i >= 0 ? i : j; var tam = i >= 0 ? 3 : 2;
+    var p = corte >= 0 ? t.slice(0, corte) : t; var d = corte >= 0 ? t.slice(corte + tam) : '';
+    if (tipo === 'no_prazo' && /^vence /.test(d)) { p = 'Vence ' + d.slice(6); d = 'No prazo'; }
+    return { tipo: tipo, p: p || 'Sem prazo', d: d ? d.charAt(0).toUpperCase() + d.slice(1) : '' };
+  }
+  function ehAtrasada(l) { return l.grupo === 'ativas' && l.trilho === 'jornada' && (l.situacao.tipo === 'atrasada' || l.situacao.tipo === 'travada'); }
+  var AJUDA_LISTA = {
+    base: 'A lista segue a data da venda, da mais nova para a mais antiga. O número nasce com o contrato e a procuração assinados, por isso pode sair fora de ordem.',
+    canceladas: 'Venda cancelada nunca gasta número.',
+    finalizadas: 'Vendas de antes da jornada. Abrem só para leitura, com os dados da planilha. Ficam fora da cobrança e das mensagens.',
+  };
+
   function desenharLista() {
     var c = corpo(); if (!c) return;
     var d = L.dados;
-    var raiz = el('div');
-    var topo = el('div', 'jor-topo'); topo.appendChild(el('h2', '', 'Clientes'));
-    add(topo, btn('Mapa', '', function () {
+    var raiz = el('div', 'jor-lt');
+    var topo = el('div', 'jor-lt-topo');
+    var tit = el('div', 'jor-lt-tit'); tit.appendChild(el('h2', '', 'Clientes'));
+    // O "?" abre a explicação da ordem e do número. Texto longo não fica solto na tela.
+    var q = el('button', 'jor-lt-q', '?'); q.type = 'button'; q.setAttribute('aria-label', 'Como a lista funciona'); q.setAttribute('aria-expanded', L.ajuda ? 'true' : 'false'); q.setAttribute('aria-controls', 'jor-lt-ajuda');
+    q.addEventListener('click', function () { L.ajuda = !L.ajuda; var a = document.getElementById('jor-lt-ajuda'); if (a) a.hidden = !L.ajuda; q.setAttribute('aria-expanded', L.ajuda ? 'true' : 'false'); });
+    tit.appendChild(q); topo.appendChild(tit);
+    var nav = el('div', 'jor-lt-nav');
+    function navBtn(rot, ic, fn) { var b = btn('', 'jor-lt-navb', fn); b.appendChild(iconeL(ic, 18)); b.appendChild(el('span', '', rot)); return b; }
+    add(nav, navBtn('Mapa', 'mapa', function () {
       if (typeof obEstado !== 'undefined' && obEstado) obEstado.aba = 'mapa';
       if (typeof navObrasSolar === 'function') navObrasSolar();
     }));
-    add(topo, btn('Indicações', '', function () {
+    add(nav, navBtn('Indicações', 'indica', function () {
       if (typeof obEstado !== 'undefined' && obEstado) obEstado.aba = 'indicacoes';
       if (typeof navObrasSolar === 'function') navObrasSolar();
     }));
-    if (typeof admOk === 'function' && admOk()) add(topo, btn('Painel', 'jor-btn-link', function () { if (typeof navPainelSolar === 'function') navPainelSolar(); }));
-    if (typeof admOk === 'function' && admOk() && window.Jornada.dinheiro && window.Jornada.dinheiro.abrirAjustes) add(topo, btn('Ajustes', 'jor-btn-link', function () { window.Jornada.dinheiro.abrirAjustes(); }));
+    if (typeof admOk === 'function' && admOk()) add(nav, navBtn('Painel', 'painel', function () { if (typeof navPainelSolar === 'function') navPainelSolar(); }));
+    if (typeof admOk === 'function' && admOk() && window.Jornada.dinheiro && window.Jornada.dinheiro.abrirAjustes) add(nav, navBtn('Ajustes', 'ajustes', function () { window.Jornada.dinheiro.abrirAjustes(); }));
+    topo.appendChild(nav);
     raiz.appendChild(topo);
+    var ajuda = el('div', 'jor-lt-ajuda'); ajuda.id = 'jor-lt-ajuda'; ajuda.hidden = !L.ajuda;
+    ajuda.appendChild(el('p', '', AJUDA_LISTA.base));
+    if (AJUDA_LISTA[L.aba]) ajuda.appendChild(el('p', '', AJUDA_LISTA[L.aba]));
+    raiz.appendChild(ajuda);
     if (L.erro || !d) {
       raiz.appendChild(el('p', 'jor-erro', L.erro || 'Sem dados.'));
       add(raiz, btn('Tentar de novo', '', abrirLista));
       c.replaceChildren(raiz); return;
     }
     var ct = d.contagem;
-    var abas = el('div', 'jor-abas'); abas.setAttribute('role', 'tablist');
-    [['ativas', 'Ativas ' + ct.ativas], ['posvenda', 'Pós-venda ' + ct.posvenda], ['canceladas', 'Canceladas ' + ct.canceladas], ['finalizadas', 'Finalizadas ' + (ct.finalizadas || 0)]].forEach(function (a) {
-      var b = el('button', 'jor-aba' + (L.aba === a[0] ? ' on' : ''), a[1]); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', L.aba === a[0] ? 'true' : 'false');
-      b.addEventListener('click', function () { L.aba = a[0]; desenharLista(); });
+    // Quais vendas: as abas. Dentro delas, os filtros numa barra só.
+    var abas = el('div', 'jor-lt-abas'); abas.setAttribute('role', 'tablist'); abas.setAttribute('aria-label', 'Vendas');
+    [['ativas', 'Ativas', ct.ativas], ['posvenda', 'Pós-venda', ct.posvenda], ['canceladas', 'Canceladas', ct.canceladas], ['finalizadas', 'Finalizadas', ct.finalizadas || 0]].forEach(function (a) {
+      var on = L.aba === a[0];
+      var b = el('button', 'jor-lt-aba' + (on ? ' on' : '')); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', on ? 'true' : 'false'); b.setAttribute('data-aba', a[0]);
+      b.appendChild(el('span', '', a[1])); b.appendChild(el('span', 'jor-lt-ct', a[2]));
+      b.addEventListener('click', function () { L.aba = a[0]; L.menu = null; desenharLista(); });
       abas.appendChild(b);
     });
     raiz.appendChild(abas);
-    var fil = el('div', 'jor-filtros');
+    var fil = el('div', 'jor-lt-fil');
     if (L.aba === 'ativas') {
-      [['todas', 'Todas'], ['minha', 'Minha fila ' + ct.minha], ['atrasadas', 'Atrasadas ' + ct.atrasadas]].forEach(function (f) {
-        var b = el('button', 'jor-chip' + (L.filtro === f[0] ? ' on' : ''), f[1]); b.type = 'button';
+      var seg = el('div', 'jor-lt-seg'); seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Filtro');
+      [['todas', 'Todas', null], ['minha', 'Minha fila', ct.minha], ['atrasadas', 'Atrasadas', ct.atrasadas]].forEach(function (f) {
+        var on = L.filtro === f[0];
+        var b = el('button', 'jor-lt-segb' + (on ? ' on' : '')); b.type = 'button'; b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.appendChild(el('span', '', f[1]));
+        if (f[2] !== null) b.appendChild(el('span', 'jor-lt-ct' + (f[0] === 'atrasadas' && f[2] > 0 ? ' er' : ''), f[2]));
         b.addEventListener('click', function () { L.filtro = f[0]; desenharLista(); });
-        fil.appendChild(b);
+        seg.appendChild(b);
       });
+      fil.appendChild(seg);
     }
     if (d.eu && d.eu.vePorConsultor) {
-      var sel = el('select', 'jor-sel'); sel.setAttribute('aria-label', 'Consultor');
+      var sel = el('select', 'jor-sel jor-lt-sel'); sel.setAttribute('aria-label', 'Consultor');
       var o0 = el('option', '', 'Todos os consultores'); o0.value = ''; sel.appendChild(o0);
       var vistos = {};
       d.linhas.forEach(function (l) { if (l.consultor && !vistos[l.consultor]) { vistos[l.consultor] = 1; } });
@@ -581,87 +811,115 @@
       sel.addEventListener('change', function () { L.consultor = sel.value; desenharLista(); });
       fil.appendChild(sel);
     }
-    var bu = el('input', 'jor-busca'); bu.type = 'search'; bu.placeholder = 'Buscar por nome ou número'; bu.setAttribute('aria-label', 'Buscar'); bu.value = L.busca;
-    bu.addEventListener('input', function () { L.busca = bu.value; var pos = bu.selectionStart; desenharLista(); var nb = corpo().querySelector('.jor-busca'); if (nb) { nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (e) { /* tipo search */ } } });
+    var bu = el('input', 'jor-busca jor-lt-busca'); bu.type = 'search'; bu.placeholder = 'Buscar por nome ou número…'; bu.setAttribute('aria-label', 'Buscar por nome ou número'); bu.value = L.busca; bu.autocomplete = 'off'; bu.spellcheck = false;
+    bu.addEventListener('input', function () { L.busca = bu.value; var pos = bu.selectionStart; desenharLista(); var nb = corpo().querySelector('.jor-lt-busca'); if (nb) { nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (e) { /* tipo search */ } } });
     fil.appendChild(bu);
     raiz.appendChild(fil);
-    var atras = d.linhas.filter(function (l) { return l.grupo === 'ativas' && l.trilho === 'jornada' && (l.situacao.tipo === 'atrasada' || l.situacao.tipo === 'travada'); });
-    if (atras.length && L.aba === 'ativas') {
-      raiz.appendChild(el('p', 'jor-linha-atrasadas', 'Atrasadas (' + atras.length + '): ' + atras.map(function (l) {
-        return nomeBonito(l.cliente) + ' · ' + (l.etapa ? l.etapa.n + ' ' + l.etapa.nome : '') + ' · ' + (l.situacao.dias ? plural(l.situacao.dias, 'dia', 'dias') : '');
-      }).join(', ')));
-    }
+
     var adm = !!(d.eu && d.eu.adm);
-    var wrap = el('div', 'dc-wrap');
-    var tab = el('table', 'dc-tab jor-tab');
+    var wrap = el('div', 'jor-lt-wrap' + (adm ? ' com-din' : ''));
+    var tab = el('table', 'jor-lt-tab');
     var cab = el('tr');
-    ['Nº', 'Cliente', 'Vendida em', 'Etapa', 'Dono', 'Situação'].concat(adm ? ['Dinheiro'] : []).concat(['']).forEach(function (t) { cab.appendChild(el('th', '', t)); });
+    [['Nº', 'n'], ['Cliente', 'cl'], ['Venda', 'dt'], ['Andamento', 'and'], ['Prazo', 'pz']].concat(adm ? [['Dinheiro', 'din']] : []).concat([['', 'ac']]).forEach(function (t) {
+      var th = el('th', 'jor-lt-' + t[1], t[0]); th.scope = 'col'; if (!t[0]) th.appendChild(srTxt('Ações')); cab.appendChild(th);
+    });
     add(tab, add(el('thead'), cab));
     var tb = el('tbody');
     var linhas = linhasVisiveis();
     var anoAtual = String(new Date().getFullYear());
     linhas.forEach(function (l) {
-      var tr = el('tr', (l.trilho === 'jornada' && (l.situacao.tipo === 'atrasada' || l.situacao.tipo === 'travada') && l.grupo === 'ativas') ? 'jor-atrasada' : '');
-      function td(rot, conteudo) { var t = el('td'); t.setAttribute('data-r', rot); if (typeof conteudo === 'string') t.textContent = conteudo; else if (conteudo) t.appendChild(conteudo); tr.appendChild(t); return t; }
-      td('Nº', el('span', 'jor-num jor-cl-cod', l.codigo || '*'));
-      var tc = td('Cliente', ''); tc.appendChild(el('span', 'jor-cl-nome', l.cliente));
-      var sub = [l.kwp ? String(l.kwp).replace('.', ',') + ' kWp' : '', cidadeUF(l.cidade)].filter(Boolean).join(' · '); if (sub) tc.appendChild(el('span', 'jor-cl-sub', sub));
-      td('Vendida em', l.vendida_em ? (l.vendida_em.slice(0, 4) === anoAtual ? ddmm(l.vendida_em) : ddmm(l.vendida_em) + '/' + l.vendida_em.slice(0, 4)) : '');
-      var te = td('Etapa', '');
-      if (l.finalizada) te.appendChild(el('span', 'jor-fin-tag', 'Finalizada'));
-      else if (l.etapa) { te.appendChild(el('span', 'jor-cl-bola', l.etapa.n)); te.appendChild(document.createTextNode(l.etapa.nome)); }
-      else te.appendChild(document.createTextNode('Sem trilho'));
-      var dn = td('Dono', ''); if (l.dono) { dn.appendChild(el('span', 'jor-cl-dono', l.dono.iniciais)); dn.title = nomeBonito(l.dono.nome); }
-      var s = td('Situação', l.grupo === 'canceladas' && l.cancelada
-        ? 'Cancelada em ' + ddmm(l.cancelada.em) + ' por ' + nomeBonito(l.cancelada.por) + (l.cancelada.motivo ? ' · ' + l.cancelada.motivo : '')
-        : l.situacao.texto);
-      if (l.situacao.tipo === 'travada' && l.grupo === 'ativas') s.appendChild(el('span', 'jor-tag jor-tag-travada', 'Travada'));
-      if (l.numero_pendente) s.appendChild(el('span', 'jor-tag', 'Número pendente'));
+      var abrir = l.card ? function () { abrirObra(l.card); } : l.codigo ? function () { abrirPlanilha(l.codigo); } : null;
+      var tr = el('tr', 'jor-lt-linha' + (ehAtrasada(l) ? ' atrasada' : '') + (abrir ? ' abre' : ''));
+      function td(cls) { var t = el('td', 'jor-lt-' + cls); tr.appendChild(t); return t; }
+      // Nº: sem número, o adm vê se ele já pode nascer.
+      var tn = td('n');
+      if (l.codigo) tn.appendChild(el('span', 'jor-lt-cod', l.codigo));
+      else if (l.numero_pendente) { var np = el('span', 'jor-lt-cod pend', 'Sem nº'); np.title = 'Número pendente'; tn.appendChild(np); }
+      else tn.appendChild(el('span', 'jor-lt-cod vazio', 'Sem nº'));
+      var tc = td('cl');
+      var vd = l.vendida_em ? (l.vendida_em.slice(0, 4) === anoAtual ? ddmm(l.vendida_em) : ddmm(l.vendida_em) + '/' + l.vendida_em.slice(2, 4)) : '';
+      // No celular o número e a data sobem para o cartão, numa linha só.
+      var meta = el('span', 'jor-lt-meta'); meta.setAttribute('aria-hidden', 'true');
+      if (l.codigo) meta.appendChild(el('span', 'jor-lt-cod', l.codigo)); else if (l.numero_pendente) meta.appendChild(el('span', 'jor-lt-cod pend', 'Sem nº'));
+      if (vd) meta.appendChild(el('span', '', 'Venda ' + vd));
+      tc.appendChild(meta);
+      tc.appendChild(el('span', 'jor-lt-nome', l.cliente || 'Cliente sem nome'));
+      var sub = [l.kwp ? String(l.kwp).replace('.', ',') + ' kWp' : '', cidadeUF(l.cidade)].filter(Boolean).join(' · '); if (sub) tc.appendChild(el('span', 'jor-lt-sub', sub));
+      var tdt = td('dt'); if (vd) tdt.textContent = vd; else tdt.appendChild(el('span', 'jor-lt-sub', 'Sem data'));
+      // Andamento: quem está com a venda, a fase da vez e a trena.
+      var ta = td('and'); var and = el('div', 'jor-lt-andw');
+      var fase = l.etapa ? FASES[l.etapa.n] : null;
+      if (l.dono) { var av = el('span', 'jor-lt-av', l.dono.iniciais); av.title = 'Com ' + nomeBonito(l.dono.nome); av.setAttribute('aria-label', 'Com ' + nomeBonito(l.dono.nome)); av.setAttribute('role', 'img'); and.appendChild(av); }
+      else if (!l.finalizada && l.grupo !== 'canceladas') and.appendChild(el('span', 'jor-lt-av vazio'));
+      var at = el('div', 'jor-lt-andt');
+      if (l.finalizada) { at.appendChild(el('span', 'jor-lt-fase', 'Finalizada')); at.appendChild(trena(10, 0)); }
+      else if (l.grupo === 'canceladas') { at.appendChild(el('span', 'jor-lt-fase apagada', fase ? 'Parou em ' + minus(fase.nome) : 'Cancelada')); }
+      else if (fase) {
+        var fn = el('span', 'jor-lt-fase', fase.nome); fn.title = fase.onde; at.appendChild(fn);
+        at.appendChild(trena(fase.feito, fase.vez)); at.appendChild(srTxt(', ' + fase.onde));
+      } else at.appendChild(el('span', 'jor-lt-fase apagada', 'Sem trilho'));
+      and.appendChild(at); ta.appendChild(and);
+      // Prazo: a situação em uma linha forte e o detalhe embaixo.
+      var pz = prazoPartes(l);
+      var tp = td('pz'); var pw = el('div', 'jor-lt-pzw ' + pz.tipo);
+      pw.appendChild(el('span', 'jor-lt-pzp', pz.p)); if (pz.d) pw.appendChild(el('span', 'jor-lt-pzd', pz.d));
+      tp.appendChild(pw);
+      // Dinheiro (só quem já via): o saldo à vista; recebido, a receber e gasto no detalhe.
       if (adm) {
-        var tdn = td('Dinheiro', ''); var textoDin = String(l.dinheiro || ''); var achou = 0;
-        textoDin.split(' · ').forEach(function (p) {
-          var m = /^(Recebido|A receber|Gasto|Saldo) (.+)$/.exec(p); if (!m) return;
-          achou++; var kv = el('div', 'jor-cl-kv' + (m[1] === 'Saldo' && /-/.test(m[2]) ? ' neg' : '')); kv.appendChild(el('span', '', m[1])); kv.appendChild(el('b', '', m[2])); tdn.appendChild(kv);
-        });
-        if (!achou) tdn.textContent = textoDin;
+        var tdn = td('din'); var pd = partesDinheiro(l.dinheiro);
+        if (pd && pd.Saldo) {
+          var db = el('button', 'jor-lt-din'); db.type = 'button';
+          var linha1 = el('span', 'jor-lt-dinp'); linha1.appendChild(el('span', 'jor-lt-dink', 'Saldo')); linha1.appendChild(el('b', pd.Saldo.neg ? 'neg' : '', pd.Saldo.txt)); db.appendChild(linha1);
+          if (pd['A receber']) db.appendChild(el('span', 'jor-lt-dind', 'A receber ' + pd['A receber'].txt));
+          else if (pd.Recebido) db.appendChild(el('span', 'jor-lt-dind', 'Recebido ' + pd.Recebido.txt));
+          db.setAttribute('aria-label', 'Dinheiro de ' + (l.cliente || 'cliente') + ': ' + ['Recebido', 'A receber', 'Gasto', 'Saldo'].filter(function (k) { return pd[k]; }).map(function (k) { return k + ' ' + pd[k].txt; }).join(', '));
+          var pop = el('span', 'jor-lt-pop'); pop.setAttribute('aria-hidden', 'true');
+          ['Recebido', 'A receber', 'Gasto', 'Saldo'].forEach(function (k) {
+            if (!pd[k]) return; var r = el('span', 'jor-lt-popl' + (k === 'Saldo' ? ' tot' : '')); r.appendChild(el('span', '', k)); r.appendChild(el('b', pd[k].neg ? 'neg' : '', pd[k].txt)); pop.appendChild(r);
+          });
+          db.appendChild(pop); tdn.appendChild(db);
+        } else if (pd) {
+          var so = Object.keys(pd)[0]; var s1 = el('span', 'jor-lt-dinp'); s1.appendChild(el('span', 'jor-lt-dink', so)); s1.appendChild(el('b', '', pd[so].txt)); tdn.appendChild(s1);
+        } else if (l.dinheiro) tdn.appendChild(el('span', 'jor-lt-dinx', l.dinheiro));
       }
-      var ac = td('', ''); var acd = el('div', 'jor-cl-ac'); ac.appendChild(acd);
-      if (l.card) {
-        add(acd, btn('Abrir', '', function () { abrirObra(l.card); }));
-        if (adm && l.grupo !== 'canceladas' && !l.finalizada) {
-          var mn = btn('⋯', 'jor-btn-link', function () { L.menu = L.menu === l.chave ? null : l.chave; desenharLista(); });
-          mn.setAttribute('aria-label', 'Mais ações: ' + l.cliente); mn.setAttribute('aria-haspopup', 'menu'); mn.setAttribute('aria-expanded', L.menu === l.chave ? 'true' : 'false');
-          acd.appendChild(mn);
-          if (L.menu === l.chave) {
-            var mm = el('div', 'jor-cl-menu'); mm.setAttribute('role', 'menu');
-            var mi = el('button', '', 'Venda cancelada'); mi.type = 'button'; mi.setAttribute('role', 'menuitem'); mi.setAttribute('aria-label', 'Venda cancelada: ' + l.cliente);
-            mi.addEventListener('click', function () { L.menu = null; cancelarDialogo(l.card, function () { abrirLista(); }); });
-            mm.appendChild(mi); acd.appendChild(mm);
-          }
+      // Ações: Abrir leva à página do cliente; o menu guarda a venda cancelada (só ADM, em venda que corre).
+      var ac = td('ac'); var acd = el('div', 'jor-cl-ac');
+      if (abrir) { var ab = btn('Abrir', 'jor-lt-abrir', abrir); ab.setAttribute('aria-label', 'Abrir ' + (l.cliente || 'cliente')); acd.appendChild(ab); }
+      if (l.card && adm && l.grupo !== 'canceladas' && !l.finalizada) {
+        var mn = btn('', 'jor-lt-mais jor-cl-mais', function () { L.menu = L.menu === l.chave ? null : l.chave; desenharLista(); var x = corpo().querySelector('.jor-cl-menu button'); if (x) x.focus(); });
+        mn.appendChild(iconeL('mais', 20));
+        mn.setAttribute('aria-label', 'Mais ações: ' + l.cliente); mn.setAttribute('aria-haspopup', 'menu'); mn.setAttribute('aria-expanded', L.menu === l.chave ? 'true' : 'false');
+        acd.appendChild(mn);
+        if (L.menu === l.chave) {
+          var mm = el('div', 'jor-cl-menu'); mm.setAttribute('role', 'menu');
+          var mi = el('button', '', 'Venda cancelada'); mi.type = 'button'; mi.setAttribute('role', 'menuitem'); mi.setAttribute('aria-label', 'Venda cancelada: ' + l.cliente);
+          mi.addEventListener('click', function () { L.menu = null; cancelarDialogo(l.card, function () { abrirLista(); }); });
+          mi.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { L.menu = null; desenharLista(); var m2 = corpo().querySelectorAll('.jor-cl-mais'); Array.prototype.forEach.call(m2, function (b) { if (b.getAttribute('aria-label') === 'Mais ações: ' + l.cliente) b.focus(); }); } });
+          mm.appendChild(mi); acd.appendChild(mm);
         }
-      } else if (l.codigo) {
-        add(acd, btn('Abrir', '', function () { abrirPlanilha(l.codigo); }));
       }
+      ac.appendChild(acd);
+      // A linha inteira abre o cliente com o mouse ou o toque. Botão, menu e dinheiro dentro dela fazem só o que é deles.
+      if (abrir) tr.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('button,a,select,input,.jor-cl-menu')) return; abrir(); });
       tb.appendChild(tr);
     });
-    if (!linhas.length) { var vz = el('tr'); var tz = el('td', '', 'Nenhuma venda aqui.'); tz.colSpan = 9; vz.appendChild(tz); tb.appendChild(vz); }
+    if (!linhas.length) {
+      var vz = el('tr', 'jor-lt-vazio'); var tz = el('td', '', L.busca.trim() ? 'Nenhum cliente com “' + L.busca.trim() + '”.' : 'Nenhuma venda aqui.'); tz.colSpan = 8; vz.appendChild(tz); tb.appendChild(vz);
+    }
     tab.appendChild(tb); wrap.appendChild(tab); raiz.appendChild(wrap);
-    raiz.appendChild(el('p', 'jor-nota', 'A lista segue a data da venda, da mais nova para a mais antiga. O número nasce com o contrato e a procuração assinados, por isso pode sair fora de ordem.'));
-    if (L.aba === 'canceladas') raiz.appendChild(el('p', 'jor-nota', 'Venda cancelada nunca gasta número.'));
-    if (L.aba === 'finalizadas') raiz.appendChild(el('p', 'jor-nota', 'Vendas de antes da jornada. Abrem só para leitura, com os dados da planilha. Ficam fora da cobrança e das mensagens.'));
     c.replaceChildren(raiz);
   }
   // O menu da linha fecha com um clique fora dele.
   document.addEventListener('click', function (e) {
     if (!L.menu || !corpo() || (e.target && e.target.closest && e.target.closest('.jor-cl-ac'))) return;
-    L.menu = null; if (L.dados && corpo().querySelector('.jor-tab')) desenharLista();
+    L.menu = null; if (L.dados && corpo().querySelector('.jor-lt-tab')) desenharLista();
   });
 
   // ── A obra ──────────────────────────────────────────────────────────────────
   function sairDaObra() {
     if (O.vdcNo && typeof vdcFechar === 'function') { try { vdcFechar(O.vdcNo); } catch (e) { /* já fechado */ } }
     O.vdcChave = ''; O.vdcNo = null; O.vdcDet = null; O.obraNo = null; O.fase2 = null; O.dinheiro = null; O.ficha = null; O.erroSlot = {}; O.ocupSlot = {};
-    O.lendo = null; O.lendoFalhou = ''; if (O.lendoT) { clearTimeout(O.lendoT); O.lendoT = 0; } O.edita = {}; O.rascunho = {}; O.confirmando = {}; O.erroSec = {}; O.vendaEdita = false; O.aba = null; O.abaVista = ''; O.organizar = false; O.outroTipo = ''; O.ratEdita = false;
+    O.lendo = null; O.lendoFalhou = ''; if (O.lendoT) { clearTimeout(O.lendoT); O.lendoT = 0; } O.lerTudo = null; O.novos = null; if (O.novosT) { clearTimeout(O.novosT); O.novosT = 0; } O.edita = {}; O.rascunho = {}; O.confirmando = {}; O.erroSec = {}; O.vendaEdita = false; O.aba = null; O.abaVista = ''; O.organizar = false; O.outroTipo = ''; O.ratEdita = false;
     if (O.debounce) { clearTimeout(O.debounce); O.debounce = 0; }
   }
 
@@ -1221,6 +1479,12 @@
     { slot: 'documento_financiamento', rot: 'Documento do titular do financiamento', msg: 'CNH ou documento do titular do financiamento' },
     { slot: 'comprovante_endereco_financiamento', rot: 'Comprovante de endereço do titular do financiamento', msg: 'Comprovante de endereço do titular do financiamento' },
   ];
+  // Opcionais do passo 1 que a IA lê: o orçamento, o contrato e a procuração (os dois últimos também no passo 3, o mesmo arquivo).
+  var DOCS_LIDOS_OPC = [
+    { slot: 'orcamento', rot: 'Orçamento ou proposta' },
+    { slot: 'contrato_assinado', rot: 'Contrato assinado' },
+    { slot: 'procuracao', rot: 'Procuração assinada' },
+  ];
   var OUTROS_DOCS = [
     { slot: 'documento_titular_uc', rot: 'Documento do titular da conta de luz' },
     { slot: 'comprovante_endereco_comprador', rot: 'Comprovante de endereço do cliente' },
@@ -1532,7 +1796,7 @@
   function abaResumo(c, d, m) {
     var g = el('div', 'jor-res-g');
     var esq = el('div', 'jor-res-col'); var dir = el('div', 'jor-res-col');
-    esq.appendChild(grupoCliente(d)); esq.appendChild(grupoVenda(d));
+    esq.appendChild(grupoCliente(d)); esq.appendChild(grupoConta(d)); esq.appendChild(grupoVenda(d));
     dir.appendChild(grupoAndamento(d, m)); dir.appendChild(grupoDocs(d));
     add(g, esq, dir); c.appendChild(g);
     // O caixa: entradas, saídas e saldo (só com o Livro liberado pela api), as comissões e o prêmio de quem indicou.
@@ -1545,20 +1809,42 @@
   function tituloGrupo(txt, etiq) { var t = el('div', 'jor-grp-t'); t.appendChild(el('h3', '', txt)); if (etiq) t.appendChild(etiq); return t; }
   function grupoCliente(d) {
     var box = el('div', 'jor-grp'); box.id = 'jor-s-cliente'; box.tabIndex = -1;
-    var its = itensDe(d, CAMPOS_CLIENTE.map(function (c) { return c.chave; }));
+    var its = itensDe(d, CAMPOS_CLIENTE.map(function (c) { return c.chave; }).filter(function (k) { return k !== 'endereco_usina'; }));
     var falta = its.filter(function (i) { return !i.feito; }).length;
     var tg = tituloGrupo('Cliente', its.length ? etq(falta ? 'Falta confirmar ' + falta : 'Confirmado', falta ? 'av' : 'ok') : null);
-    tg.appendChild(ajudaQ('A IA lê a CNH (nome e CPF) e a conta de luz (endereço) e preenche aqui. Dado editado volta a pedir confirmação no passo 2.'));
+    tg.appendChild(ajudaQ('A IA lê a CNH, a conta de luz, o contrato, a procuração, o orçamento e o comprovante, e preenche o que estiver vazio. Ela nunca troca um dado já preenchido. Ao lado de cada dado aparece de onde ele veio. Nome, CPF, telefone, e-mail e endereços editados voltam a pedir confirmação no passo 2.'));
+    var bl = botaoLerTudo(d); if (bl) tg.appendChild(bl);
     box.appendChild(tg);
+    estadoLerTudo(box);
     var g = el('div', 'jor-ficha-g'); var et1 = d.etapas[0];
-    ficha().forEach(function (cfg) { g.appendChild(campoFicha(d, et1, cfg)); });
+    fichaCliente().forEach(function (x) { g.appendChild(campoFicha(d, et1, x[0], !!x[1])); });
     box.appendChild(g);
     return box;
   }
-  /** Uma linha de leitura do resumo: vazio vira "Aguardando", em tom apagado. */
-  function linhaRes(rot, valor, ok, cls) {
-    var v = valor ? (typeof valor === 'string' ? el('div', 'jor-rc-v' + (cls ? ' ' + cls : ''), valor) : valor) : el('div', 'jor-rc-v vazio', 'Aguardando');
-    return celula(rot, v, ok && !!valor);
+  /** Quando todo dado lido pela IA no grupo veio do mesmo documento (2 ou mais), a origem sobe para o título e sai de cada célula. */
+  function origemComum(d, lista) {
+    var txts = lista.map(function (x) { var o = origemInfo(d, x[0]); var v = lerCampos(d, x[0]); return o && o.ia && v && cheio(x[0], v) ? o.txt : null; }).filter(Boolean);
+    return txts.length >= 2 && txts.every(function (t) { return t === txts[0]; }) ? txts[0] : '';
+  }
+  /** A conta de luz da usina: unidade consumidora, concessionária, titular, classe, consumo e o endereço da usina. */
+  function grupoConta(d) {
+    var box = el('div', 'jor-grp'); box.id = 'jor-s-conta'; box.tabIndex = -1;
+    var it = itensDe(d, ['endereco_usina']).filter(function (i) { return !i.feito; });
+    var tg = tituloGrupo('Conta de luz', it.length ? etq('Falta confirmar 1', 'av') : null);
+    var og = origemComum(d, fichaConta()); if (og) tg.insertBefore(el('span', 'jor-grp-org', 'Lido ' + og), tg.children[1] || null);
+    box.appendChild(tg);
+    var g = el('div', 'jor-ficha-g'); var et1 = d.etapas[0];
+    fichaConta().forEach(function (x) { g.appendChild(campoFicha(d, et1, x[0], !!x[1], og)); });
+    box.appendChild(g);
+    return box;
+  }
+  /** Uma linha de leitura do resumo: vazio vira "Falta", em tom apagado. `cel` liga a linha ao destaque da leitura; `org` é a origem (venda_origem). */
+  function linhaRes(rot, valor, ok, cls, cel, org) {
+    var v = valor ? (typeof valor === 'string' ? el('div', 'jor-rc-v' + (cls ? ' ' + cls : ''), valor) : valor) : el('div', 'jor-rc-v vazio', VAZIO_TXT);
+    var r = celula(rot, v, ok && !!valor);
+    if (cel) { r.dataset.cel = cel; if (novoAgora(cel)) r.classList.add('jor-novo'); }
+    if (valor && org && org.fonte === 'ia') r.appendChild(el('span', 'jor-rc-org', ROT_DOC[org.doc] || 'lido pela IA'));
+    return r;
   }
   /** O valor e o pagamento só aparecem quando a api mandou o valor (ela decide quem vê: o vendedor vê, mesmo sem o Livro). */
   function vendaDe(d) {
@@ -1579,15 +1865,16 @@
     var g = el('div', 'jor-resumo uma');
     var kw = kv.kwp || (d.proposta && d.proposta.kwp);
     g.appendChild(linhaRes('Proposta', d.proposta ? d.proposta.codigo + (kw ? ' · ' + String(kw).replace('.', ',') + ' kWp' : '') : ''));
-    g.appendChild(linhaRes('Placas', txtKit(kv.placas), !!conf(d, 'placas')));
-    g.appendChild(linhaRes('Inversor', txtKit(kv.inversor), !!conf(d, 'inversor')));
+    var vo = (d.dados_cliente && d.dados_cliente.venda_origem) || {};
+    g.appendChild(linhaRes('Placas', txtKit(kv.placas), !!conf(d, 'placas'), '', 'v-placas'));
+    g.appendChild(linhaRes('Inversor', txtKit(kv.inversor), !!conf(d, 'inversor'), '', 'v-inversor'));
     if (V.vede) {
       var vc = null; if (V.valorC) { vc = el('div', 'jor-rc-v', reais(V.valorC)); if (vv && vv.desconto_centavos > 0) vc.appendChild(el('small', '', 'Desconto de ' + reais(vv.desconto_centavos))); }
-      g.appendChild(linhaRes('Valor', vc, !!conf(d, 'valor')));
+      g.appendChild(linhaRes('Valor', vc, !!conf(d, 'valor'), '', 'v-valor', vo.valor));
       var pv = null; if (V.pgs.length) { pv = el('div', 'jor-rc-v'); txtPagamento(V.pgs).forEach(function (t) { pv.appendChild(el('span', 'jor-rc-lin', t)); }); }
-      g.appendChild(linhaRes('Pagamento', pv, !!conf(d, 'pagamento')));
+      g.appendChild(linhaRes('Pagamento', pv, !!conf(d, 'pagamento'), '', 'v-pagamento', vo.pagamento));
     }
-    g.appendChild(linhaRes('Prazo', vv && vv.prazo_prometido ? vv.prazo_prometido : ''));
+    g.appendChild(linhaRes('Prazo', vv && vv.prazo_prometido ? vv.prazo_prometido : '', false, '', 'v-prazo', vo.prazo));
     var e1 = d.etapas[0]; var vEm = e1 && e1.aberta_em ? quando(e1.aberta_em).split(' ')[0] : '';
     g.appendChild(linhaRes('Vendedor', nomeBonito(d.card.vendedor) + (vEm ? ' · ' + vEm : '')));
     if (vv && vv.nota) g.appendChild(linhaRes('Nota', vv.nota));
@@ -1670,7 +1957,7 @@
   var ROT_SLOT = { documento_titular: 'CNH ou identidade', conta_luz: 'Conta de luz', conta_luz_beneficiaria: 'Conta do excedente', fachada: 'Foto da fachada', padrao: 'Foto do padrão',
     disjuntor: 'Foto do disjuntor', medidor: 'Foto do medidor', contrato_assinado: 'Contrato assinado', procuracao: 'Procuração assinada', datasheet_modulo: 'Datasheet da placa',
     datasheet_inversor: 'Datasheet do inversor', kmz: 'KMZ do local', art: 'ART', art_comprovante: 'Comprovante da ART', projeto_comprovante: 'Comprovante do engenheiro',
-    protocolo: 'Print do protocolo', parecer_acesso: 'Parecer de acesso', outros: 'Outro anexo' };
+    protocolo: 'Print do protocolo', parecer_acesso: 'Parecer de acesso', orcamento: 'Orçamento ou proposta', outros: 'Outro anexo' };
   FIN_DOCS.concat(OUTROS_DOCS).forEach(function (x) { ROT_SLOT[x.slot] = x.rot; });
   /** Os documentos recebidos, numa lista compacta. "Renomear ou mover" troca para a lista do quadro, que faz isso. */
   function grupoDocs(d) {
@@ -1712,35 +1999,61 @@
     return box;
   }
 
-  // ── A leitura dos documentos: CNH e conta de luz preenchem a ficha sozinhas ───────────────────────────────────────
-  // Só a CNH do contratante e a conta de luz são lidas sozinhas. A CNH do titular da homologação (documento_titular_uc) não preenche a ficha.
-  var SLOTS_LIDOS = { documento_titular: 'a CNH', conta_luz: 'a conta de luz' };
-  // O que cada leitura preenche em dados_cliente: a CNH dá nome e CPF, a conta de luz dá o endereço.
-  var CAMPOS_LIDOS = { documento_titular: ['nome', 'cpf'], conta_luz: ['endereco'] };
+  // ── A leitura dos documentos: depois do upload, o servidor lê o arquivo sozinho e preenche o que está vazio ─────────────────
+  // Lê sozinho: CNH, conta de luz, comprovante de endereço, contrato, procuração e orçamento. A CNH do titular da homologação (documento_titular_uc)
+  // é lida pelo servidor mas não é esperada aqui: ela não preenche a ficha do contratante.
+  var SLOTS_LIDOS = { documento_titular: 'a CNH', conta_luz: 'a conta de luz', comprovante_endereco_comprador: 'o comprovante', contrato_assinado: 'o contrato', procuracao: 'a procuração', orcamento: 'o orçamento' };
+  // O que cada leitura pode preencher (chaves de dados_cliente; '#' = parte da venda). Só espera quando um deles está vazio.
+  var PESSOA_LIDA = ['nome', 'cpf', 'rg', 'estado_civil', 'profissao', 'endereco'];
+  var CAMPOS_LIDOS = {
+    documento_titular: ['nome', 'cpf', 'rg', 'nascimento'],
+    conta_luz: ['endereco', 'endereco_ponto', 'unidade_consumidora', 'concessionaria', 'titular_conta', 'uc_classe', 'consumo_medio_kwh'],
+    comprovante_endereco_comprador: ['endereco'],
+    contrato_assinado: PESSOA_LIDA.concat(['#valor', '#pagamento', '#prazo']),
+    procuracao: PESSOA_LIDA,
+    orcamento: ['#valor', '#pagamento', '#prazo'],
+  };
+  // Contrato, procuração e orçamento têm várias páginas: a leitura demora mais.
+  var ESPERA_LEITURA_MS = { contrato_assinado: 50000, procuracao: 50000, orcamento: 50000 };
   var MSG_NADA_NOVO = 'Recebido. Nada novo para preencher na ficha.';
-  function assinaturaDC(d) { var c = (d && d.dados_cliente) || {}; return JSON.stringify([c.nome, c.cpf, c.endereco, c.bairro, c.cidade, c.uf, c.cep, c.endereco_ponto, c.telefone, c.email, c.origem || null]); }
-  /** Os campos que a leitura deste item preencheria e que estão vazios na ficha agora. Lista vazia = não há o que preencher. */
+  /** O valor de cada dado do Resumo (a chave é a da célula). Serve para saber se a leitura mudou algo e o que destacar. */
+  function valoresCelulas(d) {
+    var c = (d && d.dados_cliente) || {}; var out = {};
+    fichaCliente().concat(fichaConta()).forEach(function (x) { var cfg = x[0]; out[cfg.chave] = cfg.campos.map(function (k) { var v = c[k.dc || k.k]; return String(v == null ? '' : v); }).join('|').replace(/^\|+$/, ''); });
+    var V = d ? vendaDe(d) : { valorC: 0, pgs: [], vv: null }; var kv = (d && d.kit_vendido) || {};
+    out['v-valor'] = String(V.valorC || ''); out['v-pagamento'] = V.pgs && V.pgs.length ? JSON.stringify(V.pgs) : ''; out['v-prazo'] = (V.vv && V.vv.prazo_prometido) || '';
+    out['v-placas'] = txtKit(kv.placas); out['v-inversor'] = txtKit(kv.inversor);
+    return out;
+  }
+  function mudaram(antes, depois) { return Object.keys(depois).filter(function (k) { return depois[k] && depois[k] !== (antes || {})[k]; }); }
+  /** Os campos que a leitura deste item preencheria e que estão vazios agora. Lista vazia = não há o que preencher. */
   function vaziosDaLeitura(d, slot) {
-    var c = (d && d.dados_cliente) || {};
-    return (CAMPOS_LIDOS[slot] || []).filter(function (k) { return !String(c[k] == null ? '' : c[k]).trim(); });
+    var c = (d && d.dados_cliente) || {}; var V = d ? vendaDe(d) : null;
+    return (CAMPOS_LIDOS[slot] || []).filter(function (k) {
+      if (k === '#valor') return !!(V && V.vede) && !V.valorC;
+      if (k === '#pagamento') return !!(V && V.vede) && !V.pgs.length;
+      if (k === '#prazo') return !(V && V.vv && V.vv.prazo_prometido);
+      return !String(c[k] == null ? '' : c[k]).trim();
+    });
   }
   /** Os ids dos arquivos do item no quadro. null enquanto o quadro não carregou. */
   function idsDoSlot(chave) {
     var st = quadroDoCard(); if (!st || !st.docs || !Array.isArray(st.docs.arquivos)) return null;
     return st.docs.arquivos.filter(function (a) { return a && a.slot === chave; }).map(function (a) { return String(a.id); });
   }
-  /** Depois do upload: recarrega a obra a cada 3 s até a ficha mudar. Só espera quando havia campo vazio para a leitura preencher. */
+  /** Depois do upload: recarrega a obra a cada 3 s até um dado do Resumo mudar. Só espera quando havia dado vazio para a leitura preencher. */
   function iniciarLeitura(slot) {
     if (O.lendoT) clearTimeout(O.lendoT);
-    O.lendo = { slot: slot, qual: SLOTS_LIDOS[slot], t0: Date.now(), antes: assinaturaDC(O.dados), card: String(O.card) }; O.lendoFalhou = '';
+    O.lendo = { slot: slot, qual: SLOTS_LIDOS[slot], t0: Date.now(), antes: valoresCelulas(O.dados), card: String(O.card), ate: ESPERA_LEITURA_MS[slot] || 20000 }; O.lendoFalhou = '';
     O.lendoT = setTimeout(passoLeitura, 3000);
   }
   function passoLeitura() {
     O.lendoT = 0; var l = O.lendo; if (!l || l.card !== String(O.card)) return;
     Promise.resolve(carregarObra()).then(function () {
       if (O.lendo !== l || l.card !== String(O.card)) return;
-      if (O.dados && assinaturaDC(O.dados) !== l.antes) { O.lendo = null; toast('Li ' + l.qual + '. Confira a ficha do cliente.'); desenharObra(); return; }
-      if (Date.now() - l.t0 > 20000) {
+      var novos = O.dados ? mudaram(l.antes, valoresCelulas(O.dados)) : [];
+      if (novos.length) { O.lendo = null; toast('Li ' + l.qual + '. Preenchi ' + plural(novos.length, 'dado', 'dados') + ' no Resumo.'); O.novos = null; marcarNovos(novos); desenharObra(); return; }
+      if (Date.now() - l.t0 > l.ate) {
         O.lendo = null;
         // Falha de verdade só quando o campo vazio continuou vazio. Se ele foi preenchido por outra via, não há falha para mostrar.
         if (vaziosDaLeitura(O.dados, l.slot).length) O.lendoFalhou = l.qual; else toast(MSG_NADA_NOVO);
@@ -1749,11 +2062,93 @@
       O.lendoT = setTimeout(passoLeitura, 3000);
     });
   }
-  /** Fim do upload de CNH ou conta de luz: espera a leitura só se há o que ela preencher e o arquivo é novo. */
+  /** Fim do upload de um documento lido: espera a leitura só se há o que ela preencher e o arquivo é novo. */
   function depoisDoUpload(chave, repetido) {
     if (!SLOTS_LIDOS[chave]) return;
     if (repetido || !vaziosDaLeitura(O.dados, chave).length) { toast(MSG_NADA_NOVO); return; }
     iniciarLeitura(chave);
+  }
+
+  // ── Destaque do que a leitura preencheu: a célula fica azul por alguns segundos e volta ao normal ─────────────────────
+  function novoAgora(k) { return !!(O.novos && O.novos[k]); }
+  /** Acende as células já na tela e as que forem desenhadas nos próximos 6 s. */
+  function marcarNovos(chaves) {
+    if (!chaves || !chaves.length) return;
+    O.novos = O.novos || {}; chaves.forEach(function (k) { O.novos[k] = true; });
+    var raiz = O.obraNo || document;
+    chaves.forEach(function (k) { Array.prototype.forEach.call(raiz.querySelectorAll('[data-cel="' + k + '"]'), function (n) { if (!n.classList.contains('edita')) n.classList.add('jor-novo'); }); });
+    if (O.novosT) clearTimeout(O.novosT);
+    O.novosT = setTimeout(function () {
+      O.novosT = 0; O.novos = null;
+      Array.prototype.forEach.call(document.querySelectorAll('.jor-novo'), function (n) { n.classList.remove('jor-novo'); });
+    }, 6000);
+  }
+
+  // ── Ler todos os documentos: a IA relê tudo o que o cliente mandou e completa o que está vazio ──────────────────────────
+  // O que a rota devolve em `preenchidos` (campo do cadastro ou parte da venda) -> a célula do Resumo.
+  var CAD_CEL = { nome: 'nome', cpf_cnpj: 'cpf', rg_ie: 'rg', nascimento: 'nascimento', estado_civil: 'estado_civil', profissao: 'profissao', telefone: 'telefone', email: 'email',
+    endereco: 'endereco', bairro: 'endereco', cidade: 'endereco', uf: 'endereco', cep: 'endereco', endereco_ponto: 'endereco_usina', unidade_consumidora: 'unidade_consumidora',
+    concessionaria: 'concessionaria', titular_conta: 'titular_conta', uc_classe: 'uc_classe', consumo_medio_kwh: 'consumo_medio_kwh',
+    valor: 'v-valor', pagamento: 'v-pagamento', prazo: 'v-prazo', placas: 'v-placas', inversor: 'v-inversor' };
+  function lerTudoAgora() { return !!(O.lerTudo && O.lerTudo.card === String(O.card) && O.lerTudo.estado === 'lendo'); }
+  /** Há algum documento que a IA lê? Sem nenhum, o botão fica desligado com o motivo. */
+  function temDocLido(d) { return !!(d.slots && d.slots.documento) || Object.keys(SLOTS_LIDOS).concat(['documento_titular_uc']).some(function (s) { return temSlot(d, s); }); }
+  function botaoLerTudo(d) {
+    if (!d.pode || !d.pode.ler_tudo) return null;
+    var lendo = lerTudoAgora();
+    var b = btn(lendo ? 'Lendo…' : 'Ler todos os documentos', 'jor-ler', lerTudo);
+    b.insertBefore(icone('doc'), b.firstChild);
+    if (lendo) { b.disabled = true; b.setAttribute('aria-busy', 'true'); }
+    else if (!temDocLido(d)) negar(b, 'Anexe um documento no passo 1 antes.');
+    return b;
+  }
+  /** A linha de situação da leitura (lendo, resultado ou erro). `comLink`: fora do Resumo, leva até ele. */
+  function estadoLerTudo(pai, comLink) {
+    var s = O.lerTudo; if (!s || s.card !== String(O.card)) return;
+    if (s.estado === 'lendo') {
+      var ld = el('p', 'jor-lendo jor-ler-st'); ld.setAttribute('role', 'status'); ld.appendChild(el('i'));
+      ld.appendChild(document.createTextNode('Lendo os documentos. Pode levar até 2 minutos.')); pai.appendChild(ld); return;
+    }
+    if (s.estado === 'erro') { var er = el('p', 'jor-erro jor-ler-er', s.msg); er.setAttribute('role', 'alert'); pai.appendChild(er); return; }
+    var ok = el('p', 'jor-ler-ok' + (s.n ? '' : ' nada')); ok.setAttribute('role', 'status');
+    if (s.n) ok.appendChild(icone('ok'));
+    ok.appendChild(document.createTextNode(s.n ? 'Preenchi ' + plural(s.n, 'dado', 'dados') + '.' : 'Nada novo para preencher.'));
+    if (s.ignorados) ok.appendChild(document.createTextNode(' ' + (s.ignorados === 1 ? '1 arquivo ficou de fora.' : s.ignorados + ' arquivos ficaram de fora.')));
+    if (comLink && s.n) ok.appendChild(btn('Ver no Resumo', 'jor-btn-link', function () { irResumo('jor-s-cliente'); }));
+    pai.appendChild(ok);
+  }
+  function lerTudo() {
+    var card = String(O.card);
+    if (lerTudoAgora()) return;
+    O.lerTudo = { card: card, estado: 'lendo' };
+    var antes = valoresCelulas(O.dados);
+    desenharObra();
+    api('/gerador/jornada-solar/obra/' + enc(card) + '/ler-tudo', 'POST', {}, 120000).then(function (r) {
+      if (String(O.card) !== card) return null;
+      if (r.status === 200 && r.json && r.json.ok !== false) {
+        var pre = Array.isArray(r.json.preenchidos) ? r.json.preenchidos : [];
+        var cels = {}; var soltos = 0;
+        pre.forEach(function (k) { var c = CAD_CEL[k]; if (c) cels[c] = true; else soltos++; });
+        var n = Object.keys(cels).length + soltos;
+        O.lerTudo = { card: card, estado: n ? 'ok' : 'nada', n: n, ignorados: Number(r.json.ignorados) || 0 };
+        // Antes de recarregar: o redesenho da obra já pinta o destaque.
+        if (O.novosT) { clearTimeout(O.novosT); O.novosT = 0; }
+        O.novos = n ? cels : null;
+        toast(n ? 'Preenchi ' + plural(n, 'dado', 'dados') + '.' : 'Nada novo para preencher.');
+        return Promise.resolve(carregarObra()).then(function () {
+          if (String(O.card) !== card) return;
+          // O que mudou na tela e a rota não listou também acende. O relógio do destaque começa aqui.
+          marcarNovos(Object.keys(cels).concat(O.dados ? mudaram(antes, valoresCelulas(O.dados)) : []));
+          releia();
+        });
+      }
+      var m = r.status === 0 ? 'A leitura demorou demais. Confira o Resumo daqui a pouco.' : msgDe(r, 'Não consegui ler os documentos agora. Tente de novo.');
+      O.lerTudo = { card: card, estado: 'erro', msg: m }; toast(m); desenharObra();
+      return null;
+    }).catch(function () {
+      if (String(O.card) !== card) return;
+      O.lerTudo = { card: card, estado: 'erro', msg: 'Não consegui ler os documentos agora. Tente de novo.' }; desenharObra();
+    });
   }
 
   // ── Confirmar em lote: um botão confirma todas as chaves de um grupo, uma depois da outra ──────────────────────────
@@ -1916,24 +2311,67 @@
   var CPF_CFG = { chave: 'cpf', semConfirmar: true, rot: 'CPF', campos: [{ k: 'cpf_cnpj', dc: 'cpf', rot: 'CPF', tipo: 'text', ex: '000.000.000-00', fmt: fmtDoc, norm: soDig }],
     valida: function (v) { var n = soDig(v.cpf_cnpj).length; return n === 11 || n === 14 ? '' : 'CPF com 11 dígitos (ou CNPJ com 14).'; } };
   function cfgCliente(chave) { return CAMPOS_CLIENTE.filter(function (c) { return c.chave === chave; })[0]; }
+  /** Os dados que o passo 2 confere (com Confirmar). O Resumo mostra mais: veja fichaCliente e fichaConta. */
   function ficha() { return [cfgCliente('nome'), CPF_CFG, cfgCliente('telefone'), cfgCliente('email'), cfgCliente('endereco'), cfgCliente('endereco_usina')]; }
-  var VAZIO = { nome: 'Aguardando a CNH', cpf: 'Aguardando a CNH', endereco: 'Aguardando a conta de luz', endereco_usina: 'Aguardando a conta de luz', telefone: 'Aguardando', email: 'Aguardando' };
-  /** De onde veio o dado (dados_cliente.origem do servidor). 'ia' diz qual documento: nome e CPF saem da CNH, endereço da conta de luz. */
-  function origemDe(d, cfg) {
-    var o = d.dados_cliente && d.dados_cliente.origem; if (!o || typeof o !== 'object') return '';
-    var v = o[cfg.chave]; if (v == null && cfg.chave === 'endereco_usina') v = o.endereco_ponto;
-    if (v === 'ia') return cfg.chave === 'nome' || cfg.chave === 'cpf' ? 'da CNH' : (cfg.chave === 'endereco' || cfg.chave === 'endereco_usina' ? 'da conta de luz' : 'do documento');
-    return { manual: 'digitado', card: 'do card', proposta: 'da proposta' }[v] || '';
+
+  // Os dados que a IA lê dos documentos além da ficha do passo 2 (19/11/2026). Gravam pelo mesmo PUT /cadastro, sem confirmação no passo 2.
+  // `k` é o campo do cadastro; `dc`, a chave em dados_cliente quando ela é outra (o RG). `txt` mostra o valor; `fmt` só prepara o campo de edição.
+  function dataBrDe(v) { var x = soDig(v); return x.length === 8 ? x.slice(0, 2) + '/' + x.slice(2, 4) + '/' + x.slice(4) : String(v || '').trim(); }
+  var CLASSES_UC = [['residencial', 'Residencial'], ['comercial', 'Comercial'], ['rural', 'Rural'], ['industrial', 'Industrial'], ['poder_publico', 'Poder público']];
+  function rotClasse(v) { var x = CLASSES_UC.filter(function (c) { return c[0] === v; })[0]; return x ? x[1] : nomeBonito(String(v || '').replace(/_/g, ' ')); }
+  function kwhTxt(v) { var n = Number(String(v || '').replace(',', '.')); return isFinite(n) && n > 0 ? String(n).replace('.', ',') + ' kWh por mês' : String(v || ''); }
+  var EXTRAS_CFG = {
+    rg: { chave: 'rg', semConfirmar: true, rot: 'RG', campos: [{ k: 'rg_ie', dc: 'rg', rot: 'RG', tipo: 'text', ex: 'MG-12.345.678' }],
+      valida: function (v) { return soDig(v.rg_ie).length < 4 ? 'Digite o número do RG.' : ''; } },
+    nascimento: { chave: 'nascimento', semConfirmar: true, rot: 'Nascimento', campos: [{ k: 'nascimento', rot: 'Nascimento', tipo: 'text', ex: 'dd/mm/aaaa', norm: dataBrDe, num: true, max: 10 }],
+      valida: function (v) { return /^\d{2}\/\d{2}\/\d{4}$/.test(dataBrDe(v.nascimento)) ? '' : 'Data no formato dd/mm/aaaa.'; } },
+    estado_civil: { chave: 'estado_civil', semConfirmar: true, rot: 'Estado civil', campos: [{ k: 'estado_civil', rot: 'Estado civil', tipo: 'text', ex: 'Casado', lista: ['Solteiro', 'Casado', 'Divorciado', 'Viúvo', 'União estável'] }],
+      valida: function (v) { return v.estado_civil.length < 4 ? 'Digite o estado civil.' : ''; } },
+    profissao: { chave: 'profissao', semConfirmar: true, rot: 'Profissão', campos: [{ k: 'profissao', rot: 'Profissão', tipo: 'text', ex: 'Comerciante' }],
+      valida: function (v) { return v.profissao.length < 3 ? 'Digite a profissão.' : ''; } },
+    uc: { chave: 'unidade_consumidora', semConfirmar: true, rot: 'Unidade consumidora', campos: [{ k: 'unidade_consumidora', rot: 'Unidade consumidora', tipo: 'text', ex: 'Número da instalação', num: true }],
+      valida: function (v) { return v.unidade_consumidora.length < 3 ? 'Digite o número da unidade consumidora.' : ''; } },
+    concessionaria: { chave: 'concessionaria', semConfirmar: true, rot: 'Concessionária', campos: [{ k: 'concessionaria', rot: 'Concessionária', tipo: 'text', ex: 'Cemig' }],
+      valida: function (v) { return v.concessionaria.length < 2 ? 'Digite a concessionária.' : ''; } },
+    titular: { chave: 'titular_conta', semConfirmar: true, rot: 'Titular da conta', campos: [{ k: 'titular_conta', rot: 'Titular da conta', tipo: 'text', ex: 'Nome como está na conta' }],
+      valida: function (v) { return v.titular_conta.length < 3 ? 'Digite o nome do titular da conta.' : ''; } },
+    classe: { chave: 'uc_classe', semConfirmar: true, rot: 'Classe', campos: [{ k: 'uc_classe', rot: 'Classe', opcoes: CLASSES_UC }],
+      txt: function (v) { return rotClasse(v.uc_classe); },
+      valida: function (v) { return v.uc_classe ? '' : 'Escolha a classe.'; } },
+    consumo: { chave: 'consumo_medio_kwh', semConfirmar: true, rot: 'Consumo médio', campos: [{ k: 'consumo_medio_kwh', rot: 'Consumo médio em kWh', tipo: 'text', ex: '350', num: true, fmt: function (v) { return String(v || '').replace('.', ','); } }],
+      txt: function (v) { return kwhTxt(v.consumo_medio_kwh); },
+      valida: function (v) { var n = Number(v.consumo_medio_kwh.replace(/\./g, '').replace(',', '.')); return isFinite(n) && n > 0 ? '' : 'Consumo médio em kWh, maior que zero.'; } },
+  };
+  /** O Resumo: o cliente (identidade e contato) e a conta de luz (a unidade geradora). `largo` ocupa a linha toda. */
+  function fichaCliente() { return [[cfgCliente('nome'), 1], [CPF_CFG], [EXTRAS_CFG.rg], [EXTRAS_CFG.nascimento], [EXTRAS_CFG.estado_civil], [EXTRAS_CFG.profissao], [cfgCliente('telefone')], [cfgCliente('email'), 1], [cfgCliente('endereco'), 1]]; }
+  function fichaConta() { return [[EXTRAS_CFG.uc], [EXTRAS_CFG.concessionaria], [EXTRAS_CFG.titular, 1], [EXTRAS_CFG.classe], [EXTRAS_CFG.consumo], [cfgCliente('endereco_usina'), 1]]; }
+  var VAZIO_TXT = 'Falta';
+  // De qual documento a IA leu (dados_cliente.origem_doc e venda_origem.*.doc): o item vira o rótulo curto.
+  var ROT_DOC = { documento_titular: 'da CNH', documento_titular_uc: 'da CNH', documento: 'da CNH', conta_luz: 'da conta de luz', contrato_assinado: 'do contrato',
+    procuracao: 'da procuração', orcamento: 'do orçamento', comprovante_endereco_comprador: 'do comprovante' };
+  // Sem o item (leitura de antes de 19/11), o dado diz de onde costuma vir.
+  var DOC_PADRAO = { nome: 'da CNH', cpf: 'da CNH', rg: 'da CNH', nascimento: 'da CNH', endereco: 'da conta de luz', endereco_usina: 'da conta de luz', endereco_ponto: 'da conta de luz',
+    unidade_consumidora: 'da conta de luz', concessionaria: 'da conta de luz', titular_conta: 'da conta de luz', uc_classe: 'da conta de luz', consumo_medio_kwh: 'da conta de luz' };
+  /** De onde veio o dado (dados_cliente.origem do servidor). 'ia' diz qual documento (origem_doc). Devolve { txt, ia }. */
+  function origemInfo(d, cfg) {
+    var dc = d.dados_cliente || {}; var o = dc.origem; if (!o || typeof o !== 'object') return null;
+    var ch = cfg.chave === 'endereco_usina' ? 'endereco_ponto' : cfg.chave;
+    var v = o[ch]; if (v == null && ch === 'endereco_ponto') v = o.endereco_usina;
+    if (v === 'ia') { var od = dc.origem_doc && dc.origem_doc[ch]; return { txt: ROT_DOC[od] || DOC_PADRAO[ch] || 'lido pela IA', ia: true }; }
+    var t = { manual: 'digitado', card: 'do card', proposta: 'da proposta' }[v];
+    return t ? { txt: t, ia: false } : null;
   }
+
 
   /**
    * Um dado da ficha. Leitura: valor, origem e Editar (vazio: "Aguardando a CNH" e Preencher). Edição: os campos, Salvar e Cancelar, na mesma
    * célula, que ocupa a largura toda. Salvar grava pelo PUT /cadastro do quadro (vdcCamposGravar) e tira a confirmação do dado, se tinha.
    * O que está em edição e o que foi digitado moram em O (a obra se redesenha a cada gravação e a cada leitura de documento).
    */
-  function campoFicha(d, et, cfg) {
+  function campoFicha(d, et, cfg, largo, orgDoGrupo) {
     var card = String(O.card);
-    var no = el('div', 'jor-fc ' + cfg.chave);
+    var base = 'jor-fc ' + cfg.chave + (largo ? ' largo' : '');
+    var no = el('div', base); no.dataset.cel = cfg.chave;
     var vals = lerCampos(d, cfg);
     if (vals === null) quadroPronto(no).then(function () { if (!no.isConnected) return; vals = lerCampos(d, cfg) || vazioDe(); montar(); });
     function vazioDe() { var o = {}; cfg.campos.forEach(function (c) { o[c.k] = ''; }); return o; }
@@ -1942,16 +2380,16 @@
     function montar(foco) {
       var edita = !!O.edita[cfg.chave] && vals !== null;
       var temValor = vals !== null && cheio(cfg, vals);
-      no.className = 'jor-fc ' + cfg.chave + (edita ? ' edita' : (vals !== null && !temValor ? ' vazio' : ''));
+      no.className = base + (edita ? ' edita' : (vals !== null && !temValor ? ' vazio' : '')) + (!edita && novoAgora(cfg.chave) ? ' jor-novo' : '');
       no.replaceChildren();
       var ok = !cfg.semConfirmar && temValor && !!conf(d, cfg.chave);
       var rot = el('div', 'jor-fc-rot'); rot.appendChild(document.createTextNode(cfg.rot));
       if (ok) { rot.appendChild(icone('ok')); rot.appendChild(srTxt('confirmado')); }
-      var org = temValor && !edita ? origemDe(d, cfg) : ''; if (org) rot.appendChild(el('span', 'jor-fc-org' + (/^da (CNH|conta)|^do doc/.test(org) ? ' ia' : ''), org));
+      var org = temValor && !edita ? origemInfo(d, cfg) : null; if (org && org.ia && org.txt === orgDoGrupo) org = null; if (org) rot.appendChild(el('span', 'jor-fc-org' + (org.ia ? ' ia' : ''), org.txt));
       no.appendChild(rot);
       if (vals === null) { var lv = el('div', 'jor-fc-v'); lv.appendChild(el('span', '', 'Carregando…')); no.appendChild(lv); return; }
       if (!edita) {
-        var v = el('div', 'jor-fc-v'); v.appendChild(el('span', '', temValor ? mostra(cfg, vals) : VAZIO[cfg.chave]));
+        var v = el('div', 'jor-fc-v'); v.appendChild(el('span', '', temValor ? mostra(cfg, vals) : VAZIO_TXT));
         var bE = el('button', 'jor-fc-ed', temValor ? 'Editar' : 'Preencher'); bE.type = 'button'; bE.setAttribute('aria-label', (temValor ? 'Editar: ' : 'Preencher: ') + cfg.rot);
         bE.addEventListener('click', function () { O.edita[cfg.chave] = true; montar(true); });
         negar(bE, semConfirmar(d, et)); v.appendChild(bE); no.appendChild(v);
@@ -1961,9 +2399,19 @@
       var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
       var nota = el('p', 'jor-nota'); nota.hidden = true;
       cfg.campos.forEach(function (c) {
-        var inp = el('input', 'jor-in' + (temValor ? '' : ' falta')); inp.type = c.tipo; inp.inputMode = c.tipo === 'tel' ? 'tel' : c.tipo === 'email' ? 'email' : (c.norm ? 'numeric' : 'text');
-        inp.autocomplete = 'off'; inp.name = 'cliente-' + c.k; inp.maxLength = c.max || 160; if (c.tipo !== 'text' || c.norm) inp.spellcheck = false;
-        inp.setAttribute('aria-label', cfg.campos.length > 1 ? cfg.rot + ': ' + c.rot : cfg.rot); inp.placeholder = c.ex || '';
+        var inp;
+        if (c.opcoes) {
+          // Lista fechada (a classe da conta): o servidor guarda a chave.
+          inp = el('select', 'jor-sel jor-in' + (temValor ? '' : ' falta')); inp.name = 'cliente-' + c.k;
+          var o0 = el('option', '', 'Escolha'); o0.value = ''; inp.appendChild(o0);
+          c.opcoes.forEach(function (op) { var oo = el('option', '', op[1]); oo.value = op[0]; inp.appendChild(oo); });
+        } else {
+          inp = el('input', 'jor-in' + (temValor ? '' : ' falta')); inp.type = c.tipo; inp.inputMode = c.tipo === 'tel' ? 'tel' : c.tipo === 'email' ? 'email' : (c.norm || c.num ? 'numeric' : 'text');
+          inp.autocomplete = 'off'; inp.name = 'cliente-' + c.k; inp.maxLength = c.max || 160; if (c.tipo !== 'text' || c.norm || c.num) inp.spellcheck = false;
+          inp.placeholder = c.ex || '';
+          if (c.lista) { var dl = el('datalist'); dl.id = 'jor-dl-' + c.k; c.lista.forEach(function (x) { var oo = el('option'); oo.value = x; dl.appendChild(oo); }); grade.appendChild(dl); inp.setAttribute('list', dl.id); }
+        }
+        inp.setAttribute('aria-label', cfg.campos.length > 1 ? cfg.rot + ': ' + c.rot : cfg.rot);
         inp.value = rasc(c.k) != null ? rasc(c.k) : (temValor ? (c.fmt ? c.fmt(vals[c.k]) : vals[c.k]) : '');
         inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); salvar(); } if (e.key === 'Escape') { e.preventDefault(); cancelar(); } });
         inp.addEventListener('input', function () { O.rascunho[cfg.chave + '.' + c.k] = inp.value; nota.hidden = true; erro.textContent = ''; });
@@ -2013,7 +2461,9 @@
             // A tela mostra o novo valor já, sem esperar a releitura: o dado foi digitado.
             var dc = d.dados_cliente = d.dados_cliente || {};
             cfg.campos.forEach(function (c) { dc[c.dc || c.k] = env[c.k]; });
-            if (dc.origem && typeof dc.origem === 'object') dc.origem[cfg.chave] = 'manual';
+            var chO = cfg.chave === 'endereco_usina' ? 'endereco_ponto' : cfg.chave;
+            if (dc.origem && typeof dc.origem === 'object') { dc.origem[chO] = 'manual'; if (chO !== cfg.chave) delete dc.origem[cfg.chave]; }
+            if (dc.origem_doc && typeof dc.origem_doc === 'object') dc.origem_doc[chO] = null;
             // Dado alterado volta a pedir a confirmação.
             var desf = !cfg.semConfirmar && conf(d, cfg.chave) ? confirmarChave(d, cfg.chave, false, null, true) : Promise.resolve({ ok: true });
             desf.then(function () { desenharObra(); releia(); });
@@ -2168,8 +2618,13 @@
     add(pq, q1, q2); c.appendChild(pq);
     c.appendChild(blocoMandarLista(d));
     // Os documentos: sempre os 6 do cliente; o excedente e o financiamento só quando a resposta é Sim.
-    c.appendChild(subTitulo('Do cliente', ajudaQ('A CNH e a conta de luz preenchem a ficha do cliente sozinhas. Confira no Resumo.')));
+    var stc = subTitulo('Do cliente', ajudaQ('A IA lê cada documento assim que ele chega e preenche o Resumo. Ler todos os documentos relê tudo de uma vez e completa o que ainda falta.'));
+    var bl = botaoLerTudo(d); if (bl) stc.appendChild(bl);
+    c.appendChild(stc); estadoLerTudo(c, true);
     var lista = el('div', 'jor-docs-l'); PEDIDOS.forEach(function (p) { lista.appendChild(linhaDoc(d, p)); }); c.appendChild(lista);
+    // O que o cliente já tem assinado ou orçado: opcional aqui, e a IA tira dele a ficha e a venda.
+    c.appendChild(subTitulo('Contrato e orçamento', etq('Se tiver')));
+    var lco = el('div', 'jor-docs-l'); DOCS_LIDOS_OPC.forEach(function (o) { if (o.slot === 'orcamento' && !vendaDe(d).vede) return; lco.appendChild(linhaSlot(d, o.slot, o.rot, true)); });   // o orçamento tem preço: só quem vê o valor c.appendChild(lco);
     if (d.excedente === 'sim') blocoExcedente(c, d, et);
     if (d.financiamento === 'sim') {
       c.appendChild(subTitulo('Financiamento'));
@@ -2254,14 +2709,17 @@
     }
     c.appendChild(lista);
   }
-  /** Uma linha de documento sem pedido: nome, situação e o anexo. */
-  function linhaSlot(d, slot, rot) {
+  /** Uma linha de documento sem pedido: nome, situação e o anexo. `opcional`: sem arquivo diz "Opcional" em vez de "Falta". */
+  function linhaSlot(d, slot, rot, opcional) {
     var tem = temSlot(d, slot);
     var row = el('div', 'jor-doc');
     var info = el('div'); info.appendChild(el('span', 'jor-doc-nome', rot));
-    var est = el('div', 'jor-doc-est'); est.appendChild(el('span', 'st ' + (tem ? 'st-ok' : 'st-falta'), tem ? 'Recebido' : 'Falta')); info.appendChild(est);
+    var est = el('div', 'jor-doc-est'); est.appendChild(el('span', 'st ' + (tem ? 'st-ok' : opcional ? 'st-opc' : 'st-falta'), tem ? 'Recebido' : opcional ? 'Opcional' : 'Falta')); info.appendChild(est);
     row.appendChild(info);
     row.appendChild(anexo(slot, rot, tem, { compacto: true }));
+    if (O.lendo && O.lendo.slot === slot && O.lendo.card === String(O.card)) {
+      var ld = el('p', 'jor-lendo'); ld.setAttribute('role', 'status'); ld.appendChild(el('i')); ld.appendChild(document.createTextNode('Lendo o documento…')); row.appendChild(ld);
+    }
     return row;
   }
 
