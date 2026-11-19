@@ -8,114 +8,14 @@
 // Lê GET /io/eletroposto/nexus-instagram/admin?teste=0|1 (authMiddleware + admin).
 // Os rótulos abaixo são os mesmos da página: slug muda só junto com o backend.
 // ─────────────────────────────────────────────────────────────────────────────
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
+import {
+  FRENTE, MOB, OBJ, INV, REC, rot, baixarCsv, calcularResumo, filtrarLinhas, type Row,
+} from './nexusInstagramDados';
+import NexusInstagramLinha from './NexusInstagramLinha';
 import styles from './NexusInstagramPanel.module.css';
-
-interface Row {
-  id: string;
-  criado_em: string;
-  atualizado_em: string | null;
-  nome: string;
-  telefone: string;
-  email: string | null;
-  cep: string | null;
-  endereco: string | null;
-  bairro: string | null;
-  cidade: string | null;
-  uf: string | null;
-  eletroposto: string[] | null;
-  mobilidade: string[] | null;
-  outro: string | null;
-  objetivo: string | null;
-  investimento: string | null;
-  recurso: string | null;
-  origem: string | null;
-  utm: Record<string, string> | null;
-  teste: boolean;
-}
-
-const FRENTE: Record<string, string> = {
-  cotista: 'Cotista', investidor: 'Investidor', arrendamento: 'Arrendamento',
-  chave_na_mao: 'Chave na mão', parceiro: 'Parceiro instalador', so_carregador: 'Só o carregador',
-};
-const MOB: Record<string, string> = {
-  carro_compacto: 'Carro compacto', carro_suv: 'SUV', carro_sedan: 'Sedã', picape: 'Picape',
-  van: 'Van e utilitário', caminhao: 'Caminhão leve', moto: 'Moto', scooter: 'Scooter',
-  bike: 'Bike elétrica', patinete: 'Patinete', triciclo: 'Triciclo e cargo', quadriciclo: 'Quadriciclo e UTV',
-  golfe: 'Carrinho de golfe', wallbox: 'Carregador para casa', carregador_rapido: 'Carregador rápido',
-  bateria: 'Baterias', solar: 'Energia solar',
-};
-const OBJ: Record<string, string> = {
-  proprio: 'Para uso próprio', frota: 'Empresa ou frota', revenda: 'Revenda', investir: 'Investir',
-};
-const INV: Record<string, string> = {
-  ate_10: 'Até R$ 10 mil', '10_50': 'R$ 10 a 50 mil', '50_100': 'R$ 50 a 100 mil', '100_250': 'R$ 100 a 250 mil',
-  '250_500': 'R$ 250 a 500 mil', '500_mais': 'Acima de R$ 500 mil', naosei: 'Não sabe',
-};
-const REC: Record<string, string> = {
-  proprio: 'Recurso próprio', financiamento: 'Financiamento', os_dois: 'Os dois', naosei: 'Não sabe',
-};
-const ACIMA_100 = new Set(['100_250', '250_500', '500_mais']);
-const UTM_CHAVES = ['source', 'medium', 'campaign', 'content', 'term'] as const;
-
-const rot = (mapa: Record<string, string>, k: string | null | undefined) => (k ? mapa[k] ?? k : '');
-const lista = (v: string[] | null | undefined) => (Array.isArray(v) ? v : []);
-
-function fmtData(iso: string | null): string {
-  if (!iso) return '';
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
-  });
-}
-function fmtTel(t: string): string {
-  const d = (t || '').replace(/\D/g, '');
-  const n = d.startsWith('55') ? d.slice(2) : d;
-  if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
-  if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
-  return t;
-}
-function fmtCep(c: string | null): string {
-  const d = (c || '').replace(/\D/g, '');
-  return d.length === 8 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
-}
-function waLink(phone: string): string {
-  return `https://wa.me/${(phone || '').replace(/\D/g, '')}`;
-}
-function semAcento(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-}
-
-// CSV para o Excel brasileiro: ; como separador, BOM para o UTF-8 abrir certo.
-// Célula que começa com = + - @ ganha ' na frente (não vira fórmula no Excel).
-function celula(v: unknown): string {
-  let s = v == null ? '' : String(v);
-  if (/^[=+\-@]/.test(s)) s = `'${s}`;
-  return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-function baixarCsv(rows: Row[]) {
-  const cab = ['Data', 'Nome', 'WhatsApp', 'E-mail', 'CEP', 'Endereço', 'Bairro', 'Cidade', 'UF',
-    'Eletroposto', 'Mobilidade', 'Outro', 'Objetivo', 'Faixa', 'Recurso', 'Origem',
-    'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'Atualizado em', 'Teste'];
-  const linhas = rows.map((r) => [
-    fmtData(r.criado_em), r.nome, r.telefone, r.email, fmtCep(r.cep), r.endereco, r.bairro, r.cidade, r.uf,
-    lista(r.eletroposto).map((k) => rot(FRENTE, k)).join(', '),
-    lista(r.mobilidade).map((k) => rot(MOB, k)).join(', '),
-    r.outro, rot(OBJ, r.objetivo), rot(INV, r.investimento), rot(REC, r.recurso), r.origem,
-    ...UTM_CHAVES.map((k) => r.utm?.[k] ?? ''),
-    fmtData(r.atualizado_em), r.teste ? 'sim' : '',
-  ].map(celula).join(';'));
-  const csv = '\uFEFF' + [cab.join(';'), ...linhas].join('\r\n');
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `nexus-instagram-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 // `agora` é a hora da resposta: os "últimos 7 dias" contam a partir dela, não do render.
 interface Resposta { chave: string; itens: Row[] | null; erro: string; agora: number }
@@ -152,46 +52,13 @@ export default function NexusInstagramPanel() {
   const rows = useMemo(() => res.itens ?? [], [res.itens]);
   const agora = res.agora;
 
-  const resumo = useMemo(() => {
-    const seteDias = agora - 7 * 86400e3;
-    const contaEp: Record<string, number> = {};
-    const contaMob: Record<string, number> = {};
-    let ultimos = 0, comEp = 0, revenda = 0, acima = 0, comOutro = 0;
-    for (const r of rows) {
-      if (new Date(r.criado_em).getTime() >= seteDias) ultimos++;
-      const ep = lista(r.eletroposto);
-      if (ep.length) comEp++;
-      if (r.objetivo === 'revenda') revenda++;
-      if (r.investimento && ACIMA_100.has(r.investimento)) acima++;
-      if (r.outro && r.outro.trim()) comOutro++;
-      ep.forEach((k) => { contaEp[k] = (contaEp[k] ?? 0) + 1; });
-      lista(r.mobilidade).forEach((k) => { contaMob[k] = (contaMob[k] ?? 0) + 1; });
-    }
-    const rankEp = Object.keys(FRENTE).map((k) => ({ k, n: contaEp[k] ?? 0 })).sort((a, b) => b.n - a.n);
-    const rankMob = Object.entries(contaMob).map(([k, n]) => ({ k, n })).sort((a, b) => b.n - a.n).slice(0, 8);
-    return { ultimos, comEp, revenda, acima, comOutro, rankEp, rankMob };
-  }, [rows, agora]);
 
-  const visiveis = useMemo(() => {
-    const q = semAcento(busca.trim());
-    return rows.filter((r) => {
-      if (q) {
-        const alvo = semAcento([r.nome, r.telefone, fmtTel(r.telefone), r.email, r.cidade, r.uf, r.outro].filter(Boolean).join(' '));
-        if (!alvo.includes(q)) return false;
-      }
-      if (interesse) {
-        const [tipo, k] = interesse.split(':');
-        if (tipo === 'ep' && k === '*' && !lista(r.eletroposto).length) return false;
-        if (tipo === 'ep' && k !== '*' && !lista(r.eletroposto).includes(k)) return false;
-        if (tipo === 'mob' && !lista(r.mobilidade).includes(k)) return false;
-        if (tipo === 'outro' && !(r.outro && r.outro.trim())) return false;
-      }
-      if (objetivo && r.objetivo !== objetivo) return false;
-      if (faixa === 'acima_100' ? !(r.investimento && ACIMA_100.has(r.investimento)) : faixa && r.investimento !== faixa) return false;
-      if (recurso && r.recurso !== recurso) return false;
-      return true;
-    });
-  }, [rows, busca, interesse, objetivo, faixa, recurso]);
+  const resumo = useMemo(() => calcularResumo(rows, agora), [rows, agora]);
+
+  const visiveis = useMemo(
+    () => filtrarLinhas(rows, { busca, interesse, objetivo, faixa, recurso }),
+    [rows, busca, interesse, objetivo, faixa, recurso],
+  );
 
   const temFiltro = !!(busca || interesse || objetivo || faixa || recurso);
   function limparFiltros() {
@@ -346,72 +213,9 @@ export default function NexusInstagramPanel() {
                   {rows.length === 0 ? 'Ninguém entrou na lista ainda.' : 'Nenhum resultado com esses filtros.'}
                 </td>
               </tr>
-            ) : visiveis.map((r) => {
-              const aberto = aberta === r.id;
-              const ep = lista(r.eletroposto);
-              const mob = lista(r.mobilidade);
-              return (
-                <Fragment key={r.id}>
-                  <tr className={aberto ? styles.linhaAberta : undefined}>
-                    <td className={styles.colAbrir}>
-                      <button
-                        type="button" className={styles.abrir} aria-expanded={aberto} aria-controls={`det-${r.id}`}
-                        aria-label={`${aberto ? 'Fechar' : 'Abrir'} detalhes de ${r.nome}`}
-                        onClick={() => setAberta(aberto ? null : r.id)}
-                      >
-                        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
-                      </button>
-                    </td>
-                    <td className={styles.data}>
-                      {fmtData(r.criado_em)}
-                      {r.teste && <span className={styles.tagTeste}>Teste</span>}
-                    </td>
-                    <td className={styles.nome}>
-                      <strong>{r.nome}</strong>
-                      <span className={styles.sob}>{[r.cidade, r.uf].filter(Boolean).join('-')}</span>
-                    </td>
-                    <td className={styles.contato}>
-                      <a className={styles.wa} href={waLink(r.telefone)} target="_blank" rel="noopener noreferrer" title="Abrir a conversa no WhatsApp">
-                        {fmtTel(r.telefone)}
-                      </a>
-                      {r.email
-                        ? <a className={styles.email} href={`mailto:${r.email}`} title={r.email}>{r.email}</a>
-                        : <span className={`${styles.sob} ${styles.mudo}`}>Sem e-mail</span>}
-                    </td>
-                    <td>
-                      <div className={styles.chips}>
-                        {ep.map((k) => <span key={`e-${k}`} className={styles.chipEp}>{rot(FRENTE, k)}</span>)}
-                        {mob.map((k) => <span key={`m-${k}`} className={styles.chip}>{rot(MOB, k)}</span>)}
-                      </div>
-                      {r.outro && <p className={styles.outro} title={r.outro}>Escreveu: “{r.outro}”</p>}
-                    </td>
-                    <td className={styles.perfil}>
-                      <strong>{rot(OBJ, r.objetivo)}</strong>
-                      <span className={styles.faixa}>{rot(INV, r.investimento)}</span>
-                      <span className={styles.sob}>{rot(REC, r.recurso)}</span>
-                    </td>
-                  </tr>
-                  {aberto && (
-                    <tr className={styles.detalhe} id={`det-${r.id}`}>
-                      <td colSpan={6}>
-                        <dl className={styles.grade}>
-                          <div><dt>Endereço</dt><dd>{r.endereco || 'Não informado'}</dd></div>
-                          <div><dt>Bairro</dt><dd>{r.bairro || 'Não informado'}</dd></div>
-                          <div><dt>CEP</dt><dd>{fmtCep(r.cep) || 'Não informado'}</dd></div>
-                          <div><dt>Cidade</dt><dd>{[r.cidade, r.uf].filter(Boolean).join('-') || 'Não informado'}</dd></div>
-                          <div><dt>Origem</dt><dd>{r.origem || 'Não informado'}</dd></div>
-                          <div><dt>Atualizado em</dt><dd>{fmtData(r.atualizado_em) || fmtData(r.criado_em)}</dd></div>
-                          {UTM_CHAVES.map((k) => (
-                            <div key={k}><dt>utm_{k}</dt><dd>{r.utm?.[k] || '-'}</dd></div>
-                          ))}
-                          {r.outro && <div className={styles.largo}><dt>O que escreveu</dt><dd>{r.outro}</dd></div>}
-                        </dl>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
+            ) : visiveis.map((r) => (
+              <NexusInstagramLinha key={r.id} r={r} aberto={aberta === r.id} onAlternar={() => setAberta(aberta === r.id ? null : r.id)} />
+            ))}
           </tbody>
         </table>
       </div>
