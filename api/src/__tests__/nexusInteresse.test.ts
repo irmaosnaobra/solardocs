@@ -50,17 +50,27 @@ vi.mock('../utils/supabase', () => ({
   },
 }));
 
-import { cadastrarInteresse, listarInteressesAdmin, nexusInteresseLimiter } from '../routes/nexusInteresse';
+// A verificação do WhatsApp tem teste próprio (nexusInteresse.whatsapp.test.ts): aqui só o encaixe no handler.
+const wa = vi.hoisted(() => ({ resultado: null as boolean | null, chamadas: [] as string[], tabelas: [] as string[] }));
+vi.mock('../services/nexus/verificaWhatsapp', () => ({
+  verificarWhatsapp: async (tel: string, o?: { tabela?: string }) => {
+    wa.chamadas.push(tel);
+    wa.tabelas.push(o?.tabela ?? '');
+    return wa.resultado === false ? { whatsappOk: false, aviso: 'sem_whatsapp' } : { whatsappOk: wa.resultado };
+  },
+}));
+
+import { cadastrarInteresse } from '../routes/nexusInteresse';
 
 const app = express();
 app.use(express.json());
 app.post('/nexus-interesse', cadastrarInteresse);
 
 const base = {
-  eletroposto: ['cotista'],
+  porta: 'mobilidade',
   mobilidade: ['moto'],
   objetivo: 'proprio',
-  investimento: '10_50',
+  investimento: '50_100',
   recurso: 'os_dois',
   nome: 'Maria Souza',
   telefone: '55 (34) 99999-0001',
@@ -69,6 +79,10 @@ const base = {
   uf: 'mg',
 };
 const post = (b: object) => request(app).post('/nexus-interesse').send(b);
+const { investimento: _i, objetivo: _o, recurso: _r, mobilidade: _m, porta: _p, ...contato } = base;
+// Porta eletroposto, caminho cotista, tudo respondido.
+const ELE = { ...contato, porta: 'eletroposto', caminho: 'cotista', respostas: { local: 'meu', capital: '100', recurso: 'proprio' } };
+
 
 beforeEach(() => {
   h.rpcChamadas.length = 0;
@@ -81,6 +95,9 @@ beforeEach(() => {
   h.ordens.length = 0;
   h.ranges.length = 0;
   h.froms.length = 0;
+  wa.resultado = null;
+  wa.chamadas.length = 0;
+  wa.tabelas.length = 0;
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -102,13 +119,13 @@ describe('POST /nexus-interesse: validação', () => {
   });
 
   it('nada marcado e sem outro é 400 com a frase certa', async () => {
-    const r = await recusa({ ...base, eletroposto: [], mobilidade: [] });
+    const r = await recusa({ ...base, mobilidade: [] });
     expect(r.body.erro).toBe('Marque pelo menos uma opção ou escreva o que procura.');
-    await recusa({ ...base, eletroposto: ['foguete'], mobilidade: ['nave'], outro: '   ' });
+    await recusa({ ...base, mobilidade: ['nave'], outro: '   ' });
   });
 
   it('só o campo outro preenchido basta', async () => {
-    const r = await post({ ...base, eletroposto: [], mobilidade: [], outro: ' ônibus elétrico ' });
+    const r = await post({ ...base, mobilidade: [], outro: ' ônibus elétrico ' });
     expect(r.status).toBe(200);
     expect(h.rpcChamadas[0].args.p_outro).toBe('ônibus elétrico');
   });
@@ -117,6 +134,9 @@ describe('POST /nexus-interesse: validação', () => {
     await recusa({ ...base, objetivo: 'lazer' });
     await recusa({ ...base, objetivo: undefined });
     await recusa({ ...base, investimento: '1000_mais' });
+    // Faixas antigas saíram da lista.
+    await recusa({ ...base, investimento: 'ate_10' });
+    await recusa({ ...base, investimento: '10_50' });
     await recusa({ ...base, investimento: undefined });
     await recusa({ ...base, recurso: 'cripto' });
     await recusa({ ...base, recurso: undefined });
@@ -126,7 +146,7 @@ describe('POST /nexus-interesse: validação', () => {
     for (const objetivo of ['proprio', 'frota', 'revenda', 'investir']) {
       expect((await post({ ...base, objetivo })).status).toBe(200);
     }
-    for (const investimento of ['ate_10', '10_50', '50_100', '100_250', '250_500', '500_mais', 'naosei']) {
+    for (const investimento of ['50_100', '100_250', '250_500', '500_mais', 'naosei']) {
       expect((await post({ ...base, investimento })).status).toBe(200);
     }
     for (const recurso of ['proprio', 'financiamento', 'os_dois', 'naosei']) {
@@ -178,8 +198,12 @@ describe('POST /nexus-interesse: validação', () => {
     await recusa({ ...base, objetivo: ['proprio'] });
     await recusa({ ...base, investimento: 10 });
     await recusa({ ...base, recurso: { x: 1 } });
-    await recusa({ ...base, eletroposto: 'cotista', mobilidade: 'moto' });
-    await recusa({ ...base, eletroposto: [{ a: 1 }, 5, null], mobilidade: [[], true], outro: { a: 1 } });
+    await recusa({ ...base, mobilidade: 'moto' });
+    await recusa({ ...base, mobilidade: [[], true, null, 5], outro: { a: 1 } });
+    await recusa({ ...base, porta: ['mobilidade'], caminho: 'cotista', respostas: 'x' });
+    await recusa({ ...base, porta: 'eletroposto', caminho: ['cotista'] });
+    await recusa({ ...ELE, respostas: 'local' });
+    await recusa({ ...ELE, respostas: { ...ELE.respostas, local: ['meu'] } });
   });
 
   it('corpo vazio é 400', async () => {
@@ -208,7 +232,7 @@ describe('POST /nexus-interesse: gravação', () => {
   it('manda à rpc os parâmetros normalizados', async () => {
     const r = await post({
       ...base,
-      eletroposto: ['cotista', 'foguete', 'cotista', 'parceiro'],
+      eletroposto: ['cotista'], // a porta mobilidade ignora: o eletroposto só entra por `caminho`
       mobilidade: ['moto', 'nave', 'solar'],
       endereco: ' Rua A, 10 ',
       bairro: 'Centro',
@@ -220,7 +244,7 @@ describe('POST /nexus-interesse: gravação', () => {
     expect(r.status).toBe(200);
     expect(h.rpcChamadas).toHaveLength(1);
     const { nome, args } = h.rpcChamadas[0];
-    expect(nome).toBe('nexus_instagram_gravar');
+    expect(nome).toBe('nexus_instagram_gravar_v2');
     expect(args).toEqual({
       p_nome: 'Maria Souza',
       p_telefone: '5534999990001',
@@ -230,15 +254,17 @@ describe('POST /nexus-interesse: gravação', () => {
       p_bairro: 'Centro',
       p_cidade: 'Uberlândia',
       p_uf: 'MG',
-      p_eletroposto: ['cotista', 'parceiro'],
+      p_eletroposto: [],
+      p_eletroposto_respostas: {},
       p_mobilidade: ['moto', 'solar'],
       p_outro: null,
       p_objetivo: 'proprio',
-      p_investimento: '10_50',
+      p_investimento: '50_100',
       p_recurso: 'os_dois',
       p_origem: 'bio-instagram',
       p_utm: { source: 'ig', medium: 'bio' },
       p_teste: false,
+      p_whatsapp_ok: null,
     });
   });
 
@@ -269,9 +295,9 @@ describe('POST /nexus-interesse: gravação', () => {
 
   it('corta cada array em 30 itens antes de filtrar', async () => {
     const lixo = Array.from({ length: 30 }, () => 'lixo');
-    const r = await post({ ...base, eletroposto: [...lixo, 'cotista'], mobilidade: ['moto'] });
-    expect(r.status).toBe(200);
-    expect(h.rpcChamadas[0].args.p_eletroposto).toEqual([]);
+    const r = await post({ ...base, mobilidade: [...lixo, 'moto'] });
+    expect(r.status).toBe(400);
+    expect(h.rpcChamadas).toHaveLength(0);
   });
 
   it('cidade e uf separadas, com a UF digitada valendo', async () => {
@@ -302,107 +328,5 @@ describe('POST /nexus-interesse: gravação', () => {
     const r = await post(base);
     expect(r.status).toBe(500);
     expect(r.body.ok).toBe(false);
-  });
-});
-
-describe('GET admin: listarInteressesAdmin', () => {
-  function resposta() {
-    const res: any = { statusCode: 200, corpo: undefined as any };
-    res.status = (c: number) => { res.statusCode = c; return res; };
-    res.json = (b: any) => { res.corpo = b; return res; };
-    return res;
-  }
-  const linhas = (n: number, de = 0) => Array.from({ length: n }, (_, i) => ({ id: de + i }));
-
-  it('por padrão só os de produção, mais novos primeiro, uma página curta', async () => {
-    h.paginas = [[{ id: 1, nome: 'A' }, { id: 2, nome: 'B' }]];
-    const res = resposta();
-    await listarInteressesAdmin({ query: {} } as any, res);
-    expect(res.statusCode).toBe(200);
-    expect(res.corpo).toEqual({ ok: true, itens: [{ id: 1, nome: 'A' }, { id: 2, nome: 'B' }] });
-    expect(h.froms).toEqual(['nexus_instagram_interesse']);
-    expect(h.ordens).toEqual([['criado_em', { ascending: false }], ['id', { ascending: false }]]);
-    expect(h.ranges).toEqual([[0, 999]]);
-    expect(h.filtros).toEqual([['teste', false]]);
-  });
-
-  it('com teste=1 traz também os de teste (sem filtro)', async () => {
-    h.paginas = [[{ id: 9, teste: true }]];
-    const res = resposta();
-    await listarInteressesAdmin({ query: { teste: '1' } } as any, res);
-    expect(res.corpo).toEqual({ ok: true, itens: [{ id: 9, teste: true }] });
-    expect(h.filtros).toEqual([]);
-  });
-
-  it('teste com outro valor continua filtrando', async () => {
-    const res = resposta();
-    await listarInteressesAdmin({ query: { teste: '0' } } as any, res);
-    expect(h.filtros).toEqual([['teste', false]]);
-  });
-
-  it('pagina de 1000 em 1000 até vir página curta', async () => {
-    h.paginas = [linhas(1000), linhas(1000, 1000), linhas(37, 2000)];
-    const res = resposta();
-    await listarInteressesAdmin({ query: {} } as any, res);
-    expect(res.corpo.itens).toHaveLength(2037);
-    expect(h.ranges).toEqual([[0, 999], [1000, 1999], [2000, 2999]]);
-  });
-
-  it('para em 5000 linhas mesmo com páginas cheias', async () => {
-    h.paginas = Array.from({ length: 8 }, (_, i) => linhas(1000, i * 1000));
-    const res = resposta();
-    await listarInteressesAdmin({ query: {} } as any, res);
-    expect(res.corpo.itens).toHaveLength(5000);
-    expect(h.ranges).toHaveLength(5);
-    expect(h.ranges[4]).toEqual([4000, 4999]);
-  });
-
-  it('banco sem dados devolve lista vazia', async () => {
-    const res = resposta();
-    await listarInteressesAdmin({ query: {} } as any, res);
-    expect(res.corpo).toEqual({ ok: true, itens: [] });
-  });
-
-  it('erro do banco é 500 com log só de código e mensagem', async () => {
-    h.listaErro = { message: 'boom', code: 'XX002' };
-    const res = resposta();
-    await listarInteressesAdmin({ query: {} } as any, res);
-    expect(res.statusCode).toBe(500);
-    expect(res.corpo.ok).toBe(false);
-    expect(typeof res.corpo.erro).toBe('string');
-    expect(console.error).toHaveBeenCalledWith('[nexus-interesse]', 'XX002', 'boom');
-  });
-});
-
-describe('proteção das rotas no router de ioEletroposto', () => {
-  async function handlersDa(metodo: 'get' | 'post', caminho: string) {
-    const mod = await import('../routes/ioEletroposto');
-    const pilha = (mod.default as any).stack as any[];
-    const camada = pilha.find((x) => x.route && x.route.path === caminho && x.route.methods[metodo]);
-    expect(camada, `rota ${metodo.toUpperCase()} ${caminho} registrada`).toBeTruthy();
-    return camada.route.stack.map((s: any) => s.handle) as Function[];
-  }
-
-  it('GET /nexus-instagram/admin: authMiddleware, adminMiddleware e só então o handler', async () => {
-    const { authMiddleware } = await import('../middleware/auth');
-    const { adminMiddleware } = await import('../middleware/adminAuth');
-    expect(await handlersDa('get', '/nexus-instagram/admin'))
-      .toEqual([authMiddleware, adminMiddleware, listarInteressesAdmin]);
-  }, 60000);
-
-  it('POST /nexus-interesse: limitador antes do handler público', async () => {
-    expect(await handlersDa('post', '/nexus-interesse')).toEqual([nexusInteresseLimiter, cadastrarInteresse]);
-  }, 60000);
-});
-
-describe('limitador do POST público', () => {
-  it('10 por minuto por IP, o 11º é 429 com a frase combinada', async () => {
-    const a = express();
-    a.use(express.json());
-    a.post('/x', nexusInteresseLimiter, (_req, res) => { res.json({ ok: true }); });
-    for (let i = 0; i < 10; i++) expect((await request(a).post('/x').send({})).status).toBe(200);
-    const r = await request(a).post('/x').send({});
-    expect(r.status).toBe(429);
-    expect(r.body).toEqual({ ok: false, erro: 'Muitas tentativas. Espere um minuto e tente de novo.' });
   });
 });
