@@ -620,7 +620,8 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
 
     // Leitura por IA dos documentos que ainda não foram lidos (obra antiga, envio que falhou): só para quem pode pedir "Ler tudo". Começa sozinha, em
     // segundo plano, e o GET não espera por ela.
-    const leitura = pode.ler_tudo ? await leituraDaObra({ card: { id: g.id, cliente_nome: g.card.cliente_nome }, nome: g.nome, arquivos: l.arquivos }) : SEM_LEITURA;
+    // Obra cancelada ou com a conta fechada não lê (a finalizada nem chega aqui: responde antes, só para leitura).
+    const leitura = pode.ler_tudo ? await leituraDaObra({ card: { id: g.id, cliente_nome: g.card.cliente_nome }, nome: g.nome, arquivos: l.arquivos, aberta: !l.estado?.cancelada && !l.obraEstado?.fechada }) : SEM_LEITURA;
     const nEstado = estadoDoNumero(l);
     const giovOuVend = g.nome === 'giovanna' || (!!vend && g.nome === vend);
     const etapas: Array<Record<string, unknown>> = [];

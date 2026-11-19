@@ -632,7 +632,11 @@ export type ResultadoLeituraCadastro =
     /** Os ids dos arquivos que entraram na leitura (os que cabiam e eram válidos). */
     aceitos: string[];
   }
-  | { ok: false; motivo: MotivoLeituraCadastro; ignorados: Ignorado[] };
+  | {
+    ok: false; motivo: MotivoLeituraCadastro; ignorados: Ignorado[];
+    /** `false`: a IA recusou ESTE pedido (400, 413 ou 422 da API, recusa ou resposta cortada): repetir não adianta. Ausente: pode ser passageiro (429, 5xx, 529, rede, tempo). */
+    transitorio?: false;
+  };
 
 function saidaDaMensagem(msg: { parsed_output?: unknown; content?: unknown }): unknown {
   if (msg.parsed_output && typeof msg.parsed_output === 'object') return msg.parsed_output;
@@ -701,14 +705,16 @@ export async function lerDocumentosDaVenda(
           modelo: modelos[i], status, tipo: String(err?.name || 'erro'), ms: Date.now() - t0,
           ...(status === 400 ? { motivo: motivoDoErro(err) } : {}),
         });
-        return { ok: false, motivo: 'ia_indisponivel', ignorados };
+        // 400, 413 e 422 são o pedido recusado pelo que ele leva (documento inválido, PDF ilegível...); modelo inexistente é de configuração, não do documento.
+        const recusado = status !== null && [400, 413, 422].includes(status) && !modeloInexistente(err);
+        return { ok: false, motivo: 'ia_indisponivel', ignorados, ...(recusado ? { transitorio: false as const } : {}) };
       }
     }
     if (!recebida || typeof recebida !== 'object') return { ok: false, motivo: 'ia_indisponivel', ignorados };
     // `stop_reason` ANTES do conteúdo: recusa e corte por tamanho trazem texto pela metade.
     if (recebida.stop_reason === 'refusal' || recebida.stop_reason === 'max_tokens') {
       logger.warn(LOG, 'leitura dos documentos sem resultado', { modelo: usado, parada: String(recebida.stop_reason), ms: Date.now() - t0 });
-      return { ok: false, motivo: 'ia_indisponivel', ignorados };
+      return { ok: false, motivo: 'ia_indisponivel', ignorados, transitorio: false };
     }
     const saida = saidaDaMensagem(recebida);
     if (!saida) {

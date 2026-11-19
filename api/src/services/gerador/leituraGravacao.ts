@@ -9,6 +9,7 @@
 //   - NADA DISTO CONTA COMO CONFIRMADO: as confirmações (POST confirmar) continuam exigidas. A IA nunca dispara o aviso à equipe (`venda_completa`) nem o
 //     espelho na proposta ligada: valor, pagamento e prazo gravados por ela levam a marca `venda.ia`, e `blocoVendaCompleto` não os conta como completos
 //     até uma pessoa aceitar (PUT /venda ou confirmar valor ou pagamento, que apagam a marca e aí sim disparam o aviso e o espelho).
+//   - OBRA FECHADA: obra finalizada, cancelada ou com a conta fechada não recebe nada da leitura (nem cadastro, nem valor, nem kit): `obraAbertaParaIa`.
 //   - TEMPO: se o limite de tempo estourou (`cancelado`), o que ainda estava rodando não grava mais nada.
 // Nunca se loga valor, nome nem texto do documento.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,6 +51,15 @@ async function valorDaPropostaLigada(card: number): Promise<number | null> {
 const vendaNova = (valor: number): NonNullable<PrivadoJornada['venda']> => ({
   valor_centavos: valor, pagamento: [], desconto_centavos: null, prazo_prometido: '', nota: '', kit_confirmado: false, combinado_por: '', combinado_em: '', editado: [],
 });
+
+/**
+ * A obra aceita gravação da leitura por IA? Não, se está finalizada, cancelada ou com a conta fechada (a mesma regra de `gravarComercial`). Lê o estado
+ * da jornada e da obra: falha de leitura lança (quem chama trata como "não leu").
+ */
+export async function obraAbertaParaIa(card: number): Promise<boolean> {
+  const [{ estado }, { estado: obraEstado }, finalizada] = await Promise.all([lerJornadaComVersao(card), lerObraComVersao(card), obraFinalizada(card)]);
+  return !(finalizada || estado?.cancelada || obraEstado?.fechada);
+}
 
 /**
  * Grava valor, pagamento, prazo e kit lidos de contrato e orçamento. Devolve o que gravou: 'valor', 'pagamento', 'prazo', 'placas', 'inversor'.
@@ -132,7 +142,7 @@ export interface ResultadoAplicar { campos: string[]; comercial: string[]; /** A
  * cadastro lido ANTES da leitura (a conferência de quem é o contratante usa o nome que já estava gravado).
  */
 export async function aplicarLeitura(a: { id: number; nome: string; arquivos: readonly ArquivoDoc[]; r: Ok; cad: Cadastro; /** true = o limite de tempo estourou: não grava nada */ cancelado?: () => boolean }): Promise<ResultadoAplicar> {
-  if (a.cancelado?.()) return { campos: [], comercial: [], deOutraPessoa: 0 };
+  if (a.cancelado?.() || !(await obraAbertaParaIa(a.id))) return { campos: [], comercial: [], deOutraPessoa: 0 };
   const { id, r, cad } = a;
   const arq = (aid: string | undefined): ArquivoDoc | undefined => (aid ? a.arquivos.find((x) => x.id === aid) : undefined);
   const doc = (aid: string): DocumentoLido | undefined => r.documentos.find((d) => d.id === aid);

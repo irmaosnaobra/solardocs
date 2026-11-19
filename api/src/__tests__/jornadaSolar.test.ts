@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import crypto from 'crypto';
 import {
   CURTOS_ETAPA, NOMES_ETAPA, bancoPreenchido, comissoesDaVenda, confirmadosValidos, excedenteCpf, marcaDoValor, valorConfirmavel, vistoriaPct, deduzirEtapa, diasUteisDepois, donosDaEtapa, estadoMaterializado, iniciais, itensDaEtapa, marcaDoRateio, podeConcluir,
   prazoDaEtapa, rateioDoCadastro, situacao, somarDiasUteis, totalDoRateio, veObra, type ChaveConfirmar, type EstadoJornada, type PrivadoJornada,
@@ -452,5 +453,36 @@ describe('descrição do cartão com o rateio', () => {
     const pub = descricaoDoCartao({ ...a, rateio, publico: true });
     expect(pub).toContain('Beneficiária · UC 222 · 15%');
     expect(pub).not.toContain('Ana');
+  });
+});
+
+describe('assinatura de antes dos 3 tipos de financiamento', () => {
+  /** A assinatura que o servidor gravava quando o estado guardava `financiamento: 'sim'` (hoje `proprio`). */
+  const assinaturaAntiga = (card: number, n: EstadoJornada): string =>
+    crypto.createHmac('sha256', 'segredo-de-teste')
+      .update(`jornada|${card}|${JSON.stringify({ ...n, etapas: { ...n.etapas, 1: { ...n.etapas[1], financiamento: 'sim' } } })}`).digest('hex');
+  const comFinanciamento = (valor: string): { n: EstadoJornada; bruto: Record<string, any> } => {
+    const base = novo(10);
+    const n = normalizarJornada(10, { ...base, etapas: { ...base.etapas, 1: { ...base.etapas[1], financiamento: valor as never } } })!;
+    return { n, bruto: JSON.parse(JSON.stringify(n)) };
+  };
+
+  it("estado com 'sim' assinado do jeito antigo ainda carrega, como 'proprio'", () => {
+    const { n, bruto } = comFinanciamento('proprio');
+    expect(n.etapas[1].financiamento).toBe('proprio');
+    const guardado = { ...bruto, etapas: { ...bruto.etapas, 1: { ...bruto.etapas[1], financiamento: 'sim' } }, sig: assinaturaAntiga(10, n) };
+    expect(jornadaAssinada(10, guardado)?.etapas[1].financiamento).toBe('proprio');
+    expect(jornadaAssinada(10, { ...guardado, etapas: { ...guardado.etapas, 1: { ...guardado.etapas[1], financiamento: 'sim' } }, vendedor: 'outro' })).toBeNull();   // mexeu no resto: a assinatura antiga não vale
+  });
+
+  it("'financeira' (e 'nao') com a assinatura do jeito antigo é recusado: o atalho vale só para o 'sim'", () => {
+    for (const tipo of ['financeira', 'nao']) {
+      const { n, bruto } = comFinanciamento(tipo);
+      expect(n.etapas[1].financiamento).toBe(tipo);
+      expect(jornadaAssinada(10, { ...bruto, sig: assinaturaAntiga(10, n) }), tipo).toBeNull();
+    }
+    // e a assinatura de hoje de 'financeira' vale
+    const f = comFinanciamento('financeira');
+    expect(jornadaAssinada(10, { ...f.bruto, sig: assinarJornada(10, f.n) })?.etapas[1].financiamento).toBe('financeira');
   });
 });
