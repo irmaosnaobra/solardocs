@@ -10,7 +10,7 @@ import { anexarRelatorioManual, dispararTrelloAutomatico } from './geradorJornad
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { generateFromTemplate } from '../services/templateService';
 import { limparHtmlPapel } from '../services/gerador/htmlPapelSeguro';
-import { codigoDeRota, nomesParecidos, SLOT_DO_DOSSIE_NA_VENDASOLAR } from '../services/gerador/docsCliente';
+import { codigoDeRota, nomesParecidos, SLOT_DO_DOSSIE_NA_VENDASOLAR, type ArquivoDoc } from '../services/gerador/docsCliente';
 import { formaDoEspelho, trelloDaFicha } from '../services/gerador/jornadaFicha';
 import { lerCadastroVisto, tipoDoCadastro, type Cadastro } from '../services/gerador/cadastroVenda';
 import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
@@ -28,10 +28,10 @@ import { MSG_FINALIZADA, ehFinalizada, esquecerDataDoVendido, lerContextoDasVend
 import { dadosDaPlanilha } from '../services/gerador/jornadaFinalizada';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 import {
-  CURTOS_ETAPA, DONOS_FIXOS, blocoVendaCompleto, FORMAS_PAGAMENTO, MOTIVOS_ESPERA, NOMES_ETAPA, TIPOS_PAPEL, ROTULO_ESPERA,
+  CURTOS_ETAPA, DONOS_FIXOS, blocoVendaCompleto, FINANCIAMENTOS, FORMAS_PAGAMENTO, MOTIVOS_ESPERA, NOMES_ETAPA, TIPOS_PAPEL, ROTULO_ESPERA,
   comissoesDaVenda, confirmadosValidos, kitCompleto, TEXTO_KIT_MAX, TEXTO_KIT_MIN, ddmm, deduzirEtapa, ehChaveConfirmar, ehChavePedido, excedenteCpf, marcaDoValor, valorConfirmavel, vistoriaPct, confirmacaoValida, donosDaEtapa, estadoMaterializado, estadoTrelloAuto, etapaAtualDoEstado, iniciais, itensDaEtapa, marcaDoRateio,
   podeConcluir, prazoDaEtapa, rateioDoCadastro, situacao, somarDiasUteis, totalDoRateio, veObra,
-  type EntradaItens, type EstadoJornada, type FormaPagamento, type MotivoEspera, type PrivadoJornada, type Situacao, type TipoPapel,
+  type EntradaItens, type EstadoJornada, type FormaPagamento, type MotivoEspera, type PrivadoJornada, type Situacao, type TipoFinanciamento, type TipoPapel,
 } from '../services/gerador/jornadaSolar';
 import {
   ErroJornada, ehRecusa, lerJornadaComVersao, lerPrivadoJornada, lerTodasJornadas, mudarJornada, mudarPrivadoJornada,
@@ -41,6 +41,7 @@ import { lerObraComVersao, lerObraPrivada, lerTodasObras, mudarObra, mudarObraPr
 import { gerarRelatorioFinal } from './geradorJornadaRelatorioFinal';
 import { mountJornadaLerTudo } from './geradorJornadaLerTudo';
 import { podeLerTudo } from '../services/gerador/leituraGravacao';
+import { SEM_LEITURA, leituraDaObra } from '../services/gerador/leituraPendente';
 import { kitVendido, lerRelatorioFinal } from '../services/gerador/relatorioFinal';
 import { lerAjustes, lerResumoDoDinheiro } from '../services/gerador/jornadaDinheiroBanco';
 import { podeVerValorDaObra } from '../services/gerador/jornadaDinheiro';
@@ -146,6 +147,8 @@ interface Leitura {
   slots: Set<string>;
   /** Só os slots do próprio card (o número nasce dos papéis anexados AQUI). */
   slotsDoCard: Set<string>;
+  /** Os arquivos do próprio card (a leitura por IA dos pendentes olha por id). */
+  arquivos: ArquivoDoc[];
   /** Preencher: o depósito de cada slot que não está no card. */
   origem: Map<string, 'dossie' | 'planilha'>;
   tem_cartao: boolean;
@@ -172,7 +175,7 @@ async function ler(g: Guarda, comProposta = true): Promise<Leitura> {
   const proposta = comProposta && lig.proposta ? await lerProposta(lig.proposta).catch((e) => { logErro('proposta', e); return null; }) : null;
   const equip = proposta ? equipamentoDaProposta({ qtd_placas: proposta.qtd_placas, inversor: proposta.inversor, qtd_inversor: proposta.qtd_inversor, dados: proposta.dados }) : null;
   const op = comProposta ? await lerObraPrivada(g.id).catch((e) => { logErro('obra privada', e); return null; }) : null;
-  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, origem, tem_cartao: !!lig.trello_card, proposta, equip, obra: op ? { vistoria: op.vistoria, banco: op.banco, versoes: op.versoes } : null };
+  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, arquivos: docs.reg.arquivos, origem, tem_cartao: !!lig.trello_card, proposta, equip, obra: op ? { vistoria: op.vistoria, banco: op.banco, versoes: op.versoes } : null };
 }
 
 /**
@@ -615,6 +618,9 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
     const todas = pode.ligar_proposta && !l.lig.proposta ? await lerTodasLigacoes() : new Map<number, Ligacao>();
     const candidatas = pode.ligar_proposta && !l.lig.proposta ? await candidatasDaObra(g, l, todas).catch((e) => { logErro('candidatas', e); return []; }) : [];
 
+    // Leitura por IA dos documentos que ainda não foram lidos (obra antiga, envio que falhou): só para quem pode pedir "Ler tudo". Começa sozinha, em
+    // segundo plano, e o GET não espera por ela.
+    const leitura = pode.ler_tudo ? await leituraDaObra({ card: { id: g.id, cliente_nome: g.card.cliente_nome }, nome: g.nome, arquivos: l.arquivos }) : SEM_LEITURA;
     const nEstado = estadoDoNumero(l);
     const giovOuVend = g.nome === 'giovanna' || (!!vend && g.nome === vend);
     const etapas: Array<Record<string, unknown>> = [];
@@ -652,6 +658,7 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       cancelada: l.estado?.cancelada ? { ...l.estado.cancelada, motivo: l.privado?.cancelamento?.motivo ?? '' } : null,
       esperando: l.estado?.esperando ?? null,
       pode,
+      leitura,
       etapas,
       venda: veValor ? (l.privado?.venda ?? null) : vendaSemDinheiro(l.privado?.venda ?? null),
       // A retirada dos sócios (os 2% de cada um) só vai para o ADM e para a Giovanna; a comissão de quem vendeu fica para todos.
@@ -924,7 +931,7 @@ async function rotaPatch(req: Request, res: Response): Promise<void> {
   const validas = ['excedente', 'financiamento', 'pedido', 'feito', 'engenheiro', 'protocolo', 'rateio_conferido'];
   if (!b || chaves.length === 0 || chaves.some((k) => !validas.includes(k))) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
   if ((b.excedente !== undefined && b.excedente !== 'sim' && b.excedente !== 'nao')
-    || (b.financiamento !== undefined && b.financiamento !== 'sim' && b.financiamento !== 'nao')
+    || (b.financiamento !== undefined && b.financiamento !== 'sim' && !FINANCIAMENTOS.includes(b.financiamento as TipoFinanciamento))   // `sim`: front antigo em cache, vale `proprio`
     || ((b.pedido !== undefined || b.feito !== undefined) && (!ehChavePedido(b.pedido) || typeof b.feito !== 'boolean'))
     || (b.engenheiro !== undefined && b.engenheiro !== 'pago' && b.engenheiro !== 'a_pagar')
     || (b.rateio_conferido !== undefined && b.rateio_conferido !== true)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
@@ -965,7 +972,7 @@ async function rotaPatch(req: Request, res: Response): Promise<void> {
         n = { ...n, historico: [...n.historico, { em: agora, por: g.nome, acao, etapa }].slice(-50) };
       };
       if (b.excedente !== undefined) { n = { ...n, etapas: { ...n.etapas, 1: { ...n.etapas[1], excedente: b.excedente as 'sim' | 'nao' } } }; nota('excedente', 1); }
-      if (b.financiamento !== undefined) n = { ...n, etapas: { ...n.etapas, 1: { ...n.etapas[1], financiamento: b.financiamento as 'sim' | 'nao' } } };
+      if (b.financiamento !== undefined) n = { ...n, etapas: { ...n.etapas, 1: { ...n.etapas[1], financiamento: b.financiamento === 'sim' ? 'proprio' : b.financiamento as TipoFinanciamento } } };
       if (b.pedido !== undefined) {
         const ped = { ...(n.etapas[1].pedidos ?? {}) };
         if (b.feito === true) ped[b.pedido as string] = { em: agora, por: g.nome }; else delete ped[b.pedido as string];

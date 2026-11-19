@@ -286,7 +286,7 @@ Regras:
      * uc_classe: residencial, comercial, rural, industrial ou poder_publico, como a conta classifica a unidade. Só se estiver escrito.
      * uc_fornecimento: o tipo de fornecimento ou de ligação que a fatura traz ("tipo de fornecimento", "ligação", "tipo de ligação"): monofasico, bifasico ou trifasico. Só se estiver escrito; não deduza pela tensão nem pelo disjuntor.
      * consumo_medio_kwh: a MÉDIA, em kWh, dos meses do histórico de consumo da conta (some os meses legíveis e divida pela quantidade). Só preencha se o histórico estiver legível; se houver só o consumo do mês, não preencha. Use confiança alta só se o histórico estiver claro e completo; senão, media ou baixa, com uma nota dizendo quantos meses leu. Mande só o número (por exemplo 350 ou 412.5).
-   - Conta de luz de UNIDADE BENEFICIÁRIA (item conta_luz_beneficiaria): SÓ a vaga de beneficiária dela, na ordem em que as contas aparecem (a primeira conta é benef_1, a segunda benef_2...): benef_N_uc (o número da unidade consumidora), benef_N_titular (o nome do titular) e benef_N_endereco (o endereço, em uma linha só). NUNCA preencha o percentual do rateio, o comprador nem a unidade geradora com ela.
+   - Conta de luz de UNIDADE BENEFICIÁRIA (item conta_luz_beneficiaria): SÓ a vaga de beneficiária dela, na ordem em que as contas aparecem (a primeira conta é benef_1, a segunda benef_2...), ou no número que a linha do arquivo disser, que vale mais: benef_N_uc (o número da unidade consumidora), benef_N_titular (o nome do titular) e benef_N_endereco (o endereço, em uma linha só). NUNCA preencha o percentual do rateio, o comprador nem a unidade geradora com ela.
    - Documento de OUTRA PESSOA (cônjuge, sócio, representante): NÃO preenche campo nenhum, só classifique e dê o rótulo.
    - Documento do imóvel (matrícula, escritura, IPTU): SÓ imovel_matricula, imovel_cartorio, imovel_iptu.
    - Contrato social ou cartão CNPJ: razão social (nome), CNPJ (cpf_cnpj), inscrição estadual (rg_ie), endereço da empresa (endereco, bairro, cidade, uf, cep) e o representante (rep_nome, rep_cpf, rep_rg, rep_estado_civil, rep_profissao). Se for a empresa do titular da homologação, do titular do financiamento ou do avalista, use os campos tuc_, fin_ ou aval_ equivalentes.
@@ -336,9 +336,18 @@ const citado = (t: string, max: number): string => JSON.stringify(t.replace(/[\u
  * A linha que vem ANTES de cada arquivo: o número, o item do catálogo onde ele está e, se a pessoa deu um nome ao arquivo, esse
  * nome (a pista mais forte de quem é o documento). O começo `Arquivo N, slot "x"` é o que o resto do código e os testes leem.
  */
-export function linhaDoArquivo(n: number, slot: string, nomeDado?: string, linha: LinhaLeitura = 'eletroposto'): string {
+export function linhaDoArquivo(n: number, slot: string, nomeDado?: string, linha: LinhaLeitura = 'eletroposto', dica?: string): string {
   const nome = nomeDado && nomeDado.trim() ? ` Nome dado pelo usuário: ${citado(nomeDado, 60)}.` : '';
-  return `Arquivo ${n}, slot "${slot}" (${rotuloDe(slot, linha)}).${nome}`;
+  return `Arquivo ${n}, slot "${slot}" (${rotuloDe(slot, linha)}).${nome}${dica ? ` ${dica}` : ''}`;
+}
+
+/**
+ * Venda solar: o número de cada conta de luz de BENEFICIÁRIA (da mais antiga para a mais nova), dito ao modelo na linha do arquivo. Lendo um arquivo
+ * de cada vez (a leitura automática) ou vários de uma vez, a mesma conta tem sempre o mesmo número, e a vaga `benef_N_*` não é contada por ordem de chegada.
+ */
+export function dicasDeBeneficiarias(arquivos: readonly ArquivoDoc[]): Map<string, string> {
+  const contas = arquivos.filter((a) => a.slot === 'conta_luz_beneficiaria').sort((a, b) => (a.em < b.em ? -1 : a.em > b.em ? 1 : a.id < b.id ? -1 : 1));
+  return new Map(contas.slice(0, 5).map((a, i) => [a.id, `Esta é a conta da beneficiária número ${i + 1}: use benef_${i + 1}_uc, benef_${i + 1}_titular e benef_${i + 1}_endereco.`]));
 }
 
 /**
@@ -399,6 +408,7 @@ export async function prepararArquivos(
   rotulados: ReadonlySet<string> = new Set(),
   nomesDados: ReadonlyMap<string, string> = new Map(),
   linha: LinhaLeitura = 'eletroposto',
+  dicas: ReadonlyMap<string, string> = new Map(),
 ): Promise<{ blocos: Anthropic.ContentBlockParam[]; lidos: Lido[]; ignorados: Ignorado[]; falhasDoArmazenamento: number; aceitosDocs: ArquivoDoc[] }> {
   const blocos: Anthropic.ContentBlockParam[] = [];
   const contagem = new Map<string, number>();
@@ -445,7 +455,7 @@ export async function prepararArquivos(
     aceitos++;
     aceitosDocs.push(a);
     contagem.set(a.slot, (contagem.get(a.slot) ?? 0) + 1);
-    blocos.push({ type: 'text', text: linhaDoArquivo(aceitos, a.slot, nomesDados.get(a.id), linha) });
+    blocos.push({ type: 'text', text: linhaDoArquivo(aceitos, a.slot, nomesDados.get(a.id), linha, dicas.get(a.id)) });
     const dados = bytes.toString('base64');
     blocos.push(ehPdf
       ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: dados } }
@@ -619,6 +629,8 @@ export type ResultadoLeituraCadastro =
     origens: Record<string, string>;
     /** Venda solar: valor, pagamento, prazo e kit lidos de contrato e orçamento (vazio fora da venda solar). */
     comercial: ComercialLido;
+    /** Os ids dos arquivos que entraram na leitura (os que cabiam e eram válidos). */
+    aceitos: string[];
   }
   | { ok: false; motivo: MotivoLeituraCadastro; ignorados: Ignorado[] };
 
@@ -647,12 +659,14 @@ export async function lerDocumentosDaVenda(
     pessoas?: PessoasConhecidas;
     /** Que cadastro se lê. Sem a linha, o do eletroposto. */
     linha?: LinhaLeitura;
+    /** id do arquivo -> uma frase que vai na linha dele (hoje, o número da conta de beneficiária). */
+    dicas?: ReadonlyMap<string, string>;
   } = {},
 ): Promise<ResultadoLeituraCadastro> {
   const t0 = Date.now();
   const linha: LinhaLeitura = opcoes.linha ?? 'eletroposto';
   try {
-    const { blocos, lidos, ignorados, falhasDoArmazenamento, aceitosDocs } = await prepararArquivos(arquivos, opcoes.baixar, opcoes.rotulados, opcoes.nomesDados, linha);
+    const { blocos, lidos, ignorados, falhasDoArmazenamento, aceitosDocs } = await prepararArquivos(arquivos, opcoes.baixar, opcoes.rotulados, opcoes.nomesDados, linha, opcoes.dicas);
     if (!lidos.length) return { ok: false, motivo: falhasDoArmazenamento ? 'armazenamento' : 'sem_documentos', ignorados };
     const pessoas = textoDasPessoas(opcoes.pessoas);
     const pedido = pessoas ? `${PEDIDO}\n\n${pessoas}` : PEDIDO;
@@ -711,7 +725,7 @@ export async function lerDocumentosDaVenda(
       sugestoes: Object.keys(sugestoes).length, baixas: Object.values(sugestoes).filter((s) => s.confianca === 'baixa').length,
       classificados: documentos.length, descartadas: descartadas.length,
     });
-    return { ok: true, sugestoes, lidos, ignorados, documentos, descartadas, notas, origens, comercial };
+    return { ok: true, sugestoes, lidos, ignorados, documentos, descartadas, notas, origens, comercial, aceitos: aceitosDocs.map((a) => a.id) };
   } catch (err: any) {
     logger.error(LOG, 'leitura dos documentos lançou erro', { tipo: String(err?.name || 'erro'), ms: Date.now() - t0 });
     return { ok: false, motivo: 'ia_indisponivel', ignorados: [] };

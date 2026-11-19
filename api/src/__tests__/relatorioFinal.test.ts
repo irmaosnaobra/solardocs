@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { createHmac } from 'crypto';
 import { kitVendido, relatorioFinalHtml, resumoDaVistoria, type EntradaRelatorio } from '../services/gerador/relatorioFinal';
 import { assinarJornada, normalizarJornada, jornadaAssinada } from '../services/gerador/jornadaSolarBanco';
 import { estadoMaterializado, marcaDoValor } from '../services/gerador/jornadaSolar';
@@ -94,14 +95,14 @@ describe('estado da etapa 1: confirmados, pedidos e financiamento', () => {
     process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste';
     const e = base();
     const marca = marcaDoValor('nome', 'Ana');
-    (e.etapas[1] as unknown as Record<string, unknown>).financiamento = 'sim';
+    (e.etapas[1] as unknown as Record<string, unknown>).financiamento = 'financeira';
     (e.etapas[1] as unknown as Record<string, unknown>).confirmados = {
       valor: { em: AGORA, por: 'Nilce', marca }, nome: { em: AGORA, por: 'nilce', marca }, chave_nova: { em: AGORA, por: 'x', marca }, email: { em: AGORA, por: 'x', marca: 'torta' }, telefone: { em: 'ontem', por: 'x', marca },
     };
     (e.etapas[1] as unknown as Record<string, unknown>).kit_texto = { inversor: ' 1 x Growatt ', placas: 'ab', outro: 'xxxx' };
     (e.etapas[1] as unknown as Record<string, unknown>).pedidos = { pedido_fachada: { em: AGORA, por: 'nilce' }, pedido_cnh: { em: AGORA, por: 'nilce' }, pedido_x: { em: AGORA, por: 'nilce' } };
     const n = normalizarJornada(10, e)!;
-    expect(n.etapas[1].financiamento).toBe('sim');
+    expect(n.etapas[1].financiamento).toBe('financeira');
     expect(Object.keys(n.etapas[1].confirmados!)).toEqual(['nome', 'valor']);   // na ordem do contrato; o resto caiu
     expect(n.etapas[1].confirmados!.valor.por).toBe('nilce');
     expect(Object.keys(n.etapas[1].pedidos!)).toEqual(['pedido_cnh', 'pedido_fachada']);
@@ -113,6 +114,18 @@ describe('estado da etapa 1: confirmados, pedidos e financiamento', () => {
     forjado.etapas[1].confirmados.nome.marca = 'f'.repeat(16);
     expect(jornadaAssinada(10, { ...forjado, sig })).toBeNull();
     expect(normalizarJornada(10, { ...base(), etapas: { ...base().etapas, 1: { ...base().etapas[1], financiamento: 'talvez' } } })!.etapas[1].financiamento).toBeUndefined();
+    // o `sim` de antes abria a proposta de banco: lê-se `proprio`; os três tipos novos passam; assinatura de antes (com `sim`) continua valendo
+    const com = (fin: unknown) => normalizarJornada(10, { ...base(), etapas: { ...base().etapas, 1: { ...base().etapas[1], financiamento: fin } } })!;
+    expect(com('sim').etapas[1].financiamento).toBe('proprio');
+    expect(['nao', 'proprio', 'financeira'].map((v) => com(v).etapas[1].financiamento)).toEqual(['nao', 'proprio', 'financeira']);
+    for (const v of [null, 1, 'SIM', '']) expect(com(v).etapas[1].financiamento).toBeUndefined();
+    const lido = com('sim');
+    // a assinatura de um estado gravado antes dos 3 tipos: HMAC do JSON com `sim` (assinarJornada já normalizaria para `proprio`)
+    const sigAntiga = createHmac('sha256', 'segredo-de-teste').update(`jornada|10|${JSON.stringify({ ...lido, etapas: { ...lido.etapas, 1: { ...lido.etapas[1], financiamento: 'sim' } } })}`).digest('hex');
+    expect(sigAntiga).not.toBe(assinarJornada(10, lido));
+    const gravado = comJsonb(lido) as { etapas: { 1: { financiamento: string } } };
+    gravado.etapas[1].financiamento = 'sim';
+    expect(jornadaAssinada(10, { ...gravado, sig: sigAntiga })!.etapas[1].financiamento).toBe('proprio');
     delete process.env.VINCULO_SOLAR_SECRET;
   });
 });

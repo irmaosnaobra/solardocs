@@ -36,10 +36,12 @@ export interface PapelGerado { gerado_em: string; por: string }
 export interface EtapaBase { aberta_em: string | null; concluida_em: string | null; concluida_por: string }
 /** Confirmação de um dado da etapa 1: `marca` é o hash do valor no momento (mudou o valor, a confirmação deixa de valer). */
 export interface Confirmacao { em: string; por: string; marca: string }
+export const FINANCIAMENTOS = ['nao', 'proprio', 'financeira'] as const;
+export type TipoFinanciamento = typeof FINANCIAMENTOS[number];
 export interface Etapa1 extends EtapaBase {
   excedente: 'sim' | 'nao' | null;
-  /** Precisa de proposta de banco ou financiamento? Só existe depois de respondido. */
-  financiamento?: 'sim' | 'nao';
+  /** Tipo de financiamento: `proprio` (abre a proposta de banco), `financeira` (só pode pedir documentos extras) ou `nao`. Só existe depois de respondido; o legado `sim` é lido como `proprio`. */
+  financiamento?: TipoFinanciamento;
   /** Placas e inversor escritos à mão quando a proposta ligada não traz marca ou quantidade (3 a 120 caracteres). A confirmação vale sobre este texto. */
   kit_texto?: { placas?: string; inversor?: string };
   confirmados?: Record<string, Confirmacao>;
@@ -435,7 +437,7 @@ export function itensDaEtapa(n: number, f: EntradaItens): ItemEtapa[] {
       { chave: 'pagamento', bloco: 'venda', texto: 'Forma de pagamento', feito: conf('pagamento') },
       { chave: 'financiamento', bloco: 'venda', texto: 'Precisa de proposta de banco ou financiamento?', feito: fin !== null },
     ];
-    if (fin === 'sim') itens.push({ chave: 'proposta_banco', bloco: 'venda', texto: 'Proposta de banco preenchida', feito: bancoPreenchido(f.obra?.banco) });
+    if (fin === 'proprio') itens.push({ chave: 'proposta_banco', bloco: 'venda', texto: 'Proposta de banco preenchida', feito: bancoPreenchido(f.obra?.banco) });
     // O papel assinado anexado prova que o papel existiu: obra antiga fez o papel fora do sistema e só anexou o assinado.
     itens.push(
       { chave: 'papel_contrato', bloco: 'papeis', texto: 'Contrato gerado', feito: !!papeis?.contrato || tem('contrato_assinado') },
@@ -447,14 +449,6 @@ export function itensDaEtapa(n: number, f: EntradaItens): ItemEtapa[] {
       { chave: 'documento', bloco: 'documentos', texto: 'CNH ou identidade', feito: tem('documento_titular') || tem('documento_titular_uc') },
       { chave: 'conta_luz', bloco: 'documentos', texto: 'Conta de luz', feito: tem('conta_luz') },
     );
-    // Só com financiamento "sim": o titular do financiamento manda documento e comprovante de endereço. Os dois slots ficam fora do Trello e do
-    // relatório (SLOTS_FORA_DO_RELATORIO), e a etapa 2 NÃO os herda como pendência (obra antiga não trava por eles).
-    if (fin === 'sim') {
-      itens.push(
-        { chave: 'documento_financiamento', bloco: 'documentos', texto: 'Documento do titular do financiamento', feito: tem('documento_financiamento') },
-        { chave: 'comprovante_endereco_financiamento', bloco: 'documentos', texto: 'Comprovante de endereço do titular do financiamento', feito: tem('comprovante_endereco_financiamento') },
-      );
-    }
     itens.push(
       { chave: 'fachada', bloco: 'fotos', texto: 'Foto da fachada', feito: tem('fachada') },
       { chave: 'padrao', bloco: 'fotos', texto: 'Foto do padrão de entrada', feito: tem('padrao') },
