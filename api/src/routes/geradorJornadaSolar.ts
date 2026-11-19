@@ -6,7 +6,7 @@ import { acessoVendaSolar } from './geradorClientes';
 import { planilha, comSobrescritas } from './geradorSolar';
 import { responderErroDoAlocador } from './geradorVendaSolarCliente';
 import { tentarNumeroDaJornada, baseDaJornada, responderNumero409 } from './geradorJornadaNumero';
-import { dispararTrelloAutomatico } from './geradorJornadaTrelloAuto';
+import { anexarRelatorioManual, dispararTrelloAutomatico } from './geradorJornadaTrelloAuto';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { generateFromTemplate } from '../services/templateService';
 import { limparHtmlPapel } from '../services/gerador/htmlPapelSeguro';
@@ -16,7 +16,7 @@ import { lerCadastroVisto, tipoDoCadastro, type Cadastro } from '../services/ger
 import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
 import { ErroDocs, lerPropostaResumo, lerSlotsDosCards } from '../services/gerador/docsClienteBanco';
 import { lerProposta, normalizarNome } from '../services/gerador/dossieVenda';
-import { equipamentoDaProposta } from '../services/gerador/trelloVendaSolar';
+import { equipamentoDaProposta, type EquipamentoProposta } from '../services/gerador/trelloVendaSolar';
 import {
   ErroHub, TRAVA_VINCULOS, POR_GERADOR, lerLigacao, lerTodasLigacoes, gravarLigacao, invalidarCachesHub, quemUsa,
   lerCardsPorIds, lerCardsSolarVendidos, compararTelefones, propostaDoPapel, segredoDoVinculo, type Ligacao,
@@ -29,7 +29,7 @@ import { dadosDaPlanilha } from '../services/gerador/jornadaFinalizada';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 import {
   CURTOS_ETAPA, DONOS_FIXOS, blocoVendaCompleto, FORMAS_PAGAMENTO, MOTIVOS_ESPERA, NOMES_ETAPA, TIPOS_PAPEL, ROTULO_ESPERA,
-  comissoesDaVenda, ddmm, deduzirEtapa, donosDaEtapa, estadoMaterializado, estadoTrelloAuto, etapaAtualDoEstado, iniciais, itensDaEtapa, marcaDoRateio,
+  comissoesDaVenda, confirmadosValidos, kitCompleto, TEXTO_KIT_MAX, TEXTO_KIT_MIN, ddmm, deduzirEtapa, ehChaveConfirmar, ehChavePedido, excedenteCpf, marcaDoValor, valorConfirmavel, vistoriaPct, confirmacaoValida, donosDaEtapa, estadoMaterializado, estadoTrelloAuto, etapaAtualDoEstado, iniciais, itensDaEtapa, marcaDoRateio,
   podeConcluir, prazoDaEtapa, rateioDoCadastro, situacao, somarDiasUteis, totalDoRateio, veObra,
   type EntradaItens, type EstadoJornada, type FormaPagamento, type MotivoEspera, type PrivadoJornada, type Situacao, type TipoPapel,
 } from '../services/gerador/jornadaSolar';
@@ -37,7 +37,9 @@ import {
   ErroJornada, ehRecusa, lerJornadaComVersao, lerPrivadoJornada, lerTodasJornadas, mudarJornada, mudarPrivadoJornada,
   MAX_NOTA, MAX_PRAZO, type Recusa,
 } from '../services/gerador/jornadaSolarBanco';
-import { lerObraComVersao, lerTodasObras, mudarObra, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
+import { lerObraComVersao, lerObraPrivada, lerTodasObras, mudarObra, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
+import { gerarRelatorioFinal } from './geradorJornadaRelatorioFinal';
+import { kitVendido, lerRelatorioFinal } from '../services/gerador/relatorioFinal';
 import { lerResumoDoDinheiro } from '../services/gerador/jornadaDinheiroBanco';
 import { CAMPOS_CONTRATO, etapaAtualCompleta, obraMaterializada, type ContratoObra, type EstadoObra } from '../services/gerador/jornadaObra';
 import { situacaoObra } from '../services/gerador/jornadaObra';
@@ -127,6 +129,9 @@ async function guardaObra(req: Request, res: Response, escrita = false): Promise
 
 // ── O que se lê de uma obra ───────────────────────────────────────────────────────────────────────────────────────────
 
+type ObraPrivadaVistoria = NonNullable<Awaited<ReturnType<typeof lerObraPrivada>>>['vistoria'];
+type ObraPrivadaBanco = NonNullable<Awaited<ReturnType<typeof lerObraPrivada>>>['banco'];
+
 interface Leitura {
   lig: Ligacao;
   estado: EstadoJornada | null;
@@ -142,6 +147,9 @@ interface Leitura {
   origem: Map<string, 'dossie' | 'planilha'>;
   tem_cartao: boolean;
   proposta: Awaited<ReturnType<typeof lerProposta>>;
+  /** O kit da proposta ligada e a obra privada (vistoria e proposta de banco): só lidos quando `comProposta`. */
+  equip: EquipamentoProposta | null;
+  obra: { vistoria: ObraPrivadaVistoria; banco: ObraPrivadaBanco; versoes: Record<string, number> } | null;
 }
 
 async function ler(g: Guarda, comProposta = true): Promise<Leitura> {
@@ -159,7 +167,9 @@ async function ler(g: Guarda, comProposta = true): Promise<Leitura> {
   for (const a of dv?.arquivos ?? []) if (!slotsDoCard.has(a.slot)) origem.set(a.slot, 'dossie');
   for (const a of await arquivosDaPlanilha(g.ctx, lig.venda)) { if (!slots.has(a.slot)) origem.set(a.slot, 'planilha'); slots.add(a.slot); }
   const proposta = comProposta && lig.proposta ? await lerProposta(lig.proposta).catch((e) => { logErro('proposta', e); return null; }) : null;
-  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, origem, tem_cartao: !!lig.trello_card, proposta };
+  const equip = proposta ? equipamentoDaProposta({ qtd_placas: proposta.qtd_placas, inversor: proposta.inversor, qtd_inversor: proposta.qtd_inversor, dados: proposta.dados }) : null;
+  const op = comProposta ? await lerObraPrivada(g.id).catch((e) => { logErro('obra privada', e); return null; }) : null;
+  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, origem, tem_cartao: !!lig.trello_card, proposta, equip, obra: op ? { vistoria: op.vistoria, banco: op.banco, versoes: op.versoes } : null };
 }
 
 /**
@@ -177,14 +187,6 @@ export async function arquivosDaPlanilha(ctx: Ctx, venda: string | null): Promis
       return slot ? [{ slot, em: a.em, caminho: a.caminho }] : [];
     });
   } catch (err) { logErro('arquivos da planilha', err); return []; }
-}
-
-/** `{ placas, inversor, kwp }` do kit da proposta ligada ("20 × Canadian 590 W"), ou null quando não há proposta. */
-function kitVendido(e: ReturnType<typeof equipamentoDaProposta>, kwp: number | null): { placas: string; inversor: string; kwp: number | null } | null {
-  if (!e) return null;
-  const q = (n: number | null): string => (n ? `${n} × ` : '');
-  const placas = `${q(e.qtdPlacas)}${[e.modeloPlaca, e.potPlaca ? `${e.potPlaca} W` : ''].filter(Boolean).join(' ')}`.trim();
-  return { placas, inversor: `${q(e.qtdInversor)}${e.inversor}`.trim(), kwp };
 }
 
 const vendedorDe = (card: CardVendido, estado: EstadoJornada | null): string => nomeSimples(card.vendedor_nome) || estado?.vendedor || '';
@@ -214,8 +216,7 @@ function podeDe(g: Guarda, l: Leitura, pos: Posicao) {
   const etapa = pos.etapa;
   const e1Aberta = l.estado ? !l.estado.etapas[1].concluida_em : pos.etapa === 1;
   const e1Feita = !!l.estado?.etapas[1].concluida_em || (pos.trilho !== 'jornada' && pos.etapa !== null && pos.etapa > 1);
-  // Fases 1 a 3 (18/11/2026): o excedente se marca até a etapa 2 concluir; o kit se confirma até a etapa 3 concluir.
-  const e2Aberta = l.estado ? !l.estado.etapas[2].concluida_em : pos.etapa !== null && pos.etapa <= 2;
+  // O kit se confirma (PUT /venda) até a etapa 3 concluir; o excedente, os pedidos e as confirmações valem até a etapa 1 concluir.
   const e3Aberta = l.estado ? !l.estado.etapas[3].concluida_em : pos.etapa !== null && pos.etapa <= 3;
   const no123 = etapa !== null && etapa >= 1 && etapa <= 3;
   const par = l.slotsDoCard.has('contrato_assinado') && l.slotsDoCard.has('procuracao');
@@ -227,7 +228,11 @@ function podeDe(g: Guarda, l: Leitura, pos: Posicao) {
     esperar: !cancelada && no123 && (g.adm || donosDaEtapa(etapa as number, vend).includes(g.nome)),
     editar_venda: !cancelada && (e1Aberta ? (ehVend || g.adm) : (e1Feita && (giov || g.adm))),
     gerar_papeis: !cancelada && !l.obraEstado?.fechada && (giov || ehVend || g.adm),
-    marcar_excedente: !cancelada && (ehVend || giov || g.adm) && e2Aberta,
+    marcar_excedente: !cancelada && (ehVend || giov || g.adm) && e1Aberta,
+    // Confirmar dados, ticar pedidos ao cliente e responder o financiamento (etapa 1 aberta): quem edita a venda e o cadastro.
+    confirmar: !cancelada && (ehVend || giov || g.adm) && e1Aberta,
+    // O relatório final em PDF: dono da obra, sócios e quem tem a etapa de qualquer obra.
+    relatorio_final: !cancelada && (ehVend || g.adm || DONOS_FIXOS.has(g.nome)),
     // Confirmar o kit (etapa 3): as mesmas pessoas de `editar_venda` (a regra de quem mexe na venda não muda), enquanto a etapa 3 não conclui.
     confirmar_kit: !cancelada && !l.obraEstado?.fechada && e3Aberta && (e1Aberta ? (ehVend || g.adm) : (giov || g.adm)),
     etapa3: !cancelada && (g.nome === 'thiago' || g.adm) && etapa === 3,
@@ -241,7 +246,7 @@ function podeDe(g: Guarda, l: Leitura, pos: Posicao) {
 const baseDe = (g: Guarda, l: Leitura) => baseDaJornada(g.card, l.slots, l.lig);
 
 const entradaDe = (l: Leitura, estado: EstadoJornada | null): EntradaItens =>
-  ({ lig: l.lig, slots: l.slots, cad: l.cad, privado: l.privado, estado });
+  ({ lig: l.lig, slots: l.slots, cad: l.cad, privado: l.privado, estado, equip: l.equip, obra: l.obra });
 
 // ── Rota 1 · Vendido ──────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -566,6 +571,7 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
     const candidatas = pode.ligar_proposta && !l.lig.proposta ? await candidatasDaObra(g, l, todas).catch((e) => { logErro('candidatas', e); return []; }) : [];
 
     const nEstado = estadoDoNumero(l);
+    const giovOuVend = g.nome === 'giovanna' || (!!vend && g.nome === vend);
     const etapas: Array<Record<string, unknown>> = [];
     for (let n = 1; n <= 9; n++) {
       const donos = donosDaEtapa(n, vend).map((d) => ({ nome: d, iniciais: iniciais(d) }));
@@ -608,7 +614,13 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       proposta: p ? { codigo: p.codigo, cliente: p.cliente_nome ?? '', kwp } : null,
       propostas_candidatas: candidatas,
       // Os dados do bloco `cliente` da etapa 1 (o que está no cadastro da venda; vazio = falta).
-      dados_cliente: { nome: cadValor('nome'), endereco_ponto: cadValor('endereco_ponto'), telefone: cadValor('telefone'), email: cadValor('email') },
+      dados_cliente: {
+        nome: cadValor('nome'), endereco_ponto: cadValor('endereco_ponto'), telefone: cadValor('telefone'), email: cadValor('email'),
+        endereco: cadValor('endereco'), bairro: cadValor('bairro'), cidade: cadValor('cidade'), uf: cadValor('uf'), cep: cadValor('cep'),
+        // Valor e forma de pagamento: só para quem mexe na venda (vendedor da obra, Giovanna, ADM).
+        ...(g.adm || g.nome === 'giovanna' || pode.editar_venda
+          ? { valor_centavos: l.privado?.venda?.valor_centavos ?? null, pagamento: (l.privado?.venda?.pagamento ?? []).map((x) => ({ forma: x.forma, valor_centavos: x.valor_centavos })) } : {}),
+      },
       documentos: {
         titular_geradora: titularGeradora, email: cadValor('email'),
         beneficiarias: bens.map((b) => ({ uc: b.uc, titular: b.titular, mesmo_titular: !!b.titular && nomeCmp(b.titular) === nomeCmp(titularGeradora) })),
@@ -622,7 +634,22 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       protocolo: l.estado?.etapas[3].protocolo ?? null, engenheiro: l.estado?.etapas[3].engenheiro ?? null,
       excedente: l.estado?.etapas[1].excedente ?? null,
       // O kit que foi VENDIDO (a proposta ligada), para a Fase 1 mostrar: texto das placas e do inversor e o kWp; null sem proposta.
-      kit_vendido: kitVendido(equip, kwp),
+      kit_vendido: kitVendido(equip, kwpDados, l.estado?.etapas[1].kit_texto),
+      // Etapa 1: o que está confirmado (só com a marca em dia), os pedidos ao cliente ticados, a resposta do financiamento, a % da vistoria e a
+      // conferência de CPF do excedente (ok null = sem CPF dos dois lados; a regra de nome decide).
+      // O que o formulário de vistoria e a proposta de banco da etapa 1 precisam (o mesmo `dados`, `versoes` e `pode.secoes` do GET .../fase2): os PUTs
+      // .../fase2/vistoria e .../fase2/banco valem já na etapa 1, sem a obra materializada.
+      fase2: {
+        dados: { vistoria: l.obra?.vistoria ?? null, banco: l.obra?.banco ?? null },
+        versoes: l.obra?.versoes ?? {},
+        pode: { secoes: !l.estado?.cancelada && !l.obraEstado?.fechada && (g.adm || giovOuVend) ? ['vistoria', 'banco'] : [] },
+      },
+      confirmados: confirmadosValidos(entradaDe(l, l.estado)),
+      pedidos: l.estado?.etapas[1].pedidos ?? {},
+      financiamento: l.estado?.etapas[1].financiamento ?? null,
+      vistoria_pct: vistoriaPct(l.obra?.vistoria ?? null),
+      excedente_cpf: excedenteCpf(l.cad, l.estado?.etapas[1].excedente === 'sim'),
+      relatorio_final: await lerRelatorioFinal(g.id).catch((e) => { logErro('relatório final', e); return null; }),
       // O cartão do Trello sai sozinho quando `pronto`: etapas 1 e 2 concluídas, bloco equipamento feito, com número e sem cancelar.
       trello_auto: estadoTrelloAuto(entradaDe(l, l.estado), !!l.lig.venda),
       papeis: l.estado?.etapas[2].papeis ?? { contrato: null, procuracao: null, recibo: null },
@@ -722,7 +749,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     : (typeof b.desconto_centavos === 'number' && Number.isInteger(b.desconto_centavos) && b.desconto_centavos >= 0 && b.desconto_centavos <= 10_000_000_000 ? b.desconto_centavos : undefined);
   const prazo = b.prazo_prometido === undefined || b.prazo_prometido === null ? '' : textoLimpo(b.prazo_prometido, MAX_PRAZO);
   const nota = b.nota === undefined || b.nota === null ? '' : textoLimpo(b.nota, MAX_NOTA, true);
-  if (desconto === undefined || prazo === null || nota === null || typeof b.kit_confirmado !== 'boolean') { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+  if (desconto === undefined || prazo === null || nota === null || (b.kit_confirmado !== undefined && typeof b.kit_confirmado !== 'boolean')) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
   try {
     const l = await ler(g, false);
     const pode = podeDe(g, l, posicaoDe(l));
@@ -730,7 +757,8 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     // Fase 2: a conta fechada trava o valor vendido (ele é a base do "a receber"). Só o Thiago reabre.
     if (l.obraEstado?.fechada) { res.status(409).json({ ok: false, error: 'A conta desta obra está fechada. Só o Thiago reabre.' }); return; }
     // O kit só muda enquanto a etapa 3 não concluiu (e por quem pode confirmá-lo): depois disso o PUT recusa a troca do kit.
-    if ((l.privado?.venda?.kit_confirmado ?? false) !== b.kit_confirmado && !pode.confirmar_kit) {
+    const kitPedido = b.kit_confirmado === undefined ? (l.privado?.venda?.kit_confirmado ?? false) : b.kit_confirmado as boolean;   // sem o campo, o kit segue como está
+    if ((l.privado?.venda?.kit_confirmado ?? false) !== kitPedido && !pode.confirmar_kit) {
       res.status(403).json({ ok: false, error: 'O kit só pode ser confirmado ou desfeito até a etapa Homologação concluir.' });
       return;
     }
@@ -741,7 +769,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     const novo = await mudarPrivadoJornada(g.id, g.nome, (p) => {
       const ant = p.venda;
       const venda: NonNullable<PrivadoJornada['venda']> = {
-        valor_centavos: valor, pagamento, desconto_centavos: desconto, prazo_prometido: prazo, nota, kit_confirmado: b.kit_confirmado as boolean,
+        valor_centavos: valor, pagamento, desconto_centavos: desconto, prazo_prometido: prazo, nota, kit_confirmado: kitPedido,
         combinado_por: ant?.combinado_por || g.nome, combinado_em: ant?.combinado_em || agora, editado: ant?.editado ?? [],
       };
       if (ant) {
@@ -751,7 +779,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
         if (ant.desconto_centavos !== desconto) campos.push('desconto');
         if (ant.prazo_prometido !== prazo) campos.push('prazo');
         if (ant.nota !== nota) campos.push('nota');
-        if (ant.kit_confirmado !== b.kit_confirmado) campos.push('kit');
+        if (ant.kit_confirmado !== kitPedido) campos.push('kit');
         if (campos.length) venda.editado = [...venda.editado, { em: agora, por: g.nome, campos }].slice(-30);
       }
       return { ...p, venda };
@@ -766,7 +794,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     // Fase 3: o bloco Venda pode ter ficado completo agora (grava `venda_completa` uma vez só; nunca lança).
     await marcarVendaCompleta(g.id, g.nome, completoAntes);
     // Kit confirmado pode ter completado o bloco equipamento da etapa 3: o cartão do Trello sai sozinho (segundo plano, idempotente).
-    if (b.kit_confirmado === true) dispararTrelloAutomatico(g.card, { nome: g.nome, socio: g.socio });
+    if (kitPedido) dispararTrelloAutomatico(g.card, { nome: g.nome, socio: g.socio });
     res.json({ ok: true, venda: novo.venda, ...(aviso ? { aviso } : {}) });
   } catch (err) {
     falhou(res, 'venda', err);
@@ -832,9 +860,11 @@ async function rotaPatch(req: Request, res: Response): Promise<void> {
   if (!g) return;
   const b = corpoDe(req);
   const chaves = b ? Object.keys(b) : [];
-  const validas = ['excedente', 'engenheiro', 'protocolo', 'rateio_conferido'];
+  const validas = ['excedente', 'financiamento', 'pedido', 'feito', 'engenheiro', 'protocolo', 'rateio_conferido'];
   if (!b || chaves.length === 0 || chaves.some((k) => !validas.includes(k))) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
   if ((b.excedente !== undefined && b.excedente !== 'sim' && b.excedente !== 'nao')
+    || (b.financiamento !== undefined && b.financiamento !== 'sim' && b.financiamento !== 'nao')
+    || ((b.pedido !== undefined || b.feito !== undefined) && (!ehChavePedido(b.pedido) || typeof b.feito !== 'boolean'))
     || (b.engenheiro !== undefined && b.engenheiro !== 'pago' && b.engenheiro !== 'a_pagar')
     || (b.rateio_conferido !== undefined && b.rateio_conferido !== true)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
   let protocolo: { numero: string; em: string } | null | undefined;
@@ -856,7 +886,7 @@ async function rotaPatch(req: Request, res: Response): Promise<void> {
     const pos = posicaoDe(l);
     const pode = podeDe(g, l, pos);
     if (l.estado?.cancelada) { res.status(409).json({ ok: false, error: 'Venda cancelada.' }); return; }
-    if ((b.excedente !== undefined && !pode.marcar_excedente)
+    if (((b.excedente !== undefined || b.financiamento !== undefined || b.pedido !== undefined) && !pode.marcar_excedente)
       || ((b.engenheiro !== undefined || protocolo !== undefined || b.rateio_conferido !== undefined) && !pode.etapa3)) {
       res.status(403).json({ ok: false, error: 'Você não pode mudar isto agora.' });
       return;
@@ -874,6 +904,14 @@ async function rotaPatch(req: Request, res: Response): Promise<void> {
         n = { ...n, historico: [...n.historico, { em: agora, por: g.nome, acao, etapa }].slice(-50) };
       };
       if (b.excedente !== undefined) { n = { ...n, etapas: { ...n.etapas, 1: { ...n.etapas[1], excedente: b.excedente as 'sim' | 'nao' } } }; nota('excedente', 1); }
+      if (b.financiamento !== undefined) n = { ...n, etapas: { ...n.etapas, 1: { ...n.etapas[1], financiamento: b.financiamento as 'sim' | 'nao' } } };
+      if (b.pedido !== undefined) {
+        const ped = { ...(n.etapas[1].pedidos ?? {}) };
+        if (b.feito === true) ped[b.pedido as string] = { em: agora, por: g.nome }; else delete ped[b.pedido as string];
+        const { pedidos: _antes, ...resto } = n.etapas[1];
+        void _antes;
+        n = { ...n, etapas: { ...n.etapas, 1: Object.keys(ped).length ? { ...resto, pedidos: ped } : resto } };
+      }
       if (b.engenheiro !== undefined) { n = { ...n, etapas: { ...n.etapas, 3: { ...n.etapas[3], engenheiro: b.engenheiro as 'pago' | 'a_pagar' } } }; nota('engenheiro', 3); }
       if (protocolo !== undefined) {
         const abertura = n.etapas[3].aberta_em ? diaDeBrasilia(n.etapas[3].aberta_em) : '';
@@ -894,6 +932,85 @@ async function rotaPatch(req: Request, res: Response): Promise<void> {
   }
 }
 
+// ── Rota 6b · Confirmar um dado da etapa 1 ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /jornada-solar/obra/:card/confirmar  { chave, confirmar: boolean }. A confirmação guarda a MARCA do valor de agora (hash): mudou o valor,
+ * ela deixa de valer e o item volta a pedir. Nunca grava nem loga o valor. Confirmar placas e inversor grava `kit_confirmado` (compatibilidade).
+ */
+async function rotaConfirmar(req: Request, res: Response): Promise<void> {
+  const g = await guardaObra(req, res, true);
+  if (!g) return;
+  const b = corpoDe(req);
+  const chave = b ? b.chave : undefined;
+  if (!b || !ehChaveConfirmar(chave) || typeof b.confirmar !== 'boolean') { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+  // `texto` (opcional, só placas e inversor): o kit escrito à mão quando a proposta não traz marca ou quantidade. 3 a 120 caracteres.
+  let texto: string | null = null;
+  if (b.texto !== undefined) {
+    texto = chave === 'placas' || chave === 'inversor' ? textoLimpo(b.texto, TEXTO_KIT_MAX) : null;
+    if (texto === null || texto.length < TEXTO_KIT_MIN) { res.status(400).json({ ok: false, error: 'Escreva de 3 a 120 caracteres.' }); return; }
+  }
+  try {
+    const l = await ler(g, true);
+    const pode = podeDe(g, l, posicaoDe(l));
+    if (l.estado?.cancelada) { res.status(409).json({ ok: false, error: 'Venda cancelada.' }); return; }
+    if (!pode.confirmar) { res.status(403).json({ ok: false, error: 'Você não pode confirmar isto agora.' }); return; }
+    // O texto só vale quando a proposta não traz o dado completo; com dado na proposta, confirmar sem texto segue como sempre.
+    const usaTexto = texto !== null && (chave === 'placas' || chave === 'inversor') && !kitCompleto(chave, l.equip);
+    const estadoDoValor = usaTexto ? (() => { const x = l.estado ?? baseDe(g, l)(); return { ...x, etapas: { ...x.etapas, 1: { ...x.etapas[1], kit_texto: { ...(x.etapas[1].kit_texto ?? {}), [chave]: texto as string } } } }; })() : l.estado;
+    const valor = valorConfirmavel(chave, entradaDe(l, estadoDoValor));
+    if (b.confirmar && !valor) { res.status(409).json({ ok: false, error: 'Falta o dado para confirmar.' }); return; }
+    const agora = new Date().toISOString();
+    const marca = valor ? marcaDoValor(chave, valor) : '';
+    const r = await mudarJornada(g.id, baseDe(g, l), (e) => {
+      if (e.cancelada) return { recusa: 'Venda cancelada.', http: 409 } as Recusa;
+      if (e.etapas[1].concluida_em) return { recusa: 'A etapa Venda já foi concluída.', http: 409 } as Recusa;
+      const conf = { ...(e.etapas[1].confirmados ?? {}) };
+      if (b.confirmar) conf[chave] = { em: agora, por: g.nome, marca }; else delete conf[chave];
+      const { confirmados: _antes, ...resto0 } = e.etapas[1];
+      void _antes;
+      const resto = usaTexto && b.confirmar ? { ...resto0, kit_texto: { ...(resto0.kit_texto ?? {}), [chave]: texto as string } } : resto0;
+      return { ...e, etapas: { ...e.etapas, 1: Object.keys(conf).length ? { ...resto, confirmados: conf } : resto } };
+    });
+    if (ehRecusa(r)) { res.status(r.http).json({ ok: false, error: r.recusa }); return; }
+    // Placas e inversor confirmados = kit confirmado (o campo antigo segue gravado para quem ainda o lê).
+    if (chave === 'placas' || chave === 'inversor') {
+      const nova = entradaDe(l, r);
+      const kit = confirmacaoValida('placas', nova) && confirmacaoValida('inversor', nova);
+      if (l.privado?.venda && l.privado.venda.kit_confirmado !== kit) {
+        await mudarPrivadoJornada(g.id, g.nome, (p) => (p.venda ? { ...p, venda: { ...p.venda, kit_confirmado: kit } } : p));
+      }
+    }
+    res.json({ ok: true, confirmados: confirmadosValidos(entradaDe(l, r)) });
+  } catch (err) {
+    falhou(res, 'confirmar', err);
+  }
+}
+
+// ── Rota 6c · Relatório final em PDF ─────────────────────────────────────────────────────────────────────────────────
+
+/** POST /jornada-solar/obra/:card/relatorio-final: gera o PDF (sem dinheiro, contrato assinado nem recibo), guarda e devolve a URL assinada. */
+async function rotaRelatorioFinal(req: Request, res: Response): Promise<void> {
+  const g = await guardaObra(req, res, false);
+  if (!g) return;
+  try {
+    const l = await ler(g, false);
+    if (!podeDe(g, l, posicaoDe(l)).relatorio_final) { res.status(403).json({ ok: false, error: 'Você não pode gerar o relatório final desta venda.' }); return; }
+    let feito: Awaited<ReturnType<typeof gerarRelatorioFinal>>;
+    try { feito = await gerarRelatorioFinal({ nome: g.nome, socio: g.socio, card: g.card }); } catch (err) {
+      logErro('relatório final (pdf)', err);
+      res.status(503).json({ ok: false, error: 'Não consegui gerar o PDF agora. Tente de novo em 1 minuto.' });
+      return;
+    }
+    if (!feito) { res.status(413).json({ ok: false, error: 'O relatório final ficou grande demais. Tire fotos do álbum.' }); return; }
+    // O mesmo PDF vai ao cartão do Trello (se existir e o quadro não for público); se já havia um relatório lá, este entra com nome datado.
+    const trello = await anexarRelatorioManual(g.card, { nome: g.nome }, feito.pdf);
+    res.json({ ok: true, gerado_em: feito.gerado_em, url: (await lerRelatorioFinal(g.id))?.url ?? null, trello });
+  } catch (err) {
+    falhou(res, 'relatorio final', err);
+  }
+}
+
 // ── Rota 7 · Concluir a etapa ─────────────────────────────────────────────────────────────────────────────────────────
 
 async function rotaEtapa(req: Request, res: Response): Promise<void> {
@@ -903,7 +1020,7 @@ async function rotaEtapa(req: Request, res: Response): Promise<void> {
   const n = b ? b.etapa : undefined;
   if (!b || (n !== 1 && n !== 2 && n !== 3)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
   try {
-    const l = await ler(g, false);
+    const l = await ler(g, true);   // a proposta e a obra privada contam nos itens da etapa 1
     const vend = vendedorDe(g.card, l.estado);
     if (l.estado?.cancelada) { res.status(409).json({ ok: false, error: 'Venda cancelada.' }); return; }
     if (!podeConcluir(g.nome, n, vend)) { res.status(403).json({ ok: false, error: 'Só o dono conclui a etapa.' }); return; }
@@ -1241,6 +1358,8 @@ export function mountJornadaSolar(router: Router): void {
   router.put('/jornada-solar/obra/:card/venda', ...base, rotaVenda);
   router.post('/jornada-solar/obra/:card/proposta', ...base, rotaProposta);
   router.patch('/jornada-solar/obra/:card', ...base, rotaPatch);
+  router.post('/jornada-solar/obra/:card/confirmar', ...base, rotaConfirmar);
+  router.post('/jornada-solar/obra/:card/relatorio-final', ...base, rotaRelatorioFinal);
   router.post('/jornada-solar/obra/:card/etapa', ...base, rotaEtapa);
   router.post('/jornada-solar/obra/:card/esperar', ...base, rotaEsperar);
   router.post('/jornada-solar/obra/:card/cancelar', ...base, (req, res) => rotaCancelar(req, res, false));

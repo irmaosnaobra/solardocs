@@ -9,7 +9,8 @@ import crypto from 'crypto';
 import { ehAdm, ehSocio, nomeSimples, podeVer } from './solarObras';
 import type { Cadastro } from './cadastroVenda';
 import { nomeComparavel } from './docsCliente';
-import { titularDaVenda } from './trelloVendaSolar';
+import { titularDaVenda, type EquipamentoProposta } from './trelloVendaSolar';
+import type { BancoObra, VistoriaObra } from './jornadaObra';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
 import { diaDeBrasilia } from '../agenda/viradaDoDia';
 
@@ -33,7 +34,18 @@ export const TIPOS_PAPEL: readonly TipoPapel[] = ['contrato', 'procuracao', 'rec
 
 export interface PapelGerado { gerado_em: string; por: string }
 export interface EtapaBase { aberta_em: string | null; concluida_em: string | null; concluida_por: string }
-export interface Etapa1 extends EtapaBase { excedente: 'sim' | 'nao' | null }
+/** Confirmação de um dado da etapa 1: `marca` é o hash do valor no momento (mudou o valor, a confirmação deixa de valer). */
+export interface Confirmacao { em: string; por: string; marca: string }
+export interface Etapa1 extends EtapaBase {
+  excedente: 'sim' | 'nao' | null;
+  /** Precisa de proposta de banco ou financiamento? Só existe depois de respondido. */
+  financiamento?: 'sim' | 'nao';
+  /** Placas e inversor escritos à mão quando a proposta ligada não traz marca ou quantidade (3 a 120 caracteres). A confirmação vale sobre este texto. */
+  kit_texto?: { placas?: string; inversor?: string };
+  confirmados?: Record<string, Confirmacao>;
+  /** Pedidos ao cliente ticados à mão (o arquivo do slot também vale, sem tique). */
+  pedidos?: Record<string, { em: string; por: string }>;
+}
 export interface Etapa2 extends EtapaBase { papeis: Record<TipoPapel, PapelGerado | null> }
 export interface Etapa3 extends EtapaBase {
   rateio: { conferido_em: string; por: string; marca: string } | null;
@@ -80,8 +92,8 @@ export interface PrivadoJornada {
 
 // ── Etapas e donos ───────────────────────────────────────────────────────────────────────────────────────────────
 
-export const NOMES_ETAPA = ['', 'Venda', 'Documentos e vistoria', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega da obra', 'Pedido de vistoria e liberação', 'Pós-venda'];
-export const CURTOS_ETAPA = ['', 'Venda', 'Documentos', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega', 'Liberação', 'Pós-venda'];
+export const NOMES_ETAPA = ['', 'Venda', 'Anexos', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega da obra', 'Pedido de vistoria e liberação', 'Pós-venda'];
+export const CURTOS_ETAPA = ['', 'Venda', 'Anexos', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega', 'Liberação', 'Pós-venda'];
 /** Donos fixos (SPEC 2). 'vendedor' = quem vendeu (o `vendedor` do estado, senão o `vendedor_nome` do card). */
 export const DONOS_ETAPA: Record<number, readonly string[] | 'vendedor'> = {
   1: 'vendedor', 2: ['giovanna'], 3: ['thiago'], 4: ['thiago', 'diego'], 5: ['diego'], 6: ['diego'], 7: ['diego'], 8: ['thiago'], 9: 'vendedor',
@@ -243,8 +255,11 @@ export function marcaDoRateio(cad: Cadastro): string {
 
 // ── O que cada etapa pede para concluir ────────────────────────────────────────────────────────────────────────────
 
-export interface ItemEtapa { chave: string; bloco: 'cliente' | 'venda' | 'papeis' | 'fotos' | 'documentos' | 'portao' | 'equipamento'; texto: string; feito: boolean }
+export interface ItemEtapa { chave: string; bloco: 'cliente' | 'venda' | 'papeis' | 'pedidos' | 'excedente' | 'vistoria' | 'anexos' | 'fotos' | 'documentos' | 'portao' | 'equipamento'; texto: string; feito: boolean }
 export interface EntradaItens {
+  /** O kit da proposta ligada (placas e inversor, para confirmar) e a obra privada (vistoria e proposta de banco). Sem eles os itens que dependem ficam por fazer. */
+  equip?: EquipamentoProposta | null;
+  obra?: { vistoria: VistoriaObra | null; banco: BancoObra | null } | null;
   lig: { proposta: string | null; venda: string | null; trello_card?: string | null };
   /** Slots com arquivo no card MAIS os do dossiê da proposta ligada. */
   slots: ReadonlySet<string>;
@@ -267,6 +282,29 @@ export function blocoVendaCompleto(lig: { proposta: string | null }, privado: Pr
   return !!lig.proposta && valorPagamentoFecha(privado?.venda ?? null) && !!privado?.venda?.prazo_prometido.trim();
 }
 
+export const MSG_EXCEDENTE_OUTRO_CPF = 'Conta do excedente em outro CPF. Peça ao cliente para passar para o mesmo CPF.';
+const soDigitos = (s: string): string => s.replace(/\D/g, '');
+
+/**
+ * Conferência de CPF/CNPJ do excedente: compara SÓ DÍGITOS o documento de cada beneficiária (`benef_n_doc`) com o de quem fica com a usina
+ * (o titular da homologação `tuc_cpf_cnpj`, se a homologação é de outra pessoa; senão o contratante `cpf_cnpj`). `ok: null` = sem documento dos
+ * dois lados em nenhuma beneficiária (cai na regra de nome); `false` = alguma diverge; `true` = todas as que têm documento batem.
+ */
+export function excedenteCpf(cad: Cadastro, tem: boolean): { ok: boolean | null; texto: string | null } {
+  if (!tem) return { ok: null, texto: null };
+  const dono = soDigitos(valorDe(cad, valorDe(cad, 'homologacao_mesmo') === 'outra_pessoa' ? 'tuc_cpf_cnpj' : 'cpf_cnpj'));
+  if (!dono) return { ok: null, texto: null };
+  let comparou = false;
+  for (let i = 1; i <= 5; i++) {
+    if (!valorDe(cad, `benef_${i}_uc`)) continue;
+    const doc = soDigitos(valorDe(cad, `benef_${i}_doc`));
+    if (!doc) continue;
+    comparou = true;
+    if (doc !== dono) return { ok: false, texto: MSG_EXCEDENTE_OUTRO_CPF };
+  }
+  return comparou ? { ok: true, texto: null } : { ok: null, texto: null };
+}
+
 /** O excedente 'sim' fecha? Devolve o texto do que falta, ou null quando está tudo certo. */
 function faltaDoExcedente(f: EntradaItens): string | null {
   const ex = f.estado?.etapas[1].excedente ?? null;
@@ -275,54 +313,160 @@ function faltaDoExcedente(f: EntradaItens): string | null {
   const geradora = valorDe(f.cad, 'titular_conta') || titularDaVenda(f.cad);
   const bens = rateioDoCadastro(f.cad).filter((l) => l.papel === 'beneficiaria');
   if (bens.length === 0) return 'Cadastre ao menos uma conta que recebe o excedente';
+  const cpf = excedenteCpf(f.cad, true);
+  if (cpf.ok === false) return cpf.texto;
   const alvo = nomeComparavel(geradora);
-  if (bens.some((b) => !b.titular || nomeComparavel(b.titular) !== alvo)) return `Todas as contas do excedente no nome de ${geradora}`;
+  // Beneficiária com CPF conferido (igual) não precisa bater o nome; sem CPF, a regra de nome de sempre.
+  const donoDigitos = soDigitos(valorDe(f.cad, valorDe(f.cad, 'homologacao_mesmo') === 'outra_pessoa' ? 'tuc_cpf_cnpj' : 'cpf_cnpj'));
+  const idx = (uc: string): number => [1, 2, 3, 4, 5].find((i) => valorDe(f.cad, `benef_${i}_uc`) === uc) ?? 0;
+  const foraDoNome = bens.filter((b) => {
+    const doc = soDigitos(valorDe(f.cad, `benef_${idx(b.uc)}_doc`));
+    if (doc && donoDigitos && doc === donoDigitos) return false;
+    return !b.titular || nomeComparavel(b.titular) !== alvo;
+  });
+  if (foraDoNome.length) return `Todas as contas do excedente no nome de ${geradora}`;
   return null;
 }
+
+// ── Confirmação, pedidos, vistoria ──────────────────────────────────────────────────────────────────────────────
+
+/** Os itens da etapa 1 que a pessoa CONFIRMA (valor presente e conferido com o cliente). A confirmação vale só enquanto o valor não muda. */
+export const CHAVES_CONFIRMAR = ['nome', 'telefone', 'endereco', 'endereco_usina', 'email', 'placas', 'inversor', 'valor', 'pagamento'] as const;
+export type ChaveConfirmar = typeof CHAVES_CONFIRMAR[number];
+export const ehChaveConfirmar = (x: unknown): x is ChaveConfirmar => CHAVES_CONFIRMAR.includes(x as ChaveConfirmar);
+
+/** Pedido ao cliente: ticado à mão OU o arquivo do slot já existe. */
+export const CHAVES_PEDIDO = ['pedido_cnh', 'pedido_conta_luz', 'pedido_fachada', 'pedido_padrao', 'pedido_disjuntor', 'pedido_medidor'] as const;
+export type ChavePedido = typeof CHAVES_PEDIDO[number];
+export const ehChavePedido = (x: unknown): x is ChavePedido => CHAVES_PEDIDO.includes(x as ChavePedido);
+const SLOTS_DO_PEDIDO: Record<ChavePedido, readonly string[]> = {
+  pedido_cnh: ['documento_titular', 'documento_titular_uc'], pedido_conta_luz: ['conta_luz'], pedido_fachada: ['fachada'],
+  pedido_padrao: ['padrao'], pedido_disjuntor: ['disjuntor'], pedido_medidor: ['medidor'],
+};
+
+export const TEXTO_KIT_MIN = 3;
+export const TEXTO_KIT_MAX = 120;
+/** A proposta ligada traz o dado completo (placas: quantidade e marca; inversor: quantidade e marca)? */
+export function kitCompleto(chave: 'placas' | 'inversor', e: EquipamentoProposta | null | undefined): boolean {
+  if (!e) return false;
+  return chave === 'placas' ? !!(e.qtdPlacas && e.modeloPlaca) : !!(e.qtdInversor && e.inversor);
+}
+
+/** O valor atual do item de confirmação, em texto estável ('' = falta o dado). Serve só para a marca: nunca vai para log. */
+export function valorConfirmavel(chave: ChaveConfirmar, f: EntradaItens): string {
+  const v = f.privado?.venda ?? null;
+  switch (chave) {
+    case 'nome': return valorDe(f.cad, 'nome');
+    case 'telefone': return valorDe(f.cad, 'telefone');
+    case 'email': return valorDe(f.cad, 'email');
+    case 'endereco_usina': return valorDe(f.cad, 'endereco_ponto');
+    case 'endereco': {
+      const p = ['endereco', 'bairro', 'cidade', 'uf', 'cep'].map((k) => valorDe(f.cad, k));
+      return p[0] && p[2] && p[3] ? p.join('|') : '';
+    }
+    case 'placas': case 'inversor': {
+      // Com dado na proposta vale o da proposta; sem ele, o texto que a pessoa escreveu (a confirmação é sobre esse texto).
+      if (kitCompleto(chave, f.equip)) {
+        const e = f.equip!;
+        return chave === 'placas' ? `${e.qtdPlacas}|${e.modeloPlaca}|${e.potPlaca ?? ''}` : `${e.qtdInversor}|${e.inversor}`;
+      }
+      const t = f.estado?.etapas[1].kit_texto?.[chave]?.trim() ?? '';
+      return t.length >= TEXTO_KIT_MIN && t.length <= TEXTO_KIT_MAX ? `texto|${t}` : '';
+    }
+    case 'valor': return v && v.valor_centavos > 0 ? String(v.valor_centavos) : '';
+    case 'pagamento': return valorPagamentoFecha(v) ? JSON.stringify(v!.pagamento) : '';
+  }
+}
+export const marcaDoValor = (chave: string, valor: string): string => crypto.createHash('sha256').update(`${chave}|${valor}`).digest('hex').slice(0, 16);
+
+/** A confirmação existe E bate com o valor de agora (mudou o valor = volta a pedir). */
+export function confirmacaoValida(chave: ChaveConfirmar, f: EntradaItens): boolean {
+  const c = f.estado?.etapas[1].confirmados?.[chave];
+  const v = valorConfirmavel(chave, f);
+  return !!c && !!v && c.marca === marcaDoValor(chave, v);
+}
+/** Só as confirmações que ainda valem, para a tela. */
+export function confirmadosValidos(f: EntradaItens): Record<string, { em: string; por: string }> {
+  const r: Record<string, { em: string; por: string }> = {};
+  for (const k of CHAVES_CONFIRMAR) if (confirmacaoValida(k, f)) { const c = f.estado!.etapas[1].confirmados![k]; r[k] = { em: c.em, por: c.por }; }
+  return r;
+}
+
+/** Os campos de texto, data e escolha da vistoria (jornadaObra.ts, `VistoriaObra`): data, quem, acomp, concl, obs, telhado, entrada e inversor. Fotos e adequações NÃO contam. */
+const CAMPOS_VISTORIA = {
+  raiz: ['data', 'quem', 'acomp', 'concl', 'obs'],
+  telhado: ['tipo', 'estado', 'orient', 'incl', 'area', 'sombra', 'estr', 'acesso'],
+  entrada: ['padrao', 'tensao', 'disj', 'apto', 'aterr', 'quadro'],
+  inversor: ['local', 'dist', 'abrig', 'wifi'],
+} as const;
+export function vistoriaPct(v: VistoriaObra | null): number {
+  const cheio = (x: unknown): boolean => typeof x === 'string' && x.trim().length > 0;
+  const total = CAMPOS_VISTORIA.raiz.length + CAMPOS_VISTORIA.telhado.length + CAMPOS_VISTORIA.entrada.length + CAMPOS_VISTORIA.inversor.length;
+  if (!v) return 0;
+  let feitos = CAMPOS_VISTORIA.raiz.filter((k) => cheio(v[k])).length;
+  for (const g of ['telhado', 'entrada', 'inversor'] as const) feitos += CAMPOS_VISTORIA[g].filter((k) => cheio((v[g] as Record<string, unknown> | undefined)?.[k])).length;
+  return Math.floor((feitos * 100) / total);
+}
+/** A proposta de banco está preenchida? O PDF dela é montado no navegador (não há registro de geração): vale o que a tela exige, banco, agência e conta. */
+export const bancoPreenchido = (b: BancoObra | null | undefined): boolean => !!b && !!b.banco.trim() && !!b.agencia.trim() && !!b.conta.trim();
 
 export function itensDaEtapa(n: number, f: EntradaItens): ItemEtapa[] {
   const tem = (s: string): boolean => f.slots.has(s);
   if (n === 1) {
-    // Fase 1 (Venda): quem é o cliente, a venda combinada e os papéis GERADOS (contrato e procuração). Os assinados são da etapa 2.
-    const v = f.privado?.venda ?? null;
+    // Fase 1 (Venda): cliente, venda, papéis gerados, pedido ao cliente, excedente e vistoria. Os dados "confirmados" só fecham com a marca em dia.
+    const e1 = f.estado?.etapas[1];
     const papeis = f.estado?.etapas[2].papeis ?? null;
-    return [
-      { chave: 'nome', bloco: 'cliente', texto: 'Nome completo', feito: !!valorDe(f.cad, 'nome') },
-      { chave: 'endereco_usina', bloco: 'cliente', texto: 'Endereço da usina', feito: !!valorDe(f.cad, 'endereco_ponto') },
-      { chave: 'telefone', bloco: 'cliente', texto: 'Telefone de contato', feito: !!valorDe(f.cad, 'telefone') },
-      { chave: 'email', bloco: 'cliente', texto: 'E-mail do cliente', feito: !!valorDe(f.cad, 'email') },
+    const conf = (k: ChaveConfirmar): boolean => !!valorConfirmavel(k, f) && confirmacaoValida(k, f);
+    const v = f.privado?.venda ?? null;
+    const falta = faltaDoExcedente(f);
+    const fin = e1?.financiamento ?? null;
+    const itens: ItemEtapa[] = [
+      { chave: 'nome', bloco: 'cliente', texto: 'Nome completo', feito: conf('nome') },
+      { chave: 'telefone', bloco: 'cliente', texto: 'Telefone de contato', feito: conf('telefone') },
+      { chave: 'endereco', bloco: 'cliente', texto: 'Endereço completo', feito: conf('endereco') },
+      { chave: 'endereco_usina', bloco: 'cliente', texto: 'Endereço da usina', feito: conf('endereco_usina') },
+      { chave: 'email', bloco: 'cliente', texto: 'E-mail do cliente', feito: conf('email') },
       { chave: 'proposta', bloco: 'venda', texto: 'Proposta aceita ligada', feito: !!f.lig.proposta },
-      { chave: 'valor', bloco: 'venda', texto: 'Valor e forma de pagamento', feito: valorPagamentoFecha(v) },
       { chave: 'prazo', bloco: 'venda', texto: 'Prazo prometido ao cliente', feito: !!v && v.prazo_prometido.trim().length > 0 },
+      { chave: 'placas', bloco: 'venda', texto: 'Placas: quantidade e marca', feito: conf('placas') },
+      { chave: 'inversor', bloco: 'venda', texto: 'Inversor: quantidade e marca', feito: conf('inversor') },
+      { chave: 'valor', bloco: 'venda', texto: 'Valor vendido', feito: conf('valor') },
+      { chave: 'pagamento', bloco: 'venda', texto: 'Forma de pagamento', feito: conf('pagamento') },
+      { chave: 'financiamento', bloco: 'venda', texto: 'Precisa de proposta de banco ou financiamento?', feito: fin !== null },
+    ];
+    if (fin === 'sim') itens.push({ chave: 'proposta_banco', bloco: 'venda', texto: 'Proposta de banco preenchida', feito: bancoPreenchido(f.obra?.banco) });
+    itens.push(
       { chave: 'papel_contrato', bloco: 'papeis', texto: 'Contrato gerado', feito: !!papeis?.contrato },
       { chave: 'papel_procuracao', bloco: 'papeis', texto: 'Procuração gerada', feito: !!papeis?.procuracao },
-    ];
+    );
+    for (const k of CHAVES_PEDIDO) {
+      const rotulo: Record<ChavePedido, string> = {
+        pedido_cnh: 'Pedir CNH ou identidade', pedido_conta_luz: 'Pedir a conta de luz', pedido_fachada: 'Pedir a foto da fachada',
+        pedido_padrao: 'Pedir a foto do padrão de entrada', pedido_disjuntor: 'Pedir a foto do disjuntor', pedido_medidor: 'Pedir a foto do medidor',
+      };
+      itens.push({ chave: k, bloco: 'pedidos', texto: rotulo[k], feito: !!e1?.pedidos?.[k] || SLOTS_DO_PEDIDO[k].some(tem) });
+    }
+    itens.push({ chave: 'excedente', bloco: 'excedente', texto: falta ?? 'Excedente para outras contas', feito: falta === null });
+    if (e1?.excedente === 'sim') itens.push({ chave: 'conta_excedente', bloco: 'excedente', texto: 'Conta de luz do excedente', feito: tem('conta_luz_beneficiaria') });
+    itens.push({ chave: 'vistoria', bloco: 'vistoria', texto: 'Relatório de vistoria 80% preenchido', feito: vistoriaPct(f.obra?.vistoria ?? null) >= 80 });
+    return itens;
   }
   if (n === 2) {
-    // Fase 2 (Documentos e vistoria): CNH, contas de luz, excedente, as 4 fotos e os dois papéis ASSINADOS (o par que dá o número da obra).
-    const falta = faltaDoExcedente(f);
-    const itens: ItemEtapa[] = [
-      { chave: 'documento', bloco: 'documentos', texto: 'CNH ou documento com foto', feito: tem('documento_titular') || tem('documento_titular_uc') },
-      { chave: 'conta_luz', bloco: 'documentos', texto: 'Conta de luz', feito: tem('conta_luz') },
-      { chave: 'excedente', bloco: 'documentos', texto: falta ?? 'Excedente para outras contas', feito: falta === null },
+    // Fase 2 (Anexos): os dois papéis assinados e os documentos e fotos do cliente.
+    return [
+      { chave: 'contrato_assinado', bloco: 'anexos', texto: 'Contrato assinado anexado', feito: tem('contrato_assinado') },
+      { chave: 'procuracao', bloco: 'anexos', texto: 'Procuração assinada anexada', feito: tem('procuracao') },
+      { chave: 'documento', bloco: 'anexos', texto: 'CNH ou identidade', feito: tem('documento_titular') || tem('documento_titular_uc') },
+      { chave: 'conta_luz', bloco: 'anexos', texto: 'Conta de luz', feito: tem('conta_luz') },
+      { chave: 'fachada', bloco: 'anexos', texto: 'Foto da fachada', feito: tem('fachada') },
+      { chave: 'padrao', bloco: 'anexos', texto: 'Foto do padrão de entrada', feito: tem('padrao') },
+      { chave: 'disjuntor', bloco: 'anexos', texto: 'Foto do disjuntor', feito: tem('disjuntor') },
+      { chave: 'medidor', bloco: 'anexos', texto: 'Foto do medidor', feito: tem('medidor') },
     ];
-    if (f.estado?.etapas[1].excedente === 'sim') {
-      itens.push({ chave: 'conta_excedente', bloco: 'documentos', texto: 'Conta de luz do excedente', feito: tem('conta_luz_beneficiaria') });
-    }
-    itens.push(
-      { chave: 'fachada', bloco: 'fotos', texto: 'Foto da fachada', feito: tem('fachada') },
-      { chave: 'padrao', bloco: 'fotos', texto: 'Foto do padrão de entrada', feito: tem('padrao') },
-      { chave: 'disjuntor', bloco: 'fotos', texto: 'Foto do disjuntor', feito: tem('disjuntor') },
-      { chave: 'medidor', bloco: 'fotos', texto: 'Foto do medidor', feito: tem('medidor') },
-      { chave: 'contrato_assinado', bloco: 'portao', texto: 'Contrato assinado anexado', feito: tem('contrato_assinado') },
-      { chave: 'procuracao', bloco: 'portao', texto: 'Procuração assinada anexada', feito: tem('procuracao') },
-    );
-    return itens;
   }
   if (n === 3) {
     // Fase 3 (Homologação): primeiro o equipamento (ele libera o cartão do Trello sozinho), depois o que já existia.
     const itens: ItemEtapa[] = [
-      { chave: 'kit', bloco: 'equipamento', texto: 'Todo o equipamento confirmado', feito: f.privado?.venda?.kit_confirmado === true },
       { chave: 'datasheet_modulo', bloco: 'equipamento', texto: 'Datasheet da placa', feito: tem('datasheet_modulo') },
       { chave: 'datasheet_inversor', bloco: 'equipamento', texto: 'Datasheet do inversor', feito: tem('datasheet_inversor') },
       { chave: 'kmz', bloco: 'equipamento', texto: 'KMZ do local', feito: tem('kmz') },
@@ -356,7 +500,7 @@ export function estadoTrelloAuto(f: EntradaItens, temNumero: boolean, opcoes: { 
   // Só age com a Homologação (etapa 3) em andamento: obra que já passou dela não é tocada, nem para completar o cartão.
   if (f.estado?.etapas[3].concluida_em) falta.push('Homologação já concluída');
   if (!f.estado?.etapas[1].concluida_em) falta.push('Etapa Venda concluída');
-  if (!f.estado?.etapas[2].concluida_em) falta.push('Etapa Documentos e vistoria concluída');
+  if (!f.estado?.etapas[2].concluida_em) falta.push('Etapa Anexos concluída');
   for (const i of itensDaEtapa(3, f)) if (i.bloco === 'equipamento' && !i.feito) falta.push(i.texto);
   if (!temNumero) falta.push('Número da venda');
   // O automático parou porque o quadro tem cartões parecidos: a pessoa confere e usa o botão (só vale enquanto não há cartão).

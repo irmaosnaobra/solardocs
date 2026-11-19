@@ -34801,7 +34801,7 @@ async function vdcFetch(rota, metodo, corpo, ms, opc) {
 /** Fase 1 da Jornada: o quadro montado dentro da obra avisa a etapa a cada gravação, para o "Para concluir" não ficar velho. Nunca derruba o quadro. */
 function vdcAvisarMudanca(st) { try { if (st && st.op && typeof st.op.aoMudar === 'function') st.op.aoMudar(); } catch (e) {} }
 (function () {
-  ['vdcAnexar', 'vdcTrocarEnviar', 'vdcExcluir', 'vdcExcluirJa', 'vdcEmailGravar', 'vdcCampoGravar', 'vdcMover', 'vdcMesmo', 'vdcEmailSalvar', 'vdcRatSalvar', 'vdcPesSalvar', 'vdcConfirmar', 'vdcLigar', 'vdcTrEnviar'].forEach(function (nome) {
+  ['vdcAnexar', 'vdcTrocarEnviar', 'vdcExcluir', 'vdcExcluirJa', 'vdcEmailGravar', 'vdcCampoGravar', 'vdcCamposGravar', 'vdcMover', 'vdcMesmo', 'vdcEmailSalvar', 'vdcRatSalvar', 'vdcPesSalvar', 'vdcConfirmar', 'vdcLigar', 'vdcTrEnviar'].forEach(function (nome) {
     const orig = window[nome];
     if (typeof orig !== 'function') return;
     window[nome] = async function (st) { const r = await orig.apply(this, arguments); vdcAvisarMudanca(st); return r; };
@@ -34829,7 +34829,7 @@ function vdcDetalhe(rec, op) {
   if (ativo) return;
   vdcEst = null;   // resposta que ainda estava voando de outro card fica velha
   if (!vale) { el.hidden = true; el.replaceChildren(); return; }
-  const st = { id: rec.id, cfg: VDC_CFG[linha], cad: null, docs: null, carregando: true, erroCarga: '', msg: '', lendo: false, gravando: false, sub: {}, msgDoc: {}, resDoc: {}, linhas: [], no: null, listaAberta: false, edit: null, lin: {}, org: null, listaForcar: false, listaPendente: false, focoApos: '',
+  const st = { id: rec.id, cfg: VDC_CFG[linha], cad: null, docs: null, carregando: true, erroCarga: '', msg: '', lendo: false, gravando: false, sub: {}, msgDoc: {}, resDoc: {}, linhas: [], no: null, listaAberta: !!(op && op.alvo), edit: null, lin: {}, org: null, listaForcar: false, listaPendente: false, focoApos: '',
     vinc: null, vincErroCarga: '', vincOcupado: '', vincMsg: '', analise: null, rat: null, ratMsg: '', ratGravando: false,
     // Fase 2: "Criar cliente na planilha" (portão de telefone) e o campo de e-mail. Nascem aqui, no literal comum, porque o card de eletroposto repinta com o mesmo `st`.
     cli: { ocupado: '', confirmar: false, ocultas: 0, semPlanilha: false, texto: '', cands: [] }, email: null, sugEmail: '', emailGravando: false,
@@ -35478,22 +35478,26 @@ async function vdcEmailSalvar(st) {
 /** Grava só o e-mail pelo PUT parcial do cadastro. Devolve { ok } ou { ok: false, erro }. A Jornada usa a mesma função, com o campo dela. */
 async function vdcEmailGravar(st, v) { return vdcCampoGravar(st, 'email', v); }
 /** Grava um campo do cadastro (nome, endereco_ponto, telefone, email...) pelo PUT parcial. Devolve { ok } ou { ok: false, erro }. */
-async function vdcCampoGravar(st, campo, v) {
+async function vdcCampoGravar(st, campo, v) { return vdcCamposGravar(st, { [campo]: v }); }
+/** Grava vários campos do cadastro de uma vez (o endereço do cliente: rua, bairro, cidade, UF e CEP). Devolve { ok } ou { ok: false, erro }. */
+async function vdcCamposGravar(st, campos) {
+  const chaves = Object.keys(campos);
   if (vdcEst !== st) return { ok: false, erro: 'A tela mudou. Tente de novo.' };
   if (!st.cad) return { ok: false, erro: 'Não consegui abrir o cadastro agora. Atualize a tela e tente de novo.' };
   if (st.emailGravando || st.gravando || st.lendo) return { ok: false, erro: 'Espere o outro pedido terminar e tente de novo.' };
   st.emailGravando = true; if (st.email) vdcEmailSincroniza(st);
-  const r = await vdcChamar(st, 'PUT', '/cadastro', { campos: { [campo]: v }, fonte: 'manual' });
+  const r = await vdcChamar(st, 'PUT', '/cadastro', { campos, fonte: 'manual' });
   st.emailGravando = false;
   // Quem chama pode ser a Jornada: o campo e o botão do quadro (o "Salvar e-mail" da lista) precisam sair de "Salvando…" em todo desfecho.
   const volta = (res) => { if (st.email && vdcEst === st) vdcEmailSincroniza(st); return res; };
   if (vdcEst !== st) return { ok: false, erro: 'A tela mudou. Confira o e-mail e tente de novo.' };
   const j = r.json || {};
-  if (r.status === 400 && j.erros && typeof j.erros === 'object' && j.erros[campo]) return volta({ ok: false, erro: vdcMotivoTxt(j.erros[campo]) });
+  const ruim = r.status === 400 && j.erros && typeof j.erros === 'object' ? chaves.find((k) => j.erros[k]) : '';
+  if (ruim) return volta({ ok: false, erro: vdcMotivoTxt(j.erros[ruim]) });
   if (r.status !== 200 || j.ok === false || !j.cadastro) return volta({ ok: false, erro: vdcMsgErro(r, 'Não consegui salvar agora.') });
   // A gravação não leva `sugestoes`: sem zerar, apagar o e-mail traria a sugestão da proposta de volta ao campo.
-  st.cad = j.cadastro; st.analise = vdcAnaliseDe(j); if (campo === 'email') st.sugEmail = ''; vdcGuardaExtras(st, j);
-  if (campo === 'email' && st.email) delete st.email.inp.dataset.sujo;
+  st.cad = j.cadastro; st.analise = vdcAnaliseDe(j); if (chaves.indexOf('email') >= 0) st.sugEmail = ''; vdcGuardaExtras(st, j);
+  if (chaves.indexOf('email') >= 0 && st.email) delete st.email.inp.dataset.sujo;
   vdcPintar(st);
   return { ok: true };
 }

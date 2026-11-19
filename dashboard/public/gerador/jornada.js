@@ -176,6 +176,21 @@
       // Secoes dentro do mesmo cartao.
       '.jor-esq>.jor-bloco,.jor-esq>.jor-portao{margin-top:24px}',
       '.jor-bloco{min-width:0}',
+      // Cada seção da etapa: divisória grossa em cima, título maior e a situação (Completo ou Falta N) logo ao lado.
+      '.jor-esq>.jor-bloco,.jor-esq>.jor-portao{border-top:4px solid var(--n-bd2);padding-top:16px}',
+      '.jor-esq>.jor-bloco>.jor-bloco-t{font-size:18px}',
+      '.jor-esq .jor-bloco-t em{margin-left:0}',
+      '.jor-email-cmp{display:flex;flex:1 1 220px;min-width:0}',
+      '.jor-ped-lista{display:flex;flex-direction:column}',
+      '.jor-ped{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 0;border-top:1px solid var(--n-bd);cursor:pointer}',
+      '.jor-ped:first-child{border-top:0}',
+      '.jor-ped-t{flex:1 1 auto;min-width:0;font-weight:500}',
+      '.jor-ped-msg{margin:10px 0 0;padding:10px 12px;border:1px dashed var(--io-borda-campo);border-radius:10px;background:var(--n-sf2);color:var(--n-tx2);font:inherit;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}',
+      '.jor-prog{height:10px;border-radius:999px;background:var(--n-sf3);overflow:hidden;margin:6px 0 4px}',
+      '.jor-prog>i{display:block;height:100%;border-radius:999px;background:var(--io-azul)}',
+      '.jor-prog.ok>i{background:var(--io-ok)}',
+      '.jor-opcoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}',
+      '.jor-opcoes .jor-chip{min-height:36px;padding:4px 12px}',
       '.jor-dir .jor-bloco{background:var(--n-sf);border:1px solid var(--n-bd);border-radius:12px;box-shadow:var(--sombra);padding:24px}',
       '.jor-bloco-t{display:flex;align-items:center;gap:8px 12px;font-size:16px;font-weight:600;line-height:1.35;color:var(--io-titulo);margin:0 0 12px;flex-wrap:wrap}',
       '.jor-bloco-t em{font-style:normal;margin-left:auto}',
@@ -508,7 +523,7 @@
     if (!O.obraNo) { O.obraNo = el('div'); O.obraNo.id = 'jor-obra'; }
     if (!O.vdcNo) { O.vdcNo = el('div'); O.vdcNo.id = 'jor-vdc'; }
     // O quadro de documentos mora num <details> fechado, que o desenharObra põe dentro da etapa 1 a 3 (e esconde nas outras). O #jor-vdc continua o mesmo nó.
-    if (!O.vdcDet) { O.vdcDet = el('details', 'jor-vdc-det'); O.vdcDet.appendChild(el('summary', 'jor-vdc-sum', 'Mais documentos, ligações e cadastro')); O.vdcDet.appendChild(O.vdcNo); O.vdcPainel = 0; }
+    if (!O.vdcDet) { O.vdcDet = el('details', 'jor-vdc-det'); O.vdcDet.open = true; O.vdcDet.appendChild(el('summary', 'jor-vdc-sum', 'Mais documentos, ligações e cadastro')); O.vdcDet.appendChild(O.vdcNo); O.vdcPainel = 0; }
     if (!c.contains(O.obraNo)) c.replaceChildren(O.obraNo);
     O.obraNo.replaceChildren(el('p', 'jor-nota', 'Carregando…'));
     carregarObra();
@@ -848,7 +863,7 @@
   function blocoTitulo(t, itens) {
     var falta = itens ? itens.filter(function (i) { return !i.feito; }).length : 0;
     var h = el('div', 'jor-bloco-t'); h.appendChild(el('span', '', t));
-    if (itens) { var em = el('em', 'jor-etq jor-etq-' + (falta ? 'av' : 'ok'), falta ? 'falta ' + falta : 'completo'); h.appendChild(em); }
+    if (itens) { var em = el('em', 'jor-etq jor-etq-' + (falta ? 'av' : 'ok'), falta ? 'Falta ' + falta : 'Completo'); h.appendChild(em); }
     return h;
   }
 
@@ -870,8 +885,8 @@
   function abrirQuadro() { if (O.vdcDet) { O.vdcDet.open = true; if (O.vdcNo && O.vdcNo.scrollIntoView) O.vdcNo.scrollIntoView({ behavior: 'smooth' }); } }
   /** Os blocos de cada etapa, na ordem da tela: [bloco do servidor, título]. */
   var BLOCOS_ETAPA = {
-    1: [['cliente', 'Dados do cliente'], ['venda', 'Venda'], ['papeis', 'Contrato e procuração']],
-    2: [['documentos', 'Documentos'], ['fotos', 'Fotos da vistoria'], ['portao', 'Contrato e procuração assinados']],
+    1: [['cliente', 'Dados do cliente'], ['venda', 'Venda'], ['papeis', 'Contrato e procuração'], ['pedidos', 'Pedido ao cliente'], ['excedente', 'Excedente'], ['vistoria', 'Relatório de vistoria']],
+    2: [['anexos', 'Anexos']],
     3: [['equipamento', 'Equipamento']],
   };
   var RESUMO_QUADRO = { 1: 'Mais documentos, ligações e cadastro', 2: 'Mais documentos, ligações e cadastro', 3: 'Trello, rateio e arquivos do cliente' };
@@ -954,8 +969,7 @@
     else if (et.n === 9 && window.Jornada.etapas[9]) window.Jornada.etapas[9](esq, d, et, O.fase3);
     else if (f2 && window.Jornada.etapas[et.n]) window.Jornada.etapas[et.n](esq, d, et, f2);
     else if (f2et) { var pf = el('div', 'jor-bloco'); pf.appendChild(el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); pf.appendChild(btn('Tentar de novo', '', carregarObra)); esq.appendChild(pf); }
-    // A vistoria agora mora na etapa 2 (etapa2() a chama junto das fotos). O banco e a indicação seguem o contrato, na etapa 1.
-    if (et.n === 1 && window.Jornada.extras.banco) window.Jornada.extras.banco(esq, d);
+    // A vistoria e o banco moram na etapa 1 (etapa1 os chama dentro das suas seções). A indicação segue o contrato.
     if (et.n === 1 && window.Jornada.extras.indicacao) window.Jornada.extras.indicacao(esq, d, O.fase3);
     if (et.n <= 8 && window.Jornada.dinheiro && window.Jornada.dinheiro.gastosDaEtapa && (et.n <= 3 || f2)) window.Jornada.dinheiro.gastosDaEtapa(esq, et.n, O.dinheiro);
     // Portão
@@ -1188,11 +1202,11 @@
 
   function etapa1(esq, d, et) {
     var concluida = !!et.concluida_em;
-    esq.appendChild(el('p', 'jor-intro', 'O botão Vendido do card abriu esta etapa. A obra aparece com * até o contrato e a procuração assinados chegarem.'));
+    esq.appendChild(el('p', 'jor-intro', 'Tudo está aberto e o que já existe vem preenchido. Confira, ajuste se precisar e confirme.'));
     // 1. Dados do cliente
     esq.appendChild(blocoDados(d, et));
     // 1. Venda
-    var b1 = el('div', 'jor-bloco'); b1.appendChild(blocoTitulo('Venda', itensDoBloco(et, 'venda')));
+    var b1 = el('div', 'jor-bloco'); b1.appendChild(blocoTitulo('Venda (kit, valor e pagamento)', itensDoBloco(et, 'venda').filter(function (i) { return i.chave !== 'financiamento' && i.chave !== 'proposta_banco'; })));
     b1.appendChild(subTitulo('Veio do card', etq('Automático', 'auto')));
     if (d.proposta) {
       var gv = el('div', 'jor-campos');
@@ -1218,14 +1232,8 @@
         b1.appendChild(el('p', 'jor-nota', 'Ligue a proposta em "Mais documentos, ligações e cadastro", logo abaixo, em Ligações.'));
       }
     }
-    // O kit vendido (placas, inversor e kWp) só aparece quando o servidor manda `kit_vendido`.
-    var kv = d.kit_vendido;
-    if (kv && (kv.placas || kv.inversor || kv.kwp)) {
-      var gk = el('div', 'jor-campos');
-      add(gk, kv.placas ? campoLeitura('Placas', String(kv.placas)) : null, kv.inversor ? campoLeitura('Inversor', String(kv.inversor)) : null,
-        kv.kwp ? campoLeitura('Potência do kit', String(kv.kwp).replace('.', ',') + ' kWp') : null);
-      b1.appendChild(subTitulo('Kit vendido')); b1.appendChild(gk);
-    }
+    // Placas e inversor (do kit vendido), valor e forma de pagamento: cada um com Confirmar.
+    linhasDaVenda(d, b1, et);
     if (concluida) {
       var vv = d.venda;
       if (vv) {
@@ -1253,11 +1261,45 @@
       b1.appendChild(sv); b1.appendChild(bolhaAvisoVenda(d));
     }
     esq.appendChild(b1);
-    // 3. Contrato e procuração (gerar, colher a assinatura e anexar o contrato assinado)
+    // 3. Dados de banco, contrato e procuração, pedido ao cliente, excedente e o relatório de vistoria
+    esq.appendChild(secaoBanco(d, et));
     esq.appendChild(blocoPapeis(d, et));
+    esq.appendChild(blocoPedidos(d, et));
+    esq.appendChild(secaoExcedente(d, et));
+    if (window.Jornada.extras.vistoria) window.Jornada.extras.vistoria(esq, d);
   }
 
-  // ── Etapa 1: dados do cliente, editáveis ali mesmo ──────────────────────────────
+  // ── Seções da etapa: título com a situação ao lado (Completo ou Falta N) e divisória grossa ──────────────────────────
+  function secao(titulo, itens) {
+    var b = el('div', 'jor-bloco');
+    b.appendChild(blocoTitulo(titulo, itens && itens.length ? itens : null));
+    return b;
+  }
+  function itensPorChave(et, chaves) { return (et.itens || []).filter(function (i) { return chaves.indexOf(i.chave) >= 0; }); }
+  function situacao(ok) { return [{ feito: !!ok }]; }
+  function conf(d, chave) { return (d.confirmados && d.confirmados[chave]) || null; }
+  /** Por que a pessoa não pode confirmar agora ('' = pode): sem permissão ou com a etapa 1 já concluída. */
+  function semConfirmar(d, et) {
+    if (et && et.concluida_em) return 'A etapa 1 já foi concluída.';
+    if (!d.pode || !d.pode.confirmar) return 'Você não tem permissão para confirmar.';
+    return '';
+  }
+  /** Desabilita o botão com um title curto explicando. */
+  function negar(b, motivo) { if (motivo) { b.disabled = true; b.title = motivo; } return b; }
+  function enc(x) { return encodeURIComponent(String(x)); }
+  function confirmarChave(d, chave, on, texto) {
+    var corpo = { chave: chave, confirmar: !!on }; if (texto) corpo.texto = texto;
+    return api('/gerador/jornada-solar/obra/' + enc(O.card) + '/confirmar', 'POST', corpo).then(function (r) {
+      if (r.status === 200 && r.json.ok !== false) {
+        d.confirmados = d.confirmados || {};
+        if (on) d.confirmados[chave] = { em: new Date().toISOString(), por: '' }; else delete d.confirmados[chave];
+        releia(); return { ok: true };
+      }
+      return { ok: false, erro: msgDe(r, 'Não consegui confirmar agora. Tente de novo.') };
+    });
+  }
+
+  // ── Etapa 1: dados do cliente, cada um com Confirmar ────────────────────────────
   var EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   function soDig(t) { return String(t || '').replace(/\D/g, ''); }
   function fmtTel(v) {
@@ -1266,91 +1308,151 @@
     if (x.length === 10) return '(' + x.slice(0, 2) + ') ' + x.slice(2, 6) + '-' + x.slice(6);
     return String(v || '');
   }
-  /** Os 4 campos do bloco "Dados do cliente". `item` é a chave do item no servidor; `campo` é o campo do cadastro (PUT /cadastro). */
+  function fmtCep(v) { var x = soDig(v); return x.length === 8 ? x.slice(0, 5) + '-' + x.slice(5) : String(v || ''); }
+  function enderecoTxt(v) {
+    var cu = [v.cidade, v.uf].filter(Boolean).join(' - ');
+    return [v.endereco, v.bairro, cu, v.cep ? fmtCep(v.cep) : ''].filter(Boolean).join(', ');
+  }
+  /**
+   * Os campos do bloco "Dados do cliente". `chave` é a chave de confirmação no servidor; cada `campos[].k` é um campo do cadastro (PUT /cadastro).
+   * `completo(v)`: o valor tem o mínimo para confirmar. `txt(v)`: como o valor aparece.
+   */
   var CAMPOS_CLIENTE = [
-    { item: 'nome', campo: 'nome', rot: 'Nome completo', tipo: 'text', vazio: 'Digite o nome completo do cliente.',
-      valida: function (v) { return v.length < 3 ? 'Digite o nome completo do cliente.' : ''; },
-      sug: function (d) { return d.card && d.card.cliente ? { v: d.card.cliente, de: 'o card' } : null; } },
-    { item: 'endereco_usina', campo: 'endereco_ponto', rot: 'Endereço da usina', tipo: 'text', vazio: 'Digite o endereço da usina.', ex: 'Rua, número, bairro, cidade e UF',
-      valida: function (v) { return v.length < 8 ? 'Digite o endereço completo, com rua, número, bairro e cidade.' : ''; } },
-    { item: 'telefone', campo: 'telefone', rot: 'Telefone de contato', tipo: 'tel', vazio: 'Digite o telefone com DDD.', ex: '(34) 99999-0000', fmt: fmtTel, norm: soDig,
-      valida: function (v) { var n = soDig(v).length; return n >= 10 && n <= 13 ? '' : 'Telefone com DDD, de 10 a 13 dígitos.'; },
-      sug: function (d) { return d.card && d.card.telefone && soDig(d.card.telefone).length >= 10 ? { v: d.card.telefone, de: 'o card' } : null; } },
-    { item: 'email', campo: 'email', rot: 'E-mail do cliente', tipo: 'email', vazio: 'Digite o e-mail do cliente.', ex: 'nome@exemplo.com',
-      valida: function (v) { return EMAIL_OK.test(v) ? '' : 'Esse e-mail não parece certo. Confira e tente de novo.'; },
-      sug: function (d, st) { return st && st.sugEmail ? { v: st.sugEmail, de: 'a proposta' } : null; } },
+    { chave: 'nome', rot: 'Nome completo', campos: [{ k: 'nome', rot: 'Nome completo', tipo: 'text', ex: 'Nome e sobrenome' }],
+      valida: function (v) { return v.nome.length < 3 ? 'Digite o nome completo do cliente.' : ''; },
+      sug: function (d) { return d.card && d.card.cliente ? { nome: d.card.cliente } : null; } },
+    { chave: 'telefone', rot: 'Telefone de contato', campos: [{ k: 'telefone', rot: 'Telefone', tipo: 'tel', ex: '(34) 99999-0000', fmt: fmtTel, norm: soDig }],
+      valida: function (v) { var n = soDig(v.telefone).length; return n >= 10 && n <= 13 ? '' : 'Telefone com DDD, de 10 a 13 dígitos.'; },
+      sug: function (d) { return d.card && soDig(d.card.telefone).length >= 10 ? { telefone: d.card.telefone } : null; } },
+    { chave: 'endereco', rot: 'Endereço completo', campos: [{ k: 'endereco', rot: 'Rua e número', tipo: 'text', ex: 'Rua, número' }, { k: 'bairro', rot: 'Bairro', tipo: 'text', ex: 'Bairro' },
+      { k: 'cidade', rot: 'Cidade', tipo: 'text', ex: 'Cidade' }, { k: 'uf', rot: 'UF', tipo: 'text', ex: 'MG', max: 2, up: true }, { k: 'cep', rot: 'CEP', tipo: 'text', ex: '00000-000', fmt: fmtCep, norm: soDig }],
+      txt: enderecoTxt,
+      valida: function (v) {
+        if (v.endereco.length < 5) return 'Digite a rua e o número.';
+        if (v.cidade.length < 2) return 'Digite a cidade.';
+        if (!/^[A-Za-z]{2}$/.test(v.uf)) return 'Digite a UF com 2 letras.';
+        if (v.cep && soDig(v.cep).length !== 8) return 'CEP com 8 dígitos.';
+        return '';
+      } },
+    { chave: 'endereco_usina', rot: 'Endereço da usina', campos: [{ k: 'endereco_ponto', rot: 'Endereço da usina', tipo: 'text', ex: 'Rua, número, bairro, cidade e UF' }],
+      atalho: 'Mesmo endereço do cliente',
+      valida: function (v) { return v.endereco_ponto.length < 8 ? 'Digite o endereço completo da usina, com rua, número, bairro e cidade.' : ''; } },
+    { chave: 'email', rot: 'E-mail do cliente', campos: [{ k: 'email', rot: 'E-mail', tipo: 'email', ex: 'nome@exemplo.com' }],
+      valida: function (v) { return EMAIL_OK.test(v.email) ? '' : 'Esse e-mail não parece certo. Confira e tente de novo.'; },
+      sug: function (d, st) { return st && st.sugEmail ? { email: st.sugEmail } : null; } },
   ];
   function valorDoCadastro(st, campo) { var c = st && st.cad && st.cad.campos && st.cad.campos[campo]; return String((c && c.valor) == null ? '' : c.valor).trim(); }
+  /** Os valores de um campo composto. De onde vêm: dados_cliente do servidor > cadastro do quadro (quando carregar). null = ainda não sei. */
+  function lerCampos(d, cfg) {
+    var out = {}; var st = quadroDoCard(); var pronto = !!(st && !st.carregando && st.cad);
+    for (var i = 0; i < cfg.campos.length; i++) {
+      var k = cfg.campos[i].k; var x = d.dados_cliente && d.dados_cliente[k];
+      if (typeof x === 'string') out[k] = x.trim();
+      else if (k === 'email' && d.documentos && typeof d.documentos.email === 'string') out[k] = d.documentos.email.trim();
+      else if (pronto) out[k] = valorDoCadastro(st, k);
+      else return null;
+    }
+    return out;
+  }
+  function cheio(cfg, v) { return !!v && cfg.campos.some(function (c) { return v[c.k]; }); }
+  function mostra(cfg, v) {
+    if (cfg.txt) return cfg.txt(v);
+    var c = cfg.campos[0]; return c.fmt ? c.fmt(v[c.k]) : v[c.k];
+  }
 
   /**
-   * Um campo do cadastro, editável ali mesmo. Com valor: o valor e "Editar". Sem valor: o campo aberto e "Salvar". Grava pelo mesmo PUT /cadastro
-   * que o quadro de documentos usa (vdcCampoGravar), valida o formato antes e mostra o erro embaixo do campo.
+   * Um dado do cliente: o valor pré-preenchido e Confirmar. Confirmado vira selo ok e Editar; editar e salvar volta a pedir a confirmação.
+   * Sem valor, os campos já nascem abertos. Grava pelo PUT /cadastro do quadro de documentos (vdcCamposGravar).
    */
-  function campoCadastro(d, et, cfg) {
+  function campoDado(d, et, cfg) {
     var no = el('div', 'jor-campo jor-campo-larga');
-    var card = String(O.card);
-    var edita = false; var opaco = false;
-    function feitoNoItem() { var x = et && et.itens ? et.itens.filter(function (i) { return i.chave === cfg.item; })[0] : null; return !!(x && x.feito); }
-    // De onde vem o valor: dados do servidor (se vierem) > cadastro do quadro (quando carregar) > e-mail da própria resposta. null = ainda não sei.
-    function lerValor() {
-      var x = d.dados_cliente && d.dados_cliente[cfg.campo]; if (typeof x === 'string') return x.trim();
-      if (cfg.campo === 'email' && d.documentos && typeof d.documentos.email === 'string') return d.documentos.email.trim();
-      var st = quadroDoCard(); if (st && !st.carregando && st.cad) return valorDoCadastro(st, cfg.campo);
-      return null;
-    }
-    var valor = lerValor();
-    if (valor === null) {
-      if (!feitoNoItem()) valor = '';
-      else quadroPronto(no).then(function () { var v = lerValor(); if (v === null) { valor = ''; opaco = true; } else valor = v; montar(); });
+    var card = String(O.card); var edita = false; var opaco = false;
+    var vals = lerCampos(d, cfg);
+    function feitoNoItem() { var x = et && et.itens ? et.itens.filter(function (i) { return i.chave === cfg.chave || (cfg.chave === 'endereco_usina' && i.chave === 'endereco_usina'); })[0] : null; return !!(x && x.feito); }
+    if (vals === null) {
+      quadroPronto(no).then(function () { var v = lerCampos(d, cfg); if (v === null) { opaco = feitoNoItem(); vals = {}; cfg.campos.forEach(function (c) { vals[c.k] = ''; }); } else vals = v; montar(); });
     }
     function montar(foco) {
-      var temValor = valor !== null && (valor !== '' || opaco);
+      var ok = !!conf(d, cfg.chave);
+      var temValor = vals !== null && (cheio(cfg, vals) || opaco);
       var ctl = el('div'); var lin = el('div', 'jor-email-lin'); ctl.appendChild(lin);
-      if (valor === null) {
+      var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
+      var selo = null;
+      if (vals === null) {
         lin.appendChild(el('div', 'jor-campo-lei', 'Carregando…'));
       } else if (temValor && !edita) {
-        lin.appendChild(el('div', 'jor-campo-lei', opaco ? 'Preenchido' : (cfg.fmt ? cfg.fmt(valor) : valor)));
-        var ed = btn('Editar', '', function () { edita = true; montar(true); }); ed.setAttribute('aria-label', 'Editar: ' + cfg.rot);
-        lin.appendChild(ed);
+        lin.appendChild(el('div', 'jor-campo-lei', opaco ? 'Preenchido' : mostra(cfg, vals)));
+        if (!ok) {
+          var bc = btn('Confirmar', 'jor-btn-pri', function () {
+            bc.disabled = true; bc.textContent = 'Confirmando…';
+            confirmarChave(d, cfg.chave, true).then(function (r) { if (r.ok) { montar(); return; } bc.disabled = false; bc.textContent = 'Confirmar'; erro.textContent = r.erro; });
+          });
+          bc.setAttribute('aria-label', 'Confirmar: ' + cfg.rot); negar(bc, semConfirmar(d, et)); lin.appendChild(bc);
+        }
+        var ed = btn('Editar', '', function () { edita = true; montar(true); }); ed.setAttribute('aria-label', 'Editar: ' + cfg.rot); negar(ed, semConfirmar(d, et)); lin.appendChild(ed);
+        selo = etq(ok ? 'Confirmado' : 'Falta confirmar', ok ? 'ok' : 'av');
       } else {
-        var inp = el('input', 'jor-in' + (temValor ? '' : ' falta')); inp.type = cfg.tipo; inp.inputMode = cfg.tipo === 'tel' ? 'tel' : cfg.tipo === 'email' ? 'email' : 'text';
-        inp.autocomplete = 'off'; inp.name = 'cliente-' + cfg.campo; inp.maxLength = 160; if (cfg.tipo !== 'text') inp.spellcheck = false;
-        inp.setAttribute('aria-label', cfg.rot); if (cfg.ex) inp.placeholder = cfg.ex; inp.value = temValor && !opaco ? (cfg.fmt ? cfg.fmt(valor) : valor) : '';
+        var inps = {}; var grade = el('div', cfg.campos.length > 1 ? 'jor-campos' : 'jor-email-cmp');
+        cfg.campos.forEach(function (c) {
+          var inp = el('input', 'jor-in' + (temValor ? '' : ' falta')); inp.type = c.tipo; inp.inputMode = c.tipo === 'tel' ? 'tel' : c.tipo === 'email' ? 'email' : 'text';
+          inp.autocomplete = 'off'; inp.name = 'cliente-' + c.k; inp.maxLength = c.max || 160; if (c.tipo !== 'text') inp.spellcheck = false;
+          inp.setAttribute('aria-label', cfg.campos.length > 1 ? cfg.rot + ': ' + c.rot : cfg.rot); inp.placeholder = c.ex || '';
+          var base = temValor && !opaco ? vals[c.k] : '';
+          inp.value = c.fmt ? c.fmt(base) : base;
+          inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); salvar(); } });
+          inp.addEventListener('input', function () { inp.dataset.sujo = '1'; nota.hidden = true; erro.textContent = ''; });
+          inps[c.k] = inp;
+          if (cfg.campos.length > 1) { var lb = el('label', '', c.rot); lb.appendChild(inp); grade.appendChild(lb); } else grade.appendChild(inp);
+        });
         var nota = el('p', 'jor-nota'); nota.hidden = true;
-        var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
         var sv = btn('Salvar', temValor ? '' : 'jor-btn-pri', salvar); sv.setAttribute('aria-label', 'Salvar: ' + cfg.rot);
-        lin.appendChild(inp); lin.appendChild(sv);
-        if (temValor) lin.appendChild(btn('Cancelar', '', function () { edita = false; montar(); }));
+        if (cfg.campos.length > 1) { ctl.replaceChildren(grade); var ac = el('div', 'jor-email-lin'); ac.appendChild(sv); if (temValor) ac.appendChild(btn('Cancelar', '', function () { edita = false; montar(); })); ctl.appendChild(ac); }
+        else { lin.appendChild(grade); lin.appendChild(sv); if (temValor) lin.appendChild(btn('Cancelar', '', function () { edita = false; montar(); })); }
+        if (cfg.atalho) {
+          var ca = CAMPOS_CLIENTE.filter(function (x) { return x.chave === 'endereco'; })[0]; var va = ca && lerCampos(d, ca);
+          if (va && cheio(ca, va)) {
+            var at = btn(cfg.atalho, 'jor-btn-link', function () { inps[cfg.campos[0].k].value = enderecoTxt(va); inps[cfg.campos[0].k].dataset.sujo = '1'; nota.hidden = true; });
+            ctl.appendChild(at);
+          }
+        }
         ctl.appendChild(nota); ctl.appendChild(erro);
-        inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); salvar(); } });
-        inp.addEventListener('input', function () { inp.dataset.sujo = '1'; nota.hidden = true; erro.textContent = ''; });
-        if (foco) setTimeout(function () { inp.focus(); }, 0);
-        // O que já existe em outro lugar (card, proposta) é só sugestão: preenche o campo, nunca grava sozinho.
+        if (foco) setTimeout(function () { var p0 = inps[cfg.campos[0].k]; if (p0) p0.focus(); }, 0);
+        // O que já existe em outro lugar (card, proposta) é só sugestão: preenche o campo, nunca grava sozinho nem confirma.
         var sugerir = function () {
-          if (inp.value || inp.dataset.sujo || !cfg.sug) return;
-          var sg = cfg.sug(d, quadroDoCard()); if (!sg || !sg.v) return;
-          inp.value = cfg.fmt ? cfg.fmt(sg.v) : sg.v; nota.textContent = 'Veio d' + sg.de + '. Confira e salve.'; nota.hidden = false;
+          if (!cfg.sug) return; var sg = cfg.sug(d, quadroDoCard()); if (!sg) return;
+          var sujo = cfg.campos.some(function (c) { return inps[c.k].value || inps[c.k].dataset.sujo; }); if (sujo) return;
+          cfg.campos.forEach(function (c) { if (sg[c.k]) inps[c.k].value = c.fmt ? c.fmt(sg[c.k]) : sg[c.k]; });
+          nota.textContent = 'Veio do ' + (cfg.chave === 'email' ? 'proposta' : 'card') + '. Confira e salve.'; nota.hidden = false;
         };
-        if (!temValor) { sugerir(); quadroPronto(no).then(function () { if (inp.isConnected) sugerir(); }); }
+        if (!temValor) { sugerir(); quadroPronto(no).then(function () { if (no.isConnected) sugerir(); }); }
+        selo = temValor ? etq(ok ? 'Confirmado' : 'Falta confirmar', ok ? 'ok' : 'av') : etq('Falta', 'av');
       }
-      no.replaceChildren(campoRot(cfg.rot, ctl, valor !== null && !temValor ? etq('Falta', 'av') : null, true).firstChild, ctl);
+      var rotulo = el('div', 'jor-campo-rot'); rotulo.appendChild(document.createTextNode(cfg.rot)); if (selo && vals !== null) rotulo.appendChild(selo);
+      no.replaceChildren(rotulo, ctl);
+      if (!erro.parentNode && vals !== null) ctl.appendChild(erro);
       function salvar() {
         if (sv.disabled) return;
-        var v = inp.value.trim(); erro.textContent = '';
-        if (!v) { erro.textContent = cfg.vazio; inp.focus(); return; }
-        var msg = cfg.valida(v); if (msg) { erro.textContent = msg; inp.focus(); return; }
-        var env = cfg.norm ? cfg.norm(v) : v;
-        if (!opaco && env === (cfg.norm ? cfg.norm(valor) : valor)) { edita = false; montar(); return; }
+        var v = {}; var env = {}; erro.textContent = '';
+        cfg.campos.forEach(function (c) { var t = inps[c.k].value.trim(); if (c.up) t = t.toUpperCase(); v[c.k] = t; });
+        var vazio = cfg.campos.every(function (c) { return !v[c.k]; });
+        if (vazio) { erro.textContent = 'Preencha este dado.'; inps[cfg.campos[0].k].focus(); return; }
+        var msg = cfg.valida(v); if (msg) { erro.textContent = msg; inps[cfg.campos[0].k].focus(); return; }
+        cfg.campos.forEach(function (c) { env[c.k] = c.norm ? c.norm(v[c.k]) : v[c.k]; });
+        var igual = !opaco && cfg.campos.every(function (c) { var a = c.norm ? c.norm(vals[c.k]) : vals[c.k]; return a === env[c.k]; });
+        if (igual) { edita = false; montar(); return; }
         sv.disabled = true; sv.textContent = 'Salvando…';
         garantirQuadro().then(function (st) {
           if (!st) return { ok: false, erro: 'Não consegui abrir o cadastro agora. Tente de novo.' };
-          if (typeof window.vdcCampoGravar !== 'function') return { ok: false, erro: 'Não consegui salvar agora. Atualize a página.' };
-          return window.vdcCampoGravar(st, cfg.campo, env);
+          if (typeof window.vdcCamposGravar !== 'function') return { ok: false, erro: 'Não consegui salvar agora. Atualize a página.' };
+          return window.vdcCamposGravar(st, env);
         }).catch(function () { return { ok: false, erro: 'Não consegui salvar agora. Tente de novo.' }; }).then(function (r) {
           if (r && r.ok) {
-            toast('Dado salvo.');
+            toast('Dado salvo. Confirme para fechar.');
             if (String(O.card) !== card) return;
-            valor = env; opaco = false; edita = false; if (no.isConnected) montar(); releia();
+            vals = env; opaco = false; edita = false;
+            // Editar volta a pedir a confirmação.
+            var desf = conf(d, cfg.chave) ? confirmarChave(d, cfg.chave, false) : Promise.resolve({ ok: true });
+            desf.then(function () { if (no.isConnected) montar(); releia(); });
             return;
           }
           var m = (r && r.erro) || 'Não consegui salvar agora. Tente de novo.';
@@ -1364,21 +1466,126 @@
   }
   function blocoDados(d, et) {
     var its = itensDoBloco(et, 'cliente');
-    var b = el('div', 'jor-bloco'); b.appendChild(blocoTitulo('Dados do cliente', its.length ? its : null));
-    var g = el('div', 'jor-campos'); CAMPOS_CLIENTE.forEach(function (cfg) { g.appendChild(campoCadastro(d, et, cfg)); });
+    var b = secao('Dados do cliente', its);
+    var g = el('div', 'jor-campos'); CAMPOS_CLIENTE.forEach(function (cfg) { g.appendChild(campoDado(d, et, cfg)); });
     b.appendChild(g);
     return b;
   }
 
-  // ── Etapa 1: contrato e procuração ──────────────────────────────────────────────
+  /** Uma linha de leitura com Confirmar (placas, inversor, valor, pagamento). O valor vem pronto; a pessoa confere e confirma. */
+  function linhaConfirma(d, rot, valor, chave, et) {
+    var no = el('div', 'jor-campo jor-campo-larga');
+    function montar() {
+      var ok = !!conf(d, chave);
+      var r = el('div', 'jor-campo-rot'); r.appendChild(document.createTextNode(rot)); r.appendChild(etq(ok ? 'Confirmado' : (valor ? 'Falta confirmar' : 'Falta'), ok ? 'ok' : 'av'));
+      var lin = el('div', 'jor-email-lin'); lin.appendChild(el('div', 'jor-campo-lei', valor || 'Sem dado'));
+      var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
+      var b = btn(ok ? 'Desfazer' : 'Confirmar', ok ? '' : 'jor-btn-pri', function () {
+        b.disabled = true; var antes = b.textContent; b.textContent = ok ? 'Desfazendo…' : 'Confirmando…';
+        confirmarChave(d, chave, !ok).then(function (x) { if (x.ok) { montar(); return; } b.disabled = false; b.textContent = antes; erro.textContent = x.erro; });
+      });
+      b.disabled = !valor; b.setAttribute('aria-label', (ok ? 'Desfazer a confirmação: ' : 'Confirmar: ') + rot);
+      negar(b, semConfirmar(d, et));
+      lin.appendChild(b);
+      var ctl = el('div'); ctl.appendChild(lin); ctl.appendChild(erro);
+      no.replaceChildren(r, ctl);
+    }
+    montar();
+    return no;
+  }
+  /** Kit sem dado na proposta (a api manda `faltando`): em vez do valor, um campo de texto e Confirmar, que grava o texto junto da confirmação. */
+  function linhaConfirmaTexto(d, rot, chave, exemplo, et) {
+    var no = el('div', 'jor-campo jor-campo-larga');
+    var r = el('div', 'jor-campo-rot'); r.appendChild(document.createTextNode(rot)); r.appendChild(etq('Falta', 'av'));
+    var lin = el('div', 'jor-email-lin');
+    var inp = el('input', 'jor-in falta'); inp.type = 'text'; inp.maxLength = 120; inp.autocomplete = 'off'; inp.name = 'kit-' + chave; inp.placeholder = exemplo; inp.setAttribute('aria-label', rot);
+    var erro = el('p', 'jor-erro jor-anexo-msg'); erro.setAttribute('role', 'alert');
+    var b = btn('Confirmar', 'jor-btn-pri', confirmar); b.setAttribute('aria-label', 'Confirmar: ' + rot); negar(b, semConfirmar(d, et)); inp.disabled = b.disabled;
+    function confirmar() {
+      if (b.disabled && !b.title) return;
+      var t = inp.value.trim(); erro.textContent = '';
+      if (t.length < 3) { erro.textContent = 'Digite a quantidade e a marca.'; inp.focus(); return; }
+      b.disabled = true; b.textContent = 'Confirmando…';
+      confirmarChave(d, chave, true, t).then(function (x) {
+        if (x.ok) {
+          if (d.kit_vendido) { d.kit_vendido[chave] = t; if (Array.isArray(d.kit_vendido.faltando)) d.kit_vendido.faltando = d.kit_vendido.faltando.filter(function (k) { return k !== chave; }); }
+          if (no.isConnected) no.replaceWith(linhaConfirma(d, rot, t, chave, et));
+          return;
+        }
+        b.disabled = false; b.textContent = 'Confirmar'; erro.textContent = x.erro;
+      });
+    }
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); confirmar(); } });
+    lin.appendChild(inp); lin.appendChild(b);
+    var ctl = el('div'); ctl.appendChild(lin); ctl.appendChild(erro);
+    no.appendChild(r); no.appendChild(ctl);
+    return no;
+  }
+  function txtKit(x) {
+    if (x === null || x === undefined || x === '') return '';
+    if (typeof x === 'object') { var q = x.quantidade || x.qtd || ''; var m = [x.marca, x.modelo, x.potencia_w ? x.potencia_w + ' W' : ''].filter(Boolean).join(' '); return [q ? q + ' x' : '', m].filter(Boolean).join(' '); }
+    return String(x);
+  }
+  var FORMAS_ROT = { pix: 'Pix', ted: 'TED', boleto: 'Boleto', cartao: 'Cartão', financiamento: 'Financiamento', dinheiro: 'Dinheiro' };
+  /** Placas e Inversor (do kit vendido) e, só para quem vê dinheiro, Valor vendido e Forma de pagamento: cada um com Confirmar. */
+  function linhasDaVenda(d, b1, et) {
+    var kv = d.kit_vendido; var g = el('div', 'jor-campos'); g.style.marginTop = '12px';
+    if (kv && (kv.placas || kv.inversor || kv.kwp || (kv.faltando && kv.faltando.length))) {
+      var falt = Array.isArray(kv.faltando) ? kv.faltando : [];
+      g.appendChild(falt.indexOf('placas') >= 0 ? linhaConfirmaTexto(d, 'Placas (quantidade e marca)', 'placas', 'Ex.: 14 x Canadian 590 W', et) : linhaConfirma(d, 'Placas (quantidade e marca)', txtKit(kv.placas), 'placas', et));
+      g.appendChild(falt.indexOf('inversor') >= 0 ? linhaConfirmaTexto(d, 'Inversor (quantidade e marca)', 'inversor', 'Ex.: 1 x Growatt 10K', et) : linhaConfirma(d, 'Inversor (quantidade e marca)', txtKit(kv.inversor), 'inversor', et));
+      if (kv.kwp) g.appendChild(campoLeitura('Potência do kit', String(kv.kwp).replace('.', ',') + ' kWp'));
+    }
+    var din = O.dinheiro; var vede = !(din && din.visivel === false);
+    var vv = d.venda; var dc = d.dados_cliente || {};
+    var valor = vv && vv.valor_centavos > 0 ? reais(vv.valor_centavos) : (typeof dc.valor === 'number' && dc.valor > 0 ? reais(dc.valor) : '');
+    var pgs = vv && vv.pagamento && vv.pagamento.length ? vv.pagamento : (Array.isArray(dc.pagamento) ? dc.pagamento : []);
+    var pagTxt = pgs.map(function (x) { return (FORMAS_ROT[x.forma] || x.forma) + ' ' + reais(x.valor_centavos); }).join(', ');
+    if (vede && (vv || dc.valor !== undefined)) {
+      g.appendChild(linhaConfirma(d, 'Valor vendido', valor, 'valor', et));
+      g.appendChild(linhaConfirma(d, 'Forma de pagamento', pagTxt, 'pagamento', et));
+    }
+    if (g.childNodes.length) b1.appendChild(g);
+  }
+
+  // ── Etapa 1: dados de banco (financiamento e proposta de banco) ─────────────────
+  function simNao(d, campo, valorAtual, pode) {
+    var qs = el('div', 'jor-filtros');
+    [['sim', 'Sim'], ['nao', 'Não']].forEach(function (o) {
+      var b = el('button', 'jor-chip jor-chip-grande' + (valorAtual === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !pode; b.setAttribute('aria-pressed', valorAtual === o[0] ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        var corpo = {}; corpo[campo] = o[0];
+        api('/gerador/jornada-solar/obra/' + enc(O.card), 'PATCH', corpo).then(function (r) {
+          if (r.status === 200 && r.json.ok !== false) carregarObra(); else toast(msgDe(r, 'Não consegui agora.'));
+        });
+      });
+      qs.appendChild(b);
+    });
+    return qs;
+  }
+  function secaoBanco(d, et) {
+    var fin = d.financiamento === 'sim' || d.financiamento === 'nao' ? d.financiamento : null;
+    // A situação vem dos itens financiamento e proposta_banco (a api os manda no bloco 'venda'). Sim sem a proposta de banco é Falta, nunca Completo.
+    var itB = itensPorChave(et, ['financiamento', 'proposta_banco']);
+    var b = secao('Dados de banco', itB.length ? itB : situacao(fin === 'nao'));
+    b.appendChild(subTitulo('Precisa de proposta de banco ou financiamento?'));
+    b.appendChild(simNao(d, 'financiamento', fin, !!d.pode.marcar_excedente));
+    if (fin === 'sim') {
+      if (window.Jornada.extras.banco) window.Jornada.extras.banco(b, d);
+      else b.appendChild(el('p', 'jor-nota', 'A proposta de banco não carregou. Atualize a página.'));
+    }
+    return b;
+  }
+
+  // ── Etapa 1: contrato e procuração (só gerar) ───────────────────────────────────
   function blocoPapeis(d, et) {
     var its = itensDoBloco(et, 'papeis');
-    var b = el('div', 'jor-bloco'); b.appendChild(blocoTitulo('Contrato e procuração', its.length ? its : null));
+    var b = secao('Contrato e procuração', its);
     function linhaPapel(rot, tipo, extraCtl, gerarFn) {
       var l = el('div', 'jor-anexo'); l.appendChild(el('span', 'jor-rot', rot));
       var gp = d.papeis && d.papeis[tipo];
       if (extraCtl) l.appendChild(extraCtl);
-      var g = btn('Gerar', '', function () { gerarFn(g); }); g.disabled = !d.pode.gerar_papeis; l.appendChild(g);
+      var g = btn('Gerar ' + (tipo === 'contrato' ? 'contrato' : 'procuração'), '', function () { gerarFn(g); }); negar(g, d.pode.gerar_papeis ? '' : 'Você não tem permissão para gerar os papéis.'); l.appendChild(g);
       if (gp) l.appendChild(el('span', 'jor-est ok', 'Gerado em ' + ddmm(String(gp.gerado_em).slice(0, 10))));
       b.appendChild(l);
     }
@@ -1386,93 +1593,211 @@
     var mod = el('select', 'jor-sel'); mod.setAttribute('aria-label', 'Modelo da procuração');
     [['1', 'Padrão'], ['2', 'Jurídico'], ['3', 'Concessionária e ANEEL']].forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; mod.appendChild(op); });
     linhaPapel('Procuração', 'procuracao', mod, function (g) { gerarPapel('procuracao', { modelo: Number(mod.value) }, g); });
-    linhaPapel('Recibo (opcional)', 'recibo', null, function (g) { reciboDialogo(d, g); });
-    b.appendChild(el('p', 'jor-nota', 'Gere os papéis, colha as assinaturas e anexe os assinados na etapa 2.'));
+    b.appendChild(el('p', 'jor-nota', 'Gere os papéis, colha as assinaturas e anexe os assinados na etapa 2. O recibo sai do painel de Dinheiro, no topo.'));
     return b;
   }
 
-  // ── Etapa 2: contas do excedente (um slot, vários arquivos) ─────────────────────
-  var SLOT_EXCEDENTE = 'conta_luz_beneficiaria';
-  function contasExcedente(d, et) {
-    var CK_NOVA = SLOT_EXCEDENTE + '#novo';
+  // ── Etapa 1: pedido ao cliente (checklist, copiar a lista e enviar no WhatsApp) ─
+  var PEDIDOS = [
+    { chave: 'pedido_cnh', rot: 'CNH ou identidade', msg: 'CNH ou identidade', slots: ['documento', 'documento_titular', 'documento_titular_uc'] },
+    { chave: 'pedido_conta_luz', rot: 'Conta de luz', msg: 'Conta de luz', slots: ['conta_luz'] },
+    { chave: 'pedido_fachada', rot: 'Foto da fachada', msg: 'Foto da fachada da casa', slots: ['fachada'] },
+    { chave: 'pedido_padrao', rot: 'Foto do padrão de entrada', msg: 'Foto do padrão de entrada', slots: ['padrao'] },
+    { chave: 'pedido_disjuntor', rot: 'Foto do disjuntor do padrão', msg: 'Foto do disjuntor do padrão', slots: ['disjuntor'] },
+    { chave: 'pedido_medidor', rot: 'Foto do medidor (relógio de luz)', msg: 'Foto do medidor (relógio de luz)', slots: ['medidor'] },
+  ];
+  function recebido(d, p) { return p.slots.some(function (s) { return !!(d.slots && d.slots[s]); }); }
+  function primeiroNome(d) {
+    var n = String((d.dados_cliente && d.dados_cliente.nome) || (d.card && d.card.cliente) || '').trim().split(/\s+/)[0] || '';
+    return n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
+  }
+  function mensagemPedido(d, faltam) {
+    var nome = primeiroNome(d);
+    return (nome ? 'Olá, ' + nome + '.' : 'Olá.') + ' Para seguir com o seu projeto de energia solar, preciso destes documentos e fotos:\n'
+      + faltam.map(function (p) { return '- ' + p.msg; }).join('\n') + '\nPode mandar por aqui mesmo. Obrigado!';
+  }
+  function copiarTexto(t) {
+    function plano() {
+      try {
+        var ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select(); var ok = document.execCommand('copy'); document.body.removeChild(ta); return ok;
+      } catch (e) { return false; }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(function () { return true; }, function () { return plano(); });
+    return Promise.resolve(plano());
+  }
+  function telefoneWa(d) {
+    var x = soDig((d.dados_cliente && d.dados_cliente.telefone) || (d.card && d.card.telefone) || '');
+    if (x.length === 10 || x.length === 11) return '55' + x;
+    if ((x.length === 12 || x.length === 13) && x.indexOf('55') === 0) return x;
+    return '';
+  }
+  /** Marca como pedido o que foi listado na mensagem (PATCH dos pedidos). Quem envia é a pessoa: nada sai pelo sistema. */
+  function marcarPedidos(d, itens) {
+    d.pedidos = d.pedidos || {};
+    var fila = itens.filter(function (p) { return !d.pedidos[p.chave]; });
+    var seq = Promise.resolve();
+    fila.forEach(function (p) {
+      seq = seq.then(function () {
+        return api('/gerador/jornada-solar/obra/' + enc(O.card), 'PATCH', { pedido: p.chave, feito: true }).then(function (r) {
+          if (r.status === 200 && r.json.ok !== false) d.pedidos[p.chave] = { em: new Date().toISOString(), por: '' };
+        });
+      });
+    });
+    return seq.then(function () { if (fila.length) releia(); });
+  }
+  function blocoPedidos(d, et) {
+    var its = itensDoBloco(et, 'pedidos');
+    var b = secao('Pedido ao cliente', its);
+    b.appendChild(el('p', 'jor-nota', 'Tique o que você já pediu. O que o cliente já mandou aparece tiquado sozinho.'));
+    var ul = el('div', 'jor-ped-lista');
+    PEDIDOS.forEach(function (p) {
+      var rec = recebido(d, p); var ped = (d.pedidos && d.pedidos[p.chave]) || null;
+      var lb = el('label', 'jor-ped'); var cb = el('input'); cb.type = 'checkbox'; cb.checked = rec || !!ped; cb.disabled = rec;
+      cb.setAttribute('aria-label', p.rot);
+      cb.addEventListener('change', function () {
+        var on = cb.checked; cb.disabled = true;
+        api('/gerador/jornada-solar/obra/' + enc(O.card), 'PATCH', { pedido: p.chave, feito: on }).then(function (r) {
+          if (r.status === 200 && r.json.ok !== false) { d.pedidos = d.pedidos || {}; if (on) d.pedidos[p.chave] = { em: new Date().toISOString(), por: '' }; else delete d.pedidos[p.chave]; cb.disabled = false; releia(); return; }
+          cb.checked = !on; cb.disabled = false; toast(msgDe(r, 'Não consegui marcar agora.'));
+        });
+      });
+      lb.appendChild(cb); lb.appendChild(el('span', 'jor-ped-t', p.rot));
+      if (rec) lb.appendChild(etq('Recebido', 'ok')); else if (ped) lb.appendChild(etq('Pedido' + (ped.em ? ' em ' + ddmm(String(ped.em).slice(0, 10)) : ''), 'auto'));
+      ul.appendChild(lb);
+    });
+    b.appendChild(ul);
+    var faltam = PEDIDOS.filter(function (p) { return !recebido(d, p); });
+    var ac = el('div', 'jor-din-acoes');
+    if (!faltam.length) { b.appendChild(el('p', 'jor-ok', 'Tudo recebido.')); return b; }
+    var txt = mensagemPedido(d, faltam); var tel = telefoneWa(d);
+    var bc = btn('Copiar lista', '', function () {
+      copiarTexto(txt).then(function (ok) { toast(ok ? 'Lista copiada. Cole na conversa com o cliente.' : 'Não consegui copiar. Selecione e copie a mensagem abaixo.'); });
+      marcarPedidos(d, faltam);
+    });
+    ac.appendChild(bc);
+    if (tel) {
+      var bw = btn('Enviar no WhatsApp', 'jor-btn-pri', function () {
+        try { window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(txt), '_blank', 'noopener'); } catch (e) { toast('Não consegui abrir o WhatsApp.'); }
+        marcarPedidos(d, faltam);
+      });
+      ac.appendChild(bw);
+    } else ac.appendChild(el('span', 'jor-nota', 'Sem telefone do cliente: só dá para copiar a lista.'));
+    b.appendChild(ac);
+    var pre = el('pre', 'jor-ped-msg', txt); b.appendChild(pre);
+    return b;
+  }
+
+  // ── Etapa 1: excedente (Sim ou Não, contas e a conferência do CPF) ──────────────
+  function secaoExcedente(d, et) {
+    var its = itensPorChave(et, ['excedente', 'conta_excedente']).concat(itensDoBloco(et, 'excedente')).filter(function (x, i, a) { return a.indexOf(x) === i; });
+    var b = secao('Excedente', its.length ? its : situacao(d.excedente === 'sim' || d.excedente === 'nao'));
+    b.appendChild(subTitulo('Tem excedente para outras contas?'));
+    b.appendChild(simNao(d, 'excedente', d.excedente, !!d.pode.marcar_excedente));
+    if (d.excedente === 'sim') {
+      b.appendChild(listaVarios(d, et, { slot: 'conta_luz_beneficiaria', rotBase: 'Conta excedente', add: 'Adicionar conta excedente', item: 'conta_excedente', titulo: 'Contas que recebem o excedente', cartaoVazio: true }));
+      // A api sempre manda o objeto: ok false = aviso com o texto dela; ok true = mesmo CPF; ok nulo = ainda não deu para conferir (a lista UC por UC).
+      var cpf = d.excedente_cpf || { ok: null };
+      if (cpf.ok === false) b.appendChild(el('p', 'jor-aviso', cpf.texto || 'O CPF da conta do excedente não confere com o da conta principal.'));
+      else if (cpf.ok === true) b.appendChild(el('p', 'jor-ok', 'Mesmo CPF da conta principal.'));
+      else {
+        (d.documentos.beneficiarias || []).forEach(function (bn) {
+          var li = el('div', 'jor-conta');
+          li.appendChild(etq(bn.mesmo_titular ? 'ok' : 'Titular diferente', bn.mesmo_titular ? 'ok' : 'er'));
+          li.appendChild(el('span', bn.mesmo_titular ? 'jor-ok' : 'jor-erro', 'UC ' + bn.uc + ' · ' + (bn.titular || 'sem titular') + ' · ' + (bn.mesmo_titular ? 'Mesmo titular' : 'Titular diferente. Todas as contas precisam estar no nome de ' + d.documentos.titular_geradora + '.')));
+          b.appendChild(li);
+        });
+      }
+    }
+    return b;
+  }
+
+  // ── Itens com vários arquivos num slot só (contas do excedente e outros anexos) ──
+  /** cfg: slot, rotBase, add, item (chave do item no servidor, p/ dica), titulo, cartaoVazio (sem arquivo: um cartão vazio com Foto, Arquivo e Print). */
+  function listaVarios(d, et, cfg) {
+    var CK_NOVA = cfg.slot + '#novo';
     var raiz = el('div');
-    raiz.appendChild(subTitulo('Contas que recebem o excedente'));
+    if (cfg.titulo) raiz.appendChild(subTitulo(cfg.titulo));
     var grade = el('div', 'jor-fotos'); raiz.appendChild(grade);
     var rodape = el('div'); raiz.appendChild(rodape);
     var esperou = false;
-    var dica = itemFeito(et, 'conta_excedente') || !!d.slots[SLOT_EXCEDENTE];
+    var dica = (cfg.item && itemFeito(et, cfg.item)) || !!d.slots[cfg.slot];
     function pinta() {
       grade.replaceChildren(); rodape.replaceChildren();
       var st = quadroDoCard();
-      var lista = (st && !st.carregando && st.docs && Array.isArray(st.docs.arquivos)) ? st.docs.arquivos.filter(function (a) { return a && a.slot === SLOT_EXCEDENTE; }) : null;
+      var lista = (st && !st.carregando && st.docs && Array.isArray(st.docs.arquivos)) ? st.docs.arquivos.filter(function (a) { return a && a.slot === cfg.slot; }) : null;
       if (lista === null && !esperou) { esperou = true; quadroPronto(raiz).then(pinta); }
       if (lista === null && dica) { grade.appendChild(el('p', 'jor-nota', 'Carregando…')); return; }
       lista = lista || [];
-      if (!lista.length) {
-        var c0 = el('div', 'jor-foto'); var t0 = el('div', 'jor-foto-topo'); t0.appendChild(el('span', '', 'Conta excedente 1')); t0.appendChild(etq('Falta', 'av')); c0.appendChild(t0);
-        c0.appendChild(anexo(SLOT_EXCEDENTE, 'Conta excedente 1', false, { compacto: true, ck: CK_NOVA })); grade.appendChild(c0);
+      if (!lista.length && cfg.cartaoVazio) {
+        var c0 = el('div', 'jor-foto'); var t0 = el('div', 'jor-foto-topo'); t0.appendChild(el('span', '', cfg.rotBase + ' 1')); t0.appendChild(etq('Falta', 'av')); c0.appendChild(t0);
+        c0.appendChild(anexo(cfg.slot, cfg.rotBase + ' 1', false, { compacto: true, ck: CK_NOVA })); grade.appendChild(c0);
         return;
       }
+      if (!lista.length) grade.appendChild(el('p', 'jor-nota', 'Nenhum anexo ainda.'));
       lista.forEach(function (a, i) {
-        var rot = 'Conta excedente ' + (i + 1);
-        var c = el('div', 'jor-foto'); var t = el('div', 'jor-foto-topo'); t.appendChild(el('span', '', rot)); t.appendChild(etq('Anexada', 'ok')); c.appendChild(t);
-        c.appendChild(anexo(SLOT_EXCEDENTE, rot, true, { compacto: true, id: a.id })); grade.appendChild(c);
+        var rot = cfg.rotBase + ' ' + (i + 1);
+        var c = el('div', 'jor-foto'); var t = el('div', 'jor-foto-topo'); t.appendChild(el('span', '', rot)); t.appendChild(etq('Anexado', 'ok')); c.appendChild(t);
+        c.appendChild(anexo(cfg.slot, rot, true, { compacto: true, id: a.id })); grade.appendChild(c);
       });
       if (O.ocupSlot[CK_NOVA]) { var oc = el('p', 'jor-nota', O.ocupSlot[CK_NOVA]); oc.setAttribute('role', 'status'); rodape.appendChild(oc); return; }
-      rodape.appendChild(seletor('Adicionar conta excedente', ACEITA_PADRAO, false, 'jor-btn', 'contas que recebem o excedente', function (arqs) {
-        enviarArquivo(SLOT_EXCEDENTE, arqs, false, pinta, { ck: CK_NOVA });
-      }));
+      rodape.appendChild(seletor(cfg.add, ACEITA_PADRAO, false, 'jor-btn', cfg.titulo || cfg.rotBase, function (arqs) { enviarArquivo(cfg.slot, arqs, false, pinta, { ck: CK_NOVA }); }));
       if (O.erroSlot[CK_NOVA]) { var er = el('p', 'jor-erro jor-anexo-msg', O.erroSlot[CK_NOVA]); er.setAttribute('role', 'alert'); rodape.appendChild(er); }
     }
     pinta();
     return raiz;
   }
 
-  // ── Etapa 3: equipamento (kit, datasheets e KMZ) ────────────────────────────────
-  /** O kit confirmado. Grava pelo mesmo PUT /venda de sempre, com o resto da venda como está. Precisa da venda salva (valor e pagamento). */
-  function kitControle(d, et) {
-    var v = d.venda; var feito = itemFeito(et, 'kit') || !!(v && v.kit_confirmado);
-    var pode = d.pode.confirmar_kit !== undefined ? !!d.pode.confirmar_kit : !!d.pode.editar_venda;
-    var raiz = el('div');
-    var kit = el('input'); kit.type = 'checkbox'; kit.checked = feito; kit.disabled = !pode || !v || !!et.concluida_em;
-    kit.setAttribute('aria-label', 'Todo o equipamento confirmado');
-    var lk = el('label', 'jor-kit' + (feito ? '' : ' falta')); lk.appendChild(kit); lk.appendChild(el('span', '', 'Todo o equipamento confirmado'));
-    var cab = el('div', 'jor-campo-rot'); cab.appendChild(document.createTextNode('Kit vendido')); cab.appendChild(etq(feito ? 'Confirmado' : 'Falta', feito ? 'ok' : 'av'));
-    var info = el('p', 'jor-erro jor-anexo-msg'); info.setAttribute('role', 'alert');
-    kit.addEventListener('change', function () {
-      var marcado = kit.checked; kit.disabled = true; info.textContent = '';
-      var pedido = {
-        valor_centavos: v.valor_centavos, kit_confirmado: marcado, prazo_prometido: v.prazo_prometido || '', nota: v.nota || '',
-        desconto_centavos: v.desconto_centavos === undefined ? null : v.desconto_centavos,
-        pagamento: v.pagamento.map(function (x) { return { forma: x.forma, valor_centavos: x.valor_centavos, obs: x.obs || '' }; }),
-      };
-      api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + '/venda', 'PUT', pedido).then(function (r) {
-        if (r.status === 200 && r.json.ok !== false) { toast(marcado ? 'Equipamento confirmado.' : 'Confirmação do equipamento desfeita.'); carregarObra(); return; }
-        kit.checked = !marcado; kit.disabled = false; info.textContent = msgDe(r, 'Não consegui salvar agora.');
-      });
-    });
-    raiz.appendChild(cab); raiz.appendChild(lk);
-    if (!v) raiz.appendChild(el('p', 'jor-nota', 'Salve o valor e a forma de pagamento na etapa 1 para poder confirmar o equipamento.'));
-    raiz.appendChild(info);
-    return raiz;
+  // ── Etapa 2: um cartão de anexo (com Trocar e Apagar) ───────────────────────────
+  function cartaoAnexo(d, et, slot, rot, item, aceita) {
+    var tem = (item && itemFeito(et, item)) || !!d.slots[slot];
+    var cf = el('div', 'jor-foto'); var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', rot)); tp.appendChild(etq(tem ? 'Anexado' : 'Falta', tem ? 'ok' : 'av')); cf.appendChild(tp);
+    cf.appendChild(anexo(slot, rot, tem, aceita ? { compacto: true, aceita: aceita } : { compacto: true }));
+    return cf;
   }
+
+  // ── Etapa 3: equipamento (datasheets e KMZ) e Trello com o relatório final ─────
   function blocoEquipamento(d, et) {
-    var its = itensDoBloco(et, 'equipamento');
-    var b = el('div', 'jor-bloco'); b.appendChild(blocoTitulo('Equipamento', its.length ? its : null));
-    b.appendChild(kitControle(d, et));
-    var g = el('div', 'jor-fotos'); g.style.marginTop = '12px';
-    [['datasheet_modulo', 'Datasheet da placa', null], ['datasheet_inversor', 'Datasheet do inversor', null], ['kmz', 'KMZ do local', ACEITA_KMZ]].forEach(function (x) {
-      var tem = itemFeito(et, x[0]) || !!d.slots[x[0]];
-      var cf = el('div', 'jor-foto'); var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', x[1])); tp.appendChild(etq(tem ? 'Anexado' : 'Falta', tem ? 'ok' : 'av')); cf.appendChild(tp);
-      cf.appendChild(anexo(x[0], x[1], tem, x[2] ? { compacto: true, aceita: x[2] } : { compacto: true })); g.appendChild(cf);
-    });
+    var b = secao('Equipamento', itensPorChave(et, ['datasheet_inversor', 'datasheet_modulo', 'kmz']));
+    var g = el('div', 'jor-fotos');
+    g.appendChild(cartaoAnexo(d, et, 'datasheet_inversor', 'Datasheet do inversor', 'datasheet_inversor'));
+    g.appendChild(cartaoAnexo(d, et, 'datasheet_modulo', 'Datasheet da placa', 'datasheet_modulo'));
+    g.appendChild(cartaoAnexo(d, et, 'kmz', 'KMZ do local', 'kmz', ACEITA_KMZ));
     b.appendChild(g);
+    return b;
+  }
+  function relatorioFinalDe(r) { var j = r.json || {}; return (j.relatorio_final && j.relatorio_final.url) || j.url || (j.relatorio && j.relatorio.url) || ''; }
+  function blocoTrelloRelatorio(d, et) {
+    var b = secao('Trello e relatório final', itensPorChave(et, ['trello']));
     var cartao = d.trello && ((d.trello.url && d.trello.fonte !== 'dossie') || d.trello.tem_cartao);
     if (!cartao) {
       b.appendChild(el('p', 'jor-nota', 'O cartão do Trello é criado sozinho quando as fases 1, 2 e 3 fecham.'));
       var ta = d.trello_auto;
       if (ta && !ta.pronto && Array.isArray(ta.falta) && ta.falta.length) b.appendChild(el('p', 'jor-nota', 'Falta para criar o cartão: ' + ta.falta.join(', ') + '.'));
+    } else b.appendChild(el('p', 'jor-ok', 'O cartão do Trello já foi criado.'));
+    var rf = d.relatorio_final;
+    var info = el('p', 'jor-erro jor-anexo-msg'); info.setAttribute('role', 'alert');
+    var temRel = !!(rf && rf.url && /^https:\/\//.test(rf.url));
+    var semPerm = d.pode && d.pode.relatorio_final ? '' : 'Você não tem permissão para gerar o relatório final.';
+    var rotGerar = temRel ? 'Gerar de novo' : 'Relatório final';
+    function gerarRel() {
+      var w = null; try { w = window.open('about:blank', '_blank'); } catch (e) { w = null; }
+      bt.disabled = true; bt.textContent = 'Gerando…'; info.textContent = '';
+      api('/gerador/jornada-solar/obra/' + enc(O.card) + '/relatorio-final', 'POST', {}, 120000).then(function (r) {
+        bt.disabled = false; bt.textContent = rotGerar;
+        var url = relatorioFinalDe(r);
+        if (r.status === 200 && r.json.ok !== false && /^https:\/\//.test(url)) { if (w) w.location.href = url; else window.open(url, '_blank', 'noopener'); toast('Relatório final gerado.'); releia(); return; }
+        if (w) { try { w.close(); } catch (e) { /* já fechada */ } }
+        info.textContent = msgDe(r, 'Não consegui gerar o relatório final agora. Tente de novo.');
+      });
     }
+    var bt = btn(rotGerar, temRel ? '' : 'jor-btn-pri', gerarRel); negar(bt, semPerm);
+    var ac = el('div', 'jor-din-acoes');
+    if (temRel) { var ab = btn('Abrir', 'jor-btn-pri', function () { window.open(rf.url, '_blank', 'noopener'); }); negar(ab, semPerm); ac.appendChild(ab); }
+    ac.appendChild(bt); b.appendChild(ac);
+    if (rf && rf.gerado_em) b.appendChild(el('p', 'jor-nota', 'Gerado em ' + ddmm(String(rf.gerado_em).slice(0, 10)) + '.'));
+    b.appendChild(info);
+    b.appendChild(el('p', 'jor-nota', 'O relatório final vai para o cartão do Trello junto com tudo.'));
     return b;
   }
 
@@ -1527,60 +1852,35 @@
   }
 
   function etapa2(esq, d, et) {
-    // 3. Documentos
-    var b3 = el('div', 'jor-bloco'); b3.appendChild(blocoTitulo('Documentos', itensDoBloco(et, 'documentos')));
+    // 1. Anexos assinados
+    var bs = secao('Anexos assinados', itensPorChave(et, ['contrato_assinado', 'procuracao']));
+    var gs = el('div', 'jor-fotos');
+    gs.appendChild(cartaoAnexo(d, et, 'contrato_assinado', 'Contrato assinado', 'contrato_assinado'));
+    gs.appendChild(cartaoAnexo(d, et, 'procuracao', 'Procuração assinada', 'procuracao'));
+    bs.appendChild(gs);
+    bs.appendChild(el('p', 'jor-nota', 'O contrato assinado fica arquivado aqui. Só a procuração segue para a homologação.'));
+    esq.appendChild(bs);
+    // 2. Documentos
+    var bd = secao('Documentos', itensPorChave(et, ['documento', 'conta_luz']));
     var gd = el('div', 'jor-fotos');
     // A caixa olha os dois documentos que o portão aceita (o do contratante e o do titular da homologação).
     var temDoc = !!(d.slots.documento || d.slots.documento_titular_uc);
     var chDoc = d.slots.documento ? 'documento_titular' : (d.slots.documento_titular_uc ? 'documento_titular_uc' : 'documento_titular');
-    [['conta_luz', 'Conta de luz', 'Conta de luz', !!d.slots.conta_luz], [chDoc, 'CNH ou documento com foto', 'CNH ou documento com foto', temDoc]].forEach(function (x) {
-      var cf = el('div', 'jor-foto');
-      var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', x[1])); tp.appendChild(etq(x[3] ? 'Anexada' : 'Falta', x[3] ? 'ok' : 'av')); cf.appendChild(tp);
-      cf.appendChild(anexo(x[0], x[2], x[3], { compacto: true })); gd.appendChild(cf);
-    });
-    b3.appendChild(gd);
-    var q = el('div'); q.appendChild(subTitulo('Tem excedente para outras contas?'));
-    var qs = el('div', 'jor-filtros');
-    [['sim', 'Sim'], ['nao', 'Não']].forEach(function (o) {
-      var b = el('button', 'jor-chip jor-chip-grande' + (d.excedente === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !d.pode.marcar_excedente;
-      b.addEventListener('click', function () {
-        api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card), 'PATCH', { excedente: o[0] }).then(function (r) {
-          if (r.status === 200 && r.json.ok !== false) carregarObra(); else toast(msgDe(r, 'Não consegui agora.'));
-        });
-      });
-      qs.appendChild(b);
-    });
-    q.appendChild(qs); b3.appendChild(q);
-    if (d.excedente === 'sim') {
-      b3.appendChild(contasExcedente(d, et));
-      d.documentos.beneficiarias.forEach(function (b) {
-        var li = el('div', 'jor-conta');
-        li.appendChild(etq(b.mesmo_titular ? 'ok' : 'Titular diferente', b.mesmo_titular ? 'ok' : 'er'));
-        li.appendChild(el('span', b.mesmo_titular ? 'jor-ok' : 'jor-erro', 'UC ' + b.uc + ' · ' + (b.titular || 'sem titular') + ' · ' + (b.mesmo_titular ? 'Mesmo titular' : 'Titular diferente. Todas as contas precisam estar no nome de ' + d.documentos.titular_geradora + '. Troque a titularidade na Cemig ou tire esta conta em "Mais documentos, ligações e cadastro", logo abaixo.')));
-        b3.appendChild(li);
-      });
-    }
-    esq.appendChild(b3);
-    // 2. Fotos da vistoria (e a vistoria da obra, logo abaixo)
-    var b2 = el('div', 'jor-bloco'); b2.appendChild(blocoTitulo('Fotos da vistoria', itensDoBloco(et, 'fotos')));
+    var cDoc = cartaoAnexo(d, et, chDoc, 'CNH ou identidade', null);
+    if (temDoc !== !!d.slots[chDoc]) { cDoc = el('div', 'jor-foto'); var tpd = el('div', 'jor-foto-topo'); tpd.appendChild(el('span', '', 'CNH ou identidade')); tpd.appendChild(etq(temDoc ? 'Anexado' : 'Falta', temDoc ? 'ok' : 'av')); cDoc.appendChild(tpd); cDoc.appendChild(anexo(chDoc, 'CNH ou identidade', temDoc, { compacto: true })); }
+    gd.appendChild(cDoc);
+    gd.appendChild(cartaoAnexo(d, et, 'conta_luz', 'Conta de luz', 'conta_luz'));
+    bd.appendChild(gd); esq.appendChild(bd);
+    // 3. Fotos da vistoria
+    var bf = secao('Fotos da vistoria', itensPorChave(et, ['fachada', 'padrao', 'disjuntor', 'medidor']));
     var gf = el('div', 'jor-fotos');
-    [['fachada', 'Fachada'], ['padrao', 'Padrão de entrada'], ['disjuntor', 'Disjuntor'], ['medidor', 'Medidor']].forEach(function (x) {
-      var tem = !!d.slots[x[0]]; var cf = el('div', 'jor-foto');
-      var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', x[1])); tp.appendChild(etq(tem ? 'Anexada' : 'Falta', tem ? 'ok' : 'av')); cf.appendChild(tp);
-      cf.appendChild(anexo(x[0], 'Foto ' + (x[1] === 'Padrão de entrada' ? 'do padrão de entrada' : x[1] === 'Medidor' ? 'do medidor' : x[1] === 'Disjuntor' ? 'do disjuntor' : 'da fachada'), tem, { compacto: true }));
-      gf.appendChild(cf);
-    });
-    b2.appendChild(gf);
-    b2.appendChild(el('p', 'jor-nota', 'As outras fotos (que não travam) e os dados do local ficam em "Mais documentos, ligações e cadastro", logo abaixo.'));
-    esq.appendChild(b2);
-    if (window.Jornada.extras.vistoria) window.Jornada.extras.vistoria(esq, d);
-    // 3. Procuração assinada
-    var itP = itensDoBloco(et, 'portao');
-    var bp = el('div', 'jor-bloco'); bp.appendChild(blocoTitulo('Contrato e procuração assinados', itP.length ? itP : null));
-    bp.appendChild(anexo('contrato_assinado', 'Contrato assinado', itemFeito(et, 'contrato_assinado') || !!d.slots.contrato_assinado));
-    bp.appendChild(anexo('procuracao', 'Procuração assinada', itemFeito(et, 'procuracao') || !!d.slots.procuracao));
-    bp.appendChild(el('p', 'jor-nota', 'O contrato assinado fica arquivado aqui. Só a procuração segue para a homologação.'));
-    esq.appendChild(bp);
+    [['fachada', 'Fachada'], ['padrao', 'Padrão de entrada'], ['disjuntor', 'Disjuntor do padrão'], ['medidor', 'Medidor']].forEach(function (x) { gf.appendChild(cartaoAnexo(d, et, x[0], x[1], x[0])); });
+    bf.appendChild(gf); esq.appendChild(bf);
+    // 4. Outros anexos (opcional, vários)
+    var bo = secao('Outros anexos', null);
+    bo.appendChild(el('p', 'jor-nota', 'Opcional. Qualquer outro papel ou foto da obra.'));
+    bo.appendChild(listaVarios(d, et, { slot: 'outros', rotBase: 'Anexo', add: 'Adicionar anexo', item: null, titulo: '', cartaoVazio: false }));
+    esq.appendChild(bo);
     // Número
     var b4 = el('div', 'jor-bloco'); var tt = el('div', 'jor-bloco-t', 'Número da obra'); tt.appendChild(el('span', 'jor-auto', 'Automático')); b4.appendChild(tt);
     var ne = d.numero.estado;
@@ -1682,6 +1982,7 @@
   function etapa3(esq, d, et) {
     var sem = d.numero.estado !== 'tem';
     esq.appendChild(blocoEquipamento(d, et));
+    esq.appendChild(blocoTrelloRelatorio(d, et));
     if (d.excedente === 'sim') {
       var ra = el('div', 'jor-bloco'); ra.appendChild(el('div', 'jor-bloco-t', 'Rateio do excedente'));
       var bens = d.rateio.linhas.filter(function (l) { return l.papel === 'beneficiaria'; });
@@ -1767,7 +2068,7 @@
     anexo: anexo, blocoTitulo: blocoTitulo, comReserva: comReserva, etq: etq, quando: quando, cidadeUF: cidadeUF, campoRot: campoRot, subTitulo: subTitulo, dialogo: dialogo, dialogoMotivo: dialogoMotivo, fecharDlg: fecharDlg, toast: toast, releia: releia, imprimir: imprimir,
     empresaDoAparelho: empresaDoAparelho, msgDe: msgDe, corpo: corpo, abrirLista: abrirLista, desenhar: desenharObra, recarregar: function () { return carregarObra(); },
     ficha: function () { return O.ficha; }, sugs: sugs, veio: veio,
-    atual: atualEtapa, O: function () { return O; },
+    atual: atualEtapa, O: function () { return O; }, gerarPapel: gerarPapel,
   };
   window.Jornada = { abrirLista: abrirLista, abrirObra: abrirObra, vendido: vendido, h: H, etapas: {}, extras: {}, dinheiro: null };
 

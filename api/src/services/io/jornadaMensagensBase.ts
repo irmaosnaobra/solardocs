@@ -203,7 +203,7 @@ export async function dinheiroDasObras(obras: readonly ObraFila[]): Promise<Dinh
 /**
  * O "Falta" de uma obra parada: os itens da etapa atual que ainda não estão feitos. Etapas 4 a 8 usam a mesma conta da tela; as etapas 1 a 3
  * usam os arquivos do PRÓPRIO card (o dossiê da proposta ligada fica de fora, então na etapa 1 só entram os itens que não dependem de
- * arquivo: os dados do cliente, o bloco Venda e os papéis gerados). Erro de leitura devolve lista vazia (a linha "Falta" some, a obra continua na escalada).
+ * arquivo: os dados do cliente, a venda, os papéis gerados e o excedente). Erro de leitura devolve lista vazia (a linha "Falta" some, a obra continua na escalada).
  */
 export async function faltaDaObra(o: ObraFila, ligs: ReadonlyMap<number, Ligacao>): Promise<string[]> {
   try {
@@ -224,7 +224,8 @@ export async function faltaDaObra(o: ObraFila, ligs: ReadonlyMap<number, Ligacao
     const [cad, privado] = await Promise.all([lerCadastroVisto(o.card, 'vendasolar'), lerPrivadoJornada(o.card)]);
     const lig = ligs.get(o.card) ?? { proposta: null, venda: null, por: '', em: '' };
     const itens = itensDaEtapa(n, { lig, slots: new Set(reg.arquivos.map((a) => a.slot)), cad, privado, estado: o.js });
-    const semArquivo = new Set(['nome', 'endereco_usina', 'telefone', 'email', 'proposta', 'valor', 'prazo', 'papel_contrato', 'papel_procuracao']);
+    // Na etapa 1 só entram os itens que não dependem de arquivo nem de leitura extra (kit da proposta, vistoria, proposta de banco, pedidos).
+    const semArquivo = new Set(['nome', 'telefone', 'endereco', 'endereco_usina', 'email', 'proposta', 'prazo', 'valor', 'pagamento', 'financiamento', 'papel_contrato', 'papel_procuracao', 'excedente']);
     return itens.filter((i) => !i.feito && (n !== 1 || semArquivo.has(i.chave))).map((i) => i.texto);
   } catch (err) { logBase('falta', err); return []; }
 }
