@@ -439,6 +439,16 @@ export function itensDaEtapa(n: number, f: EntradaItens): ItemEtapa[] {
     itens.push(
       { chave: 'documento', bloco: 'documentos', texto: 'CNH ou identidade', feito: tem('documento_titular') || tem('documento_titular_uc') },
       { chave: 'conta_luz', bloco: 'documentos', texto: 'Conta de luz', feito: tem('conta_luz') },
+    );
+    // Só com financiamento "sim": o titular do financiamento manda documento e comprovante de endereço. Os dois slots ficam fora do Trello e do
+    // relatório (SLOTS_FORA_DO_RELATORIO), e a etapa 2 NÃO os herda como pendência (obra antiga não trava por eles).
+    if (fin === 'sim') {
+      itens.push(
+        { chave: 'documento_financiamento', bloco: 'documentos', texto: 'Documento do titular do financiamento', feito: tem('documento_financiamento') },
+        { chave: 'comprovante_endereco_financiamento', bloco: 'documentos', texto: 'Comprovante de endereço do titular do financiamento', feito: tem('comprovante_endereco_financiamento') },
+      );
+    }
+    itens.push(
       { chave: 'fachada', bloco: 'fotos', texto: 'Foto da fachada', feito: tem('fachada') },
       { chave: 'padrao', bloco: 'fotos', texto: 'Foto do padrão de entrada', feito: tem('padrao') },
       { chave: 'disjuntor', bloco: 'fotos', texto: 'Foto do disjuntor', feito: tem('disjuntor') },

@@ -10,7 +10,7 @@
 
   var L = { dados: null, aba: 'ativas', filtro: 'todas', busca: '', consultor: '', carregando: false, erro: '', menu: null };
   var O = { card: null, dados: null, fase2: null, fase3: null, dinheiro: null, ficha: null, fase2Erro: false, dinErro: false, ocupado: '', msg: '', painel: null, vdcChave: '', vdcNo: null, vdcDet: null, vdcPainel: 0, obraNo: null, debounce: 0, seq: 0, erroSlot: {}, ocupSlot: {},
-    lendo: null, lendoFalhou: '', lendoT: 0, edita: {}, rascunho: {}, confirmando: {}, erroSec: {}, abertos: {}, vendaEdita: false };
+    lendo: null, lendoFalhou: '', lendoT: 0, edita: {}, rascunho: {}, confirmando: {}, erroSec: {}, vendaEdita: false, aba: null, abaVista: '', organizar: false, outroTipo: '', ratEdita: false };
 
   // ── Rede ───────────────────────────────────────────────────────────────────
   function api(rota, metodo, corpo, ms) {
@@ -62,7 +62,7 @@
 
   /** Reserva escura para o visual antigo (onde os tokens do io2 nao existem): os mesmos valores do bloco escuro do io2.css. */
   var RESERVA = {
-    '--n-tx': '#E5E7EB', '--n-tx2': '#B4C0D1', '--n-tx3': '#94A3B8', '--n-sf': '#1E293B', '--n-sf2': '#182338', '--n-sf3': '#2A384F', '--n-bd': '#334155', '--n-bd2': '#475569',
+    '--n-bg': '#0F172A', '--n-tx': '#E5E7EB', '--n-tx2': '#B4C0D1', '--n-tx3': '#94A3B8', '--n-sf': '#1E293B', '--n-sf2': '#182338', '--n-sf3': '#2A384F', '--n-bd': '#334155', '--n-bd2': '#475569',
     '--n-inv': '#FFFFFF', '--io-borda-campo': '#7384A0', '--io-titulo': '#F1F5F9', '--io-azul': '#2E6CEA', '--io-azul-tx': '#93C5FD', '--io-azul-sf': 'rgba(96,165,250,.16)',
     '--io-amarelo': '#FFC220', '--io-amarelo-forte': '#E5A900', '--io-amarelo-sf': 'rgba(255,194,32,.16)', '--io-tinta': '#0B2447', '--io-marcado': '#2E6CEA',
     '--io-ok': '#15803D', '--io-ok-tx': '#4ADE80', '--io-ok-sf': 'rgba(74,222,128,.14)', '--io-ok-fg': '#4ADE80', '--io-ok-bd': 'rgba(74,222,128,.4)',
@@ -136,51 +136,10 @@
       '.jor-cab-t span{display:block;margin-top:4px;color:var(--n-tx2);font-size:14px}',
       '.jor-pilula{display:inline-flex;align-items:center;min-height:28px;border-radius:999px;padding:2px 12px;font-weight:600;font-size:13px;background:var(--io-azul-sf);color:var(--io-azul-tx)}',
       '.jor-faixa{border:1px solid var(--io-er-bd);background:var(--io-er-sf);color:var(--io-er-tx);border-radius:12px;padding:12px 14px;margin:0 0 12px;font-weight:600}',
-      // Regua: circulos de 32 px ligados por linha, a pilula "N · sigla" e o gasto embaixo.
-      '.jor-regua-cx{margin:0 0 16px;padding:0 0 12px}',
-      '.jor-regua{display:flex;overflow-x:auto;padding:16px 12px 4px;margin:0;-webkit-overflow-scrolling:touch}',
-      '.jor-passo{flex:1 1 0;min-width:96px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:2px 0 6px;border:0;border-radius:8px;background:transparent;color:var(--n-tx);font:inherit;cursor:pointer;text-align:center}',
-      '.jor-passo:hover:not([aria-disabled=true]){background:var(--n-sf2)}',
-      '.jor-passo[aria-disabled=true]{cursor:default}',
-      '.jor-passo-trilha{display:flex;align-items:center;width:100%}',
-      '.jor-passo-linha{flex:1 1 0;height:3px;background:var(--n-bd2)}',
-      '.jor-passo-linha.ok{background:var(--io-ok)}',
-      '.jor-passo-linha.nada{background:transparent}',
-      '.jor-passo-bola{flex:0 0 32px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;background:var(--n-sf3);border:1px solid var(--n-bd2);color:var(--n-tx3)}',
-      '.jor-passo.feita .jor-passo-bola{background:var(--io-ok);border:2px solid var(--io-ok);color:var(--n-inv)}',
-      '.jor-passo.davez .jor-passo-bola{background:var(--io-amarelo);border:2px solid var(--io-tinta);color:var(--io-tinta);box-shadow:0 0 0 4px var(--io-amarelo-sf)}',
-      '.jor-passo-nome{font-size:13px;font-weight:500;white-space:nowrap;color:var(--n-tx3)}',
-      '.jor-passo.feita .jor-passo-nome{font-weight:600;color:var(--n-tx)}',
-      '.jor-passo.davez .jor-passo-nome{font-weight:700;color:var(--io-titulo)}',
-      '.jor-passo-dono{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--n-sf3);color:var(--n-tx2)}',
-      '.jor-passo.feita .jor-passo-dono{background:var(--io-ok-sf);color:var(--io-ok-fg)}',
-      '.jor-passo.davez .jor-passo-dono{background:var(--io-amarelo-sf);color:var(--io-titulo)}',
-      '.jor-passo.sel .jor-passo-nome{text-decoration:underline;text-underline-offset:3px}',
-      '.jor-passo-gasto{font-size:12px;white-space:nowrap;color:var(--n-tx3)}',
-      '.jor-passo.feita .jor-passo-gasto{color:var(--n-tx);font-weight:600}',
-      '.jor-passo.davez .jor-passo-gasto{color:var(--io-titulo);font-weight:700}',
-      '.jor-regua-pe{margin:8px 12px 0;font-size:13px;color:var(--n-tx2)}',
-      '.jor-cols{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start;margin-bottom:32px}',
-      '.jor-esq,.jor-dir{min-width:0}',
-      '.jor-esq{padding:24px}',
-      '.jor-dir{display:flex;flex-direction:column;gap:16px}',
-      // O cabecalho da etapa: titulo de 20 px, "Da vez", o dono com avatar de 40 px.
-      '.jor-etapa-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}',
-      '.jor-etapa-id{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}',
-      '.jor-etapa-t{margin:0;font-size:20px;font-weight:700;line-height:1.3}',
-      '.jor-etapa-quando{font-size:13px;color:var(--n-tx2)}',
-      '.jor-dono{display:flex;align-items:center;gap:12px;margin-top:12px}',
       '.jor-avatar{width:40px;height:40px;flex:0 0 40px;border-radius:50%;background:var(--io-azul-sf);color:var(--io-titulo);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}',
-      '.jor-dono-nome{font-size:14px;font-weight:600;color:var(--n-tx)}',
-      '.jor-dono-papel{font-size:12px;color:var(--n-tx2)}',
-      '.jor-intro{margin:16px 0 0;font-size:14px;color:var(--n-tx2)}',
       // Secoes dentro do mesmo cartao.
-      '.jor-esq>.jor-bloco,.jor-esq>.jor-portao{margin-top:24px}',
       '.jor-bloco{min-width:0}',
       // Cada seção da etapa: divisória grossa em cima, título maior e a situação (Completo ou Falta N) logo ao lado.
-      '.jor-esq>.jor-bloco,.jor-esq>.jor-portao{border-top:4px solid var(--n-bd2);padding-top:16px}',
-      '.jor-esq>.jor-bloco>.jor-bloco-t{font-size:18px}',
-      '.jor-esq .jor-bloco-t em{margin-left:0}',
       '.jor-email-cmp{display:flex;flex:1 1 220px;min-width:0}',
       '.jor-ped-lista{display:flex;flex-direction:column}',
       '.jor-ped{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 0;border-top:1px solid var(--n-bd);cursor:pointer}',
@@ -192,7 +151,6 @@
       '.jor-prog.ok>i{background:var(--io-ok)}',
       '.jor-opcoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}',
       '.jor-opcoes .jor-chip{min-height:36px;padding:4px 12px}',
-      '.jor-dir .jor-bloco{background:var(--n-sf);border:1px solid var(--n-bd);border-radius:12px;box-shadow:var(--sombra);padding:24px}',
       '.jor-bloco-t{display:flex;align-items:center;gap:8px 12px;font-size:16px;font-weight:600;line-height:1.35;color:var(--io-titulo);margin:0 0 12px;flex-wrap:wrap}',
       '.jor-bloco-t em{font-style:normal;margin-left:auto}',
       '.jor-bloco-t .jor-btn{margin-left:auto}',
@@ -260,18 +218,17 @@
       '.jor-tbl{width:100%;border-collapse:collapse;font-size:13px}',
       '.jor-tbl th,.jor-tbl td{padding:8px;border-bottom:1px solid var(--n-bd);text-align:left;color:var(--n-tx)}',
       '.jor-tbl th{color:var(--n-tx2);background:var(--n-sf2);font-weight:600}',
-      '.jor-vdc-det{margin-top:24px;border-top:1px solid var(--n-bd);padding-top:12px}',
       '.jor-vdc-sum{cursor:pointer;font-weight:600;font-size:15px;color:var(--io-titulo);padding:8px 0}',
-      '.jor-vdc-det .vdc{background:transparent;border:0;padding:0;color:var(--n-tx)}',
-      '.jor-vdc-det .vdc-tit{display:none}',
-      '.jor-vdc-det .vdc-sec-t,.jor-vdc-det .vdc-pn-gr{text-transform:none;letter-spacing:0;font-size:14px;font-weight:600;color:var(--io-titulo)}',
-      '.jor-vdc-det .vdc-btn{min-height:40px;border-radius:10px;border:1px solid var(--n-bd2);background:var(--n-sf);color:var(--n-tx);font-weight:600}',
-      '.jor-vdc-det .vdc-btn:hover:not(:disabled){background:var(--n-sf3)}',
-      '.jor-vdc-det .vdc-btn:disabled{opacity:1;background:var(--n-sf3);border-color:var(--n-bd);color:var(--n-tx3)}',
-      '.jor-vdc-det .vdc-btn-pri{background:var(--io-amarelo);border-color:var(--io-amarelo);color:var(--io-tinta)}',
-      '.jor-vdc-det .vdc-btn-pri:hover:not(:disabled){background:var(--io-amarelo-forte);border-color:var(--io-amarelo-forte)}',
-      '.jor-vdc-det .vdc-doc,.jor-vdc-det .vdc-pn{background:var(--n-sf2);border-color:var(--n-bd)}',
-      '.jor-vdc-det .vdc-in{background:var(--n-sf);border-radius:10px;font-weight:500}',
+      '.jor-vdcx .vdc{background:transparent;border:0;padding:0;color:var(--n-tx)}',
+      '.jor-vdcx .vdc-tit{display:none}',
+      '.jor-vdcx .vdc-sec-t,.jor-vdcx .vdc-pn-gr{text-transform:none;letter-spacing:0;font-size:14px;font-weight:600;color:var(--io-titulo)}',
+      '.jor-vdcx .vdc-btn{min-height:40px;border-radius:10px;border:1px solid var(--n-bd2);background:var(--n-sf);color:var(--n-tx);font-weight:600}',
+      '.jor-vdcx .vdc-btn:hover:not(:disabled){background:var(--n-sf3)}',
+      '.jor-vdcx .vdc-btn:disabled{opacity:1;background:var(--n-sf3);border-color:var(--n-bd);color:var(--n-tx3)}',
+      '.jor-vdcx .vdc-btn-pri{background:var(--io-amarelo);border-color:var(--io-amarelo);color:var(--io-tinta)}',
+      '.jor-vdcx .vdc-btn-pri:hover:not(:disabled){background:var(--io-amarelo-forte);border-color:var(--io-amarelo-forte)}',
+      '.jor-vdcx .vdc-doc,.jor-vdcx .vdc-pn{background:var(--n-sf2);border-color:var(--n-bd)}',
+      '.jor-vdcx .vdc-in{background:var(--n-sf);border-radius:10px;font-weight:500}',
       '.jor-fin-tag{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;background:var(--n-sf3);color:var(--n-tx2)}',
       '.jor-dl{display:grid;grid-template-columns:minmax(130px,max-content) minmax(0,1fr);gap:6px 16px;margin:0}',
       '.jor-dl dt{color:var(--n-tx3);font-size:13px}',
@@ -295,16 +252,11 @@
       '.jor-q{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-left:6px;border-radius:50%;border:1px solid var(--n-bd2);color:var(--n-tx2);font-size:12px;font-weight:700;font-style:normal;cursor:help;vertical-align:middle;flex:0 0 22px}',
       '.jor-q:focus-visible{outline:2px solid var(--io-azul-tx);outline-offset:2px}',
       // Resumo
-      '.jor-res{padding:20px 24px;margin:0 0 16px}',
-      '.jor-res-topo{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding-bottom:16px;border-bottom:1px solid var(--n-bd)}',
-      '.jor-res-topo .jor-num{font-size:16px;color:var(--io-titulo);background:var(--n-sf3);border-radius:8px;padding:2px 10px}',
-      '.jor-res-topo h2{font-size:22px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}',
       '.jor-res-g{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:20px 24px;margin-top:18px}',
       '.jor-grp{min-width:0;scroll-margin-top:16px}',
       '.jor-grp:focus{outline:none}',
       '.jor-grp-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 10px}',
       '.jor-grp-t h3{font-size:15px;font-weight:700;line-height:1.3}',
-      '.jor-grp-sit{margin-top:20px}',
       '.jor-ficha-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}',
       '.jor-fc{min-width:0;padding:8px 12px;border:1px solid var(--n-bd);border-radius:10px;background:var(--n-sf);display:flex;flex-direction:column;gap:2px}',
       '.jor-fc.vazio{border-style:dashed;border-color:var(--n-bd2);background:var(--n-sf2)}',
@@ -330,60 +282,18 @@
       '.jor-rc-v.vazio{color:var(--n-tx3);font-weight:500}',
       '.jor-rc-v small{display:block;font-size:12px;font-weight:500;color:var(--n-tx2)}',
       '.jor-rc-lin{display:block}',
-      '.jor-sit{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}',
-      '.jor-sit-c{min-width:0;padding:8px 12px;border:1px solid var(--n-bd);border-radius:10px;background:var(--n-sf)}',
-      '.jor-sit-c small{display:block;font-size:12px;font-weight:600;color:var(--n-tx2)}',
-      '.jor-sit-c b{display:block;font-size:14px;font-weight:600;line-height:1.4;color:var(--io-titulo);overflow-wrap:anywhere}',
-      '.jor-sit-c.vazio{border-style:dashed;border-color:var(--n-bd2);background:var(--n-sf2)}',
-      '.jor-sit-c.vazio b{color:var(--n-tx3);font-weight:500}',
-      '.jor-sit-c.av b{color:var(--io-ambar-tx)}',
-      '.jor-sit-c a{color:var(--io-azul-tx);font-weight:600;text-underline-offset:2px}',
       '.jor-res-din{margin-top:20px;padding-top:18px;border-top:1px solid var(--n-bd)}',
       '.jor-res-din .jor-din-painel{border:0;box-shadow:none;padding:0;margin:0;background:transparent}',
       '.jor-res-din .jor-din-tit{font-size:15px;font-weight:700;margin:0 0 10px}',
       '.jor-res-din .jor-din-faixa{border:0;box-shadow:none;padding:0;background:transparent;gap:8px}',
       '.jor-res-din .jor-din-c{background:var(--n-sf2)}',
       '.jor-res-din .jor-bloco-t{font-size:15px;font-weight:700}',
-      '.jor-tl>li:last-child::before{display:none}',
       '.jor-res-din>.jor-bloco{margin-top:18px;padding-top:16px;border-top:1px solid var(--n-bd)}',
       '.jor-lendo{display:flex;align-items:center;gap:10px;padding:8px 12px;margin:0 0 10px;border-radius:10px;background:var(--io-azul-sf);color:var(--io-azul-tx);font-weight:600}',
       '.jor-lendo i{flex:0 0 10px;width:10px;height:10px;border-radius:50%;background:currentColor;animation:jor-pulso 1.2s ease-in-out infinite}',
       '.jor-doc .jor-lendo{grid-column:1/-1;margin:0;padding:6px 10px;font-size:13px}',
       '@keyframes jor-pulso{0%,100%{opacity:.35;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}',
       '@media (prefers-reduced-motion:reduce){.jor-lendo i{animation:none}}',
-      // Linha do tempo: um nó por passo, o marcador numa linha vertical; o atual aberto, o feito em uma linha, o futuro apagado.
-      '.jor-tl{list-style:none;margin:16px 0 0;padding:0}',
-      '.jor-tl-no,.jor-tl-portao{position:relative;display:grid;grid-template-columns:32px minmax(0,1fr);gap:0 14px;padding:0 0 20px;scroll-margin-top:16px}',
-      '.jor-tl-no:focus{outline:none}',
-      '.jor-tl-no::before{content:"";position:absolute;left:15px;top:36px;bottom:4px;width:2px;border-radius:2px;background:var(--n-bd)}',
-      '.jor-tl-no.feito::before{background:var(--io-ok)}',
-      '.jor-tl-mk{position:relative;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;background:var(--n-sf);border:2px solid var(--n-bd2);color:var(--n-tx2)}',
-      '.jor-tl-mk.vazio{border:0;background:transparent}',
-      '.jor-tl-no.feito .jor-tl-mk{background:var(--io-ok);border-color:var(--io-ok);color:var(--n-inv)}',
-      '.jor-tl-no.atual .jor-tl-mk{background:var(--io-amarelo);border-color:var(--io-tinta);color:var(--io-tinta);box-shadow:0 0 0 4px var(--io-amarelo-sf)}',
-      '.jor-tl-no.pendente .jor-tl-mk{border-color:var(--io-ambar-tx);color:var(--io-ambar-tx)}',
-      '.jor-tl-no.futuro .jor-tl-mk{border-style:dashed;color:var(--n-tx3)}',
-      '.jor-tl-cx{min-width:0;padding-top:4px}',
-      '.jor-tl-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-height:28px}',
-      '.jor-tl-t h4{margin:0;font-size:16px;font-weight:700;line-height:1.3;color:var(--io-titulo)}',
-      '.jor-tl-no.feito .jor-tl-t h4{font-weight:600}',
-      '.jor-tl-no.futuro .jor-tl-t h4{color:var(--n-tx3);font-weight:600}',
-      '.jor-tl-t .jor-tl-ac{margin-left:auto}',
-      '.jor-tl-res{margin:2px 0 0;font-size:13px;color:var(--n-tx2)}',
-      '.jor-tl-no.futuro .jor-tl-res{color:var(--n-tx3)}',
-      '.jor-tl-corpo{position:relative;z-index:1;margin-top:10px;padding:16px;border:1px solid var(--n-bd);border-radius:12px;background:var(--n-sf)}',
-      '.jor-tl-no.atual .jor-tl-corpo{border-color:var(--io-borda-campo);box-shadow:var(--sombra)}',
-      '.jor-tl-corpo>.jor-bloco+.jor-bloco{margin-top:16px;padding-top:16px;border-top:1px solid var(--n-bd)}',
-      '.jor-tl-corpo .jor-bloco-t{font-size:15px}',
-      '.jor-tl-corpo>.jor-nota:first-child,.jor-tl-corpo>.jor-docs-ac:first-child,.jor-tl-corpo>.jor-perg:first-child{margin-top:0}',
-      '.jor-tl-corpo>.jor-bloco>.jor-nota:first-child{margin-top:0}',
-      '.jor-tl-fase{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:4px 0 16px;padding:10px 12px;border-radius:10px;background:var(--n-sf2);border:1px solid var(--n-bd)}',
-      '.jor-tl-fase b{font-size:14px;color:var(--io-titulo)}',
-      '.jor-tl-fase .jor-avatar{width:28px;height:28px;flex:0 0 28px;font-size:12px}',
-      '.jor-tl-fase .jor-nota{margin:0}',
-      '.jor-tl-fase-g{margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px;color:var(--n-tx2)}',
-      '.jor-tl-portao .jor-portao-barra{margin-top:0}',
-      '.jor-tl-portao .jor-nota{margin:8px 0 0}',
       '.jor-perg{display:flex;align-items:center;flex-wrap:wrap;margin:14px 0 8px;font-size:14px;font-weight:600;color:var(--io-titulo)}',
       '.jor-sep{height:1px;background:var(--n-bd);margin:16px 0}',
       '.jor-vai{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0 0 12px;padding:0}',
@@ -407,13 +317,6 @@
       '.jor-doc-est .st-falta{color:var(--io-ambar-tx)}',
       '.jor-doc-est .st-ped{color:var(--io-azul-tx)}',
       '.jor-doc-est .st-ok{color:var(--io-ok-fg)}',
-      '.jor-passos{display:inline-flex;align-items:center}',
-      '.jor-passos i{display:block;width:10px;height:10px;border-radius:50%;border:2px solid var(--n-bd2);background:var(--n-sf)}',
-      '.jor-passos b{display:block;width:10px;height:2px;background:var(--n-bd2)}',
-      '.jor-passos.p0 i:first-child{background:var(--io-ambar-tx);border-color:var(--io-ambar-tx)}',
-      '.jor-passos.p1 .on{background:var(--io-azul-tx);border-color:var(--io-azul-tx)}',
-      '.jor-passos.ok i,.jor-passos.ok b{background:var(--io-ok);border-color:var(--io-ok)}',
-      '.jor-doc-ped{display:inline-flex;align-items:center;gap:8px;min-height:40px;font-size:13px;font-weight:500;color:var(--n-tx2);cursor:pointer}',
       '.jor-doc .jor-anexo{padding:0;border:0}',
       '.jor-papel{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;align-items:center;padding:12px 14px;border-top:1px solid var(--n-bd)}',
       '.jor-papel:first-child{border-top:0}',
@@ -422,39 +325,19 @@
       '.jor-venda-form>.jor-sub-t:first-child{margin-top:0}',
       '.jor-rolar{overflow-x:auto;-webkit-overflow-scrolling:touch}',
       '.jor-grade-bt{display:flex;align-items:flex-end}',
-      '#jor-s-vistoria .jor-ob-par{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}',
       '#jor-s-vistoria .jor-bloco>label{display:flex;flex-direction:column;gap:4px;margin:10px 0 0;font-size:13px;font-weight:500;color:var(--n-tx2)}',
+      '#jor-s-vistoria .jor-ob-par{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}',
       '#jor-s-vistoria .jor-bloco>label .jor-sel{align-self:flex-start}',
       '#jor-s-vistoria .jor-ob-grupo{margin-top:18px;font-size:14px;color:var(--io-titulo)}',
-      '.jor-quadro{margin:0 0 32px;padding:8px 24px 24px}',
-      '.jor-quadro>.jor-vdc-sum{font-size:18px;font-weight:700;padding:14px 0 6px}',
-      '.jor-quadro.jor-vdc-det{margin-top:0;border-top:0}',
-      // Celular: atalho logo abaixo do cabeçalho da ficha, para pular direto ao passo atual. Nada da ficha some.
-      '.jor-ir-atual{display:none}',
-      '@media (max-width:599px){',
-      '.jor-ir-atual{display:flex;width:100%;min-height:44px;margin:12px 0 0;justify-content:center;touch-action:manipulation}',
-      '}',
       '@media (max-width:760px){',
-      '.jor-res{padding:16px}',
       '.jor-res-g,.jor-ficha-g{grid-template-columns:minmax(0,1fr)}',
-      '.jor-sit{grid-template-columns:repeat(2,minmax(0,1fr))}',
       '.jor-doc,.jor-papel{grid-template-columns:minmax(0,1fr)}',
       '.jor-papel-ac{justify-content:flex-start}',
       '.jor-fc-ed{min-height:44px}',
-      '.jor-tl-no,.jor-tl-portao{grid-template-columns:28px minmax(0,1fr);gap:0 10px}',
-      '.jor-tl-mk{width:28px;height:28px;font-size:13px}',
-      '.jor-tl-no::before{left:13px;top:32px}',
-      '.jor-tl-corpo{padding:12px;margin-left:-38px}',
-      '.jor-tl-fase-g{margin-left:0;width:100%}',
-      '.jor-tl .jor-btn-link,.jor-tl .jor-btn{min-height:44px}',
       '.jor-rc-rot{flex-basis:84px}',
       '.jor-res-din .jor-din-c b{font-size:17px}',
-      '.jor-cols>.jor-dir{order:-1}',
-      '.jor-quadro{padding:4px 16px 16px}',
       '.jor-dl{grid-template-columns:minmax(0,1fr)}',
-      '.jor-cols{grid-template-columns:minmax(0,1fr)}',
       '.jor-campos,.jor-fotos{grid-template-columns:minmax(0,1fr)}',
-      '.jor-esq{padding:16px}',
       '.jor-busca{width:100%}',
       '.jor-pg{grid-template-columns:minmax(0,1fr)}',
       '.jor-tab thead{display:none}',
@@ -462,6 +345,113 @@
       '.jor-tab tr{border-bottom:1px solid var(--n-bd);padding:8px 10px}',
       '.jor-tab td{border:0;padding:2px 0;white-space:normal}',
       '.jor-tab td[data-r]::before{content:attr(data-r) ": ";color:var(--n-tx3);font-size:12px}',
+      '}',
+    
+      // A página do cliente (19/11/2026): cabeçalho, barra de abas fixa, o painel do passo e o Resumo. Cor só por token.
+      '.jor-obra-cab{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:0 0 12px}',
+      '.jor-obra-cab .jor-num{font-size:15px;color:var(--io-titulo);background:var(--n-sf3);border-radius:8px;padding:2px 10px}',
+      '.jor-obra-cab h2{font-size:22px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}',
+      '.jor-cab-ac{display:flex;flex-wrap:wrap;gap:8px}',
+      '.jor-abas-p{position:sticky;top:var(--top-h,0px);z-index:30;margin:0 0 12px;padding:6px 0;background:var(--n-bg);box-shadow:0 -12px 0 var(--n-bg)}',
+      '.jor-abas-tr{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:4px;border:1px solid var(--n-bd);border-radius:14px;background:var(--n-sf);box-shadow:var(--sombra)}',
+      '.jor-abas-tr::-webkit-scrollbar{display:none}',
+      '.jor-ab{flex:0 0 auto;position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:6px 14px 6px 8px;border:0;border-radius:10px;background:transparent;color:var(--n-tx2);font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;touch-action:manipulation}',
+      '.jor-ab.res{padding:6px 16px}',
+      '.jor-ab:hover:not(.travado):not(.sel){background:var(--n-sf2);color:var(--n-tx)}',
+      '.jor-ab:focus-visible{outline:2px solid var(--io-azul-tx);outline-offset:-2px}',
+      '.jor-ab.sel{background:var(--io-marcado);color:var(--n-inv)}',
+      '.jor-ab.travado{color:var(--n-tx3);cursor:not-allowed}',
+      '.jor-ab-mk{flex:0 0 24px;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:1.5px solid var(--n-bd2);color:var(--n-tx2);background:var(--n-sf)}',
+      '.jor-ab-mk svg{width:13px;height:13px}',
+      '.jor-ab-mk i{width:8px;height:8px;border-radius:50%;background:currentColor}',
+      '.jor-ab.feito .jor-ab-mk,.jor-and-l.feito .jor-ab-mk{background:var(--io-ok);border-color:var(--io-ok);color:var(--n-inv)}',
+      '.jor-ab.atual .jor-ab-mk,.jor-and-l.atual .jor-ab-mk{background:var(--io-amarelo);border-color:var(--io-amarelo);color:var(--io-tinta)}',
+      '.jor-ab.feito.av .jor-ab-mk,.jor-and-l.feito.av .jor-ab-mk{background:var(--io-av-sf);border-color:var(--io-ambar-tx);color:var(--io-ambar-tx)}',
+      '.jor-ab.travado .jor-ab-mk,.jor-and-l.travado .jor-ab-mk{border-style:dashed;color:var(--n-tx3);background:transparent}',
+      '.jor-ab.sel .jor-ab-mk{box-shadow:0 0 0 2px var(--n-inv)}',
+      '.jor-ab.compacta:not(.sel) .jor-ab-t{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
+      '.jor-ab.compacta:not(.sel){padding:6px 10px}',
+      '.jor-ab-sep{flex:0 0 auto;align-self:center;margin-left:6px;padding:4px 6px 4px 12px;border-left:1px solid var(--n-bd);font-size:12px;font-weight:600;color:var(--n-tx3)}',
+      '.jor-painel{padding:20px 24px 24px;margin:0 0 32px}',
+      '.jor-painel:focus{outline:none}',
+      '.jor-pagina .jor-grp,.jor-pagina [id^=jor-s-],.jor-painel{scroll-margin-top:calc(var(--top-h,0px) + 76px)}',
+      '.jor-passo-cab{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 16px;padding-bottom:14px;border-bottom:1px solid var(--n-bd)}',
+      '.jor-passo-de{display:block;font-size:12px;font-weight:600;color:var(--n-tx2)}',
+      '.jor-passo-tt h3{font-size:22px;font-weight:700;line-height:1.25}',
+      '.jor-passo-ld{display:flex;flex-wrap:wrap;align-items:center;gap:8px}',
+      '.jor-passo-ld .jor-avatar{width:32px;height:32px;flex:0 0 32px;font-size:12px}',
+      '.jor-prazo{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:12px 0 0;padding:8px 12px;border-radius:10px;background:var(--n-sf2);font-size:13px;color:var(--n-tx2)}',
+      '.jor-prazo-d{font-weight:600;color:var(--n-tx)}',
+      '.jor-prazo-ac{margin-left:auto}',
+      '.jor-prazo-av{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:4px 12px}',
+      '.jor-prazo-av .jor-nota{margin:0}',
+      '.jor-passo-corpo>.jor-bloco{margin-top:24px;padding-top:20px;border-top:1px solid var(--n-bd)}',
+      '.jor-passo-corpo>.jor-bloco:first-child{margin-top:16px;padding-top:0;border-top:0}',
+      '.jor-passo-corpo>.jor-aviso:first-child{margin-top:16px}',
+      '.jor-pe{margin-top:24px}',
+      '.jor-pe .jor-portao-barra{margin-top:0}',
+      '.jor-pe .jor-nota{margin:8px 0 0}',
+      '.jor-pe>.jor-erro{margin:0 0 8px}',
+      '.jor-pergs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}',
+      '.jor-perg-c{padding:12px 16px 16px;border:1px solid var(--n-bd);border-radius:12px;background:var(--n-sf2)}',
+      '.jor-perg-c .jor-perg{margin:0 0 10px}',
+      '.jor-perg-c .jor-filtros{margin:0}',
+      '.jor-mandar{margin-top:12px;padding:14px 16px;border:1px solid var(--n-bd);border-radius:12px}',
+      '.jor-mandar-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}',
+      '.jor-mandar-t b{font-size:15px;color:var(--io-titulo)}',
+      '.jor-mandar .jor-vai{margin:10px 0 12px}',
+      '.jor-mandar .jor-docs-ac{margin:0}',
+      '.jor-aviso-ac{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:12px 0 0}',
+      '.jor-doc-add{grid-template-columns:minmax(0,1fr) auto}',
+      '.jor-doc-add .jor-sel{width:100%}',
+      '.jor-conf-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}',
+      '.jor-conf-c{min-width:0;display:flex;flex-direction:column;gap:10px}',
+      '.jor-conf-ct{font-size:13px;font-weight:700;color:var(--n-tx2)}',
+      '.jor-conf.compacto{padding:0;border:0}',
+      '.jor-conf.compacto .jor-din-acoes{margin-top:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px}',
+      '.jor-conf.compacto>.jor-nota{margin:8px 0 0}',
+      '.jor-rc-v .jor-in{margin:0}',
+      '.jor-rc-v .jor-btn-link{margin-top:6px}',
+      '.jor-vdcx{color:var(--n-tx)}',
+      '.jor-vdcx *{box-sizing:border-box}',
+      '.jor-vdcx .vdc-lst-bt{display:none}',
+      '.jor-vdcx .vdc-acoes{display:flex;flex-wrap:wrap;gap:8px}',
+      '.jor-vdcx .vdc-tre>.vdc-sec-t{display:none}',
+      '.jor-vdcx .vdc-tre .vdc-btn{width:auto}',
+      '.jor-vdcx .vdc-acoes .vdc-btn{width:auto;flex:0 0 auto}',
+      '.jor-vdcx .vdc-acoes .vdc-btn-pri{background:var(--n-sf);border-color:var(--n-bd2);color:var(--n-tx)}',
+      '.jor-vdcx .vdc-acoes .vdc-btn-pri:hover:not(:disabled){background:var(--n-sf3);border-color:var(--n-bd2)}',
+      '.jor-res-g{margin-top:0;gap:28px 32px}',
+      '.jor-res-col{min-width:0;display:flex;flex-direction:column;gap:28px}',
+      '.jor-and{list-style:none;margin:0;padding:0;border:1px solid var(--n-bd);border-radius:12px;background:var(--n-sf)}',
+      '.jor-and-l{display:flex;align-items:flex-start;gap:10px;padding:10px 8px 10px 12px;border-top:1px solid var(--n-bd)}',
+      '.jor-and-l:first-child{border-top:0}',
+      '.jor-and-tx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px;padding-top:2px}',
+      '.jor-and-tx b{font-size:14px;font-weight:600;color:var(--io-titulo)}',
+      '.jor-and-l.travado .jor-and-tx b{color:var(--n-tx3)}',
+      '.jor-and-s{font-size:13px;color:var(--n-tx2)}',
+      '.jor-and-s.av{color:var(--io-ambar-tx)}',
+      '.jor-and-s a,a.jor-rdocs-ab{color:var(--io-azul-tx);font-weight:600;text-underline-offset:2px}',
+      '.jor-and-l .jor-btn-link{flex:0 0 auto}',
+      '.jor-rdocs{list-style:none;margin:0;padding:0;border:1px solid var(--n-bd);border-radius:12px;background:var(--n-sf)}',
+      '.jor-rdocs li{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 12px;border-top:1px solid var(--n-bd)}',
+      '.jor-rdocs li:first-child{border-top:0}',
+      '.jor-rdocs-t{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}',
+      '.jor-rdocs-t b{font-size:14px;font-weight:600;color:var(--n-tx)}',
+      '.jor-rdocs-t small{font-size:12px;color:var(--n-tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      'a.jor-rdocs-ab{flex:0 0 auto;display:inline-flex;align-items:center;min-height:40px;padding:0 8px;font-size:13px;border-radius:8px}',
+      'a.jor-rdocs-ab:hover{background:var(--n-sf3)}',
+      '.jor-grp-t .jor-btn-link{margin-left:auto}',
+      '@media (max-width:760px){',
+      '.jor-painel{padding:16px}',
+      '.jor-pergs,.jor-conf-g{grid-template-columns:minmax(0,1fr)}',
+      '.jor-passo-tt h3,.jor-obra-cab h2{font-size:20px}',
+      '.jor-ab{padding:6px 12px 6px 6px}',
+      '.jor-ab.num:not(.sel) .jor-ab-t{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
+      '.jor-ab.num:not(.sel){padding:6px 10px}',
+      '.jor-doc-add{grid-template-columns:minmax(0,1fr)}',
+      '.jor-prazo-ac{margin-left:0}',
+      '.jor-and-l .jor-btn-link,a.jor-rdocs-ab,.jor-grp-t .jor-btn-link{min-height:44px}',
       '}',
     ].join('\n');
     var st = document.createElement('style'); st.id = 'jor-css'; st.textContent = comReserva(css); document.head.appendChild(st);
@@ -670,8 +660,8 @@
   // ── A obra ──────────────────────────────────────────────────────────────────
   function sairDaObra() {
     if (O.vdcNo && typeof vdcFechar === 'function') { try { vdcFechar(O.vdcNo); } catch (e) { /* já fechado */ } }
-    O.vdcChave = ''; O.vdcNo = null; O.vdcDet = null; O.vdcPainel = 0; O.obraNo = null; O.fase2 = null; O.dinheiro = null; O.ficha = null; O.erroSlot = {}; O.ocupSlot = {};
-    O.lendo = null; O.lendoFalhou = ''; if (O.lendoT) { clearTimeout(O.lendoT); O.lendoT = 0; } O.edita = {}; O.rascunho = {}; O.confirmando = {}; O.erroSec = {}; O.abertos = {}; O.vendaEdita = false;
+    O.vdcChave = ''; O.vdcNo = null; O.vdcDet = null; O.obraNo = null; O.fase2 = null; O.dinheiro = null; O.ficha = null; O.erroSlot = {}; O.ocupSlot = {};
+    O.lendo = null; O.lendoFalhou = ''; if (O.lendoT) { clearTimeout(O.lendoT); O.lendoT = 0; } O.edita = {}; O.rascunho = {}; O.confirmando = {}; O.erroSec = {}; O.vendaEdita = false; O.aba = null; O.abaVista = ''; O.organizar = false; O.outroTipo = ''; O.ratEdita = false;
     if (O.debounce) { clearTimeout(O.debounce); O.debounce = 0; }
   }
 
@@ -683,8 +673,9 @@
     O.card = card;
     if (!O.obraNo) { O.obraNo = el('div'); O.obraNo.id = 'jor-obra'; }
     if (!O.vdcNo) { O.vdcNo = el('div'); O.vdcNo.id = 'jor-vdc'; }
-    // O quadro de documentos mora num <details> fechado, que o desenharObra põe dentro da etapa 1 a 3 (e esconde nas outras). O #jor-vdc continua o mesmo nó.
-    if (!O.vdcDet) { O.vdcDet = el('details', 'jor-vdc-det'); O.vdcDet.open = true; O.vdcDet.appendChild(el('summary', 'jor-vdc-sum', 'Todos os documentos e cadastro')); O.vdcDet.appendChild(O.vdcNo); O.vdcPainel = 0; }
+    // O quadro de documentos (index.html) fica montado e escondido no fim da página: os anexos, a leitura e o Trello falam com a api por ele.
+    // Os pedaços que só existiam nele (cadastro completo, ligações, rateio, lista para renomear) a página pega emprestados no lugar certo.
+    if (!O.vdcDet) { O.vdcDet = el('div', 'jor-vdc-det'); O.vdcDet.hidden = true; O.vdcDet.appendChild(O.vdcNo); }
     if (!c.contains(O.obraNo)) c.replaceChildren(O.obraNo);
     O.obraNo.replaceChildren(el('p', 'jor-nota', 'Carregando…'));
     carregarObra();
@@ -709,7 +700,7 @@
       if (r.status === 200 && r.json && r.json.ok !== false) {
         O.dados = r.json;
         // Depois do Trazer (ou de qualquer volta de finalizada), o desenharObra põe o quadro de documentos de volta na etapa.
-        desenharObra(); montarQuadro();
+        montarQuadro(); desenharObra();
       } else {
         O.obraNo.replaceChildren(el('p', 'jor-erro', msgDe(r, 'Não consegui abrir esta venda agora.')), btn('Voltar para Clientes', '', abrirLista));
       }
@@ -1051,12 +1042,11 @@
     });
   }
 
-  function abrirQuadro() { if (O.vdcDet) { O.vdcDet.open = true; if (O.vdcNo && O.vdcNo.scrollIntoView) O.vdcNo.scrollIntoView({ behavior: 'smooth' }); } }
   function concluir(etapa, botao) {
     botao.disabled = true; O.msg = '';
     api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + (etapa >= 4 ? '/etapa-obra' : '/etapa'), 'POST', { etapa: etapa }, 200000).then(function (r) {
       if (r.status === 200 && r.json.ok !== false) {
-        O.painel = null;
+        O.painel = null; O.aba = null;   // a página abre no passo que o concluir liberou
         var num = r.json.numero;
         if (etapa === 2 && num && num.ok === false) toast('Etapa concluída. O número da obra ainda não saiu: use Tentar o número de novo.');
         else toast(etapa === 8 ? 'Obra finalizada.' : 'Etapa concluída.');
@@ -1196,16 +1186,19 @@
     pai.appendChild(f);
   }
 
-  // ── A página do cliente (18/11/2026): o RESUMO no topo e a LINHA DO TEMPO embaixo ────────────────────────────────
-  // O resumo junta a ficha do cliente, a venda, a situação e o dinheiro, e vai se preenchendo ("Aguardando") conforme os passos andam.
-  // A linha do tempo segue a ordem do trabalho, um passo por vez: o passo atual fica aberto; o feito mostra o resultado em uma linha
-  // com Editar; o futuro aparece apagado com o que vai pedir. Dado que está no resumo não se repete no passo: o passo só tem a ação.
+  // ── A página do cliente (19/11/2026): o Resumo e os passos em abas ───────────────────────────────────────────
+  // No topo, a barra fixa: Resumo, 1 Documentos, 2 Contrato, 3 Assinaturas, 4 Vistoria, 5 Homologação e as etapas da obra.
+  // Concluir um passo libera o próximo. Passo travado não abre. Passo feito reabre para editar. A página abre no passo da vez.
+  // O Resumo junta o que já está ok: cliente, venda, andamento, documentos recebidos e o caixa. Cada dado aparece num lugar só.
+  // A api tem as etapas 1 a 9: a etapa 1 são os passos 1 e 2, a etapa 2 os passos 3 e 4, a etapa 3 o passo 5. Os passos 1 e 3 fecham pela tela.
 
   /** O "?" com a explicação longa no title (e no leitor de tela). */
   function ajudaQ(txt) { var q = el('span', 'jor-q', '?'); q.title = txt; q.tabIndex = 0; q.setAttribute('role', 'img'); q.setAttribute('aria-label', 'Ajuda: ' + txt); return q; }
   /** Texto só para o leitor de tela. */
   function srTxt(t) { var s = el('span', '', t); s.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap'; return s; }
   function juntar(l) { return l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1]; }
+  /** Primeira letra minúscula para entrar no meio da frase (sigla fica como está). */
+  function minus(s) { s = String(s || ''); return /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2}/.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1); }
   /** Os itens do servidor das etapas 1 a 3 por chave (o passo não depende de em qual etapa a api pôs o item). */
   function itensDe(d, chaves) {
     var out = []; (d.etapas || []).slice(0, 3).forEach(function (e) { (e.itens || []).forEach(function (i) { if (chaves.indexOf(i.chave) >= 0) out.push(i); }); });
@@ -1218,91 +1211,336 @@
     a.scrollIntoView({ behavior: reduz ? 'auto' : 'smooth', block: 'start' });
     try { a.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
   }
-  /** Celular: rola até o passo atual da linha do tempo (ou o primeiro pendente, ou o título "Passo a passo" se não houver nenhum). */
-  function irAoPassoAtual() {
-    var no = document.querySelector('#jor-obra .jor-tl-no.atual') || document.querySelector('#jor-obra .jor-tl-no.pendente');
-    irPara(no && no.id ? no.id : 'jor-tl-tit');
-  }
   function quem(c) { var q = c && c.em ? quando(c.em) : ''; return (c && c.por ? ' por ' + nomeBonito(c.por) : '') + (q ? ' em ' + q : ''); }
   function ultimaMarca(d, chaves) { return chaves.map(function (k) { return conf(d, k); }).filter(Boolean).sort(function (a, b) { return String(b.em || '').localeCompare(String(a.em || '')); })[0] || null; }
   function etapaFeita(e, atual) { return !!(e && (e.concluida_em || atual > e.n)); }
+  function dataCurta(iso) { return ddmm(String(iso || '').slice(0, 10)); }
+
+  // Os documentos que só entram com financiamento e os que entram só se precisar (avalista, imóvel, titular da homologação).
+  var FIN_DOCS = [
+    { slot: 'documento_financiamento', rot: 'Documento do titular do financiamento', msg: 'CNH ou documento do titular do financiamento' },
+    { slot: 'comprovante_endereco_financiamento', rot: 'Comprovante de endereço do titular do financiamento', msg: 'Comprovante de endereço do titular do financiamento' },
+  ];
+  var OUTROS_DOCS = [
+    { slot: 'documento_titular_uc', rot: 'Documento do titular da conta de luz' },
+    { slot: 'comprovante_endereco_comprador', rot: 'Comprovante de endereço do cliente' },
+    { slot: 'documento_avalista', rot: 'Documento do avalista' },
+    { slot: 'comprovante_endereco_avalista', rot: 'Comprovante de endereço do avalista' },
+    { slot: 'documento_imovel', rot: 'Documento do imóvel' },
+    { slot: 'documento_outra_pessoa', rot: 'Documento de outra pessoa' },
+  ];
+  /** O item tem arquivo: pelo resumo da api ou pela lista do quadro de documentos. */
+  function temSlot(d, s) {
+    if (d.slots && d.slots[s]) return true;
+    var st = quadroDoCard();
+    return !!(st && st.docs && Array.isArray(st.docs.arquivos) && st.docs.arquivos.some(function (a) { return a && a.slot === s; }));
+  }
+  function itemOk(d, chave) { var x = itensDe(d, [chave])[0]; return !!(x && x.feito); }
+
+  /** O que falta no passo 1, em palavras. Vazio = o passo está pronto. */
+  function faltaDoP1(d) {
+    var out = [];
+    if (d.financiamento !== 'sim' && d.financiamento !== 'nao') out.push('responder se tem financiamento');
+    if (d.excedente !== 'sim' && d.excedente !== 'nao') out.push('responder se tem excedente');
+    PEDIDOS.forEach(function (p) { if (!docRecebido(d, p)) out.push(minus(p.rot)); });
+    if (d.excedente === 'sim') {
+      var ie = itensDe(d, ['excedente'])[0]; var cpf = d.excedente_cpf || {};
+      if (!temSlot(d, 'conta_luz_beneficiaria')) out.push('conta do excedente');
+      else if ((ie && !ie.feito) || (!ie && cpf.ok === false)) out.push('a conta do excedente no CPF do titular');
+    }
+    if (d.financiamento === 'sim') FIN_DOCS.forEach(function (f) { if (!temSlot(d, f.slot) && !itemOk(d, f.slot)) out.push(minus(f.rot)); });
+    return out;
+  }
+  function faltaDoP3(d) {
+    var out = [];
+    if (!(temSlot(d, 'contrato_assinado') || itemOk(d, 'contrato_assinado'))) out.push('contrato assinado');
+    if (!(temSlot(d, 'procuracao') || itemOk(d, 'procuracao'))) out.push('procuração assinada');
+    return out;
+  }
+
+  /** Os passos e o estado de cada um: feito, livre (abre) e qual é o da vez. */
+  function modelo(d) {
+    var ets = etapasMescladas(); var atual = atualEtapa();
+    var f1 = etapaFeita(ets[0], atual), f2 = etapaFeita(ets[1], atual), f3 = etapaFeita(ets[2], atual);
+    var P = [
+      { id: 'p1', num: 1, titulo: 'Documentos', curto: 'Documentos', etapa: 1, feito: f1 || !faltaDoP1(d).length, aviso: f1 && pendentesDe(d).length > 0, corpo: corpoP1 },
+      { id: 'p2', num: 2, titulo: 'Contrato e procuração', curto: 'Contrato', etapa: 1, feito: f1, corpo: corpoP2, api: true },
+      { id: 'p3', num: 3, titulo: 'Assinaturas', curto: 'Assinaturas', etapa: 2, feito: f2 || !faltaDoP3(d).length, corpo: corpoP3 },
+      { id: 'p4', num: 4, titulo: 'Vistoria', curto: 'Vistoria', etapa: 2, feito: f2, corpo: corpoP4, api: true },
+      { id: 'p5', num: 5, titulo: 'Homologação', curto: 'Homologação', etapa: 3, feito: f3, corpo: corpoP5, api: true },
+    ];
+    ets.forEach(function (e) {
+      if (e.n < 4) return;
+      P.push({ id: 'e' + e.n, num: 0, titulo: e.nome, curto: e.nome, etapa: e.n, obra: true, e: e, api: e.n <= 8,
+        feito: e.n <= 8 && etapaFeita(e, atual), corpo: function (c) { corpoEtapaObra(c, O.dados, e); } });
+    });
+    P.forEach(function (p, i) { p.livre = i === 0 || P[i - 1].feito || p.feito; });
+    var vez = P.filter(function (p) { return p.livre && !p.feito; })[0] || P[P.length - 1];
+    return { lista: P, atual: vez.id, ets: ets };
+  }
+  function passoPorId(m, id) { return m.lista.filter(function (p) { return p.id === id; })[0] || null; }
+  /** O nome da etapa da api para o dinheiro e os avisos: diz quais passos ela junta. */
+  function rotEtapa(n) {
+    n = Number(n);
+    if (n === 1) return 'Passos 1 e 2 · Documentos e contrato';
+    if (n === 2) return 'Passos 3 e 4 · Assinaturas e vistoria';
+    if (n === 3) return 'Passo 5 · Homologação';
+    var e = O.dados && O.dados.etapas ? O.dados.etapas[n - 1] : null;
+    return e ? e.nome : 'Etapa ' + n;
+  }
+
+  // ── Os nós do quadro de documentos (index.html) que esta página usa no lugar certo ───────────────────────────────
+  // O quadro continua montado e escondido: é ele que fala com a api de documentos e cadastro. A página pega emprestados os pedaços
+  // que só existiam nele (cadastro completo, ligações, rateio, Trello, lista para renomear) e devolve antes de cada redesenho.
+  var NOS_EMPRESTADOS = ['topo', 'vinc', 'rat', 'tre', 'pes', 'acoes', 'msg', 'pn', 'lista', 'org'];
+  function devolverNos() {
+    var st = quadroDoCard(); if (!st || !st.no || !st.no.sec) return;
+    NOS_EMPRESTADOS.forEach(function (k) { var n = st.no[k]; if (n && n.parentNode !== st.no.sec) st.no.sec.appendChild(n); });
+  }
+  function emprestar(pai, chaves) {
+    var box = el('div', 'jor-vdcx');
+    function encher() { var s = quadroDoCard(); if (!s || !s.no) return false; box.replaceChildren(); chaves.forEach(function (k) { if (s.no[k]) box.appendChild(s.no[k]); }); return true; }
+    if (!encher()) { box.appendChild(el('p', 'jor-nota', 'Carregando…')); quadroPronto(box).then(function () { if (box.isConnected) encher(); }); }
+    pai.appendChild(box); return box;
+  }
 
   // ── A página ───────────────────────────────────────────────────────────────────────────────────────────────
-  var TITULO_QUADRO = 'Todos os documentos e cadastro';
   function desenharObra() {
     var d = O.dados; var n = O.obraNo; if (!d || !n) return;
-    var raiz = el('div');
-    var atual = atualEtapa(); var ets = etapasMescladas();
-    raiz.appendChild(resumoObra(d, atual));
+    devolverNos();
+    var m = modelo(d);
+    var aba = O.aba;
+    if (aba !== 'resumo') { var pa = passoPorId(m, aba); if (!pa || !pa.livre) aba = m.atual; }
+    O.abaVista = aba;
+    var raiz = el('div', 'jor-pagina');
+    raiz.appendChild(cabecalho(d));
     if (d.cancelada) {
       var fx = el('div', 'jor-faixa', 'Venda cancelada em ' + ddmm(d.cancelada.em) + ' por ' + nomeBonito(d.cancelada.por) + '. Motivo: ' + (d.cancelada.motivo || ''));
       if (d.pode.descancelar) fx.appendChild(btn('Desfazer o cancelamento', '', function () { desfazerDialogo(); }));
       raiz.appendChild(fx);
     }
     if (d.aviso) raiz.appendChild(el('p', 'jor-aviso', d.aviso));
-    var cols = el('div', 'jor-cols'); var esq = el('section', 'jor-esq jor-cartao'); var dir = el('div', 'jor-dir');
-    esq.setAttribute('aria-labelledby', 'jor-tl-tit');
-    var topo = el('div', 'jor-etapa-topo'); var idc = el('div', 'jor-etapa-id');
-    var ht = el('h3', 'jor-etapa-t', 'Passo a passo'); ht.id = 'jor-tl-tit'; idc.appendChild(ht);
-    if (atual) idc.appendChild(el('span', 'jor-pilula', 'Etapa ' + atual + ' de 9'));
-    topo.appendChild(idc); esq.appendChild(topo);
-    esq.appendChild(linhaDoTempo(d, ets, atual));
-    if (O.msg) { var mm = el('p', 'jor-erro', O.msg); mm.setAttribute('role', 'status'); esq.appendChild(mm); }
-    // Prazo e cobrança da etapa atual, ao lado.
-    var et = ets[(atual || 1) - 1]; var f2 = O.fase2;
-    var pz = el('div', 'jor-bloco'); pz.appendChild(el('div', 'jor-bloco-t', 'Prazo e cobrança'));
-    pz.appendChild(el('p', 'jor-nota', 'Etapa ' + et.n + ' · ' + et.nome)); pz.lastChild.style.marginTop = '0';
-    if (et.prazo && et.prazo.vence) pz.appendChild(el('p', '', et.prazo.rotulo + ' · ' + ddmm(et.prazo.vence)));
-    var sit = et.situacao || { tipo: 'sem_prazo', texto: '' };
-    pz.appendChild(el('p', sit.tipo === 'atrasada' || sit.tipo === 'travada' ? 'jor-erro' : sit.tipo === 'no_prazo' || sit.tipo === 'vence_hoje' ? 'jor-ok' : '', sit.texto));
-    var esp = et.n <= 3 ? d.esperando : (f2 ? f2.esperando : null);
-    var podeEsp = et.n <= 3 ? d.pode.esperar : !!(f2 && f2.pode && f2.pode.esperar);
-    if (esp && esp.etapa === et.n) {
-      pz.appendChild(el('p', '', 'Esperando até ' + ddmm(esp.ate) + ' · ' + nomeBonito(esp.motivo)));
-      if (podeEsp) pz.appendChild(btn('Voltar a cobrar', '', function () { esperar({ voltar: true }, et.n); }));
-    } else if (podeEsp && et.n <= 8 && !et.concluida_em) {
-      pz.appendChild(btn('Esperando', '', function () { esperarDialogo(et.n); }));
-    }
-    if (window.Jornada.extras.avisos) window.Jornada.extras.avisos(pz, O.fase3, et.n);
-    dir.appendChild(pz);
-    add(cols, esq, dir); raiz.appendChild(cols);
-    // O quadro completo (documentos, ligações e cadastro): uma vez só, no fim da página, aberto. Os anexos e o Trello dependem dele montado.
-    if (O.vdcDet) {
-      O.vdcPainel = atual;
-      O.vdcDet.firstChild.textContent = TITULO_QUADRO; O.vdcDet.className = 'jor-vdc-det jor-quadro jor-cartao'; O.vdcDet.id = 'jor-quadro';
-      raiz.appendChild(O.vdcDet);
-    }
+    raiz.appendChild(barraAbas(m, aba));
+    var painel = el('section', 'jor-painel jor-cartao'); painel.id = 'jor-aba-corpo'; painel.tabIndex = -1;
+    painel.setAttribute('role', 'tabpanel'); painel.setAttribute('aria-labelledby', 'jor-ab-' + aba);
+    if (aba === 'resumo') abaResumo(painel, d, m); else abaPasso(painel, d, m, passoPorId(m, aba));
+    raiz.appendChild(painel);
+    // O quadro de documentos fica montado e escondido no fim (os anexos, a leitura e o Trello dependem dele).
+    if (O.vdcDet) { O.vdcDet.hidden = true; raiz.appendChild(O.vdcDet); }
     n.replaceChildren(raiz);
+    var sel = raiz.querySelector('.jor-ab.sel'); var trilho = sel && sel.parentNode;
+    // Só rola a barra quando a aba escolhida ficou fora da vista (o Resumo continua à mostra sempre que couber).
+    if (trilho && trilho.scrollWidth > trilho.clientWidth && sel.offsetLeft + sel.offsetWidth > trilho.clientWidth) trilho.scrollLeft = sel.offsetLeft + sel.offsetWidth - trilho.clientWidth + 8;
   }
+  /** Troca de aba: desenha, devolve o foco à aba e sobe a página até a barra quando ela já passou do topo. */
+  function irAba(id, foco) {
+    O.aba = id; desenharObra();
+    var b = document.getElementById('jor-ab-' + id);
+    if (b && foco !== false) try { b.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
+    var barra = document.querySelector('#jor-obra .jor-abas-p');
+    if (barra) {
+      var topo = barra.getBoundingClientRect().top + window.scrollY - 8;
+      if (window.scrollY > topo) {
+        var reduz = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        window.scrollTo({ top: topo, behavior: reduz ? 'auto' : 'smooth' });
+      }
+    }
+  }
+  /** Vai ao Resumo e rola até um bloco dele. */
+  function irResumo(alvo) { irAba('resumo', false); if (alvo) setTimeout(function () { irPara(alvo); }, 0); }
 
-  // ── O resumo ────────────────────────────────────────────────────────────────────────────────────────────────
-  function resumoObra(d, atual) {
-    var box = el('section', 'jor-res jor-cartao'); box.setAttribute('aria-labelledby', 'jor-res-tit');
-    var topo = el('div', 'jor-res-topo');
+  function cabecalho(d) {
+    var topo = el('header', 'jor-obra-cab');
     topo.appendChild(el('span', 'jor-num jor-res-cod', d.codigo || '*'));
-    var t = el('div', 'jor-cab-t'); var h = el('h2', '', d.card.cliente); h.id = 'jor-res-tit'; t.appendChild(h);
+    var t = el('div', 'jor-cab-t'); var h = el('h2', '', d.card.cliente || 'Cliente sem nome'); h.id = 'jor-res-tit'; t.appendChild(h);
     var kwpTxt = d.proposta && d.proposta.kwp ? String(d.proposta.kwp).replace('.', ',') + ' kWp' : '';
     t.appendChild(el('span', '', [kwpTxt, cidadeUF(d.card.cidade)].filter(Boolean).join(' · ')));
     topo.appendChild(t);
     var cac = el('div', 'jor-cab-ac');
     if (window.Jornada.extras.bookPdf && O.fase3 && O.fase3.pode && O.fase3.pode.book) { var bdoc = btn('Documento da obra', '', function () { window.Jornada.extras.bookPdf(O.card, bdoc); }); cac.appendChild(bdoc); }
-    if (O.dinheiro && O.dinheiro.visivel !== false && O.dinheiro.livro && window.Jornada.dinheiro) add(cac, btn('Livro do dinheiro', '', function () { window.Jornada.dinheiro.abrirLivro(); }));
     add(cac, btn('Clientes', '', abrirLista));
     if (d.pode.cancelar) add(cac, btn('Venda cancelada', 'jor-btn-disc', function () { cancelarDialogo(O.card, carregarObra); }));
     topo.appendChild(cac);
-    box.appendChild(topo);
-    var ir = btn('Ir para o passo atual', 'jor-btn-link jor-ir-atual', irAoPassoAtual); ir.appendChild(icone('baixo')); box.appendChild(ir);
+    return topo;
+  }
+
+  // ── A barra de abas ──────────────────────────────────────────────────────────────────────────────────────────
+  function barraAbas(m, aba) {
+    var cx = el('nav', 'jor-abas-p'); cx.setAttribute('aria-label', 'Passos da obra');
+    var trilho = el('div', 'jor-abas-tr'); trilho.setAttribute('role', 'tablist');
+    // Antes do passo 5 fechar, as etapas da obra viram uma aba só, travada. Depois, cada uma ganha a sua e os passos 1 a 5 encolhem para o número.
+    var obraLivre = obraAberta(m);
+    var itens = [{ id: 'resumo', curto: 'Resumo', livre: true, resumo: true }].concat(obraLivre ? m.lista : m.lista.filter(function (p) { return !p.obra; }).concat([OBRA_TRAVADA]));
+    var anteriorNum = 0;
+    itens.forEach(function (p, i) {
+      if (p.obra && p.id !== 'obra' && !anteriorNum) { var sp = el('span', 'jor-ab-sep', 'Obra'); sp.setAttribute('aria-hidden', 'true'); trilho.appendChild(sp); anteriorNum = 1; }
+      var est = p.resumo ? '' : p.feito ? 'feito' : p.id === m.atual ? 'atual' : p.livre ? 'aberto' : 'travado';
+      var b = el('button', 'jor-ab' + (est ? ' ' + est : '') + (p.id === aba ? ' sel' : '') + (p.resumo ? ' res' : '') + (p.num ? ' num' : '') + (p.num && obraLivre ? ' compacta' : '') + (p.aviso ? ' av' : ''));
+      b.type = 'button'; b.id = 'jor-ab-' + p.id; b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', p.id === aba ? 'true' : 'false'); b.tabIndex = p.id === aba ? 0 : -1;
+      if (p.id === aba) b.setAttribute('aria-controls', 'jor-aba-corpo');
+      if (!p.resumo) {
+        var mk = el('span', 'jor-ab-mk'); mk.setAttribute('aria-hidden', 'true');
+        // Travado com número mostra o número (tracejado); sem número, o cadeado.
+        if (est === 'feito') mk.appendChild(icone('ok')); else if (p.num) mk.textContent = String(p.num); else if (est === 'travado') mk.appendChild(icone('cadeado')); else mk.appendChild(el('i'));
+        b.appendChild(mk);
+      }
+      b.appendChild(el('span', 'jor-ab-t', p.curto));
+      if (p.num && obraLivre) b.title = p.titulo;
+      if (!p.resumo) b.appendChild(srTxt(', ' + ({ feito: p.aviso ? 'feito, com pendência' : 'feito', atual: 'passo da vez', aberto: 'em aberto', travado: 'travado' })[est]));
+      if (est === 'travado') {
+        b.setAttribute('aria-disabled', 'true');
+        var antes = itens[i - 1]; var nomeAntes = p.id === 'obra' ? 'o passo 5' : antes && antes.num ? 'o passo ' + antes.num : 'a etapa anterior';
+        b.title = 'Conclua ' + nomeAntes + ' para abrir.';
+      }
+      b.addEventListener('click', function () {
+        if (est === 'travado') { toast(b.title); return; }
+        irAba(p.id);
+      });
+      b.addEventListener('keydown', function (ev) {
+        var k = ev.key; if (['ArrowRight', 'ArrowLeft', 'Home', 'End'].indexOf(k) < 0) return;
+        ev.preventDefault();
+        var abas = Array.prototype.slice.call(trilho.querySelectorAll('.jor-ab:not(.travado)'));
+        var j = abas.indexOf(b);
+        var alvo = k === 'Home' ? abas[0] : k === 'End' ? abas[abas.length - 1] : abas[(j + (k === 'ArrowRight' ? 1 : -1) + abas.length) % abas.length];
+        if (alvo) alvo.click();
+      });
+      trilho.appendChild(b);
+    });
+    cx.appendChild(trilho);
+    return cx;
+  }
+
+  /** A obra (etapas 4 a 9) abre depois do passo 5. Fechada, é uma linha só na barra e no Andamento. */
+  var OBRA_TRAVADA = { id: 'obra', num: 0, titulo: 'Obra', curto: 'Obra', obra: true, livre: false, feito: false };
+  function obraAberta(m) { return m.lista.some(function (p) { return p.obra && p.livre; }); }
+
+  // ── Um passo ─────────────────────────────────────────────────────────────────────────────────────────────────
+  function abaPasso(c, d, m, p) {
+    var e = m.ets[p.etapa - 1];
+    var cab = el('div', 'jor-passo-cab');
+    var tt = el('div', 'jor-passo-tt');
+    tt.appendChild(el('span', 'jor-passo-de', p.num ? 'Passo ' + p.num + ' de 5' : 'Obra'));
+    var h = el('h3', '', p.titulo); tt.appendChild(h);
+    cab.appendChild(tt);
+    var ld = el('div', 'jor-passo-ld');
+    if (p.aviso) ld.appendChild(etq('Feito, com pendência', 'av'));
+    else if (p.feito) ld.appendChild(etq(p.api && e && e.concluida_em ? 'Concluído' + (dataCurta(e.concluida_em) ? ' em ' + dataCurta(e.concluida_em) : '') : 'Feito', 'ok'));
+    else if (p.id === m.atual) ld.appendChild(etq('Agora', 'vez'));
+    else ld.appendChild(etq('Em aberto', 'av'));
+    ((e && e.dono) || []).forEach(function (x) { var a = el('span', 'jor-avatar', x.iniciais); a.title = 'Responsável: ' + nomeBonito(x.nome); a.setAttribute('role', 'img'); a.setAttribute('aria-label', 'Responsável: ' + nomeBonito(x.nome)); ld.appendChild(a); });
+    cab.appendChild(ld);
+    c.appendChild(cab);
+    if (p.id === m.atual && e && !etapaFeita(e, atualEtapa())) { var pz = faixaPrazo(d, e); if (pz) c.appendChild(pz); }
+    var corpoP = el('div', 'jor-passo-corpo'); corpoP.id = 'jor-s-' + p.id;
+    p.corpo(corpoP, p);
+    c.appendChild(corpoP);
+    var pe = rodapePasso(d, p, m); if (pe) c.appendChild(pe);
+  }
+  /** Prazo e cobrança da etapa da vez: uma faixa fina no topo do passo, com o Esperando. */
+  function faixaPrazo(d, e) {
+    var f2 = O.fase2; var pz = el('div', 'jor-prazo');
+    if (e.prazo && e.prazo.vence) pz.appendChild(el('span', 'jor-prazo-d', (e.prazo.rotulo || 'Prazo') + ' ' + ddmm(e.prazo.vence)));
+    var sit = e.situacao || { tipo: 'sem_prazo', texto: '' };
+    if (sit.texto) pz.appendChild(el('span', sit.tipo === 'atrasada' || sit.tipo === 'travada' ? 'jor-erro' : sit.tipo === 'no_prazo' || sit.tipo === 'vence_hoje' ? 'jor-ok' : '', sit.texto));
+    var esp = e.n <= 3 ? d.esperando : (f2 ? f2.esperando : null);
+    var podeEsp = e.n <= 3 ? d.pode.esperar : !!(f2 && f2.pode && f2.pode.esperar);
+    var ac = el('span', 'jor-prazo-ac');
+    if (esp && esp.etapa === e.n) {
+      pz.appendChild(el('span', '', 'Esperando até ' + ddmm(esp.ate) + ' · ' + nomeBonito(esp.motivo)));
+      if (podeEsp) ac.appendChild(btn('Voltar a cobrar', 'jor-btn-link', function () { esperar({ voltar: true }, e.n); }));
+    } else if (podeEsp && e.n <= 8 && !e.concluida_em) {
+      var be = btn('Esperando', 'jor-btn-link', function () { esperarDialogo(e.n); }); be.title = 'Pausa a cobrança até uma data, com o motivo.'; ac.appendChild(be);
+    }
+    if (ac.firstChild) pz.appendChild(ac);
+    if (window.Jornada.extras.avisos) { var av = el('div', 'jor-prazo-av'); window.Jornada.extras.avisos(av, O.fase3, e.n); if (av.firstChild) pz.appendChild(av); }
+    return pz.firstChild ? pz : null;
+  }
+
+  /** O nome do que falta, pelo passo onde se resolve (nunca a lista crua de chaves). */
+  var FALTA_ROT = {
+    nome: 'confirmar os dados do cliente', telefone: 'confirmar os dados do cliente', endereco: 'confirmar os dados do cliente', endereco_usina: 'confirmar os dados do cliente', email: 'confirmar os dados do cliente',
+    placas: 'confirmar a venda', inversor: 'confirmar a venda', valor: 'confirmar a venda', pagamento: 'confirmar a venda', prazo: 'o prazo prometido (no Resumo)', proposta: 'ligar a proposta aceita',
+    financiamento: 'responder se tem financiamento (passo 1)', proposta_banco: 'a proposta de banco', papel_contrato: 'gerar o contrato', papel_procuracao: 'gerar a procuração',
+    documento: 'documentos do passo 1', conta_luz: 'documentos do passo 1', fachada: 'documentos do passo 1', padrao: 'documentos do passo 1', disjuntor: 'documentos do passo 1', medidor: 'documentos do passo 1',
+    documento_financiamento: 'documentos do passo 1', comprovante_endereco_financiamento: 'documentos do passo 1', excedente: 'excedente do passo 1', conta_excedente: 'excedente do passo 1',
+    contrato_assinado: 'assinaturas do passo 3', procuracao: 'assinaturas do passo 3', vistoria: 'vistoria com 80% preenchido',
+  };
+  function faltaDaEtapa(e) {
+    var out = []; var pend = [];
+    (e.itens || []).forEach(function (i) {
+      if (i.feito) return;
+      if (i.bloco === 'pendentes') { var q = PEDIDOS.filter(function (p) { return p.item === i.chave; })[0]; pend.push(minus(q ? q.rot : i.texto)); return; }
+      var t = e.n <= 3 && FALTA_ROT[i.chave] ? FALTA_ROT[i.chave] : minus(i.texto);
+      if (out.indexOf(t) < 0) out.push(t);
+    });
+    if (pend.length) out.push('o pendente do passo 1 (' + juntar(pend) + ')');
+    return out;
+  }
+  /** O pé do passo: o que falta, em uma frase, e o Concluir que libera o próximo. */
+  function rodapePasso(d, p, m) {
+    var i = m.lista.indexOf(p); var prox = m.lista[i + 1] || null;
+    var e = m.ets[p.etapa - 1]; var atual = atualEtapa();
+    var cx = el('div', 'jor-pe'); var barra = el('div', 'jor-portao-barra'); cx.appendChild(barra);
+    var irProx = prox ? (prox.num ? 'o passo ' + prox.num : prox.titulo) : '';
+    if (O.msg) { var mm = el('p', 'jor-erro', O.msg); mm.setAttribute('role', 'status'); cx.insertBefore(mm, barra); }
+    if (!p.api) {
+      if (p.obra) return null;   // pós-venda: sem concluir
+      // Passos 1 e 3: fecham pelos itens, aqui na tela.
+      var falta = p.id === 'p1' ? faltaDoP1(d) : faltaDoP3(d);
+      var ja = etapaFeita(e, atual);
+      barra.appendChild(el('p', 'jor-portao-frase', falta.length && !ja ? 'Para seguir, falta: ' + juntar(falta) + '.' : (ja ? 'Passo concluído.' : 'Tudo pronto neste passo.')));
+      if (prox) {
+        var b1 = btn(prox.feito || ja ? 'Ir para ' + irProx : 'Concluir e ir para ' + irProx, 'jor-btn-pri jor-btn-grande', function () { irAba(prox.id); });
+        b1.disabled = !!falta.length && !ja; barra.appendChild(b1);
+      }
+      return cx;
+    }
+    if (etapaFeita(e, atual)) {
+      barra.appendChild(el('p', 'jor-portao-frase', (p.obra ? 'Etapa concluída' : 'Passo concluído') + (e.concluida_em && dataCurta(e.concluida_em) ? ' em ' + dataCurta(e.concluida_em) : '') + '.'));
+      if (prox && prox.livre) barra.appendChild(btn('Ir para ' + irProx, 'jor-btn-grande', function () { irAba(prox.id); }));
+      return cx;
+    }
+    var faltaE = faltaDaEtapa(e);
+    var f2 = O.fase2;
+    var podeLista = e.n <= 3 ? (d.pode.concluir || []) : ((f2 && f2.pode && f2.pode.concluir) || []);
+    var pode = podeLista.indexOf(e.n) >= 0 && e.falta === 0;
+    barra.appendChild(el('p', 'jor-portao-frase', e.falta > 0 ? 'Para concluir, falta: ' + juntar(faltaE.length ? faltaE : [plural(e.falta, 'item', 'itens')]) + '.' : 'Tudo pronto para concluir.'));
+    var rot = e.n === 8 ? 'Finalizar a obra' : e.n === 3 ? 'Concluir a homologação' : p.obra ? 'Concluir ' + minus(e.nome) : 'Concluir e ir para ' + irProx;
+    var bc = btn(rot, 'jor-btn-pri jor-btn-grande', function () { concluir(e.n, bc); });
+    bc.disabled = !pode;
+    if (!pode && e.falta === 0) bc.title = 'Você não tem permissão para concluir esta etapa.';
+    barra.appendChild(bc);
+    if ((e.itens || []).some(function (x) { return x.bloco === 'pendentes' && !x.feito; })) {
+      var lk = el('p', 'jor-nota'); lk.appendChild(btn('Ir para o passo 1', 'jor-btn-link', function () { irAba('p1'); })); cx.appendChild(lk);
+    }
+    var nx = m.ets[e.n];
+    if (nx && e.n !== 3 && e.n !== 8 && (nx.dono || []).length) cx.appendChild(el('p', 'jor-nota', 'Ao concluir: abre ' + (prox && prox.num ? 'o passo ' + prox.num : nx.nome) + ' e ' + (nx.dono || []).map(function (x) { return nomeBonito(x.nome); }).join(' e ') + ' recebe o aviso.'));
+    if (e.n === 2) cx.appendChild(el('p', 'jor-nota', 'Entrada, financiamento e comissões não travam este passo.'));
+    if (e.n === 3) cx.appendChild(el('p', 'jor-nota', 'Ao concluir: abre a Compra (Thiago e Diego).'));
+    if (e.n === 8) cx.appendChild(el('p', 'jor-nota', 'Fechada, a conta trava. Só o Thiago reabre, com motivo.'));
+    return cx;
+  }
+  /** Etapas 4 a 9: o que jornada-obra.js e jornada-posvenda.js desenham, dentro da aba. */
+  function corpoEtapaObra(c, d, e) {
+    if (e.n === 9) { if (window.Jornada.etapas[9]) window.Jornada.etapas[9](c, d, e, O.fase3); return; }
+    if (O.fase2 && window.Jornada.etapas[e.n]) { window.Jornada.etapas[e.n](c, d, e, O.fase2); return; }
+    c.appendChild(el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); c.appendChild(btn('Tentar de novo', '', carregarObra));
+  }
+
+  // ── O Resumo ────────────────────────────────────────────────────────────────────────────────────────────────
+  function abaResumo(c, d, m) {
     var g = el('div', 'jor-res-g');
-    g.appendChild(grupoCliente(d)); g.appendChild(grupoVenda(d));
-    box.appendChild(g);
-    box.appendChild(grupoSituacao(d));
-    var dz = el('div', 'jor-res-din');
+    var esq = el('div', 'jor-res-col'); var dir = el('div', 'jor-res-col');
+    esq.appendChild(grupoCliente(d)); esq.appendChild(grupoVenda(d));
+    dir.appendChild(grupoAndamento(d, m)); dir.appendChild(grupoDocs(d));
+    add(g, esq, dir); c.appendChild(g);
+    // O caixa: entradas, saídas e saldo (só com o Livro liberado pela api), as comissões e o prêmio de quem indicou.
+    var dz = el('div', 'jor-res-din'); dz.id = 'jor-s-caixa';
     if (window.Jornada.dinheiro && window.Jornada.dinheiro.faixa) window.Jornada.dinheiro.faixa(dz, O.dinheiro);
-    // Comissões (da etapa 2 em diante) e o prêmio de quem indicou moram com o dinheiro.
-    if (atual >= 2 && O.dinheiro && O.dinheiro.visivel !== false && window.Jornada.dinheiro && window.Jornada.dinheiro.blocoComissoes) window.Jornada.dinheiro.blocoComissoes(dz, d, O.dinheiro);
+    if (atualEtapa() >= 2 && O.dinheiro && O.dinheiro.visivel !== false && window.Jornada.dinheiro && window.Jornada.dinheiro.blocoComissoes) window.Jornada.dinheiro.blocoComissoes(dz, d, O.dinheiro);
     if (window.Jornada.extras.indicacao) window.Jornada.extras.indicacao(dz, d, O.fase3);
-    if (dz.firstChild) box.appendChild(dz);
-    return box;
+    if (dz.firstChild) c.appendChild(dz);
   }
   function tituloGrupo(txt, etiq) { var t = el('div', 'jor-grp-t'); t.appendChild(el('h3', '', txt)); if (etiq) t.appendChild(etiq); return t; }
   function grupoCliente(d) {
@@ -1310,13 +1548,8 @@
     var its = itensDe(d, CAMPOS_CLIENTE.map(function (c) { return c.chave; }));
     var falta = its.filter(function (i) { return !i.feito; }).length;
     var tg = tituloGrupo('Cliente', its.length ? etq(falta ? 'Falta confirmar ' + falta : 'Confirmado', falta ? 'av' : 'ok') : null);
-    tg.appendChild(ajudaQ('A IA lê a CNH (nome e CPF) e a conta de luz (endereço) e preenche aqui. Dado editado volta a pedir confirmação no passo 4.'));
+    tg.appendChild(ajudaQ('A IA lê a CNH (nome e CPF) e a conta de luz (endereço) e preenche aqui. Dado editado volta a pedir confirmação no passo 2.'));
     box.appendChild(tg);
-    if (O.lendo && O.lendo.card === String(O.card)) {
-      var l = el('p', 'jor-lendo'); l.setAttribute('role', 'status'); l.appendChild(el('i')); l.appendChild(document.createTextNode('Lendo ' + O.lendo.qual + '…')); box.appendChild(l);
-    } else if (O.lendoFalhou) {
-      var f = el('p', 'jor-aviso', 'Não consegui ler ' + O.lendoFalhou + '. Preencha à mão.'); f.setAttribute('role', 'alert'); f.style.margin = '0 0 10px'; box.appendChild(f);
-    }
     var g = el('div', 'jor-ficha-g'); var et1 = d.etapas[0];
     ficha().forEach(function (cfg) { g.appendChild(campoFicha(d, et1, cfg)); });
     box.appendChild(g);
@@ -1327,23 +1560,31 @@
     var v = valor ? (typeof valor === 'string' ? el('div', 'jor-rc-v' + (cls ? ' ' + cls : ''), valor) : valor) : el('div', 'jor-rc-v vazio', 'Aguardando');
     return celula(rot, v, ok && !!valor);
   }
+  /** O valor e o pagamento só aparecem quando a api mandou o valor (ela decide quem vê: o vendedor vê, mesmo sem o Livro). */
+  function vendaDe(d) {
+    var vv = d.venda; var dc = d.dados_cliente || {};
+    var vede = !!(vv && vv.valor_centavos !== undefined) || dc.valor_centavos !== undefined;
+    var valorC = vv && vv.valor_centavos > 0 ? vv.valor_centavos : (typeof dc.valor_centavos === 'number' && dc.valor_centavos > 0 ? dc.valor_centavos : 0);
+    var pgs = vv && vv.pagamento && vv.pagamento.length ? vv.pagamento : (Array.isArray(dc.pagamento) ? dc.pagamento : []);
+    return { vv: vv, vede: vede, valorC: valorC, pgs: pgs };
+  }
+  function txtPagamento(pgs) { return pgs.map(function (x) { return (FORMAS_ROT[x.forma] || x.forma) + ' ' + reais(x.valor_centavos) + (x.obs ? ' · ' + x.obs : ''); }); }
   function grupoVenda(d) {
-    var box = el('div', 'jor-grp');
-    var vv = d.venda; var dc = d.dados_cliente || {}; var kv = d.kit_vendido || {};
-    var vede = !!(vv && vv.valor_centavos !== undefined) || (dc && dc.valor_centavos !== undefined);   // quem vê o valor é decidido pela api (o vendedor vê, mesmo sem o Livro)
-    box.appendChild(tituloGrupo('Venda'));
+    var box = el('div', 'jor-grp'); box.id = 'jor-s-venda'; box.tabIndex = -1;
+    var V = vendaDe(d); var vv = V.vv; var kv = d.kit_vendido || {};
+    var editaVenda = !!d.pode.editar_venda && O.vendaEdita;
+    var tg = tituloGrupo('Venda');
+    if (d.pode.editar_venda && !editaVenda) { var be = btn(vv ? 'Editar' : 'Preencher', 'jor-btn-link', function () { O.vendaEdita = true; desenharObra(); }); be.setAttribute('aria-label', (vv ? 'Editar' : 'Preencher') + ' valor, pagamento e prazo'); tg.appendChild(be); }
+    box.appendChild(tg);
     var g = el('div', 'jor-resumo uma');
     var kw = kv.kwp || (d.proposta && d.proposta.kwp);
     g.appendChild(linhaRes('Proposta', d.proposta ? d.proposta.codigo + (kw ? ' · ' + String(kw).replace('.', ',') + ' kWp' : '') : ''));
     g.appendChild(linhaRes('Placas', txtKit(kv.placas), !!conf(d, 'placas')));
     g.appendChild(linhaRes('Inversor', txtKit(kv.inversor), !!conf(d, 'inversor')));
-    var valorC = vv && vv.valor_centavos > 0 ? vv.valor_centavos : (typeof dc.valor_centavos === 'number' && dc.valor_centavos > 0 ? dc.valor_centavos : 0);
-    var pgs = vv && vv.pagamento && vv.pagamento.length ? vv.pagamento : (Array.isArray(dc.pagamento) ? dc.pagamento : []);
-    var temDin = vede && ((vv && vv.valor_centavos !== undefined) || dc.valor_centavos !== undefined);
-    if (temDin) {
-      var vc = null; if (valorC) { vc = el('div', 'jor-rc-v', reais(valorC)); if (vv && vv.desconto_centavos > 0) vc.appendChild(el('small', '', 'Desconto de ' + reais(vv.desconto_centavos))); }
+    if (V.vede) {
+      var vc = null; if (V.valorC) { vc = el('div', 'jor-rc-v', reais(V.valorC)); if (vv && vv.desconto_centavos > 0) vc.appendChild(el('small', '', 'Desconto de ' + reais(vv.desconto_centavos))); }
       g.appendChild(linhaRes('Valor', vc, !!conf(d, 'valor')));
-      var pv = null; if (pgs.length) { pv = el('div', 'jor-rc-v'); pgs.forEach(function (x) { pv.appendChild(el('span', 'jor-rc-lin', (FORMAS_ROT[x.forma] || x.forma) + ' ' + reais(x.valor_centavos) + (x.obs ? ' · ' + x.obs : ''))); }); }
+      var pv = null; if (V.pgs.length) { pv = el('div', 'jor-rc-v'); txtPagamento(V.pgs).forEach(function (t) { pv.appendChild(el('span', 'jor-rc-lin', t)); }); }
       g.appendChild(linhaRes('Pagamento', pv, !!conf(d, 'pagamento')));
     }
     g.appendChild(linhaRes('Prazo', vv && vv.prazo_prometido ? vv.prazo_prometido : ''));
@@ -1351,200 +1592,124 @@
     g.appendChild(linhaRes('Vendedor', nomeBonito(d.card.vendedor) + (vEm ? ' · ' + vEm : '')));
     if (vv && vv.nota) g.appendChild(linhaRes('Nota', vv.nota));
     box.appendChild(g);
+    if (editaVenda) {
+      var fx = el('div', 'jor-venda-form'); fx.appendChild(subTitulo(vv ? 'Editar valor, pagamento e prazo' : 'Valor, pagamento e prazo'));
+      formVenda(fx, d, function () { O.vendaEdita = false; carregarObra(); }, e1);
+      fx.appendChild(btn('Cancelar', '', function () { O.vendaEdita = false; desenharObra(); }));
+      box.appendChild(fx);
+    }
+    var com = (d.comissoes || []).filter(function (x) { return x.papel === 'venda'; })[0];
+    if (com && e1 && e1.dono && e1.dono[0] && com.nome === e1.dono[0].nome && d.pode.editar_venda) {
+      box.appendChild(el('p', 'jor-nota', 'Sua comissão: ' + reais(com.valor_centavos) + ' (' + (com.pb / 100) + '% do vendido). Paga depois que a entrada entrar.'));
+    }
+    // A proposta e a venda da planilha ligadas a este card (ligar, desligar).
+    var lig = emprestar(box, ['vinc']); lig.id = 'jor-s-ligacoes'; lig.tabIndex = -1;
     return box;
   }
-  function sitCel(rot, valor, cls, link) {
-    var c = el('div', 'jor-sit-c' + (valor ? (cls ? ' ' + cls : '') : ' vazio'));
-    c.appendChild(el('small', '', rot));
-    var b = el('b', '', valor || 'Aguardando'); c.appendChild(b);
-    if (link && /^https:\/\//.test(link.url)) { var a = el('a', '', link.rot); a.href = link.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', link.rot + ': ' + rot); b.appendChild(document.createTextNode(' ')); b.appendChild(a); }
-    return c;
-  }
-  function papelTxt(d, tipo, slot) {
-    if (d.slots && d.slots[slot]) return 'Assinado';
-    var gp = d.papeis && d.papeis[tipo]; return gp ? 'Gerado em ' + ddmm(String(gp.gerado_em).slice(0, 10)) : '';
-  }
-  function grupoSituacao(d) {
-    var box = el('div', 'jor-grp jor-grp-sit'); box.appendChild(tituloGrupo('Situação'));
-    var g = el('div', 'jor-sit');
-    var fin = d.financiamento === 'sim' ? 'Sim' : d.financiamento === 'nao' ? 'Não' : '';
-    g.appendChild(sitCel('Financiamento', fin));
-    var cpf = d.excedente_cpf || { ok: null };
-    var exc = d.excedente === 'nao' ? 'Não' : d.excedente === 'sim' ? (cpf.ok === false ? 'Sim · outro CPF' : cpf.ok === true ? 'Sim · mesmo CPF' : 'Sim') : '';
-    g.appendChild(sitCel('Excedente', exc, cpf.ok === false && d.excedente === 'sim' ? 'av' : ''));
-    g.appendChild(sitCel('Contrato', papelTxt(d, 'contrato', 'contrato_assinado')));
-    g.appendChild(sitCel('Procuração', papelTxt(d, 'procuracao', 'procuracao')));
-    g.appendChild(sitCel('Número da venda', d.numero && d.numero.estado === 'tem' ? String(d.numero.codigo || '') : ''));
-    var tr = d.trello || {}; var temCartao = (tr.url && tr.fonte !== 'dossie') || tr.tem_cartao;
-    g.appendChild(sitCel('Trello', temCartao ? 'Criado' : '', '', temCartao && tr.url ? { url: tr.url, rot: 'Abrir' } : null));
-    var rf = d.relatorio_final; var temRel = !!(rf && rf.url && /^https:\/\//.test(rf.url));
-    g.appendChild(sitCel('Relatório final', temRel ? 'Gerado' + (rf.gerado_em ? ' em ' + ddmm(String(rf.gerado_em).slice(0, 10)) : '') : '', '', temRel ? { url: rf.url, rot: 'Abrir' } : null));
-    box.appendChild(g);
+  /** O andamento: uma linha por passo, com o resultado ou o que falta. */
+  function grupoAndamento(d, m) {
+    var box = el('div', 'jor-grp'); box.appendChild(tituloGrupo('Andamento'));
+    var ol = el('ol', 'jor-and');
+    var atual = atualEtapa();
+    var obraLivre = obraAberta(m);
+    (obraLivre ? m.lista : m.lista.filter(function (p) { return !p.obra; }).concat([OBRA_TRAVADA])).forEach(function (p) {
+      var est = p.feito ? 'feito' : p.id === m.atual ? 'atual' : p.livre ? 'aberto' : 'travado';
+      var li = el('li', 'jor-and-l ' + est + (p.aviso ? ' av' : ''));
+      var mk = el('span', 'jor-ab-mk'); mk.setAttribute('aria-hidden', 'true');
+      if (est === 'feito') mk.appendChild(icone('ok')); else if (p.num) mk.textContent = String(p.num); else if (est === 'travado') mk.appendChild(icone('cadeado')); else mk.appendChild(el('i'));
+      li.appendChild(mk);
+      var tx = el('div', 'jor-and-tx');
+      var t = el('b', '', p.titulo); tx.appendChild(t);
+      var linha = linhaAndamento(d, p, est, atual);
+      if (linha) tx.appendChild(linha);
+      li.appendChild(tx);
+      if (est !== 'travado') { var ab = btn('Abrir', 'jor-btn-link', function () { irAba(p.id); }); ab.setAttribute('aria-label', 'Abrir ' + (p.num ? 'o passo ' + p.num + ', ' : '') + p.titulo); li.appendChild(ab); }
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
     return box;
   }
-
-  // ── A linha do tempo ────────────────────────────────────────────────────────────────────────────────────────
-  /**
-   * Os passos na ordem do trabalho. n = a etapa do servidor que o passo fecha; chaves = os itens dele (a situação vem do servidor);
-   * feito() = reserva quando a api não manda os itens; linha() = o resultado em uma linha; prev = o que o passo vai pedir; corpo(c) = a ação.
-   */
-  function passosDaObra(d, ets) {
-    var exc = d.excedente === 'sim';
-    function por(chaves, reserva) { var l = itensDe(d, chaves); return l.length ? todosFeitos(l) : !!reserva(); }
-    var P = [
-      { id: 'vendido', n: 1, titulo: 'Vendido', chaves: [], feito: function () { return true; }, semCorpo: true,
-        linha: function () { var e1 = d.etapas[0]; var q = e1 && e1.aberta_em ? quando(e1.aberta_em).split(' ')[0] : ''; return 'Vendido' + (q ? ' em ' + q : '') + ' por ' + nomeBonito(d.card.vendedor) + '.'; } },
-      { id: 'lista', n: 1, titulo: 'Mandar a lista de documentos', chaves: ['pedido_cnh', 'pedido_conta_luz', 'pedido_fachada', 'pedido_padrao', 'pedido_disjuntor', 'pedido_medidor'], prev: 'Perguntar se tem excedente e mandar ao cliente a lista do que falta.',
-        feito: function () { return (d.excedente === 'sim' || d.excedente === 'nao') && PEDIDOS.every(function (p) { return docRecebido(d, p) || (d.pedidos && d.pedidos[p.chave]); }); },
-        linha: function () {
-          var em = Object.keys(d.pedidos || {}).map(function (k) { return String((d.pedidos[k] || {}).em || ''); }).filter(Boolean).sort().pop();
-          var todos = PEDIDOS.every(function (p) { return docRecebido(d, p); });
-          return (todos ? 'Tudo recebido.' : 'Lista enviada' + (em ? ' em ' + ddmm(em.slice(0, 10)) : '') + '.') + (exc ? ' Com excedente.' : d.excedente === 'nao' ? ' Sem excedente.' : '');
-        }, corpo: corpoLista },
-      { id: 'anexos', n: 1, titulo: 'Anexar tudo da lista', chaves: ['documento', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor', 'excedente', 'conta_excedente'],
-        abreSozinho: function () { return pendentesDe(d).length > 0; },
-        prev: pendentesDe(d).length ? 'Pendente da etapa 1: ' + juntar(pendentesDe(d).map(function (i) { var q = PEDIDOS.filter(function (p) { return p.item === i.chave; })[0]; return q ? q.rot : i.texto; })) + '.' : 'CNH, conta de luz e 4 fotos. A ficha do cliente se preenche sozinha.',
-        feito: function () { if (pendentesDe(d).length) return false; var cpf = d.excedente_cpf || {}; return PEDIDOS.every(function (p) { return docRecebido(d, p); }) && (!exc || (!!d.slots.conta_luz_beneficiaria && cpf.ok !== false)); },
-        linha: function () { var cpf = d.excedente_cpf || {}; return 'Tudo anexado.' + (exc ? (cpf.ok === true ? ' Conta do excedente no mesmo CPF.' : ' Conta do excedente anexada.') : ''); }, corpo: corpoAnexos },
-      { id: 'ficha', n: 1, titulo: 'Conferir a ficha', chaves: ['nome', 'telefone', 'endereco', 'endereco_usina', 'email', 'proposta', 'prazo', 'placas', 'inversor', 'valor', 'pagamento'], prev: 'Confirmar os dados do cliente e da venda no resumo.',
-        feito: function () { return false; },
-        linha: function () { var m = ultimaMarca(d, ['nome', 'telefone', 'endereco', 'endereco_usina', 'email', 'placas', 'inversor', 'valor', 'pagamento']); return 'Cliente e venda confirmados' + quem(m) + '.'; }, corpo: corpoFicha },
-      { id: 'papeis', n: 1, titulo: 'Contrato e procuração', chaves: ['financiamento', 'proposta_banco', 'papel_contrato', 'papel_procuracao'], prev: 'Financiamento, contrato e procuração.',
-        feito: function () { return (d.financiamento === 'sim' || d.financiamento === 'nao') && !!(d.papeis && d.papeis.contrato && d.papeis.procuracao); },
-        linha: function () { var p = d.papeis || {}; return [p.contrato ? 'Contrato gerado em ' + ddmm(String(p.contrato.gerado_em).slice(0, 10)) : '', p.procuracao ? 'Procuração gerada em ' + ddmm(String(p.procuracao.gerado_em).slice(0, 10)) : '', d.financiamento === 'sim' ? 'Com proposta de banco' : 'Sem financiamento'].filter(Boolean).join(' · ') + '.'; }, corpo: corpoPapeis },
-      { id: 'assinaturas', n: 2, titulo: 'Assinaturas', chaves: ['contrato_assinado', 'procuracao'], prev: 'Anexar o contrato e a procuração assinados.',
-        feito: function () { return !!(d.slots.contrato_assinado && d.slots.procuracao); },
-        linha: function () { return 'Contrato e procuração assinados anexados.' + (d.numero && d.numero.estado === 'tem' ? ' Número ' + d.numero.codigo + '.' : ''); }, corpo: corpoAssinaturas },
-      { id: 'vistoria', n: 2, titulo: 'Vistoria', chaves: ['vistoria'], prev: 'Relatório de vistoria com pelo menos 80% preenchido.',
-        feito: function () { return (Number(d.vistoria_pct) || 0) >= 80; },
-        linha: function () { return 'Relatório ' + Math.round(Number(d.vistoria_pct) || 0) + '% preenchido.'; }, corpo: corpoVistoria,
-        etiqueta: function () { var p = Math.round(Number(d.vistoria_pct) || 0); return p + '% de 80%'; } },
-      { id: 'equipamento', n: 3, titulo: 'Homologação', chaves: ['datasheet_modulo', 'datasheet_inversor', 'kmz'], prev: 'Datasheet da placa, datasheet do inversor e KMZ do local.',
-        feito: function () { return !!(d.slots.datasheet_modulo && d.slots.datasheet_inversor && d.slots.kmz); },
-        linha: function () { return 'Datasheets e KMZ anexados.'; }, corpo: corpoEquipamento },
-      { id: 'trello', n: 3, titulo: 'Trello e relatório final', chaves: ['trello'], prev: 'O cartão do Trello nasce sozinho quando tudo acima fica pronto.',
-        feito: function () { var tr = d.trello || {}; return !!((tr.url && tr.fonte !== 'dossie') || tr.tem_cartao); },
-        linha: function () { var tr = d.trello || {}; var rf = d.relatorio_final; return 'Cartão do Trello criado' + (tr.criado_em ? ' em ' + ddmm(String(tr.criado_em).slice(0, 10)) : '') + '.' + (rf && rf.url ? ' Relatório final gerado.' : ''); }, corpo: corpoTrello },
-    ];
-    if (exc) P.push({ id: 'rateio', n: 3, titulo: 'Rateio do excedente', chaves: ['rateio'], prev: 'Conferir o rateio do excedente no protocolo.',
-      feito: function () { return !!(d.rateio_conferido && d.rateio && d.rateio_conferido.marca === d.rateio.marca); },
-      linha: function () { var r = d.rateio_conferido || {}; return 'Rateio conferido' + (r.por ? ' por ' + nomeBonito(r.por) : '') + (r.conferido_em ? ' em ' + ddmm(String(r.conferido_em).slice(0, 10)) : '') + '.'; }, corpo: corpoRateio });
-    P.push(
-      { id: 'art', n: 3, titulo: 'ART e engenheiro', chaves: ['art'], prev: 'ART com documento e comprovante. O pagamento do engenheiro.',
-        feito: function () { return !!(d.slots.art && d.slots.art_comprovante); }, linha: function () { return 'ART anexada com o comprovante.' + (d.engenheiro === 'pago' ? ' Engenheiro pago.' : d.engenheiro === 'a_pagar' ? ' Engenheiro a pagar.' : ''); }, corpo: corpoArt },
-      { id: 'protocolo', n: 3, titulo: 'Protocolo', chaves: ['protocolo'], prev: 'Número e print do protocolo.',
-        feito: function () { return !!(d.protocolo && d.protocolo.numero && d.slots.protocolo); }, linha: function () { var p = d.protocolo || {}; return 'Protocolo ' + (p.numero || '') + (p.em ? ' em ' + ddmm(p.em) : '') + '.'; }, corpo: corpoProtocolo },
-      { id: 'parecer', n: 3, titulo: 'Parecer de acesso', chaves: ['parecer'], prev: 'Parecer de acesso aprovado.',
-        feito: function () { return !!d.slots.parecer_acesso; }, linha: function () { return 'Parecer de acesso anexado.'; }, corpo: corpoParecer }
-    );
-    P.forEach(function (p) { var reserva = p.feito; p.feito = p.chaves.length ? por(p.chaves, reserva) : reserva(); });
-    // As etapas 4 a 9 entram como um passo cada, no mesmo desenho.
-    ets.forEach(function (e) {
-      if (e.n < 4) return;
-      P.push({ id: 'etapa' + e.n, n: e.n, titulo: e.nome, chaves: [], etapa: e, feito: !!e.concluida_em,
-        prev: (e.itens || []).length ? 'Pede: ' + juntar(e.itens.map(function (i) { return i.texto; }).slice(0, 4)) + (e.itens.length > 4 ? ' e mais' : '') + '.' : '',
-        linha: function () { return 'Concluída' + (e.concluida_em ? ' em ' + ddmm(String(e.concluida_em).slice(0, 10)) : '') + '.'; },
-        corpo: function (c) { corpoEtapaObra(c, d, e); } });
-    });
-    return P;
-  }
-  /** Qual passo cada chave fecha (para o portão dizer o nome do passo e não o do item). */
-  function passoDaChave(passos, chave) { return passos.filter(function (p) { return p.chaves.indexOf(chave) >= 0; })[0] || null; }
-
-  function linhaDoTempo(d, ets, atual) {
-    var ol = el('ol', 'jor-tl');
-    var passos = passosDaObra(d, ets);
-    var idAtual = null;
-    passos.forEach(function (p) { if (!idAtual && !p.feito && p.n <= atual && !etapaFeita(ets[p.n - 1], atual)) idAtual = p.id; });
-    var ultima = 0;
-    passos.forEach(function (p, i) {
-      var e = ets[p.n - 1];
-      if (p.n !== ultima && p.n <= 3) { ol.appendChild(cabFase(e, atual)); }
-      if (p.n !== ultima && p.n === 4) ol.appendChild(cabFase(null, atual));
-      ultima = p.n;
-      var est = p.feito ? 'feito' : p.id === idAtual ? 'atual' : (p.n <= atual ? 'pendente' : 'futuro');
-      ol.appendChild(noPasso(d, p, i + 1, est));
-      var prox = passos[i + 1];
-      if ((!prox || prox.n !== p.n) && p.n === atual && p.n <= 8 && e && !e.concluida_em) ol.appendChild(portaoEtapa(d, e, passos));
-    });
-    return ol;
-  }
-  /** O separador de cada etapa na linha do tempo: nome, dono, situação e um Lançar gasto discreto (a soma dos gastos está no resumo). Etapas 4 a 9: um só, "Obra". */
-  function cabFase(e, atual) {
-    var li = el('li', 'jor-tl-fase');
-    if (!e) { li.appendChild(el('b', '', 'Obra')); li.appendChild(el('span', 'jor-nota', 'Etapas 4 a 9')); return li; }
-    var feita = etapaFeita(e, atual);
-    li.appendChild(el('b', '', 'Etapa ' + e.n + ' · ' + e.nome));
-    (e.dono || []).forEach(function (x) { var a = el('span', 'jor-avatar', x.iniciais); a.title = nomeBonito(x.nome); a.setAttribute('aria-label', 'Responsável: ' + nomeBonito(x.nome)); li.appendChild(a); });
-    li.appendChild(etq(feita ? 'Concluída' + (e.concluida_em ? ' em ' + ddmm(String(e.concluida_em).slice(0, 10)) : '') : e.n === atual ? 'Em andamento' : 'A seguir', feita ? 'ok' : e.n === atual ? 'vez' : ''));
-    var gx = el('span', 'jor-tl-fase-g');
-    var din = O.dinheiro;
-    if (din && din.visivel !== false && din.pode && din.pode.lancar_saida && e.n <= atual && window.Jornada.dinheiro && window.Jornada.dinheiro.lancar) {
-      var bg = btn('Lançar gasto', 'jor-btn-link', function () { window.Jornada.dinheiro.lancar({ tipo: 'saida', etapa: e.n }); }); bg.setAttribute('aria-label', 'Lançar gasto na etapa ' + e.n); gx.appendChild(bg);
+  function linkFora(url, rot, aria) { if (!/^https:\/\//.test(String(url || ''))) return null; var a = el('a', '', rot); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', aria); return a; }
+  function linhaAndamento(d, p, est, atual) {
+    var s = el('span', 'jor-and-s');
+    function txt(t) { s.appendChild(document.createTextNode(t)); return s; }
+    if (p.id === 'obra') return txt('Compra, instalação, homologação final, vistoria final, fechamento e pós-venda. Abre depois do passo 5.');
+    if (est === 'travado') return txt('Abre depois ' + (p.num > 1 ? 'do passo ' + (p.num - 1) : 'da etapa anterior') + '.');
+    var e = (etapasMescladas())[p.etapa - 1];
+    if (p.id === 'p1') {
+      var pend = pendentesDe(d);
+      if (p.aviso) { s.className += ' av'; return txt('Concluído com pendência: ' + juntar(pend.map(function (i) { var q = PEDIDOS.filter(function (x) { return x.item === i.chave; })[0]; return minus(q ? q.rot : i.texto); })) + '.'); }
+      var f = faltaDoP1(d);
+      var extras = [d.excedente === 'sim' ? 'com excedente' : d.excedente === 'nao' ? 'sem excedente' : '', d.financiamento === 'sim' ? 'com financiamento' : d.financiamento === 'nao' ? 'sem financiamento' : ''].filter(Boolean);
+      return txt((f.length ? 'Falta ' + plural(f.length, 'item', 'itens') : 'Tudo recebido') + (extras.length ? ', ' + extras.join(', ') : '') + '.');
     }
-    if (gx.firstChild) li.appendChild(gx);
-    return li;
-  }
-  function noPasso(d, p, num, est) {
-    var sozinho = !!(p.abreSozinho && est === 'pendente' && p.abreSozinho() && O.abertos[p.id] !== false);   // pendência da etapa 1: abre sozinho até a pessoa fechar
-    var aberto = !p.semCorpo && (est === 'atual' || sozinho || (est !== 'futuro' && !!O.abertos[p.id]));
-    var li = el('li', 'jor-tl-no ' + est + (aberto ? ' aberto' : '')); li.id = 'jor-p-' + p.id; li.tabIndex = -1;
-    var mk = el('span', 'jor-tl-mk'); mk.setAttribute('aria-hidden', 'true');
-    if (est === 'feito') mk.appendChild(icone('ok')); else mk.textContent = String(num);
-    li.appendChild(mk);
-    var cx = el('div', 'jor-tl-cx');
-    var t = el('div', 'jor-tl-t'); var h = el('h4', '', p.titulo); h.insertBefore(srTxt('Passo ' + num + ', ' + ({ feito: 'feito', atual: 'atual', pendente: 'pendente', futuro: 'ainda não chegou' })[est] + ': '), h.firstChild); t.appendChild(h);
-    if (est === 'atual') t.appendChild(etq('Agora', 'vez'));
-    var falta = itensDe(d, p.chaves).filter(function (i) { return !i.feito; }).length;
-    if (p.etiqueta && est !== 'feito' && est !== 'futuro') t.appendChild(etq(p.etiqueta(), 'av'));
-    else if (est === 'pendente' && falta) t.appendChild(etq('Falta ' + falta, 'av'));
-    if (!p.semCorpo && est !== 'futuro' && est !== 'atual') {
-      var bt = btn(aberto ? 'Fechar' : (est === 'feito' ? 'Editar' : 'Abrir'), 'jor-btn-link jor-tl-ac', function () { if (aberto) { if (p.abreSozinho) O.abertos[p.id] = false; else delete O.abertos[p.id]; } else O.abertos[p.id] = true; desenharObra(); var x = document.getElementById('jor-p-' + p.id); if (x && !aberto) try { x.focus({ preventScroll: true }); } catch (e) { /* sem foco */ } });
-      bt.setAttribute('aria-expanded', aberto ? 'true' : 'false'); bt.setAttribute('aria-label', (aberto ? 'Fechar: ' : est === 'feito' ? 'Editar: ' : 'Abrir: ') + p.titulo);
-      t.appendChild(bt);
+    if (p.id === 'p2') {
+      var pp = d.papeis || {};
+      var l2 = [pp.contrato ? 'Contrato gerado em ' + dataCurta(pp.contrato.gerado_em) : 'Contrato a gerar', pp.procuracao ? 'procuração gerada em ' + dataCurta(pp.procuracao.gerado_em) : 'procuração a gerar'];
+      return txt(l2.join(', ') + '.');
     }
-    cx.appendChild(t);
-    if (est === 'feito' || !aberto) cx.appendChild(el('p', 'jor-tl-res', est === 'feito' ? p.linha() : (p.prev || '')));
-    if (aberto) { var corpoP = el('div', 'jor-tl-corpo'); corpoP.id = 'jor-s-' + p.id; p.corpo(corpoP, p); cx.appendChild(corpoP); }
-    li.appendChild(cx);
-    return li;
-  }
-  /** O Concluir no fim do último passo da etapa: o que falta, pelo nome do passo (nunca a lista item por item). */
-  function portaoEtapa(d, e, passos) {
-    var li = el('li', 'jor-tl-portao'); li.appendChild(el('span', 'jor-tl-mk vazio'));
-    var cx = el('div', 'jor-tl-cx'); var barra = el('div', 'jor-portao-barra');
-    var falta = [];
-    // Na ordem dos passos: primeiro o que fecha um passo da linha do tempo, depois o item solto pelo texto dele.
-    var soltos = [];
-    // Os 'pendentes' da etapa 1 entram um a um, pelo texto da api ("CNH ou identidade (pendente da etapa 1)").
-    (e.itens || []).forEach(function (i) { if (i.feito) return; var p = e.n <= 3 && i.bloco !== 'pendentes' ? passoDaChave(passos, i.chave) : null; if (!p && soltos.indexOf(i.texto) < 0) soltos.push(i.texto); });
-    passos.forEach(function (p) { if (e.n <= 3 && (e.itens || []).some(function (i) { return !i.feito && i.bloco !== 'pendentes' && p.chaves.indexOf(i.chave) >= 0; })) falta.push(p.titulo); });
-    falta = falta.concat(soltos);
-    var f2 = O.fase2;
-    var podeLista = e.n <= 3 ? (O.dados.pode.concluir || []) : ((f2 && f2.pode && f2.pode.concluir) || []);
-    var pode = podeLista.indexOf(e.n) >= 0 && e.falta === 0;
-    barra.appendChild(el('p', 'jor-portao-frase', e.falta > 0 ? 'Para concluir a etapa ' + e.n + ', falta: ' + juntar(falta.length ? falta : [plural(e.falta, 'item', 'itens')]) + '.' : 'Tudo pronto para concluir a etapa ' + e.n + '.'));
-    var bc = btn(e.n === 8 ? 'Finalizar a obra' : 'Concluir etapa ' + e.n, 'jor-btn-pri jor-btn-grande', function () { concluir(e.n, bc); });
-    bc.disabled = !pode; barra.appendChild(bc);
-    cx.appendChild(barra);
-    // Pendências da etapa 1 no que falta: um link rola até o passo de anexar.
-    if ((e.itens || []).some(function (i) { return i.bloco === 'pendentes' && !i.feito; })) {
-      var ia = 0; passos.forEach(function (q, k) { if (q.id === 'anexos') ia = k + 1; });
-      if (ia) { var lk = el('p', 'jor-nota'); lk.appendChild(btn('Ir para o passo ' + ia, 'jor-btn-link', function () { irPara('jor-p-anexos'); })); cx.appendChild(lk); }
+    if (p.id === 'p3') {
+      var f3 = faltaDoP3(d);
+      txt(f3.length ? 'Falta: ' + juntar(f3) + '.' : 'Contrato e procuração assinados.');
+      if (d.numero && d.numero.estado === 'tem') txt(' Número ' + d.numero.codigo + '.');
+      return s;
     }
-    var prox = etapasMescladas()[e.n];
-    if (prox && e.n !== 3 && e.n !== 8) cx.appendChild(el('p', 'jor-nota', 'Ao concluir: abre ' + prox.nome + ' e ' + (prox.dono || []).map(function (x) { return nomeBonito(x.nome); }).join(' e ') + ' recebe o aviso.'));
-    if (e.n === 2) cx.appendChild(el('p', 'jor-nota', 'Entrada, financiamento e comissões não travam esta etapa.'));
-    if (e.n === 3) cx.appendChild(el('p', 'jor-nota', 'Ao concluir: abre Compra (Thiago e Diego).'));
-    if (e.n === 8) cx.appendChild(el('p', 'jor-nota', 'Fechada, a conta trava. Só o Thiago reabre, com motivo.'));
-    li.appendChild(cx);
-    return li;
+    if (p.id === 'p4') { var pc = Math.round(Number(d.vistoria_pct) || 0); return txt('Relatório ' + pc + '% preenchido' + (pc >= 80 ? '.' : ', precisa de 80%.')); }
+    if (p.id === 'p5') {
+      var tr = d.trello || {}; var temCartao = (tr.url && tr.fonte !== 'dossie') || tr.tem_cartao;
+      var rf = d.relatorio_final; var temRel = !!(rf && rf.url && /^https:\/\//.test(rf.url));
+      if (!temCartao && !temRel) return txt(e && e.falta ? 'Falta ' + plural(e.falta, 'item', 'itens') + '. O Trello nasce com tudo pronto.' : 'Tudo pronto.');
+      if (temCartao) { txt('Trello criado'); var a1 = linkFora(tr.url, 'Abrir', 'Abrir o cartão no Trello'); if (a1) { txt(' '); s.appendChild(a1); } txt('. '); }
+      if (temRel) { txt('Relatório final'); var a2 = linkFora(rf.url, 'Abrir', 'Abrir o relatório final'); if (a2) { txt(' '); s.appendChild(a2); } txt('.'); }
+      return s;
+    }
+    if (p.feito && e && e.concluida_em) return txt('Concluída' + (dataCurta(e.concluida_em) ? ' em ' + dataCurta(e.concluida_em) : '') + '.');
+    if (p.id === 'e9') return txt('Mensagens e retorno do cliente.');
+    return txt(est === 'atual' ? 'Em andamento.' : 'Em aberto.');
   }
-  /** Etapas 4 a 9: o que jornada-obra.js e jornada-posvenda.js desenham, dentro do passo. */
-  function corpoEtapaObra(c, d, e) {
-    if (e.n === 9) { if (window.Jornada.etapas[9]) window.Jornada.etapas[9](c, d, e, O.fase3); return; }
-    if (O.fase2 && window.Jornada.etapas[e.n]) { window.Jornada.etapas[e.n](c, d, e, O.fase2); return; }
-    c.appendChild(el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); c.appendChild(btn('Tentar de novo', '', carregarObra));
+  var ROT_SLOT = { documento_titular: 'CNH ou identidade', conta_luz: 'Conta de luz', conta_luz_beneficiaria: 'Conta do excedente', fachada: 'Foto da fachada', padrao: 'Foto do padrão',
+    disjuntor: 'Foto do disjuntor', medidor: 'Foto do medidor', contrato_assinado: 'Contrato assinado', procuracao: 'Procuração assinada', datasheet_modulo: 'Datasheet da placa',
+    datasheet_inversor: 'Datasheet do inversor', kmz: 'KMZ do local', art: 'ART', art_comprovante: 'Comprovante da ART', projeto_comprovante: 'Comprovante do engenheiro',
+    protocolo: 'Print do protocolo', parecer_acesso: 'Parecer de acesso', outros: 'Outro anexo' };
+  FIN_DOCS.concat(OUTROS_DOCS).forEach(function (x) { ROT_SLOT[x.slot] = x.rot; });
+  /** Os documentos recebidos, numa lista compacta. "Renomear ou mover" troca para a lista do quadro, que faz isso. */
+  function grupoDocs(d) {
+    var box = el('div', 'jor-grp'); box.id = 'jor-s-docs'; box.tabIndex = -1;
+    var tg = tituloGrupo('Documentos recebidos'); box.appendChild(tg);
+    var corpoD = el('div'); box.appendChild(corpoD);
+    var esperou = false;
+    function pinta() {
+      corpoD.replaceChildren(); while (tg.childNodes.length > 1) tg.removeChild(tg.lastChild);
+      var st = quadroDoCard();
+      var arqs = st && !st.carregando && st.docs && Array.isArray(st.docs.arquivos) ? st.docs.arquivos : null;
+      if (!arqs) {
+        corpoD.appendChild(el('p', 'jor-nota', st && !st.carregando ? 'Não consegui ler os documentos agora.' : 'Carregando…'));
+        if (!esperou) { esperou = true; quadroPronto(box).then(function () { if (box.isConnected) pinta(); }); }
+        return;
+      }
+      tg.appendChild(el('span', 'jor-etq', String(arqs.length)));
+      if (O.organizar) {
+        var fecha = btn('Voltar à lista', 'jor-btn-link', function () { O.organizar = false; pinta(); }); tg.appendChild(fecha);
+        emprestar(corpoD, ['lista', 'org']);
+        return;
+      }
+      if (arqs.length && st.docs.pode) { var org = btn('Renomear ou mover', 'jor-btn-link', function () { O.organizar = true; pinta(); }); tg.appendChild(org); }
+      if (!arqs.length) { corpoD.appendChild(el('p', 'jor-nota', 'Nenhum documento ainda. Eles entram no passo 1.')); return; }
+      var ul = el('ul', 'jor-rdocs');
+      arqs.slice().sort(function (a, b) { return String(b.em || '').localeCompare(String(a.em || '')); }).forEach(function (a) {
+        var li = el('li');
+        var rot = ROT_SLOT[a.slot] || (typeof vdcRotuloSlot === 'function' ? vdcRotuloSlot(st, a.slot) : '') || a.slot;
+        var tx = el('div', 'jor-rdocs-t'); tx.appendChild(el('b', '', rot));
+        var meta = [a.rotulo && a.rotulo !== rot ? a.rotulo : '', a.em ? dataBr(a.em) : ''].filter(Boolean).join(' · ');
+        if (meta) tx.appendChild(el('small', '', meta));
+        li.appendChild(tx);
+        var lk = linkFora(a.url, 'Abrir', 'Abrir ' + rot); if (lk) { lk.className = 'jor-rdocs-ab'; li.appendChild(lk); }
+        ul.appendChild(li);
+      });
+      corpoD.appendChild(ul);
+    }
+    pinta();
+    return box;
   }
 
   // ── A leitura dos documentos: CNH e conta de luz preenchem a ficha sozinhas ───────────────────────────────────────
@@ -1615,17 +1780,19 @@
    * cfg: sec, titulo, chaves, rotulo, aria, temValor(k), rotDe(k), coletar (opcional: campos abertos que entram junto, como o kit escrito à mão).
    */
   function linhaConfirmar(d, et, cfg) {
-    var box = el('div', 'jor-conf');
+    var box = el('div', 'jor-conf' + (cfg.compacto ? ' compacto' : ''));
     var abertos = cfg.coletar ? cfg.coletar.chaves() : [];
     var pend = cfg.chaves.filter(function (k) { return abertos.indexOf(k) < 0 && !conf(d, k) && cfg.temValor(k); });
     var vazios = cfg.chaves.filter(function (k) { return abertos.indexOf(k) < 0 && !cfg.temValor(k); });
     var marca = ultimaMarca(d, cfg.chaves);
-    var cab = el('div', 'jor-conf-t'); cab.appendChild(el('b', '', cfg.titulo));
+    // compacto (passo 2): sem o título, porque o cartão já mostra cada dado; o "Confirmado" vai na linha dos botões.
+    var cab = el('div', 'jor-conf-t'); if (!cfg.compacto) cab.appendChild(el('b', '', cfg.titulo));
     if (!pend.length && !abertos.length && !vazios.length) {
-      var ok = el('span', 'jor-pe-ok'); ok.appendChild(icone('ok')); ok.appendChild(document.createTextNode('Confirmado' + quem(marca))); cab.appendChild(ok);
-      box.appendChild(cab); return box;
+      var ok = el('span', 'jor-pe-ok'); ok.appendChild(icone('ok')); ok.appendChild(document.createTextNode('Confirmado' + quem(marca)));
+      if (cfg.compacto) { var ac0 = el('div', 'jor-din-acoes'); ac0.appendChild(ok); box.appendChild(ac0); return box; }
+      cab.appendChild(ok); box.appendChild(cab); return box;
     }
-    box.appendChild(cab);
+    if (cab.firstChild) box.appendChild(cab);
     var info = [];
     if (pend.length) info.push('Falta confirmar: ' + juntar(pend.map(cfg.rotDe)) + '.');
     if (vazios.length) info.push('Falta preencher: ' + juntar(vazios.map(cfg.rotDe)) + '.');
@@ -1841,7 +2008,7 @@
           return window.vdcCamposGravar(st, env);
         }).catch(function () { return { ok: false, erro: 'Não consegui salvar agora. Tente de novo.' }; }).then(function (r) {
           if (r && r.ok) {
-            toast(cfg.semConfirmar ? 'Salvo.' : 'Salvo. Confirme no passo 4.');
+            toast(cfg.semConfirmar ? 'Salvo.' : 'Salvo. Confirme no passo 2.');
             if (String(O.card) !== card) return;
             vals = env; delete O.edita[cfg.chave]; limparRasc(); O.lendoFalhou = '';
             // A tela mostra o novo valor já, sem esperar a releitura: o dado foi digitado.
@@ -1880,10 +2047,11 @@
     var n = String((d.dados_cliente && d.dados_cliente.nome) || (d.card && d.card.cliente) || '').trim().split(/\s+/)[0] || '';
     return n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
   }
-  function mensagemPedido(d, faltam, excedente) {
+  function mensagemPedido(d, faltam, excedente, fin) {
     var nome = primeiroNome(d);
     var linhas = faltam.map(function (p) { return '- ' + p.msg; });
     if (excedente) linhas.push('- Conta de luz de cada imóvel que vai receber o excedente');
+    (fin || []).forEach(function (f) { linhas.push('- ' + f.msg); });
     return (nome ? 'Olá, ' + nome + '.' : 'Olá.') + ' Para seguir com o seu projeto de energia solar, preciso destes documentos e fotos:\n'
       + linhas.join('\n') + '\nPode mandar por aqui mesmo. Obrigado!';
   }
@@ -1941,30 +2109,14 @@
     });
     return seq.then(function () { if (fila.length) releia(); });
   }
-  /** Uma linha: o nome, os 3 passos (Falta pedir, Pedido em, Recebido), o "Já pedi" e o anexo (Foto, Arquivo, Print ou a miniatura com Trocar e Apagar). */
-  function linhaDoc(d, p, opc) {
-    opc = opc || {};
+  /** Uma linha do passo 1: o nome, a situação em uma palavra (Falta, Pedido em dd/mm, Recebido) e o anexo com Trocar e Apagar. */
+  function linhaDoc(d, p) {
     var rec = docRecebido(d, p); var ped = (d.pedidos && d.pedidos[p.chave]) || null; var slot = slotDoc(d, p);
     var row = el('div', 'jor-doc');
     var info = el('div'); info.appendChild(el('span', 'jor-doc-nome', p.rot));
     var est = el('div', 'jor-doc-est');
-    var passo = rec ? 2 : ped ? 1 : 0;
-    var ps = el('span', 'jor-passos p' + passo + (rec ? ' ok' : '')); ps.setAttribute('aria-hidden', 'true');
-    [0, 1, 2].forEach(function (i) { if (i) ps.appendChild(el('b', i <= passo ? 'on' : '')); ps.appendChild(el('i', i <= passo ? 'on' : '')); });
-    if (!opc.semPedido) est.appendChild(ps);   // pendência da etapa 1: só o anexo (o pedido só vale com a etapa 1 aberta)
-    if (!opc.semPedido) est.appendChild(el('span', 'st ' + (rec ? 'st-ok' : ped ? 'st-ped' : 'st-falta'), rec ? 'Recebido' : ped ? 'Pedido' + (ped.em ? ' em ' + ddmm(String(ped.em).slice(0, 10)) : '') : 'Falta pedir'));
-    if (!rec && !opc.semPedido) {
-      var lb = el('label', 'jor-doc-ped'); var cb = el('input'); cb.type = 'checkbox'; cb.checked = !!ped; cb.setAttribute('aria-label', 'Já pedi: ' + p.rot);
-      cb.addEventListener('change', function () {
-        var on = cb.checked; cb.disabled = true;
-        api('/gerador/jornada-solar/obra/' + enc(O.card), 'PATCH', { pedido: p.chave, feito: on }).then(function (r) {
-          if (r.status === 200 && r.json.ok !== false) { d.pedidos = d.pedidos || {}; if (on) d.pedidos[p.chave] = { em: new Date().toISOString(), por: '' }; else delete d.pedidos[p.chave]; desenharObra(); releia(); return; }
-          cb.checked = !on; cb.disabled = false; toast(msgDe(r, 'Não consegui marcar agora.'));
-        });
-      });
-      lb.appendChild(cb); lb.appendChild(document.createTextNode('Já pedi')); est.appendChild(lb);
-    }
-    if (est.firstChild) info.appendChild(est); row.appendChild(info);
+    est.appendChild(el('span', 'st ' + (rec ? 'st-ok' : ped ? 'st-ped' : 'st-falta'), rec ? 'Recebido' : ped ? 'Pedido' + (ped.em ? ' em ' + dataCurta(ped.em) : '') : 'Falta'));
+    info.appendChild(est); row.appendChild(info);
     row.appendChild(anexo(slot, p.rot, rec, { compacto: true }));
     if (O.lendo && O.lendo.slot === slot && O.lendo.card === String(O.card)) {
       var ld = el('p', 'jor-lendo'); ld.setAttribute('role', 'status'); ld.appendChild(el('i')); ld.appendChild(document.createTextNode('Lendo o documento…')); row.appendChild(ld);
@@ -1972,15 +2124,17 @@
     return row;
   }
 
-  // ── Passo 2: mandar a lista (com a pergunta do excedente) ───────────────────────────────────────────────────
+  // ── Passo 1: documentos (as duas perguntas, a lista para o cliente e os anexos) ───────────────────────────────
   function simNao(d, campo, valorAtual, pode, rotulo) {
     var qs = el('div', 'jor-filtros'); qs.setAttribute('role', 'group'); if (rotulo) qs.setAttribute('aria-label', rotulo);
     [['sim', 'Sim'], ['nao', 'Não']].forEach(function (o) {
       var b = el('button', 'jor-chip jor-chip-grande' + (valorAtual === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !pode; b.setAttribute('aria-pressed', valorAtual === o[0] ? 'true' : 'false');
+      if (!pode) b.title = 'Você não tem permissão para mudar.';
       b.addEventListener('click', function () {
-        var corpo = {}; corpo[campo] = o[0];
+        if (valorAtual === o[0]) return;
+        var corpo = {}; corpo[campo] = o[0]; b.disabled = true;
         api('/gerador/jornada-solar/obra/' + enc(O.card), 'PATCH', corpo).then(function (r) {
-          if (r.status === 200 && r.json.ok !== false) carregarObra(); else toast(msgDe(r, 'Não consegui agora.'));
+          if (r.status === 200 && r.json.ok !== false) carregarObra(); else { b.disabled = false; toast(msgDe(r, 'Não consegui agora.')); }
         });
       });
       qs.appendChild(b);
@@ -1988,75 +2142,131 @@
     return qs;
   }
   function pergunta(txt, q) { var t = el('p', 'jor-perg', txt); if (q) t.appendChild(ajudaQ(q)); return t; }
-  function corpoLista(c) {
-    var d = O.dados;
-    c.appendChild(pergunta('Tem excedente para outra conta de luz?', 'Se sim, a conta de cada imóvel que vai receber o excedente entra na lista.'));
-    c.appendChild(simNao(d, 'excedente', d.excedente, !!d.pode.marcar_excedente, 'Tem excedente para outra conta de luz?'));
-    var faltam = PEDIDOS.filter(function (p) { return !docRecebido(d, p); });
-    var excFalta = d.excedente === 'sim' && !(d.slots && d.slots.conta_luz_beneficiaria);
-    var sep = el('div', 'jor-sep'); c.appendChild(sep);
-    if (!faltam.length && !excFalta) { c.appendChild(el('p', 'jor-ok', 'Tudo recebido. Nada para pedir.')); return; }
-    var nomes = faltam.map(function (p) { return p.rot; }); if (excFalta) nomes.push('Conta do excedente');
-    c.appendChild(pergunta('Vai na lista (' + nomes.length + '):'));
-    var ul = el('ul', 'jor-vai'); nomes.forEach(function (x) { ul.appendChild(el('li', '', x)); }); c.appendChild(ul);
-    var txt = mensagemPedido(d, faltam, excFalta); var tel = telefoneWa(d);
-    var pre = el('pre', 'jor-ped-msg', txt); pre.hidden = true;
-    var ac = el('div', 'jor-docs-ac');
-    if (tel) ac.appendChild(btn('Enviar no WhatsApp', 'jor-btn-pri', function () { abrirWa(tel, txt); marcarPedidos(d, faltam); }));
-    ac.appendChild(btn('Copiar lista', '', function () {
-      copiarTexto(txt).then(function (ok) { if (!ok) pre.hidden = false; toast(ok ? 'Lista copiada. Cole na conversa com o cliente.' : 'Não consegui copiar. Selecione e copie a mensagem abaixo.'); });
-      marcarPedidos(d, faltam);
-    }));
-    ac.appendChild(el('p', 'jor-nota', (tel ? '' : 'Sem telefone do cliente: só dá para copiar. ') + 'O que for na lista fica marcado como pedido.'));
-    c.appendChild(ac); c.appendChild(pre);
-  }
-
-  // ── Passo 3: anexar tudo (documentos, fotos e as contas do excedente com a conferência do CPF) ────────────────────
   /** Obra que concluiu a etapa 1 pela regra antiga: a api manda na etapa 2 o bloco 'pendentes' (só enquanto faltam), um item por documento ou foto. */
   function pendentesDe(d) {
     var e2 = (d.etapas || [])[1];
     return ((e2 && e2.itens) || []).filter(function (i) { return i && i.bloco === 'pendentes' && !i.feito; });
   }
-  function corpoAnexos(c) {
+  function corpoP1(c) {
     var d = O.dados; var et = d.etapas[0];
     var pend = pendentesDe(d);
-    if (pend.length) {
-      // Só o que faltou na etapa 1: a CNH, a conta de luz e as fotos que a api listou, para anexar aqui mesmo.
-      var chaves = pend.map(function (i) { return i.chave; });
-      c.appendChild(el('p', 'jor-nota jor-nota-topo', 'Pendente da etapa 1. Anexe só o que falta.'));
-      var lp = el('div', 'jor-docs-l'); PEDIDOS.forEach(function (p) { if (chaves.indexOf(p.item) >= 0) lp.appendChild(linhaDoc(d, p, { semPedido: true })); }); c.appendChild(lp);
-      return;
+    if (pend.length && etapaFeita(et, atualEtapa())) {
+      var nomes = pend.map(function (i) { var q = PEDIDOS.filter(function (p) { return p.item === i.chave; })[0]; return minus(q ? q.rot : i.texto); });
+      var avp = el('p', 'jor-aviso', 'Esta obra passou do passo 1 sem ' + juntar(nomes) + '. Anexe abaixo. A obra segue normal.'); avp.setAttribute('role', 'status'); c.appendChild(avp);
     }
-    c.appendChild(el('p', 'jor-nota jor-nota-topo', 'Anexe o que o cliente mandar. A CNH e a conta de luz preenchem a ficha do cliente sozinhas.'));
+    if (O.lendoFalhou) {
+      var lf = el('div', 'jor-aviso jor-aviso-ac'); lf.setAttribute('role', 'alert');
+      lf.appendChild(el('span', '', 'Não consegui ler ' + O.lendoFalhou + '. Preencha à mão.'));
+      lf.appendChild(btn('Preencher no Resumo', 'jor-btn-link', function () { irResumo('jor-s-cliente'); }));
+      c.appendChild(lf);
+    }
+    // As duas perguntas que mudam a lista.
+    var pq = el('div', 'jor-pergs');
+    var q1 = el('div', 'jor-perg-c'); q1.appendChild(pergunta('Tem financiamento?', 'Com financiamento, a lista pede o documento e o comprovante de endereço de quem financia, e o passo 2 pede a proposta de banco.'));
+    q1.appendChild(simNao(d, 'financiamento', d.financiamento === 'sim' || d.financiamento === 'nao' ? d.financiamento : null, !!d.pode.marcar_excedente, 'Tem financiamento?'));
+    var q2 = el('div', 'jor-perg-c'); q2.appendChild(pergunta('Tem excedente?', 'Excedente é a energia das placas que vai para outra conta de luz. Com excedente, a lista pede a conta de cada imóvel que recebe.'));
+    q2.appendChild(simNao(d, 'excedente', d.excedente, !!d.pode.marcar_excedente, 'Tem excedente?'));
+    add(pq, q1, q2); c.appendChild(pq);
+    c.appendChild(blocoMandarLista(d));
+    // Os documentos: sempre os 6 do cliente; o excedente e o financiamento só quando a resposta é Sim.
+    c.appendChild(subTitulo('Do cliente', ajudaQ('A CNH e a conta de luz preenchem a ficha do cliente sozinhas. Confira no Resumo.')));
     var lista = el('div', 'jor-docs-l'); PEDIDOS.forEach(function (p) { lista.appendChild(linhaDoc(d, p)); }); c.appendChild(lista);
-    if (d.excedente === 'sim') {
-      c.appendChild(subTitulo('Contas que recebem o excedente'));
-      c.appendChild(listaVarios(d, et, { slot: 'conta_luz_beneficiaria', rotBase: 'Conta excedente', add: 'Adicionar conta excedente', item: 'conta_excedente', titulo: '', cartaoVazio: true }));
-      // A api sempre manda o objeto: ok false = aviso com o texto dela; ok true = mesmo CPF; ok nulo = ainda não deu para conferir (a lista UC por UC).
-      var cpf = d.excedente_cpf || { ok: null };
-      if (cpf.ok === false) {
-        var av = el('p', 'jor-aviso', cpf.texto || 'O CPF da conta do excedente não confere com o da conta principal.'); av.style.marginTop = '10px'; c.appendChild(av);
-        // Pedido de troca de titularidade (texto final do redator). Quem envia é a pessoa: nada sai pelo sistema.
-        var tel = telefoneWa(d);
-        var txt = mensagemTitularidade(d);
-        var pre = el('pre', 'jor-ped-msg', txt); pre.hidden = true;
-        var ac = el('div', 'jor-docs-ac'); ac.style.marginTop = '10px';
-        if (tel) ac.appendChild(btn('Enviar no WhatsApp', '', function () { abrirWa(tel, txt); }));
-        ac.appendChild(btn('Copiar', '', function () { copiarTexto(txt).then(function (ok) { if (!ok) pre.hidden = false; toast(ok ? 'Pedido copiado. Cole na conversa com o cliente.' : 'Não consegui copiar. Selecione e copie a mensagem abaixo.'); }); }));
-        c.appendChild(ac); c.appendChild(pre);
-      } else if (cpf.ok === true) c.appendChild(el('p', 'jor-ok', 'Mesmo CPF da conta principal.'));
-      else {
-        ((d.documentos && d.documentos.beneficiarias) || []).forEach(function (bn) {
-          var li = el('div', 'jor-conta');
-          li.appendChild(etq(bn.mesmo_titular ? 'ok' : 'Titular diferente', bn.mesmo_titular ? 'ok' : 'er'));
-          li.appendChild(el('span', bn.mesmo_titular ? 'jor-ok' : 'jor-erro', 'UC ' + bn.uc + ' · ' + (bn.titular || 'sem titular') + ' · ' + (bn.mesmo_titular ? 'Mesmo titular' : 'Titular diferente. Todas as contas precisam estar no nome de ' + d.documentos.titular_geradora + '.')));
-          c.appendChild(li);
-        });
-      }
-    } else if (d.excedente !== 'nao') c.appendChild(el('p', 'jor-nota', 'Diga no passo 2 se tem excedente.'));
+    if (d.excedente === 'sim') blocoExcedente(c, d, et);
+    if (d.financiamento === 'sim') {
+      c.appendChild(subTitulo('Financiamento'));
+      var lf2 = el('div', 'jor-docs-l'); FIN_DOCS.forEach(function (f) { lf2.appendChild(linhaSlot(d, f.slot, f.rot)); }); c.appendChild(lf2);
+    }
+    blocoOutrosDocs(c, d);
+  }
+  /** Mandar a lista: o que falta vira mensagem pronta (WhatsApp ou Copiar). O que foi na lista fica marcado como pedido. */
+  function blocoMandarLista(d) {
+    var box = el('div', 'jor-mandar');
+    var faltam = PEDIDOS.filter(function (p) { return !docRecebido(d, p); });
+    var excFalta = d.excedente === 'sim' && !temSlot(d, 'conta_luz_beneficiaria');
+    var finFalta = d.financiamento === 'sim' ? FIN_DOCS.filter(function (f) { return !temSlot(d, f.slot); }) : [];
+    var nomes = faltam.map(function (p) { return p.rot; }); if (excFalta) nomes.push('Conta do excedente'); finFalta.forEach(function (f) { nomes.push(f.rot); });
+    var t = el('div', 'jor-mandar-t'); t.appendChild(el('b', '', 'Mandar a lista ao cliente'));
+    if (!nomes.length) { t.appendChild(el('span', 'jor-pe-ok', 'Tudo recebido')); box.appendChild(t); return box; }
+    t.appendChild(etq('Falta ' + nomes.length, 'av'));
+    t.appendChild(ajudaQ('Quem envia é você, pela sua conversa com o cliente. O que for na lista fica marcado como pedido.'));
+    box.appendChild(t);
+    var ul = el('ul', 'jor-vai'); nomes.forEach(function (x) { ul.appendChild(el('li', '', x)); }); box.appendChild(ul);
+    var txt = mensagemPedido(d, faltam, excFalta, finFalta); var tel = telefoneWa(d);
+    var pre = el('pre', 'jor-ped-msg', txt); pre.hidden = true;
+    var ac = el('div', 'jor-docs-ac');
+    if (tel) ac.appendChild(btn('WhatsApp', 'jor-btn-pri', function () { abrirWa(tel, txt); marcarPedidos(d, faltam); }));
+    ac.appendChild(btn('Copiar', '', function () {
+      copiarTexto(txt).then(function (ok) { if (!ok) pre.hidden = false; toast(ok ? 'Lista copiada. Cole na conversa com o cliente.' : 'Não consegui copiar. Selecione e copie a mensagem abaixo.'); });
+      marcarPedidos(d, faltam);
+    }));
+    if (!tel) ac.appendChild(el('p', 'jor-nota', 'Sem telefone do cliente: só dá para copiar.'));
+    if ((d.excedente !== 'sim' && d.excedente !== 'nao') || (d.financiamento !== 'sim' && d.financiamento !== 'nao')) ac.appendChild(el('p', 'jor-nota', 'Responda as duas perguntas antes, para a lista sair completa.'));
+    box.appendChild(ac); box.appendChild(pre);
+    return box;
+  }
+  /** As contas do excedente, a conferência do CPF e o pedido de troca de titularidade. */
+  function blocoExcedente(c, d, et) {
+    c.appendChild(subTitulo('Contas que recebem o excedente'));
+    c.appendChild(listaVarios(d, et, { slot: 'conta_luz_beneficiaria', rotBase: 'Conta excedente', add: 'Adicionar conta excedente', item: 'conta_excedente', titulo: '', cartaoVazio: true }));
+    // A api sempre manda o objeto: ok false = aviso com o texto dela; ok true = mesmo CPF; ok nulo = ainda não deu para conferir (a lista UC por UC).
+    var cpf = d.excedente_cpf || { ok: null };
+    if (cpf.ok === false) {
+      var av = el('p', 'jor-aviso', cpf.texto || 'O CPF da conta do excedente não confere com o da conta principal.'); av.style.marginTop = '10px'; c.appendChild(av);
+      // Pedido de troca de titularidade (texto final do redator). Quem envia é a pessoa: nada sai pelo sistema.
+      var tel = telefoneWa(d);
+      var txt = mensagemTitularidade(d);
+      var pre = el('pre', 'jor-ped-msg', txt); pre.hidden = true;
+      var ac = el('div', 'jor-docs-ac'); ac.style.marginTop = '10px';
+      ac.appendChild(el('span', 'jor-nota', 'Pedir a troca de titularidade:'));
+      if (tel) ac.appendChild(btn('WhatsApp', '', function () { abrirWa(tel, txt); }));
+      ac.appendChild(btn('Copiar', '', function () { copiarTexto(txt).then(function (ok) { if (!ok) pre.hidden = false; toast(ok ? 'Pedido copiado. Cole na conversa com o cliente.' : 'Não consegui copiar. Selecione e copie a mensagem abaixo.'); }); }));
+      c.appendChild(ac); c.appendChild(pre);
+    } else if (cpf.ok === true) c.appendChild(el('p', 'jor-ok', 'Mesmo CPF da conta principal.'));
+    else {
+      ((d.documentos && d.documentos.beneficiarias) || []).forEach(function (bn) {
+        var li = el('div', 'jor-conta');
+        li.appendChild(etq(bn.mesmo_titular ? 'ok' : 'Titular diferente', bn.mesmo_titular ? 'ok' : 'er'));
+        li.appendChild(el('span', bn.mesmo_titular ? 'jor-ok' : 'jor-erro', 'UC ' + bn.uc + ' · ' + (bn.titular || 'sem titular') + ' · ' + (bn.mesmo_titular ? 'Mesmo titular' : 'Titular diferente. Todas as contas precisam estar no nome de ' + d.documentos.titular_geradora + '.')));
+        c.appendChild(li);
+      });
+    }
+  }
+  /** Os documentos que entram só se precisar: os que já têm arquivo aparecem; o resto se anexa escolhendo o tipo. */
+  function blocoOutrosDocs(c, d) {
+    // Quando a linha "CNH ou identidade" já usa o documento do titular da UC, ele não repete aqui.
+    var naCnh = slotDoc(d, { item: 'documento' });
+    var tem = OUTROS_DOCS.filter(function (o) { return o.slot !== naCnh && temSlot(d, o.slot); });
+    var livres = OUTROS_DOCS.filter(function (o) { return o.slot !== naCnh && !temSlot(d, o.slot); });
+    c.appendChild(subTitulo('Outros documentos', etq('Se precisar')));
+    var lista = el('div', 'jor-docs-l');
+    tem.forEach(function (o) { lista.appendChild(linhaSlot(d, o.slot, o.rot)); });
+    if (livres.length) {
+      var ck = 'outro#novo';
+      var row = el('div', 'jor-doc jor-doc-add');
+      var sel = el('select', 'jor-sel'); sel.setAttribute('aria-label', 'Tipo do documento'); sel.name = 'outro-tipo';
+      livres.forEach(function (o) { var op = el('option', '', o.rot); op.value = o.slot; sel.appendChild(op); });
+      if (O.outroTipo && livres.some(function (o) { return o.slot === O.outroTipo; })) sel.value = O.outroTipo;
+      sel.addEventListener('change', function () { O.outroTipo = sel.value; });
+      row.appendChild(sel);
+      if (O.ocupSlot[ck]) { var oc = el('p', 'jor-nota', O.ocupSlot[ck]); oc.setAttribute('role', 'status'); row.appendChild(oc); }
+      else row.appendChild(seletor('Anexar', ACEITA_PADRAO, false, 'jor-btn', 'outro documento', function (arqs) { enviarArquivo(sel.value, arqs, false, desenharObra, { ck: ck }); }));
+      if (O.erroSlot[ck]) { var er = el('p', 'jor-erro jor-anexo-msg', O.erroSlot[ck]); er.setAttribute('role', 'alert'); row.appendChild(er); }
+      lista.appendChild(row);
+    }
+    c.appendChild(lista);
+  }
+  /** Uma linha de documento sem pedido: nome, situação e o anexo. */
+  function linhaSlot(d, slot, rot) {
+    var tem = temSlot(d, slot);
+    var row = el('div', 'jor-doc');
+    var info = el('div'); info.appendChild(el('span', 'jor-doc-nome', rot));
+    var est = el('div', 'jor-doc-est'); est.appendChild(el('span', 'st ' + (tem ? 'st-ok' : 'st-falta'), tem ? 'Recebido' : 'Falta')); info.appendChild(est);
+    row.appendChild(info);
+    row.appendChild(anexo(slot, rot, tem, { compacto: true }));
+    return row;
   }
 
-  // ── Passo 4: conferir a ficha (confirmar cliente e venda; os dados ficam no resumo) ───────────────────────────────
+  // ── Kit, formas de pagamento e a célula de leitura (Resumo e passo 2) ───────────────────────────────
   function txtKit(x) {
     if (x === null || x === undefined || x === '') return '';
     if (typeof x === 'object') { var q = x.quantidade || x.qtd || ''; var m = [x.marca, x.modelo, x.potencia_w ? x.potencia_w + ' W' : ''].filter(Boolean).join(' '); return [q ? q + ' x' : '', m].filter(Boolean).join(' '); }
@@ -2071,10 +2281,8 @@
     c.appendChild(typeof v === 'string' ? el('div', 'jor-rc-v', v) : v);
     return c;
   }
-  function abrirLigacoes() {
-    abrirQuadro();
-    quadroPronto(null, 8000).then(function (st) { var alvo = st && st.no && st.no.vinc; if (alvo && alvo.scrollIntoView) alvo.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
-  }
+  // ── Passo 2: contrato e procuração (conferir os dados, financiamento, cadastro completo e os papéis) ───────────────
+  function abrirLigacoes() { irResumo('jor-s-ligacoes'); }
   function ligarProposta(d, et, c) {
     if (d.proposta) return;
     c.appendChild(el('p', 'jor-aviso', 'Esta venda ainda não tem a proposta aceita ligada.'));
@@ -2090,42 +2298,71 @@
         });
         bl.setAttribute('aria-label', 'Ligar a proposta ' + p.codigo); l.appendChild(bl); c.appendChild(l);
       });
-    } else if (!et.concluida_em) c.appendChild(btn('Ligar a proposta', '', abrirLigacoes));
+    } else if (!et.concluida_em) c.appendChild(btn('Ligar a proposta no Resumo', '', abrirLigacoes));
   }
-  function corpoFicha(c) {
-    var d = O.dados; var et = d.etapas[0];
-    var vv = d.venda; var dc = d.dados_cliente || {}; var kv = d.kit_vendido || null;
-    var vede = !!(vv && vv.valor_centavos !== undefined) || (dc && dc.valor_centavos !== undefined);   // quem vê o valor é decidido pela api (o vendedor vê, mesmo sem o Livro)
-    var topo = el('div', 'jor-docs-ac'); topo.appendChild(el('p', 'jor-nota', 'Os dados estão no resumo, no topo. Confira lá e confirme aqui.'));
-    var bv = btn('Ver a ficha', 'jor-btn-link', function () { irPara('jor-s-cliente'); }); topo.appendChild(bv); c.appendChild(topo);
-    // Cliente
-    c.appendChild(linhaConfirmar(d, et, {
-      sec: 'cliente', titulo: 'Dados do cliente', chaves: CAMPOS_CLIENTE.map(function (x) { return x.chave; }), rotulo: 'Confirmar dados do cliente', aria: 'Confirmar dados do cliente',
+  /** Uma linha de conferência: rótulo, valor (ou "Falta") e o tique de confirmado. */
+  function linhaConf(rot, valor, ok, falta) {
+    var r = el('div', 'jor-rc');
+    var rr = el('div', 'jor-rc-rot', rot); if (ok) { rr.appendChild(icone('ok')); rr.appendChild(srTxt('confirmado')); } r.appendChild(rr);
+    if (valor && typeof valor !== 'string') r.appendChild(valor);
+    else r.appendChild(el('div', 'jor-rc-v' + (valor ? '' : ' vazio'), valor || falta || 'Falta preencher'));
+    return r;
+  }
+  var ROT_CURTO = { nome: 'Nome', cpf: 'CPF', telefone: 'Telefone', email: 'E-mail', endereco: 'Endereço', endereco_usina: 'Usina' };
+  function cartaoConfCliente(d, et) {
+    var box = el('div', 'jor-conf-c');
+    box.appendChild(el('div', 'jor-conf-ct', 'Cliente'));
+    var g = el('div', 'jor-resumo uma'); var carregando = false;
+    ficha().forEach(function (cfg) {
+      var v = lerCampos(d, cfg); if (v === null) carregando = true;
+      var tem = v !== null && cheio(cfg, v);
+      g.appendChild(linhaConf(ROT_CURTO[cfg.chave] || cfg.rot, tem ? mostra(cfg, v) : (v === null ? 'Carregando…' : ''), !cfg.semConfirmar && tem && !!conf(d, cfg.chave)));
+    });
+    if (carregando) quadroPronto(box).then(function (st) { if (st && st.cad && box.isConnected) desenharObra(); });
+    box.appendChild(g);
+    var lc = linhaConfirmar(d, et, {
+      sec: 'cliente', titulo: 'Dados do cliente', compacto: true, chaves: CAMPOS_CLIENTE.map(function (x) { return x.chave; }), rotulo: 'Confirmar dados do cliente', aria: 'Confirmar dados do cliente',
       temValor: function (k) { var x = cfgCliente(k); var v = lerCampos(d, x); return !!(v && cheio(x, v)); },
       rotDe: function (k) { return cfgCliente(k).rot.replace(' do cliente', '').toLowerCase(); },
-    }));
-    // Venda: o kit escrito à mão (quando a proposta não tem), a proposta ligada e o Confirmar venda.
-    ligarProposta(d, et, c);
-    var kitIn = {};
-    if (kv) KITS.forEach(function (k) {
-      var ch = k[0]; var ek = 'kit.' + ch; var falta = Array.isArray(kv.faltando) && kv.faltando.indexOf(ch) >= 0;
-      if (!falta && !O.edita[ek]) return;
-      var rot = k[1] + ' (quantidade e marca)';
-      var lin = el('div', 'jor-email-lin');
-      var inp = el('input', 'jor-in' + (falta ? ' falta' : '')); inp.type = 'text'; inp.maxLength = 120; inp.autocomplete = 'off'; inp.name = 'kit-' + ch; inp.placeholder = k[2]; inp.setAttribute('aria-label', rot);
-      inp.value = O.rascunho[ek] != null ? O.rascunho[ek] : (falta ? '' : txtKit(kv[ch]));
-      inp.addEventListener('input', function () { O.rascunho[ek] = inp.value; });
-      inp.disabled = !!semConfirmar(d, et); lin.appendChild(inp);
-      if (!falta) { var cn = btn('Cancelar', '', function () { delete O.edita[ek]; delete O.rascunho[ek]; desenharObra(); }); cn.setAttribute('aria-label', 'Cancelar a edição: ' + k[1]); lin.appendChild(cn); }
-      kitIn[ch] = inp; c.appendChild(campoRot(rot, lin, falta ? etq('A proposta não diz', 'av') : null, true));
     });
-    var valorC = vv && vv.valor_centavos > 0 ? vv.valor_centavos : (typeof dc.valor_centavos === 'number' && dc.valor_centavos > 0 ? dc.valor_centavos : 0);
-    var pgs = vv && vv.pagamento && vv.pagamento.length ? vv.pagamento : (Array.isArray(dc.pagamento) ? dc.pagamento : []);
-    var temDin = vede && ((vv && vv.valor_centavos !== undefined) || dc.valor_centavos !== undefined);
+    lc.querySelector('.jor-din-acoes').appendChild(btn('Editar no Resumo', 'jor-btn-link', function () { irResumo('jor-s-cliente'); }));
+    box.appendChild(lc);
+    return box;
+  }
+  function cartaoConfVenda(d, et) {
+    var box = el('div', 'jor-conf-c');
+    box.appendChild(el('div', 'jor-conf-ct', 'Venda'));
+    var V = vendaDe(d); var kv = d.kit_vendido || null; var vv = V.vv;
+    var temDin = V.vede;
+    var g = el('div', 'jor-resumo uma');
+    var kitIn = {};
+    KITS.forEach(function (k) {
+      var ch = k[0]; var ek = 'kit.' + ch; var falta = !!(kv && Array.isArray(kv.faltando) && kv.faltando.indexOf(ch) >= 0);
+      if (kv && (falta || O.edita[ek])) {
+        // A proposta não diz o kit (ou a pessoa pediu para corrigir): o campo entra no lugar do valor e vai junto com o Confirmar.
+        var lin = el('div', 'jor-rc-v');
+        var inp = el('input', 'jor-in' + (falta ? ' falta' : '')); inp.type = 'text'; inp.maxLength = 120; inp.autocomplete = 'off'; inp.name = 'kit-' + ch; inp.placeholder = k[2]; inp.setAttribute('aria-label', k[1] + ' (quantidade e marca)');
+        inp.value = O.rascunho[ek] != null ? O.rascunho[ek] : (falta ? '' : txtKit(kv[ch]));
+        inp.addEventListener('input', function () { O.rascunho[ek] = inp.value; });
+        inp.disabled = !!semConfirmar(d, et); lin.appendChild(inp);
+        if (falta) lin.appendChild(el('small', '', 'A proposta não diz. Digite a quantidade e a marca.'));
+        else { var cn = btn('Cancelar', 'jor-btn-link', function () { delete O.edita[ek]; delete O.rascunho[ek]; desenharObra(); }); cn.setAttribute('aria-label', 'Cancelar a edição: ' + k[1]); lin.appendChild(cn); }
+        kitIn[ch] = inp; g.appendChild(linhaConf(k[1], lin, false));
+        return;
+      }
+      g.appendChild(linhaConf(k[1], kv ? txtKit(kv[ch]) : '', !!conf(d, ch)));
+    });
+    if (temDin) {
+      g.appendChild(linhaConf('Valor', V.valorC ? reais(V.valorC) : '', !!conf(d, 'valor')));
+      var pv = null; if (V.pgs.length) { pv = el('div', 'jor-rc-v'); txtPagamento(V.pgs).forEach(function (t) { pv.appendChild(el('span', 'jor-rc-lin', t)); }); }
+      g.appendChild(linhaConf('Pagamento', pv, !!conf(d, 'pagamento')));
+    }
+    g.appendChild(linhaConf('Prazo', vv && vv.prazo_prometido ? vv.prazo_prometido : '', itemOk(d, 'prazo')));
+    box.appendChild(g);
     var rotK = { placas: 'placas', inversor: 'inversor', valor: 'valor', pagamento: 'forma de pagamento' };
     var lc = linhaConfirmar(d, et, {
-      sec: 'venda', titulo: 'Venda', chaves: (kv ? ['placas', 'inversor'] : []).concat(temDin ? ['valor', 'pagamento'] : []), rotulo: 'Confirmar venda', aria: 'Confirmar a venda',
-      temValor: function (k) { if (k === 'valor') return valorC > 0; if (k === 'pagamento') return pgs.length > 0; return !!txtKit(kv && kv[k]); },
+      sec: 'venda', titulo: 'Venda', compacto: true, chaves: (kv ? ['placas', 'inversor'] : []).concat(temDin ? ['valor', 'pagamento'] : []), rotulo: 'Confirmar a venda', aria: 'Confirmar a venda',
+      temValor: function (k) { if (k === 'valor') return V.valorC > 0; if (k === 'pagamento') return V.pgs.length > 0; return !!txtKit(kv && kv[k]); },
       rotDe: function (k) { return rotK[k]; },
       coletar: {
         chaves: function () { return Object.keys(kitIn); },
@@ -2143,43 +2380,35 @@
         },
       },
     });
-    c.appendChild(lc);
-    // Os botões de editar a venda ficam na linha da venda: valor, pagamento e prazo (o formulário de sempre) e o kit escrito à mão.
-    var editaVenda = !!d.pode.editar_venda && (O.vendaEdita || !vv);
-    var acs = lc.querySelector('.jor-din-acoes'); if (!acs) { acs = el('div', 'jor-din-acoes'); lc.appendChild(acs); }
-    if (d.pode.editar_venda && !editaVenda) acs.appendChild(btn('Editar valor, pagamento e prazo', '', function () { O.vendaEdita = true; desenharObra(); }));
+    var acs = lc.querySelector('.jor-din-acoes');
+    if (!(vv && vv.prazo_prometido) && d.pode.editar_venda) acs.appendChild(btn('Preencher o prazo no Resumo', 'jor-btn-link', function () { O.vendaEdita = true; irResumo('jor-s-venda'); }));
+    else if (d.pode.editar_venda) acs.appendChild(btn('Editar no Resumo', 'jor-btn-link', function () { O.vendaEdita = true; irResumo('jor-s-venda'); }));
     if (kv && Array.isArray(kv.manual) && !semConfirmar(d, et)) kv.manual.forEach(function (ch) {
       if (O.edita['kit.' + ch] || (kv.faltando || []).indexOf(ch) >= 0) return;
-      var be = btn('Editar ' + (ch === 'placas' ? 'placas' : 'inversor'), '', function () { O.edita['kit.' + ch] = true; desenharObra(); }); acs.appendChild(be);
+      acs.appendChild(btn('Corrigir ' + (ch === 'placas' ? 'as placas' : 'o inversor'), 'jor-btn-link', function () { O.edita['kit.' + ch] = true; desenharObra(); }));
     });
-    if (editaVenda) {
-      var fx = el('div', 'jor-venda-form'); fx.appendChild(subTitulo(vv ? 'Editar valor, pagamento e prazo' : 'Valor, pagamento e prazo'));
-      formVenda(fx, d, function () { O.vendaEdita = false; carregarObra(); }, et);
-      if (vv) fx.appendChild(btn('Cancelar', '', function () { O.vendaEdita = false; desenharObra(); }));
-      c.appendChild(fx);
-    }
-    var com = (d.comissoes || []).filter(function (x) { return x.papel === 'venda'; })[0];
-    if (com && d.etapas[0].dono[0] && com.nome === d.etapas[0].dono[0].nome && d.pode.editar_venda) {
-      c.appendChild(el('p', 'jor-nota', 'Sua comissão: ' + reais(com.valor_centavos) + ' (' + (com.pb / 100) + '% do vendido). Paga depois que a entrada entrar.'));
-    }
-    if (!et.concluida_em) lc.firstChild.appendChild(ajudaQ('Com a venda confirmada, a equipe toda recebe o aviso de venda no WhatsApp.'));
+    if (!et.concluida_em) lc.appendChild(el('p', 'jor-nota', 'Com a venda confirmada, a equipe toda recebe o aviso de venda no WhatsApp.'));
+    box.appendChild(lc);
+    return box;
   }
-
-  // ── Passo 5: financiamento, contrato e procuração (e o recibo, se quiser) ────────────────────────────────────────
-  function corpoPapeis(c) {
-    var d = O.dados; var fin = d.financiamento === 'sim' || d.financiamento === 'nao' ? d.financiamento : null;
-    c.appendChild(pergunta('Precisa de proposta de banco ou financiamento?'));
-    c.appendChild(simNao(d, 'financiamento', fin, !!d.pode.marcar_excedente, 'Precisa de proposta de banco ou financiamento?'));
-    if (fin === 'sim') {
+  function corpoP2(c) {
+    var d = O.dados; var et = d.etapas[0];
+    ligarProposta(d, et, c);
+    c.appendChild(subTitulo('Conferir os dados', ajudaQ('Os dados vêm da proposta e dos documentos lidos pela IA. Para mudar um dado, edite no Resumo. Dado editado volta a pedir confirmação aqui.')));
+    var gc = el('div', 'jor-conf-g'); add(gc, cartaoConfCliente(d, et), cartaoConfVenda(d, et)); c.appendChild(gc);
+    if (d.financiamento === 'sim') {
+      c.appendChild(el('div', 'jor-sep'));
       if (window.Jornada.extras.banco) window.Jornada.extras.banco(c, d);
       else c.appendChild(el('p', 'jor-nota', 'A proposta de banco não carregou. Atualize a página.'));
     }
-    c.appendChild(el('div', 'jor-sep'));
+    c.appendChild(subTitulo('Cadastro do contrato', ajudaQ('A IA lê os documentos anexados e preenche o resto do cadastro que vai no contrato e na procuração (RG, estado civil, titular da conta). Confira antes de gerar.')));
+    emprestar(c, ['topo', 'acoes', 'msg', 'pn', 'pes']);
+    c.appendChild(subTitulo('Gerar os papéis'));
     var lista = el('div', 'jor-docs-l');
     function linhaPapel(rot, tipo, extraCtl, gerarFn) {
       var gp = d.papeis && d.papeis[tipo];
       var l = el('div', 'jor-papel'); var info = el('div'); info.appendChild(el('span', 'jor-doc-nome', rot));
-      var est = el('div', 'jor-doc-est'); est.appendChild(el('span', 'st ' + (gp ? 'st-ok' : 'st-falta'), gp ? 'Gerado em ' + ddmm(String(gp.gerado_em).slice(0, 10)) : 'Falta gerar')); info.appendChild(est);
+      var est = el('div', 'jor-doc-est'); est.appendChild(el('span', 'st ' + (gp ? 'st-ok' : 'st-falta'), gp ? 'Gerado em ' + dataCurta(gp.gerado_em) : 'Falta gerar')); info.appendChild(est);
       l.appendChild(info);
       var ac = el('div', 'jor-papel-ac'); if (extraCtl) ac.appendChild(extraCtl);
       var g = btn(gp ? 'Gerar de novo' : 'Gerar ' + rot.toLowerCase(), gp ? '' : 'jor-btn-pri', function () { gerarFn(g); });
@@ -2191,14 +2420,13 @@
     var mod = el('select', 'jor-sel'); mod.setAttribute('aria-label', 'Modelo da procuração');
     [['1', 'Padrão'], ['2', 'Jurídico'], ['3', 'Concessionária e ANEEL']].forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; mod.appendChild(op); });
     linhaPapel('Procuração', 'procuracao', mod, function (g) { gerarPapel('procuracao', { modelo: Number(mod.value) }, g); });
+    // O recibo mostra o valor: aparece quando a api mandou o valor (mesma regra do Resumo), não pela regra do Livro.
+    if (d.pode.gerar_papeis && vendaDe(d).vede) {
+      var lr = el('div', 'jor-papel'); var ir2 = el('div'); ir2.appendChild(el('span', 'jor-doc-nome', 'Recibo')); var er2 = el('div', 'jor-doc-est'); er2.appendChild(el('span', 'st', 'Opcional')); ir2.appendChild(er2); lr.appendChild(ir2);
+      var ar = el('div', 'jor-papel-ac'); var br = btn('Gerar recibo', '', function () { reciboDialogo(d, br); }); ar.appendChild(br); lr.appendChild(ar); lista.appendChild(lr);
+    }
     c.appendChild(lista);
-    var pe = el('div', 'jor-docs-ac'); pe.style.marginTop = '12px';
-    pe.appendChild(el('p', 'jor-nota', 'Assinados, eles entram no passo 6.'));
-    // O recibo mostra o valor: aparece quando a api mandou o valor (mesma regra do resumo), não pela regra do Livro.
-    var vv = d.venda; var dcr = d.dados_cliente || {};
-    var vede = !!(vv && vv.valor_centavos !== undefined) || dcr.valor_centavos !== undefined;
-    if (d.pode.gerar_papeis && vede) { var br = btn('Gerar recibo (opcional)', 'jor-btn-link', function () { reciboDialogo(d, br); }); pe.appendChild(br); }
-    c.appendChild(pe);
+    c.appendChild(el('p', 'jor-nota', 'Assinados, eles entram no passo 3.'));
   }
 
   // ── Itens com vários arquivos num slot só (contas do excedente e outros anexos) ──
@@ -2249,12 +2477,18 @@
   function relatorioFinalDe(r) { var j = r.json || {}; return (j.relatorio_final && j.relatorio_final.url) || j.url || (j.relatorio && j.relatorio.url) || ''; }
   function blocoTrelloRelatorio(d, et) {
     var b = secao('Trello e relatório final', itensPorChave(et, ['trello']));
-    var cartao = d.trello && ((d.trello.url && d.trello.fonte !== 'dossie') || d.trello.tem_cartao);
-    if (!cartao) {
-      b.appendChild(el('p', 'jor-nota', 'O cartão do Trello é criado sozinho quando as fases 1, 2 e 3 fecham.'));
-      var ta = d.trello_auto;
-      if (ta && !ta.pronto && Array.isArray(ta.falta) && ta.falta.length) b.appendChild(el('p', 'jor-nota', 'Falta para criar o cartão: ' + ta.falta.join(', ') + '.'));
-    } else b.appendChild(el('p', 'jor-ok', 'O cartão do Trello já foi criado.'));
+    var tr = d.trello || {}; var cartao = !!((tr.url && tr.fonte !== 'dossie') || tr.tem_cartao);
+    var ta = d.trello_auto || null;
+    // O cartão nasce sozinho com o passo em 100% (trello_auto.pronto), com o relatório final dentro.
+    if (cartao) {
+      var okp = el('p', 'jor-ok', 'Cartão criado' + (tr.criado_em ? ' em ' + dataCurta(tr.criado_em) : '') + (tr.por ? ' por ' + nomeBonito(tr.por) : '') + '.');
+      var lk = linkFora(tr.url, 'Abrir no Trello', 'Abrir o cartão no Trello'); if (lk) { okp.appendChild(document.createTextNode(' ')); okp.appendChild(lk); }
+      b.appendChild(okp);
+    } else if (ta && ta.pronto) b.appendChild(el('p', 'jor-ok', 'Tudo pronto. O cartão nasce sozinho em instantes, com o relatório final.'));
+    else {
+      var faltaT = ta && Array.isArray(ta.falta) ? ta.falta : [];
+      b.appendChild(el('p', 'jor-nota', 'Com tudo acima pronto, o cartão do Trello nasce sozinho com o relatório final.' + (faltaT.length ? ' Falta: ' + juntar(faltaT.map(minus)) + '.' : '')));
+    }
     var rf = d.relatorio_final;
     var info = el('p', 'jor-erro jor-anexo-msg'); info.setAttribute('role', 'alert');
     var temRel = !!(rf && rf.url && /^https:\/\//.test(rf.url));
@@ -2278,6 +2512,8 @@
     if (rf && rf.gerado_em) b.appendChild(el('p', 'jor-nota', 'Gerado em ' + ddmm(String(rf.gerado_em).slice(0, 10)) + '.'));
     b.appendChild(info);
     b.appendChild(el('p', 'jor-nota', 'O relatório final vai para o cartão do Trello junto com tudo.'));
+    // Se o cartão não nascer sozinho: o Trello do quadro de documentos (criar o cartão, ou abrir o antigo do dossiê).
+    if (!cartao && quadroDoCard() && quadroDoCard().no && quadroDoCard().no.tre) { b.appendChild(subTitulo('Se o cartão não nascer sozinho')); emprestar(b, ['tre']); }
     return b;
   }
 
@@ -2413,57 +2649,41 @@
     }
     return b4;
   }
-  function corpoAssinaturas(c) {
+  // ── Passo 3: assinaturas (contrato e procuração assinados, outros anexos e o número da obra) ───────────────────────
+  function corpoP3(c) {
     var d = O.dados; var et = d.etapas[1];
     var gs = el('div', 'jor-fotos');
     gs.appendChild(cartaoAnexo(d, et, 'contrato_assinado', 'Contrato assinado', 'contrato_assinado'));
     gs.appendChild(cartaoAnexo(d, et, 'procuracao', 'Procuração assinada', 'procuracao'));
     c.appendChild(gs);
     c.appendChild(el('p', 'jor-nota', 'O contrato assinado fica arquivado aqui. Só a procuração segue para a homologação.'));
+    if (d.numero && d.numero.estado !== 'tem') { c.appendChild(subTitulo('Número da obra', etq('Automático', 'auto'))); c.appendChild(blocoNumero(d)); }
     c.appendChild(subTitulo('Outros anexos', etq('Opcional')));
     c.appendChild(listaVarios(d, et, { slot: 'outros', rotBase: 'Anexo', add: 'Adicionar anexo', item: null, titulo: '', cartaoVazio: false }));
-    if (d.numero && d.numero.estado !== 'tem') { c.appendChild(subTitulo('Número da obra', etq('Automático', 'auto'))); c.appendChild(blocoNumero(d)); }
   }
 
-  // ── Passo 7: vistoria (o formulário de jornada-obra.js, sem o título: o passo já diz) ─────────────────────────────
-  function corpoVistoria(c) {
+  // ── Passo 4: vistoria (o formulário de jornada-obra.js, com os chips; o passo já diz o título) ───────────────────
+  function corpoP4(c) {
     var d = O.dados;
-    if (!window.Jornada.extras.vistoria) { c.appendChild(el('p', 'jor-erro', 'O relatório de vistoria não carregou. Atualize a página.')); return; }
-    window.Jornada.extras.vistoria(c, d);
-    var t = c.querySelector('.jor-bloco > .jor-bloco-t'); if (t && t.parentNode) t.parentNode.removeChild(t);
+    var w = el('div'); w.id = 'jor-s-vistoria'; c.appendChild(w);
+    if (!window.Jornada.extras.vistoria) { w.appendChild(el('p', 'jor-erro', 'O relatório de vistoria não carregou. Atualize a página.')); return; }
+    window.Jornada.extras.vistoria(w, d);
   }
 
-  // ── Passos 8 em diante: a homologação ────────────────────────────────────────────────────────────────────────
-  function corpoEquipamento(c) {
+  // ── Passo 5: homologação ──────────────────────────────────────────────────────────────────────────────────────
+  function corpoP5(c) {
     var d = O.dados; var et = d.etapas[2];
+    var b1 = secao('Equipamento', itensPorChave(et, ['datasheet_modulo', 'datasheet_inversor', 'kmz']));
     var g = el('div', 'jor-fotos');
     g.appendChild(cartaoAnexo(d, et, 'datasheet_modulo', 'Datasheet da placa', 'datasheet_modulo'));
     g.appendChild(cartaoAnexo(d, et, 'datasheet_inversor', 'Datasheet do inversor', 'datasheet_inversor'));
     g.appendChild(cartaoAnexo(d, et, 'kmz', 'KMZ do local', 'kmz', ACEITA_KMZ));
-    c.appendChild(g);
-  }
-  function corpoTrello(c) {
-    var d = O.dados; var sem = d.numero.estado !== 'tem';
-    var b = blocoTrelloRelatorio(d, d.etapas[2]); var t = b.querySelector('.jor-bloco-t'); if (t) b.removeChild(t);
-    c.appendChild(b);
-    var tr = d.trello || {};
-    if (!((tr.url && tr.fonte !== 'dossie') || tr.tem_cartao)) {
-      c.appendChild(subTitulo('Se o cartão não nascer sozinho'));
-      if (tr.url) {
-        // O cartão antigo, do dossiê da proposta: aparece, mas não conclui a etapa (ela pede o cartão padrão).
-        var aa = el('a', 'jor-btn', 'Abrir o cartão antigo no Trello'); aa.href = tr.url; aa.target = '_blank'; aa.rel = 'noopener'; c.appendChild(aa);
-        c.appendChild(veio({ rotulo: tr.rotulo }));
-        c.appendChild(el('p', 'jor-nota', 'Este é o cartão do dossiê da proposta. Crie o cartão padrão para concluir a etapa.'));
-      }
-      var bt = btn('Criar cartão no Trello', '', function () {
-        abrirQuadro();
-        if (typeof vdcEst !== 'undefined' && vdcEst && typeof window.vdcTrPrevia === 'function') window.vdcTrPrevia(vdcEst);
-      });
-      bt.disabled = sem; c.appendChild(bt);
-      if (sem) c.appendChild(el('p', 'jor-nota', 'A obra ainda não tem número. Ele nasce com o contrato e a procuração assinados.'));
-    } else if (tr.url && tr.fonte !== 'dossie' && tr.criado_em) {
-      c.appendChild(el('p', 'jor-nota', 'Criado em ' + ddmm(String(tr.criado_em).slice(0, 10)) + (tr.por ? ' por ' + nomeBonito(tr.por) : '') + '. O link está no resumo.'));
-    }
+    b1.appendChild(g); c.appendChild(b1);
+    if (d.excedente === 'sim' && d.rateio) { var br = secao('Rateio do excedente', itensPorChave(et, ['rateio'])); corpoRateio(br); c.appendChild(br); }
+    var ba = secao('ART e engenheiro', itensPorChave(et, ['art'])); corpoArt(ba); c.appendChild(ba);
+    var bp = secao('Protocolo', itensPorChave(et, ['protocolo'])); corpoProtocolo(bp); c.appendChild(bp);
+    var bq = secao('Parecer de acesso', itensPorChave(et, ['parecer'])); corpoParecer(bq); c.appendChild(bq);
+    c.appendChild(blocoTrelloRelatorio(d, et));
   }
   function corpoRateio(c) {
     var d = O.dados;
@@ -2481,7 +2701,10 @@
       var bc = btn('Conferi o rateio', 'jor-btn-pri', function () { bc.disabled = true; patch({ rateio_conferido: true }); });
       bc.disabled = !(d.rateio.total === 100 && d.pode.etapa3); c.appendChild(bc);
     }
-    c.appendChild(el('p', 'jor-nota', 'Confira no protocolo da Cemig antes de concluir. O percentual se edita no quadro do fim da página.'));
+    c.appendChild(el('p', 'jor-nota', 'Confira no protocolo da Cemig antes de concluir.'));
+    // O percentual de cada conta se muda no editor do quadro de documentos, que abre aqui mesmo.
+    if (O.ratEdita) { emprestar(c, ['rat']); c.appendChild(btn('Fechar o editor', 'jor-btn-link', function () { O.ratEdita = false; desenharObra(); })); }
+    else if (d.pode.etapa3) c.appendChild(btn('Mudar os percentuais', 'jor-btn-link', function () { O.ratEdita = true; desenharObra(); }));
   }
   function corpoArt(c) {
     var d = O.dados;
@@ -2525,7 +2748,7 @@
     anexo: anexo, blocoTitulo: blocoTitulo, comReserva: comReserva, etq: etq, quando: quando, cidadeUF: cidadeUF, campoRot: campoRot, subTitulo: subTitulo, dialogo: dialogo, dialogoMotivo: dialogoMotivo, fecharDlg: fecharDlg, toast: toast, releia: releia, imprimir: imprimir,
     empresaDoAparelho: empresaDoAparelho, msgDe: msgDe, corpo: corpo, abrirLista: abrirLista, desenhar: desenharObra, recarregar: function () { return carregarObra(); },
     ficha: function () { return O.ficha; }, sugs: sugs, veio: veio,
-    atual: atualEtapa, O: function () { return O; }, gerarPapel: gerarPapel,
+    atual: atualEtapa, O: function () { return O; }, gerarPapel: gerarPapel, rotEtapa: rotEtapa, irAba: irAba,
   };
   window.Jornada = { abrirLista: abrirLista, abrirObra: abrirObra, vendido: vendido, h: H, etapas: {}, extras: {}, dinheiro: null };
 
