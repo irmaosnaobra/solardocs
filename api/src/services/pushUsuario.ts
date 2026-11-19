@@ -76,6 +76,7 @@ export async function registrarPush(userId: string, eventType: 'inscricao' | 'ca
   if (error) throw error;
 }
 
+// Chaves VAPID gravadas no solardocs-api da Vercel em 18/11/2026 (antes faltavam: sem push e sem o botão "Ativar avisos").
 export function pushConfigurado(): boolean {
   return !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 }
