@@ -1,29 +1,60 @@
 import { Request, Response } from 'express';
-import { supabaseGerador } from '../utils/supabaseGerador';
+import rateLimit from 'express-rate-limit';
+import { supabase } from '../utils/supabase';
 import { cidadeParaGravar } from '../services/io/cidadeCanonica';
 
 // Cadastro de intenção da NEXUS (link da bio do Instagram): a pessoa diz o que
-// quer importar da China e deixa o contato. SÓ GRAVA: nenhuma mensagem de
+// quer, quanto pretende investir e deixa o contato. SÓ GRAVA: nenhuma mensagem de
 // WhatsApp (lead ou equipe), nenhum card de agenda, nenhum evento no Meta.
-// Banco: Gerador (gerador-propostas), tabela nexus_interesse.
+// Banco: PRINCIPAL do SolarDoc, tabela nexus_instagram_interesse, escrita pela
+// função nexus_instagram_gravar (upsert atômico, só a service role executa).
+// Leitura no /admin: listarInteressesAdmin.
 
-export const ITENS_VALIDOS = [
-  'carro_compacto', 'carro_familia', 'utilitario', 'moto', 'wallbox', 'eletroposto', 'bateria', 'outro',
+export const ELETROPOSTO_VALIDOS = [
+  'cotista', 'investidor', 'arrendamento', 'chave_na_mao', 'parceiro', 'so_carregador',
 ] as const;
-const USOS = new Set(['proprio', 'empresa', 'revenda']);
+export const MOBILIDADE_VALIDOS = [
+  'carro_compacto', 'carro_suv', 'carro_sedan', 'picape', 'van', 'caminhao', 'moto', 'scooter',
+  'bike', 'patinete', 'triciclo', 'quadriciclo', 'golfe', 'wallbox', 'carregador_rapido', 'bateria', 'solar',
+] as const;
+const OBJETIVOS = new Set(['proprio', 'frota', 'revenda', 'investir']);
+const INVESTIMENTOS = new Set(['ate_10', '10_50', '50_100', '100_250', '250_500', '500_mais', 'naosei']);
+const RECURSOS = new Set(['proprio', 'financiamento', 'os_dois', 'naosei']);
+const UFS = new Set([
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE',
+  'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+]);
 const UTM_CHAVES = ['source', 'medium', 'campaign', 'content', 'term'] as const;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const ERRO_SALVAR = 'Não deu para salvar agora. Tente de novo em instantes.';
+const TABELA = 'nexus_instagram_interesse';
+// Linha de teste = telefone fictício desta faixa (ex.: 5534900000000). O corpo não decide: ninguém
+// de fora consegue marcar o próprio cadastro como teste para sumir da lista do /admin.
+const RE_TELEFONE_TESTE = /^5534900000\d{2,3}$/;
+const PAGINA = 1000;
+const TETO_ADMIN = 5000;
+
+// Cadastro público da bio: 10 por minuto por IP (o `trust proxy` do app.ts dá o IP real).
+export const nexusInteresseLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { ok: false, erro: 'Muitas tentativas. Espere um minuto e tente de novo.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const soDigitos = (s: string) => (s || '').replace(/\D/g, '');
 // Só string passa: objeto, número ou array no corpo viram vazio e caem na validação (400), nunca em 500.
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const txt = (v: unknown, max: number): string | null => str(v).trim().slice(0, max) || null;
-const vazio = (v: unknown): boolean =>
-  v === null || v === undefined || (typeof v === 'string' && v.trim() === '') ||
-  (typeof v === 'object' && Object.keys(v as object).length === 0);
 
 function erro(res: Response, frase: string): void {
   res.status(400).json({ ok: false, erro: frase });
+}
+
+function lista(v: unknown, validos: readonly string[]): string[] {
+  if (!Array.isArray(v)) return [];
+  return [...new Set(v.slice(0, 30).map((i) => str(i)).filter((i) => validos.includes(i)))];
 }
 
 function utmDe(v: unknown): Record<string, string> | null {
@@ -37,22 +68,14 @@ function utmDe(v: unknown): Record<string, string> | null {
   return Object.keys(out).length ? out : null;
 }
 
-async function posicaoDe(id: number | null): Promise<number> {
-  let q = supabaseGerador
-    .from('nexus_interesse')
-    .select('id', { count: 'exact', head: true })
-    .eq('teste', false);
-  if (id !== null) q = q.lte('id', id);
-  const { count, error } = await q;
-  if (error) throw error;
-  return count ?? 0;
+// Cidade e UF vão separadas para o banco. A UF digitada vale: o texto passa pelo
+// canônico como "Cidade-UF" e só aceita o resultado se a UF dele for a mesma.
+function cidadeEUf(cidadeBruta: string, uf: string, telefone: string): { cidade: string; uf: string } {
+  const canonico = cidadeParaGravar(`${cidadeBruta}-${uf}`, telefone);
+  const m = canonico ? /^(.+)-([A-Z]{2})$/.exec(canonico) : null;
+  if (m && m[2] === uf) return { cidade: m[1].slice(0, 80), uf };
+  return { cidade: cidadeBruta, uf };
 }
-
-type Linha = {
-  id: number; itens: string[] | null; nome: string | null; cidade: string | null; uso: string | null;
-  outro: string | null; origem: string | null; utm: unknown; teste: boolean | null;
-};
-const COLUNAS = 'id, itens, nome, cidade, uso, outro, origem, utm, teste';
 
 export async function cadastrarInteresse(req: Request, res: Response): Promise<void> {
   const b = (req.body || {}) as Record<string, unknown>;
@@ -62,20 +85,30 @@ export async function cadastrarInteresse(req: Request, res: Response): Promise<v
   if (armadilha) {
     // Mesma cara de um cadastro novo (contagem atual + 1), sem gravar nada.
     let posicao = 1;
-    try { posicao = (await posicaoDe(null)) + 1; } catch { /* resposta igual mesmo se a contagem falhar */ }
+    try {
+      const { count, error } = await supabase
+        .from(TABELA).select('id', { count: 'exact', head: true }).eq('teste', false);
+      if (!error && typeof count === 'number') posicao = count + 1;
+    } catch { /* resposta igual mesmo se a contagem falhar */ }
     res.json({ ok: true, posicao, novo: true });
     return;
   }
 
-  const itens = [...new Set(
-    (Array.isArray(b.itens) ? b.itens.slice(0, 20) : [])
-      .map((i) => str(i))
-      .filter((i): i is typeof ITENS_VALIDOS[number] => (ITENS_VALIDOS as readonly string[]).includes(i)),
-  )];
-  if (itens.length === 0) return erro(res, 'Escolha pelo menos um item.');
+  const eletroposto = lista(b.eletroposto, ELETROPOSTO_VALIDOS);
+  const mobilidade = lista(b.mobilidade, MOBILIDADE_VALIDOS);
+  const outro = txt(b.outro, 300);
+  if (eletroposto.length === 0 && mobilidade.length === 0 && !outro) {
+    return erro(res, 'Marque pelo menos uma opção ou escreva o que procura.');
+  }
 
-  const uso = str(b.uso).trim();
-  if (!USOS.has(uso)) return erro(res, 'Diga se é para uso próprio, empresa ou revenda.');
+  const objetivo = str(b.objetivo).trim();
+  if (!OBJETIVOS.has(objetivo)) return erro(res, 'Diga qual é o seu objetivo.');
+
+  const investimento = str(b.investimento).trim();
+  if (!INVESTIMENTOS.has(investimento)) return erro(res, 'Escolha a faixa de investimento.');
+
+  const recurso = str(b.recurso).trim();
+  if (!RECURSOS.has(recurso)) return erro(res, 'Diga como pretende pagar.');
 
   const nome = str(b.nome).trim();
   if (nome.length < 2 || nome.length > 80) return erro(res, 'Informe seu nome, de 2 a 80 letras.');
@@ -85,68 +118,79 @@ export async function cadastrarInteresse(req: Request, res: Response): Promise<v
     return erro(res, 'Confira o WhatsApp, com DDD.');
   }
 
-  const cidadeBruta = txt(b.cidade, 120);
-  const cidade = cidadeBruta ? cidadeParaGravar(cidadeBruta, telefone) : null;
-  const outro = txt(b.outro, 300);
+  const email = str(b.email).trim().toLowerCase();
+  if (email.length > 120 || !EMAIL_RE.test(email)) return erro(res, 'Confira o e-mail.');
+
+  const cidadeBruta = txt(b.cidade, 80);
+  if (!cidadeBruta) return erro(res, 'Informe a cidade.');
+
+  const ufBruta = str(b.uf).trim().toUpperCase();
+  if (!UFS.has(ufBruta)) return erro(res, 'Escolha o estado.');
+
+  const cep = soDigitos(str(b.cep));
+  if (cep !== '' && cep.length !== 8) return erro(res, 'Confira o CEP.');
+
+  const endereco = txt(b.endereco, 160);
+  const bairro = txt(b.bairro, 80);
   const origem = txt(b.origem, 60);
   const utm = utmDe(b.utm);
-  const teste = b.teste === true;
+  const teste = RE_TELEFONE_TESTE.test(telefone);
+  const { cidade, uf } = cidadeEUf(cidadeBruta, ufBruta, telefone);
 
   try {
-    const { data: atual, error: eLer } = await supabaseGerador
-      .from('nexus_interesse')
-      .select(COLUNAS)
-      .eq('telefone', telefone)
-      .maybeSingle();
-    if (eLer) throw eLer;
-
-    // Cadastro repetido NÃO sobrescreve quem já está: une os itens e só preenche
-    // o que está vazio no banco. Teste nunca converte lead real; chamada real tira o teste.
-    const atualizar = async (antes: Linha): Promise<number> => {
-      const patch: Record<string, unknown> = {
-        itens: [...new Set([...(antes.itens || []), ...itens])],
-        atualizado_em: new Date().toISOString(),
-      };
-      const novos: Record<string, unknown> = { nome, cidade, uso, outro, origem, utm };
-      for (const [k, v] of Object.entries(novos)) {
-        if (v && vazio((antes as Record<string, unknown>)[k])) patch[k] = v;
-      }
-      if (!teste) patch.teste = false;
-      const { data, error } = await supabaseGerador
-        .from('nexus_interesse').update(patch).eq('id', antes.id).select('id').single();
-      if (error) throw error;
-      return (data as { id: number }).id;
-    };
-
-    let id: number;
-    let novo: boolean;
-    if (atual) {
-      id = await atualizar(atual as Linha);
-      novo = false;
-    } else {
-      const { data, error } = await supabaseGerador
-        .from('nexus_interesse')
-        .insert({ nome, telefone, cidade, itens, outro, uso, origem, utm, teste })
-        .select('id')
-        .single();
-      if (error && (error as { code?: string }).code === '23505') {
-        // Duas requisições do mesmo número ao mesmo tempo: a outra gravou primeiro.
-        const { data: de, error: e2 } = await supabaseGerador
-          .from('nexus_interesse').select(COLUNAS).eq('telefone', telefone).single();
-        if (e2) throw e2;
-        id = await atualizar(de as Linha);
-        novo = false;
-      } else {
-        if (error) throw error;
-        id = (data as { id: number }).id;
-        novo = true;
-      }
-    }
-
-    const posicao = await posicaoDe(id);
-    res.json({ ok: true, posicao, novo });
-  } catch (err) {
-    console.error(`[nexus-interesse] falha gravando ${telefone}`, err);
+    const { data, error } = await supabase.rpc('nexus_instagram_gravar', {
+      p_nome: nome,
+      p_telefone: telefone,
+      p_email: email,
+      p_cep: cep || null,
+      p_endereco: endereco,
+      p_bairro: bairro,
+      p_cidade: cidade,
+      p_uf: uf,
+      p_eletroposto: eletroposto,
+      p_mobilidade: mobilidade,
+      p_outro: outro,
+      p_objetivo: objetivo,
+      p_investimento: investimento,
+      p_recurso: recurso,
+      p_origem: origem,
+      p_utm: utm,
+      p_teste: teste,
+    });
+    if (error) throw error;
+    const r = (data || {}) as { posicao?: number };
+    // Sempre novo:true: a resposta pública não revela se o telefone já estava na lista.
+    res.json({ ok: true, posicao: Number(r.posicao) || 1, novo: true });
+  } catch (err: any) {
+    console.error('[nexus-interesse]', err?.code, err?.message);
     res.status(500).json({ ok: false, erro: ERRO_SALVAR });
+  }
+}
+
+// Leitura do /admin (hub NEXUS Instagram). O roteador põe authMiddleware e adminMiddleware antes.
+export async function listarInteressesAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const comTeste = String(req.query?.teste ?? '') === '1';
+    const itens: unknown[] = [];
+    // Páginas de 1000 (teto do PostgREST) até vir página curta ou chegar a 5000 linhas.
+    // Desempate por id para a paginação não repetir nem pular linha de mesmo criado_em.
+    for (let ini = 0; itens.length < TETO_ADMIN; ini += PAGINA) {
+      let q = supabase
+        .from(TABELA)
+        .select('*')
+        .order('criado_em', { ascending: false })
+        .order('id', { ascending: false })
+        .range(ini, ini + PAGINA - 1);
+      if (!comTeste) q = q.eq('teste', false);
+      const { data, error } = await q;
+      if (error) throw error;
+      const pagina = data ?? [];
+      itens.push(...pagina);
+      if (pagina.length < PAGINA) break;
+    }
+    res.json({ ok: true, itens });
+  } catch (err: any) {
+    console.error('[nexus-interesse]', err?.code, err?.message);
+    res.status(500).json({ ok: false, erro: 'Não deu para carregar a lista agora.' });
   }
 }

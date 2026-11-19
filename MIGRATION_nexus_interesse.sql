@@ -1,3 +1,4 @@
+-- SEM USO desde 19/11/2026: substituida por MIGRATION_nexus_instagram_interesse.sql (banco principal).
 -- Banco: Gerador (projeto gerador-propostas). NAO rodar no banco do SolarDoc.
 -- Cadastro de intencao da NEXUS (link da bio do Instagram): o que a pessoa quer
 -- importar da China e o contato. Idempotente. A api grava com service role.

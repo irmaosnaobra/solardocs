@@ -49,6 +49,8 @@ import PontoCertoPanel from './_panels/PontoCertoPanel';
 import NexusParceirosPanel from './_panels/NexusParceirosPanel';
 // Monjour Natural (hub Produtos): visão geral, funil do quiz, vendas, leads, app e anúncios
 import MonjourProdutoPanel from './_panels/MonjourProdutoPanel';
+// NEXUS Instagram: a lista de interesse do link da bio (/nexus/interesse), com contato e CSV
+import NexusInstagramPanel from './_panels/NexusInstagramPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -118,6 +120,15 @@ export const PRODUCTS: Product[] = [
       // com nível, contato e ficha, mais o Mapa de demanda. Embute /nexus/adm/ (mesma origem).
       { key: 'parceiros-nexus', label: 'Parceiros NEXUS', status: 'pronto', Comp: NexusParceirosPanel },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="eletroposto" /> },
+    ],
+  },
+  // NEXUS Instagram (19/11/2026): a lista permanente do link da bio (solardoc.app/nexus/interesse).
+  // Quem quer eletroposto (as seis frentes) ou mobilidade elétrica, para quê, quanto investe e como paga.
+  // O azul é o da área NEXUS dentro da SolarDoc.
+  {
+    id: 'nexus-instagram', nome: 'NEXUS Instagram', emoji: '◆', cor: '#0060C7',
+    tabs: [
+      { key: 'lista', label: 'Lista de interesse', status: 'pronto', Comp: NexusInstagramPanel },
     ],
   },
   // Hub dos produtos menores da loja (desde 11/11/2026): uma aba por produto. O LimpaPro

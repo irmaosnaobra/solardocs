@@ -2,181 +2,407 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 
-// Banco falso em memória: uma tabela nexus_interesse com o mínimo do PostgREST
-// que o handler usa (select/eq/lte/maybeSingle/single/insert/update/count).
+// Cliente principal falso: rpc() e from().select().eq() (contagem do honeypot)
+// e from().select().order().order().range().eq() (leitura paginada do admin).
 const h = vi.hoisted(() => ({
-  linhas: [] as Array<Record<string, any>>,
-  proximoId: 1,
-  falhar: false,
-  cegarLeitura: false, // 1ª leitura por telefone devolve null (simula a corrida do 23505)
-  escritas: [] as string[],
+  rpcChamadas: [] as Array<{ nome: string; args: Record<string, any> }>,
+  rpcResposta: { data: { posicao: 7, novo: true }, error: null } as { data: any; error: any },
+  rpcLanca: false,
+  contagem: { count: 41, error: null } as { count: number | null; error: any },
+  paginas: [] as any[][], // cada await da lista do admin tira uma página daqui (fila vazia = página vazia)
+  listaErro: null as any,
+  filtros: [] as Array<[string, any]>,
+  ordens: [] as Array<[string, any]>,
+  ranges: [] as Array<[number, number]>,
+  froms: [] as string[],
 }));
 
-function construtor() {
-  const st: { op: string; payload?: any; filtros: Array<[string, string, any]>; head?: boolean } = { op: 'select', filtros: [] };
-  const aplica = () => h.linhas.filter((l) => st.filtros.every(([c, t, v]) => (t === 'eq' ? l[c] === v : l[c] <= v)));
+function consulta(tipo: 'contagem' | 'lista') {
   const q: any = {
-    select: (_c?: string, o?: { head?: boolean }) => { if (o?.head) st.head = true; return q; },
-    insert: (p: any) => { st.op = 'insert'; st.payload = p; return q; },
-    update: (p: any) => { st.op = 'update'; st.payload = p; return q; },
-    eq: (c: string, v: any) => { st.filtros.push([c, 'eq', v]); return q; },
-    lte: (c: string, v: any) => { st.filtros.push([c, 'lte', v]); return q; },
-    maybeSingle: () => {
-      if (h.cegarLeitura) { h.cegarLeitura = false; return Promise.resolve({ data: null, error: null }); }
-      return Promise.resolve(exec(true));
-    },
-    single: () => Promise.resolve(exec(true)),
-    then: (ok: any, ko: any) => Promise.resolve(exec(false)).then(ok, ko),
+    select: () => q,
+    order: (c: string, o: any) => { h.ordens.push([c, o]); return q; },
+    range: (a: number, b: number) => { h.ranges.push([a, b]); return q; },
+    eq: (c: string, v: any) => { h.filtros.push([c, v]); return q; },
+    then: (ok: any, ko: any) =>
+      Promise.resolve(
+        tipo === 'contagem'
+          ? h.contagem
+          : { data: h.listaErro ? null : (h.paginas.shift() ?? []), error: h.listaErro },
+      ).then(ok, ko),
   };
-  function exec(um: boolean) {
-    if (h.falhar) return { data: null, error: { message: 'boom' } };
-    if (st.op !== 'select') h.escritas.push(st.op);
-    if (st.op === 'insert') {
-      if (h.linhas.some((l) => l.telefone === st.payload.telefone)) return { data: null, error: { code: '23505', message: 'dup' } };
-      const nova = { id: h.proximoId++, ...st.payload };
-      h.linhas.push(nova);
-      return { data: nova, error: null };
-    }
-    if (st.op === 'update') {
-      const alvo = aplica()[0];
-      Object.assign(alvo, st.payload);
-      return { data: alvo, error: null };
-    }
-    const r = aplica();
-    if (st.head) return { data: null, count: r.length, error: null };
-    return { data: um ? (r[0] ?? null) : r, error: null };
-  }
   return q;
 }
 
-vi.mock('../utils/supabaseGerador', () => ({
-  geradorComServiceKey: true,
-  supabaseGerador: { from: () => construtor() },
+vi.mock('../utils/supabase', () => ({
+  supabase: {
+    rpc: (nome: string, args: Record<string, any>) => {
+      h.rpcChamadas.push({ nome, args });
+      if (h.rpcLanca) return Promise.reject(new Error('rede'));
+      return Promise.resolve(h.rpcResposta);
+    },
+    from: (t: string) => {
+      h.froms.push(t);
+      // O select de contagem do honeypot passa head:true; a lista do admin não.
+      return {
+        select: (_c: string, o?: { head?: boolean }) => consulta(o?.head ? 'contagem' : 'lista').select(),
+      };
+    },
+  },
 }));
 
-import { cadastrarInteresse } from '../routes/nexusInteresse';
+import { cadastrarInteresse, listarInteressesAdmin, nexusInteresseLimiter } from '../routes/nexusInteresse';
 
 const app = express();
 app.use(express.json());
 app.post('/nexus-interesse', cadastrarInteresse);
 
 const base = {
-  itens: ['carro_compacto'], uso: 'proprio', nome: 'Maria Souza',
-  telefone: '55 (34) 99999-0001', cidade: 'Uberlândia, MG',
+  eletroposto: ['cotista'],
+  mobilidade: ['moto'],
+  objetivo: 'proprio',
+  investimento: '10_50',
+  recurso: 'os_dois',
+  nome: 'Maria Souza',
+  telefone: '55 (34) 99999-0001',
+  email: 'Maria@Exemplo.com',
+  cidade: 'Uberlândia',
+  uf: 'mg',
 };
 const post = (b: object) => request(app).post('/nexus-interesse').send(b);
 
 beforeEach(() => {
-  h.linhas.length = 0; h.proximoId = 1; h.falhar = false; h.cegarLeitura = false; h.escritas.length = 0;
+  h.rpcChamadas.length = 0;
+  h.rpcResposta = { data: { posicao: 7, novo: true }, error: null };
+  h.rpcLanca = false;
+  h.contagem = { count: 41, error: null };
+  h.paginas.length = 0;
+  h.listaErro = null;
+  h.filtros.length = 0;
+  h.ordens.length = 0;
+  h.ranges.length = 0;
+  h.froms.length = 0;
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
+async function recusa(corpo: object) {
+  const r = await post(corpo);
+  expect(r.status).toBe(400);
+  expect(r.body.ok).toBe(false);
+  expect(r.body.erro).toMatch(/^[A-ZÁÉÍÓÚÂÊÔ]/);
+  expect(r.body.erro).not.toMatch(/—|–/);
+  expect(h.rpcChamadas).toHaveLength(0);
+  return r;
+}
+
 describe('POST /nexus-interesse: validação', () => {
-  it('descarta item inválido e grava os válidos', async () => {
-    const r = await post({ ...base, itens: ['moto', 'foguete', 'wallbox'] });
+  it('base válida grava e devolve posição', async () => {
+    const r = await post(base);
     expect(r.status).toBe(200);
-    expect(h.linhas[0].itens).toEqual(['moto', 'wallbox']);
+    expect(r.body).toEqual({ ok: true, posicao: 7, novo: true });
   });
 
-  it('sem item válido é 400', async () => {
-    const r = await post({ ...base, itens: ['foguete'] });
-    expect(r.status).toBe(400);
-    expect(r.body.ok).toBe(false);
-    expect(r.body.erro).toMatch(/^[A-ZÁÉÍÓÚ]/);
-    expect(h.linhas).toHaveLength(0);
+  it('nada marcado e sem outro é 400 com a frase certa', async () => {
+    const r = await recusa({ ...base, eletroposto: [], mobilidade: [] });
+    expect(r.body.erro).toBe('Marque pelo menos uma opção ou escreva o que procura.');
+    await recusa({ ...base, eletroposto: ['foguete'], mobilidade: ['nave'], outro: '   ' });
+  });
+
+  it('só o campo outro preenchido basta', async () => {
+    const r = await post({ ...base, eletroposto: [], mobilidade: [], outro: ' ônibus elétrico ' });
+    expect(r.status).toBe(200);
+    expect(h.rpcChamadas[0].args.p_outro).toBe('ônibus elétrico');
+  });
+
+  it('objetivo, investimento e recurso inválidos ou ausentes são 400', async () => {
+    await recusa({ ...base, objetivo: 'lazer' });
+    await recusa({ ...base, objetivo: undefined });
+    await recusa({ ...base, investimento: '1000_mais' });
+    await recusa({ ...base, investimento: undefined });
+    await recusa({ ...base, recurso: 'cripto' });
+    await recusa({ ...base, recurso: undefined });
+  });
+
+  it('aceita todos os valores válidos dos enums', async () => {
+    for (const objetivo of ['proprio', 'frota', 'revenda', 'investir']) {
+      expect((await post({ ...base, objetivo })).status).toBe(200);
+    }
+    for (const investimento of ['ate_10', '10_50', '50_100', '100_250', '250_500', '500_mais', 'naosei']) {
+      expect((await post({ ...base, investimento })).status).toBe(200);
+    }
+    for (const recurso of ['proprio', 'financiamento', 'os_dois', 'naosei']) {
+      expect((await post({ ...base, recurso })).status).toBe(200);
+    }
+  });
+
+  it('nome curto ou longo é 400', async () => {
+    await recusa({ ...base, nome: 'A' });
+    await recusa({ ...base, nome: 'x'.repeat(81) });
   });
 
   it('telefone ruim é 400', async () => {
-    expect((await post({ ...base, telefone: '34999990001' })).status).toBe(400);
-    expect((await post({ ...base, telefone: '123' })).status).toBe(400);
-    expect(h.linhas).toHaveLength(0);
+    await recusa({ ...base, telefone: '34999990001' });
+    await recusa({ ...base, telefone: '123' });
   });
 
-  it('uso inválido ou ausente é 400', async () => {
-    expect((await post({ ...base, uso: 'lazer' })).status).toBe(400);
-    expect((await post({ ...base, uso: undefined })).status).toBe(400);
+  it('e-mail ausente, sem domínio ou longo demais é 400', async () => {
+    await recusa({ ...base, email: undefined });
+    await recusa({ ...base, email: 'maria@exemplo' });
+    await recusa({ ...base, email: 'maria exemplo@x.com' });
+    await recusa({ ...base, email: `${'a'.repeat(120)}@x.com` });
   });
 
-  it('nome curto é 400', async () => {
-    expect((await post({ ...base, nome: 'A' })).status).toBe(400);
+  it('cidade ausente é 400', async () => {
+    await recusa({ ...base, cidade: undefined });
+    await recusa({ ...base, cidade: '   ' });
+  });
+
+  it('uf ausente ou inexistente é 400', async () => {
+    await recusa({ ...base, uf: undefined });
+    await recusa({ ...base, uf: 'XX' });
+    await recusa({ ...base, uf: 'MGG' });
+  });
+
+  it('cep com tamanho errado é 400, vazio passa', async () => {
+    await recusa({ ...base, cep: '38400' });
+    expect((await post({ ...base, cep: '' })).status).toBe(200);
+    expect((await post({ ...base, cep: '38400-000' })).status).toBe(200);
+    expect(h.rpcChamadas[1].args.p_cep).toBe('38400000');
+  });
+
+  it('tipo errado em qualquer campo é 400 e nunca 500', async () => {
+    await recusa({ ...base, nome: { a: 1 } });
+    await recusa({ ...base, telefone: 5534999990001 });
+    await recusa({ ...base, email: ['a@b.com'] });
+    await recusa({ ...base, cidade: 123 });
+    await recusa({ ...base, uf: ['MG'] });
+    await recusa({ ...base, objetivo: ['proprio'] });
+    await recusa({ ...base, investimento: 10 });
+    await recusa({ ...base, recurso: { x: 1 } });
+    await recusa({ ...base, eletroposto: 'cotista', mobilidade: 'moto' });
+    await recusa({ ...base, eletroposto: [{ a: 1 }, 5, null], mobilidade: [[], true], outro: { a: 1 } });
+  });
+
+  it('corpo vazio é 400', async () => {
+    const r = await request(app).post('/nexus-interesse').send({});
+    expect(r.status).toBe(400);
   });
 });
 
 describe('POST /nexus-interesse: gravação', () => {
-  it('honeypot preenchido responde ok e não grava', async () => {
-    await post({ ...base, telefone: '5511999990009' });
-    h.escritas.length = 0;
+  it('honeypot preenchido responde ok com contagem+1 e não chama a rpc', async () => {
     const r = await post({ ...base, site: 'http://spam.com' });
-    expect(r.body).toEqual({ ok: true, posicao: 2, novo: true });
-    expect(h.escritas).toEqual([]);
-    expect(h.linhas).toHaveLength(1);
-  });
-
-  it('primeiro cadastro: novo e posição 1', async () => {
-    const r = await post({ ...base, utm: { source: 'ig', medium: 'bio' }, origem: 'bio' });
-    expect(r.body).toEqual({ ok: true, posicao: 1, novo: true });
-    expect(h.linhas[0].telefone).toBe('5534999990001');
-    expect(h.linhas[0].utm).toEqual({ source: 'ig', medium: 'bio' });
-  });
-
-  it('mesmo telefone une os itens, não troca nome/uso já gravados e preenche vazio', async () => {
-    await post({ ...base, itens: ['moto', 'wallbox'], cidade: '' });
-    const r = await post({ ...base, itens: ['wallbox', 'bateria'], nome: 'Outro Nome', uso: 'empresa', outro: 'quero financiar', cidade: 'Uberlândia, MG' });
-    expect(r.body).toEqual({ ok: true, posicao: 1, novo: false });
-    expect(h.linhas).toHaveLength(1);
-    expect(h.linhas[0].itens).toEqual(['moto', 'wallbox', 'bateria']);
-    expect(h.linhas[0].nome).toBe('Maria Souza');
-    expect(h.linhas[0].uso).toBe('proprio');
-    expect(h.linhas[0].outro).toBe('quero financiar');
-    expect(h.linhas[0].cidade).toBeTruthy();
-  });
-
-  it('corrida (23505) vira update com a mesma regra', async () => {
-    await post({ ...base, itens: ['moto'] });
-    h.cegarLeitura = true;
-    const r = await post({ ...base, itens: ['bateria'], nome: 'Outro Nome' });
-    expect(r.body).toEqual({ ok: true, posicao: 1, novo: false });
-    expect(h.escritas).toEqual(['insert', 'insert', 'update']);
-    expect(h.linhas[0].itens).toEqual(['moto', 'bateria']);
-    expect(h.linhas[0].nome).toBe('Maria Souza');
-  });
-
-  it('teste sobre lead real não vira teste', async () => {
-    await post(base);
-    await post({ ...base, teste: true });
-    expect(h.linhas[0].teste).toBe(false);
-  });
-
-  it('chamada real sobre lead de teste tira o teste', async () => {
-    await post({ ...base, teste: true });
-    expect(h.linhas[0].teste).toBe(true);
-    await post(base);
-    expect(h.linhas[0].teste).toBe(false);
-  });
-
-  it('tipo errado dá 400, nunca 500', async () => {
-    expect((await post({ ...base, nome: { a: 1 } })).status).toBe(400);
-    expect((await post({ ...base, telefone: 5534999990001 })).status).toBe(400);
-    expect((await post({ ...base, uso: ['proprio'] })).status).toBe(400);
-    expect((await post({ ...base, itens: 'moto' })).status).toBe(400);
-    const r = await post({ ...base, cidade: { x: 1 }, outro: 5, origem: [], utm: ['a'] });
     expect(r.status).toBe(200);
-    expect(h.linhas[0].utm).toBeNull();
+    expect(r.body).toEqual({ ok: true, posicao: 42, novo: true });
+    expect(h.rpcChamadas).toHaveLength(0);
+    expect(h.froms).toEqual(['nexus_instagram_interesse']);
+    expect(h.filtros).toEqual([['teste', false]]);
   });
 
-  it('posição ignora linhas de teste', async () => {
-    await post({ ...base, telefone: '5511999990002', teste: true });
-    const r = await post({ ...base, telefone: '5511999990003' });
-    expect(r.body.posicao).toBe(1);
-    const r2 = await post({ ...base, telefone: '5511999990004' });
-    expect(r2.body.posicao).toBe(2);
+  it('honeypot com contagem falha responde posição 1', async () => {
+    h.contagem = { count: null, error: { message: 'boom' } };
+    const r = await post({ ...base, site: 'x' });
+    expect(r.body).toEqual({ ok: true, posicao: 1, novo: true });
+    expect(h.rpcChamadas).toHaveLength(0);
   });
 
-  it('erro de banco é 500 com a frase combinada', async () => {
-    h.falhar = true;
+  it('manda à rpc os parâmetros normalizados', async () => {
+    const r = await post({
+      ...base,
+      eletroposto: ['cotista', 'foguete', 'cotista', 'parceiro'],
+      mobilidade: ['moto', 'nave', 'solar'],
+      endereco: ' Rua A, 10 ',
+      bairro: 'Centro',
+      cep: '38400-000',
+      origem: 'bio-instagram',
+      utm: { source: 'ig', medium: 'bio', lixo: 'x', campaign: 5 },
+      teste: true, // o corpo é ignorado: só a faixa fictícia de telefone marca teste
+    });
+    expect(r.status).toBe(200);
+    expect(h.rpcChamadas).toHaveLength(1);
+    const { nome, args } = h.rpcChamadas[0];
+    expect(nome).toBe('nexus_instagram_gravar');
+    expect(args).toEqual({
+      p_nome: 'Maria Souza',
+      p_telefone: '5534999990001',
+      p_email: 'maria@exemplo.com',
+      p_cep: '38400000',
+      p_endereco: 'Rua A, 10',
+      p_bairro: 'Centro',
+      p_cidade: 'Uberlândia',
+      p_uf: 'MG',
+      p_eletroposto: ['cotista', 'parceiro'],
+      p_mobilidade: ['moto', 'solar'],
+      p_outro: null,
+      p_objetivo: 'proprio',
+      p_investimento: '10_50',
+      p_recurso: 'os_dois',
+      p_origem: 'bio-instagram',
+      p_utm: { source: 'ig', medium: 'bio' },
+      p_teste: false,
+    });
+  });
+
+  it('teste só pela faixa fictícia de telefone, nunca pelo corpo', async () => {
+    for (const telefone of ['5534900000000', '5534900000099', '553490000012']) {
+      h.rpcChamadas.length = 0;
+      expect((await post({ ...base, telefone })).status).toBe(200);
+      expect(h.rpcChamadas[0].args.p_teste).toBe(true);
+    }
+    for (const telefone of ['5534999990001', '5534900001000', '5511900000000']) {
+      h.rpcChamadas.length = 0;
+      expect((await post({ ...base, telefone, teste: true })).status).toBe(200);
+      expect(h.rpcChamadas[0].args.p_teste).toBe(false);
+    }
+  });
+
+  it('sem opcionais manda null e teste false', async () => {
+    await post(base);
+    const a = h.rpcChamadas[0].args;
+    expect(a.p_cep).toBeNull();
+    expect(a.p_endereco).toBeNull();
+    expect(a.p_bairro).toBeNull();
+    expect(a.p_outro).toBeNull();
+    expect(a.p_origem).toBeNull();
+    expect(a.p_utm).toBeNull();
+    expect(a.p_teste).toBe(false);
+  });
+
+  it('corta cada array em 30 itens antes de filtrar', async () => {
+    const lixo = Array.from({ length: 30 }, () => 'lixo');
+    const r = await post({ ...base, eletroposto: [...lixo, 'cotista'], mobilidade: ['moto'] });
+    expect(r.status).toBe(200);
+    expect(h.rpcChamadas[0].args.p_eletroposto).toEqual([]);
+  });
+
+  it('cidade e uf separadas, com a UF digitada valendo', async () => {
+    await post({ ...base, cidade: 'uberlandia', uf: 'MG' });
+    const a = h.rpcChamadas[0].args;
+    expect(a.p_uf).toBe('MG');
+    expect(a.p_cidade).not.toMatch(/-MG$/);
+    expect(a.p_cidade.toLowerCase()).toContain('uberl');
+  });
+
+  it('posicao vem da rpc e novo é sempre true (não revela telefone repetido)', async () => {
+    h.rpcResposta = { data: { posicao: 3, novo: false }, error: null };
+    const r = await post(base);
+    expect(r.body).toEqual({ ok: true, posicao: 3, novo: true });
+  });
+
+  it('erro da rpc é 500 com frase fixa e log só com código e mensagem', async () => {
+    h.rpcResposta = { data: null, error: { message: 'boom', code: 'XX001' } };
     const r = await post(base);
     expect(r.status).toBe(500);
     expect(r.body).toEqual({ ok: false, erro: 'Não deu para salvar agora. Tente de novo em instantes.' });
-    expect(console.error).toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith('[nexus-interesse]', 'XX001', 'boom');
+    expect(JSON.stringify((console.error as any).mock.calls)).not.toMatch(/5534|maria@/i);
+  });
+
+  it('rpc que lança também é 500', async () => {
+    h.rpcLanca = true;
+    const r = await post(base);
+    expect(r.status).toBe(500);
+    expect(r.body.ok).toBe(false);
+  });
+});
+
+describe('GET admin: listarInteressesAdmin', () => {
+  function resposta() {
+    const res: any = { statusCode: 200, corpo: undefined as any };
+    res.status = (c: number) => { res.statusCode = c; return res; };
+    res.json = (b: any) => { res.corpo = b; return res; };
+    return res;
+  }
+  const linhas = (n: number, de = 0) => Array.from({ length: n }, (_, i) => ({ id: de + i }));
+
+  it('por padrão só os de produção, mais novos primeiro, uma página curta', async () => {
+    h.paginas = [[{ id: 1, nome: 'A' }, { id: 2, nome: 'B' }]];
+    const res = resposta();
+    await listarInteressesAdmin({ query: {} } as any, res);
+    expect(res.statusCode).toBe(200);
+    expect(res.corpo).toEqual({ ok: true, itens: [{ id: 1, nome: 'A' }, { id: 2, nome: 'B' }] });
+    expect(h.froms).toEqual(['nexus_instagram_interesse']);
+    expect(h.ordens).toEqual([['criado_em', { ascending: false }], ['id', { ascending: false }]]);
+    expect(h.ranges).toEqual([[0, 999]]);
+    expect(h.filtros).toEqual([['teste', false]]);
+  });
+
+  it('com teste=1 traz também os de teste (sem filtro)', async () => {
+    h.paginas = [[{ id: 9, teste: true }]];
+    const res = resposta();
+    await listarInteressesAdmin({ query: { teste: '1' } } as any, res);
+    expect(res.corpo).toEqual({ ok: true, itens: [{ id: 9, teste: true }] });
+    expect(h.filtros).toEqual([]);
+  });
+
+  it('teste com outro valor continua filtrando', async () => {
+    const res = resposta();
+    await listarInteressesAdmin({ query: { teste: '0' } } as any, res);
+    expect(h.filtros).toEqual([['teste', false]]);
+  });
+
+  it('pagina de 1000 em 1000 até vir página curta', async () => {
+    h.paginas = [linhas(1000), linhas(1000, 1000), linhas(37, 2000)];
+    const res = resposta();
+    await listarInteressesAdmin({ query: {} } as any, res);
+    expect(res.corpo.itens).toHaveLength(2037);
+    expect(h.ranges).toEqual([[0, 999], [1000, 1999], [2000, 2999]]);
+  });
+
+  it('para em 5000 linhas mesmo com páginas cheias', async () => {
+    h.paginas = Array.from({ length: 8 }, (_, i) => linhas(1000, i * 1000));
+    const res = resposta();
+    await listarInteressesAdmin({ query: {} } as any, res);
+    expect(res.corpo.itens).toHaveLength(5000);
+    expect(h.ranges).toHaveLength(5);
+    expect(h.ranges[4]).toEqual([4000, 4999]);
+  });
+
+  it('banco sem dados devolve lista vazia', async () => {
+    const res = resposta();
+    await listarInteressesAdmin({ query: {} } as any, res);
+    expect(res.corpo).toEqual({ ok: true, itens: [] });
+  });
+
+  it('erro do banco é 500 com log só de código e mensagem', async () => {
+    h.listaErro = { message: 'boom', code: 'XX002' };
+    const res = resposta();
+    await listarInteressesAdmin({ query: {} } as any, res);
+    expect(res.statusCode).toBe(500);
+    expect(res.corpo.ok).toBe(false);
+    expect(typeof res.corpo.erro).toBe('string');
+    expect(console.error).toHaveBeenCalledWith('[nexus-interesse]', 'XX002', 'boom');
+  });
+});
+
+describe('proteção das rotas no router de ioEletroposto', () => {
+  async function handlersDa(metodo: 'get' | 'post', caminho: string) {
+    const mod = await import('../routes/ioEletroposto');
+    const pilha = (mod.default as any).stack as any[];
+    const camada = pilha.find((x) => x.route && x.route.path === caminho && x.route.methods[metodo]);
+    expect(camada, `rota ${metodo.toUpperCase()} ${caminho} registrada`).toBeTruthy();
+    return camada.route.stack.map((s: any) => s.handle) as Function[];
+  }
+
+  it('GET /nexus-instagram/admin: authMiddleware, adminMiddleware e só então o handler', async () => {
+    const { authMiddleware } = await import('../middleware/auth');
+    const { adminMiddleware } = await import('../middleware/adminAuth');
+    expect(await handlersDa('get', '/nexus-instagram/admin'))
+      .toEqual([authMiddleware, adminMiddleware, listarInteressesAdmin]);
+  }, 60000);
+
+  it('POST /nexus-interesse: limitador antes do handler público', async () => {
+    expect(await handlersDa('post', '/nexus-interesse')).toEqual([nexusInteresseLimiter, cadastrarInteresse]);
+  }, 60000);
+});
+
+describe('limitador do POST público', () => {
+  it('10 por minuto por IP, o 11º é 429 com a frase combinada', async () => {
+    const a = express();
+    a.use(express.json());
+    a.post('/x', nexusInteresseLimiter, (_req, res) => { res.json({ ok: true }); });
+    for (let i = 0; i < 10; i++) expect((await request(a).post('/x').send({})).status).toBe(200);
+    const r = await request(a).post('/x').send({});
+    expect(r.status).toBe(429);
+    expect(r.body).toEqual({ ok: false, erro: 'Muitas tentativas. Espere um minuto e tente de novo.' });
   });
 });
