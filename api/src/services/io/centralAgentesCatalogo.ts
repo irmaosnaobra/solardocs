@@ -362,6 +362,13 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: ['solar_quiz_aviso', 'solar_quiz_lembrete', 'solar_quiz_lista_manha'],
   }),
   e({
+    id: 'io_lista_avisos', nome: 'Avisos da lista do Instagram', area: 'avisos', canal: 'whatsapp', linha: 'io',
+    resumo: 'Avisa a equipe de quem entrou pela lista da bio',
+    papel: 'Quem entra pela lista de interesse da bio (solardoc.app/io/interesse) em Energia solar ou Eletroposto vira um card mudo na agenda e um aviso com a ficha: a Nilce no solar, o Thiago e o Diego no eletroposto, um depois do outro. Teto de 12 mensagens por hora e 60 por dia; fora do horário ou sem vaga, a pessoa entra num resumo que sai na primeira vaga. Não fala com cliente nenhum. Desligado, o card nasce e o aviso fica guardado para o resumo.',
+    regra: off1('IO_LISTA_AVISOS_OFF'), fonte: 'services/io/listaIgAviso.ts',
+    robos: ['io_lista_aviso'],
+  }),
+  e({
     id: 'jornada_avisos_equipe', nome: 'Cobrança da obra solar', area: 'avisos', canal: 'whatsapp', linha: 'io',
     resumo: 'Avisa a venda, a etapa da vez e a fila das 08:00',
     papel: 'Aviso de venda para a equipe quando o bloco Venda fica completo, "É sua" para o dono da etapa que abriu, "Esperando" quando alguém pausa a cobrança, e às 08:00, de segunda a sábado, uma mensagem por pessoa com a fila inteira. A fila do Thiago leva as obras paradas com a equipe, o que falta nelas e, na segunda, o placar da semana; a da Giovanna e a do Thiago levam o dinheiro pendente. Só o que foi gravado por gente depois de ligar dispara. Não fala com cliente nenhum.',

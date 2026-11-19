@@ -27,7 +27,8 @@ const RECURSOS = new Set(['proprio', 'financiamento', 'os_dois', 'naosei']);
 const CAPITAL = ['50', '70', '100', '140', '280', '500', '500_mais', 'naosei'];
 const RECURSO_PE = ['proprio', 'proprio_credito', 'financiamento', 'naosei'];
 const COTA_INVESTIDOR = { local: ['meu', 'em_vista', 'nao'], capital: CAPITAL, recurso: RECURSO_PE };
-const PERGUNTAS: Record<(typeof ELETROPOSTO_VALIDOS)[number], Record<string, readonly string[]>> = {
+// Exportada para a lista da Irmãos na Obra (routes/ioInteresse.ts) validar o eletroposto com as MESMAS perguntas.
+export const PERGUNTAS: Record<(typeof ELETROPOSTO_VALIDOS)[number], Record<string, readonly string[]>> = {
   cotista: COTA_INVESTIDOR,
   investidor: COTA_INVESTIDOR,
   arrendamento: {
@@ -51,7 +52,7 @@ const PERGUNTAS: Record<(typeof ELETROPOSTO_VALIDOS)[number], Record<string, rea
     instala: ['voces_montam', 'obra_minha_projeto_voces', 'obra_e_projeto_meus', 'eu_monto', 'nao_sei'],
   },
 };
-const UFS = new Set([
+export const UFS = new Set([
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE',
   'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ]);

@@ -1,0 +1,1 @@
+-- Banco: PRINCIPAL do SolarDoc (solardoc-pro). Rodou em 19/11/2026 pelo MCP: tabela io_instagram_interesse (RLS sem policy) e função io_instagram_gravar (só service_role). Definição: select pg_get_functiondef('public.io_instagram_gravar'::regproc);

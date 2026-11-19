@@ -84,7 +84,7 @@ export function origemDoLeadMeta(lead: Pick<LeadMetaResumo, 'lead_id' | 'form_id
 export function produtoDaOrigem(origem: string | null | undefined): Produto | null {
   const o = semAcento(origem).trim();
   if (!o) return null;
-  if (['lp_eletroposto', 'cadastro_eletroposto', 'manychat_eletroposto', 'agente_eletroposto'].includes(o)) return 'eletroposto';
+  if (['lp_eletroposto', 'cadastro_eletroposto', 'manychat_eletroposto', 'agente_eletroposto', 'lista_ig_eletroposto'].includes(o)) return 'eletroposto';
   if (['lead-meta', 'lp_solar', 'quiz'].includes(o)) return 'solar';
   // Quiz do SolarDoc (/diagnostico, 24/10/2026): quem deixou o WhatsApp lá e escreve na 5040 é da Carla.
   if (o === 'quiz_solardoc') return 'solardoc';

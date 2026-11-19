@@ -398,6 +398,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // Import dinâmico: a varredura do Pix não entra no caminho de boot da rota.
     const varrerPixPendentes = async () =>
       (await import('../services/agents/whatsapp/pixVarreduraPendentes')).varrerComprovantesPendentes();
+    const resumoListaIg = async () => (await import('../services/io/listaIgAviso')).runListaIgResumoTick();
     const TAREFAS: Array<[string, () => Promise<unknown>]> = [
       ['queue', () => processMessageQueue()],
       ['pix_varredura', () => varrerPixPendentes()],   // Pix: comprovante guardado esperando o e-mail que o lead já mandou na conversa (48 h antes do comprovante até agora) é liberado sozinho (PIX_VARREDURA_OFF=true desliga)
@@ -432,6 +433,8 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       // aviso de quem saiu sem marcar, lista das 07:00 e cartão agrupado. Só aqui, fora do /master (SOLAR_QUIZ_AVISOS_OFF=1 desliga;
       // SOLAR_QUIZ_ESCALA_THIAGO=0 e SOLAR_QUIZ_FILA_MANHA=0 desligam as duas propostas).
       ['solar_quiz_avisos', () => runSolarQuizAvisosTick()],
+      // Lista do Instagram (19/11/2026): o resumo por pessoa de quem entrou na agenda sem aviso (teto ou fora da janela), 1 mensagem por rodada.
+      ['io_lista_resumo', () => resumoListaIg()],
       ['solar_giovanna', () => runSolarAgendaGiovannaTick()],    // solar: a carteira da Giovanna recebe bom dia às 7h e um "oi" 5 min antes da ligação (SOLAR_GIOVANNA_OFF desliga)
       // [06/08] O curso19 drena AQUI também, não só no master de hora em hora. Motivo: com a margem de 5 min entre envios ele mandaria
       // 1 por ciclo: no master isso viraria 1/h, um quarto do que o teto (4/h) permite. No tick de 5 min a margem vira o RITMO e o teto

@@ -216,7 +216,7 @@ async function contarCarimbos(prefixos: string[], desde: Date, parar: number): P
 }
 
 /** A linha está pausada por erros seguidos? 'erro' = não deu para ler (barra). */
-async function linhaPausada(agora: Date): Promise<'sim' | 'nao' | 'erro'> {
+export async function linhaPausada(agora: Date): Promise<'sim' | 'nao' | 'erro'> {
   const { data, error } = await supabase.from('system_state').select('value').eq('key', CHAVE_LINHA_PAUSA).maybeSingle();
   if (error) { logger.error(LOG, `leitura da pausa da linha falhou (${codigoDe(error)})`); return 'erro'; }
   const ate = Date.parse(String((data as { value?: { ate?: string } } | null)?.value?.ate ?? ''));
