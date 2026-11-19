@@ -8,9 +8,12 @@
 import { useState } from 'react';
 import styles from '../admin.module.css';
 import { PRODUCTS, type HubTab, type Product } from './products.config';
+import { Clapperboard } from 'lucide-react';
 import MetaAdsPanel from '../_components/MetaAdsPanel';
+import EstudioPanel from '../_components/EstudioPanel';
 
 const META = '__meta';
+const ESTUDIO = '__estudio';
 const DOT: Record<HubTab['status'], string> = { pronto: '#2C9C67', parcial: '#C87A1E', construir: '#3E6C9E' };
 const STATUS_LABEL: Record<HubTab['status'], string> = { pronto: 'pronto', parcial: 'parcial', construir: 'a construir' };
 
@@ -19,12 +22,14 @@ export default function ProductHubView() {
   const [tabKey, setTabKey] = useState<string>(PRODUCTS[0].tabs[0].key);
 
   const isMeta = prodId === META;
+  const isEstudio = prodId === ESTUDIO;
+  const isGlobal = isMeta || isEstudio;
   const product: Product = PRODUCTS.find((p) => p.id === prodId) ?? PRODUCTS[0];
   const tab: HubTab = product.tabs.find((t) => t.key === tabKey) ?? product.tabs[0];
 
   function selectProduct(id: string) {
     setProdId(id);
-    if (id === META) return;
+    if (id === META || id === ESTUDIO) return;
     const p = PRODUCTS.find((x) => x.id === id);
     if (p) setTabKey((prev) => (p.tabs.some((t) => t.key === prev) ? prev : p.tabs[0].key));
   }
@@ -36,7 +41,7 @@ export default function ProductHubView() {
       {/* seletor de PRODUTO + Meta Ads (global) */}
       <div className={styles.tabs} role="tablist" aria-label="Produtos">
         {PRODUCTS.map((p) => {
-          const active = p.id === prodId && !isMeta;
+          const active = p.id === prodId && !isGlobal;
           return (
             <button
               key={p.id}
@@ -50,12 +55,17 @@ export default function ProductHubView() {
             </button>
           );
         })}
+        <button role="tab" aria-selected={isEstudio} className={isEstudio ? styles.tabActive : styles.tab} onClick={() => selectProduct(ESTUDIO)}>
+          <Clapperboard size={14} strokeWidth={2} aria-hidden="true" style={{ verticalAlign: -2, marginRight: 2 }} /> Estúdio
+        </button>
         <button role="tab" aria-selected={isMeta} className={isMeta ? styles.tabActive : styles.tab} onClick={() => selectProduct(META)}>
           <span aria-hidden="true">📊</span> Meta Ads
         </button>
       </div>
 
-      {isMeta ? (
+      {isEstudio ? (
+        <div style={{ marginTop: 16 }}><EstudioPanel /></div>
+      ) : isMeta ? (
         <div style={{ marginTop: 16 }}><MetaAdsPanel /></div>
       ) : (
         <>
