@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { createHash } from 'crypto';
 import { novoBanco } from './_agentes5040Fake';
 
-// Aba Estúdio do /admin (19/11/2026): POST de máquina com token (ESTUDIO_SYNC_TOKEN, com queda para o
-// CRON_SECRET) e GET do painel atrás do guard de admin. Banco em memória.
+// Aba Estúdio do /admin (19/11/2026): POST de máquina com token (ESTUDIO_SYNC_TOKEN, com queda para a
+// impressão digital embutida) e GET do painel atrás do guard de admin. Banco em memória.
 
 const h = vi.hoisted(() => ({ banco: null as any }));
 
@@ -33,23 +34,33 @@ const SNAP = {
   totais: { views: null, curtidas: null, comentarios: null, porRede: {} },
 };
 const linha = () => (h.banco.tabelas.system_state ?? []).find((l: any) => l.key === 'estudio_snapshot');
-const salvos = { sync: process.env.ESTUDIO_SYNC_TOKEN, cron: process.env.CRON_SECRET };
+const salvos = { sync: process.env.ESTUDIO_SYNC_TOKEN, cron: process.env.CRON_SECRET, hash: process.env.ESTUDIO_SYNC_TOKEN_SHA256 };
 
 beforeEach(() => {
   h.banco = novoBanco();
   process.env.ESTUDIO_SYNC_TOKEN = TOKEN;
   delete process.env.CRON_SECRET;
+  delete process.env.ESTUDIO_SYNC_TOKEN_SHA256;
 });
 afterEach(() => {
   if (salvos.sync === undefined) delete process.env.ESTUDIO_SYNC_TOKEN; else process.env.ESTUDIO_SYNC_TOKEN = salvos.sync;
   if (salvos.cron === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = salvos.cron;
+  if (salvos.hash === undefined) delete process.env.ESTUDIO_SYNC_TOKEN_SHA256; else process.env.ESTUDIO_SYNC_TOKEN_SHA256 = salvos.hash;
 });
 
 describe('POST /estudio/snapshot', () => {
-  it('503 quando nem ESTUDIO_SYNC_TOKEN nem CRON_SECRET existem', async () => {
+  it('aceita só pela impressão digital (ESTUDIO_SYNC_TOKEN_SHA256), sem o token na env', async () => {
     delete process.env.ESTUDIO_SYNC_TOKEN;
-    const r = await request(app).post('/estudio/snapshot').set('Authorization', `Bearer ${TOKEN}`).send(SNAP);
-    expect(r.status).toBe(503);
+    process.env.ESTUDIO_SYNC_TOKEN_SHA256 = createHash('sha256').update(TOKEN).digest('hex');
+    expect((await request(app).post('/estudio/snapshot').set('Authorization', 'Bearer outro').send(SNAP)).status).toBe(401);
+    expect((await request(app).post('/estudio/snapshot').set('Authorization', `Bearer ${TOKEN}`).send(SNAP)).status).toBe(200);
+  });
+
+  it('sem nenhuma env vale só a impressão digital embutida: token qualquer e CRON_SECRET dão 401', async () => {
+    delete process.env.ESTUDIO_SYNC_TOKEN;
+    process.env.CRON_SECRET = CRON;
+    expect((await request(app).post('/estudio/snapshot').set('Authorization', `Bearer ${TOKEN}`).send(SNAP)).status).toBe(401);
+    expect((await request(app).post('/estudio/snapshot').set('Authorization', `Bearer ${CRON}`).send(SNAP)).status).toBe(401);
     expect(linha()).toBeUndefined();
   });
 
@@ -85,16 +96,7 @@ describe('POST /estudio/snapshot', () => {
     expect(linha().value.atualizadoEm).toBe(novo.atualizadoEm);
   });
 
-  it('sem ESTUDIO_SYNC_TOKEN cai para o CRON_SECRET (e o token do estúdio deixa de valer)', async () => {
-    delete process.env.ESTUDIO_SYNC_TOKEN;
-    process.env.CRON_SECRET = CRON;
-    expect((await request(app).post('/estudio/snapshot').set('Authorization', `Bearer ${TOKEN}`).send(SNAP)).status).toBe(401);
-    const r = await request(app).post('/estudio/snapshot').set('Authorization', `Bearer ${CRON}`).send(SNAP);
-    expect(r.status).toBe(200);
-    expect(linha().value).toEqual(SNAP);
-  });
-
-  it('com as duas definidas, só ESTUDIO_SYNC_TOKEN vale', async () => {
+  it('com ESTUDIO_SYNC_TOKEN e CRON_SECRET definidas, só ESTUDIO_SYNC_TOKEN vale', async () => {
     process.env.CRON_SECRET = CRON;
     expect((await request(app).post('/estudio/snapshot').set('Authorization', `Bearer ${CRON}`).send(SNAP)).status).toBe(401);
     expect((await request(app).post('/estudio/snapshot').set('Authorization', `Bearer ${TOKEN}`).send(SNAP)).status).toBe(200);
