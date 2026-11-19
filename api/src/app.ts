@@ -50,6 +50,7 @@ import ioSolarRoutes from './routes/ioSolar';
 import solardocQuizRoutes from './routes/solardocQuiz';
 import plugcashRoutes from './routes/plugcash';
 import { pesquisaPublicaRouter, pesquisaAdminRouter } from './routes/pesquisa';
+import { estudioAdminRouter, estudioMaquinaRouter } from './routes/estudio';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
@@ -117,6 +118,8 @@ app.use('/feature-events', featureEventsRoutes);
 app.use('/prestadores', prestadoresRoutes);
 app.use('/payments', paymentsRoutes);
 app.use('/admin/pesquisas', pesquisaAdminRouter); // antes do /admin: o router já leva o guard de admin
+app.use('/admin/estudio', estudioAdminRouter); // idem: aba Estúdio, snapshot do publicador de vídeos
+app.use('/estudio', estudioMaquinaRouter); // POST /estudio/snapshot, token de máquina
 app.use('/pesquisa', pesquisaPublicaRouter);
 app.use('/admin', adminRoutes);
 app.use('/trafego', trafegoRoutes);
