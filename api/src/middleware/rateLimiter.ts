@@ -1,5 +1,28 @@
+import { timingSafeEqual } from 'crypto';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { clientIp } from '../utils/clientIp';
+
+/**
+ * Eventos do funil do Monjour repassados pelo SERVIDOR dele: POST `/_t/e` com o cabeçalho `x-funil-token`. Todos saem pelo IP
+ * das funções da Vercel, então gastariam os 500 do global e o funil perderia eventos calado. Só ficam de fora quando o
+ * cabeçalho é igual à env FUNIL_TOKEN (comparação em tempo constante, segredo com 24 caracteres ou mais). Sem a env, com outro
+ * valor ou em outra rota, a contagem por IP continua igual.
+ */
+export const ehFunilAutorizado = (
+  metodo: string | undefined,
+  url: string | undefined,
+  token: string | string[] | undefined,
+  esperadoBruto: string = process.env.FUNIL_TOKEN || '',
+): boolean => {
+  const esperado = esperadoBruto.trim(); // o Monjour também apara: espaço colado na env não pode desligar a exceção
+  if (metodo !== 'POST' || esperado.length < 24) return false;
+  if (String(url ?? '').split('?')[0] !== '/_t/e') return false;
+  const recebido = Array.isArray(token) ? token[0] : token;
+  if (typeof recebido !== 'string' || !recebido) return false;
+  const a = Buffer.from(recebido);
+  const b = Buffer.from(esperado);
+  return a.length === b.length && timingSafeEqual(a, b);
+};
 
 /** A caixa de entrada da linha 5040 (/gerador/caixa/*) consulta a cada poucos segundos e tem limite próprio (abaixo). */
 export const ehRotaDaCaixa = (url: string | undefined): boolean => String(url ?? '').startsWith('/gerador/caixa/');
@@ -35,7 +58,12 @@ export const globalLimiter = rateLimit({
   // O envio de anexos da venda também sai: 100 fotos são 200+ pedidos e gastariam a conta do escritório inteiro.
   // Quem o protege é o `docsEnvioLimiter` (por pessoa).
   // A consulta do Pix pago também sai (tela que pergunta a cada 3 s); quem a protege é o `pixStatusPublicoLimiter`, por IP real.
-  skip: (req) => ehRotaDaCaixa(req.originalUrl) || ehEnvioDeDocs(req.method, req.originalUrl) || ehStatusPixPublico(req.method, req.originalUrl),
+  // Os eventos do funil do Monjour (servidor dele, com o x-funil-token certo) também saem: vêm todos do IP da Vercel.
+  skip: (req) =>
+    ehRotaDaCaixa(req.originalUrl) ||
+    ehEnvioDeDocs(req.method, req.originalUrl) ||
+    ehStatusPixPublico(req.method, req.originalUrl) ||
+    ehFunilAutorizado(req.method, req.originalUrl, req.headers['x-funil-token']),
 });
 
 // Consulta pública do status do Pix (GET /payments/pix-recorrente/publico/:id): 1.500 a cada 15 min por IP (uma aba a cada 3 s
