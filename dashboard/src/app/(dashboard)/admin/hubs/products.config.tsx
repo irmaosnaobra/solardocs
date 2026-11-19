@@ -138,7 +138,7 @@ export const PRODUCTS: Product[] = [
   // Irmãos na Obra Instagram (19/11/2026): a lista do link da bio (solardoc.app/io/interesse).
   // Energia solar, eletroposto, integrador e mobilidade; solar e eletroposto viram card na agenda.
   {
-    id: 'io-instagram', nome: 'Irmãos na Obra Instagram', emoji: '⌂', cor: '#B45309',
+    id: 'io-instagram', nome: 'Irmãos na Obra Instagram', Icone: AtSign, cor: '#B45309',
     tabs: [
       { key: 'lista', label: 'Lista de interesse', status: 'pronto', Comp: IoInstagramPanel },
     ],
