@@ -4,6 +4,7 @@
 import { pBRL, pNum, pKwp, pEsc, pTel, pCnpj, qrSvg } from '../propostaSolarBase';
 import { cssModerno } from './propostaModernoCss';
 import { svgComoFunciona, svgArranjoCapa } from './propostaModernoGraficos';
+import { palcoLogo, topoLogo } from './propostaModernoLogo';
 import { folhaSistema, folhaEconomia, folhaInvestimento, folhaComoTrabalhamos } from './propostaModernoFolhas';
 import type { DadosModerno, Folha } from './propostaModernoTipos';
 import type { InversorProposta } from '../inversoresProposta';
@@ -15,6 +16,7 @@ const anosTxt = (n: number, unidade = 'anos') => `${n} <small>${n === 1 && unida
 
 function marca(d: DadosModerno, alt = 'mk'): string {
   const nome = d.contato.displayNome || 'Sua empresa';
+  if (d.contato.logo && d.logoInfo) return topoLogo(d.contato.logo, nome, d.logoInfo);
   return d.contato.logo
     ? `<img src="${pEsc(d.contato.logo)}" alt="${pEsc(nome)}" width="220" height="52"/>`
     : `<span class="${alt}" translate="no">${pEsc(nome)}</span>`;
@@ -62,8 +64,10 @@ function capa(d: DadosModerno): string {
   const palco = d.contato.logo
     ? `<img${vetor ? ' class="vet"' : ''} src="${pEsc(d.contato.logo)}" alt="${pEsc(nomeEmp)}"/>`
     : `<div class="nm${nomeEmp.length > 40 ? ' longo' : ''}" translate="no">${pEsc(nomeEmp)}</div>`;
+  // Logo ajustada pelo servidor (logoAjuste.ts): tamanho, placa e altura do palco decididos em propostaModernoLogo.
+  const palcoHtml = d.contato.logo && d.logoInfo ? palcoLogo(d.contato.logo, nomeEmp, d.logoInfo) : `<div class="palco">${palco}</div>`;
   return `<div class="page capa">
-  <div class="palco">${palco}</div>
+  ${palcoHtml}
   <div class="cor">
     ${svgArranjoCapa()}
     <div class="tt"><p>Proposta de energia solar para</p><h1${muitoLongo ? ' class="longo muito"' : longo ? ' class="longo"' : ''}>${pEsc(d.cliente.nome)}</h1>${d.cliente.endereco || local ? `<div class="loc">${pEsc(d.cliente.endereco || local)}</div>` : ''}</div>

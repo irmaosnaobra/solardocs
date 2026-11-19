@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase';
 import { ApiError } from '../utils/apiError';
 import { generateDocumentWithAI } from '../services/aiService';
 import { generateFromTemplate, propostaDiasValidade, type Client } from '../services/templateService';
+import { empresaComLogoAjustada } from '../services/templates/logoAjuste';
 import { renovarUrlsPortfolio } from './portfolioController';
 import { normalizarAssinatura, normalizarCnpj, validarAssinatura } from '../utils/documentoBr';
 import { validarFioB } from '../services/propostaSolarCalculos';
@@ -379,8 +380,10 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     if (body.tipo === 'contratoSolar' && body.useTemplate) body.fields = { ...body.fields, versao_garantia: 2 };
 
     const tmplOut: { resumo?: string } = {};
+    // Moderno (propostaSolar 2 e 3): a logo sai recortada e medida (logoAjuste.ts). Os outros documentos recebem a empresa como veio.
+    const companyDoc = body.useTemplate ? await empresaComLogoAjustada(body.tipo, body.modeloNumero, company) : company;
     if (body.useTemplate) {
-      content = generateFromTemplate(body.tipo, company, entity as unknown as Client, camposDoTemplate(), body.modeloNumero, tmplOut);
+      content = generateFromTemplate(body.tipo, companyDoc, entity as unknown as Client, camposDoTemplate(), body.modeloNumero, tmplOut);
       modeloUsado = `modelo-${body.modeloNumero}`;
     } else {
       content = await generateDocumentWithAI(body.tipo, company, entity as unknown as Client, body.fields);
@@ -455,7 +458,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       else delete body.fields.codigo;
       insertPayload.dados_json = body.fields;
       if (body.useTemplate) {
-        content = generateFromTemplate(body.tipo, company, entity as unknown as Client, camposDoTemplate(), body.modeloNumero, tmplOut);
+        content = generateFromTemplate(body.tipo, companyDoc, entity as unknown as Client, camposDoTemplate(), body.modeloNumero, tmplOut);
         insertPayload.content = content;
         conteudoMudou = true;
       }
@@ -769,7 +772,8 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     let content: string;
     let modeloUsado: string;
     if (body.useTemplate) {
-      content = generateFromTemplate(doc.tipo, company, entity as unknown as Client, fotosParaTemplate ? { ...fields, fotos_obras: fotosParaTemplate } : fields, body.modeloNumero, tmplOut, dataBaseReedicao);
+      const companyDoc = await empresaComLogoAjustada(doc.tipo, body.modeloNumero, company);
+      content = generateFromTemplate(doc.tipo, companyDoc, entity as unknown as Client, fotosParaTemplate ? { ...fields, fotos_obras: fotosParaTemplate } : fields, body.modeloNumero, tmplOut, dataBaseReedicao);
       modeloUsado = `modelo-${body.modeloNumero}`;
     } else {
       content = await generateDocumentWithAI(doc.tipo, company, entity as unknown as Client, fields);
