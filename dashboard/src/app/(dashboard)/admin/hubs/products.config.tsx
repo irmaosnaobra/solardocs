@@ -47,8 +47,8 @@ import LojaPanel from './_panels/LojaPanel';
 import PontoCertoPanel from './_panels/PontoCertoPanel';
 // Trilha do Parceiro NEXUS: aptos para reunião e Mapa de demanda (iframe de /nexus/adm)
 import NexusParceirosPanel from './_panels/NexusParceirosPanel';
-// Monjour Natural: funil do quiz, da primeira tela até a compra (/admin/monjour/quiz-funil)
-import MonjourFunilPanel from './_panels/MonjourFunilPanel';
+// Monjour Natural (hub Produtos): visão geral, funil do quiz, vendas, leads, app e anúncios
+import MonjourProdutoPanel from './_panels/MonjourProdutoPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -134,14 +134,9 @@ export const PRODUCTS: Product[] = [
       { key: 'offgrid',      label: 'Off-Grid',        status: 'pronto', Comp: () => <ProdutoLojaPanel produto="offgrid" /> },
       { key: 'precificacao', label: 'Precificação',    status: 'pronto', Comp: () => <ProdutoLojaPanel produto="precificacao" /> },
       { key: 'inventario',   label: 'Inventário',      status: 'pronto', Comp: () => <ProdutoLojaPanel produto="inventario" /> },
-    ],
-  },
-  // Monjour Natural (19/11/2026): app vendido na América Latina pelo quiz.
-  // O site manda os eventos do quiz para o lp_events da SolarDoc; a cor é a jamaica da marca.
-  {
-    id: 'monjour', nome: 'Monjour Natural', emoji: '◐', cor: '#9C2C48',
-    tabs: [
-      { key: 'funil', label: 'Funil', status: 'pronto', Comp: MonjourFunilPanel },
+      // Monjour Natural (19/11/2026): app vendido na América Latina pelo quiz. Era hub próprio e veio
+      // para cá. Vendas e leads da Stripe pelo site do Monjour, funil e app do lp_events da SolarDoc.
+      { key: 'monjour',      label: 'Monjour Natural', status: 'pronto', Comp: MonjourProdutoPanel },
     ],
   },
 ];

@@ -24,6 +24,7 @@ import { buscarConjuntosMeta } from '../services/io/metaConjuntos';
 import { lerTudo, lerFunilQuizSolar } from '../services/io/painelQuizSolar';
 import { lerFunilQuizSolardoc } from '../services/solardoc/painelQuizSolardoc';
 import { lerFunilMonjour } from '../services/monjour/painelQuizMonjour';
+import { lerResumoMonjour } from '../services/monjour/resumoMonjour';
 import { sondarRecuperacaoQuiz } from '../services/solardoc/recuperacaoCarla';
 import { vagasDoFrioLinha } from '../services/agents/whatsapp/lineThrottle';
 import { novoAnthropic } from "../utils/anthropicClient";
@@ -1045,6 +1046,17 @@ router.get('/monjour/quiz-funil', async (req: Request, res: Response): Promise<v
       anuncio: texto(req.query.anuncio),
       conjunto: texto(req.query.conjunto),
     }));
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// O RESUMO DO MONJOUR (19/11/2026): vendas e leads da Stripe (lidos pelo site do Monjour) mais o app de lp_events.
+// Site fora ou sem MONJOUR_ADMIN_TOKEN: 200 com indisponivel, para o painel avisar em vez de quebrar.
+router.get('/monjour/resumo', async (req: Request, res: Response): Promise<void> => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json(await lerResumoMonjour(String(req.query.period || '7dias')));
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
   }
