@@ -52,6 +52,8 @@ import NexusParceirosPanel from './_panels/NexusParceirosPanel';
 import MonjourProdutoPanel from './_panels/MonjourProdutoPanel';
 // NEXUS Instagram: a lista de interesse do link da bio (/nexus/interesse), com contato e CSV
 import NexusInstagramPanel from './_panels/NexusInstagramPanel';
+// Irmãos na Obra Instagram: a lista de interesse do link da bio (/io/interesse), quatro portas e agenda
+import IoInstagramPanel from './_panels/IoInstagramPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -131,6 +133,14 @@ export const PRODUCTS: Product[] = [
     id: 'nexus-instagram', nome: 'NEXUS Instagram', Icone: AtSign, cor: '#0060C7',
     tabs: [
       { key: 'lista', label: 'Lista de interesse', status: 'pronto', Comp: NexusInstagramPanel },
+    ],
+  },
+  // Irmãos na Obra Instagram (19/11/2026): a lista do link da bio (solardoc.app/io/interesse).
+  // Energia solar, eletroposto, integrador e mobilidade; solar e eletroposto viram card na agenda.
+  {
+    id: 'io-instagram', nome: 'Irmãos na Obra Instagram', emoji: '⌂', cor: '#B45309',
+    tabs: [
+      { key: 'lista', label: 'Lista de interesse', status: 'pronto', Comp: IoInstagramPanel },
     ],
   },
   // Hub dos produtos menores da loja (desde 11/11/2026): uma aba por produto. O LimpaPro
