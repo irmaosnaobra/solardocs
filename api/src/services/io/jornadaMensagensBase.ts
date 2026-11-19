@@ -226,7 +226,8 @@ export async function faltaDaObra(o: ObraFila, ligs: ReadonlyMap<number, Ligacao
     const itens = itensDaEtapa(n, { lig, slots: new Set(reg.arquivos.map((a) => a.slot)), cad, privado, estado: o.js });
     // Na etapa 1 só entram os itens que não dependem de arquivo nem de leitura extra (kit da proposta, vistoria, proposta de banco, pedidos).
     const semArquivo = new Set(['nome', 'telefone', 'endereco', 'endereco_usina', 'email', 'proposta', 'prazo', 'valor', 'pagamento', 'financiamento', 'papel_contrato', 'papel_procuracao', 'excedente']);
-    return itens.filter((i) => !i.feito && (n !== 1 || semArquivo.has(i.chave))).map((i) => i.texto);
+    // A vistoria (etapa 2) mora na obra privada, que esta leitura não carrega: fica fora da lista, como o kit e a proposta de banco da etapa 1.
+    return itens.filter((i) => !i.feito && i.chave !== 'vistoria' && (n !== 1 || semArquivo.has(i.chave))).map((i) => i.texto);
   } catch (err) { logBase('falta', err); return []; }
 }
 

@@ -142,20 +142,21 @@ describe('itensDaEtapa', () => {
     e.etapas[1].confirmados = Object.fromEntries(chaves.map((k) => [k, { em: AGORA, por: 'nilce', marca: marcaDoValor(k, valorConfirmavel(k, f)) }]));
   };
   const TODAS: ChaveConfirmar[] = ['nome', 'telefone', 'endereco', 'endereco_usina', 'email', 'placas', 'inversor', 'valor', 'pagamento'];
-  it('etapa 1 (Venda): blocos cliente, venda, papeis, pedidos, excedente e vistoria, nesta ordem e com estas chaves; o kit NÃO está aqui', () => {
+  it('etapa 1 (Venda): blocos cliente, venda, papeis, documentos, fotos e excedente, nesta ordem e com estas chaves; o kit NÃO está aqui', () => {
     const e = novo();
     const itens = itensDaEtapa(1, { ...base(e, new Set(), cadOk(), privadoOk()), equip });
     expect(itens.map((i) => [i.bloco, i.chave])).toEqual([
       ['cliente', 'nome'], ['cliente', 'telefone'], ['cliente', 'endereco'], ['cliente', 'endereco_usina'], ['cliente', 'email'],
       ['venda', 'proposta'], ['venda', 'prazo'], ['venda', 'placas'], ['venda', 'inversor'], ['venda', 'valor'], ['venda', 'pagamento'], ['venda', 'financiamento'],
       ['papeis', 'papel_contrato'], ['papeis', 'papel_procuracao'],
-      ['pedidos', 'pedido_cnh'], ['pedidos', 'pedido_conta_luz'], ['pedidos', 'pedido_fachada'], ['pedidos', 'pedido_padrao'], ['pedidos', 'pedido_disjuntor'], ['pedidos', 'pedido_medidor'],
-      ['excedente', 'excedente'], ['vistoria', 'vistoria'],
+      ['documentos', 'documento'], ['documentos', 'conta_luz'], ['fotos', 'fachada'], ['fotos', 'padrao'], ['fotos', 'disjuntor'], ['fotos', 'medidor'],
+      ['excedente', 'excedente'],
     ]);
-    expect(itens.filter((i) => i.bloco !== 'pedidos').map((i) => i.texto)).toEqual([
+    expect(itens.map((i) => i.texto)).toEqual([
       'Nome completo', 'Telefone de contato', 'Endereço completo', 'Endereço da usina', 'E-mail do cliente', 'Proposta aceita ligada', 'Prazo prometido ao cliente',
       'Placas: quantidade e marca', 'Inversor: quantidade e marca', 'Valor vendido', 'Forma de pagamento', 'Precisa de proposta de banco ou financiamento?',
-      'Contrato gerado', 'Procuração gerada', 'Diga se tem excedente para outras contas', 'Relatório de vistoria 80% preenchido',
+      'Contrato gerado', 'Procuração gerada', 'CNH ou identidade', 'Conta de luz', 'Foto da fachada', 'Foto do padrão de entrada', 'Foto do disjuntor', 'Foto do medidor',
+      'Diga se tem excedente para outras contas',
     ]);
     expect(itens.some((i) => i.chave === 'kit' || i.chave === 'contrato_assinado')).toBe(false);
   });
@@ -213,13 +214,16 @@ describe('itensDaEtapa', () => {
     expect(falta(todos)).not.toEqual(expect.arrayContaining(['papel_procuracao']));
     expect(todos.some((i) => i.chave.includes('recibo'))).toBe(false);
   });
-  it('etapa 1: pedido ao cliente fecha ticado OU com o arquivo do slot (CNH vale com documento_titular ou documento_titular_uc)', () => {
+  it('etapa 1: documentos e fotos do cliente fecham pelo ARQUIVO (CNH vale com documento_titular ou documento_titular_uc); o tique de pedido não é mais item', () => {
     const e = novo();
-    const pedidos = (slots: string[]) => itensDaEtapa(1, base(e, new Set(slots), cadOk(), privadoOk())).filter((i) => i.bloco === 'pedidos').map((i) => [i.chave, i.feito]);
-    expect(pedidos([])).toEqual([['pedido_cnh', false], ['pedido_conta_luz', false], ['pedido_fachada', false], ['pedido_padrao', false], ['pedido_disjuntor', false], ['pedido_medidor', false]]);
-    expect(pedidos(['documento_titular_uc', 'conta_luz', 'medidor'])).toEqual([['pedido_cnh', true], ['pedido_conta_luz', true], ['pedido_fachada', false], ['pedido_padrao', false], ['pedido_disjuntor', false], ['pedido_medidor', true]]);
-    e.etapas[1].pedidos = { pedido_fachada: { em: AGORA, por: 'nilce' }, pedido_padrao: { em: AGORA, por: 'nilce' } };
-    expect(pedidos(['documento_titular'])).toEqual([['pedido_cnh', true], ['pedido_conta_luz', false], ['pedido_fachada', true], ['pedido_padrao', true], ['pedido_disjuntor', false], ['pedido_medidor', false]]);
+    const docs = (slots: string[]) => itensDaEtapa(1, base(e, new Set(slots), cadOk(), privadoOk())).filter((i) => i.bloco === 'documentos' || i.bloco === 'fotos').map((i) => [i.bloco, i.chave, i.feito]);
+    expect(docs([])).toEqual([['documentos', 'documento', false], ['documentos', 'conta_luz', false], ['fotos', 'fachada', false], ['fotos', 'padrao', false], ['fotos', 'disjuntor', false], ['fotos', 'medidor', false]]);
+    expect(docs(['documento_titular_uc', 'conta_luz', 'medidor'])).toEqual([['documentos', 'documento', true], ['documentos', 'conta_luz', true], ['fotos', 'fachada', false], ['fotos', 'padrao', false], ['fotos', 'disjuntor', false], ['fotos', 'medidor', true]]);
+    expect(docs(['documento_titular'])[0]).toEqual(['documentos', 'documento', true]);
+    // o tique de pedido continua no estado, mas não vira nem fecha item algum
+    e.etapas[1].pedidos = { pedido_fachada: { em: AGORA, por: 'nilce' }, pedido_cnh: { em: AGORA, por: 'nilce' } };
+    expect(docs([])).toEqual([['documentos', 'documento', false], ['documentos', 'conta_luz', false], ['fotos', 'fachada', false], ['fotos', 'padrao', false], ['fotos', 'disjuntor', false], ['fotos', 'medidor', false]]);
+    expect(itensDaEtapa(1, base(e, new Set(), cadOk(), privadoOk())).some((i) => i.bloco === 'pedidos' || i.chave.startsWith('pedido_'))).toBe(false);
   });
   it('etapa 1: vistoria fecha com 80% dos campos de texto, data e escolha preenchidos (fotos e adequações não contam)', () => {
     const e = novo();
@@ -236,7 +240,7 @@ describe('itensDaEtapa', () => {
       todos.slice(0, cheios).forEach(([g, k]) => { if (g) r[g][k] = 'x'; else r[k] = k === 'concl' ? 'ok' : 'x'; });
       return r as VistoriaObra;
     };
-    const feito = (vis: VistoriaObra | null) => itensDaEtapa(1, { ...base(e, new Set(), cadOk(), privadoOk()), obra: { vistoria: vis, banco: null } }).find((i) => i.chave === 'vistoria')!.feito;
+    const feito = (vis: VistoriaObra | null) => itensDaEtapa(2, { ...base(e, new Set(), cadOk(), privadoOk()), obra: { vistoria: vis, banco: null } }).find((i) => i.chave === 'vistoria')!.feito;
     expect(vistoriaPct(null)).toBe(0);
     expect(vistoriaPct(v(0))).toBe(0);   // fotos e adequações não contam
     expect(vistoriaPct(v(23))).toBe(100);
@@ -245,7 +249,8 @@ describe('itensDaEtapa', () => {
     expect(feito(v(18))).toBe(false);   // 78%
     expect(feito(v(19))).toBe(true);    // 82%
     expect(feito(null)).toBe(false);
-    expect(itensDaEtapa(1, base(e, new Set(), cadOk(), privadoOk())).find((i) => i.chave === 'vistoria')!.feito).toBe(false);   // sem a obra lida
+    expect(itensDaEtapa(2, base(e, new Set(), cadOk(), privadoOk())).find((i) => i.chave === 'vistoria')!.feito).toBe(false);   // sem a obra lida
+    expect(itensDaEtapa(1, base(e, new Set(), cadOk(), privadoOk())).some((i) => i.chave === 'vistoria')).toBe(false);   // a vistoria é da etapa 2
   });
   it('etapa 1: excedente com CPF das duas pontas compara só dígitos; diferente não fecha e diz para passar para o mesmo CPF; sem CPF vale o nome', () => {
     const e = novo();
@@ -275,22 +280,40 @@ describe('itensDaEtapa', () => {
     expect(item({}).map((i) => [i.chave, i.feito])).toEqual([['excedente', true]]);
     expect(excedenteCpf(cad(dono), false)).toEqual({ ok: null, texto: null });
   });
-  it('etapa 2 (Anexos): contrato e procuração assinados, CNH, conta de luz e as 4 fotos, no bloco anexos; sem excedente aqui', () => {
+  it('etapa 2 (Assinaturas e vistoria): o contrato e a procuração assinados e a vistoria 80%; os documentos e fotos são da etapa 1', () => {
     const e = novo();
     e.etapas[1].excedente = 'sim';
-    const itens = itensDaEtapa(2, base(e, new Set(), cadOk()));
-    expect(itens.map((i) => [i.bloco, i.chave])).toEqual([
-      ['anexos', 'contrato_assinado'], ['anexos', 'procuracao'], ['anexos', 'documento'], ['anexos', 'conta_luz'],
-      ['anexos', 'fachada'], ['anexos', 'padrao'], ['anexos', 'disjuntor'], ['anexos', 'medidor'],
+    const itens = itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor']), cadOk()));
+    expect(itens.map((i) => [i.bloco, i.chave])).toEqual([['anexos', 'contrato_assinado'], ['anexos', 'procuracao'], ['vistoria', 'vistoria']]);
+    expect(itens.map((i) => i.texto)).toEqual(['Contrato assinado anexado', 'Procuração assinada anexada', 'Relatório de vistoria 80% preenchido']);
+    expect(falta(itens)).toEqual(['contrato_assinado', 'procuracao', 'vistoria']);
+    expect(falta(itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor', 'procuracao']), cadOk())))).toEqual(['contrato_assinado', 'vistoria']);   // documentos e fotos já anexados não voltam como item
+    expect(itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor', 'procuracao']), cadOk())).some((i) => i.bloco === 'pendentes')).toBe(false);
+  });
+  it('etapa 2: o que a etapa 1 (regra antiga) deixou sem arquivo volta como pendência da etapa 1, e a etapa não conclui até anexar', () => {
+    const e = novo();
+    const fechavel = ['procuracao', 'contrato_assinado'];
+    const vis = { vistoria: null, banco: null };
+    const sem = itensDaEtapa(2, { ...base(e, new Set(fechavel), cadOk()), obra: vis });
+    expect(sem.filter((i) => i.bloco === 'pendentes').map((i) => [i.chave, i.texto, i.feito])).toEqual([
+      ['documento', 'CNH ou identidade (pendente da etapa 1)', false], ['conta_luz', 'Conta de luz (pendente da etapa 1)', false],
+      ['fachada', 'Foto da fachada (pendente da etapa 1)', false], ['padrao', 'Foto do padrão de entrada (pendente da etapa 1)', false],
+      ['disjuntor', 'Foto do disjuntor (pendente da etapa 1)', false], ['medidor', 'Foto do medidor (pendente da etapa 1)', false],
     ]);
-    expect(itens.map((i) => i.texto)).toEqual([
-      'Contrato assinado anexado', 'Procuração assinada anexada', 'CNH ou identidade', 'Conta de luz', 'Foto da fachada', 'Foto do padrão de entrada', 'Foto do disjuntor', 'Foto do medidor',
-    ]);
-    expect(falta(itens)).toHaveLength(8);
-    expect(falta(itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor', 'procuracao']), cadOk())))).toEqual(['contrato_assinado']);
-    expect(falta(itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor', 'procuracao', 'contrato_assinado', 'outros']), cadOk())))).toEqual([]);   // `outros` é opcional
-    expect(NOMES_ETAPA[2]).toBe('Anexos');
-    expect(CURTOS_ETAPA[2]).toBe('Anexos');
+    // só a CNH falta: só ela aparece, e a etapa não conclui
+    const soCnh = itensDaEtapa(2, { ...base(e, new Set([...fechavel, 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor']), cadOk()), obra: vis });
+    expect(soCnh.filter((i) => i.bloco === 'pendentes').map((i) => i.chave)).toEqual(['documento']);
+    expect(soCnh.filter((i) => i.bloco === 'pendentes').every((i) => !i.feito)).toBe(true);
+    // com tudo anexado (CNH vale como documento_titular_uc também) nenhuma pendência sobra
+    const tudo = itensDaEtapa(2, { ...base(e, new Set([...fechavel, 'documento_titular_uc', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor']), cadOk()), obra: vis });
+    expect(tudo.some((i) => i.bloco === 'pendentes')).toBe(false);
+    expect(falta(tudo)).toEqual(['vistoria']);
+  });
+  it('etapa 2: o par assinado ainda é o que importa', () => {
+    const e = novo();
+    expect(falta(itensDaEtapa(2, base(e, new Set([...slotsOk, 'medidor', 'procuracao', 'contrato_assinado', 'outros']), cadOk())))).toEqual(['vistoria']);
+    expect(NOMES_ETAPA[2]).toBe('Assinaturas e vistoria');
+    expect(CURTOS_ETAPA[2]).toBe('Assinaturas');
   });
   it('etapa 3: o bloco equipamento vem PRIMEIRO (datasheets e KMZ; o kit saiu para a etapa 1) e o resto segue como era', () => {
     const e = novo();

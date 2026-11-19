@@ -87,6 +87,12 @@ export interface BancoObra {
   eq_centavos: number | null; mo_centavos: number | null;
   fin: { nome: string; doc: string; rg: string; qualif: string; end: string; cep: string; tel: string; email: string } | null;
 }
+/** A proposta de banco sem os valores (equipamento e mão de obra), para quem não vê o dinheiro da obra. */
+export function bancoSemValor(b: BancoObra | null | undefined): Omit<BancoObra, 'eq_centavos' | 'mo_centavos'> | null {
+  if (!b) return null;
+  const { eq_centavos: _eq, mo_centavos: _mo, ...resto } = b;
+  return resto;
+}
 export const GRUPOS_PREVISTO = ['homologacao', 'material', 'frete', 'mao_de_obra', 'outros'] as const;
 export type PrevistoObra = { homologacao: number; material: number; frete: number; mao_de_obra: number; outros: number; por: string; em: string };
 export interface RegraCongelada { linhas: Array<{ nome: string; papel: 'venda' | 'socio'; pb: number }>; congelada_em: string }

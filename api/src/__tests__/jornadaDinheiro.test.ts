@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import crypto from 'crypto';
 import {
   AJUSTES_PADRAO, ajustesAssinados, assinarAjustes, assinarLancamentoObra, categoriaObra, comissoesPelaRegra, idDoEstorno, lancamentoObraAssinado,
-  lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, normalizarAjustes, normalizarLancamentoObra, recortarLivro, validarAjustes,
+  lancamentoObraParaGravar, livroDaObra, montarLancamentoObra, normalizarAjustes, normalizarLancamentoObra, podeVerValorDaObra, recortarLivro, validarAjustes,
   type AjustesSolar, type Conferencia, type EntradaLivro, type LancamentoObra,
 } from '../services/gerador/jornadaDinheiro';
 import { comissoesDaVenda } from '../services/gerador/jornadaSolar';
@@ -350,6 +350,17 @@ describe('o `lancamentoDe` antigo não perde `obra` nem `sig`', () => {
     x.obra.carga_id = 'c-1';
     return lancamentoObraParaGravar(CARD, x)!;
   }
+});
+
+describe('quem vê o valor da obra (regra única)', () => {
+  it('dinheiro aberto libera todos; fechado, só o vendedor da obra, a Giovanna e o ADM', () => {
+    const aberto = { dinheiro_aberto: true }; const fechado = { dinheiro_aberto: false };
+    expect(podeVerValorDaObra({ nome: 'diego', adm: false }, aberto, false)).toBe(true);
+    expect(podeVerValorDaObra({ nome: 'diego', adm: false }, fechado, false)).toBe(false);
+    expect(podeVerValorDaObra({ nome: 'nilce', adm: false }, fechado, true)).toBe(true);
+    expect(podeVerValorDaObra({ nome: 'giovanna', adm: false }, fechado, false)).toBe(true);
+    expect(podeVerValorDaObra({ nome: 'thiago', adm: true }, fechado, false)).toBe(true);
+  });
 });
 
 describe('os Ajustes', () => {

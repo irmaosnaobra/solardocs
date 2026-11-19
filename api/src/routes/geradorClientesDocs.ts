@@ -8,6 +8,7 @@ import {
 import { lerLigacao } from '../services/gerador/vendaSolarHub';
 import { tentarNumeroDaJornada } from './geradorJornadaNumero';
 import { waitUntil } from '../utils/waitUntil';
+import { SLOTS_LEITURA_AUTO, lerCadastroAutomatico } from '../services/gerador/cadastroLeituraAuto';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { lerProposta, assinar, normalizarNome, ARQUIVOS_SOLAR } from '../services/gerador/dossieVenda';
 import { celulaDe } from '../services/gerador/gestaoClientes';
@@ -518,6 +519,11 @@ export function mountClientesDocs(router: Router): void {
             const rn = await tentarNumeroDaJornada(ctx.card, { nome: ctx.nome, socio: ctx.socio }, inicioDoPedido, {});
             numero = rn.ok ? { ok: true, codigo: rn.codigo } : { ok: false, motivo: rn.motivo };
           } catch (e) { logErro('número depois do anexo', e); numero = { ok: false, motivo: 'banco' }; }
+        }
+        // Cabeçalho automático da etapa 1: CNH ou conta de luz enviada (ou trocada) é lida em segundo plano e completa os campos VAZIOS do cadastro.
+        // Nunca derruba o envio: o módulo não lança e tem limite de tempo.
+        if (ctx.linha === 'vendasolar' && ctx.card && SLOTS_LEITURA_AUTO.includes(item.chave)) {
+          waitUntil(lerCadastroAutomatico({ card: ctx.card, nome: ctx.nome, arquivoId: arq.id }).then(() => undefined, (e) => logErro('leitura automática', e)));
         }
         // Jornada (18/11/2026): datasheet da placa, datasheet do inversor ou KMZ podem ter fechado o bloco equipamento da etapa 3. O cartão
         // do Trello sai sozinho em segundo plano (idempotente; falha só vira log). `import()` aqui por causa do ciclo de módulos.

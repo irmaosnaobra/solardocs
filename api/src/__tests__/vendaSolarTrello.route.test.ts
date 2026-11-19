@@ -1598,16 +1598,25 @@ describe('Trello automático da Jornada (o caminho de verdade, não o botão sim
     expect(nomes()).not.toContain('Relatório final.pdf');
     expect(await anexarRelatorioManual(cartao201(), quem, pdf)).toBe('anexado');
     expect(nomes().filter((n) => n === 'Relatório final.pdf')).toHaveLength(1);
-    // já há um relatório no cartão: o novo entra datado, o antigo fica
+    // apertar de novo NO MESMO DIA não lota o cartão: já há um relatório anexado hoje
+    expect(await anexarRelatorioManual(cartao201(), quem, pdf)).toBe('ja_anexado_hoje');
+    expect(await anexarRelatorioManual(cartao201(), quem, pdf)).toBe('ja_anexado_hoje');
+    expect(nomes().filter((n) => /^Relatório final/.test(n))).toHaveLength(1);
+    // outro dia: o novo entra datado, o antigo fica
+    const chaveDeHoje = (): string => Object.keys((h.linhas.get('trello_venda_solar:201')!.value as { anexados: Record<string, string> }).anexados).find((k) => /^relatorio_final_\d{14}$/.test(k))!;
+    const velha = chaveDeHoje();
+    const l = h.linhas.get('trello_venda_solar:201')!;
+    const anexados = { ...(l.value as { anexados: Record<string, string> }).anexados };
+    const id = anexados[velha]; delete anexados[velha]; anexados.relatorio_final_20260101120000 = id;   // anexado em 01/01/2026
+    h.linhas.set('trello_venda_solar:201', { updated_at: l.updated_at + 'y', value: { ...(l.value as object), anexados } });
+    rel.travasNoAnexo = null;
     expect(await anexarRelatorioManual(cartao201(), quem, pdf)).toBe('anexado_datado');
+    expect(rel.travasNoAnexo).toBeNull();   // (a trava só é medida para o relatório do automático)
     expect(nomes().filter((n) => n === 'Relatório final.pdf')).toHaveLength(1);
     expect(nomes().filter((n) => /^Relatório final \d{2}-\d{2}-\d{4}\.pdf$/.test(n))).toHaveLength(1);
     const reg = h.linhas.get('trello_venda_solar:201')!.value as { anexados: Record<string, string> };
-    expect(Object.keys(reg.anexados).filter((k) => k.startsWith('relatorio_final'))).toHaveLength(2);
+    expect(Object.keys(reg.anexados).filter((k) => k.startsWith('relatorio_final'))).toHaveLength(3);   // o normal, o de 01/01 e o datado de hoje
     expect(Object.keys(reg.anexados)).toContain('relatorio_final');
-    // dentro da trava do cartão
-    rel.travasNoAnexo = null;
-    expect(await anexarRelatorioManual(cartao201(), quem, pdf)).toBe('anexado_datado');
     // quadro público: nada sobe
     const antes = nomes().length;
     t.publico = true;

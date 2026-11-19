@@ -10,6 +10,7 @@ import { obraFinalizada } from '../services/gerador/jornadaCorte';
 import { estadoTrelloAuto } from '../services/gerador/jornadaSolar';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 import { waitUntil } from '../utils/waitUntil';
+import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { gerarRelatorioFinal } from './geradorJornadaRelatorioFinal';
 import { credenciaisTrello, trelloQuadroPublico, anexarNoTrello } from '../services/gerador/dossieVenda';
 import { gravarRegistroTrello, idsDosAnexos, lerRegistroTrello, registroTrelloVazio } from '../services/gerador/trelloVendaSolar';
@@ -83,7 +84,7 @@ async function relatorioJaNoCartao(cred: Cred, cardId: number, cartaoId: string)
 /** O limite da geração do PDF (o Chromium roda dentro do `waitUntil`): estourou, loga e segue sem relatório. `RELATORIO_FINAL_TIMEOUT_MS` só para teste. */
 export const LIMITE_RELATORIO_MS = 60_000;
 
-export type ResultadoAnexoRelatorio = 'anexado' | 'anexado_datado' | 'ja_anexado' | 'sem_cartao' | 'quadro_publico' | 'sem_credencial' | 'falhou';
+export type ResultadoAnexoRelatorio = 'anexado' | 'anexado_datado' | 'ja_anexado' | 'ja_anexado_hoje' | 'sem_cartao' | 'quadro_publico' | 'sem_credencial' | 'falhou';
 
 /** `DD-MM-AAAA` de hoje em Brasília, para o nome do relatório novo. */
 const dataNoNome = (): string => {
@@ -105,16 +106,29 @@ async function anexarPdf(card: CardVendido, quem: { nome: string }, cartaoId: st
     if (await trelloQuadroPublico(String(process.env.TRELLO_BOARD_ID || '').trim() || TRELLO_BOARD_ID)) return 'quadro_publico';
     let resultado: ResultadoAnexoRelatorio = 'falhou';
     await comTrava(`trello:${card.id}`, quem.nome, async () => {
-      const ja = await relatorioJaNoCartao(cred, card.id, cartaoId);   // relido DENTRO da trava
-      if (ja && !manual) { resultado = 'ja_anexado'; return; }
-      const lido = await lerRegistroTrello(card.id);
+      const lido = await lerRegistroTrello(card.id);   // relido DENTRO da trava
       const reg = lido.card_id === cartaoId ? lido : { ...registroTrelloVazio(), card_id: cartaoId };
+      const jaId = reg.anexados[CHAVE_ANEXO_RELATORIO];
+      const tem = jaId || Object.keys(reg.anexados).some((k) => k.startsWith(`${CHAVE_ANEXO_RELATORIO}_`)) ? await idsDosAnexos(cred, cartaoId) : null;
+      const noCartao = (id: string | undefined): boolean => !!id && (!tem || !tem.ok || tem.dados.has(id));   // não deu para conferir = está
+      const ja = noCartao(jaId);
+      if (ja && !manual) { resultado = 'ja_anexado'; return; }
+      // O botão apertado de novo no MESMO dia (Brasília) não lota o cartão: já há um relatório anexado hoje (a chave datada guarda a hora).
+      if (manual) {
+        const hoje = diaDeBrasilia(Date.now());
+        const deHoje = Object.entries(reg.anexados).some(([k, id]) => {
+          const m = new RegExp(`^${CHAVE_ANEXO_RELATORIO}_(\\d{4})(\\d{2})(\\d{2})(\\d{2})(\\d{2})(\\d{2})$`).exec(k);
+          return !!m && diaDeBrasilia(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6])) === hoje && noCartao(id);
+        });
+        if (deHoje) { resultado = 'ja_anexado_hoje'; return; }
+      }
       const datado = ja && manual;
       const nome = datado ? `Relatório final ${dataNoNome()}.pdf` : 'Relatório final.pdf';
-      const chave = datado ? `${CHAVE_ANEXO_RELATORIO}_${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}` : CHAVE_ANEXO_RELATORIO;
+      const quando = `${CHAVE_ANEXO_RELATORIO}_${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`;   // a hora do anexo, para o "mesmo dia"
+      const chave = datado ? quando : CHAVE_ANEXO_RELATORIO;
       const r = await anexarNoTrello(cred, cartaoId, nome, pdf, 'application/pdf');
       if (!r.ok) { logErro('relatório final não anexou', { codigo: 'anexo' }); return; }
-      await gravarRegistroTrello(card.id, { ...reg, anexados: { ...reg.anexados, [chave]: r.id } });
+      await gravarRegistroTrello(card.id, { ...reg, anexados: { ...reg.anexados, [chave]: r.id, [quando]: r.id } });
       resultado = datado ? 'anexado_datado' : 'anexado';
     }, TTL_TRAVA_AUTO_MS, { tentativas: 20, esperaMs: 500 });
     return resultado;

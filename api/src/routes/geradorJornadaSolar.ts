@@ -40,8 +40,9 @@ import {
 import { lerObraComVersao, lerObraPrivada, lerTodasObras, mudarObra, mudarObraPrivada } from '../services/gerador/jornadaObraBanco';
 import { gerarRelatorioFinal } from './geradorJornadaRelatorioFinal';
 import { kitVendido, lerRelatorioFinal } from '../services/gerador/relatorioFinal';
-import { lerResumoDoDinheiro } from '../services/gerador/jornadaDinheiroBanco';
-import { CAMPOS_CONTRATO, etapaAtualCompleta, obraMaterializada, type ContratoObra, type EstadoObra } from '../services/gerador/jornadaObra';
+import { lerAjustes, lerResumoDoDinheiro } from '../services/gerador/jornadaDinheiroBanco';
+import { podeVerValorDaObra } from '../services/gerador/jornadaDinheiro';
+import { CAMPOS_CONTRATO, bancoSemValor, etapaAtualCompleta, obraMaterializada, type ContratoObra, type EstadoObra } from '../services/gerador/jornadaObra';
 import { situacaoObra } from '../services/gerador/jornadaObra';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -187,6 +188,18 @@ export async function arquivosDaPlanilha(ctx: Ctx, venda: string | null): Promis
       return slot ? [{ slot, em: a.em, caminho: a.caminho }] : [];
     });
   } catch (err) { logErro('arquivos da planilha', err); return []; }
+}
+
+/** De onde veio o dado do cadastro: a fonte gravada com ele. */
+function origemDoCampo(cad: Cadastro, campo: string): 'ia' | 'manual' | 'card' | 'proposta' | null {
+  const g = (cad.campos as Record<string, { valor?: string; fonte?: string } | undefined>)[campo];
+  if (!g || !String(g.valor ?? '').trim()) return null;
+  return g.fonte === 'ia' ? 'ia' : g.fonte === 'ficha' ? 'card' : 'manual';
+}
+
+/** A venda sem o dinheiro: fica o que a tela usa de quem não vê valor (prazo, kit e quem combinou, quando). */
+function vendaSemDinheiro(v: PrivadoJornada['venda']): Record<string, unknown> | null {
+  return v ? { prazo_prometido: v.prazo_prometido, kit_confirmado: v.kit_confirmado, combinado_por: v.combinado_por, combinado_em: v.combinado_em } : null;
 }
 
 const vendedorDe = (card: CardVendido, estado: EstadoJornada | null): string => nomeSimples(card.vendedor_nome) || estado?.vendedor || '';
@@ -567,6 +580,10 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       if (!vePlanilha) origemSlots = origemSlots.filter(([, o]) => o !== 'planilha');
     }
     const vend = vendedorDe(g.card, l.estado);
+    // Dinheiro (valor, pagamento, desconto, nota, comissão e valores da proposta de banco): a regra única `podeVerValorDaObra` (a mesma da
+    // rota do dinheiro). Falha ao ler os Ajustes fecha o dinheiro.
+    const ajustes = await lerAjustes().then((a) => a.ajustes, (e) => { logErro('ajustes', e); return { dinheiro_aberto: false }; });
+    const veValor = podeVerValorDaObra(g, ajustes, !!vend && g.nome === vend);
     const todas = pode.ligar_proposta && !l.lig.proposta ? await lerTodasLigacoes() : new Map<number, Ligacao>();
     const candidatas = pode.ligar_proposta && !l.lig.proposta ? await candidatasDaObra(g, l, todas).catch((e) => { logErro('candidatas', e); return []; }) : [];
 
@@ -608,17 +625,22 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       esperando: l.estado?.esperando ?? null,
       pode,
       etapas,
-      venda: l.privado?.venda ?? null,
+      venda: veValor ? (l.privado?.venda ?? null) : vendaSemDinheiro(l.privado?.venda ?? null),
       // A retirada dos sócios (os 2% de cada um) só vai para o ADM e para a Giovanna; a comissão de quem vendeu fica para todos.
-      comissoes: (com?.linhas ?? []).filter((c) => c.papel === 'venda' || g.adm || g.nome === 'giovanna'), comissoes_aviso: com?.aviso ?? null,
+      comissoes: veValor ? (com?.linhas ?? []).filter((c) => c.papel === 'venda' || g.adm || g.nome === 'giovanna') : [], comissoes_aviso: veValor ? (com?.aviso ?? null) : null,
       proposta: p ? { codigo: p.codigo, cliente: p.cliente_nome ?? '', kwp } : null,
       propostas_candidatas: candidatas,
       // Os dados do bloco `cliente` da etapa 1 (o que está no cadastro da venda; vazio = falta).
       dados_cliente: {
         nome: cadValor('nome'), endereco_ponto: cadValor('endereco_ponto'), telefone: cadValor('telefone'), email: cadValor('email'),
         endereco: cadValor('endereco'), bairro: cadValor('bairro'), cidade: cadValor('cidade'), uf: cadValor('uf'), cep: cadValor('cep'),
-        // Valor e forma de pagamento: só para quem mexe na venda (vendedor da obra, Giovanna, ADM).
-        ...(g.adm || g.nome === 'giovanna' || pode.editar_venda
+        // O CPF/CNPJ como o cadastro o mostra (o quadro do cadastro não o mascara).
+        cpf: cadValor('cpf_cnpj'),
+        // De onde veio cada dado: 'ia' (lido dos documentos), 'manual' (digitado ou vindo de um papel), 'card' (migrado da ficha do card) ou null (sem dado).
+        origem: Object.fromEntries(([['nome', 'nome'], ['telefone', 'telefone'], ['endereco', 'endereco'], ['endereco_ponto', 'endereco_ponto'], ['email', 'email'], ['cpf', 'cpf_cnpj']] as const)
+          .map(([k, campo]) => [k, origemDoCampo(l.cad, campo)])),
+        // Valor e forma de pagamento: só para quem vê o valor da obra (`podeVerValorDaObra`).
+        ...(veValor
           ? { valor_centavos: l.privado?.venda?.valor_centavos ?? null, pagamento: (l.privado?.venda?.pagamento ?? []).map((x) => ({ forma: x.forma, valor_centavos: x.valor_centavos })) } : {}),
       },
       documentos: {
@@ -640,7 +662,8 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       // O que o formulário de vistoria e a proposta de banco da etapa 1 precisam (o mesmo `dados`, `versoes` e `pode.secoes` do GET .../fase2): os PUTs
       // .../fase2/vistoria e .../fase2/banco valem já na etapa 1, sem a obra materializada.
       fase2: {
-        dados: { vistoria: l.obra?.vistoria ?? null, banco: l.obra?.banco ?? null },
+        // Os valores da proposta de banco (equipamento e mão de obra) só vão a quem vê o valor da obra.
+        dados: { vistoria: l.obra?.vistoria ?? null, banco: veValor ? (l.obra?.banco ?? null) : bancoSemValor(l.obra?.banco) },
         versoes: l.obra?.versoes ?? {},
         pode: { secoes: !l.estado?.cancelada && !l.obraEstado?.fechada && (g.adm || giovOuVend) ? ['vistoria', 'banco'] : [] },
       },

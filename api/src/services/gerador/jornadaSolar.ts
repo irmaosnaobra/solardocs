@@ -92,8 +92,8 @@ export interface PrivadoJornada {
 
 // ── Etapas e donos ───────────────────────────────────────────────────────────────────────────────────────────────
 
-export const NOMES_ETAPA = ['', 'Venda', 'Anexos', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega da obra', 'Pedido de vistoria e liberação', 'Pós-venda'];
-export const CURTOS_ETAPA = ['', 'Venda', 'Anexos', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega', 'Liberação', 'Pós-venda'];
+export const NOMES_ETAPA = ['', 'Venda', 'Assinaturas e vistoria', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega da obra', 'Pedido de vistoria e liberação', 'Pós-venda'];
+export const CURTOS_ETAPA = ['', 'Venda', 'Assinaturas', 'Homologação', 'Compra', 'Logística', 'Obra', 'Entrega', 'Liberação', 'Pós-venda'];
 /** Donos fixos (SPEC 2). 'vendedor' = quem vendeu (o `vendedor` do estado, senão o `vendedor_nome` do card). */
 export const DONOS_ETAPA: Record<number, readonly string[] | 'vendedor'> = {
   1: 'vendedor', 2: ['giovanna'], 3: ['thiago'], 4: ['thiago', 'diego'], 5: ['diego'], 6: ['diego'], 7: ['diego'], 8: ['thiago'], 9: 'vendedor',
@@ -255,7 +255,7 @@ export function marcaDoRateio(cad: Cadastro): string {
 
 // ── O que cada etapa pede para concluir ────────────────────────────────────────────────────────────────────────────
 
-export interface ItemEtapa { chave: string; bloco: 'cliente' | 'venda' | 'papeis' | 'pedidos' | 'excedente' | 'vistoria' | 'anexos' | 'fotos' | 'documentos' | 'portao' | 'equipamento'; texto: string; feito: boolean }
+export interface ItemEtapa { chave: string; bloco: 'cliente' | 'venda' | 'papeis' | 'pedidos' | 'excedente' | 'vistoria' | 'anexos' | 'fotos' | 'documentos' | 'portao' | 'equipamento' | 'pendentes'; texto: string; feito: boolean }
 export interface EntradaItens {
   /** O kit da proposta ligada (placas e inversor, para confirmar) e a obra privada (vistoria e proposta de banco). Sem eles os itens que dependem ficam por fazer. */
   equip?: EquipamentoProposta | null;
@@ -335,15 +335,10 @@ export const CHAVES_CONFIRMAR = ['nome', 'telefone', 'endereco', 'endereco_usina
 export type ChaveConfirmar = typeof CHAVES_CONFIRMAR[number];
 export const ehChaveConfirmar = (x: unknown): x is ChaveConfirmar => CHAVES_CONFIRMAR.includes(x as ChaveConfirmar);
 
-/** Pedido ao cliente: ticado à mão OU o arquivo do slot já existe. */
+/** Pedido ao cliente, ticado à mão (estado e PATCH continuam; deixou de ser item da etapa 1: os documentos e fotos fecham pelo arquivo). */
 export const CHAVES_PEDIDO = ['pedido_cnh', 'pedido_conta_luz', 'pedido_fachada', 'pedido_padrao', 'pedido_disjuntor', 'pedido_medidor'] as const;
 export type ChavePedido = typeof CHAVES_PEDIDO[number];
 export const ehChavePedido = (x: unknown): x is ChavePedido => CHAVES_PEDIDO.includes(x as ChavePedido);
-const SLOTS_DO_PEDIDO: Record<ChavePedido, readonly string[]> = {
-  pedido_cnh: ['documento_titular', 'documento_titular_uc'], pedido_conta_luz: ['conta_luz'], pedido_fachada: ['fachada'],
-  pedido_padrao: ['padrao'], pedido_disjuntor: ['disjuntor'], pedido_medidor: ['medidor'],
-};
-
 export const TEXTO_KIT_MIN = 3;
 export const TEXTO_KIT_MAX = 120;
 /** A proposta ligada traz o dado completo (placas: quantidade e marca; inversor: quantidade e marca)? */
@@ -413,7 +408,7 @@ export const bancoPreenchido = (b: BancoObra | null | undefined): boolean => !!b
 export function itensDaEtapa(n: number, f: EntradaItens): ItemEtapa[] {
   const tem = (s: string): boolean => f.slots.has(s);
   if (n === 1) {
-    // Fase 1 (Venda): cliente, venda, papéis gerados, pedido ao cliente, excedente e vistoria. Os dados "confirmados" só fecham com a marca em dia.
+    // Fase 1 (Venda): cliente, venda, papéis gerados, documentos e fotos do cliente e excedente. Os dados "confirmados" só fecham com a marca em dia.
     const e1 = f.estado?.etapas[1];
     const papeis = f.estado?.etapas[2].papeis ?? null;
     const conf = (k: ChaveConfirmar): boolean => !!valorConfirmavel(k, f) && confirmacaoValida(k, f);
@@ -439,30 +434,39 @@ export function itensDaEtapa(n: number, f: EntradaItens): ItemEtapa[] {
       { chave: 'papel_contrato', bloco: 'papeis', texto: 'Contrato gerado', feito: !!papeis?.contrato },
       { chave: 'papel_procuracao', bloco: 'papeis', texto: 'Procuração gerada', feito: !!papeis?.procuracao },
     );
-    for (const k of CHAVES_PEDIDO) {
-      const rotulo: Record<ChavePedido, string> = {
-        pedido_cnh: 'Pedir CNH ou identidade', pedido_conta_luz: 'Pedir a conta de luz', pedido_fachada: 'Pedir a foto da fachada',
-        pedido_padrao: 'Pedir a foto do padrão de entrada', pedido_disjuntor: 'Pedir a foto do disjuntor', pedido_medidor: 'Pedir a foto do medidor',
-      };
-      itens.push({ chave: k, bloco: 'pedidos', texto: rotulo[k], feito: !!e1?.pedidos?.[k] || SLOTS_DO_PEDIDO[k].some(tem) });
-    }
+    // Primeiro se pede a lista de documentos ao cliente, depois se anexa: cada item fecha quando o ARQUIVO existe (o tique de pedido continua
+    // gravado em `etapas[1].pedidos`, mas não é mais item).
+    itens.push(
+      { chave: 'documento', bloco: 'documentos', texto: 'CNH ou identidade', feito: tem('documento_titular') || tem('documento_titular_uc') },
+      { chave: 'conta_luz', bloco: 'documentos', texto: 'Conta de luz', feito: tem('conta_luz') },
+      { chave: 'fachada', bloco: 'fotos', texto: 'Foto da fachada', feito: tem('fachada') },
+      { chave: 'padrao', bloco: 'fotos', texto: 'Foto do padrão de entrada', feito: tem('padrao') },
+      { chave: 'disjuntor', bloco: 'fotos', texto: 'Foto do disjuntor', feito: tem('disjuntor') },
+      { chave: 'medidor', bloco: 'fotos', texto: 'Foto do medidor', feito: tem('medidor') },
+    );
     itens.push({ chave: 'excedente', bloco: 'excedente', texto: falta ?? 'Excedente para outras contas', feito: falta === null });
     if (e1?.excedente === 'sim') itens.push({ chave: 'conta_excedente', bloco: 'excedente', texto: 'Conta de luz do excedente', feito: tem('conta_luz_beneficiaria') });
-    itens.push({ chave: 'vistoria', bloco: 'vistoria', texto: 'Relatório de vistoria 80% preenchido', feito: vistoriaPct(f.obra?.vistoria ?? null) >= 80 });
     return itens;
   }
   if (n === 2) {
-    // Fase 2 (Anexos): os dois papéis assinados e os documentos e fotos do cliente.
-    return [
+    // Fase 2 (Assinaturas e vistoria): o contrato e a procuração assinados (o par que dá o número da obra) e o relatório de vistoria 80% preenchido.
+    const itens: ItemEtapa[] = [
       { chave: 'contrato_assinado', bloco: 'anexos', texto: 'Contrato assinado anexado', feito: tem('contrato_assinado') },
       { chave: 'procuracao', bloco: 'anexos', texto: 'Procuração assinada anexada', feito: tem('procuracao') },
-      { chave: 'documento', bloco: 'anexos', texto: 'CNH ou identidade', feito: tem('documento_titular') || tem('documento_titular_uc') },
-      { chave: 'conta_luz', bloco: 'anexos', texto: 'Conta de luz', feito: tem('conta_luz') },
-      { chave: 'fachada', bloco: 'anexos', texto: 'Foto da fachada', feito: tem('fachada') },
-      { chave: 'padrao', bloco: 'anexos', texto: 'Foto do padrão de entrada', feito: tem('padrao') },
-      { chave: 'disjuntor', bloco: 'anexos', texto: 'Foto do disjuntor', feito: tem('disjuntor') },
-      { chave: 'medidor', bloco: 'anexos', texto: 'Foto do medidor', feito: tem('medidor') },
+      { chave: 'vistoria', bloco: 'vistoria', texto: 'Relatório de vistoria 80% preenchido', feito: vistoriaPct(f.obra?.vistoria ?? null) >= 80 },
     ];
+    // Obra que fechou a etapa 1 pela regra antiga (CNH, conta de luz e fotos eram desta etapa): o que ficou sem arquivo volta como pendência
+    // da etapa 1. Item já feito não aparece, e quem nunca teve pendência não vê bloco nenhum.
+    const herdados: Array<[string, string, boolean]> = [
+      ['documento', 'CNH ou identidade', tem('documento_titular') || tem('documento_titular_uc')],
+      ['conta_luz', 'Conta de luz', tem('conta_luz')],
+      ['fachada', 'Foto da fachada', tem('fachada')],
+      ['padrao', 'Foto do padrão de entrada', tem('padrao')],
+      ['disjuntor', 'Foto do disjuntor', tem('disjuntor')],
+      ['medidor', 'Foto do medidor', tem('medidor')],
+    ];
+    for (const [chave, texto, feito] of herdados) if (!feito) itens.push({ chave, bloco: 'pendentes', texto: `${texto} (pendente da etapa 1)`, feito: false });
+    return itens;
   }
   if (n === 3) {
     // Fase 3 (Homologação): primeiro o equipamento (ele libera o cartão do Trello sozinho), depois o que já existia.
@@ -500,7 +504,7 @@ export function estadoTrelloAuto(f: EntradaItens, temNumero: boolean, opcoes: { 
   // Só age com a Homologação (etapa 3) em andamento: obra que já passou dela não é tocada, nem para completar o cartão.
   if (f.estado?.etapas[3].concluida_em) falta.push('Homologação já concluída');
   if (!f.estado?.etapas[1].concluida_em) falta.push('Etapa Venda concluída');
-  if (!f.estado?.etapas[2].concluida_em) falta.push('Etapa Anexos concluída');
+  if (!f.estado?.etapas[2].concluida_em) falta.push('Etapa Assinaturas e vistoria concluída');
   for (const i of itensDaEtapa(3, f)) if (i.bloco === 'equipamento' && !i.feito) falta.push(i.texto);
   if (!temNumero) falta.push('Número da venda');
   // O automático parou porque o quadro tem cartões parecidos: a pessoa confere e usa o botão (só vale enquanto não há cartão).

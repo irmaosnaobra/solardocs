@@ -78,6 +78,7 @@ export function ligacaoDoTexto(t: unknown): 'monofasico' | 'bifasico' | 'trifasi
 
 // ── A entrada (a rota monta, JÁ filtrada por quem vê) ──────────────────────
 export interface EntradaFicha {
+  semValorDaVenda?: boolean;   // sem `podeVerValorDaObra`: nenhum valor, forma ou nota da venda, nem nos campos nem nas sugestões
   quem: { nome: string; socio: boolean; adm: boolean; veDinheiro: boolean };
   card: { cliente: string; telefone: string; cidade: string; vendedor: string };
   lig: { proposta: string | null; venda: string | null; trello_card?: string | null };
@@ -151,13 +152,12 @@ export function camposDaFicha(e: EntradaFicha): CamposFicha {
   const marcaModelo = (i: (typeof itens)[number] | undefined): string => (i ? [i.marca, i.modelo].filter(Boolean).join(' ') : '');
 
   // Venda
-  poe('venda.valor_centavos', [
-    ['obra', v?.valor_centavos], ['proposta', pv && pv.valor_vendido ? Math.round(pv.valor_vendido * 100) : null], ['planilha', e.planilha?.valorVendaCentavos ?? null],
-  ]);
-  poe('venda.forma', v
-    ? [['obra', v.pagamento.length === 1 ? v.pagamento[0].forma : '']]
-    : [['proposta', pv ? formaDaVendaPorTexto(pv.forma_pagamento) ?? '' : ''], ['planilha', formaDaVendaPorTexto(pl('forma_pagamento')) ?? '']]);
-  poe('venda.nota', [['obra', v?.nota], ['proposta', pv?.obs_venda ?? '']]);
+  if (!e.semValorDaVenda) {
+    poe('venda.valor_centavos', [['obra', v?.valor_centavos], ['proposta', pv && pv.valor_vendido ? Math.round(pv.valor_vendido * 100) : null], ['planilha', e.planilha?.valorVendaCentavos ?? null]]);
+    poe('venda.forma', v ? [['obra', v.pagamento.length === 1 ? v.pagamento[0].forma : '']]
+      : [['proposta', pv ? formaDaVendaPorTexto(pv.forma_pagamento) ?? '' : ''], ['planilha', formaDaVendaPorTexto(pl('forma_pagamento')) ?? '']]);
+    poe('venda.nota', [['obra', v?.nota], ['proposta', pv?.obs_venda ?? '']]);
+  }
   const prazoProp = num(dados.prazoInstalacao);
   poe('venda.prazo_prometido', [['obra', v?.prazo_prometido], ['proposta', prazoProp ? `Instalação em até ${Math.round(prazoProp)} dias` : '']]);
 

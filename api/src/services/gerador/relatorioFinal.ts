@@ -19,7 +19,11 @@ export const CHAVE_ANEXO_RELATORIO = 'relatorio_final';
 const esc = (v: unknown): string =>
   String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-export interface KitVendido { placas: string; inversor: string; kwp: number | null; faltando: Array<'placas' | 'inversor'> }
+export interface KitVendido {
+  placas: string; inversor: string; kwp: number | null; faltando: Array<'placas' | 'inversor'>;
+  /** Os itens que vieram do texto escrito à mão (`kit_texto`): a tela mostra o texto com Editar. */
+  manual: Array<'placas' | 'inversor'>;
+}
 
 /**
  * O kit vendido: placas e inversor vêm da proposta ligada ou, se ela não traz quantidade e marca, do texto escrito à mão (`kitTexto`).
@@ -34,9 +38,10 @@ export function kitVendido(e: EquipamentoProposta | null, kwpDados: unknown, kit
   const completo = { placas: !!(e?.qtdPlacas && e.modeloPlaca), inversor: !!(e?.qtdInversor && e.inversor) };
   const texto = (k: 'placas' | 'inversor'): string => (kitTexto?.[k] ?? '').trim();
   const faltando: Array<'placas' | 'inversor'> = [];
+  const manual: Array<'placas' | 'inversor'> = [];
   const escolhe = (k: 'placas' | 'inversor'): string => {
     if (completo[k]) return daProposta[k];
-    if (texto(k)) return texto(k);
+    if (texto(k)) { manual.push(k); return texto(k); }
     faltando.push(k);
     return daProposta[k];   // o que a proposta tem, mesmo incompleto, só para mostrar
   };
@@ -44,7 +49,7 @@ export function kitVendido(e: EquipamentoProposta | null, kwpDados: unknown, kit
   const inversor = escolhe('inversor');
   const dados = Number(kwpDados);
   const kwp = Number.isFinite(dados) && dados > 0 ? dados : (e?.qtdPlacas && e.potPlaca ? Math.round(e.qtdPlacas * e.potPlaca) / 1000 : null);
-  return { placas, inversor, kwp, faltando };
+  return { placas, inversor, kwp, faltando, manual };
 }
 
 const CONCLUSAO: Record<string, string> = { ok: 'Apto para instalação', adeq: 'Apto com adequações', nao: 'Não apto no momento' };

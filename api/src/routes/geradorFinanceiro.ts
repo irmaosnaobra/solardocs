@@ -7,7 +7,8 @@ import { ehAdm, ehSocio, podeVer } from '../services/gerador/solarObras';
 import { acessoVendaSolar } from './geradorClientes';
 import { ehCardSolarVendido, lerCardsPorIds } from '../services/gerador/vendaSolarHub';
 import { DONOS_FIXOS } from '../services/gerador/jornadaSolar';
-import { veRetiradaDosSocios } from '../services/gerador/jornadaDinheiro';
+import { podeVerLivroDaObra, veRetiradaDosSocios } from '../services/gerador/jornadaDinheiro';
+import { lerAjustes } from '../services/gerador/jornadaDinheiroBanco';
 import { chavePosVenda } from '../services/agenda/posVendaEletroposto';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import {
@@ -277,7 +278,12 @@ export function mountFinanceiro(router: Router): void {
     try {
       const [lidos, venda] = await Promise.all([lerDoCard(cardId, posse === 'vendasolar'), valorDaVenda(cardId)]);
       // A retirada dos sócios (linhas solares `obra.grupo: retirada`) só vai para o ADM e para a Giovanna: sai ANTES dos totais, que a deduziriam.
-      const todos = posse === 'vendasolar' && !veRetiradaDosSocios(nome, ehAdm(nome)) ? lidos.filter((l) => l.obra?.grupo !== 'retirada') : lidos;
+      // O livro do solar (linhas com `obra`) segue a regra (b) da Jornada (`podeVerLivroDaObra`): sem ela, essas linhas não saem por aqui.
+      // Falha ao ler os Ajustes fecha o livro.
+      const veLivro = posse !== 'vendasolar'
+        || podeVerLivroDaObra({ nome: nome.trim().toLowerCase(), adm: ehAdm(nome) }, await lerAjustes().then((a) => a.ajustes, () => ({ dinheiro_aberto: false })));
+      const doLivro = veLivro ? lidos : lidos.filter((l) => !l.obra);
+      const todos = posse === 'vendasolar' && !veRetiradaDosSocios(nome, ehAdm(nome)) ? doLivro.filter((l) => l.obra?.grupo !== 'retirada') : doLivro;
       // Os totais saem de TODOS os lançamentos; a máscara vem depois.
       const completos = totais(todos, venda);
       const ordenados = ordenarLancamentos(todos);

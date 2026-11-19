@@ -18,7 +18,7 @@ import {
 } from '../services/gerador/jornadaSolar';
 import { ehRecusa, lerPrivadoJornada, mudarJornada, type Recusa } from '../services/gerador/jornadaSolarBanco';
 import {
-  EQUIPES_LISTA, IDS_EQUIPE, LISTA_PRONTA, SECOES_OBRA, etapaAtualCompleta, itensDaEtapaObra, itensIniciais, obraMaterializada, pagoDaCompra, prazoDaEtapaObra,
+  EQUIPES_LISTA, IDS_EQUIPE, bancoSemValor, LISTA_PRONTA, SECOES_OBRA, etapaAtualCompleta, itensDaEtapaObra, itensIniciais, obraMaterializada, pagoDaCompra, prazoDaEtapaObra,
   situacaoObra, somaItens, type EstadoObra, type ObraPrivada, type SecaoObra,
 } from '../services/gerador/jornadaObra';
 import {
@@ -29,7 +29,7 @@ import { cifrar, decifrar } from '../services/gerador/cofreObra';
 import { chaveNfeValida } from '../services/gerador/jornadaObra';
 import { camposDoTermo, termoGarantiaHtml, travaDoBook } from '../services/gerador/termoGarantia';
 import { garantiaInstalacaoExtenso } from '../services/templateService';
-import { reaisBR, recortarLivro, veRetiradaDosSocios } from '../services/gerador/jornadaDinheiro';
+import { podeVerValorDaObra, reaisBR, recortarLivro, veRetiradaDosSocios } from '../services/gerador/jornadaDinheiro';
 import { lerLeituraDoArquivo } from '../services/gerador/financeiroArquivos';
 import crypto from 'crypto';
 import { abrirNavegador } from '../controllers/pdfController';
@@ -253,6 +253,7 @@ async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): P
   const hoje = hojeBr();
   const p = f.privada;
   const veDin = f.din.veDinheiro;
+  const veValorVenda = podeVerValorDaObra(g, f.din.ajustes, !!f.vend && g.nome === f.vend);   // regra (a): o valor da proposta de banco é valor da venda
   const etapas = [4, 5, 6, 7, 8].map((n) => {
     const e = f.joView?.etapas[n as 4 | 5 | 6 | 7 | 8];
     const itens = f.joView && e?.aberta_em ? itensParaQuem(n, f, g) : [];
@@ -293,7 +294,7 @@ async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): P
       book: book.length === 0,
     },
     dados: {
-      vistoria: p.vistoria, banco: p.banco,
+      vistoria: p.vistoria, banco: veValorVenda ? p.banco : bancoSemValor(p.banco),
       compra: {
         itens: p.compra.itens.map((i) => ({ ...i, valor_centavos: mascarar(i.valor_centavos) })), compras,
         contador: { com_origem: mat.com_origem, total: mat.total }, sugeridos,
@@ -326,7 +327,12 @@ function aplicarSecao(secao: SecaoObra, p: ObraPrivada, dadosBrutos: Record<stri
   const agora = new Date().toISOString();
   const d = dadosBrutos;
   if (secao === 'vistoria') return normalizarObraPrivada({ ...p, vistoria: d });
-  if (secao === 'banco') return normalizarObraPrivada({ ...p, banco: d });
+  if (secao === 'banco') {
+    const novo = normalizarObraPrivada({ ...p, banco: d });
+    // Quem não vê o dinheiro não recebeu os valores da proposta de banco: o servidor mantém os que já existem.
+    if (!podeVerValorDaObra(g, f.din.ajustes, !!f.vend && g.nome === f.vend) && novo.banco) { novo.banco.eq_centavos = p.banco?.eq_centavos ?? null; novo.banco.mo_centavos = p.banco?.mo_centavos ?? null; }
+    return novo;
+  }
   if (secao === 'compra') {
     const etapa6Aberta = !!f.joView?.etapas[6].aberta_em;
     const compras = lista(d.compras).slice(0, 20).map((c) => {
