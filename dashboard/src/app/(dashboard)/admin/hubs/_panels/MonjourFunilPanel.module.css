@@ -1,0 +1,199 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   Painel do funil do quiz Monjour (hub Monjour Natural do /admin).
+   Base: admin.module.css e os tokens --color-* do tema claro. A cor própria é
+   a do produto (jamaica, a mesma do quiz Monjour) e só aparece no desenho do
+   funil, nas barras e no destaque da maior queda. Compra usa o verde sálvia.
+   ─────────────────────────────────────────────────────────────────────────── */
+.raiz {
+  --mj: #9C2C48;          /* jamaica: faixas e barras (7,1:1 no branco) */
+  --mj-escura: #7E2039;
+  --mj-suave: #F6E3E6;
+  --mj-meio: #E7B9C4;     /* faixa comum do funil */
+  --mj-faixa-txt: #5E1529;
+  --salvia: #3F5C37;      /* compra (6,9:1 no branco) */
+  --salvia-meio: #B9CDB0;
+  --salvia-suave: #E5ECDD;
+  font-variant-numeric: tabular-nums;
+}
+.raiz button, .raiz select { touch-action: manipulation; }
+.raiz :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 6px; }
+
+/* ── topo ─────────────────────────────── */
+.topo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.periodos { display: flex; flex-wrap: wrap; gap: 4px; }
+.periodos button, .atualizar { min-height: 36px; }
+.atualizar { margin-left: auto; }
+.filtros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.filtro { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.filtro span { font-size: 12px; font-weight: 700; color: var(--color-text-muted); }
+.filtro select { padding: 9px 12px; font-size: 14px; min-height: 40px; }
+.linhaTempo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 10px; font-size: 13px; color: var(--color-text-muted); }
+.limpar { border: none; background: none; color: var(--mj); font-weight: 700; font-size: 13px; padding: 6px 0; min-height: 32px; text-decoration: underline; text-underline-offset: 3px; }
+.limpar:hover { color: var(--mj-escura); }
+.aviso { margin-top: 12px; font-size: 13px; }
+
+/* ── números ──────────────────────────── */
+.numeros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.numero { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.numeroRotulo { font-size: 12px; font-weight: 700; color: var(--color-text-muted); }
+.numeroValor { font-size: 26px; font-weight: 800; line-height: 1.15; margin-top: 4px; color: var(--color-text); letter-spacing: -0.01em; }
+.numeroSub { font-size: 12px; color: var(--color-text-dim); margin-top: 2px; }
+.numeroCompra .numeroValor { color: var(--salvia); }
+
+/* ── bloco (card) ─────────────────────── */
+.bloco { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 18px 20px; margin-top: 14px; }
+.blocoTopo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 12px; }
+.blocoTitulo { font-size: 16px; font-weight: 800; color: var(--color-text); display: inline-flex; align-items: center; }
+
+/* ── maior queda ──────────────────────── */
+.queda { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; background: var(--mj-suave); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; color: var(--mj-faixa-txt); font-size: 14px; }
+.queda b { color: var(--mj-escura); }
+.quedaSelo { background: var(--mj); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 0.02em; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.quedaBotao { margin-left: auto; border: 1px solid var(--mj); background: var(--color-surface); color: var(--mj); font-weight: 700; font-size: 13px; border-radius: 8px; padding: 6px 12px; min-height: 36px; }
+.quedaBotao:hover { background: var(--mj); color: #fff; }
+
+/* ── desenho do funil ─────────────────── */
+.funilRolagem { position: relative; max-height: 640px; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid var(--color-border); scrollbar-width: thin; scrollbar-color: var(--color-border-strong) transparent; }
+.funilCab, .etapa {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) 72px 150px 64px;
+  align-items: center;
+  column-gap: 14px;
+}
+.funilCab { position: sticky; top: 0; z-index: 2; background: var(--color-surface); padding: 8px 10px; border-bottom: 1px solid var(--color-border); font-size: 11px; font-weight: 700; color: var(--color-text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.funilCab span:nth-child(n+3) { text-align: right; }
+.funilLista { list-style: none; margin: 0; padding: 4px 0; }
+.etapa { padding: 2px 10px; min-height: 34px; border-radius: 8px; scroll-margin-top: 44px; }
+.etapa:hover { background: var(--color-surface-2); }
+.etapaNome { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 13.5px; color: var(--color-text); }
+.etapaN { font-size: 11px; font-weight: 700; color: var(--color-text-dim); min-width: 18px; text-align: right; }
+.etapaRotulo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etapaTipo { font-size: 10.5px; font-weight: 700; color: var(--color-text-dim); border: 1px solid var(--color-border-strong); border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+.etapaExtra { font-size: 11.5px; color: var(--color-text-dim); white-space: nowrap; }
+.num { text-align: right; font-size: 13.5px; color: var(--color-text); }
+.numForte { font-weight: 800; }
+.numFraco { color: var(--color-text-dim); }
+
+/* A faixa: trapézio centralizado. O topo tem a largura de quem chegou nesta
+   etapa e a base a de quem chegou na próxima, então as faixas emendam num funil
+   só. A porcentagem do início vai dentro quando cabe e encostada fora quando não. */
+.faixaTrilho { position: relative; height: 30px; }
+.faixa { position: absolute; inset: 0; background: var(--mj-meio); transition: clip-path 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.faixaPos { background: var(--salvia-meio); }
+.faixaRotulo { position: absolute; top: 50%; transform: translate(-50%, -50%); font-size: 11.5px; font-weight: 800; color: var(--mj-faixa-txt); white-space: nowrap; pointer-events: none; }
+.faixaRotuloFora { transform: translate(0, -50%); color: var(--color-text-muted); font-weight: 700; }
+.faixaPos + .faixaRotulo { color: var(--salvia); }
+
+.saida { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.saidaTrilho { height: 6px; border-radius: 99px; background: var(--color-surface-2); overflow: hidden; }
+.saidaBarra { height: 100%; border-radius: 99px; background: var(--mj); opacity: 0.55; }
+.saidaNum { font-size: 13px; text-align: right; color: var(--color-text); min-width: 58px; }
+.saidaNum small { font-size: 11px; color: var(--color-text-dim); margin-left: 3px; }
+
+/* maior queda em destaque */
+.etapaQueda { background: var(--mj-suave); box-shadow: inset 0 0 0 1px var(--mj-meio); }
+.etapaQueda:hover { background: var(--mj-suave); }
+.etapaQueda .faixa { background: var(--mj); }
+.etapaQueda .faixaRotulo { color: #fff; }
+.etapaQueda .faixaRotuloFora { color: var(--mj-escura); }
+.etapaQueda .saidaBarra { opacity: 1; }
+.etapaQueda .saidaNum { font-weight: 800; color: var(--mj-escura); }
+.etapaQueda .etapaRotulo { font-weight: 800; }
+
+.divisor { list-style: none; display: flex; align-items: center; gap: 10px; padding: 12px 10px 6px; font-size: 11px; font-weight: 800; color: var(--salvia); text-transform: uppercase; letter-spacing: 0.04em; }
+.divisor::after { content: ''; flex: 1; height: 1px; background: var(--salvia-meio); }
+
+/* ── saídas e app ─────────────────────── */
+.duas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.duas > .bloco { margin-top: 0; }
+.pares { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.par { min-width: 0; }
+.parValor { font-size: 22px; font-weight: 800; color: var(--color-text); line-height: 1.2; }
+.parRotulo { font-size: 12.5px; color: var(--color-text-muted); }
+
+/* ── recortes ─────────────────────────── */
+.seletor { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.seletor::-webkit-scrollbar { display: none; }
+.seletor button { flex-shrink: 0; min-height: 36px; }
+.grafico { margin: 6px 0 12px; }
+.tabelaRolagem { overflow-x: auto; border: 1px solid var(--color-border); border-radius: 10px; }
+.tabela { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 720px; }
+.tabela th { text-align: right; padding: 0; border-bottom: 1px solid var(--color-border); background: var(--color-surface-2); white-space: nowrap; }
+.tabela th:first-child, .tabela td:first-child { text-align: left; }
+.tabela th button { width: 100%; text-align: inherit; border: none; background: none; padding: 10px 12px; min-height: 40px; font-size: 11px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.tabela th button:hover { color: var(--color-text); }
+.tabela th[aria-sort='ascending'] button, .tabela th[aria-sort='descending'] button { color: var(--mj); }
+.tabela td { padding: 9px 12px; border-bottom: 1px solid var(--color-border); text-align: right; color: var(--color-text); }
+.tabela tbody tr:last-child td { border-bottom: none; }
+.tabela tbody tr:hover td { background: var(--color-surface-2); }
+.tabela td:first-child { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.vazioCelula { text-align: center !important; color: var(--color-text-dim) !important; padding: 24px !important; }
+
+/* ── respostas ────────────────────────── */
+.perguntas { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+.pergunta { padding: 14px 0 16px; border-top: 1px solid var(--color-border); min-width: 0; }
+.perguntaTitulo { font-size: 14px; font-weight: 800; color: var(--color-text); margin-bottom: 8px; }
+.opcaoCab, .opcao { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 72px; gap: 10px; align-items: center; }
+.opcaoCab { font-size: 10.5px; font-weight: 700; color: var(--color-text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.opcaoCab span:last-child { text-align: right; }
+.opcao { padding: 4px 0; font-size: 13px; }
+.opcaoRotulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); }
+.opcaoBarra { display: grid; grid-template-columns: minmax(0, 1fr) 62px; gap: 8px; align-items: center; }
+.opcaoTrilho { height: 8px; border-radius: 99px; background: var(--color-surface-2); overflow: hidden; }
+.opcaoPreench { height: 100%; border-radius: 99px; background: var(--mj); }
+.opcaoPct { font-size: 12.5px; text-align: right; color: var(--color-text); white-space: nowrap; }
+.opcaoPct small { color: var(--color-text-dim); font-size: 11px; }
+.opcaoConv { text-align: right; font-size: 13px; color: var(--color-text-muted); white-space: nowrap; }
+.opcaoMelhor { color: var(--salvia); font-weight: 800; }
+
+/* ── vazio ────────────────────────────── */
+.vazio { text-align: center; padding: 40px 20px; }
+.vazio strong { display: block; font-size: 16px; color: var(--color-text); margin-bottom: 4px; }
+.vazio span { font-size: 14px; color: var(--color-text-muted); }
+
+/* ── responsivo ───────────────────────── */
+@media (max-width: 1100px) {
+  .funilCab, .etapa { grid-template-columns: minmax(150px, 180px) minmax(0, 1fr) 64px 130px 56px; column-gap: 10px; }
+}
+@media (max-width: 900px) {
+  .duas, .perguntas { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .filtros { grid-template-columns: 1fr; }
+  .numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .numero { padding: 12px 14px; }
+  .numeroValor { font-size: 22px; }
+  .bloco { padding: 16px 14px; }
+  .atualizar { margin-left: 0; }
+  .quedaBotao { margin-left: 0; }
+
+  /* No celular cada etapa vira três linhas: nome e chegaram, a faixa, e a saída. */
+  .funilCab { display: none; }
+  .funilRolagem { max-height: 70vh; }
+  .etapa {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'nome chegaram'
+      'faixa faixa'
+      'saida tempo';
+    row-gap: 3px;
+    padding: 6px 8px;
+    scroll-margin-top: 8px;
+  }
+  .etapaNome { grid-area: nome; }
+  .etapa > .faixaTrilho { grid-area: faixa; height: 20px; }
+  .numChegaram { grid-area: chegaram; }
+  .etapa > .saida { grid-area: saida; display: block; }
+  .etapa .saidaTrilho { display: none; }
+  .etapa .saidaNum { text-align: left; }
+  .numTempo { grid-area: tempo; min-width: 72px; }
+  .etapaExtra { display: none; }
+  .tabela { min-width: 640px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .faixa { transition: none; }
+}
+.soCelular { display: none; }
+@media (max-width: 760px) {
+  .soCelular { display: inline; }
+}

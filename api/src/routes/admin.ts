@@ -23,6 +23,7 @@ import * as qf from '../services/io/quizFunil';
 import { buscarConjuntosMeta } from '../services/io/metaConjuntos';
 import { lerTudo, lerFunilQuizSolar } from '../services/io/painelQuizSolar';
 import { lerFunilQuizSolardoc } from '../services/solardoc/painelQuizSolardoc';
+import { lerFunilMonjour } from '../services/monjour/painelQuizMonjour';
 import { sondarRecuperacaoQuiz } from '../services/solardoc/recuperacaoCarla';
 import { vagasDoFrioLinha } from '../services/agents/whatsapp/lineThrottle';
 import { novoAnthropic } from "../utils/anthropicClient";
@@ -1027,6 +1028,23 @@ router.get('/solardoc/quiz-funil', async (req: Request, res: Response): Promise<
     const periodo = String(req.query.period || '7dias');
     const conjunto = String(req.query.conjunto || '').trim() || null;
     res.json(await lerFunilQuizSolardoc(periodo, conjunto));
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// O QUIZ DO MONJOUR NATURAL (19/11/2026): o funil da primeira à última etapa, com recortes por país, aparelho e anúncio.
+// Lê os eventos monjour_* de lp_events; a conta mora em services/monjour/. Os filtros valem pela sessão.
+router.get('/monjour/quiz-funil', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const texto = (v: unknown): string | null => String(v ?? '').trim() || null;
+    res.set('Cache-Control', 'no-store');
+    res.json(await lerFunilMonjour(String(req.query.period || '7dias'), {
+      pais: texto(req.query.pais)?.toUpperCase() ?? null,
+      disp: texto(req.query.disp)?.toLowerCase() ?? null,
+      anuncio: texto(req.query.anuncio),
+      conjunto: texto(req.query.conjunto),
+    }));
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
   }
