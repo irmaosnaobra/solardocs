@@ -2,12 +2,14 @@ import { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { supabase } from '../utils/supabase';
 import { cidadeParaGravar } from '../services/io/cidadeCanonica';
+import { verificarWhatsapp } from '../services/nexus/verificaWhatsapp';
 
-// Cadastro de intenção da NEXUS (link da bio do Instagram): a pessoa diz o que
-// quer, quanto pretende investir e deixa o contato. SÓ GRAVA: nenhuma mensagem de
-// WhatsApp (lead ou equipe), nenhum card de agenda, nenhum evento no Meta.
+// Cadastro de intenção da NEXUS (link da bio do Instagram): a pessoa escolhe a porta
+// (eletroposto, com as 3 perguntas do caminho dela, ou mobilidade elétrica) e deixa o contato.
+// SÓ GRAVA: nenhuma mensagem de WhatsApp (lead ou equipe), nenhum card de agenda, nenhum evento no
+// Meta. A única saída é a consulta "esse número tem WhatsApp?" (services/nexus/verificaWhatsapp.ts).
 // Banco: PRINCIPAL do SolarDoc, tabela nexus_instagram_interesse, escrita pela
-// função nexus_instagram_gravar (upsert atômico, só a service role executa).
+// função nexus_instagram_gravar_v2 (upsert atômico, só a service role executa).
 // Leitura no /admin: listarInteressesAdmin.
 
 export const ELETROPOSTO_VALIDOS = [
@@ -18,8 +20,37 @@ export const MOBILIDADE_VALIDOS = [
   'bike', 'patinete', 'triciclo', 'quadriciclo', 'golfe', 'wallbox', 'carregador_rapido', 'bateria', 'solar',
 ] as const;
 const OBJETIVOS = new Set(['proprio', 'frota', 'revenda', 'investir']);
-const INVESTIMENTOS = new Set(['ate_10', '10_50', '50_100', '100_250', '250_500', '500_mais', 'naosei']);
+const INVESTIMENTOS = new Set(['50_100', '100_250', '250_500', '500_mais', 'naosei']);
 const RECURSOS = new Set(['proprio', 'financiamento', 'os_dois', 'naosei']);
+
+// Porta eletroposto: por caminho, as 3 perguntas (todas obrigatórias, resposta única) e os valores aceitos.
+const CAPITAL = ['50', '70', '100', '140', '280', '500', '500_mais', 'naosei'];
+const RECURSO_PE = ['proprio', 'proprio_credito', 'financiamento', 'naosei'];
+const COTA_INVESTIDOR = { local: ['meu', 'em_vista', 'nao'], capital: CAPITAL, recurso: RECURSO_PE };
+const PERGUNTAS: Record<(typeof ELETROPOSTO_VALIDOS)[number], Record<string, readonly string[]>> = {
+  cotista: COTA_INVESTIDOR,
+  investidor: COTA_INVESTIDOR,
+  arrendamento: {
+    ponto_tipo: ['posto', 'mercado', 'restaurante', 'academia', 'farmacia', 'hotel', 'estacionamento', 'condominio', 'outro'],
+    relacao: ['proprietario', 'administro', 'represento', 'inquilino'],
+    vagas: ['1_2', '3_5', '6_10', '10_mais'],
+  },
+  chave_na_mao: {
+    ponto: ['definido', 'negociando', 'em_vista', 'sem_ideia'],
+    valor: ['70', '140', '280', '500', '500_mais', 'naosei'],
+    recurso: RECURSO_PE,
+  },
+  parceiro: {
+    atuacao: ['integrador_solar', 'eletricista', 'engenheiro', 'empresa_instalacao', 'vendedor', 'nao_atuo'],
+    experiencia: ['nunca', '1_3', 'mais_3', 'certificado'],
+    interesse: ['vender', 'executar', 'vender_executar', 'comprar_equipamento', 'naosei'],
+  },
+  so_carregador: {
+    potencia: ['80', '120', 'outra'],
+    qtd: ['1', '2_5', '6_10', 'mais_10'],
+    instala: ['voces_montam', 'obra_minha_projeto_voces', 'obra_e_projeto_meus', 'eu_monto', 'nao_sei'],
+  },
+};
 const UFS = new Set([
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE',
   'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
@@ -77,6 +108,77 @@ function cidadeEUf(cidadeBruta: string, uf: string, telefone: string): { cidade:
   return { cidade: cidadeBruta, uf };
 }
 
+interface Porta {
+  eletroposto: string[];
+  respostas: Record<string, Record<string, string>>;
+  mobilidade: string[];
+  outro: string | null;
+  objetivo: string | null;
+  investimento: string | null;
+  recurso: string | null;
+}
+
+// LEGADO v1 (remover depois de 19/12/2026): valida como a versão antiga, aceitando `ate_10` e `10_50`
+// só aqui. Grava a lista em p_eletroposto e respostas vazias.
+const INVESTIMENTOS_V1 = new Set(['ate_10', '10_50', ...INVESTIMENTOS]);
+function lerPortaV1(b: Record<string, unknown>): Porta | { frase: string } {
+  const eletroposto = lista(b.eletroposto, ELETROPOSTO_VALIDOS);
+  const mobilidade = lista(b.mobilidade, MOBILIDADE_VALIDOS);
+  const outro = txt(b.outro, 300);
+  if (eletroposto.length === 0 && mobilidade.length === 0 && !outro) {
+    return { frase: 'Marque pelo menos uma opção ou escreva o que procura.' };
+  }
+  const objetivo = str(b.objetivo).trim();
+  if (!OBJETIVOS.has(objetivo)) return { frase: 'Diga qual é o seu objetivo.' };
+  const investimento = str(b.investimento).trim();
+  if (!INVESTIMENTOS_V1.has(investimento)) return { frase: 'Escolha a faixa de investimento.' };
+  const recurso = str(b.recurso).trim();
+  if (!RECURSOS.has(recurso)) return { frase: 'Diga como pretende pagar.' };
+  return { eletroposto, respostas: {}, mobilidade, outro, objetivo, investimento, recurso };
+}
+
+// As duas portas. Sem `porta` no corpo, `caminho` presente = eletroposto, senão mobilidade.
+// Eletroposto: caminho válido + as 3 respostas do caminho (chave estranha é descartada; `empresa` só no
+// parceiro). Mobilidade: itens e/ou "outro", mais objetivo, investimento e recurso.
+function lerPorta(b: Record<string, unknown>): Porta | { frase: string } {
+  const pedida = str(b.porta).trim();
+  // LEGADO v1 (página que estava no ar antes da v2): sem `porta` e sem `caminho`, com `eletroposto` em array.
+  // Pode sair depois de 30 dias (19/12/2026).
+  if (pedida === '' && str(b.caminho).trim() === '' && Array.isArray(b.eletroposto)) return lerPortaV1(b);
+  if (pedida !== '' && pedida !== 'eletroposto' && pedida !== 'mobilidade') return { frase: 'Escolha o que você procura.' };
+  const porta = pedida || (str(b.caminho).trim() !== '' ? 'eletroposto' : 'mobilidade');
+
+  if (porta === 'eletroposto') {
+    const caminho = str(b.caminho).trim() as keyof typeof PERGUNTAS;
+    if (!(ELETROPOSTO_VALIDOS as readonly string[]).includes(caminho)) return { frase: 'Escolha o seu caminho.' };
+    const bruto = b.respostas && typeof b.respostas === 'object' && !Array.isArray(b.respostas)
+      ? (b.respostas as Record<string, unknown>) : {};
+    const respostas: Record<string, string> = {};
+    for (const [chave, validos] of Object.entries(PERGUNTAS[caminho])) {
+      const v = str(bruto[chave]).trim();
+      if (!validos.includes(v)) return { frase: 'Responda às perguntas do seu caminho.' };
+      respostas[chave] = v;
+    }
+    const empresa = caminho === 'parceiro' ? txt(bruto.empresa, 80) : null;
+    if (empresa) respostas.empresa = empresa;
+    return {
+      eletroposto: [caminho], respostas: { [caminho]: respostas }, mobilidade: [], outro: null,
+      objetivo: null, investimento: null, recurso: null,
+    };
+  }
+
+  const mobilidade = lista(b.mobilidade, MOBILIDADE_VALIDOS);
+  const outro = txt(b.outro, 300);
+  if (mobilidade.length === 0 && !outro) return { frase: 'Marque pelo menos uma opção ou escreva o que procura.' };
+  const objetivo = str(b.objetivo).trim();
+  if (!OBJETIVOS.has(objetivo)) return { frase: 'Diga qual é o seu objetivo.' };
+  const investimento = str(b.investimento).trim();
+  if (!INVESTIMENTOS.has(investimento)) return { frase: 'Escolha a faixa de investimento.' };
+  const recurso = str(b.recurso).trim();
+  if (!RECURSOS.has(recurso)) return { frase: 'Diga como pretende pagar.' };
+  return { eletroposto: [], respostas: {}, mobilidade, outro, objetivo, investimento, recurso };
+}
+
 export async function cadastrarInteresse(req: Request, res: Response): Promise<void> {
   const b = (req.body || {}) as Record<string, unknown>;
 
@@ -94,21 +196,8 @@ export async function cadastrarInteresse(req: Request, res: Response): Promise<v
     return;
   }
 
-  const eletroposto = lista(b.eletroposto, ELETROPOSTO_VALIDOS);
-  const mobilidade = lista(b.mobilidade, MOBILIDADE_VALIDOS);
-  const outro = txt(b.outro, 300);
-  if (eletroposto.length === 0 && mobilidade.length === 0 && !outro) {
-    return erro(res, 'Marque pelo menos uma opção ou escreva o que procura.');
-  }
-
-  const objetivo = str(b.objetivo).trim();
-  if (!OBJETIVOS.has(objetivo)) return erro(res, 'Diga qual é o seu objetivo.');
-
-  const investimento = str(b.investimento).trim();
-  if (!INVESTIMENTOS.has(investimento)) return erro(res, 'Escolha a faixa de investimento.');
-
-  const recurso = str(b.recurso).trim();
-  if (!RECURSOS.has(recurso)) return erro(res, 'Diga como pretende pagar.');
+  const porta = lerPorta(b);
+  if ('frase' in porta) return erro(res, porta.frase);
 
   const nome = str(b.nome).trim();
   if (nome.length < 2 || nome.length > 80) return erro(res, 'Informe seu nome, de 2 a 80 letras.');
@@ -137,8 +226,11 @@ export async function cadastrarInteresse(req: Request, res: Response): Promise<v
   const teste = RE_TELEFONE_TESTE.test(telefone);
   const { cidade, uf } = cidadeEUf(cidadeBruta, ufBruta, telefone);
 
+  // Telefone de teste (faixa fictícia) nunca consulta; o resto passa pelas condições do verificaWhatsapp.
+  const { whatsappOk, aviso } = teste ? { whatsappOk: null, aviso: undefined } : await verificarWhatsapp(telefone, { tabela: TABELA });
+
   try {
-    const { data, error } = await supabase.rpc('nexus_instagram_gravar', {
+    const { data, error } = await supabase.rpc('nexus_instagram_gravar_v2', {
       p_nome: nome,
       p_telefone: telefone,
       p_email: email,
@@ -147,20 +239,26 @@ export async function cadastrarInteresse(req: Request, res: Response): Promise<v
       p_bairro: bairro,
       p_cidade: cidade,
       p_uf: uf,
-      p_eletroposto: eletroposto,
-      p_mobilidade: mobilidade,
-      p_outro: outro,
-      p_objetivo: objetivo,
-      p_investimento: investimento,
-      p_recurso: recurso,
+      p_eletroposto: porta.eletroposto,
+      p_eletroposto_respostas: porta.respostas,
+      p_mobilidade: porta.mobilidade,
+      p_outro: porta.outro,
+      p_objetivo: porta.objetivo,
+      p_investimento: porta.investimento,
+      p_recurso: porta.recurso,
       p_origem: origem,
       p_utm: utm,
       p_teste: teste,
+      p_whatsapp_ok: whatsappOk,
     });
     if (error) throw error;
     const r = (data || {}) as { posicao?: number };
     // Sempre novo:true: a resposta pública não revela se o telefone já estava na lista.
-    res.json({ ok: true, posicao: Number(r.posicao) || 1, novo: true });
+    // O aviso só vem quando a consulta deu que o número NÃO tem WhatsApp (o cadastro grava igual).
+    res.json({
+      ok: true, posicao: Number(r.posicao) || 1, novo: true,
+      ...(aviso ? { aviso } : {}),
+    });
   } catch (err: any) {
     console.error('[nexus-interesse]', err?.code, err?.message);
     res.status(500).json({ ok: false, erro: ERRO_SALVAR });
