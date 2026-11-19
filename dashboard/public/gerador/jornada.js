@@ -302,7 +302,7 @@
       '.jor-perg{display:flex;align-items:center;flex-wrap:wrap;margin:14px 0 8px;font-size:14px;font-weight:600;color:var(--io-titulo)}',
       '.jor-sep{height:1px;background:var(--n-bd);margin:16px 0}',
       '.jor-vai{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0 0 12px;padding:0}',
-      '.jor-vai li{padding:4px 10px;border-radius:999px;background:var(--io-av-sf);color:var(--io-ambar-tx);font-size:13px;font-weight:600}',
+      '.jor-vai li{padding:3px 10px;border-radius:8px;background:var(--n-sf);color:var(--io-er-tx);box-shadow:inset 0 0 0 1.5px var(--io-er);font-size:13px;font-weight:600}',
       '.jor-conf{padding:12px 0;border-top:1px solid var(--n-bd)}',
       '.jor-conf-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:14px}',
       '.jor-conf-t b{color:var(--io-titulo)}',
@@ -319,7 +319,7 @@
       '.jor-doc-nome{display:block;font-weight:600;color:var(--io-titulo)}',
       '.jor-doc-est{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:13px;color:var(--n-tx2)}',
       '.jor-doc-est .st{font-weight:600}',
-      '.jor-doc-est .st-falta{color:var(--io-ambar-tx)}',
+      '.jor-doc-est .st-falta{color:var(--io-er-tx)}',
       '.jor-doc-est .st-ped{color:var(--io-azul-tx)}',
       '.jor-doc-est .st-ok{color:var(--io-ok-fg)}',
       '.jor-doc .jor-anexo{padding:0;border:0}',
@@ -353,7 +353,7 @@
       '.jor-obra-cab h2{font-size:22px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}',
       '.jor-cab-ac{display:flex;flex-wrap:wrap;gap:8px}',
       '.jor-abas-p{position:sticky;top:var(--top-h,0px);z-index:30;margin:0 0 12px;padding:6px 0;background:var(--n-bg);box-shadow:0 -12px 0 var(--n-bg)}',
-      '.jor-abas-tr{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:4px;border:1px solid var(--n-bd);border-radius:14px;background:var(--n-sf);box-shadow:var(--sombra)}',
+      '.jor-abas-tr{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:4px 8px 4px 4px;border:1px solid var(--n-bd);border-radius:14px;background:var(--n-sf);box-shadow:var(--sombra)}',
       '.jor-abas-tr::-webkit-scrollbar{display:none}',
       '.jor-ab{flex:0 0 auto;position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:6px 14px 6px 8px;border:0;border-radius:10px;background:transparent;color:var(--n-tx2);font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;touch-action:manipulation}',
       '.jor-ab.res{padding:6px 16px}',
@@ -595,8 +595,36 @@
       '.jor-sel.jor-in{width:100%}',
       '.jor-fc>.jor-email-cmp{flex:0 0 auto}',
       '.jor-grp-org{font-size:12px;font-weight:600;color:var(--io-azul-tx)}',
-      '.jor-doc-est .st-opc{color:var(--n-tx2)}',
+      '.jor-doc-est .st-opc{color:var(--io-av-tx)}',
       '@media (prefers-reduced-motion:reduce){.jor-fc,.jor-rc{transition:none}}',
+      // O que falta (19/11/2026): vermelho = a api exige para concluir (itensDaEtapa); amarelo = falta, mas não trava. Feito não pinta.
+      // O contorno é um outline por dentro (não mexe no tamanho); campo de digitar usa a borda, porque o outline dele é o do foco.
+      '.jor-fx-ob{--fx-bd:var(--io-er);--fx-sf:var(--io-er-sf);--fx-tx:var(--io-er-tx)}',
+      // O fundo do amarelo vai pela metade: o opcional não pode pesar mais que o obrigatório.
+      '.jor-fx-op{--fx-bd:var(--io-amarelo-forte);--fx-sf:color-mix(in srgb,var(--io-amarelo-sf) 50%,var(--n-sf));--fx-tx:var(--io-av-tx)}',
+      ':is(.jor-fx-ob,.jor-fx-op):is(.jor-fx-ob,.jor-fx-op):not(input,select,textarea){outline:2px solid var(--fx-bd);outline-offset:-2px;background-color:var(--fx-sf)}',
+      ':is(input,select,textarea):is(.jor-fx-ob,.jor-fx-op):is(.jor-fx-ob,.jor-fx-op){border-color:var(--fx-bd);box-shadow:inset 0 0 0 1px var(--fx-bd);background-color:var(--fx-sf)}',
+      ':is(.jor-docs-l,.jor-resumo)>:is(.jor-fx-ob,.jor-fx-op){margin:4px;border-radius:10px;border-top-color:transparent}',
+      ':is(.jor-docs-l,.jor-resumo)>:is(.jor-fx-ob,.jor-fx-op)+*{border-top-color:transparent}',
+      '.jor-anexo:is(.jor-fx-ob,.jor-fx-op),.jor-ob-linha:is(.jor-fx-ob,.jor-fx-op){margin:4px 0;padding:8px 12px;border-radius:10px;border-top-color:transparent}',
+      '.jor-fc:is(.jor-fx-ob,.jor-fx-op) .jor-fc-v>span,.jor-rc:is(.jor-fx-ob,.jor-fx-op) .jor-rc-v.vazio{color:var(--fx-tx);font-weight:600}',
+      '.jor-rc-v.vazio.fo{color:var(--io-er-tx);font-weight:600}',
+      '.jor-rc-v.vazio.fp{color:var(--io-av-tx);font-weight:600}',
+      '.jor-etq-fo{background:var(--n-sf);color:var(--io-er-tx);box-shadow:inset 0 0 0 1px var(--io-er-bd)}',
+      '.jor-etq-fp{background:var(--n-sf);color:var(--io-av-tx);box-shadow:inset 0 0 0 1px var(--io-ambar-bd)}',
+      '.jor-est.fo{color:var(--io-er-tx);font-weight:600}',
+      '.jor-est.fp{color:var(--io-av-tx);font-weight:600}',
+      // O ponto da pendência no número do passo (na barra e no Andamento).
+      '.jor-ab-mk{position:relative}',
+      // O ponto fica -3px dentro do número e a barra (overflow-x:auto corta o que passa) tem folga de 8px à direita: nada é cortado no celular.
+      // O amarelo leva um aro âmbar por dentro: sem ele, some em cima do número amarelo do passo da vez.
+      '.jor-ab-pd{--pd-aro:var(--n-sf);position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;box-shadow:0 0 0 2px var(--pd-aro)}',
+      '.jor-ab.sel .jor-ab-pd{--pd-aro:var(--io-marcado)}',
+      '.jor-ab-pd.ob{background:var(--io-er)}',
+      '.jor-ab-pd.op{background:var(--io-amarelo);box-shadow:inset 0 0 0 2px var(--io-av-tx),0 0 0 2px var(--pd-aro)}',
+      // O que falta para concluir, no pé do passo: uma etiqueta por item.
+      '.jor-pe-falta{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:8px 0 0;padding:0}',
+      '.jor-pe-falta li{padding:3px 10px;border-radius:8px;background:var(--n-sf);color:var(--io-er-tx);box-shadow:inset 0 0 0 1.5px var(--io-er);font-size:13px;font-weight:600;line-height:1.4}',
     ].join('\n');
     var st = document.createElement('style'); st.id = 'jor-css'; st.textContent = comReserva(css); document.head.appendChild(st);
   }
@@ -1208,6 +1236,8 @@
    *  opts: compacto; id (um arquivo de um item com vários); ck (chave do estado); aceita (só o botão Arquivo, com este filtro: o KMZ). */
   function anexo(chave, rotulo, tem, opts) {
     opts = opts || {};
+    // nivel: 'ob' (padrão: a api exige) ou 'op' (não trava: diz "Opcional"). semContorno: quem contorna é o cartão em volta.
+    var nivel = opts.nivel === 'op' ? 'op' : 'ob';
     var ck = opts.ck || (opts.id != null ? chave + '#' + opts.id : chave);
     var aceitaTudo = opts.aceita || ACEITA_PADRAO;
     var linha = el('div', 'jor-anexo');
@@ -1218,7 +1248,8 @@
       linha.replaceChildren();
       if (!opts.compacto) {
         var tp = el('div', 'jor-anexo-topo'); tp.appendChild(el('span', 'jor-rot', rotulo));
-        tp.appendChild(etq(tem ? 'Anexado' : 'Falta', tem ? 'ok' : 'av')); linha.appendChild(tp);
+        tp.appendChild(tem ? etq('Anexado', 'ok') : etqFalta(opts.rotFalta || (nivel === 'op' ? 'Opcional' : 'Falta'), nivel)); linha.appendChild(tp);
+        if (!opts.semContorno) marcaFalta(linha, tem ? '' : nivel);
       }
       if (O.ocupSlot[ck]) { var oc = el('p', 'jor-nota', O.ocupSlot[ck]); oc.setAttribute('role', 'status'); linha.appendChild(oc); return; }
       if (tem) {
@@ -1276,7 +1307,7 @@
   function blocoTitulo(t, itens) {
     var falta = itens ? itens.filter(function (i) { return !i.feito; }).length : 0;
     var h = el('div', 'jor-bloco-t'); h.appendChild(el('span', '', t));
-    if (itens) { var em = el('em', 'jor-etq jor-etq-' + (falta ? 'av' : 'ok'), falta ? 'Falta ' + falta : 'Completo'); h.appendChild(em); }
+    if (itens) { var em = el('em', 'jor-etq jor-etq-' + (falta ? 'fo' : 'ok'), falta ? 'Falta ' + falta : 'Completo'); h.appendChild(em); }
     return h;
   }
 
@@ -1389,8 +1420,9 @@
     function marcaFaltas() {
       // A etiqueta tem display próprio (inline-flex) que vence o atributo hidden: some pelo style.display também.
       function mostra(x, on) { x.hidden = !on; x.style.display = on ? '' : 'none'; }
-      var pv = !prazo.value.trim(); prazo.classList.toggle('falta', pv); mostra(etPrazo, pv); mostra(trava, pv);
-      var vv = !(cents(valor.value) > 0); valor.classList.toggle('falta', vv); mostra(etValor, vv);
+      // Prazo e valor travam a etapa 1 na api (itensDaEtapa): vermelho.
+      var pv = !prazo.value.trim(); marcaFalta(prazo, pv ? 'ob' : ''); mostra(etPrazo, pv); mostra(trava, pv);
+      var vv = !(cents(valor.value) > 0); marcaFalta(valor, vv ? 'ob' : ''); mostra(etValor, vv);
     }
     var grade = el('div', 'jor-campos');
     add(grade, campoRot('Valor vendido', valor, rotValor), campoRot('Desconto dado', desc),
@@ -1458,6 +1490,18 @@
     return out;
   }
   function todosFeitos(l) { return l.every(function (i) { return i.feito; }); }
+  // ── O que falta (19/11/2026): vermelho quando a api exige (o item vem em itensDaEtapa), amarelo quando falta mas não trava ──
+  /** A api manda este item em alguma etapa (1 a 9)? Se manda, ele trava o Concluir. */
+  function exigido(chave) { return !!(O.dados && etapasMescladas().some(function (e) { return (e.itens || []).some(function (i) { return i.chave === chave; }); })); }
+  /** Contorna o nó: 'ob' (obrigatório, vermelho), 'op' (opcional, amarelo) ou '' (pronto: tira o contorno). */
+  function marcaFalta(no, nivel) {
+    if (!no) return no;
+    no.classList.remove('jor-fx-ob', 'jor-fx-op');
+    if (nivel === 'ob' || nivel === 'op') no.classList.add('jor-fx-' + nivel);
+    return no;
+  }
+  /** A etiqueta do que falta: vermelha no obrigatório, âmbar no opcional. */
+  function etqFalta(txt, nivel) { return etq(txt, nivel === 'op' ? 'fp' : 'fo'); }
   function irPara(id) {
     var a = document.getElementById(id); if (!a) return;
     var reduz = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -1624,6 +1668,30 @@
     return topo;
   }
 
+  /**
+   * A pendência do passo, para o ponto no número: 'ob' (falta o que a api exige), 'op' (só falta o que não trava) ou ''.
+   * Só marca passo liberado: travado não abre e feito sem pendência fica limpo.
+   */
+  function pendencia(d, p, m) {
+    if (!d || !p || p.resumo || !p.livre || p.id === 'obra') return '';
+    if (p.aviso) return 'ob';
+    if (p.feito) return '';
+    if (p.id === 'p1') return faltaDoP1(d).length ? 'ob' : '';
+    if (p.id === 'p3') return faltaDoP3(d).length ? 'ob' : '';
+    var e = m.ets[p.etapa - 1]; if (!e) return '';
+    if (e.n === 9) return window.Jornada.extras.pendenciaPos ? window.Jornada.extras.pendenciaPos(O.fase2) : '';
+    // Etapas 1 a 3 da api: conta só os itens deste passo. O bloco 'pendentes' é herança do passo 1; na etapa 1 os documentos e o
+    // excedente são do passo 1 (o p2 fica com cliente, venda e papéis); na etapa 2 o contrato e a procuração são do passo 3 (o p4 só
+    // responde pela vistoria).
+    var BLOCOS = { p2: ['cliente', 'venda', 'papeis'], p4: ['vistoria'] };
+    var n = e.n <= 3 && e.itens
+      ? e.itens.filter(function (i) { return !i.feito && i.bloco !== 'pendentes' && (!BLOCOS[p.id] || BLOCOS[p.id].indexOf(i.bloco) >= 0); }).length
+      : typeof e.falta === 'number' ? e.falta : (e.itens || []).filter(function (i) { return !i.feito; }).length;
+    if (n > 0) return 'ob';
+    if (p.id === 'p5' && !temSlot(d, 'projeto_comprovante')) return 'op';
+    return '';
+  }
+
   // ── A barra de abas ──────────────────────────────────────────────────────────────────────────────────────────
   function barraAbas(m, aba) {
     var cx = el('nav', 'jor-abas-p'); cx.setAttribute('aria-label', 'Passos da obra');
@@ -1643,11 +1711,12 @@
         var mk = el('span', 'jor-ab-mk'); mk.setAttribute('aria-hidden', 'true');
         // Travado com número mostra o número (tracejado); sem número, o cadeado.
         if (est === 'feito') mk.appendChild(icone('ok')); else if (p.num) mk.textContent = String(p.num); else if (est === 'travado') mk.appendChild(icone('cadeado')); else mk.appendChild(el('i'));
+        var pd = pendencia(O.dados, p, m); if (pd) mk.appendChild(el('b', 'jor-ab-pd ' + pd));
         b.appendChild(mk);
       }
       b.appendChild(el('span', 'jor-ab-t', p.curto));
       if (p.num && obraLivre) b.title = p.titulo;
-      if (!p.resumo) b.appendChild(srTxt(', ' + ({ feito: p.aviso ? 'feito, com pendência' : 'feito', atual: 'passo da vez', aberto: 'em aberto', travado: 'travado' })[est]));
+      if (!p.resumo) b.appendChild(srTxt(', ' + ({ feito: p.aviso ? 'feito, com pendência' : 'feito', atual: 'passo da vez', aberto: 'em aberto', travado: 'travado' })[est] + ({ ob: ', falta item obrigatório', op: ', falta item opcional' }[pendencia(O.dados, p, m)] || '')));
       if (est === 'travado') {
         b.setAttribute('aria-disabled', 'true');
         var antes = itens[i - 1]; var nomeAntes = p.id === 'obra' ? 'o passo 5' : antes && antes.num ? 'o passo ' + antes.num : 'a etapa anterior';
@@ -1737,7 +1806,13 @@
     if (pend.length) out.push('o pendente do passo 1 (' + juntar(pend) + ')');
     return out;
   }
-  /** O pé do passo: o que falta, em uma frase, e o Concluir que libera o próximo. */
+  /** "Para concluir, falta:" e uma etiqueta vermelha por item (o que a api exige). */
+  function fraseFalta(txt, itens) {
+    var f = el('div', 'jor-portao-frase'); f.appendChild(el('span', '', txt));
+    var ul = el('ul', 'jor-pe-falta'); itens.forEach(function (t) { ul.appendChild(el('li', '', t.charAt(0).toUpperCase() + t.slice(1))); });
+    f.appendChild(ul); return f;
+  }
+  /** O pé do passo: o que falta, em etiquetas, e o Concluir que libera o próximo. */
   function rodapePasso(d, p, m) {
     var i = m.lista.indexOf(p); var prox = m.lista[i + 1] || null;
     var e = m.ets[p.etapa - 1]; var atual = atualEtapa();
@@ -1749,7 +1824,7 @@
       // Passos 1 e 3: fecham pelos itens, aqui na tela.
       var falta = p.id === 'p1' ? faltaDoP1(d) : faltaDoP3(d);
       var ja = etapaFeita(e, atual);
-      barra.appendChild(el('p', 'jor-portao-frase', falta.length && !ja ? 'Para seguir, falta: ' + juntar(falta) + '.' : (ja ? 'Passo concluído.' : 'Tudo pronto neste passo.')));
+      barra.appendChild(falta.length && !ja ? fraseFalta('Para seguir, falta:', falta) : el('p', 'jor-portao-frase', ja ? 'Passo concluído.' : 'Tudo pronto neste passo.'));
       if (prox) {
         var b1 = btn(prox.feito || ja ? 'Ir para ' + irProx : 'Concluir e ir para ' + irProx, 'jor-btn-pri jor-btn-grande', function () { irAba(prox.id); });
         b1.disabled = !!falta.length && !ja; barra.appendChild(b1);
@@ -1765,7 +1840,7 @@
     var f2 = O.fase2;
     var podeLista = e.n <= 3 ? (d.pode.concluir || []) : ((f2 && f2.pode && f2.pode.concluir) || []);
     var pode = podeLista.indexOf(e.n) >= 0 && e.falta === 0;
-    barra.appendChild(el('p', 'jor-portao-frase', e.falta > 0 ? 'Para concluir, falta: ' + juntar(faltaE.length ? faltaE : [plural(e.falta, 'item', 'itens')]) + '.' : 'Tudo pronto para concluir.'));
+    barra.appendChild(e.falta > 0 ? fraseFalta('Para concluir, falta:', faltaE.length ? faltaE : [plural(e.falta, 'item', 'itens')]) : el('p', 'jor-portao-frase', 'Tudo pronto para concluir.'));
     var rot = e.n === 8 ? 'Finalizar a obra' : e.n === 3 ? 'Concluir a homologação' : p.obra ? 'Concluir ' + minus(e.nome) : 'Concluir e ir para ' + irProx;
     var bc = btn(rot, 'jor-btn-pri jor-btn-grande', function () { concluir(e.n, bc); });
     bc.disabled = !pode;
@@ -1808,7 +1883,7 @@
     var box = el('div', 'jor-grp'); box.id = 'jor-s-cliente'; box.tabIndex = -1;
     var its = itensDe(d, CAMPOS_CLIENTE.map(function (c) { return c.chave; }).filter(function (k) { return k !== 'endereco_usina'; }));
     var falta = its.filter(function (i) { return !i.feito; }).length;
-    var tg = tituloGrupo('Cliente', its.length ? etq(falta ? 'Falta confirmar ' + falta : 'Confirmado', falta ? 'av' : 'ok') : null);
+    var tg = tituloGrupo('Cliente', its.length ? etq(falta ? 'Falta confirmar ' + falta : 'Confirmado', falta ? 'fo' : 'ok') : null);
     tg.appendChild(ajudaQ('A IA lê a CNH, a conta de luz, o contrato, a procuração, o orçamento e o comprovante, e preenche o que estiver vazio. Ela nunca troca um dado já preenchido. Ao lado de cada dado aparece de onde ele veio. Nome, CPF, telefone, e-mail e endereços editados voltam a pedir confirmação no passo 2.'));
     box.appendChild(tg);
     var g = el('div', 'jor-ficha-g'); var et1 = d.etapas[0];
@@ -1825,7 +1900,7 @@
   function grupoConta(d) {
     var box = el('div', 'jor-grp'); box.id = 'jor-s-conta'; box.tabIndex = -1;
     var it = itensDe(d, ['endereco_usina']).filter(function (i) { return !i.feito; });
-    var tg = tituloGrupo('Conta de luz', it.length ? etq('Falta confirmar 1', 'av') : null);
+    var tg = tituloGrupo('Conta de luz', it.length ? etq('Falta confirmar 1', 'fo') : null);
     var og = origemComum(d, fichaConta()); if (og) tg.insertBefore(el('span', 'jor-grp-org', 'Lido ' + og), tg.children[1] || null);
     box.appendChild(tg);
     var g = el('div', 'jor-ficha-g'); var et1 = d.etapas[0];
@@ -1834,9 +1909,11 @@
     return box;
   }
   /** Uma linha de leitura do resumo: vazio vira "Falta", em tom apagado. `cel` liga a linha ao destaque da leitura; `org` é a origem (venda_origem). */
-  function linhaRes(rot, valor, ok, cls, cel, org) {
+  function linhaRes(rot, valor, ok, cls, cel, org, chave) {
     var v = valor ? (typeof valor === 'string' ? el('div', 'jor-rc-v' + (cls ? ' ' + cls : ''), valor) : valor) : el('div', 'jor-rc-v vazio', VAZIO_TXT);
     var r = celula(rot, v, ok && !!valor);
+    // Vazio: vermelho quando a api exige o item (proposta, kit, valor, pagamento, prazo); amarelo quando não.
+    if (!valor && chave) marcaFalta(r, exigido(chave) ? 'ob' : 'op');
     if (cel) { r.dataset.cel = cel; if (novoAgora(cel)) r.classList.add('jor-novo'); }
     if (valor && org && org.fonte === 'ia') r.appendChild(el('span', 'jor-rc-org', ROT_DOC[org.doc] || 'lido pela IA'));
     return r;
@@ -1859,17 +1936,17 @@
     box.appendChild(tg);
     var g = el('div', 'jor-resumo uma');
     var kw = kv.kwp || (d.proposta && d.proposta.kwp);
-    g.appendChild(linhaRes('Proposta', d.proposta ? d.proposta.codigo + (kw ? ' · ' + String(kw).replace('.', ',') + ' kWp' : '') : ''));
+    g.appendChild(linhaRes('Proposta', d.proposta ? d.proposta.codigo + (kw ? ' · ' + String(kw).replace('.', ',') + ' kWp' : '') : '', false, '', '', null, 'proposta'));
     var vo = (d.dados_cliente && d.dados_cliente.venda_origem) || {};
-    g.appendChild(linhaRes('Placas', txtKit(kv.placas), !!conf(d, 'placas'), '', 'v-placas'));
-    g.appendChild(linhaRes('Inversor', txtKit(kv.inversor), !!conf(d, 'inversor'), '', 'v-inversor'));
+    g.appendChild(linhaRes('Placas', txtKit(kv.placas), !!conf(d, 'placas'), '', 'v-placas', null, 'placas'));
+    g.appendChild(linhaRes('Inversor', txtKit(kv.inversor), !!conf(d, 'inversor'), '', 'v-inversor', null, 'inversor'));
     if (V.vede) {
       var vc = null; if (V.valorC) { vc = el('div', 'jor-rc-v', reais(V.valorC)); if (vv && vv.desconto_centavos > 0) vc.appendChild(el('small', '', 'Desconto de ' + reais(vv.desconto_centavos))); }
-      g.appendChild(linhaRes('Valor', vc, !!conf(d, 'valor'), '', 'v-valor', vo.valor));
+      g.appendChild(linhaRes('Valor', vc, !!conf(d, 'valor'), '', 'v-valor', vo.valor, 'valor'));
       var pv = null; if (V.pgs.length) { pv = el('div', 'jor-rc-v'); txtPagamento(V.pgs).forEach(function (t) { pv.appendChild(el('span', 'jor-rc-lin', t)); }); }
-      g.appendChild(linhaRes('Pagamento', pv, !!conf(d, 'pagamento'), '', 'v-pagamento', vo.pagamento));
+      g.appendChild(linhaRes('Pagamento', pv, !!conf(d, 'pagamento'), '', 'v-pagamento', vo.pagamento, 'pagamento'));
     }
-    g.appendChild(linhaRes('Prazo', vv && vv.prazo_prometido ? vv.prazo_prometido : '', false, '', 'v-prazo', vo.prazo));
+    g.appendChild(linhaRes('Prazo', vv && vv.prazo_prometido ? vv.prazo_prometido : '', false, '', 'v-prazo', vo.prazo, 'prazo'));
     var e1 = d.etapas[0]; var vEm = e1 && e1.aberta_em ? quando(e1.aberta_em).split(' ')[0] : '';
     g.appendChild(linhaRes('Vendedor', nomeBonito(d.card.vendedor) + (vEm ? ' · ' + vEm : '')));
     if (vv && vv.nota) g.appendChild(linhaRes('Nota', vv.nota));
@@ -1899,6 +1976,7 @@
       var li = el('li', 'jor-and-l ' + est + (p.aviso ? ' av' : ''));
       var mk = el('span', 'jor-ab-mk'); mk.setAttribute('aria-hidden', 'true');
       if (est === 'feito') mk.appendChild(icone('ok')); else if (p.num) mk.textContent = String(p.num); else if (est === 'travado') mk.appendChild(icone('cadeado')); else mk.appendChild(el('i'));
+      var pd = pendencia(d, p, m); if (pd) mk.appendChild(el('b', 'jor-ab-pd ' + pd));
       li.appendChild(mk);
       var tx = el('div', 'jor-and-tx');
       var t = el('b', '', p.titulo); tx.appendChild(t);
@@ -2343,6 +2421,8 @@
       var edita = !!O.edita[cfg.chave] && vals !== null;
       var temValor = vals !== null && cheio(cfg, vals);
       no.className = base + (edita ? ' edita' : (vals !== null && !temValor ? ' vazio' : '')) + (!edita && novoAgora(cfg.chave) ? ' jor-novo' : '');
+      // Vazio: vermelho quando o dado é item da api (nome, telefone, e-mail, endereços); amarelo nos que não travam (CPF, RG, nascimento, a conta de luz).
+      if (!edita && vals !== null && !temValor) marcaFalta(no, exigido(cfg.chave) ? 'ob' : 'op');
       no.replaceChildren();
       var ok = !cfg.semConfirmar && temValor && !!conf(d, cfg.chave);
       var rot = el('div', 'jor-fc-rot'); rot.appendChild(document.createTextNode(cfg.rot));
@@ -2523,6 +2603,7 @@
   function linhaDoc(d, p) {
     var rec = docRecebido(d, p); var ped = (d.pedidos && d.pedidos[p.chave]) || null; var slot = slotDoc(d, p);
     var row = el('div', 'jor-doc');
+    if (!rec) marcaFalta(row, 'ob');   // os 6 do cliente travam o passo 1 (faltaDoP1)
     var info = el('div'); info.appendChild(el('span', 'jor-doc-nome', p.rot));
     var est = el('div', 'jor-doc-est');
     est.appendChild(el('span', 'st ' + (rec ? 'st-ok' : ped ? 'st-ped' : 'st-falta'), rec ? 'Recebido' : ped ? 'Pedido' + (ped.em ? ' em ' + dataCurta(ped.em) : '') : 'Falta'));
@@ -2579,6 +2660,8 @@
     q1.appendChild(simNao(d, 'financiamento', tipoFin(d) || null, !!d.pode.marcar_excedente, 'Tem financiamento?', [['nao', 'Não'], ['proprio', 'Próprio'], ['financeira', 'Financeira']]));
     var q2 = el('div', 'jor-perg-c'); q2.appendChild(pergunta('Tem excedente?', 'Excedente é a energia das placas que vai para outra conta de luz. Com excedente, a lista pede a conta de cada imóvel que recebe.'));
     q2.appendChild(simNao(d, 'excedente', d.excedente, !!d.pode.marcar_excedente, 'Tem excedente?'));
+    // Sem resposta, a pergunta trava o passo 1 (faltaDoP1).
+    marcaFalta(q1, tipoFin(d) ? '' : 'ob'); marcaFalta(q2, d.excedente === 'sim' || d.excedente === 'nao' ? '' : 'ob');
     add(pq, q1, q2); c.appendChild(pq);
     c.appendChild(blocoMandarLista(d));
     // Os documentos: sempre os 6 do cliente; o excedente só com Sim; os do financiamento são extras, opcionais.
@@ -2586,17 +2669,20 @@
     c.appendChild(stc);
     var lista = el('div', 'jor-docs-l'); PEDIDOS.forEach(function (p) { lista.appendChild(linhaDoc(d, p)); }); c.appendChild(lista);
     // O que o cliente já tem assinado ou orçado: opcional aqui, e a IA tira dele a ficha e a venda.
-    c.appendChild(subTitulo('Contrato e orçamento', etq('Se tiver')));
-    var lco = el('div', 'jor-docs-l'); DOCS_LIDOS_OPC.forEach(function (o) { if (o.slot === 'orcamento' && !vendaDe(d).vede) return; lco.appendChild(linhaSlot(d, o.slot, o.rot, true)); }); c.appendChild(lco);   // o orçamento tem preço: só quem vê o valor
+    var opcLidos = DOCS_LIDOS_OPC.filter(function (o) { return !(o.slot === 'orcamento' && !vendaDe(d).vede); });   // o orçamento tem preço: só quem vê o valor
+    c.appendChild(subTitulo('Contrato e orçamento', etqGrupoOpc('Se tiver', opcLidos, d)));
+    var lco = el('div', 'jor-docs-l'); opcLidos.forEach(function (o) { lco.appendChild(linhaSlot(d, o.slot, o.rot, true)); }); c.appendChild(lco);   // o orçamento tem preço: só quem vê o valor
     if (d.excedente === 'sim') blocoExcedente(c, d, et);
     // Com Próprio ou Financeira entram os dois, opcionais. Com Não (ou sem resposta) só os que já têm arquivo: documento anexado nunca some.
     var finExtras = FIN_DOCS.filter(function (f) { return tipoFin(d) === 'proprio' || tipoFin(d) === 'financeira' || temSlot(d, f.slot); });
     if (finExtras.length) {
-      c.appendChild(subTitulo('Documentos extras', etq('Se pedirem')));
+      c.appendChild(subTitulo('Documentos extras', etqGrupoOpc('Se pedirem', finExtras, d)));
       var lf2 = el('div', 'jor-docs-l'); finExtras.forEach(function (f) { lf2.appendChild(linhaSlot(d, f.slot, f.rot, true)); }); c.appendChild(lf2);
     }
     blocoOutrosDocs(c, d);
   }
+  /** A etiqueta de um grupo opcional: âmbar enquanto falta algum, cinza quando todos chegaram. */
+  function etqGrupoOpc(txt, lista, d) { return lista.some(function (o) { return !temSlot(d, o.slot); }) ? etqFalta(txt, 'op') : etq(txt); }
   /** Mandar a lista: o que falta vira mensagem pronta (WhatsApp ou Copiar). O que foi na lista fica marcado como pedido. */
   function blocoMandarLista(d) {
     var box = el('div', 'jor-mandar');
@@ -2605,7 +2691,7 @@
     var nomes = faltam.map(function (p) { return p.rot; }); if (excFalta) nomes.push('Conta do excedente');
     var t = el('div', 'jor-mandar-t'); t.appendChild(el('b', '', 'Mandar a lista ao cliente'));
     if (!nomes.length) { t.appendChild(el('span', 'jor-pe-ok', 'Tudo recebido')); box.appendChild(t); return box; }
-    t.appendChild(etq('Falta ' + nomes.length, 'av'));
+    t.appendChild(etq('Falta ' + nomes.length, 'fo'));
     t.appendChild(ajudaQ('Quem envia é você, pela sua conversa com o cliente. O que for na lista fica marcado como pedido.'));
     box.appendChild(t);
     var ul = el('ul', 'jor-vai'); nomes.forEach(function (x) { ul.appendChild(el('li', '', x)); }); box.appendChild(ul);
@@ -2677,6 +2763,7 @@
   function linhaSlot(d, slot, rot, opcional) {
     var tem = temSlot(d, slot);
     var row = el('div', 'jor-doc');
+    if (!tem) marcaFalta(row, opcional ? 'op' : 'ob');
     var info = el('div'); info.appendChild(el('span', 'jor-doc-nome', rot));
     var est = el('div', 'jor-doc-est'); est.appendChild(el('span', 'st ' + (tem ? 'st-ok' : opcional ? 'st-opc' : 'st-falta'), tem ? 'Recebido' : opcional ? 'Opcional' : 'Falta')); info.appendChild(est);
     row.appendChild(info);
@@ -2722,12 +2809,22 @@
     } else if (!et.concluida_em) c.appendChild(btn('Ligar a proposta no Resumo', '', abrirLigacoes));
   }
   /** Uma linha de conferência: rótulo, valor (ou "Falta") e o tique de confirmado. */
-  function linhaConf(rot, valor, ok, falta) {
+  function linhaConf(rot, valor, ok, falta, nivel) {
     var r = el('div', 'jor-rc');
     var rr = el('div', 'jor-rc-rot', rot); if (ok) { rr.appendChild(icone('ok')); rr.appendChild(srTxt('confirmado')); } r.appendChild(rr);
     if (valor && typeof valor !== 'string') r.appendChild(valor);
-    else r.appendChild(el('div', 'jor-rc-v' + (valor ? '' : ' vazio'), valor || falta || 'Falta preencher'));
+    else r.appendChild(el('div', 'jor-rc-v' + (valor ? '' : ' vazio' + (nivel === 'ob' ? ' fo' : nivel === 'op' ? ' fp' : '')), valor || falta || 'Falta preencher'));
     return r;
+  }
+  /** O cartão do passo 2 fica contornado enquanto tem dado a confirmar ou a preencher que a api exige; amarelo quando só falta o que não trava. */
+  function marcaConf(g, d, chaves, temValor) {
+    var ob = false, op = false;
+    chaves.forEach(function (k) {
+      var ex = exigido(k);
+      if (!temValor(k)) { if (ex) ob = true; else op = true; }
+      else if (ex && !conf(d, k) && !itemOk(d, k)) ob = true;
+    });
+    marcaFalta(g, ob ? 'ob' : op ? 'op' : '');
   }
   var ROT_CURTO = { nome: 'Nome', cpf: 'CPF', telefone: 'Telefone', email: 'E-mail', endereco: 'Endereço', endereco_usina: 'Usina' };
   function cartaoConfCliente(d, et) {
@@ -2737,8 +2834,9 @@
     ficha().forEach(function (cfg) {
       var v = lerCampos(d, cfg); if (v === null) carregando = true;
       var tem = v !== null && cheio(cfg, v);
-      g.appendChild(linhaConf(ROT_CURTO[cfg.chave] || cfg.rot, tem ? mostra(cfg, v) : (v === null ? 'Carregando…' : ''), !cfg.semConfirmar && tem && !!conf(d, cfg.chave)));
+      g.appendChild(linhaConf(ROT_CURTO[cfg.chave] || cfg.rot, tem ? mostra(cfg, v) : (v === null ? 'Carregando…' : ''), !cfg.semConfirmar && tem && !!conf(d, cfg.chave), '', exigido(cfg.chave) ? 'ob' : 'op'));
     });
+    if (!carregando) marcaConf(g, d, ficha().map(function (x) { return x.chave; }), function (k) { var x = k === 'cpf' ? CPF_CFG : cfgCliente(k); var v = lerCampos(d, x); return !!(v && cheio(x, v)); });
     if (carregando) quadroPronto(box).then(function (st) { if (st && st.cad && box.isConnected) desenharObra(); });
     box.appendChild(g);
     var lc = linhaConfirmar(d, et, {
@@ -2762,7 +2860,7 @@
       if (kv && (falta || O.edita[ek])) {
         // A proposta não diz o kit (ou a pessoa pediu para corrigir): o campo entra no lugar do valor e vai junto com o Confirmar.
         var lin = el('div', 'jor-rc-v');
-        var inp = el('input', 'jor-in' + (falta ? ' falta' : '')); inp.type = 'text'; inp.maxLength = 120; inp.autocomplete = 'off'; inp.name = 'kit-' + ch; inp.placeholder = k[2]; inp.setAttribute('aria-label', k[1] + ' (quantidade e marca)');
+        var inp = el('input', 'jor-in' + (falta ? ' jor-fx-ob' : '')); inp.type = 'text'; inp.maxLength = 120; inp.autocomplete = 'off'; inp.name = 'kit-' + ch; inp.placeholder = k[2]; inp.setAttribute('aria-label', k[1] + ' (quantidade e marca)');
         inp.value = O.rascunho[ek] != null ? O.rascunho[ek] : (falta ? '' : txtKit(kv[ch]));
         inp.addEventListener('input', function () { O.rascunho[ek] = inp.value; });
         inp.disabled = !!semConfirmar(d, et); lin.appendChild(inp);
@@ -2771,14 +2869,18 @@
         kitIn[ch] = inp; g.appendChild(linhaConf(k[1], lin, false));
         return;
       }
-      g.appendChild(linhaConf(k[1], kv ? txtKit(kv[ch]) : '', !!conf(d, ch)));
+      g.appendChild(linhaConf(k[1], kv ? txtKit(kv[ch]) : '', !!conf(d, ch), '', exigido(ch) ? 'ob' : 'op'));
     });
     if (temDin) {
-      g.appendChild(linhaConf('Valor', V.valorC ? reais(V.valorC) : '', !!conf(d, 'valor')));
+      g.appendChild(linhaConf('Valor', V.valorC ? reais(V.valorC) : '', !!conf(d, 'valor'), '', exigido('valor') ? 'ob' : 'op'));
       var pv = null; if (V.pgs.length) { pv = el('div', 'jor-rc-v'); txtPagamento(V.pgs).forEach(function (t) { pv.appendChild(el('span', 'jor-rc-lin', t)); }); }
-      g.appendChild(linhaConf('Pagamento', pv, !!conf(d, 'pagamento')));
+      g.appendChild(linhaConf('Pagamento', pv, !!conf(d, 'pagamento'), '', exigido('pagamento') ? 'ob' : 'op'));
     }
-    g.appendChild(linhaConf('Prazo', vv && vv.prazo_prometido ? vv.prazo_prometido : '', itemOk(d, 'prazo')));
+    g.appendChild(linhaConf('Prazo', vv && vv.prazo_prometido ? vv.prazo_prometido : '', itemOk(d, 'prazo'), '', exigido('prazo') ? 'ob' : 'op'));
+    marcaConf(g, d, (kv ? ['placas', 'inversor'] : []).concat(temDin ? ['valor', 'pagamento'] : []).concat(['prazo']), function (k) {
+      if (k === 'valor') return V.valorC > 0; if (k === 'pagamento') return V.pgs.length > 0; if (k === 'prazo') return !!(vv && vv.prazo_prometido);
+      return !!txtKit(kv && kv[k]) && !(Array.isArray(kv.faltando) && kv.faltando.indexOf(k) >= 0);
+    });
     box.appendChild(g);
     var rotK = { placas: 'placas', inversor: 'inversor', valor: 'valor', pagamento: 'forma de pagamento' };
     var lc = linhaConfirmar(d, et, {
@@ -2829,6 +2931,7 @@
     function linhaPapel(rot, tipo, extraCtl, gerarFn) {
       var gp = d.papeis && d.papeis[tipo];
       var l = el('div', 'jor-papel'); var info = el('div'); info.appendChild(el('span', 'jor-doc-nome', rot));
+      if (!gp && !(d.slots && d.slots[tipo === 'contrato' ? 'contrato_assinado' : 'procuracao'])) marcaFalta(l, 'ob');   // papel_contrato e papel_procuracao da api
       var est = el('div', 'jor-doc-est'); est.appendChild(el('span', 'st ' + (gp ? 'st-ok' : 'st-falta'), gp ? 'Gerado em ' + dataCurta(gp.gerado_em) : 'Falta gerar')); info.appendChild(est);
       l.appendChild(info);
       var ac = el('div', 'jor-papel-ac'); if (extraCtl) ac.appendChild(extraCtl);
@@ -2868,7 +2971,9 @@
       if (lista === null && dica) { grade.appendChild(el('p', 'jor-nota', 'Carregando…')); return; }
       lista = lista || [];
       if (!lista.length && cfg.cartaoVazio) {
-        var c0 = el('div', 'jor-foto'); var t0 = el('div', 'jor-foto-topo'); t0.appendChild(el('span', '', cfg.rotBase + ' 1')); t0.appendChild(etq('Falta', 'av')); c0.appendChild(t0);
+        var nv0 = cfg.item && exigido(cfg.item) ? 'ob' : 'op';
+        var c0 = el('div', 'jor-foto'); var t0 = el('div', 'jor-foto-topo'); t0.appendChild(el('span', '', cfg.rotBase + ' 1')); t0.appendChild(etqFalta(nv0 === 'op' ? 'Opcional' : 'Falta', nv0)); c0.appendChild(t0);
+        marcaFalta(c0, nv0);
         c0.appendChild(anexo(cfg.slot, cfg.rotBase + ' 1', false, { compacto: true, ck: CK_NOVA })); grade.appendChild(c0);
         return;
       }
@@ -2889,7 +2994,9 @@
   // ── Etapa 2: um cartão de anexo (com Trocar e Apagar) ───────────────────────────
   function cartaoAnexo(d, et, slot, rot, item, aceita) {
     var tem = (item && itemFeito(et, item)) || !!d.slots[slot];
-    var cf = el('div', 'jor-foto'); var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', rot)); tp.appendChild(etq(tem ? 'Anexado' : 'Falta', tem ? 'ok' : 'av')); cf.appendChild(tp);
+    var nv = item && exigido(item) ? 'ob' : 'op';
+    var cf = el('div', 'jor-foto'); var tp = el('div', 'jor-foto-topo'); tp.appendChild(el('span', '', rot)); tp.appendChild(tem ? etq('Anexado', 'ok') : etqFalta(nv === 'op' ? 'Opcional' : 'Falta', nv)); cf.appendChild(tp);
+    marcaFalta(cf, tem ? '' : nv);
     cf.appendChild(anexo(slot, rot, tem, aceita ? { compacto: true, aceita: aceita } : { compacto: true }));
     return cf;
   }
@@ -3136,7 +3243,7 @@
       var b = el('button', 'jor-chip' + (d.engenheiro === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !d.pode.etapa3; b.setAttribute('aria-pressed', d.engenheiro === o[0] ? 'true' : 'false');
       b.addEventListener('click', function () { patch({ engenheiro: o[0] }); }); fe.appendChild(b);
     });
-    c.appendChild(fe); c.appendChild(anexo('projeto_comprovante', 'Comprovante do engenheiro', !!d.slots.projeto_comprovante));
+    c.appendChild(fe); c.appendChild(anexo('projeto_comprovante', 'Comprovante do engenheiro', !!d.slots.projeto_comprovante, { nivel: 'op' }));
     c.appendChild(el('p', 'jor-nota', 'Pendente, o pagamento do engenheiro não trava a etapa. O comprovante entra aqui quando pagar.'));
   }
   function corpoProtocolo(c) {
@@ -3145,6 +3252,8 @@
     var dt = el('input', 'jor-in'); dt.type = 'date'; dt.name = 'protocolo-data'; dt.setAttribute('aria-label', 'Data do protocolo'); dt.value = d.protocolo ? d.protocolo.em : '';
     var sv = btn('Salvar', 'jor-btn-pri', function () { sv.disabled = true; patch({ protocolo: { numero: num.value.trim(), em: dt.value } }).then(function () { sv.disabled = false; }); });
     sv.disabled = !d.pode.etapa3; num.disabled = !d.pode.etapa3; dt.disabled = !d.pode.etapa3;
+    // O número do protocolo é parte do item da api (número e print).
+    marcaFalta(num, d.protocolo && d.protocolo.numero ? '' : 'ob');
     var g = el('div', 'jor-grade'); var lp = el('label', '', 'Protocolo'); lp.appendChild(num); var ld = el('label', '', 'Data do protocolo'); ld.appendChild(dt); var ls = el('div', 'jor-grade-bt'); ls.appendChild(sv); add(g, lp, ld, ls); c.appendChild(g);
     c.appendChild(anexo('protocolo', 'Print do protocolo', !!d.slots.protocolo));
   }
@@ -3166,7 +3275,7 @@
   // Fase 2: os ajudantes que jornada-dinheiro.js e jornada-obra.js usam. Eles se registram em etapas, extras e dinheiro.
   var H = {
     api: api, el: el, add: add, btn: btn, icone: icone, ddmm: ddmm, reais: reais, rs: rs, cents: cents, nomeBonito: nomeBonito, plural: plural, esc: esc,
-    anexo: anexo, blocoTitulo: blocoTitulo, comReserva: comReserva, etq: etq, quando: quando, cidadeUF: cidadeUF, campoRot: campoRot, subTitulo: subTitulo, dialogo: dialogo, dialogoMotivo: dialogoMotivo, fecharDlg: fecharDlg, toast: toast, releia: releia, imprimir: imprimir,
+    anexo: anexo, blocoTitulo: blocoTitulo, comReserva: comReserva, etq: etq, marcaFalta: marcaFalta, etqFalta: etqFalta, exigido: exigido, quando: quando, cidadeUF: cidadeUF, campoRot: campoRot, subTitulo: subTitulo, dialogo: dialogo, dialogoMotivo: dialogoMotivo, fecharDlg: fecharDlg, toast: toast, releia: releia, imprimir: imprimir,
     empresaDoAparelho: empresaDoAparelho, msgDe: msgDe, corpo: corpo, abrirLista: abrirLista, desenhar: desenharObra, recarregar: function () { return carregarObra(); },
     ficha: function () { return O.ficha; }, sugs: sugs, veio: veio,
     atual: atualEtapa, O: function () { return O; }, gerarPapel: gerarPapel, rotEtapa: rotEtapa, irAba: irAba,

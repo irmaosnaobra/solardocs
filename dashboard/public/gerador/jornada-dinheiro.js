@@ -295,7 +295,8 @@
     }
     if (c === 'estorno' && l.divergencia) m.appendChild(h.el('span', '', 'A IA leu ' + h.reais(l.divergencia.lido_centavos) + ' no comprovante da devolução.'));
     if (c === 'sem_comprovante') {
-      m.appendChild(h.el('span', 'jor-din-chip ' + (l.dispensa ? 'ok' : 'av'), 'Sem comprovante'));
+      // A api conta a saída sem comprovante em `faltam` e trava o fechamento (vermelho), salvo dispensa do ADM ou linha estornada.
+      m.appendChild(h.el('span', 'jor-din-chip ' + (l.dispensa ? 'ok' : morta ? '' : 'er'), 'Sem comprovante'));
       if (l.dispensa) m.appendChild(h.el('span', '', 'Liberado pelo ' + h.nomeBonito(l.dispensa.por) + '. Motivo: ' + l.dispensa.motivo));
     }
     if (!l.comprovante && !morta && (pode.anexar_ids || []).indexOf(l.id) >= 0) {
@@ -524,12 +525,13 @@
       ctl.salvar.disabled = !podeSalvar();
       var frase = est.arq || est.enviando ? '' : (tipo === 'saida' ? 'Sem comprovante. Fica pendente até anexar.' : 'Sem comprovante, o recebimento não entra.');
       refs.frase.textContent = frase;
-      refs.frase.className = tipo === 'saida' ? 'jor-aviso' : 'jor-erro';
+      refs.frase.className = 'jor-erro';   // saída sem comprovante também trava o fechamento da obra (api: faltam)
       refs.erro.textContent = est.erro || '';
       refs.aviso.textContent = est.aviso || '';
       refs.leu.textContent = est.sug ? resumoDaIa(est.sug) : '';
       refs.estado.textContent = est.enviando ? 'Lendo o comprovante…' : (est.arq ? 'Anexado: ' + est.arq.nome : (tipo === 'saida' ? 'Sem comprovante.' : 'Falta o comprovante.'));
-      refs.estado.className = 'jor-est' + (est.arq && !est.enviando ? ' ok' : '');
+      // Sem comprovante: o recebimento não entra e a saída entra pendente, mas trava o fechamento da obra: vermelho nos dois.
+      refs.estado.className = 'jor-est' + (est.arq && !est.enviando ? ' ok' : est.enviando ? '' : ' fo');
       refs.extra.replaceChildren();
       if (est.escolha) {
         // A IA leu um valor e a pessoa digitou outro: ela escolhe qual vale antes de salvar. Nos dois casos a linha fica para o ADM conferir.
@@ -762,7 +764,8 @@
     } else lin('Previsto', 'Sem previsto');
     if (Array.isArray(f.faltam) && f.faltam.length) {
       b.appendChild(h.el('div', 'jor-din-sub', 'Falta para fechar'));
-      var u2 = h.el('ul', 'jor-din-ul'); f.faltam.forEach(function (t) { u2.appendChild(h.el('li', '', t)); }); b.appendChild(u2);
+      // O que impede de fechar trava a etapa 8 (item dinheiro): uma etiqueta vermelha por linha, como no pé do passo.
+      var u2 = h.el('ul', 'jor-pe-falta'); f.faltam.forEach(function (t) { u2.appendChild(h.el('li', '', t)); }); b.appendChild(u2);
     } else if (f.pode_fechar) b.appendChild(h.el('p', 'jor-din-ok', 'A conta está zerada e pode fechar.'));
     if (f.adm) {
       var sb = h.el('div', 'jor-bloco'); sb.appendChild(h.el('div', 'jor-bloco-t', 'Só o Thiago vê'));
