@@ -17,7 +17,7 @@ import { nomeSimples } from '../services/gerador/solarObras';
 // Resposta: { ok: true, preenchidos: string[], ignorados: number }. `preenchidos` são os campos do cadastro (nome da chave do cadastro, como `rg_ie`)
 // e as partes da venda ('valor', 'pagamento', 'prazo', 'placas', 'inversor') que a leitura gravou. `ignorados` são os arquivos que não entraram
 // (não coube em 20 arquivos e 22 MB, arquivo inválido ou conteúdo de outra pessoa). Sem arquivo legível: 200 com `preenchidos: []`. Obra finalizada:
-// 409 `precisa: 'finalizada'` (a guarda comum de todo POST da obra, antes de qualquer leitura). 429 na cota: 20 por hora por venda e 30 por hora por
+// 409 `precisa: 'finalizada'` (a guarda comum de todo POST da obra, antes de qualquer leitura). Obra cancelada ou com a conta fechada: 409 `precisa: 'obra_fechada'`, "Esta obra está encerrada.". 429 na cota: 20 por hora por venda e 30 por hora por
 // pessoa (as duas por hora e sob trava). 502 quando a IA não responde ou passa de 110 s.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -32,6 +32,7 @@ export function mountJornadaLerTudo(router: Router): void {
       const r = await lerTudoDaVenda({ card: { id: g.id, cliente_nome: g.card.cliente_nome }, nome: g.nome });
       if (r.acao === 'ok') { res.json({ ok: true, preenchidos: r.preenchidos, ignorados: r.ignorados }); return; }
       if (r.acao === 'sem_arquivo') { res.json({ ok: true, preenchidos: [], ignorados: 0 }); return; }
+      if (r.acao === 'obra_fechada') { res.status(409).json({ ok: false, precisa: 'obra_fechada', error: 'Esta obra está encerrada.' }); return; }
       if (r.acao === 'cota') { res.status(429).json({ ok: false, error: 'Já houve leituras demais desta venda na última hora. Tente de novo mais tarde.' }); return; }
       res.status(502).json({ ok: false, error: 'A leitura por IA não respondeu agora. Tente de novo.' });
     } catch (err) {

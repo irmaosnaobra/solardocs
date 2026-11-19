@@ -5,7 +5,7 @@ import { SLOTS_LIDOS_SOLAR, dicasDeBeneficiarias, lerDocumentosDaVenda, type Pes
 import type { ArquivoDoc } from './docsCliente';
 import { lerRotulos } from './docsRotulos';
 import { invalidarCachesHub } from './vendaSolarHub';
-import { aplicarLeitura } from './leituraGravacao';
+import { aplicarLeitura, obraAbertaParaIa } from './leituraGravacao';
 import { cotaDaPessoa, cotaDaVenda, devolver, marcarLidos, reservar } from './leituraRegistro';
 
 export { MAX_LEITURAS_POR_HORA, MAX_LEITURAS_POR_PESSOA_HORA, caminhoLeituraAuto } from './leituraRegistro';
@@ -87,6 +87,7 @@ async function lerEGravar(g: { card: { id: number; cliente_nome?: unknown }; nom
   const { reg } = await lerDocsComVersao('vendasolar', String(id));
   const arquivo = reg.arquivos.find((a) => a.id === g.arquivoId);
   if (!arquivo || !SLOTS_LEITURA_AUTO.includes(arquivo.slot)) return { acao: 'sem_arquivo' };
+  if (!(await obraAbertaParaIa(id))) return { acao: 'nada' };   // finalizada, cancelada ou conta fechada: nem gasta a IA
   const bytes = await baixarObjeto(arquivo.caminho);
   const sha = crypto.createHash('sha256').update(bytes).digest('hex');
 
@@ -109,7 +110,7 @@ async function lerEGravar(g: { card: { id: number; cliente_nome?: unknown }; nom
 
 // ── "Ler tudo": todos os arquivos legíveis do card, de uma vez ───────────────
 
-export type ResultadoLerTudo = { acao: 'ok'; preenchidos: string[]; ignorados: number } | { acao: 'cota' | 'falhou' | 'sem_arquivo' };
+export type ResultadoLerTudo = { acao: 'ok'; preenchidos: string[]; ignorados: number } | { acao: 'cota' | 'falhou' | 'sem_arquivo' | 'obra_fechada' };
 
 /**
  * Lê de uma vez todos os arquivos legíveis do card (até 20 arquivos e 22 MB; o que passar espera a próxima leitura, e a ordem prioriza documento,
@@ -124,6 +125,7 @@ async function lerTudo(g: { card: { id: number; cliente_nome?: unknown }; nome: 
   const id = g.card.id;
   const { reg } = await lerDocsComVersao('vendasolar', String(id));
   if (!reg.arquivos.some((a) => SLOTS_LIDOS_SOLAR.includes(a.slot))) return { acao: 'sem_arquivo' };
+  if (!(await obraAbertaParaIa(id))) return { acao: 'obra_fechada' };   // finalizada, cancelada ou com a conta fechada: a rota responde 409
   const sha = crypto.createHash('sha256').update(`ler-tudo:${id}:${Date.now()}:${crypto.randomBytes(8).toString('hex')}`).digest('hex');
   const venda = cotaDaVenda(id);
   const pessoa = cotaDaPessoa(g.nome);

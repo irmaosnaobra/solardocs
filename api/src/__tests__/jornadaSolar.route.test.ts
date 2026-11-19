@@ -1267,6 +1267,11 @@ describe('Leitura por IA na obra (19/11): dados do cadastro, origem por document
     expect(ia.status).toBe(502);
     expect(ia.body.error.length).toBeLessThan(80);
     h.lerTudo.resultado = { acao: 'sem_arquivo' };
+    h.lerTudo.resultado = { acao: 'obra_fechada' };
+    const fechada = await post('/jornada-solar/obra/304/ler-tudo', {});
+    expect(fechada.status).toBe(409);
+    expect(fechada.body).toMatchObject({ ok: false, precisa: 'obra_fechada', error: 'Esta obra está encerrada.' });
+    h.lerTudo.resultado = { acao: 'sem_arquivo' };
     expect((await post('/jornada-solar/obra/304/ler-tudo', {})).body).toEqual({ ok: true, preenchidos: [], ignorados: 0 });
     h.lerTudo.chamadas = [];
     semear(304, (e) => { e.cancelada = { em: AGORA, por: 'thiago', etapa: 1, com_numero: false }; });

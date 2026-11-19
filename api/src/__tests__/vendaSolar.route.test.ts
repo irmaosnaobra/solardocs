@@ -39,6 +39,11 @@ const h = vi.hoisted(() => ({
   disparos: [] as number[],
   /** Caminhos assinados com `download: true` (Content-Disposition: attachment). */
   downloads: [] as string[],
+  /** Leitura por IA: a obra finalizada, a conta fechada, o download que falha (caminhos) e quantos arquivos a leitura "aceita" (0 = todos). */
+  finalizada: false,
+  obraFechada: false,
+  baixarFalha: new Set<string>(),
+  limitarAceitos: 0,
 }));
 
 vi.mock('../routes/geradorJornadaTrelloAuto', () => ({
@@ -46,6 +51,28 @@ vi.mock('../routes/geradorJornadaTrelloAuto', () => ({
   dispararTrelloAutomatico: () => undefined,
 }));
 
+vi.mock('../services/gerador/jornadaCorte', async (orig) => {
+  const real = await orig<typeof import('../services/gerador/jornadaCorte')>();
+  return { ...real, obraFinalizada: async (c: number) => h.finalizada || real.obraFinalizada(c) };
+});
+vi.mock('../services/gerador/jornadaObraBanco', async (orig) => {
+  const real = await orig<typeof import('../services/gerador/jornadaObraBanco')>();
+  return { ...real, lerObraComVersao: async (c: number) => (h.obraFechada ? { estado: { fechada: { em: '2026-10-20T11:00:00.000Z', por: 'thiago' } } as never, versao: 'v' } : real.lerObraComVersao(c)) };
+});
+vi.mock('../services/gerador/docsClienteBanco', async (orig) => {
+  const real = await orig<typeof import('../services/gerador/docsClienteBanco')>();
+  return { ...real, baixarObjeto: async (c: string) => { if (h.baixarFalha.has(c)) throw new real.ErroDocs('baixar_objeto'); return real.baixarObjeto(c); } };
+});
+vi.mock('../services/gerador/cadastroVendaLeitura', async (orig) => {
+  const real = await orig<typeof import('../services/gerador/cadastroVendaLeitura')>();
+  return {
+    ...real,
+    lerDocumentosDaVenda: async (...a: Parameters<typeof real.lerDocumentosDaVenda>) => {
+      const r = await real.lerDocumentosDaVenda(...a);
+      return h.limitarAceitos && r.ok ? { ...r, aceitos: r.aceitos.slice(0, h.limitarAceitos) } : r;
+    },
+  };
+});
 vi.mock('../utils/logger', () => ({
   logger: {
     error: (...a: unknown[]) => { h.logs.push(a); }, warn: (...a: unknown[]) => { h.logs.push(a); }, info: (...a: unknown[]) => { h.logs.push(a); },
@@ -381,6 +408,7 @@ beforeEach(() => {
   h.ia.fila = []; h.ia.chamadas = [];
   h.logs = [];
   h.falha = null; h.registroCai = false;
+  h.finalizada = false; h.obraFechada = false; h.baixarFalha = new Set(); h.limitarAceitos = 0;
   delete process.env.SOLAR_SOCIOS;
   delete process.env.CADASTRO_IA_MODELO;
   limparCacheClientes(); limparCacheBucketDocs(); limparCacheBucketCadastros();
@@ -2332,5 +2360,213 @@ describe('leitura automática de todo item legível e dos pendentes da obra (19/
     expect(registro().arquivos).toEqual([]);                          // continua pendente para o GET
     expect(await obra()).toMatchObject({ pendentes: 1 });
     await esperar(() => h.ia.chamadas.length >= 1 && acabou());
+  });
+
+  const mexeRegistro = (f: (r: any) => void): void => { const r = registro(); f(r); h.cad.set('vendasolar/201.leitura.json', Buffer.from(JSON.stringify(r))); };
+  const recuaFalha = (): void => mexeRegistro((r) => { r.falha_em = minutosAtras(11); });
+  const datar = (i: number, minAtras: number): void => { arquivos()[i].em = minutosAtras(minAtras); };
+  const cancelar = async (): Promise<void> => {
+    const { estadoMaterializado } = await import('../services/gerador/jornadaSolar');
+    const { normalizarJornada, assinarJornada } = await import('../services/gerador/jornadaSolarBanco');
+    const e: any = { ...estadoMaterializado(201, 'Nilce', 1, '2026-10-20T10:00:00.000Z'), origem: 'vendido', vendido_em: '2026-10-20T10:00:00.000Z', vendido_por: 'nilce', cancelada: { em: '2026-10-20T11:00:00.000Z', por: 'thiago', etapa: 1, com_numero: false } };
+    const n = normalizarJornada(201, e)!;
+    h.linhas.set('jornada_solar:201', { updated_at: 'j0', value: { ...n, sig: assinarJornada(201, n) } });
+  };
+  const caminhoDe = (i: number): string => `vendasolar/201/1111111${i}-1111-4111-8111-111111111111.jpg`;
+  const SEM = { rodando: false, pendentes: 0, ultima_em: null };
+
+  it('obra finalizada, cancelada ou com a conta fechada: a leitura dos pendentes não começa (leitura vazia), e o envio e o Ler tudo não gastam a IA nem gravam', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado']);
+    const { lerCadastroAutomatico, lerTudoDaVenda } = await import('../services/gerador/cadastroLeituraAuto');
+    const nada = async (): Promise<void> => {
+      expect(await obra()).toEqual(SEM);                                               // o serviço confere por conta própria
+      const { leituraDaObra } = await import('../services/gerador/leituraPendente');
+      expect(await leituraDaObra({ card: { id: 201, cliente_nome: 'Ana' }, nome: 'nilce', arquivos: arquivos(), aberta: false })).toEqual(SEM);   // e a rota passa `aberta`
+      expect(await lerCadastroAutomatico({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome: 'nilce', arquivoId: idDe(1) })).toEqual({ acao: 'nada' });
+      expect(await lerTudoDaVenda({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome: 'nilce' })).toEqual({ acao: 'obra_fechada' });
+      expect(h.ia.chamadas).toHaveLength(0);
+      expect(registro()?.rodando ?? null).toBeNull();
+      expect(cad().email).toBeUndefined();
+    };
+    h.finalizada = true; await nada(); h.finalizada = false;
+    h.obraFechada = true; await nada(); h.obraFechada = false;
+    await cancelar(); await nada(); h.linhas.delete('jornada_solar:201');
+    // a obra se fecha no meio da leitura: o que a IA devolveu não é gravado
+    h.ia.fila.push({ saida: (c: any[]) => { h.finalizada = true; return resposta({ campos: [['contrato_assinado', 'email', 'ana@exemplo.com']], docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza']] }).saida(c); } });
+    const { lerCadastroAutomatico: ler } = await import('../services/gerador/cadastroLeituraAuto');
+    expect(await ler({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome: 'nilce', arquivoId: idDe(1) })).toEqual({ acao: 'nada' });
+    expect(h.ia.chamadas).toHaveLength(1);
+    expect(cad().email).toBeUndefined();
+  });
+
+  it('a leitura da obra aberta traz os slots que a IA lê (o front usa para saber se espera a leitura depois do envio)', async () => {
+    await nomeAna();
+    semear(['contrato_assinado']);
+    h.ia.fila.push(resposta({ campos: [['contrato_assinado', 'email', 'ana@exemplo.com']], docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza']] }));
+    const a = await obra();
+    expect(a.slots).toContain('documento_financiamento');
+    expect(a.slots).not.toContain('fachada');
+    await esperar(acabou);
+  });
+
+  const recusa = (): Error => Object.assign(new Error('pedido inválido'), { status: 400 });
+  /** Uma resposta da IA que recusa (400) toda chamada que leve o arquivo do item `slot`, e responde normal nas outras. */
+  const recusaSeTiver = (slot: string, ok: Parameters<typeof resposta>[0]) => ({
+    saida: (c: any[]) => {
+      if (c.some((b) => b?.type === 'text' && new RegExp(`^Arquivo \\d+, slot "${slot}"`).test(b.text))) throw recusa();
+      return resposta(ok).saida(c);
+    },
+  });
+
+  it('falha PASSAGEIRA da IA (429, 5xx, 529, rede, tempo) só dá a espera de 10 min: nunca conta, nunca marca `falhou` nem liga o um por vez', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado']);
+    const passageiras: Error[] = [
+      Object.assign(new Error('limite'), { status: 429 }), Object.assign(new Error('fora'), { status: 500 }),
+      Object.assign(new Error('sobrecarga'), { status: 529 }), new Error('rede caiu'),
+    ];
+    let chamadas = 0;
+    for (const erro of passageiras) {
+      h.ia.fila.push({ erro });
+      await obra();
+      chamadas++;
+      await esperar(() => h.ia.chamadas.length === chamadas && acabou());
+      expect(registro()).toMatchObject({ falha_n: 0, falha_ids: [], arquivos: [] });
+      expect(registro().modo_unico).toBeFalsy();
+      expect(registro().falha_em).not.toBeNull();
+      recuaFalha();
+    }
+    // estouro do tempo da leitura também é passageiro
+    process.env.LEITURA_AUTO_TIMEOUT_MS = '30';
+    try {
+      h.ia.fila.push({ espera: 250, ...resposta({ campos: [['contrato_assinado', 'email', 'ana@exemplo.com']], docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza']] }) });
+      await obra();
+      await esperar(() => h.ia.chamadas.length === 5 && acabou());
+      await new Promise((r) => setTimeout(r, 450));
+    } finally { delete process.env.LEITURA_AUTO_TIMEOUT_MS; }
+    expect(registro()).toMatchObject({ falha_n: 0, falha_ids: [], arquivos: [] });
+    expect(registro().modo_unico).toBeFalsy();
+    expect(cad().email).toBeUndefined();
+  });
+
+  it('PDF envenenado junto com uma CNH boa: a 1ª recusa do lote liga o um por vez, a CNH é lida e SÓ o PDF vira `falhou` (na 2ª recusa dele); depois volta ao normal', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado']);   // 0 = CNH (boa), 1 = contrato (o ruim)
+    const fila = (): void => { h.ia.fila.push(recusaSeTiver('contrato_assinado', { campos: [['documento_titular', 'rg_ie', 'MG1234567']], docs: [['documento_titular', 'documento_titular', 'Ana Souza']] })); };
+    // 1) o lote com os dois é recusado: ninguém é marcado, liga o um por vez
+    fila();
+    expect(await obra()).toMatchObject({ rodando: true, pendentes: 2 });
+    await esperar(acabou);
+    expect(registro()).toMatchObject({ modo_unico: true, falha_n: 0, arquivos: [] });
+    // 2) um por vez, pela prioridade: a CNH passa e é lida
+    recuaFalha(); fila();
+    await obra();
+    await esperar(() => h.ia.chamadas.length === 2 && acabou());
+    expect(cad().rg_ie).toMatchObject({ valor: 'MG1234567', fonte: 'ia', doc: 'documento_titular' });
+    expect(registro().arquivos.map((x: any) => x.id)).toEqual([idDe(0)]);
+    expect(registro().modo_unico).toBe(true);
+    // 3) o PDF sozinho é recusado uma vez (conta 1) e outra (conta 2): só ele vira `falhou`
+    fila();
+    expect(await obra()).toMatchObject({ rodando: true, pendentes: 1 });
+    await esperar(() => h.ia.chamadas.length === 3 && acabou());
+    expect(registro()).toMatchObject({ falha_n: 1, falha_ids: [idDe(1)] });
+    recuaFalha(); fila();
+    await obra();
+    await esperar(() => h.ia.chamadas.length === 4 && acabou());
+    expect(registro().arquivos).toEqual([expect.objectContaining({ id: idDe(0) }), { id: idDe(1), falhou: true }]);
+    expect(registro().arquivos[0].falhou).toBeUndefined();
+    expect(registro()).toMatchObject({ modo_unico: false, falha_n: 0, falha_ids: [] });
+    // 4) fila vazia: não chama mais a IA
+    recuaFalha();
+    expect(await obra()).toMatchObject({ rodando: false, pendentes: 0 });
+    expect(h.ia.chamadas).toHaveLength(4);
+    // um envio novo (ou o Trocar) é um id novo e volta a ser lido, em lote normal
+    arquivos().push({ id: idDe(5), slot: 'orcamento', caminho: caminhoDe(5), mime: 'image/jpeg', bytes: JPG.length + 1, em: minutosAtras(10), por: 'nilce' });
+    h.objetos.set(caminhoDe(5), bytesDe(5));
+    h.ia.fila.push(resposta({ campos: [['orcamento', 'email', 'ana@exemplo.com']], docs: [['orcamento', 'orcamento', 'Ana Souza']] }));
+    expect(await obra()).toMatchObject({ rodando: true, pendentes: 1 });
+    await esperar(() => h.ia.chamadas.length === 5 && acabou());
+    expect(registro().arquivos.map((x: any) => x.id)).toContain(idDe(5));
+  });
+
+  it('o um por vez desliga quando a fila esvazia, mesmo sem achar o ruim (a falha era do lote e não de um arquivo)', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado']);
+    h.ia.fila.push({ erro: recusa() });
+    await obra(); await esperar(acabou);
+    expect(registro().modo_unico).toBe(true);
+    recuaFalha();
+    for (const [slot, campo] of [['documento_titular', 'rg_ie'], ['contrato_assinado', 'email']] as const) {
+      h.ia.fila.push(resposta({ campos: [[slot, campo, campo === 'email' ? 'ana@exemplo.com' : 'MG1234567']], docs: [[slot, slot, 'Ana Souza']] }));
+      await obra();
+      await esperar(acabou);
+    }
+    expect(registro().arquivos).toHaveLength(2);
+    expect(registro().modo_unico).toBe(false);   // a última leitura esvaziou a fila
+  });
+
+  it('um arquivo `falhou` que depois é lido de verdade (Ler tudo) deixa de ser `falhou`', async () => {
+    await nomeAna();
+    semear(['documento_titular']);
+    gravaRegistro({ arquivos: [{ id: idDe(0), falhou: true }] });
+    h.ia.fila.push(resposta({ campos: [['documento_titular', 'rg_ie', 'MG1234567']], docs: [['documento_titular', 'documento_titular', 'Ana Souza']] }));
+    const { lerTudoDaVenda } = await import('../services/gerador/cadastroLeituraAuto');
+    expect(await lerTudoDaVenda({ card: { id: 201, cliente_nome: 'Ana Souza' }, nome: 'nilce' })).toMatchObject({ acao: 'ok' });
+    expect(registro().arquivos).toHaveLength(1);
+    expect(registro().arquivos[0].id).toBe(idDe(0));
+    expect(registro().arquivos[0].falhou).toBeUndefined();
+  });
+
+  it('arquivo enviado há menos de 3 min não é pendente (a leitura do envio ainda pode estar rodando); com mais de 3 min é', async () => {
+    await nomeAna();
+    semear(['contrato_assinado']);
+    datar(0, 1);
+    expect(await obra()).toMatchObject({ rodando: false, pendentes: 0 });
+    expect(h.ia.chamadas).toHaveLength(0);
+    expect(registro()?.rodando ?? null).toBeNull();
+    datar(0, 4);
+    h.ia.fila.push(resposta({ campos: [['contrato_assinado', 'email', 'ana@exemplo.com']], docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza']] }));
+    expect(await obra()).toMatchObject({ rodando: true, pendentes: 1 });
+    await esperar(acabou);
+    expect(h.ia.chamadas).toHaveLength(1);
+  });
+
+  it('download que falha (que não é objeto ausente) começa a espera de 10 min, o arquivo segue pendente e o resto é lido; objeto ausente é marcado como lido', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado']);
+    h.baixarFalha.add(caminhoDe(0));
+    h.ia.fila.push(resposta({ campos: [['contrato_assinado', 'email', 'ana@exemplo.com']], docs: [['contrato_assinado', 'contrato_assinado', 'Ana Souza']] }));
+    await obra();
+    await esperar(acabou);
+    expect(h.ia.chamadas).toHaveLength(1);
+    expect(registro().arquivos.map((x: any) => x.id)).toEqual([idDe(1)]);
+    expect(registro().falha_em).not.toBeNull();
+    expect(await obra()).toMatchObject({ rodando: false, pendentes: 1 });   // em espera
+    expect(h.ia.chamadas).toHaveLength(1);
+    recuaFalha(); h.baixarFalha.clear();
+    h.ia.fila.push(resposta({ campos: [['documento_titular', 'rg_ie', 'MG1234567']], docs: [['documento_titular', 'documento_titular', 'Ana Souza']] }));
+    await obra();
+    await esperar(() => h.ia.chamadas.length === 2 && acabou());
+    expect(registro().arquivos.map((x: any) => x.id).sort()).toEqual([idDe(0), idDe(1)]);
+    // objeto que sumiu do armazenamento: nada a ler, marcado como lido
+    semear(['procuracao']);
+    gravaRegistro({});
+    h.objetos.delete(caminhoDe(0));
+    await obra();
+    await esperar(acabou);
+    expect(h.ia.chamadas).toHaveLength(2);
+    expect(registro().arquivos).toEqual([{ id: idDe(0) }]);
+  });
+
+  it('só o que a IA recebeu (`aceitos`) é marcado como lido; o resto segue pendente', async () => {
+    await nomeAna();
+    semear(['documento_titular', 'contrato_assinado']);
+    h.limitarAceitos = 1;
+    h.ia.fila.push(resposta({ campos: [['documento_titular', 'rg_ie', 'MG1234567']], docs: [['documento_titular', 'documento_titular', 'Ana Souza']] }));
+    await obra();
+    await esperar(acabou);
+    expect(registro().arquivos.map((x: any) => x.id)).toEqual([idDe(0)]);
+    expect(registro().ultima_em).not.toBeNull();
   });
 });

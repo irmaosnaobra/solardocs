@@ -2057,9 +2057,14 @@
       O.lendoT = setTimeout(passoLeitura, 3000);
     });
   }
-  /** Fotos, datasheets e KMZ a IA não lê: a tela não espera. Todo o resto que se anexa é lido pelo servidor.
-  var SLOTS_SEM_LEITURA = { fachada: 1, padrao: 1, disjuntor: 1, medidor: 1, obra_foto: 1, ent_extra: 1, datasheet_modulo: 1, datasheet_inversor: 1, kmz: 1 };
-  function leSlot(chave) { return !SLOTS_SEM_LEITURA[chave] && !/^(ent_|log_|pos_)/.test(chave); }
+  /** Fotos, datasheets e KMZ a IA não lê: a tela não espera. Todo o resto que se anexa é lido pelo servidor. */
+  var SLOTS_SEM_LEITURA = { fachada: 1, padrao: 1, disjuntor: 1, medidor: 1, obra_foto: 1, ent_extra: 1, datasheet_modulo: 1, datasheet_inversor: 1, kmz: 1, art: 1, art_comprovante: 1, projeto_comprovante: 1, protocolo: 1, parecer_acesso: 1 };
+  /** O servidor lê este item? Vale a lista que o GET manda (`leitura.slots`); sem ela, o espelho da lista do servidor (SLOTS_NAO_LIDOS_SOLAR). */
+  function leSlot(chave) {
+    var ls = O.dados && O.dados.leitura && O.dados.leitura.slots;
+    if (Array.isArray(ls) && ls.length) return ls.indexOf(chave) >= 0;
+    return !SLOTS_SEM_LEITURA[chave] && !/^(ent_|log_|pos_|cert_|lib_)/.test(chave);
+  }
   /** Fim do upload de um documento lido: espera a leitura. Nos seis documentos que a ficha conhece, só se há o que ela preencher e o arquivo é novo. */
   function depoisDoUpload(chave, repetido) {
     if (!leSlot(chave)) return;
@@ -2085,7 +2090,7 @@
   // ── Leitura automática: o servidor lê todo documento novo sozinho; a tela só mostra e acompanha ─────────────────────────
   // GET da obra traz `leitura: { rodando, pendentes, ultima_em }`. Enquanto lê, a tela recarrega a cada 15 s (no máximo 8 vezes).
   var LEIT_MS = 15000, LEIT_MAX = 8;
-  function leituraAtiva(d) { var l = d && d.leitura; return !!(l && (l.rodando || Number(l.pendentes) > 0)); }
+  function leituraAtiva(d) { var l = d && d.leitura; return !!(l && l.rodando); }   // só `rodando`: pendente que o servidor não começou (espera, cota) não prende a tela
   /** Chamada a cada carga da obra. Começa a acompanhar quando há leitura, e ao terminar acende o que mudou. */
   function acompanharLeitura() {
     var d = O.dados; var card = String(O.card); var s = O.leit;
