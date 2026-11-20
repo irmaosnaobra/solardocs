@@ -18,6 +18,9 @@
   var CHECK = [['estrutura', 'Estrutura fixada e vedada'], ['placas', 'Placas alinhadas e aterradas'], ['strings', 'Strings 1 e 2 ligadas'], ['inversor', 'Inversor fixado'], ['dps', 'DPS CC e CA'], ['aterramento', 'Aterramento'], ['cabos', 'Cabos identificados'], ['padrao', 'Padrão ligado']];
   /** O checklist da Obra grava sozinho: `voo` = há um PUT dele a caminho (vale entre um desenho da tela e o seguinte). */
   var CHK = { voo: false };
+  /** O "Comprado" da Compra grava em fila (20/11/2026): a marca muda na hora e fica em `pend` (por id do item, ou k<posição> sem id) até o PUT dela voltar.
+   *  `voo` = há um PUT a caminho. O redesenho depois de cada PUT relê `pend`, então um clique que ainda está na fila nunca se perde. */
+  var PIL = { voo: false, pend: {} };
   var FOTOS_ENTREGA = [['ent_vista_geral', 'Vista geral das placas'], ['ent_arranjo', 'Arranjo de perto'], ['ent_inversor', 'Inversor ligado, com o visor'], ['ent_quadro', 'Quadro de proteção'], ['ent_aterramento', 'Aterramento'], ['ent_padrao', 'Padrão com placa de advertência'], ['ent_etiquetas', 'Etiquetas'], ['ent_local_limpo', 'Local limpo']];
   /** Os álbuns (itens de vários arquivos) e o limite de fotos de cada um, igual ao do servidor. */
   var ALBUNS = { obra_foto: 400, ent_extra: 100 };
@@ -729,9 +732,33 @@
       esq.appendChild(bP);
     }
   }
+  function pilChave(i, k) { return i && i.id ? String(i.id) : 'k' + k; }
+  /** Manda as marcas da fila num PUT só, sobre a lista MAIS RECENTE lida (nunca a do desenho velho), e repete até a fila esvaziar. Erro: desfaz só as marcas enviadas e avisa. */
+  function pilFila() {
+    if (PIL.voo) return;
+    if (!Object.keys(PIL.pend).length) return;
+    var h = H(); var c = compraDe(O().fase2); var lista = itensBase(c); var enviado = {};
+    lista.forEach(function (it, k) {
+      var ch = it.id && PIL.pend[String(it.id)] !== undefined ? String(it.id) : PIL.pend['k' + k] !== undefined ? 'k' + k : '';
+      if (ch) { it.comprado = PIL.pend[ch]; enviado[ch] = PIL.pend[ch]; }
+    });
+    Object.keys(PIL.pend).forEach(function (ch) { if (enviado[ch] === undefined) delete PIL.pend[ch]; });   // o item sumiu da lista
+    var ks = Object.keys(enviado); if (!ks.length) return;
+    PIL.voo = true;
+    var aviso = ks.length > 1 ? 'Compras marcadas.' : enviado[ks[0]] ? 'Marcado como comprado.' : 'Voltou para previsto.';
+    salvar('compra', { itens: lista, compras: clone(c.compras) }, aviso).then(function (r) { return r; }, function () { h.toast('Não consegui salvar agora. Tente de novo.'); return null; }).then(function (r) {
+      PIL.voo = false;
+      var ok = !!(r && r.status === 200 && r.json && r.json.ok !== false);
+      ks.forEach(function (ch) { if (PIL.pend[ch] === enviado[ch]) delete PIL.pend[ch]; });
+      if (ok) { pilFila(); return; }
+      // Erro (409 incluído): a marca enviada volta ao que o servidor tem e a tela relê; o que ainda está na fila só segue sobre a versão nova.
+      Promise.resolve(h.recarregar()).then(pilFila, pilFila);
+    });
+  }
   /** Uma linha de item: descrição, quantidade, fornecedor, origem e valor à esquerda; o tique "Comprado" e o Editar à direita. */
   function linhaItem(itens, k, c, f2, pode, nivel, podeEq) {
     var h = H(); var i = itens[k]; var desc = i.descricao || 'Item sem nome';
+    var pk = pilChave(i, k); if (PIL.pend[pk] !== undefined) i.comprado = PIL.pend[pk];   // a marca que ainda está na fila vale mais que a lida
     var li = el('li', 'jor-ob-it' + (i.comprado ? ' on' : ''));
     var m = el('div', 'jor-ob-it-m');
     m.appendChild(el('b', 'jor-ob-it-d', desc));
@@ -745,10 +772,14 @@
     var bx = el('span', 'jor-ob-pill-bx'); if (i.comprado) bx.appendChild(h.icone('ok')); p.appendChild(bx); p.appendChild(el('span', '', 'Comprado'));
     // Só o kit contorna o que falta (vermelho, trava a Logística). O material já diz no título que falta e não trava.
     // A estrutura aparece no Kit, mas não segura a Logística: só módulo e inversor ficam em vermelho.
-    p.disabled = !pode; if (!i.comprado && nivel === 'ob' && !orc && i.tipo !== 'estrutura') h.marcaFalta(p, nivel);
+    p.disabled = !pode; var vermelho = nivel === 'ob' && !orc && i.tipo !== 'estrutura'; if (!i.comprado && vermelho) h.marcaFalta(p, nivel);
     p.addEventListener('click', function () {
-      p.disabled = true; var lista = clone(itens); lista[k].comprado = !i.comprado;
-      salvar('compra', { itens: lista, compras: clone(c.compras) }, lista[k].comprado ? 'Marcado como comprado.' : 'Voltou para previsto.').then(function (r) { if (!r || r.status !== 200) p.disabled = false; });
+      // Marca na hora e não desliga a pílula: o próximo clique, mesmo logo depois, entra na fila.
+      var on = !i.comprado; i.comprado = on; PIL.pend[pk] = on;
+      p.classList.toggle('on', on); li.classList.toggle('on', on); p.setAttribute('aria-pressed', on ? 'true' : 'false');
+      bx.replaceChildren(); if (on) bx.appendChild(h.icone('ok'));
+      h.marcaFalta(p, !on && vermelho ? nivel : '');
+      pilFila();
     });
     l.appendChild(p);
     if (pode || podeEq) { var ed = btn('Editar', 'jor-btn-link', function () { itemDialogo(k, itens, c, f2); }); ed.setAttribute('aria-label', 'Editar ' + desc); l.appendChild(ed); }

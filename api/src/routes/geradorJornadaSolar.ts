@@ -31,7 +31,7 @@ import type { CardVendido } from '../services/gerador/fichaEletroposto';
 import {
   CURTOS_ETAPA, DONOS_FIXOS, blocoVendaCompleto, FINANCIAMENTOS, FORMAS_PAGAMENTO, MOTIVOS_ESPERA, NOMES_ETAPA, TIPOS_PAPEL, ROTULO_ESPERA,
   comissoesDaVenda, confirmadosValidos, kitCompleto, TEXTO_KIT_MAX, TEXTO_KIT_MIN, ddmm, deduzirEtapa, ehChaveConfirmar, ehChavePedido, excedenteCpf, marcaDoValor, valorConfirmavel, vistoriaPct, confirmacaoValida, donosDaEtapa, estadoMaterializado, estadoTrelloAuto, etapaAtualDoEstado, iniciais, itensDaEtapa, marcaDoRateio,
-  podeConcluir, prazoDaEtapa, rateioDoCadastro, situacao, somarDiasUteis, totalDoRateio, veObra,
+  concluiPorDaEtapa, podeConcluir, prazoDaEtapa, rateioDoCadastro, situacao, somarDiasUteis, totalDoRateio, veObra,
   type EntradaItens, type EstadoJornada, type FormaPagamento, type MotivoEspera, type PrivadoJornada, type Situacao, type TipoFinanciamento, type TipoPapel,
 } from '../services/gerador/jornadaSolar';
 import {
@@ -635,13 +635,13 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
     const etapas: Array<Record<string, unknown>> = [];
     for (let n = 1; n <= 9; n++) {
       const donos = donosDaEtapa(n, vend).map((d) => ({ nome: d, iniciais: iniciais(d) }));
-      if (n > 3) { etapas.push({ n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donos }); continue; }
+      if (n > 3) { etapas.push({ n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donos, conclui_por: concluiPorDaEtapa(n, vend, String(g.card.vendedor_nome ?? '')) }); continue; }
       const itens = itensDaEtapa(n, entradaDe(l, l.estado));
       const e = l.estado?.etapas[n as 1 | 2 | 3];
       const prazo = prazoDaEtapa(n, l.estado);
       const feitaDeduzida = !l.estado && pos.etapa !== null && pos.etapa > n;
       etapas.push({
-        n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donos,
+        n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donos, conclui_por: concluiPorDaEtapa(n, vend, String(g.card.vendedor_nome ?? '')),
         aberta_em: e?.aberta_em ?? null, concluida_em: e?.concluida_em ?? (feitaDeduzida ? 'deduzida' : null),
         prazo, situacao: l.estado ? situacao(n, l.estado, hoje) : { tipo: 'sem_prazo', texto: '' },
         itens, falta: itens.filter((i) => !i.feito).length,

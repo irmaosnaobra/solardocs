@@ -12,7 +12,9 @@ import { comTrava, gravarJsonBruto, lerJsonBruto } from './cadastroVendaBanco';
 //             (429, 5xx, rede, tempo) só dá a espera de `falha_em`, nunca conta aqui;
 //   modo_unico  a 1ª falha não passageira de um lote com mais de 1 arquivo liga o modo "um arquivo por vez": a rodada seguinte lê 1 pendente, para achar
 //             qual é o ruim sem marcar os bons; desliga quando o ruim sai da fila (virou `falhou`) ou a fila esvazia;
-//   ultima_em quando a última leitura deu certo.
+//   ultima_em quando a última leitura deu certo;
+//   consumo_relido  quando a conta de luz já lida foi relida UMA vez para tirar o consumo médio (20/11/2026; `leituraConsumo.ts`). Gravada ao COMEÇAR a
+//             releitura, na mesma trava do marcador `rodando`: falhar não repete (nada de laço de custo com a IA).
 // A cota é por hora e por dono do registro (a venda: 20; a pessoa: 30, só no "Ler tudo"). Nada daqui vai para log além do código do erro.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -32,7 +34,7 @@ export interface EntradaLida { sha: string; em: string; id?: string }
 export interface ArquivoLido { id: string; sha?: string; /** a IA falhou duas vezes seguidas com ele: não se tenta mais */ falhou?: true }
 export interface Registro {
   v: 1; lidos: EntradaLida[]; arquivos: ArquivoLido[]; rodando: string | null; falha_em: string | null; ultima_em: string | null;
-  falha_ids: string[]; falha_n: number; modo_unico: boolean;
+  falha_ids: string[]; falha_n: number; modo_unico: boolean; consumo_relido?: string;
 }
 
 export const caminhoLeituraAuto = (card: number): string => `vendasolar/${card}.leitura.json`;
@@ -66,6 +68,7 @@ export function normalizarRegistro(v: unknown): Registro {
   return {
     v: 1, lidos: lidos.slice(-MAX_LIDOS), arquivos: arquivos.slice(-MAX_ARQUIVOS), rodando: iso(o?.rodando), falha_em: iso(o?.falha_em), ultima_em: iso(o?.ultima_em),
     falha_ids: falhaN ? falhaIds : [], falha_n: falhaIds.length ? falhaN : 0, modo_unico: o?.modo_unico === true,
+    ...(iso(o?.consumo_relido) ? { consumo_relido: o!.consumo_relido as string } : {}),
   };
 }
 
@@ -128,14 +131,29 @@ export async function marcarLidos(c: Cota, nome: string, itens: readonly Arquivo
   }, 60_000, TRAVA);
 }
 
-/** Pega o marcador "rodando" (sob trava): false = outra leitura em lote está rodando (marca com menos de 3 min). */
-export async function tomarMarcador(c: Cota, nome: string): Promise<boolean> {
+/**
+ * Pega o marcador "rodando" (sob trava): false = outra leitura em lote está rodando (marca com menos de 3 min). `releituraDoConsumo`: a releitura única da
+ * conta de luz; só pega se ela ainda não foi feita (`consumo_relido`) e grava essa marca na MESMA gravação, então dois GETs juntos não fazem duas.
+ */
+export async function tomarMarcador(c: Cota, nome: string, releituraDoConsumo = false): Promise<boolean> {
   return comTrava(c.trava, nome, async () => {
     const r = await lerRegistro(c.caminho);
     if (marcadorValido(r)) return false;
-    await gravar(c.caminho, { ...r, rodando: new Date().toISOString() });
+    if (releituraDoConsumo && r.consumo_relido) return false;
+    const agora = new Date().toISOString();
+    await gravar(c.caminho, { ...r, rodando: agora, ...(releituraDoConsumo ? { consumo_relido: agora } : {}) });
     return true;
   }, 60_000, TRAVA);
+}
+
+/** Grava a marca `consumo_relido` sem releitura (o consumo médio já estava preenchido): o GET seguinte nem olha o cadastro. Quem já tem a marca fica como está. Nunca lança. */
+export async function marcarConsumoRelido(c: Cota, nome: string): Promise<void> {
+  try {
+    await comTrava(c.trava, nome, async () => {
+      const r = await lerRegistro(c.caminho);
+      if (!r.consumo_relido) await gravar(c.caminho, { ...r, consumo_relido: new Date().toISOString() });
+    }, 60_000, TRAVA);
+  } catch (e) { console.error('[leitura-registro] marca do consumo', (e as { codigo?: unknown } | null)?.codigo ?? 'interno'); }
 }
 
 /**

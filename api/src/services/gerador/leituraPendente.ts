@@ -1,14 +1,15 @@
 import crypto from 'crypto';
 import { waitUntil } from '../../utils/waitUntil';
 import { baixarObjeto, lerDocsComVersao } from './docsClienteBanco';
-import { assinaturaBate, type ArquivoDoc } from './docsCliente';
+import type { ArquivoDoc } from './docsCliente';
 import { lerCadastro } from './cadastroVenda';
-import { MAX_ARQUIVOS_LIDOS, MAX_BYTES_LIDOS, MAX_IMAGEM_BYTES, SLOTS_LIDOS_SOLAR, lerDocumentosDaVenda, ordemDeLeitura } from './cadastroVendaLeitura';
+import { MAX_ARQUIVOS_LIDOS, MAX_BYTES_LIDOS, SLOTS_LIDOS_SOLAR, lerDocumentosDaVenda, ordemDeLeitura } from './cadastroVendaLeitura';
 import { comLimite, contextoDaLeitura, logErro } from './cadastroLeituraAuto';
 import { aplicarLeitura, obraAbertaParaIa } from './leituraGravacao';
+import { legivel, releituraDevida, rodarReleituraDoConsumo } from './leituraConsumo';
 import { invalidarCachesHub } from './vendaSolarHub';
 import {
-  cotaDaVenda, devolver, emEspera, gastoNaHora, lerRegistro, marcadorValido, marcarLidos, reservar, soltarMarcador, tomarMarcador,
+  cotaDaVenda, devolver, emEspera, gastoNaHora, lerRegistro, marcadorValido, marcarConsumoRelido, marcarLidos, reservar, soltarMarcador, tomarMarcador,
   type ArquivoLido, type Registro,
 } from './leituraRegistro';
 
@@ -42,13 +43,6 @@ export const pendentesDe = (arquivos: readonly ArquivoDoc[], r: Registro, agora:
 };
 
 interface Baixado { arq: ArquivoDoc; bytes: Buffer; sha: string }
-
-/** O servidor consegue entregar este arquivo à IA? (mesmas conferências de `prepararArquivos`) */
-const legivel = (b: Baixado): boolean => {
-  if (b.bytes.length > MAX_BYTES_LIDOS) return false;
-  if (b.arq.mime === 'application/pdf') return b.bytes.subarray(0, 5).toString('latin1') === '%PDF-';
-  return b.bytes.length <= MAX_IMAGEM_BYTES && assinaturaBate(b.arq.mime, b.bytes.subarray(0, 16));
-};
 
 type Resultado = 'ok' | 'nada' | 'cota' | 'falhou';
 interface Dados { card: { id: number; cliente_nome?: unknown }; nome: string }
@@ -131,6 +125,10 @@ async function rodarEmLote(g: Dados): Promise<void> {
   });
 }
 
+/** O consumo médio já está no cadastro? (só se chama com a conta de luz já lida e a marca ainda por gravar) */
+const consumoPreenchido = async (card: number): Promise<boolean> =>
+  !!(await lerCadastro(card, 'vendasolar')).campos.consumo_medio_kwh?.valor?.trim();
+
 /**
  * O estado da leitura para o GET da obra e, se houver pendentes e nada impedir, o começo da leitura em lote em segundo plano. Só chame para quem tem
  * `pode.ler_tudo`. `aberta`: a obra não está cancelada nem com a conta fechada (a rota já sabe; a finalizada nem chega lá); sem ele, o serviço
@@ -147,6 +145,15 @@ export async function leituraDaObra(g: Dados & { arquivos: readonly ArquivoDoc[]
       // O marcador é pego sob a trava ANTES de responder: dois GETs juntos começam uma leitura só, e o GET seguinte já vê `rodando`.
       rodando = true;
       if (await tomarMarcador(venda, g.nome)) waitUntil(rodarEmLote(g));
+    } else if (!pend.length && !r.consumo_relido && releituraDevida(g.arquivos, r, true)) {
+      // Nada pendente e a conta de luz já lida, sem a marca `consumo_relido`. Consumo médio já preenchido: grava a marca (uma vez) e os GETs seguintes nem olham
+      // o cadastro. Vazio (a leitura antiga não o tirava): UMA releitura só da conta. A marca entra junto do marcador, sob trava, então abrir a obra de novo não
+      // repete e dois GETs juntos fazem uma só (`leituraConsumo.ts`).
+      if (await consumoPreenchido(g.card.id)) await marcarConsumoRelido(venda, g.nome);
+      else if (!rodando && !emEspera(r) && gastoNaHora(r) < venda.limite) {
+        rodando = true;
+        if (await tomarMarcador(venda, g.nome, true)) waitUntil(rodarReleituraDoConsumo(g));
+      }
     }
     return { rodando, pendentes: pend.length, ultima_em: r.ultima_em, slots: SLOTS_LIDOS_SOLAR };
   } catch (e) {

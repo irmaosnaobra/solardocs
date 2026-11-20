@@ -102,8 +102,8 @@ export const CURTOS_ETAPA = ['', 'Venda', 'Assinaturas', 'Homologação', 'Compr
 export const DONOS_ETAPA: Record<number, readonly string[] | 'vendedor'> = {
   1: 'vendedor', 2: ['giovanna'], 3: ['thiago'], 4: ['thiago', 'diego'], 5: ['diego'], 6: ['diego'], 7: ['diego'], 8: ['thiago'], 9: 'vendedor',
 };
-/** Quem conclui a etapa 4 é o Thiago (SPEC 2). */
-export const CONCLUI_ETAPA: Record<number, readonly string[] | 'vendedor'> = { ...DONOS_ETAPA, 4: ['thiago'] };
+/** Quem conclui a etapa 4 é o Thiago (SPEC 2); a 2 (Assinaturas e Vistoria), o Thiago e o Diego (20/11/2026). `DONOS_ETAPA` segue igual: decide o aviso "É sua". */
+export const CONCLUI_ETAPA: Record<number, readonly string[] | 'vendedor'> = { ...DONOS_ETAPA, 2: ['thiago', 'diego'], 4: ['thiago'] };
 /** Donos de etapa em TODAS as obras: veem todas (SPEC 15, 18.1 item 1). */
 export const DONOS_FIXOS: ReadonlySet<string> = new Set(['giovanna', 'thiago', 'diego']);
 export const ETAPAS_DA_FASE_1 = [1, 2, 3] as const;
@@ -131,13 +131,31 @@ export function veObra(nome: string, vendedor: string): boolean {
   return ehAdm(n) || ehSocio(n) || DONOS_FIXOS.has(n) || podeVer(n, vendedor);
 }
 
+/** Quem conclui a etapa `n`, em minúscula e sem acento (a etapa 1 e a 9 são do vendedor; sem vendedor conhecido, a lista é vazia). */
+const quemConclui = (n: number, vendedor: string): string[] | null => {
+  const c = CONCLUI_ETAPA[n];
+  if (c === undefined) return null;
+  return c === 'vendedor' ? (nomeSimples(vendedor) ? [nomeSimples(vendedor)] : []) : [...c];
+};
+
+/** O ADM conclui qualquer etapa (20/11/2026), além de quem a etapa tem por dono. Etapa que não existe não conclui. */
 export function podeConcluir(nome: string, n: number, vendedor: string): boolean {
   const meu = minusc(nome);
-  const c = CONCLUI_ETAPA[n];
-  if (c === undefined) return false;
-  const lista = c === 'vendedor' ? (nomeSimples(vendedor) ? [nomeSimples(vendedor)] : []) : [...c];
-  if (lista.length === 0) return ehAdm(meu);
-  return lista.includes(meu);
+  const lista = quemConclui(n, vendedor);
+  if (lista === null) return false;
+  return ehAdm(meu) || lista.includes(meu);
+}
+
+const maiuscula = (s: string): string => s.split(/\s+/).map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1) : p)).join(' ');
+
+/**
+ * Os nomes de exibição de quem conclui a etapa (a tela diz "Quem conclui este passo: Giovanna"). Sem o ADM, que conclui qualquer uma. O vendedor sai com o
+ * acento do card ("João"), não o da comparação ("joao"): `vendedorCard` é o `vendedor_nome` do card, e só vale se for a mesma pessoa de `vendedor`.
+ */
+export function concluiPorDaEtapa(n: number, vendedor: string, vendedorCard: string = ''): string[] {
+  const exibicao = maiuscula(String(vendedorCard ?? '').trim().replace(/\s+/g, ' '));
+  const mesma = !!exibicao && nomeSimples(exibicao) === nomeSimples(vendedor);
+  return (quemConclui(n, vendedor) ?? []).map((x) => (mesma && x === nomeSimples(vendedor) ? exibicao : maiuscula(x)));
 }
 
 // ── Dias úteis e prazos ────────────────────────────────────────────────────────────────────────────────────────
