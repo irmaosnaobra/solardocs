@@ -6,7 +6,7 @@ import { TELAS_MONJOUR, ETAPAS_DEPOIS, QUIZ_NOVO_DESDE, QUIZ_BLOCO2_DESDE } from
 // A conta do funil do quiz Monjour: eventos de exemplo entram, o FunilMonjour sai.
 
 // Estas sessões são ANTIGAS (8 h antes do quiz novo): as telas com `desde` (abertura e prévia do app) não existem para elas, e a conta
-// do quiz de 30 telas fica como era. Hoje 12h em São Paulo; se o QUIZ_NOVO_DESDE mudar, o resto acompanha.
+// do quiz de 29 telas fica como era. Hoje 12h em São Paulo; se o QUIZ_NOVO_DESDE mudar, o resto acompanha.
 const BASE = Date.parse(QUIZ_NOVO_DESDE) - 8 * 3600_000;
 const DIA_SP = new Date(BASE - 3 * 3600_000).toISOString().slice(0, 10);
 const HORA_SP = String(new Date(BASE - 3 * 3600_000).getUTCHours()).padStart(2, '0');
@@ -27,8 +27,8 @@ function ev(sid: string, tipo: string, d: Record<string, unknown>, seg = 0): Eve
     event_data: { lp: 'monjour', v: 1, seq, ts: ms, ...d },
   };
 }
-// Os números dos testes antigos (1 a 30 telas, 31 clicou, 32 comprou) ficam: CHAVE leva o n antigo à chave, e `etapa` acha a etapa por ela.
-const NOVAS = ['inicio', 'app', 'af_ropa', 'af_lunes']; // telas que o quiz de 30 telas não tinha
+// Os números dos testes antigos (1 a 29 telas, 30 clicou, 31 comprou) ficam: CHAVE leva o n antigo à chave, e `etapa` acha a etapa por ela.
+const NOVAS = ['inicio', 'app', 'af_ropa', 'af_lunes']; // telas que o quiz de 29 telas não tinha
 const LEGADO = TELAS_MONJOUR.filter((t) => !NOVAS.includes(t.chave));
 const CHAVE = (n: number): string => LEGADO[n - 1].chave;
 const chaveAntiga = (n: number): string => (n <= LEGADO.length ? CHAVE(n) : ETAPAS_DEPOIS[n - LEGADO.length - 1].chave);
@@ -50,40 +50,40 @@ const etapa = (f: ReturnType<typeof montarFunilMonjour>, n: number) => f.etapas.
 
 describe('funil do quiz Monjour: etapas', () => {
   const eventos = [
-    ...viu('a', 30), fim('a', 'checkout', { plan: 'basico' }), fim('a', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd', pais_cartao: 'MX' }, 500),
-    ...viu('b', 30), fim('b', 'checkout', { plan: 'plus' }),
-    ...viu('c', 30),
+    ...viu('a', 29), fim('a', 'checkout', { plan: 'basico' }), fim('a', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd', pais_cartao: 'MX' }, 500),
+    ...viu('b', 29), fim('b', 'checkout', { plan: 'plus' }),
+    ...viu('c', 29),
     ...viu('d', 10),
     ...viu('e', 5),
     ...viu('f', 1),
   ];
   const f = montarFunilMonjour(eventos, OP);
 
-  it('o funil só desce, com as 36 etapas do catálogo', () => {
-    expect(f.etapas).toHaveLength(36);
-    // Sessão antiga não tem abertura nem prévia do app: só o quiz de 30 telas entra na conta de descida.
+  it('o funil só desce, com as 35 etapas do catálogo', () => {
+    expect(f.etapas).toHaveLength(35);
+    // Sessão antiga não tem abertura nem prévia do app: só o quiz de 29 telas entra na conta de descida.
     const chegaram = f.etapas.filter((e) => !NOVAS.includes(e.chave)).map((e) => e.chegaram);
     for (let i = 1; i < chegaram.length; i += 1) expect(chegaram[i]).toBeLessThanOrEqual(chegaram[i - 1]);
-    expect([1, 5, 6, 10, 11, 30, 31, 32].map((n) => etapa(f, n).chegaram)).toEqual([6, 5, 4, 4, 3, 3, 2, 1]);
+    expect([1, 5, 6, 10, 11, 29, 30, 31].map((n) => etapa(f, n).chegaram)).toEqual([6, 5, 4, 4, 3, 3, 2, 1]);
   });
 
   it('saíram = chegaram menos o da etapa seguinte; oferta e clique fecham o funil', () => {
     expect(etapa(f, 1).sairam).toBe(1);
     expect(etapa(f, 5).sairam).toBe(1);
     expect(etapa(f, 10).sairam).toBe(1);
-    expect(etapa(f, 30).sairam).toBe(1); // c viu a oferta e não clicou em comprar
-    expect(etapa(f, 31).sairam).toBe(1); // b clicou e não comprou
-    expect(etapa(f, 32).sairam).toBe(0);
-    expect(etapa(f, 30).rotulo).toBe('Oferta');
-    expect(etapa(f, 31).rotulo).toBe('Clicou em comprar');
-    expect(etapa(f, 32).rotulo).toBe('Comprou');
+    expect(etapa(f, 29).sairam).toBe(1); // c viu a oferta e não clicou em comprar
+    expect(etapa(f, 30).sairam).toBe(1); // b clicou e não comprou
+    expect(etapa(f, 31).sairam).toBe(0);
+    expect(etapa(f, 29).rotulo).toBe('Oferta');
+    expect(etapa(f, 30).rotulo).toBe('Clicou em comprar');
+    expect(etapa(f, 31).rotulo).toBe('Comprou');
   });
 
   it('porcentagens: do início e de saída (0 a 100, uma casa)', () => {
     expect(etapa(f, 1).pctInicio).toBe(100);
     expect(etapa(f, 10).pctInicio).toBe(66.7);
-    expect(etapa(f, 30).pctSaida).toBe(33.3);
-    expect(etapa(f, 31).pctSaida).toBe(50);
+    expect(etapa(f, 29).pctSaida).toBe(33.3);
+    expect(etapa(f, 30).pctSaida).toBe(50);
   });
 
   it('totais, plano, receita, ticket e conversão', () => {
@@ -146,21 +146,21 @@ describe('funil do quiz Monjour: tempo mediano', () => {
   it('só considera quem chegou à etapa seguinte; sem ninguém, null', () => {
     const f = montarFunilMonjour(viu('u', 2), OP);
     expect(etapa(f, 2).medianaSegundos).toBeNull();
-    expect(etapa(f, 32).medianaSegundos).toBeNull();
+    expect(etapa(f, 31).medianaSegundos).toBeNull();
   });
 
   it('a oferta mede até o clique em comprar, e o clique até a compra', () => {
     const f = montarFunilMonjour([
-      ...viu('v', 30), fim('v', 'checkout', { plan: 'plus' }, 330), fim('v', 'compra', { plan: 'plus', valor: 2990, moeda: 'usd' }, 390),
+      ...viu('v', 29), fim('v', 'checkout', { plan: 'plus' }, 320), fim('v', 'compra', { plan: 'plus', valor: 2990, moeda: 'usd' }, 380),
     ], OP);
-    expect(etapa(f, 30).medianaSegundos).toBe(30); // oferta vista em 300 s, clique em 330 s
-    expect(etapa(f, 31).medianaSegundos).toBe(60);
+    expect(etapa(f, 29).medianaSegundos).toBe(30); // oferta vista em 290 s, clique em 320 s
+    expect(etapa(f, 30).medianaSegundos).toBe(60);
   });
 });
 
 describe('funil do quiz Monjour: recortes', () => {
   const eventos = [
-    ...viu('r1', 30, { pais: 'MX', disp: 'movil', so: 'ios', nav: 'safari', utm_content: ANUNCIO_IMG }),
+    ...viu('r1', 29, { pais: 'MX', disp: 'movil', so: 'ios', nav: 'safari', utm_content: ANUNCIO_IMG }),
     resp('r1', 'correo', 'consent_si'), fim('r1', 'checkout', { plan: 'basico' }),
     fim('r1', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd' }, 450),
     ...viu('r2', 12, { pais: 'CO', disp: 'movil', so: 'android', nav: 'instagram', utm_content: ANUNCIO_VID }),
@@ -230,9 +230,9 @@ describe('funil do quiz Monjour: recortes', () => {
 
 describe('funil do quiz Monjour: respostas e conversão', () => {
   const eventos = [
-    ...viu('x1', 30), resp('x1', 'edad', '25'), resp('x1', 'probado', ['dietas', 'ayuno']), resp('x1', 'picar', 'si'),
+    ...viu('x1', 29), resp('x1', 'edad', '25'), resp('x1', 'probado', ['dietas', 'ayuno']), resp('x1', 'picar', 'si'),
     fim('x1', 'checkout', { plan: 'plus' }), fim('x1', 'compra', { plan: 'plus', valor: 2990, moeda: 'usd' }, 450),
-    ...viu('x2', 30), resp('x2', 'edad', '25'), resp('x2', 'probado', ['dietas']),
+    ...viu('x2', 29), resp('x2', 'edad', '25'), resp('x2', 'probado', ['dietas']),
     ...viu('x3', 12), resp('x3', 'edad', '35'), resp('x3', 'edad', '45', 8), // troca: vale a última
     ...viu('x4', 5), resp('x4', 'cargando_sabor', 'citricos'), resp('x4', 'peso', '70'), resp('x4', 'correo', 'consent_no'),
   ];
@@ -273,7 +273,7 @@ describe('funil do quiz Monjour: respostas e conversão', () => {
 
 describe('funil do quiz Monjour: filtros', () => {
   const eventos = [
-    ...viu('f1', 30, { pais: 'MX', disp: 'movil', utm_content: ANUNCIO_IMG }),
+    ...viu('f1', 29, { pais: 'MX', disp: 'movil', utm_content: ANUNCIO_IMG }),
     ...viu('f2', 10, { pais: 'CO', disp: 'movil', utm_content: ANUNCIO_VID }),
     ...viu('f3', 10, { pais: 'MX', disp: 'escritorio', utm_content: ANUNCIO_VID }),
     ...viu('f4', 4, { pais: 'MX', disp: 'movil' }),
@@ -312,8 +312,8 @@ describe('funil do quiz Monjour: filtros', () => {
 describe('funil do quiz Monjour: sessões de teste (sonda)', () => {
   it('utm_source sonda sai de todas as contagens, inclusive o webhook sem utm', () => {
     const f = montarFunilMonjour([
-      ...viu('real', 30, { utm_source: 'meta' }),
-      ...viu('teste', 30, { utm_source: 'sonda' }), resp('teste', 'edad', '25'),
+      ...viu('real', 29, { utm_source: 'meta' }),
+      ...viu('teste', 29, { utm_source: 'sonda' }), resp('teste', 'edad', '25'),
       fim('teste', 'checkout', { plan: 'basico' }), fim('teste', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd' }, 450),
       ev('teste', 'monjour_app', { acao: 'abriu' }),
     ], OP);
@@ -333,13 +333,13 @@ describe('funil do quiz Monjour: sessões de teste (sonda)', () => {
 describe('funil do quiz Monjour: compra, upgrade e app', () => {
   it('webhook repetido não duplica; upgrade e app contam à parte', () => {
     const f = montarFunilMonjour([
-      ...viu('k1', 30), fim('k1', 'checkout', { plan: 'basico' }),
+      ...viu('k1', 29), fim('k1', 'checkout', { plan: 'basico' }),
       fim('k1', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd' }, 450),
       fim('k1', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd' }, 460),
       fim('k1', 'upgrade', { plan: 'plus', valor: 1000, moeda: 'usd' }, 900),
       ev('k1', 'monjour_app', { acao: 'abriu' }, 1000), ev('k1', 'monjour_app', { acao: 'instalou' }, 1010),
       ev('k1', 'monjour_app', { acao: 'upgrade_click' }, 1020),
-      ...viu('k2', 30), fim('k2', 'compra', { plan: 'plus', valor: 2990, moeda: 'usd' }, 450),
+      ...viu('k2', 29), fim('k2', 'compra', { plan: 'plus', valor: 2990, moeda: 'usd' }, 450),
       ev('antigo', 'monjour_app', { acao: 'abriu' }),
     ], OP);
     expect(f.totais).toMatchObject({
@@ -349,8 +349,8 @@ describe('funil do quiz Monjour: compra, upgrade e app', () => {
     });
     expect(f.app).toEqual({ abriram: 2, instalaram: 1, upgradeClicks: 1 });
     // k2 comprou sem registro de clique: o funil não pode ter mais compras que cliques
+    expect(etapa(f, 30).chegaram).toBe(2);
     expect(etapa(f, 31).chegaram).toBe(2);
-    expect(etapa(f, 32).chegaram).toBe(2);
   });
 
   it('sessão só com upgrade (quiz em outro dia) não entra no funil, mas conta o upgrade', () => {
@@ -367,15 +367,15 @@ describe('funil do quiz Monjour: compra, upgrade e app', () => {
     expect(f.filtros.aparelhos.map((a) => a.chave)).toEqual(['movil']);
   });
 
-  it('sessão só com a compra do webhook (quiz antes da meia-noite) não sobe as 32 etapas', () => {
+  it('sessão só com a compra do webhook (quiz antes da meia-noite) não sobe as 31 etapas', () => {
     const f = montarFunilMonjour([
       ...viu('quiz', 2),
       ev('virada', 'monjour_fim', { destino: 'compra', plan: 'basico', valor: 1990, moeda: 'usd', pais: 'US' }, 50),
     ], OP);
     expect(f.totais).toMatchObject({ sessoes: 1, compras: 0, ofertas: 0, checkouts: 0, receitaCentavos: 0 });
     expect(etapa(f, 1).chegaram).toBe(1);
-    expect(etapa(f, 30).chegaram).toBe(0);
-    expect(etapa(f, 32).chegaram).toBe(0);
+    expect(etapa(f, 29).chegaram).toBe(0);
+    expect(etapa(f, 31).chegaram).toBe(0);
     expect(f.recortes.pais.map((l) => l.chave)).toEqual(['MX']);
   });
 
@@ -396,7 +396,7 @@ describe('funil do quiz Monjour: compra, upgrade e app', () => {
   });
 
   it('valor em outra moeda não entra na receita em dólar', () => {
-    const f = montarFunilMonjour([...viu('m', 30), fim('m', 'compra', { plan: 'basico', valor: 99900, moeda: 'mxn' }, 450)], OP);
+    const f = montarFunilMonjour([...viu('m', 29), fim('m', 'compra', { plan: 'basico', valor: 99900, moeda: 'mxn' }, 450)], OP);
     expect(f.totais.compras).toBe(1);
     expect(f.totais.receitaCentavos).toBe(0);
   });
@@ -405,12 +405,12 @@ describe('funil do quiz Monjour: compra, upgrade e app', () => {
 describe('funil do quiz Monjour: período vazio e cabeçalho', () => {
   const f = montarFunilMonjour([], { ...OP, inicioRastreio: '2026-11-18T12:00:00.000Z' });
 
-  it('zera tudo e mantém as 36 etapas', () => {
+  it('zera tudo e mantém as 35 etapas', () => {
     expect(f.totais).toEqual({
       sessoes: 0, leads: 0, ofertas: 0, checkouts: 0, compras: 0, comprasBasico: 0, comprasPlus: 0,
       upgrades: 0, receitaCentavos: 0, conversao: 0, ticketMedioCentavos: 0, atalho: 0, voltas: 0,
     });
-    expect(f.etapas).toHaveLength(36);
+    expect(f.etapas).toHaveLength(35);
     expect(f.etapas.every((e) => e.chegaram === 0 && e.pctInicio === 0 && e.pctSaida === 0 && e.medianaSegundos === null)).toBe(true);
     expect(f.recortes).toEqual({ pais: [], aparelho: [], sistema: [], navegador: [], anuncio: [], conjunto: [], dia: [], hora: [] });
     expect(f.filtros).toEqual({ paises: [], aparelhos: [], anuncios: [] });
@@ -430,7 +430,7 @@ describe('funil do quiz Monjour: período vazio e cabeçalho', () => {
   it('as perguntas aparecem mesmo sem resposta, e as etapas seguem a ordem das telas', () => {
     expect(f.respostas.map((r) => r.chave).slice(0, 3)).toEqual(['edad', 'objetivo', 'cuerpo']);
     expect(f.respostas.find((r) => r.chave === 'edad')!.opcoes.map((o) => o.valor)).toEqual(['25', '35', '45', '55']);
-    expect(f.etapas.map((e) => e.n)).toEqual(Array.from({ length: 36 }, (_, i) => i + 1));
+    expect(f.etapas.map((e) => e.n)).toEqual(Array.from({ length: 35 }, (_, i) => i + 1));
     expect(etapa(f, 23)).toMatchObject({ chave: 'seguridad', rotulo: 'Segurança', tipo: 'multipla' });
   });
 });
@@ -439,7 +439,7 @@ describe('funil do quiz Monjour: atalho e volta direto para a oferta', () => {
   const passoSemN = (sid: string, passo: string, seg: number): EventoMonjour => ev(sid, 'monjour_passo', { passo, pais: 'MX', disp: 'movil' }, seg);
   const oferta = (sid: string, seg: number): EventoMonjour => ev(sid, 'monjour_passo', { passo: 'oferta', n: 30, pais: 'MX', disp: 'movil' }, seg);
   const eventos = [
-    ...viu('n1', 30), fim('n1', 'checkout', { plan: 'basico' }), fim('n1', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd' }, 500), // quiz inteiro
+    ...viu('n1', 29), fim('n1', 'checkout', { plan: 'basico' }), fim('n1', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd' }, 500), // quiz inteiro
     ...viu('at', 1), passoSemN('at', 'atalho_oferta', 15), oferta('at', 20), fim('at', 'checkout', { plan: 'plus' }, 60), fim('at', 'compra', { plan: 'plus', valor: 2990, moeda: 'usd' }, 120),
     ...viu('at2', 1), passoSemN('at2', 'atalho_oferta', 15), oferta('at2', 20), // atalho, viu a oferta e saiu
     passoSemN('vo', 'volta_oferta', 5), oferta('vo', 6), fim('vo', 'checkout', { plan: 'basico' }, 50), // voltou outro dia
@@ -453,21 +453,21 @@ describe('funil do quiz Monjour: atalho e volta direto para a oferta', () => {
     expect(etapa(f, 2).chegaram).toBe(2); // n1 e p5
     expect(etapa(f, 5).chegaram).toBe(2);
     expect(etapa(f, 6).chegaram).toBe(1);
-    expect(etapa(f, 29).chegaram).toBe(1);
+    expect(etapa(f, 28).chegaram).toBe(1);
   });
 
   it('continua contando na oferta, no clique em comprar e na compra', () => {
-    expect(etapa(f, 30).chegaram).toBe(4); // n1, at, at2, vo
-    expect(etapa(f, 31).chegaram).toBe(3); // n1, at, vo
-    expect(etapa(f, 32).chegaram).toBe(2); // n1, at
+    expect(etapa(f, 29).chegaram).toBe(4); // n1, at, at2, vo
+    expect(etapa(f, 30).chegaram).toBe(3); // n1, at, vo
+    expect(etapa(f, 31).chegaram).toBe(2); // n1, at
     expect(f.totais).toMatchObject({ sessoes: 6, ofertas: 4, checkouts: 3, compras: 2 });
   });
 
   it('quem foi direto à oferta não "saiu" nas telas do meio', () => {
     expect(etapa(f, 1).sairam).toBe(0); // at e at2 seguiram para a oferta; p5 seguiu até a 5
     expect(etapa(f, 5).sairam).toBe(1); // p5 parou de verdade
-    expect(etapa(f, 30).sairam).toBe(1); // at2 viu a oferta e não clicou
-    expect(etapa(f, 31).sairam).toBe(1); // vo clicou e não comprou
+    expect(etapa(f, 29).sairam).toBe(1); // at2 viu a oferta e não clicou
+    expect(etapa(f, 30).sairam).toBe(1); // vo clicou e não comprou
   });
 
   it('conta atalho e voltas por sessão', () => {
@@ -476,7 +476,7 @@ describe('funil do quiz Monjour: atalho e volta direto para a oferta', () => {
   });
 
   it('sem atalho nem volta, tudo igual: os dois números são zero', () => {
-    const g = montarFunilMonjour([...viu('x', 3), ...viu('y', 30)], OP);
+    const g = montarFunilMonjour([...viu('x', 3), ...viu('y', 29)], OP);
     expect(g.totais).toMatchObject({ atalho: 0, voltas: 0 });
     expect(etapa(g, 2).chegaram).toBe(2);
     expect(etapa(g, 3).sairam).toBe(1);
@@ -541,12 +541,12 @@ describe('funil do quiz Monjour: telas novas (abertura e prévia do app) e sess�
   });
 
   it('o n que o site manda não ordena nada: vale a chave', () => {
-    // O site manda app com n 31 e inicio com n 32 (só informação): a conta segue o catálogo.
+    // O site manda app com n 30 e inicio com n 31 (só informação): a conta segue o catálogo.
     const g = montarFunilMonjour([
-      ...sessaoEm('x', DESDE + 3600_000, [['inicio', 0], ['edad', 5], ['app', 10]]).map((e) => ({ ...e, event_data: { ...e.event_data, n: e.event_data!.passo === 'inicio' ? 32 : e.event_data!.passo === 'app' ? 31 : 1 } })),
+      ...sessaoEm('x', DESDE + 3600_000, [['inicio', 0], ['edad', 5], ['app', 10]]).map((e) => ({ ...e, event_data: { ...e.event_data, n: e.event_data!.passo === 'inicio' ? 31 : e.event_data!.passo === 'app' ? 30 : 1 } })),
     ], OP);
     expect(g.etapas.slice(0, 3).map((e) => [e.chave, e.chegaram])).toEqual([['inicio', 1], ['edad', 1], ['app', 1]]);
-    expect(g.etapas.find((e) => e.chave === 'checkout')!.chegaram).toBe(0); // o n 31 do app não virou "clicou em comprar"
+    expect(g.etapas.find((e) => e.chave === 'checkout')!.chegaram).toBe(0); // o n 30 do app não virou "clicou em comprar"
     expect(g.etapas.find((e) => e.chave === 'compra')!.chegaram).toBe(0);
   });
 

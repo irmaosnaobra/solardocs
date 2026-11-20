@@ -62,7 +62,6 @@ const TELAS_BASE: Omit<TelaMonjour, 'n'>[] = [
   { chave: 'seguridad', rotulo: 'Segurança', tipo: 'multipla' },
   { chave: 'minutos', rotulo: 'Minutos por dia', tipo: 'pergunta' },
   { chave: 'compromiso', rotulo: 'Compromisso', tipo: 'pergunta' },
-  { chave: 'historias', rotulo: 'Histórias', tipo: 'info' },
   { chave: 'nombre', rotulo: 'Nome', tipo: 'campo' },
   { chave: 'cargando', rotulo: 'Montando o plano', tipo: 'carregando' },
   { chave: 'correo', rotulo: 'E-mail', tipo: 'email' },
