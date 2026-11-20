@@ -35097,6 +35097,20 @@ function vdcPintar(st) {
   vdcPintarPessoas(st);
   // botões
   N.acoes.replaceChildren();
+  if (st.op.lerSozinho) {
+    // Leitura automática (a página do cliente solar): não há botão de ler. Lendo, o bloco diz só isso, em texto.
+    if (st.lendo) {
+      const sl = document.createElement('p'); sl.className = 'vdc-lendo'; sl.setAttribute('role', 'status'); sl.setAttribute('data-vdc-lendo', '1');
+      sl.append(document.createElement('i'), document.createTextNode(st.relendo ? VDC_MSG_RELENDO : 'Lendo os documentos…'));
+      N.acoes.appendChild(sl);
+    }
+    if (!st.op.semFechamento && st.cfg.textoPreencher) {
+      const pre0 = document.createElement('button'); pre0.type = 'button'; pre0.className = 'vdc-btn'; pre0.setAttribute('data-vdc-acao', 'preencher');
+      pre0.textContent = st.cfg.textoPreencher; pre0.disabled = st.lendo || st.gravando || !st.cad || !vdcV(st.cad, 'nome');
+      pre0.addEventListener('click', () => vdcPreencher(st)); N.acoes.appendChild(pre0);
+    }
+    vdcLerSeMudouPessoa(st);
+  } else {
   const ler = document.createElement('button'); ler.type = 'button'; ler.className = 'vdc-btn vdc-btn-pri'; ler.setAttribute('data-vdc-acao', 'ler');
   ler.textContent = st.lendo ? 'Lendo os documentos…' : 'Ler documentos e preencher';
   ler.disabled = st.lendo || st.gravando || st.carregando || !st.cad;
@@ -35106,6 +35120,7 @@ function vdcPintar(st) {
   pre.disabled = st.lendo || st.gravando || !st.cad || !vdcV(st.cad, 'nome');
   pre.addEventListener('click', () => vdcPreencher(st));
   if (st.op.semFechamento || !st.cfg.textoPreencher) N.acoes.append(ler); else N.acoes.append(ler, pre);
+  }
   if (N.tre) vdcPintarTrello(st);
   // aviso
   N.msg.hidden = !st.msg; N.msg.textContent = st.msg || '';
@@ -36405,6 +36420,21 @@ const VDC_DICAS = {
   ced_qualidade: 'Use: proprietário, possuidor, inquilino, representante ou condomínio.',
   tuc_relacao: 'Use: cônjuge, pai ou mãe, filho, empresa ou outro.',
 };
+const VDC_MSG_RELENDO = 'Um documento mudou de pessoa. Lendo de novo…';
+/**
+ * Só com `op.lerSozinho`: o documento mudou de pessoa (`avisoDocs`) e o próprio bloco lê de novo, uma vez. Ocupado (lendo ou gravando),
+ * espera: o bloco repinta ao liberar e volta aqui. Sem laço: `vdcLer` apaga `avisoDocs` antes de qualquer outra coisa.
+ */
+function vdcLerSeMudouPessoa(st) {
+  if (!st.avisoDocs || st.lendo || st.gravando || st.carregando) return;
+  // A carga do cadastro falhou (sem `cad`) e nada está carregando: não há o que ler, e o aviso pararia no "Lendo de novo…". Apaga o aviso.
+  if (!st.cad) { st.avisoDocs = false; st.pesForcar = true; vdcPintarPessoas(st); return; }
+  setTimeout(() => {
+    if (vdcEst !== st || !st.avisoDocs || st.lendo || st.gravando) return;
+    st.relendo = true;
+    Promise.resolve(vdcLer(st)).then(() => { st.relendo = false; }, () => { st.relendo = false; });
+  }, 0);
+}
 const VDC_MSG_AVISO_DOCS = 'Os documentos mudaram de pessoa. Os dados lidos antes continuam no cadastro: leia os documentos de novo ou edite os dados de quem mudou.';
 /** As pessoas (grupos do cadastro) que já têm algum dado. O rateio tem editor próprio; papel "mesma pessoa do contratante" não tem dado. */
 /** Preencher: a sugestão da ficha para um campo VAZIO do cadastro da venda solar, ou null. */
@@ -36433,7 +36463,11 @@ function vdcPintarPessoas(st) {
   if (!st.avisoDocs && !grupos.length) { P.hidden = true; return; }
   P.hidden = false;
   const tit = document.createElement('p'); tit.className = 'vdc-sec-t'; tit.textContent = 'Dados por pessoa'; P.appendChild(tit);
-  if (st.avisoDocs) {
+  if (st.avisoDocs && st.op.lerSozinho) {
+    // Leitura automática: o aviso é só status, até a leitura começar (ela apaga `avisoDocs`). Sem botão de ler.
+    const av = document.createElement('div'); av.className = 'vdc-pes-av'; av.setAttribute('role', 'status'); av.setAttribute('data-vdc-aviso-docs', '1');
+    const tx = document.createElement('p'); tx.textContent = VDC_MSG_RELENDO; av.appendChild(tx); P.appendChild(av);
+  } else if (st.avisoDocs) {
     const av = document.createElement('div'); av.className = 'vdc-pes-av'; av.setAttribute('role', 'status'); av.setAttribute('data-vdc-aviso-docs', '1');
     const tx = document.createElement('p'); tx.textContent = VDC_MSG_AVISO_DOCS;
     const bt = document.createElement('div'); bt.className = 'vdc-pes-bt';

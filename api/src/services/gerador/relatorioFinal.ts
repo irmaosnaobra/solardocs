@@ -32,7 +32,8 @@ export interface KitVendido {
 export function kitVendido(e: EquipamentoProposta | null, kwpDados: unknown, kitTexto?: { placas?: string; inversor?: string } | null): KitVendido {
   const q = (n: number | null): string => (n ? `${n} × ` : '');
   const daProposta = {
-    placas: e ? `${q(e.qtdPlacas)}${[e.modeloPlaca, e.potPlaca ? `${e.potPlaca} W` : ''].filter(Boolean).join(' ')}`.trim().replace(/\s*×$/, '') : '',
+    // A potência só entra se o nome do modelo ainda não a traz ("Canadian 550 W" + 550 W vira "550 W 550 W"): a mesma guarda de `docsCliente`.
+    placas: e ? `${q(e.qtdPlacas)}${[e.modeloPlaca, e.potPlaca && !/\d\s*w/i.test(e.modeloPlaca) ? `${e.potPlaca} W` : ''].filter(Boolean).join(' ')}`.trim().replace(/\s*×$/, '') : '',
     inversor: e ? `${q(e.qtdInversor)}${e.inversor}`.trim().replace(/\s*×$/, '') : '',
   };
   const completo = { placas: !!(e?.qtdPlacas && e.modeloPlaca), inversor: !!(e?.qtdInversor && e.inversor) };

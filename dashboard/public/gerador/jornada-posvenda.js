@@ -189,17 +189,7 @@
     if (!f3.toques.length) b1.appendChild(el('p', 'jor-nota', 'Os toques aparecem quando a obra for finalizada.'));
     b1.appendChild(el('p', 'jor-nota', 'Os toques 2 e 3 se repetem todo ano. Saem das 9h às 20h, de segunda a sábado, e passam pelo anti-ban.'));
     esq.appendChild(b1);
-    // 2. Book em PDF
-    var b2 = bloco('Book em PDF'); var bk = f3.book;
-    if (bk && bk.gerado_em) {
-      var q = quando(bk.gerado_em);
-      b2.appendChild(el('p', '', 'Gerado em ' + q.d + ' às ' + q.h + ' por ' + h.nomeBonito(bk.por) + '.'));
-      b2.appendChild(btn('Baixar', 'jor-btn-pri', function () { baixarPdf(this); }));
-    } else {
-      b2.appendChild(el('p', '', 'Ainda não foi gerado.'));
-      if (f3.pode && f3.pode.book) { var bg = btn('Gerar o Book em PDF', 'jor-btn-pri', function () { bookPdf(O().card, bg); }); b2.appendChild(bg); }
-    }
-    esq.appendChild(b2);
+    // O Book em PDF mora na Conclusão geral, logo acima (botão, quando foi gerado e o que o segura).
     esq.appendChild(el('p', 'jor-nota', 'Saiu da lista ativa na liberação. Segue na aba Pós-venda de Clientes.'));
   }
 
@@ -566,14 +556,7 @@
       else falhou();
     } catch (e) { falhou(); }
   }
-  function baixarPdf(botao) {
-    var h = H(); if (botao) botao.disabled = true;
-    h.api(base() + '/book/pdf', 'GET', undefined, 60000).then(function (r) {
-      if (botao) botao.disabled = false;
-      if (r.status === 200 && r.json && r.json.ok !== false && r.json.url) { abrirUrl(r.json.url); return; }
-      h.toast(msgSrv(r, 'Não consegui abrir o Book agora. Tente de novo.'));
-    });
-  }
+
   function abrirUrl(url) {
     // Só abre endereço https: o que vier de outro jeito (javascript:, data:, http:) não passa.
     if (typeof url !== 'string' || url.indexOf('https://') !== 0) { H().toast('Não deu para abrir o PDF.'); return; }

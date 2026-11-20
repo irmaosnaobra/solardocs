@@ -512,8 +512,9 @@ export const MSG_TRELLO_AUTO_ARQUIVADO = 'O cartão guardado não está aberto n
 export function estadoTrelloAuto(f: EntradaItens, temNumero: boolean, opcoes: { ignorarParada?: boolean } = {}): { pronto: boolean; falta: string[] } {
   const falta: string[] = [];
   if (f.estado?.cancelada) falta.push('Obra cancelada');
-  // Só age com a Homologação (etapa 3) em andamento: obra que já passou dela não é tocada, nem para completar o cartão.
-  if (f.estado?.etapas[3].concluida_em) falta.push('Homologação já concluída');
+  // Só age com a Homologação (etapa 3) em andamento: obra que já passou dela não é tocada, nem para completar o cartão. Isso impede o automático
+  // (`pronto` false), mas NÃO é uma falta: passo concluído não tem o que a pessoa fazer, então fica fora da lista que a tela mostra.
+  const passou = !!f.estado?.etapas[3].concluida_em;
   if (!f.estado?.etapas[1].concluida_em) falta.push('Etapa Venda concluída');
   if (!f.estado?.etapas[2].concluida_em) falta.push('Etapa Assinaturas e vistoria concluída');
   for (const i of itensDaEtapa(3, f)) if (i.bloco === 'equipamento' && !i.feito) falta.push(i.texto);
@@ -526,7 +527,7 @@ export function estadoTrelloAuto(f: EntradaItens, temNumero: boolean, opcoes: { 
   if (!opcoes.ignorarParada && f.estado?.historico.some((x) => x.acao === 'trello_auto_arquivado') && !f.estado.etapas[3].trello?.completado_em) {
     falta.push(MSG_TRELLO_AUTO_ARQUIVADO);
   }
-  return { pronto: falta.length === 0, falta };
+  return { pronto: falta.length === 0 && !passou, falta };
 }
 
 // ── Comissões (só cálculo e exibição, SPEC 3.4) ───────────────────────────────────────────────────────────────────────

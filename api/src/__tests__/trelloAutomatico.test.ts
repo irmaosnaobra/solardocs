@@ -163,13 +163,13 @@ describe('tentarTrelloAutomatico', () => {
     (h.estado as EstadoJornada).etapas[3].concluida_em = AGORA;
     const r = await tentarTrelloAutomatico(card, quem);
     expect(r).toMatchObject({ acao: 'nao_pronto' });
-    expect((r as { falta: string[] }).falta).toEqual(['Homologação já concluída']);
+    expect((r as { falta: string[] }).falta).toEqual([]);   // passo concluído não é falta: só impede o automático
     (h.estado as EstadoJornada).etapas[3].trello = { url: 'https://trello.com/c/abcdef12', criado_em: AGORA, por: 'x' };   // existente, não completado
     expect(await tentarTrelloAutomatico(card, quem)).toMatchObject({ acao: 'nao_pronto' });
     expect(h.rotas).toBe(0);
     expect(h.previas).toBe(0);
     const f = { lig: { proposta: 'P1', venda: '#1' }, slots: new Set(TUDO), cad: { v: 1, campos: {}, alteracoes: [], em: null } as never, privado: privado(true), estado: h.estado as EstadoJornada };
-    expect(estadoTrelloAuto(f, true).pronto).toBe(false);
+    expect(estadoTrelloAuto(f, true)).toEqual({ pronto: false, falta: [] });
   });
   it('cartões parecidos ou candidatos na prévia: desiste, não cria, marca a parada no histórico (uma vez só)', async () => {
     h.parecidos = true;

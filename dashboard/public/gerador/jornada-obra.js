@@ -16,6 +16,8 @@
   var UNIDADES = [['un', 'un'], ['m', 'm'], ['par', 'par'], ['kit', 'kit']];
   var TIPOS = [['modulo', 'Placas'], ['inversor', 'Inversor'], ['estrutura', 'Estrutura'], ['eletrico', 'Elétrico'], ['outro', 'Outro']];
   var CHECK = [['estrutura', 'Estrutura fixada e vedada'], ['placas', 'Placas alinhadas e aterradas'], ['strings', 'Strings 1 e 2 ligadas'], ['inversor', 'Inversor fixado'], ['dps', 'DPS CC e CA'], ['aterramento', 'Aterramento'], ['cabos', 'Cabos identificados'], ['padrao', 'Padrão ligado']];
+  /** O checklist da Obra grava sozinho: `voo` = há um PUT dele a caminho (vale entre um desenho da tela e o seguinte). */
+  var CHK = { voo: false };
   var FOTOS_ENTREGA = [['ent_vista_geral', 'Vista geral das placas'], ['ent_arranjo', 'Arranjo de perto'], ['ent_inversor', 'Inversor ligado, com o visor'], ['ent_quadro', 'Quadro de proteção'], ['ent_aterramento', 'Aterramento'], ['ent_padrao', 'Padrão com placa de advertência'], ['ent_etiquetas', 'Etiquetas'], ['ent_local_limpo', 'Local limpo']];
   /** Os álbuns (itens de vários arquivos) e o limite de fotos de cada um, igual ao do servidor. */
   var ALBUNS = { obra_foto: 400, ent_extra: 100 };
@@ -275,7 +277,7 @@
       '.jor-ob-det>summary:focus-visible{outline:2px solid var(--io-azul-tx,#93C5FD);outline-offset:2px;border-radius:8px}',
       '.jor-ob-plano{padding-top:10px;border-top:1px solid var(--n-bd,#334155)}',
       '.jor-ob-secao{margin:32px 0 0;padding-top:22px;border-top:3px solid var(--n-bd,#334155)}',
-      '.jor-ob-secao:first-child{margin-top:0;padding-top:0;border-top:0}',
+      '.jor-ob-secao:first-child{margin-top:20px;padding-top:0;border-top:0}',
       '.jor-ob-secao-t{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:0 0 4px;font-size:18px;font-weight:700;line-height:1.3;color:var(--io-titulo,#F1F5F9)}',
       '.jor-ob-secao>.jor-ob-sub-b:first-of-type{border-top:0;padding-top:4px;margin-top:8px}',
       '.jor-ob-passo{padding:14px 0;border-top:1px solid var(--n-bd,#334155)}',
@@ -330,12 +332,14 @@
       '.jor-ob-rm-b{color:var(--io-er-tx,#FCA5A5)}',
       '.jor-ob-rm-q{margin:0;font-size:14px;font-weight:600;color:var(--n-tx,#E5E7EB)}',
       '.jor-ob-rm-sim{border-color:var(--io-er,#DC2626);color:var(--io-er-tx,#FCA5A5)}',
-      '.jor-ob-trava2{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}',
-      '.jor-ob-trava2 li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;padding:6px 10px;border-radius:8px;box-shadow:inset 0 0 0 1.5px var(--io-er,#DC2626);color:var(--io-er-tx,#FCA5A5);font-size:13px;font-weight:600}',
+      '.jor-ob-rotl{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}',
       '@media (max-width:760px){',
       '.jor-ob-drop{padding:14px}',
       '.jor-ob-drop-bts{width:100%}',
-      '.jor-ob-drop-bts .jor-ob-arqbt{flex:1 1 0}',
+      '.jor-ob-drop-bts{flex-direction:column}',
+      '.jor-ob-drop-bts .jor-ob-arqbt{flex:1 1 auto;width:100%}',
+      '.jor-ob-res{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 16px}',
+      '.jor-ob-res>div.larga{grid-column:1/-1}',
       '.jor-ob-drop-bts .jor-btn,.jor-ob-carga-pe .jor-btn,.jor-ob-final .jor-btn{width:100%}',
       '.jor-ob-it-l{flex-direction:column;align-items:flex-end;gap:0}',
       '.jor-ob-tres{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}',
@@ -377,6 +381,8 @@
     var c = clone(corpo);
     // O frete da carga que veio null não volta no PUT, com ou sem acesso ao dinheiro.
     if (secao === 'logistica' && Array.isArray(c.cargas)) c.cargas.forEach(function (g) { if (g && g.frete && (g.frete.valor_centavos === null || g.frete.valor_centavos === undefined)) delete g.frete.valor_centavos; });
+    // O número de série do inversor é digitado só no Monitoramento: o salvar da Compra não o manda (ausente = a api não mexe).
+    if (secao === 'compra' && Array.isArray(c.itens)) c.itens.forEach(function (i) { if (i) delete i.serie; });
     if (veDinheiro()) return c;
     if (secao === 'compra' && Array.isArray(c.itens)) c.itens.forEach(function (i) { if (i.valor_centavos === null || i.valor_centavos === undefined) delete i.valor_centavos; });
     if (secao === 'obra' && c.equipe && (c.equipe.combinado_centavos === null || c.equipe.combinado_centavos === undefined)) delete c.equipe.combinado_centavos;
@@ -397,7 +403,7 @@
     });
   }
   function botaoSalvar(rot, secao, montar, aviso) {
-    var b = btn(rot, 'jor-btn-pri', function () {
+    var b = btn(rot, '', function () {
       b.disabled = true;
       var c = montar(); if (c === false) { b.disabled = false; return; }
       salvar(secao, c, aviso).then(function () { b.disabled = false; });
@@ -630,7 +636,8 @@
       var zona = el('div', 'jor-ob-drop');
       var zi = el('span', 'jor-ob-drop-ic'); zi.appendChild(ico('subir', 22)); zona.appendChild(zi);
       var zt = el('div', 'jor-ob-drop-tx');
-      zt.appendChild(el('b', '', 'Arraste os arquivos aqui ou escolha'));
+      var toque = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);   // no celular não há o que arrastar
+      zt.appendChild(el('b', '', toque ? 'Escolha os arquivos ou tire uma foto' : 'Arraste os arquivos aqui ou escolha'));
       zt.appendChild(el('span', '', 'Foto, PDF, print ou XML, vários de uma vez. Cada um é lido sozinho e só preenche o que está vazio.'));
       zona.appendChild(zt);
       var zb = el('div', 'jor-ob-drop-bts');
@@ -761,7 +768,6 @@
       ctl.compra = selecao([['', 'Sem compra ainda']].concat(c.compras.map(function (cp, i) { return [cp.id, nomeCompra(cp, i)]; })).concat([['__nova', 'Nova compra deste fornecedor']]), it.compra_id || '', 'Compra');
       ctl.valor = entrada('text', Number(it.valor_centavos) > 0 ? txtCents(it.valor_centavos) : '', 'Valor total do item'); ctl.valor.inputMode = 'decimal';
       ctl.data = entrada('date', it.data || '', 'Data da compra');
-      ctl.serie = entrada('text', it.serie || '', 'Número de série'); ctl.serie.maxLength = 80; ctl.serie.autocomplete = 'off'; ctl.serie.spellcheck = false;
       var mostraValor = veDinheiro() && it.valor_centavos !== undefined;
       // Conta fechada: valor, compra, data e o tique são dinheiro e ficam só para leitura.
       if (fechada) { [ctl.valor, ctl.compra, ctl.data].forEach(function (x) { x.disabled = true; }); ctl.valor.readOnly = true; }
@@ -776,7 +782,7 @@
       function mostrar() {
         gm.replaceChildren(); cert.replaceChildren();
         if (ctl.tipo.value === 'modulo') add(gm, campo('Potência de cada placa (W)', ctl.pw), campo('Garantia de fabricação (anos)', ctl.fab), campo('Garantia de desempenho (anos)', ctl.des));
-        if (ctl.tipo.value === 'inversor') add(gm, campo('Potência (kW)', ctl.pk), campo('Garantia (anos)', ctl.gi), campo('Número de série', ctl.serie));
+        if (ctl.tipo.value === 'inversor') add(gm, campo('Potência (kW)', ctl.pk), campo('Garantia (anos)', ctl.gi));
         if (!novo && ctl.tipo.value === 'modulo') cert.appendChild(h.anexo('cert_modulo', 'Certificado de garantia das placas', arqs(f2, 'cert_modulo').length > 0, { nivel: 'op' }));
         if (!novo && ctl.tipo.value === 'inversor') cert.appendChild(h.anexo('cert_inversor', 'Certificado de garantia do inversor', arqs(f2, 'cert_inversor').length > 0, { nivel: 'op' }));
       }
@@ -815,7 +821,6 @@
       it.descricao = ctl.desc.value.trim(); it.tipo = ctl.tipo.value; it.quantidade = q; it.unidade = ctl.un.value; it.marca = ctl.marca.value.trim(); it.modelo = ctl.modelo.value.trim();
       it.fornecedor = ctl.forn.value.trim();
       if (!fechada) { it.compra_id = nova ? null : (ctl.compra.value || null); if (veDinheiro() && it.valor_centavos !== undefined) it.valor_centavos = v > 0 ? v : null; it.data = ctl.data.value || ''; it.comprado = ctl.comp.input.checked; }
-      if (ctl.tipo.value === 'inversor') it.serie = ctl.serie.value.trim();
       if (it.tipo === 'modulo') { it.potencia_w = Number(ctl.pw.value.replace(',', '.')) || null; it.garantia_fabricacao_anos = Number(ctl.fab.value) || null; it.garantia_desempenho_anos = Number(ctl.des.value) || null; }
       if (it.tipo === 'inversor') { it.potencia_kw = Number(ctl.pk.value.replace(',', '.')) || null; it.garantia_anos = Number(ctl.gi.value) || null; }
       b.disabled = true;
@@ -920,7 +925,8 @@
     if (!cg.saida.lugar && fornDe) cg.saida.lugar = fornDe;
     ctl.onde = entrada('text', cg.saida.lugar || '', 'Onde buscou, lugar e endereço'); ctl.onde.placeholder = 'Ex.: Aldo Solar, Av. Brasil 1200, Maringá…'; ctl.onde.disabled = !pode;
     ctl.onde.addEventListener('input', function () { cg.saida.lugar = ctl.onde.value; pinta(); });
-    var lOnde = campo('Onde buscou', ctl.onde); if (fornDe && cg.saida.lugar === fornDe) { var au = automatico(); au.title = 'Veio do fornecedor, na Compra.'; lOnde.firstChild.after(au); }
+    var lOnde = campo('Onde buscou', ctl.onde);
+    if (fornDe && cg.saida.lugar === fornDe) { var au = automatico(); au.title = 'Veio do fornecedor, na Compra.'; var rl = el('span', 'jor-ob-rotl'); rl.appendChild(lOnde.firstChild); rl.appendChild(au); lOnde.insertBefore(rl, lOnde.firstChild); }
     ctl.quando = entrada('datetime-local', cg.saida.em || '', 'Quando buscou'); ctl.quando.disabled = !pode;
     ctl.carro = entrada('text', cg.transporte.carro || '', 'Carro, modelo'); ctl.carro.placeholder = 'Ex.: Strada branca…'; ctl.carro.disabled = !pode; ctl.carro.maxLength = 80;
     ctl.carro.addEventListener('input', function () { cg.transporte.carro = ctl.carro.value; });
@@ -996,7 +1002,7 @@
       bR.appendChild(lf); bx.appendChild(bR);
     }
     if (pode) {
-      var bt = el('div', 'jor-ob-carga-pe'); var sv = btn('Salvar a carga', 'jor-btn-pri', function () { sv.disabled = true; gravar('Carga salva.').then(function () { sv.disabled = false; }); }); bt.appendChild(sv); bx.appendChild(bt);
+      var bt = el('div', 'jor-ob-carga-pe'); var sv = btn('Salvar a carga', '', function () { sv.disabled = true; gravar('Carga salva.').then(function () { sv.disabled = false; }); }); bt.appendChild(sv); bx.appendChild(bt);
     }
     pinta();
     return bx;
@@ -1101,7 +1107,7 @@
     var ob = clone(dados(f2).obra) || {}; ob.plano = ob.plano || []; ob.diario = ob.diario || []; ob.checklist = ob.checklist || {}; ob.equipe = ob.equipe || { combinado_centavos: null, descricao: '' };
     var equipes = (f2.equipes && f2.equipes.length) ? f2.equipes : [{ id: 'pablo', rotulo: 'Equipe Pablo (montagem)' }];
     function salvarObra(aviso) { return salvar('obra', ob, aviso || 'Obra salva.'); }
-    function botaoObra(rot, aviso) { var b = btn(rot, 'jor-btn-pri', function () { b.disabled = true; salvarObra(aviso).then(function () { b.disabled = false; }); }); b.disabled = !pode; return b; }
+    function botaoObra(rot, aviso) { var b = btn(rot, '', function () { b.disabled = true; salvarObra(aviso).then(function () { b.disabled = false; }); }); b.disabled = !pode; return b; }
     // 1. Diário: um registro por dia, com pelo menos 1 foto. Horário é opcional.
     var comFoto = ob.diario.filter(function (x) { return (x.fotos || []).some(function (id) { return existe(f2, id); }); }).length;
     var bD = bloco('Diário da obra', ob.diario.length ? (comFoto ? h.etq(h.plural(ob.diario.length, 'dia', 'dias') + ', ' + comFoto + ' com foto', 'ok') : h.etqFalta('Falta 1 dia com foto', 'ob')) : h.etqFalta('Falta 1 dia com foto', 'ob'));
@@ -1157,12 +1163,31 @@
     var feitos = CHECK.filter(function (x) { return !!ob.checklist[x[0]]; }).length;
     var bC = bloco('Checklist da instalação', feitos === CHECK.length ? h.etq('8 de 8', 'ok') : h.etqFalta(feitos + ' de 8', 'ob'));
     var gc = el('div', 'jor-ob-chks jor-ob-chk2');
+    // Grava sozinho ao marcar e desmarcar (igual ao "Comprado" da Compra), na mesma rota e com o mesmo corpo do antigo Salvar.
+    // Clique rápido junta num PUT só (espera 400 ms parado) e nunca há dois PUTs ao mesmo tempo. Erro: a marca volta e o aviso vem do salvar.
+    var chkOk = clone(ob.checklist), chkIn = {}, chkT = 0;
+    function chkTrava(sim) { CHECK.forEach(function (x) { if (chkIn[x[0]]) chkIn[x[0]].input.disabled = sim || !pode; }); }
+    function chkGrava() {
+      chkT = 0;
+      if (CHK.voo) { chkT = setTimeout(chkGrava, 400); return; }
+      var mud = CHECK.map(function (x) { return x[0]; }).filter(function (k) { return !!ob.checklist[k] !== !!chkOk[k]; });
+      if (!mud.length) return;
+      var enviado = clone(ob.checklist); CHK.voo = true; chkTrava(true);
+      salvarObra('Checklist salvo.').then(function (r) { return r; }, function () { h.toast('Não consegui salvar agora. Tente de novo.'); return null; }).then(function (r) {
+        CHK.voo = false;
+        if (r && r.status === 200 && r.json && r.json.ok !== false) { chkOk = enviado; return; }
+        mud.forEach(function (k) { ob.checklist[k] = !!chkOk[k]; if (chkIn[k]) { chkIn[k].input.checked = !!chkOk[k]; h.marcaFalta(chkIn[k], chkOk[k] ? '' : 'ob'); } });
+        chkTrava(false);
+      });
+    }
     CHECK.forEach(function (x) {
-      var m = marca(x[1], !!ob.checklist[x[0]], x[1]); m.input.disabled = !pode; if (!ob.checklist[x[0]]) h.marcaFalta(m, 'ob');
-      m.input.addEventListener('change', function () { ob.checklist[x[0]] = m.input.checked; h.marcaFalta(m, m.input.checked ? '' : 'ob'); }); gc.appendChild(m);
+      var m = marca(x[1], !!ob.checklist[x[0]], x[1]); chkIn[x[0]] = m; m.input.disabled = !pode; if (!ob.checklist[x[0]]) h.marcaFalta(m, 'ob');
+      m.input.addEventListener('change', function () {
+        ob.checklist[x[0]] = m.input.checked; h.marcaFalta(m, m.input.checked ? '' : 'ob');
+        if (chkT) clearTimeout(chkT); chkT = setTimeout(chkGrava, 400);
+      }); gc.appendChild(m);
     });
     bC.appendChild(gc);
-    if (pode) { var aC = el('div', 'jor-din-acoes'); aC.appendChild(botaoObra('Salvar o checklist', 'Checklist salvo.')); bC.appendChild(aC); }
     esq.appendChild(bC);
     // 3. Equipe e valor combinado (o pagamento mora no caixa)
     var temValor = veDinheiro() && ob.equipe.combinado_centavos !== undefined;
@@ -1231,7 +1256,8 @@
     var g8 = el('div', 'jor-ob-fotos8'); FOTOS_ENTREGA.forEach(function (x) { g8.appendChild(h.anexo(x[0], x[1], arqs(f2, x[0]).length > 0)); }); bF.appendChild(g8);
     sE.appendChild(bF);
     var nExtra = arqs(f2, 'ent_extra').length;
-    sE.appendChild(blocoAlbum(f2, 'ent_extra', 'Outras fotos', '', podeE, { falta: nExtra ? '' : 'op', etq: nExtra ? null : h.etqFalta('Opcional', 'op'), rotAdd: 'Adicionar fotos', aria: 'outras fotos da entrega', nota: nExtra ? '' : 'Telhado, cabos, o cliente com o app e o que mais valer guardar.' }));
+    // Sem foto e sem como pôr (obra concluída ou sem permissão), o bloco não diz nada: some.
+    if (nExtra || podeE) sE.appendChild(blocoAlbum(f2, 'ent_extra', 'Outras fotos', '', podeE, { falta: nExtra ? '' : 'op', etq: nExtra ? null : h.etqFalta('Opcional', 'op'), rotAdd: 'Adicionar fotos', aria: 'outras fotos da entrega', nota: nExtra ? '' : 'Telhado, cabos, o cliente com o app e o que mais valer guardar.' }));
     // Testes
     var T = en.testes; var bT = el('div', 'jor-ob-sub-b'); var tT = el('div', 'jor-ob-linha0'); tT.appendChild(el('h5', 'jor-ob-cl0', 'Testes')); var cont = el('span'); tT.appendChild(cont); bT.appendChild(tT);
     var s1 = entrada('text', T.string1_voc || '', 'String 1, Voc em volts'); var s2 = entrada('text', T.string2_voc || '', 'String 2, Voc em volts'); var gk = entrada('text', T.gerando_kw || '', 'Inversor gerando, em kW'); var gh = entrada('time', T.gerando_hora || '', 'Hora da leitura');
@@ -1263,7 +1289,7 @@
     esq.appendChild(sC);
     // 4. Conclusão geral, montada sozinha.
     var sG = secao('Conclusão geral', el('span', 'jor-auto', 'Automático'), 'jor-s-conclusao');
-    conclusaoGeral(sG, d, f2);
+    conclusaoGeral(sG, d, f2, f3);
     var bO = el('div', 'jor-ob-sub-b'); var tO = el('div', 'jor-ob-linha0'); tO.appendChild(el('h5', 'jor-ob-cl0', 'Observações finais')); tO.appendChild(h.etqFalta('Opcional', 'op')); bO.appendChild(tO);
     var ta = el('textarea', 'jor-ta'); ta.maxLength = 1000; ta.value = en.observacoes || ''; ta.disabled = !podeE; ta.placeholder = 'O que vale registrar sobre a obra, para quem pegar depois…'; ta.setAttribute('aria-label', 'Observações finais');
     ta.addEventListener('input', function () { en.observacoes = ta.value; }); bO.appendChild(ta);
@@ -1271,7 +1297,7 @@
     sG.appendChild(bO);
     esq.appendChild(sG);
     // 5. Fechamento e o botão final.
-    var sF = secao('Fechamento', concluida ? h.etq('Obra concluída', 'ok') : ((f2.finalizar && f2.finalizar.falta && f2.finalizar.falta.length) ? h.etqFalta('Falta ' + f2.finalizar.falta.length, 'ob') : h.etq('Pronto', 'ok')), 'jor-s-fechar');
+    var sF = secao('Fechamento', concluida ? h.etq('Completo', 'ok') : ((f2.finalizar && f2.finalizar.falta && f2.finalizar.falta.length) ? h.etqFalta('Falta ' + f2.finalizar.falta.length, 'ob') : h.etq('Pronto', 'ok')), 'jor-s-fechar');
     fechamentoFinal(sF, d, f2, concluida, e8);
     esq.appendChild(sF);
     // 6. Depois de concluída: o pós-venda (o conteúdo de jornada-posvenda.js, igual).
@@ -1285,6 +1311,9 @@
   function monitoramento(b3, f2, en, pode, grava, salvarEntrega) {
     var h = H();
     var M = en.monitoramento; var mon0 = (dados(f2).entrega || {}).monitoramento || {}; delete M.conta_mascarada; var cofre = (dados(f2).entrega || {}).cofre || null;
+    // Cada informação num lugar só: a série se digita aqui. Se este campo está vazio e a Compra já tem a do inversor, ela entra pronta para confirmar.
+    var daCompra = ''; if (!M.serie) compraDe(f2).itens.some(function (i) { if (i && i.tipo === 'inversor' && String(i.serie || '').trim()) { daCompra = String(i.serie).trim(); return true; } return false; });
+    if (daCompra) M.serie = daCompra;
     var app = entrada('text', M.app || '', 'Aplicativo do fabricante'); var us = entrada('text', M.usina || '', 'Usina no aplicativo'); var se = entrada('text', M.serie || '', 'Número de série do inversor'); var cm = entrada('date', M.comissionamento || '', 'Data do comissionamento');
     var conta = entrada('text', M.conta || '', 'Conta do cliente no aplicativo'); if (mon0.conta_mascarada) { conta.value = ''; conta.placeholder = mon0.conta_mascarada; }
     [app, us, se, cm, conta].forEach(function (x) { x.disabled = !pode; });
@@ -1293,6 +1322,7 @@
     conta.addEventListener('input', function () { M.conta = conta.value.trim() || contaOrig; });
     if (!M.app) h.marcaFalta(app, 'ob'); if (!M.conta && !mon0.conta_mascarada) h.marcaFalta(conta, 'ob'); if (!M.serie) h.marcaFalta(se, 'ob');
     var g3 = el('div', 'jor-ob-par'); add(g3, campo('Aplicativo', app), campo('Conta do cliente', conta), campo('Usina no aplicativo', us), campo('Número de série do inversor', se), campo('Comissionamento', cm)); b3.appendChild(g3);
+    if (daCompra && pode) b3.appendChild(el('p', 'jor-nota', 'A série do inversor veio da Compra. Salve para confirmar.'));
     var on = marca('Usina online e gerando', !!M.online, 'Usina online e gerando'); on.input.disabled = !pode; on.input.addEventListener('change', function () { M.online = on.input.checked; h.marcaFalta(on, M.online ? '' : 'ob'); }); if (!M.online) h.marcaFalta(on, 'ob'); b3.appendChild(on);
     var cf = el('div', 'jor-ob-linha jor-ob-cofre'); cf.appendChild(el('b', '', 'Senha do aplicativo'));
     if (cofre && cofre.gravado) {
@@ -1330,10 +1360,10 @@
     // Pedido de vistoria: data, protocolo e o print.
     var p1 = el('div', 'jor-ob-passo'); var t1 = el('div', 'jor-ob-linha0'); t1.appendChild(el('h5', 'jor-ob-cl0', 'Pedido de vistoria')); var n1 = nivelDe('pedido'); t1.appendChild(n1 ? h.etqFalta('Falta', n1) : h.etq('Feito', 'ok')); p1.appendChild(t1);
     var dt = entrada('date', ped.data || '', 'Data do pedido'); var pr = entrada('text', '', 'Protocolo'); pr.placeholder = ped.numero || (jaPediu ? 'Já enviado' : ''); dt.disabled = pr.disabled = !pode;
-    var g = el('div', 'jor-ob-linha0'); var sp = botaoSalvar('Salvar', 'liberacao', function () { P.pedido = { data: dt.value, numero: pr.value.trim() || ped.numero || '', arquivo_id: ped.arquivo_id || '' }; return corpoLib(pr.value.trim()); }, 'Pedido salvo.'); sp.disabled = !pode; sp.className = 'jor-btn';
+    var g = el('div', 'jor-ob-linha0'); var sp = botaoSalvar('Salvar', 'liberacao', function () { P.pedido = { data: dt.value, numero: pr.value.trim() || ped.numero || '', arquivo_id: ped.arquivo_id || '' }; return corpoLib(pr.value.trim()); }, 'Pedido salvo.'); sp.disabled = !pode;
     add(g, campo('Data do pedido', dt), campo('Protocolo', pr), sp); p1.appendChild(g);
     if (pode) p1.appendChild(anexoLigado(f2, 'lib_pedido', 'Print do pedido', ped.arquivo_id, function (id) { P.pedido = { data: dt.value || ped.data || '', numero: pr.value.trim() || ped.numero || '', arquivo_id: id }; return grava('Print guardado.', pr.value.trim()); }, 'ob'));
-    var pz = et.prazo; if (pz && pz.vence && pz.rotulo) p1.appendChild(el('p', 'jor-nota', 'A concessionária tem 7 dias úteis para vistoriar. Vence ' + h.ddmm(pz.vence) + '.'));
+    if (jaPediu) p1.appendChild(el('p', 'jor-nota', 'A concessionária tem 7 dias úteis para vistoriar.'));   // o vencimento fica só na faixa de prazo
     b.appendChild(p1);
     var PASSOS = [['vistoria', 'Vistoria aprovada', 'lib_vistoria'], ['medidor', 'Troca do medidor', 'lib_medidor'], ['liberada', 'Usina liberada', 'lib_liberacao']];
     PASSOS.forEach(function (x) {
@@ -1349,18 +1379,18 @@
     lb.exigencias.forEach(function (x) { b.appendChild(el('p', 'jor-nota', 'Exigência de ' + h.ddmm(String(x.em || '').slice(0, 10)) + ': ' + x.texto)); });
   }
   /** O resumo da obra, montado sozinho: equipamento final, potência, datas de cada fase, equipe e, para quem vê o livro, gasto e saldo. */
-  function conclusaoGeral(b, d, f2) {
+  function conclusaoGeral(b, d, f2, f3) {
     var h = H(); var eq = dados(f2).equipamento_final || {}; var l = livro(); var ob = dados(f2).obra || {};
     var g = el('dl', 'jor-ob-res');
-    function lin(rot, val, etq) { if (!val) return; var w = el('div'); w.appendChild(el('dt', '', rot)); var dd = el('dd', '', val); if (etq) dd.appendChild(etq); w.appendChild(dd); g.appendChild(w); }
+    function lin(rot, val, etq, larga) { if (!val) return; var w = el('div', larga ? 'larga' : ''); w.appendChild(el('dt', '', rot)); var dd = el('dd', '', val); if (etq) dd.appendChild(etq); w.appendChild(dd); g.appendChild(w); }
     function txtL(ls) { return (ls || []).map(function (x) { return (x.quantidade ? String(x.quantidade).replace('.', ',') + ' x ' : '') + (x.descricao || [x.marca, x.modelo].filter(Boolean).join(' ')); }).join('; '); }
     var et = eq.etiqueta ? el('span', 'jor-rc-org', eq.etiqueta === 'Comprado' ? 'comprado' : eq.etiqueta) : null;
-    lin('Placas', txtL(eq.modulos), et); lin('Inversor', txtL(eq.inversores)); lin('Estrutura', txtL(eq.estruturas));
+    lin('Placas', txtL(eq.modulos), et, true); lin('Inversor', txtL(eq.inversores), null, true); lin('Estrutura', txtL(eq.estruturas), null, true);
     if (eq.material && eq.material.length) lin('Material elétrico', h.plural(eq.material.length, 'item comprado', 'itens comprados'));
     if (eq.kwp) lin('Potência', String(eq.kwp).replace('.', ',') + ' kWp');
     var equipe = ob.equipe && ob.equipe.descricao ? ob.equipe.descricao : '';
     if (!equipe && (ob.plano || []).length) { var ids = {}; ob.plano.forEach(function (p) { if (p.equipe) ids[p.equipe] = 1; }); equipe = Object.keys(ids).map(function (k) { var x = (f2.equipes || []).filter(function (e) { return e.id === k; })[0]; return x ? x.rotulo : k; }).join(', '); }
-    lin('Equipe', equipe);
+    lin('Equipe', equipe, null, true);
     if (l && typeof l.gasto === 'number') lin('Total gasto', h.rs(l.gasto));
     if (l && typeof l.saldo === 'number') lin('Saldo', h.rs(l.saldo));
     b.appendChild(g);
@@ -1377,15 +1407,19 @@
     var bk = f2.book || { pode: false };
     var ac = el('div', 'jor-din-acoes');
     var bt = btn('Baixar o Book', '', function () { if (window.Jornada.extras.bookPdf) window.Jornada.extras.bookPdf(d.card.id || O().card, bt); }); bt.disabled = !bk.pode; bt.insertBefore(h.icone('baixo'), bt.firstChild);
-    ac.appendChild(bt); ac.appendChild(el('span', 'jor-nota', 'Com as fotos, os testes e as garantias.')); b.appendChild(ac);
+    var bkf = f3 && f3.book && f3.book.gerado_em ? f3.book : null;
+    var qd = bkf ? h.quando(bkf.gerado_em) : null;
+    ac.appendChild(bt); ac.appendChild(el('span', 'jor-nota', bkf ? 'Último gerado' + (qd ? ' em ' + qd : '') + (bkf.por ? ' por ' + h.nomeBonito(bkf.por) : '') + '.' : 'Com as fotos, os testes e as garantias.')); b.appendChild(ac);
     var trava = travaDoBook(f2);
     if (trava.length) {
-      var ul = el('ul', 'jor-ob-trava2'); ul.setAttribute('aria-label', 'O que segura o Book');
+      var cx = el('div', 'jor-ob-conf-book'); cx.setAttribute('role', 'note');
+      cx.appendChild(el('b', '', 'Para o Book ir ao cliente, falta corrigir:'));
+      var ul = el('ul'); ul.setAttribute('aria-label', 'O que segura o Book');
       trava.forEach(function (t) {
         var onde = ondeCorrige(t); var li = el('li'); li.appendChild(el('span', '', t));
-        var ir = btn(onde.rot, 'jor-btn-link', function () { if (h.irAba) h.irAba(onde.aba); }); li.appendChild(ir); ul.appendChild(li);
+        li.appendChild(btn(onde.rot, 'jor-btn-link', function () { irCorrigir(onde); })); ul.appendChild(li);
       });
-      b.appendChild(ul);
+      cx.appendChild(ul); b.appendChild(cx);
     }
   }
   /** As pendências que seguram o Book (texto de cada uma), ou lista vazia quando ele está livre. */
@@ -1399,9 +1433,15 @@
   /** Onde se corrige cada trava do Book: equipamento e garantia no Editar item da Compra, garantia de contrato no passo 2, foto e teste na Entrega. */
   function ondeCorrige(t) {
     var x = String(t || '');
-    if (/contrato|instala/i.test(x)) return { aba: 'p2', rot: 'Corrigir no passo 2 Contrato' };
-    if (/foto|teste|termo|monitor/i.test(x)) return { aba: 'e7', rot: 'Corrigir na Entrega, aqui na 9' };
-    return { aba: 'e4', rot: 'Corrigir em 6 Compra, Editar item' };
+    if (/contrato|instala/i.test(x)) return { aba: 'p2', rot: 'Corrigir no passo 2' };
+    if (/s[ée]rie|monitor|aplicativo|senha/i.test(x)) return { aba: 'e7', alvo: 'jor-s-monit', rot: 'Ir ao Monitoramento' };
+    if (/foto|teste|termo|entrega/i.test(x)) return { aba: 'e7', alvo: 'jor-s-entrega', rot: 'Ir à Entrega' };
+    return { aba: 'e4', rot: 'Corrigir em 6 Compra' };
+  }
+  /** Vai aonde a pendência se corrige: outra aba, ou a seção desta. */
+  function irCorrigir(onde) {
+    var h = H(); if (h.irAba) h.irAba(onde.aba);
+    if (onde.alvo) setTimeout(function () { var a = document.getElementById(onde.alvo); if (a) a.scrollIntoView({ block: 'start' }); }, 0);
   }
   function fechamentoFinal(b, d, f2, concluida, e8) {
     var h = H(); var pode = f2.pode || {};
@@ -1464,7 +1504,7 @@
         var lt = el('ul'); lt.setAttribute('aria-label', 'O que segura o Book');
         trava.forEach(function (t) {
           var onde = ondeCorrige(t); var li = el('li'); li.appendChild(el('span', '', t));
-          li.appendChild(btn(onde.rot, 'jor-btn-link', function () { h.fecharDlg(); if (h.irAba) h.irAba(onde.aba); }));
+          li.appendChild(btn(onde.rot, 'jor-btn-link', function () { h.fecharDlg(); irCorrigir(onde); }));
           lt.appendChild(li);
         });
         av.appendChild(lt); box.appendChild(av);
@@ -1676,7 +1716,7 @@
     var info = el('p', 'jor-erro'); info.setAttribute('role', 'status'); box.appendChild(info);
     var ac = el('div', 'jor-din-acoes');
     if (pode) ac.appendChild(botaoSalvar('Salvar', 'vistoria', function () { return v; }, 'Relatório salvo.'));
-    ac.appendChild(btn('Gerar relatório', 'jor-btn-pri', function () { gerarVistoria(d, v, info); }));
+    ac.appendChild(btn('Gerar relatório', '', function () { gerarVistoria(d, v, info); }));
     box.appendChild(ac); esq.appendChild(box);
   }
   function gerarVistoria(d, v, info) {
@@ -1813,5 +1853,8 @@
   window.Jornada.etapas.comissionamento = comissionamento;
   window.Jornada.extras.vistoria = extraVistoria;
   window.Jornada.extras.banco = extraBanco;
+  // A trava do Book é uma só: o botão da Conclusão geral e o do topo da página leem a mesma regra e a mesma frase.
+  window.Jornada.extras.travaDoBook = travaDoBook;
+  window.Jornada.extras.fraseBookTravado = fraseBookTravado;
   void semanaDe;
 })();

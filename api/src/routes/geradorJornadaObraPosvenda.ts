@@ -8,14 +8,16 @@ import type { ContratoObra } from '../services/gerador/jornadaObra';
 // crescer); só TIPOS vêm de lá (sem ciclo de boot). Nada aqui é valor de venda.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** O dia (Brasília) em que a usina foi liberada: a conclusão da etapa 8. Obra antiga materializada só vale se o passo "liberada" tem data. */
+/**
+ * O dia em que a usina foi liberada, com a regra única: a data REAL digitada na liberação (passo "liberada", a da concessionária) vale em todo lugar,
+ * como na mensagem automática; só sem ela vale o dia (Brasília) em que a etapa 8 concluiu. Etapa 8 sem conclusão: null.
+ */
 function liberadaEmDe(f: Fase2): string | null {
   const e8 = f.joView?.etapas[8];
   if (!e8?.concluida_em) return null;
   const doPasso = f.privada.liberacao.passos.liberada?.data ?? '';
-  const passoOk = /^\d{4}-\d{2}-\d{2}$/.test(doPasso);
-  if (e8.concluida_por === 'leitura') return passoOk ? doPasso : null;
-  return diaDeBrasilia(e8.concluida_em);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(doPasso)) return doPasso;
+  return e8.concluida_por === 'leitura' ? null : diaDeBrasilia(e8.concluida_em);
 }
 
 /** O `posvenda_info` do GET. `c`: o contrato com as garantias; `nomeDoCliente`: o nome do cadastro (ou do card). */
