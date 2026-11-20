@@ -307,6 +307,12 @@
       '.jor-ob-conf{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:10px}',
       '.jor-ob-conf li{display:flex;align-items:flex-start;gap:10px;font-size:14px;line-height:1.45;color:var(--n-tx,#E5E7EB)}',
       '.jor-ob-conf svg{flex:0 0 auto;margin-top:3px;color:var(--io-ok-tx,#4ADE80)}',
+      '.jor-ob-conf-book{margin:12px 0 8px;padding:10px 12px;border-radius:10px;border:1px solid var(--io-ambar-bd,rgba(247,164,28,.4));background:var(--io-av-sf,rgba(247,164,28,.1));color:var(--io-ambar-tx,#FDE68A);font-size:14px;line-height:1.45}',
+      '.jor-ob-conf-book b{display:block;font-weight:700}',
+      '.jor-ob-conf-book ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}',
+      '.jor-ob-conf-book li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;font-size:13px;font-weight:600}',
+      '.jor-ob-conf-book .jor-btn-link{min-height:44px;color:inherit;border-color:var(--io-ambar-bd,rgba(247,164,28,.4))}',
+      '.jor-ob-final-av{color:var(--io-ambar-tx,#FDE68A);font-weight:600}',
       '.jor-ob-termo{list-style:none;counter-reset:t;margin:8px 0 12px;padding:0;display:flex;flex-direction:column}',
       '.jor-ob-termo li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:6px 0;border-top:1px solid var(--n-bd,#334155);font-size:13.5px;line-height:1.45;color:var(--n-tx,#E5E7EB)}',
       '.jor-ob-termo li:first-child{border-top:0}',
@@ -1249,7 +1255,7 @@
     esq.appendChild(sE);
     // 2. Monitoramento: app, conta, usina online e a senha no cofre.
     var sM = secao('Monitoramento', etqItens(itensDe(f2, 7, ['monitoramento']), feita7), 'jor-s-monit');
-    monitoramento(sM, f2, en, podeE, grava);
+    monitoramento(sM, f2, en, podeE, grava, function (aviso) { return salvar('entrega', corpoEnt(), aviso); });
     esq.appendChild(sM);
     // 3. Concessionária: pedido de vistoria, vistoria, medidor (opcional) e liberada.
     var sC = secao('Concessionária', etqItens(itensDe(f2, 8, ['pedido', 'vistoria', 'medidor', 'liberacao']), concluida), 'jor-s-conc');
@@ -1276,7 +1282,7 @@
       esq.appendChild(sP);
     }
   }
-  function monitoramento(b3, f2, en, pode, grava) {
+  function monitoramento(b3, f2, en, pode, grava, salvarEntrega) {
     var h = H();
     var M = en.monitoramento; var mon0 = (dados(f2).entrega || {}).monitoramento || {}; delete M.conta_mascarada; var cofre = (dados(f2).entrega || {}).cofre || null;
     var app = entrada('text', M.app || '', 'Aplicativo do fabricante'); var us = entrada('text', M.usina || '', 'Usina no aplicativo'); var se = entrada('text', M.serie || '', 'Número de série do inversor'); var cm = entrada('date', M.comissionamento || '', 'Data do comissionamento');
@@ -1301,7 +1307,8 @@
         gs.disabled = true;
         h.api(base() + '/cofre', 'PUT', { senha: sn.value }, 30000).then(function (r) {
           gs.disabled = false;
-          if (r.status === 200 && r.json.ok !== false) { sn.value = ''; h.toast('Senha guardada no cofre.'); h.recarregar(); } else h.toast(msgSrv(r, 'Não consegui guardar a senha.'));
+          // O cofre não mexe na versão da Entrega. Salvar o que já foi digitado antes de a tela recarregar evita perder app, conta, usina e o resto.
+          if (r.status === 200 && r.json.ok !== false) { sn.value = ''; salvarEntrega('Senha guardada e monitoramento salvo.'); } else h.toast(msgSrv(r, 'Não consegui guardar a senha.'));
         });
       });
       var lc = el('div', 'jor-ob-linha0 jor-ob-senha-l'); add(lc, campo('Senha (some depois de guardada)', sn), gs); b3.appendChild(lc);
@@ -1371,7 +1378,7 @@
     var ac = el('div', 'jor-din-acoes');
     var bt = btn('Baixar o Book', '', function () { if (window.Jornada.extras.bookPdf) window.Jornada.extras.bookPdf(d.card.id || O().card, bt); }); bt.disabled = !bk.pode; bt.insertBefore(h.icone('baixo'), bt.firstChild);
     ac.appendChild(bt); ac.appendChild(el('span', 'jor-nota', 'Com as fotos, os testes e as garantias.')); b.appendChild(ac);
-    var trava = (!bk.pode && Array.isArray(bk.trava)) ? bk.trava : [];
+    var trava = travaDoBook(f2);
     if (trava.length) {
       var ul = el('ul', 'jor-ob-trava2'); ul.setAttribute('aria-label', 'O que segura o Book');
       trava.forEach(function (t) {
@@ -1380,6 +1387,14 @@
       });
       b.appendChild(ul);
     }
+  }
+  /** As pendências que seguram o Book (texto de cada uma), ou lista vazia quando ele está livre. */
+  function travaDoBook(f2) {
+    var bk = (f2 && f2.book) || {};
+    return (!bk.pode && Array.isArray(bk.trava)) ? bk.trava.filter(Boolean) : [];
+  }
+  function fraseBookTravado(n) {
+    return n === 1 ? 'O Book ainda tem 1 pendência e só vai ao cliente depois que ela for corrigida.' : 'O Book ainda tem ' + n + ' pendências e só vai ao cliente depois que forem corrigidas.';
   }
   /** Onde se corrige cada trava do Book: equipamento e garantia no Editar item da Compra, garantia de contrato no passo 2, foto e teste na Entrega. */
   function ondeCorrige(t) {
@@ -1401,7 +1416,11 @@
         var barra = el('div', 'jor-portao-barra jor-ob-final');
         var tx = el('div', 'jor-ob-final-tx');
         tx.appendChild(el('b', '', pode.finalizar_pronto ? 'Pronto para concluir.' : 'O botão libera quando a lista acima zerar.'));
-        tx.appendChild(el('span', '', 'Ao concluir, a conta fecha, a planilha é preenchida e o cliente recebe o Book da usina no WhatsApp.'));
+        var travaF = travaDoBook(f2);
+        if (travaF.length) {
+          tx.appendChild(el('span', '', 'Ao concluir, a conta fecha e a planilha é preenchida.'));
+          tx.appendChild(el('span', 'jor-ob-final-av', fraseBookTravado(travaF.length)));
+        } else tx.appendChild(el('span', '', 'Ao concluir, a conta fecha, a planilha é preenchida e o cliente recebe o Book da usina no WhatsApp.'));
         barra.appendChild(tx);
         var bf = btn('Concluir e preencher a planilha', 'jor-btn-pri jor-btn-grande', function () { confirmarFinal(bf); });
         bf.disabled = !pode.finalizar_pronto; if (!pode.finalizar_pronto) bf.setAttribute('aria-describedby', 'jor-s-fechar');
@@ -1433,8 +1452,23 @@
     var h = H(); var info = null;
     h.dialogo('Concluir a obra', function (box) {
       var ul = el('ul', 'jor-ob-conf');
-      ['A conta da obra fecha. Só o Thiago reabre.', 'A planilha antiga recebe os dados da venda, só nas células vazias.', 'O cliente recebe o Book da usina no WhatsApp.'].forEach(function (t) { var li = el('li'); li.appendChild(h.icone('ok')); li.appendChild(el('span', '', t)); ul.appendChild(li); });
+      var trava = travaDoBook(O().fase2);
+      // Com o Book travado a promessa vira aviso: ele só segue ao cliente depois de corrigido.
+      var itens = ['A conta da obra fecha. Só o Thiago reabre.', 'A planilha antiga recebe os dados da venda, só nas células vazias.'];
+      if (!trava.length) itens.push('O cliente recebe o Book da usina no WhatsApp.');
+      itens.forEach(function (t) { var li = el('li'); li.appendChild(h.icone('ok')); li.appendChild(el('span', '', t)); ul.appendChild(li); });
       box.appendChild(ul);
+      if (trava.length) {
+        var av = el('div', 'jor-ob-conf-book'); av.setAttribute('role', 'note');
+        av.appendChild(el('b', '', fraseBookTravado(trava.length)));
+        var lt = el('ul'); lt.setAttribute('aria-label', 'O que segura o Book');
+        trava.forEach(function (t) {
+          var onde = ondeCorrige(t); var li = el('li'); li.appendChild(el('span', '', t));
+          li.appendChild(btn(onde.rot, 'jor-btn-link', function () { h.fecharDlg(); if (h.irAba) h.irAba(onde.aba); }));
+          lt.appendChild(li);
+        });
+        av.appendChild(lt); box.appendChild(av);
+      }
       info = el('p', 'jor-erro'); info.setAttribute('role', 'status'); box.appendChild(info);
       return {};
     }, 'Concluir', function (b) {

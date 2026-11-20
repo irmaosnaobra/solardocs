@@ -680,6 +680,29 @@ describe('a retirada dos sócios só para o ADM e para a Giovanna', () => {
       expect(l.a_pagar.map((x: any) => x.texto)).toEqual(['Comissão de Diego (sócio 2%): R$ 778,00']);
     }
   });
+
+  it('duas retiradas de R$ 778,00 no mesmo dia, de sócios DIFERENTES, não são duplicata; o mesmo valor e dia sem pessoa (gasto comum) segue pedindo confirmação', async () => {
+    iaLe(1_167_000);
+    const { path: pe } = await subir('entrada das duas retiradas', { auth: GIOVANNA });
+    expect((await post(dinheiro(SOLAR, '/lancamento'), corpoEntrada(pe), GIOVANNA)).status).toBe(200);
+    const paga = async (nome: string) => {
+      iaLe(77_800);
+      const { path } = await subir(`retirada do ${nome}`, { auth: GIOVANNA });
+      return post(dinheiro(SOLAR, '/comissao'), { id: novoId('com'), nome, papel: 'socio', data: '2026-10-02', forma: 'pix', arquivo_path: path }, GIOVANNA);
+    };
+    expect((await paga('thiago')).status).toBe(200);
+    const d = await paga('diego');
+    expect(d.status).toBe(200);
+    expect(d.body.ok).toBe(true);
+    expect(d.body.lancamento).toMatchObject({ categoria: 'retirada_socio', valor_centavos: 77_800, descricao: 'Diego, sócio 2%' });
+    expect(fins()).toHaveLength(3);   // entrada + as duas retiradas
+    // A mesma quantia, no mesmo dia, lançada como gasto comum (sem pessoa) é comparada com as retiradas e pede confirmação.
+    iaLe(77_800);
+    const { path: pg } = await subir('gasto igual a retirada');
+    const g = await post(dinheiro(SOLAR, '/lancamento'), corpoGasto(pg, { data: '2026-10-02', valor_centavos: 77_800 }), GIOVANNA);
+    expect(g.status).toBe(409);
+    expect(g.body.error).toBe('possivel_duplicado');
+  });
 });
 
 describe('a retirada pelo financeiro antigo', () => {

@@ -21,7 +21,7 @@ import { ehRecusa } from './jornadaSolarBanco';
 import {
   buscarNotaViva, gravarRegistroNota, liberarRegistroNota, lerObraPrivada, mudarObraPrivada, obraPrivadaVazia, reservarChaveNfe,
 } from './jornadaObraBanco';
-import { aplicarDocumentoNaCompra, compraExistenteDoDocumento, jaLido, tipoDoDocumento, type DocLido, type ResumoMescla } from './compraLeitura';
+import { aplicarDocumentoNaCompra, compraExistenteDoDocumento, jaLido, tipoDoDocumento, type ContextoMescla, type DocLido, type ResumoMescla } from './compraLeitura';
 
 export const cotaDaCompra = (card: number): Cota => ({ caminho: `vendasolar/${card}.leitura-compra.json`, trava: `leitura-compra:${card}`, limite: MAX_LEITURAS_POR_HORA });
 
@@ -55,9 +55,9 @@ function docLido(lida: Record<string, unknown>, origem: 'xml' | 'ia'): DocLido {
 
 /**
  * Lê UM arquivo da Compra e grava o que achou. Nunca lança por causa da IA (falha vira `falhou`); erro de banco sobe (a rota responde 503).
- * `agora`: só para teste.
+ * `agora`: só para teste. `equip`: o kit da proposta; com a compra vazia a 1ª leitura parte dele.
  */
-export async function lerEGravarArquivoDaCompra(g: QuemLe, entrada: EntradaArquivoCompra, agora: () => string = () => new Date().toISOString()): Promise<SaidaCompra> {
+export async function lerEGravarArquivoDaCompra(g: QuemLe, entrada: EntradaArquivoCompra, agora: () => string = () => new Date().toISOString(), equip?: ContextoMescla['equip']): Promise<SaidaCompra> {
   if (!(await obraAbertaParaIa(g.id))) return erro(409, 'obra_fechada', 'Esta obra não aceita mais leitura.');
   const tipo = normalizarTipo(entrada.media_type);
   const ehXml = tipo === 'application/xml' || tipo === 'text/xml';
@@ -106,7 +106,7 @@ export async function lerEGravarArquivoDaCompra(g: QuemLe, entrada: EntradaArqui
     v: 1, card_id: g.id, path: arquivo.path, nome, tipo: arquivo.tipo, tamanho: arquivo.tamanho, sha256: sha, doc: 'nota', por: g.nome, em: agora(), leitura: 'ok', sugestao: null, nota: lida,
   });
 
-  const ctxBase = { por: g.nome, agora: agora(), novoId };
+  const ctxBase = { por: g.nome, agora: agora(), novoId, equip };
   const arq = { nome, sha256: sha, path: arquivo.path };
   let resumo: ResumoMescla | null = null;
   const gravar = (extra: { nfId?: string; compraId?: string }) => mudarObraPrivada(g.id, g.nome, 'compra', null, (p) => {

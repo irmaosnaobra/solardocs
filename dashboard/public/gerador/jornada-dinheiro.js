@@ -222,12 +222,18 @@
     c.appendChild(h.el('div', 'jor-din-sub', 'Saídas'));
     var tot = h.el('div', 'jor-din-tot'); tot.appendChild(h.el('span', '', 'Total de saídas')); tot.appendChild(h.el('span', 'jor-din-v', h.rs(l.gasto))); c.appendChild(tot);
     var linhas = l.linhas || []; var atual = h.atual() || 1; var algum = false;
+    // As etapas 7 e 8 da api são um passo só (9 · Comissionamento): uma linha com a soma das duas.
+    var grupos = [];
     for (var n = 1; n <= 8; n++) {
       var custo = linhas.filter(function (x) { return Number(x.etapa) === n && x.grupo === 'custo'; });
       if (n > atual && !custo.length) continue;
-      var cab = h.el('div', 'jor-din-etp'); cab.appendChild(h.el('b', '', rotEtapa(n))); cab.appendChild(h.el('span', 'jor-din-v', h.rs(porEtapa(l, n)))); c.appendChild(cab);
-      custo.forEach(function (x) { c.appendChild(linhaDe(x, din)); algum = true; });
+      var rot = rotEtapa(n); var ult = grupos[grupos.length - 1];
+      if (ult && ult.rot === rot) { ult.custo = ult.custo.concat(custo); ult.total += porEtapa(l, n); } else grupos.push({ rot: rot, custo: custo, total: porEtapa(l, n) });
     }
+    grupos.forEach(function (g) {
+      var cab = h.el('div', 'jor-din-etp'); cab.appendChild(h.el('b', '', g.rot)); cab.appendChild(h.el('span', 'jor-din-v', h.rs(g.total))); c.appendChild(cab);
+      g.custo.forEach(function (x) { c.appendChild(linhaDe(x, din)); algum = true; });
+    });
     if (!algum) c.appendChild(h.el('p', 'jor-nota', 'Nenhuma saída lançada.'));
     var ps = din.pode || {};
     if (ps.lancar_saida) { var as = h.el('div', 'jor-din-acoes'); as.appendChild(h.btn('Lançar saída', 'jor-btn-pri', function () { lancar({ tipo: 'saida', escolherEtapa: true }); })); c.appendChild(as); }
@@ -642,8 +648,16 @@
         var le = h.el('label', 'jor-din-etapa', 'Etapa');
         refs.etapa_in = h.el('select', 'jor-sel'); refs.etapa_in.name = 'etapa';
         var abertas = Math.min(8, h.atual() || 1);
-        for (var x = 1; x <= abertas; x++) { var op = h.el('option', '', rotEtapa(x)); op.value = String(x); refs.etapa_in.appendChild(op); }
+        // As etapas 7 e 8 da api têm o mesmo nome (Passo 9): uma opção só, com o valor da primeira.
+        var rotAnt = ''; var valDe = {};
+        for (var x = 1; x <= abertas; x++) {
+          var rx = rotEtapa(x);
+          if (rx === rotAnt) { valDe[x] = valDe[x - 1]; continue; }
+          rotAnt = rx; valDe[x] = x;
+          var op = h.el('option', '', rx); op.value = String(x); refs.etapa_in.appendChild(op);
+        }
         etapa = Math.min(abertas, Math.max(1, etapa));
+        etapa = valDe[etapa] || etapa;
         refs.etapa_in.value = String(etapa);
         refs.etapa_in.addEventListener('change', function () { etapa = Number(refs.etapa_in.value) || etapa; });
         le.appendChild(refs.etapa_in); c.appendChild(le);
@@ -743,7 +757,7 @@
     }
     if (!livro && O().dinErro) { b.appendChild(h.el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); b.appendChild(h.btn('Tentar de novo', '', function () { h.recarregar(); })); }
     b.appendChild(h.el('p', 'jor-nota', 'A parte de quem vendeu entra no custo da obra. Os 2% de cada sócio ficam à parte.'));
-    b.appendChild(h.el('p', 'jor-nota', 'Comissão não paga não trava a obra: fica em A pagar.'));
+    b.appendChild(h.el('p', 'jor-nota', 'Comissão não paga não trava as etapas. O fechamento final cobra.'));
     alvo.appendChild(b);
   }
 

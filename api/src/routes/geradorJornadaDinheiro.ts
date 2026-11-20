@@ -325,7 +325,11 @@ async function gravarLancamento(p: PedidoGravacao): Promise<Saida> {
         for (const l of d.lancamentos) {
           if (!viva(l)) continue;
           const mesmaTransacao = !!idt && l.id_transacao.trim() === idt;
-          const mesmoValor = l.tipo === assinado.tipo && l.valor_centavos === assinado.valor_centavos && l.data === assinado.data;
+          // Mesmo valor e dia, mas comissão ou retirada de PESSOAS diferentes (dois sócios com R$ 500): são pagamentos distintos, não duplicata.
+          const nomeA = l.obra.comissao?.nome.trim().toLowerCase();
+          const nomeB = assinado.obra.comissao?.nome.trim().toLowerCase();
+          const pessoasDiferentes = !!nomeA && !!nomeB && nomeA !== nomeB;
+          const mesmoValor = !pessoasDiferentes && l.tipo === assinado.tipo && l.valor_centavos === assinado.valor_centavos && l.data === assinado.data;
           if (!mesmaTransacao && !mesmoValor) continue;
           vistos.add(l.id);
           dups.push({ id: l.id, tipo: l.tipo, valor_centavos: l.valor_centavos, data: l.data, categoria: l.categoria, motivo: mesmaTransacao ? 'mesma_transacao' : 'mesmo_valor_e_data', onde: 'esta obra' });

@@ -4,7 +4,7 @@ import { semCache } from './geradorClientesDocs';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { corpoDe, falhouJornada, guardaDaObra, MSG_PEDIDO } from './geradorJornadaGuarda';
 import { ondeEsta } from './geradorJornadaDinheiro';
-import { corpoFase2, fraseNotaRepetida, lerFase2, podeSecao, prepararEscrita } from './geradorJornadaObra';
+import { corpoFase2, equipPropostaDe, fraseNotaRepetida, lerFase2, podeSecao, prepararEscrita } from './geradorJornadaObra';
 import { sincronizarPortoes } from '../services/gerador/obraSincronia';
 import { comTrava } from '../services/gerador/cadastroVendaBanco';
 import { lerEGravarArquivoDaCompra } from '../services/gerador/compraLeituraIo';
@@ -37,7 +37,7 @@ export function mountJornadaCompra(router: Router): void {
       if (f.din.fechada) { res.status(409).json({ ok: false, error: MSG_FECHADA }); return; }
       if (!podeSecao(g, f, 'compra')) { res.status(403).json({ ok: false, error: 'Você não pode mexer nesta parte agora.' }); return; }
       await prepararEscrita(g, f);
-      const s = await lerEGravarArquivoDaCompra({ id: g.id, nome: g.nome }, { base64: b.base64, media_type: b.media_type, nome: b.nome });
+      const s = await lerEGravarArquivoDaCompra({ id: g.id, nome: g.nome }, { base64: b.base64, media_type: b.media_type, nome: b.nome }, undefined, equipPropostaDe(f) ?? undefined);
       if (s.resultado === 'erro') {
         if (s.error === 'nota_repetida' && s.dono) {
           const onde = await ondeEsta(g, s.dono);

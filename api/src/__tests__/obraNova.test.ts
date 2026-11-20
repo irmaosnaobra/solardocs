@@ -6,7 +6,7 @@ import { SLOTS_FOTO_ENTREGA } from '../services/gerador/obraDocs';
 import { obraPrivadaVazia, obraVazia, normalizarObraPrivada } from '../services/gerador/jornadaObraBanco';
 import { AJUSTES_PADRAO, livroDaObra } from '../services/gerador/jornadaDinheiro';
 import { aplicarPortoes, forcarEtapa, portaoCompra, portaoEntrega, portaoLogistica, portaoObra, ultimoCarimbo } from '../services/gerador/obraPortoes';
-import { orcadoApenas, serieDoInversor, statusDoKit, statusDoMaterial } from '../services/gerador/compraKit';
+import { itensQueContam, orcadoApenas, serieDoInversor, statusDoKit, statusDoMaterial } from '../services/gerador/compraKit';
 import { concluirComissionamento } from '../services/gerador/comissionamento';
 import { equipamentoFinal, itensParaTermo } from '../services/gerador/equipamentoFinal';
 import { aplicarDocumentoNaCompra, compraExistenteDoDocumento, tipoDoDocumento, type DocLido } from '../services/gerador/compraLeitura';
@@ -560,3 +560,41 @@ describe('serie do inversor no item da Compra', () => {
 });
 
 export type _Tipos = ObraPrivada;
+
+describe('B7: a 1ª leitura com a compra vazia parte do kit da proposta', () => {
+  let n = 0;
+  const ctx = { por: 'thiago', agora: AGORA, novoId: (pf: string) => `${pf}-${++n}00000`, equip: { qtdPlacas: 10, modeloPlaca: 'Tsun TSM-600', potPlaca: 600, qtdInversor: 1, inversor: 'SAJ 6K' } };
+  const linha = (descricao: string, quantidade: number, unit: number) => ({ descricao, quantidade, unidade: 'un', valor_unitario_centavos: unit, valor_total_centavos: quantidade * unit });
+  const nota = (itens: DocLido['itens']): DocLido => ({ tipo: 'nota_fiscal', fornecedor: 'Solar Centro', numero: '88', chave: null, data: '2026-11-18', total_centavos: 900_000, itens, origem: 'ia' });
+  const arq = { nome: 'nf.pdf', sha256: 'b'.repeat(64), path: 'fin/7/nf.pdf' };
+  const aplica = (d: DocLido, equip: typeof ctx.equip | null = ctx.equip) => {
+    const r = aplicarDocumentoNaCompra(obraPrivadaVazia(), d, arq, { ...ctx, equip });
+    if ('repetido' in r) throw new Error('repetido');
+    return r;
+  };
+  const MODULO = 'MODULO FOTOVOLTAICO TSUN 600W TSM-600';
+
+  it('NF com o mesmo módulo e inversor: 2 itens da proposta atualizados e comprados; só o cabo é novo', () => {
+    const r = aplica(nota([linha(MODULO, 10, 50_000), linha('Inversor SAJ 6K', 1, 200_000), linha('Cabo solar 6 mm preto', 100, 50)]));
+    expect(r.resumo).toMatchObject({ atualizados: 2, novos: 1, marcados_comprados: 3 });
+    const itens = r.privada.compra.itens;
+    expect(itens.map((i) => [i.tipo, i.origem, i.comprado])).toEqual([['modulo', 'proposta', true], ['inversor', 'proposta', true], ['eletrico', 'arquivo', true]]);
+    expect(itens[0]).toMatchObject({ quantidade: 10, valor_centavos: 500_000, documento_id: r.resumo.documento_id });
+    expect(statusDoKit(itens, r.privada.compra.documentos)).toMatchObject({ completo: true, comprados: 2, total: 2 });
+  });
+
+  it('módulo de OUTRA marca: o previsto da proposta fica de fora e o kit fecha em N de N (não N de N+1)', () => {
+    const r = aplica(nota([linha('MODULO FOTOVOLTAICO JINKO 550W JKM-550', 10, 50_000), linha('Inversor SAJ 6K', 1, 200_000)]));
+    const itens = r.privada.compra.itens;
+    expect(itens.filter((i) => i.tipo === 'modulo').map((i) => [i.origem, i.comprado])).toEqual([['proposta', false], ['arquivo', true]]);
+    const kitSt = statusDoKit(itens, r.privada.compra.documentos);
+    expect(kitSt).toMatchObject({ completo: true, comprados: 2, total: 2 });
+    expect(itensQueContam(itens, r.privada.compra.documentos)).toHaveLength(2);
+  });
+
+  it('sem proposta nada é semeado: tudo entra como novo, como antes', () => {
+    const r = aplica(nota([linha(MODULO, 10, 50_000)]), null);
+    expect(r.resumo).toMatchObject({ atualizados: 0, novos: 1 });
+    expect(r.privada.compra.itens.map((i) => i.origem)).toEqual(['arquivo']);
+  });
+});
