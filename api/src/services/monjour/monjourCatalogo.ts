@@ -274,7 +274,19 @@ export interface FunilMonjour {
    * anúncio e conjunto do funil), sem sondas. visitas = monjour_sinal carga; planes = planes; compra = abriu a folha de compra
    * (todos com passo 'venta'); checkouts = clicou em pagar (monjour_fim checkout, origen 'plan'); compras = monjour_fim compra, origen 'plan'.
    */
-  paginaVenta: { visitas: number; planes: number; compra: number; checkouts: number; compras: number };
+  paginaVenta: {
+    visitas: number; planes: number; compra: number; checkouts: number; compras: number;
+    /**
+     * Seções da página que a visita viu (união dos monjour_sinal q 'saida' da sessão, campo `sec`). Todas as seções do catálogo,
+     * na ordem da página, com 0 para a que ninguém viu. `sessoes` = sessões distintas.
+     */
+    secoes: { codigo: string; nome: string; sessoes: number }[];
+    /**
+     * Cliques da página (campo `cl` do q 'saida', acumulado: vale o MAIOR valor de cada código por sessão). Só os códigos com pelo menos
+     * 1 sessão, por `sessoes` decrescente. `sessoes` = sessões distintas que clicaram; `total` = soma dos cliques.
+     */
+    cliques: { codigo: string; nome: string; sessoes: number; total: number }[];
+  };
 }
 
 export interface EventoMonjour {
@@ -287,3 +299,32 @@ export interface EventoMonjour {
 export interface FiltrosMonjour {
   pais?: string | null; disp?: string | null; anuncio?: string | null; conjunto?: string | null;
 }
+
+/** Seções da página de venda (/plan/), na ordem da página. O site manda o código em `sec` do sinal 'saida'. */
+export const SECOES_PAGINA_VENTA: { codigo: string; nome: string }[] = [
+  { codigo: 'v', nome: 'Vídeo' },
+  { codigo: 'h', nome: 'Topo (título e preço)' },
+  { codigo: 'q', nome: 'Para quién' },
+  { codigo: 'c', nome: 'Cómo funciona' },
+  { codigo: 'a', nome: 'La app por dentro' },
+  { codigo: 'x', nome: 'Comparación' },
+  { codigo: 'r', nome: 'Ritmo seguro' },
+  { codigo: 'p', nome: 'Planes' },
+  { codigo: 'g', nome: 'Garantía' },
+  { codigo: 'f', nome: 'Preguntas' },
+  { codigo: 'z', nome: 'Cierre' },
+];
+
+/** Cliques da página de venda: o código que o site manda em `cl` do sinal 'saida' e o nome para o painel. */
+export const CLIQUES_PAGINA_VENTA: { codigo: string; nome: string }[] = [
+  { codigo: 'cta_heroi', nome: 'Botão do topo' },
+  { codigo: 'cta_barra', nome: 'Botão da barra fixa' },
+  { codigo: 'plan_basico', nome: 'Quiero el plan Básico' },
+  { codigo: 'plan_plus', nome: 'Quiero el plan Plus' },
+  { codigo: 'cta_cierre', nome: 'Botão do fim' },
+  ...Array.from({ length: 9 }, (_, i) => ({ codigo: `faq${i + 1}`, nome: `Pergunta ${i + 1}` })),
+  { codigo: 'pular', nome: 'Ir a los planes' },
+  { codigo: 'legal', nome: 'Links legais' },
+  { codigo: 'trocar', nome: 'No soy yo, cambiar' },
+  { codigo: 'fechar', nome: 'Fechar a folha de compra' },
+];

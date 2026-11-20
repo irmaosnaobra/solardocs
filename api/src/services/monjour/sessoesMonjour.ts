@@ -5,6 +5,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 import {
   type EventoMonjour, N_POR_CHAVE, chaveDaResposta, ETAPA_CHECKOUT, ETAPA_COMPRA, ETAPA_OFERTA, PASSO_ATALHO, PASSO_VOLTA, desdeDaEtapa, ateDaEtapa,
+  SECOES_PAGINA_VENTA, CLIQUES_PAGINA_VENTA,
 } from './monjourCatalogo';
 
 export interface ContextoMonjour { pais: string; regiao: string; cidade: string; disp: string; so: string; nav: string; anuncio: string }
@@ -52,6 +53,9 @@ export interface SessaoMonjour {
   /** Clicou em pagar na página (monjour_fim checkout com origen 'plan') e comprou pela página (monjour_fim compra com origen 'plan'). */
   paginaCheckout: boolean;
   paginaCompra: boolean;
+  /** Códigos das seções da página que a sessão viu (união dos sinais 'saida') e o maior número de cliques de cada código. */
+  secoes: Set<string>;
+  cliques: Map<string, number>;
 }
 
 /** A sessão entra nas contas do funil do quiz: passou por ele no período e não veio da página de venda. */
@@ -124,6 +128,7 @@ function sessaoVazia(id: string, primeiro: number): SessaoMonjour {
     receitaCentavos: 0, receitaCompraCentavos: 0, receitaUpgradeCentavos: 0, checkoutTs: null, checkoutCriado: null, compraCriada: null, upgrade: false,
     acoesApp: new Set(), atalho: false, volta: false,
     pagina: false, venta: new Set(), paginaCheckout: false, paginaCompra: false,
+    secoes: new Set(), cliques: new Map(),
   };
 }
 
@@ -152,6 +157,29 @@ function doQuiz(e: EventoMonjour): boolean {
   return e.event_type === 'monjour_fim' && DESTINOS_DO_NAVEGADOR.has(texto((e.event_data || {}).destino, 40));
 }
 
+const SECOES_VALIDAS = new Set(SECOES_PAGINA_VENTA.map((x) => x.codigo));
+const CLIQUES_VALIDOS = new Set(CLIQUES_PAGINA_VENTA.map((x) => x.codigo));
+
+/**
+ * O sinal 'saida' da página traz `sec` (códigos das seções vistas, "h,q,c") e `cl` (cliques, "cta_heroi:1,faq3:2"), ambos acumulados
+ * até ali. Código fora da lista e par malformado são ignorados sem derrubar a conta. A seção entra na união; do clique vale o maior valor.
+ */
+function lerSaidaDaPagina(s: SessaoMonjour, d: Record<string, unknown>): void {
+  for (const parte of texto(d.sec, 200).split(',')) {
+    const codigo = parte.trim();
+    if (SECOES_VALIDAS.has(codigo)) s.secoes.add(codigo);
+  }
+  for (const parte of texto(d.cl, 600).split(',')) {
+    const [codigo, qtd, ...sobra] = parte.split(':');
+    const c = (codigo ?? '').trim();
+    if (sobra.length || !CLIQUES_VALIDOS.has(c) || qtd === undefined) continue;
+    const n = numero(qtd.trim());
+    if (n === null || n < 1) continue;
+    const v = Math.floor(n);
+    if (v > (s.cliques.get(c) ?? 0)) s.cliques.set(c, v);
+  }
+}
+
 function aplicar(s: SessaoMonjour, e: EventoMonjour, criado: number): void {
   const d = e.event_data || {};
   if (!doWebhook(e)) {
@@ -169,6 +197,7 @@ function aplicar(s: SessaoMonjour, e: EventoMonjour, criado: number): void {
     if (texto(d.passo, 40).toLowerCase() === 'venta') {
       const q = texto(d.q, 20).toLowerCase();
       if (q) s.venta.add(q);
+      if (q === 'saida') lerSaidaDaPagina(s, d);
     }
     return;
   }

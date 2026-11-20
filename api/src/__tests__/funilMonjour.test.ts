@@ -724,17 +724,17 @@ describe('funil do quiz Monjour: página de venda (/plan/) fora do quiz', () => 
       sinal('p3', 'carga', {}, 2), sinal('p3', 'planes', {}, 6),
       sinal('p4', 'carga', {}, 3),
     ], OP);
-    expect(f.paginaVenta).toEqual({ visitas: 4, planes: 3, compra: 2, checkouts: 2, compras: 1 });
+    expect(f.paginaVenta).toMatchObject({ visitas: 4, planes: 3, compra: 2, checkouts: 2, compras: 1 });
   });
 
   it('sinal sem passo venta não conta como visita da página', () => {
     const f = montarFunilMonjour([ev('q1', 'monjour_sinal', { passo: 'edad', q: 'carga' })], OP);
-    expect(f.paginaVenta).toEqual({ visitas: 0, planes: 0, compra: 0, checkouts: 0, compras: 0 });
+    expect(f.paginaVenta).toMatchObject({ visitas: 0, planes: 0, compra: 0, checkouts: 0, compras: 0 });
   });
 
   it('sessão sonda fica fora de paginaVenta', () => {
     const f = montarFunilMonjour([...daPagina('s1', { utm_source: 'sonda' }), ...daPagina('p1')], OP);
-    expect(f.paginaVenta).toEqual({ visitas: 1, planes: 1, compra: 1, checkouts: 1, compras: 0 });
+    expect(f.paginaVenta).toMatchObject({ visitas: 1, planes: 1, compra: 1, checkouts: 1, compras: 0 });
   });
 
   it('os filtros de país, aparelho, anúncio e conjunto valem para paginaVenta (mesmo contexto da sessão)', () => {
@@ -749,6 +749,84 @@ describe('funil do quiz Monjour: página de venda (/plan/) fora do quiz', () => 
     expect(visitas({ anuncio: ANUNCIO_VID })).toBe(1);
     expect(visitas({ conjunto: CJ1 })).toBe(1);
     expect(visitas({ pais: 'MX', disp: 'movil' })).toBe(1);
+  });
+
+  describe('secoes e cliques da página (sinal saida)', () => {
+    const saida = (sid: string, sec: unknown, cl: unknown, seg = 30, extra: Record<string, unknown> = {}): EventoMonjour =>
+      sinal(sid, 'saida', { sec, cl, ...extra }, seg);
+    const SECOES = ['v', 'h', 'q', 'c', 'a', 'x', 'r', 'p', 'g', 'f', 'z'];
+
+    it('devolve todas as seções na ordem da página, com 0 para a que ninguém viu', () => {
+      const f = montarFunilMonjour([saida('p1', 'h,q', '')], OP);
+      expect(f.paginaVenta.secoes.map((x) => x.codigo)).toEqual(SECOES);
+      expect(f.paginaVenta.secoes.find((x) => x.codigo === 'h')).toEqual({ codigo: 'h', nome: 'Topo (título e preço)', sessoes: 1 });
+      expect(f.paginaVenta.secoes.find((x) => x.codigo === 'z')).toEqual({ codigo: 'z', nome: 'Cierre', sessoes: 0 });
+      expect(montarFunilMonjour([], OP).paginaVenta.secoes.every((x) => x.sessoes === 0)).toBe(true);
+      expect(montarFunilMonjour([], OP).paginaVenta.cliques).toEqual([]);
+    });
+
+    it('as saídas da mesma sessão se unem; cada sessão conta uma vez por seção', () => {
+      const f = montarFunilMonjour([
+        saida('p1', 'h,q', '', 30), saida('p1', 'h,q,c', '', 40), saida('p1', 'h,p', '', 50),
+        saida('p2', 'h,c', ''),
+      ], OP);
+      const n = (c: string) => f.paginaVenta.secoes.find((x) => x.codigo === c)!.sessoes;
+      expect([n('h'), n('q'), n('c'), n('p'), n('z')]).toEqual([2, 1, 2, 1, 0]);
+    });
+
+    it('cliques: maior valor por código na sessão (acumulado, não soma), total soma as sessões, ordem por sessoes', () => {
+      const f = montarFunilMonjour([
+        saida('p1', 'h', 'cta_heroi:1', 30), saida('p1', 'h', 'cta_heroi:2,faq3:2', 40), saida('p1', 'h', 'cta_heroi:2,faq3:2,plan_plus:1', 50),
+        saida('p2', 'h', 'cta_heroi:1,plan_plus:3'),
+        saida('p3', 'h', 'plan_plus:1'),
+        saida('p4', 'h', 'faq3:1'),
+      ], OP);
+      expect(f.paginaVenta.cliques).toEqual([
+        { codigo: 'cta_heroi', nome: 'Botão do topo', sessoes: 2, total: 3 },
+        { codigo: 'plan_plus', nome: 'Quiero el plan Plus', sessoes: 3, total: 5 },
+        { codigo: 'faq3', nome: 'Pergunta 3', sessoes: 2, total: 3 },
+      ].sort((a, b) => b.sessoes - a.sessoes));
+      expect(f.paginaVenta.cliques.map((x) => x.codigo)).toEqual(['plan_plus', 'cta_heroi', 'faq3']);
+    });
+
+    it('código fora da lista e valor malformado são ignorados sem quebrar a conta', () => {
+      const f = montarFunilMonjour([
+        saida('p1', 'h,w,,HOLA,q', 'cta_heroi:1,xyz:4,faq3:abc,faq4,:2,plan_basico:0,plan_plus:-1,legal:2:9,fechar:2'),
+        saida('p2', 123, { a: 1 }),
+        saida('p3', null, undefined),
+      ], OP);
+      expect(f.paginaVenta.secoes.filter((x) => x.sessoes > 0).map((x) => x.codigo)).toEqual(['h', 'q']);
+      expect(f.paginaVenta.cliques).toEqual([
+        { codigo: 'cta_heroi', nome: 'Botão do topo', sessoes: 1, total: 1 },
+        { codigo: 'fechar', nome: 'Fechar a folha de compra', sessoes: 1, total: 2 },
+      ]);
+      expect(f.paginaVenta.visitas).toBe(0);
+    });
+
+    it('sessão sonda fica fora de secoes e cliques', () => {
+      const f = montarFunilMonjour([saida('s1', 'h,q', 'cta_heroi:5', 30, { utm_source: 'sonda' }), saida('p1', 'h', 'cta_heroi:1')], OP);
+      expect(f.paginaVenta.secoes.find((x) => x.codigo === 'h')!.sessoes).toBe(1);
+      expect(f.paginaVenta.secoes.find((x) => x.codigo === 'q')!.sessoes).toBe(0);
+      expect(f.paginaVenta.cliques).toEqual([{ codigo: 'cta_heroi', nome: 'Botão do topo', sessoes: 1, total: 1 }]);
+    });
+
+    it('os filtros valem para secoes e cliques; saída de quem comprou pela página também conta', () => {
+      const eventos = [
+        ...daPagina('p1', { pais: 'MX', utm_content: ANUNCIO_IMG }), saida('p1', 'h,q', 'cta_heroi:1'),
+        ...daPagina('p2', { pais: 'CO', utm_content: ANUNCIO_VID }), saida('p2', 'h', 'cta_heroi:2,faq1:1'),
+        ...daPagina('p3', { pais: 'MX', disp: 'escritorio' }), saida('p3', 'h,q,c', 'plan_basico:1'),
+      ];
+      const com = (filtros: Record<string, string>) => montarFunilMonjour(eventos, { ...OP, filtros }).paginaVenta;
+      const sec = (p: ReturnType<typeof com>, c: string) => p.secoes.find((x) => x.codigo === c)!.sessoes;
+      expect([sec(com({}), 'h'), sec(com({}), 'q'), sec(com({}), 'c')]).toEqual([3, 2, 1]);
+      expect([sec(com({ pais: 'MX' }), 'h'), sec(com({ pais: 'MX' }), 'q')]).toEqual([2, 2]);
+      expect(com({ anuncio: ANUNCIO_VID }).cliques).toEqual([
+        { codigo: 'cta_heroi', nome: 'Botão do topo', sessoes: 1, total: 2 },
+        { codigo: 'faq1', nome: 'Pergunta 1', sessoes: 1, total: 1 },
+      ]);
+      expect(com({ conjunto: CJ1 }).cliques.map((x) => x.codigo)).toEqual(['cta_heroi']);
+      expect(com({ pais: 'MX', disp: 'movil' }).cliques).toEqual([{ codigo: 'cta_heroi', nome: 'Botão do topo', sessoes: 1, total: 1 }]);
+    });
   });
 
   it('o upgrade e a receita dele continuam contando para quem comprou pela página', () => {

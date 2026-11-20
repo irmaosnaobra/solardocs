@@ -67,6 +67,13 @@ export type FunilMonjour = {
    * em deploys separados, então o painel não pode depender do campo.
    * visitas: abriram a página; planes: viram os planos; compra: abriram a folha
    * de compra; checkouts: clicaram em pagar (foram para a Stripe); compras: compraram.
+   * secoes: cada seção da página, na ordem em que ela aparece, com as sessões que a viram (rolagem).
+   * cliques: os elementos clicados, já ordenados por sessões; total conta todos os cliques.
+   * secoes e cliques são opcionais: a api manda os dois em deploy à parte.
    */
-  paginaVenta?: { visitas: number; planes: number; compra: number; checkouts: number; compras: number };
+  paginaVenta?: {
+    visitas: number; planes: number; compra: number; checkouts: number; compras: number;
+    secoes?: { codigo: string; nome: string; sessoes: number }[];
+    cliques?: { codigo: string; nome: string; sessoes: number; total: number }[];
+  };
 };
