@@ -102,12 +102,12 @@ describe('GET /admin/monjour/quiz-funil/sessoes', () => {
     expect((await por(4, 'sairam')).itens.map((i: { sid: string }) => i.sid)).toEqual(['a']);
     expect((await por(7, 'chegaram')).total).toBe(3);
     expect((await por(7, 'sairam')).itens.map((i: { sid: string }) => i.sid)).toEqual(['b']);
-    const clicaram = await por(33, 'sairam');
+    const clicaram = await por(35, 'sairam');
     expect(clicaram.itens.map((i: { sid: string }) => i.sid)).toEqual(['c']);
     expect(clicaram.itens[0]).toMatchObject({ clicouComprar: true, comprou: false, plano: 'basico' });
-    const compraram = await por(34, 'chegaram');
-    expect(compraram.itens[0]).toMatchObject({ sid: 'd', clicouComprar: true, comprou: true, plano: 'plus', maxPasso: 32 });
-    expect((await por(34, 'sairam')).total).toBe(0);
+    const compraram = await por(36, 'chegaram');
+    expect(compraram.itens[0]).toMatchObject({ sid: 'd', clicouComprar: true, comprou: true, plano: 'plus', maxPasso: 34 });
+    expect((await por(36, 'sairam')).total).toBe(0);
   });
 
   it('cada linha traz contexto, respostas com rótulo e anúncio e conjunto do catálogo', async () => {
@@ -137,7 +137,7 @@ describe('GET /admin/monjour/quiz-funil/sessoes', () => {
 
   it('pedido ruim volta 400 e banco fora volta 500', async () => {
     expect((await request(app).get('/admin/monjour/quiz-funil/sessoes')).status).toBe(400);
-    expect((await request(app).get('/admin/monjour/quiz-funil/sessoes?passo=35')).status).toBe(400);
+    expect((await request(app).get('/admin/monjour/quiz-funil/sessoes?passo=37')).status).toBe(400);
     expect((await request(app).get('/admin/monjour/quiz-funil/sessoes?passo=2&tipo=outro')).status).toBe(400);
     expect((await request(app).get('/admin/monjour/quiz-funil/sessoes?passo=2&cursor=-1')).status).toBe(400);
     banco.erro = true;
@@ -160,7 +160,7 @@ describe('GET /admin/monjour/quiz-funil/sessao/:sid', () => {
     expect(r.body.resumo).toMatchObject({ sid: 'j', pais: 'MX', idade: '25-34 años', objetivo: 'Bajar de peso', clicouComprar: true });
     const linha = r.body.linha;
     expect(linha.map((l: { tipo: string; n: number | null }) => `${l.tipo}:${l.n}`)).toEqual([
-      'viu:2', 'respondeu:2', 'viu:4', 'respondeu:4', 'viu:21', 'respondeu:6', 'fim:33',
+      'viu:2', 'respondeu:2', 'viu:4', 'respondeu:4', 'viu:23', 'respondeu:6', 'fim:35',
     ]);
     expect(linha[0]).toEqual({ ts: iso(T0), tipo: 'viu', passo: 'edad', n: 2, rotulo: 'Idade', resposta: null, segundosNaTela: 20 });
     expect(linha[1]).toMatchObject({ resposta: '25-34 años', rotulo: 'Idade', segundosNaTela: null });
@@ -210,13 +210,13 @@ describe('atalho e volta direto para a oferta (sessões e jornada)', () => {
   it('as telas do meio só listam quem viu de verdade; a oferta lista quem foi a ela', async () => {
     expect(sids(await por(2, 'chegaram'))).toEqual(['atalho', 'normal']);
     expect(sids(await por(4, 'chegaram'))).toEqual(['normal']);
-    expect(sids(await por(32, 'chegaram'))).toEqual(['atalho', 'volta']); // 'normal' parou na tela 3
+    expect(sids(await por(34, 'chegaram'))).toEqual(['atalho', 'volta']); // 'normal' parou na tela 3
   });
 
   it('saíram: quem foi à oferta não sai nas telas do meio', async () => {
     expect(sids(await por(2, 'sairam'))).toEqual([]);
     expect(sids(await por(5, 'sairam'))).toEqual(['normal']);
-    expect(sids(await por(32, 'sairam'))).toEqual(['atalho', 'volta']);
+    expect(sids(await por(34, 'sairam'))).toEqual(['atalho', 'volta']);
   });
 
   it('cada linha diz se entrou pelo atalho ou voltou direto', async () => {
@@ -224,7 +224,7 @@ describe('atalho e volta direto para a oferta (sessões e jornada)', () => {
     const naIdade = porSid(await por(2, 'chegaram'));
     expect(naIdade.atalho).toMatchObject({ atalho: true, volta: false });
     expect(naIdade.normal).toMatchObject({ atalho: false, volta: false });
-    expect(porSid(await por(32, 'chegaram')).volta).toMatchObject({ atalho: false, volta: true });
+    expect(porSid(await por(34, 'chegaram')).volta).toMatchObject({ atalho: false, volta: true });
   });
 
   it('a jornada mostra o evento com o rótulo certo e o tempo da tela 1 para no atalho', async () => {

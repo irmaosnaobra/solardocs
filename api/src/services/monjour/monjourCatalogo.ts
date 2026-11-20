@@ -14,14 +14,22 @@ export const PERIODOS_MONJOUR = ['hoje', 'ontem', '7dias', '30dias', 'maximo'] a
  * é só informação e nunca é lido. A etapa se reconhece pela `chave` (o passo que o Monjour manda).
  * `desde` (ISO UTC, opcional): a etapa só existe para sessões cujo primeiro evento é desta hora em diante.
  * Sessão mais antiga nunca viu a tela e não conta nela, nem em chegaram nem em saíram.
+ * `ate` (ISO UTC, opcional) é o espelho: a tela saiu do quiz. Sessão cujo primeiro evento é igual ou posterior ao `ate`
+ * nunca a vê e não conta nela. Nos dois casos a passagem da sessão pula para a etapa seguinte que existe para ela.
  */
-export interface TelaMonjour { n: number; chave: string; rotulo: string; tipo: string; desde?: string }
+export interface TelaMonjour { n: number; chave: string; rotulo: string; tipo: string; desde?: string; ate?: string }
 
 /**
  * Quando o quiz novo (abertura e prévia do app) foi ao ar. Uma constante só, usada por toda etapa nova do
  * redesenho. AJUSTAR NA HORA DE PUBLICAR: sessões que entraram antes disso não contam nessas etapas.
  */
 export const QUIZ_NOVO_DESDE = '2026-11-20T00:26:00Z';
+
+/**
+ * Quando entrou a segunda entrega do quiz: as afirmações af_ropa e af_lunes entram (`desde`) e hace e despues saem (`ate`).
+ * AJUSTAR NA HORA DE PUBLICAR.
+ */
+export const QUIZ_BLOCO2_DESDE = '2026-11-20T02:45:00Z';
 
 /** A ordem do funil. Etapa nova entra aqui, na posição certa (com `desde` se as sessões antigas não a viram): o resto se calcula. */
 const TELAS_BASE: Omit<TelaMonjour, 'n'>[] = [
@@ -31,11 +39,13 @@ const TELAS_BASE: Omit<TelaMonjour, 'n'>[] = [
   { chave: 'objetivo', rotulo: 'Objetivo', tipo: 'pergunta' },
   { chave: 'cuerpo', rotulo: 'Corpo hoje', tipo: 'pergunta' },
   { chave: 'zona', rotulo: 'Onde acumula', tipo: 'pergunta' },
-  { chave: 'hace', rotulo: 'Há quanto tempo', tipo: 'pergunta' },
+  { chave: 'hace', rotulo: 'Há quanto tempo', tipo: 'pergunta', ate: QUIZ_BLOCO2_DESDE },
+  { chave: 'af_ropa', rotulo: 'Afirmação: roupa', tipo: 'afirmacao', desde: QUIZ_BLOCO2_DESDE },
   { chave: 'inyecciones', rotulo: 'Pensou em injeções', tipo: 'pergunta' },
   { chave: 'noticia', rotulo: 'Notícia', tipo: 'info' },
   { chave: 'probado', rotulo: 'O que já tentou', tipo: 'multipla' },
-  { chave: 'despues', rotulo: 'O que aconteceu depois', tipo: 'pergunta' },
+  { chave: 'despues', rotulo: 'O que aconteceu depois', tipo: 'pergunta', ate: QUIZ_BLOCO2_DESDE },
+  { chave: 'af_lunes', rotulo: 'Afirmação: segunda-feira', tipo: 'afirmacao', desde: QUIZ_BLOCO2_DESDE },
   { chave: 'culpa', rotulo: 'Não é sua culpa', tipo: 'info' },
   { chave: 'antojo', rotulo: 'Hora do doce', tipo: 'pergunta' },
   { chave: 'desayuno', rotulo: 'Café da manhã', tipo: 'pergunta' },
@@ -79,6 +89,12 @@ export const MEDIANA_CORTE_SEG = 30 * 60;
 /** Instante (ms) a partir do qual a etapa existe, ou null se existe desde sempre. */
 export function desdeDaEtapa(n: number): number | null {
   const d = TELAS_MONJOUR[n - 1]?.desde;
+  return d ? Date.parse(d) : null;
+}
+
+/** Instante (ms) em que a etapa saiu do quiz, ou null se ainda está lá. */
+export function ateDaEtapa(n: number): number | null {
+  const d = TELAS_MONJOUR[n - 1]?.ate;
   return d ? Date.parse(d) : null;
 }
 
@@ -189,6 +205,8 @@ export const PERGUNTAS_MONJOUR: PerguntaMonjour[] = [
   { chave: 'picar', pergunta: 'Picar entre as refeições', opcoes: [['si', 'Sí'], ['no', 'No']] },
   { chave: 'sabor', pergunta: 'Doce ou cítrico', opcoes: [['dulces', 'Dulces'], ['citricos', 'Cítricos']] },
   { chave: 'correo', pergunta: 'Aceite de e-mails', opcoes: [['consent_si', 'Sí, quiero recibir correos'], ['consent_no', 'No quiero correos']] },
+  { chave: 'af_ropa', pergunta: 'Afirmação: roupa', opcoes: [['si', 'Sim'], ['no', 'Não'], ['nose', 'Não sei']] },
+  { chave: 'af_lunes', pergunta: 'Afirmação: segunda-feira', opcoes: [['si', 'Sim'], ['no', 'Não'], ['nose', 'Não sei']] },
   { chave: 'oferta', pergunta: 'Plano escolhido na oferta', opcoes: [['basico', 'Básico'], ['plus', 'Plus']] },
 ];
 
@@ -221,6 +239,10 @@ export interface EtapaMonjour {
   /** Percentuais de 0 a 100, 1 casa. pctInicio: chegaram / sessões do funil. pctSaida: sairam / chegaram. */
   pctInicio: number; sairam: number; pctSaida: number;
   medianaSegundos: number | null; pularam?: number;
+  /** Só nas etapas com `desde` ou `ate`: a janela em que a tela existe no quiz (ISO UTC). */
+  desde?: string; ate?: string;
+  /** Só nessas etapas: quantas sessões do período a etapa existe para. Zero = o painel esconde o degrau. */
+  aplicaveis?: number;
 }
 
 export interface FunilMonjour {

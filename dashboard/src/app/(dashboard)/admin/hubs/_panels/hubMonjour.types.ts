@@ -24,6 +24,10 @@ export type EtapaMonjour = {
   pctSaida: number;
   medianaSegundos: number | null;
   pularam?: number;
+  /** Etapa que entra ou sai do quiz (ISO UTC) e quantas sessões do período ela se aplica. Zero: o degrau não aparece. */
+  desde?: string;
+  ate?: string;
+  aplicaveis?: number;
 };
 
 export type FunilMonjour = {
