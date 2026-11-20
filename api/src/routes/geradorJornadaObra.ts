@@ -309,7 +309,7 @@ export async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> =
       cofre_revelar: g.socio,
       fechar: g.adm && !!f.jo?.etapas[8].concluida_em && !f.jo?.fechada && !f.din.cancelada,
       reabrir: g.adm && !!f.jo?.fechada,
-      book: book.length === 0,
+      book: book.length === 0, book_gerar: podeGerarBook(g, f.vend),   // book_gerar: quem pode gerar, mesmo com a trava (o topo mostra o botão desligado com o motivo)
     },
     dados: {
       vistoria: p.vistoria, banco: veValorVenda ? p.banco : bancoSemValor(p.banco),

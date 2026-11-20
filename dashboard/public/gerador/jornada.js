@@ -77,6 +77,8 @@
   function injetarCss() {
     if (document.getElementById('jor-css')) return;
     var css = [
+      // Visual novo: a seção de Clientes Solar e os diálogos dela ficam na fonte do app (o io2 só liga a fonte nas seções da lista dele).
+      'html.io2[data-mode="app"] :is(#clientesSolarSection,.jor-dlg){font-family:var(--io-fonte)}',
       '.jor{color:var(--n-tx);font-size:14px;line-height:1.5;font-variant-numeric:tabular-nums}',
       '.jor *{box-sizing:border-box}',
       '.jor h2,.jor h3{margin:0;color:var(--io-titulo)}',
@@ -191,7 +193,7 @@
       '.jor-anexo-leg{flex:1 1 90px;min-width:0;display:flex;flex-direction:column;line-height:1.35}',
       '.jor-anexo-leg b{font-size:13px;font-weight:600;color:var(--n-tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.jor-anexo-leg small{font-size:12px;color:var(--n-tx2)}',
-      '.jor-anexo-trocar{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border-radius:8px;background:transparent;color:var(--io-azul-tx);font-size:13px;font-weight:600;cursor:pointer}',
+      '.jor-anexo-trocar{display:inline-flex;flex-direction:row;align-items:center;justify-content:center;min-height:44px;padding:0 10px;border-radius:8px;background:transparent;color:var(--io-azul-tx);font-size:13px;font-weight:600;cursor:pointer}',
       '.jor-anexo-trocar:hover,.jor-anexo-trocar:focus-visible{background:var(--n-sf)}',
       '.jor-anexo-trocar:focus-visible{outline:2px solid var(--io-azul-tx);outline-offset:1px}',
       'button.jor-anexo-trocar{border:0;font-family:inherit}',
@@ -295,6 +297,9 @@
       '.jor-doc .jor-lendo{grid-column:1/-1;margin:0;padding:6px 10px;font-size:13px}',
       '.jor-lendo.jor-lendo-auto{padding:0;background:none;border-radius:0;font-size:13px;font-weight:500;color:var(--n-tx2)}',
       '.jor-lendo-auto i{flex:0 0 14px;width:14px;height:14px;background:none;border:2px solid currentColor;border-right-color:transparent;animation:jor-gira .8s linear infinite}',
+      '.jor-vdcx .vdc-lendo{display:flex;align-items:center;gap:10px;margin:0;font-size:13px;font-weight:500;color:var(--n-tx2)}',
+      '.jor-vdcx .vdc-lendo i{flex:0 0 14px;width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:jor-gira .8s linear infinite}',
+      '@media (prefers-reduced-motion:reduce){.jor-vdcx .vdc-lendo i{animation:none}}',
       '@keyframes jor-gira{to{transform:rotate(360deg)}}',
       '@media (prefers-reduced-motion:reduce){.jor-lendo-auto i{animation:none}}',
       '@keyframes jor-pulso{0%,100%{opacity:.35;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}',
@@ -302,7 +307,8 @@
       '.jor-perg{display:flex;align-items:center;flex-wrap:wrap;margin:14px 0 8px;font-size:14px;font-weight:600;color:var(--io-titulo)}',
       '.jor-sep{height:1px;background:var(--n-bd);margin:16px 0}',
       '.jor-vai{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0 0 12px;padding:0}',
-      '.jor-vai li{padding:3px 10px;border-radius:8px;background:var(--n-sf);color:var(--io-er-tx);box-shadow:inset 0 0 0 1.5px var(--io-er);font-size:13px;font-weight:600}',
+      // O que vai na mensagem: tom neutro (o vermelho do que falta já está na etiqueta e em cada linha abaixo).
+      '.jor-vai li{padding:3px 10px;border-radius:8px;background:var(--n-sf2);color:var(--n-tx);box-shadow:inset 0 0 0 1px var(--n-bd2);font-size:13px;font-weight:600}',
       '.jor-conf{padding:12px 0;border-top:1px solid var(--n-bd)}',
       '.jor-conf-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:14px}',
       '.jor-conf-t b{color:var(--io-titulo)}',
@@ -340,6 +346,8 @@
       '.jor-papel-ac{justify-content:flex-start}',
       '.jor-fc-ed{min-height:44px}',
       '.jor-rc-rot{flex-basis:84px}',
+      '.jor-rc{flex-wrap:wrap}',
+      '.jor-rc-rot+.jor-rc-v{flex:1 1 calc(100% - 96px)}',
       '.jor-res-din .jor-din-c b{font-size:17px}',
       '.jor-dl{grid-template-columns:minmax(0,1fr)}',
       '.jor-campos,.jor-fotos{grid-template-columns:minmax(0,1fr)}',
@@ -352,6 +360,7 @@
       '.jor-obra-cab .jor-num{font-size:15px;color:var(--io-titulo);background:var(--n-sf3);border-radius:8px;padding:2px 10px}',
       '.jor-obra-cab h2{font-size:22px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}',
       '.jor-cab-ac{display:flex;flex-wrap:wrap;gap:8px}',
+      '.jor-cab-av{flex:1 0 100%;margin:0;font-size:13px;font-weight:600;line-height:1.4;color:var(--io-ambar-tx,#FDE68A)}',
       '.jor-abas-p{position:sticky;top:var(--top-h,0px);z-index:30;margin:0 0 12px;padding:6px 0;background:var(--n-bg);box-shadow:0 -12px 0 var(--n-bg)}',
       '.jor-abas-tr{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:4px 8px 4px 4px;border:1px solid var(--n-bd);border-radius:14px;background:var(--n-sf);box-shadow:var(--sombra)}',
       '.jor-abas-tr::-webkit-scrollbar{display:none}',
@@ -462,6 +471,8 @@
       'a.jor-rdocs-ab{flex:0 0 auto;display:inline-flex;align-items:center;min-height:40px;padding:0 8px;font-size:13px;border-radius:8px}',
       'a.jor-rdocs-ab:hover{background:var(--n-sf3)}',
       '.jor-grp-t .jor-btn-link{margin-left:auto}',
+      '#jor-s-ligacoes{margin-top:16px}',
+      '.jor-libera-forcar{justify-content:flex-start;text-align:left}',
       '@media (max-width:760px){',
       '.jor-painel{padding:16px}',
       '.jor-pergs,.jor-conf-g{grid-template-columns:minmax(0,1fr)}',
@@ -472,6 +483,7 @@
       '.jor-doc-add{grid-template-columns:minmax(0,1fr)}',
       '.jor-prazo-ac{margin-left:0}',
       '.jor-and-l .jor-btn-link,a.jor-rdocs-ab,.jor-grp-t .jor-btn-link{min-height:44px}',
+      '.jor-pagina .jor-btn-link,.jor-pagina .jor-btn-disc,.jor-pagina .jor-chip,.jor-pagina .jor-fc-ed,.jor-dlg .jor-btn-link{min-height:44px}',
       '}',
       // A lista de clientes (19/11/2026): título com "?", abas, uma barra de filtros, tabela no computador e cartão no celular. Cor só por token.
       '.jor-lt-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 16px;margin:0 0 8px}',
@@ -655,7 +667,7 @@
       '.jor-libera>.jor-btn{flex:0 0 auto;align-self:center}',
       '.jor-libera-forcar{margin-top:8px;padding:4px 0;border:0;min-height:32px;color:var(--n-tx3);text-decoration:underline;text-underline-offset:3px}',
       '.jor-libera-mot{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--n-tx2)}',
-      '@media (max-width:600px){.jor-libera{flex-wrap:wrap}.jor-libera>.jor-btn{width:100%}}',
+      '@media (max-width:600px){.jor-libera{flex-wrap:wrap}.jor-libera-tx{flex:1 1 200px}.jor-libera>.jor-btn{width:100%}}',
     ].join('\n');
     var st = document.createElement('style'); st.id = 'jor-css'; st.textContent = comReserva(css); document.head.appendChild(st);
   }
@@ -1112,7 +1124,7 @@
     if (O.vdcChave && typeof vdcFechar === 'function') vdcFechar(O.vdcNo);
     O.vdcChave = chave;
     vdcDetalhe({ id: d.card.id, status: 'fechou', created_by: d.card.created_by, cliente_nome: d.card.cliente, cliente_telefone: '', cidade: d.card.cidade, vendedor_nome: d.card.vendedor },
-      { alvo: O.vdcNo, semFechamento: true, semTrello: semTrello, aoMudar: releia });
+      { alvo: O.vdcNo, semFechamento: true, semTrello: semTrello, lerSozinho: true, aoMudar: releia });
     O.vdcNo.hidden = false;
   }
 
@@ -1288,7 +1300,7 @@
         if (fora && fora.fora) {
           // Já existe em outro depósito: mostra, só leitura. Ninguém sobe de novo nem apaga.
           var ok2 = el('div', 'jor-anexo-ok'); var mini2 = el('span', 'jor-anexo-mini');
-          if (fora.url && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(fora.url))) { var im2 = el('img'); im2.src = fora.url; im2.alt = ''; im2.loading = 'lazy'; mini2.appendChild(im2); } else mini2.appendChild(icone('ok'));
+          if (fora.url && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(fora.url))) { var im2 = el('img'); im2.src = fora.url; im2.alt = ''; im2.loading = 'lazy'; im2.width = 44; im2.height = 44; mini2.appendChild(im2); } else mini2.appendChild(icone('ok'));
           ok2.appendChild(mini2);
           var leg2 = el('span', 'jor-anexo-leg'); leg2.appendChild(el('b', '', 'Anexado')); var dt2 = fora.em ? dataBr(fora.em) : ''; if (dt2) leg2.appendChild(el('small', '', dt2));
           leg2.appendChild(veio({ rotulo: fora.fora })); ok2.appendChild(leg2);
@@ -1297,7 +1309,7 @@
         } else {
           var ok = el('div', 'jor-anexo-ok');
           var mini = el('span', 'jor-anexo-mini'); var arq = fora;
-          if (arq && arq.url && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(arq.nome || arq.url))) { var im = el('img'); im.src = arq.url; im.alt = ''; im.loading = 'lazy'; mini.appendChild(im); } else mini.appendChild(icone('ok'));
+          if (arq && arq.url && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(arq.nome || arq.url))) { var im = el('img'); im.src = arq.url; im.alt = ''; im.loading = 'lazy'; im.width = 44; im.height = 44; mini.appendChild(im); } else mini.appendChild(icone('ok'));
           ok.appendChild(mini);
           var leg = el('span', 'jor-anexo-leg'); leg.appendChild(el('b', '', (arq && (arq.nome || arq.rotulo)) || 'Anexado'));
           var dt = arq && arq.em ? dataBr(arq.em) : ''; if (dt) leg.appendChild(el('small', '', dt));
@@ -1687,7 +1699,8 @@
   function irAba(id, foco) {
     O.aba = id; desenharObra();
     var b = document.getElementById('jor-ab-' + id);
-    if (b && foco !== false) try { b.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
+    // O foco volta à aba (leitor de tela e setas), sem abrir a dica: ela é para o mouse e para quem navega pelo teclado.
+    if (b && foco !== false) { O.focoAba = true; try { b.focus({ preventScroll: true }); } catch (e) { /* sem foco */ } O.focoAba = false; }
     var barra = document.querySelector('#jor-obra .jor-abas-p');
     if (barra) {
       var topo = barra.getBoundingClientRect().top + window.scrollY - 8;
@@ -1708,10 +1721,22 @@
     t.appendChild(el('span', '', [kwpTxt, cidadeUF(d.card.cidade)].filter(Boolean).join(' · ')));
     topo.appendChild(t);
     var cac = el('div', 'jor-cab-ac');
-    if (window.Jornada.extras.bookPdf && O.fase3 && O.fase3.pode && O.fase3.pode.book) { var bdoc = btn('Documento da obra', '', function () { window.Jornada.extras.bookPdf(O.card, bdoc); }); cac.appendChild(bdoc); }
+    var xt = window.Jornada.extras; var avBook = null;
+    // Liberado: a api diz `fase3.pode.book` (ela manda false quando há trava). Travado: quem pode gerar o Book (`fase2.pode.book_gerar`) vê o botão
+    // desligado com o motivo, a partir do Comissionamento (etapa 7 aberta, a mesma janela em que a fase 3 pede o Book). A trava é a da Conclusão geral.
+    var bLivre = !!(O.fase3 && O.fase3.pode && O.fase3.pode.book);
+    var tvB = (!bLivre && xt.travaDoBook && O.fase2 && O.fase2.pode && O.fase2.pode.book_gerar && atualEtapa() >= 7) ? xt.travaDoBook(O.fase2) : [];
+    if (xt.bookPdf && (bLivre || tvB.length)) {
+      var bdoc = btn('Book da obra', '', function () { xt.bookPdf(O.card, bdoc); }); cac.appendChild(bdoc);
+      if (tvB.length) {
+        bdoc.disabled = true; bdoc.setAttribute('aria-describedby', 'jor-cab-book-av');
+        avBook = el('p', 'jor-cab-av', xt.fraseBookTravado ? xt.fraseBookTravado(tvB.length) : 'O Book está travado por pendências.'); avBook.id = 'jor-cab-book-av';
+      }
+    }
     add(cac, btn('Clientes', '', abrirLista));
     if (d.pode.cancelar) add(cac, btn('Venda cancelada', 'jor-btn-disc', function () { cancelarDialogo(O.card, carregarObra); }));
     topo.appendChild(cac);
+    if (avBook) topo.appendChild(avBook);
     return topo;
   }
 
@@ -1802,6 +1827,7 @@
     var S = cx._dica || (cx._dica = { t: 0, ativa: null });
     function fechar() { clearTimeout(S.t); if (S.ativa) S.ativa.classList.remove('on'); S.ativa = null; }
     function mostrar() {
+      if (O.dicaCalada === b.id) return;   // a aba acabou de ser clicada: a dica volta quando o mouse sair e entrar de novo
       clearTimeout(S.t); if (S.ativa && S.ativa !== dica) S.ativa.classList.remove('on');
       S.ativa = dica;
       var r = b.getBoundingClientRect(); var w = dica.offsetWidth; var vw = document.documentElement.clientWidth;
@@ -1814,11 +1840,11 @@
     function esconder() { clearTimeout(S.t); S.t = setTimeout(function () { dica.classList.remove('on'); if (S.ativa === dica) S.ativa = null; }, 120); }
     b.setAttribute('aria-describedby', dica.id);
     b.addEventListener('pointerenter', function (ev) { if (ev.pointerType === 'mouse') mostrar(); });
-    b.addEventListener('pointerleave', function (ev) { if (ev.pointerType === 'mouse') esconder(); });
+    b.addEventListener('pointerleave', function (ev) { if (O.dicaCalada === b.id) O.dicaCalada = null; if (ev.pointerType === 'mouse') esconder(); });
     dica.addEventListener('pointerenter', function () { clearTimeout(S.t); });
     dica.addEventListener('pointerleave', esconder);
-    b.addEventListener('focus', function () { var fv = true; try { fv = b.matches(':focus-visible'); } catch (e) { /* navegador sem :focus-visible */ } if (fv) mostrar(); });
-    b.addEventListener('blur', fechar);
+    b.addEventListener('focus', function () { if (O.focoAba) return; var fv = true; try { fv = b.matches(':focus-visible'); } catch (e) { /* navegador sem :focus-visible */ } if (fv) mostrar(); });
+    b.addEventListener('blur', function () { fechar(); if (O.dicaCalada === b.id && b.isConnected) O.dicaCalada = null; });   // clique por teclado: sai do foco, a dica volta
     b.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') fechar(); });
   }
 
@@ -1857,7 +1883,7 @@
       if (!p.resumo) { var dica = dicaDoPasso(O.dados, p, m, est, compacta, abre); cx.appendChild(dica); ligarDica(b, dica, cx); }
       b.addEventListener('click', function () {
         if (est === 'travado') { toast(p.titulo + ': ' + minus(abre) + '.'); return; }
-        irAba(p.id);
+        O.dicaCalada = b.id; irAba(p.id);
       });
       b.addEventListener('keydown', function (ev) {
         var k = ev.key; if (['ArrowRight', 'ArrowLeft', 'Home', 'End'].indexOf(k) < 0) return;
@@ -1909,18 +1935,11 @@
     var ab = ABAS_OBRA.filter(function (a) { return a.num === p.num; })[0]; if (!ab || !ab.libera) return null;
     var prox = m.lista[m.lista.indexOf(p) + 1] || null; if (!prox) return null;
     var nomeProx = (prox.num === 9 ? 'o ' : 'a ') + prox.num + ' ' + prox.titulo;
-    var its = []; ab.etapas.forEach(function (n) { var e = m.ets[n - 1]; (e && e.itens || []).forEach(function (i) { if (!i.feito) its.push(i); }); });
-    if (p.feito) its = its.filter(function (i) { return i.nivel === 'opcional'; });
     var f = el('div', 'jor-libera' + (p.feito ? ' ok' : '')); f.setAttribute('role', 'status');
     var ic = el('span', 'jor-libera-ic'); ic.appendChild(icone(p.feito ? 'ok' : 'cadeado')); f.appendChild(ic);
     var tx = el('div', 'jor-libera-tx');
     var e0 = m.ets[ab.etapas[ab.etapas.length - 1] - 1];
     tx.appendChild(el('p', 'jor-libera-f', p.feito ? 'Liberou ' + nomeProx + (e0 && e0.concluida_em ? ' em ' + dataCurta(e0.concluida_em) : '') + '.' : 'Libera ' + nomeProx + ' ' + ab.libera + '.'));
-    if (its.length) {
-      var ul = el('ul', 'jor-pe-falta'); ul.setAttribute('aria-label', 'O que falta');
-      its.forEach(function (i) { ul.appendChild(el('li', i.nivel === 'opcional' ? 'op' : '', i.texto)); });
-      tx.appendChild(ul);
-    }
     // Obra antiga presa num portão: o ADM abre a próxima mesmo assim, com motivo opcional (19/11/2026).
     if (!p.feito && O.fase2 && O.fase2.pode && O.fase2.pode.forcar) {
       var fz = btn('Abrir a próxima etapa mesmo assim (ADM)', 'jor-btn-link jor-libera-forcar', function () { forcarDialogo(ab.etapas[0], nomeProx); });
@@ -1960,8 +1979,11 @@
   /** Prazo e cobrança da etapa da vez: uma faixa fina no topo do passo, com o Esperando. */
   function faixaPrazo(d, e) {
     var f2 = O.fase2; var pz = el('div', 'jor-prazo');
-    if (e.prazo && e.prazo.vence) pz.appendChild(el('span', 'jor-prazo-d', (e.prazo.rotulo || 'Prazo') + ' ' + ddmm(e.prazo.vence)));
     var sit = e.situacao || { tipo: 'sem_prazo', texto: '' };
+    var dv = e.prazo && e.prazo.vence ? ddmm(e.prazo.vence) : '';
+    var rotP = e.prazo && e.prazo.rotulo && e.prazo.rotulo !== 'Prazo' ? e.prazo.rotulo : '';
+    // A data aparece uma vez só: quando a situação já diz "vence dd/mm", fica só ela (e o nome do prazo, se for outro).
+    if (dv) { if (!(sit.texto && sit.texto.indexOf(dv) >= 0)) pz.appendChild(el('span', 'jor-prazo-d', (rotP || 'Prazo') + ' ' + dv)); else if (rotP) pz.appendChild(el('span', 'jor-prazo-d', rotP)); }
     if (sit.texto) pz.appendChild(el('span', sit.tipo === 'atrasada' || sit.tipo === 'travada' ? 'jor-erro' : sit.tipo === 'no_prazo' || sit.tipo === 'vence_hoje' ? 'jor-ok' : '', sit.texto));
     var esp = e.n <= 3 ? d.esperando : (f2 ? f2.esperando : null);
     var podeEsp = e.n <= 3 ? d.pode.esperar : !!(f2 && f2.pode && f2.pode.esperar);
@@ -2018,7 +2040,7 @@
       var ja = etapaFeita(e, atual);
       barra.appendChild(falta.length && !ja ? fraseFalta('Para seguir, falta:', falta) : el('p', 'jor-portao-frase', ja ? 'Passo concluído.' : 'Tudo pronto neste passo.'));
       if (prox) {
-        var b1 = btn(prox.feito || ja ? 'Ir para ' + irProx : 'Concluir e ir para ' + irProx, 'jor-btn-pri jor-btn-grande', function () { irAba(prox.id); });
+        var b1 = btn(prox.feito || ja ? 'Ir para ' + irProx : 'Concluir e ir para ' + irProx, prox.feito || ja ? 'jor-btn-grande' : 'jor-btn-pri jor-btn-grande', function () { irAba(prox.id); });
         b1.disabled = !!falta.length && !ja; barra.appendChild(b1);
       }
       return cx;
@@ -2058,6 +2080,8 @@
   }
 
   // ── O Resumo ────────────────────────────────────────────────────────────────────────────────────────────────
+  /** O bloco de Comissões do Resumo aparece a partir da etapa 2, com o dinheiro visível. Fora disso, "Sua comissão" fica na venda. */
+  function comissoesNaTela() { return atualEtapa() >= 2 && !!O.dinheiro && O.dinheiro.visivel !== false && !!(window.Jornada.dinheiro && window.Jornada.dinheiro.blocoComissoes); }
   function abaResumo(c, d, m) {
     var ll = linhaLendo(d); if (ll) c.appendChild(ll);
     var g = el('div', 'jor-res-g');
@@ -2068,7 +2092,7 @@
     // O caixa: entradas, saídas e saldo (só com o Livro liberado pela api), as comissões e o prêmio de quem indicou.
     var dz = el('div', 'jor-res-din'); dz.id = 'jor-s-caixa';
     if (window.Jornada.dinheiro && window.Jornada.dinheiro.faixa) window.Jornada.dinheiro.faixa(dz, O.dinheiro);
-    if (atualEtapa() >= 2 && O.dinheiro && O.dinheiro.visivel !== false && window.Jornada.dinheiro && window.Jornada.dinheiro.blocoComissoes) window.Jornada.dinheiro.blocoComissoes(dz, d, O.dinheiro);
+    if (comissoesNaTela()) window.Jornada.dinheiro.blocoComissoes(dz, d, O.dinheiro);
     if (window.Jornada.extras.indicacao) window.Jornada.extras.indicacao(dz, d, O.fase3);
     if (dz.firstChild) c.appendChild(dz);
   }
@@ -2141,8 +2165,8 @@
       var o = ef ? 'comprado' : orgP; if (x[1] && o) r.appendChild(el('span', 'jor-rc-org', o));
       // O equipamento muda em qualquer etapa: o comprado se corrige na Compra; o da venda, no passo 2.
       if (!semEquip(d) && d.kit_vendido) {
-        var ch = x[2]; var bc = btn(ef ? 'Editar na Compra' : 'Corrigir', 'jor-btn-link', function () { if (ef) { irAba('e4'); return; } O.edita['kit.' + ch] = true; irAba('p2'); });
-        bc.setAttribute('aria-label', (ef ? 'Editar na Compra: ' : 'Corrigir ') + x[0].toLowerCase()); r.appendChild(bc);
+        var ch = x[2]; var bc = btn(ef ? 'Editar na Compra' : 'Editar', 'jor-fc-ed', function () { if (ef) { irAba('e4'); return; } O.edita['kit.' + ch] = true; irAba('p2'); });
+        bc.setAttribute('aria-label', (ef ? 'Editar na Compra: ' : 'Editar ') + x[0].toLowerCase()); r.appendChild(bc);
       }
       g.appendChild(r);
     });
@@ -2164,7 +2188,7 @@
       box.appendChild(fx);
     }
     var com = (d.comissoes || []).filter(function (x) { return x.papel === 'venda'; })[0];
-    if (com && e1 && e1.dono && e1.dono[0] && com.nome === e1.dono[0].nome && d.pode.editar_venda) {
+    if (com && e1 && e1.dono && e1.dono[0] && com.nome === e1.dono[0].nome && d.pode.editar_venda && !comissoesNaTela()) {
       box.appendChild(el('p', 'jor-nota', 'Sua comissão: ' + reais(com.valor_centavos) + ' (' + (com.pb / 100) + '% do vendido). Paga depois que a entrada entrar.'));
     }
     // A proposta e a venda da planilha ligadas a este card (ligar, desligar).
@@ -2208,6 +2232,8 @@
       return txt(fz.length ? fz[0] + (fz.length > 1 ? ' (e mais ' + (fz.length - 1) + ')' : '') + '.' : 'Em andamento.');
     }
     var e = (etapasMescladas())[p.etapa - 1];
+    // Passo feito nunca diz "Falta" ao lado do tique: diz quando concluiu (o p1 com pendência tem a linha própria, logo abaixo).
+    var fezEm = p.feito && e && e.concluida_em && dataCurta(e.concluida_em) ? 'Concluído em ' + dataCurta(e.concluida_em) : 'Concluído';
     if (p.id === 'p1') {
       var pend = pendentesDe(d);
       if (p.aviso) { s.className += ' av'; return txt('Concluído com pendência: ' + juntar(pend.map(function (i) { var q = PEDIDOS.filter(function (x) { return x.item === i.chave; })[0]; return minus(q ? q.rot : i.texto); })) + '.'); }
@@ -2216,21 +2242,22 @@
       return txt((f.length ? 'Falta ' + plural(f.length, 'item', 'itens') : 'Tudo recebido') + (extras.length ? ', ' + extras.join(', ') : '') + '.');
     }
     if (p.id === 'p2') {
+      if (p.feito) return txt(fezEm + '.');
       var pp = d.papeis || {};
       var l2 = [pp.contrato ? 'Contrato gerado em ' + dataCurta(pp.contrato.gerado_em) : 'Contrato a gerar', pp.procuracao ? 'procuração gerada em ' + dataCurta(pp.procuracao.gerado_em) : 'procuração a gerar'];
       return txt(l2.join(', ') + '.');
     }
     if (p.id === 'p3') {
       var f3 = faltaDoP3(d);
-      txt(f3.length ? 'Falta: ' + juntar(f3) + '.' : 'Contrato e procuração assinados.');
+      txt(f3.length && !p.feito ? 'Falta: ' + juntar(f3) + '.' : f3.length ? fezEm + '.' : 'Contrato e procuração assinados.');
       if (d.numero && d.numero.estado === 'tem') txt(' Número ' + d.numero.codigo + '.');
       return s;
     }
-    if (p.id === 'p4') { var pc = Math.round(Number(d.vistoria_pct) || 0); return txt('Relatório ' + pc + '% preenchido' + (pc >= 80 ? '.' : ', precisa de 80%.')); }
+    if (p.id === 'p4') { var pc = Math.round(Number(d.vistoria_pct) || 0); return txt(p.feito ? fezEm + '.' : 'Relatório ' + pc + '% preenchido' + (pc >= 80 ? '.' : ', precisa de 80%.')); }
     if (p.id === 'p5') {
       var tr = d.trello || {}; var temCartao = (tr.url && tr.fonte !== 'dossie') || tr.tem_cartao;
       var rf = d.relatorio_final; var temRel = !!(rf && rf.url && /^https:\/\//.test(rf.url));
-      if (!temCartao && !temRel) return txt(e && e.falta ? 'Falta ' + plural(e.falta, 'item', 'itens') + '. O Trello nasce com tudo pronto.' : 'Tudo pronto.');
+      if (!temCartao && !temRel) return txt(p.feito ? fezEm + '.' : e && e.falta ? 'Falta ' + plural(e.falta, 'item', 'itens') + '. O Trello nasce com tudo pronto.' : 'Tudo pronto.');
       if (temCartao) { txt('Trello criado'); var a1 = linkFora(tr.url, 'Abrir', 'Abrir o cartão no Trello'); if (a1) { txt(' '); s.appendChild(a1); } txt('. '); }
       if (temRel) { txt('Relatório final'); var a2 = linkFora(rf.url, 'Abrir', 'Abrir o relatório final'); if (a2) { txt(' '); s.appendChild(a2); } txt('.'); }
       return s;
@@ -2861,7 +2888,7 @@
     var pend = pendentesDe(d);
     if (pend.length && etapaFeita(et, atualEtapa())) {
       var nomes = pend.map(function (i) { var q = PEDIDOS.filter(function (p) { return p.item === i.chave; })[0]; return minus(q ? q.rot : i.texto); });
-      var avp = el('p', 'jor-aviso', 'Esta obra passou do passo 1 sem ' + juntar(nomes) + '. Anexe abaixo. A obra segue normal.'); avp.setAttribute('role', 'status'); c.appendChild(avp);
+      var avp = el('p', 'jor-aviso', 'Esta obra passou do passo 1 sem ' + (nomes.length === 1 ? nomes[0] : plural(nomes.length, 'documento', 'documentos')) + '. Anexe abaixo. A obra segue normal.'); avp.setAttribute('role', 'status'); c.appendChild(avp);
     }
     if (O.lendoFalhou) {
       var lf = el('div', 'jor-aviso jor-aviso-ac'); lf.setAttribute('role', 'alert');
@@ -3141,6 +3168,7 @@
       else c.appendChild(el('p', 'jor-nota', 'A proposta de banco não carregou. Atualize a página.'));
     }
     c.appendChild(subTitulo('Cadastro do contrato', ajudaQ('A IA lê os documentos anexados e preenche o resto do cadastro que vai no contrato e na procuração (RG, estado civil, titular da conta). Confira antes de gerar.')));
+    var llP2 = linhaLendo(d); if (llP2) c.appendChild(llP2);
     emprestar(c, ['topo', 'acoes', 'msg', 'pn', 'pes']);
     c.appendChild(subTitulo('Gerar os papéis'));
     var lista = el('div', 'jor-docs-l');
@@ -3162,7 +3190,7 @@
     linhaPapel('Procuração', 'procuracao', mod, function (g) { gerarPapel('procuracao', { modelo: Number(mod.value) }, g); });
     // O recibo mostra o valor: aparece quando a api mandou o valor (mesma regra do Resumo), não pela regra do Livro.
     if (d.pode.gerar_papeis && vendaDe(d).vede) {
-      var lr = el('div', 'jor-papel'); var ir2 = el('div'); ir2.appendChild(el('span', 'jor-doc-nome', 'Recibo')); var er2 = el('div', 'jor-doc-est'); er2.appendChild(el('span', 'st', 'Opcional')); ir2.appendChild(er2); lr.appendChild(ir2);
+      var lr = el('div', 'jor-papel'); var ir2 = el('div'); ir2.appendChild(el('span', 'jor-doc-nome', 'Recibo')); var er2 = el('div', 'jor-doc-est'); er2.appendChild(el('span', 'st st-opc', 'Opcional')); ir2.appendChild(er2); lr.appendChild(ir2);
       var ar = el('div', 'jor-papel-ac'); var br = btn('Gerar recibo', '', function () { reciboDialogo(d, br); }); ar.appendChild(br); lr.appendChild(ar); lista.appendChild(lr);
     }
     c.appendChild(lista);
@@ -3229,6 +3257,7 @@
       var lk = linkFora(tr.url, 'Abrir no Trello', 'Abrir o cartão no Trello'); if (lk) { okp.appendChild(document.createTextNode(' ')); okp.appendChild(lk); }
       b.appendChild(okp);
     } else if (ta && ta.pronto) b.appendChild(el('p', 'jor-ok', 'Tudo pronto. O cartão nasce sozinho em instantes, com o relatório final.'));
+    else if (et && et.concluida_em) b.appendChild(el('p', 'jor-nota', 'Homologação concluída sem cartão no Trello.'));
     else {
       var faltaT = ta && Array.isArray(ta.falta) ? ta.falta : [];
       b.appendChild(el('p', 'jor-nota', 'Com tudo acima pronto, o cartão do Trello nasce sozinho com o relatório final.' + (faltaT.length ? ' Falta: ' + juntar(faltaT.map(minus)) + '.' : '')));
@@ -3255,7 +3284,6 @@
     ac.appendChild(bt); b.appendChild(ac);
     if (rf && rf.gerado_em) b.appendChild(el('p', 'jor-nota', 'Gerado em ' + ddmm(String(rf.gerado_em).slice(0, 10)) + '.'));
     b.appendChild(info);
-    b.appendChild(el('p', 'jor-nota', 'O relatório final vai para o cartão do Trello junto com tudo.'));
     // Se o cartão não nascer sozinho: o Trello do quadro de documentos (criar o cartão, ou abrir o antigo do dossiê).
     if (!cartao && quadroDoCard() && quadroDoCard().no && quadroDoCard().no.tre) { b.appendChild(subTitulo('Se o cartão não nascer sozinho')); emprestar(b, ['tre']); }
     return b;

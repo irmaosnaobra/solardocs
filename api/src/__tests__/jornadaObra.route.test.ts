@@ -1285,7 +1285,13 @@ describe('o Book', () => {
     expect(t.status).toBe(409);
     expect(t.body.trava).toEqual(['Falta o número de série do inversor na Entrega.']);
     expect((await get(F2(SOLAR), DIEGO)).body.book).toEqual({ pode: false, trava: t.body.trava, avisos: [] });
-    semearPrivada(SOLAR, (p) => { p.entrega.monitoramento.serie = 'INV-8K-2610-4471'; });
+    // Série só no item inversor da Compra (veio da NF): vale como fallback na trava e no Book; a do Monitoramento, quando existe, vale primeiro.
+    semearPrivada(SOLAR, (p) => { p.compra.itens[1].serie = 'NF-8K-0001'; });
+    const viaNf = await get(`/jornada-solar/obra/${SOLAR}/book`, DIEGO);
+    expect(viaNf.status).toBe(200);
+    expect(viaNf.body.monitoramento.serie).toBe('NF-8K-0001');
+    expect(viaNf.body.termo_html).toContain('número de série NF-8K-0001');
+    semearPrivada(SOLAR, (p) => { p.compra.itens[1].serie = ''; p.entrega.monitoramento.serie = 'INV-8K-2610-4471'; });
     const ok = await get(`/jornada-solar/obra/${SOLAR}/book`, DIEGO);
     expect(ok.status).toBe(200);
     expect(ok.body.titulo).toBe('Book da obra · * · Marcos Vinícius Andrade');
@@ -1792,6 +1798,14 @@ describe('o pós-venda (etapa 9): a seção `posvenda`, o `posvenda_info` e o li
     }
   });
 
+  it('a data digitada na liberação (a da concessionária) vale no `posvenda_info`; vazia, vale o dia em que a etapa 8 concluiu', async () => {
+    noPosVenda();
+    comLink();
+    expect((await get(F2(SOLAR), THIAGO)).body.posvenda_info.liberada_em).toBe('2026-11-05');
+    semearPrivada(SOLAR, (p) => { p.liberacao.passos.liberada = { data: '2026-11-28', arquivo_id: '' }; });
+    expect((await get(F2(SOLAR), THIAGO)).body.posvenda_info).toMatchObject({ liberada_em: '2026-11-28', quando: { avaliacao: '2026-12-05' } });
+  });
+
   it('sem link nos Ajustes e sem nome do cliente: a mensagem de avaliação sai sem a linha do link e começa com "Olá", e `falta_link_avaliacao` é true', async () => {
     h.agendamentos.push(cardBase(640, { cliente_nome: '' }));
     semearJs(640, 4); venda(640);
@@ -2203,7 +2217,12 @@ describe('equipamento sempre editável (conta fechada trava só o dinheiro)', ()
     expect(p.compra.itens[0]).toMatchObject({ modelo: 'Novo Modelo X', marca: 'Jinko', quantidade: 12, potencia_w: 620, serie: 'SN-123', valor_centavos: 60_000, comprado: true, compra_id: 'c-1' });
     expect(p.compra.itens[1].valor_centavos).toBe(40_000);
     expect(p.compra.compras).toHaveLength(1);
-    expect((await put(url, { versao: r.body.versoes.compra, dados: { itens, compras } }, NILCE)).status).toBe(403);
+    // `serie` ausente no corpo é "não mexer": a que já estava no item fica.
+    const semSerie = itens.map(({ serie: _s, ...resto }: any) => resto);
+    const r2 = await put(url, { versao: r.body.versoes.compra, dados: { itens: semSerie, compras } }, DIEGO);
+    expect(r2.status).toBe(200);
+    expect(privadaGravada(SOLAR)!.compra.itens[0].serie).toBe('SN-123');
+    expect((await put(url, { versao: r2.body.versoes.compra, dados: { itens, compras } }, NILCE)).status).toBe(403);
     expect((await put(F2(SOLAR, '/logistica'), { versao: 0, dados: { cargas: [] } }, DIEGO)).status).toBe(409);
   });
 });

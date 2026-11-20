@@ -55,6 +55,12 @@ describe('relatorioFinalHtml', () => {
 });
 
 describe('kitVendido e resumoDaVistoria', () => {
+  it('kitVendido: a potência que já vem no nome do modelo não se repete ("550 W 550 W")', () => {
+    const e = { qtdPlacas: 10, modeloPlaca: 'Jinko Tiger 550 W', potPlaca: 550, qtdInversor: 1, inversor: 'Growatt' };
+    expect(kitVendido(e, null).placas).toBe('10 × Jinko Tiger 550 W');
+    expect(kitVendido({ ...e, modeloPlaca: 'Jinko Tiger 550Wp' }, null).placas).toBe('10 × Jinko Tiger 550Wp');
+    expect(kitVendido({ ...e, modeloPlaca: 'Jinko Tiger' }, null).placas).toBe('10 × Jinko Tiger 550 W');
+  });
   it('kitVendido: texto, kWp da proposta ou calculado, null sem proposta', () => {
     const e = { qtdPlacas: 14, modeloPlaca: 'Canadian', potPlaca: 590, qtdInversor: 1, inversor: 'Growatt' };
     expect(kitVendido(e, undefined)).toEqual({ placas: '14 × Canadian 590 W', inversor: '1 × Growatt', kwp: 8.26, faltando: [], manual: [] });

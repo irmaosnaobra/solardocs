@@ -230,6 +230,8 @@
       var rot = rotEtapa(n); var ult = grupos[grupos.length - 1];
       if (ult && ult.rot === rot) { ult.custo = ult.custo.concat(custo); ult.total += porEtapa(l, n); } else grupos.push({ rot: rot, custo: custo, total: porEtapa(l, n) });
     }
+    // Sem saída lançada, as linhas de R$ 0,00 por passo só repetiriam o total: fica a frase.
+    if (!linhas.some(function (x) { return x.grupo === 'custo'; })) grupos = [];
     grupos.forEach(function (g) {
       var cab = h.el('div', 'jor-din-etp'); cab.appendChild(h.el('b', '', g.rot)); cab.appendChild(h.el('span', 'jor-din-v', h.rs(g.total))); c.appendChild(cab);
       g.custo.forEach(function (x) { c.appendChild(linhaDe(x, din)); algum = true; });
@@ -727,7 +729,6 @@
     var cm = comissoesDe(livro);
     var regra = livro && cm.linhas.length ? cm.linhas : (d.comissoes || []);
     if (regra.length) {
-      b.appendChild(h.el('p', '', 'Vendeu: ' + h.nomeBonito(d.card.vendedor)));
       var algumaSem = false;
       regra.forEach(function (x) {
         var lin = h.el('div', 'jor-din-lin');
@@ -750,14 +751,9 @@
       });
       if (livro && !cm.liberadas && algumaSem) b.appendChild(h.el('p', 'jor-nota', 'Libera depois que a entrada entrar.'));
       if (cm.aviso || d.comissoes_aviso) b.appendChild(h.el('p', 'jor-aviso', cm.aviso || d.comissoes_aviso));
-      var rg = h.el('div', 'jor-din-sub', 'A regra das comissões'); b.appendChild(rg);
-      var tb = h.el('table', 'jor-tbl');
-      regra.forEach(function (x) { var tr = h.el('tr'); [h.nomeBonito(x.nome), x.papel === 'venda' ? 'Venda' : 'Sócio', pct(x.pb / 100)].forEach(function (t) { tr.appendChild(h.el('td', '', t)); }); tb.appendChild(tr); });
-      b.appendChild(tb);
     }
     if (!livro && O().dinErro) { b.appendChild(h.el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); b.appendChild(h.btn('Tentar de novo', '', function () { h.recarregar(); })); }
-    b.appendChild(h.el('p', 'jor-nota', 'A parte de quem vendeu entra no custo da obra. Os 2% de cada sócio ficam à parte.'));
-    b.appendChild(h.el('p', 'jor-nota', 'Comissão não paga não trava as etapas. O fechamento final cobra.'));
+    b.appendChild(h.el('p', 'jor-nota', 'A comissão de quem vendeu entra no custo da obra. A dos sócios é retirada, fora do custo. Comissão não paga não trava as etapas, só o fechamento final.'));
     alvo.appendChild(b);
   }
 
