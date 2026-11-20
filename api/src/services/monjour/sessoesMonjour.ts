@@ -42,7 +42,20 @@ export interface SessaoMonjour {
   atalho: boolean;
   /** Já tinha terminado o test e abriu direto na oferta (passo volta_oferta). */
   volta: boolean;
+  /**
+   * Sessão da página de venda direta (/plan/): algum monjour_fim dela, do navegador ou do webhook, tem origen 'plan'.
+   * Ela leva ao mesmo checkout do quiz sem passar por ele, então fica FORA de toda conta do funil do quiz (ver `daSessaoDoQuiz`).
+   */
+  pagina: boolean;
+  /** Etapas da página de venda que a sessão sinalizou (monjour_sinal com passo 'venta'): carga, planes, compra. */
+  venta: Set<string>;
+  /** Clicou em pagar na página (monjour_fim checkout com origen 'plan') e comprou pela página (monjour_fim compra com origen 'plan'). */
+  paginaCheckout: boolean;
+  paginaCompra: boolean;
 }
+
+/** A sessão entra nas contas do funil do quiz: passou por ele no período e não veio da página de venda. */
+export const daSessaoDoQuiz = (s: SessaoMonjour): boolean => s.visitante && !s.pagina;
 
 /** Sessão que foi à oferta sem passar pelas perguntas. */
 export const pulouPerguntas = (s: SessaoMonjour): boolean => s.atalho || s.volta;
@@ -110,6 +123,7 @@ function sessaoVazia(id: string, primeiro: number): SessaoMonjour {
     vistas: new Map(), respostas: new Map(), lead: false, destinos: new Set(), plano: null,
     receitaCentavos: 0, receitaCompraCentavos: 0, receitaUpgradeCentavos: 0, checkoutTs: null, checkoutCriado: null, compraCriada: null, upgrade: false,
     acoesApp: new Set(), atalho: false, volta: false,
+    pagina: false, venta: new Set(), paginaCheckout: false, paginaCompra: false,
   };
 }
 
@@ -149,6 +163,20 @@ function aplicar(s: SessaoMonjour, e: EventoMonjour, criado: number): void {
     if (!c.so) c.so = texto(d.so, 20).toLowerCase();
     if (!c.nav) c.nav = texto(d.nav, 20).toLowerCase();
     if (!c.anuncio) c.anuncio = texto(d.utm_content);
+  }
+  if (e.event_type === 'monjour_sinal') {
+    // Só os sinais da página de venda são lidos; o resto do quiz nunca chega aqui.
+    if (texto(d.passo, 40).toLowerCase() === 'venta') {
+      const q = texto(d.q, 20).toLowerCase();
+      if (q) s.venta.add(q);
+    }
+    return;
+  }
+  if (e.event_type === 'monjour_fim' && texto(d.origen, 20).toLowerCase() === 'plan') {
+    s.pagina = true;
+    const destino = texto(d.destino, 40);
+    if (destino === 'checkout') s.paginaCheckout = true;
+    else if (destino === 'compra') s.paginaCompra = true;
   }
   const tsNavegador = numero(d.ts);
   const quando = tsNavegador !== null && tsNavegador > 0 ? tsNavegador : criado;

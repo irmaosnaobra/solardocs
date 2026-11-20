@@ -21,6 +21,7 @@ import admin from '../../admin.module.css';
 import s from './MonjourFunilPanel.module.css';
 import { Numero, Titulo, fmtData, fmtHora, fmtInt, fmtPct, fmtUsd } from './monjourComum';
 import MonjourFunilDesenho from './MonjourFunilDesenho';
+import MonjourPaginaVenda from './MonjourPaginaVenda';
 import { MonjourRecortes, MonjourRespostas } from './MonjourRecortes';
 import MonjourSessoesGaveta, { type AlvoSessoes } from './MonjourSessoesGaveta';
 import type { FunilMonjour } from './hubMonjour.types';
@@ -186,6 +187,7 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
           <span>{f.inicioRastreio ? `O rastreio começou em ${fmtData(f.inicioRastreio)}.` : 'O rastreio ainda não recebeu nenhum evento.'}</span>
         </div>
       )}
+      {f && t && vazio && <MonjourPaginaVenda pv={f.paginaVenta} />}
 
       {f && t && !vazio && (
         <>
@@ -222,6 +224,8 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
               onAbrir={(e, tipo) => setGaveta({ n: e.n, rotulo: e.rotulo, chegaram: e.chegaram, sairam: e.sairam, temSaida: e.n !== ultimaEtapa, tipo })}
             />
           </section>
+
+          <MonjourPaginaVenda pv={f.paginaVenta} />
 
           <div className={s.duas}>
             <section className={s.bloco} aria-labelledby="mj-saidas">

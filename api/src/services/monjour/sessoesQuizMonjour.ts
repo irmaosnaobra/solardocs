@@ -15,7 +15,7 @@ import {
   type EventoMonjour, type FiltrosMonjour, TIPOS_EVENTO_MONJOUR, PERGUNTAS_MONJOUR, TELAS_MONJOUR, N_POR_CHAVE, ETAPA_CHECKOUT, ETAPA_COMPRA,
   MEDIANA_CORTE_SEG, SEM_ANUNCIO, PASSO_ATALHO, PASSO_VOLTA, ROTULO_ATALHO, ROTULO_VOLTA, chaveDaResposta, nomeDoAnuncio, conjuntoDoAnuncio, nomeDoConjunto, nomeDoPais,
 } from './monjourCatalogo';
-import { agruparSessoes, chegouNaEtapa, pararamNaEtapa, type SessaoMonjour } from './sessoesMonjour';
+import { agruparSessoes, chegouNaEtapa, daSessaoDoQuiz, pararamNaEtapa, type SessaoMonjour } from './sessoesMonjour';
 import { passaNosFiltros } from './funilMonjourPuro';
 import { lerEventosMonjour, normalizarPeriodo } from './painelQuizMonjour';
 
@@ -80,7 +80,7 @@ export function listarSessoes(eventos: EventoMonjour[], pedido: PedidoSessoes, t
 
 function listarDasSessoes(sessoes: SessaoMonjour[], pedido: PedidoSessoes, truncado: boolean): PaginaSessoes {
   const base = sessoes
-    .filter((s) => s.visitante && passaNosFiltros(s, pedido.filtros))
+    .filter((s) => daSessaoDoQuiz(s) && passaNosFiltros(s, pedido.filtros))
     // A mesma conta do funil: quem foi direto à oferta (atalho ou volta) não conta nas perguntas que não viu.
     .filter((s) => (pedido.tipo === 'chegaram' ? chegouNaEtapa(s, pedido.passo) : pedido.passo < ETAPA_COMPRA && pararamNaEtapa(s, pedido.passo)))
     .sort((a, b) => b.primeiro - a.primeiro || a.id.localeCompare(b.id));
@@ -123,7 +123,7 @@ export async function lerSessoesDaTela(periodo: string, pedido: PedidoSessoes, a
       if (ate) q = q.lt('created_at', ate);
       return q.order('created_at', { ascending: true }).order('id', { ascending: true }).range(de, fim);
     });
-    cache = { chave, vale: hoje + CACHE_MS, sessoes: agruparSessoes(lidos.eventos).filter((s) => s.visitante), truncado: lidos.truncado };
+    cache = { chave, vale: hoje + CACHE_MS, sessoes: agruparSessoes(lidos.eventos).filter(daSessaoDoQuiz), truncado: lidos.truncado };
   }
   return listarDasSessoes(cache.sessoes, pedido, cache.truncado);
 }
@@ -202,6 +202,6 @@ export async function lerJornadaDaSessao(sid: string): Promise<{ resumo: ItemSes
   });
   const sessao = agruparSessoes(lidos.eventos).find((s) => s.id === sid);
   // Sem o quiz no histórico (sessão só de webhook, ou sonda que saiu): não há jornada.
-  if (!sessao || !sessao.visitante) return null;
+  if (!sessao || !daSessaoDoQuiz(sessao)) return null;
   return { resumo: itemDaSessao(sessao), linha: montarJornada(lidos.eventos) };
 }

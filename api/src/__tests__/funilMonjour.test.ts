@@ -675,3 +675,89 @@ describe('funil do quiz Monjour: segunda entrega (af_ropa e af_lunes entram, hac
     expect(lunes.opcoes.find((o) => o.valor === 'nose')).toMatchObject({ rotulo: 'Não sei', sessoes: 1, pct: 100 });
   });
 });
+
+describe('funil do quiz Monjour: página de venda (/plan/) fora do quiz', () => {
+  const sinal = (sid: string, q: string, extra: Record<string, unknown> = {}, seg = 0): EventoMonjour =>
+    ev(sid, 'monjour_sinal', { passo: 'venta', q, ...extra }, seg);
+  const daPagina = (sid: string, ctx: Record<string, unknown> = {}): EventoMonjour[] => [
+    sinal(sid, 'carga', { pais: 'MX', disp: 'movil', ...ctx }, 1), sinal(sid, 'planes', {}, 5), sinal(sid, 'compra', {}, 9),
+    fim(sid, 'checkout', { plan: 'basico', origen: 'plan' }, 12),
+  ];
+
+  it('sessão só com checkout origen plan não aparece em nenhuma etapa, saída, recorte nem total do quiz', () => {
+    const f = montarFunilMonjour(daPagina('p1'), OP);
+    expect(f.totais.sessoes).toBe(0);
+    expect(f.totais.checkouts).toBe(0);
+    for (const e of f.etapas) { expect(e.chegaram).toBe(0); expect(e.sairam).toBe(0); }
+    expect(f.recortes.pais).toEqual([]);
+    expect(f.recortes.anuncio).toEqual([]);
+    expect(f.filtros.paises).toEqual([]);
+    expect(f.respostas.every((r) => r.opcoes.every((o) => o.sessoes === 0))).toBe(true);
+  });
+
+  it('a página não mexe nos números do quiz: com ou sem ela o funil é o mesmo', () => {
+    const quiz = [
+      ...viu('a', 29), fim('a', 'checkout', { plan: 'basico' }), fim('a', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd' }, 500),
+      ...viu('b', 10), ...viu('c', 3),
+    ];
+    const sem = montarFunilMonjour(quiz, OP);
+    const com = montarFunilMonjour([
+      ...quiz, ...daPagina('p1'), ...daPagina('p2'), fim('p2', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd', origen: 'plan' }, 500),
+    ], OP);
+    const { paginaVenta: _a, ...semResto } = sem;
+    const { paginaVenta: _b, ...comResto } = com;
+    expect(comResto).toEqual(semResto);
+    expect(com.totais).toMatchObject({ sessoes: 3, checkouts: 1, compras: 1, receitaCentavos: 1990 });
+  });
+
+  it('o webhook da compra com origen plan marca a sessão como da página, mesmo sem o clique do navegador no período', () => {
+    const f = montarFunilMonjour([fim('p3', 'compra', { plan: 'plus', valor: 3990, moeda: 'usd', origen: 'plan' })], OP);
+    expect(f.totais.compras).toBe(0);
+    expect(f.paginaVenta.compras).toBe(1);
+  });
+
+  it('paginaVenta conta as 5 etapas por sessão distinta, repetir evento não soma', () => {
+    const f = montarFunilMonjour([
+      ...daPagina('p1'), sinal('p1', 'carga', {}, 20), sinal('p1', 'planes', {}, 21), fim('p1', 'checkout', { plan: 'plus', origen: 'plan' }, 30),
+      ...daPagina('p2'), fim('p2', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd', origen: 'plan' }, 500),
+      fim('p2', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd', origen: 'plan' }, 501),
+      sinal('p3', 'carga', {}, 2), sinal('p3', 'planes', {}, 6),
+      sinal('p4', 'carga', {}, 3),
+    ], OP);
+    expect(f.paginaVenta).toEqual({ visitas: 4, planes: 3, compra: 2, checkouts: 2, compras: 1 });
+  });
+
+  it('sinal sem passo venta não conta como visita da página', () => {
+    const f = montarFunilMonjour([ev('q1', 'monjour_sinal', { passo: 'edad', q: 'carga' })], OP);
+    expect(f.paginaVenta).toEqual({ visitas: 0, planes: 0, compra: 0, checkouts: 0, compras: 0 });
+  });
+
+  it('sessão sonda fica fora de paginaVenta', () => {
+    const f = montarFunilMonjour([...daPagina('s1', { utm_source: 'sonda' }), ...daPagina('p1')], OP);
+    expect(f.paginaVenta).toEqual({ visitas: 1, planes: 1, compra: 1, checkouts: 1, compras: 0 });
+  });
+
+  it('os filtros de país, aparelho, anúncio e conjunto valem para paginaVenta (mesmo contexto da sessão)', () => {
+    const eventos = [
+      ...daPagina('p1', { pais: 'MX', utm_content: ANUNCIO_IMG }),
+      ...daPagina('p2', { pais: 'CO', utm_content: ANUNCIO_VID }),
+      ...daPagina('p3', { pais: 'MX', disp: 'escritorio' }),
+    ];
+    const visitas = (filtros: Record<string, string>) => montarFunilMonjour(eventos, { ...OP, filtros }).paginaVenta.visitas;
+    expect(visitas({})).toBe(3);
+    expect(visitas({ pais: 'MX' })).toBe(2);
+    expect(visitas({ anuncio: ANUNCIO_VID })).toBe(1);
+    expect(visitas({ conjunto: CJ1 })).toBe(1);
+    expect(visitas({ pais: 'MX', disp: 'movil' })).toBe(1);
+  });
+
+  it('o upgrade e a receita dele continuam contando para quem comprou pela página', () => {
+    const f = montarFunilMonjour([
+      ...daPagina('p1'), fim('p1', 'compra', { plan: 'basico', valor: 1990, moeda: 'usd', origen: 'plan' }, 500),
+      fim('p1', 'upgrade', { valor: 1000, moeda: 'usd' }, 900),
+    ], OP);
+    expect(f.totais.upgrades).toBe(1);
+    expect(f.totais.receitaCentavos).toBe(1000);
+    expect(f.paginaVenta.compras).toBe(1);
+  });
+});

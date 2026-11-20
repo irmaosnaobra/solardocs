@@ -176,6 +176,19 @@
 .opcaoConv { text-align: right; font-size: 13px; color: var(--color-text-muted); white-space: nowrap; }
 .opcaoMelhor { color: var(--salvia); font-weight: 800; }
 
+/* ── página de venda (/plan/) ─────────── */
+.pvNota { font-size: 13px; color: var(--color-text-muted); }
+.pvPassos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.pvPasso { position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 14px; background: var(--color-surface-2); border-radius: 10px; }
+.pvPasso + .pvPasso::before { content: '\203A'; position: absolute; left: -10px; top: 50%; transform: translate(-50%, -50%); font-size: 20px; line-height: 1; font-weight: 700; color: var(--color-text-dim); }
+.pvRotulo { font-size: 12px; font-weight: 700; color: var(--color-text-muted); }
+.pvValor { font-size: 24px; font-weight: 800; line-height: 1.15; color: var(--color-text); letter-spacing: -0.01em; }
+.pvTaxa { font-size: 12px; color: var(--color-text-dim); }
+.pvTaxa b { color: var(--mj-escura); font-weight: 800; }
+.pvCompra { background: var(--salvia-suave); }
+.pvCompra .pvValor, .pvCompra .pvTaxa b { color: var(--salvia); }
+.pvVazio { margin: 0; font-size: 14px; color: var(--color-text-muted); }
+
 /* ── vazio ────────────────────────────── */
 .vazio { text-align: center; padding: 40px 20px; }
 .vazio strong { display: block; font-size: 16px; color: var(--color-text); margin-bottom: 4px; }
@@ -225,6 +238,12 @@
   .numChegaram .numBotao { display: inline-flex; align-items: center; min-height: 32px; }
   .etapaExtra { display: none; }
   .tabela { min-width: 640px; }
+  .pvPassos { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .pvPasso { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'rotulo valor' 'taxa valor'; column-gap: 12px; align-items: center; padding: 10px 12px; }
+  .pvPasso + .pvPasso::before { display: none; }
+  .pvRotulo { grid-area: rotulo; font-size: 13px; }
+  .pvTaxa { grid-area: taxa; }
+  .pvValor { grid-area: valor; font-size: 22px; text-align: right; }
 }
 @media (prefers-reduced-motion: reduce) {
   .faixa { transition: none; }

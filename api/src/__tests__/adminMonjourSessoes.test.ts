@@ -76,6 +76,18 @@ describe('GET /admin/monjour/quiz-funil/sessoes', () => {
     expect(r.body.itens.map((i: { sid: string }) => i.sid)).toEqual(['a']);
   });
 
+  it('sessão da página de venda (origen plan) não entra na lista nem na jornada do quiz', async () => {
+    sessao('quiz', 2);
+    fim('quiz', 'checkout', 100, { plan: 'basico' });
+    fim('pag', 'checkout', 100, { plan: 'basico', origen: 'plan' });
+    fim('pag', 'compra', 200, { plan: 'basico', origen: 'plan' });
+    const lista = await request(app).get('/admin/monjour/quiz-funil/sessoes?passo=2');
+    expect(lista.body.itens.map((i: { sid: string }) => i.sid)).toEqual(['quiz']);
+    const checkout = await request(app).get('/admin/monjour/quiz-funil/sessoes?passo=34&tipo=chegaram');
+    expect(checkout.body.itens.map((i: { sid: string }) => i.sid)).toEqual(['quiz']);
+    expect((await request(app).get('/admin/monjour/quiz-funil/sessao/pag')).status).toBe(404);
+  });
+
   it('trocar de página ou de aba no mesmo período não relê o banco', async () => {
     for (let i = 0; i < 60; i += 1) sessao(`s${String(i).padStart(2, '0')}`, 1, i * 1000);
     await request(app).get('/admin/monjour/quiz-funil/sessoes?period=7dias&passo=2');
