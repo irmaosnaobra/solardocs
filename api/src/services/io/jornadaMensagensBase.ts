@@ -219,7 +219,7 @@ export async function faltaDaObra(o: ObraFila, ligs: ReadonlyMap<number, Ligacao
       });
       const slots = new Map<string, string[]>();
       for (const a of reg.arquivos) slots.set(a.slot, [...(slots.get(a.slot) ?? []), a.id]);
-      return itensDaEtapaObra(n, { jo: o.jo, privada, livro, slots, docsIds: new Set(reg.arquivos.map((a) => a.id)) }).filter((i) => !i.feito).map((i) => i.texto);
+      return itensDaEtapaObra(n, { jo: o.jo, privada, livro, slots, docsIds: new Set(reg.arquivos.map((a) => a.id)) }).filter((i) => !i.feito && i.nivel !== 'opcional').map((i) => i.texto);   // o opcional (amarelo) nunca é cobrado; item sem nível continua valendo
     }
     const [cad, privado] = await Promise.all([lerCadastroVisto(o.card, 'vendasolar'), lerPrivadoJornada(o.card)]);
     const lig = ligs.get(o.card) ?? { proposta: null, venda: null, por: '', em: '' };

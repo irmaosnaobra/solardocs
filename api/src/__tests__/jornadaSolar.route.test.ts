@@ -768,19 +768,53 @@ describe('fases 1 a 3 (18/11/2026): permissões e o Trello automático', () => {
     }
     expect(estadoGravado(304)).toBeNull();
   });
-  it('confirmar placas e inversor só enquanto o kit pode mudar: com a etapa 3 concluída, 403 e nada gravado; nome ainda passa', async () => {
+  it('equipamento sempre editável: placas e inversor mudam depois da homologação (200); nome segue passando', async () => {
     semear(304, (e) => { na3(e); e.etapas[3].concluida_em = AGORA; e.etapas[3].concluida_por = 'thiago'; });
     cadastroBase();
-    const antes = JSON.stringify(estadoGravado(304));
     for (const chave of ['placas', 'inversor']) {
       for (const auth of [GIOVANNA, THIAGO]) {
         const r = await post('/jornada-solar/obra/304/confirmar', { chave, confirmar: true, texto: '14 x Canadian 590 W' }, auth);
-        expect(r.status, `${chave} ${auth}`).toBe(403);
-        expect(r.body.error).toBe('O kit só muda até a homologação.');
+        expect(r.status, `${chave} ${auth}`).toBe(200);
       }
     }
-    expect(JSON.stringify(estadoGravado(304))).toBe(antes);
+    expect(estadoGravado(304)!.etapas[1].kit_texto).toMatchObject({ placas: '14 x Canadian 590 W', inversor: '14 x Canadian 590 W' });
     expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'nome', confirmar: true }, GIOVANNA)).status).toBe(200);
+  });
+  it('conta fechada: placas e inversor mudam (200) e quem não edita a venda segue com 403; o dinheiro da venda continua travado (409), o prazo passa', async () => {
+    const { assinarObra, obraVazia } = await import('../services/gerador/jornadaObraBanco');
+    semear(304, (e) => { na3(e); e.etapas[3].concluida_em = AGORA; e.etapas[3].concluida_por = 'thiago'; });
+    cadastroBase();
+    const fechada = { ...obraVazia(304), fechada: { em: AGORA, por: 'thiago' } };
+    h.linhas.set('jornada_obra:304', { updated_at: 'o0', value: jsonb({ ...fechada, sig: assinarObra(304, fechada) }) });
+    const placas = await post('/jornada-solar/obra/304/confirmar', { chave: 'placas', confirmar: true, texto: '16 x Jinko 620 W' }, GIOVANNA);
+    expect(placas.status).toBe(200);
+    expect(estadoGravado(304)!.etapas[1].kit_texto).toMatchObject({ placas: '16 x Jinko 620 W' });
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'inversor', confirmar: true, texto: '1 x SAJ 8K' }, THIAGO)).status).toBe(200);
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'placas', confirmar: true, texto: '16 x Jinko 620 W' }, DIEGO)).status).toBe(403);
+    expect((await post('/jornada-solar/obra/304/confirmar', { chave: 'nome', confirmar: true }, GIOVANNA)).status).toBe(403);   // o resto da confirmação segue travado
+    const venda = { valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: '' }], prazo_prometido: 'x', kit_confirmado: true };   // placas e inversor confirmados = kit confirmado
+    const antes = h.priv.get('vendasolar/304.jornada.json');
+    const valor = await put('/jornada-solar/obra/304/venda', { ...venda, valor_centavos: 3900000, pagamento: [{ forma: 'pix', valor_centavos: 3900000, obs: '' }] }, GIOVANNA);
+    expect(valor.status).toBe(409);
+    const forma = await put('/jornada-solar/obra/304/venda', { ...venda, pagamento: [{ forma: 'boleto', valor_centavos: 3890000, obs: '' }] }, GIOVANNA);
+    expect(forma.status).toBe(409);
+    expect(h.priv.get('vendasolar/304.jornada.json')).toBe(antes);
+    const prazo = await put('/jornada-solar/obra/304/venda', { ...venda, prazo_prometido: 'y' }, GIOVANNA);
+    expect(prazo.status).toBe(200);
+    expect(JSON.parse(h.priv.get('vendasolar/304.jornada.json')!).venda).toMatchObject({ prazo_prometido: 'y', valor_centavos: 3890000 });
+  });
+  it('quem corrige o kit mas não edita a venda (Giovanna com a etapa 1 aberta) aperta "Confirmar a venda": corpo igual ao gravado dá 200 sem gravar; com mudança, 403', async () => {
+    semear(304); cadastroBase();
+    expect((await obra(304, GIOVANNA)).body.pode).toMatchObject({ confirmar: true, editar_venda: false });
+    const antes = h.priv.get('vendasolar/304.jornada.json');
+    const igual = { valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: '' }], prazo_prometido: 'x', nota: '', kit_confirmado: false, placas: '16 x Jinko 620 W' };
+    const ok = await put('/jornada-solar/obra/304/venda', igual, GIOVANNA);
+    expect(ok.status).toBe(200);
+    expect(ok.body.venda).toMatchObject({ valor_centavos: 3890000, prazo_prometido: 'x' });
+    expect(h.priv.get('vendasolar/304.jornada.json')).toBe(antes);
+    expect((await put('/jornada-solar/obra/304/venda', { ...igual, prazo_prometido: 'y' }, GIOVANNA)).status).toBe(403);
+    expect((await put('/jornada-solar/obra/304/venda', { ...igual, valor_centavos: 3900000, pagamento: [{ forma: 'pix', valor_centavos: 3900000, obs: '' }] }, GIOVANNA)).status).toBe(403);
+    expect(h.priv.get('vendasolar/304.jornada.json')).toBe(antes);
   });
   it('kit: confirmar na etapa 3 funciona (Giovanna), o PUT pede o Trello automático, e o GET diz pode.confirmar_kit só até a etapa 3 concluir', async () => {
     semear(304, na3); cadastroBase();

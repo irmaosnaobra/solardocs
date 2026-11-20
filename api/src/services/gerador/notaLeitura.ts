@@ -47,7 +47,7 @@ export const SISTEMA_NOTA = `Você extrai os dados de uma nota fiscal, cupom fis
 
 Regras:
 1. Devolva só o que está VISÍVEL no documento. O que não estiver legível ou não existir vai como null. Não estime, não complete e não deduza.
-2. "tipo" é nota_fiscal, pedido, cupom ou outro.
+2. "tipo" é nota_fiscal, pedido, orcamento (proposta ou orçamento de preço ainda não comprado), cupom ou outro.
 3. "emitente" é quem vende, como está escrito. "cnpj_emitente" é o CNPJ dele, só com os números.
 4. "data" é a data de emissão, no formato YYYY-MM-DD.
 5. A chave de acesso tem 44 dígitos, impressa perto do código de barras da NF-e. Devolva só os 44 números, sem espaço. Se não houver, null. Não invente dígitos.
@@ -60,7 +60,7 @@ Regras:
 const PEDIDO = 'Extraia os dados deste documento seguindo as regras.';
 
 export interface NotaLida {
-  tipo: 'nota_fiscal' | 'pedido' | 'cupom' | 'outro';
+  tipo: 'nota_fiscal' | 'pedido' | 'orcamento' | 'cupom' | 'outro';
   emitente: string;
   cnpj: string;
   numero: string;
@@ -84,7 +84,7 @@ export function limparNota(b: NotaBruta, hojeBr: string): { eh_documento: boolea
   const vazia: NotaLida = { tipo: 'outro', emitente: '', cnpj: '', numero: '', data: null, chave: null, valor_total_centavos: null, itens: [], confianca };
   if (!b.eh_documento) return { eh_documento: false, nota: vazia };
   const t = sa(b.tipo);
-  const tipo: NotaLida['tipo'] = t === 'nota_fiscal' || t === 'pedido' || t === 'cupom' ? t : 'outro';
+  const tipo: NotaLida['tipo'] = t === 'nota_fiscal' || t === 'pedido' || t === 'orcamento' || t === 'cupom' ? t : 'outro';
   const digitos = String(b.chave_acesso ?? '').replace(/\D/g, '');
   const total = centavosDeReais(b.valor_total);
   const centavos = (n: number | null): number | null => { const x = centavosDeReais(n); return x !== null && x >= 0 && x <= VALOR_MAX_CENTAVOS ? x : null; };

@@ -625,6 +625,17 @@
       // O que falta para concluir, no pé do passo: uma etiqueta por item.
       '.jor-pe-falta{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:8px 0 0;padding:0}',
       '.jor-pe-falta li{padding:3px 10px;border-radius:8px;background:var(--n-sf);color:var(--io-er-tx);box-shadow:inset 0 0 0 1.5px var(--io-er);font-size:13px;font-weight:600;line-height:1.4}',
+      '.jor-pe-falta li.op{color:var(--io-av-tx);box-shadow:inset 0 0 0 1.5px var(--io-amarelo-forte)}',
+      // O que libera a próxima aba da obra (6, 7 e 8 não têm Concluir): uma linha, o que falta embaixo, e o Ir para quando liberou.
+      '.jor-libera{display:flex;align-items:flex-start;gap:12px;margin:0 0 16px;padding:12px 14px;border:1px solid var(--n-bd);border-radius:12px;background:var(--n-sf2)}',
+      '.jor-libera-ic{flex:0 0 28px;width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--n-sf);color:var(--n-tx2);box-shadow:inset 0 0 0 1.5px var(--n-bd2)}',
+      '.jor-libera.ok .jor-libera-ic{background:var(--io-ok);color:var(--n-inv);box-shadow:none}',
+      '.jor-libera-tx{flex:1 1 auto;min-width:0}',
+      '.jor-libera-f{margin:3px 0 0;font-size:14px;font-weight:600;line-height:1.45;color:var(--n-tx)}',
+      '.jor-libera>.jor-btn{flex:0 0 auto;align-self:center}',
+      '.jor-libera-forcar{margin-top:8px;padding:4px 0;border:0;min-height:32px;color:var(--n-tx3);text-decoration:underline;text-underline-offset:3px}',
+      '.jor-libera-mot{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--n-tx2)}',
+      '@media (max-width:600px){.jor-libera{flex-wrap:wrap}.jor-libera>.jor-btn{width:100%}}',
     ].join('\n');
     var st = document.createElement('style'); st.id = 'jor-css'; st.textContent = comReserva(css); document.head.appendChild(st);
   }
@@ -1573,12 +1584,18 @@
       { id: 'p4', num: 4, titulo: 'Vistoria', curto: 'Vistoria', etapa: 2, feito: f2, corpo: corpoP4, api: true },
       { id: 'p5', num: 5, titulo: 'Homologação', curto: 'Homologação', etapa: 3, feito: f3, corpo: corpoP5, api: true },
     ];
-    ets.forEach(function (e) {
-      if (e.n < 4) return;
-      P.push({ id: 'e' + e.n, num: 0, titulo: e.nome, curto: e.nome, etapa: e.n, obra: true, e: e, api: e.n <= 8,
-        feito: e.n <= 8 && etapaFeita(e, atual), corpo: function (c) { corpoEtapaObra(c, O.dados, e); } });
+    // A obra (19/11/2026): 6 Compra, 7 Logística, 8 Obra e 9 Comissionamento, a partir de `abas[]` do fase2. O pós-venda não é aba: aparece no fim da 9.
+    var abasF2 = (O.fase2 && Array.isArray(O.fase2.abas)) ? O.fase2.abas : null;
+    ABAS_OBRA.forEach(function (a) {
+      var es = a.etapas.map(function (n) { return ets[n - 1]; }).filter(Boolean);
+      if (!es.length) return;
+      var x = abasF2 ? abasF2.filter(function (y) { return y.numero === a.num; })[0] || null : null;
+      var nE = a.etapas.length > 1 && atual >= a.etapas[1] ? a.etapas[1] : a.etapas[0];
+      P.push({ id: a.id, num: a.num, titulo: a.titulo, curto: a.titulo, etapa: nE, etapas: a.etapas, obra: true, aba: x, api: true,
+        feito: x ? !!x.concluida : es.every(function (e) { return etapaFeita(e, atual); }), aberta: x ? !!x.aberta : es.some(function (e) { return !!e.aberta_em; }),
+        corpo: function (c) { corpoAbaObra(c, O.dados, a); } });
     });
-    P.forEach(function (p, i) { p.livre = i === 0 || P[i - 1].feito || p.feito; });
+    P.forEach(function (p, i) { p.livre = i === 0 || P[i - 1].feito || p.feito || !!p.aberta; });
     var vez = P.filter(function (p) { return p.livre && !p.feito; })[0] || P[P.length - 1];
     return { lista: P, atual: vez.id, ets: ets };
   }
@@ -1589,9 +1606,19 @@
     if (n === 1) return 'Passos 1 e 2 · Documentos e contrato';
     if (n === 2) return 'Passos 3 e 4 · Assinaturas e vistoria';
     if (n === 3) return 'Passo 5 · Homologação';
+    var ab = ABAS_OBRA.filter(function (a) { return a.etapas.indexOf(n) >= 0; })[0];
+    if (ab) return 'Passo ' + ab.num + ' · ' + ab.titulo;
+    if (n === 9) return 'Pós-venda';
     var e = O.dados && O.dados.etapas ? O.dados.etapas[n - 1] : null;
     return e ? e.nome : 'Etapa ' + n;
   }
+  /** As abas da obra e as etapas da api que cada uma junta. A 9 (Comissionamento) é a entrega (7) e a liberação (8). */
+  var ABAS_OBRA = [
+    { id: 'e4', num: 6, titulo: 'Compra', etapas: [4], art: 'a', libera: 'quando as placas e o inversor estiverem comprados' },
+    { id: 'e5', num: 7, titulo: 'Logística', etapas: [5], art: 'a', libera: 'quando a carga do kit estiver completa' },
+    { id: 'e6', num: 8, titulo: 'Obra', etapas: [6], art: 'a', libera: 'com o checklist completo e 1 dia no diário com foto' },
+    { id: 'e7', num: 9, titulo: 'Comissionamento', etapas: [7, 8], art: 'o', libera: '' },
+  ];
 
   // ── Os nós do quadro de documentos (index.html) que esta página usa no lugar certo ───────────────────────────────
   // O quadro continua montado e escondido: é ele que fala com a api de documentos e cadastro. A página pega emprestados os pedaços
@@ -1674,6 +1701,14 @@
    */
   function pendencia(d, p, m) {
     if (!d || !p || p.resumo || !p.livre || p.id === 'obra') return '';
+    // Abas da obra: o `falta` (vermelho) e o `falta_opcional` (amarelo) que a api manda. Depois de concluída, a 9 fica com o pós-venda.
+    if (p.obra) {
+      if (p.feito) return p.num === 9 && window.Jornada.extras.pendenciaPos ? window.Jornada.extras.pendenciaPos(O.fase2) : '';
+      var x = p.aba;
+      if (x) return x.falta > 0 ? 'ob' : x.falta_opcional > 0 ? 'op' : '';
+      var its = []; (p.etapas || []).forEach(function (n) { var e0 = m.ets[n - 1]; (e0 && e0.itens || []).forEach(function (i) { if (!i.feito) its.push(i); }); });
+      return its.some(function (i) { return i.nivel !== 'opcional'; }) ? 'ob' : its.length ? 'op' : '';
+    }
     if (p.aviso) return 'ob';
     if (p.feito) return '';
     if (p.id === 'p1') return faltaDoP1(d).length ? 'ob' : '';
@@ -1696,14 +1731,15 @@
   function barraAbas(m, aba) {
     var cx = el('nav', 'jor-abas-p'); cx.setAttribute('aria-label', 'Passos da obra');
     var trilho = el('div', 'jor-abas-tr'); trilho.setAttribute('role', 'tablist');
-    // Antes do passo 5 fechar, as etapas da obra viram uma aba só, travada. Depois, cada uma ganha a sua e os passos 1 a 5 encolhem para o número.
+    // Resumo, 1 a 5 e 6 a 9 (a obra). Antes da obra abrir, as abas 6 a 9 ficam travadas e só com o número; depois, os passos 1 a 5 encolhem para o número.
     var obraLivre = obraAberta(m);
-    var itens = [{ id: 'resumo', curto: 'Resumo', livre: true, resumo: true }].concat(obraLivre ? m.lista : m.lista.filter(function (p) { return !p.obra; }).concat([OBRA_TRAVADA]));
+    var itens = [{ id: 'resumo', curto: 'Resumo', livre: true, resumo: true }].concat(m.lista);
     var anteriorNum = 0;
     itens.forEach(function (p, i) {
       if (p.obra && p.id !== 'obra' && !anteriorNum) { var sp = el('span', 'jor-ab-sep', 'Obra'); sp.setAttribute('aria-hidden', 'true'); trilho.appendChild(sp); anteriorNum = 1; }
       var est = p.resumo ? '' : p.feito ? 'feito' : p.id === m.atual ? 'atual' : p.livre ? 'aberto' : 'travado';
-      var b = el('button', 'jor-ab' + (est ? ' ' + est : '') + (p.id === aba ? ' sel' : '') + (p.resumo ? ' res' : '') + (p.num ? ' num' : '') + (p.num && obraLivre ? ' compacta' : '') + (p.aviso ? ' av' : ''));
+      var compacta = p.num && (p.obra ? !obraLivre : obraLivre);
+      var b = el('button', 'jor-ab' + (est ? ' ' + est : '') + (p.id === aba ? ' sel' : '') + (p.resumo ? ' res' : '') + (p.num ? ' num' : '') + (compacta ? ' compacta' : '') + (p.aviso ? ' av' : ''));
       b.type = 'button'; b.id = 'jor-ab-' + p.id; b.setAttribute('role', 'tab');
       b.setAttribute('aria-selected', p.id === aba ? 'true' : 'false'); b.tabIndex = p.id === aba ? 0 : -1;
       if (p.id === aba) b.setAttribute('aria-controls', 'jor-aba-corpo');
@@ -1715,12 +1751,12 @@
         b.appendChild(mk);
       }
       b.appendChild(el('span', 'jor-ab-t', p.curto));
-      if (p.num && obraLivre) b.title = p.titulo;
+      if (compacta) b.title = p.titulo;
       if (!p.resumo) b.appendChild(srTxt(', ' + ({ feito: p.aviso ? 'feito, com pendência' : 'feito', atual: 'passo da vez', aberto: 'em aberto', travado: 'travado' })[est] + ({ ob: ', falta item obrigatório', op: ', falta item opcional' }[pendencia(O.dados, p, m)] || '')));
       if (est === 'travado') {
         b.setAttribute('aria-disabled', 'true');
-        var antes = itens[i - 1]; var nomeAntes = p.id === 'obra' ? 'o passo 5' : antes && antes.num ? 'o passo ' + antes.num : 'a etapa anterior';
-        b.title = 'Conclua ' + nomeAntes + ' para abrir.';
+        var antes = itens[i - 1]; var abA = antes && antes.obra ? ABAS_OBRA.filter(function (a) { return a.num === antes.num; })[0] : null;
+        b.title = p.titulo + ': ' + (abA && abA.libera ? 'abre ' + abA.libera + '.' : 'abre depois ' + (antes && antes.num ? 'do passo ' + antes.num : 'da etapa anterior') + '.');
       }
       b.addEventListener('click', function () {
         if (est === 'travado') { toast(b.title); return; }
@@ -1749,7 +1785,7 @@
     var e = m.ets[p.etapa - 1];
     var cab = el('div', 'jor-passo-cab');
     var tt = el('div', 'jor-passo-tt');
-    tt.appendChild(el('span', 'jor-passo-de', p.num ? 'Passo ' + p.num + ' de 5' : 'Obra'));
+    tt.appendChild(el('span', 'jor-passo-de', p.num ? 'Passo ' + p.num + ' de 9' : 'Obra'));
     var h = el('h3', '', p.titulo); tt.appendChild(h);
     cab.appendChild(tt);
     var ld = el('div', 'jor-passo-ld');
@@ -1760,11 +1796,58 @@
     ((e && e.dono) || []).forEach(function (x) { var a = el('span', 'jor-avatar', x.iniciais); a.title = 'Responsável: ' + nomeBonito(x.nome); a.setAttribute('role', 'img'); a.setAttribute('aria-label', 'Responsável: ' + nomeBonito(x.nome)); ld.appendChild(a); });
     cab.appendChild(ld);
     c.appendChild(cab);
+    if (p.obra) { var fl = faixaLibera(p, m); if (fl) c.appendChild(fl); }
     if (p.id === m.atual && e && !etapaFeita(e, atualEtapa())) { var pz = faixaPrazo(d, e); if (pz) c.appendChild(pz); }
     var corpoP = el('div', 'jor-passo-corpo'); corpoP.id = 'jor-s-' + p.id;
     p.corpo(corpoP, p);
     c.appendChild(corpoP);
     var pe = rodapePasso(d, p, m); if (pe) c.appendChild(pe);
+  }
+  /**
+   * As abas 6, 7 e 8 não têm Concluir: abrem a seguinte sozinhas. Uma linha diz o que libera a próxima e o que falta
+   * (vermelho o que trava, amarelo o que não trava). Feita, diz quando liberou e leva à próxima.
+   */
+  function faixaLibera(p, m) {
+    var ab = ABAS_OBRA.filter(function (a) { return a.num === p.num; })[0]; if (!ab || !ab.libera) return null;
+    var prox = m.lista[m.lista.indexOf(p) + 1] || null; if (!prox) return null;
+    var nomeProx = (prox.num === 9 ? 'o ' : 'a ') + prox.num + ' ' + prox.titulo;
+    var its = []; ab.etapas.forEach(function (n) { var e = m.ets[n - 1]; (e && e.itens || []).forEach(function (i) { if (!i.feito) its.push(i); }); });
+    if (p.feito) its = its.filter(function (i) { return i.nivel === 'opcional'; });
+    var f = el('div', 'jor-libera' + (p.feito ? ' ok' : '')); f.setAttribute('role', 'status');
+    var ic = el('span', 'jor-libera-ic'); ic.appendChild(icone(p.feito ? 'ok' : 'cadeado')); f.appendChild(ic);
+    var tx = el('div', 'jor-libera-tx');
+    var e0 = m.ets[ab.etapas[ab.etapas.length - 1] - 1];
+    tx.appendChild(el('p', 'jor-libera-f', p.feito ? 'Liberou ' + nomeProx + (e0 && e0.concluida_em ? ' em ' + dataCurta(e0.concluida_em) : '') + '.' : 'Libera ' + nomeProx + ' ' + ab.libera + '.'));
+    if (its.length) {
+      var ul = el('ul', 'jor-pe-falta'); ul.setAttribute('aria-label', 'O que falta');
+      its.forEach(function (i) { ul.appendChild(el('li', i.nivel === 'opcional' ? 'op' : '', i.texto)); });
+      tx.appendChild(ul);
+    }
+    // Obra antiga presa num portão: o ADM abre a próxima mesmo assim, com motivo opcional (19/11/2026).
+    if (!p.feito && O.fase2 && O.fase2.pode && O.fase2.pode.forcar) {
+      var fz = btn('Abrir a próxima etapa mesmo assim (ADM)', 'jor-btn-link jor-libera-forcar', function () { forcarDialogo(ab.etapas[0], nomeProx); });
+      tx.appendChild(fz);
+    }
+    f.appendChild(tx);
+    if (p.feito && prox.livre) f.appendChild(btn('Ir para ' + prox.num + ' ' + prox.titulo, 'jor-btn', function () { irAba(prox.id); }));
+    return f;
+  }
+  /** Forçar a abertura: o motivo é opcional e a confirmação mora no próprio diálogo (o botão diz o que acontece). */
+  function forcarDialogo(etapa, nomeProx) {
+    var ta = null; var info = null;
+    dialogo('Abrir ' + nomeProx + ' mesmo assim', function (box) {
+      box.appendChild(el('p', 'jor-nota', 'O que falta nesta etapa continua aparecendo, mas não segura mais a próxima. Fica registrado quem abriu e quando.'));
+      ta = el('textarea', 'jor-ta'); ta.maxLength = 300; ta.setAttribute('aria-label', 'Motivo (opcional)'); ta.placeholder = 'Ex.: obra antiga, a carga já foi entregue…';
+      var lb = el('label', 'jor-libera-mot', 'Motivo (opcional)'); lb.appendChild(ta); box.appendChild(lb);
+      info = el('p', 'jor-erro'); info.setAttribute('role', 'status'); box.appendChild(info);
+      return { foco: ta };
+    }, 'Sim, abrir ' + nomeProx, function (b) {
+      b.disabled = true; info.textContent = '';
+      api('/gerador/jornada-solar/obra/' + encodeURIComponent(O.card) + '/etapa-obra', 'POST', { etapa: etapa, forcar: true, motivo: ta.value.trim() }, 60000).then(function (r) {
+        if (r.status === 200 && r.json && r.json.ok !== false) { fecharDlg(); toast('Etapa aberta.'); carregarObra(); return; }
+        b.disabled = false; info.textContent = msgDe(r, 'Não consegui abrir agora. Tente de novo.');
+      });
+    });
   }
   /** Prazo e cobrança da etapa da vez: uma faixa fina no topo do passo, com o Esperando. */
   function faixaPrazo(d, e) {
@@ -1819,8 +1902,9 @@
     var cx = el('div', 'jor-pe'); var barra = el('div', 'jor-portao-barra'); cx.appendChild(barra);
     var irProx = prox ? (prox.num ? 'o passo ' + prox.num : prox.titulo) : '';
     if (O.msg) { var mm = el('p', 'jor-erro', O.msg); mm.setAttribute('role', 'status'); cx.insertBefore(mm, barra); }
+    // A obra não tem Concluir: as abas 6 a 8 abrem a seguinte sozinhas e a 9 tem o botão final dentro dela.
+    if (p.obra) return null;
     if (!p.api) {
-      if (p.obra) return null;   // pós-venda: sem concluir
       // Passos 1 e 3: fecham pelos itens, aqui na tela.
       var falta = p.id === 'p1' ? faltaDoP1(d) : faltaDoP3(d);
       var ja = etapaFeita(e, atual);
@@ -1856,10 +1940,12 @@
     if (e.n === 8) cx.appendChild(el('p', 'jor-nota', 'Fechada, a conta trava. Só o Thiago reabre, com motivo.'));
     return cx;
   }
-  /** Etapas 4 a 9: o que jornada-obra.js e jornada-posvenda.js desenham, dentro da aba. */
-  function corpoEtapaObra(c, d, e) {
-    if (e.n === 9) { if (window.Jornada.etapas[9]) window.Jornada.etapas[9](c, d, e, O.fase3); return; }
-    if (O.fase2 && window.Jornada.etapas[e.n]) { window.Jornada.etapas[e.n](c, d, e, O.fase2); return; }
+  /** Abas 6 a 9: o que jornada-obra.js desenha. A 9 junta a entrega e a liberação, e o pós-venda (jornada-posvenda.js) no fim. */
+  function corpoAbaObra(c, d, a) {
+    var J = window.Jornada.etapas;
+    if (O.fase2 && a.num === 9 && J.comissionamento) { J.comissionamento(c, d, O.fase2, O.fase3); return; }
+    var e = etapasMescladas()[a.etapas[0] - 1];
+    if (O.fase2 && e && J[a.etapas[0]]) { J[a.etapas[0]](c, d, e, O.fase2); return; }
     c.appendChild(el('p', 'jor-erro', 'Não consegui ler esta parte agora.')); c.appendChild(btn('Tentar de novo', '', carregarObra));
   }
 
@@ -1938,8 +2024,20 @@
     var kw = kv.kwp || (d.proposta && d.proposta.kwp);
     g.appendChild(linhaRes('Proposta', d.proposta ? d.proposta.codigo + (kw ? ' · ' + String(kw).replace('.', ',') + ' kWp' : '') : '', false, '', '', null, 'proposta'));
     var vo = (d.dados_cliente && d.dados_cliente.venda_origem) || {};
-    g.appendChild(linhaRes('Placas', txtKit(kv.placas), !!conf(d, 'placas'), '', 'v-placas', null, 'placas'));
-    g.appendChild(linhaRes('Inversor', txtKit(kv.inversor), !!conf(d, 'inversor'), '', 'v-inversor', null, 'inversor'));
+    // O equipamento FINAL é o comprado (19/11/2026). Antes da compra, a proposta, com a etiqueta "da proposta".
+    var ef = d.equipamento_final && d.equipamento_final.origem === 'compra' ? d.equipamento_final : null;
+    function txtEq(ls) { return (ls || []).map(function (x) { return (x.quantidade ? String(x.quantidade).replace('.', ',') + ' x ' : '') + (x.descricao || [x.marca, x.modelo].filter(Boolean).join(' ')); }).join('; '); }
+    var orgP = d.equipamento_final && d.equipamento_final.origem === 'proposta' ? 'da proposta' : '';
+    [['Placas', ef ? txtEq(ef.modulos) : txtKit(kv.placas), 'placas'], ['Inversor', ef ? txtEq(ef.inversores) : txtKit(kv.inversor), 'inversor']].forEach(function (x) {
+      var r = linhaRes(x[0], x[1], !!conf(d, x[2]), '', 'v-' + x[2], null, x[2]);
+      var o = ef ? 'comprado' : orgP; if (x[1] && o) r.appendChild(el('span', 'jor-rc-org', o));
+      // O equipamento muda em qualquer etapa: o comprado se corrige na Compra; o da venda, no passo 2.
+      if (!semEquip(d) && d.kit_vendido) {
+        var ch = x[2]; var bc = btn(ef ? 'Editar na Compra' : 'Corrigir', 'jor-btn-link', function () { if (ef) { irAba('e4'); return; } O.edita['kit.' + ch] = true; irAba('p2'); });
+        bc.setAttribute('aria-label', (ef ? 'Editar na Compra: ' : 'Corrigir ') + x[0].toLowerCase()); r.appendChild(bc);
+      }
+      g.appendChild(r);
+    });
     if (V.vede) {
       var vc = null; if (V.valorC) { vc = el('div', 'jor-rc-v', reais(V.valorC)); if (vv && vv.desconto_centavos > 0) vc.appendChild(el('small', '', 'Desconto de ' + reais(vv.desconto_centavos))); }
       g.appendChild(linhaRes('Valor', vc, !!conf(d, 'valor'), '', 'v-valor', vo.valor, 'valor'));
@@ -1993,8 +2091,14 @@
   function linhaAndamento(d, p, est, atual) {
     var s = el('span', 'jor-and-s');
     function txt(t) { s.appendChild(document.createTextNode(t)); return s; }
-    if (p.id === 'obra') return txt('Compra, instalação, homologação final, vistoria final, fechamento e pós-venda. Abre depois do passo 5.');
+    if (p.id === 'obra') return txt('Passos 6 a 9: compra, logística, obra e comissionamento. Abre depois do passo 5.');
     if (est === 'travado') return txt('Abre depois ' + (p.num > 1 ? 'do passo ' + (p.num - 1) : 'da etapa anterior') + '.');
+    if (p.obra) {
+      var eo = etapasMescladas(); var eu = eo[p.etapas[p.etapas.length - 1] - 1];
+      if (p.feito) return txt('Concluído' + (eu && eu.concluida_em ? ' em ' + dataCurta(eu.concluida_em) : '') + (p.num === 9 ? '. Pós-venda em andamento.' : '.'));
+      var fz = []; p.etapas.forEach(function (n) { ((eo[n - 1] || {}).itens || []).forEach(function (i) { if (!i.feito && i.nivel !== 'opcional') fz.push(i.texto); }); });
+      return txt(fz.length ? fz[0] + (fz.length > 1 ? ' (e mais ' + (fz.length - 1) + ')' : '') + '.' : 'Em andamento.');
+    }
     var e = (etapasMescladas())[p.etapa - 1];
     if (p.id === 'p1') {
       var pend = pendentesDe(d);
@@ -2024,7 +2128,6 @@
       return s;
     }
     if (p.feito && e && e.concluida_em) return txt('Concluída' + (dataCurta(e.concluida_em) ? ' em ' + dataCurta(e.concluida_em) : '') + '.');
-    if (p.id === 'e9') return txt('Mensagens e retorno do cliente.');
     return txt(est === 'atual' ? 'Em andamento.' : 'Em aberto.');
   }
   var ROT_SLOT = { documento_titular: 'CNH ou identidade', conta_luz: 'Conta de luz', conta_luz_beneficiaria: 'Conta do excedente', fachada: 'Foto da fachada', padrao: 'Foto do padrão',
@@ -2241,7 +2344,9 @@
         if (cfg.coletar) { var r = cfg.coletar.lista(); if (r.erro) { O.erroSec[cfg.sec] = r.erro; erro.textContent = r.erro; return; } lista = r.itens; }
         confirmarLote(d, cfg.sec, lista.concat(pend.map(function (k) { return { chave: k }; })));
       });
-      b.setAttribute('aria-label', cfg.aria); negar(b, semConfirmar(d, et)); if (ocup) b.disabled = true;
+      // Quem só corrige o equipamento (sem permissão de confirmar) ainda grava o kit por este botão.
+      var soKit = !!(cfg.coletar && cfg.coletar.chaves().length && !semEquip(d));
+      b.setAttribute('aria-label', cfg.aria); negar(b, soKit ? '' : semConfirmar(d, et)); if (ocup) b.disabled = true;
       ac.appendChild(b);
     }
     box.appendChild(ac);
@@ -2263,6 +2368,8 @@
     if (!d.pode || !d.pode.confirmar) return 'Você não tem permissão para confirmar.';
     return '';
   }
+  /** O equipamento (placas e inversor da venda) muda em qualquer etapa, mesmo depois da homologação e com a conta fechada (19/11/2026). */
+  function semEquip(d) { return d.pode && (d.pode.confirmar || d.pode.editar_venda || d.pode.editar_kit) ? '' : 'Você não tem permissão para mudar o equipamento.'; }
   /** Desabilita o botão com um title curto explicando. */
   function negar(b, motivo) { if (motivo) { b.disabled = true; b.title = motivo; } return b; }
   function enc(x) { return encodeURIComponent(String(x)); }
@@ -2863,7 +2970,7 @@
         var inp = el('input', 'jor-in' + (falta ? ' jor-fx-ob' : '')); inp.type = 'text'; inp.maxLength = 120; inp.autocomplete = 'off'; inp.name = 'kit-' + ch; inp.placeholder = k[2]; inp.setAttribute('aria-label', k[1] + ' (quantidade e marca)');
         inp.value = O.rascunho[ek] != null ? O.rascunho[ek] : (falta ? '' : txtKit(kv[ch]));
         inp.addEventListener('input', function () { O.rascunho[ek] = inp.value; });
-        inp.disabled = !!semConfirmar(d, et); lin.appendChild(inp);
+        inp.disabled = !!semEquip(d); lin.appendChild(inp);
         if (falta) lin.appendChild(el('small', '', 'A proposta não diz. Digite a quantidade e a marca.'));
         else { var cn = btn('Cancelar', 'jor-btn-link', function () { delete O.edita[ek]; delete O.rascunho[ek]; desenharObra(); }); cn.setAttribute('aria-label', 'Cancelar a edição: ' + k[1]); lin.appendChild(cn); }
         kitIn[ch] = inp; g.appendChild(linhaConf(k[1], lin, false));
@@ -2906,7 +3013,8 @@
     var acs = lc.querySelector('.jor-din-acoes');
     if (!(vv && vv.prazo_prometido) && d.pode.editar_venda) acs.appendChild(btn('Preencher o prazo no Resumo', 'jor-btn-link', function () { O.vendaEdita = true; irResumo('jor-s-venda'); }));
     else if (d.pode.editar_venda) acs.appendChild(btn('Editar no Resumo', 'jor-btn-link', function () { O.vendaEdita = true; irResumo('jor-s-venda'); }));
-    if (kv && Array.isArray(kv.manual) && !semConfirmar(d, et)) kv.manual.forEach(function (ch) {
+    // Placas e inversor sempre têm Corrigir (não só o kit digitado à mão): o equipamento não trava com a homologação nem com a conta fechada.
+    if (kv && !semEquip(d)) ['placas', 'inversor'].forEach(function (ch) {
       if (O.edita['kit.' + ch] || (kv.faltando || []).indexOf(ch) >= 0) return;
       acs.appendChild(btn('Corrigir ' + (ch === 'placas' ? 'as placas' : 'o inversor'), 'jor-btn-link', function () { O.edita['kit.' + ch] = true; desenharObra(); }));
     });

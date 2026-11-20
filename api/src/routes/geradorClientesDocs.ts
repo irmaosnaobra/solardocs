@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { SLOTS_FOTO_ENTREGA } from '../services/gerador/obraDocs';
 import { Router, Request, Response, NextFunction } from 'express';
 import { exigeConsultor } from './geradorDossie';
 import { ehAdm, ehSocio, nomeSimples, podeVer } from '../services/gerador/solarObras';
@@ -75,6 +76,9 @@ const MSG_SUBSTITUI = 'O arquivo a trocar não está neste item. Atualize a list
  * limpeza no projeto: o log leva só a venda e o id do arquivo (nunca o caminho nem dado pessoal) para o objeto não ficar órfão calado.
  * O registro já não aponta para ele e o caminho já está em `apagados`, então ninguém consegue abri-lo ou registrá-lo de novo.
  */
+/** Os itens cujo arquivo novo pode fechar um portão das etapas 4 a 7: as 8 fotos da entrega e o termo, o álbum da carga e a foto do diário. */
+const SLOTS_DO_PORTAO: readonly string[] = [...SLOTS_FOTO_ENTREGA, 'ent_termo_assinado', 'log_conferencia', 'obra_foto'];
+
 async function apagarAntigo(ctx: Ctx, antigo: ArquivoDoc): Promise<void> {
   for (let t = 0; t < 2; t++) {
     try { await removerObjeto(antigo.caminho); return; } catch (e) {
@@ -549,6 +553,11 @@ export function mountClientesDocs(router: Router): void {
           const dono = { nome: ctx.nome, socio: ctx.socio };
           const card = ctx.card;
           waitUntil(import('./geradorJornadaTrelloAuto').then((m) => m.tentarTrelloAutomatico(card, dono)).then(() => undefined).catch((e) => logErro('trello automático', e)));
+        }
+        // Obra nova (19/11/2026): foto da entrega, termo assinado, foto da carga ou do diário podem ter fechado um portão (a 7 abre a 8, por exemplo).
+        // O sincronizador confere com autor em dois tempos; falha dele só vira log: o arquivo já está salvo e o portão é conferido na próxima gravação.
+        if (ctx.linha === 'vendasolar' && ctx.card && SLOTS_DO_PORTAO.includes(item.chave)) {
+          try { await (await import('./geradorJornadaSincronia')).sincronizarAposAnexo(ctx, arq.id); } catch (e) { logErro('portão depois do anexo', e); }
         }
         res.json({ ok: true, arquivo: lerNaTela(arq, urls), ...(antigo ? { substituiu: antigo.id } : {}), ...(numero ? { numero } : {}) });
         return;

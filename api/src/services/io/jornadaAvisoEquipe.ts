@@ -12,6 +12,7 @@ import { sendWhatsApp } from '../agents/zapiClient';
 import { equipamentoDaProposta } from '../gerador/trelloVendaSolar';
 import { prazoDaEtapa } from '../gerador/jornadaSolar';
 import { prazoDaEtapaObra } from '../gerador/jornadaObra';
+import { sincronizarPortoesDaFila } from './jornadaPortoesFila';
 import { diaBRT, diaDaSemanaBRT } from '../agentes5040/relogio';
 import { contarErroDaLinha, zerarErrosDaLinha } from '../agentes5040/guardaDaLinha';
 import {
@@ -28,8 +29,10 @@ const logAviso = (que: string, id?: number | string): void => console.error(`[jo
 
 /** As pessoas da fila do dia que já se sabe sem nada a receber (evita reler o dinheiro nas 11 rodadas da janela). Memória da instância. */
 const vaziosDoDia = new Map<string, Set<string>>();
+/** Os dias em que esta instância já registrou os portões das obras antes de montar a fila (idempotente: outra instância repetir não muda nada). */
+const portoesDoDia = new Set<string>();
 /** Para os testes. */
-export function limparMemoriaDaFila(): void { vaziosDoDia.clear(); }
+export function limparMemoriaDaFila(): void { vaziosDoDia.clear(); portoesDoDia.clear(); }
 
 interface Envio { chave: string; pessoa: string; valor: Record<string, unknown>; texto: string; tipoLog: string }
 
@@ -77,19 +80,28 @@ export async function rodarFila(c: CtxMsg, leitura: Leitura): Promise<ResultadoM
   const pessoas = PESSOAS_FILA.filter((p) => !ja.has(chaveFila(dia, p)) && !vazios.has(p));
   if (!pessoas.length) return nada('feita');
 
+  // Antes de montar a fila: a obra que já cumpriu o portão (Compra, Logística, Obra, Entrega) e ninguém salvou depois avança em SILÊNCIO (autor `leitura`, que nunca
+  // dispara aviso): senão a fila e a escalada leem a etapa velha e cobram o dono errado. Uma vez por dia e por instância; nunca lança.
+  let obras = leitura.obras;
+  if (!portoesDoDia.has(dia)) {
+    if (portoesDoDia.size > 3) portoesDoDia.clear();
+    portoesDoDia.add(dia);
+    obras = await sincronizarPortoesDaFila(leitura.obras, c.agora);
+  }
+
   // O que custa leitura (dinheiro, "Falta") só se monta aqui, dentro da janela, para quem ainda não recebeu.
   // O dinheiro é lido para quem ainda não recebeu, seja qual for a pessoa: o bloco "Falta comprovante" é de quem LANÇOU a saída.
   const doDinheiro = await dinheiroDasObras(leitura.obras);
-  let escalada = pessoas.includes('thiago') ? paradosComAEquipe(leitura.obras, dia).slice(0, 25) : [];
+  let escalada = pessoas.includes('thiago') ? paradosComAEquipe(obras, dia).slice(0, 25) : [];
   if (escalada.length) {
-    const porCard = new Map<number, ObraFila>(leitura.obras.map((o) => [o.card, o]));
+    const porCard = new Map<number, ObraFila>(obras.map((o) => [o.card, o]));
     escalada = await Promise.all(escalada.map(async (x) => ({ ...x, falta: await faltaDaObra(porCard.get(x.card) as ObraFila, leitura.ligs) })));
   }
-  const placar = diaDaSemanaBRT(c.agora) === 1 ? placarDaSemana(leitura.obras, dia, dia) : [];
+  const placar = diaDaSemanaBRT(c.agora) === 1 ? placarDaSemana(obras, dia, dia) : [];
 
   for (const pessoa of pessoas) {
     const texto = textoFila({
-      pessoa, hoje: dia, itens: filaDaPessoa(pessoa, leitura.obras, dia).itens,
+      pessoa, hoje: dia, itens: filaDaPessoa(pessoa, obras, dia).itens,
       escalada: pessoa === 'thiago' ? escalada : [], placar: pessoa === 'thiago' ? placar : [], dinheiro: linhasDeDinheiro(pessoa, doDinheiro),
       semComprovante: linhasSemComprovante(pessoa, doDinheiro),
     });

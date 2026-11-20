@@ -8,7 +8,9 @@
 import { diaDeBrasilia } from '../agenda/viradaDoDia';
 import { ehDiaUtil, etapaAtualDoEstado, situacaoComPrazo, somarDiasUteis, type EstadoJornada, type Situacao } from './jornadaSolar';
 import type { LancamentoObra, Livro, Pendencia } from './jornadaDinheiro';
-import { cpfValido } from '../../utils/documento';
+import { normalizarCpf, placaValida } from './obraDocs';
+import { itensDaEtapaNova } from './obraPortoes';
+import { itensQueContam } from './compraKit';
 
 // ── Equipes ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -24,7 +26,7 @@ export const IDS_EQUIPE: readonly string[] = EQUIPES_LISTA.map((e) => e.id);
 
 // ── O estado das etapas 4 a 8 (system_state, `jornada_obra:<card>`, assinado) ─────────────────────────────────────────
 
-export const ACOES_HISTORICO_OBRA = ['abrir', 'concluir', 'esperar', 'voltar', 'fechar', 'reabrir', 'cofre_revelado', 'materializada', 'pedido'] as const;
+export const ACOES_HISTORICO_OBRA = ['abrir', 'concluir', 'esperar', 'voltar', 'fechar', 'reabrir', 'cofre_revelado', 'materializada', 'pedido', 'forcar'] as const;
 export type AcaoHistoricoObra = typeof ACOES_HISTORICO_OBRA[number];
 
 export interface EtapaObra { aberta_em: string | null; concluida_em: string | null; concluida_por: string }
@@ -100,12 +102,28 @@ export interface RegraCongelada { linhas: Array<{ nome: string; papel: 'venda' |
 
 export const TIPOS_ITEM = ['modulo', 'inversor', 'estrutura', 'eletrico', 'outro'] as const;
 export const UNIDADES_ITEM = ['un', 'm', 'par', 'kit'] as const;
-export const ORIGENS_ITEM = ['proposta', 'lista', 'manual', 'nota'] as const;
+export const ORIGENS_ITEM = ['proposta', 'lista', 'manual', 'nota', 'arquivo'] as const;
 export interface ItemCompra {
   id: string; origem: typeof ORIGENS_ITEM[number]; tipo: typeof TIPOS_ITEM[number]; descricao: string; quantidade: number | null;
   unidade: typeof UNIDADES_ITEM[number]; marca: string; modelo: string; potencia_w: number | null; potencia_kw: number | null;
   garantia_fabricacao_anos: number | null; garantia_desempenho_anos: number | null; garantia_anos: number | null;
   compra_id: string | null; fornecedor: string; valor_centavos: number | null; data: string | null; etapa: 4 | 6; criado_por: string; criado_em: string;
+  /** O tique "Comprado" (à mão, ou marcado pela leitura de uma nota fiscal ou de um pedido). Item que nasce da proposta ou da lista é só "previsto". */
+  comprado: boolean;
+  /** O valor que um orçamento disse (não é o valor pago: `valor_centavos` só vem de nota ou pedido, ou da pessoa). */
+  orcado_centavos: number | null;
+  /** O nome do arquivo de onde o item foi lido ('' = não veio de arquivo). */
+  lido_de: string;
+  /** O documento da Compra (`compra.documentos`) ligado ao item ('' = nenhum). */
+  documento_id: string;
+  /** O número de série do equipamento (o do inversor é o que o termo de garantia e o Book usam quando a Entrega não o tem). */
+  serie: string;
+}
+export const TIPOS_DOCUMENTO_COMPRA = ['orcamento', 'pedido', 'nota_fiscal'] as const;
+/** Um arquivo lido na Compra (orçamento, pedido ou nota). Nada de texto livre além do nome do arquivo e do fornecedor. */
+export interface DocumentoCompra {
+  id: string; tipo: typeof TIPOS_DOCUMENTO_COMPRA[number]; nome: string; sha256: string; path: string; fornecedor: string; numero: string;
+  data: string | null; total_centavos: number | null; itens: number; origem: 'xml' | 'ia'; compra_id: string | null; em: string; por: string;
 }
 export interface CompraObra {
   id: string; fornecedor: string; cidade: string; data: string | null; forma: string;
@@ -117,11 +135,13 @@ export interface CargaObra {
   saida: { lugar: string; em: string };
   chegada: { lugar: string; destino: 'deposito' | 'obra'; em: string };
   /** `motorista`, `cpf` (11 dígitos) e `placa` (maiúscula, sem hífen) são de quem BUSCOU a carga. */
-  transporte: { empresa: string; motorista: string; cpf: string; placa: string };
+  transporte: { empresa: string; motorista: string; cpf: string; placa: string; /** o modelo do carro */ carro: string };
   compras: string[];
   /** `cpf` de quem recebeu é opcional (11 dígitos, ou vazio). */
   recebido_por: { nome: string; cpf: string; assinatura_id: string };
   conferencia: { itens_ok: string[]; foto_id: string };
+  /** O álbum da carga (ids de arquivos do slot `log_conferencia`). A carga do kit precisa de pelo menos 1 (a foto antiga de `conferencia.foto_id` também vale). */
+  fotos: string[];
   avaria: { tem: boolean; descricao: string; foto_id: string; o_que_fazer: string; resolvida: boolean };
   frete: { valor_centavos: number | null; forma: string };
   documentos: string[];
@@ -144,21 +164,9 @@ export const posVendaVazio = (): PosVendaObra => ({
   ocorrencias: [], indicacoes: [],
 });
 
-// ── CPF e placa de quem buscou a carga ───────────────────────────────────────────────────────────────────────────────
+// CPF, placa, checklist e fotos da entrega moram em `obraDocs.ts` (sem ciclo com os portões); reexportados aqui.
+export { normalizarCpf, normalizarPlaca, placaValida, CHAVES_CHECKLIST, SLOTS_FOTO_ENTREGA } from './obraDocs';
 
-/** A placa em maiúsculas e sem hífen nem espaço (só se for Mercosul ABC1D23 ou antiga ABC1234); senão ''. */
-export function normalizarPlaca(v: unknown): string {
-  const t = typeof v === 'string' ? v.replace(/[\s-]/g, '').toUpperCase() : '';
-  return /^[A-Z]{3}\d[A-Z]\d{2}$/.test(t) || /^[A-Z]{3}\d{4}$/.test(t) ? t : '';
-}
-export const placaValida = (v: unknown): boolean => normalizarPlaca(v) !== '';
-/** Os 11 dígitos do CPF (com dígito verificador batendo); senão ''. Aceita máscara. */
-export function normalizarCpf(v: unknown): string {
-  const d = typeof v === 'string' ? v.replace(/\D/g, '') : '';
-  return d.length === 11 && cpfValido(d) ? d : '';
-}
-
-export const CHAVES_CHECKLIST = ['estrutura', 'placas', 'strings', 'inversor', 'dps', 'aterramento', 'cabos', 'padrao'] as const;
 export interface ObraPrivada {
   v: 1;
   versoes: Record<SecaoObra, number>;
@@ -167,11 +175,11 @@ export interface ObraPrivada {
   banco: BancoObra | null;
   previsto: PrevistoObra | null;
   regra_comissao: RegraCongelada | null;
-  compra: { itens: ItemCompra[]; compras: CompraObra[] };
+  compra: { itens: ItemCompra[]; compras: CompraObra[]; documentos: DocumentoCompra[] };
   logistica: { cargas: CargaObra[] };
   obra: {
     plano: Array<{ data: string; inicio: string; fim: string; equipe: string; ajudantes: number; servico: string }>;
-    diario: Array<{ data: string; chegada: string; saida: string; fotos: string[]; ocorrencia: string }>;
+    diario: Array<{ data: string; chegada: string; saida: string; fotos: string[]; ocorrencia: string; /** quem trabalhou no dia (texto) */ equipe: string }>;
     checklist: Record<string, boolean>;
     equipe: { combinado_centavos: number | null; descricao: string };
   };
@@ -183,6 +191,8 @@ export interface ObraPrivada {
     garantias: { registrada_em: string | null; treinado: boolean };
     termo: { assinado_em: string; nome: string; arquivo_id: string; chk: string[]; ressalva: string } | null;
     responsavel: string;
+    /** "Observações finais" da conclusão da obra (texto opcional). */
+    observacoes: string;
   };
   liberacao: {
     passos: { pedido: PassoLiberacao | null; vistoria: PassoLiberacao | null; medidor: PassoLiberacao | null; liberada: PassoLiberacao | null };
@@ -190,6 +200,8 @@ export interface ObraPrivada {
   };
   posvenda: PosVendaObra;
   reaberturas: Array<{ em: string; por: string; motivo: string }>;
+  /** Abertura forçada de etapa pelo ADM (etapa travada sem saída): quem, quando, qual etapa e o motivo (opcional). */
+  forcadas: Array<{ em: string; por: string; etapa: number; motivo: string }>;
 }
 export type PassoLiberacao = { data: string; arquivo_id: string };
 
@@ -273,12 +285,16 @@ export function compraPaga(p: ObraPrivada, compraId: string, ls: readonly Lancam
   return soma > 0 && vivoLiquido(ls, (l) => l.obra.compra_id === compraId) >= soma;
 }
 
-/** O item "material com origem" (N de M): cada item da Compra (etapa 4 e o material extra da etapa 6) com fornecedor, valor, data e compra paga. */
+/**
+ * O item "material com origem" (N de M): cada item da Compra (etapa 4 e o material extra da etapa 6) comprado, com fornecedor, valor, data e compra paga.
+ * O total NÃO conta o previsto da proposta já trocado pelo comprado do mesmo tipo nem o item só orçado (`itensQueContam`): senão o botão final ficaria em "N de N+1".
+ */
 export function materialDaCompra(p: ObraPrivada | null, ls: readonly LancamentoObra[]): { com_origem: number; total: number } {
   if (!p) return { com_origem: 0, total: 0 };
-  const com = p.compra.itens.filter((i) => i.fornecedor && (i.valor_centavos ?? 0) > 0 && i.data && i.compra_id
+  const contam = itensQueContam(p.compra.itens, p.compra.documentos);
+  const com = contam.filter((i) => i.comprado && i.fornecedor && (i.valor_centavos ?? 0) > 0 && i.data && i.compra_id
     && p.compra.compras.some((c) => c.id === i.compra_id) && compraPaga(p, i.compra_id, ls)).length;
-  return { com_origem: com, total: p.compra.itens.length };
+  return { com_origem: com, total: contam.length };
 }
 
 /** O "a pagar" que mora no `obra.json` (SPEC 3.3): compra sem pagamento que feche, equipe e frete de carga com valor e sem comprovante. */
@@ -307,7 +323,12 @@ export function pendenciasDaObra(p: ObraPrivada | null, ls: readonly LancamentoO
 
 // ── Os itens do portão de cada etapa ──────────────────────────────────────────────────────────────────────────────────
 
-export interface ItemObra { chave: string; bloco: 'portao'; texto: string; feito: boolean }
+/**
+ * Um item da lista de cada etapa. `nivel`: 'obrigatorio' trava (a etapa só abre ou conclui com ele feito; o front pinta de vermelho o que falta) e
+ * 'opcional' nunca trava (o front pinta de amarelo). `grupo`: 'portao' (o que abre a etapa seguinte) ou 'fechamento' (o que só o fechamento final cobra).
+ */
+export type NivelItem = 'obrigatorio' | 'opcional';
+export interface ItemObra { chave: string; bloco: 'portao'; texto: string; feito: boolean; nivel: NivelItem; grupo: 'portao' | 'fechamento' }
 export interface FonteItens {
   jo: EstadoObra | null;
   privada: ObraPrivada;
@@ -316,9 +337,6 @@ export interface FonteItens {
   slots: ReadonlyMap<string, readonly string[]>;
   docsIds: ReadonlySet<string>;
 }
-export const SLOTS_FOTO_ENTREGA = ['ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo'] as const;
-
-const mesmoConjunto = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && a.every((x) => b.includes(x));
 
 /** O que falta numa carga entregue (com data de chegada): quem buscou (nome, CPF e placa) e o nome de quem recebeu. */
 export function faltaDaRetirada(c: CargaObra): string[] {
@@ -329,80 +347,29 @@ export function faltaDaRetirada(c: CargaObra): string[] {
   if (!c.recebido_por.nome.trim()) falta.push('o nome de quem recebeu');
   return falta;
 }
-const listaE = (l: string[]): string => (l.length < 2 ? l.join('') : `${l.slice(0, -1).join(', ')} e ${l[l.length - 1]}`);
 
 /**
- * Um item por carga entregue ("Carga 1: falta a placa de quem buscou"). Obra com a etapa 5 JÁ CONCLUÍDA não ganha item novo (não regride).
+ * Os itens de cada etapa, com o NÍVEL ('obrigatorio' trava, 'opcional' não). Etapas 4 a 7 (Compra, Logística, Obra, Entrega) são os portões de
+ * `obraPortoes.ts` (abrem sozinhas); a 8 (liberação) é o que o botão final confere, mais o fechamento (`grupo: 'fechamento'`: dinheiro, material comprado e avarias).
  */
-function retiradasDasCargas(f: FonteItens): ItemObra[] {
-  if (f.jo?.etapas[5].concluida_em) return [];
-  const out: ItemObra[] = [];
-  f.privada.logistica.cargas.forEach((c, i) => {
-    if (!c.chegada.em) return;
-    const falta = faltaDaRetirada(c);
-    out.push({
-      chave: `retirada_${c.id}`, bloco: 'portao', feito: falta.length === 0,
-      texto: falta.length ? `Carga ${i + 1}: falta ${listaE(falta)}` : `Carga ${i + 1}: quem buscou e quem recebeu`,
-    });
-  });
-  return out;
-}
-
 export function itensDaEtapaObra(n: number, f: FonteItens): ItemObra[] {
+  if (n === 4 || n === 5 || n === 6 || n === 7) return itensDaEtapaNova(n, f);
   const p = f.privada;
-  const it = (chave: string, texto: string, feito: boolean): ItemObra => ({ chave, bloco: 'portao', texto, feito });
-  const pend = (tipo: Pendencia['tipo']): boolean => f.livro.a_pagar.some((x) => x.tipo === tipo);
+  const it = (chave: string, texto: string, feito: boolean, nivel: NivelItem = 'obrigatorio', grupo: 'portao' | 'fechamento' = 'portao'): ItemObra =>
+    ({ chave, bloco: 'portao', texto, feito, nivel, grupo });
   const existe = (id: string): boolean => !!id && f.docsIds.has(id);
   const mat = f.livro.fechamento.material;
-  const vivas = f.livro.linhas.filter((l) => !l.estorno_de && !l.estornada);
-  if (n === 4) {
-    const comItens = p.compra.compras.filter((c) => p.compra.itens.some((i) => i.compra_id === c.id));
-    return [
-      it('material', `Todo o material com origem, valor e data, um item por linha (${mat.com_origem} de ${mat.total})`, mat.total > 0 && mat.com_origem === mat.total),
-      it('comprovante', 'Comprovante de cada compra', comItens.length > 0 && comItens.every((c) => vivas.some((l) => l.compra_id === c.id))),
-    ];
-  }
-  if (n === 5) {
-    const itens4 = p.compra.itens.filter((i) => i.etapa === 4);
-    const cargas = p.logistica.cargas;
-    return [
-      it('cargas', 'Todas as cargas na obra', itens4.length > 0 && itens4.every((i) => cargas.some((c) => c.itens.includes(i.id) && c.chegada.destino === 'obra' && !!c.chegada.em))),
-      it('conferencia', 'Conferência batendo com a compra e com a nota', cargas.length > 0 && cargas.every((c) => mesmoConjunto(c.conferencia.itens_ok, c.itens) && existe(c.conferencia.foto_id))),
-      it('notas', `Nota fiscal das ${p.compra.compras.length} compras anexada`, p.compra.compras.length > 0 && p.compra.compras.every((c) => !!c.nota)),
-      it('avarias', 'Avarias resolvidas', cargas.every((c) => !c.avaria.tem || c.avaria.resolvida)),
-      it('frete', 'Frete com comprovante', !pend('frete')),
-      ...retiradasDasCargas(f),
-    ];
-  }
-  if (n === 6) {
-    const dias = p.obra.plano;
-    return [
-      it('diario', `Diário dos ${dias.length} dias com fotos`, dias.length > 0 && dias.every((d) => p.obra.diario.some((x) => x.data === d.data && !!x.chegada && !!x.saida && x.fotos.some(existe)))),
-      it('checklist', 'Checklist técnico completo', CHAVES_CHECKLIST.every((k) => p.obra.checklist[k] === true)),
-      it('equipe', 'Equipe paga com comprovante', (p.obra.equipe.combinado_centavos ?? 0) > 0 && !pend('equipe')),
-    ];
-  }
-  if (n === 7) {
-    const fotos = SLOTS_FOTO_ENTREGA.filter((s) => (f.slots.get(s) ?? []).length > 0).length;
-    const t = p.entrega.testes;
-    const m = p.entrega.monitoramento;
-    const tm = p.entrega.termo;
-    return [
-      it('fotos', `Fotos de tudo pronto (${fotos} de 8)`, fotos === 8),
-      it('testes', 'Testes ok', !!t.string1_voc && !!t.string2_voc && t.isolamento_ok && !!t.gerando_kw && t.wifi_ok && t.disjuntores_ok),
-      it('monitoramento', 'Monitoramento online', !!m.app && !!m.conta && !!m.serie && m.online && !!p.entrega.cofre),
-      it('termo', 'Termo de entrega assinado', !!tm && !!tm.assinado_em && existe(tm.arquivo_id) && (!tm.chk.includes('pend') || !!tm.ressalva)),
-    ];
-  }
   if (n === 8) {
     const ps = p.liberacao.passos;
     const comArquivo = (x: PassoLiberacao | null): boolean => !!x && !!x.data && existe(x.arquivo_id);
     return [
       it('pedido', 'Pedido com protocolo e print', !!f.jo?.pedido && comArquivo(ps.pedido)),
       it('vistoria', 'Vistoria aprovada', comArquivo(ps.vistoria)),
+      it('medidor', 'Troca do medidor', comArquivo(ps.medidor), 'opcional'),
       it('liberacao', 'Liberação com data e print', comArquivo(ps.liberada)),
-      it('dinheiro', 'A receber e a pagar zerados', f.livro.fechamento.pode_fechar_sem_material),
-      it('material', `Material com origem, valor e data (${mat.com_origem} de ${mat.total})`, mat.total > 0 && mat.com_origem === mat.total),
+      it('dinheiro', 'A receber e a pagar zerados, com os comprovantes', f.livro.fechamento.pode_fechar_sem_material, 'obrigatorio', 'fechamento'),
+      it('material', `Todo o material comprado, com origem, valor e data (${mat.com_origem} de ${mat.total})`, mat.total > 0 && mat.com_origem === mat.total, 'obrigatorio', 'fechamento'),
+      it('avarias', 'Avarias resolvidas', p.logistica.cargas.every((c) => !c.avaria.tem || c.avaria.resolvida), 'obrigatorio', 'fechamento'),
     ];
   }
   return [];
@@ -428,20 +395,18 @@ export const LISTA_PRONTA: ReadonlyArray<{ descricao: string; unidade: 'un' | 'm
   { descricao: 'Placa de advertência', unidade: 'un', tipo: 'eletrico' },
 ];
 
-const semAcento = (t: string): string => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
 export type ItemSugerido = Omit<ItemCompra, 'id' | 'criado_por' | 'criado_em'> & { id: null };
 
 /**
- * Os itens da primeira leitura da Compra (sem gravar nada): o kit da proposta (módulos e inversor) e a lista pronta. A estrutura sai pelo telhado
- * do relatório de vistoria: gancho de telha cerâmica, de fibrocimento ou suporte de laje; sem tipo, só trilhos e grampos. `id` é sempre null.
+ * Os `sugeridos` da primeira leitura da Compra (sem gravar nada): SÓ o kit da proposta (módulos e inversor; a proposta não traz estrutura). A lista pronta
+ * de material NÃO entra aqui: ela vai à parte (`lista_pronta`), como atalho que a pessoa escolhe. `id` é sempre null.
  */
 export function itensIniciais(
   equip: { qtdPlacas: number | null; modeloPlaca: string; potPlaca: number | null; qtdInversor: number | null; inversor: string } | null,
-  telhado: string,
 ): ItemSugerido[] {
   const base = {
     compra_id: null, fornecedor: '', valor_centavos: null, data: null, etapa: 4 as const, quantidade: null as number | null, marca: '', modelo: '',
+    comprado: false, orcado_centavos: null, lido_de: '', documento_id: '', serie: '',
     potencia_w: null, potencia_kw: null, garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: null,
   };
   const out: ItemSugerido[] = [];
@@ -450,12 +415,6 @@ export function itensIniciais(
   }
   if (equip && (equip.inversor || equip.qtdInversor)) {
     out.push({ ...base, id: null, origem: 'proposta', tipo: 'inversor', descricao: `Inversor ${equip.inversor}`.trim(), quantidade: equip.qtdInversor, unidade: 'un', modelo: equip.inversor });
-  }
-  const t = semAcento(telhado);
-  const estrutura = t.includes('fibro') ? ['Gancho para telha de fibrocimento'] : t.includes('laje') ? ['Suporte para laje'] : (t.includes('cer') || t.includes('barro')) ? ['Gancho para telha cerâmica'] : [];
-  for (const l of LISTA_PRONTA) {
-    if (/^(Gancho|Suporte)/.test(l.descricao) && !estrutura.includes(l.descricao)) continue;
-    out.push({ ...base, id: null, origem: 'lista', tipo: l.tipo, descricao: l.descricao, unidade: l.unidade });
   }
   return out;
 }

@@ -40,6 +40,8 @@ import { mountVendaSolar } from './geradorVendaSolar';
 import { mountJornadaSolar } from './geradorJornadaSolar';
 import { mountJornadaDinheiro } from './geradorJornadaDinheiro';
 import { mountJornadaObra } from './geradorJornadaObra';
+import { mountJornadaCompra } from './geradorJornadaCompra';
+import { mountJornadaComissionamento } from './geradorJornadaComissionamento';
 import { mountJornadaPosVenda } from './geradorJornadaPosVenda';
 import { mountJornadaMensagens } from './geradorJornadaMensagens';
 import { mountJornadaFicha } from './geradorJornadaFicha';
@@ -1216,6 +1218,8 @@ mountJornadaSolar(router);
 mountJornadaDinheiro(router);
 // Jornada da obra, fase 2 (06/11/2026): etapas 4 a 8, nota lida por IA, termo de garantia e Book, cofre, agenda das equipes e fechamento da conta.
 mountJornadaObra(router);
+mountJornadaCompra(router);
+mountJornadaComissionamento(router);
 // Jornada da obra, fase 3 (05/11/2026): a leitura do pós-venda e dos avisos (só lê; nenhuma mensagem sai daqui).
 mountJornadaPosVenda(router);
 // Jornada da obra, fase 3 (05/11/2026): ligar e desligar as mensagens (um grupo por vez, só o ADM) e a sonda com o transporte falso.
