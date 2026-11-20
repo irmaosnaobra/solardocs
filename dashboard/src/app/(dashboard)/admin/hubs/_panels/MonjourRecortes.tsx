@@ -133,7 +133,7 @@ export function MonjourRecortes({ f }: { f: FunilMonjour }) {
 }
 
 // ── respostas ───────────────────────────────────────────────────────────────
-export function MonjourRespostas({ f, escala }: { f: FunilMonjour; escala: number }) {
+export function MonjourRespostas({ f }: { f: FunilMonjour }) {
   const lista = f.respostas.filter((q) => q.opcoes.some((o) => o.sessoes > 0));
   if (lista.length === 0) return null;
   return (
@@ -154,7 +154,7 @@ export function MonjourRespostas({ f, escala }: { f: FunilMonjour; escala: numbe
               <div className={s.perguntaTitulo}>{q.pergunta}</div>
               <div className={s.opcaoCab} aria-hidden="true"><span>Resposta</span><span>Escolheram</span><span>Conversão</span></div>
               {[...q.opcoes].sort((a, b) => b.sessoes - a.sessoes).map((o) => {
-                const pctVal = o.pct * escala;
+                const pctVal = o.pct; // a api manda de 0 a 100
                 const c = conv(o);
                 return (
                   <div key={o.valor} className={s.opcao}

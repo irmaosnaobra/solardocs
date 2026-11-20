@@ -4,7 +4,7 @@
 // Puro: sem banco. A contagem em si mora em funilMonjourPuro.ts.
 // ───────────────────────────────────────────────────────────────────────────
 import {
-  type EventoMonjour, N_POR_CHAVE, chaveDaResposta, ETAPA_CHECKOUT, ETAPA_COMPRA,
+  type EventoMonjour, N_POR_CHAVE, chaveDaResposta, ETAPA_CHECKOUT, ETAPA_COMPRA, ETAPA_OFERTA, PASSO_ATALHO, PASSO_VOLTA, desdeDaEtapa,
 } from './monjourCatalogo';
 
 export interface ContextoMonjour { pais: string; regiao: string; cidade: string; disp: string; so: string; nav: string; anuncio: string }
@@ -20,7 +20,7 @@ export interface SessaoMonjour {
    * destino que sai do navegador. Só compra ou upgrade do webhook não basta.
    */
   visitante: boolean;
-  /** Maior etapa alcançada (0 fora do funil): 1 a 30 pelos passos, 31 clicou em comprar, 32 comprou. */
+  /** Maior etapa alcançada (0 fora do funil): a posição da tela no catálogo; depois da oferta, clicou em comprar e comprou. */
   nivel: number;
   /** Primeira vista de cada tela (ms): ts do navegador, ou created_at sem ts. */
   vistas: Map<number, number>;
@@ -38,7 +38,55 @@ export interface SessaoMonjour {
   compraCriada: number | null;
   upgrade: boolean;
   acoesApp: Set<string>;
+  /** Tocou no atalho da tela 1 e foi direto à oferta (passo atalho_oferta). */
+  atalho: boolean;
+  /** Já tinha terminado o test e abriu direto na oferta (passo volta_oferta). */
+  volta: boolean;
 }
+
+/** Sessão que foi à oferta sem passar pelas perguntas. */
+export const pulouPerguntas = (s: SessaoMonjour): boolean => s.atalho || s.volta;
+
+/**
+ * A etapa n existe para esta sessão? Etapa com `desde` (catálogo) só existe para quem entrou depois dela:
+ * sessão antiga nunca viu a tela, então a etapa não entra na conta dela.
+ */
+export function etapaAplica(s: SessaoMonjour, n: number): boolean {
+  const desde = desdeDaEtapa(n);
+  return desde === null || s.primeiro >= desde;
+}
+
+/** A primeira etapa que existe para a sessão. */
+export function primeiraEtapa(s: SessaoMonjour): number {
+  return proximaEtapa(s, 0) ?? 1;
+}
+
+/** A próxima etapa que existe para a sessão depois de n (a passagem dela é de n para esta), ou null no fim. */
+export function proximaEtapa(s: SessaoMonjour, n: number): number | null {
+  for (let m = n + 1; m <= ETAPA_COMPRA; m += 1) if (etapaAplica(s, m)) return m;
+  return null;
+}
+
+/**
+ * A sessão chegou à etapa n? Regra normal: o maior passo é >= n, então o funil só desce.
+ * Etapa que não existe para a sessão (`desde`) não conta. Sessão de atalho ou de volta não passou pelas perguntas:
+ * nas telas antes da oferta só conta a que ela viu de verdade. Da oferta em diante vale o maior passo.
+ */
+export function chegouNaEtapa(s: SessaoMonjour, n: number): boolean {
+  if (!etapaAplica(s, n)) return false;
+  if (!pulouPerguntas(s) || n >= ETAPA_OFERTA) return s.nivel >= n;
+  return s.vistas.has(n);
+}
+
+/** A sessão seguiu da etapa n para a próxima? Quem pulou as perguntas até a oferta seguiu de cada tela que viu. */
+export function seguiuDaEtapa(s: SessaoMonjour, n: number): boolean {
+  if (pulouPerguntas(s) && n < ETAPA_OFERTA && s.nivel >= ETAPA_OFERTA) return true;
+  const proxima = proximaEtapa(s, n);
+  return proxima !== null && chegouNaEtapa(s, proxima);
+}
+
+/** Chegou à etapa n e parou ali (não seguiu). */
+export const pararamNaEtapa = (s: SessaoMonjour, n: number): boolean => chegouNaEtapa(s, n) && !seguiuDaEtapa(s, n);
 
 const texto = (v: unknown, max = 80): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const numero = (v: unknown): number | null => {
@@ -59,7 +107,7 @@ function sessaoVazia(id: string, primeiro: number): SessaoMonjour {
     id, primeiro, ctx: { pais: '', regiao: '', cidade: '', disp: '', so: '', nav: '', anuncio: '' }, visitante: false, nivel: 0,
     vistas: new Map(), respostas: new Map(), lead: false, destinos: new Set(), plano: null,
     receitaCentavos: 0, receitaCompraCentavos: 0, receitaUpgradeCentavos: 0, checkoutTs: null, checkoutCriado: null, compraCriada: null, upgrade: false,
-    acoesApp: new Set(),
+    acoesApp: new Set(), atalho: false, volta: false,
   };
 }
 
@@ -111,13 +159,18 @@ function aplicar(s: SessaoMonjour, e: EventoMonjour, criado: number): void {
   if (doQuiz(e)) {
     if (!s.visitante) s.primeiro = criado;
     s.visitante = true;
-    s.nivel = Math.max(s.nivel, 1);
+    // Qualquer evento do quiz põe a sessão na primeira etapa QUE EXISTE para ela (a Idade, se entrou antes da abertura nova).
+    s.nivel = Math.max(s.nivel, primeiraEtapa(s));
   }
 
   if (e.event_type === 'monjour_passo') {
     const chave = texto(d.passo, 40).toLowerCase();
-    const n = N_POR_CHAVE[chave] ?? numero(d.n);
-    if (n === null || !Number.isInteger(n) || n < 1 || n > 30) return;
+    // Atalho e volta não têm n: só marcam a sessão (a pessoa já conta como visitante pelo doQuiz acima).
+    if (chave === PASSO_ATALHO) { s.atalho = true; return; }
+    if (chave === PASSO_VOLTA) { s.volta = true; return; }
+    // Só a chave vale: o n que o site manda é informação e não ordena nada (a ordem é a do catálogo).
+    const n = N_POR_CHAVE[chave];
+    if (n === undefined) return;
     s.nivel = Math.max(s.nivel, n);
     const ja = s.vistas.get(n);
     if (ja === undefined || quando < ja) s.vistas.set(n, quando);

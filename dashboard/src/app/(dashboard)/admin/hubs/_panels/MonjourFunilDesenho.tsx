@@ -56,7 +56,8 @@ export default function MonjourFunilDesenho({ etapas, total, onAbrir }: {
             const prox = ordem[i + 1];
             const topoW = largura(e.chegaram);
             const baseW = prox ? largura(prox.chegaram) : topoW;
-            const pos = e.n > 30;
+            // As etapas depois do quiz (clicou em comprar e comprou) vêm do tipo, não de um número: o catálogo cresce.
+            const pos = e.tipo === 'checkout' || e.tipo === 'compra';
             const ehQueda = queda?.n === e.n;
             const pctTxt = fmtPct(e.chegaram, topo, 1);
             const cabeDentro = topoW >= 16;
@@ -68,7 +69,7 @@ export default function MonjourFunilDesenho({ etapas, total, onAbrir }: {
               + (extra ? `, ${extra}` : '') + (ehQueda ? '. Maior queda do funil' : '');
             return (
               <Fragment key={e.n}>
-                {e.n === 31 && <li className={s.divisor} aria-hidden="true">Depois do quiz</li>}
+                {e.tipo === 'checkout' && <li className={s.divisor} aria-hidden="true">Depois do quiz</li>}
                 <li
                   className={`${s.etapa} ${ehQueda ? s.etapaQueda : ''}`}
                   data-n={e.n}

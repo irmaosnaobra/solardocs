@@ -9,54 +9,94 @@ export const TIPOS_EVENTO_MONJOUR = ['monjour_passo', 'monjour_resp', 'monjour_f
 
 export const PERIODOS_MONJOUR = ['hoje', 'ontem', '7dias', '30dias', 'maximo'] as const;
 
-/** Tela do quiz: ordem de 1 a 30, a chave que o Monjour manda e o rótulo no admin. */
-export interface TelaMonjour { n: number; chave: string; rotulo: string; tipo: string }
+/**
+ * Etapa do quiz. `n` é a POSIÇÃO no catálogo (1, 2, 3...), calculada aqui: o n que o site manda
+ * é só informação e nunca é lido. A etapa se reconhece pela `chave` (o passo que o Monjour manda).
+ * `desde` (ISO UTC, opcional): a etapa só existe para sessões cujo primeiro evento é desta hora em diante.
+ * Sessão mais antiga nunca viu a tela e não conta nela, nem em chegaram nem em saíram.
+ */
+export interface TelaMonjour { n: number; chave: string; rotulo: string; tipo: string; desde?: string }
 
-export const TELAS_MONJOUR: TelaMonjour[] = [
-  { n: 1, chave: 'edad', rotulo: 'Idade', tipo: 'pergunta' },
-  { n: 2, chave: 'objetivo', rotulo: 'Objetivo', tipo: 'pergunta' },
-  { n: 3, chave: 'cuerpo', rotulo: 'Corpo hoje', tipo: 'pergunta' },
-  { n: 4, chave: 'zona', rotulo: 'Onde acumula', tipo: 'pergunta' },
-  { n: 5, chave: 'hace', rotulo: 'Há quanto tempo', tipo: 'pergunta' },
-  { n: 6, chave: 'inyecciones', rotulo: 'Pensou em injeções', tipo: 'pergunta' },
-  { n: 7, chave: 'noticia', rotulo: 'Notícia', tipo: 'info' },
-  { n: 8, chave: 'probado', rotulo: 'O que já tentou', tipo: 'multipla' },
-  { n: 9, chave: 'despues', rotulo: 'O que aconteceu depois', tipo: 'pergunta' },
-  { n: 10, chave: 'culpa', rotulo: 'Não é sua culpa', tipo: 'info' },
-  { n: 11, chave: 'antojo', rotulo: 'Hora do doce', tipo: 'pergunta' },
-  { n: 12, chave: 'desayuno', rotulo: 'Café da manhã', tipo: 'pergunta' },
-  { n: 13, chave: 'agua', rotulo: 'Água por dia', tipo: 'pergunta' },
-  { n: 14, chave: 'sueno', rotulo: 'Horas de sono', tipo: 'pergunta' },
-  { n: 15, chave: 'refresco', rotulo: 'Refrigerante', tipo: 'pergunta' },
-  { n: 16, chave: 'hinchada', rotulo: 'Barriga inchada', tipo: 'pergunta' },
-  { n: 17, chave: 'perfil', rotulo: 'Perfil de fome', tipo: 'info' },
-  { n: 18, chave: 'altura', rotulo: 'Altura', tipo: 'numero' },
-  { n: 19, chave: 'peso', rotulo: 'Peso', tipo: 'numero' },
-  { n: 20, chave: 'meta', rotulo: 'Peso meta', tipo: 'numero' },
-  { n: 21, chave: 'partida', rotulo: 'Ponto de partida', tipo: 'info' },
-  { n: 22, chave: 'evento', rotulo: 'Data especial', tipo: 'pergunta' },
-  { n: 23, chave: 'seguridad', rotulo: 'Segurança', tipo: 'multipla' },
-  { n: 24, chave: 'minutos', rotulo: 'Minutos por dia', tipo: 'pergunta' },
-  { n: 25, chave: 'compromiso', rotulo: 'Compromisso', tipo: 'pergunta' },
-  { n: 26, chave: 'historias', rotulo: 'Histórias', tipo: 'info' },
-  { n: 27, chave: 'nombre', rotulo: 'Nome', tipo: 'campo' },
-  { n: 28, chave: 'cargando', rotulo: 'Montando o plano', tipo: 'carregando' },
-  { n: 29, chave: 'correo', rotulo: 'E-mail', tipo: 'email' },
-  { n: 30, chave: 'oferta', rotulo: 'Oferta', tipo: 'oferta' },
+/**
+ * Quando o quiz novo (abertura e prévia do app) foi ao ar. Uma constante só, usada por toda etapa nova do
+ * redesenho. AJUSTAR NA HORA DE PUBLICAR: sessões que entraram antes disso não contam nessas etapas.
+ */
+export const QUIZ_NOVO_DESDE = '2026-11-20T00:26:00Z';
+
+/** A ordem do funil. Etapa nova entra aqui, na posição certa (com `desde` se as sessões antigas não a viram): o resto se calcula. */
+const TELAS_BASE: Omit<TelaMonjour, 'n'>[] = [
+  { chave: 'inicio', rotulo: 'Abertura', tipo: 'info', desde: QUIZ_NOVO_DESDE },
+  { chave: 'edad', rotulo: 'Idade', tipo: 'pergunta' },
+  { chave: 'app', rotulo: 'Prévia do app', tipo: 'info', desde: QUIZ_NOVO_DESDE },
+  { chave: 'objetivo', rotulo: 'Objetivo', tipo: 'pergunta' },
+  { chave: 'cuerpo', rotulo: 'Corpo hoje', tipo: 'pergunta' },
+  { chave: 'zona', rotulo: 'Onde acumula', tipo: 'pergunta' },
+  { chave: 'hace', rotulo: 'Há quanto tempo', tipo: 'pergunta' },
+  { chave: 'inyecciones', rotulo: 'Pensou em injeções', tipo: 'pergunta' },
+  { chave: 'noticia', rotulo: 'Notícia', tipo: 'info' },
+  { chave: 'probado', rotulo: 'O que já tentou', tipo: 'multipla' },
+  { chave: 'despues', rotulo: 'O que aconteceu depois', tipo: 'pergunta' },
+  { chave: 'culpa', rotulo: 'Não é sua culpa', tipo: 'info' },
+  { chave: 'antojo', rotulo: 'Hora do doce', tipo: 'pergunta' },
+  { chave: 'desayuno', rotulo: 'Café da manhã', tipo: 'pergunta' },
+  { chave: 'agua', rotulo: 'Água por dia', tipo: 'pergunta' },
+  { chave: 'sueno', rotulo: 'Horas de sono', tipo: 'pergunta' },
+  { chave: 'refresco', rotulo: 'Refrigerante', tipo: 'pergunta' },
+  { chave: 'hinchada', rotulo: 'Barriga inchada', tipo: 'pergunta' },
+  { chave: 'perfil', rotulo: 'Perfil de fome', tipo: 'info' },
+  { chave: 'altura', rotulo: 'Altura', tipo: 'numero' },
+  { chave: 'peso', rotulo: 'Peso', tipo: 'numero' },
+  { chave: 'meta', rotulo: 'Peso meta', tipo: 'numero' },
+  { chave: 'partida', rotulo: 'Ponto de partida', tipo: 'info' },
+  { chave: 'evento', rotulo: 'Data especial', tipo: 'pergunta' },
+  { chave: 'seguridad', rotulo: 'Segurança', tipo: 'multipla' },
+  { chave: 'minutos', rotulo: 'Minutos por dia', tipo: 'pergunta' },
+  { chave: 'compromiso', rotulo: 'Compromisso', tipo: 'pergunta' },
+  { chave: 'historias', rotulo: 'Histórias', tipo: 'info' },
+  { chave: 'nombre', rotulo: 'Nome', tipo: 'campo' },
+  { chave: 'cargando', rotulo: 'Montando o plano', tipo: 'carregando' },
+  { chave: 'correo', rotulo: 'E-mail', tipo: 'email' },
+  { chave: 'oferta', rotulo: 'Oferta', tipo: 'oferta' },
 ];
 
-/** As duas etapas depois do quiz: clicou em comprar (destino checkout) e comprou. */
-export const ETAPA_CHECKOUT = 31;
-export const ETAPA_COMPRA = 32;
-export const ETAPA_OFERTA = 30;
-export const ETAPA_META = 20;
-export const ETAPA_PARTIDA = 21;
+export const TELAS_MONJOUR: TelaMonjour[] = TELAS_BASE.map((t, i) => ({ ...t, n: i + 1 }));
+
+/** Posição de uma tela pela chave. */
+const posicaoDe = (chave: string): number => {
+  const t = TELAS_MONJOUR.find((x) => x.chave === chave);
+  if (!t) throw new Error(`monjourCatalogo: tela ${chave} não existe`);
+  return t.n;
+};
+
+/** A oferta fecha as telas; depois dela vêm o clique em comprar (destino checkout) e a compra. */
+export const ETAPA_OFERTA = posicaoDe('oferta');
+export const ETAPA_CHECKOUT = ETAPA_OFERTA + 1;
+export const ETAPA_COMPRA = ETAPA_OFERTA + 2;
+export const ETAPA_META = posicaoDe('meta');
+export const ETAPA_PARTIDA = posicaoDe('partida');
 export const MEDIANA_CORTE_SEG = 30 * 60;
 
+/** Instante (ms) a partir do qual a etapa existe, ou null se existe desde sempre. */
+export function desdeDaEtapa(n: number): number | null {
+  const d = TELAS_MONJOUR[n - 1]?.desde;
+  return d ? Date.parse(d) : null;
+}
+
+/** As duas etapas depois do quiz: clicou em comprar (destino checkout) e comprou. */
 export const ETAPAS_DEPOIS: TelaMonjour[] = [
   { n: ETAPA_CHECKOUT, chave: 'checkout', rotulo: 'Clicou em comprar', tipo: 'checkout' },
   { n: ETAPA_COMPRA, chave: 'compra', rotulo: 'Comprou', tipo: 'compra' },
 ];
+
+/**
+ * Dois passos do quiz sem n: a pessoa foi direto à oferta sem passar pelas perguntas.
+ * atalho_oferta: tocou em "¿Ya hiciste el test? Ver mi plan" na tela 1. volta_oferta: já tinha terminado o test
+ * no mesmo aparelho e abriu direto na oferta. Sessão assim só conta nas telas que viu de verdade (veja chegouNaEtapa).
+ */
+export const PASSO_ATALHO = 'atalho_oferta';
+export const PASSO_VOLTA = 'volta_oferta';
+export const ROTULO_ATALHO = 'Atalho para a oferta';
+export const ROTULO_VOLTA = 'Voltou direto para a oferta';
 
 export const N_POR_CHAVE: Record<string, number> = Object.fromEntries(TELAS_MONJOUR.map((t) => [t.chave, t.n]));
 
@@ -197,6 +237,8 @@ export interface FunilMonjour {
     sessoes: number; leads: number; ofertas: number; checkouts: number; compras: number;
     comprasBasico: number; comprasPlus: number; upgrades: number; receitaCentavos: number;
     conversao: number; ticketMedioCentavos: number;
+    /** Sessões com atalho_oferta e com volta_oferta (podem ser a mesma). Entram nas sessões e na oferta, não nas perguntas que não viram. */
+    atalho: number; voltas: number;
   };
   etapas: EtapaMonjour[];
   saidas: { finSeguridad: number; partidaSemSaida: number };

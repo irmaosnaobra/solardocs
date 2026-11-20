@@ -124,6 +124,31 @@ describe('GET /admin/monjour/resumo', () => {
     expect(init.headers['x-admin-token']).toBe(TOKEN);
   });
 
+  it('o bloco checkouts do site passa inteiro até a rota', async () => {
+    vi.stubEnv('MONJOUR_ADMIN_TOKEN', TOKEN);
+    const checkouts = {
+      abertos: 1, expirados: 1, comFalha: 1, pagaramDepois: 2, porMotivo: { insufficient_funds: 1, sem_tentativa: 1 }, truncado: false,
+      lista: [
+        { criado: '2026-11-19T13:00:00.000Z', status: 'open', plano: 'plus', valor: 1790, pais: 'BR', email: 'a@b.com', sid: 'sid1', motivo: 'insufficient_funds', mensagem: 'Saldo', metodo: 'card' },
+        { criado: '2026-11-19T12:00:00.000Z', status: 'expired', plano: 'basico', valor: 990, pais: null, email: '', sid: null, motivo: 'sem_tentativa', mensagem: '', metodo: null },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respostaJson({ ...corpoSite, checkouts })));
+    const r = await request(app).get('/admin/monjour/resumo?period=hoje');
+    expect(r.status).toBe(200);
+    expect(r.body.checkouts).toEqual(checkouts);
+  });
+
+  it('checkouts indisponível no site não derruba o resumo', async () => {
+    vi.stubEnv('MONJOUR_ADMIN_TOKEN', TOKEN);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respostaJson({ ...corpoSite, checkouts: { indisponivel: true, motivo: 'sem_permissao' } })));
+    const r = await request(app).get('/admin/monjour/resumo?period=hoje');
+    expect(r.status).toBe(200);
+    expect(r.body.indisponivel).toBeUndefined();
+    expect(r.body.checkouts).toEqual({ indisponivel: true, motivo: 'sem_permissao' });
+    expect(r.body.vendas.compras).toBe(2);
+  });
+
   it('usa a URL padrão sem MONJOUR_URL', async () => {
     const f = vi.fn().mockResolvedValue(respostaJson(corpoSite));
     const r = await buscarResumoNoSite('2026-11-19', '2026-11-19', { MONJOUR_ADMIN_TOKEN: TOKEN } as NodeJS.ProcessEnv, f as unknown as typeof fetch);

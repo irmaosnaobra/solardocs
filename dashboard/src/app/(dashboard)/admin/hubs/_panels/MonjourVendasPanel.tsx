@@ -10,6 +10,7 @@ import { fmtInt, fmtUsd } from './monjourComum';
 import { Busca, Situacao, anuncioDe, fmtQuando, nomePais, nomePlano, nomeTipo } from './monjourResumoComum';
 import { MonjourTopo, useResumoMonjour } from './MonjourResumoContexto';
 import type { VendaMonjour } from './hubMonjourResumo.types';
+import MonjourCheckoutsSecao from './MonjourCheckoutsSecao';
 
 const FILTROS: { k: string; label: string; ok: (v: VendaMonjour) => boolean }[] = [
   { k: 'todas', label: 'Todas', ok: () => true },
@@ -43,6 +44,8 @@ export default function MonjourVendasPanel() {
           <span>Quando alguém pagar, a venda aparece aqui com o e-mail e o anúncio.</span>
         </div>
       )}
+
+      {dados && !dados.indisponivel && <MonjourCheckoutsSecao checkouts={dados.checkouts} />}
 
       {dados && todas.length > 0 && (
         <section className={s.bloco} aria-labelledby="mj-vendas">

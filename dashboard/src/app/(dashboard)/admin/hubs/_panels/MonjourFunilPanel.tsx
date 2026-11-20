@@ -9,11 +9,11 @@
 //
 // O desenho do funil é uma faixa por etapa, centralizada, em forma de trapézio:
 // o topo tem a largura de quem chegou nesta etapa e a base a de quem chegou na
-// próxima, e as 32 faixas emendam num funil só. A etapa onde mais gente sai
+// próxima, e as faixas emendam num funil só. A etapa onde mais gente sai
 // (em número de pessoas) fica pintada cheia e tem um aviso no topo do bloco.
 //
 // As porcentagens de etapa, recorte e conversão saem das contagens, não dos
-// campos pct da resposta, para não depender da escala (0 a 1 ou 0 a 100).
+// campos pct da resposta. Os pct da api (etapas e respostas) vão sempre de 0 a 100.
 // ───────────────────────────────────────────────────────────────────────────
 import { useEffect, useMemo, useState } from 'react';
 import api from '@/services/api';
@@ -89,9 +89,6 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
   const atualizar = () => { setCarregando(true); setVersao((v) => v + 1); };
   const limpar = () => { setCarregando(true); setPais(''); setDisp(''); setOrigem(''); };
   const filtrando = Boolean(pais || disp || origem);
-
-  // Escala dos campos pct da resposta (0 a 1 ou 0 a 100): a primeira etapa é sempre 100% do início.
-  const escala = f && f.etapas.length && f.etapas[0].pctInicio > 1.5 ? 1 : 100;
 
   // Listas dos filtros: o que a api devolveu, mais o que está escolhido (para não sumir do seletor).
   const paises = f?.filtros.paises ?? [];
@@ -202,6 +199,11 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
             <Numero rotulo="Receita" valor={fmtUsd(t.receitaCentavos)} sub={t.upgrades ? `Com ${fmtInt(t.upgrades)} upgrade${t.upgrades === 1 ? '' : 's'}` : 'Em dólar'} />
             <Numero rotulo="Ticket médio" valor={t.compras ? fmtUsd(t.ticketMedioCentavos) : '—'} sub="Por compra" />
           </div>
+          {!!((t.atalho ?? 0) + (t.voltas ?? 0)) && (
+            <p className={s.linhaTempo}>
+              {fmtInt(t.atalho ?? 0)} {t.atalho === 1 ? 'entrou' : 'entraram'} pelo atalho · {fmtInt(t.voltas ?? 0)} {t.voltas === 1 ? 'voltou' : 'voltaram'} direto para a oferta
+            </p>
+          )}
 
           <section className={s.bloco} aria-labelledby="mj-funil">
             <div className={s.blocoTopo}>
@@ -253,7 +255,7 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
           </div>
 
           <MonjourRecortes f={f} />
-          <MonjourRespostas f={f} escala={escala} />
+          <MonjourRespostas f={f} />
         </>
       )}
 

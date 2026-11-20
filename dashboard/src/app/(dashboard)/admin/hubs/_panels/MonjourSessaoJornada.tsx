@@ -4,7 +4,7 @@
 // tela e a resposta dada. Lê GET /admin/monjour/quiz-funil/sessao/:sid.
 // A tela vista e a resposta dela viram um item só na linha do tempo.
 import { useEffect, useState, type ReactNode } from 'react';
-import { CircleArrowUp, LogOut, MousePointerClick, ShoppingBag } from 'lucide-react';
+import { CircleArrowUp, FastForward, LogOut, MousePointerClick, ShoppingBag } from 'lucide-react';
 import api from '@/services/api';
 import admin from '../../admin.module.css';
 import g from './MonjourJornadas.module.css';
@@ -35,9 +35,15 @@ export function Aparelho({ x }: { x: SessaoQuiz }) {
   );
 }
 export function Resultado({ x }: { x: SessaoQuiz }) {
-  if (x.comprou) return <span className={`${g.selo} ${g.seloCompra}`}>Comprou{x.plano ? ` ${nomePlano(x.plano)}` : ''}</span>;
-  if (x.clicouComprar) return <span className={`${g.selo} ${g.seloMarca}`}>Clicou em comprar</span>;
-  return <span className={g.mudo}>Não comprou</span>;
+  const principal = x.comprou
+    ? <span className={`${g.selo} ${g.seloCompra}`}>Comprou{x.plano ? ` ${nomePlano(x.plano)}` : ''}</span>
+    : x.clicouComprar
+      ? <span className={`${g.selo} ${g.seloMarca}`}>Clicou em comprar</span>
+      : <span className={g.mudo}>Não comprou</span>;
+  // Foi direto à oferta: não passou pelas perguntas do meio.
+  const entrada = x.atalho ? 'Atalho para a oferta' : x.volta ? 'Voltou direto para a oferta' : '';
+  if (!entrada) return principal;
+  return <span className={g.pilha}>{principal}<small>{entrada}</small></span>;
 }
 
 // ── a jornada ───────────────────────────────────────────────────────────────
@@ -62,6 +68,11 @@ export function itensDaJornada(linha: LinhaJornada[]): ItemLinha[] {
         return;
       }
       itens.push({ chave, quando: l.ts, titulo: l.rotulo, detalhe: l.resposta ?? undefined, marca: l.n ?? '·' });
+      return;
+    }
+    if (l.tipo === 'atalho') {
+      // Atalho para a oferta ou volta direto: o rótulo vem pronto da api.
+      itens.push({ chave, quando: l.ts, titulo: <b>{l.rotulo}</b>, marca: <FastForward size={14} />, tom: 'marca' });
       return;
     }
     if (l.tipo === 'fim') {
@@ -114,7 +125,7 @@ export default function MonjourSessaoJornada({ sid, nomeEtapa }: { sid: string; 
         <div><dt>Idade</dt><dd>{x.idade || '—'}</dd></div>
         <div><dt>Objetivo</dt><dd>{x.objetivo || '—'}</dd></div>
         <div><dt>Corpo</dt><dd>{x.cuerpo || '—'}</dd></div>
-        <div><dt>Até a tela</dt><dd>{x.maxPasso}. {nomeEtapa(x.maxPasso)}</dd></div>
+        <div><dt>Até a tela</dt><dd>{x.maxPasso}. {x.maxPassoRotulo || nomeEtapa(x.maxPasso)}</dd></div>
         <div className={g.fatoLargo}>
           <dt>Anúncio e conjunto</dt>
           <dd className={g.pilha}><span>{x.anuncio || 'Sem anúncio'}</span>{x.conjunto && <small>{x.conjunto}</small>}</dd>

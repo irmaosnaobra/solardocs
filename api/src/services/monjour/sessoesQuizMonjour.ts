@@ -13,9 +13,9 @@ import { supabase } from '../../utils/supabase';
 import { inicioDoPeriodo, fimDoPeriodo } from '../io/quizFunil';
 import {
   type EventoMonjour, type FiltrosMonjour, TIPOS_EVENTO_MONJOUR, PERGUNTAS_MONJOUR, TELAS_MONJOUR, N_POR_CHAVE, ETAPA_CHECKOUT, ETAPA_COMPRA,
-  MEDIANA_CORTE_SEG, SEM_ANUNCIO, chaveDaResposta, nomeDoAnuncio, conjuntoDoAnuncio, nomeDoConjunto, nomeDoPais,
+  MEDIANA_CORTE_SEG, SEM_ANUNCIO, PASSO_ATALHO, PASSO_VOLTA, ROTULO_ATALHO, ROTULO_VOLTA, chaveDaResposta, nomeDoAnuncio, conjuntoDoAnuncio, nomeDoConjunto, nomeDoPais,
 } from './monjourCatalogo';
-import { agruparSessoes, type SessaoMonjour } from './sessoesMonjour';
+import { agruparSessoes, chegouNaEtapa, pararamNaEtapa, type SessaoMonjour } from './sessoesMonjour';
 import { passaNosFiltros } from './funilMonjourPuro';
 import { lerEventosMonjour, normalizarPeriodo } from './painelQuizMonjour';
 
@@ -23,18 +23,20 @@ export const POR_PAGINA = 50;
 export const MAX_LINHAS = 500;
 /** Eventos lidos para a jornada de uma sessão: uma sessão normal tem umas 60 linhas. */
 const MAX_EVENTOS_SESSAO = 1000;
-const PASSO_MAX = 32;
+const PASSO_MAX = ETAPA_COMPRA;
 /** Por quanto tempo as sessões agrupadas de um período valem na memória. */
 const CACHE_MS = 60_000;
 
 export interface ItemSessao {
   sid: string; entrou: string; pais: string; paisNome: string; regiao: string; cidade: string;
   disp: string; so: string; nav: string; idade: string; objetivo: string; cuerpo: string;
-  anuncio: string; conjunto: string; maxPasso: number; clicouComprar: boolean; comprou: boolean; plano: string | null;
+  anuncio: string; conjunto: string; maxPasso: number; maxPassoRotulo: string; clicouComprar: boolean; comprou: boolean; plano: string | null;
+  /** Entrou pelo atalho da tela 1, ou voltou direto à oferta: não passou pelas perguntas. */
+  atalho: boolean; volta: boolean;
 }
 
 export interface LinhaJornada {
-  ts: string; tipo: 'viu' | 'respondeu' | 'fim'; passo: string | null; n: number | null;
+  ts: string; tipo: 'viu' | 'respondeu' | 'fim' | 'atalho'; passo: string | null; n: number | null;
   rotulo: string; resposta: string | null; segundosNaTela: number | null;
 }
 
@@ -60,9 +62,11 @@ export function itemDaSessao(s: SessaoMonjour): ItemSessao {
     idade: resposta('edad'), objetivo: resposta('objetivo'), cuerpo: resposta('cuerpo'),
     anuncio: nomeDoAnuncio(s.ctx.anuncio || SEM_ANUNCIO), conjunto: nomeDoConjunto(conjuntoDoAnuncio(s.ctx.anuncio)),
     maxPasso: Math.min(s.nivel, TELAS_MONJOUR.length),
+    maxPassoRotulo: TELAS_MONJOUR[Math.min(s.nivel, TELAS_MONJOUR.length) - 1]?.rotulo ?? '',
     clicouComprar: s.destinos.has('checkout') || s.nivel >= ETAPA_CHECKOUT,
     comprou: s.destinos.has('compra'),
     plano: s.plano,
+    atalho: s.atalho, volta: s.volta,
   };
 }
 
@@ -77,7 +81,8 @@ export function listarSessoes(eventos: EventoMonjour[], pedido: PedidoSessoes, t
 function listarDasSessoes(sessoes: SessaoMonjour[], pedido: PedidoSessoes, truncado: boolean): PaginaSessoes {
   const base = sessoes
     .filter((s) => s.visitante && passaNosFiltros(s, pedido.filtros))
-    .filter((s) => (pedido.tipo === 'chegaram' ? s.nivel >= pedido.passo : pedido.passo < ETAPA_COMPRA && s.nivel === pedido.passo))
+    // A mesma conta do funil: quem foi direto à oferta (atalho ou volta) não conta nas perguntas que não viu.
+    .filter((s) => (pedido.tipo === 'chegaram' ? chegouNaEtapa(s, pedido.passo) : pedido.passo < ETAPA_COMPRA && pararamNaEtapa(s, pedido.passo)))
     .sort((a, b) => b.primeiro - a.primeiro || a.id.localeCompare(b.id));
   const alcance = Math.min(base.length, MAX_LINHAS);
   const de = Math.max(0, Math.min(pedido.cursor, alcance));
@@ -90,7 +95,7 @@ function listarDasSessoes(sessoes: SessaoMonjour[], pedido: PedidoSessoes, trunc
   };
 }
 
-/** Passo pedido: inteiro de 1 a 32 (as 30 telas mais clicar em comprar e comprar). */
+/** Passo pedido: inteiro de 1 até a compra (as telas do catálogo mais clicar em comprar e comprar). */
 export function passoValido(v: unknown): number | null {
   const n = numero(v);
   return n !== null && Number.isInteger(n) && n >= 1 && n <= PASSO_MAX ? n : null;
@@ -145,8 +150,10 @@ function linhaDe({ e, quando }: Marcado): LinhaJornada | null {
   const ts = new Date(quando).toISOString();
   if (e.event_type === 'monjour_passo') {
     const chave = texto(d.passo, 40).toLowerCase();
-    const n = N_POR_CHAVE[chave] ?? numero(d.n);
-    const tela = TELAS_MONJOUR.find((t) => t.n === n);
+    if (chave === PASSO_ATALHO || chave === PASSO_VOLTA) {
+      return { ts, tipo: 'atalho', passo: chave, n: null, rotulo: chave === PASSO_ATALHO ? ROTULO_ATALHO : ROTULO_VOLTA, resposta: null, segundosNaTela: null };
+    }
+    const tela = TELAS_MONJOUR.find((t) => t.chave === chave);
     if (!tela) return null;
     return { ts, tipo: 'viu', passo: tela.chave, n: tela.n, rotulo: tela.rotulo, resposta: null, segundosNaTela: null };
   }
@@ -176,7 +183,7 @@ export function montarJornada(eventos: EventoMonjour[]): LinhaJornada[] {
     .map((m) => ({ linha: linhaDe(m), quando: m.quando })).filter((x): x is { linha: LinhaJornada; quando: number } => x.linha !== null);
   linhas.forEach((x, i) => {
     if (x.linha.tipo !== 'viu') return;
-    const proximo = linhas.slice(i + 1).find((y) => y.linha.tipo === 'fim' || (y.linha.tipo === 'viu' && y.linha.n !== x.linha.n));
+    const proximo = linhas.slice(i + 1).find((y) => y.linha.tipo === 'fim' || y.linha.tipo === 'atalho' || (y.linha.tipo === 'viu' && y.linha.n !== x.linha.n));
     if (!proximo) return;
     const seg = (proximo.quando - x.quando) / 1000;
     x.linha.segundosNaTela = seg >= 0 && seg <= MEDIANA_CORTE_SEG ? Math.round(seg * 10) / 10 : null;
