@@ -17,7 +17,8 @@ export default function MonjourFunilDesenho({ etapas, total, onAbrir }: {
   etapas: EtapaMonjour[]; total: number; onAbrir?: (e: EtapaMonjour, tipo: TipoSessoes) => void;
 }) {
   const rolagem = useRef<HTMLDivElement>(null);
-  const ordem = useMemo(() => [...etapas].sort((a, b) => a.n - b.n), [etapas]);
+  // Etapa que entra ou sai do quiz e não tem nenhuma sessão a que se aplique neste período (acabou, ou ainda não começou) não vira degrau de 0%.
+  const ordem = useMemo(() => [...etapas].filter((e) => e.aplicaveis !== 0).sort((a, b) => a.n - b.n), [etapas]);
   const topo = Math.max(1, total, ...ordem.map((e) => e.chegaram));
   // A maior queda é em pessoas: é onde o quiz perde mais gente de verdade. A
   // última etapa (Comprou) não tem "depois", então não entra.

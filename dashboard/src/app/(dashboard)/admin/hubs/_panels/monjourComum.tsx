@@ -7,7 +7,7 @@ import s from './MonjourFunilPanel.module.css';
 
 export const TIPO: Record<string, string> = {
   info: 'texto', multipla: 'múltipla', numero: 'número', campo: 'campo', email: 'e-mail',
-  carregando: 'carregando', oferta: 'oferta',
+  carregando: 'carregando', oferta: 'oferta', afirmacao: 'afirmação',
 };
 // Barras dos gráficos: a jamaica da marca Monjour (7,1:1 no branco).
 export const COR_BARRA = '#9C2C48';

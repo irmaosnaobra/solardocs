@@ -20,7 +20,7 @@ import {
   MEDIANA_CORTE_SEG, SEM_ANUNCIO, nomeDoAnuncio, conjuntoDoAnuncio, nomeDoConjunto, nomeDoPais,
   ROTULO_APARELHO, ROTULO_SISTEMA, ROTULO_NAVEGADOR,
 } from './monjourCatalogo';
-import { agruparSessoes, chegouNaEtapa, pararamNaEtapa, proximaEtapa, type SessaoMonjour } from './sessoesMonjour';
+import { agruparSessoes, chegouNaEtapa, etapaAplica, pararamNaEtapa, proximaEtapa, type SessaoMonjour } from './sessoesMonjour';
 import { montarRespostas } from './respostasMonjour';
 
 const SEM = '(sem)';
@@ -147,6 +147,12 @@ function etapas(sessoes: SessaoMonjour[]): EtapaMonjour[] {
       pctInicio: pct(chegaram, base), sairam, pctSaida: pct(sairam, chegaram),
       medianaSegundos: medianaDe(sessoes.map((s) => tempoDaEtapa(s, t.n)).filter((v): v is number => v !== null)),
     };
+    // Etapa que entra ou sai do quiz: diz a janela e a quantas sessões do período ela se aplica (zero: o painel a esconde).
+    if (t.desde || t.ate) {
+      if (t.desde) e.desde = t.desde;
+      if (t.ate) e.ate = t.ate;
+      e.aplicaveis = sessoes.filter((s) => etapaAplica(s, t.n)).length;
+    }
     if (t.n === ETAPA_META) e.pularam = sessoes.filter((s) => chegou(s, ETAPA_PARTIDA) && !s.vistas.has(ETAPA_META)).length;
     return e;
   });

@@ -61,7 +61,7 @@ describe('GET /admin/monjour/quiz-funil', () => {
     expect(r.body.inicioRastreio).toBe('2026-11-18T12:00:00.000Z');
     expect(r.body.truncado).toBe(false);
     expect(r.body.totais.sessoes).toBe(2);
-    expect(r.body.etapas).toHaveLength(34); // 32 telas do catálogo, clicou em comprar e comprou
+    expect(r.body.etapas).toHaveLength(36); // 34 telas do catálogo, clicou em comprar e comprou
     expect(r.body.etapas.slice(0, 4).map((e: { chave: string }) => e.chave)).toEqual(['inicio', 'edad', 'app', 'objetivo']);
     expect(r.body.etapas.find((e: { chave: string }) => e.chave === 'edad')).toMatchObject({ n: 2, chegaram: 2, sairam: 1 });
     expect(Object.keys(r.body).sort()).toEqual([

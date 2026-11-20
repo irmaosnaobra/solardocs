@@ -4,7 +4,7 @@
 // Puro: sem banco. A contagem em si mora em funilMonjourPuro.ts.
 // ───────────────────────────────────────────────────────────────────────────
 import {
-  type EventoMonjour, N_POR_CHAVE, chaveDaResposta, ETAPA_CHECKOUT, ETAPA_COMPRA, ETAPA_OFERTA, PASSO_ATALHO, PASSO_VOLTA, desdeDaEtapa,
+  type EventoMonjour, N_POR_CHAVE, chaveDaResposta, ETAPA_CHECKOUT, ETAPA_COMPRA, ETAPA_OFERTA, PASSO_ATALHO, PASSO_VOLTA, desdeDaEtapa, ateDaEtapa,
 } from './monjourCatalogo';
 
 export interface ContextoMonjour { pais: string; regiao: string; cidade: string; disp: string; so: string; nav: string; anuncio: string }
@@ -48,12 +48,14 @@ export interface SessaoMonjour {
 export const pulouPerguntas = (s: SessaoMonjour): boolean => s.atalho || s.volta;
 
 /**
- * A etapa n existe para esta sessão? Etapa com `desde` (catálogo) só existe para quem entrou depois dela:
- * sessão antiga nunca viu a tela, então a etapa não entra na conta dela.
+ * A etapa n existe para esta sessão? Etapa com `desde` (catálogo) só existe para quem entrou a partir dele: sessão antiga
+ * nunca viu a tela. Etapa com `ate` saiu do quiz: sessão que entrou no `ate` ou depois nunca a viu. Nos dois casos a etapa
+ * não entra na conta da sessão.
  */
 export function etapaAplica(s: SessaoMonjour, n: number): boolean {
   const desde = desdeDaEtapa(n);
-  return desde === null || s.primeiro >= desde;
+  const ate = ateDaEtapa(n);
+  return (desde === null || s.primeiro >= desde) && (ate === null || s.primeiro < ate);
 }
 
 /** A primeira etapa que existe para a sessão. */

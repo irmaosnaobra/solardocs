@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { montarFunilMonjour } from '../services/monjour/funilMonjourPuro';
 import type { EventoMonjour } from '../services/monjour/monjourCatalogo';
-import { TELAS_MONJOUR, ETAPAS_DEPOIS, QUIZ_NOVO_DESDE } from '../services/monjour/monjourCatalogo';
+import { TELAS_MONJOUR, ETAPAS_DEPOIS, QUIZ_NOVO_DESDE, QUIZ_BLOCO2_DESDE } from '../services/monjour/monjourCatalogo';
 
 // A conta do funil do quiz Monjour: eventos de exemplo entram, o FunilMonjour sai.
 
@@ -28,7 +28,8 @@ function ev(sid: string, tipo: string, d: Record<string, unknown>, seg = 0): Eve
   };
 }
 // Os números dos testes antigos (1 a 30 telas, 31 clicou, 32 comprou) ficam: CHAVE leva o n antigo à chave, e `etapa` acha a etapa por ela.
-const LEGADO = TELAS_MONJOUR.filter((t) => t.chave !== 'inicio' && t.chave !== 'app');
+const NOVAS = ['inicio', 'app', 'af_ropa', 'af_lunes']; // telas que o quiz de 30 telas não tinha
+const LEGADO = TELAS_MONJOUR.filter((t) => !NOVAS.includes(t.chave));
 const CHAVE = (n: number): string => LEGADO[n - 1].chave;
 const chaveAntiga = (n: number): string => (n <= LEGADO.length ? CHAVE(n) : ETAPAS_DEPOIS[n - LEGADO.length - 1].chave);
 
@@ -58,10 +59,10 @@ describe('funil do quiz Monjour: etapas', () => {
   ];
   const f = montarFunilMonjour(eventos, OP);
 
-  it('o funil só desce, com as 34 etapas do catálogo', () => {
-    expect(f.etapas).toHaveLength(34);
+  it('o funil só desce, com as 36 etapas do catálogo', () => {
+    expect(f.etapas).toHaveLength(36);
     // Sessão antiga não tem abertura nem prévia do app: só o quiz de 30 telas entra na conta de descida.
-    const chegaram = f.etapas.filter((e) => e.chave !== 'inicio' && e.chave !== 'app').map((e) => e.chegaram);
+    const chegaram = f.etapas.filter((e) => !NOVAS.includes(e.chave)).map((e) => e.chegaram);
     for (let i = 1; i < chegaram.length; i += 1) expect(chegaram[i]).toBeLessThanOrEqual(chegaram[i - 1]);
     expect([1, 5, 6, 10, 11, 30, 31, 32].map((n) => etapa(f, n).chegaram)).toEqual([6, 5, 4, 4, 3, 3, 2, 1]);
   });
@@ -404,12 +405,12 @@ describe('funil do quiz Monjour: compra, upgrade e app', () => {
 describe('funil do quiz Monjour: período vazio e cabeçalho', () => {
   const f = montarFunilMonjour([], { ...OP, inicioRastreio: '2026-11-18T12:00:00.000Z' });
 
-  it('zera tudo e mantém as 34 etapas', () => {
+  it('zera tudo e mantém as 36 etapas', () => {
     expect(f.totais).toEqual({
       sessoes: 0, leads: 0, ofertas: 0, checkouts: 0, compras: 0, comprasBasico: 0, comprasPlus: 0,
       upgrades: 0, receitaCentavos: 0, conversao: 0, ticketMedioCentavos: 0, atalho: 0, voltas: 0,
     });
-    expect(f.etapas).toHaveLength(34);
+    expect(f.etapas).toHaveLength(36);
     expect(f.etapas.every((e) => e.chegaram === 0 && e.pctInicio === 0 && e.pctSaida === 0 && e.medianaSegundos === null)).toBe(true);
     expect(f.recortes).toEqual({ pais: [], aparelho: [], sistema: [], navegador: [], anuncio: [], conjunto: [], dia: [], hora: [] });
     expect(f.filtros).toEqual({ paises: [], aparelhos: [], anuncios: [] });
@@ -429,7 +430,7 @@ describe('funil do quiz Monjour: período vazio e cabeçalho', () => {
   it('as perguntas aparecem mesmo sem resposta, e as etapas seguem a ordem das telas', () => {
     expect(f.respostas.map((r) => r.chave).slice(0, 3)).toEqual(['edad', 'objetivo', 'cuerpo']);
     expect(f.respostas.find((r) => r.chave === 'edad')!.opcoes.map((o) => o.valor)).toEqual(['25', '35', '45', '55']);
-    expect(f.etapas.map((e) => e.n)).toEqual(Array.from({ length: 34 }, (_, i) => i + 1));
+    expect(f.etapas.map((e) => e.n)).toEqual(Array.from({ length: 36 }, (_, i) => i + 1));
     expect(etapa(f, 23)).toMatchObject({ chave: 'seguridad', rotulo: 'Segurança', tipo: 'multipla' });
   });
 });
@@ -574,5 +575,103 @@ describe('funil do quiz Monjour: telas novas (abertura e prévia do app) e sess�
     expect([c('inicio').chegaram, c('edad').chegaram, c('app').chegaram, c('oferta').chegaram]).toEqual([2, 1, 1, 1]);
     expect(c('inicio').sairam).toBe(0); // a1 seguiu para a oferta, n9 seguiu para Idade
     expect(g.totais).toMatchObject({ atalho: 1, voltas: 0 });
+  });
+});
+
+describe('funil do quiz Monjour: segunda entrega (af_ropa e af_lunes entram, hace e despues saem)', () => {
+  const B2 = Date.parse(QUIZ_BLOCO2_DESDE);
+  const passoEm = (sid: string, passo: string, ms: number): EventoMonjour => ({
+    session_id: sid, event_type: 'monjour_passo', created_at: new Date(ms).toISOString(),
+    event_data: { lp: 'monjour', passo, ts: ms, pais: 'MX', disp: 'movil' },
+  });
+  /** Percorre as chaves, 10 s por tela, a partir de `inicio`. */
+  const percurso = (sid: string, inicio: number, chaves: string[]): EventoMonjour[] =>
+    chaves.map((k, i) => passoEm(sid, k, inicio + i * 10_000));
+  const ATE_ZONA = ['inicio', 'edad', 'app', 'objetivo', 'cuerpo', 'zona'];
+  const VELHO = [...ATE_ZONA, 'hace', 'inyecciones', 'noticia', 'probado', 'despues', 'culpa'];
+  const NOVO = [...ATE_ZONA, 'af_ropa', 'inyecciones', 'noticia', 'probado', 'af_lunes', 'culpa'];
+
+  const eventos = [...percurso('velho', B2 - 3600_000, VELHO), ...percurso('novo', B2 + 3600_000, NOVO)];
+  const f = montarFunilMonjour(eventos, OP);
+  const e = (k: string) => f.etapas.find((x) => x.chave === k)!;
+  const de = (g: typeof f, k: string) => g.etapas.find((x) => x.chave === k)!;
+
+  it('a ordem do trecho: zona, hace, af_ropa, inyecciones, noticia, probado, despues, af_lunes, culpa', () => {
+    const chaves = f.etapas.map((x) => x.chave);
+    const i = chaves.indexOf('zona');
+    expect(chaves.slice(i, i + 9)).toEqual(['zona', 'hace', 'af_ropa', 'inyecciones', 'noticia', 'probado', 'despues', 'af_lunes', 'culpa']);
+    expect(e('af_ropa')).toMatchObject({ rotulo: 'Afirmação: roupa', desde: QUIZ_BLOCO2_DESDE });
+    expect(e('af_lunes')).toMatchObject({ rotulo: 'Afirmação: segunda-feira', desde: QUIZ_BLOCO2_DESDE });
+    expect(e('hace')).toMatchObject({ ate: QUIZ_BLOCO2_DESDE });
+    expect(e('despues').desde).toBeUndefined();
+  });
+
+  it('sessão antiga conta em hace e despues e não nas af_; a nova ao contrário', () => {
+    const so = (id: string) => montarFunilMonjour(eventos.filter((x) => x.session_id === id), OP);
+    const quatro = (g: typeof f) => ['hace', 'despues', 'af_ropa', 'af_lunes'].map((k) => de(g, k).chegaram);
+    expect(quatro(so('velho'))).toEqual([1, 1, 0, 0]);
+    expect(quatro(so('novo'))).toEqual([0, 0, 1, 1]);
+    expect(quatro(f)).toEqual([1, 1, 1, 1]);
+  });
+
+  it('a passagem: zona → hace → inyecciones nas antigas e zona → af_ropa → inyecciones nas novas', () => {
+    expect(e('zona').chegaram).toBe(2);
+    expect(e('inyecciones').chegaram).toBe(2);
+    expect(['zona', 'hace', 'af_ropa', 'despues', 'af_lunes'].map((k) => e(k).sairam)).toEqual([0, 0, 0, 0, 0]);
+    // 10 s de cada tela para a próxima que existe para a sessão
+    expect(['zona', 'hace', 'af_ropa', 'despues', 'af_lunes'].map((k) => e(k).medianaSegundos)).toEqual([10, 10, 10, 10, 10]);
+  });
+
+  it('quem para na etapa dela sai dela; a zona não perde nenhuma das duas', () => {
+    const g = montarFunilMonjour([
+      ...percurso('v', B2 - 3600_000, [...ATE_ZONA, 'hace']),
+      ...percurso('n', B2 + 3600_000, [...ATE_ZONA, 'af_ropa']),
+    ], OP);
+    expect(['hace', 'af_ropa'].map((k) => [de(g, k).chegaram, de(g, k).sairam])).toEqual([[1, 1], [1, 1]]);
+    expect(de(g, 'zona').sairam).toBe(0);
+  });
+
+  it('o limite exato: no instante do ate/desde já é sessão nova', () => {
+    const noLimite = montarFunilMonjour(percurso('l', B2, [...ATE_ZONA, 'af_ropa', 'inyecciones']), OP);
+    const antes = montarFunilMonjour(percurso('l', B2 - 1, [...ATE_ZONA, 'hace', 'inyecciones']), OP);
+    expect(['af_ropa', 'hace'].map((k) => de(noLimite, k).chegaram)).toEqual([1, 0]);
+    expect(['af_ropa', 'hace'].map((k) => de(antes, k).chegaram)).toEqual([0, 1]);
+  });
+
+  it('aplicaveis: período só de sessões novas não mostra hace/despues, e só de antigas não mostra as af_', () => {
+    const so = (id: string) => montarFunilMonjour(eventos.filter((x) => x.session_id === id), OP);
+    const ap = (g: typeof f, k: string) => de(g, k).aplicaveis;
+    expect(['hace', 'af_ropa', 'af_lunes'].map((k) => ap(so('velho'), k))).toEqual([1, 0, 0]);
+    expect(['hace', 'despues', 'af_ropa'].map((k) => ap(so('novo'), k))).toEqual([0, 0, 1]);
+    expect([ap(f, 'hace'), ap(f, 'af_ropa')]).toEqual([1, 1]);
+    expect(de(f, 'edad').aplicaveis).toBeUndefined(); // etapa de sempre não leva o campo
+  });
+
+  it('nenhuma porcentagem passa de 100, mesmo misturando sessões de épocas diferentes', () => {
+    const g = montarFunilMonjour([
+      ...eventos, ...percurso('v2', B2 - 7200_000, [...ATE_ZONA, 'hace']), ...percurso('n2', B2 + 7200_000, ['inicio', 'edad']),
+      ...percurso('n3', B2 + 7300_000, NOVO),
+    ], OP);
+    for (const x of g.etapas) {
+      expect(x.pctInicio).toBeLessThanOrEqual(100);
+      expect(x.pctSaida).toBeLessThanOrEqual(100);
+      expect(x.pctInicio).toBeGreaterThanOrEqual(0);
+    }
+    for (const r of g.respostas) for (const o of r.opcoes) expect(o.pct).toBeLessThanOrEqual(100);
+  });
+
+  it('respostas das afirmações: Sim, Não e Não sei', () => {
+    const resp = (sid: string, passo: string, v: string, ms: number): EventoMonjour => ({
+      session_id: sid, event_type: 'monjour_resp', created_at: new Date(ms).toISOString(), event_data: { passo, resp: v, ts: ms },
+    });
+    const g = montarFunilMonjour([
+      ...percurso('r1', B2 + 3600_000, NOVO), resp('r1', 'af_ropa', 'si', B2 + 3_700_000), resp('r1', 'af_lunes', 'nose', B2 + 3_800_000),
+      ...percurso('r2', B2 + 3600_000, NOVO), resp('r2', 'af_ropa', 'no', B2 + 3_700_000),
+    ], OP);
+    const ropa = g.respostas.find((r) => r.chave === 'af_ropa')!;
+    expect(ropa.pergunta).toBe('Afirmação: roupa');
+    expect(ropa.opcoes.map((o) => [o.valor, o.rotulo, o.sessoes])).toEqual([['si', 'Sim', 1], ['no', 'Não', 1], ['nose', 'Não sei', 0]]);
+    const lunes = g.respostas.find((r) => r.chave === 'af_lunes')!;
+    expect(lunes.opcoes.find((o) => o.valor === 'nose')).toMatchObject({ rotulo: 'Não sei', sessoes: 1, pct: 100 });
   });
 });
