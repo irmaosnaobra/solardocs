@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({ eventos: [] as any[] }));
 
 function consulta() {
   const q: any = {
-    select: () => q, in: () => q, gte: () => q, lt: () => q, order: () => q,
+    select: () => q, eq: () => q, in: () => q, gte: () => q, lt: () => q, order: () => q,
     limit: () => Promise.resolve({ data: [], error: null }),
     range: (de: number, ate: number) => Promise.resolve({ data: h.eventos.slice(de, ate + 1), error: null }),
   };

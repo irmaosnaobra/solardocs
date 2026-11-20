@@ -61,4 +61,12 @@ export type FunilMonjour = {
     opcoes: { valor: string; rotulo: string; sessoes: number; pct: number; chegaramOferta: number; compras: number; conversao: number }[];
   }[];
   app: { abriram: number; instalaram: number; upgradeClicks: number };
+  /**
+   * Página de venda direta (/plan/), separada do funil do quiz: as sessões dela
+   * não entram em `totais` nem em `etapas`. Opcional: a api e o dashboard sobem
+   * em deploys separados, então o painel não pode depender do campo.
+   * visitas: abriram a página; planes: viram os planos; compra: abriram a folha
+   * de compra; checkouts: clicaram em pagar (foram para a Stripe); compras: compraram.
+   */
+  paginaVenta?: { visitas: number; planes: number; compra: number; checkouts: number; compras: number };
 };

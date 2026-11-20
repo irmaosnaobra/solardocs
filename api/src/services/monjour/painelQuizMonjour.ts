@@ -48,11 +48,27 @@ export function normalizarPeriodo(periodo: string): string {
   return (PERIODOS_MONJOUR as readonly string[]).includes(periodo) ? periodo : '7dias';
 }
 
+/**
+ * Os sinais da página de venda (/plan/): monjour_sinal só com passo 'venta', filtrado no banco para não trazer os sinais do quiz.
+ * Leitura à parte: TIPOS_EVENTO_MONJOUR não leva monjour_sinal porque os outros painéis leem aquela lista.
+ */
+export function lerSinaisDaPagina(desde: string, ate: string | null | undefined): Promise<{ eventos: EventoMonjour[]; truncado: boolean }> {
+  return lerEventosMonjour((de, fim) => {
+    let q = supabase.from('lp_events')
+      .select('session_id, event_type, event_data, created_at')
+      .eq('event_type', 'monjour_sinal')
+      .eq('event_data->>passo', 'venta')
+      .gte('created_at', desde);
+    if (ate) q = q.lt('created_at', ate);
+    return q.order('created_at', { ascending: true }).order('id', { ascending: true }).range(de, fim);
+  });
+}
+
 export async function lerFunilMonjour(periodo: string, filtros: FiltrosMonjour = {}, agora: Date = new Date()): Promise<FunilMonjour> {
   const per = normalizarPeriodo(periodo);
   const desde = inicioDoPeriodo(per, agora.getTime());
   const ate = fimDoPeriodo(per, agora.getTime());
-  const [lidos, inicioRastreio] = await Promise.all([
+  const [lidos, sinais, inicioRastreio] = await Promise.all([
     lerEventosMonjour((de, fim) => {
       let q = supabase.from('lp_events')
         .select('session_id, event_type, event_data, created_at')
@@ -62,9 +78,14 @@ export async function lerFunilMonjour(periodo: string, filtros: FiltrosMonjour =
       // O id desempata o created_at: sem isso a paginação pode repetir ou perder linha na fronteira.
       return q.order('created_at', { ascending: true }).order('id', { ascending: true }).range(de, fim);
     }),
+    // O bloco da página de venda é opcional: se a leitura dele falhar, o funil do quiz sai inteiro mesmo assim.
+    lerSinaisDaPagina(desde, ate).catch((e: unknown) => {
+      console.error('[funil-monjour] leitura dos sinais da pagina falhou:', e instanceof Error ? e.message : e);
+      return { eventos: [], truncado: true };
+    }),
     primeiroEvento(),
   ]);
-  return montarFunilMonjour(lidos.eventos, {
-    periodo: per, desde, ate: ate ?? agora.toISOString(), agora, inicioRastreio, truncado: lidos.truncado, filtros,
+  return montarFunilMonjour([...lidos.eventos, ...sinais.eventos], {
+    periodo: per, desde, ate: ate ?? agora.toISOString(), agora, inicioRastreio, truncado: lidos.truncado || sinais.truncado, filtros,
   });
 }

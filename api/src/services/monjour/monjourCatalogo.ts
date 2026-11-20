@@ -269,6 +269,12 @@ export interface FunilMonjour {
   };
   respostas: { chave: string; pergunta: string; opcoes: OpcaoRespostaMonjour[] }[];
   app: { abriram: number; instalaram: number; upgradeClicks: number };
+  /**
+   * Página de venda direta (/plan/), fora do funil do quiz. Sessões distintas do período (mesmos filtros de país, aparelho,
+   * anúncio e conjunto do funil), sem sondas. visitas = monjour_sinal carga; planes = planes; compra = abriu a folha de compra
+   * (todos com passo 'venta'); checkouts = clicou em pagar (monjour_fim checkout, origen 'plan'); compras = monjour_fim compra, origen 'plan'.
+   */
+  paginaVenta: { visitas: number; planes: number; compra: number; checkouts: number; compras: number };
 }
 
 export interface EventoMonjour {

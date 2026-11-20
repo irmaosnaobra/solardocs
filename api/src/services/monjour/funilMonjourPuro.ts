@@ -12,7 +12,10 @@
 //    perguntas até a oferta não sai nas telas do meio;
 //  - mediana = tempo da primeira vista de n até a de n + 1, só de quem chegou
 //    lá, sem valor acima de 30 minutos;
-//  - sessão com utm_source "sonda" é teste nosso e fica fora de tudo.
+//  - sessão com utm_source "sonda" é teste nosso e fica fora de tudo;
+//  - sessão da página de venda (/plan/, `pagina`) fica fora de toda conta do quiz: ela vai ao checkout sem passar
+//    pelas telas. Os números dela saem à parte em `paginaVenta` (mesmos filtros e período). Upgrade e uso do app
+//    seguem contando sobre todas as sessões do filtro, como antes.
 // ───────────────────────────────────────────────────────────────────────────
 import {
   type EventoMonjour, type FiltrosMonjour, type FunilMonjour, type LinhaMonjour, type EtapaMonjour,
@@ -20,7 +23,7 @@ import {
   MEDIANA_CORTE_SEG, SEM_ANUNCIO, nomeDoAnuncio, conjuntoDoAnuncio, nomeDoConjunto, nomeDoPais,
   ROTULO_APARELHO, ROTULO_SISTEMA, ROTULO_NAVEGADOR,
 } from './monjourCatalogo';
-import { agruparSessoes, chegouNaEtapa, etapaAplica, pararamNaEtapa, proximaEtapa, type SessaoMonjour } from './sessoesMonjour';
+import { agruparSessoes, chegouNaEtapa, daSessaoDoQuiz, etapaAplica, pararamNaEtapa, proximaEtapa, type SessaoMonjour } from './sessoesMonjour';
 import { montarRespostas } from './respostasMonjour';
 
 const SEM = '(sem)';
@@ -166,7 +169,7 @@ export interface OpcoesFunilMonjour {
 export function montarFunilMonjour(eventos: EventoMonjour[], op: OpcoesFunilMonjour): FunilMonjour {
   const todas = agruparSessoes(eventos);
   const doFiltro = todas.filter((s) => passaNosFiltros(s, op.filtros || {}));
-  const funil = doFiltro.filter((s) => s.visitante);
+  const funil = doFiltro.filter(daSessaoDoQuiz);
   const compraram = funil.filter((s) => s.destinos.has('compra'));
   // Compra conta só para quem passou pelo quiz no período. O upgrade é pago no app,
   // dias depois: conta sobre todas as sessões do filtro, como os eventos do app.
@@ -174,13 +177,14 @@ export function montarFunilMonjour(eventos: EventoMonjour[], op: OpcoesFunilMonj
   const comUpgrade = doFiltro.filter((s) => s.upgrade);
   const receita = receitaCompras + comUpgrade.reduce((a, s) => a + s.receitaUpgradeCentavos, 0);
   const comApp = (acao: string): number => doFiltro.filter((s) => s.acoesApp.has(acao)).length;
+  const daPagina = (f: (s: SessaoMonjour) => boolean): number => doFiltro.filter(f).length;
   return {
     periodo: op.periodo, desde: op.desde, ate: op.ate,
     atualizadoEm: (op.agora ?? new Date()).toISOString(),
     inicioRastreio: op.inicioRastreio ?? null,
     truncado: !!op.truncado,
     // As opções de filtro vêm do período inteiro, para o menu não encolher quando alguém filtra.
-    filtros: filtrosDisponiveis(todas.filter((s) => s.visitante)),
+    filtros: filtrosDisponiveis(todas.filter(daSessaoDoQuiz)),
     totais: {
       sessoes: funil.length,
       leads: funil.filter((s) => s.lead).length,
@@ -205,5 +209,12 @@ export function montarFunilMonjour(eventos: EventoMonjour[], op: OpcoesFunilMonj
     recortes: recortes(funil),
     respostas: montarRespostas(funil),
     app: { abriram: comApp('abriu'), instalaram: comApp('instalou'), upgradeClicks: comApp('upgrade_click') },
+    paginaVenta: {
+      visitas: daPagina((s) => s.venta.has('carga')),
+      planes: daPagina((s) => s.venta.has('planes')),
+      compra: daPagina((s) => s.venta.has('compra')),
+      checkouts: daPagina((s) => s.paginaCheckout),
+      compras: daPagina((s) => s.paginaCompra),
+    },
   };
 }

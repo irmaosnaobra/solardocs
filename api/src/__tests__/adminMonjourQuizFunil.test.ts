@@ -8,12 +8,15 @@ import request from 'supertest';
 const h = vi.hoisted(() => ({
   eventos: [] as any[], filtros: [] as Array<[string, unknown[]]>, ranges: [] as Array<[number, number]>,
   primeiro: null as string | null, falhaPrimeiro: false, falhaLeitura: false,
+  rangesSinal: [] as Array<[number, number]>,
 }));
 
 function consulta() {
   let soPrimeiro = false;
+  let sinais = false;
   const q: any = {
     select: (cols: string) => { soPrimeiro = cols === 'created_at'; return q; },
+    eq: (c: string, v: unknown) => { h.filtros.push([`eq:${c}`, [v]]); if (c === 'event_type' && v === 'monjour_sinal') sinais = true; return q; },
     in: (c: string, v: unknown[]) => { h.filtros.push([`in:${c}`, v]); return q; },
     gte: (c: string, v: unknown) => { h.filtros.push([`gte:${c}`, [v]]); return q; },
     lt: (c: string, v: unknown) => { h.filtros.push([`lt:${c}`, [v]]); return q; },
@@ -22,6 +25,12 @@ function consulta() {
       ? Promise.resolve({ data: null, error: new Error('x') })
       : Promise.resolve({ data: h.primeiro ? [{ created_at: h.primeiro }] : [], error: null })),
     range: (de: number, ate: number) => {
+      if (sinais) {
+        // Leitura dos sinais da página: só os monjour_sinal com passo venta.
+        h.rangesSinal.push([de, ate]);
+        const so = Array.isArray(h.eventos) ? h.eventos.filter((e) => e.event_type === 'monjour_sinal' && e.event_data?.passo === 'venta') : [];
+        return Promise.resolve({ data: so.slice(de, ate + 1), error: null });
+      }
       h.ranges.push([de, ate]);
       if (h.falhaLeitura) return Promise.resolve({ data: null, error: new Error('banco fora') });
       return Promise.resolve({ data: soPrimeiro ? [] : h.eventos.slice(de, ate + 1), error: null });
@@ -48,7 +57,7 @@ const passo = (sid: string, n: number, chave: string, d: Record<string, unknown>
 });
 
 beforeEach(() => {
-  h.eventos = []; h.filtros = []; h.ranges = []; h.primeiro = null; h.falhaPrimeiro = false; h.falhaLeitura = false;
+  h.eventos = []; h.filtros = []; h.ranges = []; h.rangesSinal = []; h.primeiro = null; h.falhaPrimeiro = false; h.falhaLeitura = false;
 });
 
 describe('GET /admin/monjour/quiz-funil', () => {
@@ -65,7 +74,7 @@ describe('GET /admin/monjour/quiz-funil', () => {
     expect(r.body.etapas.slice(0, 4).map((e: { chave: string }) => e.chave)).toEqual(['inicio', 'edad', 'app', 'objetivo']);
     expect(r.body.etapas.find((e: { chave: string }) => e.chave === 'edad')).toMatchObject({ n: 2, chegaram: 2, sairam: 1 });
     expect(Object.keys(r.body).sort()).toEqual([
-      'app', 'ate', 'atualizadoEm', 'desde', 'etapas', 'filtros', 'inicioRastreio', 'periodo',
+      'app', 'ate', 'atualizadoEm', 'desde', 'etapas', 'filtros', 'inicioRastreio', 'paginaVenta', 'periodo',
       'recortes', 'respostas', 'saidas', 'totais', 'truncado',
     ]);
     expect(Object.keys(r.body.recortes).sort()).toEqual(['anuncio', 'aparelho', 'conjunto', 'dia', 'hora', 'navegador', 'pais', 'sistema']);
@@ -77,6 +86,25 @@ describe('GET /admin/monjour/quiz-funil', () => {
     expect(tipos.sort()).toEqual(['monjour_app', 'monjour_fim', 'monjour_passo', 'monjour_resp']);
     expect(h.filtros.some(([c]) => c === 'gte:created_at')).toBe(true);
     expect(h.filtros.some(([c]) => c === 'lt:created_at')).toBe(true); // ontem tem fim
+  });
+
+  it('lê os sinais da página de venda à parte: só monjour_sinal com passo venta, e os tipos do quiz não ganham sinal', async () => {
+    h.eventos = [
+      { session_id: 'mj_1', event_type: 'monjour_sinal', created_at: agora(), event_data: { passo: 'venta', q: 'carga', pais: 'MX' } },
+      { session_id: 'mj_1', event_type: 'monjour_sinal', created_at: agora(), event_data: { passo: 'venta', q: 'planes' } },
+      { session_id: 'mj_1', event_type: 'monjour_fim', created_at: agora(), event_data: { destino: 'checkout', origen: 'plan', plan: 'basico' } },
+      { session_id: 'mj_2', event_type: 'monjour_sinal', created_at: agora(), event_data: { passo: 'edad', q: 'carga' } },
+      passo('s1', 1, 'edad'),
+    ];
+    const r = await request(app).get('/admin/monjour/quiz-funil?period=hoje');
+    const tipos = h.filtros.find(([c]) => c === 'in:event_type')![1] as string[];
+    expect(tipos).not.toContain('monjour_sinal');
+    expect(h.filtros).toContainEqual(['eq:event_type', ['monjour_sinal']]);
+    expect(h.filtros).toContainEqual(['eq:event_data->>passo', ['venta']]);
+    expect(h.rangesSinal).toEqual([[0, 999]]);
+    expect(r.body.paginaVenta).toEqual({ visitas: 1, planes: 1, compra: 0, checkouts: 1, compras: 0 });
+    expect(r.body.totais.sessoes).toBe(1); // só a s1: a mj_1 é da página
+    expect(r.body.etapas.find((e: { chave: string }) => e.chave === 'edad').chegaram).toBe(1);
   });
 
   it('pagina de 1000 em 1000', async () => {
