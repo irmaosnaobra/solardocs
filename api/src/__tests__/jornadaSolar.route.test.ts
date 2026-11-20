@@ -469,39 +469,60 @@ describe('venda e proposta', () => {
 });
 
 describe('concluir a etapa', () => {
-  it('item faltando dá 409 com a lista; quem não é dono leva 403; Giovanna conclui a 2 (o par assinado e a vistoria 80%) e a 3 abre; a etapa 2 sem número tenta o número uma vez', async () => {
+  it('item faltando dá 409 com a lista; quem não é dono leva 403; Diego conclui a 2 (o par assinado e a vistoria 80%) e a 3 abre; Giovanna já não conclui a 2; a etapa 2 sem número tenta o número uma vez', async () => {
     semear(304);
     const falta = await post('/jornada-solar/obra/304/etapa', { etapa: 1 });
     expect(falta.status).toBe(409);
     expect(falta.body).toMatchObject({ precisa: 'itens' });
     expect(falta.body.falta.length).toBeGreaterThan(5);
     expect((await post('/jornada-solar/obra/304/etapa', { etapa: 1 }, GIOVANNA)).status).toBe(403);
-    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA)).status).toBe(409);   // não é a da vez
+    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, DIEGO)).status).toBe(409);   // não é a da vez
+    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA)).status).toBe(403);   // a etapa 2 saiu da Giovanna (20/11)
+    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, NILCE)).status).toBe(403);
     semear(304, concluida1);
-    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA)).status).toBe(409);   // faltam o contrato e a procuração assinados
+    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, DIEGO)).status).toBe(409);   // faltam o contrato e a procuração assinados
     anexos(304, ['contrato_assinado', 'documento_titular', 'conta_luz', 'fachada']);
-    const quase = await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA);
+    const quase = await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, DIEGO);
     expect(quase.status).toBe(409);
     // o que a etapa 1 (regra antiga) deixou sem arquivo volta como pendência da etapa 1 e segura a conclusão
     expect(quase.body.falta.map((i: any) => i.chave)).toEqual(['procuracao', 'vistoria', 'padrao', 'disjuntor', 'medidor']);
     expect(quase.body.falta.slice(2).map((i: any) => i.texto)).toEqual(['Foto do padrão de entrada (pendente da etapa 1)', 'Foto do disjuntor (pendente da etapa 1)', 'Foto do medidor (pendente da etapa 1)']);
     expect(h.disparos).toEqual([]);
     anexos(304, ['contrato_assinado', 'procuracao']);
-    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA)).body.falta.map((i: any) => i.chave)).toEqual(['vistoria', 'documento', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor']);
+    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, DIEGO)).body.falta.map((i: any) => i.chave)).toEqual(['vistoria', 'documento', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor']);
     anexos(304, ['contrato_assinado', 'procuracao', 'documento_titular', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor']);
-    const semVistoria = await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA);
+    const semVistoria = await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, DIEGO);
     expect(semVistoria.status).toBe(409);
     expect(semVistoria.body.falta.map((i: any) => i.chave)).toEqual(['vistoria']);   // o par assinado está lá; falta a vistoria 80%
     expect(h.disparos).toEqual([]);
     const v80 = { data: '2026-11-18', quem: 'Nilce', acomp: 'Marcos', concl: 'ok', obs: 'ok', telhado: { tipo: 'a', estado: 'b', orient: 'c', incl: 'd', area: 'e', sombra: 'f', estr: 'g', acesso: 'h' }, entrada: { padrao: 'a', tensao: 'b', disj: 'c', apto: 'd', aterr: 'e', quadro: 'f' }, inversor: { local: 'a', dist: '', abrig: '', wifi: '' } };
     h.priv.set('vendasolar/304.obra.json', JSON.stringify({ v: 1, vistoria: v80 }));   // 20 de 23 campos = 86%
-    const ok = await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, GIOVANNA);
+    const ok = await post('/jornada-solar/obra/304/etapa', { etapa: 2 }, DIEGO);
     expect(ok.status).toBe(200);
-    expect(h.disparos).toEqual([{ card: 304, nome: 'giovanna' }]);   // o Trello automático foi pedido, depois do número
+    expect(h.disparos).toEqual([{ card: 304, nome: 'diego' }]);   // o Trello automático foi pedido, depois do número
     expect(ok.body).toMatchObject({ etapa_atual: 3, numero: { ok: true, codigo: '#0070' } });
     expect(h.aloc.chamadas).toEqual([{ novo: true, card: 304 }]);
     expect(estadoGravado(304)!.etapas[3].aberta_em).not.toBeNull();
     expect(estadoGravado(304)!.numero.nasceu_em).not.toBeNull();
+  });
+});
+
+describe('quem conclui (20/11/2026)', () => {
+  it('o ADM conclui qualquer etapa (a 1 não é dele e vai ao 409 de itens, não ao 403); o payload traz conclui_por; a 2 é do Thiago e do Diego', async () => {
+    semear(304);
+    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 1 }, THIAGO)).status).toBe(409);   // ADM passa da barra de dono; faltam os itens
+    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 1 }, DIEGO)).status).toBe(403);
+    const t = await obra(304, THIAGO);
+    expect(t.body.pode.concluir).toEqual([1]);   // o botão do ADM deixa de ficar cinza
+    const quem = t.body.etapas.map((e: any) => e.conclui_por);
+    expect(quem[0]).toEqual(['Nilce']);           // etapa 1: o vendedor
+    expect(quem[1]).toEqual(['Thiago', 'Diego']); // etapa 2 (passos 3 e 4)
+    expect(quem[2]).toEqual(['Thiago']);
+    expect(quem[3]).toEqual(['Thiago']);          // das etapas 4 em diante também vem
+    expect(quem).toHaveLength(9);
+    semear(304, concluida1);
+    expect((await obra(304, GIOVANNA)).body.pode.concluir).toEqual([]);
+    expect((await obra(304, DIEGO)).body.pode.concluir).toEqual([2]);
   });
 });
 

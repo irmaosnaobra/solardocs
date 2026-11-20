@@ -1375,7 +1375,7 @@ describe('leitura por IA da vendasolar', () => {
     const s = res.body.sugestoes;
     expect(Object.keys(s).sort()).toEqual(['benef_1_titular', 'benef_1_uc', 'consumo_medio_kwh', 'tuc_cpf_cnpj', 'tuc_nome', 'uc_classe', 'unidade_consumidora']);
     expect(s.unidade_consumidora).toMatchObject({ valor: '0012345678', slot: 'conta_luz' });
-    expect(s.consumo_medio_kwh).toMatchObject({ valor: '412.5', confianca: 'media' });
+    expect(s.consumo_medio_kwh).toMatchObject({ valor: '413', confianca: 'media' });   // inteiro (20/11)
     expect(s.tuc_nome).toMatchObject({ valor: 'Ana Souza', slot: 'documento_titular_uc' });       // veio do dossiê
     expect(s.tuc_cpf_cnpj.slot).toBe('documento_titular_uc');
     expect(s.benef_1_uc.slot).toBe('conta_luz_beneficiaria');

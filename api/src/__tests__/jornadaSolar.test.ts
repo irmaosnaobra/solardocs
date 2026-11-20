@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import crypto from 'crypto';
 import {
-  CURTOS_ETAPA, NOMES_ETAPA, bancoPreenchido, comissoesDaVenda, confirmadosValidos, excedenteCpf, marcaDoValor, valorConfirmavel, vistoriaPct, deduzirEtapa, diasUteisDepois, donosDaEtapa, estadoMaterializado, iniciais, itensDaEtapa, marcaDoRateio, podeConcluir,
+  CURTOS_ETAPA, NOMES_ETAPA, bancoPreenchido, comissoesDaVenda, confirmadosValidos, excedenteCpf, marcaDoValor, valorConfirmavel, vistoriaPct, deduzirEtapa, diasUteisDepois, donosDaEtapa, estadoMaterializado, iniciais, itensDaEtapa, marcaDoRateio, podeConcluir, concluiPorDaEtapa,
   prazoDaEtapa, rateioDoCadastro, situacao, somarDiasUteis, totalDoRateio, veObra, type ChaveConfirmar, type EstadoJornada, type PrivadoJornada,
 } from '../services/gerador/jornadaSolar';
 import type { BancoObra, VistoriaObra } from '../services/gerador/jornadaObra';
@@ -430,13 +430,48 @@ describe('quem vê e quem conclui', () => {
     expect(donosDaEtapa(1, 'Nilce')).toEqual(['nilce']);
     expect(iniciais('Nilce')).toBe('NI');
   });
-  it('podeConcluir: o dono da etapa; a 4 é só do Thiago', () => {
+  it('podeConcluir: o dono da etapa; a 2 é do Thiago e do Diego; a 4 é só do Thiago', () => {
     expect(podeConcluir('nilce', 1, 'Nilce')).toBe(true);
     expect(podeConcluir('giovanna', 1, 'Nilce')).toBe(false);
-    expect(podeConcluir('giovanna', 2, 'Nilce')).toBe(true);
+    expect(podeConcluir('diego', 2, 'Nilce')).toBe(true);
+    expect(podeConcluir('thiago', 2, 'Nilce')).toBe(true);
+    expect(podeConcluir('giovanna', 2, 'Nilce')).toBe(false);   // saiu da Giovanna em 20/11
+    expect(podeConcluir('nilce', 2, 'Nilce')).toBe(false);
     expect(podeConcluir('thiago', 3, 'Nilce')).toBe(true);
     expect(podeConcluir('diego', 4, 'Nilce')).toBe(false);
     expect(podeConcluir('thiago', 4, 'Nilce')).toBe(true);
+    expect(podeConcluir('thiago', 10, 'Nilce')).toBe(false);    // etapa que não existe não conclui, nem para o ADM
+  });
+  it('podeConcluir: o ADM conclui qualquer etapa; quem não é dono nem ADM continua barrado', () => {
+    const antes = process.env.SOLAR_ADM;
+    process.env.SOLAR_ADM = 'thiago,carla';
+    try {
+      for (let n = 1; n <= 9; n++) expect(podeConcluir('carla', n, 'Nilce')).toBe(true);
+      expect(podeConcluir('Carla', 2, 'Nilce')).toBe(true);
+      expect(podeConcluir('giovanna', 3, 'Nilce')).toBe(false);
+      expect(podeConcluir('nilce', 2, 'Nilce')).toBe(false);
+      expect(podeConcluir('carla', 1, '')).toBe(true);   // etapa do vendedor sem vendedor conhecido: o ADM conclui
+    } finally { if (antes === undefined) delete process.env.SOLAR_ADM; else process.env.SOLAR_ADM = antes; }
+  });
+  it('concluiPorDaEtapa: nomes de exibição, sem ADM; a 1 e a 9 são do vendedor', () => {
+    expect(concluiPorDaEtapa(1, 'nilce')).toEqual(['Nilce']);
+    expect(concluiPorDaEtapa(1, '')).toEqual([]);
+    expect(concluiPorDaEtapa(2, 'Nilce')).toEqual(['Thiago', 'Diego']);
+    expect(concluiPorDaEtapa(3, 'Nilce')).toEqual(['Thiago']);
+    expect(concluiPorDaEtapa(4, 'Nilce')).toEqual(['Thiago']);
+    expect(concluiPorDaEtapa(5, 'Nilce')).toEqual(['Diego']);
+    expect(concluiPorDaEtapa(9, 'Nilce')).toEqual(['Nilce']);
+    expect(concluiPorDaEtapa(99, 'Nilce')).toEqual([]);
+    expect(donosDaEtapa(2, 'Nilce')).toEqual(['giovanna']);   // quem recebe o aviso "É sua" não mudou
+  });
+  it('concluiPorDaEtapa: o vendedor sai com o acento do card ("João"), não o da comparação; nome diferente do card cai no nome simples', () => {
+    expect(concluiPorDaEtapa(1, 'joao', 'João')).toEqual(['João']);
+    expect(concluiPorDaEtapa(9, 'joao', '  joão  ')).toEqual(['João']);
+    expect(concluiPorDaEtapa(1, 'jose maria', 'José Maria')).toEqual(['José Maria']);
+    expect(concluiPorDaEtapa(1, 'joao')).toEqual(['Joao']);                 // sem o nome do card, o que há
+    expect(concluiPorDaEtapa(1, 'joao', 'Carla')).toEqual(['Joao']);        // card de outra pessoa não troca o nome
+    expect(concluiPorDaEtapa(2, 'joao', 'João')).toEqual(['Thiago', 'Diego']);   // etapa de dono fixo não vira o vendedor
+    expect(concluiPorDaEtapa(1, '', 'João')).toEqual([]);
   });
 });
 

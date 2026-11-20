@@ -300,12 +300,13 @@ describe('leitura por IA da vendasolar', () => {
     expect(r.descartadas).toEqual([]);
     expect(r.sugestoes.unidade_consumidora).toMatchObject({ valor: '0012345678', slot: 'conta_luz', confianca: 'alta' });
     expect(r.sugestoes.uc_classe).toMatchObject({ valor: 'residencial' });
-    expect(r.sugestoes.consumo_medio_kwh).toMatchObject({ valor: '412.5', slot: 'conta_luz' });
+    expect(r.sugestoes.consumo_medio_kwh).toMatchObject({ valor: '413', slot: 'conta_luz' });   // a leitura guarda o consumo médio inteiro (20/11)
     expect(r.sugestoes.concessionaria.valor).toBe('CEMIG');
   });
-  it('consumo ilegível vira confiança baixa com o motivo; a IA não consegue preencher o percentual nem a relação', () => {
+  it('consumo ilegível é descartado com o motivo (20/11); a IA não consegue preencher o percentual nem a relação', () => {
     const r = sugerir([campo('consumo_medio_kwh', 1, 'cerca de 400', 'media'), campo('benef_1_pct', 2, '50'), campo('tuc_relacao', 3, 'conjuge')]);
-    expect(r.sugestoes.consumo_medio_kwh).toMatchObject({ confianca: 'baixa', nota: 'Consumo médio em kWh, maior que zero.' });
+    expect(r.sugestoes.consumo_medio_kwh).toBeUndefined();
+    expect(r.descartadas).toEqual([{ campo: 'consumo_medio_kwh', slot: 'conta_luz', nota: expect.stringContaining('1 a 100.000') }]);
     expect(r.sugestoes.benef_1_pct).toBeUndefined();
     expect(r.sugestoes.tuc_relacao).toBeUndefined();
     expect(listaDeCampos({ campos: [campo('benef_1_pct', 2, '50'), campo('tuc_relacao', 3, 'filho'), campo('benef_1_uc', 2, '1')] }, 'vendasolar').map((x) => x.campo)).toEqual(['benef_1_uc']);

@@ -362,10 +362,11 @@
       '.jor-cab-ac{display:flex;flex-wrap:wrap;gap:8px}',
       '.jor-cab-av{flex:1 0 100%;margin:0;font-size:13px;font-weight:600;line-height:1.4;color:var(--io-ambar-tx,#FDE68A)}',
       '.jor-abas-p{position:sticky;top:var(--top-h,0px);z-index:30;margin:0 0 12px;padding:6px 0;background:var(--n-bg);box-shadow:0 -12px 0 var(--n-bg)}',
-      '.jor-abas-tr{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:4px 8px 4px 4px;border:1px solid var(--n-bd);border-radius:14px;background:var(--n-sf);box-shadow:var(--sombra)}',
+      '.jor-abas-tr{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:4px 8px 4px 4px;border:1px solid var(--n-bd);border-radius:14px;background:var(--n-sf);box-shadow:var(--sombra)}',
       '.jor-abas-tr::-webkit-scrollbar{display:none}',
-      '.jor-ab{flex:0 0 auto;position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:6px 14px 6px 8px;border:0;border-radius:10px;background:transparent;color:var(--n-tx2);font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;touch-action:manipulation}',
-      '.jor-ab.res{padding:6px 16px}',
+      '.jor-abas-tr.rola{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}',
+      '.jor-ab{flex:0 0 auto;position:relative;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:6px 10px 6px 6px;border:0;border-radius:10px;background:transparent;color:var(--n-tx2);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;touch-action:manipulation}',
+      '.jor-ab.res{padding:6px 12px}',
       '.jor-ab:hover:not(.travado):not(.sel){background:var(--n-sf2);color:var(--n-tx)}',
       '.jor-ab:focus-visible{outline:2px solid var(--io-azul-tx);outline-offset:-2px}',
       '.jor-ab.sel{background:var(--io-marcado);color:var(--n-inv)}',
@@ -380,7 +381,10 @@
       '.jor-ab.sel .jor-ab-mk{box-shadow:0 0 0 2px var(--n-inv)}',
       '.jor-ab.compacta:not(.sel) .jor-ab-t{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
       '.jor-ab.compacta:not(.sel){padding:6px 10px}',
-      '.jor-ab-sep{flex:0 0 auto;align-self:center;margin-left:6px;padding:4px 6px 4px 12px;border-left:1px solid var(--n-bd);font-size:12px;font-weight:600;color:var(--n-tx3)}',
+      '.jor-ab-sep{flex:0 0 1px;align-self:stretch;margin:6px 4px 6px 2px;background:var(--n-bd)}',
+      // O motivo escrito de um botão desligado (20/11/2026): nunca cinza sem dizer por quê.
+      '.jor-motivo{display:block;flex:1 0 100%;margin:4px 0 0;font-size:12.5px;line-height:1.4;font-weight:500;color:var(--n-tx2)}',
+      '.jor-motivo-topo{margin:0 0 12px}',
       // A dica da aba (19/11/2026): o que falta no passo, ao passar o mouse ou focar com o teclado. Fixa na tela para a barra rolável não cortar.
       '.jor-dica{position:fixed;left:0;top:0;z-index:60;width:max-content;max-width:min(320px,calc(100vw - 16px));padding:10px 12px;border:1px solid var(--n-bd2);border-radius:10px;background:var(--n-sf);color:var(--n-tx);box-shadow:var(--sombra);font-size:13px;font-weight:500;line-height:1.45;white-space:normal;visibility:hidden;opacity:0;pointer-events:none;transition:opacity .12s ease,visibility .12s}',
       '.jor-dica.on{visibility:visible;opacity:1;pointer-events:auto}',
@@ -478,8 +482,8 @@
       '.jor-pergs,.jor-conf-g{grid-template-columns:minmax(0,1fr)}',
       '.jor-passo-tt h3,.jor-obra-cab h2{font-size:20px}',
       '.jor-ab{padding:6px 12px 6px 6px}',
-      '.jor-ab.num:not(.sel) .jor-ab-t{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
-      '.jor-ab.num:not(.sel){padding:6px 10px}',
+      '.jor-ab.num:not(.sel):not(.ob) .jor-ab-t{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
+      '.jor-ab.num:not(.sel):not(.ob){padding:6px 10px}',
       '.jor-doc-add{grid-template-columns:minmax(0,1fr)}',
       '.jor-prazo-ac{margin-left:0}',
       '.jor-and-l .jor-btn-link,a.jor-rdocs-ab,.jor-grp-t .jor-btn-link{min-height:44px}',
@@ -1617,14 +1621,14 @@
       { id: 'p5', num: 5, titulo: 'Homologação', curto: 'Homologação', etapa: 3, feito: f3, corpo: corpoP5, api: true },
     ];
     // A obra (19/11/2026): 6 Compra, 7 Logística, 8 Obra e 9 Comissionamento, a partir de `abas[]` do fase2. O pós-venda não é aba: aparece no fim da 9.
+    // As 4 abas existem sempre, mesmo antes de a api mandar as etapas 4 a 8 (20/11/2026): sem dado, ficam travadas até o passo anterior concluir.
     var abasF2 = (O.fase2 && Array.isArray(O.fase2.abas)) ? O.fase2.abas : null;
     ABAS_OBRA.forEach(function (a) {
       var es = a.etapas.map(function (n) { return ets[n - 1]; }).filter(Boolean);
-      if (!es.length) return;
       var x = abasF2 ? abasF2.filter(function (y) { return y.numero === a.num; })[0] || null : null;
       var nE = a.etapas.length > 1 && atual >= a.etapas[1] ? a.etapas[1] : a.etapas[0];
       P.push({ id: a.id, num: a.num, titulo: a.titulo, curto: a.titulo, etapa: nE, etapas: a.etapas, obra: true, aba: x, api: true,
-        feito: x ? !!x.concluida : es.every(function (e) { return etapaFeita(e, atual); }), aberta: x ? !!x.aberta : es.some(function (e) { return !!e.aberta_em; }),
+        feito: x ? !!x.concluida : es.length > 0 && es.every(function (e) { return etapaFeita(e, atual); }), aberta: x ? !!x.aberta : es.some(function (e) { return !!e.aberta_em; }),
         corpo: function (c) { corpoAbaObra(c, O.dados, a); } });
     });
     P.forEach(function (p, i) { p.livre = i === 0 || P[i - 1].feito || p.feito || !!p.aberta; });
@@ -1691,9 +1695,32 @@
     // O quadro de documentos fica montado e escondido no fim (os anexos, a leitura e o Trello dependem dele).
     if (O.vdcDet) { O.vdcDet.hidden = true; raiz.appendChild(O.vdcDet); }
     n.replaceChildren(raiz);
+    motivosVisiveis(painel);
     var sel = raiz.querySelector('.jor-ab.sel'); var trilho = sel && sel.parentNode;
     // Só rola a barra quando a aba escolhida ficou fora da vista (o Resumo continua à mostra sempre que couber).
     if (trilho && trilho.scrollWidth > trilho.clientWidth && sel.offsetLeft + sel.offsetWidth > trilho.clientWidth) trilho.scrollLeft = sel.offsetLeft + sel.offsetWidth - trilho.clientWidth + 8;
+  }
+  /**
+   * Botão desligado na tela desenhada ganha o motivo escrito (antes só aparecia no `title`, ao passar o mouse, e no toque nunca).
+   * Os pequenos "Editar" e "Preencher" do Resumo e os chips viram uma frase só por grupo; botão de ação ganha a frase logo depois dele.
+   * O passo que está ocupado (Gerando, Salvando) desliga depois do desenho e não passa por aqui.
+   */
+  function motivosVisiveis(painel) {
+    if (!painel) return;
+    var n = 0; var topo = ''; var paisChips = [];
+    Array.prototype.slice.call(painel.querySelectorAll('button:disabled')).forEach(function (b) {
+      if (b.getAttribute('aria-describedby') || b.classList.contains('jor-ob-pill')) return;
+      var t = b.title || '';
+      if (b.classList.contains('jor-fc-ed')) { if (t && !topo) topo = t; return; }
+      if (b.classList.contains('jor-chip')) {
+        var pai = b.parentNode; if (t && pai && paisChips.indexOf(pai) < 0) { paisChips.push(pai); var sc = el('p', 'jor-motivo', t); pai.insertAdjacentElement('afterend', sc); }
+        return;
+      }
+      // Só o motivo dado pelo próprio botão (`title`): botão cinza por falta de dado já tem a frase "Falta…" ao lado, e um texto genérico mentiria.
+      if (!t) return;
+      var s = el('span', 'jor-motivo', t); s.id = 'jor-mot-' + (++n); b.insertAdjacentElement('afterend', s); b.setAttribute('aria-describedby', s.id);
+    });
+    if (topo) { var p0 = el('p', 'jor-nota jor-motivo-topo', topo.replace(/confirmar\.$/, 'editar estes dados.')); painel.insertBefore(p0, painel.firstChild); }
   }
   /** Troca de aba: desenha, devolve o foco à aba e sobe a página até a barra quando ela já passou do topo. */
   function irAba(id, foco) {
@@ -1748,7 +1775,7 @@
    * Só marca passo liberado: travado não abre e feito sem pendência fica limpo.
    */
   function pendencia(d, p, m) {
-    if (!d || !p || p.resumo || !p.livre || p.id === 'obra') return '';
+    if (!d || !p || p.resumo || !p.livre) return '';
     // Abas da obra: o `falta` (vermelho) e o `falta_opcional` (amarelo) que a api manda. Depois de concluída, a 9 fica com o pós-venda.
     if (p.obra) {
       if (p.feito) return p.num === 9 && window.Jornada.extras.pendenciaPos ? window.Jornada.extras.pendenciaPos(O.fase2) : '';
@@ -1776,7 +1803,12 @@
 
   // ── A dica da aba (19/11/2026): o que falta no passo, com as mesmas contas do ponto e do "Para concluir, falta:" ──
   /** O que libera cada passo 1 a 5, para a dica da aba seguinte quando ela está travada. */
-  var FIM_PASSO = { p1: 'os Documentos estiverem completos', p2: 'o Contrato estiver concluído', p3: 'as Assinaturas estiverem completas', p4: 'a Vistoria concluir', p5: 'a Homologação concluir' };
+  var FIM_PASSO = { p1: 'os Documentos estiverem completos', p2: 'o Contrato estiver concluído', p3: 'as Assinaturas estiverem completas', p4: 'a Vistoria for concluída', p5: 'a Homologação for concluída' };
+  /** Quando uma aba travada abre: o que o passo anterior precisa ter feito (nas abas da obra, o `libera` da aba anterior). Sem o ponto final. */
+  function textoAbre(lista, i) {
+    var antes = lista[i - 1]; var abA = antes && antes.obra ? ABAS_OBRA.filter(function (a) { return a.num === antes.num; })[0] : null;
+    return abA && abA.libera ? 'Abre ' + abA.libera : 'Abre quando ' + (antes && FIM_PASSO[antes.id] || 'o passo anterior concluir');
+  }
   /** O que falta no passo, em duas listas: ob (a api exige, vermelho) e op (não trava, âmbar). */
   function faltasDoPasso(d, p, m) {
     var ob = [], op = [];
@@ -1852,15 +1884,15 @@
   function barraAbas(m, aba) {
     var cx = el('nav', 'jor-abas-p'); cx.setAttribute('aria-label', 'Passos da obra');
     var trilho = el('div', 'jor-abas-tr'); trilho.setAttribute('role', 'tablist');
-    // Resumo, 1 a 5 e 6 a 9 (a obra). Antes da obra abrir, as abas 6 a 9 ficam travadas e só com o número; depois, os passos 1 a 5 encolhem para o número.
+    // Resumo, 1 a 5 e 6 a 9 (a obra). As 4 abas da obra aparecem sempre, com o nome; antes da hora ficam travadas. Depois que a obra abre, os passos 1 a 5 encolhem para o número.
     var obraLivre = obraAberta(m);
     var itens = [{ id: 'resumo', curto: 'Resumo', livre: true, resumo: true }].concat(m.lista);
     var anteriorNum = 0;
     itens.forEach(function (p, i) {
-      if (p.obra && p.id !== 'obra' && !anteriorNum) { var sp = el('span', 'jor-ab-sep', 'Obra'); sp.setAttribute('aria-hidden', 'true'); trilho.appendChild(sp); anteriorNum = 1; }
+      if (p.obra && !anteriorNum) { var sp = el('span', 'jor-ab-sep'); sp.setAttribute('aria-hidden', 'true'); trilho.appendChild(sp); anteriorNum = 1; }
       var est = p.resumo ? '' : p.feito ? 'feito' : p.id === m.atual ? 'atual' : p.livre ? 'aberto' : 'travado';
-      var compacta = p.num && (p.obra ? !obraLivre : obraLivre);
-      var b = el('button', 'jor-ab' + (est ? ' ' + est : '') + (p.id === aba ? ' sel' : '') + (p.resumo ? ' res' : '') + (p.num ? ' num' : '') + (compacta ? ' compacta' : '') + (p.aviso ? ' av' : ''));
+      var compacta = p.num && !p.obra && obraLivre;
+      var b = el('button', 'jor-ab' + (est ? ' ' + est : '') + (p.id === aba ? ' sel' : '') + (p.resumo ? ' res' : '') + (p.num ? ' num' : '') + (p.obra ? ' ob' : '') + (compacta ? ' compacta' : '') + (p.aviso ? ' av' : ''));
       b.type = 'button'; b.id = 'jor-ab-' + p.id; b.setAttribute('role', 'tab');
       b.setAttribute('aria-selected', p.id === aba ? 'true' : 'false'); b.tabIndex = p.id === aba ? 0 : -1;
       if (p.id === aba) b.setAttribute('aria-controls', 'jor-aba-corpo');
@@ -1874,11 +1906,7 @@
       b.appendChild(el('span', 'jor-ab-t', p.curto));
       if (!p.resumo) b.appendChild(srTxt(', ' + ({ feito: p.aviso ? 'feito, com pendência' : 'feito', atual: 'passo da vez', aberto: 'em aberto', travado: 'travado' })[est] + ({ ob: ', falta item obrigatório', op: ', falta item opcional' }[pendencia(O.dados, p, m)] || '')));
       var abre = '';
-      if (est === 'travado') {
-        b.setAttribute('aria-disabled', 'true');
-        var antes = itens[i - 1]; var abA = antes && antes.obra ? ABAS_OBRA.filter(function (a) { return a.num === antes.num; })[0] : null;
-        abre = abA && abA.libera ? 'Abre ' + abA.libera : 'Abre quando ' + (antes && FIM_PASSO[antes.id] || 'o passo anterior concluir');
-      }
+      if (est === 'travado') { b.setAttribute('aria-disabled', 'true'); abre = textoAbre(itens, i); }
       // A dica (o que falta, o que libera ou quando concluiu) no lugar do title: o nativo é lento e some em foco de teclado.
       if (!p.resumo) { var dica = dicaDoPasso(O.dados, p, m, est, compacta, abre); cx.appendChild(dica); ligarDica(b, dica, cx); }
       b.addEventListener('click', function () {
@@ -1896,11 +1924,14 @@
       trilho.appendChild(b);
     });
     cx.appendChild(trilho);
+    // Barra que rola: esmaece a borda direita enquanto ainda há abas fora da vista, para ninguém achar que a última é a que cortou.
+    function fimDaBarra() { trilho.classList.toggle('rola', trilho.scrollWidth - trilho.clientWidth - trilho.scrollLeft > 4); }
+    trilho.addEventListener('scroll', fimDaBarra, { passive: true });
+    setTimeout(fimDaBarra, 0);
     return cx;
   }
 
-  /** A obra (etapas 4 a 9) abre depois do passo 5. Fechada, é uma linha só na barra e no Andamento. */
-  var OBRA_TRAVADA = { id: 'obra', num: 0, titulo: 'Obra', curto: 'Obra', obra: true, livre: false, feito: false };
+  /** A obra (abas 6 a 9) abre depois do passo 5. Fechada, as 4 abas aparecem travadas, cada uma com o que a abre. */
   function obraAberta(m) { return m.lista.some(function (p) { return p.obra && p.livre; }); }
 
   // ── Um passo ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2025,6 +2056,13 @@
     var ul = el('ul', 'jor-pe-falta'); itens.forEach(function (t) { ul.appendChild(el('li', '', t.charAt(0).toUpperCase() + t.slice(1))); });
     f.appendChild(ul); return f;
   }
+  /** Quem pode concluir a etapa: `conclui_por` (nomes, que a api manda) ou, sem ele, os donos da etapa. */
+  function quemConclui(e) {
+    var l = Array.isArray(e.conclui_por) && e.conclui_por.length ? e.conclui_por : (e.dono || []);
+    var out = [];
+    l.forEach(function (x) { var n = nomeBonito(x && typeof x === 'object' ? x.nome : x); if (n && out.indexOf(n) < 0) out.push(n); });
+    return out;
+  }
   /** O pé do passo: o que falta, em etiquetas, e o Concluir que libera o próximo. */
   function rodapePasso(d, p, m) {
     var i = m.lista.indexOf(p); var prox = m.lista[i + 1] || null;
@@ -2054,11 +2092,16 @@
     var f2 = O.fase2;
     var podeLista = e.n <= 3 ? (d.pode.concluir || []) : ((f2 && f2.pode && f2.pode.concluir) || []);
     var pode = podeLista.indexOf(e.n) >= 0 && e.falta === 0;
-    barra.appendChild(e.falta > 0 ? fraseFalta('Para concluir, falta:', faltaE.length ? faltaE : [plural(e.falta, 'item', 'itens')]) : el('p', 'jor-portao-frase', 'Tudo pronto para concluir.'));
+    // Botão cinza sempre com o motivo escrito ao lado: o que falta, ou (tudo pronto, sem permissão) quem conclui este passo.
+    var frase = null;
+    if (e.falta > 0) frase = fraseFalta('Para concluir, falta:', faltaE.length ? faltaE : [plural(e.falta, 'item', 'itens')]);
+    else if (pode) frase = el('p', 'jor-portao-frase', 'Tudo pronto para concluir.');
+    else { var qc = quemConclui(e); frase = el('p', 'jor-portao-frase', qc.length ? 'Tudo pronto. Quem conclui este passo: ' + juntar(qc) + '.' : 'Tudo pronto. Você não tem permissão para concluir este passo.'); }
+    frase.id = 'jor-pe-motivo'; barra.appendChild(frase);
     var rot = e.n === 8 ? 'Finalizar a obra' : e.n === 3 ? 'Concluir a homologação' : p.obra ? 'Concluir ' + minus(e.nome) : 'Concluir e ir para ' + irProx;
     var bc = btn(rot, 'jor-btn-pri jor-btn-grande', function () { concluir(e.n, bc); });
     bc.disabled = !pode;
-    if (!pode && e.falta === 0) bc.title = 'Você não tem permissão para concluir esta etapa.';
+    if (!pode) bc.setAttribute('aria-describedby', 'jor-pe-motivo');
     barra.appendChild(bc);
     if ((e.itens || []).some(function (x) { return x.bloco === 'pendentes' && !x.feito; })) {
       var lk = el('p', 'jor-nota'); lk.appendChild(btn('Ir para o passo 1', 'jor-btn-link', function () { irAba('p1'); })); cx.appendChild(lk);
@@ -2200,8 +2243,7 @@
     var box = el('div', 'jor-grp'); box.appendChild(tituloGrupo('Andamento'));
     var ol = el('ol', 'jor-and');
     var atual = atualEtapa();
-    var obraLivre = obraAberta(m);
-    (obraLivre ? m.lista : m.lista.filter(function (p) { return !p.obra; }).concat([OBRA_TRAVADA])).forEach(function (p) {
+    m.lista.forEach(function (p, i) {
       var est = p.feito ? 'feito' : p.id === m.atual ? 'atual' : p.livre ? 'aberto' : 'travado';
       var li = el('li', 'jor-and-l ' + est + (p.aviso ? ' av' : ''));
       var mk = el('span', 'jor-ab-mk'); mk.setAttribute('aria-hidden', 'true');
@@ -2210,7 +2252,7 @@
       li.appendChild(mk);
       var tx = el('div', 'jor-and-tx');
       var t = el('b', '', p.titulo); tx.appendChild(t);
-      var linha = linhaAndamento(d, p, est, atual);
+      var linha = linhaAndamento(d, p, est, atual, est === 'travado' && p.obra ? textoAbre(m.lista, i) : '');
       if (linha) tx.appendChild(linha);
       li.appendChild(tx);
       if (est !== 'travado') { var ab = btn('Abrir', 'jor-btn-link', function () { irAba(p.id); }); ab.setAttribute('aria-label', 'Abrir ' + (p.num ? 'o passo ' + p.num + ', ' : '') + p.titulo); li.appendChild(ab); }
@@ -2220,11 +2262,10 @@
     return box;
   }
   function linkFora(url, rot, aria) { if (!/^https:\/\//.test(String(url || ''))) return null; var a = el('a', '', rot); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', aria); return a; }
-  function linhaAndamento(d, p, est, atual) {
+  function linhaAndamento(d, p, est, atual, abre) {
     var s = el('span', 'jor-and-s');
     function txt(t) { s.appendChild(document.createTextNode(t)); return s; }
-    if (p.id === 'obra') return txt('Passos 6 a 9: compra, logística, obra e comissionamento. Abre depois do passo 5.');
-    if (est === 'travado') return txt('Abre depois ' + (p.num > 1 ? 'do passo ' + (p.num - 1) : 'da etapa anterior') + '.');
+    if (est === 'travado') return txt(abre ? abre + '.' : 'Abre depois ' + (p.num > 1 ? 'do passo ' + (p.num - 1) : 'da etapa anterior') + '.');
     if (p.obra) {
       var eo = etapasMescladas(); var eu = eo[p.etapas[p.etapas.length - 1] - 1];
       if (p.feito) return txt('Concluído' + (eu && eu.concluida_em ? ' em ' + dataCurta(eu.concluida_em) : '') + (p.num === 9 ? '. Pós-venda em andamento.' : '.'));
@@ -3471,7 +3512,9 @@
     if (cf) c.appendChild(el('p', 'jor-ok', 'Conferido por ' + nomeBonito(d.rateio_conferido.por) + ' em ' + ddmm(String(d.rateio_conferido.conferido_em).slice(0, 10)) + '.'));
     else {
       var bc = btn('Conferi o rateio', 'jor-btn-pri', function () { bc.disabled = true; patch({ rateio_conferido: true }); });
-      bc.disabled = !(d.rateio.total === 100 && d.pode.etapa3); c.appendChild(bc);
+      bc.disabled = !(d.rateio.total === 100 && d.pode.etapa3);
+      if (!d.pode.etapa3) bc.title = 'Você não tem permissão para conferir o rateio.'; else if (d.rateio.total !== 100) bc.title = 'O rateio não soma 100%. Corrija os percentuais antes de conferir.';
+      c.appendChild(bc);
     }
     c.appendChild(el('p', 'jor-nota', 'Confira no protocolo da Cemig antes de concluir.'));
     // O percentual de cada conta se muda no editor do quadro de documentos, que abre aqui mesmo.
@@ -3494,8 +3537,8 @@
     var d = O.dados;
     var num = el('input', 'jor-in'); num.type = 'text'; num.maxLength = 40; num.name = 'protocolo-numero'; num.autocomplete = 'off'; num.setAttribute('aria-label', 'Número do protocolo'); num.value = d.protocolo ? d.protocolo.numero : '';
     var dt = el('input', 'jor-in'); dt.type = 'date'; dt.name = 'protocolo-data'; dt.setAttribute('aria-label', 'Data do protocolo'); dt.value = d.protocolo ? d.protocolo.em : '';
-    var sv = btn('Salvar', 'jor-btn-pri', function () { sv.disabled = true; patch({ protocolo: { numero: num.value.trim(), em: dt.value } }).then(function () { sv.disabled = false; }); });
-    sv.disabled = !d.pode.etapa3; num.disabled = !d.pode.etapa3; dt.disabled = !d.pode.etapa3;
+    var sv = btn('Salvar', '', function () { sv.disabled = true; patch({ protocolo: { numero: num.value.trim(), em: dt.value } }).then(function () { sv.disabled = false; }); });
+    sv.disabled = !d.pode.etapa3; if (!d.pode.etapa3) sv.title = 'Você não tem permissão para salvar o protocolo.'; num.disabled = !d.pode.etapa3; dt.disabled = !d.pode.etapa3;
     // O número do protocolo é parte do item da api (número e print).
     marcaFalta(num, d.protocolo && d.protocolo.numero ? '' : 'ob');
     var g = el('div', 'jor-grade'); var lp = el('label', '', 'Protocolo'); lp.appendChild(num); var ld = el('label', '', 'Data do protocolo'); ld.appendChild(dt); var ls = el('div', 'jor-grade-bt'); ls.appendChild(sv); add(g, lp, ld, ls); c.appendChild(g);

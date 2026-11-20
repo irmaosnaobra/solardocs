@@ -26,6 +26,7 @@ import { modeloInexistente, type ClienteLeitura } from './financeiroLeitura';
 import { CAMPOS, CAMPOS_VENDASOLAR, CAMPOS_DECISAO_PAPEIS, CAMPOS_ENGENHARIA, validarCampo, type Campo } from './cadastroVenda';
 import { donoDoArquivo, motivoDeDescarte, type LinhaLeitura } from './cadastroVendaPapeis';
 import { rotuloDaIa } from './docsRotulos';
+import { NOTA_CONSUMO_FORA, consumoDaLeitura } from './consumoContaLuz';
 import { CAMPOS_COMERCIAIS, limparComercial, type ComercialLido } from './leituraComercial';
 
 const LOG = 'cadastro-venda';
@@ -285,7 +286,7 @@ Regras:
    - Conta de luz da UNIDADE GERADORA (item conta_luz): SÓ unidade_consumidora (o número da unidade consumidora, UC), concessionaria (nome da distribuidora), titular_conta (o nome do titular da conta), endereco_ponto (o endereço da instalação, em uma linha só, com rua, número, bairro, cidade e UF), uc_classe, uc_fornecimento e consumo_medio_kwh. NUNCA preencha campo de pessoa com ela, nem mesmo quando o titular da conta é o contratante ou o titular da homologação: o nome do titular vai só em titular_conta.
      * uc_classe: residencial, comercial, rural, industrial ou poder_publico, como a conta classifica a unidade. Só se estiver escrito.
      * uc_fornecimento: o tipo de fornecimento ou de ligação que a fatura traz ("tipo de fornecimento", "ligação", "tipo de ligação"): monofasico, bifasico ou trifasico. Só se estiver escrito; não deduza pela tensão nem pelo disjuntor.
-     * consumo_medio_kwh: a MÉDIA, em kWh, dos meses do histórico de consumo da conta (some os meses legíveis e divida pela quantidade). Só preencha se o histórico estiver legível; se houver só o consumo do mês, não preencha. Use confiança alta só se o histórico estiver claro e completo; senão, media ou baixa, com uma nota dizendo quantos meses leu. Mande só o número (por exemplo 350 ou 412.5).
+     * consumo_medio_kwh: a MÉDIA do consumo mensal, em kWh, como número inteiro. A conta traz um histórico de consumo impresso (um gráfico de barras ou uma tabela de meses, em geral 12 ou 13): some os meses legíveis, divida pela quantidade e arredonde (por exemplo 412). Se a conta não tiver histórico legível, use o consumo em kWh do mês faturado (o consumo total da fatura, nunca o valor em reais nem a leitura do medidor). Use confiança alta com o histórico claro e completo; media com histórico parcial ou só com o consumo do mês, e uma nota dizendo quantos meses leu. Mande só o número, sem unidade. Só deixe de preencher se nenhum consumo estiver legível.
    - Conta de luz de UNIDADE BENEFICIÁRIA (item conta_luz_beneficiaria): SÓ a vaga de beneficiária dela, na ordem em que as contas aparecem (a primeira conta é benef_1, a segunda benef_2...), ou no número que a linha do arquivo disser, que vale mais: benef_N_uc (o número da unidade consumidora), benef_N_titular (o nome do titular) e benef_N_endereco (o endereço, em uma linha só). NUNCA preencha o percentual do rateio, o comprador nem a unidade geradora com ela.
    - Documento de OUTRA PESSOA (cônjuge, sócio, representante): NÃO preenche campo nenhum, só classifique e dê o rótulo.
    - Documento do imóvel (matrícula, escritura, IPTU): SÓ imovel_matricula, imovel_cartorio, imovel_iptu.
@@ -517,7 +518,10 @@ export function limparSugestoes(
   const origens: Record<string, string> = {};
   for (const [campo, x] of porCampo) {
     if (x.arquivoId) origens[campo] = x.arquivoId;
-    const v = validarCampo(campo, x.valor);
+    // Consumo médio: inteiro de 1 a 100.000 kWh; o que sai disso (lixo, zero, absurdo) a leitura descarta com o motivo.
+    const consumo = campo === 'consumo_medio_kwh' ? consumoDaLeitura(x.valor) : null;
+    if (campo === 'consumo_medio_kwh' && consumo === null) { descartadas.push({ campo, slot: x.slot, nota: NOTA_CONSUMO_FORA }); continue; }
+    const v = consumo !== null ? { ok: true as const, valor: consumo } : validarCampo(campo, x.valor);
     const nota = (!v.ok ? v.erro : '') || (x.repetido ? NOTA_REPETIDO : '') || x.nota || x.notaDoc;
     sugestoes[campo] = v.ok
       ? { valor: v.valor, slot: x.slot, confianca: x.confianca, ...(nota ? { nota } : {}) }

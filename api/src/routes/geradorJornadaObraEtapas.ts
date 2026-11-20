@@ -1,6 +1,6 @@
 import type { Fase2 } from './geradorJornadaObra';
 import { logErroJornada, type GuardaObra } from './geradorJornadaGuarda';
-import { CURTOS_ETAPA, NOMES_ETAPA, donosDaEtapa, iniciais, podeConcluir } from '../services/gerador/jornadaSolar';
+import { CURTOS_ETAPA, NOMES_ETAPA, concluiPorDaEtapa, donosDaEtapa, iniciais, podeConcluir } from '../services/gerador/jornadaSolar';
 import { ehRecusa, type Recusa } from '../services/gerador/jornadaSolarBanco';
 import { etapaAtualCompleta, itensDaEtapaObra, prazoDaEtapaObra, situacaoObra, type ObraPrivada } from '../services/gerador/jornadaObra';
 import { mudarObra, mudarObraPrivada, normalizarObraPrivada, obraVazia } from '../services/gerador/jornadaObraBanco';
@@ -47,7 +47,7 @@ export function etapasEAbas(g: GuardaObra, f: Fase2, hoje: string) {
     // A etapa 8 (liberação e fechamento) é a segunda metade do Comissionamento: a lista dela aparece junto com a da 7.
     const itens = f.joView && (e?.aberta_em || (n === 8 && f.joView.etapas[7].aberta_em)) ? itensParaQuem(n, f, g) : [];
     return {
-      n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donosDaEtapa(n, f.vend).map((d) => ({ nome: d, iniciais: iniciais(d) })),
+      n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donosDaEtapa(n, f.vend).map((d) => ({ nome: d, iniciais: iniciais(d) })), conclui_por: concluiPorDaEtapa(n, f.vend, String(g.card.vendedor_nome ?? '')),
       aberta_em: e?.aberta_em ?? null, concluida_em: e?.concluida_em ?? null,
       prazo: prazoDaEtapaObra(n, f.js, f.joView), situacao: situacaoObra(n, f.js, f.joView, hoje),
       // `falta` conta só o OBRIGATÓRIO (o que trava); `falta_opcional` é o amarelo. As etapas 4, 5 e 6 abrem sozinhas pelo dado: sem botão Concluir.
