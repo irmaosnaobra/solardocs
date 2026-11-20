@@ -296,8 +296,8 @@ export async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> =
     ok: true, etapa_atual: atual, fechada: f.jo?.fechada ?? null, esperando: f.jo?.esperando ?? null,
     etapas,
     pode: {
-      // Só a etapa 8 ainda tem botão; o `finalizar` é o botão único "Concluir e preencher a planilha" do Comissionamento. As 4 a 7 abrem sozinhas.
-      concluir: aberta && (atual as number) >= 8 && podeConcluir(g.nome, atual as number, f.vend) ? [atual] : [],
+      // Nenhuma etapa tem botão Concluir (a lista segue no contrato, vazia); o `finalizar` é o botão único "Concluir e preencher a planilha" do Comissionamento. As 4 a 7 abrem sozinhas.
+      concluir: [] as number[],
       finalizar: final.pode, finalizar_pronto: final.pronto, planilha: !f.din.cancelada && podeConcluir(g.nome, 8, f.vend) && !!f.jo?.etapas[8].concluida_em,
       esperar: aberta && (g.adm || donosDaEtapa(atual as number, f.vend).includes(g.nome)),
       // Só o ADM: abre a próxima etapa da obra que ficou presa (POST etapa-obra com `forcar: true`).
@@ -657,44 +657,8 @@ export function mountJornadaObra(router: Router): void {
       } catch (err) { if (!res.headersSent) falhouJornada(res, 'etapa-obra-forcar', err); }
       return;
     }
-    // O "tudo em zero" da etapa 8 é calculado DENTRO da trava da conta: nenhum lançamento entra entre a conferência e o fechamento.
-    const corpo = async (): Promise<void> => {
-      const f = await lerFase2(g);
-      if (f.din.cancelada) { res.status(409).json({ ok: false, error: MSG_CANCELADA }); return; }
-      if (f.din.fechada) { res.status(409).json({ ok: false, error: MSG_FECHADA }); return; }
-      if (f.etapa !== n) { res.status(409).json({ ok: false, error: 'Esta etapa não é a da vez.' }); return; }
-      if (!podeConcluir(g.nome, n, f.vend)) { res.status(403).json({ ok: false, error: 'Só o dono conclui a etapa.' }); return; }
-      const falta = itensParaQuem(n, f, g).filter((i) => !i.feito && i.nivel === 'obrigatorio');
-      if (falta.length) {
-        res.status(409).json({
-          ok: false, precisa: 'itens', falta: falta.map((i) => ({ chave: i.chave, texto: i.texto })),
-          error: `Falta ${falta.length} ${falta.length === 1 ? 'item' : 'itens'}: ${falta.map((i) => i.texto).join(', ')}.`,
-        }); return;
-      }
-      await prepararEscrita(g, f);
-      const r = await mudarObra(g.id, () => obraVazia(g.id), (e0) => {
-        if (e0.fechada) return { recusa: MSG_FECHADA, http: 409 } as Recusa;
-        const agora = new Date().toISOString();
-        const e = aplicarPortoes(e0, { privada: f.privada, docsIds: f.docsIds, slots: f.slotsMap }, agora, 'leitura');
-        if (etapaAtualCompleta(null, e, null) !== n) return { recusa: 'Esta etapa não é a da vez.', http: 409 } as Recusa;
-        const etapas = { ...e.etapas };
-        etapas[n as 4 | 5 | 6 | 7 | 8] = { aberta_em: e.etapas[n as 4 | 5 | 6 | 7 | 8].aberta_em ?? agora, concluida_em: agora, concluida_por: g.nome };
-        const hist: EstadoObra['historico'] = [{ em: agora, por: g.nome, acao: 'concluir', etapa: n }];
-        if (n < 8) {
-          const prox = (n + 1) as 5 | 6 | 7 | 8;
-          etapas[prox] = { ...e.etapas[prox], aberta_em: e.etapas[prox].aberta_em ?? agora };
-          hist.push({ em: agora, por: g.nome, acao: 'abrir', etapa: prox });
-        } else hist.push({ em: agora, por: g.nome, acao: 'fechar', etapa: 8 });
-        return {
-          ...e, etapas, esperando: e.esperando && e.esperando.etapa === n ? null : e.esperando,
-          fechada: n === 8 ? { em: agora, por: g.nome } : e.fechada, historico: [...e.historico, ...hist].slice(-50),
-        };
-      });
-      if (ehRecusa(r)) { res.status(r.http).json({ ok: false, error: r.recusa, ...(r.extra ?? {}) }); return; }
-      res.json({ ok: true, etapa_atual: n === 8 ? 9 : n + 1, ...(r.fechada ? { fechada: r.fechada } : {}) });
-    };
-    try { if (n === 8) await comTrava(`fin_conta:${g.id}`, g.nome, corpo); else await corpo(); }
-    catch (err) { if (!res.headersSent) falhouJornada(res, 'etapa-obra', err); }
+    // A etapa 8 só conclui e fecha a conta pelo botão final "Concluir e preencher a planilha" (comissionamento/concluir), nem com `forcar`.
+    res.status(409).json({ ok: false, error: 'A obra conclui pelo botão "Concluir e preencher a planilha".', usar: 'comissionamento/concluir' });
   });
 
   // ── Rota 5 · Esperando (4 a 8) ────────────────────────────────────────────────────────────────────────────────────────

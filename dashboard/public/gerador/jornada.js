@@ -372,6 +372,26 @@
       '.jor-ab.compacta:not(.sel) .jor-ab-t{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
       '.jor-ab.compacta:not(.sel){padding:6px 10px}',
       '.jor-ab-sep{flex:0 0 auto;align-self:center;margin-left:6px;padding:4px 6px 4px 12px;border-left:1px solid var(--n-bd);font-size:12px;font-weight:600;color:var(--n-tx3)}',
+      // A dica da aba (19/11/2026): o que falta no passo, ao passar o mouse ou focar com o teclado. Fixa na tela para a barra rolável não cortar.
+      '.jor-dica{position:fixed;left:0;top:0;z-index:60;width:max-content;max-width:min(320px,calc(100vw - 16px));padding:10px 12px;border:1px solid var(--n-bd2);border-radius:10px;background:var(--n-sf);color:var(--n-tx);box-shadow:var(--sombra);font-size:13px;font-weight:500;line-height:1.45;white-space:normal;visibility:hidden;opacity:0;pointer-events:none;transition:opacity .12s ease,visibility .12s}',
+      '.jor-dica.on{visibility:visible;opacity:1;pointer-events:auto}',
+      '.jor-dica::before{content:"";position:absolute;top:-6px;left:var(--seta,16px);width:10px;height:10px;background:var(--n-sf);border-left:1px solid var(--n-bd2);border-top:1px solid var(--n-bd2);transform:rotate(45deg)}',
+      '.jor-dica p{margin:0}',
+      '.jor-dica-n{font-weight:700;color:var(--io-titulo);margin:0 0 6px}',
+      '.jor-dica-t{color:var(--n-tx)}',
+      '.jor-dica-t.ok{color:var(--io-ok-tx);font-weight:600}',
+      '.jor-dica-h{font-size:12px;font-weight:700;letter-spacing:.02em;margin:8px 0 2px}',
+      '.jor-dica-t+.jor-dica-h{margin-top:8px}',
+      '.jor-dica-n+.jor-dica-h,.jor-dica>.jor-dica-h:first-child{margin-top:0}',
+      '.jor-dica-h.ob{color:var(--io-er-tx)}',
+      '.jor-dica-h.op{color:var(--io-av-tx)}',
+      '.jor-dica ul{list-style:none;margin:0;padding:0}',
+      '.jor-dica li{position:relative;padding:1px 0 1px 14px}',
+      '.jor-dica li::before{content:"";position:absolute;left:2px;top:.62em;width:6px;height:6px;border-radius:50%}',
+      '.jor-dica ul.ob li::before{background:var(--io-er)}',
+      '.jor-dica ul.op li::before{background:var(--io-amarelo-forte)}',
+      '.jor-dica-mais{color:var(--n-tx3);margin-top:4px}',
+      '@media (prefers-reduced-motion:reduce){.jor-dica{transition:none}}',
       '.jor-painel{padding:20px 24px 24px;margin:0 0 32px}',
       '.jor-painel:focus{outline:none}',
       '.jor-pagina .jor-grp,.jor-pagina [id^=jor-s-],.jor-painel{scroll-margin-top:calc(var(--top-h,0px) + 76px)}',
@@ -1695,6 +1715,9 @@
     return topo;
   }
 
+  var BLOCOS_PASSO = { p2: ['cliente', 'venda', 'papeis'], p4: ['vistoria'] };
+  /** O item da etapa 1 a 3 é deste passo? (a mesma conta do ponto da aba e da dica) */
+  function itemDoPasso(p, i) { return i.bloco !== 'pendentes' && (!BLOCOS_PASSO[p.id] || BLOCOS_PASSO[p.id].indexOf(i.bloco) >= 0); }
   /**
    * A pendência do passo, para o ponto no número: 'ob' (falta o que a api exige), 'op' (só falta o que não trava) ou ''.
    * Só marca passo liberado: travado não abre e feito sem pendência fica limpo.
@@ -1718,13 +1741,85 @@
     // Etapas 1 a 3 da api: conta só os itens deste passo. O bloco 'pendentes' é herança do passo 1; na etapa 1 os documentos e o
     // excedente são do passo 1 (o p2 fica com cliente, venda e papéis); na etapa 2 o contrato e a procuração são do passo 3 (o p4 só
     // responde pela vistoria).
-    var BLOCOS = { p2: ['cliente', 'venda', 'papeis'], p4: ['vistoria'] };
     var n = e.n <= 3 && e.itens
-      ? e.itens.filter(function (i) { return !i.feito && i.bloco !== 'pendentes' && (!BLOCOS[p.id] || BLOCOS[p.id].indexOf(i.bloco) >= 0); }).length
+      ? e.itens.filter(function (i) { return !i.feito && itemDoPasso(p, i); }).length
       : typeof e.falta === 'number' ? e.falta : (e.itens || []).filter(function (i) { return !i.feito; }).length;
     if (n > 0) return 'ob';
     if (p.id === 'p5' && !temSlot(d, 'projeto_comprovante')) return 'op';
     return '';
+  }
+
+  // ── A dica da aba (19/11/2026): o que falta no passo, com as mesmas contas do ponto e do "Para concluir, falta:" ──
+  /** O que libera cada passo 1 a 5, para a dica da aba seguinte quando ela está travada. */
+  var FIM_PASSO = { p1: 'os Documentos estiverem completos', p2: 'o Contrato estiver concluído', p3: 'as Assinaturas estiverem completas', p4: 'a Vistoria concluir', p5: 'a Homologação concluir' };
+  /** O que falta no passo, em duas listas: ob (a api exige, vermelho) e op (não trava, âmbar). */
+  function faltasDoPasso(d, p, m) {
+    var ob = [], op = [];
+    function pe(l, t) { t = String(t || ''); t = t.charAt(0).toUpperCase() + t.slice(1); if (t && l.indexOf(t) < 0) l.push(t); }
+    if (p.feito) {
+      if (p.aviso) pendentesDe(d).forEach(function (i) { var q = PEDIDOS.filter(function (x) { return x.item === i.chave; })[0]; pe(ob, q ? q.rot : i.texto); });
+      else if (p.obra && p.num === 9 && pendencia(d, p, m) === 'op') pe(op, 'Pedido do pós-venda esperando o cliente');
+      return { ob: ob, op: op };
+    }
+    if (p.obra) {
+      // Como a api conta o `falta` e o `falta_opcional` da aba: só as etapas ainda não concluídas.
+      (p.etapas || []).forEach(function (n) {
+        var e0 = m.ets[n - 1]; if (!e0 || e0.concluida_em) return;
+        (e0.itens || []).forEach(function (i) { if (!i.feito) pe(i.nivel === 'opcional' ? op : ob, i.texto); });
+      });
+    } else if (p.id === 'p1') faltaDoP1(d).forEach(function (t) { pe(ob, t); });
+    else if (p.id === 'p3') faltaDoP3(d).forEach(function (t) { pe(ob, t); });
+    else {
+      var e = m.ets[p.etapa - 1];
+      if (e && e.n <= 3) faltaDaEtapa(e, function (i) { return itemDoPasso(p, i); }).forEach(function (t) { pe(ob, t); });
+      if (p.id === 'p5' && !temSlot(d, 'projeto_comprovante')) pe(op, 'Comprovante do engenheiro');
+    }
+    return { ob: ob, op: op };
+  }
+  /** A dica de uma aba de passo. `abre` (só travada) diz o que libera. Fica escondida; ligarDica mostra. */
+  function dicaDoPasso(d, p, m, est, compacta, abre) {
+    var no = el('div', 'jor-dica'); no.id = 'jor-dica-' + p.id; no.setAttribute('role', 'tooltip');
+    if (compacta) no.appendChild(el('p', 'jor-dica-n', p.num + ' ' + p.titulo));
+    if (est === 'travado') { no.appendChild(el('p', 'jor-dica-t', abre)); return no; }
+    var f = faltasDoPasso(d, p, m); var tot = f.ob.length + f.op.length;
+    if (est === 'feito') {
+      var ns = p.obra ? p.etapas : [p.etapa]; var dt = '';
+      ns.slice().reverse().forEach(function (n) { var e0 = m.ets[n - 1]; if (!dt && e0 && e0.concluida_em) dt = dataCurta(e0.concluida_em); });
+      no.appendChild(el('p', 'jor-dica-t ok', 'Concluído' + (dt ? ' em ' + dt : '')));
+    } else if (!tot) no.appendChild(el('p', 'jor-dica-t', 'Tudo pronto neste passo.'));
+    var resta = 6;
+    [['ob', 'Falta'], ['op', 'Opcional']].forEach(function (g) {
+      var l = f[g[0]].slice(0, resta); if (!l.length) return;
+      resta -= l.length;
+      no.appendChild(el('p', 'jor-dica-h ' + g[0], g[1]));
+      var ul = el('ul', g[0]); l.forEach(function (t) { ul.appendChild(el('li', '', t)); }); no.appendChild(ul);
+    });
+    if (tot > 6) no.appendChild(el('p', 'jor-dica-mais', 'e mais ' + (tot - 6)));
+    return no;
+  }
+  /** Liga a dica à aba: mouse (não o toque, que abre a aba) e foco de teclado. Esc fecha. A dica aceita o mouse em cima, sem sumir. */
+  function ligarDica(b, dica, cx) {
+    var S = cx._dica || (cx._dica = { t: 0, ativa: null });
+    function fechar() { clearTimeout(S.t); if (S.ativa) S.ativa.classList.remove('on'); S.ativa = null; }
+    function mostrar() {
+      clearTimeout(S.t); if (S.ativa && S.ativa !== dica) S.ativa.classList.remove('on');
+      S.ativa = dica;
+      var r = b.getBoundingClientRect(); var w = dica.offsetWidth; var vw = document.documentElement.clientWidth;
+      var x = Math.max(8, Math.min(r.left, vw - w - 8));
+      dica.style.left = Math.round(x) + 'px'; dica.style.top = Math.round(r.bottom + 8) + 'px';
+      dica.style.setProperty('--seta', Math.round(Math.max(10, Math.min(r.left + r.width / 2 - x - 5, w - 22))) + 'px');
+      dica.classList.add('on');
+      window.addEventListener('scroll', fechar, { passive: true, once: true, capture: true });
+    }
+    function esconder() { clearTimeout(S.t); S.t = setTimeout(function () { dica.classList.remove('on'); if (S.ativa === dica) S.ativa = null; }, 120); }
+    b.setAttribute('aria-describedby', dica.id);
+    b.addEventListener('pointerenter', function (ev) { if (ev.pointerType === 'mouse') mostrar(); });
+    b.addEventListener('pointerleave', function (ev) { if (ev.pointerType === 'mouse') esconder(); });
+    dica.addEventListener('pointerenter', function () { clearTimeout(S.t); });
+    dica.addEventListener('pointerleave', esconder);
+    b.addEventListener('focus', function () { var fv = true; try { fv = b.matches(':focus-visible'); } catch (e) { /* navegador sem :focus-visible */ } if (fv) mostrar(); });
+    b.addEventListener('blur', fechar);
+    b.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') fechar(); });
   }
 
   // ── A barra de abas ──────────────────────────────────────────────────────────────────────────────────────────
@@ -1751,15 +1846,17 @@
         b.appendChild(mk);
       }
       b.appendChild(el('span', 'jor-ab-t', p.curto));
-      if (compacta) b.title = p.titulo;
       if (!p.resumo) b.appendChild(srTxt(', ' + ({ feito: p.aviso ? 'feito, com pendência' : 'feito', atual: 'passo da vez', aberto: 'em aberto', travado: 'travado' })[est] + ({ ob: ', falta item obrigatório', op: ', falta item opcional' }[pendencia(O.dados, p, m)] || '')));
+      var abre = '';
       if (est === 'travado') {
         b.setAttribute('aria-disabled', 'true');
         var antes = itens[i - 1]; var abA = antes && antes.obra ? ABAS_OBRA.filter(function (a) { return a.num === antes.num; })[0] : null;
-        b.title = p.titulo + ': ' + (abA && abA.libera ? 'abre ' + abA.libera + '.' : 'abre depois ' + (antes && antes.num ? 'do passo ' + antes.num : 'da etapa anterior') + '.');
+        abre = abA && abA.libera ? 'Abre ' + abA.libera : 'Abre quando ' + (antes && FIM_PASSO[antes.id] || 'o passo anterior concluir');
       }
+      // A dica (o que falta, o que libera ou quando concluiu) no lugar do title: o nativo é lento e some em foco de teclado.
+      if (!p.resumo) { var dica = dicaDoPasso(O.dados, p, m, est, compacta, abre); cx.appendChild(dica); ligarDica(b, dica, cx); }
       b.addEventListener('click', function () {
-        if (est === 'travado') { toast(b.title); return; }
+        if (est === 'travado') { toast(p.titulo + ': ' + minus(abre) + '.'); return; }
         irAba(p.id);
       });
       b.addEventListener('keydown', function (ev) {
@@ -1797,6 +1894,7 @@
     cab.appendChild(ld);
     c.appendChild(cab);
     if (p.obra) { var fl = faixaLibera(p, m); if (fl) c.appendChild(fl); }
+    if (p.obra && p.num === 9) { var fe = forcarEntrega(p); if (fe) c.appendChild(fe); }
     if (p.id === m.atual && e && !etapaFeita(e, atualEtapa())) { var pz = faixaPrazo(d, e); if (pz) c.appendChild(pz); }
     var corpoP = el('div', 'jor-passo-corpo'); corpoP.id = 'jor-s-' + p.id;
     p.corpo(corpoP, p);
@@ -1831,6 +1929,16 @@
     f.appendChild(tx);
     if (p.feito && prox.livre) f.appendChild(btn('Ir para ' + prox.num + ' ' + prox.titulo, 'jor-btn', function () { irAba(prox.id); }));
     return f;
+  }
+  /**
+   * O Comissionamento junta a Entrega (7) e a Liberação (8) e não tem faixa de "libera". Obra antiga presa na Entrega (ex.: sem a senha no cofre):
+   * o ADM abre a Liberação mesmo assim, igual às abas 6 a 8. A etapa 8 não se força: só conclui pelo botão final.
+   */
+  function forcarEntrega(p) {
+    if (p.feito || atualEtapa() !== 7 || !(O.fase2 && O.fase2.pode && O.fase2.pode.forcar)) return null;
+    var cx = el('p', 'jor-nota');
+    cx.appendChild(btn('Abrir a liberação mesmo assim (ADM)', 'jor-btn-link jor-libera-forcar', function () { forcarDialogo(7, 'a liberação'); }));
+    return cx;
   }
   /** Forçar a abertura: o motivo é opcional e a confirmação mora no próprio diálogo (o botão diz o que acontece). */
   function forcarDialogo(etapa, nomeProx) {
@@ -1878,10 +1986,10 @@
     documento_financiamento: 'documentos do passo 1', comprovante_endereco_financiamento: 'documentos do passo 1', excedente: 'excedente do passo 1', conta_excedente: 'excedente do passo 1',
     contrato_assinado: 'assinaturas do passo 3', procuracao: 'assinaturas do passo 3', vistoria: 'vistoria com 80% preenchido',
   };
-  function faltaDaEtapa(e) {
+  function faltaDaEtapa(e, ok) {
     var out = []; var pend = [];
     (e.itens || []).forEach(function (i) {
-      if (i.feito) return;
+      if (i.feito || (ok && !ok(i))) return;
       if (i.bloco === 'pendentes') { var q = PEDIDOS.filter(function (p) { return p.item === i.chave; })[0]; pend.push(minus(q ? q.rot : i.texto)); return; }
       var t = e.n <= 3 && FALTA_ROT[i.chave] ? FALTA_ROT[i.chave] : minus(i.texto);
       if (out.indexOf(t) < 0) out.push(t);

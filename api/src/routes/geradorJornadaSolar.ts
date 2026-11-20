@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { isDeepStrictEqual } from 'node:util';
 import { marcarVendaCompleta } from '../services/gerador/jornadaVendaCompleta';
 import { exigeConsultor } from './geradorDossie';
 import { semCache, lerDocs, dossieDaVendaSolar, type Ctx } from './geradorClientesDocs';
@@ -78,6 +79,12 @@ const logErro = (que: string, err: unknown): void =>
   console.error(`[jornada-solar] ${que}`, (err as { codigo?: unknown } | null)?.codigo ?? 'interno');
 
 /** Responde o erro de uma rota. Conflito de gravação (`ocupado`) é 409 com `tentarDeNovo`; banco e segredo, 503. */
+/** Compara a lista de formas de pagamento pelo conteúdo, sem depender da ordem das chaves de cada item (a ordem dos itens conta). `obs` ausente = ''. */
+function pagamentoIgual(a: unknown, b: unknown): boolean {
+  const norm = (l: unknown): unknown => (Array.isArray(l) ? l.map((p) => (p && typeof p === 'object' ? { ...(p as Record<string, unknown>), obs: (p as Record<string, unknown>).obs ?? '' } : p)) : l);
+  return isDeepStrictEqual(norm(a), norm(b));
+}
+
 function falhou(res: Response, que: string, err: unknown, leitura = false): void {
   logErro(que, err);
   if ((err instanceof ErroJornada && err.codigo === 'ocupado') || (err instanceof ErroCadastro && err.codigo === 'ocupado')) {
@@ -826,7 +833,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     if (l.estado?.cancelada) { res.status(409).json({ ok: false, error: 'Venda cancelada.' }); return; }
     // Fase 2: a conta fechada trava o DINHEIRO da venda (valor, forma de pagamento e desconto: a base do "a receber"). Prazo, nota e o resto seguem editáveis; só o Thiago reabre.
     const venda0 = l.privado?.venda;
-    if (l.obraEstado?.fechada && (!venda0 || venda0.valor_centavos !== valor || JSON.stringify(venda0.pagamento) !== JSON.stringify(pagamento) || venda0.desconto_centavos !== desconto)) {
+    if (l.obraEstado?.fechada && (!venda0 || venda0.valor_centavos !== valor || !pagamentoIgual(venda0.pagamento, pagamento) || venda0.desconto_centavos !== desconto)) {
       res.status(409).json({ ok: false, error: 'A conta desta obra está fechada. Só o Thiago reabre.' }); return;
     }
     // O kit só muda enquanto a etapa 3 não concluiu (e por quem pode confirmá-lo): depois disso o PUT recusa a troca do kit.
@@ -838,7 +845,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     // Não há trava por etapa aqui: com a etapa 1 concluída a Giovanna e o ADM seguem editando a venda (kit incluso) até a obra fechar a conta.
     if (!pode.editar_venda) {
       // Quem corrige o kit mas não edita a venda também aperta "Confirmar a venda": se o corpo vem IGUAL ao gravado (nada de dinheiro, prazo, nota nem kit mudou), é um 200 sem gravar.
-      const igual = !!venda0 && venda0.valor_centavos === valor && JSON.stringify(venda0.pagamento) === JSON.stringify(pagamento) && venda0.desconto_centavos === desconto
+      const igual = !!venda0 && venda0.valor_centavos === valor && pagamentoIgual(venda0.pagamento, pagamento) && venda0.desconto_centavos === desconto
         && venda0.prazo_prometido === prazo && venda0.nota === nota && venda0.kit_confirmado === kitPedido;
       if (igual && pode.confirmar) { res.json({ ok: true, venda: venda0 }); return; }
       res.status(403).json({ ok: false, error: 'Você não pode editar o valor desta venda agora.' }); return;
@@ -855,7 +862,7 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
         const campos: string[] = [];
         // Quem salva a venda aceita o que a leitura por IA gravou: `venda` é montada sem a marca `ia` (os dados passam a valer como da pessoa).
         if (ant.valor_centavos !== valor) campos.push('valor');
-        if (JSON.stringify(ant.pagamento) !== JSON.stringify(pagamento)) campos.push('pagamento');
+        if (!pagamentoIgual(ant.pagamento, pagamento)) campos.push('pagamento');
         if (ant.desconto_centavos !== desconto) campos.push('desconto');
         if (ant.prazo_prometido !== prazo) campos.push('prazo');
         if (ant.nota !== nota) campos.push('nota');
