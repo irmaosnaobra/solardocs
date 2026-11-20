@@ -13,31 +13,36 @@ import { equipamentoDaProposta } from '../services/gerador/trelloVendaSolar';
 import { limparHtmlPapel } from '../services/gerador/htmlPapelSeguro';
 import { lerCardsSolarVendidos, lerTodasLigacoes } from '../services/gerador/vendaSolarHub';
 import {
-  CURTOS_ETAPA, MOTIVOS_ESPERA, NOMES_ETAPA, ROTULO_ESPERA, ddmm, deduzirEtapa, donosDaEtapa, estadoMaterializado, iniciais, podeConcluir, somarDiasUteis, veObra,
+  MOTIVOS_ESPERA, ROTULO_ESPERA, ddmm, deduzirEtapa, donosDaEtapa, estadoMaterializado, etapaAtualDoEstado, podeConcluir, somarDiasUteis, veObra,
   type EstadoJornada, type MotivoEspera,
 } from '../services/gerador/jornadaSolar';
 import { ehRecusa, lerPrivadoJornada, mudarJornada, type Recusa } from '../services/gerador/jornadaSolarBanco';
 import {
-  EQUIPES_LISTA, IDS_EQUIPE, bancoSemValor, LISTA_PRONTA, SECOES_OBRA, etapaAtualCompleta, itensDaEtapaObra, itensIniciais, obraMaterializada, pagoDaCompra, prazoDaEtapaObra,
-  situacaoObra, somaItens, MAX_INDICACOES_POSVENDA, MAX_OCORRENCIAS_POSVENDA, normalizarCpf, normalizarPlaca, type EstadoObra, type ObraPrivada, type SecaoObra,
+  EQUIPES_LISTA, IDS_EQUIPE, bancoSemValor, LISTA_PRONTA, SECOES_OBRA, etapaAtualCompleta, itensIniciais, obraMaterializada, pagoDaCompra, prazoDaEtapaObra,
+  somaItens, MAX_INDICACOES_POSVENDA, MAX_OCORRENCIAS_POSVENDA, normalizarCpf, normalizarPlaca, type EstadoObra, type ObraPrivada, type SecaoObra,
 } from '../services/gerador/jornadaObra';
-import { posvendaInfo } from '../services/gerador/jornadaPosVendaObra';
 import {
   buscarNotaViva, gravarRegistroNota, liberarRegistroNota, reservarChaveNfe, lerObraComVersao, lerObraPrivada, lerTodasObras, mudarObra, mudarObraPrivada, normalizarObraPrivada, obraVazia,
   obraPrivadaVazia,
 } from '../services/gerador/jornadaObraBanco';
 import { cifrar, decifrar } from '../services/gerador/cofreObra';
 import { chaveNfeValida } from '../services/gerador/jornadaObra';
-import { camposDoTermo, termoGarantiaHtml, travaDoBook } from '../services/gerador/termoGarantia';
+import { avisosDoBook, camposDoTermo, termoGarantiaHtml, travaDoBook } from '../services/gerador/termoGarantia';
+import { aplicarPortoes, ultimoCarimbo } from '../services/gerador/obraPortoes';
+import { sincronizarPortoes } from '../services/gerador/obraSincronia';
+import { grupoDoItem, orcadoApenas, serieDoInversor, statusDoKit, statusDoMaterial } from '../services/gerador/compraKit';
+import { posvendaDaObra } from './geradorJornadaObraPosvenda';
+import { equipamentoComContaFechada, etapasEAbas, finalDoComissionamento, forcarAbertura, itensParaQuem, podeForcarAbertura } from './geradorJornadaObraEtapas';
+import { equipamentoFinal, itensParaTermo } from '../services/gerador/equipamentoFinal';
 import { garantiaInstalacaoExtenso } from '../services/templateService';
-import { podeVerValorDaObra, reaisBR, recortarLivro, veRetiradaDosSocios } from '../services/gerador/jornadaDinheiro';
+import { podeVerValorDaObra, reaisBR } from '../services/gerador/jornadaDinheiro';
 import { lerLeituraDoArquivo } from '../services/gerador/financeiroArquivos';
 import crypto from 'crypto';
-import { abrirNavegador } from '../controllers/pdfController';
+import { renderizarBookPdf } from './geradorJornadaBookPdf';
 import { assinarVarios } from '../services/gerador/docsClienteBanco';
 import { gravarArquivoBruto, gravarJsonBruto, lerJsonBruto } from '../services/gerador/cadastroVendaBanco';
 import {
-  TETO_BOOK_BYTES, bookHtml, caminhoBookJson, caminhoBookPdf, urlAssinadaDoBook, type MetaBook,
+  TETO_BOOK_BYTES, caminhoBookJson, caminhoBookPdf, urlAssinadaDoBook, type MetaBook,
 } from '../services/gerador/bookObra';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,7 +66,7 @@ import {
 
 const MSG_FECHADA = 'A conta desta obra está fechada. Só o Thiago reabre.';
 const MSG_CANCELADA = 'Venda cancelada.';
-const hojeBr = (): string => diaDeBrasilia(Date.now());
+export const hojeBr = (): string => diaDeBrasilia(Date.now());
 const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null);
 const lista = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const novoId = (p: string): string => `${p}-${randomUUID().slice(0, 12)}`;
@@ -79,7 +84,7 @@ const mascara = (conta: string): string => {
 
 // ── O que se lê de uma obra ─────────────────────────────────────────────────────────────────────────────────────────
 
-interface Fase2 {
+export interface Fase2 {
   din: DadosDinheiro;
   js: EstadoJornada | null;
   jo: EstadoObra | null;
@@ -100,7 +105,7 @@ interface Fase2 {
   vendaPrivada: Awaited<ReturnType<typeof lerPrivadoJornada>>;
 }
 
-async function lerFase2(g: GuardaObra): Promise<Fase2> {
+export async function lerFase2(g: GuardaObra): Promise<Fase2> {
   const din = await lerDinheiro(g);
   const [docs, cad, vendaPrivada] = await Promise.all([
     lerDocs(g.ctx), lerCadastroVisto(g.id, 'vendasolar'), lerPrivadoJornada(g.id).catch((e) => { logErroJornada('privado', e); return null; }),
@@ -115,25 +120,37 @@ async function lerFase2(g: GuardaObra): Promise<Fase2> {
     if (din.lig.venda) { const pl = await etapaDaPlanilha(din.lig.venda); planilha = pl.etapaPlanilha; fora = pl.fora; }
     deduzida = deduzirEtapa({ temNumero: !!din.lig.venda, slots: slotsSet, planilha, planilhaFora: fora }).etapa;
   }
-  const etapa = etapaAtualCompleta(din.js, din.jo, deduzida);
+  let etapa = etapaAtualCompleta(din.js, din.jo, deduzida);
   const agora = new Date().toISOString();
   let joView = din.jo;
   if (!joView) {
     if (din.js && etapa === 4) joView = obraMaterializada(g.id, 4, din.js.etapas[4].aberta_em, agora);
     else if (!din.js && etapa !== null && etapa >= 4) joView = obraMaterializada(g.id, etapa, null, agora);
   }
+  // As etapas 4 a 6 abrem pelo dado (sem botão): a tela vê o estado com os portões aplicados, mesmo antes da próxima gravação o registrar.
+  // A data da visão é a ÚLTIMA GRAVADA (não "agora"): o prazo da etapa seguinte não anda a cada GET.
+  const privadaLida = din.privada ?? obraPrivadaVazia();
+  const docsIds0 = new Set(docs.reg.arquivos.map((a) => a.id));
+  if (joView) {
+    joView = aplicarPortoes(joView, { privada: privadaLida, docsIds: docsIds0, slots: slotsMap }, ultimoCarimbo(joView) ?? agora, 'leitura');
+    if (!din.js || etapaAtualDoEstado(din.js) >= 4) etapa = etapaAtualCompleta(din.js, joView, deduzida);
+  }
   const contratoAnexo = docs.reg.arquivos.find((a) => a.slot === 'contrato_assinado');
   return {
-    din, js: din.js, jo: din.jo, joView, privada: din.privada ?? obraPrivadaVazia(), etapa, vend: din.vendedor, slotsMap, slotsSet,
-    docsIds: new Set(docs.reg.arquivos.map((a) => a.id)), caminhos: new Map(docs.reg.arquivos.map((a) => [a.id, a.caminho] as [string, string])), arquivos: docs.reg.arquivos.map((a) => ({ id: a.id, slot: a.slot, em: a.em })),
+    din, js: din.js, jo: din.jo, joView, privada: privadaLida, etapa, vend: din.vendedor, slotsMap, slotsSet,
+    docsIds: docsIds0, caminhos: new Map(docs.reg.arquivos.map((a) => [a.id, a.caminho] as [string, string])), arquivos: docs.reg.arquivos.map((a) => ({ id: a.id, slot: a.slot, em: a.em })),
     contratoAnexoYmd: contratoAnexo?.em ? diaDeBrasilia(contratoAnexo.em) : null, cad, proposta, vendaPrivada,
   };
 }
 
-const vCad = (f: Fase2) => (k: string): string => String((f.cad.campos as Record<string, { valor?: string } | undefined>)[k]?.valor ?? '').trim();
+export const vCad = (f: Fase2) => (k: string): string => String((f.cad.campos as Record<string, { valor?: string } | undefined>)[k]?.valor ?? '').trim();
 
 /** O contrato com as garantias: o gravado na geração ou, para o gerado antes de 06/11/2026, o recalculado pela proposta (`fonte: 'recalculado'`). */
-function contratoDe(f: Fase2) {
+/** O equipamento da proposta ligada (módulos e inversor), ou null sem proposta. */
+export const equipPropostaDe = (f: Fase2) =>
+  equipamentoDaProposta(f.proposta ? { qtd_placas: f.proposta.qtd_placas, inversor: f.proposta.inversor, qtd_inversor: f.proposta.qtd_inversor, dados: f.proposta.dados } : null);
+
+export function contratoDe(f: Fase2) {
   if (f.privada.contrato) return f.privada.contrato;
   const v = vCad(f);
   const campos = camposDoContratoDaObra({ proposta: f.proposta }, v, f.vendaPrivada?.venda ?? null);
@@ -143,13 +160,16 @@ function contratoDe(f: Fase2) {
   }, 'leitura', 'recalculado', new Date().toISOString());
 }
 
+/** Os itens que alimentam o termo e o Book: os comprados de cada categoria (a cotação só orçada não entra). */
+const itensTermo = (f: Fase2) => itensParaTermo(f.privada.compra.itens, f.privada.compra.documentos);
+
 function campos(f: Fase2, telefone = '') {
   const c = contratoDe(f);
   const t = f.privada.entrega.termo;
   return {
     contrato: c,
     campos: camposDoTermo({
-      codigo: f.din.lig.venda ?? '*', privadaContrato: c, itensCompra: f.privada.compra.itens, monitoramento: f.privada.entrega.monitoramento,
+      codigo: f.din.lig.venda ?? '*', privadaContrato: c, itensCompra: itensTermo(f), monitoramento: f.privada.entrega.monitoramento,
       termoEntrega: t, contratoData: f.contratoAnexoYmd, entregaYmd: t?.assinado_em ? diaDeBrasilia(t.assinado_em) : null,
       responsavel: f.privada.entrega.responsavel, empresaTelefone: telefone,
     }),
@@ -158,7 +178,12 @@ function campos(f: Fase2, telefone = '') {
 
 function trava(f: Fase2): string[] {
   const { contrato, campos: k } = campos(f);
-  return travaDoBook(k, contrato, f.privada.compra.itens, !!f.privada.entrega.termo?.assinado_em);
+  return travaDoBook(k, contrato, itensTermo(f), !!f.privada.entrega.termo?.assinado_em);
+}
+
+/** O que mudou entre o comprado e a proposta: aviso, nunca trava (o equipamento final é o comprado). */
+function avisosDoBookDe(f: Fase2): string[] {
+  return avisosDoBook(contratoDe(f), itensTermo(f));
 }
 
 // ── O Book (miolo compartilhado pelo GET do Book e pela geração do PDF) ─────────────────────────────────────────────────────
@@ -183,7 +208,7 @@ export const podeGerarBook = (g: GuardaObra, vendedor: string): boolean => g.adm
 async function dadosDoBook(g: GuardaObra, lida?: Fase2): Promise<{ trava: string[] } | DadosBook> {
   const f = lida ?? await lerFase2(g);
   const { contrato, campos: k } = campos(f);
-  const falta = travaDoBook(k, contrato, f.privada.compra.itens, !!f.privada.entrega.termo?.assinado_em);
+  const falta = travaDoBook(k, contrato, itensTermo(f), !!f.privada.entrega.termo?.assinado_em);
   if (falta.length) return { trava: falta };
   const p = f.privada;
   const fotosEntrega = ['ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo']
@@ -197,7 +222,7 @@ async function dadosDoBook(g: GuardaObra, lida?: Fase2): Promise<{ trava: string
     termo_html: limparHtmlPapel(termoGarantiaHtml(k)),
     fotos, caminhos: fotos.map((id) => f.caminhos.get(id)).filter((c): c is string => !!c),
     testes: p.entrega.testes,
-    monitoramento: { app: m.app, conta: m.conta, usina: m.usina, serie: m.serie, comissionamento: m.comissionamento },
+    monitoramento: { app: m.app, conta: m.conta, usina: m.usina, serie: m.serie || serieDoInversor(p.compra.itens, p.compra.documentos), comissionamento: m.comissionamento },
     contatos: { whatsapp: k.empresa_whatsapp },
     ...(contrato.fonte === 'recalculado' ? { aviso_garantias: 'Garantias lidas da proposta (contrato gerado antes de 06/11/2026).' } : {}),
   };
@@ -205,9 +230,9 @@ async function dadosDoBook(g: GuardaObra, lida?: Fase2): Promise<{ trava: string
 
 // ── Quem mexe em quê ──────────────────────────────────────────────────────────────────────────────────────────────────
 
-function podeSecao(g: GuardaObra, f: Fase2, secao: string): boolean {
+export function podeSecao(g: GuardaObra, f: Fase2, secao: string): boolean {
   // A conta fechada (a etapa 8 fecha) trava o dinheiro e as etapas 4 a 8; o pós-venda (etapa 9) nasce justamente depois dela.
-  if (f.din.cancelada || (f.din.fechada && secao !== 'posvenda')) return false;
+  if (f.din.cancelada || (f.din.fechada && secao !== 'posvenda' && secao !== 'compra')) return false;   // a Compra segue aberta só para o equipamento
   const eh = !!f.vend && g.nome === f.vend;
   const noPosVenda = f.etapa !== null && f.etapa >= 4;
   switch (secao) {
@@ -225,7 +250,7 @@ function podeSecao(g: GuardaObra, f: Fase2, secao: string): boolean {
 }
 
 /** Garante os dois estados gravados (a `jornada_solar` primeiro, depois a `jornada_obra`). A leitura nunca materializa; a primeira ESCRITA, sim. */
-async function prepararEscrita(g: GuardaObra, f: Fase2): Promise<void> {
+export async function prepararEscrita(g: GuardaObra, f: Fase2): Promise<void> {
   const agora = new Date().toISOString();
   let aberta4 = f.js?.etapas[4].aberta_em ?? null;
   if (!f.js) {
@@ -238,66 +263,15 @@ async function prepararEscrita(g: GuardaObra, f: Fase2): Promise<void> {
   }
 }
 
-/**
- * Os itens do portão como a pessoa pode ver. O item "A receber e a pagar zerados" da etapa 8 usa o livro inteiro; para quem não vê a retirada dos
- * sócios, quando o que falta é só o que ela não vê, o texto vira genérico (nem valor, nem qual é a pendência).
- */
-function itensParaQuem(n: number, f: Fase2, g: GuardaObra) {
-  const itens = itensDaEtapaObra(n, fonteItens(f));
-  if (n !== 8 || veRetiradaDosSocios(g.nome, g.adm)) return itens;
-  const visivelFecha = recortarLivro(f.din.livro, false).fechamento.pode_fechar_sem_material;
-  return itens.map((i) => (i.chave === 'dinheiro' && !i.feito && visivelFecha ? { ...i, texto: 'Falta uma pendência que o Thiago resolve' } : i));
-}
-
-const fonteItens = (f: Fase2) => ({ jo: f.joView, privada: f.privada, livro: f.din.livro, slots: f.slotsMap, docsIds: f.docsIds });
-
-/** O dia (Brasília) em que a usina foi liberada: a conclusão da etapa 8. Obra antiga materializada só vale se o passo "liberada" tem data. */
-function liberadaEmDe(f: Fase2): string | null {
-  const e8 = f.joView?.etapas[8];
-  if (!e8?.concluida_em) return null;
-  const doPasso = f.privada.liberacao.passos.liberada?.data ?? '';
-  const passoOk = /^\d{4}-\d{2}-\d{2}$/.test(doPasso);
-  if (e8.concluida_por === 'leitura') return passoOk ? doPasso : null;
-  return diaDeBrasilia(e8.concluida_em);
-}
-
-/** O `posvenda_info` do GET: datas, geração esperada, garantias e os 3 textos prontos (só para a pessoa mandar à mão). Nada aqui é valor de venda. */
-function posvendaDaObra(g: GuardaObra, f: Fase2) {
-  const c = contratoDe(f);
-  const itens = f.privada.compra.itens;
-  const mod = itens.find((i) => i.tipo === 'modulo' && (i.garantia_fabricacao_anos || i.garantia_desempenho_anos));
-  const inv = itens.find((i) => i.tipo === 'inversor' && i.garantia_anos);
-  const t = f.privada.entrega.termo;
-  const dados = f.proposta?.dados ?? {};
-  return posvendaInfo({
-    liberadaEm: liberadaEmDe(f), entregaEm: t?.assinado_em ? diaDeBrasilia(t.assinado_em) : null,
-    registradaEm: f.privada.entrega.garantias.registrada_em, treinado: f.privada.entrega.garantias.treinado,
-    modulosAnos: c.garantia_modulos_anos || mod?.garantia_fabricacao_anos, desempenhoModulosAnos: mod?.garantia_desempenho_anos,
-    inversorAnos: c.garantia_inversor_anos || inv?.garantia_anos,
-    instalacaoValor: c.garantia_instalacao_anos, instalacaoUnidade: c.garantia_instalacao_unidade,
-    esperadoKwhMes: dados.mediaMensalGerada, nomeDoCliente: vCad(f)('nome') || String(g.card.cliente_nome ?? ''),
-    linkAvaliacao: f.din.ajustes.link_avaliacao_google ?? '',
-  });
-}
-
 // ── O corpo do GET (e da resposta de todo PUT) ────────────────────────────────────────────────────────────────────────
 
-async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+export async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
   const f = await lerFase2(g);
   const hoje = hojeBr();
   const p = f.privada;
   const veDin = f.din.veDinheiro;
   const veValorVenda = podeVerValorDaObra(g, f.din.ajustes, !!f.vend && g.nome === f.vend);   // regra (a): o valor da proposta de banco é valor da venda
-  const etapas = [4, 5, 6, 7, 8].map((n) => {
-    const e = f.joView?.etapas[n as 4 | 5 | 6 | 7 | 8];
-    const itens = f.joView && e?.aberta_em ? itensParaQuem(n, f, g) : [];
-    return {
-      n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donosDaEtapa(n, f.vend).map((d) => ({ nome: d, iniciais: iniciais(d) })),
-      aberta_em: e?.aberta_em ?? null, concluida_em: e?.concluida_em ?? null,
-      prazo: prazoDaEtapaObra(n, f.js, f.joView), situacao: situacaoObra(n, f.js, f.joView, hoje),
-      itens, falta: itens.filter((i) => !i.feito).length,
-    };
-  });
+  const { etapas, abas } = etapasEAbas(g, f, hoje);
   const atual = f.etapa;
   const aberta = !f.din.cancelada && !f.din.fechada && atual !== null && atual >= 4 && atual <= 8;
   const secoes = SECOES_OBRA.filter((s) => s !== 'previsto' && podeSecao(g, f, s));
@@ -309,18 +283,28 @@ async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): P
     const pago = pagoDaCompra(c.id, f.din.lancamentos);
     return { ...c, pago_centavos: veDin ? pago : null, a_pagar_centavos: veDin ? Math.max(0, soma - pago) : null };
   });
-  const sugeridos = atual === 4 && p.compra.itens.length === 0
-    ? itensIniciais(equipamentoDaProposta(f.proposta ? { qtd_placas: f.proposta.qtd_placas, inversor: f.proposta.inversor, qtd_inversor: f.proposta.qtd_inversor, dados: f.proposta.dados } : null), p.vistoria?.telhado.tipo ?? '')
-    : [];
+  const equipProp = equipPropostaDe(f);
+  // Os `sugeridos` são só o kit da proposta (módulos e inversor); a lista pronta de material vai à parte, em `lista_pronta`.
+  const sugeridos = atual !== null && atual >= 4 && !f.din.fechada && p.compra.itens.length === 0 ? itensIniciais(equipProp) : [];
+  const kit = statusDoKit(p.compra.itens, p.compra.documentos);
+  const material = statusDoMaterial(p.compra.itens, p.compra.documentos);
+  const docsCompra = p.compra.documentos.map((d) => ({ ...d, total_centavos: mascarar(d.total_centavos) }));
+  const final = finalDoComissionamento(g, f);
   const contrato = contratoDe(f);
   const e = p.entrega;
   return {
     ok: true, etapa_atual: atual, fechada: f.jo?.fechada ?? null, esperando: f.jo?.esperando ?? null,
     etapas,
     pode: {
-      concluir: aberta && podeConcluir(g.nome, atual as number, f.vend) ? [atual] : [],
+      // Só a etapa 8 ainda tem botão; o `finalizar` é o botão único "Concluir e preencher a planilha" do Comissionamento. As 4 a 7 abrem sozinhas.
+      concluir: aberta && (atual as number) >= 8 && podeConcluir(g.nome, atual as number, f.vend) ? [atual] : [],
+      finalizar: final.pode, finalizar_pronto: final.pronto, planilha: !f.din.cancelada && podeConcluir(g.nome, 8, f.vend) && !!f.jo?.etapas[8].concluida_em,
       esperar: aberta && (g.adm || donosDaEtapa(atual as number, f.vend).includes(g.nome)),
-      secoes, nota: secoes.includes('compra') || secoes.includes('logistica'),
+      // Só o ADM: abre a próxima etapa da obra que ficou presa (POST etapa-obra com `forcar: true`).
+      forcar: podeForcarAbertura(g, f),
+      // Editar o equipamento dos itens da Compra (descrição, marca, modelo, potência, quantidade, garantias, série): vale até com a conta fechada.
+      equipamento: podeSecao(g, f, 'compra'),
+      secoes, nota: !f.din.fechada && (secoes.includes('compra') || secoes.includes('logistica')),
       cofre_gravar: !f.din.cancelada && !f.din.fechada && (g.nome === 'diego' || g.adm) && atual !== null && atual >= 4,
       cofre_revelar: g.socio,
       fechar: g.adm && !!f.jo?.etapas[8].concluida_em && !f.jo?.fechada && !f.din.cancelada,
@@ -330,14 +314,18 @@ async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): P
     dados: {
       vistoria: p.vistoria, banco: veValorVenda ? p.banco : bancoSemValor(p.banco),
       compra: {
-        itens: p.compra.itens.map((i) => ({ ...i, valor_centavos: mascarar(i.valor_centavos) })), compras,
+        // `grupo`: 'kit' (módulos, inversor, estrutura) ou 'material' (o resto). Valor (pago e orçado) só para quem vê o livro.
+        itens: p.compra.itens.map((i) => ({ ...i, grupo: grupoDoItem(i), orcado_apenas: orcadoApenas(i, p.compra.documentos), valor_centavos: mascarar(i.valor_centavos), orcado_centavos: mascarar(i.orcado_centavos) })), compras, documentos: docsCompra,
         contador: { com_origem: mat.com_origem, total: mat.total }, sugeridos,
+        kit: { completo: kit.completo, faltam: kit.faltam, comprados: kit.comprados, total: kit.total, ids: kit.ativos.map((i) => i.id) },
+        material: { comprados: material.comprados, total: material.total, completo: material.completo },
       },
+      equipamento_final: equipamentoFinal(p.compra.itens, equipProp, p.compra.documentos, p.entrega.monitoramento.serie),
       logistica: { cargas: p.logistica.cargas.map((c) => ({ ...c, frete: { ...c.frete, valor_centavos: mascarar(c.frete.valor_centavos) } })) }, obra: { ...p.obra, equipe: { ...p.obra.equipe, combinado_centavos: mascarar(p.obra.equipe.combinado_centavos) } },
       entrega: {
         testes: e.testes, monitoramento: { ...e.monitoramento, conta: mascara(e.monitoramento.conta), conta_mascarada: mascara(e.monitoramento.conta) },
         cofre: e.cofre ? { gravado: true, em: e.cofre.em, por: e.cofre.por } : null,
-        cofre_revelado: e.cofre_revelado, garantias: e.garantias, termo: e.termo, responsavel: e.responsavel,
+        cofre_revelado: e.cofre_revelado, garantias: e.garantias, termo: e.termo, responsavel: e.responsavel, observacoes: e.observacoes,
       },
       liberacao: p.liberacao,
       posvenda: p.posvenda,
@@ -348,8 +336,9 @@ async function corpoFase2(g: GuardaObra, extra: Record<string, unknown> = {}): P
       },
     },
     versoes: p.versoes,
-    posvenda_info: posvendaDaObra(g, f),
-    book: { pode: book.length === 0, trava: book },
+    posvenda_info: posvendaDaObra(f, contratoDe(f), vCad(f)('nome') || String(g.card.cliente_nome ?? '')),
+    book: { pode: book.length === 0, trava: book, avisos: avisosDoBookDe(f) },
+    abas, finalizar: { falta: final.falta.map((i) => ({ chave: i.chave, texto: i.texto, nivel: i.nivel, grupo: i.grupo })) },
     lista_pronta: LISTA_PRONTA, equipes: EQUIPES_LISTA,
     arquivos: f.arquivos.filter((a) => SLOTS_DA_FASE.includes(a.slot)),
     ...extra,
@@ -370,6 +359,7 @@ function aplicarSecao(secao: SecaoObra, p: ObraPrivada, dadosBrutos: Record<stri
     return novo;
   }
   if (secao === 'compra') {
+    if (f.din.fechada) return equipamentoComContaFechada(p, dadosBrutos, f.din.veDinheiro);   // conta fechada: só o equipamento dos itens muda; dinheiro e compras ficam
     const etapa6Aberta = !!f.joView?.etapas[6].aberta_em;
     const compras = lista(d.compras).slice(0, 20).map((c) => {
       const o = obj(c) ?? {};
@@ -383,14 +373,24 @@ function aplicarSecao(secao: SecaoObra, p: ObraPrivada, dadosBrutos: Record<stri
       const pode6 = (g.adm || g.nome === 'diego') && etapa6Aberta;
       return {
         ...o, id: ex ? ex.id : novoId('i'), criado_por: ex?.criado_por ?? g.nome, criado_em: ex?.criado_em ?? agora,
+        // 'arquivo' é do servidor (a leitura): quem digita nem cria item com essa origem, nem muda a de um que já existe (o item só orçado não conta).
+        origem: ex?.origem === 'arquivo' ? 'arquivo' : (o.origem === 'arquivo' ? (ex?.origem ?? 'manual') : o.origem),
         compra_id: typeof o.compra_id === 'string' && idsCompra.has(o.compra_id) ? o.compra_id : null,
         etapa: o.etapa === 6 && (pode6 || ex?.etapa === 6) ? 6 : 4,
+        // O tique "Comprado" é da pessoa (ou da leitura); campo ausente mantém o que já estava. De onde veio o item e o documento ligado são do servidor.
+        comprado: typeof o.comprado === 'boolean' ? o.comprado : (ex?.comprado ?? false),
+        orcado_centavos: 'orcado_centavos' in o ? o.orcado_centavos : (ex?.orcado_centavos ?? null),
+        lido_de: ex?.lido_de ?? '', documento_id: ex?.documento_id ?? '', serie: 'serie' in o ? o.serie : (ex?.serie ?? ''),
       };
     });
-    const novo = normalizarObraPrivada({ ...p, compra: { itens, compras } });
+    const novo = normalizarObraPrivada({ ...p, compra: { itens, compras, documentos: p.compra.documentos } });
     // Quem não vê o dinheiro (Ajustes com `dinheiro_aberto` desligado) recebeu `null` nos valores: o servidor restaura o do item que já existe.
     if (!f.din.veDinheiro) {
-      for (const i of novo.compra.itens) i.valor_centavos = p.compra.itens.find((x) => x.id === i.id)?.valor_centavos ?? null;
+      for (const i of novo.compra.itens) {
+        const antes = p.compra.itens.find((x) => x.id === i.id);
+        i.valor_centavos = antes?.valor_centavos ?? null;
+        i.orcado_centavos = antes?.orcado_centavos ?? null;
+      }
     }
     for (const c of p.compra.compras) {
       const pago = pagoDaCompra(c.id, f.din.lancamentos);
@@ -485,7 +485,7 @@ function aplicarSecao(secao: SecaoObra, p: ObraPrivada, dadosBrutos: Record<stri
   return { recusa: MSG_PEDIDO, http: 400 };
 }
 
-const fraseNotaRepetida = (onde: string): string => (onde === 'esta obra' ? 'Esta nota já foi lançada nesta obra.' : onde === 'outra obra' ? 'Esta nota já foi lançada em outra obra.'
+export const fraseNotaRepetida = (onde: string): string => (onde === 'esta obra' ? 'Esta nota já foi lançada nesta obra.' : onde === 'outra obra' ? 'Esta nota já foi lançada em outra obra.'
   : onde === 'um card do eletroposto' ? 'Esta nota já foi lançada num card do eletroposto.' : `Esta nota já foi lançada na obra ${onde.replace(/^a obra /, '')}.`);
 
 // ── As rotas ────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -515,7 +515,7 @@ export function mountJornadaObra(router: Router): void {
     const corpo = async (): Promise<void> => {
       const f = await lerFase2(g);
       if (f.din.cancelada) { res.status(409).json({ ok: false, error: MSG_CANCELADA }); return; }
-      if (f.din.fechada && secao !== 'posvenda') { res.status(409).json({ ok: false, error: MSG_FECHADA }); return; }
+      if (f.din.fechada && secao !== 'posvenda' && secao !== 'compra') { res.status(409).json({ ok: false, error: MSG_FECHADA }); return; }
       if (!podeSecao(g, f, secao)) { res.status(403).json({ ok: false, error: 'Você não pode mexer nesta parte agora.' }); return; }
       if (secao !== 'vistoria' && secao !== 'banco') await prepararEscrita(g, f);
       const numeroPedido = secao === 'liberacao'
@@ -523,6 +523,8 @@ export function mountJornadaObra(router: Router): void {
         : '';
       const r = await mudarObraPrivada(g.id, g.nome, secao, versaoLida, (p) => aplicarSecao(secao, p, dados, g, f));
       if (ehRecusa(r)) { res.status(r.http).json({ ok: false, error: r.recusa, ...(r.extra ?? {}) }); return; }
+      // Compra, Logística e Obra abrem a etapa seguinte pelo dado: o portão é conferido (e a etapa registrada, uma vez só) em toda gravação delas.
+      if (secao === 'compra' || secao === 'logistica' || secao === 'obra' || secao === 'entrega') await sincronizarPortoes(g, f, r);
       const extra: Record<string, unknown> = {};
       if (secao === 'obra') {
         const dias = r.obra.plano.filter((x) => IDS_EQUIPE.includes(x.equipe)).map((x) => ({ data: x.data, equipe: x.equipe }));
@@ -644,6 +646,17 @@ export function mountJornadaObra(router: Router): void {
     const b = corpoDe(req);
     const n = b ? b.etapa : undefined;
     if (!b || typeof n !== 'number' || !Number.isInteger(n) || n < 4 || n > 8) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+    // Compra, Logística, Obra e Entrega abrem a etapa seguinte sozinhas, pelo dado: não há botão Concluir nelas. A liberação (8) fecha pelo botão final.
+    if (n < 8) {
+      if (b.forcar !== true) { res.status(409).json({ ok: false, abre_sozinha: true, error: 'Esta etapa abre a próxima sozinha quando o dado que importa existe. Não há botão Concluir.' }); return; }
+      // `forcar: true` (só ADM, `motivo` opcional): abre a próxima etapa da obra presa. Vale o histórico com o nome do ADM.
+      try {
+        const f = await lerFase2(g);
+        const s = await forcarAbertura(g, f, n as 4 | 5 | 6 | 7, b.motivo, () => prepararEscrita(g, f));
+        res.status(s.http).json(s.json);
+      } catch (err) { if (!res.headersSent) falhouJornada(res, 'etapa-obra-forcar', err); }
+      return;
+    }
     // O "tudo em zero" da etapa 8 é calculado DENTRO da trava da conta: nenhum lançamento entra entre a conferência e o fechamento.
     const corpo = async (): Promise<void> => {
       const f = await lerFase2(g);
@@ -651,7 +664,7 @@ export function mountJornadaObra(router: Router): void {
       if (f.din.fechada) { res.status(409).json({ ok: false, error: MSG_FECHADA }); return; }
       if (f.etapa !== n) { res.status(409).json({ ok: false, error: 'Esta etapa não é a da vez.' }); return; }
       if (!podeConcluir(g.nome, n, f.vend)) { res.status(403).json({ ok: false, error: 'Só o dono conclui a etapa.' }); return; }
-      const falta = itensParaQuem(n, f, g).filter((i) => !i.feito);
+      const falta = itensParaQuem(n, f, g).filter((i) => !i.feito && i.nivel === 'obrigatorio');
       if (falta.length) {
         res.status(409).json({
           ok: false, precisa: 'itens', falta: falta.map((i) => ({ chave: i.chave, texto: i.texto })),
@@ -659,10 +672,11 @@ export function mountJornadaObra(router: Router): void {
         }); return;
       }
       await prepararEscrita(g, f);
-      const r = await mudarObra(g.id, () => obraVazia(g.id), (e) => {
-        if (e.fechada) return { recusa: MSG_FECHADA, http: 409 } as Recusa;
-        if (etapaAtualCompleta(null, e, null) !== n) return { recusa: 'Esta etapa não é a da vez.', http: 409 } as Recusa;
+      const r = await mudarObra(g.id, () => obraVazia(g.id), (e0) => {
+        if (e0.fechada) return { recusa: MSG_FECHADA, http: 409 } as Recusa;
         const agora = new Date().toISOString();
+        const e = aplicarPortoes(e0, { privada: f.privada, docsIds: f.docsIds, slots: f.slotsMap }, agora, 'leitura');
+        if (etapaAtualCompleta(null, e, null) !== n) return { recusa: 'Esta etapa não é a da vez.', http: 409 } as Recusa;
         const etapas = { ...e.etapas };
         etapas[n as 4 | 5 | 6 | 7 | 8] = { aberta_em: e.etapas[n as 4 | 5 | 6 | 7 | 8].aberta_em ?? agora, concluida_em: agora, concluida_por: g.nome };
         const hist: EstadoObra['historico'] = [{ em: agora, por: g.nome, acao: 'concluir', etapa: n }];
@@ -787,6 +801,7 @@ export function mountJornadaObra(router: Router): void {
       await prepararEscrita(g, f);
       const r = await mudarObraPrivada(g.id, g.nome, null, null, (p) => ({ ...p, entrega: { ...p.entrega, cofre: { ...c, em: new Date().toISOString(), por: g.nome } } }));
       if (ehRecusa(r)) { res.status(r.http).json({ ok: false, error: r.recusa }); return; }
+      await sincronizarPortoes(g, f, r);   // a senha no cofre faz parte do portão da Entrega
       res.json({ ok: true, gravado: true });
     } catch (err) { falhouJornada(res, 'cofre', err); }
   });
@@ -826,7 +841,6 @@ export function mountJornadaObra(router: Router): void {
   router.post('/jornada-solar/obra/:card/book/pdf', ...base, async (req: Request, res: Response) => {
     const g = await guardaDaObra(req, res);
     if (!g) return;
-    let browser: Awaited<ReturnType<typeof abrirNavegador>> | undefined;
     try {
       const f = await lerFase2(g);
       if (!podeGerarBook(g, f.vend)) { res.status(403).json({ ok: false, error: 'Você não pode gerar o Book desta obra.' }); return; }
@@ -835,21 +849,7 @@ export function mountJornadaObra(router: Router): void {
       const urls = await assinarVarios(d.caminhos, 600);
       const fotos = d.caminhos.map((c) => urls.get(c)).filter((u): u is string => !!u);
       let pdf: Buffer | null = null;
-      try {
-        browser = await abrirNavegador();
-        for (const larguraFoto of ['31%', '15%'] as const) {
-          const page = await browser.newPage();
-          try {
-            await page.setJavaScriptEnabled(false);
-            await page.setContent(bookHtml({
-              titulo: d.titulo, cliente: d.cliente, cidade: d.cidade, fotos, testes: d.testes as unknown as Record<string, unknown>,
-              monitoramento: d.monitoramento, contatos: d.contatos, termo_html: d.termo_html, aviso_garantias: d.aviso_garantias, larguraFoto,
-            }), { waitUntil: 'networkidle0', timeout: 45_000 });
-            pdf = Buffer.from(await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true }));
-          } finally { await page.close().catch(() => {}); }
-          if (pdf.length <= TETO_BOOK_BYTES) break;
-        }
-      } catch (err) {
+      try { pdf = await renderizarBookPdf(d, fotos); } catch (err) {
         logErroJornada('book_pdf', err);
         res.status(503).json({ ok: false, error: 'Não consegui gerar o PDF agora. Tente de novo em 1 minuto.' });
         return;
@@ -860,7 +860,7 @@ export function mountJornadaObra(router: Router): void {
       const meta: MetaBook = { v: 1, gerado_em: agora, por: g.nome, tamanho: pdf.length, sha256: crypto.createHash('sha256').update(pdf).digest('hex'), fotos: fotos.length };
       await gravarJsonBruto(caminhoBookJson(g.id), meta);
       res.json({ ok: true, gerado_em: agora, url: await urlAssinadaDoBook(g.id, 600) });
-    } catch (err) { falhouJornada(res, 'book_pdf', err); } finally { if (browser) await browser.close().catch(() => {}); }
+    } catch (err) { falhouJornada(res, 'book_pdf', err); }
   });
 
   router.get('/jornada-solar/obra/:card/book/pdf', ...base, async (req: Request, res: Response) => {

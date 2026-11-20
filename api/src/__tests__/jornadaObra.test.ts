@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
-  chaveNfeValida, etapaAtualCompleta, faltaDaRetirada, itensDaEtapaObra, materialDaCompra, normalizarCpf, normalizarPlaca, obraMaterializada, pendenciasDaObra, placaValida,
+  chaveNfeValida, etapaAtualCompleta, itensDaEtapaObra, materialDaCompra, normalizarCpf, normalizarPlaca, obraMaterializada, pendenciasDaObra, placaValida,
   prazoDaEtapaObra, situacaoObra,
   type EstadoObra, type ItemCompra, type ObraPrivada,
 } from '../services/gerador/jornadaObra';
 import { estadoMaterializado, situacao, situacaoComPrazo, type EstadoJornada } from '../services/gerador/jornadaSolar';
 import { obraPrivadaVazia, obraVazia } from '../services/gerador/jornadaObraBanco';
 import { AJUSTES_PADRAO, categoriaObra, livroDaObra, type LancamentoObra } from '../services/gerador/jornadaDinheiro';
-import { camposDoTermo, termoGarantiaHtml, travaDoBook } from '../services/gerador/termoGarantia';
+import { avisosDoBook, camposDoTermo, termoGarantiaHtml, travaDoBook } from '../services/gerador/termoGarantia';
 import { cifrar, decifrar } from '../services/gerador/cofreObra';
 import { limparNota } from '../services/gerador/notaLeitura';
 
@@ -101,7 +101,7 @@ describe('prazos das etapas 4 a 8', () => {
 const item = (id: string, o: Partial<ItemCompra> = {}): ItemCompra => ({
   id, origem: 'manual', tipo: 'outro', descricao: id, quantidade: 1, unidade: 'un', marca: '', modelo: '', potencia_w: null, potencia_kw: null,
   garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: null, compra_id: null, fornecedor: '', valor_centavos: null, data: null,
-  etapa: 4, criado_por: 'thiago', criado_em: AGORA, ...o,
+  etapa: 4, criado_por: 'thiago', criado_em: AGORA, comprado: false, orcado_centavos: null, lido_de: '', documento_id: '', serie: '', ...o,
 });
 const lanc = (compra: string | null, valor: number, o: { estorno?: string } = {}): LancamentoObra => {
   const cat = categoriaObra('saida', 'material')!;
@@ -127,70 +127,15 @@ function compra11(): { p: ObraPrivada; ls: LancamentoObra[] } {
     { id: 'c-1', fornecedor: 'Distribuidora Solar Centro', cidade: 'Uberlândia', data: '2026-10-15', forma: 'boleto', nota_chega: 'com_a_carga', nota: null },
     { id: 'c-2', fornecedor: 'Elétrica Central', cidade: 'Uberlândia', data: '2026-10-16', forma: 'cartao', nota_chega: 'anexada', nota: null },
   ];
-  const pago = (id: string, i: number) => item(id, { compra_id: 'c-1', fornecedor: 'Distribuidora Solar Centro', valor_centavos: 100_000, data: '2026-10-15', descricao: `kit ${i}` });
+  const pago = (id: string, i: number) => item(id, { comprado: true, compra_id: 'c-1', fornecedor: 'Distribuidora Solar Centro', valor_centavos: 100_000, data: '2026-10-15', descricao: `kit ${i}` });
   p.compra.itens = [
     ...[1, 2, 3, 4, 5].map((i) => pago(`i-${i}`, i)),
-    ...[6, 7, 8, 9, 10, 11].map((i) => item(`i-${i}`, { compra_id: 'c-2', fornecedor: 'Elétrica Central', valor_centavos: 15_000, data: '2026-10-16' })),
+    ...[6, 7, 8, 9, 10, 11].map((i) => item(`i-${i}`, { comprado: true, compra_id: 'c-2', fornecedor: 'Elétrica Central', valor_centavos: 15_000, data: '2026-10-16' })),
   ];
   return { p, ls: [lanc('c-1', 500_000)] };
 }
 
 describe('o portão da Compra e das outras etapas', () => {
-  it('Compra: "5 de 11" falta e "11 de 11" fecha; item sem data falta; compra paga a menos falta', () => {
-    const { p, ls } = compra11();
-    const f = fonte(p, ls);
-    expect(texto(4, f, 'material')).toMatchObject({ feito: false, texto: 'Todo o material com origem, valor e data, um item por linha (5 de 11)' });
-    expect(texto(4, f, 'comprovante').feito).toBe(false);   // a compra 2 ainda não tem lançamento
-    const fecha = [...ls, lanc('c-2', 90_000)];
-    expect(texto(4, fonte(p, fecha), 'material')).toMatchObject({ feito: true, texto: expect.stringContaining('11 de 11') });
-    expect(texto(4, fonte(p, fecha), 'comprovante').feito).toBe(true);
-    // Item sem data: sai do N.
-    const semData = JSON.parse(JSON.stringify(p)) as ObraPrivada;
-    semData.compra.itens[10].data = null;
-    expect(texto(4, fonte(semData, fecha), 'material')).toMatchObject({ feito: false, texto: expect.stringContaining('10 de 11') });
-    // Compra paga a menos: os 6 itens dela saem do N.
-    expect(texto(4, fonte(p, [...ls, lanc('c-2', 80_000)]), 'material')).toMatchObject({ feito: false, texto: expect.stringContaining('5 de 11') });
-    // Sem nenhum item: falta.
-    expect(texto(4, fonte(obraPrivadaVazia(), []), 'material').feito).toBe(false);
-    expect(texto(4, fonte(obraPrivadaVazia(), []), 'comprovante').feito).toBe(false);
-  });
-
-  it('Logística: nota faltando, avaria não resolvida e frete sem comprovante travam, cada um sozinho', () => {
-    const { p } = compra11();
-    const ls = [lanc('c-1', 500_000), lanc('c-2', 90_000)];
-    const itens4 = p.compra.itens.map((i) => i.id);
-    p.logistica.cargas = [{
-      id: 'g-1', nome: 'Carga 1', itens: itens4, saida: { lugar: 'Uberlândia', em: '2026-10-20T08:00' }, chegada: { lugar: 'Obra', destino: 'obra', em: '2026-10-22T10:00' },
-      transporte: { empresa: 'Frete Rápido Udi', motorista: 'Zé', cpf: '52998224725', placa: 'ABC1D23' }, compras: ['c-1', 'c-2'], recebido_por: { nome: 'Diego', cpf: '', assinatura_id: 'a-ass' },
-      conferencia: { itens_ok: itens4, foto_id: 'a-conf' }, avaria: { tem: false, descricao: '', foto_id: '', o_que_fazer: '', resolvida: false },
-      frete: { valor_centavos: 25_000, forma: 'pix' }, documentos: [],
-    }];
-    p.compra.compras = p.compra.compras.map((c) => ({ ...c, nota: { path: 'fin/7/x.pdf', sha256: 'a'.repeat(64), numero: '1', chave: '', nf_id: 'nf-1' } }));
-    const docs = ['a-conf', 'a-ass'];
-    const comFrete = [...ls, { ...lanc(null, 25_000), categoria: 'frete', obra: { ...lanc(null, 1).obra, etapa: 5, carga_id: 'g-1' } } as LancamentoObra];
-    const tudo = fonte(p, comFrete, null, {}, docs);
-    for (const c of ['cargas', 'conferencia', 'notas', 'avarias', 'frete']) expect(texto(5, tudo, c), c).toMatchObject({ feito: true });
-    // Frete sem comprovante.
-    expect(texto(5, fonte(p, ls, null, {}, docs), 'frete').feito).toBe(false);
-    expect(livroDe(p, ls).a_pagar.map((x) => x.tipo)).toContain('frete');
-    // Avaria não resolvida.
-    const av = JSON.parse(JSON.stringify(p)) as ObraPrivada;
-    av.logistica.cargas[0].avaria = { tem: true, descricao: 'caixa amassada', foto_id: '', o_que_fazer: 'trocar', resolvida: false };
-    expect(texto(5, fonte(av, comFrete, null, {}, docs), 'avarias').feito).toBe(false);
-    av.logistica.cargas[0].avaria.resolvida = true;
-    expect(texto(5, fonte(av, comFrete, null, {}, docs), 'avarias').feito).toBe(true);
-    // Nota faltando.
-    const sn = JSON.parse(JSON.stringify(p)) as ObraPrivada;
-    sn.compra.compras[1].nota = null;
-    expect(texto(5, fonte(sn, comFrete, null, {}, docs), 'notas').feito).toBe(false);
-    // Foto da conferência que sumiu do depósito.
-    expect(texto(5, fonte(p, comFrete, null, {}, ['a-ass']), 'conferencia').feito).toBe(false);
-    // Item da carga fora da conferência.
-    const cf = JSON.parse(JSON.stringify(p)) as ObraPrivada;
-    cf.logistica.cargas[0].conferencia.itens_ok = itens4.slice(1);
-    expect(texto(5, fonte(cf, comFrete, null, {}, docs), 'conferencia').feito).toBe(false);
-  });
-
   it('CPF (11 dígitos com dígito verificador) e placa (Mercosul ou antiga, maiúscula, sem hífen)', () => {
     expect(normalizarCpf('529.982.247-25')).toBe('52998224725');
     expect(normalizarCpf('52998224725')).toBe('52998224725');
@@ -203,77 +148,6 @@ describe('o portão da Compra e das outras etapas', () => {
     expect(normalizarPlaca('ABC-1234')).toBe('ABC1234');  // antiga, com hífen
     expect(normalizarPlaca(' abc 1234 ')).toBe('ABC1234');
     for (const ruim of ['AB1234', 'ABCD123', 'ABC12D3', 'ABC1D2', '1234ABC', 'ABC1D234', '', null, 12]) expect(placaValida(ruim), String(ruim)).toBe(false);
-  });
-
-  it('Logística: cada carga entregue exige quem buscou (nome, CPF, placa) e quem recebeu; o texto diz o que falta', () => {
-    const { p } = compra11();
-    const itens4 = p.compra.itens.map((i) => i.id);
-    const carga = (o: Partial<ObraPrivada['logistica']['cargas'][number]> = {}) => ({
-      id: 'g-1', nome: 'Carga 1', itens: itens4, saida: { lugar: 'Uberlândia', em: '2026-10-20T08:00' }, chegada: { lugar: 'Obra', destino: 'obra' as const, em: '2026-10-22T10:00' },
-      transporte: { empresa: 'Frete', motorista: 'Zé', cpf: '52998224725', placa: 'ABC1D23' }, compras: ['c-1', 'c-2'], recebido_por: { nome: 'Diego', cpf: '', assinatura_id: 'a-ass' },
-      conferencia: { itens_ok: itens4, foto_id: 'a-conf' }, avaria: { tem: false, descricao: '', foto_id: '', o_que_fazer: '', resolvida: false },
-      frete: { valor_centavos: null, forma: '' }, documentos: [], ...o,
-    });
-    const jo5 = obraMaterializada(7, 5, AGORA, AGORA);
-    p.logistica.cargas = [carga()];
-    const ok = itensDaEtapaObra(5, fonte(p, [], jo5)).find((i) => i.chave === 'retirada_g-1')!;
-    expect(ok).toMatchObject({ feito: true, texto: 'Carga 1: quem buscou e quem recebeu' });
-    // Sem a placa: o texto do exemplo.
-    p.logistica.cargas = [carga({ transporte: { empresa: 'Frete', motorista: 'Zé', cpf: '52998224725', placa: '' } })];
-    expect(itensDaEtapaObra(5, fonte(p, [], jo5)).find((i) => i.chave === 'retirada_g-1')).toMatchObject({ feito: false, texto: 'Carga 1: falta a placa de quem buscou' });
-    // Falta mais de uma coisa.
-    p.logistica.cargas = [carga({ transporte: { empresa: 'Frete', motorista: '', cpf: '', placa: 'ABC1D23' }, recebido_por: { nome: '', cpf: '', assinatura_id: '' } })];
-    expect(itensDaEtapaObra(5, fonte(p, [], jo5)).find((i) => i.chave === 'retirada_g-1')!.texto)
-      .toBe('Carga 1: falta o nome de quem buscou, o CPF de quem buscou e o nome de quem recebeu');
-    // CPF inválido gravado conta como falta; o CPF de quem recebeu é opcional.
-    expect(faltaDaRetirada(carga({ transporte: { empresa: '', motorista: 'Zé', cpf: '52998224726', placa: 'ABC1234' } }))).toEqual(['o CPF de quem buscou']);
-    expect(faltaDaRetirada(carga())).toEqual([]);
-    // Carga que ainda não chegou não pede nada; a segunda carga é a "Carga 2".
-    p.logistica.cargas = [carga(), carga({ id: 'g-2', chegada: { lugar: '', destino: 'deposito', em: '' }, transporte: { empresa: '', motorista: '', cpf: '', placa: '' } })];
-    expect(itensDaEtapaObra(5, fonte(p, [], jo5)).filter((i) => i.chave.startsWith('retirada_'))).toHaveLength(1);
-    p.logistica.cargas = [carga(), carga({ id: 'g-2', transporte: { empresa: '', motorista: 'Zé', cpf: '52998224725', placa: '' } })];
-    expect(itensDaEtapaObra(5, fonte(p, [], jo5)).find((i) => i.chave === 'retirada_g-2')!.texto).toBe('Carga 2: falta a placa de quem buscou');
-  });
-
-  it('obra que já passou da etapa 5 não regride: sem item novo, mesmo com a carga sem placa', () => {
-    const { p } = compra11();
-    p.logistica.cargas = [{
-      id: 'g-1', nome: 'Carga 1', itens: [], saida: { lugar: '', em: '' }, chegada: { lugar: 'Obra', destino: 'obra', em: '2026-10-22T10:00' },
-      transporte: { empresa: '', motorista: '', cpf: '', placa: '' }, compras: [], recebido_por: { nome: '', cpf: '', assinatura_id: '' },
-      conferencia: { itens_ok: [], foto_id: '' }, avaria: { tem: false, descricao: '', foto_id: '', o_que_fazer: '', resolvida: false }, frete: { valor_centavos: null, forma: '' }, documentos: [],
-    }];
-    const aberta = itensDaEtapaObra(5, fonte(p, [], obraMaterializada(7, 5, AGORA, AGORA)));
-    expect(aberta.some((i) => i.chave === 'retirada_g-1' && !i.feito)).toBe(true);
-    for (const etapa of [6, 7, 8, 9]) {
-      const itens = itensDaEtapaObra(5, fonte(p, [], obraMaterializada(7, etapa, AGORA, AGORA)));
-      expect(itens.map((i) => i.chave), `etapa ${etapa}`).toEqual(['cargas', 'conferencia', 'notas', 'avarias', 'frete']);
-    }
-  });
-
-  it('Obra: o diário do dia 2 sem saída trava (J06); equipe paga com comprovante', () => {
-    const p = obraPrivadaVazia();
-    p.obra.plano = [
-      { data: '2026-10-23', inicio: '08:00', fim: '17:00', equipe: 'pablo', ajudantes: 2, servico: 'estrutura e placas' },
-      { data: '2026-10-24', inicio: '08:00', fim: '17:00', equipe: 'pablo', ajudantes: 2, servico: 'ligação' },
-    ];
-    p.obra.diario = [
-      { data: '2026-10-23', chegada: '08:00', saida: '17:00', fotos: ['f-1'], ocorrencia: '' },
-      { data: '2026-10-24', chegada: '08:00', saida: '', fotos: ['f-2'], ocorrencia: '' },
-    ];
-    p.obra.checklist = Object.fromEntries(['estrutura', 'placas', 'strings', 'inversor', 'dps', 'aterramento', 'cabos', 'padrao'].map((k) => [k, true]));
-    p.obra.equipe = { combinado_centavos: 165_000, descricao: '15 placas a R$ 110,00' };
-    const docs = ['f-1', 'f-2'];
-    const pgEquipe = (v: number) => ({ ...lanc(null, v), categoria: 'mao_de_obra', obra: { ...lanc(null, 1).obra, etapa: 6 } }) as LancamentoObra;
-    expect(texto(6, fonte(p, [pgEquipe(165_000)], null, {}, docs), 'diario')).toMatchObject({ feito: false, texto: 'Diário dos 2 dias com fotos' });
-    p.obra.diario[1].saida = '16:30';
-    expect(texto(6, fonte(p, [pgEquipe(165_000)], null, {}, docs), 'diario').feito).toBe(true);
-    expect(texto(6, fonte(p, [pgEquipe(165_000)], null, {}, ['f-1']), 'diario').feito).toBe(false);   // a foto do dia 2 sumiu
-    expect(texto(6, fonte(p, [pgEquipe(165_000)], null, {}, docs), 'checklist').feito).toBe(true);
-    expect(texto(6, fonte(p, [pgEquipe(165_000)], null, {}, docs), 'equipe').feito).toBe(true);
-    expect(texto(6, fonte(p, [pgEquipe(82_500)], null, {}, docs), 'equipe').feito).toBe(false);
-    expect(pendenciasDaObra(p, [pgEquipe(82_500)]).map((x) => x.tipo)).toEqual(['equipe']);
-    p.obra.checklist.dps = false;
-    expect(texto(6, fonte(p, [pgEquipe(165_000)], null, {}, docs), 'checklist').feito).toBe(false);
   });
 
   it('Entrega: 7 de 8 fotos trava; testes, monitoramento com o cofre e termo assinado', () => {
@@ -444,12 +318,16 @@ describe('o Termo de garantia e a trava do Book', () => {
   it('a trava: as 4 da SPEC J07, cada uma sozinha, e nenhuma com os dados da #0065', () => {
     const livre = (c = contrato(), its = itens(), assinado = true) => travaDoBook(campos(c, its), c, its, assinado);
     expect(livre()).toEqual([]);
-    expect(livre({ ...contrato(), marca_modulos: 'Canadian' })).toEqual(['A marca das placas da Compra (JA Solar) é diferente da do contrato (Canadian).']);
-    expect(livre({ ...contrato(), kwp: '8,8' })).toHaveLength(1);
-    expect(livre({ ...contrato(), kwp: '8,8' })[0]).toContain('potência das placas');
-    expect(livre({ ...contrato(), quantidade_modulos: '14' })[0]).toContain('quantidade de placas');
-    expect(livre({ ...contrato(), garantia_inversor_anos: '5' })).toEqual(['A garantia do inversor da Compra (10 anos) é diferente da do contrato (5 anos).']);
-    expect(livre({ ...contrato(), garantia_modulos_anos: '30' })).toEqual(['A garantia de desempenho das placas da Compra (25 anos) é diferente da do contrato (30 anos).']);
+    // Divergência entre o comprado e o contrato NÃO trava mais: vira aviso "Comprado diferente da proposta".
+    const av = (c: ReturnType<typeof contrato>) => avisosDoBook(c, itens());
+    expect(livre({ ...contrato(), marca_modulos: 'Canadian' })).toEqual([]);
+    expect(av({ ...contrato(), marca_modulos: 'Canadian' })).toEqual(['Comprado diferente da proposta: a marca das placas é JA Solar e o contrato diz Canadian.']);
+    expect(livre({ ...contrato(), kwp: '8,8' })).toEqual([]);
+    expect(av({ ...contrato(), kwp: '8,8' })[0]).toContain('a potência é');
+    expect(av({ ...contrato(), quantidade_modulos: '14' })[0]).toContain('placas e o contrato diz 14');
+    expect(av({ ...contrato(), garantia_inversor_anos: '5' })).toEqual(['Comprado diferente da proposta: a garantia do inversor é de 10 anos e o contrato diz 5 anos.']);
+    expect(av({ ...contrato(), garantia_modulos_anos: '30' })).toHaveLength(1);
+    expect(av(contrato())).toEqual([]);
     // Instalação: a MESMA regra do contrato (vazio, zero, negativo ou inválido vale 1 ano), então não trava; sem WhatsApp da empresa, trava.
     for (const bruto of ['', '0', '-2', 'abc', '0,5']) {
       const c = { ...contrato(), garantia_instalacao_anos: bruto };

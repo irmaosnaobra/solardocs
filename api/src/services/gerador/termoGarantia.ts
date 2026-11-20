@@ -114,7 +114,7 @@ export function camposDoTermo(e: EntradaTermo): CamposTermo {
     },
     inversores: invs.map((i) => ({
       qtd: i.quantidade, marca: i.marca, modelo: i.modelo, potencia_kw: i.potencia_kw, anos: i.garantia_anos,
-      serie: e.monitoramento.serie,
+      serie: e.monitoramento.serie || i.serie,   // a da Entrega primeiro; sem ela, a do item do inversor na Compra
     })),
     sistema_kwp: kwp > 0 ? numPt(kwp) : '',
     instalacao_garantia: instal,
@@ -199,51 +199,53 @@ ${secao2}
 }
 
 /**
- * O que falta para o Book sair (lista vazia = sai), na ordem da SPEC J07: marca, potência e quantidade contra o contrato; garantia do inversor
- * contra a do contrato; garantia de desempenho das placas contra a do contrato; instalação do contrato. Depois, as faltas de dado.
+ * O que MUDOU entre o que foi comprado e o contrato (a proposta): marca, quantidade e potência das placas, marca do inversor, garantia do inversor e
+ * garantia de desempenho das placas. Desde 19/11/2026 isto é só AVISO ("Comprado diferente da proposta: ..."): o equipamento final é o comprado e a
+ * divergência não trava o Book. Sem o que comparar (sem contrato ou sem item), devolve lista vazia.
+ */
+export function avisosDoBook(contrato: ContratoObra | null, itens: readonly ItemCompra[]): string[] {
+  if (!contrato) return [];
+  const f: string[] = [];
+  const mods = itens.filter((i) => i.tipo === 'modulo');
+  const invs = itens.filter((i) => i.tipo === 'inversor');
+  if (mods.length) {
+    const marca = mods[0].marca;
+    if (marca && contrato.marca_modulos && comparavel(marca) !== comparavel(contrato.marca_modulos)) {
+      f.push(`a marca das placas é ${marca} e o contrato diz ${contrato.marca_modulos}`);
+    }
+    const qtd = mods.reduce((s, i) => s + (i.quantidade ?? 0), 0);
+    const qtdC = parseInt(contrato.quantidade_modulos.replace(/\D/g, ''), 10);
+    if (qtdC && qtd && qtd !== qtdC) f.push(`são ${qtd} placas e o contrato diz ${qtdC}`);
+    const kwpC = parseFloat(contrato.kwp.replace(',', '.'));
+    const kwp = mods.reduce((s, i) => s + (i.quantidade ?? 0) * (i.potencia_w ?? 0), 0) / 1000;
+    if (Number.isFinite(kwpC) && kwpC > 0 && kwp > 0 && Math.abs(kwp - kwpC) > 0.01) f.push(`a potência é ${numPt(kwp)} kWp e o contrato diz ${numPt(kwpC)} kWp`);
+  }
+  if (invs.length && invs[0].marca && contrato.marca_inversor && comparavel(invs[0].marca) !== comparavel(contrato.marca_inversor)) {
+    f.push(`a marca do inversor é ${invs[0].marca} e o contrato diz ${contrato.marca_inversor}`);
+  }
+  const gInvC = parseInt(contrato.garantia_inversor_anos.replace(/\D/g, ''), 10);
+  for (const i of invs) {
+    if (i.garantia_anos !== null && gInvC && i.garantia_anos !== gInvC) { f.push(`a garantia do inversor é de ${i.garantia_anos} anos e o contrato diz ${gInvC} anos`); break; }
+  }
+  const gModC = parseInt(contrato.garantia_modulos_anos.replace(/\D/g, ''), 10);
+  if (mods.length && mods[0].garantia_desempenho_anos !== null && gModC && mods[0].garantia_desempenho_anos !== gModC) {
+    f.push(`a garantia de desempenho das placas é de ${mods[0].garantia_desempenho_anos} anos e o contrato diz ${gModC} anos`);
+  }
+  return f.map((t) => `Comprado diferente da proposta: ${t}.`);
+}
+
+/**
+ * O que falta para o Book sair (lista vazia = sai): só FALTA DE DADO. A divergência entre o comprado e o contrato virou aviso (`avisosDoBook`).
  */
 export function travaDoBook(k: CamposTermo, contrato: ContratoObra | null, itens: readonly ItemCompra[], termoAssinado = true): string[] {
   const f: string[] = [];
   if (!contrato) return ['O contrato desta obra não tem os dados de garantia. Gere o contrato na etapa 2.'];
   const mods = itens.filter((i) => i.tipo === 'modulo');
   const invs = itens.filter((i) => i.tipo === 'inversor');
-  // 1. marca, potência e quantidade
   if (!mods.length) f.push('Falta cadastrar as placas na Compra.');
-  else {
-    const marca = mods[0].marca;
-    if (marca && contrato.marca_modulos && comparavel(marca) !== comparavel(contrato.marca_modulos)) {
-      f.push(`A marca das placas da Compra (${marca}) é diferente da do contrato (${contrato.marca_modulos}).`);
-    }
-    const qtd = mods.reduce((s, i) => s + (i.quantidade ?? 0), 0);
-    const qtdC = parseInt(contrato.quantidade_modulos.replace(/\D/g, ''), 10);
-    if (qtdC && qtd && qtd !== qtdC) f.push(`A quantidade de placas da Compra (${qtd}) é diferente da do contrato (${qtdC}).`);
-    const kwpC = parseFloat(contrato.kwp.replace(',', '.'));
-    const kwp = mods.reduce((s, i) => s + (i.quantidade ?? 0) * (i.potencia_w ?? 0), 0) / 1000;
-    if (Number.isFinite(kwpC) && kwpC > 0 && kwp > 0 && Math.abs(kwp - kwpC) > 0.01) {
-      f.push(`A potência das placas da Compra (${numPt(kwp)} kWp) é diferente da do contrato (${numPt(kwpC)} kWp).`);
-    }
-  }
   if (!invs.length) f.push('Falta cadastrar o inversor na Compra.');
-  else if (invs[0].marca && contrato.marca_inversor && comparavel(invs[0].marca) !== comparavel(contrato.marca_inversor)) {
-    f.push(`A marca do inversor da Compra (${invs[0].marca}) é diferente da do contrato (${contrato.marca_inversor}).`);
-  }
-  // 2. garantia do inversor
-  const gInvC = parseInt(contrato.garantia_inversor_anos.replace(/\D/g, ''), 10);
-  for (const i of invs) {
-    if (i.garantia_anos !== null && gInvC && i.garantia_anos !== gInvC) {
-      f.push(`A garantia do inversor da Compra (${i.garantia_anos} anos) é diferente da do contrato (${gInvC} anos).`);
-      break;
-    }
-  }
-  // 3. garantia de desempenho das placas
-  const gModC = parseInt(contrato.garantia_modulos_anos.replace(/\D/g, ''), 10);
-  if (mods.length && mods[0].garantia_desempenho_anos !== null && gModC && mods[0].garantia_desempenho_anos !== gModC) {
-    f.push(`A garantia de desempenho das placas da Compra (${mods[0].garantia_desempenho_anos} anos) é diferente da do contrato (${gModC} anos).`);
-  }
-  // 4. instalação: igual ao contrato (vazio, zero ou inválido vale 1 ano), então não há o que comparar aqui.
   // O WhatsApp da empresa é o canal do pedido de garantia: sem ele o Termo não diz onde pedir.
   if (!k.empresa_whatsapp.trim()) f.push('Falta o WhatsApp da empresa no contrato.');
-  // Faltas de dado.
   for (const i of mods) if (i.garantia_fabricacao_anos === null || i.garantia_desempenho_anos === null) { f.push('Falta a garantia de fabricação e de desempenho das placas na Compra.'); break; }
   for (const i of invs) if (i.garantia_anos === null) { f.push('Falta a garantia do inversor na Compra.'); break; }
   if (!k.inversores.length || k.inversores.some((i) => !i.serie)) f.push('Falta o número de série do inversor na Entrega.');

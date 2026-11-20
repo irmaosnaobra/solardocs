@@ -24,6 +24,7 @@ vi.mock('../services/agents/zapiClient', async (orig) => ({
   sendDocument: vi.fn(), sendFrio: vi.fn(),
   linhaEmCooldown: vi.fn(() => h.cooldown),
 }));
+vi.mock('../services/io/jornadaPortoesFila', () => ({ sincronizarPortoesDaFila: vi.fn(async (obras: unknown) => obras) }));
 vi.mock('../services/io/jornadaMensagensBase', async (orig) => ({
   ...(await orig<typeof import('../services/io/jornadaMensagensBase')>()),
   dinheiroDasObras: vi.fn(async () => h.dinheiro),
@@ -33,6 +34,7 @@ vi.mock('../services/io/jornadaMensagensBase', async (orig) => ({
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { TEL_AVISO } from '../services/io/solarEquipe';
 import { rodarEventos, rodarFila, limparMemoriaDaFila } from '../services/io/jornadaAvisoEquipe';
+import { sincronizarPortoesDaFila } from '../services/io/jornadaPortoesFila';
 import { runJornadaMensagensTick, rodarSondaDoCard } from '../services/io/jornadaMensagensTick';
 import { tomarVez, type CtxMsg, type Leitura } from '../services/io/jornadaMensagensBase';
 import type { GrupoMsg, ObraFila } from '../services/io/jornadaMensagensPuro';
@@ -249,6 +251,22 @@ describe('a fila das 08:00', () => {
     expect(h.enviados.map((e) => e.numero)).toEqual([TEL_AVISO.thiago, TEL_AVISO.diego, TEL_AVISO.giovanna]);
     await rodarFila(ctx({}, new Date(OITO.getTime() + 6 * 60_000)), l);
     expect(h.enviados).toHaveLength(3);
+  });
+
+  it('B5: antes de montar a fila registra os portões (uma vez por dia e por instância) e monta a fila com o estado já avançado', async () => {
+    const sync = vi.mocked(sincronizarPortoesDaFila);
+    sync.mockClear();
+    const antes = vencida(1);
+    sync.mockImplementationOnce(async () => [{ ...antes, cliente: 'Cliente Avancado' }]);
+    const l = leituraDe([antes]);
+    await rodarFila(ctx({}, OITO), l);
+    expect(sync).toHaveBeenCalledTimes(1);
+    expect(sync.mock.calls[0][0]).toBe(l.obras);
+    expect(h.enviados[0].texto).toContain('Cliente Avancado');
+    await rodarFila(ctx({}, new Date(OITO.getTime() + 2 * 60_000)), l);
+    expect(sync).toHaveBeenCalledTimes(1);   // o mesmo dia não repete
+    await rodarFila(ctx({}, new Date(OITO.getTime() + 24 * 3600_000)), l);
+    expect(sync).toHaveBeenCalledTimes(2);   // outro dia, de novo
   });
 
   it('o dinheiro pendente vai SÓ para quem resolve: comissão e recebimento para a Giovanna, o não conferido para o Thiago; Diego e Nilce não levam', async () => {

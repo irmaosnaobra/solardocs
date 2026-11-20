@@ -28,6 +28,9 @@ const h = vi.hoisted(() => ({
   pdfFalha: false,
   recusaTipo: false,
   falhaReserva: false,
+  fechaNaTrava: false,
+  abertaChamadas: 0,
+  decodificou: 0,
 }));
 
 const jsonb = (v: unknown): unknown => {
@@ -220,9 +223,22 @@ vi.mock('../services/gerador/notaLeitura', async (orig) => ({
   }),
 }));
 
+// B6: a segunda conferência (dentro da trava) pode ver a obra fechada; B9: conta quantas vezes a leitura da Compra decodificou base64.
+vi.mock('../services/gerador/leituraGravacao', async (orig) => {
+  const m = await orig<typeof import('../services/gerador/leituraGravacao')>();
+  return { ...m, obraAbertaParaIa: async (c: number) => { h.abertaChamadas++; if (h.fechaNaTrava && h.abertaChamadas >= 2) return false; return m.obraAbertaParaIa(c); } };
+});
+vi.mock('../services/gerador/financeiroArquivos', async (orig) => {
+  const m = await orig<typeof import('../services/gerador/financeiroArquivos')>();
+  return { ...m, decodificarBase64: (b: unknown) => { h.decodificou++; return m.decodificarBase64(b); } };
+});
+
 import { mountFinanceiro } from '../routes/geradorFinanceiro';
 import { mountJornadaDinheiro } from '../routes/geradorJornadaDinheiro';
 import { mountJornadaObra } from '../routes/geradorJornadaObra';
+import { sincronizarAposAnexo } from '../routes/geradorJornadaSincronia';
+import { mountJornadaCompra } from '../routes/geradorJornadaCompra';
+import { mountJornadaComissionamento } from '../routes/geradorJornadaComissionamento';
 import { mountJornadaPosVenda } from '../routes/geradorJornadaPosVenda';
 import { gravarGrupo } from '../services/gerador/jornadaMensagensChave';
 import { limparCachePosVenda } from '../services/gerador/jornadaPosVendaDados';
@@ -242,6 +258,8 @@ mountFinanceiro(r);
 mountJornadaSolar(r);
 mountJornadaDinheiro(r);
 mountJornadaObra(r);
+mountJornadaCompra(r);
+mountJornadaComissionamento(r);
 mountJornadaPosVenda(r);
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -341,7 +359,7 @@ function cenario8(card = SOLAR): void {
   semearPrivada(card, (p) => {
     p.compra.compras = [{ id: 'c-1', fornecedor: 'Distribuidora Solar Centro', cidade: 'Uberlândia', data: '2026-10-15', forma: 'boleto', nota_chega: 'anexada', nota: null }];
     const it = (id: string, valor: number) => ({
-      id, origem: 'manual' as const, tipo: 'outro' as const, descricao: id, quantidade: 1, unidade: 'un' as const, marca: '', modelo: '', potencia_w: null, potencia_kw: null,
+      id, origem: 'manual' as const, comprado: true, orcado_centavos: null, lido_de: '', documento_id: '', serie: '', tipo: 'outro' as const, descricao: id, quantidade: 1, unidade: 'un' as const, marca: '', modelo: '', potencia_w: null, potencia_kw: null,
       garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: null, compra_id: 'c-1', fornecedor: 'Distribuidora Solar Centro', valor_centavos: valor, data: '2026-10-15',
       etapa: 4 as const, criado_por: 'thiago', criado_em: AGORA,
     });
@@ -368,6 +386,7 @@ beforeEach(() => {
   h.agendamentos = [cardBase(SOLAR), cardBase(ALHEIA, { vendedor_nome: 'Carla' }), cardBase(SEM_ESTADO)];
   h.linhas = new Map(); h.priv = new Map(); h.bucket = new Map(); h.tique = 0; h.iaChamadas = 0; h.ia = null; h.nota = null;
   h.filas = new Map(); h.etapaPlanilha = undefined; h.cad = {}; h.recusaTipo = false; h.falhaReserva = false;
+  h.fechaNaTrava = false; h.abertaChamadas = 0; h.decodificou = 0;
   process.env.VINCULO_SOLAR_SECRET = 'segredo-de-teste';
   delete process.env.SOLAR_ADM; delete process.env.SOLAR_SOCIOS;
   invalidarCachesHub(); reiniciarLogsDoHub(); reiniciarLogsDaJornada(); esquecerConferenciaDoBucket();
@@ -388,10 +407,10 @@ describe('GET fase2 e a seção Compra', () => {
     expect(g.body.etapas[0]).toMatchObject({ n: 4, nome: 'Compra', prazo: { rotulo: 'Prazo' } });
     expect(g.body.etapas[0].aberta_em).not.toBeNull();
     expect(g.body.etapas[1].aberta_em).toBeNull();
+    // A3: os `sugeridos` são só o kit da proposta (sem proposta ligada, nenhum); a lista pronta inteira vai à parte, em `lista_pronta`.
     const sug = g.body.dados.compra.sugeridos;
-    expect(sug.length).toBeGreaterThan(5);
-    expect(sug.every((s: any) => s.id === null)).toBe(true);
-    expect(sug.map((s: any) => s.descricao)).toContain('Conector MC4');
+    expect(sug).toEqual([]);
+    expect(g.body.lista_pronta.map((s: any) => s.descricao)).toContain('Conector MC4');
     expect(g.body.dados.compra.itens).toEqual([]);
     expect(g.body.versoes.compra).toBe(0);
     expect(g.body.equipes.map((e: any) => e.id)).toEqual(['pablo', 'diego', 'propria', 'thiago_ari', 'branco']);
@@ -400,7 +419,7 @@ describe('GET fase2 e a seção Compra', () => {
     expect(h.priv.has(`vendasolar/${SOLAR}.obra.json`)).toBe(false);
     expect(h.linhas.has(`jornada_obra:${SOLAR}`)).toBe(false);
 
-    const dados = { itens: sug.slice(0, 3).map((s: any) => ({ ...s, id: null })), compras: [] };
+    const dados = { itens: g.body.lista_pronta.slice(0, 3).map((s: any) => ({ ...s, id: null, origem: 'lista' })), compras: [] };
     const [a, b] = await Promise.all([put(F2(SOLAR, '/compra'), { versao: 0, dados }, THIAGO), put(F2(SOLAR, '/compra'), { versao: 0, dados }, THIAGO)]);
     expect([a.status, b.status].sort()).toEqual([200, 409]);
     const perdeu = a.status === 409 ? a : b;
@@ -492,7 +511,8 @@ describe('GET fase2 e a seção Compra', () => {
     expect(privadaGravada(SOLAR)!.obra.diario.map((d) => d.ocorrencia)).toEqual(['Forjado']);
     delete process.env.SOLAR_ADM;
     fechar2(SOLAR);
-    expect((await put(F2(SOLAR, '/compra'), { versao: 0, dados: { itens: [], compras: [] } }, THIAGO)).status).toBe(409);
+    // A Compra segue aberta só para o equipamento dos itens que existem: item novo (dinheiro, estrutura) com a conta fechada é a trava de hoje.
+    expect((await put(F2(SOLAR, '/compra'), { versao: 0, dados: { itens: [{ id: null, tipo: 'outro', descricao: 'item novo' }], compras: [] } }, THIAGO)).status).toBe(409);
   });
 });
 const fechar2 = (id: number): void => { semearJo(id, (e) => { e.fechada = { em: AGORA, por: 'thiago' }; }, 8); };
@@ -520,18 +540,20 @@ describe('a venda sem estado (as antigas)', () => {
     expect((await post(DIN(SEM_ESTADO, '/lancamento'), { id: novoId('sai'), tipo: 'saida', categoria: 'frete', etapa: 7, valor_centavos: 5_000, data: '2026-11-04', arquivo_path: p7 }, DIEGO)).status).toBe(400);
     expect(h.linhas.has(`jornada_solar:${SEM_ESTADO}`)).toBe(false);
     expect(h.linhas.has(`jornada_obra:${SEM_ESTADO}`)).toBe(false);
-    // O portão da 6.
-    semearPrivada(SEM_ESTADO, (pv) => {
-      pv.obra.plano = [{ data: '2026-10-23', inicio: '08:00', fim: '17:00', equipe: 'pablo', ajudantes: 2, servico: 'Obra' }];
-      pv.obra.diario = [{ data: '2026-10-23', chegada: '08:00', saida: '17:00', fotos: ['a-f1'], ocorrencia: '' }];
-      pv.obra.checklist = Object.fromEntries(['estrutura', 'placas', 'strings', 'inversor', 'dps', 'aterramento', 'cabos', 'padrao'].map((k) => [k, true]));
-      pv.obra.equipe = { combinado_centavos: 100_000, descricao: '15 placas' };
-    });
+    // O portão da 6 abre pelo dado, sem botão: o PUT da Obra com o checklist e 1 dia de diário com foto registra a conclusão e abre a 7.
     anexos(SEM_ESTADO, [['a-f1', 'obra_foto']]);
-    expect((await post('/jornada-solar/obra/603/etapa-obra', { etapa: 6 }, NILCE)).status).toBe(403);   // quem conclui é o dono (o Diego)
-    const c = await post('/jornada-solar/obra/603/etapa-obra', { etapa: 6 }, DIEGO);
+    const botao = await post('/jornada-solar/obra/603/etapa-obra', { etapa: 6 }, DIEGO);
+    expect(botao.status).toBe(409);
+    expect(botao.body.abre_sozinha).toBe(true);
+    const dados = {
+      plano: [{ data: '2026-10-23', inicio: '08:00', fim: '17:00', equipe: 'pablo', ajudantes: 2, servico: 'Obra' }],
+      diario: [{ data: '2026-10-23', chegada: '', saida: '', fotos: ['a-f1'], ocorrencia: '' }],
+      checklist: Object.fromEntries(['estrutura', 'placas', 'strings', 'inversor', 'dps', 'aterramento', 'cabos', 'padrao'].map((k) => [k, true])),
+      equipe: { combinado_centavos: null, descricao: '' },
+    };
+    const c = await put(F2(SEM_ESTADO, '/obra'), { versao: 0, dados }, DIEGO);
     expect(c.status).toBe(200);
-    expect(c.body).toMatchObject({ ok: true, etapa_atual: 7 });
+    expect(c.body.etapa_atual).toBe(7);
     expect(h.linhas.has(`jornada_solar:${SEM_ESTADO}`)).toBe(true);
     const jo = joGravado(SEM_ESTADO);
     expect(jo.etapas['4'].concluida_por).toBe('leitura');
@@ -539,6 +561,10 @@ describe('a venda sem estado (as antigas)', () => {
     expect(jo.etapas['7'].aberta_em).not.toBeNull();
     expect(jo.historico.map((x: any) => x.acao)).toEqual(expect.arrayContaining(['materializada', 'concluir', 'abrir']));
     expect((await get(F2(SEM_ESTADO), DIEGO)).body.etapa_atual).toBe(7);
+    // Gravar de novo não registra a conclusão outra vez.
+    const antes = joGravado(SEM_ESTADO).historico.filter((x: any) => x.acao === 'concluir' && x.etapa === 6).length;
+    await put(F2(SEM_ESTADO, '/obra'), { versao: c.body.versoes.obra, dados }, DIEGO);
+    expect(joGravado(SEM_ESTADO).historico.filter((x: any) => x.acao === 'concluir' && x.etapa === 6)).toHaveLength(antes);
   });
 });
 
@@ -837,25 +863,49 @@ describe('o XML da nota', () => {
 });
 
 describe('concluir as etapas', () => {
-  it('a etapa 4 só conclui com 100% do material (409 com `precisa: itens`); o Diego leva 403 na 4 (quem conclui é o Thiago)', async () => {
+  it('a Compra abre a Logística sozinha com o kit comprado (uma vez só); não há botão Concluir (409 abre_sozinha); material elétrico não segura', async () => {
+    semearJo(SOLAR);
+    const botao = await post('/jornada-solar/obra/601/etapa-obra', { etapa: 4 }, THIAGO);
+    expect(botao.status).toBe(409);
+    expect(botao.body.abre_sozinha).toBe(true);
+    const it = (id: string, tipo: string, comprado: boolean) => ({ id, tipo, descricao: id, quantidade: 1, comprado });
+    const a = await put(F2(SOLAR, '/compra'), { versao: 0, dados: { compras: [], itens: [it('m', 'modulo', true), it('i', 'inversor', false), it('e', 'eletrico', false)] } }, THIAGO);
+    expect(a.status).toBe(200);
+    expect(joGravado(SOLAR).etapas['4'].concluida_em).toBeNull();
+    expect(a.body.dados.compra.kit).toMatchObject({ completo: false, faltam: ['inversor'] });
+    const nivel = a.body.etapas.find((e: any) => e.n === 4).itens;
+    expect(nivel.map((i: any) => [i.chave, i.nivel])).toEqual([['kit', 'obrigatorio'], ['eletrico', 'opcional']]);
+    const ids = privadaGravada(SOLAR)!.compra.itens.map((i) => i.id);
+    const b = await put(F2(SOLAR, '/compra'), { versao: a.body.versoes.compra, dados: { compras: [], itens: [it(ids[0], 'modulo', true), it(ids[1], 'inversor', true), it(ids[2], 'eletrico', false)] } }, THIAGO);
+    expect(b.status).toBe(200);
+    const jo = joGravado(SOLAR);
+    expect(jo.etapas['4']).toMatchObject({ concluida_por: 'thiago' });
+    expect(jo.etapas['4'].concluida_em).not.toBeNull();
+    expect(jo.etapas['5'].aberta_em).not.toBeNull();
+    expect(b.body.etapa_atual).toBe(5);
+    expect(b.body.abas.find((x: any) => x.aba === 'logistica')).toMatchObject({ aberta: true, concluida: false });
+    const conta = (): number => joGravado(SOLAR).historico.filter((x: any) => x.acao === 'concluir' && x.etapa === 4).length;
+    expect(conta()).toBe(1);
+    await put(F2(SOLAR, '/compra'), { versao: b.body.versoes.compra, dados: { compras: [], itens: [it(ids[0], 'modulo', true), it(ids[1], 'inversor', true), it(ids[2], 'eletrico', false)] } }, THIAGO);
+    expect(conta()).toBe(1);   // o efeito dispara uma vez só
+  });
+
+  it('obra antiga com o portão da Compra já verdadeiro: o GET não grava; a gravação que não o muda avança em silêncio (só `leitura`, nenhum `concluir` de gente)', async () => {
     semearJo(SOLAR);
     semearPrivada(SOLAR, (p) => {
-      p.compra.compras = [{ id: 'c-1', fornecedor: 'Distribuidora', cidade: '', data: '2026-10-15', forma: 'pix', nota_chega: 'anexada', nota: null }];
-      p.compra.itens = [
-        { id: 'i-1', origem: 'manual', tipo: 'outro', descricao: 'Kit', quantidade: 1, unidade: 'un', marca: '', modelo: '', potencia_w: null, potencia_kw: null, garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: null, compra_id: 'c-1', fornecedor: 'Distribuidora', valor_centavos: 100_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
-        { id: 'i-2', origem: 'manual', tipo: 'outro', descricao: 'Cabos', quantidade: 1, unidade: 'un', marca: '', modelo: '', potencia_w: null, potencia_kw: null, garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: null, compra_id: null, fornecedor: '', valor_centavos: null, data: null, etapa: 4, criado_por: 'thiago', criado_em: AGORA },
-      ];
+      const it = (id: string, tipo: string) => ({ id, origem: 'proposta', comprado: true, orcado_centavos: null, lido_de: '', documento_id: '', serie: '', tipo, descricao: id, quantidade: 1, unidade: 'un', marca: '', modelo: '', potencia_w: null,
+        potencia_kw: null, garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: null, compra_id: null, fornecedor: '', valor_centavos: null, data: null, etapa: 4, criado_por: 'thiago', criado_em: AGORA });
+      p.compra.itens = [it('i-m', 'modulo'), it('i-i', 'inversor')] as never;
     });
-    expect((await post('/jornada-solar/obra/601/etapa-obra', { etapa: 4 }, DIEGO)).status).toBe(403);
-    const c = await post('/jornada-solar/obra/601/etapa-obra', { etapa: 4 }, THIAGO);
-    expect(c.status).toBe(409);
-    expect(c.body).toMatchObject({ precisa: 'itens' });
-    expect(c.body.falta.map((x: any) => x.chave)).toEqual(['material', 'comprovante']);
-    expect(c.body.falta[0].texto).toContain('(0 de 2)');
-    expect(joGravado(SOLAR).etapas['4'].concluida_em).toBeNull();
-    // Etapa que não é a da vez.
-    expect((await post('/jornada-solar/obra/601/etapa-obra', { etapa: 6 }, DIEGO)).status).toBe(409);
-    expect((await post('/jornada-solar/obra/601/etapa-obra', { etapa: 3 }, THIAGO)).status).toBe(400);
+    const antes = JSON.stringify(h.linhas.get(`jornada_obra:${SOLAR}`));
+    const g = await get(F2(SOLAR), DIEGO);
+    expect(g.body.etapa_atual).toBe(5);   // a tela já vê a 5...
+    expect(JSON.stringify(h.linhas.get(`jornada_obra:${SOLAR}`))).toBe(antes);   // ...e o GET não gravou nada
+    const dados = { plano: [], diario: [], checklist: {}, equipe: { combinado_centavos: null, descricao: '' } };
+    expect((await put(F2(SOLAR, '/obra'), { versao: 0, dados }, DIEGO)).status).toBe(200);
+    const jo = joGravado(SOLAR);
+    expect(jo.etapas['4']).toMatchObject({ concluida_por: 'leitura' });
+    expect(jo.historico.filter((x: any) => x.acao === 'concluir').map((x: any) => x.por)).toEqual(['leitura']);
   });
 
   it('a espera de 4 a 8: o dono põe, a Nilce não, o teto é de 5 dias úteis, e voltar limpa', async () => {
@@ -970,7 +1020,7 @@ describe('o dinheiro escondido não some no PUT', () => {
     h.linhas.set('jornada_solar_ajustes', { updated_at: 'a0', value: jsonb({ ...a, sig: assinarAjustes(a) }) });
   };
   const itemBase = (id: string, valor: number | null) => ({
-    id, origem: 'manual' as const, tipo: 'outro' as const, descricao: id, quantidade: 1, unidade: 'un' as const, marca: '', modelo: '', potencia_w: null, potencia_kw: null,
+    id, origem: 'manual' as const, comprado: true, orcado_centavos: null, lido_de: '', documento_id: '', serie: '', tipo: 'outro' as const, descricao: id, quantidade: 1, unidade: 'un' as const, marca: '', modelo: '', potencia_w: null, potencia_kw: null,
     garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: null, compra_id: 'c-1', fornecedor: 'Distribuidora', valor_centavos: valor, data: '2026-10-15',
     etapa: 4 as const, criado_por: 'thiago', criado_em: AGORA,
   });
@@ -981,9 +1031,9 @@ describe('o dinheiro escondido não some no PUT', () => {
       p.compra.itens = [itemBase('i-1', 100_000)];
       p.obra.equipe = { combinado_centavos: 165_000, descricao: '15 placas' };
       p.logistica.cargas = [{
-        id: 'g-1', nome: 'Carga 1', itens: ['i-1'], saida: { lugar: '', em: '' }, chegada: { lugar: '', destino: 'obra', em: '' }, transporte: { empresa: '', motorista: '', cpf: '', placa: '' }, compras: [],
+        id: 'g-1', nome: 'Carga 1', itens: ['i-1'], saida: { lugar: '', em: '' }, chegada: { lugar: '', destino: 'obra', em: '' }, transporte: { empresa: '', motorista: '', cpf: '', placa: '', carro: '' }, compras: [],
         recebido_por: { nome: '', cpf: '', assinatura_id: '' }, conferencia: { itens_ok: [], foto_id: '' }, avaria: { tem: false, descricao: '', foto_id: '', o_que_fazer: '', resolvida: false },
-        frete: { valor_centavos: 25_000, forma: 'pix' }, documentos: [],
+        frete: { valor_centavos: 25_000, forma: 'pix' }, documentos: [], fotos: [],
       }];
     });
     ajustesFechados();
@@ -1025,11 +1075,11 @@ describe('o item "a receber e a pagar zerados" para quem não vê a retirada', (
     expect(item(d.body)).toMatchObject({ feito: false, texto: 'Falta uma pendência que o Thiago resolve' });
     expect(d.text).not.toMatch(/778|Diego \(sócio|sócio 2/);
     expect(item((await get(F2(SOLAR), NILCE)).body).texto).toBe('Falta uma pendência que o Thiago resolve');
-    for (const a of [THIAGO, GIOVANNA]) expect(item((await get(F2(SOLAR), a)).body)).toMatchObject({ feito: false, texto: 'A receber e a pagar zerados' });
+    for (const a of [THIAGO, GIOVANNA]) expect(item((await get(F2(SOLAR), a)).body)).toMatchObject({ feito: false, texto: 'A receber e a pagar zerados, com os comprovantes' });
     // Falta algo que a pessoa vê (a comissão de quem vendeu): o texto de sempre.
     const nilce = [...h.linhas.keys()].find((k) => k.startsWith(`fin:${SOLAR}:`) && h.linhas.get(k)!.value.categoria === 'comissao_venda')!;
     h.linhas.delete(nilce);
-    expect(item((await get(F2(SOLAR), DIEGO)).body).texto).toBe('A receber e a pagar zerados');
+    expect(item((await get(F2(SOLAR), DIEGO)).body).texto).toBe('A receber e a pagar zerados, com os comprovantes');
   });
 });
 
@@ -1179,8 +1229,8 @@ describe('o Book', () => {
     semearPrivada(SOLAR, (p) => {
       p.contrato = contrato;
       p.compra.itens = [
-        { id: 'i-1', origem: 'manual', tipo: 'modulo', descricao: 'Módulo', quantidade: 15, unidade: 'un', marca: 'JA Solar', modelo: 'JAM72S30', potencia_w: 550, potencia_kw: null, garantia_fabricacao_anos: 12, garantia_desempenho_anos: 25, garantia_anos: null, compra_id: null, fornecedor: 'Distribuidora', valor_centavos: 1_789_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
-        { id: 'i-2', origem: 'manual', tipo: 'inversor', descricao: 'Inversor', quantidade: 1, unidade: 'un', marca: 'SAJ', modelo: 'R5 8K', potencia_w: null, potencia_kw: 8, garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: 10, compra_id: null, fornecedor: 'Distribuidora', valor_centavos: 200_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
+        { id: 'i-1', origem: 'manual', comprado: true, orcado_centavos: null, lido_de: '', documento_id: '', serie: '', tipo: 'modulo', descricao: 'Módulo', quantidade: 15, unidade: 'un', marca: 'JA Solar', modelo: 'JAM72S30', potencia_w: 550, potencia_kw: null, garantia_fabricacao_anos: 12, garantia_desempenho_anos: 25, garantia_anos: null, compra_id: null, fornecedor: 'Distribuidora', valor_centavos: 1_789_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
+        { id: 'i-2', origem: 'manual', comprado: true, orcado_centavos: null, lido_de: '', documento_id: '', serie: '', tipo: 'inversor', descricao: 'Inversor', quantidade: 1, unidade: 'un', marca: 'SAJ', modelo: 'R5 8K', potencia_w: null, potencia_kw: 8, garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: 10, compra_id: null, fornecedor: 'Distribuidora', valor_centavos: 200_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
       ];
       p.entrega.monitoramento = { app: 'iSolarCloud', conta: 'cliente@exemplo.com', usina: 'Casa', online: true, serie: 'INV-8K-2610-4471', comissionamento: 'ok' };
       p.entrega.termo = { assinado_em: '2026-10-30T15:00:00.000Z', nome: 'Marcos', arquivo_id: 'a-ass', chk: ['sim', 'sim', 'sim', 'sim', 'sim', 'na'], ressalva: '' };
@@ -1190,12 +1240,17 @@ describe('o Book', () => {
   };
   it('com trava, 409 com a lista; sem trava, 200 sem nenhum valor em reais e sem a senha', async () => {
     preparar();
+    // Divergência entre o comprado e o contrato é só AVISO: o Book sai.
     semearPrivada(SOLAR, (p) => { p.contrato!.marca_inversor = 'Growatt'; });
+    expect((await get(`/jornada-solar/obra/${SOLAR}/book`, DIEGO)).status).toBe(200);
+    expect((await get(F2(SOLAR), DIEGO)).body.book).toEqual({ pode: true, trava: [], avisos: ['Comprado diferente da proposta: a marca do inversor é SAJ e o contrato diz Growatt.'] });
+    // Falta de dado trava.
+    semearPrivada(SOLAR, (p) => { p.contrato!.marca_inversor = 'SAJ'; p.entrega.monitoramento.serie = ''; });
     const t = await get(`/jornada-solar/obra/${SOLAR}/book`, DIEGO);
     expect(t.status).toBe(409);
-    expect(t.body.trava).toEqual(['A marca do inversor da Compra (SAJ) é diferente da do contrato (Growatt).']);
-    expect((await get(F2(SOLAR), DIEGO)).body.book).toEqual({ pode: false, trava: t.body.trava });
-    semearPrivada(SOLAR, (p) => { p.contrato!.marca_inversor = 'SAJ'; });
+    expect(t.body.trava).toEqual(['Falta o número de série do inversor na Entrega.']);
+    expect((await get(F2(SOLAR), DIEGO)).body.book).toEqual({ pode: false, trava: t.body.trava, avisos: [] });
+    semearPrivada(SOLAR, (p) => { p.entrega.monitoramento.serie = 'INV-8K-2610-4471'; });
     const ok = await get(`/jornada-solar/obra/${SOLAR}/book`, DIEGO);
     expect(ok.status).toBe(200);
     expect(ok.body.titulo).toBe('Book da obra · * · Marcos Vinícius Andrade');
@@ -1343,8 +1398,8 @@ describe('o Book em PDF no servidor', () => {
     semearPrivada(SOLAR, (p) => {
       p.contrato = contrato;
       p.compra.itens = [
-        { id: 'i-1', origem: 'manual', tipo: 'modulo', descricao: 'Módulo', quantidade: 15, unidade: 'un', marca: 'JA Solar', modelo: 'JAM72S30', potencia_w: 550, potencia_kw: null, garantia_fabricacao_anos: 12, garantia_desempenho_anos: 25, garantia_anos: null, compra_id: null, fornecedor: 'Distribuidora', valor_centavos: 1_789_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
-        { id: 'i-2', origem: 'manual', tipo: 'inversor', descricao: 'Inversor', quantidade: 1, unidade: 'un', marca: 'SAJ', modelo: 'R5 8K', potencia_w: null, potencia_kw: 8, garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: 10, compra_id: null, fornecedor: 'Distribuidora', valor_centavos: 200_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
+        { id: 'i-1', origem: 'manual', comprado: true, orcado_centavos: null, lido_de: '', documento_id: '', serie: '', tipo: 'modulo', descricao: 'Módulo', quantidade: 15, unidade: 'un', marca: 'JA Solar', modelo: 'JAM72S30', potencia_w: 550, potencia_kw: null, garantia_fabricacao_anos: 12, garantia_desempenho_anos: 25, garantia_anos: null, compra_id: null, fornecedor: 'Distribuidora', valor_centavos: 1_789_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
+        { id: 'i-2', origem: 'manual', comprado: true, orcado_centavos: null, lido_de: '', documento_id: '', serie: '', tipo: 'inversor', descricao: 'Inversor', quantidade: 1, unidade: 'un', marca: 'SAJ', modelo: 'R5 8K', potencia_w: null, potencia_kw: 8, garantia_fabricacao_anos: null, garantia_desempenho_anos: null, garantia_anos: 10, compra_id: null, fornecedor: 'Distribuidora', valor_centavos: 200_000, data: '2026-10-15', etapa: 4, criado_por: 'thiago', criado_em: AGORA },
       ];
       p.entrega.monitoramento = { app: 'iSolarCloud', conta: 'cliente@exemplo.com', usina: 'Casa', online: true, serie: 'INV-8K-2610-4471', comissionamento: 'ok' };
       p.entrega.termo = { assinado_em: '2026-10-30T15:00:00.000Z', nome: 'Marcos', arquivo_id: 'a-ass', chk: ['sim', 'sim', 'sim', 'sim', 'sim', 'na'], ressalva: '' };
@@ -1368,10 +1423,10 @@ describe('o Book em PDF no servidor', () => {
 
   it('com trava, 409 com a lista e sem navegador aberto; o GET sem o PDF dá 404', async () => {
     preparar();
-    semearPrivada(SOLAR, (p) => { p.contrato!.marca_inversor = 'Growatt'; });
+    semearPrivada(SOLAR, (p) => { p.entrega.monitoramento.serie = ''; });
     const t = await post(URL_PDF, {}, DIEGO);
     expect(t.status).toBe(409);
-    expect(t.body.trava).toEqual(['A marca do inversor da Compra (SAJ) é diferente da do contrato (Growatt).']);
+    expect(t.body.trava).toEqual(['Falta o número de série do inversor na Entrega.']);
     expect(h.pdfHtmls).toHaveLength(0);
     expect((await get(URL_PDF, DIEGO)).status).toBe(404);
     expect((await post(`/jornada-solar/obra/${ALHEIA}/book/pdf`, {}, NILCE)).status).toBe(404);
@@ -1567,22 +1622,25 @@ describe('a Logística: CPF e placa de quem buscou a carga', () => {
     expect(rec.status).toBe(200);
     expect(privadaGravada(SOLAR)!.logistica.cargas[0].recebido_por.cpf).toBe('52998224725');
   });
-  it('o portão da etapa 5 mostra "Carga 1: falta a placa de quem buscou" e fecha quando a placa entra; com a etapa 5 concluída não ganha item', async () => {
+  it('a carga mostra o que falta ("falta a placa e 1 foto") e fecha quando entra; carga sem kit é opcional; obra antiga que já passou da 5 não cobra nada', async () => {
     semearJo(SOLAR, undefined, 5);
     await put(F2(SOLAR, '/logistica'), { versao: 0, dados: { cargas: [cargaBruta({ transporte: { empresa: '', motorista: 'Zé', cpf: '52998224725', placa: '' } })] } }, DIEGO);
     const a = await get(F2(SOLAR), DIEGO);
-    expect(a.body.etapas.find((e: any) => e.n === 5).itens.find((i: any) => String(i.chave).startsWith('retirada_'))).toMatchObject({ feito: false, texto: 'Carga 1: falta a placa de quem buscou' });
+    expect(a.body.etapas.find((e: any) => e.n === 5).itens.find((i: any) => String(i.chave).startsWith('retirada_'))).toMatchObject({ feito: false, nivel: 'opcional', texto: 'Carga 1: falta a placa e 1 foto' });
+    // Não há botão Concluir na Logística.
     const c = await post(`/jornada-solar/obra/${SOLAR}/etapa-obra`, { etapa: 5 }, DIEGO);
     expect(c.status).toBe(409);
-    expect(c.body.falta.map((x: any) => x.texto)).toContain('Carga 1: falta a placa de quem buscou');
-    await put(F2(SOLAR, '/logistica'), { versao: a.body.versoes.logistica, dados: { cargas: [cargaBruta({ id: privadaGravada(SOLAR)!.logistica.cargas[0].id })] } }, DIEGO);
+    expect(c.body.abre_sozinha).toBe(true);
+    anexos(SOLAR, [['f-1', 'log_conferencia']]);
+    await put(F2(SOLAR, '/logistica'), { versao: a.body.versoes.logistica, dados: { cargas: [cargaBruta({ id: privadaGravada(SOLAR)!.logistica.cargas[0].id, fotos: ['f-1'] })] } }, DIEGO);
     const b = await get(F2(SOLAR), DIEGO);
     expect(b.body.etapas.find((e: any) => e.n === 5).itens.find((i: any) => String(i.chave).startsWith('retirada_'))).toMatchObject({ feito: true });
-    // Obra antiga que já passou da etapa 5, com a carga sem placa: a etapa 5 não mostra item novo nem falta nova.
+    // Obra antiga que já passou da etapa 5, com a carga sem placa: a etapa 5 não cobra nada.
     semearJo(ALHEIA, undefined, 7);
     semearPrivada(ALHEIA, (p) => { p.logistica.cargas = [cargaBruta({ transporte: { empresa: '', motorista: '', cpf: '', placa: '' } }) as never]; });
-    const velha = await get(F2(ALHEIA), THIAGO);
-    expect(velha.body.etapas.find((e: any) => e.n === 5).itens.some((i: any) => String(i.chave).startsWith('retirada_'))).toBe(false);
+    const velha = (await get(F2(ALHEIA), THIAGO)).body.etapas.find((e: any) => e.n === 5);
+    expect(velha.concluida_em).not.toBeNull();
+    expect(velha).toMatchObject({ falta: 0, falta_opcional: 0 });
   });
 });
 
@@ -1615,7 +1673,8 @@ describe('o pós-venda (etapa 9): a seção `posvenda`, o `posvenda_info` e o li
 
   it('as outras seções seguem travadas pela conta fechada', async () => {
     noPosVenda();
-    expect((await put(F2(SOLAR, '/compra'), { versao: 0, dados: { itens: [], compras: [] } }, THIAGO)).status).toBe(409);
+    // A Compra segue aberta só para o equipamento dos itens que existem: item novo (dinheiro, estrutura) com a conta fechada é a trava de hoje.
+    expect((await put(F2(SOLAR, '/compra'), { versao: 0, dados: { itens: [{ id: null, tipo: 'outro', descricao: 'item novo' }], compras: [] } }, THIAGO)).status).toBe(409);
     expect((await put(F2(SOLAR, '/logistica'), { versao: 0, dados: { cargas: [] } }, THIAGO)).status).toBe(409);
   });
 
@@ -1675,7 +1734,7 @@ describe('o pós-venda (etapa 9): a seção `posvenda`, o `posvenda_info` e o li
       p.entrega.termo = { assinado_em: '2026-11-03T12:00:00.000Z', nome: 'Cliente', arquivo_id: '', chk: [], ressalva: '' };
       p.entrega.garantias = { registrada_em: '2026-11-04', treinado: true };
       p.compra.itens = [{
-        id: 'i-m', origem: 'manual', tipo: 'modulo', descricao: 'Módulo', quantidade: 10, unidade: 'un', marca: 'X', modelo: 'Y', potencia_w: 550, potencia_kw: null,
+        id: 'i-m', origem: 'manual', comprado: true, orcado_centavos: null, lido_de: '', documento_id: '', serie: '', tipo: 'modulo', descricao: 'Módulo', quantidade: 10, unidade: 'un', marca: 'X', modelo: 'Y', potencia_w: 550, potencia_kw: null,
         garantia_fabricacao_anos: 12, garantia_desempenho_anos: 30, garantia_anos: null, compra_id: null, fornecedor: '', valor_centavos: null, data: null, etapa: 4, criado_por: 'thiago', criado_em: AGORA,
       }];
     });
@@ -1758,5 +1817,371 @@ describe('estrutura', () => {
   });
   it('a IA nunca é chamada de verdade: o módulo da nota só entra por mock nos testes de rota', () => {
     expect(h.iaChamadas).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// ── A obra nova (19/11/2026): a Compra lida sozinha e o botão final do Comissionamento ───────────────────────────────────────
+
+describe('a Compra lida sozinha: POST compra/arquivo', () => {
+  const URL = (id = SOLAR) => `/jornada-solar/obra/${id}/compra/arquivo`;
+  const doc = (tipo: string, valor = 700_000) => () => ({
+    ok: true, eh_documento: true,
+    nota: { tipo, emitente: 'Solar Centro', cnpj: '', numero: '55', data: '2026-11-04', chave: null, valor_total_centavos: valor, confianca: 'alta',
+      itens: [
+        { descricao: 'MODULO FOTOVOLTAICO TSUN 600W TSM-600', quantidade: 10, unidade: 'un', valor_unitario_centavos: 50_000, valor_total_centavos: 500_000 },
+        { descricao: 'Inversor SAJ 6K', quantidade: 1, unidade: 'un', valor_unitario_centavos: 200_000, valor_total_centavos: 200_000 },
+      ] },
+  });
+  const envia = (texto: string, auth = THIAGO, id = SOLAR) => post(URL(id), { base64: PDF(texto).toString('base64'), media_type: 'application/pdf', nome: `${texto}.pdf` }, auth);
+  const preparar = (): void => {
+    semearJo(SOLAR);
+    semearPrivada(SOLAR, (p) => {
+      const base = { origem: 'proposta' as const, comprado: false, orcado_centavos: null, lido_de: '', documento_id: '', serie: '', unidade: 'un' as const, marca: '', potencia_kw: null, garantia_fabricacao_anos: null,
+        garantia_desempenho_anos: null, garantia_anos: null, compra_id: null, fornecedor: '', valor_centavos: null, data: null, etapa: 4 as const, criado_por: 'thiago', criado_em: AGORA };
+      p.compra.itens = [
+        { ...base, id: 'i-m', tipo: 'modulo', descricao: 'Módulo Tsun 600 W', modelo: 'Tsun TSM-600', quantidade: 10, potencia_w: 600 },
+        { ...base, id: 'i-i', tipo: 'inversor', descricao: 'Inversor SAJ 6K', modelo: 'SAJ 6K', quantidade: 1, potencia_w: null },
+      ];
+    });
+  };
+
+  it('ORÇAMENTO preenche só o valor orçado; a NOTA marca comprado, liga o documento e abre a Logística; o mesmo arquivo não lê de novo', async () => {
+    preparar();
+    h.nota = doc('orcamento');
+    const o = await envia('orcamento');
+    expect(o.status).toBe(200);
+    expect(o.body.leitura_compra).toMatchObject({ resultado: 'lido', tipo: 'orcamento' });
+    let itens = privadaGravada(SOLAR)!.compra.itens;
+    expect(itens.map((i) => [i.comprado, i.orcado_centavos, i.valor_centavos])).toEqual([[false, 500_000, null], [false, 200_000, null]]);
+    expect(privadaGravada(SOLAR)!.compra.compras).toHaveLength(0);
+    expect(joGravado(SOLAR).etapas['4'].concluida_em).toBeNull();
+    h.nota = doc('nota_fiscal');
+    const n = await envia('nota');
+    expect(n.body.leitura_compra).toMatchObject({ resultado: 'lido', tipo: 'nota_fiscal', fornecedor: 'Solar Centro', marcados_comprados: 2 });
+    const priv = privadaGravada(SOLAR)!;
+    itens = priv.compra.itens;
+    expect(itens.map((i) => [i.comprado, i.valor_centavos, i.quantidade])).toEqual([[true, 500_000, 10], [true, 200_000, 1]]);
+    expect(priv.compra.documentos.map((d) => d.tipo)).toEqual(['orcamento', 'nota_fiscal']);
+    expect(priv.compra.compras).toHaveLength(1);
+    expect(n.body.dados.compra.kit.completo).toBe(true);
+    expect(n.body.etapa_atual).toBe(5);
+    expect(joGravado(SOLAR).etapas['4'].concluida_por).toBe('thiago');
+    expect(joGravado(SOLAR).etapas['5'].aberta_em).not.toBeNull();
+    // O mesmo arquivo: não lê, não grava de novo, não gasta IA.
+    const chamadas = h.iaChamadas;
+    const r = await envia('nota');
+    expect(r.body.leitura_compra.resultado).toBe('repetido');
+    expect(h.iaChamadas).toBe(chamadas);
+    expect(privadaGravada(SOLAR)!.compra.documentos).toHaveLength(2);
+  });
+
+  it('quem não vê o livro não recebe valor (pago nem orçado) na resposta, mas o valor é gravado', async () => {
+    preparar();
+    const fechado = normalizarAjustes({ ...AJUSTES_PADRAO, dinheiro_aberto: false, editado_em: AGORA, editado_por: 'thiago' })!;
+    h.linhas.set('jornada_solar_ajustes', { updated_at: 'a0', value: jsonb({ ...fechado, sig: assinarAjustes(fechado) }) });
+    h.nota = doc('orcamento');
+    const d = await envia('orcamento', DIEGO);
+    expect(d.status).toBe(200);
+    expect(d.body.dados.compra.itens.map((i: any) => [i.orcado_centavos, i.valor_centavos])).toEqual([[null, null], [null, null]]);
+    expect(d.body.dados.compra.documentos.every((x: any) => x.total_centavos === null)).toBe(true);
+    expect(privadaGravada(SOLAR)!.compra.itens[0].orcado_centavos).toBe(500_000);
+    expect(JSON.stringify((await get(F2(SOLAR), DIEGO)).body)).not.toMatch(/500000|200000/);
+  });
+
+  it('quem não é da Compra leva 403; obra com a conta fechada 409; arquivo que a IA não lê não grava nada', async () => {
+    preparar();
+    h.nota = doc('nota_fiscal');
+    expect((await envia('x', NILCE)).status).toBe(403);
+    h.nota = () => ({ ok: true, eh_documento: false, nota: {} });
+    const nd = await envia('foto de gato');
+    expect(nd.body.leitura_compra.resultado).toBe('nao_e_documento');
+    h.nota = () => ({ ok: false, motivo: 'falhou' });
+    expect((await envia('ia caiu')).body.leitura_compra.resultado).toBe('falhou');
+    expect(privadaGravada(SOLAR)!.compra.documentos).toHaveLength(0);
+    semearJo(SOLAR, (e) => { e.fechada = { em: AGORA, por: 'thiago' }; });
+    expect((await envia('depois de fechar')).status).toBe(409);
+  });
+
+  it('B3: o pedido e depois a nota da mesma compra viram UMA compra, e o registro da nota aponta para ela; a 2ª nota do mesmo modelo entra à parte', async () => {
+    preparar();
+    h.nota = doc('pedido');
+    expect((await envia('pedido')).body.leitura_compra.resultado).toBe('lido');
+    h.nota = doc('nota_fiscal');
+    const n = await envia('nota');
+    expect(n.body.leitura_compra).toMatchObject({ resultado: 'lido', tipo: 'nota_fiscal' });
+    let priv = privadaGravada(SOLAR)!;
+    expect(priv.compra.compras).toHaveLength(1);
+    expect(priv.compra.compras[0].nota).not.toBeNull();
+    const reg = [...h.linhas.entries()].filter(([k]) => k.startsWith(`fin_nf:${SOLAR}:`));
+    expect(reg).toHaveLength(1);
+    expect((reg[0][1].value as { compra_id: string }).compra_id).toBe(priv.compra.compras[0].id);
+    expect(priv.compra.itens).toHaveLength(2);
+    // Segunda nota, mesmo modelo de módulo, outra quantidade: compra e linha próprias; a primeira quantidade segue.
+    h.nota = () => ({ ok: true, eh_documento: true, nota: { tipo: 'nota_fiscal', emitente: 'Outro Forn', cnpj: '', numero: '56', data: '2026-11-05', chave: null, valor_total_centavos: 200_000, confianca: 'alta',
+      itens: [{ descricao: 'MODULO FOTOVOLTAICO TSUN 600W TSM-600', quantidade: 4, unidade: 'un', valor_unitario_centavos: 50_000, valor_total_centavos: 200_000 }] } });
+    expect((await envia('nota dois')).body.leitura_compra.resultado).toBe('lido');
+    priv = privadaGravada(SOLAR)!;
+    expect(priv.compra.compras).toHaveLength(2);
+    expect(priv.compra.itens.filter((i) => i.tipo === 'modulo').map((i) => i.quantidade)).toEqual([10, 4]);
+  });
+
+  it('B6: a obra que fecha a conta entre a conferência e a trava não recebe a leitura (409 e nada gravado)', async () => {
+    preparar();
+    h.nota = doc('nota_fiscal');
+    h.fechaNaTrava = true;
+    const r = await envia('nota tarde');
+    expect(r.status).toBe(409);
+    expect(r.body.error).toBe('obra_fechada');
+    const p = privadaGravada(SOLAR)!;
+    expect(p.compra.documentos).toHaveLength(0);
+    expect(p.compra.itens.every((i) => !i.comprado)).toBe(true);
+  });
+
+  it('B9: XML acima de 1 MB é recusado ANTES de decodificar e de ler', async () => {
+    preparar();
+    const r = await post(URL(), { base64: 'A'.repeat(1_400_000), media_type: 'application/xml', nome: 'grande.xml' }, THIAGO);
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe('xml_grande');
+    expect(h.decodificou).toBe(0);
+    expect(h.bucket.size).toBe(0);
+  });
+});
+
+describe('o botão final do Comissionamento: POST comissionamento/concluir', () => {
+  const URL = (id = SOLAR) => `/jornada-solar/obra/${id}/comissionamento/concluir`;
+  const FOTOS = ['ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo'];
+  const preparar = (): void => {
+    cenario8();
+    const lig = { proposta: null, venda: '#0058', por: POR_GERADOR, em: AGORA };
+    h.linhas.set(`venda_solar:${SOLAR}`, { updated_at: 'v', value: { ...lig, sig: assinarLigacao(SOLAR, lig) } });
+    semearJo(SOLAR, (e) => { e.pedido = { numero: '1026-50392', em: '2026-10-26' }; }, 7);
+    semearPrivada(SOLAR, (p) => {
+      p.entrega.testes = { string1_voc: '412', string2_voc: '409', isolamento_ok: true, gerando_kw: '6,2', gerando_hora: '11:40', wifi_ok: true, disjuntores_ok: true };
+      p.entrega.monitoramento = { app: 'iSolarCloud', conta: 'c@exemplo.com', usina: 'Casa', online: true, serie: 'INV-1', comissionamento: '' };
+      p.entrega.cofre = { ...cifrar('senha'), em: AGORA, por: 'diego' };
+      p.entrega.termo = { assinado_em: AGORA, nome: 'Marcos', arquivo_id: 'a-ass', chk: ['sim', 'sim', 'sim', 'sim', 'sim', 'na'], ressalva: '' };
+    });
+    anexos(SOLAR, [['a-ped', 'lib_pedido'], ['a-vis', 'lib_vistoria'], ['a-med', 'lib_medidor'], ['a-lib', 'lib_liberacao'], ['a-ass', 'ent_termo_assinado'],
+      ...FOTOS.map((s, i): [string, string] => [`f-${i}`, s])]);
+  };
+
+  it('lista o que falta (409) enquanto o obrigatório não está feito, e o Diego e a Nilce não concluem', async () => {
+    preparar();
+    anexos(SOLAR, [['a-ped', 'lib_pedido'], ['a-vis', 'lib_vistoria'], ['a-med', 'lib_medidor'], ['a-lib', 'lib_liberacao'], ['a-ass', 'ent_termo_assinado'],
+      ...FOTOS.slice(0, 7).map((s, i): [string, string] => [`f-${i}`, s])]);
+    const t = await post(URL(), {}, THIAGO);
+    expect(t.status).toBe(409);
+    expect(t.body).toMatchObject({ precisa: 'itens' });
+    expect(t.body.falta.map((x: any) => x.chave)).toEqual(['fotos']);
+    expect(joGravado(SOLAR).etapas['7'].concluida_em).toBeNull();
+    anexos(SOLAR, [['a-ped', 'lib_pedido'], ['a-vis', 'lib_vistoria'], ['a-med', 'lib_medidor'], ['a-lib', 'lib_liberacao'], ['a-ass', 'ent_termo_assinado'],
+      ...FOTOS.map((s, i): [string, string] => [`f-${i}`, s])]);
+    for (const a of [DIEGO, NILCE]) expect((await post(URL(), {}, a)).status).toBe(403);
+    const g = await get(F2(SOLAR), THIAGO);
+    expect(g.body.finalizar).toEqual({ falta: [] });
+    expect(g.body.pode).toMatchObject({ finalizar: true, finalizar_pronto: true });
+    expect((await get(F2(SOLAR), DIEGO)).body.pode.finalizar).toBe(false);
+  });
+
+  it('a Entrega completa abre a 8 sozinha ao salvar: o GET já diz etapa 8, o PUT registra a 7 uma vez, e o Thiago pode finalizar', async () => {
+    preparar();
+    semearPrivada(SOLAR, (p) => { p.entrega.testes.wifi_ok = false; });   // antes desta gravação o portão da 7 ainda não valia
+    expect((await get(F2(SOLAR), THIAGO)).body.etapa_atual).toBe(7);
+    const e = privadaGravada(SOLAR)!.entrega;
+    const dados = { testes: { ...e.testes, wifi_ok: true }, monitoramento: e.monitoramento, termo: e.termo, garantias: e.garantias, responsavel: 'diego' };
+    const p = await put(F2(SOLAR, '/entrega'), { versao: 0, dados }, DIEGO);
+    expect(p.status).toBe(200);
+    expect(p.body.etapa_atual).toBe(8);
+    const jo = joGravado(SOLAR);
+    expect(jo.etapas['7']).toMatchObject({ concluida_por: 'diego' });
+    expect(jo.etapas['8'].aberta_em).not.toBeNull();
+    expect(jo.historico.filter((x: any) => x.acao === 'concluir' && x.etapa === 7).map((x: any) => x.por)).toEqual(['diego']);   // exatamente 1, com o nome de quem salvou
+    const conta = (): number => joGravado(SOLAR).historico.filter((x: any) => x.acao === 'concluir' && x.etapa === 7).length;
+    expect(conta()).toBe(1);
+    await put(F2(SOLAR, '/entrega'), { versao: p.body.versoes.entrega, dados }, DIEGO);
+    expect(conta()).toBe(1);
+    expect((await get(F2(SOLAR), THIAGO)).body.pode).toMatchObject({ finalizar: true, finalizar_pronto: true });
+    // O botão final conclui a 8 (a 7 já estava concluída por quem salvou).
+    const c = await post(URL(), {}, THIAGO);
+    expect(c.status).toBe(200);
+    expect(joGravado(SOLAR).etapas['7'].concluida_por).toBe('diego');
+    expect(joGravado(SOLAR).etapas['8'].concluida_por).toBe('thiago');
+  });
+
+  it('o UPLOAD da última foto da entrega conclui a 7 com 1 `concluir` do nome de quem subiu; o que já valia antes do upload avança em silêncio (`leitura`)', async () => {
+    preparar();
+    const base: Array<[string, string]> = [['a-ped', 'lib_pedido'], ['a-vis', 'lib_vistoria'], ['a-med', 'lib_medidor'], ['a-lib', 'lib_liberacao'], ['a-ass', 'ent_termo_assinado']];
+    const fotos = (n: number): Array<[string, string]> => FOTOS.slice(0, n).map((s, i): [string, string] => [`f-${i}`, s]);
+    const ctx = (nome: string) => ({ linha: 'vendasolar' as const, codigo: String(SOLAR), nome, socio: false, cliente: '', card: h.agendamentos.find((a) => a.id === SOLAR) as never });
+    anexos(SOLAR, [...base, ...fotos(8)]);   // a 8ª foto acabou de entrar no registro
+    await sincronizarAposAnexo(ctx('diego'), 'f-7');
+    let jo = joGravado(SOLAR);
+    expect(jo.etapas['7']).toMatchObject({ concluida_por: 'diego' });
+    expect(jo.etapas['8'].aberta_em).not.toBeNull();
+    expect(jo.historico.filter((x: any) => x.acao === 'concluir' && x.etapa === 7).map((x: any) => x.por)).toEqual(['diego']);
+    await sincronizarAposAnexo(ctx('diego'), 'f-7');
+    expect(joGravado(SOLAR).historico.filter((x: any) => x.acao === 'concluir' && x.etapa === 7)).toHaveLength(1);
+    // Obra antiga: as 8 fotos já existiam; o upload de outra foto (diário) não fecha nada, e a 7 avança em silêncio.
+    semearJo(SOLAR, (e) => { e.pedido = { numero: '1026-50392', em: '2026-10-26' }; }, 7);
+    anexos(SOLAR, [...base, ...fotos(8), ['f-x', 'obra_foto']]);
+    await sincronizarAposAnexo(ctx('diego'), 'f-x');
+    jo = joGravado(SOLAR);
+    expect(jo.etapas['7']).toMatchObject({ concluida_por: 'leitura' });
+    expect(jo.historico.filter((x: any) => x.acao === 'concluir').map((x: any) => x.por)).toEqual(['leitura']);
+    // Sem card ou sem estado gravado: não faz nada e não lança.
+    await expect(sincronizarAposAnexo({ ...ctx('diego'), card: undefined }, 'f-x')).resolves.toBeUndefined();
+  });
+
+  it('conclui a 7 e a 8, fecha a conta, deixa o histórico dos robôs e, sem as envs, devolve a lista da planilha', async () => {
+    preparar();
+    delete process.env.PLANILHA_SCRIPT_URL; delete process.env.PLANILHA_SCRIPT_SEGREDO;
+    const c = await post(URL(), {}, THIAGO);
+    expect(c.status).toBe(200);
+    expect(c.body).toMatchObject({ ok: true, etapa_atual: 9, planilha: { status: 'nao_ligada', aviso: 'Planilha automática ainda não ligada.' } });
+    expect(c.body.planilha.colunas.map((x: any) => x.coluna), JSON.stringify(c.body.planilha)).toEqual(expect.arrayContaining(['A', 'F', 'J', 'AM']));
+    const jo = joGravado(SOLAR);
+    expect(jo.fechada).toMatchObject({ por: 'thiago' });
+    expect(jo.etapas['7'].concluida_em).not.toBeNull();   // o portão da 7 já valia: avança em silêncio (`leitura`)
+    expect(jo.etapas['8'].concluida_por).toBe('thiago');
+    expect(jo.historico.filter((x: any) => x.acao === 'concluir').map((x: any) => x.etapa)).toEqual(expect.arrayContaining([7, 8]));
+    expect(jo.historico.some((x: any) => x.acao === 'fechar')).toBe(true);
+    expect((await post(URL(), {}, THIAGO)).status).toBe(409);
+  });
+
+  it('a planilha que falha NÃO desfaz a conclusão: devolve o status, e "tentar de novo" preenche', async () => {
+    preparar();
+    process.env.PLANILHA_SCRIPT_URL = 'https://planilha.invalid/exec'; process.env.PLANILHA_SCRIPT_SEGREDO = 'segredo-de-teste-planilha';
+    const original = globalThis.fetch;
+    try {
+      globalThis.fetch = (async () => { throw new Error('rede'); }) as unknown as typeof fetch;
+      const c = await post(URL(), {}, THIAGO);
+      expect(c.status).toBe(200);
+      expect(c.body.planilha).toMatchObject({ status: 'falhou', motivo: 'rede' });
+      expect(c.body.planilha.colunas.length).toBeGreaterThan(0);
+      expect(joGravado(SOLAR).fechada).not.toBeNull();
+      expect(joGravado(SOLAR).etapas['8'].concluida_em).not.toBeNull();
+      globalThis.fetch = (async () => ({ ok: true, status: 200, json: async () => ({ ok: true, linha: 602, gravadas: ['F', 'J'], puladas: [{ coluna: 'C', motivo: 'ja_preenchida' }] }) })) as unknown as typeof fetch;
+      expect((await post(`/jornada-solar/obra/${SOLAR}/planilha`, {}, NILCE)).status).toBe(403);
+      const again = await post(`/jornada-solar/obra/${SOLAR}/planilha`, {}, THIAGO);
+      expect(again.body.planilha).toMatchObject({ status: 'preenchida', gravadas: ['F', 'J'] });
+    } finally {
+      globalThis.fetch = original;
+      delete process.env.PLANILHA_SCRIPT_URL; delete process.env.PLANILHA_SCRIPT_SEGREDO;
+    }
+  });
+});
+
+describe('obra nova: regras do dono (A2, A4) e achados do revisor (B1, B4, B5) pela rota', () => {
+  const minimo = (id: string, tipo: string, o: Record<string, unknown> = {}) => ({ id, tipo, descricao: id, quantidade: 1, unidade: 'un', origem: 'manual', comprado: false, criado_por: 'thiago', criado_em: AGORA, ...o });
+  const docOrc = { id: 'd-orc', tipo: 'orcamento', nome: 'orc.pdf', sha256: 'a'.repeat(64), path: 'fin/601/o.pdf', fornecedor: 'Loja', numero: '1', data: '2026-10-01', total_centavos: 900, itens: 1, origem: 'ia', compra_id: null, em: AGORA, por: 'thiago' };
+
+  it('A2 e B1: o orçado não comprado vem marcado `orcado_apenas` e não conta; a placa comprada de outra marca fecha o material em N de N', async () => {
+    cenario8();
+    semearPrivada(SOLAR, (p) => {
+      p.compra.documentos = [docOrc] as never;
+      p.compra.itens.push({ ...p.compra.itens[0], id: 'i-orc', origem: 'arquivo', comprado: false, compra_id: null, valor_centavos: null, data: null, orcado_centavos: 90_000, lido_de: 'orc.pdf', documento_id: 'd-orc' });
+      // O previsto da proposta (placa) que foi trocado pela placa comprada de outra marca: não pode ficar no total.
+      p.compra.itens.push({ ...p.compra.itens[0], id: 'i-prev', origem: 'proposta', tipo: 'modulo', comprado: false, compra_id: null, valor_centavos: null, data: null, fornecedor: '' });
+      p.compra.itens[0] = { ...p.compra.itens[0], tipo: 'modulo', origem: 'arquivo', documento_id: '', serie: '' };
+    });
+    const g = await get(F2(SOLAR), THIAGO);
+    expect(g.status).toBe(200);
+    const por = (id: string) => g.body.dados.compra.itens.find((i: any) => i.id === id);
+    expect([por('i-orc').orcado_apenas, por('i-prev').orcado_apenas, por('i-1').orcado_apenas]).toEqual([true, false, false]);
+    expect(g.body.dados.compra.contador).toEqual({ com_origem: 2, total: 2 });   // nem o orçado, nem o previsto trocado
+    expect(g.body.finalizar.falta.map((x: any) => x.chave)).not.toContain('material');
+    expect(g.body.pode.finalizar_pronto).toBe(true);
+  });
+
+  it('A4: carro, equipe do dia e observações finais são gravados pelo PUT da seção (limpos e limitados)', async () => {
+    semearJo(SOLAR);
+    const v = async (k: string): Promise<number> => (await get(F2(SOLAR), THIAGO)).body.versoes[k];
+    const lg = await put(F2(SOLAR, '/logistica'), { versao: await v('logistica'), dados: { cargas: [{ id: null, nome: 'Carga 1', itens: [], transporte: { motorista: 'Zé', carro: `Fiat Strada\u0007 branca${'x'.repeat(200)}` } }] } }, THIAGO);
+    expect(lg.status).toBe(200);
+    const carro = privadaGravada(SOLAR)!.logistica.cargas[0].transporte.carro;
+    expect(carro.startsWith('Fiat Strada')).toBe(true);
+    expect(carro.length).toBeLessThanOrEqual(80);
+    expect(lg.body.dados.logistica.cargas[0].transporte.carro).toBe(carro);
+    const ob = await put(F2(SOLAR, '/obra'), { versao: await v('obra'), dados: { plano: [], checklist: {}, equipe: { combinado_centavos: null, descricao: '' }, diario: [{ data: '2026-11-25', chegada: '', saida: '', fotos: [], ocorrencia: '', equipe: 'Pablo e 2 ajudantes' }] } }, THIAGO);
+    expect(ob.status).toBe(200);
+    expect(ob.body.dados.obra.diario[0].equipe).toBe('Pablo e 2 ajudantes');
+    const en = await put(F2(SOLAR, '/entrega'), { versao: await v('entrega'), dados: { testes: {}, monitoramento: {}, termo: null, responsavel: '', observacoes: 'Cliente pediu\u0007 vistoria extra' } }, THIAGO);
+    expect(en.status).toBe(200);
+    expect(en.body.dados.entrega.observacoes).toBe('Cliente pediu  vistoria extra');
+    expect(privadaGravada(SOLAR)!.entrega.observacoes).toBe('Cliente pediu  vistoria extra');
+  });
+
+  it('B4: só o ADM força a abertura da próxima etapa (409 sem `forcar`, 403 para quem não é ADM); fica no histórico com o nome e o motivo só no obra.json', async () => {
+    semearJo(SOLAR, () => undefined, 5);
+    const URL = `/jornada-solar/obra/${SOLAR}/etapa-obra`;
+    expect((await post(URL, { etapa: 5 }, THIAGO)).body).toMatchObject({ abre_sozinha: true });
+    expect((await get(F2(SOLAR), THIAGO)).body.pode.forcar).toBe(true);
+    expect((await get(F2(SOLAR), DIEGO)).body.pode.forcar).toBe(false);
+    const antes = JSON.stringify(h.linhas.get(`jornada_obra:${SOLAR}`));
+    expect((await post(URL, { etapa: 5, forcar: true }, DIEGO)).status).toBe(403);
+    expect((await post(URL, { etapa: 5, forcar: 'sim' }, THIAGO)).status).toBe(409);   // só `true` vale: o resto cai no 409 abre_sozinha
+    expect(JSON.stringify(h.linhas.get(`jornada_obra:${SOLAR}`))).toBe(antes);
+    const motivo = 'Kit veio numa linha só da nota';
+    const ok = await post(URL, { etapa: 5, forcar: true, motivo }, THIAGO);
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ ok: true, forcada: true, etapa_atual: 6 });
+    const jo = joGravado(SOLAR);
+    expect(jo.etapas['5']).toMatchObject({ concluida_por: 'thiago' });
+    expect(jo.etapas['6'].aberta_em).not.toBeNull();
+    expect(jo.historico.slice(-3).map((x: any) => [x.acao, x.etapa, x.por])).toEqual([['forcar', 5, 'thiago'], ['concluir', 5, 'thiago'], ['abrir', 6, 'thiago']]);
+    expect(JSON.stringify(jo)).not.toContain(motivo);   // o estado assinado não leva texto livre
+    expect(privadaGravada(SOLAR)!.forcadas).toMatchObject([{ por: 'thiago', etapa: 5, motivo }]);
+    // Não volta nem repete: a 5 já passou; motivo que não é texto é 400.
+    expect((await post(URL, { etapa: 5, forcar: true }, THIAGO)).status).toBe(409);
+    expect((await post(URL, { etapa: 6, forcar: true, motivo: 5 }, THIAGO)).status).toBe(400);
+  });
+
+  it('B5: o GET usa a data gravada: a abertura da etapa seguinte não anda de uma leitura para a outra', async () => {
+    semearJo(SOLAR);
+    semearPrivada(SOLAR, (p) => { p.compra.itens = [minimo('i-m', 'modulo', { origem: 'proposta', comprado: true }), minimo('i-i', 'inversor', { origem: 'proposta', comprado: true })] as never; });
+    const a = await get(F2(SOLAR), DIEGO);
+    expect(a.body.etapa_atual).toBe(5);
+    expect(a.body.etapas[1].aberta_em).toBe(AGORA);
+    vi.setSystemTime(new Date('2026-11-09T15:00:00.000Z'));
+    const b = await get(F2(SOLAR), DIEGO);
+    expect(b.body.etapas[1].aberta_em).toBe(AGORA);
+    expect(b.body.etapas[1].prazo).toEqual(a.body.etapas[1].prazo);
+  });
+});
+
+describe('equipamento sempre editável (conta fechada trava só o dinheiro)', () => {
+  const fechar = (): void => { cenario8(); semearJo(SOLAR, (e) => { e.fechada = { em: AGORA, por: 'thiago' }; }, 9); };
+  it('item da compra: com a conta fechada o modelo muda (200) e o valor não (409); item novo, item removido e `comprado` também 409; a Nilce segue sem poder; a logística segue travada', async () => {
+    fechar();
+    const g = await get(F2(SOLAR), DIEGO);
+    expect(g.body.pode.secoes).toContain('compra');
+    expect(g.body.pode.secoes).not.toContain('logistica');
+    expect(g.body.pode.nota).toBe(false);
+    expect(g.body.pode.equipamento).toBe(true);
+    expect((await get(F2(SOLAR), NILCE)).body.pode.equipamento).toBe(false);
+    const compras = g.body.dados.compra.compras;
+    const mexe = (i: any) => ({ ...i, ...(i.id === 'i-1' ? { modelo: 'Novo Modelo X', marca: 'Jinko', quantidade: 12, potencia_w: 620, serie: 'SN-123' } : {}) });
+    const itens = g.body.dados.compra.itens.map(mexe);
+    const url = F2(SOLAR, '/compra');
+    // Valor, "comprado", item novo ou removido e compras: a trava de hoje (409), e nada é gravado.
+    const antes = JSON.stringify(privadaGravada(SOLAR));
+    for (const dados of [
+      { itens: itens.map((i: any) => (i.id === 'i-1' ? { ...i, valor_centavos: 1 } : i)), compras },
+      { itens: itens.map((i: any) => (i.id === 'i-1' ? { ...i, comprado: false } : i)), compras },
+      { itens: [...itens, { id: null, tipo: 'outro', descricao: 'contrabando' }], compras },
+      { itens: itens.slice(1), compras },
+      { itens, compras: [] },
+    ]) expect((await put(url, { versao: g.body.versoes.compra, dados }, DIEGO)).status).toBe(409);
+    expect(JSON.stringify(privadaGravada(SOLAR))).toBe(antes);
+    // Só o equipamento: 200, e o dinheiro fica como estava.
+    const r = await put(url, { versao: g.body.versoes.compra, dados: { itens, compras } }, DIEGO);
+    expect(r.status).toBe(200);
+    const p = privadaGravada(SOLAR)!;
+    expect(p.compra.itens.map((i) => i.id)).toEqual(['i-1', 'i-2']);
+    expect(p.compra.itens[0]).toMatchObject({ modelo: 'Novo Modelo X', marca: 'Jinko', quantidade: 12, potencia_w: 620, serie: 'SN-123', valor_centavos: 60_000, comprado: true, compra_id: 'c-1' });
+    expect(p.compra.itens[1].valor_centavos).toBe(40_000);
+    expect(p.compra.compras).toHaveLength(1);
+    expect((await put(url, { versao: r.body.versoes.compra, dados: { itens, compras } }, NILCE)).status).toBe(403);
+    expect((await put(F2(SOLAR, '/logistica'), { versao: 0, dados: { cargas: [] } }, DIEGO)).status).toBe(409);
   });
 });

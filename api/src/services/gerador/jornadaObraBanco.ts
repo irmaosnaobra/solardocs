@@ -20,9 +20,9 @@ import { ErroJornada, ehRecusa, type Recusa } from './jornadaSolarBanco';
 import {
   ACOES_HISTORICO_OBRA, CAMPOS_CONTRATO, CHAVES_CHECKLIST, EQUIPES_LISTA, ETAPAS_OBRA, IDS_EQUIPE, ORIGENS_ITEM, SECOES_OBRA, TIPOS_ITEM, UNIDADES_ITEM,
   vazioEtapaObra,
-  type AcaoHistoricoObra, type BancoObra, type CargaObra, type CompraObra, type ContratoObra, type EstadoObra, type ItemCompra, type ObraPrivada,
+  type AcaoHistoricoObra, type BancoObra, type CargaObra, type CompraObra, type ContratoObra, type DocumentoCompra, type EstadoObra, type ItemCompra, type ObraPrivada,
   type PassoLiberacao, type PosVendaObra, type PrevistoObra, type RegraCongelada, type SecaoObra, type VistoriaObra, chaveNfeValida,
-  MAX_INDICACOES_POSVENDA, MAX_OCORRENCIAS_POSVENDA, normalizarCpf, normalizarPlaca, posVendaVazio,
+  MAX_INDICACOES_POSVENDA, MAX_OCORRENCIAS_POSVENDA, TIPOS_DOCUMENTO_COMPRA, normalizarCpf, normalizarPlaca, posVendaVazio,
 } from './jornadaObra';
 
 export const EQUIPES = EQUIPES_LISTA;
@@ -215,17 +215,17 @@ export const obraPrivadaVazia = (): ObraPrivada => ({
   v: 1,
   versoes: { vistoria: 0, banco: 0, compra: 0, logistica: 0, obra: 0, entrega: 0, liberacao: 0, previsto: 0, posvenda: 0 },
   contrato: null, vistoria: null, banco: null, previsto: null, regra_comissao: null,
-  compra: { itens: [], compras: [] },
+  compra: { itens: [], compras: [], documentos: [] },
   logistica: { cargas: [] },
   obra: { plano: [], diario: [], checklist: {}, equipe: { combinado_centavos: null, descricao: '' } },
   entrega: {
     testes: { string1_voc: '', string2_voc: '', isolamento_ok: false, gerando_kw: '', gerando_hora: '', wifi_ok: false, disjuntores_ok: false },
     monitoramento: { app: '', conta: '', usina: '', online: false, serie: '', comissionamento: '' },
-    cofre: null, cofre_revelado: [], garantias: { registrada_em: null, treinado: false }, termo: null, responsavel: '',
+    cofre: null, cofre_revelado: [], garantias: { registrada_em: null, treinado: false }, termo: null, responsavel: '', observacoes: '',
   },
   liberacao: { passos: { pedido: null, vistoria: null, medidor: null, liberada: null }, exigencias: [] },
   posvenda: posVendaVazio(),
-  reaberturas: [],
+  reaberturas: [], forcadas: [],
 });
 
 const MAX_CENTAVOS = 10_000_000_000;
@@ -311,6 +311,23 @@ function itemNormal(v: unknown): ItemCompra | null {
     garantia_anos: inteiro(o.garantia_anos, 0, 50),
     compra_id: idCurto(o.compra_id) || null, fornecedor: txt(o.fornecedor, 80), valor_centavos: centavos(o.valor_centavos), data: ymd(o.data),
     etapa: o.etapa === 6 ? 6 : 4, criado_por: nome(o.criado_por), criado_em: dataIso(o.criado_em) ?? '',
+    // Item gravado antes do tique "Comprado": o que já estava ligado a uma compra conta como comprado (o que já passou continua passado).
+    comprado: typeof o.comprado === 'boolean' ? o.comprado : !!idCurto(o.compra_id),
+    orcado_centavos: centavos(o.orcado_centavos), lido_de: txt(o.lido_de, 120), documento_id: idCurto(o.documento_id), serie: txt(o.serie, 60),
+  };
+}
+
+function documentoNormal(v: unknown): DocumentoCompra | null {
+  const o = obj(v);
+  const id = o ? idCurto(o.id) : '';
+  const tipo = TIPOS_DOCUMENTO_COMPRA.find((x) => x === o?.tipo);
+  const em = o ? dataIso(o.em) : null;
+  const sha = o && typeof o.sha256 === 'string' && /^[0-9a-f]{64}$/.test(o.sha256) ? o.sha256 : '';
+  if (!o || !id || !tipo || !em || !sha) return null;
+  return {
+    id, tipo, nome: txt(o.nome, 120), sha256: sha, path: typeof o.path === 'string' ? o.path.slice(0, 300) : '', fornecedor: txt(o.fornecedor, 80),
+    numero: txt(o.numero, 40), data: ymd(o.data), total_centavos: centavos(o.total_centavos), itens: inteiro(o.itens, 0, 200) ?? 0,
+    origem: o.origem === 'xml' ? 'xml' : 'ia', compra_id: idCurto(o.compra_id) || null, em, por: nome(o.por),
   };
 }
 
@@ -340,10 +357,11 @@ function cargaNormal(v: unknown): CargaObra | null {
     id, nome: txt(o.nome, 80), itens: lista(o.itens).map(idCurto).filter(Boolean).slice(0, 80),
     saida: { lugar: txt(sa.lugar, 120), em: dhm(sa.em) },
     chegada: { lugar: txt(ch.lugar, 160), destino: ch.destino === 'obra' ? 'obra' : 'deposito', em: dhm(ch.em) },
-    transporte: { empresa: txt(tr.empresa, 80), motorista: txt(tr.motorista, 80), cpf: normalizarCpf(tr.cpf), placa: normalizarPlaca(tr.placa) },
+    transporte: { empresa: txt(tr.empresa, 80), motorista: txt(tr.motorista, 80), cpf: normalizarCpf(tr.cpf), placa: normalizarPlaca(tr.placa), carro: txt(tr.carro, 80) },
     compras: lista(o.compras).map(idCurto).filter(Boolean).slice(0, 20),
     recebido_por: { nome: txt(rb.nome, 80), cpf: normalizarCpf(rb.cpf), assinatura_id: idArquivo(rb.assinatura_id) },
     conferencia: { itens_ok: lista(co.itens_ok).map(idCurto).filter(Boolean).slice(0, 80), foto_id: idArquivo(co.foto_id) },
+    fotos: idsArquivo(o.fotos, 30),
     avaria: { tem: bool(av.tem), descricao: txt(av.descricao, 400), foto_id: idArquivo(av.foto_id), o_que_fazer: txt(av.o_que_fazer, 400), resolvida: bool(av.resolvida) },
     frete: { valor_centavos: centavos(fr.valor_centavos), forma: txt(fr.forma, 30) },
     documentos: idsArquivo(o.documentos, 20),
@@ -403,7 +421,7 @@ export function normalizarObraPrivada(value: unknown): ObraPrivada {
   for (const d of lista(ob.diario).slice(0, 20)) {
     const dd = obj(d);
     const data = dd ? ymd(dd.data) : null;
-    if (dd && data) diario.push({ data, chegada: hhmm(dd.chegada), saida: hhmm(dd.saida), fotos: idsArquivo(dd.fotos, 60), ocorrencia: txt(dd.ocorrencia, 400) });
+    if (dd && data) diario.push({ data, chegada: hhmm(dd.chegada), saida: hhmm(dd.saida), fotos: idsArquivo(dd.fotos, 60), ocorrencia: txt(dd.ocorrencia, 400), equipe: txt(dd.equipe, 160) });
   }
   const ck = obj(ob.checklist) ?? {};
   const checklist: Record<string, boolean> = {};
@@ -422,6 +440,8 @@ export function normalizarObraPrivada(value: unknown): ObraPrivada {
   for (const x of lista(li.exigencias)) { const xo = obj(x); const em = xo ? dataIso(xo.em) : null; const t = xo ? txt(xo.texto, 400) : ''; if (xo && em && t) exig.push({ em, por: nome(xo.por), texto: t }); }
   const reab: ObraPrivada['reaberturas'] = [];
   for (const r of lista(o.reaberturas)) { const ro = obj(r); const em = ro ? dataIso(ro.em) : null; const m = ro ? txt(ro.motivo, 300) : ''; if (ro && em && m.length >= 3) reab.push({ em, por: nome(ro.por), motivo: m }); }
+  const forc: ObraPrivada['forcadas'] = [];
+  for (const r of lista(o.forcadas)) { const ro = obj(r); const em = ro ? dataIso(ro.em) : null; const et = ro ? inteiro(ro.etapa, 4, 7) : null; if (ro && em && et) forc.push({ em, por: nome(ro.por), etapa: et, motivo: txt(ro.motivo, 300) }); }
   return {
     v: 1,
     versoes,
@@ -430,7 +450,10 @@ export function normalizarObraPrivada(value: unknown): ObraPrivada {
     banco: bancoNormal(o.banco),
     previsto: previstoNormal(o.previsto),
     regra_comissao: regraNormal(o.regra_comissao),
-    compra: { itens: lista(cp.itens).map(itemNormal).filter((x): x is ItemCompra => !!x).slice(0, 80), compras: lista(cp.compras).map(compraNormal).filter((x): x is CompraObra => !!x).slice(0, 20) },
+    compra: {
+      itens: lista(cp.itens).map(itemNormal).filter((x): x is ItemCompra => !!x).slice(0, 80), compras: lista(cp.compras).map(compraNormal).filter((x): x is CompraObra => !!x).slice(0, 20),
+      documentos: lista(cp.documentos).map(documentoNormal).filter((x): x is DocumentoCompra => !!x).slice(-40),
+    },
     logistica: { cargas: lista(lg.cargas).map(cargaNormal).filter((x): x is CargaObra => !!x).slice(0, 12) },
     obra: { plano, diario, checklist, equipe: { combinado_centavos: centavos(eq.combinado_centavos), descricao: txt(eq.descricao, 160) } },
     entrega: {
@@ -447,10 +470,12 @@ export function normalizarObraPrivada(value: unknown): ObraPrivada {
         chk: Array.from({ length: 6 }, (_, i) => chk(lista(tm.chk)[i])), ressalva: txt(tm.ressalva, 500),
       } : null,
       responsavel: txt(en.responsavel, 80),
+      observacoes: txt(en.observacoes, 1000),
     },
     liberacao: { passos: { pedido: passoNormal(ps.pedido), vistoria: passoNormal(ps.vistoria), medidor: passoNormal(ps.medidor), liberada: passoNormal(ps.liberada) }, exigencias: exig.slice(-10) },
     posvenda: posVendaNormal(o.posvenda),
     reaberturas: reab.slice(-10),
+    forcadas: forc.slice(-10),
   };
 }
 

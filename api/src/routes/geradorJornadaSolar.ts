@@ -43,9 +43,10 @@ import { mountJornadaLerTudo } from './geradorJornadaLerTudo';
 import { podeLerTudo } from '../services/gerador/leituraGravacao';
 import { SEM_LEITURA, leituraDaObra } from '../services/gerador/leituraPendente';
 import { kitVendido, lerRelatorioFinal } from '../services/gerador/relatorioFinal';
+import { equipamentoFinal } from '../services/gerador/equipamentoFinal';
 import { lerAjustes, lerResumoDoDinheiro } from '../services/gerador/jornadaDinheiroBanco';
 import { podeVerValorDaObra } from '../services/gerador/jornadaDinheiro';
-import { CAMPOS_CONTRATO, bancoSemValor, etapaAtualCompleta, obraMaterializada, type ContratoObra, type EstadoObra } from '../services/gerador/jornadaObra';
+import { CAMPOS_CONTRATO, bancoSemValor, etapaAtualCompleta, obraMaterializada, type ContratoObra, type DocumentoCompra, type EstadoObra, type ItemCompra } from '../services/gerador/jornadaObra';
 import { situacaoObra } from '../services/gerador/jornadaObra';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,7 +156,7 @@ interface Leitura {
   proposta: Awaited<ReturnType<typeof lerProposta>>;
   /** O kit da proposta ligada e a obra privada (vistoria e proposta de banco): só lidos quando `comProposta`. */
   equip: EquipamentoProposta | null;
-  obra: { vistoria: ObraPrivadaVistoria; banco: ObraPrivadaBanco; versoes: Record<string, number> } | null;
+  obra: { vistoria: ObraPrivadaVistoria; banco: ObraPrivadaBanco; versoes: Record<string, number>; itens: ItemCompra[]; documentos: DocumentoCompra[]; serie: string } | null;
 }
 
 async function ler(g: Guarda, comProposta = true): Promise<Leitura> {
@@ -175,7 +176,7 @@ async function ler(g: Guarda, comProposta = true): Promise<Leitura> {
   const proposta = comProposta && lig.proposta ? await lerProposta(lig.proposta).catch((e) => { logErro('proposta', e); return null; }) : null;
   const equip = proposta ? equipamentoDaProposta({ qtd_placas: proposta.qtd_placas, inversor: proposta.inversor, qtd_inversor: proposta.qtd_inversor, dados: proposta.dados }) : null;
   const op = comProposta ? await lerObraPrivada(g.id).catch((e) => { logErro('obra privada', e); return null; }) : null;
-  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, arquivos: docs.reg.arquivos, origem, tem_cartao: !!lig.trello_card, proposta, equip, obra: op ? { vistoria: op.vistoria, banco: op.banco, versoes: op.versoes } : null };
+  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, arquivos: docs.reg.arquivos, origem, tem_cartao: !!lig.trello_card, proposta, equip, obra: op ? { vistoria: op.vistoria, banco: op.banco, versoes: op.versoes, itens: op.compra.itens, documentos: op.compra.documentos, serie: op.entrega.monitoramento.serie } : null };
 }
 
 /**
@@ -701,6 +702,8 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       excedente: l.estado?.etapas[1].excedente ?? null,
       // O kit que foi VENDIDO (a proposta ligada), para a Fase 1 mostrar: texto das placas e do inversor e o kWp; null sem proposta.
       kit_vendido: kitVendido(equip, kwpDados, l.estado?.etapas[1].kit_texto),
+      // O equipamento FINAL (o Resumo): o que foi comprado quando há item comprado, senão a proposta (`origem` e `etiqueta` dizem qual). Sem valor de dinheiro.
+      equipamento_final: equipamentoFinal(l.obra?.itens ?? [], equip, l.obra?.documentos ?? [], l.obra?.serie ?? ''),
       // Etapa 1: o que está confirmado (só com a marca em dia), os pedidos ao cliente ticados, a resposta do financiamento, a % da vistoria e a
       // conferência de CPF do excedente (ok null = sem CPF dos dois lados; a regra de nome decide).
       // O que o formulário de vistoria e a proposta de banco da etapa 1 precisam (o mesmo `dados`, `versoes` e `pode.secoes` do GET .../fase2): os PUTs
@@ -821,8 +824,11 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
     const l = await ler(g, false);
     const pode = podeDe(g, l, posicaoDe(l));
     if (l.estado?.cancelada) { res.status(409).json({ ok: false, error: 'Venda cancelada.' }); return; }
-    // Fase 2: a conta fechada trava o valor vendido (ele é a base do "a receber"). Só o Thiago reabre.
-    if (l.obraEstado?.fechada) { res.status(409).json({ ok: false, error: 'A conta desta obra está fechada. Só o Thiago reabre.' }); return; }
+    // Fase 2: a conta fechada trava o DINHEIRO da venda (valor, forma de pagamento e desconto: a base do "a receber"). Prazo, nota e o resto seguem editáveis; só o Thiago reabre.
+    const venda0 = l.privado?.venda;
+    if (l.obraEstado?.fechada && (!venda0 || venda0.valor_centavos !== valor || JSON.stringify(venda0.pagamento) !== JSON.stringify(pagamento) || venda0.desconto_centavos !== desconto)) {
+      res.status(409).json({ ok: false, error: 'A conta desta obra está fechada. Só o Thiago reabre.' }); return;
+    }
     // O kit só muda enquanto a etapa 3 não concluiu (e por quem pode confirmá-lo): depois disso o PUT recusa a troca do kit.
     const kitPedido = b.kit_confirmado === undefined ? (l.privado?.venda?.kit_confirmado ?? false) : b.kit_confirmado as boolean;   // sem o campo, o kit segue como está
     if ((l.privado?.venda?.kit_confirmado ?? false) !== kitPedido && !pode.confirmar_kit) {
@@ -830,7 +836,13 @@ async function rotaVenda(req: Request, res: Response): Promise<void> {
       return;
     }
     // Não há trava por etapa aqui: com a etapa 1 concluída a Giovanna e o ADM seguem editando a venda (kit incluso) até a obra fechar a conta.
-    if (!pode.editar_venda) { res.status(403).json({ ok: false, error: 'Você não pode editar o valor desta venda agora.' }); return; }
+    if (!pode.editar_venda) {
+      // Quem corrige o kit mas não edita a venda também aperta "Confirmar a venda": se o corpo vem IGUAL ao gravado (nada de dinheiro, prazo, nota nem kit mudou), é um 200 sem gravar.
+      const igual = !!venda0 && venda0.valor_centavos === valor && JSON.stringify(venda0.pagamento) === JSON.stringify(pagamento) && venda0.desconto_centavos === desconto
+        && venda0.prazo_prometido === prazo && venda0.nota === nota && venda0.kit_confirmado === kitPedido;
+      if (igual && pode.confirmar) { res.json({ ok: true, venda: venda0 }); return; }
+      res.status(403).json({ ok: false, error: 'Você não pode editar o valor desta venda agora.' }); return;
+    }
     const agora = new Date().toISOString();
     const completoAntes = blocoVendaCompleto(l.lig, l.privado);
     const novo = await mudarPrivadoJornada(g.id, g.nome, (p) => {
@@ -1023,15 +1035,14 @@ async function rotaConfirmar(req: Request, res: Response): Promise<void> {
     const l = await ler(g, true);
     const pode = podeDe(g, l, posicaoDe(l));
     if (l.estado?.cancelada) { res.status(409).json({ ok: false, error: 'Venda cancelada.' }); return; }
-    if (!pode.confirmar) { res.status(403).json({ ok: false, error: 'Você não pode confirmar isto agora.' }); return; }
+    // Placas e inversor (o equipamento) são sempre editáveis, até com a conta fechada: quem edita a venda também os confirma. O resto segue `pode.confirmar`.
+    const ehKit = chave === 'placas' || chave === 'inversor';
+    if (!(pode.confirmar || (ehKit && pode.editar_venda))) { res.status(403).json({ ok: false, error: 'Você não pode confirmar isto agora.' }); return; }
     // O texto só vale quando a proposta não traz o dado completo; com dado na proposta, confirmar sem texto segue como sempre.
     const usaTexto = texto !== null && (chave === 'placas' || chave === 'inversor') && !kitCompleto(chave, l.equip);
     const estadoDoValor = usaTexto ? (() => { const x = l.estado ?? baseDe(g, l)(); return { ...x, etapas: { ...x.etapas, 1: { ...x.etapas[1], kit_texto: { ...(x.etapas[1].kit_texto ?? {}), [chave]: texto as string } } } }; })() : l.estado;
     const valor = valorConfirmavel(chave, entradaDe(l, estadoDoValor));
     if (b.confirmar && !valor) { res.status(409).json({ ok: false, error: 'Falta o dado para confirmar.' }); return; }
-    // Placas e inversor são o kit: depois da homologação ele não muda (a mesma trava do PUT /venda).
-    // Trava pela etapa, não pelo papel: quem confirma o resto (pode.confirmar) confirma o kit até a homologação concluir.
-    if ((chave === 'placas' || chave === 'inversor') && (!!l.estado?.etapas[3].concluida_em || !!l.obraEstado?.fechada)) { res.status(403).json({ ok: false, error: 'O kit só muda até a homologação.' }); return; }
     const agora = new Date().toISOString();
     const marca = valor ? marcaDoValor(chave, valor) : '';
     const r = await mudarJornada(g.id, baseDe(g, l), (e) => {
