@@ -803,6 +803,24 @@ describe('fases 1 a 3 (18/11/2026): permissões e o Trello automático', () => {
     expect(prazo.status).toBe(200);
     expect(JSON.parse(h.priv.get('vendasolar/304.jornada.json')!).venda).toMatchObject({ prazo_prometido: 'y', valor_centavos: 3890000 });
   });
+  it('conta fechada: o pagamento gravado com as chaves em outra ordem é o MESMO pagamento (nada de 409 por JSON.stringify); mudar o conteúdo continua 409', async () => {
+    const { assinarObra, obraVazia } = await import('../services/gerador/jornadaObraBanco');
+    semear(304, (e) => { na3(e); e.etapas[3].concluida_em = AGORA; e.etapas[3].concluida_por = 'thiago'; });
+    cadastroBase();
+    const fechada = { ...obraVazia(304), fechada: { em: AGORA, por: 'thiago' } };
+    h.linhas.set('jornada_obra:304', { updated_at: 'o0', value: jsonb({ ...fechada, sig: assinarObra(304, fechada) }) });
+    const venda = { valor_centavos: 3890000, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: '' }], prazo_prometido: 'x', kit_confirmado: false };
+    expect((await put('/jornada-solar/obra/304/venda', venda, GIOVANNA)).status).toBe(200);   // grava a venda, ainda como o servidor escreve
+    const gravado = JSON.parse(h.priv.get('vendasolar/304.jornada.json')!);
+    gravado.venda.pagamento = [{ obs: '', valor_centavos: 3890000, forma: 'pix' }];   // outra ordem de chaves (e sem diferença nenhuma de conteúdo)
+    h.priv.set('vendasolar/304.jornada.json', JSON.stringify(gravado));
+    expect(JSON.stringify(gravado.venda.pagamento)).not.toBe(JSON.stringify(venda.pagamento));
+    const mesmo = await put('/jornada-solar/obra/304/venda', { ...venda, prazo_prometido: 'y' }, GIOVANNA);
+    expect(mesmo.status).toBe(200);
+    expect(JSON.parse(h.priv.get('vendasolar/304.jornada.json')!).venda).toMatchObject({ prazo_prometido: 'y', valor_centavos: 3890000 });
+    const outra = await put('/jornada-solar/obra/304/venda', { ...venda, pagamento: [{ forma: 'pix', valor_centavos: 3890000, obs: 'outra' }] }, GIOVANNA);
+    expect(outra.status).toBe(409);
+  });
   it('quem corrige o kit mas não edita a venda (Giovanna com a etapa 1 aberta) aperta "Confirmar a venda": corpo igual ao gravado dá 200 sem gravar; com mudança, 403', async () => {
     semear(304); cadastroBase();
     expect((await obra(304, GIOVANNA)).body.pode).toMatchObject({ confirmar: true, editar_venda: false });

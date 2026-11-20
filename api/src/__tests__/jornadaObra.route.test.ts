@@ -924,9 +924,27 @@ describe('concluir as etapas', () => {
   });
 });
 
+// A etapa 8 só conclui e fecha a conta pelo botão final (POST comissionamento/concluir); `etapa-obra` com etapa 8 dá 409. `prepararFechamento` deixa a obra pronta para ele.
+const CONCLUIR = (id = SOLAR) => `/jornada-solar/obra/${id}/comissionamento/concluir`;
+const FOTOS_ENTREGA = ['ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo'];
+const prepararFechamento = (): void => {
+  cenario8();
+  const lig = { proposta: null, venda: '#0058', por: POR_GERADOR, em: AGORA };
+  h.linhas.set(`venda_solar:${SOLAR}`, { updated_at: 'v', value: { ...lig, sig: assinarLigacao(SOLAR, lig) } });
+  semearJo(SOLAR, (e) => { e.pedido = { numero: '1026-50392', em: '2026-10-26' }; }, 7);
+  semearPrivada(SOLAR, (p) => {
+    p.entrega.testes = { string1_voc: '412', string2_voc: '409', isolamento_ok: true, gerando_kw: '6,2', gerando_hora: '11:40', wifi_ok: true, disjuntores_ok: true };
+    p.entrega.monitoramento = { app: 'iSolarCloud', conta: 'c@exemplo.com', usina: 'Casa', online: true, serie: 'INV-1', comissionamento: '' };
+    p.entrega.cofre = { ...cifrar('senha'), em: AGORA, por: 'diego' };
+    p.entrega.termo = { assinado_em: AGORA, nome: 'Marcos', arquivo_id: 'a-ass', chk: ['sim', 'sim', 'sim', 'sim', 'sim', 'na'], ressalva: '' };
+  });
+  anexos(SOLAR, [['a-ped', 'lib_pedido'], ['a-vis', 'lib_vistoria'], ['a-med', 'lib_medidor'], ['a-lib', 'lib_liberacao'], ['a-ass', 'ent_termo_assinado'],
+    ...FOTOS_ENTREGA.map((s, i): [string, string] => [`f-${i}`, s])]);
+};
+
 describe('fechamento só com tudo em zero', () => {
-  it('"a pagar" diferente de zero trava a etapa 8; zerado e com 100% do material, conclui e a conta trava; só o ADM reabre, com motivo, e o motivo não vai ao system_state', async () => {
-    cenario8();
+  it('"a pagar" diferente de zero trava a etapa 8; zerado e com 100% do material, o botão final conclui e a conta trava; só o ADM reabre, com motivo, e o motivo não vai ao system_state', async () => {
+    prepararFechamento();
     // Falta pagar a retirada do Diego.
     const diego = [...h.linhas.keys()].find((k) => k.startsWith(`fin:${SOLAR}:`) && JSON.stringify(h.linhas.get(k)!.value).includes('"diego"'))!;
     const guardada = h.linhas.get(diego)!;
@@ -934,15 +952,15 @@ describe('fechamento só com tudo em zero', () => {
     const a = await get(DIN(SOLAR), THIAGO);
     expect(a.body.livro.fechamento.pode_fechar).toBe(false);
     expect(a.body.livro.a_pagar.map((x: any) => x.texto)).toEqual(['Comissão de Diego (sócio 2%): R$ 778,00']);
-    const trava = await post('/jornada-solar/obra/601/etapa-obra', { etapa: 8 }, THIAGO);
+    const trava = await post(CONCLUIR(), {}, THIAGO);
     expect(trava.status).toBe(409);
     expect(trava.body.precisa).toBe('itens');
     expect(trava.body.falta.map((x: any) => x.chave)).toEqual(['dinheiro']);
     expect(joGravado(SOLAR).fechada).toBeNull();
     // O dono da 8 é o Thiago: o Diego não conclui.
     h.linhas.set(diego, guardada);
-    expect((await post('/jornada-solar/obra/601/etapa-obra', { etapa: 8 }, DIEGO)).status).toBe(403);
-    const ok = await post('/jornada-solar/obra/601/etapa-obra', { etapa: 8 }, THIAGO);
+    expect((await post(CONCLUIR(), {}, DIEGO)).status).toBe(403);
+    const ok = await post(CONCLUIR(), {}, THIAGO);
     expect(ok.status).toBe(200);
     expect(ok.body).toMatchObject({ ok: true, etapa_atual: 9, fechada: { por: 'thiago' } });
     expect(joGravado(SOLAR).fechada).not.toBeNull();
@@ -992,9 +1010,9 @@ describe('fechamento só com tudo em zero', () => {
   });
 
   it('material com 100% é condição: item sem data, ou compra paga a menos, trava a 8 e a 4', async () => {
-    cenario8();
+    prepararFechamento();
     semearPrivada(SOLAR, (p) => { p.compra.itens[1].data = null; });
-    const a = await post('/jornada-solar/obra/601/etapa-obra', { etapa: 8 }, THIAGO);
+    const a = await post(CONCLUIR(), {}, THIAGO);
     expect(a.status).toBe(409);
     expect(a.body.falta.map((x: any) => x.chave)).toEqual(['material']);
     expect(a.body.falta[0].texto).toContain('(1 de 2)');
@@ -1005,12 +1023,29 @@ describe('fechamento só com tudo em zero', () => {
   });
 
   it('a etapa 8 sem o print da vistoria trava, e a Nilce não conclui', async () => {
-    cenario8();
-    anexos(SOLAR, [['a-ped', 'lib_pedido'], ['a-med', 'lib_medidor'], ['a-lib', 'lib_liberacao']]);
-    const a = await post('/jornada-solar/obra/601/etapa-obra', { etapa: 8 }, THIAGO);
+    prepararFechamento();
+    anexos(SOLAR, [['a-ped', 'lib_pedido'], ['a-med', 'lib_medidor'], ['a-lib', 'lib_liberacao'], ['a-ass', 'ent_termo_assinado'], ...FOTOS_ENTREGA.map((f, i): [string, string] => [`f-${i}`, f])]);
+    const a = await post(CONCLUIR(), {}, THIAGO);
     expect(a.status).toBe(409);
     expect(a.body.falta.map((x: any) => x.chave)).toEqual(['vistoria']);
-    expect((await post('/jornada-solar/obra/601/etapa-obra', { etapa: 8 }, NILCE)).status).toBe(403);
+    expect((await post(CONCLUIR(), {}, NILCE)).status).toBe(403);
+  });
+
+  it('POST etapa-obra com a etapa 8 dá 409 e manda para o botão final, com ou sem `forcar`; nada conclui nem fecha', async () => {
+    prepararFechamento();
+    const msg = { ok: false, error: 'A obra conclui pelo botão "Concluir e preencher a planilha".', usar: 'comissionamento/concluir' };
+    for (const corpo of [{ etapa: 8 }, { etapa: 8, forcar: true }, { etapa: 8, forcar: true, motivo: 'Obra presa' }]) {
+      for (const a of [THIAGO, DIEGO, NILCE]) {
+        const r = await post('/jornada-solar/obra/601/etapa-obra', corpo, a);
+        expect(r.status).toBe(409);
+        expect(r.body).toEqual(msg);
+      }
+    }
+    expect(joGravado(SOLAR).fechada).toBeNull();
+    expect(joGravado(SOLAR).etapas['8'].concluida_em).toBeNull();
+    expect((await get(F2(SOLAR), THIAGO)).body.pode.concluir).toEqual([]);
+    expect((await post(CONCLUIR(), {}, THIAGO)).status).toBe(200);   // o botão final segue sendo o caminho
+    expect(joGravado(SOLAR).fechada).not.toBeNull();
   });
 });
 
@@ -1108,8 +1143,8 @@ describe('os PUT de compra, logística e obra rodam dentro da trava da conta', (
     if (jo.fechada) expect(depois.compra.itens.every((i) => (i.valor_centavos ?? 0) > 0)).toBe(true);
   });
   it('depois de fechada, os PUT de compra, logística e obra dão 409', async () => {
-    cenario8();
-    expect((await post(`/jornada-solar/obra/${SOLAR}/etapa-obra`, { etapa: 8 }, THIAGO)).status).toBe(200);
+    prepararFechamento();
+    expect((await post(CONCLUIR(), {}, THIAGO)).status).toBe(200);
     const p = privadaGravada(SOLAR)!;
     for (const [secao, dados] of [['compra', { itens: [], compras: [] }], ['logistica', { cargas: [] }], ['obra', { plano: [] }]] as const) {
       expect((await put(F2(SOLAR, `/${secao}`), { versao: p.versoes[secao], dados }, THIAGO)).status, secao).toBe(409);
@@ -1119,11 +1154,11 @@ describe('os PUT de compra, logística e obra rodam dentro da trava da conta', (
 
 describe('o fechamento não corre contra um lançamento', () => {
   it('fechar a etapa 8 e estornar a comissão ao mesmo tempo: nunca fecha com a conta aberta', async () => {
-    cenario8();
+    prepararFechamento();
     const comissao = [...h.linhas.entries()].find(([k, l]) => k.startsWith(`fin:${SOLAR}:`) && l.value.categoria === 'comissao_venda')!;
     const id = comissao[0].split(':')[2];
     const [fecha, estorna] = await Promise.all([
-      post(`/jornada-solar/obra/${SOLAR}/etapa-obra`, { etapa: 8 }, THIAGO),
+      post(CONCLUIR(), {}, THIAGO),
       post(DIN(SOLAR, '/estorno'), { id_original: id, motivo: 'Valor errado' }, THIAGO),
     ]);
     const jo = joGravado(SOLAR);
@@ -1948,22 +1983,9 @@ describe('a Compra lida sozinha: POST compra/arquivo', () => {
 });
 
 describe('o botão final do Comissionamento: POST comissionamento/concluir', () => {
-  const URL = (id = SOLAR) => `/jornada-solar/obra/${id}/comissionamento/concluir`;
-  const FOTOS = ['ent_vista_geral', 'ent_arranjo', 'ent_inversor', 'ent_quadro', 'ent_aterramento', 'ent_padrao', 'ent_etiquetas', 'ent_local_limpo'];
-  const preparar = (): void => {
-    cenario8();
-    const lig = { proposta: null, venda: '#0058', por: POR_GERADOR, em: AGORA };
-    h.linhas.set(`venda_solar:${SOLAR}`, { updated_at: 'v', value: { ...lig, sig: assinarLigacao(SOLAR, lig) } });
-    semearJo(SOLAR, (e) => { e.pedido = { numero: '1026-50392', em: '2026-10-26' }; }, 7);
-    semearPrivada(SOLAR, (p) => {
-      p.entrega.testes = { string1_voc: '412', string2_voc: '409', isolamento_ok: true, gerando_kw: '6,2', gerando_hora: '11:40', wifi_ok: true, disjuntores_ok: true };
-      p.entrega.monitoramento = { app: 'iSolarCloud', conta: 'c@exemplo.com', usina: 'Casa', online: true, serie: 'INV-1', comissionamento: '' };
-      p.entrega.cofre = { ...cifrar('senha'), em: AGORA, por: 'diego' };
-      p.entrega.termo = { assinado_em: AGORA, nome: 'Marcos', arquivo_id: 'a-ass', chk: ['sim', 'sim', 'sim', 'sim', 'sim', 'na'], ressalva: '' };
-    });
-    anexos(SOLAR, [['a-ped', 'lib_pedido'], ['a-vis', 'lib_vistoria'], ['a-med', 'lib_medidor'], ['a-lib', 'lib_liberacao'], ['a-ass', 'ent_termo_assinado'],
-      ...FOTOS.map((s, i): [string, string] => [`f-${i}`, s])]);
-  };
+  const URL = CONCLUIR;
+  const FOTOS = FOTOS_ENTREGA;
+  const preparar = prepararFechamento;
 
   it('lista o que falta (409) enquanto o obrigatório não está feito, e o Diego e a Nilce não concluem', async () => {
     preparar();
