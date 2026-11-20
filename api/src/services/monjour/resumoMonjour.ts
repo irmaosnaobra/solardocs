@@ -20,6 +20,36 @@ const DIA = 86_400_000;
 
 export interface AppMonjour { abriram: number; instalaram: number; upgradeClicks: number }
 
+/** Um checkout aberto que não virou pagamento (bloco `checkouts` do site). `valor` em centavos. Sem ID nem dado de cartão. */
+export interface CheckoutNaoPagoMonjour {
+  criado: string;
+  status: 'open' | 'expired' | string;
+  plano: string | null;
+  valor: number;
+  pais: string | null;
+  email: string;
+  sid: string | null;
+  /** decline_code, code, ou 'sem_tentativa' quando a pessoa não chegou a tentar pagar. */
+  motivo: string;
+  mensagem: string;
+  metodo: string | null;
+}
+
+/** Quem abriu o pagamento e não pagou. Se a Stripe falhar ou recusar a permissão, só vem `indisponivel` e `motivo`. */
+export type CheckoutsMonjour =
+  | { indisponivel: true; motivo: string }
+  | {
+      indisponivel?: undefined;
+      abertos: number;
+      expirados: number;
+      comFalha: number;
+      /** Quem abriu o pagamento, voltou e pagou numa sessão nova: saiu da lista e entra aqui. */
+      pagaramDepois: number;
+      porMotivo: Record<string, number>;
+      truncado: boolean;
+      lista: CheckoutNaoPagoMonjour[];
+    };
+
 export interface ResumoMonjour {
   periodo: { desde: string; ate: string };
   atualizadoEm: string;
@@ -28,6 +58,8 @@ export interface ResumoMonjour {
   motivo?: string;
   vendas: Record<string, unknown>;
   leads: Record<string, unknown>;
+  /** Vem do site (passa direto). Ausente se o site ainda não tem o bloco ou está fora do ar. */
+  checkouts?: CheckoutsMonjour;
   app: AppMonjour;
 }
 

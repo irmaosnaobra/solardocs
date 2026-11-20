@@ -21,16 +21,21 @@ export type SessaoQuiz = {
   anuncio: string;
   conjunto: string;
   maxPasso: number;
+  /** Nome da tela do maxPasso. Ausente em api antiga. */
+  maxPassoRotulo?: string;
   clicouComprar: boolean;
   comprou: boolean;
   plano: string | null;
+  /** Entrou pelo atalho da tela 1, ou voltou direto à oferta. Ausentes em api antiga. */
+  atalho?: boolean;
+  volta?: boolean;
 };
 
 export type PaginaSessoes = { total: number; itens: SessaoQuiz[]; proximo: string | null; truncado?: boolean };
 
 export type LinhaJornada = {
   ts: string;
-  tipo: 'viu' | 'respondeu' | 'fim';
+  tipo: 'viu' | 'respondeu' | 'fim' | 'atalho';
   passo: string | null;
   n: number | null;
   rotulo: string;

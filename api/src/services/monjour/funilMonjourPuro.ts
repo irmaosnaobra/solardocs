@@ -2,9 +2,14 @@
 // A CONTA DO FUNIL DO QUIZ MONJOUR (19/11/2026). Puro: recebe os eventos de
 // lp_events (monjour_*) e devolve o FunilMonjour, sem tocar em banco. A leitura
 // mora em painelQuizMonjour.ts. Regras de contagem (por sessão distinta):
-//  - chegaram(n) = sessões cujo maior passo é >= n, então o funil só desce;
+//  - chegaram(n) = sessões cujo maior passo é >= n (n é a posição no catálogo, não o n que o
+//    site manda), então o funil só desce. Exceções: etapa com `desde` no catálogo não existe
+//    para sessão que entrou antes dela (nem chegaram nem saíram, a passagem vai direto à seguinte);
+//    sessão com atalho_oferta ou volta_oferta (foi direto à oferta) só conta nas telas
+//    anteriores à oferta que viu de verdade (chegouNaEtapa, em sessoesMonjour.ts);
 //  - sairam(n) = chegaram(n) - chegaram(n + 1); a oferta (30) perde quem não
-//    clicou em comprar, e o clique (31) perde quem não comprou;
+//    clicou em comprar, e o clique (31) perde quem não comprou. Quem pulou as
+//    perguntas até a oferta não sai nas telas do meio;
 //  - mediana = tempo da primeira vista de n até a de n + 1, só de quem chegou
 //    lá, sem valor acima de 30 minutos;
 //  - sessão com utm_source "sonda" é teste nosso e fica fora de tudo.
@@ -15,7 +20,7 @@ import {
   MEDIANA_CORTE_SEG, SEM_ANUNCIO, nomeDoAnuncio, conjuntoDoAnuncio, nomeDoConjunto, nomeDoPais,
   ROTULO_APARELHO, ROTULO_SISTEMA, ROTULO_NAVEGADOR,
 } from './monjourCatalogo';
-import { agruparSessoes, type SessaoMonjour } from './sessoesMonjour';
+import { agruparSessoes, chegouNaEtapa, pararamNaEtapa, proximaEtapa, type SessaoMonjour } from './sessoesMonjour';
 import { montarRespostas } from './respostasMonjour';
 
 const SEM = '(sem)';
@@ -32,7 +37,7 @@ export function medianaDe(valores: number[]): number | null {
   return Math.round(mediana * 10) / 10;
 }
 
-const chegou = (s: SessaoMonjour, n: number): boolean => s.nivel >= n;
+const chegou = chegouNaEtapa;
 
 export function passaNosFiltros(s: SessaoMonjour, f: FiltrosMonjour): boolean {
   if (f.pais && s.ctx.pais !== f.pais.toUpperCase()) return false;
@@ -122,8 +127,11 @@ function tempoDaEtapa(s: SessaoMonjour, n: number): number | null {
   if (n === ETAPA_COMPRA) return null;
   if (n === ETAPA_CHECKOUT) return intervalo(s.checkoutCriado, s.compraCriada);
   if (n === ETAPA_OFERTA) return intervalo(s.vistas.get(n), s.checkoutTs);
-  // A tela da meta pode ser pulada: de 19 o próximo passo visto é o 21.
-  const proximo = s.vistas.get(n + 1) ?? (n + 1 === ETAPA_META ? s.vistas.get(ETAPA_PARTIDA) : undefined);
+  // A próxima etapa é a que existe para a sessão (sessão antiga não tem as telas novas: a passagem dela vai direto à seguinte).
+  // A tela da meta pode ser pulada: da anterior à meta o próximo passo visto é o ponto de partida.
+  const prox = proximaEtapa(s, n);
+  if (prox === null) return null;
+  const proximo = s.vistas.get(prox) ?? (prox === ETAPA_META ? s.vistas.get(ETAPA_PARTIDA) : undefined);
   return intervalo(s.vistas.get(n), proximo);
 }
 
@@ -132,8 +140,8 @@ function etapas(sessoes: SessaoMonjour[]): EtapaMonjour[] {
   const base = sessoes.length;
   return todas.map((t) => {
     const chegaram = sessoes.filter((s) => chegou(s, t.n)).length;
-    const seguintes = t.n === ETAPA_COMPRA ? 0 : sessoes.filter((s) => chegou(s, t.n + 1)).length;
-    const sairam = t.n === ETAPA_COMPRA ? 0 : chegaram - seguintes;
+    // Quem foi da tela 1 direto à oferta (atalho ou volta) não "saiu" nas telas do meio: pararamNaEtapa conta só quem parou de verdade.
+    const sairam = t.n === ETAPA_COMPRA ? 0 : sessoes.filter((s) => pararamNaEtapa(s, t.n)).length;
     const e: EtapaMonjour = {
       n: t.n, chave: t.chave, rotulo: t.rotulo, tipo: t.tipo, chegaram,
       pctInicio: pct(chegaram, base), sairam, pctSaida: pct(sairam, chegaram),
@@ -178,6 +186,8 @@ export function montarFunilMonjour(eventos: EventoMonjour[], op: OpcoesFunilMonj
       upgrades: comUpgrade.length,
       receitaCentavos: receita,
       conversao: fracao(compraram.length, funil.length),
+      atalho: funil.filter((s) => s.atalho).length,
+      voltas: funil.filter((s) => s.volta).length,
       // Ticket médio só da compra: o upgrade inflaria a média.
       ticketMedioCentavos: compraram.length ? Math.round(receitaCompras / compraram.length) : 0,
     },

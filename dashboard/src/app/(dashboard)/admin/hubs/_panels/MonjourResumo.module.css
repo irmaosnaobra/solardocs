@@ -119,3 +119,7 @@
   .leads td[data-rotulo='Aceitou e-mails'] { grid-area: aceite; } .leads td[data-rotulo='Anúncio'] { grid-area: anuncio; }
   .cartoes td[colspan] { padding: 16px 0 !important; }
 }
+
+/* ── quem tentou pagar e não pagou: totais por motivo ── */
+.totaisMotivo { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13.5px; color: var(--color-text); }
+.totaisMotivo li { display: inline-flex; align-items: center; gap: 6px; }

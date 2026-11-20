@@ -42,6 +42,8 @@ export type FunilMonjour = {
     sessoes: number; leads: number; ofertas: number; checkouts: number; compras: number;
     comprasBasico: number; comprasPlus: number; upgrades: number; receitaCentavos: number;
     conversao: number; ticketMedioCentavos: number;
+    /** Sessões que foram direto à oferta (atalho da tela 1, ou volta de quem já fez o test). Ausente em api antiga. */
+    atalho?: number; voltas?: number;
   };
   etapas: EtapaMonjour[];
   saidas: { finSeguridad: number; partidaSemSaida: number };
