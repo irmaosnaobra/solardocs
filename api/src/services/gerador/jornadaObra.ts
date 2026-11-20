@@ -401,6 +401,14 @@ export type ItemSugerido = Omit<ItemCompra, 'id' | 'criado_por' | 'criado_em'> &
  * Os `sugeridos` da primeira leitura da Compra (sem gravar nada): SÓ o kit da proposta (módulos e inversor; a proposta não traz estrutura). A lista pronta
  * de material NÃO entra aqui: ela vai à parte (`lista_pronta`), como atalho que a pessoa escolhe. `id` é sempre null.
  */
+/** Descrição do item do kit sem repetir o tipo nem a potência que já vêm no nome do modelo ("Módulo Canadian CS7N 590 W"). */
+export function descricaoDoKit(tipo: string, modelo: string, potW?: number | null): string {
+  const m = (modelo || '').trim();
+  const semAcento = (x: string): string => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const jaTemTipo = semAcento(m).toLowerCase().startsWith(semAcento(tipo).toLowerCase()); const jaTemPot = /\d\s*w\b/i.test(m);
+  return [jaTemTipo ? '' : tipo, m, potW && !jaTemPot ? `${potW} W` : ''].filter(Boolean).join(' ').trim();
+}
+
 export function itensIniciais(
   equip: { qtdPlacas: number | null; modeloPlaca: string; potPlaca: number | null; qtdInversor: number | null; inversor: string } | null,
 ): ItemSugerido[] {
@@ -411,10 +419,10 @@ export function itensIniciais(
   };
   const out: ItemSugerido[] = [];
   if (equip?.qtdPlacas) {
-    out.push({ ...base, id: null, origem: 'proposta', tipo: 'modulo', descricao: `Módulo ${equip.modeloPlaca}${equip.potPlaca ? ` ${equip.potPlaca} W` : ''}`.trim(), quantidade: equip.qtdPlacas, unidade: 'un', modelo: equip.modeloPlaca, potencia_w: equip.potPlaca });
+    out.push({ ...base, id: null, origem: 'proposta', tipo: 'modulo', descricao: descricaoDoKit('Módulo', equip.modeloPlaca, equip.potPlaca), quantidade: equip.qtdPlacas, unidade: 'un', modelo: equip.modeloPlaca, potencia_w: equip.potPlaca });
   }
   if (equip && (equip.inversor || equip.qtdInversor)) {
-    out.push({ ...base, id: null, origem: 'proposta', tipo: 'inversor', descricao: `Inversor ${equip.inversor}`.trim(), quantidade: equip.qtdInversor, unidade: 'un', modelo: equip.inversor });
+    out.push({ ...base, id: null, origem: 'proposta', tipo: 'inversor', descricao: descricaoDoKit('Inversor', equip.inversor), quantidade: equip.qtdInversor, unidade: 'un', modelo: equip.inversor });
   }
   return out;
 }
