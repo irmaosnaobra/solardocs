@@ -176,23 +176,55 @@
 .opcaoConv { text-align: right; font-size: 13px; color: var(--color-text-muted); white-space: nowrap; }
 .opcaoMelhor { color: var(--salvia); font-weight: 800; }
 
-/* ── página de venda (/plan/) ─────────── */
-.pvNota { font-size: 13px; color: var(--color-text-muted); }
-.pvPassos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.pvPasso { position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 14px; background: var(--color-surface-2); border-radius: 10px; }
-.pvPasso + .pvPasso::before { content: '\203A'; position: absolute; left: -10px; top: 50%; transform: translate(-50%, -50%); font-size: 20px; line-height: 1; font-weight: 700; color: var(--color-text-dim); }
-.pvRotulo { font-size: 12px; font-weight: 700; color: var(--color-text-muted); }
-.pvValor { font-size: 24px; font-weight: 800; line-height: 1.15; color: var(--color-text); letter-spacing: -0.01em; }
-.pvTaxa { font-size: 12px; color: var(--color-text-dim); }
-.pvTaxa b { color: var(--mj-escura); font-weight: 800; }
-.pvCompra { background: var(--salvia-suave); }
-.pvCompra .pvValor, .pvCompra .pvTaxa b { color: var(--salvia); }
-.pvVazio { margin: 0; font-size: 14px; color: var(--color-text-muted); }
+/* ── os dois funis compactos (quiz e página de venda) ─────────
+   Lado a lado no computador, um embaixo do outro no celular. Cada passo é uma
+   linha: nome, pessoas, taxa sobre o anterior, e uma barra fina embaixo. */
+.funis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; align-items: start; margin-top: 14px; }
+.funis > .bloco { margin-top: 0; }
+.funis > .telas { grid-column: 1 / -1; margin-top: 14px; }
+.cfLinha { display: grid; grid-template-columns: minmax(0, 1fr) 68px 84px; align-items: baseline; column-gap: 10px; }
+.cfCab { padding: 0 0 6px; font-size: 11px; font-weight: 700; color: var(--color-text-dim); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--color-border); }
+.cfCab span { white-space: nowrap; }
+.cfCab span:nth-child(n+2) { text-align: right; }
+.cfLista { list-style: none; margin: 0; padding: 0; }
+.cfPasso { padding: 9px 0 8px; border-bottom: 1px solid var(--color-border); }
+.cfRotulo { font-size: 14px; color: var(--color-text); min-width: 0; }
+.cfValor { font-size: 18px; font-weight: 800; line-height: 1.2; text-align: right; color: var(--color-text); }
+.cfTaxa { font-size: 13px; font-weight: 700; text-align: right; color: var(--mj-escura); }
+.cfTrilho { height: 4px; margin-top: 6px; border-radius: 99px; background: var(--color-surface-2); overflow: hidden; }
+.cfBarra { height: 100%; border-radius: 99px; background: var(--mj-meio); }
+.cfCompra .cfValor, .cfCompra .cfTaxa { color: var(--salvia); }
+.cfCompra .cfBarra { background: var(--salvia); }
+.cfCompra .cfRotulo { font-weight: 700; }
+.cfTotal { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--mj-suave); }
+.cfTotalRotulo { display: flex; flex-direction: column; font-size: 14px; font-weight: 800; color: var(--mj-faixa-txt); }
+.cfTotalRotulo small { font-size: 12px; font-weight: 400; color: var(--mj-faixa-txt); }
+.cfTotalValor { font-size: 22px; font-weight: 800; color: var(--mj-escura); letter-spacing: -0.01em; }
+.cfVazio { margin: 0; font-size: 14px; color: var(--color-text-muted); }
+.cfNota { margin: 12px 0 0; font-size: 13px; color: var(--color-text-muted); }
+.leitor { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
-/* ── vazio ────────────────────────────── */
-.vazio { text-align: center; padding: 40px 20px; }
-.vazio strong { display: block; font-size: 16px; color: var(--color-text); margin-bottom: 4px; }
-.vazio span { font-size: 14px; color: var(--color-text-muted); }
+/* botão que abre e fecha o detalhe (telas do quiz, mapa da página) */
+.abrir { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 44px; margin-top: 12px; padding: 0 14px; font: inherit; font-size: 14px; font-weight: 700; color: var(--mj); background: var(--color-surface); border: 1px solid var(--mj-meio); border-radius: 10px; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; }
+.abrir:hover { background: var(--mj-suave); border-color: var(--mj); }
+.abrirSeta { flex-shrink: 0; transition: transform 0.2s ease; }
+.abrirSetaCima { transform: rotate(180deg); }
+
+/* mapa da página de venda: até onde rolaram e onde clicaram */
+.mapa { margin-top: 14px; padding-top: 4px; border-top: 1px solid var(--color-border); }
+.mapa .blocoTitulo { font-size: 14px; margin: 10px 0 6px; }
+.mapaCliques { margin-top: 6px; }
+.mapaLista { list-style: none; margin: 0; padding: 0; }
+.mapaLinha { display: grid; grid-template-columns: minmax(96px, 128px) minmax(0, 1fr) 84px; align-items: center; column-gap: 10px; padding: 5px 0; }
+.mapaNome { min-width: 0; font-size: 13.5px; color: var(--color-text); overflow-wrap: anywhere; }
+.mapaTrilho { display: block; height: 14px; border-radius: 4px; background: var(--color-surface-2); overflow: hidden; }
+.mapaBarra { display: block; height: 100%; border-radius: 4px; }
+.mapaNum { font-size: 13.5px; text-align: right; color: var(--color-text); white-space: nowrap; }
+.mapaNum small { font-size: 12px; color: var(--color-text-muted); }
+.mapaCl { display: grid; grid-template-columns: minmax(0, 1fr) 96px 56px; align-items: baseline; column-gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--color-border); }
+.mapaLista > .mapaCl:last-child { border-bottom: none; }
+.mapaClCab { padding: 0 0 4px; font-size: 11px; font-weight: 700; color: var(--color-text-dim); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--color-border); }
+.mapaClCab span:nth-child(n+2) { text-align: right; }
 
 /* ── responsivo ───────────────────────── */
 @media (max-width: 1100px) {
@@ -200,6 +232,11 @@
 }
 @media (max-width: 900px) {
   .duas, .perguntas { grid-template-columns: 1fr; }
+  /* Celular: o quiz, as telas do quiz (quando abertas) e só então a página de venda. */
+  .funis { grid-template-columns: minmax(0, 1fr); }
+  .funis > .funilQuiz { order: 1; }
+  .funis > .telas { order: 2; }
+  .funis > .funilPagina { order: 3; margin-top: 14px; }
 }
 @media (max-width: 760px) {
   .filtros { grid-template-columns: 1fr; }
@@ -208,6 +245,7 @@
   .numeroValor { font-size: 22px; }
   .bloco { padding: 16px 14px; }
   .atualizar { margin-left: 0; }
+  .mapaLinha { grid-template-columns: minmax(84px, 112px) minmax(0, 1fr) 76px; }
   .quedaBotao { margin-left: 0; }
 
   /* No celular cada etapa vira três linhas: nome e chegaram, a faixa, e a saída. */
@@ -238,15 +276,9 @@
   .numChegaram .numBotao { display: inline-flex; align-items: center; min-height: 32px; }
   .etapaExtra { display: none; }
   .tabela { min-width: 640px; }
-  .pvPassos { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .pvPasso { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'rotulo valor' 'taxa valor'; column-gap: 12px; align-items: center; padding: 10px 12px; }
-  .pvPasso + .pvPasso::before { display: none; }
-  .pvRotulo { grid-area: rotulo; font-size: 13px; }
-  .pvTaxa { grid-area: taxa; }
-  .pvValor { grid-area: valor; font-size: 22px; text-align: right; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .faixa { transition: none; }
+  .faixa, .abrir, .abrirSeta { transition: none; }
 }
 .soCelular { display: none; }
 @media (max-width: 760px) {

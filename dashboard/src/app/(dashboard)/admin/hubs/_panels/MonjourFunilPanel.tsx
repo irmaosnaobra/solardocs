@@ -22,6 +22,7 @@ import s from './MonjourFunilPanel.module.css';
 import { Numero, Titulo, fmtData, fmtHora, fmtInt, fmtPct, fmtUsd } from './monjourComum';
 import MonjourFunilDesenho from './MonjourFunilDesenho';
 import MonjourPaginaVenda from './MonjourPaginaVenda';
+import MonjourQuizCompacto from './MonjourQuizCompacto';
 import { MonjourRecortes, MonjourRespostas } from './MonjourRecortes';
 import MonjourSessoesGaveta, { type AlvoSessoes } from './MonjourSessoesGaveta';
 import type { FunilMonjour } from './hubMonjour.types';
@@ -55,6 +56,8 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [gaveta, setGaveta] = useState<AlvoSessoes | null>(null);
+  // As 33 telas começam fechadas toda vez que a aba carrega; só abrem no clique (nada fica guardado).
+  const [telasAbertas, setTelasAbertas] = useState(false);
 
   // O estado só muda na volta da leitura; quem clica acende o "Atualizando…".
   useEffect(() => {
@@ -181,13 +184,35 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
         </div>
       )}
 
-      {f && t && vazio && (
-        <div className={`${s.bloco} ${s.vazio}`}>
-          <strong>Ainda sem dados neste período.</strong>
-          <span>{f.inicioRastreio ? `O rastreio começou em ${fmtData(f.inicioRastreio)}.` : 'O rastreio ainda não recebeu nenhum evento.'}</span>
+      {f && t && (
+        <div className={s.funis}>
+          <MonjourQuizCompacto f={f} aberto={telasAbertas} aoAlternar={() => setTelasAbertas((a) => !a)} controla="mj-telas" className={s.funilQuiz} />
+          <MonjourPaginaVenda pv={f.paginaVenta} className={s.funilPagina} />
+          {!vazio && (
+            <section id="mj-telas" hidden={!telasAbertas} className={`${s.bloco} ${s.telas}`} aria-labelledby="mj-funil">
+              {telasAbertas && (
+                <>
+                  <div className={s.blocoTopo}>
+                    <span id="mj-funil">
+                      <Titulo dica="Cada faixa é uma tela do quiz. A largura é quanta gente chegou nela. Entre uma tela e a próxima: quantos passaram e quantos saíram ali. Na oferta, saíram = não clicaram em comprar. Tempo = mediana até a próxima tela. Toque num número sublinhado para ver quem são.">
+                        Cada tela do quiz
+                      </Titulo>
+                    </span>
+                    <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                      {fmtInt(t.sessoes)} entraram · {fmtInt(t.compras)} {t.compras === 1 ? 'comprou' : 'compraram'}
+                    </span>
+                  </div>
+                  <MonjourFunilDesenho
+                    etapas={f.etapas}
+                    total={t.sessoes}
+                    onAbrir={(e, tipo) => setGaveta({ n: e.n, rotulo: e.rotulo, chegaram: e.chegaram, sairam: e.sairam, temSaida: e.n !== ultimaEtapa, tipo })}
+                  />
+                </>
+              )}
+            </section>
+          )}
         </div>
       )}
-      {f && t && vazio && <MonjourPaginaVenda pv={f.paginaVenta} />}
 
       {f && t && !vazio && (
         <>
@@ -206,26 +231,6 @@ export default function MonjourFunilPanel({ periodo: periodoFora, onPeriodo, onV
               {fmtInt(t.atalho ?? 0)} {t.atalho === 1 ? 'entrou' : 'entraram'} pelo atalho · {fmtInt(t.voltas ?? 0)} {t.voltas === 1 ? 'voltou' : 'voltaram'} direto para a oferta
             </p>
           )}
-
-          <section className={s.bloco} aria-labelledby="mj-funil">
-            <div className={s.blocoTopo}>
-              <span id="mj-funil">
-                <Titulo dica="Cada faixa é uma tela do quiz. A largura é quanta gente chegou nela. Entre uma tela e a próxima: quantos passaram e quantos saíram ali. Na oferta, saíram = não clicaram em comprar. Tempo = mediana até a próxima tela. Toque num número sublinhado para ver quem são.">
-                  Funil do quiz
-                </Titulo>
-              </span>
-              <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                {fmtInt(t.sessoes)} entraram · {fmtInt(t.compras)} {t.compras === 1 ? 'comprou' : 'compraram'}
-              </span>
-            </div>
-            <MonjourFunilDesenho
-              etapas={f.etapas}
-              total={t.sessoes}
-              onAbrir={(e, tipo) => setGaveta({ n: e.n, rotulo: e.rotulo, chegaram: e.chegaram, sairam: e.sairam, temSaida: e.n !== ultimaEtapa, tipo })}
-            />
-          </section>
-
-          <MonjourPaginaVenda pv={f.paginaVenta} />
 
           <div className={s.duas}>
             <section className={s.bloco} aria-labelledby="mj-saidas">

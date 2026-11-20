@@ -21,7 +21,7 @@ import {
   type EventoMonjour, type FiltrosMonjour, type FunilMonjour, type LinhaMonjour, type EtapaMonjour,
   TELAS_MONJOUR, ETAPAS_DEPOIS, ETAPA_CHECKOUT, ETAPA_COMPRA, ETAPA_OFERTA, ETAPA_META, ETAPA_PARTIDA,
   MEDIANA_CORTE_SEG, SEM_ANUNCIO, nomeDoAnuncio, conjuntoDoAnuncio, nomeDoConjunto, nomeDoPais,
-  ROTULO_APARELHO, ROTULO_SISTEMA, ROTULO_NAVEGADOR,
+  ROTULO_APARELHO, ROTULO_SISTEMA, ROTULO_NAVEGADOR, SECOES_PAGINA_VENTA, CLIQUES_PAGINA_VENTA,
 } from './monjourCatalogo';
 import { agruparSessoes, chegouNaEtapa, daSessaoDoQuiz, etapaAplica, pararamNaEtapa, proximaEtapa, type SessaoMonjour } from './sessoesMonjour';
 import { montarRespostas } from './respostasMonjour';
@@ -215,6 +215,14 @@ export function montarFunilMonjour(eventos: EventoMonjour[], op: OpcoesFunilMonj
       compra: daPagina((s) => s.venta.has('compra')),
       checkouts: daPagina((s) => s.paginaCheckout),
       compras: daPagina((s) => s.paginaCompra),
+      secoes: SECOES_PAGINA_VENTA.map((x) => ({ ...x, sessoes: daPagina((s) => s.secoes.has(x.codigo)) })),
+      cliques: CLIQUES_PAGINA_VENTA
+        .map((x) => {
+          const quem = doFiltro.filter((s) => s.cliques.has(x.codigo));
+          return { ...x, sessoes: quem.length, total: quem.reduce((a, s) => a + (s.cliques.get(x.codigo) ?? 0), 0) };
+        })
+        .filter((x) => x.sessoes > 0)
+        .sort((a, b) => b.sessoes - a.sessoes),
     },
   };
 }

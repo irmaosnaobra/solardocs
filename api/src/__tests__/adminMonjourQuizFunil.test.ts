@@ -102,7 +102,9 @@ describe('GET /admin/monjour/quiz-funil', () => {
     expect(h.filtros).toContainEqual(['eq:event_type', ['monjour_sinal']]);
     expect(h.filtros).toContainEqual(['eq:event_data->>passo', ['venta']]);
     expect(h.rangesSinal).toEqual([[0, 999]]);
-    expect(r.body.paginaVenta).toEqual({ visitas: 1, planes: 1, compra: 0, checkouts: 1, compras: 0 });
+    expect(r.body.paginaVenta).toMatchObject({ visitas: 1, planes: 1, compra: 0, checkouts: 1, compras: 0 });
+    expect(r.body.paginaVenta.secoes).toHaveLength(11);
+    expect(r.body.paginaVenta.cliques).toEqual([]);
     expect(r.body.totais.sessoes).toBe(1); // só a s1: a mj_1 é da página
     expect(r.body.etapas.find((e: { chave: string }) => e.chave === 'edad').chegaram).toBe(1);
   });
