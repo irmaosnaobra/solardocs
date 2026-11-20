@@ -10,7 +10,7 @@
 //   - o mesmo arquivo (sha256) nunca é aplicado duas vezes.
 // Sem banco e sem relógio (o `agora` e o gerador de id entram por parâmetro).
 // ─────────────────────────────────────────────────────────────────────────────
-import { UNIDADES_ITEM, type CompraObra, type DocumentoCompra, type ItemCompra, type ObraPrivada } from './jornadaObra';
+import { UNIDADES_ITEM, itensIniciais, type CompraObra, type DocumentoCompra, type ItemCompra, type ObraPrivada } from './jornadaObra';
 import { ehKit } from './compraKit';
 import { itemParecidoCom, marcaDaDescricao, potenciaDaDescricao, tipoDaDescricao } from './compraTexto';
 
@@ -23,7 +23,12 @@ export interface DocLido {
   itens: ItemLido[]; origem: 'xml' | 'ia';
 }
 export interface ArquivoLido { nome: string; sha256: string; path: string }
-export interface ContextoMescla { por: string; agora: string; novoId: (prefixo: string) => string; nfId?: string; /** o id da compra, quando o registro da nota já o usou */ compraId?: string }
+type EquipDaProposta = Parameters<typeof itensIniciais>[0];
+export interface ContextoMescla {
+  por: string; agora: string; novoId: (prefixo: string) => string; nfId?: string; /** o id da compra, quando o registro da nota já o usou */ compraId?: string;
+  /** O kit da proposta (módulo e inversor): com a lista de itens VAZIA, a 1ª leitura parte dele (o kit previsto recebe os campos vazios e vira comprado), não de itens "novos". */
+  equip?: EquipDaProposta;
+}
 export interface ResumoMescla {
   documento_id: string; tipo: TipoDocumento; compra_id: string | null;
   /** Itens que já existiam e ganharam campos vazios. */
@@ -124,8 +129,16 @@ export function compraExistenteDoDocumento(p: ObraPrivada, doc: DocLido): string
   return null;
 }
 
-export function aplicarDocumentoNaCompra(p: ObraPrivada, doc: DocLido, arq: ArquivoLido, ctx: ContextoMescla): { privada: ObraPrivada; resumo: ResumoMescla } | { repetido: true } {
-  if (jaLido(p, arq.sha256)) return { repetido: true };
+/** A compra vazia com o kit da proposta já semeado (origem 'proposta', não comprado). Com itens, ou sem proposta, devolve a mesma obra. */
+export function semearKitDaProposta(p: ObraPrivada, ctx: Pick<ContextoMescla, 'por' | 'agora' | 'novoId' | 'equip'>): ObraPrivada {
+  if (p.compra.itens.length > 0 || !ctx.equip) return p;
+  const kit = itensIniciais(ctx.equip).map((i): ItemCompra => ({ ...i, id: ctx.novoId('i'), criado_por: ctx.por, criado_em: ctx.agora }));
+  return kit.length ? { ...p, compra: { ...p.compra, itens: kit } } : p;
+}
+
+export function aplicarDocumentoNaCompra(p0: ObraPrivada, doc: DocLido, arq: ArquivoLido, ctx: ContextoMescla): { privada: ObraPrivada; resumo: ResumoMescla } | { repetido: true } {
+  if (jaLido(p0, arq.sha256)) return { repetido: true };
+  const p = semearKitDaProposta(p0, ctx);
   const docId = ctx.novoId('d');
   const compra = doc.tipo !== 'orcamento';
   let compras: CompraObra[] = [...p.compra.compras];
