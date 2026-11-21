@@ -16,8 +16,9 @@
   var UNIDADES = [['un', 'un'], ['m', 'm'], ['par', 'par'], ['kit', 'kit']];
   var TIPOS = [['modulo', 'Placas'], ['inversor', 'Inversor'], ['estrutura', 'Estrutura'], ['eletrico', 'Elétrico'], ['outro', 'Outro']];
   var CHECK = [['estrutura', 'Estrutura fixada e vedada'], ['placas', 'Placas alinhadas e aterradas'], ['strings', 'Strings 1 e 2 ligadas'], ['inversor', 'Inversor fixado'], ['dps', 'DPS CC e CA'], ['aterramento', 'Aterramento'], ['cabos', 'Cabos identificados'], ['padrao', 'Padrão ligado']];
-  /** O checklist da Obra grava sozinho: `voo` = há um PUT dele a caminho (vale entre um desenho da tela e o seguinte). */
-  var CHK = { voo: false };
+  /** O checklist da Obra grava em fila (20/11/2026), igual ao "Comprado": a marca muda na hora e fica em `pend` (por chave do item) até o PUT dela voltar.
+   *  `voo` = há um PUT a caminho; `ob` = o objeto da obra do último desenho (a versão mais recente lida). Os campos nunca desligam. */
+  var CHK = { voo: false, pend: {}, ob: null, card: null };
   /** O "Comprado" da Compra grava em fila (20/11/2026): a marca muda na hora e fica em `pend` (por id do item, ou k<posição> sem id) até o PUT dela voltar.
    *  `voo` = há um PUT a caminho. O redesenho depois de cada PUT relê `pend`, então um clique que ainda está na fila nunca se perde. */
   var PIL = { voo: false, pend: {} };
@@ -532,7 +533,8 @@
   }
   function etqItens(its, concluida) {
     var h = H(); if (concluida) return h.etq('Completo', 'ok');
-    var ob = its.filter(function (i) { return !i.feito && i.nivel !== 'opcional'; }).length; var op = its.filter(function (i) { return !i.feito && i.nivel === 'opcional'; }).length;
+    var eOpc = function (i) { return i.opcional === true || i.nivel === 'opcional'; };
+    var ob = its.filter(function (i) { return !i.feito && !eOpc(i); }).length; var op = its.filter(function (i) { return !i.feito && eOpc(i); }).length;
     if (ob) return h.etqFalta('Falta ' + ob, 'ob');
     if (op) return h.etqFalta('Falta ' + op + ' opcional', 'op');
     return its.length ? h.etq('Completo', 'ok') : null;
@@ -732,18 +734,20 @@
       esq.appendChild(bP);
     }
   }
+  /** Enquanto há gravação automática na fila (checklist ou pílulas), o redesenho guarda e devolve o que a pessoa digitou e ainda não salvou (jornada.js). */
+  function manterFim() { if (!CHK.voo && !PIL.voo && !Object.keys(CHK.pend).length && !Object.keys(PIL.pend).length) H().O().manter = false; }
   function pilChave(i, k) { return i && i.id ? String(i.id) : 'k' + k; }
   /** Manda as marcas da fila num PUT só, sobre a lista MAIS RECENTE lida (nunca a do desenho velho), e repete até a fila esvaziar. Erro: desfaz só as marcas enviadas e avisa. */
   function pilFila() {
     if (PIL.voo) return;
-    if (!Object.keys(PIL.pend).length) return;
-    var h = H(); var c = compraDe(O().fase2); var lista = itensBase(c); var enviado = {};
+    if (!Object.keys(PIL.pend).length) { manterFim(); return; }
+    var h = H(); H().O().manter = true; var c = compraDe(O().fase2); var lista = itensBase(c); var enviado = {};
     lista.forEach(function (it, k) {
       var ch = it.id && PIL.pend[String(it.id)] !== undefined ? String(it.id) : PIL.pend['k' + k] !== undefined ? 'k' + k : '';
       if (ch) { it.comprado = PIL.pend[ch]; enviado[ch] = PIL.pend[ch]; }
     });
     Object.keys(PIL.pend).forEach(function (ch) { if (enviado[ch] === undefined) delete PIL.pend[ch]; });   // o item sumiu da lista
-    var ks = Object.keys(enviado); if (!ks.length) return;
+    var ks = Object.keys(enviado); if (!ks.length) { manterFim(); return; }
     PIL.voo = true;
     var aviso = ks.length > 1 ? 'Compras marcadas.' : enviado[ks[0]] ? 'Marcado como comprado.' : 'Voltou para previsto.';
     salvar('compra', { itens: lista, compras: clone(c.compras) }, aviso).then(function (r) { return r; }, function () { h.toast('Não consegui salvar agora. Tente de novo.'); return null; }).then(function (r) {
@@ -1133,9 +1137,30 @@
   }
   var DIAS_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
   function diaSemana(ymd) { var d = new Date(String(ymd) + 'T12:00:00'); return isNaN(d) ? '' : DIAS_SEMANA[d.getDay()]; }
+  /** Manda as marcas da fila do checklist num PUT só, sobre o objeto da obra MAIS RECENTE lido (nunca o do desenho velho), e repete até a fila esvaziar.
+   *  Erro (409 incluído): some só o que foi enviado, a tela relê e o aviso vem do salvar. */
+  function chkFila() {
+    if (CHK.voo) return;
+    if (!Object.keys(CHK.pend).length) { manterFim(); return; }
+    var h = H(); h.O().manter = true; var enviado = {};
+    // Só a versão lida da obra + as marcas da fila. O texto digitado e não salvo fica para o Salvar da seção dele.
+    var ob = clone(dados(h.O().fase2).obra) || {}; ob.plano = ob.plano || []; ob.diario = ob.diario || []; ob.checklist = ob.checklist || {}; ob.equipe = ob.equipe || { combinado_centavos: null, descricao: '' };
+    Object.keys(CHK.pend).forEach(function (k) { enviado[k] = CHK.pend[k]; ob.checklist[k] = enviado[k]; });
+    var ks = Object.keys(enviado); CHK.voo = true;
+    salvar('obra', ob, 'Checklist salvo.').then(function (r) { return r; }, function () { h.toast('Não consegui salvar agora. Tente de novo.'); return null; }).then(function (r) {
+      CHK.voo = false;
+      var ok = !!(r && r.status === 200 && r.json && r.json.ok !== false);
+      ks.forEach(function (k) { if (CHK.pend[k] === enviado[k]) delete CHK.pend[k]; });
+      if (ok) { chkFila(); return; }
+      Promise.resolve(h.recarregar()).then(chkFila, chkFila);
+    });
+  }
   function etapa6(esq, d, et, f2) {
     injetarCss(); var h = H(); var pode = podeSecao(f2, 'obra'); var l = livro();
     var ob = clone(dados(f2).obra) || {}; ob.plano = ob.plano || []; ob.diario = ob.diario || []; ob.checklist = ob.checklist || {}; ob.equipe = ob.equipe || { combinado_centavos: null, descricao: '' };
+    Object.keys(CHK.pend).forEach(function (k) { ob.checklist[k] = CHK.pend[k]; });   // a marca que ainda está na fila vale mais que a lida
+    // Redesenho de gravação automática: o diário, o plano e a equipe do desenho anterior (com o que ainda não foi salvo) seguem; só o Salvar deles grava.
+    if (h.O().manter && CHK.ob && CHK.card === h.O().card) { ob.plano = CHK.ob.plano; ob.diario = CHK.ob.diario; ob.equipe = CHK.ob.equipe; }
     var equipes = (f2.equipes && f2.equipes.length) ? f2.equipes : [{ id: 'pablo', rotulo: 'Equipe Pablo (montagem)' }];
     function salvarObra(aviso) { return salvar('obra', ob, aviso || 'Obra salva.'); }
     function botaoObra(rot, aviso) { var b = btn(rot, '', function () { b.disabled = true; salvarObra(aviso).then(function () { b.disabled = false; }); }); b.disabled = !pode; return b; }
@@ -1192,30 +1217,20 @@
     esq.appendChild(bD);
     // 2. Checklist da instalação
     var feitos = CHECK.filter(function (x) { return !!ob.checklist[x[0]]; }).length;
-    var bC = bloco('Checklist da instalação', feitos === CHECK.length ? h.etq('8 de 8', 'ok') : h.etqFalta(feitos + ' de 8', 'ob'));
+    var etqC = feitos === CHECK.length ? h.etq('8 de 8', 'ok') : h.etqFalta(feitos + ' de 8', 'ob');
+    var bC = bloco('Checklist da instalação', etqC);
     var gc = el('div', 'jor-ob-chks jor-ob-chk2');
     // Grava sozinho ao marcar e desmarcar (igual ao "Comprado" da Compra), na mesma rota e com o mesmo corpo do antigo Salvar.
-    // Clique rápido junta num PUT só (espera 400 ms parado) e nunca há dois PUTs ao mesmo tempo. Erro: a marca volta e o aviso vem do salvar.
-    var chkOk = clone(ob.checklist), chkIn = {}, chkT = 0;
-    function chkTrava(sim) { CHECK.forEach(function (x) { if (chkIn[x[0]]) chkIn[x[0]].input.disabled = sim || !pode; }); }
-    function chkGrava() {
-      chkT = 0;
-      if (CHK.voo) { chkT = setTimeout(chkGrava, 400); return; }
-      var mud = CHECK.map(function (x) { return x[0]; }).filter(function (k) { return !!ob.checklist[k] !== !!chkOk[k]; });
-      if (!mud.length) return;
-      var enviado = clone(ob.checklist); CHK.voo = true; chkTrava(true);
-      salvarObra('Checklist salvo.').then(function (r) { return r; }, function () { h.toast('Não consegui salvar agora. Tente de novo.'); return null; }).then(function (r) {
-        CHK.voo = false;
-        if (r && r.status === 200 && r.json && r.json.ok !== false) { chkOk = enviado; return; }
-        mud.forEach(function (k) { ob.checklist[k] = !!chkOk[k]; if (chkIn[k]) { chkIn[k].input.checked = !!chkOk[k]; h.marcaFalta(chkIn[k], chkOk[k] ? '' : 'ob'); } });
-        chkTrava(false);
-      });
-    }
+    // As marcas entram numa fila: um PUT por vez, sempre sobre a versão mais recente. Erro: desfaz só o que foi enviado e avisa.
+    CHK.ob = ob; CHK.card = h.O().card;
     CHECK.forEach(function (x) {
-      var m = marca(x[1], !!ob.checklist[x[0]], x[1]); chkIn[x[0]] = m; m.input.disabled = !pode; if (!ob.checklist[x[0]]) h.marcaFalta(m, 'ob');
+      var k0 = x[0]; var m = marca(x[1], !!ob.checklist[k0], x[1]); m.input.disabled = !pode; if (!ob.checklist[k0]) h.marcaFalta(m, 'ob');
       m.input.addEventListener('change', function () {
-        ob.checklist[x[0]] = m.input.checked; h.marcaFalta(m, m.input.checked ? '' : 'ob');
-        if (chkT) clearTimeout(chkT); chkT = setTimeout(chkGrava, 400);
+        // Marca na hora e não desliga nada: o próximo clique, mesmo logo depois, entra na fila.
+        var on = m.input.checked; ob.checklist[k0] = on; CHK.pend[k0] = on; h.marcaFalta(m, on ? '' : 'ob');
+        var n = CHECK.filter(function (y) { return !!ob.checklist[y[0]]; }).length;
+        etqC.textContent = n === CHECK.length ? '8 de 8' : n + ' de 8'; etqC.className = 'jor-etq jor-etq-' + (n === CHECK.length ? 'ok' : 'fo');
+        chkFila();
       }); gc.appendChild(m);
     });
     bC.appendChild(gc);

@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { SLOTS_FOTO_ENTREGA } from '../services/gerador/obraDocs';
 import { Router, Request, Response, NextFunction } from 'express';
 import { exigeConsultor } from './geradorDossie';
@@ -32,6 +31,7 @@ import {
   lerVinculos, lerPropostaResumo, listarPropostasVendidas,
 } from '../services/gerador/docsClienteBanco';
 import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
+import { criarArquivoDoc } from '../services/gerador/docsRegistrar';
 import { lerRotulos, gravarRotulos, rotuloManual, travaDaVenda, type Rotulos } from '../services/gerador/docsRotulos';
 import { lerEstadoDoRegistro, ehCodigoDoAlocador } from '../services/gerador/vendaSolarRegistro';
 import { paresDoGerador } from '../services/gerador/linhasGerador';
@@ -522,7 +522,7 @@ export function mountClientesDocs(router: Router): void {
           return;
         }
         const agora = new Date().toISOString();
-        const arq = { id: crypto.randomUUID(), slot: item.chave, caminho, mime: sonda.mime, bytes: sonda.bytes, em: agora, por: ctx.nome };
+        const arq = criarArquivoDoc({ slot: item.chave, caminho, mime: sonda.mime, bytes: sonda.bytes, por: ctx.nome, agora });   // o mesmo registro da importação do Trello (`docsRegistrar.ts`)
         // Troca: UMA gravação põe o novo e tira o antigo do registro. O objeto antigo só é apagado depois dela; se a gravação falhar,
         // o antigo continua como estava (o novo fica solto no bucket e a pessoa tenta de novo).
         const novoReg = antigo ? comArquivo(semArquivo(reg, antigo.id, ctx.nome, agora), arq) : comArquivo(reg, arq);

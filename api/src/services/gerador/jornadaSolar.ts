@@ -277,7 +277,9 @@ export function marcaDoRateio(cad: Cadastro): string {
 
 // ── O que cada etapa pede para concluir ────────────────────────────────────────────────────────────────────────────
 
-export interface ItemEtapa { chave: string; bloco: 'cliente' | 'venda' | 'papeis' | 'pedidos' | 'excedente' | 'vistoria' | 'anexos' | 'fotos' | 'documentos' | 'portao' | 'equipamento' | 'pendentes'; texto: string; feito: boolean }
+export interface ItemEtapa { chave: string; bloco: 'cliente' | 'venda' | 'papeis' | 'pedidos' | 'excedente' | 'vistoria' | 'anexos' | 'fotos' | 'documentos' | 'portao' | 'equipamento' | 'pendentes'; texto: string; feito: boolean;
+  /** Informativo (amarelo): não trava a conclusão da etapa nem entra na contagem do que falta. Hoje: ART e protocolo da etapa 3 (a homologação vem do Trello). */
+  opcional?: boolean }
 export interface EntradaItens {
   /** O kit da proposta ligada (placas e inversor, para confirmar) e a obra privada (vistoria e proposta de banco). Sem eles os itens que dependem ficam por fazer. */
   equip?: EquipamentoProposta | null;
@@ -288,6 +290,8 @@ export interface EntradaItens {
   cad: Cadastro;
   privado: PrivadoJornada | null;
   estado: EstadoJornada | null;
+  /** O espelho do cartão do Trello (`trello_homolog:<card>`): só o que a etapa 3 precisa. Ausente = o item "parecer aprovado" fica por fazer (quando há cartão). */
+  homolog?: { parecer_aprovado: boolean } | null;
 }
 
 export function valorPagamentoFecha(v: PrivadoJornada['venda']): boolean {
@@ -508,12 +512,16 @@ export function itensDaEtapa(n: number, f: EntradaItens): ItemEtapa[] {
       const r = f.estado.etapas[3].rateio;
       itens.push({ chave: 'rateio', bloco: 'portao', texto: 'Rateio do excedente conferido', feito: !!r && r.marca === marcaDoRateio(f.cad) });
     }
+    const temCartao = !!f.estado?.etapas[3].trello || !!f.lig.trello_card;
+    // A homologação é feita pelo engenheiro no Trello. Obrigatório para concluir: o item "parecer aprovado" marcado na checklist do cartão (obra sem
+    // cartão: só o parecer anexado à mão) E o arquivo do parecer. ART, protocolo e o próprio cartão ficam informativos (`opcional`): vermelho só no parecer aprovado e no arquivo do parecer.
     itens.push(
-      { chave: 'trello', bloco: 'portao', texto: 'Cartão do Trello criado', feito: !!f.estado?.etapas[3].trello || !!f.lig.trello_card },
-      { chave: 'art', bloco: 'portao', texto: 'ART com documento e comprovante', feito: tem('art') && tem('art_comprovante') },
-      { chave: 'protocolo', bloco: 'portao', texto: 'Protocolo com número e print', feito: !!f.estado?.etapas[3].protocolo?.numero && tem('protocolo') },
-      { chave: 'parecer', bloco: 'portao', texto: 'Parecer de acesso aprovado anexado', feito: tem('parecer_acesso') },
+      { chave: 'trello', bloco: 'portao', texto: 'Cartão do Trello criado', feito: temCartao, opcional: true },
+      { chave: 'art', bloco: 'portao', texto: 'ART com documento e comprovante', feito: tem('art') && tem('art_comprovante'), opcional: true },
+      { chave: 'protocolo', bloco: 'portao', texto: 'Protocolo com número e print', feito: !!f.estado?.etapas[3].protocolo?.numero && tem('protocolo'), opcional: true },
     );
+    if (temCartao) itens.push({ chave: 'parecer_aprovado', bloco: 'portao', texto: 'Parecer aprovado no Trello', feito: f.homolog?.parecer_aprovado === true });
+    itens.push({ chave: 'parecer', bloco: 'portao', texto: 'Parecer de acesso aprovado anexado', feito: tem('parecer_acesso') });
     return itens;
   }
   return [];

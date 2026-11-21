@@ -196,11 +196,14 @@ vi.mock('../services/gerador/docsClienteBanco', async (orig) => ({
 
 import { mountVendaSolar } from '../routes/geradorVendaSolar';
 import { mountClientesDocs } from '../routes/geradorClientesDocs';
-import { mountJornadaSolar } from '../routes/geradorJornadaSolar';
+import { mountJornadaSolar, concluirEtapa3PeloTrello } from '../routes/geradorJornadaSolar';
+import { homologarObra } from '../routes/geradorJornadaHomolog';
 import { alocarCodigoSolar } from '../services/gerador/vendaSolarCodigo';
 import { assinarJornada, normalizarJornada, reiniciarLogsDaJornada } from '../services/gerador/jornadaSolarBanco';
 import { estadoMaterializado, type EstadoJornada } from '../services/gerador/jornadaSolar';
-import { invalidarCachesHub, reiniciarLogsDoHub } from '../services/gerador/vendaSolarHub';
+import { assinarLigacao, invalidarCachesHub, reiniciarLogsDoHub } from '../services/gerador/vendaSolarHub';
+import { eventosDoCard } from '../services/io/jornadaMensagensPuro';
+import type { CardVendido } from '../services/gerador/fichaEletroposto';
 import { formaDoEspelho } from '../services/gerador/jornadaFicha';
 
 const r = Router();
@@ -1434,5 +1437,173 @@ describe('GET da obra: leitura dos documentos pendentes (19/11)', () => {
     anexos(304, ['contrato_assinado']);
     for (const auth of [NILCE, GIOVANNA, THIAGO]) expect((await obra(304, auth)).body.leitura).toEqual(VAZIA);
     expect(h.leitura.chamadas).toHaveLength(0);
+  });
+});
+
+// ── Homologação lida do Trello (20/11/2026): o passo 5 (etapa 3) é espelho do cartão ──────────────────────────────────────────────────────────
+describe('homologação lida do Trello (etapa 3)', () => {
+  const CARTAO = 'c'.repeat(24);
+  const EQUIP = ['datasheet_modulo', 'datasheet_inversor', 'kmz'];
+  const etapa3Aberta = (e: EstadoJornada): void => { concluida1(e); e.etapas[2].concluida_em = AGORA; e.etapas[2].concluida_por = 'giovanna'; e.etapas[3].aberta_em = AGORA; };
+  const ligar = (id: number, comCartao: boolean): void => {
+    const l = { proposta: null, venda: '#0070', por: 'gerador', em: AGORA, ...(comCartao ? { trello_card: CARTAO } : {}) };
+    h.linhas.set(`venda_solar:${id}`, { updated_at: 'v', value: { ...l, sig: assinarLigacao(id, l) } });
+  };
+  const registro = (id: number, o: Record<string, unknown> = {}): void => {
+    h.linhas.set(`trello_homolog:${id}`, {
+      updated_at: 't',
+      value: {
+        v: 1, card_id: CARTAO, cartao_url: 'https://trello.com/c/AbCd1234', tentado_em: AGORA, sincronizado_em: AGORA, erro: null, parecer_aprovado: false, completo: null,
+        checklist: [{ nome: 'Art Gerada', feito: true }, { nome: 'Parecer Aprovado', feito: false }], anexos: {}, ...o,
+      },
+    });
+  };
+  const aprovado = { parecer_aprovado: true, checklist: [{ nome: 'Art Gerada', feito: true }, { nome: 'Parecer Aprovado', feito: true }] };
+  const cardDe = (id: number): CardVendido => h.agendamentos.find((a) => a.id === id) as unknown as CardVendido;
+  const item = (corpo: any, chave: string): any => corpo.etapas[2].itens.find((i: any) => i.chave === chave);
+
+  it('GET: `trello_homolog` leva o espelho (checklist, importados com o rótulo do item); ART e protocolo vêm `opcional`; o vermelho é só o parecer aprovado e o parecer', async () => {
+    semear(304, etapa3Aberta); ligar(304, true); anexos(304, EQUIP);
+    registro(304, { anexos: { ['a'.repeat(24)]: { resultado: 'importado', slot: 'art', em: '2026-11-20T14:00:00.000Z', tentativas: 1 } } });
+    const r = await obra(304, THIAGO);
+    expect(r.status).toBe(200);
+    expect(r.body.etapas[2].trello_homolog).toEqual({
+      cartao_url: 'https://trello.com/c/AbCd1234', sincronizado_em: AGORA, erro: null,
+      checklist: [{ nome: 'Art Gerada', feito: true }, { nome: 'Parecer Aprovado', feito: false }],
+      importados: [{ slot: 'art', nome: 'ART (documento)', em: '2026-11-20T14:00:00.000Z' }],
+    });
+    expect(item(r.body, 'art').opcional).toBe(true);
+    expect(item(r.body, 'protocolo').opcional).toBe(true);
+    expect(item(r.body, 'parecer_aprovado')).toMatchObject({ feito: false });
+    expect(item(r.body, 'parecer')).toMatchObject({ feito: false });
+    expect(item(r.body, 'parecer_aprovado').opcional).toBeUndefined();
+    expect(r.body.etapas[2].falta).toBe(2);
+    expect(r.body.etapas[0].trello_homolog).toBeUndefined();
+  });
+
+  it('GET sem cartão: `trello_homolog` é null, o item do Trello não aparece e só o parecer anexado à mão falta', async () => {
+    semear(304, etapa3Aberta); ligar(304, false); anexos(304, EQUIP);
+    const r = await obra(304, THIAGO);
+    expect(r.body.etapas[2].trello_homolog).toBeNull();
+    expect(item(r.body, 'parecer_aprovado')).toBeUndefined();
+    expect(r.body.etapas[2].falta).toBe(1);
+  });
+
+  it('GET: o Trello fora do ar não quebra a página; a sincronia roda em segundo plano, grava o erro curto e o GET seguinte (dentro de 10 min) não bate no Trello de novo', async () => {
+    semear(304, etapa3Aberta); ligar(304, true); anexos(304, EQUIP);
+    const r = await obra(304, THIAGO);
+    expect(r.status).toBe(200);
+    await vi.waitFor(() => expect(h.linhas.get('trello_homolog:304')?.value?.erro).toBeTruthy());
+    expect(h.fetchs).toBeGreaterThan(0);
+    expect(JSON.stringify(h.linhas.get('trello_homolog:304')!.value)).not.toContain('token-trello-falso');
+    const antes = h.fetchs;
+    expect((await obra(304, THIAGO)).status).toBe(200);
+    await new Promise((ok) => setTimeout(ok, 20));
+    expect(h.fetchs).toBe(antes);
+  });
+
+  it('GET de obra cancelada ou ainda fora da etapa 3: o Trello nem é consultado', async () => {
+    semear(304, (e) => { etapa3Aberta(e); e.cancelada = { em: AGORA, por: 'thiago', etapa: 3, com_numero: true }; }); ligar(304, true);
+    await obra(304, THIAGO);
+    semear(305, (e) => { concluida1(e); }); ligar(305, true);   // etapa 2: a etapa 3 ainda não abriu
+    await obra(305, THIAGO);
+    await new Promise((ok) => setTimeout(ok, 20));
+    expect(h.fetchs).toBe(0);
+    expect(h.linhas.has('trello_homolog:304')).toBe(false);
+  });
+
+  it('o botão: sem o item "parecer aprovado" marcado no Trello não conclui, ainda que o parecer esteja anexado; ART e protocolo faltando não seguram', async () => {
+    semear(304, etapa3Aberta); ligar(304, true); anexos(304, [...EQUIP, 'parecer_acesso']); registro(304);
+    const nao = await post('/jornada-solar/obra/304/etapa', { etapa: 3 }, THIAGO);
+    expect(nao.status).toBe(409);
+    expect(nao.body.falta.map((i: any) => i.chave)).toEqual(['parecer_aprovado']);
+    registro(304, aprovado);
+    const ok = await post('/jornada-solar/obra/304/etapa', { etapa: 3 }, THIAGO);
+    expect(ok.status).toBe(200);
+    expect(estadoGravado(304)!.etapas[3]).toMatchObject({ concluida_por: 'thiago' });
+    expect(estadoGravado(304)!.etapas[4].aberta_em).not.toBeNull();
+  });
+
+  it('o botão em obra SEM cartão: basta o parecer anexado à mão (ART e protocolo opcionais)', async () => {
+    semear(304, etapa3Aberta); ligar(304, false); anexos(304, [...EQUIP, 'parecer_acesso']);
+    expect((await post('/jornada-solar/obra/304/etapa', { etapa: 3 }, THIAGO)).status).toBe(200);
+  });
+
+  it('automática: com parecer aprovado E o arquivo, conclui pelo mesmo caminho do botão (abre a Compra), com concluida_por `trello` e o autor pedido no histórico', async () => {
+    semear(304, etapa3Aberta); ligar(304, true); anexos(304, [...EQUIP, 'parecer_acesso']); registro(304, aprovado);
+    expect(await concluirEtapa3PeloTrello(cardDe(304), 'trello')).toBe('concluiu');
+    const e = estadoGravado(304)!;
+    expect(e.etapas[3]).toMatchObject({ concluida_por: 'trello' });
+    expect(e.etapas[3].concluida_em).not.toBeNull();
+    expect(e.etapas[4].aberta_em).not.toBeNull();
+    expect(e.historico[e.historico.length - 1]).toMatchObject({ acao: 'concluir', etapa: 3, por: 'trello' });
+    expect(h.fetchs).toBe(0);   // só grava: nada de rede, nada de mensagem
+  });
+
+  it('automática: só um dos dois (parecer aprovado ou arquivo) não conclui e não grava nada', async () => {
+    semear(304, etapa3Aberta); ligar(304, true); anexos(304, [...EQUIP, 'parecer_acesso']); registro(304);
+    const antes = JSON.stringify(h.linhas.get('jornada_solar:304'));
+    expect(await concluirEtapa3PeloTrello(cardDe(304), 'trello')).toBe('nao_pronto');
+    anexos(304, EQUIP); registro(304, aprovado);
+    expect(await concluirEtapa3PeloTrello(cardDe(304), 'trello')).toBe('nao_pronto');
+    expect(JSON.stringify(h.linhas.get('jornada_solar:304'))).toBe(antes);
+  });
+
+  it('automática: recusa se a etapa da vez não é a 3, se está cancelada ou concluída; não toca em nada', async () => {
+    ligar(304, true); anexos(304, [...EQUIP, 'parecer_acesso']); registro(304, aprovado);
+    semear(304, (e) => { concluida1(e); });   // etapa 2
+    expect(await concluirEtapa3PeloTrello(cardDe(304), 'trello')).toBe('ignorada');
+    semear(304, (e) => { etapa3Aberta(e); e.cancelada = { em: AGORA, por: 'thiago', etapa: 3, com_numero: true }; });
+    expect(await concluirEtapa3PeloTrello(cardDe(304), 'trello')).toBe('ignorada');
+    semear(304, (e) => { etapa3Aberta(e); e.etapas[3].concluida_em = AGORA; e.etapas[3].concluida_por = 'thiago'; e.etapas[4].aberta_em = AGORA; });
+    expect(await concluirEtapa3PeloTrello(cardDe(304), 'trello')).toBe('ignorada');
+    expect(estadoGravado(304)!.historico.some((x) => x.por === 'trello')).toBe(false);
+  });
+
+  it('o aviso "É sua" depende do autor: `trello` gera chaves para Thiago e Diego; `leitura` não gera nenhuma', async () => {
+    const ligados = { venda: '2026-11-01T00:00:00.000Z', etapa: '2026-11-01T00:00:00.000Z', fila: '2026-11-01T00:00:00.000Z', liberacao: null, aniversario: null };
+    const eventosCom = async (autor: string) => {
+      semear(304, etapa3Aberta); ligar(304, true); anexos(304, [...EQUIP, 'parecer_acesso']); registro(304, aprovado);
+      expect(await concluirEtapa3PeloTrello(cardDe(304), autor)).toBe('concluiu');
+      return eventosDoCard({ card: 304, js: estadoGravado(304), jo: null, vendedor: 'nilce' }, new Date(AGORA), ligados);
+    };
+    const [ev] = await eventosCom('trello');
+    expect(ev).toMatchObject({ tipo: 'sua', etapa: 4, para: ['thiago', 'diego'], chaves: ['jornada_env:sua:304:4:thiago', 'jornada_env:sua:304:4:diego'] });
+    expect(await eventosCom('leitura')).toEqual([]);
+  });
+
+  it('GET: cada etapa traz `concluida_por` como foi gravado (pessoa, `trello` ou `leitura`); sem conclusão é null', async () => {
+    semear(304, (e) => { etapa3Aberta(e); e.etapas[3].concluida_em = AGORA; e.etapas[3].concluida_por = 'trello'; e.etapas[4].aberta_em = AGORA; });
+    ligar(304, true);
+    const r = await obra(304, THIAGO);
+    expect(r.body.etapas.slice(0, 3).map((x: any) => x.concluida_por)).toEqual(['nilce', 'giovanna', 'trello']);
+    semear(305, (e) => { concluida1(e); });
+    expect((await obra(305, THIAGO)).body.etapas.slice(0, 3).map((x: any) => x.concluida_por)).toEqual(['nilce', null, null]);
+  });
+
+  it('parecer anexado À MÃO em obra com cartão (o do Trello era link ou passava de 10 MB): a sincronia seguinte, com "parecer aprovado" marcado, conclui a etapa 3', async () => {
+    semear(304, etapa3Aberta); ligar(304, true); anexos(304, EQUIP);
+    registro(304, { tentado_em: '2026-11-05T14:00:00.000Z', completo: false });   // leitura anterior definitiva: incompleta
+    // 1) o upload manual do item `parecer_acesso` é aceito mesmo com cartão (a rota de documentos não olha o cartão)
+    anexos(304, [...EQUIP, 'parecer_acesso']);
+    // 2) o Trello agora tem "Parecer Aprovado" marcado e nenhum anexo que sirva
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      shortUrl: 'https://trello.com/c/AbCd1234',
+      checklists: [{ name: 'ENGENHARIA', checkItems: [{ name: 'Parecer Aprovado', state: 'complete', pos: 1 }] }],
+      attachments: [{ id: 'd'.repeat(24), name: 'Parecer (link)', url: 'https://exemplo.com/parecer', isUpload: false, bytes: 0, date: AGORA }],
+    }))));
+    const r = await homologarObra(cardDe(304), { js: estadoGravado(304), jo: null, cardIdLig: CARTAO, origem: 'tela' });
+    expect(r).toBe('concluiu');
+    expect(estadoGravado(304)!.etapas[3].concluida_em).not.toBeNull();
+    expect(estadoGravado(304)!.etapas[4].aberta_em).not.toBeNull();
+    expect(h.linhas.get('trello_homolog:304')!.value.parecer_aprovado).toBe(true);
+  });
+
+  it('o mesmo, mas sem o item marcado no Trello: o parecer à mão não basta', async () => {
+    semear(304, etapa3Aberta); ligar(304, true); anexos(304, [...EQUIP, 'parecer_acesso']);
+    registro(304, { tentado_em: '2026-11-05T14:00:00.000Z' });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ shortUrl: 'https://trello.com/c/AbCd1234', checklists: [{ name: 'ENGENHARIA', checkItems: [{ name: 'Parecer Aprovado', state: 'incomplete', pos: 1 }] }], attachments: [] }))));
+    expect(await homologarObra(cardDe(304), { js: estadoGravado(304), jo: null, cardIdLig: CARTAO, origem: 'tela' })).toBe('sincronizou');
+    expect(estadoGravado(304)!.etapas[3].concluida_em).toBeNull();
   });
 });
