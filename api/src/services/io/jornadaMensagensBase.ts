@@ -21,6 +21,7 @@ import { ehCardSolarVendido, lerCardsPorIds, lerTodasLigacoes, type Ligacao } fr
 import type { CardVendido } from '../gerador/fichaEletroposto';
 import { nomeSimples } from '../gerador/solarObras';
 import { itensDaEtapa, type EstadoJornada } from '../gerador/jornadaSolar';
+import { lerRegistroHomolog } from '../gerador/trelloHomologBanco';
 import { itensDaEtapaObra, materialDaCompra, pendenciasDaObra, etapaAtualCompleta, type EstadoObra } from '../gerador/jornadaObra';
 import { AJUSTES_PADRAO, livroDaObra, regraDoVendedor } from '../gerador/jornadaDinheiro';
 import { lerAjustes, lerLancamentosDaObra } from '../gerador/jornadaDinheiroBanco';
@@ -223,11 +224,12 @@ export async function faltaDaObra(o: ObraFila, ligs: ReadonlyMap<number, Ligacao
     }
     const [cad, privado] = await Promise.all([lerCadastroVisto(o.card, 'vendasolar'), lerPrivadoJornada(o.card)]);
     const lig = ligs.get(o.card) ?? { proposta: null, venda: null, por: '', em: '' };
-    const itens = itensDaEtapa(n, { lig, slots: new Set(reg.arquivos.map((a) => a.slot)), cad, privado, estado: o.js });
+    const homolog = n === 3 ? await lerRegistroHomolog(o.card).catch(() => null) : null;   // o item "parecer aprovado" vem do espelho do Trello
+    const itens = itensDaEtapa(n, { lig, slots: new Set(reg.arquivos.map((a) => a.slot)), cad, privado, estado: o.js, homolog });
     // Na etapa 1 só entram os itens que não dependem de arquivo nem de leitura extra (kit da proposta, vistoria, proposta de banco, pedidos).
     const semArquivo = new Set(['nome', 'telefone', 'endereco', 'endereco_usina', 'email', 'proposta', 'prazo', 'valor', 'pagamento', 'financiamento', 'papel_contrato', 'papel_procuracao', 'excedente']);
     // A vistoria (etapa 2) mora na obra privada, que esta leitura não carrega: fica fora da lista, como o kit e a proposta de banco da etapa 1.
-    return itens.filter((i) => !i.feito && i.chave !== 'vistoria' && (n !== 1 || semArquivo.has(i.chave))).map((i) => i.texto);
+    return itens.filter((i) => !i.feito && !i.opcional && i.chave !== 'vistoria' && (n !== 1 || semArquivo.has(i.chave))).map((i) => i.texto);   // o opcional (amarelo) nunca é cobrado
   } catch (err) { logBase('falta', err); return []; }
 }
 

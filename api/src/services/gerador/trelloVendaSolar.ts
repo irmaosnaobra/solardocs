@@ -488,7 +488,7 @@ export async function gravarRegistroTrello(card: number, reg: RegistroTrello): P
 export type Res<T> = { ok: true; dados: T } | { ok: false; motivo: string };
 const API = 'https://api.trello.com/1';
 
-async function chamar<T>(
+export async function chamar<T>(
   cred: CredenciaisTrello, metodo: 'GET' | 'POST' | 'PUT', caminho: string, params: Record<string, string> = {}, base = API,
 ): Promise<Res<T>> {
   const qs = new URLSearchParams({ ...params, key: cred.key, token: cred.token });

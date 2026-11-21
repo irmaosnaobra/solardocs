@@ -8,6 +8,9 @@ import { planilha, comSobrescritas } from './geradorSolar';
 import { responderErroDoAlocador } from './geradorVendaSolarCliente';
 import { tentarNumeroDaJornada, baseDaJornada, responderNumero409 } from './geradorJornadaNumero';
 import { anexarRelatorioManual, dispararTrelloAutomatico } from './geradorJornadaTrelloAuto';
+import { dispararHomologacao } from './geradorJornadaHomolog';
+import { lerRegistroHomolog } from '../services/gerador/trelloHomologBanco';
+import { AUTOR_TRELLO, homologDaTela, type RegistroHomolog } from '../services/gerador/trelloHomologPuro';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { generateFromTemplate } from '../services/templateService';
 import { limparHtmlPapel } from '../services/gerador/htmlPapelSeguro';
@@ -160,6 +163,8 @@ interface Leitura {
   /** Preencher: o depósito de cada slot que não está no card. */
   origem: Map<string, 'dossie' | 'planilha'>;
   tem_cartao: boolean;
+  /** O espelho do cartão do Trello (checklist e anexos importados); null quando o registro não pôde ser lido. */
+  homolog: RegistroHomolog | null;
   proposta: Awaited<ReturnType<typeof lerProposta>>;
   /** O kit da proposta ligada e a obra privada (vistoria e proposta de banco): só lidos quando `comProposta`. */
   equip: EquipamentoProposta | null;
@@ -167,10 +172,10 @@ interface Leitura {
 }
 
 async function ler(g: Guarda, comProposta = true): Promise<Leitura> {
-  const [{ lig }, { estado }, privado, cad, docs, dv, { estado: obraEstado }] = await Promise.all([
+  const [{ lig }, { estado }, privado, cad, docs, dv, { estado: obraEstado }, homolog] = await Promise.all([
     lerLigacao(g.id), lerJornadaComVersao(g.id), lerPrivadoJornada(g.id).catch((e) => { logErro('privado', e); return null; }),
     lerCadastroVisto(g.id, 'vendasolar'), lerDocs(g.ctx), dossieDaVendaSolar(g.ctx, 0, false).catch((e) => { logErro('dossiê', e); return null; }),
-    lerObraComVersao(g.id),
+    lerObraComVersao(g.id), lerRegistroHomolog(g.id).catch((e) => { logErro('homologação do Trello', e); return null; }),
   ]);
   const slotsDoCard = new Set(docs.reg.arquivos.map((a) => a.slot));
   const slots = new Set(slotsDoCard);
@@ -183,7 +188,7 @@ async function ler(g: Guarda, comProposta = true): Promise<Leitura> {
   const proposta = comProposta && lig.proposta ? await lerProposta(lig.proposta).catch((e) => { logErro('proposta', e); return null; }) : null;
   const equip = proposta ? equipamentoDaProposta({ qtd_placas: proposta.qtd_placas, inversor: proposta.inversor, qtd_inversor: proposta.qtd_inversor, dados: proposta.dados }) : null;
   const op = comProposta ? await lerObraPrivada(g.id).catch((e) => { logErro('obra privada', e); return null; }) : null;
-  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, arquivos: docs.reg.arquivos, origem, tem_cartao: !!lig.trello_card, proposta, equip, obra: op ? { vistoria: op.vistoria, banco: op.banco, versoes: op.versoes, itens: op.compra.itens, documentos: op.compra.documentos, serie: op.entrega.monitoramento.serie } : null };
+  return { lig, estado, obraEstado, privado, cad, slots, slotsDoCard, arquivos: docs.reg.arquivos, origem, tem_cartao: !!lig.trello_card, homolog, proposta, equip, obra: op ? { vistoria: op.vistoria, banco: op.banco, versoes: op.versoes, itens: op.compra.itens, documentos: op.compra.documentos, serie: op.entrega.monitoramento.serie } : null };
 }
 
 /**
@@ -298,7 +303,7 @@ function podeDe(g: Guarda, l: Leitura, pos: Posicao) {
 const baseDe = (g: Guarda, l: Leitura) => baseDaJornada(g.card, l.slots, l.lig);
 
 const entradaDe = (l: Leitura, estado: EstadoJornada | null): EntradaItens =>
-  ({ lig: l.lig, slots: l.slots, cad: l.cad, privado: l.privado, estado, equip: l.equip, obra: l.obra });
+  ({ lig: l.lig, slots: l.slots, cad: l.cad, privado: l.privado, estado, equip: l.equip, obra: l.obra, homolog: l.homolog });
 
 // ── Rota 1 · Vendido ──────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -643,10 +648,16 @@ async function rotaObra(req: Request, res: Response): Promise<void> {
       etapas.push({
         n, nome: NOMES_ETAPA[n], curto: CURTOS_ETAPA[n], dono: donos, conclui_por: concluiPorDaEtapa(n, vend, String(g.card.vendedor_nome ?? '')),
         aberta_em: e?.aberta_em ?? null, concluida_em: e?.concluida_em ?? (feitaDeduzida ? 'deduzida' : null),
+        // Quem concluiu, como foi gravado: o nome da pessoa, `trello` (conclusão automática pelo Trello) ou `leitura` (materialização). A tela escreve o nome bonito.
+        concluida_por: e?.concluida_por || null,
         prazo, situacao: l.estado ? situacao(n, l.estado, hoje) : { tipo: 'sem_prazo', texto: '' },
-        itens, falta: itens.filter((i) => !i.feito).length,
+        itens, falta: itens.filter((i) => !i.feito && !i.opcional).length,
+        // Etapa 3: o espelho do cartão do Trello (null sem cartão). Contrato em `trelloHomologPuro.ts`.
+        ...(n === 3 ? { trello_homolog: homologDaTela(l.homolog, !!l.estado?.etapas[3].trello || !!l.lig.trello_card, l.estado?.etapas[3].trello?.url ?? null) } : {}),
       });
     }
+    // Homologação lida do Trello: em segundo plano (intervalo de 10 min por obra); a resposta já leva o que estava gravado.
+    dispararHomologacao(g.card, l);
     const rat = rateioDoCadastro(l.cad);
     const bens = rat.filter((r) => r.papel === 'beneficiaria');
     const titularGeradora = rat[0]?.titular ?? '';
@@ -1119,6 +1130,51 @@ async function rotaRelatorioFinal(req: Request, res: Response): Promise<void> {
 
 // ── Rota 7 · Concluir a etapa ─────────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * A gravação da conclusão de uma etapa: o MESMO caminho do botão (`rotaEtapa`) e da conclusão automática da etapa 3 pelo Trello. Só GRAVA (nada de
+ * mensagem aqui). Recusa se a obra está cancelada, se a etapa não é a da vez ou se falta item. `por` vai em `concluida_por`; `autorHistorico`, na linha
+ * `concluir` do histórico, que é o que o robô "É sua" lê (autor de `POR_QUE_NAO_E_GENTE` não avisa).
+ */
+async function gravarConclusao(g: Guarda, l: Leitura, n: 1 | 2 | 3, autor: { por: string; autorHistorico: string }): Promise<EstadoJornada | Recusa> {
+  return mudarJornada(g.id, baseDe(g, l), (e) => {
+    if (e.cancelada) return { recusa: 'Venda cancelada.', http: 409 } as Recusa;
+    if (etapaAtualDoEstado(e) !== n) return { recusa: 'Esta etapa não é a da vez.', http: 409 } as Recusa;
+    const itens = itensDaEtapa(n, entradaDe(l, e));
+    const falta = itens.filter((i) => !i.feito && !i.opcional);
+    if (falta.length) {
+      return {
+        recusa: `Falta ${falta.length} ${falta.length === 1 ? 'item' : 'itens'}: ${falta.map((i) => i.texto).join(', ')}.`, http: 409,
+        extra: { precisa: 'itens', falta: falta.map((i) => ({ chave: i.chave, texto: i.texto })) },
+      } as Recusa;
+    }
+    const agora = new Date().toISOString();
+    const fecha = { concluida_em: agora, concluida_por: autor.por };
+    const etapas = { ...e.etapas } as EstadoJornada['etapas'];
+    if (n === 1) { etapas[1] = { ...e.etapas[1], ...fecha }; etapas[2] = { ...e.etapas[2], aberta_em: e.etapas[2].aberta_em ?? agora }; }
+    if (n === 2) { etapas[2] = { ...e.etapas[2], ...fecha }; etapas[3] = { ...e.etapas[3], aberta_em: e.etapas[3].aberta_em ?? agora }; }
+    if (n === 3) { etapas[3] = { ...e.etapas[3], ...fecha }; etapas[4] = { aberta_em: e.etapas[4].aberta_em ?? agora }; }
+    return {
+      ...e, etapas, esperando: e.esperando && e.esperando.etapa === n ? null : e.esperando,
+      historico: [...e.historico, { em: agora, por: autor.autorHistorico, acao: 'concluir' as const, etapa: n }].slice(-50),
+    };
+  });
+}
+
+/**
+ * A conclusão automática da etapa 3 pelo Trello (parecer aprovado no cartão + arquivo do parecer): `gravarConclusao`, o mesmo caminho do botão, sem a
+ * checagem de quem pode (não há pessoa). Só GRAVA; o aviso "É sua" é do tick. `autorHistorico` vem de `autorDaConclusaoAutomatica`. Obra finalizada,
+ * cancelada, fechada ou fora da etapa 3 não é tocada. Quem chama já limita a obras COM cartão.
+ */
+export async function concluirEtapa3PeloTrello(card: CardVendido, autorHistorico: string): Promise<'concluiu' | 'nao_pronto' | 'ignorada'> {
+  if (await obraFinalizada(card.id)) return 'ignorada';
+  const ctx: Ctx = { linha: 'vendasolar', codigo: String(card.id), nome: AUTOR_TRELLO, socio: false, cliente: String(card.cliente_nome ?? ''), card };
+  const g: Guarda = { nome: AUTOR_TRELLO, socio: false, adm: false, card, id: card.id, ctx };
+  const l = await ler(g, true);
+  if (!l.estado || l.estado.cancelada || l.obraEstado?.fechada || etapaAtualDoEstado(l.estado) !== 3) return 'ignorada';
+  const r = await gravarConclusao(g, l, 3, { por: AUTOR_TRELLO, autorHistorico });
+  return ehRecusa(r) ? 'nao_pronto' : 'concluiu';
+}
+
 async function rotaEtapa(req: Request, res: Response): Promise<void> {
   const g = await guardaObra(req, res, true);
   if (!g) return;
@@ -1130,28 +1186,7 @@ async function rotaEtapa(req: Request, res: Response): Promise<void> {
     const vend = vendedorDe(g.card, l.estado);
     if (l.estado?.cancelada) { res.status(409).json({ ok: false, error: 'Venda cancelada.' }); return; }
     if (!podeConcluir(g.nome, n, vend)) { res.status(403).json({ ok: false, error: 'Só o dono conclui a etapa.' }); return; }
-    const r = await mudarJornada(g.id, baseDe(g, l), (e) => {
-      if (e.cancelada) return { recusa: 'Venda cancelada.', http: 409 } as Recusa;
-      if (etapaAtualDoEstado(e) !== n) return { recusa: 'Esta etapa não é a da vez.', http: 409 } as Recusa;
-      const itens = itensDaEtapa(n, entradaDe(l, e));
-      const falta = itens.filter((i) => !i.feito);
-      if (falta.length) {
-        return {
-          recusa: `Falta ${falta.length} ${falta.length === 1 ? 'item' : 'itens'}: ${falta.map((i) => i.texto).join(', ')}.`, http: 409,
-          extra: { precisa: 'itens', falta: falta.map((i) => ({ chave: i.chave, texto: i.texto })) },
-        } as Recusa;
-      }
-      const agora = new Date().toISOString();
-      const fecha = { concluida_em: agora, concluida_por: g.nome };
-      const etapas = { ...e.etapas } as EstadoJornada['etapas'];
-      if (n === 1) { etapas[1] = { ...e.etapas[1], ...fecha }; etapas[2] = { ...e.etapas[2], aberta_em: e.etapas[2].aberta_em ?? agora }; }
-      if (n === 2) { etapas[2] = { ...e.etapas[2], ...fecha }; etapas[3] = { ...e.etapas[3], aberta_em: e.etapas[3].aberta_em ?? agora }; }
-      if (n === 3) { etapas[3] = { ...e.etapas[3], ...fecha }; etapas[4] = { aberta_em: e.etapas[4].aberta_em ?? agora }; }
-      return {
-        ...e, etapas, esperando: e.esperando && e.esperando.etapa === n ? null : e.esperando,
-        historico: [...e.historico, { em: agora, por: g.nome, acao: 'concluir' as const, etapa: n }].slice(-50),
-      };
-    });
+    const r = await gravarConclusao(g, l, n, { por: g.nome, autorHistorico: g.nome });
     if (ehRecusa(r)) { res.status(r.http).json({ ok: false, error: r.recusa, ...(r.extra ?? {}) }); return; }
     // Etapa 2 concluída sem número: tenta o número depois de gravar (a etapa conclui de qualquer jeito, SPEC 13).
     let numero: Record<string, unknown> | undefined;

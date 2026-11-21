@@ -335,7 +335,9 @@
       '.jor-venda-form{margin-top:12px;padding:16px;border:1px solid var(--io-borda-campo);border-radius:12px;background:var(--n-sf2)}',
       '.jor-venda-form>.jor-sub-t:first-child{margin-top:0}',
       '.jor-rolar{overflow-x:auto;-webkit-overflow-scrolling:touch}',
-      '.jor-grade-bt{display:flex;align-items:flex-end}',
+      '.jor-grade-bt{display:flex;flex-wrap:wrap;align-items:flex-end}',
+      '.jor-grade-bt:has(.jor-motivo){grid-column:1/-1}',
+      '.jor-motivo{min-width:0;overflow-wrap:anywhere}',
       '#jor-s-vistoria .jor-bloco>label{display:flex;flex-direction:column;gap:4px;margin:10px 0 0;font-size:13px;font-weight:500;color:var(--n-tx2)}',
       '#jor-s-vistoria .jor-ob-par{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}',
       '#jor-s-vistoria .jor-bloco>label .jor-sel{align-self:flex-start}',
@@ -351,6 +353,7 @@
       '.jor-res-din .jor-din-c b{font-size:17px}',
       '.jor-dl{grid-template-columns:minmax(0,1fr)}',
       '.jor-campos,.jor-fotos{grid-template-columns:minmax(0,1fr)}',
+      '.jor-hom-campos.jor-campos{grid-template-columns:minmax(0,1fr)}',
       '.jor-busca{width:100%}',
       '.jor-pg{grid-template-columns:minmax(0,1fr)}',
       '}',
@@ -648,6 +651,28 @@
       '.jor-rc-v.vazio.fp{color:var(--io-av-tx);font-weight:600}',
       '.jor-etq-fo{background:var(--n-sf);color:var(--io-er-tx);box-shadow:inset 0 0 0 1px var(--io-er-bd)}',
       '.jor-etq-fp{background:var(--n-sf);color:var(--io-av-tx);box-shadow:inset 0 0 0 1px var(--io-ambar-bd)}',
+      // Homologação lida do Trello (20/11/2026): espelho só de leitura. Tokens só (--n-*, --io-*).
+      '.jor-hom-fonte{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:12px 16px;border-radius:10px;background:var(--n-sf2);border:1px solid var(--n-bd)}',
+      '.jor-hom-fonte-tx{flex:1 1 220px;min-width:0}',
+      '.jor-hom-fonte p{margin:0}',
+      '.jor-hom-fonte .jor-nota{margin-top:2px}',
+      '.jor-hom-quando{font-size:14px;font-weight:600;color:var(--n-tx);overflow-wrap:anywhere}',
+      '.jor-hom-quando.jor-hom-falha{color:var(--io-av-tx)}',
+      '.jor-hom-fonte .jor-btn{min-height:44px}',
+      '.jor-hom-it{position:relative}',
+      '.jor-hom-it-tx{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}',
+      '.jor-hom-it .jor-etq{margin-left:auto;flex:0 0 auto}',
+      '.jor-hom-it:is(.jor-fx-ob,.jor-fx-op){margin:4px 0;padding:8px 12px;border-radius:10px;border-top-color:transparent}',
+      '.jor-hom-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
+      '.jor-hom-docs{display:flex;flex-direction:column;gap:8px}',
+      '.jor-hom-mao{align-self:flex-start;min-height:44px}',
+      '.jor-hom-doc{min-width:0;border:1px solid var(--n-bd);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}',
+      '.jor-hom-doc-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;font-weight:600;color:var(--n-tx)}',
+      '.jor-hom-doc .jor-nota{margin:0}',
+      '.jor-hom-campos{grid-template-columns:repeat(2,minmax(0,1fr))}',
+      '.jor-hom-doc .jor-anexo-leg b{white-space:normal;overflow-wrap:anywhere}',
+      '.jor-hom-doc .jor-auto{align-self:flex-start;margin:2px 0 0;padding:0 8px}',
+      '.jor-hom-docs+.jor-din-acoes{margin-top:16px}',
       '.jor-est.fo{color:var(--io-er-tx);font-weight:600}',
       '.jor-est.fp{color:var(--io-av-tx);font-weight:600}',
       // O ponto da pendência no número do passo (na barra e no Andamento).
@@ -1352,9 +1377,10 @@
   }
 
   function blocoTitulo(t, itens) {
-    var falta = itens ? itens.filter(function (i) { return !i.feito; }).length : 0;
+    var falta = itens ? itens.filter(function (i) { return !i.feito && !opc(i); }).length : 0;
+    var faltaOp = itens ? itens.filter(function (i) { return !i.feito && opc(i); }).length : 0;
     var h = el('div', 'jor-bloco-t'); h.appendChild(el('span', '', t));
-    if (itens) { var em = el('em', 'jor-etq jor-etq-' + (falta ? 'fo' : 'ok'), falta ? 'Falta ' + falta : 'Completo'); h.appendChild(em); }
+    if (itens) { var em = el('em', 'jor-etq jor-etq-' + (falta ? 'fo' : faltaOp ? 'fp' : 'ok'), falta ? 'Falta ' + falta : faltaOp ? 'Opcional' : 'Completo'); h.appendChild(em); }
     return h;
   }
 
@@ -1539,7 +1565,7 @@
   function todosFeitos(l) { return l.every(function (i) { return i.feito; }); }
   // ── O que falta (19/11/2026): vermelho quando a api exige (o item vem em itensDaEtapa), amarelo quando falta mas não trava ──
   /** A api manda este item em alguma etapa (1 a 9)? Se manda, ele trava o Concluir. */
-  function exigido(chave) { return !!(O.dados && etapasMescladas().some(function (e) { return (e.itens || []).some(function (i) { return i.chave === chave; }); })); }
+  function exigido(chave) { return !!(O.dados && etapasMescladas().some(function (e) { return (e.itens || []).some(function (i) { return i.chave === chave && !opc(i); }); })); }
   /** Contorna o nó: 'ob' (obrigatório, vermelho), 'op' (opcional, amarelo) ou '' (pronto: tira o contorno). */
   function marcaFalta(no, nivel) {
     if (!no) return no;
@@ -1672,8 +1698,43 @@
   }
 
   // ── A página ───────────────────────────────────────────────────────────────────────────────────────────────
+  // ── Campos mexidos e ainda não salvos (20/11/2026) ──────────────────────────────────────────────────────────────────
+  // Uma gravação automática (checklist da Obra, pílulas "Comprado") relê a obra e redesenha a página. O que a pessoa digitou e ainda não salvou
+  // (diário, observação, qualquer campo) é guardado antes do desenho e devolvido depois, com o foco e o cursor. Quem salva esse texto continua
+  // sendo o Salvar da seção dele. `O.manter` liga só enquanto há gravação automática na fila (quem liga e desliga é jornada-obra.js).
+  document.addEventListener('input', function (e) { var t = e.target; if (t && t.dataset && t.closest && t.closest('.jor-pagina')) t.dataset.jorSujo = '1'; }, true);
+  function camposDe(no) { return Array.prototype.slice.call(no.querySelectorAll('input,textarea,select')).filter(function (f) { return !/^(file|checkbox|radio|button|submit)$/.test(f.type); }); }
+  function chavesDe(lista) {
+    var vistos = {};
+    return lista.map(function (f) {
+      var base = f.getAttribute('aria-label') || f.name || f.id || (f.closest('label') && f.closest('label').textContent.trim()) || f.tagName + f.type;
+      vistos[base] = (vistos[base] || 0) + 1; return base + '#' + vistos[base];
+    });
+  }
+  function guardarCampos(no) {
+    var lista = camposDe(no); var ch = chavesDe(lista); var snap = [];
+    lista.forEach(function (f, i) {
+      if (f.dataset.jorSujo !== '1') return;
+      var ativo = f === document.activeElement; var ini = null, fim = null;
+      if (ativo) { try { ini = f.selectionStart; fim = f.selectionEnd; } catch (e) { /* tipo sem cursor */ } }
+      snap.push({ chave: ch[i], valor: f.value, ativo: ativo, ini: ini, fim: fim });
+    });
+    return snap;
+  }
+  function devolverCampos(no, snap) {
+    if (!snap || !snap.length) return;
+    var lista = camposDe(no); var ch = chavesDe(lista);
+    snap.forEach(function (s) {
+      var i = ch.indexOf(s.chave); if (i < 0) return; var f = lista[i];
+      if (f.disabled) return;
+      f.value = s.valor; f.dataset.jorSujo = '1';
+      f.dispatchEvent(new Event(f.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));   // o modelo da seção ouve o campo
+      if (s.ativo) { try { f.focus({ preventScroll: true }); if (s.ini !== null && f.setSelectionRange) f.setSelectionRange(s.ini, s.fim); } catch (e) { /* sem foco */ } }
+    });
+  }
   function desenharObra() {
     var d = O.dados; var n = O.obraNo; if (!d || !n) return;
+    var guardados = O.manter ? guardarCampos(n) : null;
     devolverNos();
     var m = modelo(d);
     var aba = O.aba;
@@ -1696,6 +1757,7 @@
     if (O.vdcDet) { O.vdcDet.hidden = true; raiz.appendChild(O.vdcDet); }
     n.replaceChildren(raiz);
     motivosVisiveis(painel);
+    if (guardados) devolverCampos(raiz, guardados);
     var sel = raiz.querySelector('.jor-ab.sel'); var trilho = sel && sel.parentNode;
     // Só rola a barra quando a aba escolhida ficou fora da vista (o Resumo continua à mostra sempre que couber).
     if (trilho && trilho.scrollWidth > trilho.clientWidth && sel.offsetLeft + sel.offsetWidth > trilho.clientWidth) trilho.scrollLeft = sel.offsetLeft + sel.offsetWidth - trilho.clientWidth + 8;
@@ -1769,6 +1831,8 @@
 
   var BLOCOS_PASSO = { p2: ['cliente', 'venda', 'papeis'], p4: ['vistoria'] };
   /** O item da etapa 1 a 3 é deste passo? (a mesma conta do ponto da aba e da dica) */
+  /** Item que a api manda como `opcional` (ART, protocolo, cartão do Trello): informativo, nunca entra na falta vermelha nem trava. */
+  function opc(i) { return !!(i && (i.opcional === true || i.nivel === 'opcional')); }
   function itemDoPasso(p, i) { return i.bloco !== 'pendentes' && (!BLOCOS_PASSO[p.id] || BLOCOS_PASSO[p.id].indexOf(i.bloco) >= 0); }
   /**
    * A pendência do passo, para o ponto no número: 'ob' (falta o que a api exige), 'op' (só falta o que não trava) ou ''.
@@ -1782,7 +1846,7 @@
       var x = p.aba;
       if (x) return x.falta > 0 ? 'ob' : x.falta_opcional > 0 ? 'op' : '';
       var its = []; (p.etapas || []).forEach(function (n) { var e0 = m.ets[n - 1]; (e0 && e0.itens || []).forEach(function (i) { if (!i.feito) its.push(i); }); });
-      return its.some(function (i) { return i.nivel !== 'opcional'; }) ? 'ob' : its.length ? 'op' : '';
+      return its.some(function (i) { return !opc(i); }) ? 'ob' : its.length ? 'op' : '';
     }
     if (p.aviso) return 'ob';
     if (p.feito) return '';
@@ -1794,9 +1858,10 @@
     // excedente são do passo 1 (o p2 fica com cliente, venda e papéis); na etapa 2 o contrato e a procuração são do passo 3 (o p4 só
     // responde pela vistoria).
     var n = e.n <= 3 && e.itens
-      ? e.itens.filter(function (i) { return !i.feito && itemDoPasso(p, i); }).length
+      ? e.itens.filter(function (i) { return !i.feito && !opc(i) && itemDoPasso(p, i); }).length
       : typeof e.falta === 'number' ? e.falta : (e.itens || []).filter(function (i) { return !i.feito; }).length;
     if (n > 0) return 'ob';
+    if (e.n <= 3 && e.itens && e.itens.some(function (i) { return !i.feito && opc(i) && itemDoPasso(p, i); })) return 'op';
     if (p.id === 'p5' && !temSlot(d, 'projeto_comprovante')) return 'op';
     return '';
   }
@@ -1822,13 +1887,16 @@
       // Como a api conta o `falta` e o `falta_opcional` da aba: só as etapas ainda não concluídas.
       (p.etapas || []).forEach(function (n) {
         var e0 = m.ets[n - 1]; if (!e0 || e0.concluida_em) return;
-        (e0.itens || []).forEach(function (i) { if (!i.feito) pe(i.nivel === 'opcional' ? op : ob, i.texto); });
+        (e0.itens || []).forEach(function (i) { if (!i.feito) pe(opc(i) ? op : ob, i.texto); });
       });
     } else if (p.id === 'p1') faltaDoP1(d).forEach(function (t) { pe(ob, t); });
     else if (p.id === 'p3') faltaDoP3(d).forEach(function (t) { pe(ob, t); });
     else {
       var e = m.ets[p.etapa - 1];
-      if (e && e.n <= 3) faltaDaEtapa(e, function (i) { return itemDoPasso(p, i); }).forEach(function (t) { pe(ob, t); });
+      if (e && e.n <= 3) {
+        faltaDaEtapa(e, function (i) { return itemDoPasso(p, i); }).forEach(function (t) { pe(ob, t); });
+        (e.itens || []).forEach(function (i) { if (!i.feito && opc(i) && itemDoPasso(p, i)) pe(op, i.texto); });
+      }
       if (p.id === 'p5' && !temSlot(d, 'projeto_comprovante')) pe(op, 'Comprovante do engenheiro');
     }
     return { ob: ob, op: op };
@@ -2042,7 +2110,7 @@
   function faltaDaEtapa(e, ok) {
     var out = []; var pend = [];
     (e.itens || []).forEach(function (i) {
-      if (i.feito || (ok && !ok(i))) return;
+      if (i.feito || opc(i) || (ok && !ok(i))) return;
       if (i.bloco === 'pendentes') { var q = PEDIDOS.filter(function (p) { return p.item === i.chave; })[0]; pend.push(minus(q ? q.rot : i.texto)); return; }
       var t = e.n <= 3 && FALTA_ROT[i.chave] ? FALTA_ROT[i.chave] : minus(i.texto);
       if (out.indexOf(t) < 0) out.push(t);
@@ -2084,7 +2152,7 @@
       return cx;
     }
     if (etapaFeita(e, atual)) {
-      barra.appendChild(el('p', 'jor-portao-frase', (p.obra ? 'Etapa concluída' : 'Passo concluído') + (e.concluida_em && dataCurta(e.concluida_em) ? ' em ' + dataCurta(e.concluida_em) : '') + '.'));
+      barra.appendChild(el('p', 'jor-portao-frase', (p.obra ? 'Etapa concluída' : 'Passo concluído') + (e.concluida_em && dataCurta(e.concluida_em) ? ' em ' + dataCurta(e.concluida_em) : '') + porTrello(e) + '.'));
       if (prox && prox.livre) barra.appendChild(btn('Ir para ' + irProx, 'jor-btn-grande', function () { irAba(prox.id); }));
       return cx;
     }
@@ -2269,7 +2337,7 @@
     if (p.obra) {
       var eo = etapasMescladas(); var eu = eo[p.etapas[p.etapas.length - 1] - 1];
       if (p.feito) return txt('Concluído' + (eu && eu.concluida_em ? ' em ' + dataCurta(eu.concluida_em) : '') + (p.num === 9 ? '. Pós-venda em andamento.' : '.'));
-      var fz = []; p.etapas.forEach(function (n) { ((eo[n - 1] || {}).itens || []).forEach(function (i) { if (!i.feito && i.nivel !== 'opcional') fz.push(i.texto); }); });
+      var fz = []; p.etapas.forEach(function (n) { ((eo[n - 1] || {}).itens || []).forEach(function (i) { if (!i.feito && !opc(i)) fz.push(i.texto); }); });
       return txt(fz.length ? fz[0] + (fz.length > 1 ? ' (e mais ' + (fz.length - 1) + ')' : '') + '.' : 'Em andamento.');
     }
     var e = (etapasMescladas())[p.etapa - 1];
@@ -3303,6 +3371,13 @@
       var faltaT = ta && Array.isArray(ta.falta) ? ta.falta : [];
       b.appendChild(el('p', 'jor-nota', 'Com tudo acima pronto, o cartão do Trello nasce sozinho com o relatório final.' + (faltaT.length ? ' Falta: ' + juntar(faltaT.map(minus)) + '.' : '')));
     }
+    relatorioFinalAcoes(b, d);
+    // Se o cartão não nascer sozinho: o Trello do quadro de documentos (criar o cartão, ou abrir o antigo do dossiê).
+    if (!cartao && quadroDoCard() && quadroDoCard().no && quadroDoCard().no.tre) { b.appendChild(subTitulo('Se o cartão não nascer sozinho')); emprestar(b, ['tre']); }
+    return b;
+  }
+  /** Gerar, abrir e a data do relatório final. Usado no bloco do Trello (com cartão) e no bloco antigo (sem cartão). */
+  function relatorioFinalAcoes(b, d) {
     var rf = d.relatorio_final;
     var info = el('p', 'jor-erro jor-anexo-msg'); info.setAttribute('role', 'alert');
     var temRel = !!(rf && rf.url && /^https:\/\//.test(rf.url));
@@ -3325,9 +3400,6 @@
     ac.appendChild(bt); b.appendChild(ac);
     if (rf && rf.gerado_em) b.appendChild(el('p', 'jor-nota', 'Gerado em ' + ddmm(String(rf.gerado_em).slice(0, 10)) + '.'));
     b.appendChild(info);
-    // Se o cartão não nascer sozinho: o Trello do quadro de documentos (criar o cartão, ou abrir o antigo do dossiê).
-    if (!cartao && quadroDoCard() && quadroDoCard().no && quadroDoCard().no.tre) { b.appendChild(subTitulo('Se o cartão não nascer sozinho')); emprestar(b, ['tre']); }
-    return b;
   }
 
   // ── Etapa 2 ─────────────────────────────────────────────────────────────────
@@ -3486,6 +3558,9 @@
   // ── Passo 5: homologação ──────────────────────────────────────────────────────────────────────────────────────
   function corpoP5(c) {
     var d = O.dados; var et = d.etapas[2];
+    // Com cartão no Trello a api manda `trello_homolog`; sem cartão ele é null (ou nem vem) e a tela pede os anexos à mão.
+    var th = et && et.trello_homolog && typeof et.trello_homolog === 'object' ? et.trello_homolog : null;
+    if (th) c.appendChild(blocoHomologTrello(d, et, th));
     var b1 = secao('Equipamento', itensPorChave(et, ['datasheet_modulo', 'datasheet_inversor', 'kmz']));
     var g = el('div', 'jor-fotos');
     g.appendChild(cartaoAnexo(d, et, 'datasheet_modulo', 'Datasheet da placa', 'datasheet_modulo'));
@@ -3493,10 +3568,114 @@
     g.appendChild(cartaoAnexo(d, et, 'kmz', 'KMZ do local', 'kmz', ACEITA_KMZ));
     b1.appendChild(g); c.appendChild(b1);
     if (d.excedente === 'sim' && d.rateio) { var br = secao('Rateio do excedente', itensPorChave(et, ['rateio'])); corpoRateio(br); c.appendChild(br); }
-    var ba = secao('ART e engenheiro', itensPorChave(et, ['art'])); corpoArt(ba); c.appendChild(ba);
-    var bp = secao('Protocolo', itensPorChave(et, ['protocolo'])); corpoProtocolo(bp); c.appendChild(bp);
+    if (th) {
+      // Com cartão: o engenheiro faz tudo no Trello e esta tela só espelha. Só o pagamento dele continua aqui.
+      var be = secao('Pagamento do engenheiro'); corpoEngenheiro(be); c.appendChild(be);
+      return;
+    }
+    // Sem cartão no Trello: anexar à mão. ART e protocolo ficam amarelos (não travam); o parecer é o que trava.
+    var ba = secao('ART e engenheiro'); notaSituacao(ba, !!(d.slots.art && d.slots.art_comprovante), 'op'); corpoArt(ba); c.appendChild(ba);
+    var bp = secao('Protocolo'); notaSituacao(bp, !!(d.protocolo && d.protocolo.numero && d.slots.protocolo), 'op'); corpoProtocolo(bp); c.appendChild(bp);
     var bq = secao('Parecer de acesso', itensPorChave(et, ['parecer'])); corpoParecer(bq); c.appendChild(bq);
     c.appendChild(blocoTrelloRelatorio(d, et));
+  }
+  /** Coloca no título da seção a situação do item: Completo, ou "Falta" em vermelho (ob) ou amarelo (op). */
+  function notaSituacao(b, feito, nivel) {
+    var t = b.firstChild; if (!t) return;
+    t.appendChild(feito ? el('em', 'jor-etq jor-etq-ok', 'Completo') : el('em', 'jor-etq ' + (nivel === 'op' ? 'jor-etq-fp' : 'jor-etq-fo'), 'Falta'));
+  }
+
+  // ── Homologação lida do Trello (20/11/2026): o engenheiro marca a checklist e anexa no cartão; a api lê e a tela só mostra ──────────
+  function semAcento(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+  /** "às 14:32" no mesmo dia, "em 19/11 às 14:32" nos outros (horário de Brasília). */
+  function atualizadoEm(iso) {
+    var q = quando(iso); if (!q) return '';
+    var hoje = quando(new Date().toISOString());
+    return q.slice(0, 5) === hoje.slice(0, 5) ? q.slice(6) : 'em ' + q;
+  }
+  /** Quem concluiu a etapa, para a frase "por X". Só o Trello é citado (as outras frases da tela não mostram autor). */
+  function porTrello(e) { return e && /^trello/i.test(String(e.concluida_por || '')) ? ' por Trello (engenharia)' : ''; }
+  function linhaChecklist(it) {
+    var feito = !!it.feito;
+    var ob = !feito && /parecer.*aprovad/.test(semAcento(it.nome));
+    var li = el('li', 'jor-hom-it' + (feito ? ' ok' : ''));
+    var ck = el('span', 'jor-ck'); if (feito) ck.appendChild(icone('ok')); ck.setAttribute('aria-hidden', 'true'); li.appendChild(ck);
+    li.appendChild(el('span', 'jor-hom-it-tx', it.nome));
+    li.appendChild(el('span', 'jor-hom-sr', feito ? ', feito' : ', pendente'));
+    if (ob) { li.appendChild(etqFalta('Falta', 'ob')); marcaFalta(li, 'ob'); }
+    return li;
+  }
+  /** Um documento que vem do Trello: recebido (nome, data, Abrir) ou "Aguardando o engenheiro no Trello". `nivel`: 'ob' (vermelho) ou 'op' (amarelo). */
+  function cartaoDocTrello(d, th, slot, rot, nivel, extra) {
+    var imp = (Array.isArray(th.importados) ? th.importados : []).filter(function (x) { return x && x.slot === slot; }).pop() || null;
+    var tem = !!imp || !!d.slots[slot];
+    // Parecer anexado à mão (link no Trello ou arquivo de mais de 10 MB): vira o anexo comum, com Trocar e Apagar.
+    if (slot === 'parecer_acesso' && !imp && d.slots[slot]) { var cm = el('div', 'jor-hom-doc'); var tm = el('div', 'jor-hom-doc-topo'); tm.appendChild(el('span', '', rot)); tm.appendChild(etq('Anexado à mão', 'ok')); cm.appendChild(tm); cm.appendChild(anexo(slot, rot, true, { compacto: true })); return cm; }
+    var cf = el('div', 'jor-hom-doc');
+    var tp = el('div', 'jor-hom-doc-topo'); tp.appendChild(el('span', '', rot));
+    tp.appendChild(tem ? etq('Recebido', 'ok') : etqFalta(nivel === 'op' ? 'Opcional' : 'Falta', nivel)); cf.appendChild(tp);
+    marcaFalta(cf, tem ? '' : nivel);
+    if (tem) {
+      var arq = arquivoDoSlot(slot);
+      var ok = el('div', 'jor-anexo-ok'); var mini = el('span', 'jor-anexo-mini'); mini.appendChild(icone('doc')); ok.appendChild(mini);
+      var leg = el('span', 'jor-anexo-leg'); leg.appendChild(el('b', '', (imp && imp.nome) || (arq && (arq.nome || arq.rotulo)) || 'Anexado'));
+      var em = imp && imp.em ? quando(imp.em) : (arq && arq.em ? dataBr(arq.em) : ''); if (em) leg.appendChild(el('small', '', em));
+      if (imp) leg.appendChild(veio({ rotulo: 'Trello' }));
+      ok.appendChild(leg);
+      var url = arq && arq.url; if (url && /^https:\/\//.test(String(url))) { var ab = el('a', 'jor-anexo-trocar', 'Abrir'); ab.href = url; ab.target = '_blank'; ab.rel = 'noopener noreferrer'; ab.setAttribute('aria-label', 'Abrir ' + rot); ok.appendChild(ab); }
+      cf.appendChild(ok);
+    } else if (!extra) {
+      cf.appendChild(el('p', 'jor-nota jor-hom-espera', 'Aguardando o engenheiro no Trello.'));
+      if (slot === 'parecer_acesso') {
+        // Caminho pequeno: só o parecer. Sem formulário de protocolo.
+        if (O.parecerMao === O.card) { cf.appendChild(el('p', 'jor-nota', 'Anexe aqui o parecer se ele estiver como link no Trello ou passar de 10 MB.')); cf.appendChild(anexo(slot, rot, false, { compacto: true })); }
+        else { var lm = btn('Anexar o parecer à mão', 'jor-btn-link jor-hom-mao', function () { O.parecerMao = O.card; desenharObra(); }); cf.appendChild(lm); }
+      }
+    }
+    if (extra) cf.appendChild(extra);
+    return cf;
+  }
+  /** Número e data do protocolo: só leitura, preenchidos pela leitura do documento. Vazio: "Aguardando o engenheiro no Trello". */
+  function camposProtocolo(d) {
+    var p = d.protocolo || {}; var g = el('div', 'jor-campos jor-hom-campos');
+    function lei(rot, val) { var v = el('div', 'jor-campo-lei' + (val ? '' : ' falta'), val || 'Aguardando o engenheiro no Trello'); return campoRot(rot, v); }
+    g.appendChild(lei('Número do protocolo', p.numero ? String(p.numero) : ''));
+    g.appendChild(lei('Data do protocolo', p.em ? dataBr(p.em) : ''));
+    return g;
+  }
+  function blocoHomologTrello(d, et, th) {
+    var b = el('div', 'jor-bloco');
+    var lista = (Array.isArray(th.checklist) ? th.checklist : []).filter(function (x) { return x && x.nome; });
+    var feitos = lista.filter(function (x) { return x.feito; }).length;
+    var h = el('div', 'jor-bloco-t'); h.appendChild(el('span', '', 'Homologação no Trello'));
+    if (lista.length) h.appendChild(el('em', 'jor-etq' + (feitos === lista.length ? ' jor-etq-ok' : ''), feitos === lista.length ? 'Completo' : feitos + ' de ' + lista.length));
+    b.appendChild(h);
+    // Fonte: de quando é a leitura (ou por que falhou) e o caminho para o cartão.
+    var fonte = el('div', 'jor-hom-fonte'); var txt = el('div', 'jor-hom-fonte-tx');
+    var q = el('p', 'jor-hom-quando' + (th.erro ? ' jor-hom-falha' : ''));
+    q.setAttribute('role', 'status');
+    if (th.erro) { var er = String(th.erro).replace(/\s+/g, ' ').trim(); q.textContent = er.length > 110 ? er.slice(0, 107) + '…' : er; q.title = er; }
+    else q.textContent = th.sincronizado_em && atualizadoEm(th.sincronizado_em) ? 'Atualizado ' + atualizadoEm(th.sincronizado_em) : 'Ainda não li o cartão.';
+    txt.appendChild(q);
+    txt.appendChild(el('p', 'jor-nota', et && et.concluida_em ? 'Concluída' + (dataCurta(et.concluida_em) ? ' em ' + dataCurta(et.concluida_em) : '') + porTrello(et) + '.' : 'O engenheiro marca e anexa no Trello. Aqui só aparece.'));
+    fonte.appendChild(txt);
+    var lk = linkFora(th.cartao_url || (d.trello && d.trello.url), 'Abrir no Trello', 'Abrir o cartão no Trello');
+    if (lk) { lk.className = 'jor-btn'; fonte.appendChild(lk); }
+    b.appendChild(fonte);
+    // Checklist ENGENHARIA, só leitura.
+    b.appendChild(subTitulo('Checklist da engenharia'));
+    if (lista.length) { var ul = el('ul', 'jor-itens'); lista.forEach(function (it) { ul.appendChild(linhaChecklist(it)); }); b.appendChild(ul); }
+    else b.appendChild(el('p', 'jor-nota', th.erro ? 'Sem leitura da checklist por enquanto.' : 'O cartão ainda não tem a checklist da engenharia.'));
+    // Documentos que vieram do cartão: ART e protocolo em amarelo, o parecer em vermelho.
+    b.appendChild(subTitulo('Documentos do Trello'));
+    var docs = el('div', 'jor-hom-docs');
+    docs.appendChild(cartaoDocTrello(d, th, 'art', 'ART', 'op'));
+    docs.appendChild(cartaoDocTrello(d, th, 'protocolo', 'Protocolo da concessionária', 'op', camposProtocolo(d)));
+    docs.appendChild(cartaoDocTrello(d, th, 'parecer_acesso', 'Parecer de acesso aprovado', 'ob'));
+    b.appendChild(docs);
+    // O relatório final mora aqui: com cartão existe um bloco só do Trello.
+    relatorioFinalAcoes(b, d);
+    return b;
   }
   function corpoRateio(c) {
     var d = O.dados;
@@ -3523,8 +3702,13 @@
   }
   function corpoArt(c) {
     var d = O.dados;
-    c.appendChild(anexo('art', 'ART (documento)', !!d.slots.art)); c.appendChild(anexo('art_comprovante', 'Comprovante de pagamento da ART', !!d.slots.art_comprovante));
+    c.appendChild(anexo('art', 'ART (documento)', !!d.slots.art, { nivel: 'op' })); c.appendChild(anexo('art_comprovante', 'Comprovante de pagamento da ART', !!d.slots.art_comprovante, { nivel: 'op' }));
     c.appendChild(subTitulo('Engenheiro, projeto elétrico'));
+    corpoEngenheiro(c);
+  }
+  /** Pagamento do engenheiro (Pago, A pagar e o comprovante). Não trava a etapa. */
+  function corpoEngenheiro(c) {
+    var d = O.dados;
     var fe = el('div', 'jor-filtros'); fe.setAttribute('role', 'group'); fe.setAttribute('aria-label', 'Pagamento do engenheiro');
     [['pago', 'Pago'], ['a_pagar', 'A pagar']].forEach(function (o) {
       var b = el('button', 'jor-chip' + (d.engenheiro === o[0] ? ' on' : ''), o[1]); b.type = 'button'; b.disabled = !d.pode.etapa3; b.setAttribute('aria-pressed', d.engenheiro === o[0] ? 'true' : 'false');
@@ -3539,10 +3723,10 @@
     var dt = el('input', 'jor-in'); dt.type = 'date'; dt.name = 'protocolo-data'; dt.setAttribute('aria-label', 'Data do protocolo'); dt.value = d.protocolo ? d.protocolo.em : '';
     var sv = btn('Salvar', '', function () { sv.disabled = true; patch({ protocolo: { numero: num.value.trim(), em: dt.value } }).then(function () { sv.disabled = false; }); });
     sv.disabled = !d.pode.etapa3; if (!d.pode.etapa3) sv.title = 'Você não tem permissão para salvar o protocolo.'; num.disabled = !d.pode.etapa3; dt.disabled = !d.pode.etapa3;
-    // O número do protocolo é parte do item da api (número e print).
-    marcaFalta(num, d.protocolo && d.protocolo.numero ? '' : 'ob');
+    // O protocolo é informativo (amarelo): não trava a etapa.
+    marcaFalta(num, d.protocolo && d.protocolo.numero ? '' : 'op');
     var g = el('div', 'jor-grade'); var lp = el('label', '', 'Protocolo'); lp.appendChild(num); var ld = el('label', '', 'Data do protocolo'); ld.appendChild(dt); var ls = el('div', 'jor-grade-bt'); ls.appendChild(sv); add(g, lp, ld, ls); c.appendChild(g);
-    c.appendChild(anexo('protocolo', 'Print do protocolo', !!d.slots.protocolo));
+    c.appendChild(anexo('protocolo', 'Print do protocolo', !!d.slots.protocolo, { nivel: 'op' }));
   }
   function corpoParecer(c) { c.appendChild(anexo('parecer_acesso', 'Parecer de acesso aprovado', !!O.dados.slots.parecer_acesso)); }
 
