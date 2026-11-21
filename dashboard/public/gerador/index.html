@@ -19604,7 +19604,7 @@ function orcFinCarenciaMudou(idCar, idVenc, idBase, fim) {
   if (!car || !venc || String(car.value).trim() === '') return;
   if (!isFinite(Number(car.value))) return;
   const dias = orcFinCarLimite(car.value);
-  if (fim && String(dias) !== String(car.value)) car.value = dias;
+  if (fim && String(dias) !== String(car.value)) car.value = String(dias);
   venc.value = orcIsoSomaDias(orcFinBase(idBase), dias);
 }
 // Data escolhida: a carência vira os dias entre a data base e ela. Durante a
@@ -19616,7 +19616,7 @@ function orcFinVencMudou(idCar, idVenc, idBase, fim) {
   if (!car || !venc || !orcFinDataOk(venc.value)) return;
   const base = orcFinBase(idBase);
   const dias = orcIsoDiffDias(base, venc.value);
-  if (dias >= 0 && dias <= ORC_FIN_CARENCIA_MAX) { car.value = dias; return; }
+  if (dias >= 0 && dias <= ORC_FIN_CARENCIA_MAX) { car.value = String(dias); return; }
   if (!fim) return;
   const lim = dias < 0 ? 0 : ORC_FIN_CARENCIA_MAX;
   car.value = lim;
@@ -19626,7 +19626,7 @@ function orcFinVencMudou(idCar, idVenc, idBase, fim) {
 function orcFinPrazo(n) {
   const el = document.getElementById('orc-fin-parc');
   if (!el) return;
-  el.value = n;
+  el.value = String(n);
   orcCalc();
 }
 function orcFinPrazoMarcar() {
@@ -30015,8 +30015,8 @@ function orcSnapApply(s, tipo) {
   const antigoFin = s.finCarencia == null;
   // No estado antigo, prazo vazio também era 96x (o orcFinCalc de antes caía no 96).
   const semPrazo = s.finParc == null || (antigoFin && String(s.finParc).trim() === '');
-  set('orc-fin-parc', semPrazo ? ORC_FIN_PARC_ANTIGO : s.finParc);
-  set('orc-fin-carencia', antigoFin ? ORC_FIN_CARENCIA_ANTIGA : s.finCarencia);
+  set('orc-fin-parc', semPrazo ? String(ORC_FIN_PARC_ANTIGO) : String(s.finParc));
+  set('orc-fin-carencia', antigoFin ? String(ORC_FIN_CARENCIA_ANTIGA) : String(s.finCarencia));
   { const v1 = document.getElementById('orc-fin-venc1'); if (v1) v1.value = antigoFin ? '' : (s.finVenc1 || ''); }
   const vistaEl = document.getElementById('orc-pg-vista-valor');
   if (vistaEl) {
