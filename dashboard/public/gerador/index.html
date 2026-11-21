@@ -5797,8 +5797,8 @@ html.io2[data-mode="app"]:not(#_):not(#_) #eletroSection .orc-fin-outro label{co
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-fin-parcela" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="orcCalc()"></div></div>
           <!-- Carência e 1ª parcela andam juntas: mudar uma recalcula a outra a
                partir da data do orçamento (orc-data). -->
-          <div class="eletro-field"><label for="orc-fin-carencia">Carência</label>
-            <div class="eletro-inp has-suf"><input type="number" id="orc-fin-carencia" name="orc-fin-carencia" inputmode="numeric" step="1" min="0" max="365" value="90" autocomplete="off" oninput="orcFinCarenciaMudou('orc-fin-carencia','orc-fin-venc1','orc-data');orcCalc()" onblur="orcFinCarenciaMudou('orc-fin-carencia','orc-fin-venc1','orc-data',true);orcCalc()"><span class="suf">dias</span></div></div>
+          <div class="eletro-field"><label for="orc-fin-carencia">Carência (até 120 dias)</label>
+            <div class="eletro-inp has-suf"><input type="number" id="orc-fin-carencia" name="orc-fin-carencia" inputmode="numeric" step="1" min="0" max="120" value="90" autocomplete="off" oninput="orcFinCarenciaMudou('orc-fin-carencia','orc-fin-venc1','orc-data');orcCalc()" onblur="orcFinCarenciaMudou('orc-fin-carencia','orc-fin-venc1','orc-data',true);orcCalc()"><span class="suf">dias</span></div></div>
           <div class="eletro-field"><label for="orc-fin-venc1">Vencimento da 1ª parcela</label>
             <div class="eletro-inp orc-fin-data"><input type="date" id="orc-fin-venc1" name="orc-fin-venc1" autocomplete="off" oninput="orcFinVencMudou('orc-fin-carencia','orc-fin-venc1','orc-data');orcCalc()" onblur="orcFinVencMudou('orc-fin-carencia','orc-fin-venc1','orc-data',true);orcCalc()"></div></div>
           <div class="orc-ent-prev" id="orc-fin-preview" aria-live="polite">—</div>
@@ -7688,7 +7688,7 @@ html.io2[data-mode="app"]:not(#_):not(#_) #eletroSection .orc-fin-outro label{co
       <div class="field" data-sec="valor"><label>Entrada no banco (R$)</label><input type="text" id="cmp-fin-valor" inputmode="decimal"></div>
       <div class="field" data-sec="valor"><label>Parcelas do banco</label><input type="number" id="cmp-fin-parc" min="1" step="1"></div>
       <div class="field" data-sec="valor"><label>Valor da parcela (R$)</label><input type="text" id="cmp-fin-parcela" inputmode="decimal"></div>
-      <div class="field" data-sec="valor"><label for="cmp-fin-carencia">Carência (dias)</label><input type="number" id="cmp-fin-carencia" name="cmp-fin-carencia" autocomplete="off" inputmode="numeric" min="0" max="365" step="1" oninput="orcFinCarenciaMudou('cmp-fin-carencia','cmp-fin-venc1','cmp-data')" onblur="orcFinCarenciaMudou('cmp-fin-carencia','cmp-fin-venc1','cmp-data',true)"></div>
+      <div class="field" data-sec="valor"><label for="cmp-fin-carencia">Carência (dias, até 120)</label><input type="number" id="cmp-fin-carencia" name="cmp-fin-carencia" autocomplete="off" inputmode="numeric" min="0" max="120" step="1" oninput="orcFinCarenciaMudou('cmp-fin-carencia','cmp-fin-venc1','cmp-data')" onblur="orcFinCarenciaMudou('cmp-fin-carencia','cmp-fin-venc1','cmp-data',true)"></div>
       <div class="field" data-sec="valor"><label for="cmp-fin-venc1">Vencimento da 1ª parcela</label><input type="date" id="cmp-fin-venc1" name="cmp-fin-venc1" autocomplete="off" oninput="orcFinVencMudou('cmp-fin-carencia','cmp-fin-venc1','cmp-data')" onblur="orcFinVencMudou('cmp-fin-carencia','cmp-fin-venc1','cmp-data',true)"></div>
 
       <div class="cmp-sec" data-sec="doc2">Emissão e validade</div>
@@ -19592,13 +19592,13 @@ function orcFinBase(idBase) {
   const v = orcVal(idBase);
   return ORC_ISO_RE.test(v) ? v : orcHojeISO();
 }
-const ORC_FIN_CARENCIA_MAX = 365;
+const ORC_FIN_CARENCIA_MAX = 120; // Carência do banco é de até 4 meses.
 const orcFinCarLimite = n => Math.min(ORC_FIN_CARENCIA_MAX, Math.max(0, Math.round(orcNum(n))));
 // Data "de verdade": o Chrome solta input a cada dígito do ano (0002, 0020, 0202,
 // 2026). Ano antes de 2000 é digitação pela metade, não data.
 const orcFinDataOk = iso => ORC_ISO_RE.test(iso || '') && Number(iso.slice(0, 4)) >= 2000;
 // Carência mudou: a 1ª parcela anda junto (base + dias). Carência em branco não
-// mexe na data. `fim` (blur) também devolve o número limitado ao campo (0 a 365).
+// mexe na data. `fim` (blur) também devolve o número limitado ao campo (0 a 120).
 function orcFinCarenciaMudou(idCar, idVenc, idBase, fim) {
   const car = document.getElementById(idCar), venc = document.getElementById(idVenc);
   if (!car || !venc || String(car.value).trim() === '') return;
@@ -19608,9 +19608,9 @@ function orcFinCarenciaMudou(idCar, idVenc, idBase, fim) {
   venc.value = orcIsoSomaDias(orcFinBase(idBase), dias);
 }
 // Data escolhida: a carência vira os dias entre a data base e ela. Durante a
-// digitação (input) só aceita data completa e dentro de 0 a 365 dias; fora disso
+// digitação (input) só aceita data completa e dentro de 0 a 120 dias; fora disso
 // não mexe em nada. Ao sair do campo (`fim`), data antes da base volta para a base
-// (carência 0) e data depois de 365 dias volta para base + 365.
+// (carência 0) e data depois de 120 dias volta para base + 120.
 function orcFinVencMudou(idCar, idVenc, idBase, fim) {
   const car = document.getElementById(idCar), venc = document.getElementById(idVenc);
   if (!car || !venc || !orcFinDataOk(venc.value)) return;
@@ -19665,7 +19665,7 @@ function orcFinCalc(total) {
   const entrada = Math.max(0, Math.min(ctrMoeda(orcVal('orc-fin-valor')), total));
   const parcelas = Math.max(1, Math.round(orcNum(orcVal('orc-fin-parc')) || ORC_FIN_PARC));
   const parcela = Math.max(0, ctrMoeda(orcVal('orc-fin-parcela')));
-  // Com data da 1ª parcela, ela manda: limitada a [base, base + 365] e a carência
+  // Com data da 1ª parcela, ela manda: limitada a [base, base + 120] e a carência
   // sai dela, para as duas fecharem no que é impresso e gravado mesmo sem o blur
   // (Safari não foca botão no clique, seletor nativo do celular, ponte do modal).
   // Sem data (ou ano < 2000, digitação pela metade): vale a carência do campo.
