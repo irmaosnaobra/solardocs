@@ -3993,6 +3993,32 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   #eletroSection .orc-wrap .eletro-inp.has-pre input{padding-left:30px}
   #eletroSection .orc-wrap .eletro-inp.has-suf input{padding-right:44px}
 }
+/* Prazo do financiamento (20/11/2026): 12, 24, 36, 48 e 60 em botões e o
+   "Outro prazo" ao lado. Os botões só escrevem no #orc-fin-parc. */
+#eletroSection .orc-wrap .orc-fin-prazo{display:flex;flex-direction:column;gap:5px;min-width:0}
+#eletroSection .orc-wrap .orc-fin-tit{font-size:11.5px;font-weight:700;color:#A8B6C9;line-height:1.3}
+#eletroSection .orc-wrap .orc-fin-pzs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) minmax(0,2.4fr);gap:8px;align-items:stretch;max-width:760px}
+/* ate quatro campos numa linha no computador, cada um com 150px no minimo: abaixo disso o dd/mm/aaaa encosta no icone do calendario */
+@media(min-width:641px){#eletroSection .orc-wrap #orc-pg-fin{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
+#eletroSection .orc-wrap .orc-fin-pz{min-height:44px;min-width:0;padding:0 6px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:#0f1a2e;color:#CBD5E1;font:inherit;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;touch-action:manipulation;transition:border-color .2s,background-color .2s,color .2s}
+@media(hover:hover){#eletroSection .orc-wrap .orc-fin-pz:hover{border-color:rgba(96,165,250,.6)}}
+#eletroSection .orc-wrap .orc-fin-pz[aria-pressed="true"]{border-color:#3B82F6;background:rgba(59,130,246,.18);color:#fff}
+#eletroSection .orc-wrap .orc-fin-pz:focus-visible{outline:2px solid #60A5FA;outline-offset:2px}
+#eletroSection .orc-wrap .orc-fin-outro{display:flex;align-items:center;gap:8px;min-width:0}
+#eletroSection .orc-wrap .orc-fin-outro label{flex:none;font-size:11.5px;font-weight:700;color:#A8B6C9;white-space:nowrap}
+#eletroSection .orc-wrap .orc-fin-outro .eletro-inp{position:relative;flex:1;min-width:0;max-width:200px}
+#eletroSection .orc-wrap .orc-fin-outro .eletro-inp input{min-height:44px}
+#eletroSection .orc-wrap .eletro-inp.orc-fin-data input{text-align:left;font-variant-numeric:tabular-nums}
+@media(max-width:640px){
+  #eletroSection .orc-wrap .orc-fin-pzs{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  #eletroSection .orc-wrap .orc-fin-outro{grid-column:1/-1}
+}
+html.io2[data-mode="app"]:not(#_):not(#_) #eletroSection .orc-fin-tit{color:var(--n-tx3);font-size:13px;font-weight:500}
+html.io2[data-mode="app"]:not(#_):not(#_) #eletroSection .orc-fin-pz{background-color:var(--n-sf);border-color:var(--n-bd);color:var(--n-tx2)}
+@media(hover:hover){html.io2[data-mode="app"]:not(#_):not(#_) #eletroSection .orc-fin-pz:hover{border-color:var(--n-bd2);color:var(--n-tx)}}
+html.io2[data-mode="app"]:not(#_):not(#_) #eletroSection .orc-fin-pz[aria-pressed="true"]{background-color:var(--io-azul-sf);border-color:var(--io-azul);color:var(--io-azul-tx)}
+html.io2[data-mode="app"]:not(#_):not(#_) #eletroSection .orc-fin-pz:focus-visible{outline-color:var(--io-azul)}
+html.io2[data-mode="app"]:not(#_):not(#_) #eletroSection .orc-fin-outro label{color:var(--n-tx3);font-size:13px;font-weight:500}
 /* navegador sem :has() cai numa coluna so — apertado, nunca quebrado */
 @supports not (selector(:has(*))){
   @media(max-width:640px){
@@ -5747,15 +5773,35 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-pg-cond" id="orc-pg-fin" style="display:none">
           <div class="orc-fin-aviso" style="margin-top:14px;margin-bottom:12px">
             <span class="ic">★</span>
-            <p><b>Financiamento bancário em até 96x, com 120 dias de carência.</b> Financia <b>100% da compra</b>: o projeto inteiro, não só o equipamento. Sempre sujeito à análise de crédito.</p>
+            <p><b>Financiamento bancário.</b> Financia <b>100% da compra</b>: o projeto inteiro, não só o equipamento. Sempre sujeito à análise de crédito.</p>
           </div>
-          <div class="eletro-field"><label>Entrada</label>
+          <!-- Prazo: os botões só escrevem no orc-fin-parc, que é a fonte da verdade.
+               O botão fica marcado quando o número bate; digitar 55 desmarca todos. -->
+          <div class="orc-fin-prazo" role="group" aria-labelledby="orc-fin-prazo-tit">
+            <span class="orc-fin-tit" id="orc-fin-prazo-tit">Prazo do banco</span>
+            <div class="orc-fin-pzs">
+              <button type="button" class="orc-fin-pz" data-pz="12" aria-pressed="true" onclick="orcFinPrazo(12)">12x</button>
+              <button type="button" class="orc-fin-pz" data-pz="24" aria-pressed="false" onclick="orcFinPrazo(24)">24x</button>
+              <button type="button" class="orc-fin-pz" data-pz="36" aria-pressed="false" onclick="orcFinPrazo(36)">36x</button>
+              <button type="button" class="orc-fin-pz" data-pz="48" aria-pressed="false" onclick="orcFinPrazo(48)">48x</button>
+              <button type="button" class="orc-fin-pz" data-pz="60" aria-pressed="false" onclick="orcFinPrazo(60)">60x</button>
+              <div class="orc-fin-outro">
+                <label for="orc-fin-parc">Outro prazo</label>
+                <div class="eletro-inp has-suf suf-l"><input type="number" id="orc-fin-parc" name="orc-fin-parc" inputmode="numeric" step="1" min="1" max="120" value="12" autocomplete="off" oninput="orcCalc()"><span class="suf">meses</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="eletro-field"><label for="orc-fin-valor">Entrada</label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-fin-valor" inputmode="decimal" step="0.01" min="0" value="0" oninput="orcCalc()"></div></div>
-          <div class="eletro-field"><label>Parcelas do banco</label>
-            <div class="eletro-inp has-suf"><input type="number" id="orc-fin-parc" inputmode="numeric" step="1" min="1" max="120" value="96" oninput="orcCalc()"><span class="suf">x</span></div></div>
-          <div class="eletro-field"><label>Valor da parcela</label>
+          <div class="eletro-field"><label for="orc-fin-parcela">Valor da parcela</label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-fin-parcela" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="orcCalc()"></div></div>
-          <div class="orc-ent-prev" id="orc-fin-preview">—</div>
+          <!-- Carência e 1ª parcela andam juntas: mudar uma recalcula a outra a
+               partir da data do orçamento (orc-data). -->
+          <div class="eletro-field"><label for="orc-fin-carencia">Carência</label>
+            <div class="eletro-inp has-suf"><input type="number" id="orc-fin-carencia" name="orc-fin-carencia" inputmode="numeric" step="1" min="0" max="365" value="90" autocomplete="off" oninput="orcFinCarenciaMudou('orc-fin-carencia','orc-fin-venc1','orc-data');orcCalc()" onblur="orcFinCarenciaMudou('orc-fin-carencia','orc-fin-venc1','orc-data',true);orcCalc()"><span class="suf">dias</span></div></div>
+          <div class="eletro-field"><label for="orc-fin-venc1">Vencimento da 1ª parcela</label>
+            <div class="eletro-inp orc-fin-data"><input type="date" id="orc-fin-venc1" name="orc-fin-venc1" autocomplete="off" oninput="orcFinVencMudou('orc-fin-carencia','orc-fin-venc1','orc-data');orcCalc()" onblur="orcFinVencMudou('orc-fin-carencia','orc-fin-venc1','orc-data',true);orcCalc()"></div></div>
+          <div class="orc-ent-prev" id="orc-fin-preview" aria-live="polite">—</div>
         </div>
       </div>
 
@@ -7642,6 +7688,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="field" data-sec="valor"><label>Entrada no banco (R$)</label><input type="text" id="cmp-fin-valor" inputmode="decimal"></div>
       <div class="field" data-sec="valor"><label>Parcelas do banco</label><input type="number" id="cmp-fin-parc" min="1" step="1"></div>
       <div class="field" data-sec="valor"><label>Valor da parcela (R$)</label><input type="text" id="cmp-fin-parcela" inputmode="decimal"></div>
+      <div class="field" data-sec="valor"><label for="cmp-fin-carencia">Carência (dias)</label><input type="number" id="cmp-fin-carencia" name="cmp-fin-carencia" autocomplete="off" inputmode="numeric" min="0" max="365" step="1" oninput="orcFinCarenciaMudou('cmp-fin-carencia','cmp-fin-venc1','cmp-data')" onblur="orcFinCarenciaMudou('cmp-fin-carencia','cmp-fin-venc1','cmp-data',true)"></div>
+      <div class="field" data-sec="valor"><label for="cmp-fin-venc1">Vencimento da 1ª parcela</label><input type="date" id="cmp-fin-venc1" name="cmp-fin-venc1" autocomplete="off" oninput="orcFinVencMudou('cmp-fin-carencia','cmp-fin-venc1','cmp-data')" onblur="orcFinVencMudou('cmp-fin-carencia','cmp-fin-venc1','cmp-data',true)"></div>
 
       <div class="cmp-sec" data-sec="doc2">Emissão e validade</div>
       <div class="field" data-sec="doc2"><label>Data de emissão</label><input type="date" id="cmp-data"></div>
@@ -17573,6 +17621,9 @@ const CMP_CAMPOS_ORC = {
   'cmp-fin-valor': 'orc-fin-valor', 'cmp-fin-parc': 'orc-fin-parc', 'cmp-fin-parcela': 'orc-fin-parcela',
   'cmp-data': 'orc-data', 'cmp-validade-modo': 'orc-validade-modo', 'cmp-validade': 'orc-validade',
   'cmp-obs': 'orc-obs',
+  // Depois do cmp-data de propósito: a data do orçamento é a base da carência e
+  // tem que chegar antes, senão a 1ª parcela recalcularia sobre a data velha.
+  'cmp-fin-carencia': 'orc-fin-carencia', 'cmp-fin-venc1': 'orc-fin-venc1',
 };
 
 // CAIXA DE MARCAR NÃO TEM `.value`.
@@ -19514,13 +19565,119 @@ function orcEntradaCalc(total) {
 // Aqui a parcela é DIGITADA, não calculada: quem dá o número é a simulação do
 // banco, com a taxa dele e a análise de crédito do cliente. Aplicar o acréscimo
 // da casa a 72x seria inventar uma condição que o banco não aprovou.
-const ORC_FIN_PARC = 96;   // parcelas padrão (é o "até 96x" que a casa anuncia desde 30/09/2026)
+// 20/11/2026: prazo em botões (12 a 60) ou digitado, carência editável (90 dias
+// de padrão) e a data da 1ª parcela. Orçamento novo nasce em 12x com 90 dias.
+const ORC_FIN_PARC = 12;            // prazo padrão de orçamento novo
+const ORC_FIN_PRAZOS = [12, 24, 36, 48, 60];
+const ORC_FIN_CARENCIA = 90;        // carência padrão de orçamento novo, em dias
+// O que o orçamento mostrava ANTES desta mudança: "até 96x, com 120 dias de
+// carência", fixo. Orçamento salvo e link congelado sem os campos novos continuam
+// mostrando exatamente isso.
+const ORC_FIN_PARC_ANTIGO = 96;
+const ORC_FIN_CARENCIA_ANTIGA = 120;
+const ORC_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+// Conta de data em calendário local (nada de UTC, que vira o dia às 21h).
+function orcIsoSomaDias(iso, dias) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + dias);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+function orcIsoDiffDias(de, ate) {
+  const a = de.split('-').map(Number), b = ate.split('-').map(Number);
+  return Math.round((Date.UTC(b[0], b[1] - 1, b[2]) - Date.UTC(a[0], a[1] - 1, a[2])) / 86400000);
+}
+const orcIsoBR = iso => (ORC_ISO_RE.test(iso || '') ? iso.split('-').reverse().join('/') : '');
+// Data base da carência: a data do orçamento; sem ela, hoje.
+function orcFinBase(idBase) {
+  const v = orcVal(idBase);
+  return ORC_ISO_RE.test(v) ? v : orcHojeISO();
+}
+const ORC_FIN_CARENCIA_MAX = 365;
+const orcFinCarLimite = n => Math.min(ORC_FIN_CARENCIA_MAX, Math.max(0, Math.round(orcNum(n))));
+// Data "de verdade": o Chrome solta input a cada dígito do ano (0002, 0020, 0202,
+// 2026). Ano antes de 2000 é digitação pela metade, não data.
+const orcFinDataOk = iso => ORC_ISO_RE.test(iso || '') && Number(iso.slice(0, 4)) >= 2000;
+// Carência mudou: a 1ª parcela anda junto (base + dias). Carência em branco não
+// mexe na data. `fim` (blur) também devolve o número limitado ao campo (0 a 365).
+function orcFinCarenciaMudou(idCar, idVenc, idBase, fim) {
+  const car = document.getElementById(idCar), venc = document.getElementById(idVenc);
+  if (!car || !venc || String(car.value).trim() === '') return;
+  if (!isFinite(Number(car.value))) return;
+  const dias = orcFinCarLimite(car.value);
+  if (fim && String(dias) !== String(car.value)) car.value = dias;
+  venc.value = orcIsoSomaDias(orcFinBase(idBase), dias);
+}
+// Data escolhida: a carência vira os dias entre a data base e ela. Durante a
+// digitação (input) só aceita data completa e dentro de 0 a 365 dias; fora disso
+// não mexe em nada. Ao sair do campo (`fim`), data antes da base volta para a base
+// (carência 0) e data depois de 365 dias volta para base + 365.
+function orcFinVencMudou(idCar, idVenc, idBase, fim) {
+  const car = document.getElementById(idCar), venc = document.getElementById(idVenc);
+  if (!car || !venc || !orcFinDataOk(venc.value)) return;
+  const base = orcFinBase(idBase);
+  const dias = orcIsoDiffDias(base, venc.value);
+  if (dias >= 0 && dias <= ORC_FIN_CARENCIA_MAX) { car.value = dias; return; }
+  if (!fim) return;
+  const lim = dias < 0 ? 0 : ORC_FIN_CARENCIA_MAX;
+  car.value = lim;
+  venc.value = orcIsoSomaDias(base, lim);
+}
+// Botão de prazo: escreve no campo e recalcula. O campo continua sendo a fonte da verdade.
+function orcFinPrazo(n) {
+  const el = document.getElementById('orc-fin-parc');
+  if (!el) return;
+  el.value = n;
+  orcCalc();
+}
+function orcFinPrazoMarcar() {
+  const n = Math.round(orcNum(orcVal('orc-fin-parc')));
+  document.querySelectorAll('#orc-pg-fin .orc-fin-pz').forEach(b => {
+    b.setAttribute('aria-pressed', String(Number(b.dataset.pz) === n));
+  });
+}
+// A data base mudou (data do orçamento aqui, ou a do modal de conferência): a
+// carência fica e a 1ª parcela anda junto. Só quando a 1ª parcela já está
+// preenchida: orçamento antigo reaberto (sem data) continua sem ela.
+document.addEventListener('input', ev => {
+  const id = ev.target && ev.target.id;
+  if (id === 'orc-data') {
+    if (!orcFinDataOk(ev.target.value) || !orcVal('orc-fin-venc1')) return;
+    orcFinCarenciaMudou('orc-fin-carencia', 'orc-fin-venc1', 'orc-data');
+    orcCalc();
+  } else if (id === 'cmp-data') {
+    if (!orcFinDataOk(ev.target.value) || !orcVal('cmp-fin-venc1')) return;
+    orcFinCarenciaMudou('cmp-fin-carencia', 'cmp-fin-venc1', 'cmp-data');
+  }
+});
+// Texto da carência e da 1ª parcela para o documento e o WhatsApp. `f` é o
+// objeto congelado no payload: sem o campo `carencia` ele é de antes de
+// 20/11/2026 e mostrava 120 dias fixos. Carência 0 não imprime nada.
+function orcFinCarenciaTxt(f) {
+  const dias = (f === true || !f || !('carencia' in f)) ? ORC_FIN_CARENCIA_ANTIGA : orcFinCarLimite(f.carencia);
+  return dias > 0 ? `${dias} dias de carência` : '';
+}
+function orcFinVenc1Txt(f) {
+  const br = (f && f !== true && orcFinDataOk(f.venc1)) ? orcIsoBR(f.venc1) : '';
+  return br ? `1ª parcela em ${br}` : '';
+}
 function orcFinCalc(total) {
   if (total == null) total = orcLerItens().total;
   const entrada = Math.max(0, Math.min(ctrMoeda(orcVal('orc-fin-valor')), total));
   const parcelas = Math.max(1, Math.round(orcNum(orcVal('orc-fin-parc')) || ORC_FIN_PARC));
   const parcela = Math.max(0, ctrMoeda(orcVal('orc-fin-parcela')));
-  return { entrada, parcelas, parcela, financiado: Math.max(0, total - entrada) };
+  // Com data da 1ª parcela, ela manda: limitada a [base, base + 365] e a carência
+  // sai dela, para as duas fecharem no que é impresso e gravado mesmo sem o blur
+  // (Safari não foca botão no clique, seletor nativo do celular, ponte do modal).
+  // Sem data (ou ano < 2000, digitação pela metade): vale a carência do campo.
+  // Não escreve nos campos: o campo se corrige no blur.
+  let carencia = orcFinCarLimite(orcVal('orc-fin-carencia'));
+  let venc1 = orcVal('orc-fin-venc1');
+  if (orcFinDataOk(venc1)) {
+    const base = orcFinBase('orc-data');
+    carencia = Math.min(ORC_FIN_CARENCIA_MAX, Math.max(0, orcIsoDiffDias(base, venc1)));
+    venc1 = orcIsoSomaDias(base, carencia);
+  } else venc1 = '';
+  return { entrada, parcelas, parcela, carencia, venc1, financiado: Math.max(0, total - entrada) };
 }
 
 // À vista acompanha o total sozinho até o consultor digitar um valor próprio —
@@ -19541,6 +19698,7 @@ function orcPgSync(total) {
   if (vista && vista.dataset.tocado !== '1') vista.value = total > 0 ? epFmtBR(total) : '';
   const prev = document.getElementById('orc-ent-preview');
   const prevF = document.getElementById('orc-fin-preview');
+  orcFinPrazoMarcar();
   if (!(total > 0)) {
     const aviso = '<span class="alerta">Defina o valor do projeto (vem do Simulador) para calcular a parcela.</span>';
     if (prev) prev.innerHTML = aviso;
@@ -19556,13 +19714,16 @@ function orcPgSync(total) {
   }
   if (prevF) {
     const f = orcFinCalc(total);
+    const prazoTxt = [orcFinCarenciaTxt(f), orcFinVenc1Txt(f)].filter(Boolean).join(' · ');
     prevF.innerHTML = f.financiado <= 0
       ? '<span class="alerta">A entrada cobre o total — não sobra nada para financiar.</span>'
       : f.parcela > 0
       ? `Entrada de <b>${ORC_MONEY(f.entrada)}</b> + <b>${f.parcelas}x de ${ORC_MONEY(f.parcela)}</b> no banco` +
+        (prazoTxt ? `<span class="det">${prazoTxt}</span>` : '') +
         `<span class="det">Financia ${ORC_MONEY(f.financiado)} · o cliente paga ${ORC_MONEY(f.entrada + f.parcela * f.parcelas)} no fim · sempre sujeito à análise de crédito</span>`
       : `<span class="alerta">Sem o valor da parcela</span>` +
-        `<span class="det">Rode a simulação no banco e digite o que veio. Em branco, o orçamento sai só com "até ${f.parcelas}x, sujeito a análise" — sem número nenhum.</span>`;
+        (prazoTxt ? `<span class="det">${f.parcelas}x · ${prazoTxt}</span>` : '') +
+        `<span class="det">Rode a simulação no banco e digite o que veio. Em branco, o orçamento sai com “em ${f.parcelas}x, sujeito a análise”, sem valor de parcela.</span>`;
   }
 }
 
@@ -19583,7 +19744,8 @@ function orcPgLer(total) {
     // nunca misture a tabela antiga com os 18,98% do campo.
     cartaoNs: [],
     entrada: on('orc-pg-ck-entrada') ? { valor: e.entrada, parcelas: e.parcelas, juros: e.juros } : null,
-    fin: on('orc-pg-ck-fin') ? { valor: f.entrada, parcelas: f.parcelas, parcela: f.parcela } : null,
+    // carencia e venc1 desde 20/11/2026. Payload sem `carencia` é de antes e lê 120 dias.
+    fin: on('orc-pg-ck-fin') ? { valor: f.entrada, parcelas: f.parcelas, parcela: f.parcela, carencia: f.carencia, venc1: f.venc1 } : null,
   };
 }
 
@@ -19693,6 +19855,8 @@ function orcInit() {
   orcEmitCarregar();
   const dEmis = document.getElementById('orc-data'); if (dEmis && !dEmis.value) dEmis.value = orcHojeISO();
   const dVenc = document.getElementById('orc-parc-data'); if (dVenc && !dVenc.value) dVenc.value = orcHojeISO();
+  // 1ª parcela do financiamento: data do orçamento + carência (90 dias de padrão), à vista no campo.
+  if (!orcVal('orc-fin-venc1')) orcFinCarenciaMudou('orc-fin-carencia', 'orc-fin-venc1', 'orc-data');
   const obs = document.getElementById('orc-obs'); if (obs && !obs.value.trim()) obs.value = ORC_OBS_PADRAO;
   orcKitRender();
   orcValorSync();
@@ -21294,12 +21458,17 @@ function orc1PagChips(o) {
     const p = (f === true) ? 0 : Math.max(0, orcNum(f.parcela));
     const ent = (f === true) ? 0 : Math.min(Math.max(0, orcNum(f.valor)), o.total || 0);
     const financiado = Math.max(0, (o.total || 0) - ent);
+    // Carência e 1ª parcela vêm do payload. Sem o campo `carencia` o link é de
+    // antes de 20/11/2026 e continua com os 120 dias e o "até 96x" que mostrava.
+    const antigo = (f === true) || !('carencia' in f);
+    const car = orcFinCarenciaTxt(f), v1 = orcFinVenc1Txt(f);
+    const nPadrao = antigo ? ORC_FIN_PARC_ANTIGO : ORC_FIN_PARC;
     if (p > 0 && financiado > 0) {
-      const n = Math.max(1, Math.round(orcNum(f.parcelas) || ORC_FIN_PARC));
-      chips.push(`<div class="pag"><b>Entrada + financiamento</b><span>${ent > 0 ? o1BRL(ent) + ' + ' : ''}${n}x de ${o1BRL(p)}</span><small>120 dias de carência · sujeito a análise de crédito</small></div>`);
+      const n = Math.max(1, Math.round(orcNum(f.parcelas) || nPadrao));
+      chips.push(`<div class="pag"><b>Entrada + financiamento</b><span>${ent > 0 ? o1BRL(ent) + ' + ' : ''}${n}x de ${o1BRL(p)}</span><small>${[car, v1, 'sujeito a análise de crédito'].filter(Boolean).join(' · ')}</small></div>`);
     } else if (financiado > 0) {
-      const n = (f === true) ? ORC_FIN_PARC : Math.max(1, Math.round(orcNum(f.parcelas) || ORC_FIN_PARC));
-      chips.push(`<div class="pag"><b>Financiamento bancário</b><span>até ${n}x · 120 dias de carência</span><small>100% da compra, sujeito a análise de crédito</small></div>`);
+      const n = (f === true) ? ORC_FIN_PARC_ANTIGO : Math.max(1, Math.round(orcNum(f.parcelas) || nPadrao));
+      chips.push(`<div class="pag"><b>Financiamento bancário</b><span>${antigo ? 'até' : 'em'} ${n}x${car ? ' · ' + car : ''}</span><small>${[v1, '100% da compra, sujeito a análise de crédito'].filter(Boolean).join(' · ')}</small></div>`);
     }
   }
   return chips.length ? `<div class="pags">${chips.join('')}</div>` : '';
@@ -21329,9 +21498,11 @@ function epWhatsTextoOrcamento(total) {
   pg.cartaoNs.slice().sort((a, b) => a - b).forEach(n => formas.push(`• Cartão ${n}x de ${elMoney2(orcParcelaCartao(total, n))}`));
   if (pg.fin) {
     const f = pg.fin;
+    const car = orcFinCarenciaTxt(f), v1 = orcFinVenc1Txt(f);
+    const prazo = [car ? 'com ' + car : '', v1].filter(Boolean).join(', ');
     formas.push(f.parcela > 0
-      ? `• ${f.valor > 0 ? `Entrada de ${elMoney(f.valor)} + ` : ''}${f.parcelas}x de ${elMoney2(f.parcela)} no financiamento, com 120 dias de carência (mediante análise de crédito)`
-      : `• Financiamento em até ${f.parcelas}x com 120 dias de carência, 100% da compra (mediante análise de crédito)`);
+      ? `• ${f.valor > 0 ? `Entrada de ${elMoney(f.valor)} + ` : ''}${f.parcelas}x de ${elMoney2(f.parcela)} no financiamento${prazo ? ', ' + prazo : ''} (mediante análise de crédito)`
+      : `• Financiamento em ${f.parcelas}x${prazo ? ', ' + prazo : ''}, 100% da compra (mediante análise de crédito)`);
   }
   // Nada marcado (ou WhatsApp disparado antes de abrir o card): manda o à vista.
   if (!formas.length) formas.push(`• À vista: ${elMoney(total)}`);
@@ -29745,6 +29916,12 @@ function orcSnapTake() {
     vistaTocado: document.getElementById('orc-pg-vista-valor')?.dataset.tocado === '1',
     entValor: v('orc-ent-valor'), entParc: v('orc-ent-parc'), entJuros: v('orc-ent-juros'),
     finValor: v('orc-fin-valor'), finParc: v('orc-fin-parc'), finParcela: v('orc-fin-parcela'),
+    // Carência e 1ª parcela gravam o par que o orcFinCalc fecha (data limitada a
+    // base + 365), não o que estava no meio da digitação.
+    ...(() => {
+      const f = orcFinCalc();
+      return { finCarencia: f.venc1 ? String(f.carencia) : v('orc-fin-carencia'), finVenc1: f.venc1 };
+    })(),
     // Recibo de sinal. Vai junto porque quem reabre um orçamento do histórico
     // geralmente quer o mesmo recibo de novo (2ª via) — e o valor do sinal tem
     // que voltar exatamente o que foi assinado, não um % recalculado hoje.
@@ -29827,12 +30004,20 @@ function orcSnapApply(s, tipo) {
   set('orc-frete', s.frete); set('orc-desc', s.desc); set('orc-obs', s.obs); set('orc-parc-data', s.parcData);
   setck('orc-pg-ck-avista', s.pgA); setck('orc-pg-ck-fin', s.pgF);
   // Entrada + cartão e entrada + financiamento. Orçamento salvo antes destes campos
-  // não traz nada: o set() ignora null e os defaults (18x/18,98% e 96x) ficam de pé.
+  // não traz nada: o set() ignora null e os defaults do cartão (18x/18,98%) ficam de pé.
   // s.pgC/s.cart (a grade velha de 1x–21x) não são reaplicados: a grade não existe
   // mais na tela, e o consultor remarca a condição no campo.
   setck('orc-pg-ck-entrada', s.pgE);
   set('orc-ent-valor', s.entValor); set('orc-ent-parc', s.entParc); set('orc-ent-juros', s.entJuros);
-  set('orc-fin-valor', s.finValor); set('orc-fin-parc', s.finParc); set('orc-fin-parcela', s.finParcela);
+  // Prazo, carência e 1ª parcela (20/11/2026). Orçamento salvo antes disso volta
+  // com o que mostrava: 96x quando não tinha prazo, 120 dias de carência e sem 1ª parcela.
+  set('orc-fin-valor', s.finValor); set('orc-fin-parcela', s.finParcela);
+  const antigoFin = s.finCarencia == null;
+  // No estado antigo, prazo vazio também era 96x (o orcFinCalc de antes caía no 96).
+  const semPrazo = s.finParc == null || (antigoFin && String(s.finParc).trim() === '');
+  set('orc-fin-parc', semPrazo ? ORC_FIN_PARC_ANTIGO : s.finParc);
+  set('orc-fin-carencia', antigoFin ? ORC_FIN_CARENCIA_ANTIGA : s.finCarencia);
+  { const v1 = document.getElementById('orc-fin-venc1'); if (v1) v1.value = antigoFin ? '' : (s.finVenc1 || ''); }
   const vistaEl = document.getElementById('orc-pg-vista-valor');
   if (vistaEl) {
     if (s.vistaTocado) { vistaEl.dataset.tocado = '1'; if (s.vistaValor != null) vistaEl.value = s.vistaValor; }
