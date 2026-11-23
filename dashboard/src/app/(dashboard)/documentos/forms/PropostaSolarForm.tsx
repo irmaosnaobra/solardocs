@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useId, useMemo } from 'react';
+import { useState, useEffect, useRef, useId, useMemo, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine, Pencil, AlertTriangle } from 'lucide-react';
@@ -20,6 +20,18 @@ import { chaveCliente } from '@/utils/chaveCliente';
 import { cpfValido, cnpjValido, maskCpf, maskCnpj as maskCnpjDoc } from '@/utils/documento';
 import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart, BookOpen, Images } from 'lucide-react';
 import styles from '../documentos.module.css';
+import FinanciamentoCampos from '@/components/FinanciamentoCampos/FinanciamentoCampos';
+import {
+  baseFinanciamento, camposFinanciamentoEnvio, chavesFinanciamentoParaLimpar, carenciaDias, comCarenciaPadrao,
+  dataSaoPauloIso, financiamentoNovo, normalizarFinanciamento, validadeDiasFin, type DadosFin,
+} from '@/lib/propostaFinanciamento';
+
+/** Hoje não muda sozinho enquanto a tela está aberta: não há o que assinar. */
+const semAssinatura = () => () => {};
+/** A parcela digitada é de um preço só: trocar de cliente ou começar outra proposta zera todas. */
+function semParcelaManual<T extends Record<string, unknown>>(f: T): T {
+  return Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('fin_parcela_manual_'))) as T;
+}
 import InversoresCampo, { type InversorLinha } from './InversoresCampo';
 import GaleriaPortfolio, { type ImagemObra, type ImagemEmpresa, type BancoParceiro } from './GaleriaPortfolio';
 
@@ -320,8 +332,20 @@ const initialFields = {
   taxa_cartao_20: '21,81',
   taxa_cartao_21: '23,17',
   pag_fin: true,
-  // Financiamento: 36x/48x/60x/72x/84x. Default marcados: 36x e 48x.
-  // Taxa mensal editável (default 2,2% a.m. — Price com 120 dias de carência).
+  // Financiamento: botões de 12x a 96x mais "Outro prazo" até 120x. Default marcados: 36x e 48x.
+  // Taxa mensal editável (default 2,2% a.m. — Price com carência em dias, padrão 90).
+  // Campos novos: fin_carencia_dias, fin_primeira_parcela (aaaa-mm-dd; vazio = base + carência), fin_prazo_livre,
+  // fin_parcela_manual_N (parcela digitada) e taxa_fin_livre. Proposta salva sem `fin_carencia_dias` é do jeito antigo.
+  fin_carencia_dias: '90',
+  fin_primeira_parcela: '',
+  fin_prazo_livre: '',
+  taxa_fin_livre: '2,20',
+  pag_fin_12: false,
+  pag_fin_24: false,
+  pag_fin_96: false,
+  taxa_fin_12: '2,20',
+  taxa_fin_24: '2,20',
+  taxa_fin_96: '2,20',
   pag_fin_36: true,
   pag_fin_48: true,
   pag_fin_60: false,
@@ -462,13 +486,6 @@ const ENTRADA_MODO_LABEL: Record<'contrato' | 'dias' | 'entrega' | 'montagem' | 
   liberacao: 'Na liberação do sistema',
 };
 
-// PMT Price com carência: juros capitalizam durante a carência, depois Price padrão
-function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: number) {
-  if (!pv || pv <= 0) return 0;
-  const saldo = pv * Math.pow(1 + i, carenciaMeses);
-  return saldo * i / (1 - Math.pow(1 + i, -n));
-}
-
 // "Uberlândia/MG" / "Uberlândia, MG" / "Uberlandia - MG" → { cidade, uf }.
 // Aceita também só cidade (sem UF) — backend cai pro default SP.
 function parseCidadeUf(input: string): { cidade: string; uf: string } {
@@ -518,6 +535,8 @@ export default function PropostaSolarPage() {
   const [clienteNome, setClienteNome] = useState('');
   const [cidadeUf, setCidadeUf] = useState('');
   const [fields, setFields] = useState(initialFields);
+  // Dia em que a proposta salva foi criada (só editando um ?doc=). Entra na data base do financiamento.
+  const [criadoEm, setCriadoEm] = useState<string | null>(null);
   // Modelo da proposta: 4 = "Completa + Banco" (padrão de toda proposta nova) · 1 = "1 Página"
   // · 2 = "Moderno" (completo)
   // · 3 = o MESMO Moderno com uma folha de rosto na frente (pedido do Eduardo
@@ -555,6 +574,12 @@ export default function PropostaSolarPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const docParam = searchParams.get('doc');
+  // Data base do financiamento (aaaa-mm-dd): UMA só, a mesma função do servidor. Proposta nova = hoje; reedição = o dia
+  // em que foi criada, se a validade não venceu. Vazia até a tela montar (o dia depende do fuso do aparelho).
+  const hojeFin = useSyncExternalStore(semAssinatura, () => dataSaoPauloIso(new Date()), () => '');
+  const baseFin = hojeFin
+    ? baseFinanciamento(docParam ? criadoEm : null, validadeDiasFin(fields as unknown as DadosFin), new Date())
+    : '';
   const docCarregado = useRef(false);
   const [carregandoDoc, setCarregandoDoc] = useState(false);
 
@@ -661,6 +686,8 @@ export default function PropostaSolarPage() {
           fio_b_tarifa: fioBTexto(d.fields.fio_b_tarifa, f.fio_b_tarifa),
           fio_b_simultaneidade_pct: simultaneidadeDe(d.fields, f.fio_b_simultaneidade_pct),
           assinatura: normalizarAssinatura(d.fields.assinatura, f.assinatura),
+          // A data do rascunho é de outro dia: descarta e recalcula da carência e da base de hoje.
+          fin_primeira_parcela: '',
         }));
       }
       // Rascunho já tinha quantidade: era escolha da pessoa, a sugestão não mexe.
@@ -813,7 +840,15 @@ export default function PropostaSolarPage() {
         fio_b_tarifa: fioBTexto(dadosBrutos.fio_b_tarifa, ''),
         fio_b_simultaneidade_pct: simultaneidadeDe(dadosBrutos, '30'),
         assinatura: ass,
+        // Financiamento: carência = data da 1ª parcela - base (a do servidor). Proposta de antes da carência em dias
+        // continua em 120 dias, como foi enviada. Nunca mostra data no passado.
+        ...(() => {
+          const comCampos = financiamentoNovo(dadosBrutos) ? dadosBrutos : { ...dadosBrutos, fin_carencia_dias: '120', fin_primeira_parcela: '' };
+          const n = normalizarFinanciamento(comCampos, baseFinanciamento(d.created_at, validadeDiasFin(dadosBrutos), new Date()));
+          return { fin_carencia_dias: String(n.fin_carencia_dias), fin_primeira_parcela: String(n.fin_primeira_parcela) };
+        })(),
       }));
+      setCriadoEm(d.created_at ? String(d.created_at) : null);
       // Proposta já emitida: a quantidade dela é decisão tomada, não palpite.
       if (dados.qtd_modulos) qtdModulosManual.current = true;
       if (dados.area_m2) areaManual.current = true;
@@ -919,7 +954,9 @@ export default function PropostaSolarPage() {
           cli.documento = maskDocCliente(cli.tipo, cli.documento);
           nomeAssManual.current = !!cli.nome && chaveCliente(cli.nome) !== chaveCliente(nome);
           return {
-            ...f, cep: '', logradouro: '', numero: '', complemento: '', bairro: '', endereco: '',
+            // Parcela digitada é de um preço só e a data da 1ª parcela é de outro dia: nenhuma das duas atravessa o prefill.
+            ...semParcelaManual(f), fin_primeira_parcela: '',
+            cep: '', logradouro: '', numero: '', complemento: '', bairro: '', endereco: '',
             ...cResto,
             inversores: temDadoInversor(c) ? normalizarInversores(c) : f.inversores,
             ...normalizarPortfolio(c, f),
@@ -1043,12 +1080,10 @@ export default function PropostaSolarPage() {
     if (invNum <= 0 || n <= 0) return 0;
     return Math.ceil((invNum * (1 + taxaPct / 100)) / n);
   }
-  // Financiamento Price com 120 dias (4 meses) de carência.
-  // Taxa mensal editável por proposta (default 2,2% a.m.)
-  const FIN_CARENCIA_MESES = 4;
-  function valorFinanciamento(n: number, taxaMensalPct: number): number {
-    if (invNum <= 0 || n <= 0 || taxaMensalPct <= 0) return 0;
-    return Math.ceil(pmtPriceCarencia(invNum, taxaMensalPct / 100, n, FIN_CARENCIA_MESES));
+  // Financiamento Price com carência em dias: as contas moram em lib/propostaFinanciamento.ts, a mesma do PDF.
+  function mudarFin(patch: Record<string, unknown>) {
+    for (const k of Object.keys(patch)) camposTocados.current.add(k);
+    setFields((f) => ({ ...f, ...patch } as typeof f));
   }
   // Entrada + saldo: integrador define a entrada (R$) e como/quando quitar o restante
   const entradaValor = (() => {
@@ -1183,6 +1218,7 @@ export default function PropostaSolarPage() {
   function novaProposta() {
     setGenerated(null);
     setEditando(false);
+    setCriadoEm(null); // a data base do financiamento volta a ser hoje
     setModelo(4); // proposta nova abre sempre na Completa + Banco
     setError('');
     setFaltando(new Set());
@@ -1200,7 +1236,8 @@ export default function PropostaSolarPage() {
     nomeAssManual.current = false;
     assinaturaOpcional.current = false;
     setFields(f => ({
-      ...f,
+      ...semParcelaManual(f),
+      fin_primeira_parcela: '',
       // Completa + Banco: o cliente da assinatura é desta venda; os 8 bancos voltam marcados.
       // A empresa e a cidade da assinatura ficam (template do integrador).
       assinatura: { ...f.assinatura, cliente: assinaturaVazia().cliente },
@@ -1326,6 +1363,12 @@ export default function PropostaSolarPage() {
         potencia_inversor: primeiroInv.potencia,
         garantia_inversor: primeiroInv.garantia,
       };
+      // Financiamento: limpo e com tipo certo. Carência de 0 a 120, data entre a base e a base + 120 dias (o limite
+      // vale aqui também: no Safari o clique em Gerar não tira o foco do campo) e só a parcela digitada dos prazos que saem.
+      if (baseFin) {
+        for (const k of chavesFinanciamentoParaLimpar(camposEnvio)) delete camposEnvio[k];
+        Object.assign(camposEnvio, camposFinanciamentoEnvio(fields as unknown as DadosFin, baseFin));
+      }
       if (modelo === 4) {
         camposEnvio.mostrar_dados_bancarios = fields.mostrar_dados_bancarios === true;
         // Número de verdade no envio. Desligado: só `fio_b_mostrar: false`, sem os outros.
@@ -2342,33 +2385,25 @@ export default function PropostaSolarPage() {
               })}
             </PagGrupo>
 
-            {/* FINANCIAMENTO — 36x/48x/60x/72x/84x, cada uma com taxa mensal editável */}
+            {/* FINANCIAMENTO — botões de 12x a 96x, outro prazo até 120x, carência em dias, data da 1ª parcela e parcela digitada */}
             <PagGrupo
               checked={fields.pag_fin}
               onToggle={(v) => setField('pag_fin', v)}
               titulo="Financiamento"
-              subtitulo="120 dias de carência"
+              subtitulo={`${carenciaDias(comCarenciaPadrao(fields as unknown as DadosFin))} dias de carência`}
             >
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', padding: '2px 6px 8px', lineHeight: 1.4 }}>
-                <strong>Obs:</strong> taxa mensal padrão 2,2% a.m. — adeque a sua realidade no campo de taxa ao lado de cada parcela.
+                <strong>Obs:</strong> taxa mensal padrão 2,2% a.m. — adeque a sua realidade no campo de taxa de cada prazo.
               </div>
-              {[36, 48, 60, 72, 84].map((n) => {
-                const ativoKey = `pag_fin_${n}` as keyof typeof fields;
-                const taxaKey = `taxa_fin_${n}` as keyof typeof fields;
-                const taxaPct = parseTaxa(String(fields[taxaKey] || ''));
-                const valor = valorFinanciamento(n, taxaPct);
-                return (
-                  <PagSubItemTaxa
-                    key={n}
-                    checked={Boolean(fields[ativoKey])}
-                    onToggle={(v) => setField(ativoKey, v as never)}
-                    label={`${n}x`}
-                    taxa={String(fields[taxaKey] || '')}
-                    onTaxaChange={(v) => setField(taxaKey, v as never)}
-                    valor={invNum > 0 ? `R$ ${valor.toLocaleString('pt-BR')}/mês` : '—'}
-                  />
-                );
-              })}
+              {baseFin && (
+                <FinanciamentoCampos
+                  dados={fields as unknown as DadosFin}
+                  onPatch={mudarFin}
+                  investimento={invNum}
+                  baseIso={baseFin}
+                  taxaPorPrazo
+                />
+              )}
             </PagGrupo>
 
             {/* ENTRADA + SALDO — integrador define entrada e modo de quitação do restante */}

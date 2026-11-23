@@ -4,7 +4,10 @@
 // REGRA DURA: as fórmulas aqui são cópia literal do que o M1 já fazia. Os modelos 1, 2 e 3
 // têm que imprimir byte a byte o mesmo HTML de antes da extração; qualquer ajuste de conta
 // muda o valor que o cliente já recebeu. Mexeu aqui? Rode os testes `proposta*`.
-import { pmtPriceCarencia, pNum } from './propostaSolarBase';
+import { pNum, propostaEmissao, pBRLParcela } from './propostaSolarBase';
+import {
+  parcelaFinanciamento, prazosFinanciamento, taxaPrazoFin, textoCarenciaFin, parcelaManualFin, financiamentoNovo, FIN_BOTOES,
+} from './propostaFinanciamento';
 
 // ─── Parcelas ────────────────────────────────────────────────────────────────
 
@@ -19,10 +22,12 @@ export const TAXA_CARTAO_DEFAULT: Record<number, number> = {
   19: 20.31, 20: 21.81, 21: 23.17,
 };
 
-// Financiamento Price com 120 dias (4 meses) de carência. Taxa mensal padrão de 2,2%.
+// Financiamento Price. Documento antigo: 120 dias (4 meses) de carência e prazos 36 a 84. Documento novo: carência em
+// dias (padrão 90), prazos de 12 a 96 e "Outro prazo" até 120, parcela digitada. As contas moram em propostaFinanciamento.ts.
 export const FIN_CARENCIA_MESES = 4;
 export const FIN_RATE_DEFAULT = 2.20; // % a.m.
 export const FIN_PRAZOS = [36, 48, 60, 72, 84] as const;
+export { FIN_BOTOES };
 
 export function taxaCartao(f: Record<string, unknown>, n: number): number {
   const raw = String(f[`taxa_cartao_${n}`] || '').replace(',', '.');
@@ -36,15 +41,29 @@ export function valorParcelaCartao(f: Record<string, unknown>, investimento: num
 }
 
 export function taxaFin(f: Record<string, unknown>, n: number): number {
-  const raw = String(f[`taxa_fin_${n}`] || '').replace(',', '.');
-  const v = parseFloat(raw);
-  return v > 0 ? v : FIN_RATE_DEFAULT;
+  return taxaPrazoFin(f, n);
 }
 
 export function valorParcelaFin(f: Record<string, unknown>, investimento: number, n: number): number {
-  if (investimento <= 0 || n <= 0) return 0;
-  return Math.ceil(pmtPriceCarencia(investimento, taxaFin(f, n) / 100, n, FIN_CARENCIA_MESES));
+  return parcelaFinanciamento(f, investimento, n);
 }
+
+/** Prazos de financiamento que a proposta mostra (antigo: 36 a 84 marcados; novo: botões + "Outro prazo"). */
+export function prazosFin(f: Record<string, unknown>): number[] {
+  return prazosFinanciamento(f);
+}
+
+/** Data base do financiamento: o dia da emissão da proposta, em Brasília (aaaa-mm-dd). */
+export function dataBaseFin(f: Record<string, unknown>): string {
+  return propostaEmissao(f).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
+
+/** "120 dias de carência" (antigo) ou "Carência de N dias · 1ª parcela em dd/mm/aaaa" (novo). */
+export function carenciaTextoFin(f: Record<string, unknown>): string {
+  return textoCarenciaFin(f, dataBaseFin(f));
+}
+
+export { parcelaManualFin, financiamentoNovo, pBRLParcela };
 
 // ─── Financeiro ──────────────────────────────────────────────────────────────
 

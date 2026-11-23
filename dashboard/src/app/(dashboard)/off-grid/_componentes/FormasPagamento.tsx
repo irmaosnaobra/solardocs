@@ -1,14 +1,17 @@
 'use client';
 
-import type { Dispatch, SetStateAction } from 'react';
+import { useSyncExternalStore, type Dispatch, type SetStateAction } from 'react';
 import {
-  CARTAO_PRAZOS, FIN_PRAZOS, FIN_CARENCIA_MESES, TAXA_CARTAO_DEFAULT, ENTRADA_MODOS, MAX_CUSTOM,
-  modeloPagamento, type PagamentoEstado, type EntradaModo,
+  CARTAO_PRAZOS, TAXA_CARTAO_DEFAULT, ENTRADA_MODOS, MAX_CUSTOM,
+  modeloPagamento, dadosFinanciamento, aplicarDadosFinanciamento, hojeIso, type PagamentoEstado, type EntradaModo,
 } from '@/lib/offgrid/pagamento';
+import FinanciamentoCampos from '@/components/FinanciamentoCampos/FinanciamentoCampos';
 import { CampoDinheiro } from './CampoDinheiro';
 import { brl, nb } from './util';
 
 const OCULTO = 'R$ •••••';
+/** A data de hoje não muda sozinha enquanto a tela está aberta: não há o que assinar. */
+const semAssinatura = () => () => {};
 
 /**
  * Formas de pagamento da proposta. O mesmo bloco nos dois modos. As parcelas saem de lib/offgrid/pagamento.ts, a
@@ -23,7 +26,9 @@ export default function FormasPagamento({
   /** Teste grátis com o kit da casa: os valores ficam escondidos. */
   oculto: boolean;
 }) {
-  const m = modeloPagamento(est, preco);
+  // Data base da 1ª parcela: hoje. Só depois de montar, porque depende do fuso do aparelho.
+  const base = useSyncExternalStore(semAssinatura, hojeIso, () => '');
+  const m = modeloPagamento(est, preco, base || undefined);
   const mudar = (patch: Partial<PagamentoEstado>) => setEst((p) => ({ ...p, ...patch }));
   const par = (v: number) => (oculto ? OCULTO : brl(v));
 
@@ -65,16 +70,17 @@ export default function FormasPagamento({
         </div>
 
         <div className="og2-pg-bloco">
-          <h4>Financiamento <small>Carência de {FIN_CARENCIA_MESES} meses, sujeito à aprovação do banco.</small></h4>
-          <div className="og2-pz">
-            {FIN_PRAZOS.map((n) => (
-              <label key={n} className={`og2-pzb ${est.fin[n] ? 'on' : ''}`}>
-                <input type="checkbox" checked={!!est.fin[n]}
-                  onChange={(ev) => mudar({ fin: { ...est.fin, [n]: ev.target.checked } })} />
-                <span>{n}× de <b>{par(m.fin[n])}</b></span>
-              </label>
-            ))}
-          </div>
+          <h4>Financiamento <small>Sujeito à aprovação do banco. A carência padrão é de 90 dias.</small></h4>
+          {base && (
+            <FinanciamentoCampos
+              dados={dadosFinanciamento(est)}
+              onPatch={(patch) => setEst((p) => ({ ...p, ...aplicarDadosFinanciamento(p, patch) }))}
+              investimento={preco}
+              baseIso={base}
+              classeInput="og-input"
+              oculto={oculto}
+            />
+          )}
           <div className="og2-pg-c">
             <label className="og-label" htmlFor="og-juros">Juros ao mês (%)</label>
             <input id="og-juros" className="og-input" type="text" inputMode="decimal" value={est.juros}

@@ -62,6 +62,12 @@ export function pBRL(n: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
 }
 
+/** Formato da parcela no PDF: reais inteiros como sempre; a digitada com centavos mostra os centavos. */
+export function pBRLParcela(n: number): string {
+  if (Math.abs(n - Math.round(n)) < 0.005) return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+
 export function pNum(n: number): string {
   return new Intl.NumberFormat('pt-BR').format(Math.round(n));
 }

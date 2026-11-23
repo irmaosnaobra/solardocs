@@ -1,6 +1,6 @@
 // Folhas do meio do Moderno: sistema, economia, investimento e como trabalhamos. Cada função devolve o miolo de
 // uma folha A4 (sem cabeçalho nem rodapé) ou '' quando não há dado para mostrar. Linha sem valor não sai.
-import { pBRL, pNum, pKwp, pEsc } from '../propostaSolarBase';
+import { pBRL, pBRLParcela, pNum, pKwp, pEsc } from '../propostaSolarBase';
 import { MESES_ABREV } from '../propostaSolarData';
 import { totalKwInversores } from '../inversoresProposta';
 import { svgGeracaoConsumo, svgCurvas, barraSaldo } from './propostaModernoGraficos';
@@ -146,14 +146,14 @@ export function folhaInvestimento(d: DadosModerno): Pagina[] {
     ${desconto ? `<div><div class="k">À vista</div><div class="g c num">${pBRL(p.precoAvista)}</div><div class="s">Desconto de ${pBRL(p.investimento - p.precoAvista)} no pagamento à vista.</div></div>` : ''}
   </div>` });
   }
-  const grade = (l: { n: number; valor: number }[]) => `<div class="parc${l.length > 8 ? ' mini' : ''}" style="grid-template-columns:repeat(${colunasParcelas(l.length)},1fr)">${l.map((x) => `<div><div class="n">${x.n === 1 ? '1 parcela de' : `${x.n} parcelas de`}</div><div class="p">${pBRL(x.valor)}</div></div>`).join('')}</div>`;
+  const grade = (l: { n: number; valor: number }[]) => `<div class="parc${l.length > 8 ? ' mini' : ''}" style="grid-template-columns:repeat(${colunasParcelas(l.length)},1fr)">${l.map((x) => `<div><div class="n">${x.n === 1 ? '1 parcela de' : `${x.n} parcelas de`}</div><div class="p">${pBRLParcela(x.valor)}</div></div>`).join('')}</div>`;
   const altGrade = (n: number) => Math.ceil(n / colunasParcelas(n)) * (n > 8 ? 53 : 63);
   if (p.entrada) {
     blocos.push({ h: 96, html: `<div class="bl pg-grupo"><h3>Entrada e saldo</h3>
       <div class="linha-pg"><span>Entrada de <b class="num">${pBRL(p.entrada.valor)}</b> e saldo de <b class="num">${pBRL(p.entrada.restante)}</b> ${pEsc(p.entrada.prazo)}</span></div></div>` });
   }
   if (p.cartao.length) blocos.push({ h: 58 + altGrade(p.cartao.length), html: `<div class="bl pg-grupo"><h3>Cartão de crédito <span>Valores com as taxas da operadora</span></h3>${grade(p.cartao)}</div>` });
-  if (p.fin.length) blocos.push({ h: 88 + altGrade(p.fin.length), html: `<div class="bl pg-grupo"><h3>Financiamento bancário <span>120 dias de carência</span></h3>${grade(p.fin)}<p class="nota">Simulação sujeita a análise de crédito do banco.</p></div>` });
+  if (p.fin.length) blocos.push({ h: 88 + altGrade(p.fin.length), html: `<div class="bl pg-grupo"><h3>Financiamento bancário <span>${pEsc(p.finCarencia ?? '120 dias de carência')}</span></h3>${grade(p.fin)}<p class="nota">Simulação sujeita a análise de crédito do banco.</p></div>` });
   if (p.custom) blocos.push({ h: 60 + 20 * linhasTexto(p.custom, 92), html: `<div class="bl pg-grupo"><h3>Condição especial</h3><p class="esp">${pEsc(p.custom)}</p></div>` });
 
   const ret: string[] = [];
