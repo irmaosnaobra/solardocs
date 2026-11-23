@@ -26,9 +26,12 @@
 /**
  * `incerto`   — pode ter saído (5xx / code 1 / code 2). Não reenvia, não comenta.
  * `sem_botao` — a Meta recusou o quick reply: vale reenviar o texto puro.
+ * `limite`    — a Meta barrou por volume (code 4, 17, 32, 613). NÃO é falha definitiva:
+ *               a mensagem não saiu, mas a pessoa não fez nada de errado. Volta pra fila
+ *               daqui a 15 min e NÃO vira o "me chama no direct" público.
  * `fatal`     — não saiu mesmo (janela fechada, usuário inexistente, permissão).
  */
-export type TipoFalha = 'incerto' | 'sem_botao' | 'fatal';
+export type TipoFalha = 'incerto' | 'sem_botao' | 'limite' | 'fatal';
 
 /** HTTP status do erro que o igClient monta ("sendMessage 500: {…}"). */
 function statusDe(erro: string): number {
@@ -49,8 +52,13 @@ function codeDe(erro: string): number {
  */
 const CODES_INCERTOS = [1, 2];
 
+/** Limite de volume da Meta: 4 = app, 17 = usuário, 32 = página, 613 = taxa de chamadas. */
+const CODES_LIMITE = [4, 17, 32, 613];
+
 export function classificarFalha(erro: string): TipoFalha {
   const txt = String(erro || '');
+  // Limite de volume vem antes de tudo: o envio foi recusado, não é "incerto".
+  if (CODES_LIMITE.includes(codeDe(txt))) return 'limite';
   // A Meta só cita o campo quando é ele o problema — aí sim vale tirar o botão.
   if (/quick_?repl/i.test(txt)) return 'sem_botao';
   const status = statusDe(txt);

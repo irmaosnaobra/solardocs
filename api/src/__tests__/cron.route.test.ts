@@ -90,6 +90,13 @@ vi.mock('../services/followupService', () => ({
   runNoContractsEmailReminder: vi.fn().mockResolvedValue({ sent: 0, skipped: 0 }),
 }));
 
+// A drenagem do Instagram vira espiã: o teste prova que a rota nova a chama (e que o process-messages não).
+const ig = vi.hoisted(() => ({ drain: vi.fn() }));
+vi.mock('../services/instagram/igEngine', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  drainIgQueue: async (...a: unknown[]) => ig.drain(...a),
+}));
+
 import app from '../app';
 
 const CRON_SECRET = 'falso-cron-secret-de-teste-0000';
@@ -221,4 +228,42 @@ describe('rotas desligadas: 410 com o segredo, 401 sem ele', () => {
     expect(r3.find(r => r.task === 'dunning')).toMatchObject({ status: 'fulfilled' });
     expect(r3.find(r => r.task === 'pix-vip-reminder')).toMatchObject({ status: 'rejected' });
   }, 40_000);
+});
+
+// ─── GET /cron/ig-drain (Vercel, */5) ────────────────────────────────
+describe('GET /cron/ig-drain', () => {
+  it('com o segredo: drena a fila uma vez e devolve o resultado', async () => {
+    ig.drain.mockReset().mockResolvedValue({ enviados: 3, pulados: 1, incertos: 0 });
+    const res = await request(app).get('/cron/ig-drain').set('Authorization', `Bearer ${CRON_SECRET}`);
+    expect(res.status).toBe(200);
+    expect(ig.drain).toHaveBeenCalledTimes(1);
+    expect(res.body).toEqual({ ok: true, enviados: 3, pulados: 1, incertos: 0 });
+  });
+
+  it('sem segredo ou com segredo errado: 401 e nada é drenado', async () => {
+    ig.drain.mockReset();
+    expect((await request(app).get('/cron/ig-drain')).status).toBe(401);
+    expect((await request(app).get('/cron/ig-drain').set('Authorization', 'Bearer token-errado')).status).toBe(401);
+    expect(ig.drain).not.toHaveBeenCalled();
+  });
+
+  it('a drenagem que estoura vira 500 com o detalhe, sem derrubar o app', async () => {
+    ig.drain.mockReset().mockRejectedValue(new Error('banco caiu'));
+    const res = await request(app).get('/cron/ig-drain').set('Authorization', `Bearer ${CRON_SECRET}`);
+    expect(res.status).toBe(500);
+    expect(String(res.body.detail)).toContain('banco caiu');
+  });
+
+  it('o /process-messages e o /master não drenam mais o Instagram (uma drenagem só, na rota própria)', async () => {
+    ig.drain.mockReset().mockResolvedValue({ enviados: 0, pulados: 0 });
+    const pm = await request(app).get('/cron/process-messages').set('Authorization', `Bearer ${CRON_SECRET}`);
+    expect(pm.status).toBe(200);
+    expect(pm.body).not.toHaveProperty('ig_drain');
+    const master = await request(app).get('/cron/master').set('Authorization', `Bearer ${CRON_SECRET}`);
+    expect(master.status).toBe(200);
+    const nomes = (master.body.results as Array<{ task?: string; name?: string }>).map(r => r.task ?? r.name);
+    expect(nomes).not.toContain('ig_drain');
+    expect(nomes).not.toContain('ig-drain');
+    expect(ig.drain).not.toHaveBeenCalled();
+  }, 30_000);
 });

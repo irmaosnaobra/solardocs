@@ -236,11 +236,21 @@ export async function sendDM(igUserId: string, recipientIgsid: string, payload: 
 // Devolve o corpo da resposta (message_id/recipient_id). Sem isso, "enviado" seria
 // só "o HTTP deu 200" — que não prova que a mensagem existe do lado da Meta.
 async function sendMessageRaw(igUserId: string, recipient: Record<string, string>, message: any, token: string): Promise<EnvioResposta> {
-  const r = await fetch(`${GRAPH}/${igUserId}/messages`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recipient, message, access_token: token }),
-  });
-  const t = await r.text();
+  let r: Response;
+  let t: string;
+  try {
+    r = await fetch(`${GRAPH}/${igUserId}/messages`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipient, message, access_token: token }),
+      signal: AbortSignal.timeout(15000),                 // sem isso a rodada inteira pendura numa chamada muda
+    });
+    t = await r.text();
+  } catch (err: any) {
+    // Aborto por tempo: falha comum do envio (sem status HTTP, sem code da Meta, então nunca é "limite").
+    // A palavra "timeout" faz o classificarFalha tratar como incerto: pode ter chegado, não reenvia.
+    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') throw new Error('sendMessage timeout após 15s');
+    throw err;
+  }
   if (!r.ok) throw new Error(`sendMessage ${r.status}: ${t.slice(0, 200)}`);
   try { return JSON.parse(t) as EnvioResposta; } catch { return {}; }
 }

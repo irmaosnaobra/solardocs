@@ -9,6 +9,7 @@ import { getVslRetencao } from '../controllers/vslController';
 import { periodoLoja, resumoLojaPix } from '../services/produtos/lojaPixAdmin';
 import { jornadaLimpapro } from '../controllers/limpaproJornadaController';
 import { getMetaAds } from '../controllers/metaAdsController';
+import { relatorioSemanal as igRelatorioSemanal, coletarMetricasIg } from '../services/instagram/igMedidor';
 import { listarOrdens, marcarFeita, setModo, tickOrdens } from '../services/metaOrdensService';
 import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
@@ -2792,6 +2793,24 @@ router.delete('/atendente-prompt', async (_req: Request, res: Response): Promise
     const { error } = await supabase.from('system_state').delete().eq('key', ATENDENTE_PROMPT_KEY);
     if (error) throw error;
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// Medidor do Instagram @irmaosnaobra__ (23/11/2026): relatório semanal lido do banco do Gerador (não chama a Meta).
+router.get('/instagram/medidor', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    res.json({ ok: true, ...(await igRelatorioSemanal()) });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// Força a coleta de hoje (só leitura na Meta). Respeita o interruptor IG_MEDIDOR_LIGADO.
+router.post('/instagram/medidor/coletar', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    res.json(await coletarMetricasIg());
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
   }
