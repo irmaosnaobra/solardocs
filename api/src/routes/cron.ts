@@ -64,6 +64,7 @@ import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
 import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda/leadsMetaService';
 import { syncSocialWindsor } from '../services/agenda/socialWindsorService';
+import { coletaDiariaIg } from '../services/instagram/igMedidor';
 import { runDunning } from '../services/dunningService';
 import { runDisputeWatch, preverDefesa } from '../services/disputeWatcher';
 import { syncStripePlans } from '../services/stripeSyncService';
@@ -409,7 +410,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['recup_seeds', () => runLimpaproRecoverySeeds()],      // recuperação LimpaPro (Bia): põe gente na esteira (1x/h, auto-gated)
       ['recup_consumer', () => runLimpaproRecoveryConsumer()],   // recuperação LimpaPro (Bia): drena marcadores prontos
       ['bia_poll', () => pollBiaRecuperacao()],            // inbound da Bia (poll IO; webhook IO não entrega texto)
-      ['ig_drain', () => drainIgQueue()],                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
+      // ig_drain saiu daqui: a drenagem do Instagram tem rota própria, /cron/ig-drain (Vercel, */5), sem depender do relógio do GitHub.
       ['fb_comentarios', () => varrerComentariosFacebook()],     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)
       ['fb_inbox', () => varrerInboxFacebook()],           // Facebook: inbox do Messenger — responde, manda o menu e chama o humano (FB_INBOX_OFF desliga)
       ['semente', () => runSementeTick()],                // semente: nutrição de quem pediu orçamento de solar e não fechou
@@ -575,6 +576,22 @@ router.get('/eletroposto-agenda', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await runEletropostoAgendaTick({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'eletroposto-agenda falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── Drenagem da fila do Instagram (DMs e respostas a comentário) ─────────────
+// Cron próprio da Vercel, de 5 em 5 minutos (`api/vercel.json`). Antes morava no /process-messages, preso ao
+// relógio do GitHub Actions (rodadas com horas de intervalo). A conta anti-ban é de rodada de 5 min:
+// MAX_POR_TICK = 15 por rodada x 12 rodadas = 180/h (IG_MAX_POR_HORA). Duas rodadas sobrepostas não mandam o
+// mesmo item duas vezes: cada item é reivindicado por UPDATE condicionado a status = 'pending'. Gated pelo
+// kill-switch IG_AUTOMACAO_ENABLED (desligado, responde { reason: 'desligado' }).
+router.get('/ig-drain', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    res.json({ ok: true, ...(await drainIgQueue()) });
+  } catch (err: any) {
+    logger.error('cron', 'ig-drain falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
@@ -1588,6 +1605,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['lembrete-followup',           () => runLembreteFollowupTick()],
     ['reagenda-solar',              () => runReagendaSolarTick()], // solar: nao_atendeu volta pra agenda (rede de seguranca do tick de 2 min) // rede de segurança: se o tick de 2 min morrer, o master ainda entrega 1 lembrete por pessoa
     ['sync-social-windsor',         () => syncSocialWindsor()],      // métricas IG+TikTok → aba Redes do gerador
+    ['ig-medidor',                  () => coletaDiariaIg()],         // medidor do @irmaosnaobra__: 1x/dia, só na hora 6 de Brasília, só leitura (IG_MEDIDOR_LIGADO); nunca lança
     ['insights-prewarm',             () => getInsights(true)],
     // cleanup-pro-docs saiu do master em 28/10/2026: nenhum documento é mais apagado.
     ['monthly-reset',               () => runMonthlyReset()],

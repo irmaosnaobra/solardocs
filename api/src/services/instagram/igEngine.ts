@@ -46,7 +46,9 @@ import { classificarFalha } from './igFalha';
 import { classificarHostil } from './igHostil';
 import { responderComIa, conversaAtiva } from './igIa';
 
-const IG_MAX_POR_HORA = Number(process.env.IG_MAX_POR_HORA || 180);
+// Lidos na hora (não no import): o teto e os tempos podem ser ajustados por env sem redeploy de código,
+// e os testes mexem neles.
+const tetoPorHora = (): number => Number(process.env.IG_MAX_POR_HORA || 180);
 
 /**
  * Carimbo de que GENTE respondeu este comentário (caixa do /gerador, 14/10/2026): `ig_sent:gente:<id do comentário>`.
@@ -55,7 +57,22 @@ const IG_MAX_POR_HORA = Number(process.env.IG_MAX_POR_HORA || 180);
  */
 export const chaveRespostaGenteIg = (commentId: string): string => `ig_sent:gente:${commentId}`;
 const MAX_POR_TICK = 15;
-const SPACING_MS = 500;                 // ~2/s
+// Intervalo entre envios SORTEADO (2 a 6 s): cadência fixa de máquina é o que o antibot da Meta enxerga.
+const spacingMin = (): number => Number(process.env.IG_SPACING_MIN_MS ?? 2000);
+const spacingMax = (): number => Number(process.env.IG_SPACING_MAX_MS ?? 6000);
+const sorteioSpacing = (): number => {
+  const min = spacingMin(), max = Math.max(min, spacingMax());
+  return Math.round(min + Math.random() * (max - min));
+};
+// A função da Vercel tem 300 s de teto: depois de 200 s a rodada não INICIA envio novo (o resto fica pra próxima).
+const rodadaMaxMs = (): number => Number(process.env.IG_RODADA_MAX_MS ?? 200_000);
+// Limite de volume da Meta (code 4/17/32/613): tenta de novo daqui a 15 min, no máximo 8 vezes (2 h).
+const ADIAR_LIMITE_MS = 15 * 60 * 1000;
+const MAX_TENTATIVAS_LIMITE = 8;
+// Uma resposta por pessoa por automação a cada 7 dias.
+const DEDUP_PESSOA_MS = 7 * 24 * 3600 * 1000;
+/** Reserva de resposta: `ig_auto:<automação>:<id IG da pessoa>` no system_state (a chave é única no banco). */
+export const chaveRespostaPessoaIg = (automationId: string, pessoaId: string): string => `ig_auto:${automationId}:${pessoaId}`;
 
 interface Automation {
   id: string; nome: string; ativo: boolean;
@@ -298,6 +315,41 @@ function enqueueReminderIfAny(a: Automation, recipient: string): Promise<void> |
   return enqueue({ tipo: 'followup', automation_id: a.id, recipient, payload, needs_window: true, enviar_apos: apos });
 }
 
+/**
+ * Reserva ATÔMICA da resposta a esta pessoa nesta automação. Devolve true se pode responder, false se já
+ * respondemos há menos de 7 dias (aí não sai nada: nem DM, nem resposta pública).
+ *
+ * Mecanismo: INSERT em `system_state` com chave única (o que o `ig_sent:` já usa). Dois comentários simultâneos
+ * da mesma pessoa: um insere, o outro leva 23505. Reserva velha (7 dias ou mais) é retomada com UPDATE
+ * condicionado ao `updated_at` lido, então só um dos concorrentes ganha. Erro de banco que não seja duplicidade
+ * deixa passar (e loga): o dedup por comentário continua valendo, e perder a resposta ao lead é pior.
+ * (O dedup do lembrete de 1h, um SELECT na fila, não serve aqui: não é atômico e não tem validade.)
+ */
+export async function reservarRespostaPessoa(automationId: string, pessoaId: string): Promise<boolean> {
+  const chave = chaveRespostaPessoaIg(automationId, pessoaId);
+  const agora = new Date();
+  try {
+    const { error } = await supabase.from('system_state').insert({ key: chave, value: agora.toISOString(), updated_at: agora.toISOString() });
+    if (!error) return true;
+    if ((error as { code?: string }).code !== '23505') {
+      logger.error('ig', 'reserva por pessoa falhou (segue sem trava)', error);
+      return true;
+    }
+    const { data: atual } = await supabase.from('system_state').select('updated_at').eq('key', chave).maybeSingle();
+    const quando = atual?.updated_at ? new Date(atual.updated_at).getTime() : NaN;
+    if (!Number.isFinite(quando)) return false;                     // existe mas sem data legível: trata como reserva viva
+    if (agora.getTime() - quando < DEDUP_PESSOA_MS) return false;
+    // Venceu: só um concorrente retoma (o UPDATE só casa se ninguém mexeu na linha desde a leitura).
+    const { data: retomada } = await supabase.from('system_state')
+      .update({ value: agora.toISOString(), updated_at: agora.toISOString() })
+      .eq('key', chave).eq('updated_at', atual!.updated_at).select('key');
+    return !!(retomada && retomada.length);
+  } catch (err) {
+    logger.error('ig', 'reserva por pessoa falhou (segue sem trava)', err);
+    return true;
+  }
+}
+
 // ── COMENTÁRIO ────────────────────────────────────────────────────────────────
 export async function handleComment(value: any, ownIgId?: string): Promise<void> {
   const commentId = value?.id;
@@ -345,6 +397,14 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
     return;
   }
 
+  // UMA resposta por pessoa por automação a cada 7 dias (DM e pública juntas). Fica antes do porteiro: sem
+  // resposta não se abre fluxo. O telefone, se veio, continua virando lead (isso não é mensagem nossa).
+  if (!(await reservarRespostaPessoa(a.id, String(fromId)))) {
+    await logEvent('dedup_pessoa', commentId, { automation_id: a.id, pessoa: String(fromId) });
+    if (tel) await depositarLead(fromId, tel, a, username);
+    return;
+  }
+
   const acao = acaoNaAbertura(a, estadoC);
   // Reabrir um fluxo que já anda zeraria o gate_em e poderia devolver a etapa
   // pro começo entre o clique da pessoa e a drenagem — o mesmo texto duas vezes.
@@ -360,6 +420,10 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
       ...(acao === 'seguir' ? payloadSeguir(a) : welcomePayload(a)),
       pub_ok: pick(a.respostas_publicas || []),
       pub_fail: username ? `@${username} me chama no direct que eu te mando tudo` : null,
+      // Chave da reserva de 7 dias desta pessoa: se a DM falhar de vez e nada sair, a drenagem apaga a chave.
+      reserva: chaveRespostaPessoaIg(a.id, String(fromId)),
+      // Vai pra a ordem da drenagem (anúncio antes de orgânico); a fila não tem coluna pra isso.
+      origem: ehAnuncio ? 'anuncio' : 'organico',
       // O relógio do lembrete de 1h começa quando ESTA DM sair (a fila enfileira
       // o lembrete depois do envio confirmado, não agora).
       l1h: lembrete1h(a, fromId),
@@ -673,25 +737,89 @@ async function comRespostaDeGente(commentId: unknown): Promise<boolean> {
   } catch { return false; }
 }
 
-export async function drainIgQueue(): Promise<{ enviados: number; pulados: number; incertos?: number; reason?: string }> {
+const dormir = (ms: number): Promise<void> => (ms > 0 ? new Promise(r => setTimeout(r, ms)) : Promise.resolve());
+
+/** Quantos envios já contam na última hora (livro `ig_sent:`). null = não deu pra ler. */
+async function enviadosNaUltimaHora(): Promise<number> {
+  const desde = new Date(Date.now() - 3600 * 1000).toISOString();
+  const { data } = await supabase.from('system_state').select('key').like('key', 'ig_sent:%').gte('updated_at', desde).limit(tetoPorHora() + 1);
+  return data?.length || 0;
+}
+
+/**
+ * Ordem da drenagem: 0 = conversa em andamento (DM, lembrete: a pessoa está esperando), 1 = comentário de
+ * ANÚNCIO (o clique foi pago), 2 = comentário orgânico. O tipo vem de `tipo`; anúncio x orgânico vem de
+ * `payload.origem`, gravada no handleComment (a ig_queue não tem coluna pra isso). Item sem a marca (fila
+ * anterior a esta mudança) conta como orgânico.
+ */
+export function grupoDaFila(item: { tipo?: string; payload?: any }): 0 | 1 | 2 {
+  const t = String(item?.tipo || '');
+  if (t !== 'private_reply' && t !== 'public_reply') return 0;
+  return item?.payload?.origem === 'anuncio' ? 1 : 2;
+}
+const TIPOS_CONVERSA = ['dm', 'followup', 'followup_1h'];
+
+/** Limite da Meta: o item NÃO falhou. Volta pra fila daqui a 15 min (e some do jogo depois de 8 tentativas). */
+/**
+ * A pessoa acabou sem receber nada (falha definitiva): solta a reserva de 7 dias pra ela poder disparar de novo.
+ * Só o item que carrega `payload.reserva` (a DM privada do comentário). Falha ao apagar só loga.
+ */
+async function liberarReservaPessoa(item: any): Promise<void> {
+  const chave = item?.payload?.reserva;
+  if (!chave || typeof chave !== 'string') return;
+  try {
+    const { error } = await supabase.from('system_state').delete().eq('key', chave);
+    if (error) logger.error('ig', 'liberar reserva da pessoa falhou', error);
+  } catch (err) {
+    logger.error('ig', 'liberar reserva da pessoa falhou', err);
+  }
+}
+
+async function adiarPorLimite(item: any, erro: string): Promise<void> {
+  const tentativas = (item.tentativas || 0) + 1;                     // o claim já contou esta
+  if (tentativas >= MAX_TENTATIVAS_LIMITE) {
+    await supabase.from('ig_queue').update({ status: 'failed', erro: ('limite_meta_esgotado: ' + erro).slice(0, 300) }).eq('id', item.id);
+    await liberarReservaPessoa(item);
+  } else {
+    await supabase.from('ig_queue').update({
+      status: 'pending', enviar_apos: new Date(Date.now() + ADIAR_LIMITE_MS).toISOString(), erro: ('limite_meta: ' + erro).slice(0, 300),
+    }).eq('id', item.id);
+  }
+  await logEvent('limite', item.id, { tipo: item.tipo, tentativas, erro: erro.slice(0, 300) });
+}
+
+export async function drainIgQueue(): Promise<{ enviados: number; pulados: number; incertos?: number; adiados?: number; reason?: string }> {
   if (!ligado()) return { enviados: 0, pulados: 0, reason: 'desligado' };
   const cfg = await getIgConfig();
   if (!cfg?.access_token || !cfg.ig_user_id) return { enviados: 0, pulados: 0, reason: 'sem_conta' };
   const igId = cfg.ig_user_id, token = cfg.access_token;   // locais: o envio virou closure
+  const inicio = Date.now();
 
-  // Teto anti-ban por hora.
-  const desde = new Date(Date.now() - 3600 * 1000).toISOString();
-  const { data: sentRows } = await supabase.from('system_state').select('key').like('key', 'ig_sent:%').gte('updated_at', desde).limit(IG_MAX_POR_HORA + 1);
-  if ((sentRows?.length || 0) >= IG_MAX_POR_HORA) return { enviados: 0, pulados: 0, reason: 'teto_hora' };
+  // Teto anti-ban por hora (conferido de novo ANTES DE CADA envio, mais abaixo).
+  if (await enviadosNaUltimaHora() >= tetoPorHora()) return { enviados: 0, pulados: 0, reason: 'teto_hora' };
 
+  // Duas leituras (conversa / comentário) em ordem de chegada; a ordenação por grupo é aqui, estável.
   const nowIso = new Date().toISOString();
-  const { data: fila } = await supabase.from('ig_queue').select('*')
-    .eq('status', 'pending').lte('enviar_apos', nowIso)
-    .order('criado_em', { ascending: true }).limit(MAX_POR_TICK);
-  if (!fila || fila.length === 0) return { enviados: 0, pulados: 0, reason: 'fila_vazia' };
+  const [conv, com] = await Promise.all([
+    supabase.from('ig_queue').select('*').eq('status', 'pending').lte('enviar_apos', nowIso)
+      .in('tipo', TIPOS_CONVERSA).order('criado_em', { ascending: true }).limit(MAX_POR_TICK),
+    supabase.from('ig_queue').select('*').eq('status', 'pending').lte('enviar_apos', nowIso)
+      .in('tipo', ['private_reply', 'public_reply']).order('criado_em', { ascending: true }).limit(MAX_POR_TICK * 4),
+  ]);
+  const porChegada = (a: any, b: any): number => String(a.criado_em).localeCompare(String(b.criado_em));
+  const fila = [...((conv.data as any[]) || []), ...((com.data as any[]) || [])]
+    .sort((a, b) => (grupoDaFila(a) - grupoDaFila(b)) || porChegada(a, b))
+    .slice(0, MAX_POR_TICK);
+  if (fila.length === 0) return { enviados: 0, pulados: 0, reason: 'fila_vazia' };
 
-  let enviados = 0, pulados = 0, incertos = 0;
-  for (const item of fila as any[]) {
+  let enviados = 0, pulados = 0, incertos = 0, adiados = 0;
+  let reason: string | undefined;
+  for (let i = 0; i < fila.length; i++) {
+    const item = fila[i];
+    // Relógio da função: depois de 200 s não inicia envio novo; o resto fica pending pra próxima rodada.
+    if (Date.now() - inicio > rodadaMaxMs()) { reason = 'tempo_da_rodada'; break; }
+    // Teto por hora a CADA envio (antes: uma vez por rodada, e 15 envios passavam por cima dele).
+    if (i > 0 && await enviadosNaUltimaHora() >= tetoPorHora()) { reason = 'teto_hora'; break; }
     // Claim atômico.
     const { data: claimed } = await supabase.from('ig_queue')
       .update({ status: 'sending', claimed_at: new Date().toISOString(), tentativas: (item.tentativas || 0) + 1 })
@@ -744,6 +872,10 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
             if (classificarFalha(msg2) !== 'incerto') throw err2;
             incerto = msg2;
           }
+        } else if (falha === 'limite') {
+          // Limite de volume da Meta: nada saiu. Sobe pro catch de fora, que reagenda (nunca o card-com-link,
+          // que seria mais um envio contra o limite).
+          throw err;
         } else if (falha === 'incerto') {
           // NÃO reenvia: o 500/code 1 da Meta já entregou mensagem antes, e o
           // reenvio é que colocou a mesma DM duas vezes no celular do lead.
@@ -777,7 +909,7 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
         // O lembrete continua agendado: ele exige janela de 24h aberta, então só
         // sai se a pessoa responder — e responder é a prova de que a DM chegou.
         if (item.payload?.l1h?.to) await agendarLembrete1h(item.automation_id, item.payload.l1h);
-        await new Promise(r => setTimeout(r, SPACING_MS));
+        if (i < fila.length - 1) await dormir(sorteioSpacing());
         continue;
       }
 
@@ -788,23 +920,36 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
       enviados++;
       // Só agora avisa publicamente "olha no direct" — a DM realmente saiu.
       if (item.tipo === 'private_reply' && item.payload?.pub_ok) {
-        await enqueue({ tipo: 'public_reply', automation_id: item.automation_id, recipient: item.recipient, payload: { text: item.payload.pub_ok }, needs_window: false });
+        await enqueue({ tipo: 'public_reply', automation_id: item.automation_id, recipient: item.recipient, payload: { text: item.payload.pub_ok, origem: item.payload.origem }, needs_window: false });
       }
       // …e agora começa a contar 1h pro lembrete. Aqui, e não no comentário,
       // porque o pedido do dono é "1h depois que a DM foi enviada".
       if (item.payload?.l1h?.to) await agendarLembrete1h(item.automation_id, item.payload.l1h);
     } catch (err: any) {
-      await supabase.from('ig_queue').update({ status: 'failed', erro: String(err?.message || err).slice(0, 300) }).eq('id', item.id);
+      const msgErr = String(err?.message || err);
+      if (classificarFalha(msgErr) === 'limite') {
+        // A Meta barrou por volume: não é falha da pessoa. Reagenda +15 min, NÃO publica o "me chama no
+        // direct" e PARA a rodada (insistir com a Meta limitando é pedir bloqueio maior).
+        logger.error('ig', `limite da Meta no envio ${item.tipo}, reagendado`, err);
+        await adiarPorLimite(item, msgErr);
+        adiados++;
+        reason = 'limite_meta';
+        break;
+      }
+      await supabase.from('ig_queue').update({ status: 'failed', erro: msgErr.slice(0, 300) }).eq('id', item.id);
       logger.error('ig', `envio ${item.tipo} falhou`, err);
       // DM não entrou (comentário de anúncio costuma barrar): pede publicamente
       // pra pessoa chamar no direct, que aí a janela abre pelo lado dela.
       if (item.tipo === 'private_reply' && item.payload?.pub_fail) {
-        await enqueue({ tipo: 'public_reply', automation_id: item.automation_id, recipient: item.recipient, payload: { text: item.payload.pub_fail }, needs_window: false });
+        await enqueue({ tipo: 'public_reply', automation_id: item.automation_id, recipient: item.recipient, payload: { text: item.payload.pub_fail, origem: item.payload.origem }, needs_window: false });
+      } else if (item.tipo === 'private_reply') {
+        // Sem DM e sem recado público: a pessoa não recebeu nada, então a reserva de 7 dias não pode ficar de pé.
+        await liberarReservaPessoa(item);
       }
     }
-    await new Promise(r => setTimeout(r, SPACING_MS));
+    if (i < fila.length - 1) await dormir(sorteioSpacing());
   }
-  return { enviados, pulados, incertos };
+  return { enviados, pulados, incertos, ...(adiados ? { adiados } : {}), ...(reason ? { reason } : {}) };
 }
 
 // ── REFRESH DO TOKEN (semanal) ──────────────────────────────────────────────────

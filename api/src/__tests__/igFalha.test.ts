@@ -37,3 +37,21 @@ describe('classificação da falha de envio', () => {
     expect(classificarFalha('deu ruim')).toBe('fatal');
   });
 });
+
+describe('limite de volume da Meta', () => {
+  const corpo = (code: number, http = 400) => `sendMessage ${http}: {"error":{"message":"limite","type":"OAuthException","code":${code}}}`;
+
+  it.each([4, 17, 32, 613])('code %i é LIMITE (não saiu, mas não é falha da pessoa)', (code) => {
+    expect(classificarFalha(corpo(code))).toBe('limite');
+    expect(classificarFalha(corpo(code, 429))).toBe('limite');
+  });
+
+  it('limite ganha de 5xx: o envio foi recusado, não é incerto', () => {
+    expect(classificarFalha(corpo(613, 500))).toBe('limite');
+  });
+
+  it('os outros continuam como eram (janela = fatal, code 1 = incerto)', () => {
+    expect(classificarFalha(corpo(10, 403))).toBe('fatal');
+    expect(classificarFalha(corpo(1, 500))).toBe('incerto');
+  });
+});
