@@ -29,7 +29,7 @@
  * usuário passa por pEsc.
  */
 import { pEsc, pKwp, pBRL, parseBRL, propostaEmissao, propostaValidade } from '../propostaSolarBase';
-import { valorParcelaCartao, valorParcelaFin, FIN_PRAZOS, FIN_CARENCIA_MESES } from '../propostaSolarCalculos';
+import { valorParcelaCartao, valorParcelaFin, prazosFin, carenciaTextoFin, financiamentoNovo, pBRLParcela } from '../propostaSolarCalculos';
 import {
   coresModelo1, cssRaizModelo1, CSS_MODELO1, dadosContato, cabecalhoModelo1, rodapeModelo1,
 } from './propostaSolarPartes';
@@ -131,9 +131,11 @@ function lerItens(v: unknown): ItemCliente[] {
 function comTaxasSeguras(f: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...f };
   for (const k of Object.keys(out)) {
-    if (!/^taxa_(cartao|fin)_\d+$/.test(k)) continue;
+    if (!/^taxa_(cartao|fin)_(\d+|livre)$/.test(k)) continue;
     const t = parseFloat(String(out[k] ?? '').replace(',', '.'));
-    if (!(t > 0 && t <= 100)) delete out[k];
+    // Taxa 0 do financiamento vale 0 (sem juros) só no modo novo; vazio ou inválido cai no padrão.
+    const semJuros = t === 0 && k.startsWith('taxa_fin_') && financiamentoNovo(f);
+    if (!(t > 0 && t <= 100) && !semJuros) delete out[k];
   }
   return out;
 }
@@ -306,7 +308,7 @@ export function propostaOffGridCompleta(company: CompanyCompleta, client: Client
   const finOn = f.pag_fin !== false;
   const entradaOn = f.pag_entrada === true;
   const cartaoAtivos = Array.from({ length: 21 }, (_, i) => i + 1).filter((k) => f[`pag_cartao_${k}`] === true);
-  const finAtivos = FIN_PRAZOS.filter((k) => f[`pag_fin_${k}`] === true);
+  const finAtivos = prazosFin(f);
   const entradaValor = moeda(f.entrada_valor);
   const entradaRestante = investimento > 0 && entradaValor > 0 ? Math.max(0, investimento - entradaValor) : 0;
   const entradaModoRaw = String(f.entrada_modo || 'dias');
@@ -326,7 +328,7 @@ export function propostaOffGridCompleta(company: CompanyCompleta, client: Client
     ? finAtivos.map((k) => ({ n: k, v: valorParcelaFin(fPag, investimento, k) })).filter((x) => isFinite(x.v) && x.v > 0) : [];
   // Parcela de destaque (folha 1): financiamento mais longo; senão o cartão mais longo.
   const parcelaDestaque = parcelasFin.length
-    ? `ou ${parcelasFin[parcelasFin.length - 1].n}× de ${pBRL(parcelasFin[parcelasFin.length - 1].v)}`
+    ? `ou ${parcelasFin[parcelasFin.length - 1].n}× de ${pBRLParcela(parcelasFin[parcelasFin.length - 1].v)}`
     : parcelasCartao.length
       ? `ou ${parcelasCartao[parcelasCartao.length - 1].n}× de ${pBRL(parcelasCartao[parcelasCartao.length - 1].v)}`
       : '';
@@ -512,10 +514,10 @@ export function propostaOffGridCompleta(company: CompanyCompleta, client: Client
     : '';
   const doisPagNovo = [blocoVista, blocoEntrada].filter(Boolean);
   const doisFinal = pagNovo ? doisPagNovo : doisPag;
-  const gradeParcelas = (lista: Array<{ n: number; v: number }>) => `<div class="pgrid">${lista.map((x) => `<div class="pt"><span class="n">${x.n}× de</span><span class="v num">${pEsc(pBRL(x.v))}</span></div>`).join('')}</div>`;
+  const gradeParcelas = (lista: Array<{ n: number; v: number }>) => `<div class="pgrid">${lista.map((x) => `<div class="pt"><span class="n">${x.n}× de</span><span class="v num">${pEsc(pBRLParcela(x.v))}</span></div>`).join('')}</div>`;
   const parcelasHtml = [
     parcelasCartao.length ? `${sub('Cartão de crédito', 'Sem entrada')}\n    ${gradeParcelas(parcelasCartao)}` : '',
-    parcelasFin.length ? `${sub('Financiamento bancário', `${FIN_CARENCIA_MESES * 30} dias de carência, sujeito à aprovação do banco`)}\n    ${gradeParcelas(parcelasFin)}` : '',
+    parcelasFin.length ? `${sub('Financiamento bancário', `${carenciaTextoFin(f)}, sujeito à aprovação do banco`)}\n    ${gradeParcelas(parcelasFin)}` : '',
     pagCustom ? `${sub('Condição especial')}\n    <div class="hi"><div class="v t">${pEsc(pagCustom)}</div><div class="s">A combinar com o vendedor</div></div>` : '',
   ].filter(Boolean).join('\n    ');
   const blocoPagA = `${tileInvestimento}

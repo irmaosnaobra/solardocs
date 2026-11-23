@@ -14,7 +14,7 @@
  */
 
 import { pBRL, parseBRL } from '../propostaSolarBase';
-import { valorParcelaCartao, valorParcelaFin, FIN_PRAZOS } from '../propostaSolarCalculos';
+import { valorParcelaCartao, valorParcelaFin, prazosFin, financiamentoNovo, carenciaTextoFin, pBRLParcela } from '../propostaSolarCalculos';
 import { tempoOffGrid } from './propostaOffGridCompleta';
 
 interface Company {
@@ -115,9 +115,11 @@ function moedaResumo(v: unknown): number {
 function comTaxasSegurasResumo(f: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...f };
   for (const k of Object.keys(out)) {
-    if (!/^taxa_(cartao|fin)_\d+$/.test(k)) continue;
+    if (!/^taxa_(cartao|fin)_(\d+|livre)$/.test(k)) continue;
     const t = parseFloat(String(out[k] ?? '').replace(',', '.'));
-    if (!(t > 0 && t <= 100)) delete out[k];
+    // Taxa 0 do financiamento vale 0 (sem juros) só no modo novo; vazio ou inválido cai no padrão.
+    const semJuros = t === 0 && k.startsWith('taxa_fin_') && financiamentoNovo(f);
+    if (!(t > 0 && t <= 100) && !semJuros) delete out[k];
   }
   return out;
 }
@@ -135,7 +137,7 @@ function linhasPagamentoResumo(f: Record<string, unknown>): string[] {
   const precoAvistaIn = moedaResumo(f.preco_avista);
   const precoAvista = precoAvistaIn > 0 && precoAvistaIn < investimento ? precoAvistaIn : 0;
   const cartaoAtivos = Array.from({ length: 21 }, (_, i) => i + 1).filter((k) => f[`pag_cartao_${k}`] === true);
-  const finAtivos = FIN_PRAZOS.filter((k) => f[`pag_fin_${k}`] === true);
+  const finAtivos = prazosFin(f);
   const cartao = f.pag_cartao !== false && investimento > 0
     ? cartaoAtivos.map((k) => ({ k, v: valorParcelaCartao(fPag, investimento, k) })).filter((x) => isFinite(x.v) && x.v > 0) : [];
   const fin = f.pag_fin !== false && investimento > 0
@@ -143,7 +145,7 @@ function linhasPagamentoResumo(f: Record<string, unknown>): string[] {
   const linhas: string[] = [];
   if (f.pag_vista !== false && precoAvista > 0) linhas.push(`À vista: ${pBRL(precoAvista)}`);
   if (cartao.length) linhas.push('Cartão de crédito:', ...cartao.map((x) => `* ${x.k}x de ${pBRL(x.v)}`));
-  if (fin.length) linhas.push('Financiamento:', ...fin.map((x) => `* ${x.k}x de ${pBRL(x.v)}`));
+  if (fin.length) linhas.push(financiamentoNovo(f) ? `Financiamento (${carenciaTextoFin(f)}):` : 'Financiamento:', ...fin.map((x) => `* ${financiamentoNovo(f) ? 'Em ' : ''}${x.k}x de ${pBRLParcela(x.v)}`));
   // Entrada + saldo: mesmas regras do PDF do modelo 2 (liga, entrada maior que 0 e menor que o preço).
   const entradaValor = moedaResumo(f.entrada_valor);
   if (f.pag_entrada === true && investimento > 0 && entradaValor > 0 && entradaValor < investimento) {

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=794, user-scalable=yes"/>
+<title>Proposta de energia solar · Cliente Exemplo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{ --c1:#1e3a8a; --c2:#5065a4; --c3:#eff1f7; --ink:#12161E; --mut:#5B6472; --line:#E3E6EB; --soft:#F5F6F8; }
+@page{ size:A4; margin:0; }
+*,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; color:var(--ink); background:#E9EBEF; -webkit-font-smoothing:antialiased; font-size:12.5px; line-height:1.5; }
+body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+::selection{ background:var(--c3); color:var(--c1); }
+.num{ font-variant-numeric:tabular-nums; }
+.page{ width:794px; min-height:1122px; margin:0 auto; background:#fff; display:flex; flex-direction:column; padding:0 54px; position:relative; overflow:hidden; page-break-after:always; break-after:page; }
+.page:last-child{ page-break-after:auto; break-after:auto; }
+@media screen{ body{ padding:16px 0; } .page{ margin-bottom:16px; box-shadow:0 1px 2px rgba(18,22,30,.06),0 8px 28px rgba(18,22,30,.08); } }
+@media print{ html,body{ background:#fff; } .page{ margin:0; box-shadow:none; } }
+/* Cabeçalho e rodapé de cada folha */
+.hd{ height:64px; display:flex; align-items:center; justify-content:space-between; gap:24px; border-bottom:1px solid var(--line); flex-shrink:0; }
+.hd img{ width:auto; height:auto; max-height:34px; max-width:170px; object-fit:contain; object-position:left center; display:block; }
+.hd img.aj{ max-width:none; max-height:none; object-fit:contain; }
+.hd .placa{ display:inline-flex; align-items:center; padding:7px 12px; background:var(--ink); border-radius:8px; }
+.hd .placa img{ display:block; }
+.hd .mk{ font-size:15px; font-weight:800; letter-spacing:-.01em; color:var(--c1); max-width:58%; line-height:1.25; }
+.hd .ref{ font-size:10.5px; color:var(--mut); text-align:right; line-height:1.4; max-width:40%; }
+.hd .ref b{ color:var(--ink); font-weight:600; }
+.ft{ margin-top:auto; height:46px; display:flex; align-items:center; justify-content:space-between; gap:16px; border-top:1px solid var(--line); font-size:10px; line-height:1.3; color:var(--mut); flex-shrink:0; }
+.ft span{ min-width:0; }
+.ft .pg{ white-space:nowrap; }
+.ft .pg{ color:var(--ink); font-weight:600; }
+.mn{ padding-top:34px; padding-bottom:26px; }
+/* Títulos */
+h1,h2,h3{ text-wrap:balance; overflow-wrap:break-word; }
+.v,td{ overflow-wrap:break-word; }
+h2{ font-size:30px; line-height:1.12; font-weight:700; letter-spacing:-.022em; }
+.lead{ font-size:13.5px; color:var(--mut); margin-top:8px; max-width:560px; }
+h3{ font-size:14px; font-weight:700; letter-spacing:-.005em; margin-bottom:12px; }
+.bl{ margin-top:30px; }
+.k{ font-size:11px; color:var(--mut); font-weight:500; }
+.v{ font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.nota{ font-size:10.5px; color:var(--mut); margin-top:10px; line-height:1.5; }
+/* Capa (modelo 3) */
+.capa{ padding:0; height:1122px; }
+.capa .palco{ height:640px; min-height:480px; flex-shrink:1; display:flex; align-items:center; justify-content:center; padding:44px 24px; background:#fff; }
+.capa .palco img{ display:block; width:auto; height:auto; max-width:100%; max-height:100%; object-fit:contain; }
+.capa .palco.aj{ min-height:0; flex-shrink:0; padding:40px 54px; }
+.capa .palco.escuro{ background:var(--ink); }
+.capa .palco img.aj{ max-width:none; max-height:none; }
+.capa .palco img.selo{ box-shadow:0 1px 2px rgba(18,22,30,.08),0 14px 36px rgba(18,22,30,.14); }
+.capa .palco img.vet{ width:100%; height:100%; }
+.capa .palco .nm.longo{ font-size:54px; }
+.capa .palco .nm{ font-size:76px; line-height:1.02; font-weight:800; letter-spacing:-.03em; color:var(--c1); text-align:center; text-wrap:balance; overflow-wrap:break-word; max-width:720px; }
+.capa .cor{ background:var(--c1); color:#fff; flex:1; padding:34px 54px 28px; position:relative; overflow:hidden; display:flex; flex-direction:column; }
+.capa .arranjo{ position:absolute; right:-170px; top:-40px; width:440px; height:auto; opacity:.5; }
+.capa .tt{ position:relative; max-width:540px; }
+.capa .tt p{ font-size:13.5px; color:rgba(255,255,255,.8); }
+.capa h1.longo{ font-size:32px; }
+.capa h1.muito{ font-size:27px; }
+.capa h1{ font-size:42px; line-height:1.06; font-weight:800; letter-spacing:-.025em; margin-top:6px; }
+.capa .loc{ font-size:13px; color:rgba(255,255,255,.8); margin-top:10px; }
+.capa .eco{ position:relative; margin-top:auto; padding-top:18px; }
+.capa .eco .k{ font-size:12.5px; color:rgba(255,255,255,.8); }
+.capa .eco .g{ font-size:46px; font-weight:800; letter-spacing:-.03em; line-height:1.05; margin-top:2px; }
+.capa .eco .g small{ font-size:19px; font-weight:600; letter-spacing:-.01em; }
+.capa .fig{ position:relative; display:flex; gap:40px; margin-top:22px; padding-top:16px; border-top:1px solid rgba(255,255,255,.22); }
+.capa .fig .k{ color:rgba(255,255,255,.75); }
+.capa .fig .v{ color:#fff; }
+.capa .meta{ position:relative; margin-top:22px; padding-top:0; display:flex; justify-content:space-between; align-items:flex-end; gap:24px; font-size:11px; color:rgba(255,255,255,.78); }
+.capa .meta b{ color:#fff; font-weight:600; }
+.capa .qr{ color:rgba(255,255,255,.8); }
+.capa .qr .qb{ border-color:transparent; }
+.qr{ display:flex; align-items:center; gap:12px; font-size:10.5px; color:var(--mut); line-height:1.35; }
+.qr .qb{ width:78px; height:78px; padding:5px; border:1px solid var(--line); border-radius:8px; background:#fff; flex-shrink:0; }
+.qr .qb svg{ width:100%; height:100%; display:block; }
+/* Resumo */
+.ola h1{ font-size:40px; line-height:1.08; font-weight:800; letter-spacing:-.028em; }
+.ola .loc{ font-size:13px; color:var(--mut); margin-top:8px; }
+.ola .ids{ display:flex; gap:28px; margin-top:18px; font-size:11px; color:var(--mut); }
+.ola .ids b{ display:block; color:var(--ink); font-size:12.5px; font-weight:600; margin-top:1px; }
+.frase{ margin-top:34px; padding:30px 32px; background:var(--c1); color:#fff; border-radius:14px; }
+.frase .q{ font-size:13px; color:rgba(255,255,255,.8); }
+.frase .g{ font-size:46px; font-weight:800; letter-spacing:-.03em; line-height:1.05; margin-top:6px; }
+.frase .g small{ font-size:19px; font-weight:600; letter-spacing:-.01em; }
+.frase .s{ font-size:13.5px; color:rgba(255,255,255,.88); margin-top:10px; max-width:520px; }
+.frase .d{ display:flex; gap:0; margin-top:24px; border-top:1px solid rgba(255,255,255,.22); }
+.frase .d>div{ flex:1; padding:14px 18px 0 0; }
+.frase .d>div+div{ padding-left:18px; border-left:1px solid rgba(255,255,255,.22); }
+.frase .d .k{ color:rgba(255,255,255,.75); }
+.frase .d .v{ color:#fff; font-size:17px; margin-top:2px; }
+.cf .cap{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:6px; }
+.cf .cap b{ display:block; font-size:12.5px; margin-bottom:3px; }
+.cf .cap span{ font-size:11.5px; color:var(--mut); line-height:1.45; display:block; }
+.cf .cap>div{ text-align:center; }
+.idx{ display:grid; grid-template-columns:1fr 1fr; column-gap:32px; }
+.idx div{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
+.idx div span:last-child{ color:var(--mut); }
+/* Ficha técnica */
+.ficha{ display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--line); }
+.ficha>div{ padding:10px 14px 10px 0; border-bottom:1px solid var(--line); }
+.ficha .larga{ grid-column:1/-1; }
+.ficha .larga .v{ font-size:13px; font-weight:600; }
+.sis{ display:grid; grid-template-columns:268px 1fr; gap:24px; align-items:start; }
+.sis .ficha{ grid-template-columns:1fr 1fr; }
+.foto{ border-radius:10px; overflow:hidden; background:var(--soft); }
+.foto img{ width:268px; height:200px; object-fit:cover; display:block; }
+.foto figcaption{ font-size:10.5px; color:var(--mut); padding:7px 10px; }
+.graf svg{ width:100%; height:auto; display:block; }
+.leg{ display:flex; gap:20px; font-size:11px; color:var(--mut); margin-bottom:6px; }
+.leg i{ display:inline-block; width:12px; height:10px; border-radius:2px; background:var(--c1); margin-right:6px; vertical-align:-1px; }
+.leg i.tr{ height:0; border-top:2px dashed var(--ink); background:none; border-radius:0; vertical-align:3px; }
+.leg i.cz{ background:#9AA0A9; height:2px; vertical-align:3px; }
+.leg i.c1{ height:3px; vertical-align:3px; }
+/* Tabelas */
+table{ width:100%; border-collapse:collapse; }
+th{ font-size:10.5px; font-weight:600; color:var(--mut); text-align:left; padding:0 10px 8px 0; border-bottom:1px solid var(--ink); }
+td{ padding:8px 10px 8px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+th.r,td.r{ text-align:right; }
+td .sub{ display:block; font-size:10.5px; color:var(--mut); margin-top:1px; }
+.eq td:first-child{ font-weight:600; width:150px; }
+.eq td.q{ width:56px; text-align:right; font-variant-numeric:tabular-nums; }
+.bat{ margin-top:22px; padding:12px 14px; background:var(--c3); border-radius:8px; font-size:11.5px; color:var(--ink); }
+.bat b{ color:var(--c1); }
+.inc{ font-size:11.5px; color:var(--mut); margin-top:10px; }
+.anos td{ padding:5px 10px 5px 0; font-variant-numeric:tabular-nums; }
+.anos td:first-child{ color:var(--mut); width:64px; }
+.anos td.sd{ width:250px; }
+.anos td.sd span{ display:inline-block; width:104px; text-align:right; margin-right:12px; }
+.anos .sb{ vertical-align:-1px; }
+.anos tr.vira td{ font-weight:700; color:var(--c1); }
+.anos tr.vira td:first-child{ color:var(--c1); }
+/* Investimento */
+.preco{ display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.preco>div{ padding:22px 24px; }
+.preco>div+div{ border-left:1px solid var(--line); background:var(--soft); }
+.preco .g{ font-size:38px; font-weight:800; letter-spacing:-.03em; line-height:1.1; margin-top:4px; }
+.preco .g.c{ color:var(--c1); }
+.preco .s{ font-size:11.5px; color:var(--mut); margin-top:4px; }
+.pg-grupo{ margin-top:22px; }
+.pg-grupo h3{ display:flex; justify-content:space-between; align-items:baseline; }
+.pg-grupo h3 span{ font-size:11px; color:var(--mut); font-weight:500; }
+.esp{ font-size:13px; overflow-wrap:break-word; }
+.parc{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.parc>div{ border:1px solid var(--line); border-radius:8px; padding:9px 12px; }
+.parc .n{ font-size:11px; color:var(--mut); }
+.parc .p{ font-size:15px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums; }
+.parc.mini{ grid-template-columns:repeat(6,1fr); gap:6px; }
+.parc.mini>div{ padding:6px 9px; }
+.parc.mini .n{ font-size:10px; }
+.parc.mini .p{ font-size:13px; }
+.linha-pg{ display:flex; justify-content:space-between; gap:20px; padding:11px 0; border-bottom:1px solid var(--line); }
+.linha-pg:first-of-type{ border-top:1px solid var(--line); }
+.linha-pg .v{ font-size:14px; text-align:right; }
+.ret{ display:grid; grid-template-columns:repeat(3,1fr); gap:0; border-top:1px solid var(--ink); }
+.ret>div{ padding:14px 16px 0 0; }
+.ret>div+div{ padding-left:16px; border-left:1px solid var(--line); }
+.ret .v{ font-size:21px; margin-top:2px; color:var(--c1); }
+.ret .s{ font-size:10.5px; color:var(--mut); margin-top:4px; line-height:1.4; }
+/* Como trabalhamos */
+.etapas{ position:relative; }
+.etapas>div{ display:grid; grid-template-columns:34px 1fr; gap:14px; padding-bottom:18px; position:relative; }
+.etapas>div::before{ content:''; position:absolute; left:16px; top:30px; bottom:2px; width:1px; background:var(--line); }
+.etapas>div:last-child::before{ display:none; }
+.etapas .n{ width:34px; height:34px; border-radius:50%; border:1.5px solid var(--c1); color:var(--c1); font-weight:700; display:flex; align-items:center; justify-content:center; font-size:13px; background:#fff; }
+.etapas b{ font-size:13.5px; display:block; padding-top:6px; }
+.etapas span{ font-size:12px; color:var(--mut); display:block; margin-top:2px; }
+.etapas em{ font-style:normal; font-weight:600; color:var(--ink); }
+.prazo{ display:flex; align-items:baseline; gap:14px; padding:18px 22px; background:var(--c3); border-radius:12px; }
+.prazo .g{ font-size:40px; font-weight:800; color:var(--c1); letter-spacing:-.03em; line-height:1; }
+.prazo span{ font-size:12.5px; color:var(--ink); }
+.dois{ display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+ul.lst{ list-style:none; }
+ul.lst li{ padding:7px 0 7px 22px; border-bottom:1px solid var(--line); font-size:12px; position:relative; }
+ul.lst li::before{ content:''; position:absolute; left:2px; top:12px; width:10px; height:6px; border-left:1.6px solid var(--c1); border-bottom:1.6px solid var(--c1); transform:rotate(-45deg); }
+ul.lst.nao li::before{ width:10px; height:0; border-left:0; border-bottom:1.6px solid var(--mut); transform:none; top:15px; }
+ul.cond li{ font-size:11.5px; color:var(--mut); padding:5px 0 5px 14px; position:relative; }
+ul.cond{ list-style:none; }
+ul.cond li::before{ content:''; position:absolute; left:2px; top:12px; width:4px; height:4px; border-radius:50%; background:var(--mut); }
+/* Garantias e aceite */
+.gar{ display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--ink); }
+.gar>div{ padding:12px 12px 12px 0; border-bottom:1px solid var(--line); }
+.gar .g{ font-size:26px; font-weight:800; letter-spacing:-.02em; color:var(--c1); line-height:1.1; }
+.gar .g small{ font-size:12px; font-weight:600; color:var(--ink); letter-spacing:0; margin-left:3px; }
+.gar .k{ margin-top:2px; }
+.aceite td{ padding:7px 10px 7px 0; }
+.aceite td:first-child{ color:var(--mut); width:170px; }
+.aceite td:last-child{ font-weight:600; }
+.decl{ font-size:12.5px; margin-top:16px; }
+.sigs{ display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:46px; }
+.sigs .ln{ border-top:1px solid var(--ink); padding-top:8px; }
+.sigs b{ display:block; font-size:12.5px; }
+.sigs span{ display:block; font-size:11px; color:var(--mut); }
+.contato{ display:flex; justify-content:space-between; align-items:center; gap:24px; padding:18px 22px; border:1px solid var(--line); border-radius:12px; }
+.contato .v{ font-size:16px; }
+.contato a{ display:inline-block; margin-top:10px; background:var(--c1); color:#fff; text-decoration:none; font-weight:600; font-size:12.5px; padding:10px 16px; border-radius:8px; }
+.contato a:focus-visible{ outline:2px solid var(--c1); outline-offset:3px; }
+@media print{ .contato a{ display:none; } }
+.contato-linha{ font-size:12.5px; padding-top:14px; border-top:1px solid var(--line); }
+.contato-linha a{ color:var(--ink); font-weight:600; text-decoration:none; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="hd"><span class="mk" translate="no">Empresa Exemplo Solar</span><div class="ref">Proposta <b class="num">20260012</b><br/>Cliente Exemplo</div></div>
+  <div class="mn"><div class="ola"><h1>Cliente Exemplo</h1><div class="loc">Proposta de energia solar para Sao Jose do Rio Preto, SP</div><div class="ids"><div>Proposta<b class="num">20260012</b></div><div>Emitida em<b>05 de novembro de 2026</b></div><div>Válida até<b>12 de novembro de 2026</b></div></div></div>
+  <div class="frase">
+      <div class="q">Economia estimada na conta de luz</div>
+      <div class="g num">R$ 508 <small>por mês</small></div>
+      <p class="s">Hoje a sua conta fica em torno de R$ 598. Com o sistema, ela passa para cerca de R$ 90: a taxa mínima da distribuidora.</p>
+      <div class="d"><div><div class="k">Em 25 anos</div><div class="v num">R$ 334.454</div></div><div><div class="k">Retorno do investimento</div><div class="v num">4 anos e 4 meses</div></div><div><div class="k">Sistema de 12 módulos</div><div class="v num">6,6 kWp</div></div></div>
+    </div>
+  <div class="bl cf"><h3>Como funciona</h3>
+    <svg viewBox="0 0 686 92" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g transform="translate(51.75,22)" stroke="#1e3a8a" stroke-width="1.6" fill="none" stroke-linecap="round"><circle r="6"/><path d="M0 -11 V-14 M0 11 V14 M-11 0 H-14 M11 0 H14 M-8 -8 L-10 -10 M8 8 L10 10 M-8 8 L-10 10 M8 -8 L10 -10"/></g><path d="M119.75 56 H223.25" stroke="#1e3a8a" stroke-width="1.6" stroke-dasharray="0" fill="none"/><path d="M217.25 51 L223.25 56 L217.25 61" stroke="#1e3a8a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M291.25 56 H394.75" stroke="#1e3a8a" stroke-width="1.6" stroke-dasharray="0" fill="none"/><path d="M388.75 51 L394.75 56 L388.75 61" stroke="#1e3a8a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M462.75 56 H566.25" stroke="#1e3a8a" stroke-width="1.6" stroke-dasharray="4 4" fill="none"/><path d="M560.25 51 L566.25 56 L560.25 61" stroke="#1e3a8a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="85.75" cy="56" r="28" fill="#fff" stroke="#E6E8EC" stroke-width="1.5"/><g transform="translate(85.75,56)" stroke="#1e3a8a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M-14 8 L-9 -8 L14 -8 L9 8 Z"/><path d="M-11.5 0 L11.5 0 M-2.5 -8 L-5 8 M5.5 -8 L2.5 8"/><path d="M0 8 V13 M-5 13 H5"/></g><circle cx="257.25" cy="56" r="28" fill="#fff" stroke="#E6E8EC" stroke-width="1.5"/><g transform="translate(257.25,56)" stroke="#1e3a8a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="-11" y="-13" width="22" height="26" rx="3"/><path d="M-6 -3 C-4 -8 -2 -8 0 -3 S4 2 6 -3"/><path d="M-5 7 H5"/></g><circle cx="428.75" cy="56" r="28" fill="#fff" stroke="#E6E8EC" stroke-width="1.5"/><g transform="translate(428.75,56)" stroke="#1e3a8a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M-13 -1 L0 -12 L13 -1"/><path d="M-9 -4 V12 H9 V-4"/><path d="M-3 12 V4 H3 V12"/></g><circle cx="600.25" cy="56" r="28" fill="#fff" stroke="#E6E8EC" stroke-width="1.5"/><g transform="translate(600.25,56)" stroke="#1e3a8a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M0 -14 V14 M-10 -9 H10 M-7 -3 H7"/><path d="M-10 -9 L-12 -5 M10 -9 L12 -5"/><path d="M-6 14 L0 2 L6 14"/></g></svg>
+    <div class="cap">
+      <div><b>Módulos</b><span>Transformam a luz do sol em energia elétrica.</span></div>
+      <div><b>Inversor</b><span>Converte essa energia para o padrão da sua casa.</span></div>
+      <div><b>Sua casa</b><span>Usa primeiro a energia gerada pelo sistema.</span></div>
+      <div><b>Rede e créditos</b><span>A sobra vai para a rede e vira crédito nas próximas contas.</span></div>
+    </div>
+  </div>
+  
+  <div class="bl"><h3>Nesta proposta</h3><div class="idx"><div><span>Seu sistema</span><span class="num">Folha 2</span></div><div><span>Sua economia</span><span class="num">Folha 3</span></div><div><span>Investimento</span><span class="num">Folha 4</span></div><div><span>Como trabalhamos</span><span class="num">Folha 5</span></div><div><span>Garantias e aceite</span><span class="num">Folha 6</span></div></div></div></div>
+  <div class="ft"><span>Empresa Exemplo Solar · CNPJ 12.345.678/0001-90</span><span class="pg num">1 de 6</span></div>
+</div>
+<div class="page">
+  <div class="hd"><span class="mk" translate="no">Empresa Exemplo Solar</span><div class="ref">Proposta <b class="num">20260012</b><br/>Cliente Exemplo</div></div>
+  <div class="mn"><h2>Seu sistema</h2>
+  <p class="lead">Dimensionado para o seu consumo médio de 650 kWh por mês.</p>
+  <div class="bl"><div class="ficha"><div><div class="k">Potência instalada</div><div class="v"><span class="num">6,6 kWp</span></div></div><div><div class="k">Geração média</div><div class="v"><span class="num">803 kWh/mês</span></div></div><div><div class="k">Geração no ano</div><div class="v"><span class="num">9.634 kWh</span></div></div><div><div class="k">Seu consumo médio</div><div class="v"><span class="num">650 kWh/mês</span></div></div><div><div class="k">Local</div><div class="v">Sao Jose do Rio Preto / SP</div></div></div></div>
+  <div class="bl graf">
+    <h3>Geração estimada por mês</h3>
+    <div class="leg"><span><i></i>Geração estimada (kWh)</span><span><i class="tr"></i>Seu consumo médio</span></div>
+    <svg viewBox="0 0 686 186" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Geração estimada por mês e consumo médio"><line x1="44" x2="678" y1="162.0" y2="162.0" stroke="#E6E8EC" stroke-width="1"/><text x="36" y="165.5" text-anchor="end" font-size="10" fill="#6B7280">0</text><line x1="44" x2="678" y1="125.5" y2="125.5" stroke="#E6E8EC" stroke-width="1"/><text x="36" y="129.0" text-anchor="end" font-size="10" fill="#6B7280">250</text><line x1="44" x2="678" y1="89.0" y2="89.0" stroke="#E6E8EC" stroke-width="1"/><text x="36" y="92.5" text-anchor="end" font-size="10" fill="#6B7280">500</text><line x1="44" x2="678" y1="52.5" y2="52.5" stroke="#E6E8EC" stroke-width="1"/><text x="36" y="56.0" text-anchor="end" font-size="10" fill="#6B7280">750</text><line x1="44" x2="678" y1="16.0" y2="16.0" stroke="#E6E8EC" stroke-width="1"/><text x="36" y="19.5" text-anchor="end" font-size="10" fill="#6B7280">1.000</text><rect x="55.6" y="27.2" width="29.6" height="134.8" rx="2" fill="#1e3a8a"/><text x="70.4" y="22.2" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">923</text><text x="70.4" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Jan</text><rect x="108.5" y="33.1" width="29.6" height="128.9" rx="2" fill="#1e3a8a"/><text x="123.3" y="28.1" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">883</text><text x="123.3" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Fev</text><rect x="161.3" y="38.9" width="29.6" height="123.1" rx="2" fill="#1e3a8a"/><text x="176.1" y="33.9" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">843</text><text x="176.1" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Mar</text><rect x="214.1" y="50.6" width="29.6" height="111.4" rx="2" fill="#1e3a8a"/><text x="228.9" y="45.6" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">763</text><text x="228.9" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Abr</text><rect x="267.0" y="62.3" width="29.6" height="99.7" rx="2" fill="#1e3a8a"/><text x="281.8" y="57.3" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">683</text><text x="281.8" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Mai</text><rect x="319.8" y="70.6" width="29.6" height="91.4" rx="2" fill="#1e3a8a"/><text x="334.6" y="65.6" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">626</text><text x="334.6" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Jun</text><rect x="372.6" y="68.3" width="29.6" height="93.7" rx="2" fill="#1e3a8a"/><text x="387.4" y="63.3" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">642</text><text x="387.4" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Jul</text><rect x="425.5" y="54.1" width="29.6" height="107.9" rx="2" fill="#1e3a8a"/><text x="440.3" y="49.1" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">739</text><text x="440.3" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Ago</text><rect x="478.3" y="44.8" width="29.6" height="117.2" rx="2" fill="#1e3a8a"/><text x="493.1" y="39.8" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">803</text><text x="493.1" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Set</text><rect x="531.1" y="30.7" width="29.6" height="131.3" rx="2" fill="#1e3a8a"/><text x="545.9" y="25.7" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">899</text><text x="545.9" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Out</text><rect x="584.0" y="27.2" width="29.6" height="134.8" rx="2" fill="#1e3a8a"/><text x="598.8" y="22.2" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">923</text><text x="598.8" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Nov</text><rect x="636.8" y="29.6" width="29.6" height="132.4" rx="2" fill="#1e3a8a"/><text x="651.6" y="24.6" text-anchor="middle" font-size="9.5" fill="#374151" font-weight="600">907</text><text x="651.6" y="178" text-anchor="middle" font-size="10.5" fill="#6B7280">Dez</text><line x1="44" x2="678" y1="67.1" y2="67.1" stroke="#12161E" stroke-width="1.5" stroke-dasharray="5 4"/></svg>
+    <p class="nota">Média de sol usada no cálculo: 5 horas por dia em Sao Jose do Rio Preto. A energia que sobra em um mês vira crédito na conta e abate o consumo dos meses seguintes.</p>
+  </div>
+  <div class="bl"><h3>Equipamentos</h3>
+    <table class="eq"><thead><tr><th>Item</th><th>Especificação</th><th class="r">Qtd.</th></tr></thead><tbody><tr><td>Módulos fotovoltaicos</td><td>Canadian, 550 W</td><td class="q">12</td></tr><tr><td>Inversor</td><td>Growatt, 5 kW</td><td class="q">1</td></tr></tbody></table>
+    <p class="inc">Também fazem parte do projeto: estrutura de fixação, cabos e proteções elétricas, projeto elétrico, pedido de acesso à distribuidora e instalação.</p>
+  </div></div>
+  <div class="ft"><span>Empresa Exemplo Solar · CNPJ 12.345.678/0001-90</span><span class="pg num">2 de 6</span></div>
+</div>
+<div class="page">
+  <div class="hd"><span class="mk" translate="no">Empresa Exemplo Solar</span><div class="ref">Proposta <b class="num">20260012</b><br/>Cliente Exemplo</div></div>
+  <div class="mn"><h2>Sua economia</h2>
+  <p class="lead">Quanto você pagaria de luz com e sem o sistema, somando ano após ano. Em 25 anos, a diferença chega a R$ 334.454.</p>
+  <div class="bl graf">
+    <div class="leg"><span><i class="cz"></i>Conta sem o sistema</span><span><i class="c1"></i>Conta com o sistema</span><span>Área clara: o que fica no seu bolso</span></div>
+    <svg viewBox="0 0 686 236" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Conta de luz acumulada em 25 anos, sem e com energia solar"><line x1="62" x2="574" y1="210.0" y2="210.0" stroke="#E6E8EC" stroke-width="1"/><text x="54" y="213.5" text-anchor="end" font-size="10" fill="#6B7280">0</text><line x1="62" x2="574" y1="161.0" y2="161.0" stroke="#E6E8EC" stroke-width="1"/><text x="54" y="164.5" text-anchor="end" font-size="10" fill="#6B7280">R$ 125 mil</text><line x1="62" x2="574" y1="112.0" y2="112.0" stroke="#E6E8EC" stroke-width="1"/><text x="54" y="115.5" text-anchor="end" font-size="10" fill="#6B7280">R$ 250 mil</text><line x1="62" x2="574" y1="63.0" y2="63.0" stroke="#E6E8EC" stroke-width="1"/><text x="54" y="66.5" text-anchor="end" font-size="10" fill="#6B7280">R$ 375 mil</text><line x1="62" x2="574" y1="14.0" y2="14.0" stroke="#E6E8EC" stroke-width="1"/><text x="54" y="17.5" text-anchor="end" font-size="10" fill="#6B7280">R$ 500 mil</text><polygon points="62.0,207.2 83.3,204.2 104.7,201.0 126.0,197.7 147.3,194.1 168.7,190.4 190.0,186.4 211.3,182.2 232.7,177.7 254.0,172.9 275.3,167.9 296.7,162.5 318.0,156.9 339.3,150.9 360.7,144.5 382.0,137.8 403.3,130.6 424.7,123.1 446.0,115.0 467.3,106.5 488.7,97.5 510.0,87.9 531.3,77.8 552.7,67.1 574.0,55.7 574.0,186.8 552.7,188.5 531.3,190.1 510.0,191.6 488.7,193.1 467.3,194.4 446.0,195.7 424.7,196.9 403.3,198.1 382.0,199.1 360.7,200.1 339.3,201.1 318.0,202.0 296.7,202.9 275.3,203.7 254.0,204.4 232.7,205.1 211.3,205.8 190.0,206.4 168.7,207.0 147.3,207.6 126.0,208.1 104.7,208.7 83.3,209.1 62.0,209.6" fill="#1e3a8a" fill-opacity="0.1"/><polyline points="62.0,207.2 83.3,204.2 104.7,201.0 126.0,197.7 147.3,194.1 168.7,190.4 190.0,186.4 211.3,182.2 232.7,177.7 254.0,172.9 275.3,167.9 296.7,162.5 318.0,156.9 339.3,150.9 360.7,144.5 382.0,137.8 403.3,130.6 424.7,123.1 446.0,115.0 467.3,106.5 488.7,97.5 510.0,87.9 531.3,77.8 552.7,67.1 574.0,55.7" fill="none" stroke="#9AA0A9" stroke-width="2" stroke-linejoin="round"/><polyline points="62.0,209.6 83.3,209.1 104.7,208.7 126.0,208.1 147.3,207.6 168.7,207.0 190.0,206.4 211.3,205.8 232.7,205.1 254.0,204.4 275.3,203.7 296.7,202.9 318.0,202.0 339.3,201.1 360.7,200.1 382.0,199.1 403.3,198.1 424.7,196.9 446.0,195.7 467.3,194.4 488.7,193.1 510.0,191.6 531.3,190.1 552.7,188.5 574.0,186.8" fill="none" stroke="#1e3a8a" stroke-width="2.5" stroke-linejoin="round"/><text x="62.0" y="228" text-anchor="middle" font-size="10.5" fill="#6B7280">Ano 1</text><text x="147.3" y="228" text-anchor="middle" font-size="10.5" fill="#6B7280">Ano 5</text><text x="254.0" y="228" text-anchor="middle" font-size="10.5" fill="#6B7280">Ano 10</text><text x="360.7" y="228" text-anchor="middle" font-size="10.5" fill="#6B7280">Ano 15</text><text x="467.3" y="228" text-anchor="middle" font-size="10.5" fill="#6B7280">Ano 20</text><text x="574.0" y="228" text-anchor="middle" font-size="10.5" fill="#6B7280">Ano 25</text><circle cx="574.0" cy="55.7" r="3.5" fill="#9AA0A9"/><text x="584.0" y="53.7" font-size="11" font-weight="700" fill="#12161E">R$ 394 mil</text><text x="584.0" y="67.7" font-size="10" fill="#6B7280">Sem o sistema</text><circle cx="574.0" cy="186.8" r="3.5" fill="#1e3a8a"/><text x="584.0" y="184.8" font-size="11" font-weight="700" fill="#12161E">R$ 59 mil</text><text x="584.0" y="198.8" font-size="10" fill="#6B7280">Com o sistema</text></svg>
+  </div>
+  <div class="bl"><h3>Ano a ano</h3>
+    <table class="anos"><thead><tr><th>Ano</th><th class="r">Economia por mês</th><th class="r">Economia no ano</th><th class="r">Saldo do investimento</th></tr></thead><tbody><tr><td>Ano 1</td><td class="r">R$ 508</td><td class="r">R$ 6.096</td><td class="r sd"><span>-R$ 22.804</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="2.2" y="1" width="8.2" height="8" rx="1.5" fill="#C4C8CF"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 2</td><td class="r">R$ 539</td><td class="r">R$ 6.462</td><td class="r sd"><span>-R$ 16.342</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="4.5" y="1" width="5.9" height="8" rx="1.5" fill="#C4C8CF"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 3</td><td class="r">R$ 571</td><td class="r">R$ 6.850</td><td class="r sd"><span>-R$ 9.492</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="7.0" y="1" width="3.4" height="8" rx="1.5" fill="#C4C8CF"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 4</td><td class="r">R$ 605</td><td class="r">R$ 7.259</td><td class="r sd"><span>-R$ 2.233</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="9.6" y="1" width="1.0" height="8" rx="1.5" fill="#C4C8CF"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr class="vira"><td>Ano 5</td><td class="r">R$ 641</td><td class="r">R$ 7.697</td><td class="r sd"><span>R$ 5.464</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="10.4" y="1" width="2.0" height="8" rx="1.5" fill="#1e3a8a"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 6</td><td class="r">R$ 680</td><td class="r">R$ 8.158</td><td class="r sd"><span>R$ 13.622</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="10.4" y="1" width="4.9" height="8" rx="1.5" fill="#1e3a8a"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 7</td><td class="r">R$ 721</td><td class="r">R$ 8.647</td><td class="r sd"><span>R$ 22.269</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="10.4" y="1" width="8.0" height="8" rx="1.5" fill="#1e3a8a"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 8</td><td class="r">R$ 764</td><td class="r">R$ 9.166</td><td class="r sd"><span>R$ 31.435</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="10.4" y="1" width="11.3" height="8" rx="1.5" fill="#1e3a8a"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 9</td><td class="r">R$ 810</td><td class="r">R$ 9.716</td><td class="r sd"><span>R$ 41.151</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="10.4" y="1" width="14.8" height="8" rx="1.5" fill="#1e3a8a"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 10</td><td class="r">R$ 858</td><td class="r">R$ 10.299</td><td class="r sd"><span>R$ 51.450</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="10.4" y="1" width="18.5" height="8" rx="1.5" fill="#1e3a8a"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 15</td><td class="r">R$ 1.149</td><td class="r">R$ 13.782</td><td class="r sd"><span>R$ 112.990</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="10.4" y="1" width="40.5" height="8" rx="1.5" fill="#1e3a8a"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 20</td><td class="r">R$ 1.537</td><td class="r">R$ 18.444</td><td class="r sd"><span>R$ 195.345</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="10.4" y="1" width="70.1" height="8" rx="1.5" fill="#1e3a8a"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr><tr><td>Ano 25</td><td class="r">R$ 2.057</td><td class="r">R$ 24.682</td><td class="r sd"><span>R$ 305.554</span><svg class="sb" viewBox="0 0 120 10" width="120" height="10" aria-hidden="true"><rect x="0" y="4.5" width="120" height="1" fill="#E6E8EC"/><rect x="10.4" y="1" width="109.6" height="8" rx="1.5" fill="#1e3a8a"/><rect x="9.9" y="0" width="1" height="10" fill="#12161E"/></svg></td></tr></tbody></table>
+    <p class="nota"><b style="color:var(--ink)">O saldo fica positivo em 4 anos e 4 meses.</b> Até ali, a economia paga o sistema. Depois, ela é toda sua.</p>
+    <p class="nota">Premissas: tarifa de R$ 0,92 por kWh com reajuste de 6% ao ano e taxa mínima de R$ 90 por mês com reajuste de 6% ao ano. O cálculo considera que o sistema cobre o consumo médio informado. Valores estimados.</p>
+  </div></div>
+  <div class="ft"><span>Empresa Exemplo Solar · CNPJ 12.345.678/0001-90</span><span class="pg num">3 de 6</span></div>
+</div>
+<div class="page" data-est="751">
+  <div class="hd"><span class="mk" translate="no">Empresa Exemplo Solar</span><div class="ref">Proposta <b class="num">20260012</b><br/>Cliente Exemplo</div></div>
+  <div class="mn"><h2>Investimento</h2>
+  <p class="lead">Projeto completo: equipamentos, instalação, projeto elétrico e homologação na distribuidora.</p>
+  <div class="bl preco" style="grid-template-columns:1fr">
+    <div><div class="k">Valor do projeto</div><div class="g num">R$ 28.900</div></div>
+    
+  </div>
+  <div class="bl pg-grupo"><h3>Financiamento bancário <span>Carência de 90 dias · 1ª parcela em 03/02/2027</span></h3><div class="parc" style="grid-template-columns:repeat(5,1fr)"><div><div class="n">12 parcelas de</div><div class="p">R$ 2.409</div></div><div><div class="n">36 parcelas de</div><div class="p">R$ 1.250</div></div><div><div class="n">60 parcelas de</div><div class="p">R$ 1.234,56</div></div><div><div class="n">96 parcelas de</div><div class="p">R$ 775</div></div><div><div class="n">100 parcelas de</div><div class="p">R$ 766</div></div></div><p class="nota">Simulação sujeita a análise de crédito do banco.</p></div>
+  <div class="bl"><h3>Retorno do investimento</h3><div class="ret" style="grid-template-columns:repeat(3,1fr)"><div><div class="k">Tempo de retorno</div><div class="v num">4 anos e 4 meses</div><div class="s">Quando a economia soma o valor do projeto.</div></div><div><div class="k">Economia em 25 anos</div><div class="v num">R$ 334.454</div><div class="s">Já descontada a taxa mínima.</div></div><div><div class="k">Retorno por mês</div><div class="v num">1,76%</div><div class="s">Economia do primeiro mês dividida pelo valor do projeto.</div></div></div></div>
+  <div class="bl dois">
+    <div><h3>O valor inclui</h3><ul class="lst">
+      <li>Equipamentos listados nesta proposta</li><li>Estrutura de fixação, cabos e proteções</li>
+      <li>Projeto elétrico e pedido de acesso</li><li>Instalação e testes do sistema</li></ul></div>
+    <div><h3>Não inclui, salvo se combinado por escrito</h3><ul class="lst nao">
+      <li>Obras civis e reforma ou reforço do telhado</li><li>Troca do padrão de entrada ou do transformador</li>
+      <li>Adequação da instalação elétrica existente</li></ul></div>
+  </div></div>
+  <div class="ft"><span>Empresa Exemplo Solar · CNPJ 12.345.678/0001-90</span><span class="pg num">4 de 6</span></div>
+</div>
+<div class="page">
+  <div class="hd"><span class="mk" translate="no">Empresa Exemplo Solar</span><div class="ref">Proposta <b class="num">20260012</b><br/>Cliente Exemplo</div></div>
+  <div class="mn"><h2>Como trabalhamos</h2>
+  <p class="lead">Cuidamos de cada etapa, da visita técnica até a troca do medidor.</p>
+  <div class="bl prazo"><span class="g num">45</span><span>dias úteis da assinatura do contrato até o sistema ligado. O prazo pode variar conforme a aprovação da distribuidora.</span></div>
+  <div class="bl etapas"><div><div class="n">1</div><div><b>Visita técnica</b><span>Conferimos o telhado, o padrão de entrada e o melhor lugar para os módulos.</span></div></div><div><div class="n">2</div><div><b>Projeto</b><span>Fazemos o projeto elétrico e a documentação técnica do sistema.</span></div></div><div><div class="n">3</div><div><b>Homologação</b><span>Pedimos a aprovação da distribuidora de energia. O prazo de resposta é dela.</span></div></div><div><div class="n">4</div><div><b>Instalação</b><span>Montamos a estrutura, os módulos e o inversor, e testamos o sistema.</span></div></div><div><div class="n">5</div><div><b>Vistoria e troca do medidor</b><span>A distribuidora vistoria a instalação e troca o medidor. A partir daí, a sobra de energia vira crédito.</span></div></div></div>
+  
+  <div class="bl"><h3>Condições</h3><ul class="cond"><li>Esta proposta vale até 12 de novembro de 2026.</li><li>A geração é uma estimativa feita com a média de sol da região. Ela varia com o clima, a sombra e a limpeza dos módulos.</li><li>A economia usa a tarifa e os reajustes descritos na folha de economia. A tarifa real é definida pela distribuidora.</li><li>Parcelamento e financiamento dependem da aprovação da operadora do cartão ou do banco.</li></ul></div></div>
+  <div class="ft"><span>Empresa Exemplo Solar · CNPJ 12.345.678/0001-90</span><span class="pg num">5 de 6</span></div>
+</div>
+<div class="page" data-est="739">
+  <div class="hd"><span class="mk" translate="no">Empresa Exemplo Solar</span><div class="ref">Proposta <b class="num">20260012</b><br/>Cliente Exemplo</div></div>
+  <div class="mn"><h2>Garantias e aceite</h2>
+  <p class="lead">Os prazos de garantia de cada parte do sistema e o espaço para o aceite.</p>
+  <div class="bl gar"><div><div class="g num">25 <small>anos</small></div><div class="k">Módulos, desempenho</div></div><div><div class="g num">10 <small>anos</small></div><div class="k">Inversor</div></div><div><div class="g num">10 <small>anos</small></div><div class="k">Estrutura</div></div><div><div class="g num">1 <small>ano</small></div><div class="k">Instalação</div></div></div>
+  <div class="bl"><h3>O que está sendo aceito</h3><table class="aceite"><tbody><tr><td>Cliente</td><td>Cliente Exemplo</td></tr><tr><td>CPF</td><td>XXX.XXX.XXX-XX</td></tr><tr><td>Sistema</td><td>6,6 kWp com 12 módulos</td></tr><tr><td>Valor do projeto</td><td><span class="num">R$ 28.900</span></td></tr><tr><td>Validade</td><td>Até 12 de novembro de 2026</td></tr></tbody></table>
+    <p class="decl">Ao assinar, cliente e empresa confirmam os equipamentos, os valores e as condições desta proposta.</p>
+    <p class="nota">Sao Jose do Rio Preto, 05 de novembro de 2026.</p>
+    <div class="sigs"><div class="ln"><b>Empresa Exemplo Solar LTDA</b><span class="num">CNPJ 12.345.678/0001-90</span><span>Pela empresa</span></div><div class="ln"><b>Cliente Exemplo</b><span class="num">CPF XXX.XXX.XXX-XX</span><span>Pelo cliente</span></div></div>
+  </div>
+  <div class="bl contato"><div>
+        <div class="k">Fale com Maria Souza</div>
+        <div class="v num">(17) 99624-3536</div>
+        <div class="k" style="margin-top:2px">contato@exemplo.com</div>
+        <a href="https://wa.me/5517996243536?text=Ol%C3%A1%20Maria%20Souza!%20Quero%20fechar%20a%20proposta%20de%20energia%20solar%2C%20Cliente%20Exemplo." target="_blank" rel="noopener noreferrer">Quero fechar pelo WhatsApp</a>
+      </div><div class="qr"><div class="qb"><svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="87px" height="87px" viewBox="0 0 87 87"  preserveAspectRatio="xMinYMin meet"><rect width="100%" height="100%" fill="white" cx="0" cy="0"/><path d="M0,0l3,0 0,3 -3,0 0,-3z M3,0l3,0 0,3 -3,0 0,-3z M6,0l3,0 0,3 -3,0 0,-3z M9,0l3,0 0,3 -3,0 0,-3z M12,0l3,0 0,3 -3,0 0,-3z M15,0l3,0 0,3 -3,0 0,-3z M18,0l3,0 0,3 -3,0 0,-3z M30,0l3,0 0,3 -3,0 0,-3z M36,0l3,0 0,3 -3,0 0,-3z M45,0l3,0 0,3 -3,0 0,-3z M48,0l3,0 0,3 -3,0 0,-3z M57,0l3,0 0,3 -3,0 0,-3z M66,0l3,0 0,3 -3,0 0,-3z M69,0l3,0 0,3 -3,0 0,-3z M72,0l3,0 0,3 -3,0 0,-3z M75,0l3,0 0,3 -3,0 0,-3z M78,0l3,0 0,3 -3,0 0,-3z M81,0l3,0 0,3 -3,0 0,-3z M84,0l3,0 0,3 -3,0 0,-3z M0,3l3,0 0,3 -3,0 0,-3z M18,3l3,0 0,3 -3,0 0,-3z M33,3l3,0 0,3 -3,0 0,-3z M66,3l3,0 0,3 -3,0 0,-3z M84,3l3,0 0,3 -3,0 0,-3z M0,6l3,0 0,3 -3,0 0,-3z M6,6l3,0 0,3 -3,0 0,-3z M9,6l3,0 0,3 -3,0 0,-3z M12,6l3,0 0,3 -3,0 0,-3z M18,6l3,0 0,3 -3,0 0,-3z M24,6l3,0 0,3 -3,0 0,-3z M27,6l3,0 0,3 -3,0 0,-3z M33,6l3,0 0,3 -3,0 0,-3z M42,6l3,0 0,3 -3,0 0,-3z M48,6l3,0 0,3 -3,0 0,-3z M54,6l3,0 0,3 -3,0 0,-3z M57,6l3,0 0,3 -3,0 0,-3z M66,6l3,0 0,3 -3,0 0,-3z M72,6l3,0 0,3 -3,0 0,-3z M75,6l3,0 0,3 -3,0 0,-3z M78,6l3,0 0,3 -3,0 0,-3z M84,6l3,0 0,3 -3,0 0,-3z M0,9l3,0 0,3 -3,0 0,-3z M6,9l3,0 0,3 -3,0 0,-3z M9,9l3,0 0,3 -3,0 0,-3z M12,9l3,0 0,3 -3,0 0,-3z M18,9l3,0 0,3 -3,0 0,-3z M24,9l3,0 0,3 -3,0 0,-3z M48,9l3,0 0,3 -3,0 0,-3z M51,9l3,0 0,3 -3,0 0,-3z M54,9l3,0 0,3 -3,0 0,-3z M60,9l3,0 0,3 -3,0 0,-3z M66,9l3,0 0,3 -3,0 0,-3z M72,9l3,0 0,3 -3,0 0,-3z M75,9l3,0 0,3 -3,0 0,-3z M78,9l3,0 0,3 -3,0 0,-3z M84,9l3,0 0,3 -3,0 0,-3z M0,12l3,0 0,3 -3,0 0,-3z M6,12l3,0 0,3 -3,0 0,-3z M9,12l3,0 0,3 -3,0 0,-3z M12,12l3,0 0,3 -3,0 0,-3z M18,12l3,0 0,3 -3,0 0,-3z M24,12l3,0 0,3 -3,0 0,-3z M27,12l3,0 0,3 -3,0 0,-3z M30,12l3,0 0,3 -3,0 0,-3z M36,12l3,0 0,3 -3,0 0,-3z M39,12l3,0 0,3 -3,0 0,-3z M42,12l3,0 0,3 -3,0 0,-3z M45,12l3,0 0,3 -3,0 0,-3z M57,12l3,0 0,3 -3,0 0,-3z M66,12l3,0 0,3 -3,0 0,-3z M72,12l3,0 0,3 -3,0 0,-3z M75,12l3,0 0,3 -3,0 0,-3z M78,12l3,0 0,3 -3,0 0,-3z M84,12l3,0 0,3 -3,0 0,-3z M0,15l3,0 0,3 -3,0 0,-3z M18,15l3,0 0,3 -3,0 0,-3z M24,15l3,0 0,3 -3,0 0,-3z M30,15l3,0 0,3 -3,0 0,-3z M36,15l3,0 0,3 -3,0 0,-3z M39,15l3,0 0,3 -3,0 0,-3z M42,15l3,0 0,3 -3,0 0,-3z M45,15l3,0 0,3 -3,0 0,-3z M48,15l3,0 0,3 -3,0 0,-3z M51,15l3,0 0,3 -3,0 0,-3z M54,15l3,0 0,3 -3,0 0,-3z M66,15l3,0 0,3 -3,0 0,-3z M84,15l3,0 0,3 -3,0 0,-3z M0,18l3,0 0,3 -3,0 0,-3z M3,18l3,0 0,3 -3,0 0,-3z M6,18l3,0 0,3 -3,0 0,-3z M9,18l3,0 0,3 -3,0 0,-3z M12,18l3,0 0,3 -3,0 0,-3z M15,18l3,0 0,3 -3,0 0,-3z M18,18l3,0 0,3 -3,0 0,-3z M24,18l3,0 0,3 -3,0 0,-3z M30,18l3,0 0,3 -3,0 0,-3z M36,18l3,0 0,3 -3,0 0,-3z M42,18l3,0 0,3 -3,0 0,-3z M48,18l3,0 0,3 -3,0 0,-3z M54,18l3,0 0,3 -3,0 0,-3z M60,18l3,0 0,3 -3,0 0,-3z M66,18l3,0 0,3 -3,0 0,-3z M69,18l3,0 0,3 -3,0 0,-3z M72,18l3,0 0,3 -3,0 0,-3z M75,18l3,0 0,3 -3,0 0,-3z M78,18l3,0 0,3 -3,0 0,-3z M81,18l3,0 0,3 -3,0 0,-3z M84,18l3,0 0,3 -3,0 0,-3z M24,21l3,0 0,3 -3,0 0,-3z M30,21l3,0 0,3 -3,0 0,-3z M33,21l3,0 0,3 -3,0 0,-3z M36,21l3,0 0,3 -3,0 0,-3z M39,21l3,0 0,3 -3,0 0,-3z M45,21l3,0 0,3 -3,0 0,-3z M57,21l3,0 0,3 -3,0 0,-3z M60,21l3,0 0,3 -3,0 0,-3z M0,24l3,0 0,3 -3,0 0,-3z M6,24l3,0 0,3 -3,0 0,-3z M9,24l3,0 0,3 -3,0 0,-3z M12,24l3,0 0,3 -3,0 0,-3z M15,24l3,0 0,3 -3,0 0,-3z M18,24l3,0 0,3 -3,0 0,-3z M27,24l3,0 0,3 -3,0 0,-3z M42,24l3,0 0,3 -3,0 0,-3z M45,24l3,0 0,3 -3,0 0,-3z M51,24l3,0 0,3 -3,0 0,-3z M54,24l3,0 0,3 -3,0 0,-3z M60,24l3,0 0,3 -3,0 0,-3z M66,24l3,0 0,3 -3,0 0,-3z M69,24l3,0 0,3 -3,0 0,-3z M72,24l3,0 0,3 -3,0 0,-3z M75,24l3,0 0,3 -3,0 0,-3z M78,24l3,0 0,3 -3,0 0,-3z M3,27l3,0 0,3 -3,0 0,-3z M6,27l3,0 0,3 -3,0 0,-3z M12,27l3,0 0,3 -3,0 0,-3z M27,27l3,0 0,3 -3,0 0,-3z M30,27l3,0 0,3 -3,0 0,-3z M33,27l3,0 0,3 -3,0 0,-3z M45,27l3,0 0,3 -3,0 0,-3z M48,27l3,0 0,3 -3,0 0,-3z M57,27l3,0 0,3 -3,0 0,-3z M63,27l3,0 0,3 -3,0 0,-3z M66,27l3,0 0,3 -3,0 0,-3z M69,27l3,0 0,3 -3,0 0,-3z M72,27l3,0 0,3 -3,0 0,-3z M84,27l3,0 0,3 -3,0 0,-3z M0,30l3,0 0,3 -3,0 0,-3z M3,30l3,0 0,3 -3,0 0,-3z M9,30l3,0 0,3 -3,0 0,-3z M12,30l3,0 0,3 -3,0 0,-3z M18,30l3,0 0,3 -3,0 0,-3z M21,30l3,0 0,3 -3,0 0,-3z M24,30l3,0 0,3 -3,0 0,-3z M30,30l3,0 0,3 -3,0 0,-3z M36,30l3,0 0,3 -3,0 0,-3z M60,30l3,0 0,3 -3,0 0,-3z M69,30l3,0 0,3 -3,0 0,-3z M72,30l3,0 0,3 -3,0 0,-3z M0,33l3,0 0,3 -3,0 0,-3z M3,33l3,0 0,3 -3,0 0,-3z M12,33l3,0 0,3 -3,0 0,-3z M15,33l3,0 0,3 -3,0 0,-3z M21,33l3,0 0,3 -3,0 0,-3z M30,33l3,0 0,3 -3,0 0,-3z M36,33l3,0 0,3 -3,0 0,-3z M42,33l3,0 0,3 -3,0 0,-3z M48,33l3,0 0,3 -3,0 0,-3z M69,33l3,0 0,3 -3,0 0,-3z M75,33l3,0 0,3 -3,0 0,-3z M81,33l3,0 0,3 -3,0 0,-3z M9,36l3,0 0,3 -3,0 0,-3z M12,36l3,0 0,3 -3,0 0,-3z M15,36l3,0 0,3 -3,0 0,-3z M18,36l3,0 0,3 -3,0 0,-3z M21,36l3,0 0,3 -3,0 0,-3z M24,36l3,0 0,3 -3,0 0,-3z M27,36l3,0 0,3 -3,0 0,-3z M30,36l3,0 0,3 -3,0 0,-3z M36,36l3,0 0,3 -3,0 0,-3z M48,36l3,0 0,3 -3,0 0,-3z M51,36l3,0 0,3 -3,0 0,-3z M54,36l3,0 0,3 -3,0 0,-3z M57,36l3,0 0,3 -3,0 0,-3z M60,36l3,0 0,3 -3,0 0,-3z M63,36l3,0 0,3 -3,0 0,-3z M75,36l3,0 0,3 -3,0 0,-3z M78,36l3,0 0,3 -3,0 0,-3z M0,39l3,0 0,3 -3,0 0,-3z M6,39l3,0 0,3 -3,0 0,-3z M15,39l3,0 0,3 -3,0 0,-3z M24,39l3,0 0,3 -3,0 0,-3z M27,39l3,0 0,3 -3,0 0,-3z M30,39l3,0 0,3 -3,0 0,-3z M33,39l3,0 0,3 -3,0 0,-3z M39,39l3,0 0,3 -3,0 0,-3z M42,39l3,0 0,3 -3,0 0,-3z M45,39l3,0 0,3 -3,0 0,-3z M57,39l3,0 0,3 -3,0 0,-3z M63,39l3,0 0,3 -3,0 0,-3z M66,39l3,0 0,3 -3,0 0,-3z M69,39l3,0 0,3 -3,0 0,-3z M72,39l3,0 0,3 -3,0 0,-3z M84,39l3,0 0,3 -3,0 0,-3z M0,42l3,0 0,3 -3,0 0,-3z M6,42l3,0 0,3 -3,0 0,-3z M15,42l3,0 0,3 -3,0 0,-3z M18,42l3,0 0,3 -3,0 0,-3z M21,42l3,0 0,3 -3,0 0,-3z M30,42l3,0 0,3 -3,0 0,-3z M33,42l3,0 0,3 -3,0 0,-3z M39,42l3,0 0,3 -3,0 0,-3z M42,42l3,0 0,3 -3,0 0,-3z M45,42l3,0 0,3 -3,0 0,-3z M48,42l3,0 0,3 -3,0 0,-3z M51,42l3,0 0,3 -3,0 0,-3z M54,42l3,0 0,3 -3,0 0,-3z M60,42l3,0 0,3 -3,0 0,-3z M66,42l3,0 0,3 -3,0 0,-3z M75,42l3,0 0,3 -3,0 0,-3z M78,42l3,0 0,3 -3,0 0,-3z M21,45l3,0 0,3 -3,0 0,-3z M24,45l3,0 0,3 -3,0 0,-3z M30,45l3,0 0,3 -3,0 0,-3z M33,45l3,0 0,3 -3,0 0,-3z M36,45l3,0 0,3 -3,0 0,-3z M39,45l3,0 0,3 -3,0 0,-3z M45,45l3,0 0,3 -3,0 0,-3z M66,45l3,0 0,3 -3,0 0,-3z M69,45l3,0 0,3 -3,0 0,-3z M81,45l3,0 0,3 -3,0 0,-3z M0,48l3,0 0,3 -3,0 0,-3z M3,48l3,0 0,3 -3,0 0,-3z M6,48l3,0 0,3 -3,0 0,-3z M15,48l3,0 0,3 -3,0 0,-3z M18,48l3,0 0,3 -3,0 0,-3z M27,48l3,0 0,3 -3,0 0,-3z M30,48l3,0 0,3 -3,0 0,-3z M33,48l3,0 0,3 -3,0 0,-3z M42,48l3,0 0,3 -3,0 0,-3z M45,48l3,0 0,3 -3,0 0,-3z M51,48l3,0 0,3 -3,0 0,-3z M54,48l3,0 0,3 -3,0 0,-3z M57,48l3,0 0,3 -3,0 0,-3z M60,48l3,0 0,3 -3,0 0,-3z M63,48l3,0 0,3 -3,0 0,-3z M75,48l3,0 0,3 -3,0 0,-3z M78,48l3,0 0,3 -3,0 0,-3z M0,51l3,0 0,3 -3,0 0,-3z M6,51l3,0 0,3 -3,0 0,-3z M36,51l3,0 0,3 -3,0 0,-3z M45,51l3,0 0,3 -3,0 0,-3z M48,51l3,0 0,3 -3,0 0,-3z M57,51l3,0 0,3 -3,0 0,-3z M66,51l3,0 0,3 -3,0 0,-3z M72,51l3,0 0,3 -3,0 0,-3z M78,51l3,0 0,3 -3,0 0,-3z M84,51l3,0 0,3 -3,0 0,-3z M0,54l3,0 0,3 -3,0 0,-3z M9,54l3,0 0,3 -3,0 0,-3z M18,54l3,0 0,3 -3,0 0,-3z M21,54l3,0 0,3 -3,0 0,-3z M24,54l3,0 0,3 -3,0 0,-3z M27,54l3,0 0,3 -3,0 0,-3z M33,54l3,0 0,3 -3,0 0,-3z M36,54l3,0 0,3 -3,0 0,-3z M51,54l3,0 0,3 -3,0 0,-3z M60,54l3,0 0,3 -3,0 0,-3z M69,54l3,0 0,3 -3,0 0,-3z M72,54l3,0 0,3 -3,0 0,-3z M78,54l3,0 0,3 -3,0 0,-3z M0,57l3,0 0,3 -3,0 0,-3z M12,57l3,0 0,3 -3,0 0,-3z M15,57l3,0 0,3 -3,0 0,-3z M21,57l3,0 0,3 -3,0 0,-3z M24,57l3,0 0,3 -3,0 0,-3z M27,57l3,0 0,3 -3,0 0,-3z M30,57l3,0 0,3 -3,0 0,-3z M33,57l3,0 0,3 -3,0 0,-3z M36,57l3,0 0,3 -3,0 0,-3z M42,57l3,0 0,3 -3,0 0,-3z M48,57l3,0 0,3 -3,0 0,-3z M54,57l3,0 0,3 -3,0 0,-3z M57,57l3,0 0,3 -3,0 0,-3z M60,57l3,0 0,3 -3,0 0,-3z M72,57l3,0 0,3 -3,0 0,-3z M81,57l3,0 0,3 -3,0 0,-3z M0,60l3,0 0,3 -3,0 0,-3z M6,60l3,0 0,3 -3,0 0,-3z M15,60l3,0 0,3 -3,0 0,-3z M18,60l3,0 0,3 -3,0 0,-3z M24,60l3,0 0,3 -3,0 0,-3z M30,60l3,0 0,3 -3,0 0,-3z M33,60l3,0 0,3 -3,0 0,-3z M36,60l3,0 0,3 -3,0 0,-3z M48,60l3,0 0,3 -3,0 0,-3z M54,60l3,0 0,3 -3,0 0,-3z M60,60l3,0 0,3 -3,0 0,-3z M63,60l3,0 0,3 -3,0 0,-3z M66,60l3,0 0,3 -3,0 0,-3z M69,60l3,0 0,3 -3,0 0,-3z M72,60l3,0 0,3 -3,0 0,-3z M78,60l3,0 0,3 -3,0 0,-3z M81,60l3,0 0,3 -3,0 0,-3z M84,60l3,0 0,3 -3,0 0,-3z M24,63l3,0 0,3 -3,0 0,-3z M27,63l3,0 0,3 -3,0 0,-3z M36,63l3,0 0,3 -3,0 0,-3z M39,63l3,0 0,3 -3,0 0,-3z M42,63l3,0 0,3 -3,0 0,-3z M45,63l3,0 0,3 -3,0 0,-3z M51,63l3,0 0,3 -3,0 0,-3z M54,63l3,0 0,3 -3,0 0,-3z M57,63l3,0 0,3 -3,0 0,-3z M60,63l3,0 0,3 -3,0 0,-3z M72,63l3,0 0,3 -3,0 0,-3z M75,63l3,0 0,3 -3,0 0,-3z M78,63l3,0 0,3 -3,0 0,-3z M81,63l3,0 0,3 -3,0 0,-3z M84,63l3,0 0,3 -3,0 0,-3z M0,66l3,0 0,3 -3,0 0,-3z M3,66l3,0 0,3 -3,0 0,-3z M6,66l3,0 0,3 -3,0 0,-3z M9,66l3,0 0,3 -3,0 0,-3z M12,66l3,0 0,3 -3,0 0,-3z M15,66l3,0 0,3 -3,0 0,-3z M18,66l3,0 0,3 -3,0 0,-3z M27,66l3,0 0,3 -3,0 0,-3z M30,66l3,0 0,3 -3,0 0,-3z M33,66l3,0 0,3 -3,0 0,-3z M39,66l3,0 0,3 -3,0 0,-3z M42,66l3,0 0,3 -3,0 0,-3z M45,66l3,0 0,3 -3,0 0,-3z M48,66l3,0 0,3 -3,0 0,-3z M51,66l3,0 0,3 -3,0 0,-3z M57,66l3,0 0,3 -3,0 0,-3z M60,66l3,0 0,3 -3,0 0,-3z M66,66l3,0 0,3 -3,0 0,-3z M72,66l3,0 0,3 -3,0 0,-3z M75,66l3,0 0,3 -3,0 0,-3z M78,66l3,0 0,3 -3,0 0,-3z M0,69l3,0 0,3 -3,0 0,-3z M18,69l3,0 0,3 -3,0 0,-3z M24,69l3,0 0,3 -3,0 0,-3z M27,69l3,0 0,3 -3,0 0,-3z M36,69l3,0 0,3 -3,0 0,-3z M39,69l3,0 0,3 -3,0 0,-3z M45,69l3,0 0,3 -3,0 0,-3z M51,69l3,0 0,3 -3,0 0,-3z M54,69l3,0 0,3 -3,0 0,-3z M60,69l3,0 0,3 -3,0 0,-3z M72,69l3,0 0,3 -3,0 0,-3z M84,69l3,0 0,3 -3,0 0,-3z M0,72l3,0 0,3 -3,0 0,-3z M6,72l3,0 0,3 -3,0 0,-3z M9,72l3,0 0,3 -3,0 0,-3z M12,72l3,0 0,3 -3,0 0,-3z M18,72l3,0 0,3 -3,0 0,-3z M24,72l3,0 0,3 -3,0 0,-3z M27,72l3,0 0,3 -3,0 0,-3z M33,72l3,0 0,3 -3,0 0,-3z M42,72l3,0 0,3 -3,0 0,-3z M45,72l3,0 0,3 -3,0 0,-3z M60,72l3,0 0,3 -3,0 0,-3z M63,72l3,0 0,3 -3,0 0,-3z M66,72l3,0 0,3 -3,0 0,-3z M69,72l3,0 0,3 -3,0 0,-3z M72,72l3,0 0,3 -3,0 0,-3z M78,72l3,0 0,3 -3,0 0,-3z M81,72l3,0 0,3 -3,0 0,-3z M84,72l3,0 0,3 -3,0 0,-3z M0,75l3,0 0,3 -3,0 0,-3z M6,75l3,0 0,3 -3,0 0,-3z M9,75l3,0 0,3 -3,0 0,-3z M12,75l3,0 0,3 -3,0 0,-3z M18,75l3,0 0,3 -3,0 0,-3z M24,75l3,0 0,3 -3,0 0,-3z M27,75l3,0 0,3 -3,0 0,-3z M39,75l3,0 0,3 -3,0 0,-3z M45,75l3,0 0,3 -3,0 0,-3z M48,75l3,0 0,3 -3,0 0,-3z M54,75l3,0 0,3 -3,0 0,-3z M57,75l3,0 0,3 -3,0 0,-3z M63,75l3,0 0,3 -3,0 0,-3z M75,75l3,0 0,3 -3,0 0,-3z M78,75l3,0 0,3 -3,0 0,-3z M0,78l3,0 0,3 -3,0 0,-3z M6,78l3,0 0,3 -3,0 0,-3z M9,78l3,0 0,3 -3,0 0,-3z M12,78l3,0 0,3 -3,0 0,-3z M18,78l3,0 0,3 -3,0 0,-3z M24,78l3,0 0,3 -3,0 0,-3z M27,78l3,0 0,3 -3,0 0,-3z M33,78l3,0 0,3 -3,0 0,-3z M36,78l3,0 0,3 -3,0 0,-3z M39,78l3,0 0,3 -3,0 0,-3z M42,78l3,0 0,3 -3,0 0,-3z M54,78l3,0 0,3 -3,0 0,-3z M66,78l3,0 0,3 -3,0 0,-3z M69,78l3,0 0,3 -3,0 0,-3z M72,78l3,0 0,3 -3,0 0,-3z M75,78l3,0 0,3 -3,0 0,-3z M78,78l3,0 0,3 -3,0 0,-3z M81,78l3,0 0,3 -3,0 0,-3z M0,81l3,0 0,3 -3,0 0,-3z M18,81l3,0 0,3 -3,0 0,-3z M30,81l3,0 0,3 -3,0 0,-3z M33,81l3,0 0,3 -3,0 0,-3z M36,81l3,0 0,3 -3,0 0,-3z M42,81l3,0 0,3 -3,0 0,-3z M48,81l3,0 0,3 -3,0 0,-3z M57,81l3,0 0,3 -3,0 0,-3z M60,81l3,0 0,3 -3,0 0,-3z M69,81l3,0 0,3 -3,0 0,-3z M75,81l3,0 0,3 -3,0 0,-3z M81,81l3,0 0,3 -3,0 0,-3z M0,84l3,0 0,3 -3,0 0,-3z M3,84l3,0 0,3 -3,0 0,-3z M6,84l3,0 0,3 -3,0 0,-3z M9,84l3,0 0,3 -3,0 0,-3z M12,84l3,0 0,3 -3,0 0,-3z M15,84l3,0 0,3 -3,0 0,-3z M18,84l3,0 0,3 -3,0 0,-3z M24,84l3,0 0,3 -3,0 0,-3z M30,84l3,0 0,3 -3,0 0,-3z M33,84l3,0 0,3 -3,0 0,-3z M39,84l3,0 0,3 -3,0 0,-3z M48,84l3,0 0,3 -3,0 0,-3z M54,84l3,0 0,3 -3,0 0,-3z M69,84l3,0 0,3 -3,0 0,-3z M72,84l3,0 0,3 -3,0 0,-3z M75,84l3,0 0,3 -3,0 0,-3z M78,84l3,0 0,3 -3,0 0,-3z " stroke="transparent" fill="black"/></svg></div><span>Aponte a câmera<br/>e fale no WhatsApp</span></div></div></div>
+  <div class="ft"><span>Empresa Exemplo Solar · CNPJ 12.345.678/0001-90</span><span>Proposta gerada por SolarDoc Pro · solardoc.app</span><span class="pg num">6 de 6</span></div>
+</div>
+</body>
+</html>
+<!--RESUMO-->
+☀️ PROPOSTA DE ENERGIA SOLAR
+
+👤 Cliente Exemplo · Sao Jose do Rio Preto, SP
+
+🔋 SISTEMA
+* 12x Canadian 550W + 1x Growatt 5K
+* 6,6 kWp · gera ~803 kWh/mês
+
+💰 Economia: ~R$ 508/mês na conta de luz
+✅ Projeto, homologação e instalação inclusos
+
+🛡️ GARANTIAS
+* Módulos: 25 anos de performance
+* Inversor: 10 anos
+* Estrutura: 10 anos
+* Instalação: 1 ano
+
+━━━━━━━━━━━━━━━━━━
+Investimento: R$ 28.900,00
+
+🏦 Financiamento (Carência de 90 dias · 1ª parcela em 03/02/2027):
+* Em 12x de R$ 2.409,00
+* Em 36x de R$ 1.250,00
+* Em 60x de R$ 1.234,56
+* Em 96x de R$ 775,00
+* Em 100x de R$ 766,00

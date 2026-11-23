@@ -37,6 +37,8 @@ export interface DadosModerno {
   inflacaoTaxaMinPct: number;
   pag: {
     investimento: number; precoAvista: number; vista: boolean; cartao: Parcela[]; fin: Parcela[];
+    /** Texto da carência do financiamento. Ausente = "120 dias de carência", como sempre foi. */
+    finCarencia?: string;
     entrada: { valor: number; restante: number; prazo: string } | null; custom: string;
   };
   prazoDias: number;

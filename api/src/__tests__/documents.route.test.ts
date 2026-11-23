@@ -899,6 +899,24 @@ describe('GET /documents/proposta-prefill', () => {
     });
   });
 
+  it('financiamento: a data da 1ª parcela nunca é arrastada; a parcela digitada fica fora do kit e vai só no prefill do cliente', async () => {
+    const dados = {
+      codigo: '20260010', fin_carencia_dias: 90, fin_primeira_parcela: '2027-01-13', fin_prazo_livre: 100, fin_parcela_manual_60: 1234.56,
+    };
+    await mockFontes([{ cliente_nome: 'João da Silva', created_at: '2026-09-10T12:00:00Z', dados_json: dados }], []);
+    const porCliente = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'joão da silva' }).set('Authorization', AUTH);
+    expect(porCliente.body.cliente.fin_primeira_parcela).toBeUndefined();
+    expect(porCliente.body.cliente.fin_carencia_dias).toBe(90);
+    expect(porCliente.body.cliente.fin_parcela_manual_60).toBe(1234.56);
+
+    await mockFontes([{ cliente_nome: 'João da Silva', created_at: '2026-09-10T12:00:00Z', dados_json: dados }], []);
+    const kit = await request(app).get('/documents/proposta-prefill').set('Authorization', AUTH);
+    expect(kit.body.kit.fin_primeira_parcela).toBeUndefined();
+    expect(kit.body.kit.fin_parcela_manual_60).toBeUndefined();
+    expect(kit.body.kit.fin_carencia_dias).toBe(90);
+    expect(kit.body.kit.fin_prazo_livre).toBe(100);
+  });
+
   it('telhado que a proposta não tem fica de fora', async () => {
     await mockFontes([], [{ nome: 'Jeziel', cidade: 'Campina Grande', uf: 'PB', endereco: null, tipo_telhado: 'Fibromadeira' }]);
 

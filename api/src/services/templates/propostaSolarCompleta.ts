@@ -25,7 +25,7 @@ import {
   propostaEmissao, propostaValidade, str,
 } from '../propostaSolarBase';
 import {
-  FIN_PRAZOS, NUM_ANOS, anoCivil, calcularFinanceiro, lerFioB, pBRLshort, serieFioB, svgBarrasMensais, svgCurvas25,
+  prazosFin, carenciaTextoFin, pBRLParcela, NUM_ANOS, anoCivil, calcularFinanceiro, lerFioB, pBRLshort, serieFioB, svgBarrasMensais, svgCurvas25,
   valorParcelaCartao, valorParcelaFin,
 } from '../propostaSolarCalculos';
 import {
@@ -451,7 +451,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
   const finOn = f.pag_fin !== false;
   const entradaOn = f.pag_entrada === true;
   const cartaoAtivos = Array.from({ length: 21 }, (_, i) => i + 1).filter((n) => f[`pag_cartao_${n}`] === true);
-  const finAtivos = FIN_PRAZOS.filter((n) => f[`pag_fin_${n}`] === true);
+  const finAtivos = prazosFin(f);
   const entradaValor = parseBRL(f.entrada_valor);
   const entradaRestante = investimento > 0 && entradaValor > 0 ? Math.max(0, investimento - entradaValor) : 0;
   const entradaModoRaw = String(f.entrada_modo || 'dias');
@@ -637,8 +637,8 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     ${dois.length ? `<div class="dois" style="margin-top:10px${dois.length === 1 ? ';grid-template-columns:1fr' : ''}">${dois.join('')}</div>` : ''}
     ${parcelasCartao.length ? `${sub('Cartão de crédito', 'Sem entrada')}
     <div class="pgrid">${parcelasCartao.map((x) => `<div class="pt"><span class="n">${x.n}× de</span><span class="v num">${pBRL(x.v)}</span></div>`).join('')}</div>` : ''}
-    ${parcelasFin.length ? `${sub('Financiamento bancário', '120 dias de carência')}
-    <div class="pgrid">${parcelasFin.map((x) => `<div class="pt"><span class="n">${x.n}× de</span><span class="v num">${pBRL(x.v)}</span></div>`).join('')}</div>` : ''}
+    ${parcelasFin.length ? `${sub('Financiamento bancário', carenciaTextoFin(f))}
+    <div class="pgrid">${parcelasFin.map((x) => `<div class="pt"><span class="n">${x.n}× de</span><span class="v num">${pBRLParcela(x.v)}</span></div>`).join('')}</div>` : ''}
     ${pagCustom ? `${sub('Condição especial')}
     <div class="hi"><div class="v t">${pEsc(pagCustom)}</div><div class="s">A combinar com o vendedor</div></div>` : ''}
     ${comBancos ? bancosHtml : ''}

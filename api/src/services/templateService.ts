@@ -8,12 +8,13 @@ import {
   coresModelo1, cssRaizModelo1, CSS_MODELO1, dadosContato, cabecalhoModelo1, analiseModelo1, linhaMk, linhasInversoresHtml, rodapeModelo1,
   type CompanyProposta,
 } from './templates/propostaSolarPartes';
+import { normalizarFinanciamento } from './propostaFinanciamento';
 import { propostaModernoHtml } from './templates/propostaModerno';
 import { fotoSegura, logoSegura } from './templates/propostaModernoPaginas';
 import { medidasLogo } from './templates/propostaModernoLogo';
 import { normalizarAssinatura, formatarCpf, formatarCnpj, CPF_OCULTO, documentoVazio } from '../utils/documentoBr';
 import {
-  FIN_PRAZOS, anoCivil, calcularFinanceiro, lerFioB, serieFioB,
+  prazosFin, carenciaTextoFin, financiamentoNovo, dataBaseFin, anoCivil, calcularFinanceiro, lerFioB, serieFioB,
   valorParcelaCartao as calcParcelaCartao, valorParcelaFin as calcParcelaFin,
 } from './propostaSolarCalculos';
 import {
@@ -93,6 +94,8 @@ export function generateFromTemplate(
   // emissão original). Não entra no dados_json. Sem ela, vale o dia da geração, como sempre.
   dataBase?: Date
 ): string {
+  // Financiamento: na hora de imprimir a carência é sempre a data da 1ª parcela - a base (o servidor grava assim também).
+  if (type === 'propostaSolar' || type === 'propostaOffGrid') fields = normalizarFinanciamento(fields, dataBaseFin(fields));
   const anterior = dataBaseAtual;
   dataBaseAtual = dataBase && !Number.isNaN(dataBase.getTime()) ? dataBase : null;
   try {
@@ -2327,11 +2330,11 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const finTaxa = (n: number) => { const v = parseFloat(String(f[`taxa_fin_${n}`] || '').replace(',', '.')); return v > 0 ? v : 2.20; };
   const cartaoTaxa = (n: number) => { const v = parseFloat(String(f[`taxa_cartao_${n}`] || '').replace(',', '.')); return v > 0 ? v : (TAXA_CARTAO_DEF[n] ?? 0); };
   let parcelaLabel = '';
-  const finAtivos = [36, 48, 60, 72, 84].filter((n) => f[`pag_fin_${n}`] === true);
+  const finAtivos = prazosFin(f);
   const cartaoAtivos = Array.from({ length: 21 }, (_, i) => i + 1).filter((n) => f[`pag_cartao_${n}`] === true);
   if (investimento > 0 && f.pag_fin !== false && finAtivos.length) {
     const n = Math.max(...finAtivos);
-    parcelaLabel = `ou ${n}× de ${brl(Math.ceil(pmtPriceCarencia(investimento, finTaxa(n) / 100, n, 4)))}`;
+    parcelaLabel = `ou ${n}× de ${brl(calcParcelaFin(f, investimento, n))}`;
   } else if (investimento > 0 && f.pag_cartao !== false && cartaoAtivos.length) {
     const n = Math.max(...cartaoAtivos);
     parcelaLabel = `ou ${n}× de ${brl(Math.ceil((investimento * (1 + cartaoTaxa(n) / 100)) / n))}`;
@@ -2441,7 +2444,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const investimento = parseBRL(f.investimento);
   const precoAvistaInput = parseBRL(f.preco_avista);
   const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
-  // Parcelas no cartão (1x a 21x) e financiamento Price (36 a 84x, 120 dias de carência):
+  // Parcelas no cartão (1x a 21x) e financiamento Price (prazos e carência em propostaFinanciamento.ts):
   // as contas moram em propostaSolarCalculos.ts, que o modelo Completo também usa.
   const valorParcelaCartao = (n: number): number => calcParcelaCartao(f, investimento, n);
   const valorParcelaFin = (n: number): number => calcParcelaFin(f, investimento, n);
@@ -2477,11 +2480,10 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   for (let n = 1; n <= 21; n++) {
     cartaoAtivo[n] = f[`pag_cartao_${n}` as keyof typeof f] === true;
   }
-  // Financiamento: 36/48/60/72/84. Form é a fonte de verdade — só lê o que veio.
+  // Financiamento: antigo 36 a 84; novo 12 a 96 mais "Outro prazo". Form é a fonte de verdade — só lê o que veio.
+  const finPrazosAtivos = prazosFin(f);
   const finAtivo: Record<number, boolean> = {};
-  for (const n of FIN_PRAZOS) {
-    finAtivo[n] = f[`pag_fin_${n}` as keyof typeof f] === true;
-  }
+  for (const n of finPrazosAtivos) finAtivo[n] = true;
   const pagOpts = {
     vista:  f.pag_vista === false ? false : true,
     cartao: f.pag_cartao === false ? false : true,
@@ -2607,8 +2609,9 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
       }
       if (pagOpts.fin) {
         const fs: string[] = [];
-        for (const n of FIN_PRAZOS) if (finAtivo[n]) { const v = valorParcelaFin(n); if (v > 0) fs.push(`* ${n}x: R$ ${brl2(v)}/mês`); }
-        if (fs.length) L.push('🏦 Financiamento (120 dias de carência):', ...fs, '');
+        const novoFin = financiamentoNovo(f);
+        for (const n of finPrazosAtivos) { const v = valorParcelaFin(n); if (v > 0) fs.push(novoFin ? `* Em ${n}x de R$ ${brl2(v)}` : `* ${n}x: R$ ${brl2(v)}/mês`); }
+        if (fs.length) L.push(`🏦 Financiamento (${carenciaTextoFin(f)}):`, ...fs, '');
       }
     }
     out.resumo = L.join('\n').trim();
@@ -2684,8 +2687,9 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
         ? Array.from({ length: 21 }, (_, i) => i + 1).filter((n) => cartaoAtivo[n]).map((n) => ({ n, valor: valorParcelaCartao(n) })).filter((p) => p.valor > 0)
         : [],
       fin: pagOpts.fin && investimento > 0
-        ? FIN_PRAZOS.filter((n) => finAtivo[n]).map((n) => ({ n: n as number, valor: valorParcelaFin(n) })).filter((p) => p.valor > 0)
+        ? finPrazosAtivos.map((n) => ({ n, valor: valorParcelaFin(n) })).filter((p) => p.valor > 0)
         : [],
+      finCarencia: carenciaTextoFin(f),
       entrada: pagOpts.entrada && investimento > 0 && entradaValor > 0 && entradaRestante > 0
         ? { valor: entradaValor, restante: entradaRestante, prazo: entradaPrazoLabel }
         : null,

@@ -7,7 +7,8 @@ import { generateFromTemplate, propostaDiasValidade, type Client } from '../serv
 import { empresaComLogoAjustada } from '../services/templates/logoAjuste';
 import { renovarUrlsPortfolio } from './portfolioController';
 import { normalizarAssinatura, normalizarCnpj, validarAssinatura } from '../utils/documentoBr';
-import { validarFioB } from '../services/propostaSolarCalculos';
+import { validarFioB, dataBaseFin } from '../services/propostaSolarCalculos';
+import { normalizarFinanciamento } from '../services/propostaFinanciamento';
 import { validarFioBNaProposta } from '../services/propostaSolarFioBCheck';
 import { linkExpiraEm } from '../services/propostaLink';
 import { checkLimit, incrementUsed } from '../services/planService';
@@ -320,6 +321,8 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // emitido_em só existe pra congelar a data de uma reemissão (ver regenerate).
     // Doc novo nasce hoje — e o prefill do kit/cliente pode arrastar o campo antigo.
     delete body.fields.emitido_em;
+    // Financiamento: carência = data da 1ª parcela - hoje, gravada assim (data fora da faixa é descartada).
+    if (body.tipo === 'propostaSolar' || body.tipo === 'propostaOffGrid') Object.assign(body.fields, normalizarFinanciamento(body.fields, dataBaseFin(body.fields)));
     // Link rastreado: o prefill pode arrastar a validade de OUTRA proposta. Só propostaSolar e propostaOffGrid recebem de novo, logo antes de salvar.
     delete body.fields.link_rastreado;
     delete body.fields.link_expira_em;
@@ -744,6 +747,8 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
       // junto — tem que sair, senão a proposta vencida congela na data velha.
       delete fields.emitido_em;
     }
+    // Financiamento: com a data de emissão já definida, carência = data da 1ª parcela - essa base, gravada assim.
+    if (ehProposta) Object.assign(fields, normalizarFinanciamento(fields, dataBaseFin(fields)));
 
     // Fio B contra a tarifa e a economia: com a data de emissão já definida (a mesma que a proposta imprime).
     if (body.modeloNumero === 4 && doc.tipo === 'propostaSolar') exigirFioBCabeNaProposta(fields, entity);
@@ -1587,13 +1592,16 @@ const CLIENTE_ONLY = new Set<string>([
 // faria a proposta nova nascer com a data da anterior.
 // `codigo` sai sempre: é o número impresso de OUTRA proposta. No prefill por cliente
 // ele entrava no formulário e podia acabar impresso de novo.
-const STRIP_ALWAYS = new Set<string>(['foto_telhado_b64', 'foto_logo_b64', 'emitido_em', 'codigo', 'link_rastreado', 'link_expira_em']);
+// `fin_primeira_parcela`: a data da 1ª parcela do financiamento é de um dia só (a proposta de onde veio); proposta nova calcula a dela.
+const STRIP_ALWAYS = new Set<string>(['foto_telhado_b64', 'foto_logo_b64', 'emitido_em', 'codigo', 'link_rastreado', 'link_expira_em', 'fin_primeira_parcela']);
 
 function limpaDados(d: Record<string, unknown>, soKit: boolean): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(d || {})) {
     if (STRIP_ALWAYS.has(k)) continue;
     if (soKit && CLIENTE_ONLY.has(k)) continue;
+    // Parcela digitada do financiamento é de um preço só: o kit nunca leva para outra proposta.
+    if (soKit && k.startsWith('fin_parcela_manual_')) continue;
     out[k] = v;
   }
   return out;
