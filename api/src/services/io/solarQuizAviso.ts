@@ -42,6 +42,7 @@ import { gravarCardAgora, gravarCardSolar, vagasSolar, rebaixarSaiuAMudo, type C
 import { estaBloqueado } from '../agents/whatsapp/silenciar';
 import { rotuloDaFaixa, decidirCaminho, DONA_SOLAR, MARCA_QUIZ, MARCA_SAIU, PONTOS_CURIOSO, CHAVE_PRIMEIRO_CONTATO, ehCardSaiu } from '../agenda/solarRota';
 import { TEL_AVISO } from './solarEquipe';
+import { chaveDescartadoSolar, marcaDescartaRascunho } from './solarDescarte';
 import { donoDoTelefone, telKeySolar } from './solarTelefone';
 import {
   horarioAgoraAberto, limparRespostas, limparRespostasExtra, calcularDiagnostico, montarObservacao, ymdBRT,
@@ -132,7 +133,7 @@ export async function apagarChave(chave: string): Promise<void> {
   try { await supabase.from('system_state').delete().eq('key', chave); } catch (err) { logger.error(LOG, `apagar ${chave.split(':')[0]} falhou`, err); }
 }
 
-async function gravarChave(chave: string, valor: Record<string, unknown>): Promise<void> {
+export async function gravarChave(chave: string, valor: Record<string, unknown>): Promise<void> {
   try {
     const { error } = await supabase.from('system_state').upsert({ key: chave, value: valor, updated_at: agoraIso() }, { onConflict: 'key' });
     if (error) logger.warn(LOG, `gravar ${chave.split(':')[0]} falhou`, error);
@@ -147,6 +148,20 @@ export async function listarChaves(prefixo: string, desdeMs?: number, limite = 5
     const { data, error } = await q.limit(limite);
     if (error) return null;
     return (data ?? []) as Linha[];
+  } catch { return null; }
+}
+
+/** As linhas destas chaves EXATAS (em lotes, sem teto de 500 linhas nem ordem). null = alguma leitura falhou. */
+export async function lerChavesPorNome(chaves: string[], lote = 100): Promise<Linha[] | null> {
+  const unicas = [...new Set(chaves)];
+  const out: Linha[] = [];
+  try {
+    for (let i = 0; i < unicas.length; i += lote) {
+      const { data, error } = await supabase.from('system_state').select('key, value, updated_at').in('key', unicas.slice(i, i + lote));
+      if (error) return null;
+      out.push(...((data ?? []) as Linha[]));
+    }
+    return out;
   } catch { return null; }
 }
 
@@ -560,10 +575,16 @@ async function cards(agora: number, r: ResultadoTick): Promise<void> {
     linhas = (data ?? []) as Array<Record<string, any>>;
   } catch (err) { logger.error(LOG, 'ler os rascunhos do quiz (cards) falhou', err); return; }
   if (!linhas.length) return;
-  const [saidas, feitos, abandonados] = await Promise.all([
+  // As marcas de descarte (23/11/2026): só as chaves dos telefones que esta rodada leu (listar por prefixo cortaria em 500 linhas, sem ordem).
+  const chavesDescarte = linhas.flatMap(row => {
+    const alvo = telKeySolar(row.whatsapp);
+    return alvo ? [chaveDescartadoSolar(alvo, row.form_id === FORM_QUIZ_TESTE)] : [];
+  });
+  const [saidas, feitos, abandonados, descartados] = await Promise.all([
     listarChaves(CHAVES.saiu, agora - LEADS_LIDOS), listarChaves(CHAVES.cardSaiu, agora - LEADS_LIDOS - 3_600_000), listarChaves(CHAVES.abandono, agora - LEADS_LIDOS),
+    lerChavesPorNome(chavesDescarte),
   ]);
-  if (!saidas || !feitos || !abandonados) return;   // sem ler os claims não cria (melhor esperar que duplicar)
+  if (!saidas || !feitos || !abandonados || !descartados) return;   // sem ler os claims não cria (melhor esperar que duplicar)
 
   const dentro = horarioAgoraAberto(agora);
   for (const row of linhas) {
@@ -588,6 +609,11 @@ async function cards(agora: number, r: ResultadoTick): Promise<void> {
     }
     const hid = hidratarLead(row);
     if (!hid) continue;   // rascunho do quiz antigo (sem os códigos)
+    // Descartado numa tentativa MAIS NOVA que o rascunho: sem card e sem abertura da Duda (vale a tentativa mais recente). A tentativa que
+    // passa depois apaga a marca (/quiz) e ainda grava um rascunho mais novo que ela. Sem horário para comparar, a marca vale sempre.
+    const alvoDescarte = telKeySolar(hid.tel);
+    const marcaDescarte = alvoDescarte ? descartados.find(x => x.key === chaveDescartadoSolar(alvoDescarte, teste)) : undefined;
+    if (marcaDescartaRascunho(!!marcaDescarte, (marcaDescarte?.value as { em?: string } | undefined)?.em, hid.atividadeMs)) continue;
     const { vence } = vencimentoDoLead(hid, saidas.find(x => x.key === CHAVES.saiu + lead));
     if (agora < vence) continue;
 

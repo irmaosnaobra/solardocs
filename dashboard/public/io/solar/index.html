@@ -69,7 +69,7 @@
 
   /* Barra de progresso inteligente */
   .barra{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:linear-gradient(var(--bg) 75%,transparent);border-radius:22px 22px 0 0}
-  .voltar{width:36px;height:36px;border-radius:10px;border:1px solid var(--linha);background:transparent;color:var(--text);display:grid;place-items:center;cursor:pointer;flex:none}
+  .voltar{width:44px;height:44px;border-radius:10px;border:1px solid var(--linha);background:transparent;color:var(--text);display:grid;place-items:center;cursor:pointer;flex:none}
   .voltar.oculto{visibility:hidden}
   .prog-wrap{flex:1;display:flex;flex-direction:column;gap:7px;min-width:0}
   .prog-top{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
@@ -91,7 +91,6 @@
   .dica svg{flex:none;margin-top:2px}
   .ops{display:flex;flex-direction:column;gap:10px;margin-top:2px}
   .op{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:15px 16px;min-height:54px;border:1.5px solid var(--linha-forte);border-radius:14px;background:rgba(255,255,255,.03);color:var(--text);font-size:16px;font-weight:600;cursor:pointer;transition:border-color .15s,background .15s}
-  .op:hover{border-color:var(--gold)}
   .op .bol{width:20px;height:20px;border-radius:50%;border:2px solid var(--linha-forte);flex:none}
   .op.sel{border-color:var(--gold);background:var(--sel)}
   .op.sel .bol{border-color:var(--gold);background:var(--gold);box-shadow:inset 0 0 0 4px var(--bg)}
@@ -100,13 +99,10 @@
   .campo::placeholder{color:var(--soft);font-weight:500}
   .sug{display:flex;flex-direction:column;gap:6px}
   .sug button{text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--linha);background:var(--surface);color:var(--text);font-size:15px;font-weight:600;cursor:pointer}
-  .sug button:hover{border-color:var(--gold)}
   .btn{display:block;width:100%;padding:16px 18px;border-radius:14px;border:0;background:var(--gold);color:var(--tinta);font-size:17px;font-weight:800;cursor:pointer;line-height:1.25;text-align:center;text-decoration:none}
-  .btn:hover{background:var(--gold-2)}
   .btn:disabled{background:rgba(255,255,255,.14);color:rgba(255,255,255,.55);cursor:not-allowed}
   .btn.sec{background:transparent;color:var(--text);border:1.5px solid var(--linha-forte);font-weight:700;font-size:16px}
-  .btn.sec:hover{border-color:var(--gold)}
-  .link{background:none;border:0;color:var(--mut);text-decoration:underline;text-underline-offset:3px;font-size:15px;cursor:pointer;padding:6px;align-self:center}
+  .link{background:none;border:0;color:var(--mut);text-decoration:underline;text-underline-offset:3px;font-size:15px;cursor:pointer;padding:6px 12px;min-height:44px;align-self:center}
   .nota-int{font-size:13.5px;color:var(--mut);text-align:center}
   .nota-int a{color:#fff;font-weight:700}
   .erro{color:var(--danger);font-size:14px;margin:0}
@@ -164,7 +160,7 @@
   .carrossel.prints .car-slide{text-align:center}
   .carrossel.prints .zoom{display:flex;justify-content:center}
   .carrossel.prints .car-slide img{aspect-ratio:auto;width:auto;max-width:100%;height:360px;object-fit:contain;background:var(--wa-bg);border:1px solid var(--linha)}
-  .car-seta{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;border:1px solid var(--linha-forte);background:rgba(10,26,51,.78);color:var(--text);display:grid;place-items:center;cursor:pointer}
+  .car-seta{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:1px solid var(--linha-forte);background:rgba(10,26,51,.78);color:var(--text);display:grid;place-items:center;cursor:pointer}
   .car-seta.ant{left:28px}
   .car-seta.prox{right:28px}
   .car-pontos{display:flex;justify-content:center;gap:6px;margin-top:10px}
@@ -197,8 +193,33 @@
   .dia{font-size:14px;font-weight:700;color:var(--mut);margin:4px 0 -4px}
   .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .slots button{padding:12px 0;border-radius:10px;border:1.5px solid var(--linha-forte);background:transparent;color:var(--text);font-weight:700;font-size:15px;cursor:pointer;font-variant-numeric:tabular-nums}
-  .slots button:hover{border-color:var(--gold);background:var(--sel)}
-  .slots button:disabled{opacity:.5;cursor:not-allowed}
+    .slots button:disabled{opacity:.5;cursor:not-allowed}
+
+  /* Hover só onde existe mouse: no toque ele grudava na opção da tela seguinte. */
+  @media (hover:hover){
+    .op:hover,.sug button:hover,.btn.sec:hover{border-color:var(--gold)}
+    .btn:not(.sec):not(:disabled):hover{background:var(--gold-2)}
+    .slots button:hover{border-color:var(--gold);background:var(--sel)}
+    .pq summary:hover{color:var(--text)}
+  }
+  .op:active{border-color:var(--gold)}
+
+  /* Barra fixa do resultado: a mesma ação do bloco final, só enquanto ele está fora da tela */
+  .fixo{position:fixed;left:0;right:0;bottom:0;z-index:20;transform:translateY(110%);transition:transform .25s ease;pointer-events:none}
+  .fixo.on{transform:none;pointer-events:auto}
+  .fixo-in{max-width:480px;margin:0 auto;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(10,26,51,.97);border-top:1px solid var(--linha-forte);display:flex;flex-direction:column;gap:6px;box-shadow:0 -12px 32px rgba(0,0,0,.4)}
+  .fixo-in span{font-size:13px;color:var(--mut);text-align:center;font-weight:600}
+  .fixo-in .btn{padding:14px 16px}
+  @media (min-width:520px){.fixo-in{border:1px solid var(--linha-forte);border-bottom:0;border-radius:18px 18px 0 0}}
+
+  /* Descarte pela conta */
+  .ic-sol{width:64px;height:64px;border-radius:50%;background:var(--sel);color:var(--gold);display:grid;place-items:center}
+  .pq{width:100%;text-align:left;border-radius:14px;border:1px solid var(--linha)}
+  .pq summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 14px;font-size:14.5px;font-weight:600;color:var(--mut)}
+  .pq summary::-webkit-details-marker{display:none}
+  .pq-i{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--gold);color:var(--gold);display:grid;place-items:center;font-size:12px;font-weight:800;flex:none}
+  .pq[open] summary{color:var(--text)}
+  .fim .pq p{padding:0 16px 14px;font-size:14.5px;color:var(--mut);text-align:center}
 
   @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 </style>
@@ -310,7 +331,8 @@ function caminhoAtual(){ return srv && srv.caminho ? srv.caminho : (R.conta ? 'r
 // ── Dados ─────────────────────────────────────────────────────────────────────
 // A 3ª coluna das contas é a MESMA do servidor (FAIXAS_CONTA em solarRota.ts), o meio da faixa, só para as dicas "cerca de R$ X por
 // ano" ANTES do diagnóstico (é a conta do próprio cliente, não preço de nada).
-const CONTAS = [['ate300','Até R$ 300',150],['300_600','R$ 300 a R$ 600',450],['600_1050','R$ 600 a R$ 1.050',825],['1050_2000','R$ 1.050 a R$ 2.000',1525],['2000_5000','R$ 2.000 a R$ 5.000',3500],['5000_mais','Mais de R$ 5.000',5001]];
+// 23/11/2026: 4 faixas. Abaixo de R$ 400 com consumo que não vai subir (aumento 'nao') o servidor descarta (motivo 'conta').
+const CONTAS = [['ate400','Menos de R$ 400',200],['400_800','R$ 400 a R$ 800',600],['800_1200','R$ 800 a R$ 1.200',1000],['1200_mais','Acima de R$ 1.200',1201]];
 const CONTA_DEPOIS = 99; // valor fixo do dono; só usado na dica do prazo (o resultado vem do servidor)
 const BLOCO_CLIENTE = { imovel:'Seu imóvel', dor:'Sua conta hoje', desejo:'Seus planos', diag:'Seu diagnóstico' };
 const ORDEM_BLOCOS = ['imovel','dor','desejo','diag'];
@@ -343,6 +365,8 @@ const ehMG = () => ufDaCidade() === 'MG';
 const conc = () => ehMG() ? 'a CEMIG' : 'a companhia de energia';
 const concNa = () => ehMG() ? 'na CEMIG' : 'na companhia de energia';
 const contaMes = () => { const c = CONTAS.find(c => c[0] === R.conta); return c ? c[2] : 0; };
+// Valor da conta em N meses, para as dicas. Na faixa de cima o meio não existe: vira "mais de" pelo piso, nunca um número menor que o real.
+const contaTxt = (meses, menos) => R.conta === '1200_mais' ? 'mais de ' + brl(Math.max(0, 1200 - (menos || 0)) * meses) : 'cerca de ' + brl(Math.max(0, contaMes() - (menos || 0)) * meses);
 
 // ── Passos ────────────────────────────────────────────────────────────────────
 // ops = [valor, texto na tela, texto curto]. Os valores são os que o servidor, a nota e a Duda leem.
@@ -351,10 +375,13 @@ const P = [
    ops:[['casa','Na minha casa','casa'],['empresa','No meu comércio ou empresa','empresa'],['rural','Na fazenda, chácara ou sítio','rural']] },
  { id:'conta', b:'imovel', campo:'conta', q:'Quanto vem a sua conta de luz por mês?', sub:'Pode ser a média dos últimos meses.',
    ops:CONTAS.map(c => [c[0], c[1], c[1]]) },
+ { id:'aumento', b:'imovel', campo:'aumento', q:'O seu consumo de energia vai aumentar?', sub:'Pense no que você pretende comprar ou ampliar.',
+   // As 4 chaves são as que o servidor conhece (folga no tamanho do sistema; 'nao' com conta abaixo de R$ 400 é descarte).
+   ops:() => [['clima','Ar-condicionado ou piscina','ar-condicionado ou piscina'],['maquinas', rural() ? 'Irrigação ou máquinas' : casa() ? 'Freezer ou geladeira a mais' : 'Máquinas ou ampliação','máquinas, freezer ou ampliação'],['carro','Carro elétrico','carro elétrico'],['nao','Não, vai continuar igual','não']] },
  { id:'cidade', b:'imovel', campo:'cidade', tipo:'cidade', q:'Em qual cidade fica o imóvel?',
-   dica:() => R.conta ? `Isso dá cerca de ${brl(contaMes() * 12)} por ano só de conta de luz.` : '' },
+   dica:() => R.conta ? `Isso dá ${contaTxt(12)} por ano só de conta de luz.` : '' },
  { id:'grupoa', b:'imovel', campo:'grupoa', q:'A sua conta tem a linha "Demanda contratada"?', sub:'Ela aparece na conta de quem é atendido em alta tensão.',
-   quando:() => R.tipo && R.tipo !== 'casa' && (R.conta === '2000_5000' || R.conta === '5000_mais'),
+   quando:() => R.tipo && R.tipo !== 'casa' && R.conta === '1200_mais',
    ops:[['sim','Sim, tem','sim'],['nao','Não tem','não'],['naosei','Não sei','não sabe']] },
  { id:'telhado', b:'imovel', campo:'telhado', q:() => rural() ? 'Onde as placas vão ficar?' : 'Como é o telhado?',
    dica:() => cidadeEhLista() ? `Boa notícia: ${cidadeNome()} tem sol forte o ano todo.` : '',
@@ -365,8 +392,6 @@ const P = [
    ops:[['sol','Sim, quase sem sombra','sol o dia todo'],['alguma','Tem alguma sombra (árvore, prédio, caixa d’água)','alguma sombra'],['naosei','Não sei dizer','sombra: não sabe']] },
  { id:'imovel', b:'imovel', campo:'imovel', q:'O imóvel é seu?',
    ops:[['proprio','Sim, é meu','próprio'],['alugado','É alugado','alugado'],['construcao','Está em construção','em construção']] },
- { id:'aumento', b:'imovel', campo:'aumento', q:'Vai aumentar o consumo de energia nos próximos anos?',
-   ops:() => [['clima','Sim, ar-condicionado ou piscina','ar-condicionado ou piscina'],['carro','Sim, carro elétrico','carro elétrico'],['maquinas', rural() ? 'Sim, irrigação ou máquinas' : 'Sim, máquinas ou ampliação','máquinas, irrigação ou ampliação'],['nao','Não, deve ficar igual','não']] },
  { id:'dor', b:'dor', campo:'dor', q:'O que mais pesa na sua conta de luz hoje?',
    ops:() => casa()
      ? [['sobe','Ela sobe todo ano','a conta sobe todo ano'],['bandeira','A bandeira vermelha vem de surpresa','bandeira vermelha de surpresa'],['evito','Evito ligar o ar-condicionado por causa dela','evita ligar o ar-condicionado'],['sobra','Sobra pouco para outras coisas','sobra pouco no mês']]
@@ -375,7 +400,7 @@ const P = [
    ops:[['agora','Comecei a pensar agora','começou agora'],['meses','Há alguns meses','há alguns meses'],['ano','Há mais de 1 ano','há mais de 1 ano']] },
  { id:'travou', b:'dor', campo:'travou', q:'O que te fez esperar até agora?',
    quando:() => R.tempo && R.tempo !== 'agora',
-   dica:() => R.conta ? (R.tempo === 'ano' ? `Em 1 ano, foram cerca de ${brl(contaMes() * 12)} para ${conc()}.` : `Em 6 meses, são cerca de ${brl(contaMes() * 6)} para ${conc()}.`) : '',
+   dica:() => R.conta ? (R.tempo === 'ano' ? `Em 1 ano, foram ${contaTxt(12)} para ${conc()}.` : `Em 6 meses, são ${contaTxt(6)} para ${conc()}.`) : '',
    ops:[['caro','Achei que era caro','achou caro'],['valia','Não sabia se valia a pena','não sabia se valia a pena'],['confianca','Não confiei nas empresas que vi','não confiou nas empresas'],['tempo','Faltou tempo para pesquisar','faltou tempo']] },
  { id:'desejo', b:'desejo', campo:'desejo', q:'Se a conta caísse para quase nada, o que você faria com esse dinheiro?',
    ops:() => casa()
@@ -385,7 +410,7 @@ const P = [
    ops:[['parcela','Uma parcela que caiba no bolso','parcela que caiba no bolso'],['garantia','Garantia e segurança','garantia e segurança'],['rapidez','Instalar rápido','instalar rápido'],['regiao','Empresa da região, com obra para mostrar','empresa da região']] },
  { id:'urgencia', b:'desejo', campo:'urgencia', q:'Quando você quer começar a economizar?',
    // Sem a dica no Grupo A: a demanda contratada continua sendo cobrada, então "a conta cai" não vale.
-   dica:() => (R.conta && R.grupoa !== 'sim') ? `Cada mês sem energia solar são cerca de ${brl(Math.max(0, contaMes() - CONTA_DEPOIS))} que ficam com ${conc()}.` : '',
+   dica:() => (R.conta && R.grupoa !== 'sim') ? `Cada mês sem energia solar são ${contaTxt(1, CONTA_DEPOIS)} que ficam com ${conc()}.` : '',
    ops:[['ja','O quanto antes, este mês','o quanto antes'],['3meses','Nos próximos 3 meses','3 meses'],['pesquisando','Ainda estou pesquisando','pesquisando']] },
  { id:'pagamento', b:'desejo', campo:'pagamento', q:'Como você prefere pagar?',
    ops:[['vista','À vista','à vista'],['financiamento','Financiado, com a parcela no lugar da conta','financiamento'],['cartao','Cartão em até 21x','cartão 21x'],['naosei','Ainda não sei','não sabe']] },
@@ -463,6 +488,7 @@ const IC = {
   voltar:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
   sol:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>',
   ok:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  solG:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>',
   okG:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
 };
 
@@ -514,30 +540,35 @@ function telaResultado(){
   const curioso = !!(srv && (srv.curioso === true || srv.caminho === 'curioso'));
   const dentro = !!(srv && srv.horario_agora === true) && !curioso;
   const dono = (srv && srv.dono) || 'Nilce';
-  // Lead descartado pelo servidor (nota abaixo de 70 ou cidade fora das 114 da região): vê o diagnóstico, mas nenhum texto promete
+  // Lead descartado pelo servidor (nota abaixo de 70, cidade fora das 114 da região, ou conta abaixo de R$ 400 sem aumento: esta tem tela própria): vê o diagnóstico, mas nenhum texto promete
   // conversa, ligação ou especialista, e no lugar dos botões vem o fecho do motivo. Quem NÃO é descartado segue o caminho de sempre.
   const desc = !!(srv && srv.descartado === true);
+  // Descarte pela conta (abaixo de R$ 400 e o consumo não vai subir): tela própria, curta, sem número nenhum. Mostrar economia aqui seria prometer.
+  if (desc && srv.motivo === 'conta') return telaDescConta();
   const semEsp = t => (desc && /especialista|conversa|avalia[cç]|liga[cç]/i.test(t || '')) ? '' : (t || '');
   const solo = R.telhado === 'solo';
   const temEco = !!g && g.economia_mes != null && g.economia_ano != null;   // Grupo A: o servidor devolve economia null
   const eco = temEco ? brl(g.economia_mes) : '', ecoAno = temEco ? brl(g.economia_ano) : '';
+  // Faixa aberta em cima ("Acima de R$ 1.200"): todo número do diagnóstico é um PISO e a frase diz "mais de", nunca um valor cravado.
+  const piso = !!g && (g.piso === true || R.conta === '1200_mais');
+  const cerca = piso ? 'mais de' : 'cerca de', maisDe = piso ? 'mais de ' : '', MaisDe = piso ? 'Mais de ' : '';
   const linhaDor = ({
     sobe: 'Você disse que a conta sobe todo ano. Com as placas, a maior parte da energia passa a ser sua, e o reajuste pesa só no que sobra.',
     bandeira: 'Você disse que a bandeira vermelha vem de surpresa. Com as placas, ela pesa só no pouco que ainda vem da rede.',
     evito: 'Você disse que evita ligar o ar-condicionado por causa da conta. Com o sistema certo, ligar o ar deixa de ser um susto no fim do mês.',
-    sobra: temEco ?`Você disse que sobra pouco para outras coisas. São cerca de ${eco} por mês que voltam para o seu bolso.` : 'Você disse que sobra pouco para outras coisas. Com as placas, parte desse dinheiro volta para o seu bolso.',
-    margem: temEco ?`Você disse que a energia come a margem do negócio. São cerca de ${eco} por mês que voltam para o caixa.` : 'Você disse que a energia come a margem do negócio. Com as placas, parte desse dinheiro volta para o caixa.',
+    sobra: temEco ?`Você disse que sobra pouco para outras coisas. São ${cerca} ${eco} por mês que voltam para o seu bolso.` : 'Você disse que sobra pouco para outras coisas. Com as placas, parte desse dinheiro volta para o seu bolso.',
+    margem: temEco ?`Você disse que a energia come a margem do negócio. São ${cerca} ${eco} por mês que voltam para o caixa.` : 'Você disse que a energia come a margem do negócio. Com as placas, parte desse dinheiro volta para o caixa.',
     planejar: 'Você disse que não consegue planejar esse custo. Com as placas, a maior parte dele fica previsível.'
   })[R.dor] || '';
   const linhaDesejo = temEco ? ({
-    reformar: `Com cerca de ${ecoAno} por ano, dá para tirar a reforma do papel.`,
-    contas: `São cerca de ${eco} por mês livres para as outras contas.`,
-    guardar: `Guardando ${eco} por mês, em 5 anos são cerca de ${brl(g.economia_ano * 5)}.`,
-    viajar: `São cerca de ${ecoAno} por ano para viajar com a família.`,
+    reformar: `Com ${cerca} ${ecoAno} por ano, dá para tirar a reforma do papel.`,
+    contas: `São ${cerca} ${eco} por mês livres para as outras contas.`,
+    guardar: `Guardando ${maisDe}${eco} por mês, em 5 anos são ${cerca} ${brl(g.economia_ano * 5)}.`,
+    viajar: `São ${cerca} ${ecoAno} por ano para viajar com a família.`,
     conforto: 'E dá para usar o ar-condicionado sem pensar na conta.',
-    negocio: `São cerca de ${ecoAno} por ano para investir no negócio.`,
-    producao: `São cerca de ${ecoAno} por ano para investir na produção.`,
-    lucro: `São cerca de ${ecoAno} por ano que viram lucro.`
+    negocio: `São ${cerca} ${ecoAno} por ano para investir no negócio.`,
+    producao: `São ${cerca} ${ecoAno} por ano para investir na produção.`,
+    lucro: `São ${cerca} ${ecoAno} por ano que viram lucro.`
   })[R.desejo] || '' : ({
     reformar: 'O especialista mostra quanto sobra para tirar a reforma do papel.',
     contas: 'O especialista mostra quanto fica livre para as outras contas.',
@@ -551,7 +582,7 @@ function telaResultado(){
   const travouVis = visiveis().some(p => p.id === 'travou');
   const linhaTravou = travouVis ? ({
     caro: desc ? 'Você achou que era caro. No financiamento, a parcela pode ficar perto do valor da conta.' : 'Você achou que era caro. No financiamento, a parcela pode ficar perto do valor da conta, e o especialista simula com você.',
-    valia: temEco ?`Vale a pena: são cerca de ${ecoAno} por ano que ficam com você.` : 'Vale a pena: o especialista mostra quanto volta para você por ano.',
+    valia: temEco ?`Vale a pena: são ${cerca} ${ecoAno} por ano que ficam com você.` : 'Vale a pena: o especialista mostra quanto volta para você por ano.',
     confianca: desc ? '' : 'Você não confiou nas empresas que viu. Por isso, antes de qualquer proposta, a gente mostra obras reais da sua região.',
     tempo: 'O especialista resolve tudo com você em uma conversa rápida.'
   })[R.travou] || '' : '';
@@ -570,11 +601,13 @@ function telaResultado(){
   else if (R.telhado) obsTelhado = `Telhado de ${lbl('telhado')} com sol o dia todo: ótimo para as placas.`;
 
   const inicial = dono.charAt(0);
-  let cta;
+  let cta, fixo = '';
   if (dentro){
     cta = `<div class="quem"><span class="av">${esc(inicial)}</span><span><strong>${esc(dono)}</strong> está disponível agora para falar com você.</span></div><button class="btn" id="btnAgora" data-acao="agora" type="button">Quero falar com um especialista agora</button><button class="link" data-acao="horarios" type="button">Prefiro escolher um horário</button>`;
+    fixo = `<span>${esc(dono)} está disponível agora</span><button class="btn" data-acao="agora" type="button" tabindex="-1">Falar com um especialista agora</button>`;
   }else if (curioso){
     cta = `<div class="quem"><span class="av">${esc(inicial)}</span><span>Converse com <strong>${esc(dono)}</strong>, especialista em energia solar.</span></div><button class="btn" data-acao="horarios" type="button">Escolher meu horário</button>`;
+    fixo = `<span>Ligação de 15 minutos com ${esc(dono)}</span><button class="btn" data-acao="horarios" type="button" tabindex="-1">Escolher meu horário</button>`;
   }else{
     // Fora do horário: o primeiro horário livre que o servidor já mandou (srv.dias) vem pronto para confirmar em um toque.
     // Sem horário (lista vazia ou fora do formato), o bloco fica como sempre foi.
@@ -582,8 +615,10 @@ function telaResultado(){
     if (vaga){
       const donoV = vaga.dono || dono;
       cta = `<div class="quem"><span class="av">${esc(donoV.charAt(0) || inicial)}</span><span>${esc(donoV)} pode te ligar ${esc(quandoTxt(vaga.ymd, vaga.h))}, pelo WhatsApp. A ligação dura 15 minutos.</span></div><button class="btn" id="btnSugerido" data-acao="sugerido" data-ymd="${esc(vaga.ymd)}" data-h="${esc(vaga.h)}" data-dono="${esc(vaga.dono || '')}" type="button">Confirmar esse horário</button><button class="link" data-acao="horarios" type="button">Escolher outro horário</button>`;
+      fixo = `<span>${esc(donoV)} te liga ${esc(quandoTxt(vaga.ymd, vaga.h))}</span><button class="btn" data-acao="sugerido" data-ymd="${esc(vaga.ymd)}" data-h="${esc(vaga.h)}" data-dono="${esc(vaga.dono || '')}" type="button" tabindex="-1">Confirmar esse horário</button>`;
     }else{
       cta = `<div class="quem"><span class="av">${esc(inicial)}</span><span>${esc(dono)} atende de segunda a sexta, das 7h às 18h, e no sábado, das 7h ao meio-dia. Escolha o melhor horário.</span></div><button class="btn" data-acao="horarios" type="button">Escolher meu horário</button>`;
+      fixo = `<span>Ligação de 15 minutos com ${esc(dono)}</span><button class="btn" data-acao="horarios" type="button" tabindex="-1">Escolher meu horário</button>`;
     }
   }
 
@@ -597,29 +632,29 @@ function telaResultado(){
 
   let manchete;
   if (g && !semDepois) manchete = `${esc(primeiroNome())}, sua conta de luz pode cair para <em>${brlC(g.conta_depois)}</em>`;
-  else if (temEco) manchete = `${esc(primeiroNome())}, você pode economizar cerca de <em>${eco} por mês</em>`;
+  else if (temEco) manchete = `${esc(primeiroNome())}, você pode economizar ${cerca} <em>${eco} por mês</em>`;
   else if (g) manchete = `${esc(primeiroNome())}, o seu sistema solar está <em>calculado</em>`;
   else manchete = `${esc(primeiroNome())}, o seu diagnóstico solar está pronto`;
 
   let corpoDiag = '';
   if (g){
     corpoDiag = `<div class="hoje">
-      <div class="lin"><span>Hoje você paga</span><strong>${brl(g.conta_mes)} por mês</strong></div>
-      <div class="lin"><span>Por ano, para ${conc()}</span><strong>${brl(g.ano)}</strong></div>
-      <div class="lin"><span>Em 5 anos, sem contar reajustes</span><strong>${brl(g.cinco_anos)}</strong></div>
-      ${R.tempo === 'ano' ? `<div class="lin"><span>Desde que você pensa em solar</span><strong>mais de ${brl(g.ano)}</strong></div>` : R.tempo === 'meses' ? `<div class="lin"><span>Desde que você pensa em solar</span><strong>cerca de ${brl(g.ano / 2)}</strong></div>` : ''}
+      <div class="lin"><span>Hoje você paga</span><strong>${maisDe}${brl(piso ? g.conta_mes - 1 : g.conta_mes)} por mês</strong></div>
+      <div class="lin"><span>Por ano, para ${conc()}</span><strong>${maisDe}${brl(piso ? g.ano - 12 : g.ano)}</strong></div>
+      <div class="lin"><span>Em 5 anos, sem contar reajustes</span><strong>${maisDe}${brl(piso ? g.cinco_anos - 60 : g.cinco_anos)}</strong></div>
+      ${R.tempo === 'ano' ? `<div class="lin"><span>Desde que você pensa em solar</span><strong>mais de ${brl(piso ? g.ano - 12 : g.ano)}</strong></div>` : R.tempo === 'meses' ? `<div class="lin"><span>Desde que você pensa em solar</span><strong>${cerca} ${brl((piso ? g.ano - 12 : g.ano) / 2)}</strong></div>` : ''}
     </div>
     <p class="tit-sec">Sistema indicado${R.cidade ? ' para ' + esc(cidadeNome()) : ''}</p>
     <div class="nums">
-      <div class="num"><b>${num(g.placas)}</b><span>placas solares</span></div>
-      <div class="num"><b>${num(g.kwp, 1)} kWp</b><span>de potência</span></div>
-      <div class="num"><b>${num(g.area_m2)} m²</b><span>${solo ? 'de terreno' : 'de telhado'}</span></div>
-      <div class="num"><b>${num(g.geracao_kwh_mes)} kWh</b><span>gerados por mês</span></div>
+      <div class="num"><b>${num(g.placas)}</b><span>placas solares${piso ? ', no mínimo' : ''}</span></div>
+      <div class="num"><b>${num(g.kwp, 1)} kWp</b><span>de potência${piso ? ', no mínimo' : ''}</span></div>
+      <div class="num"><b>${num(g.area_m2)} m²</b><span>${solo ? 'de terreno' : 'de telhado'}${piso ? ', no mínimo' : ''}</span></div>
+      <div class="num"><b>${num(g.geracao_kwh_mes)} kWh</b><span>gerados por mês${piso ? ', no mínimo' : ''}</span></div>
     </div>
     ${desc
-      ? (temEco ? `<div class="eco"><span class="rot">Economia estimada</span><b>${eco} por mês</b><span>${ecoAno} por ano.${semDepois ? '' : ` A conta passa a ser de ${brlC(g.conta_depois)} por mês, só a taxa mínima e a iluminação pública.`}</span></div>` : '')
+      ? (temEco ? `<div class="eco"><span class="rot">Economia estimada</span><b>${MaisDe}${eco} por mês</b><span>${MaisDe}${ecoAno} por ano.${semDepois ? '' : ` A conta passa a ser de ${brlC(g.conta_depois)} por mês, só a taxa mínima e a iluminação pública.`}</span></div>` : '')
       : temEco
-      ? `<div class="eco"><span class="rot">Economia estimada</span><b>${eco} por mês</b><span>${ecoAno} por ano. ${semDepois ? 'O especialista confere a tarifa certa antes da proposta.' : `A conta passa a ser de ${brlC(g.conta_depois)} por mês, só a taxa mínima e a iluminação pública.`}</span></div>`
+      ? `<div class="eco"><span class="rot">Economia estimada</span><b>${MaisDe}${eco} por mês</b><span>${MaisDe}${ecoAno} por ano. ${semDepois ? 'O especialista confere a tarifa certa antes da proposta.' : `A conta passa a ser de ${brlC(g.conta_depois)} por mês, só a taxa mínima e a iluminação pública.`}</span></div>`
       : '<div class="eco"><span class="rot">Economia estimada</span><span>O especialista calcula a sua economia com a demanda contratada.</span></div>'}`;
   }
 
@@ -643,6 +678,18 @@ function telaResultado(){
     ${confia ? '' : social}
     ${desc ? fecho : `<div class="cta">${cta}<p class="cta-fala">“Me explicaram muito bem como funciona o sistema e está funcionando a todo vapor.” <b>Denivan, cliente</b></p></div>
     <p class="estim">Estimativa. O especialista confirma os números na avaliação.</p>`}
+  </div>${desc ? '' : `<div class="fixo" id="fixo" aria-hidden="true" inert><div class="fixo-in">${fixo}</div></div>`}`;
+}
+
+// ── Descarte pela conta ───────────────────────────────────────────────────────
+// Sem barra de progresso (não há diagnóstico para mostrar), sem preço, sem economia e sem número inventado. O "por quê" fica no (?).
+function telaDescConta(){
+  return `<div class="fim desc-conta">
+    <span class="ic-sol">${IC.solG}</span>
+    <h2>${esc(primeiroNome())}, com o consumo de hoje, a energia solar ainda não compensa para você</h2>
+    <p>Quando a sua conta de luz subir, refaça o diagnóstico. Leva 1 minuto.</p>
+    <details class="pq"><summary><span class="pq-i" aria-hidden="true">?</span>Por que não compensa agora?</summary><p>As placas se pagam com o que deixa de ir para a conta de luz. Com uma conta menor, esse retorno demora mais para chegar.</p></details>
+    ${IG}
   </div>`;
 }
 
@@ -734,6 +781,7 @@ function render(){
   const pb = tela.querySelector('.prog b');
   if (pb){ const alvo = pb.dataset.pct; requestAnimationFrame(() => requestAnimationFrame(() => { pb.style.width = alvo + '%'; })); ultimoPct = +alvo; }
   ligarCarrosseis();
+  ligarFixo();
   if (idFunil && !vistos.has(idFunil)){ vistos.add(idFunil); lpFunil('quiz_passo', { passo: idFunil, n, de }); }
   if (!primeiraTela){
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -822,7 +870,6 @@ function botao(id, rot, desligado){ const b = $(id); if (!b) return; if (rot != 
 // chama de novo (voltar e avançar refaz a vitrine e o "agora").
 async function verDiagnostico(){
   if (ocupado) return;
-  trackTel('quiz_whatsapp');
   ocupado = true; botao('btnTel', 'Montando o seu diagnóstico...', true);
   try{
     const { status, j } = await postar('/io/solar/quiz', corpoBase());
@@ -831,7 +878,8 @@ async function verDiagnostico(){
     srv = j;
     // Descartado: mostra o diagnóstico com o fecho, sem pixel e sem nada que prometa contato. Fica "sem card" de propósito: o aviso de saída também não vale.
     if (j.descartado === true){ hist.push('whatsapp'); fase = 'resultado'; render(); return; }
-    trackTel('quiz_whatsapp_ok');
+    // 23/11/2026: o LPsolar_quiz_whatsapp saía antes da resposta e contava o descartado. Agora só sai para quem passou.
+    trackTel('quiz_whatsapp'); trackTel('quiz_whatsapp_ok');
     if (j.jaMarcado){ cardMarcado = true; return fimDoQuiz('ja_marcado'); }
     if (j.semVitrine){ cardMarcado = true; return fimDoQuiz('sem_vitrine'); }
     hist.push('whatsapp'); fase = 'resultado'; trackTel('quiz_resultado'); render();
@@ -923,6 +971,25 @@ function avisarSaida(motivo){
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') avisarSaida('hidden'); });
 window.addEventListener('pagehide', () => avisarSaida('pagehide'));
+
+// ── Barra fixa do resultado ───────────────────────────────────────────────────
+// O resultado é longo (diagnóstico, obras, clientes) e o botão da agenda fica no fim. A barra repete a MESMA ação do bloco final e
+// aparece só entre a manchete e esse bloco: some quando a manchete ou o bloco real estão na tela. A agenda continua sendo o último passo.
+let fixoObs = null;
+function ligarFixo(){
+  if (fixoObs){ fixoObs.disconnect(); fixoObs = null; }
+  const f = $('fixo'), topo = tela.querySelector('.res-h'), fimEl = tela.querySelector('.cta');
+  if (!f || !topo || !fimEl || !('IntersectionObserver' in window)) return;
+  const vis = new Map();
+  fixoObs = new IntersectionObserver(es => {
+    es.forEach(e => vis.set(e.target, e.isIntersecting || e.boundingClientRect.top < 0 && e.target === fimEl));
+    const mostra = !vis.get(topo) && !vis.get(fimEl) && topo.getBoundingClientRect().top < 0;
+    f.classList.toggle('on', mostra);
+    f.toggleAttribute('inert', !mostra); f.setAttribute('aria-hidden', String(!mostra));
+    f.querySelectorAll('button').forEach(b => { b.tabIndex = mostra ? 0 : -1; });
+  });
+  fixoObs.observe(topo); fixoObs.observe(fimEl);
+}
 
 // ── Carrossel: passa sozinho a cada 4 s, para quando a pessoa mexe ────────────
 let carTimers = [];

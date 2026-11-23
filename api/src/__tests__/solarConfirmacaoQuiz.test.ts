@@ -15,7 +15,7 @@ import { decidirCaminho } from '../services/agenda/solarRota';
 const Q = '2026-10-13T09:00:00-03:00';   // terça 13/10, 09:00
 
 // A ficha de verdade, do mesmo jeito que o quiz grava.
-const R = limparRespostas({ conta: '2000_5000', cidade: 'Catalão-GO', urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', concorrente: 'sim', tipo: 'empresa' });
+const R = limparRespostas({ conta: '1200_mais', cidade: 'Catalão-GO', urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', concorrente: 'sim', tipo: 'empresa' });
 const OBS = montarObservacao(R, decidirCaminho(R), null);
 
 describe('confirmação do quiz solar: a Duda abre a conversa', () => {

@@ -57,7 +57,7 @@ const SEXTA_14H = brt('2026-10-23', '14:00');
 const MIN = 60_000;
 
 const RESP_BOA = {
-  conta: '600_1050', cidade: 'Uberlândia-MG', tipo: 'casa', imovel: 'proprio', urgencia: 'ja', concorrente: 'sim', pagamento: 'vista', decisor: 'eu', grupoa: 'nao',
+  conta: '800_1200', cidade: 'Uberlândia-MG', tipo: 'casa', imovel: 'proprio', urgencia: 'ja', concorrente: 'sim', pagamento: 'vista', decisor: 'eu', grupoa: 'nao',
   telhado: 'ceramica', sombra: 'sol', aumento: 'nao', dor: 'sobe', tempo: 'meses', travou: 'caro', desejo: 'viajar', criterio: 'parcela',
 };
 const RESP_CURIOSA = { ...RESP_BOA, urgencia: 'pesquisando', decisor: 'outro', pagamento: 'naosei', imovel: 'alugado', concorrente: 'nao' };
@@ -151,39 +151,63 @@ describe('a vitrine do quiz (grade nova, só a Nilce)', () => {
 describe('o diagnóstico (sem preço)', () => {
   it('a conta que fica é R$ 99, a economia é o resto, e o kWh é o mesmo da ficha', () => {
     const d = calcularDiagnostico(limparRespostas(RESP_BOA), limparRespostasExtra(RESP_BOA))!;
-    expect(d.conta_mes).toBe(825);
-    expect(d.kwh_mes).toBe(786);                    // 825 / 1,05, a régua da ficha
+    expect(d.conta_mes).toBe(1000);
+    expect(d.kwh_mes).toBe(952);                    // 1000 / 1,05, a régua da ficha
     expect(d.conta_depois).toBe(99);
-    expect(d.economia_mes).toBe(726);
-    expect(d.economia_ano).toBe(726 * 12);
-    expect(d.ano).toBe(825 * 12);
-    expect(d.cinco_anos).toBe(825 * 60);
+    expect(d.economia_mes).toBe(901);
+    expect(d.economia_ano).toBe(901 * 12);
+    expect(d.ano).toBe(1000 * 12);
+    expect(d.cinco_anos).toBe(1000 * 60);
     expect(d.placas).toBeGreaterThanOrEqual(4);
     expect(d.kwp).toBeCloseTo(d.placas * 0.61, 2);
     expect(d.area_m2).toBe(Math.round(d.placas * 2.7));
     expect(d.geracao_kwh_mes).toBeGreaterThanOrEqual(d.kwh_mes);   // gera o que ela consome, ou mais
   });
   it('conta pequena tem no mínimo 4 placas; aumento de consumo pede mais placas', () => {
-    const peq = calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta: 'ate300' }), null)!;
+    const peq = calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta: 'ate400' }), null)!;
     expect(peq.placas).toBe(4);
-    const base = calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta: '2000_5000' }), { aumento: 'nao' })!;
-    const mais = calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta: '2000_5000' }), { aumento: 'carro' })!;
+    const base = calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta: '1200_mais' }), { aumento: 'nao' })!;
+    const mais = calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta: '1200_mais' }), { aumento: 'carro' })!;
     expect(mais.placas).toBeGreaterThan(base.placas);
   });
   it('Grupo A: conta_depois é null (a demanda continua sendo cobrada)', () => {
-    const d = calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta: '2000_5000', grupoa: 'sim' }), null)!;
+    const d = calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta: '1200_mais', grupoa: 'sim' }), null)!;
     expect(d.conta_depois).toBeNull();
     expect(d.economia_mes).toBeNull();
     expect(d.economia_ano).toBeNull();
     expect(d.placas).toBeGreaterThanOrEqual(4);     // placas, kWp, área e geração continuam
     expect(d.kwp).toBeGreaterThan(0); expect(d.area_m2).toBeGreaterThan(0); expect(d.geracao_kwh_mes).toBeGreaterThan(0);
   });
+  it('faixa aberta em cima (1200_mais e a legada 5000_mais) marca o diagnóstico como piso; as outras não têm a chave', () => {
+    expect(calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta: '1200_mais' }), null)).toMatchObject({ piso: true, conta_mes: 1201, economia_mes: 1102 });
+    expect(calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta: '5000_mais' }), null)?.piso).toBe(true);
+    for (const conta of ['ate400', '400_800', '800_1200', '2000_5000']) {
+      expect(calcularDiagnostico(limparRespostas({ ...RESP_BOA, conta }), null)).not.toHaveProperty('piso');
+    }
+  });
+  it('1200_mais nos textos: nunca crava R$ 1.201; diz "mais de" e "a partir de"', () => {
+    const resp = limparRespostas({ ...RESP_BOA, conta: '1200_mais' });
+    const diag = calcularDiagnostico(resp, null)!;
+    const extra = limparRespostasExtra(RESP_BOA);
+    const d = { nome: 'Ana Souza', tel: '5534991112222', nota: 93, cidadeUf: 'Uberlândia-MG', resp, extra, diag, kwh: diag.kwh_mes };
+    const abertura = aberturaSugerida(d);
+    expect(abertura).not.toContain('1.201');
+    expect(abertura).toContain('dá para economizar mais de R$ 1.102 por mês.');
+    const ficha = fichaDoAviso(d).join('\n');
+    expect(ficha).not.toContain('1.201');
+    expect(ficha).toMatch(/Diagnóstico: a partir de \d+ placas, [\d,]+ kWp, economia de mais de R\$ 1\.102 por mês/);
+    expect(ficha).toContain('Consumo: a partir de 1.144 kWh');
+    expect(avisoAgora(d, '14:05', 'C')).not.toContain('1.201');
+    // Faixa fechada segue "cerca de".
+    const normal = aberturaSugerida({ nome: d.nome, cidadeUf: d.cidadeUf, extra, diag: calcularDiagnostico(limparRespostas(RESP_BOA), null) });
+    expect(normal).toContain('cerca de R$ 901 por mês');
+  });
   it('Grupo A nos textos: o diagnóstico sai sem economia e com "Grupo A: conferir a demanda"', () => {
-    const resp = limparRespostas({ ...RESP_BOA, conta: '2000_5000', grupoa: 'sim' });
+    const resp = limparRespostas({ ...RESP_BOA, conta: '1200_mais', grupoa: 'sim' });
     const diag = calcularDiagnostico(resp, null);
     const t = avisoAgora({ nome: 'Ana Souza', tel: '5534991112222', nota: 93, cidadeUf: 'Uberlândia-MG', resp, extra: limparRespostasExtra(RESP_BOA), diag, kwh: 3000 }, '14:05', 'C');
     const linha = t.split('\n').find(l => l.startsWith('Diagnóstico:'))!;
-    expect(linha).toMatch(/^Diagnóstico: \d+ placas, [\d,]+ kWp · Grupo A: conferir a demanda$/);
+    expect(linha).toMatch(/^Diagnóstico: a partir de \d+ placas, [\d,]+ kWp · Grupo A: conferir a demanda$/);   // 1200_mais é faixa aberta: piso
     expect(linha).not.toContain('economia');
     expect(t).not.toContain('dá para economizar');
     const obs = montarObservacao(resp, decidirCaminho(resp, null, 'x'), null, false, { diag });
@@ -196,8 +220,9 @@ describe('as chaves e os valores antigos continuam valendo', () => {
   it('limparRespostas devolve só as chaves antigas, com os mesmos valores', () => {
     const r = limparRespostas(RESP_BOA);
     expect(Object.keys(r).sort()).toEqual(['cidade', 'concorrente', 'conta', 'decisor', 'grupoa', 'imovel', 'pagamento', 'tipo', 'urgencia']);
-    expect(r).toMatchObject({ conta: '600_1050', tipo: 'casa', imovel: 'proprio', urgencia: 'ja', concorrente: 'sim', pagamento: 'vista', decisor: 'eu', grupoa: 'nao', cidade: 'Uberlândia-MG' });
-    for (const conta of ['ate300', '300_600', '600_1050', '1050_2000', '2000_5000', '5000_mais']) expect(limparRespostas({ conta }).conta).toBe(conta);
+    expect(r).toMatchObject({ conta: '800_1200', tipo: 'casa', imovel: 'proprio', urgencia: 'ja', concorrente: 'sim', pagamento: 'vista', decisor: 'eu', grupoa: 'nao', cidade: 'Uberlândia-MG' });
+    // As 4 faixas de 23/11/2026 e as 6 de antes (o rascunho já gravado guarda a chave antiga e o hidratarLead a relê).
+    for (const conta of ['ate400', '400_800', '800_1200', '1200_mais', 'ate300', '300_600', '600_1050', '1050_2000', '2000_5000', '5000_mais']) expect(limparRespostas({ conta }).conta).toBe(conta);
   });
   it('as respostas novas não entram na nota', () => {
     const a = decidirCaminho(limparRespostas(RESP_BOA), null, 'x').pontos;
@@ -244,7 +269,7 @@ describe('os textos dos avisos', () => {
   const resp = limparRespostas(RESP_BOA);
   const dados = (extra: Partial<Parameters<typeof fichaDoAviso>[0]> = {}) => ({
     nome: 'Ana Souza', tel: '5534991112222', nota: 93, cidadeUf: 'Uberlândia-MG', resp, extra: limparRespostasExtra(RESP_BOA),
-    diag: calcularDiagnostico(resp, null), kwh: 786, ...extra,
+    diag: calcularDiagnostico(resp, null), kwh: 952, ...extra,
   });
   it('T1: 1ª linha com nota, palavra e emoji; blocos com título; link do falei; a regra de escrita dos avisos', () => {
     const t = avisoAgora(dados(), '14:05', 'CODIGO123abc');
@@ -284,7 +309,7 @@ describe('os textos dos avisos', () => {
     const a = aberturaSugerida(dados());
     expect(a.split('\n')).toEqual([
       'Oi, Ana!', 'Aqui é a Nilce, da Irmãos na Obra.', 'Fiz a conta com as suas respostas.',
-      expect.stringMatching(/^Em Uberlândia, dá para economizar cerca de R\$ 726 por mês\.$/),
+      expect.stringMatching(/^Em Uberlândia, dá para economizar cerca de R\$ 901 por mês\.$/),
       'Você marcou que quer viajar mais.', 'Posso te mostrar como ficaria a parcela?',
     ]);
   });
@@ -336,7 +361,7 @@ const pedido = (extra: Partial<PedidoAvisoAgora> = {}): PedidoAvisoAgora => {
   const resp = limparRespostas(RESP_BOA);
   return {
     cardId: 77, lead: LEAD, quandoMs: SEXTA_14H + 5 * MIN,
-    ficha: { nome: 'Ana Souza', tel: '5534991112222', nota: 93, cidadeUf: 'Uberlândia-MG', resp, extra: limparRespostasExtra(RESP_BOA), diag: calcularDiagnostico(resp, null), kwh: 786 },
+    ficha: { nome: 'Ana Souza', tel: '5534991112222', nota: 93, cidadeUf: 'Uberlândia-MG', resp, extra: limparRespostasExtra(RESP_BOA), diag: calcularDiagnostico(resp, null), kwh: 952 },
     ...extra,
   };
 };
@@ -590,7 +615,7 @@ describe('POST /quiz', () => {
     const r = await request(app).post('/io/solar/quiz').send(corpo());
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ ok: true, lead_id: 'quiz_3491112222', caminho: 'ligacao', dono: 'Nilce', curioso: false, horario_agora: true });
-    expect(r.body.diagnostico).toMatchObject({ conta_mes: 825, kwh_mes: 786, conta_depois: 99, economia_mes: 726 });
+    expect(r.body.diagnostico).toMatchObject({ conta_mes: 1000, kwh_mes: 952, conta_depois: 99, economia_mes: 901 });
     expect(Object.keys(r.body.diagnostico).sort()).toEqual(['ano', 'area_m2', 'cinco_anos', 'conta_depois', 'conta_mes', 'economia_ano', 'economia_mes', 'geracao_kwh_mes', 'kwh_mes', 'kwp', 'placas']);
     expect(r.body.dias.map((d: { ymd: string }) => d.ymd)).toEqual(['2026-10-23', '2026-10-24']);
     expect(r.body).toHaveProperty('jaMarcado'); expect(r.body).toHaveProperty('semHorario'); expect(r.body).toHaveProperty('kwh');
@@ -601,7 +626,7 @@ describe('POST /quiz', () => {
     expect(h.enviados).toHaveLength(0);
   });
   it('Grupo A devolve conta_depois null', async () => {
-    const r = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '2000_5000', tipo: 'empresa', grupoa: 'sim' }));
+    const r = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '1200_mais', tipo: 'empresa', grupoa: 'sim' }));
     expect(r.body.diagnostico.conta_depois).toBeNull();
   });
   it('fora do horário o horario_agora é false e o lead ainda recebe vitrine', async () => {
@@ -617,7 +642,7 @@ describe('POST /quiz', () => {
     expect(h.ger.tabela('leads_meta')).toHaveLength(0);
   });
   it('lead novo nunca vem como vistoria nem video', async () => {
-    const r = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '5000_mais', cidade: 'Uberlândia-MG' }));
+    const r = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '1200_mais', cidade: 'Uberlândia-MG' }));
     expect(['ligacao', 'curioso']).toContain(r.body.caminho);
   });
   it('celular inválido (fixo) é recusado', async () => {

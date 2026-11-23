@@ -28,9 +28,9 @@ import {
 } from '../services/io/solarQuiz';
 import { EQUIPE, TEL_AVISO } from '../services/io/solarEquipe';
 import {
-  avisarAgora, avisarAgendado, camposDeRecuperacao, gravarSaida, marcarFalei, nomeDoToken, reivindicar, lerChave, apagarChave,
+  avisarAgora, avisarAgendado, camposDeRecuperacao, gravarSaida, marcarFalei, nomeDoToken, gravarChave, lerChave, apagarChave,
 } from '../services/io/solarQuizAviso';
-import { motivoDescarteSolar, cidadeUfDoDescarte, CHAVE_DESCARTADO, type MotivoDescarte } from '../services/io/solarDescarte';
+import { motivoDescarteSolar, cidadeUfDoDescarte, chaveDescartadoSolar, type MotivoDescarte } from '../services/io/solarDescarte';
 import { soDigitosSolar, telKeySolar, donoDoTelefone } from '../services/io/solarTelefone';
 import { quizCardLimiter } from '../middleware/rateLimiter';
 import { paginaFalei, TEXTOS_FALEI, horaBonita, type DadosDaFicha, type OndeSaiu } from '../services/io/solarQuizTextos';
@@ -476,15 +476,16 @@ function camposDoRascunho(e: ReturnType<typeof lerEntrada>, dec: Parameters<type
 const cidadeGravada = (e: ReturnType<typeof lerEntrada>, dec: { cidade: { nome: string; uf: string } | null }): string | null =>
   dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : cidadeParaGravar(e.resp.cidade, e.tel);
 
-/** DESCARTE (27/10/2026): nota abaixo de 70 ou cidade fora das 114 da região. Recalculado no servidor a partir das respostas, em
+/** DESCARTE (27/10/2026): nota abaixo de 70 ou cidade fora das 114 da região; desde 23/11/2026 também conta abaixo de R$ 400 de quem
+ *  não vai aumentar o consumo (`e.extra.aumento === 'nao'`). Recalculado no servidor a partir das respostas, em
  *  toda rota que cria algo: o que a página diz não vale. Cidade que não resolveu NUNCA descarta (ver solarDescarte.ts). */
 function descarteDoLead(e: ReturnType<typeof lerEntrada>): { motivo: MotivoDescarte; pontos: number; cidadeUf: string | null } | null {
   const pontos = pontuar(e.resp).pontos;
-  const motivo = motivoDescarteSolar({ pontos, cidade: e.resp.cidade, telefone: e.tel });
+  const motivo = motivoDescarteSolar({ pontos, cidade: e.resp.cidade, telefone: e.tel, conta: e.resp.conta, aumento: e.extra.aumento });
   return motivo ? { motivo, pontos, cidadeUf: cidadeUfDoDescarte(e.resp.cidade, e.tel) } : null;
 }
 /** O teste da sonda tem a chave dele: um teste nunca pode calar o "saiu" de um lead de verdade. */
-const chaveDescartado = (alvo: string, teste: boolean): string => `${CHAVE_DESCARTADO}${teste ? 'teste_' : ''}${alvo}`;
+const chaveDescartado = chaveDescartadoSolar;
 
 router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
   const b = (req.body || {}) as Record<string, unknown>;
@@ -501,11 +502,12 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
   const descarte = descarteDoLead(e);
   if (descarte) {
     if (!dry) {
-      await reivindicar(chaveDescartado(e.alvo!, teste), {
+      await gravarChave(chaveDescartado(e.alvo!, teste), {
         motivo: descarte.motivo, pontos: descarte.pontos, cidade: descarte.cidadeUf ?? (e.resp.cidade || null),
+        conta: e.resp.conta, aumento: e.extra.aumento,
         src: String(b.src || '').trim().toLowerCase().slice(0, 20) || null,
         ...utmDe(b), em: new Date(agoraMs).toISOString(),
-      });   // melhor esforço: reivindicar engole o erro (devolve 'erro'); repetição do mesmo telefone mantém a 1ª marca
+      });   // melhor esforço: gravarChave engole o erro. Upsert, não claim: a marca guarda o `em` da tentativa MAIS RECENTE (o /quiz/saiu e a rodada do card SAIU comparam esse horário com o do rascunho)
     }
     const raio = acharCidadeRaio(e.resp.cidade);
     res.json({

@@ -22,22 +22,22 @@ import { donoDaVolta } from '../services/agenda/reagendaSolarNaoAtendido';
 import { TEL_AVISO, EQUIPE as EQUIPE_SOLAR } from '../routes/ioSolar';
 
 const AGORA = msDe('2026-10-26', '07:00');   // segunda-feira
-// Nota 95: prazo 35, decisor 20, pagamento 20, imóvel 15, orçamento 5 (já tem outro orçamento = 'nao').
-const NOTA_95 = { urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', concorrente: 'nao', tipo: 'casa' };
+// Nota 100 (pesos de 23/11/2026): prazo 35, decisor 20, pagamento 20, imóvel 15, orçamento 10 (já tem outro orçamento = 'nao').
+const NOTA_100 = { urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', concorrente: 'nao', tipo: 'casa' };
 
 describe('lead novo de solar: todos para a Nilce, por ligação', () => {
   // As faixas do quiz que representam ~250 kWh (a menor), ~800 kWh e ~2.000 kWh ou mais.
   const casos = [
-    { rotulo: 'até 300 kWh (a faixa de ~250)', conta: 'ate300' },
-    { rotulo: '~800 kWh', conta: '600_1050' },
-    { rotulo: '2.000 kWh ou mais', conta: '2000_5000' },
+    { rotulo: 'até 300 kWh (a faixa de ~250)', conta: 'ate400' },
+    { rotulo: '~800 kWh', conta: '800_1200' },
+    { rotulo: '2.000 kWh ou mais', conta: '1200_mais' },
   ];
 
   for (const c of casos) {
-    it(`${c.rotulo}, nota 95, em Uberlândia (dentro dos ${RAIO_VISITA_KM} km): ligação da Nilce`, () => {
-      const r = limparRespostas({ conta: c.conta, cidade: 'Uberlândia', ...NOTA_95 });
+    it(`${c.rotulo}, nota 100, em Uberlândia (dentro dos ${RAIO_VISITA_KM} km): ligação da Nilce`, () => {
+      const r = limparRespostas({ conta: c.conta, cidade: 'Uberlândia', ...NOTA_100 });
       const dec = decidirCaminho(r);
-      expect(dec.pontos).toBe(95);
+      expect(dec.pontos).toBe(100);
       expect(dec.pontos).toBeGreaterThan(PONTOS_VISITA);
       expect(dec).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
       expect(dec.treino).toBeFalsy();
@@ -49,7 +49,7 @@ describe('lead novo de solar: todos para a Nilce, por ligação', () => {
     });
 
     it(`${c.rotulo}: a vitrine só tem horário da Nilce, mesmo com Thiago e Diego livres`, () => {
-      const r = limparRespostas({ conta: c.conta, cidade: 'Uberlândia', ...NOTA_95 });
+      const r = limparRespostas({ conta: c.conta, cidade: 'Uberlândia', ...NOTA_100 });
       const v = decidirEMontar(r, null, [], AGORA);
       expect(v.semHorario).toBe(false);
       expect(v.dias.length).toBeGreaterThan(0);
@@ -58,19 +58,19 @@ describe('lead novo de solar: todos para a Nilce, por ligação', () => {
   }
 
   it('a conta grande dentro do raio guarda a visita só como informação, sem campo novo', () => {
-    const grande = decidirCaminho(limparRespostas({ conta: '2000_5000', cidade: 'Uberlândia', ...NOTA_95 }));
+    const grande = decidirCaminho(limparRespostas({ conta: '1200_mais', cidade: 'Uberlândia', ...NOTA_100 }));
     expect(grande.qualifica).toBe('vistoria');
     expect(grande.grande).toBe(true);
-    expect(decidirCaminho(limparRespostas({ conta: 'ate300', cidade: 'Uberlândia', ...NOTA_95 })).qualifica).toBeNull();
+    expect(decidirCaminho(limparRespostas({ conta: 'ate400', cidade: 'Uberlândia', ...NOTA_100 })).qualifica).toBeNull();
   });
 
   it('curioso continua curioso, sem agenda', () => {
-    const r = limparRespostas({ conta: '2000_5000', cidade: 'Uberlândia', urgencia: 'pesquisando', decisor: 'outro', pagamento: 'naosei', imovel: 'alugado', tipo: 'casa' });
+    const r = limparRespostas({ conta: '1200_mais', cidade: 'Uberlândia', urgencia: 'pesquisando', decisor: 'outro', pagamento: 'naosei', imovel: 'alugado', tipo: 'casa' });
     expect(decidirCaminho(r)).toMatchObject({ caminho: 'curioso', candidatos: [] });
   });
 
   it('o cliente que é da Giovanna entra como cliente novo: cai na Nilce', () => {
-    const r = limparRespostas({ conta: 'ate300', cidade: 'Uberlândia', ...NOTA_95 });
+    const r = limparRespostas({ conta: 'ate400', cidade: 'Uberlândia', ...NOTA_100 });
     expect(decidirCaminho(r, 'Giovanna')).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
   });
 

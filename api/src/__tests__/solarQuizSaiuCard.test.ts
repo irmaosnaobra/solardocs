@@ -48,7 +48,7 @@ vi.mock('../services/io/eletropostoVagas', async (orig) => ({
 }));
 
 import router from '../routes/ioSolar';
-import { runSolarQuizAvisosTick, camposDeRecuperacao, CHAVES } from '../services/io/solarQuizAviso';
+import { runSolarQuizAvisosTick, camposDeRecuperacao, hidratarLead, CHAVES } from '../services/io/solarQuizAviso';
 import { vagasSolar, rebaixarSaiuAMudo, cancelarCardsSaiuSemMarcar, remarcarCardSolar, tirarMarcaSaiuDoCard, silenciarLembretesDoCard } from '../services/agentes5040/agendaSolar';
 import { textoDeAbertura, bolhaDeAbertura } from '../services/agentes5040/textosAgenda';
 import { limparRespostas, limparRespostasExtra, quandoDoAgora } from '../services/io/solarQuiz';
@@ -69,7 +69,7 @@ const MIN = 60_000;
 const hhmmBRT = (iso: string): string => new Date(Date.parse(iso) - 3 * 3_600_000).toISOString().slice(11, 16);
 
 const RESP_BOA = {
-  conta: '600_1050', cidade: 'Uberlândia-MG', tipo: 'casa', imovel: 'proprio', urgencia: 'ja', concorrente: 'sim', pagamento: 'vista', decisor: 'eu', grupoa: 'nao',
+  conta: '800_1200', cidade: 'Uberlândia-MG', tipo: 'casa', imovel: 'proprio', urgencia: 'ja', concorrente: 'sim', pagamento: 'vista', decisor: 'eu', grupoa: 'nao',
   telhado: 'ceramica', sombra: 'sol', aumento: 'nao', dor: 'sobe', tempo: 'meses', travou: 'caro', desejo: 'viajar', criterio: 'parcela',
 };
 const RESP_CURIOSA = { ...RESP_BOA, urgencia: 'pesquisando', decisor: 'outro', pagamento: 'naosei', imovel: 'alugado', concorrente: 'nao' };
@@ -807,6 +807,101 @@ describe('a abertura do card SAIU que fala (texto próprio)', () => {
     expect(bolhaDeAbertura('ligacao', 'Ana', iso, 'Nilce', agora, true)).toContain('A *Nilce* vai te ligar amanhã às 14h30 para explicar seu diagnóstico');
     expect(bolhaDeAbertura('ligacao', 'Ana', iso, 'Nilce', agora)).toContain('Já está marcado');
   });
+});
+
+describe('o lead descartado numa tentativa MAIS NOVA não ganha card nem abertura (23/11/2026)', () => {
+  const descartar = (quando: number, tel = '3491112222', teste = false) =>
+    h.main.tabela('system_state').push({
+      key: `solar_quiz_descartado:${teste ? 'teste_' : ''}${tel}`, value: { motivo: 'conta', em: new Date(quando).toISOString() }, updated_at: new Date(quando).toISOString(),
+    });
+
+  it('marca de descarte mais nova que o rascunho: sem card, sem abertura, sem aviso e sem claim', async () => {
+    h.duda = true;
+    semearLead(LEAD, { atividade: SEXTA_14H });
+    descartar(SEXTA_14H + 2 * MIN);   // passou numa tentativa e foi descartado na seguinte
+    const r = await tick(SEXTA_14H + 11 * MIN);
+    expect(cartoes()).toHaveLength(0);
+    expect(r.cards).toEqual({ falam: 0, mudos: 0 });
+    expect(lead().agendado_id).toBeNull();
+    expect(chave(CHAVES.cardSaiu + LEAD)).toBeUndefined();
+    expect(chave(CHAVES.quiz1o + LEAD)).toBeUndefined();
+    // Nada vai ao cliente. (O aviso de abandono à equipe é outra rodada, `abandonos`, e não é coberto por esta regra.)
+    expect(h.enviados.filter(e => e.numero === TEL)).toHaveLength(0);
+  });
+
+  it('com mais de 500 marcas no banco, a do telefone lido ainda é encontrada (busca por chave, não por prefixo)', async () => {
+    h.duda = true;
+    semearLead(LEAD, { atividade: SEXTA_14H });
+    for (let i = 0; i < 600; i++) descartar(SEXTA_14H - 60 * MIN, `34${String(90000000 + i)}`);   // 600 marcas de outros telefones, todas antes
+    descartar(SEXTA_14H + 2 * MIN);                                                                  // a do lead, a mais nova de todas
+    await tick(SEXTA_14H + 11 * MIN);
+    expect(cartoes()).toHaveLength(0);
+    expect(h.enviados.filter(e => e.numero === TEL)).toHaveLength(0);
+  });
+
+  it('lead sem marca continua gerando o card SAIU', async () => {
+    h.duda = true;
+    semearLead(LEAD, { atividade: SEXTA_14H });
+    const r = await tick(SEXTA_14H + 11 * MIN);
+    expect(cartoes()).toHaveLength(1);
+    expect(r.cards).toEqual({ falam: 1, mudos: 0 });
+  });
+
+  it('marca MAIS VELHA que o rascunho (o lead refez o quiz e passou depois) não impede o card', async () => {
+    h.duda = true;
+    semearLead(LEAD, { atividade: SEXTA_14H + 3 * MIN });
+    descartar(SEXTA_14H);
+    await tick(SEXTA_14H + 14 * MIN);
+    expect(cartoes()).toHaveLength(1);
+  });
+
+  it('a marca de outro telefone não atrapalha este lead', async () => {
+    h.duda = true;
+    semearLead(LEAD, { atividade: SEXTA_14H });
+    descartar(SEXTA_14H + 2 * MIN, '3499999999');
+    await tick(SEXTA_14H + 11 * MIN);
+    expect(cartoes()).toHaveLength(1);
+  });
+
+  it('a marca da sonda (teste_) só vale para o rascunho de teste, nunca para o lead de verdade', async () => {
+    h.duda = true;
+    semearLead(LEAD, { atividade: SEXTA_14H });
+    descartar(SEXTA_14H + 2 * MIN, '3491112222', true);
+    await tick(SEXTA_14H + 11 * MIN);
+    expect(cartoes()).toHaveLength(1);
+  });
+
+  it('marca sem horário legível: não dá para comparar, então pula sempre que a marca existir', async () => {
+    h.duda = true;
+    semearLead(LEAD, { atividade: SEXTA_14H });
+    h.main.tabela('system_state').push({ key: 'solar_quiz_descartado:3491112222', value: { motivo: 'conta' }, updated_at: new Date(SEXTA_14H - 60 * MIN).toISOString() });
+    await tick(SEXTA_14H + 11 * MIN);
+    expect(cartoes()).toHaveLength(0);
+    expect(h.enviados.filter(e => e.numero === TEL)).toHaveLength(0);
+  });
+
+  it('um lead descartado não segura os outros da mesma rodada', async () => {
+    h.duda = true;
+    const a = leadsDeN(1), b = leadsDeN(2);
+    semearLead(a.id, { tel: a.tel, atividade: SEXTA_14H, nome: 'Ana' });
+    semearLead(b.id, { tel: b.tel, atividade: SEXTA_14H, nome: 'Beto' });
+    descartar(SEXTA_14H + 2 * MIN, '3491110001');
+    await tick(SEXTA_14H + 11 * MIN);
+    expect(cartoes()).toHaveLength(1);
+    expect(cartoes()[0].cliente_telefone).toBe(b.tel);
+  });
+});
+
+describe('rascunho gravado com a chave de conta antiga (23/11/2026)', () => {
+  it.each([['600_1050', 'R$ 600 a R$ 1.050', 786], ['ate300', 'Até R$ 300', 143], ['800_1200', 'R$ 800 a R$ 1.200', 952]])(
+    'hidratarLead relê %s sem perder o lead (rótulo e kWh)', (conta, rotulo, kwh) => {
+      semearLead(LEAD, { atividade: SEXTA_14H, resp: { ...RESP_BOA, conta } });
+      const hid = hidratarLead(lead())!;
+      expect(hid).not.toBeNull();
+      expect(hid.contaTxt).toBe(rotulo);
+      expect(hid.ficha.resp.conta).toBe(conta);
+      expect(hid.ficha.kwh).toBe(kwh);
+    });
 });
 
 describe('os textos com o horário do card', () => {

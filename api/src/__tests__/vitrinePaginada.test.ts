@@ -92,7 +92,7 @@ const fichas = (n: number, created_by: string): Linha[] =>
 const JANELA = '?de=2026-11-02T00:00:00.000Z&ate=2026-11-23T00:00:00.000Z';
 const quiz = {
   nome: 'Ana Souza', tel: '5534991112222',
-  respostas: { conta: '2000_5000', cidade: 'Uberlândia-MG', urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', tipo: 'empresa' },
+  respostas: { conta: '1200_mais', cidade: 'Uberlândia-MG', urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', tipo: 'empresa' },
 };
 
 beforeEach(() => {

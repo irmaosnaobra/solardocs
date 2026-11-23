@@ -19,8 +19,25 @@ export const NOTA_MINIMA_SOLAR = 70;
 
 /** O prefixo da chave de system_state que guarda o lead descartado: `solar_quiz_descartado:<DDD+8>`. */
 export const CHAVE_DESCARTADO = 'solar_quiz_descartado:';
+/** A chave da marca de um telefone (`alvo` = telKeySolar). O teste da sonda tem a chave dele. */
+export const chaveDescartadoSolar = (alvo: string, teste: boolean): string => `${CHAVE_DESCARTADO}${teste ? 'teste_' : ''}${alvo}`;
 
-export type MotivoDescarte = 'regiao' | 'nota';
+/**
+ * A marca de descarte vale contra este rascunho? Vale a tentativa MAIS RECENTE (23/11/2026): quem passou numa tentativa e foi descartado numa
+ * seguinte não pode ganhar card nem abertura da Duda. `marcaEm` é o `em` da marca (ISO) e `atividadeMs` a última tentativa que gravou o rascunho.
+ *   · sem marca: não vale;
+ *   · marca mais nova que o rascunho (ou do mesmo instante): vale;
+ *   · marca mais velha: o lead refez o quiz e passou depois, não vale;
+ *   · marca sem horário legível, ou rascunho sem horário: NÃO dá para comparar, vale (pula sempre que a marca existir).
+ */
+export function marcaDescartaRascunho(marcaExiste: boolean, marcaEm: unknown, atividadeMs: number): boolean {
+  if (!marcaExiste) return false;
+  const m = Date.parse(String(marcaEm ?? ''));
+  if (!Number.isFinite(m) || !Number.isFinite(atividadeMs)) return true;
+  return m >= atividadeMs;
+}
+
+export type MotivoDescarte = 'regiao' | 'conta' | 'nota';
 
 /** "Uberlândia-MG" em chave de comparação (sem acento, caixa nem pontuação). */
 const REGIAO: ReadonlySet<string> = new Set(
@@ -44,9 +61,23 @@ export function cidadeNaRegiaoSolar(texto: unknown, telefone?: unknown): boolean
   return c.status === 'ddd' ? null : false;
 }
 
-/** Por que este lead é descartado (a região tem prioridade), ou null se ele segue. */
-export function motivoDescarteSolar(p: { pontos: number; cidade: unknown; telefone?: unknown }): MotivoDescarte | null {
+/** As faixas de conta abaixo de R$ 400: a atual (`ate400`) e a legada (`ate300`, que também fica abaixo). */
+const CONTA_BAIXA: ReadonlySet<string> = new Set(['ate400', 'ate300']);
+
+/**
+ * Por que este lead é descartado, ou null se ele segue. A ordem é:
+ *   1. região;
+ *   2. conta (23/11/2026, decisão do dono): conta abaixo de R$ 400 E `aumento === 'nao'` (não vai aumentar o
+ *      consumo). No histórico, 1 de 18 vendas tinha conta abaixo de R$ 400; quem vai aumentar o consumo
+ *      (ar-condicionado, freezer, carro) segue. `aumento` vazio ou desconhecido NÃO descarta por conta: a mesma
+ *      filosofia da região, dado que falta nunca descarta;
+ *   3. nota abaixo de 70.
+ */
+export function motivoDescarteSolar(p: {
+  pontos: number; cidade: unknown; telefone?: unknown; conta?: unknown; aumento?: unknown;
+}): MotivoDescarte | null {
   if (cidadeNaRegiaoSolar(p.cidade, p.telefone) === false) return 'regiao';
+  if (typeof p.conta === 'string' && CONTA_BAIXA.has(p.conta) && p.aumento === 'nao') return 'conta';
   if (p.pontos < NOTA_MINIMA_SOLAR) return 'nota';
   return null;
 }

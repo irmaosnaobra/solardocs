@@ -46,13 +46,13 @@ describe('as três pontas concordam', () => {
 
   it('a vitrine do quiz vende a faixa de cliente novo', () => {
     expect(GRADE_LIGACAO).toBe(GRADE_NOVO_LIGACAO);
-    const dias = montarVitrine(decidirCaminho({ conta: 'ate300', cidade: 'Uberaba', urgencia: '3meses', decisor: 'junto', pagamento: 'financiamento', imovel: 'proprio' }), [], AGORA);
+    const dias = montarVitrine(decidirCaminho({ conta: 'ate400', cidade: 'Uberaba', urgencia: '3meses', decisor: 'junto', pagamento: 'financiamento', imovel: 'proprio' }), [], AGORA);
     expect(dias[0].horas.map(x => x.h)).toEqual([...GRADE_NOVO_LIGACAO]);
   });
 
   it('follow-up em todos os :15 e :45 do dia não tira nenhum horário da vitrine', () => {
     const cheio: Ocupacao[] = GRADE_FOLLOWUP_LIGACAO.map(h => ({ dono: 'Giovanna', ini: msDe('2026-10-13', h), fim: msDe('2026-10-13', h) + 15 * 60_000 }));
-    const dias = montarVitrine(decidirCaminho({ conta: 'ate300', cidade: 'Uberaba', urgencia: '3meses', decisor: 'junto', pagamento: 'financiamento', imovel: 'proprio' }), cheio, AGORA);
+    const dias = montarVitrine(decidirCaminho({ conta: 'ate400', cidade: 'Uberaba', urgencia: '3meses', decisor: 'junto', pagamento: 'financiamento', imovel: 'proprio' }), cheio, AGORA);
     expect(dias[0].ymd).toBe('2026-10-13');
     expect(dias[0].horas).toHaveLength(18);
   });
