@@ -14,7 +14,7 @@
 import {
   decidirCaminho, reservaDe, horariosDoCaminho, blocoDoCompromisso, ocupacaoDaFichaSolar,
   rotuloDaFaixa, MARCA_QUIZ, RAIO_VISITA_KM, BASE_DO_SOCIO, socioMaisPerto, caminhoDaFicha, semTreino, LIMITE_TREINO_DIAS,
-  FAIXAS_CONTA, kwhDaFaixa, DONA_SOLAR, LIGACAO_MIN,
+  acharFaixaConta, ehFaixaPiso, kwhDaFaixa, DONA_SOLAR, LIGACAO_MIN,
   type Caminho, type Decisao, type FichaAgenda,
 } from '../agenda/solarRota';
 import { geracaoMensal } from '../propostaSolarData';
@@ -78,7 +78,7 @@ const rot = (campo: Campo, v: string | null): string | null =>
 export const OPCOES_EXTRA = {
   telhado: { ceramica: 'Cerâmica', fibrocimento: 'Fibrocimento', metalico: 'Metálico', laje: 'Laje', solo: 'No chão' },
   sombra: { sol: 'Sol o dia todo', alguma: 'Alguma sombra', naosei: 'Não sabe' },
-  aumento: { clima: 'Ar-condicionado ou piscina', carro: 'Carro elétrico', maquinas: 'Máquinas, irrigação ou ampliação', nao: 'Não' },
+  aumento: { clima: 'Ar-condicionado ou piscina', carro: 'Carro elétrico', maquinas: 'Freezer, máquinas, ampliação ou irrigação', nao: 'Não, vai continuar igual' },
   dor: {
     sobe: 'A conta sobe todo ano', bandeira: 'Bandeira vermelha de surpresa', evito: 'Evita ligar o ar-condicionado',
     sobra: 'Sobra pouco no mês', margem: 'Come a margem do negócio', planejar: 'Não consegue planejar o custo',
@@ -114,7 +114,7 @@ export { rotExtra, rot as rotuloDaResposta };
 
 // ── O diagnóstico (sem preço) ───────────────────────────────────────────────
 // De onde sai cada número:
-//  · conta_mes e kwh_mes: a MESMA régua da ficha e da nota (FAIXAS_CONTA.reais e TARIFA_KWH de leadSolarFicha, R$ 1,05),
+//  · conta_mes e kwh_mes: a MESMA régua da ficha e da nota (FAIXAS_CONTA (e a legada) .reais e TARIFA_KWH de leadSolarFicha, R$ 1,05),
 //    para a Nilce ler o mesmo consumo que o cliente viu;
 //  · geração por kWp: a do Gerador/SolarDoc (propostaSolarData.geracaoMensal: HSP da cidade ou do estado, CRESESB,
 //    eficiência de 80% do sistema), média dos 12 meses;
@@ -133,6 +133,8 @@ export interface Diagnostico {
   conta_depois: number | null;
   /** null no Grupo A: a conta "menos R$ 99" exagera para quem paga demanda. */
   economia_mes: number | null; economia_ano: number | null; ano: number; cinco_anos: number;
+  /** Só existe (true) quando a conta é de faixa aberta em cima (`1200_mais`, `5000_mais`): todo número é um PISO. Textos dizem "mais de" e "a partir de". */
+  piso?: true;
 }
 
 /** "Uberlândia-MG" → { nome: 'Uberlândia', uf: 'MG' }. Sem UF, só o nome. */
@@ -150,7 +152,7 @@ export function geracaoPorKwpMes(cidade: unknown): number {
 }
 
 export function calcularDiagnostico(resp: Pick<Respostas, 'conta' | 'cidade' | 'grupoa'>, extra?: Partial<RespostasExtra> | null): Diagnostico | null {
-  const faixa = FAIXAS_CONTA.find(f => f.v === resp.conta);
+  const faixa = acharFaixaConta(resp.conta);
   const kwh = kwhDaFaixa(resp.conta);
   if (!faixa || kwh === null) return null;
   const conta = faixa.reais;
@@ -166,6 +168,7 @@ export function calcularDiagnostico(resp: Pick<Respostas, 'conta' | 'cidade' | '
     geracao_kwh_mes: Math.round(kwp * porKwp),
     conta_depois: grupoA ? null : depois,
     economia_mes: grupoA ? null : economia, economia_ano: grupoA ? null : economia * 12, ano: conta * 12, cinco_anos: conta * 60,
+    ...(ehFaixaPiso(resp.conta) ? { piso: true as const } : {}),
   };
 }
 
@@ -349,8 +352,9 @@ export const brl0 = (v: number): string => `R$ ${Math.round(v).toLocaleString('p
 
 /** A linha do diagnóstico da ficha e dos avisos. Grupo A (economia null): sem economia, com o aviso de conferir a demanda. */
 export function linhaDoDiagnostico(d: Diagnostico): string {
-  const base = `${d.placas} placas, ${d.kwp.toLocaleString('pt-BR')} kWp`;
-  return d.economia_mes === null ? `${base} · Grupo A: conferir a demanda` : `${base}, economia de cerca de ${brl0(d.economia_mes)} por mês`;
+  const base = `${d.piso ? 'a partir de ' : ''}${d.placas} placas, ${d.kwp.toLocaleString('pt-BR')} kWp`;
+  if (d.economia_mes === null) return `${base} · Grupo A: conferir a demanda`;
+  return `${base}, economia de ${d.piso ? 'mais de' : 'cerca de'} ${brl0(d.economia_mes)} por mês`;
 }
 
 /** As linhas das respostas novas e do diagnóstico, só as que existem. A ordem é a da ficha do aviso. */

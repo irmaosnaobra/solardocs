@@ -192,12 +192,12 @@ export const MEDINDO_DESDE_SOLAR = '2026-10-08';
 export const PERGUNTAS_SOLAR: Record<string, string> = {
   tipo: 'Onde você quer instalar energia solar?',
   conta: 'Quanto vem a sua conta de luz por mês?',
+  aumento: 'Vai aumentar o consumo de energia nos próximos anos?',
   cidade: 'Em qual cidade fica o imóvel?',
   grupoa: 'A conta tem "Demanda contratada"?',
   telhado: 'Como é o telhado?',
   sombra: 'O telhado pega sol o dia todo?',
   imovel: 'O imóvel é seu?',
-  aumento: 'Vai aumentar o consumo de energia nos próximos anos?',
   dor: 'O que mais pesa na sua conta de luz hoje?',
   tempo: 'Há quanto tempo você pensa em energia solar?',
   travou: 'O que te fez esperar até agora?',
@@ -218,8 +218,9 @@ export const CURTAS_SOLAR: Record<string, string> = {
   desejo: 'O que faria', criterio: 'Mais importante', urgencia: 'Quando quer', pagamento: 'Pagamento', decisor: 'Quem decide',
   concorrente: 'Já tem orçamento', nome: 'Nome', whatsapp: 'WhatsApp', resultado: 'Viu o diagnóstico', horarios: 'Horários',
 };
-// Os ids saem da ordem da página (24/10/2026). `grupoa` e `travou` são condicionais: quem não vê a pergunta não passa por ela.
-const BASE_SOLAR = ['tipo', 'conta', 'cidade', 'grupoa', 'telhado', 'sombra', 'imovel', 'aumento', 'dor', 'tempo', 'travou', 'desejo',
+// Os ids saem da ordem da página (24/10/2026; `aumento` logo depois da conta desde 23/11/2026, porque decide o descarte de
+// conta abaixo de R$ 400). `grupoa` e `travou` são condicionais: quem não vê a pergunta não passa por ela.
+const BASE_SOLAR = ['tipo', 'conta', 'aumento', 'cidade', 'grupoa', 'telhado', 'sombra', 'imovel', 'dor', 'tempo', 'travou', 'desejo',
   'criterio', 'urgencia', 'pagamento', 'decisor', 'concorrente', 'nome', 'whatsapp'];
 const COM_RESULTADO = [...BASE_SOLAR, 'resultado', 'horarios'];
 /** O caminho da página é 'inicio' antes da conta (a 1ª pergunta agora é o tipo), 'respondendo' até o servidor decidir no passo

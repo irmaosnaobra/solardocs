@@ -161,7 +161,7 @@ describe('ioSolar /alerta e o aviso do quiz ao dono', () => {
 
   const agendar = {
     nome: 'Ana Souza', tel: '5534991112222',
-    respostas: { conta: '2000_5000', cidade: 'Uberlândia-MG', urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', tipo: 'empresa' },
+    respostas: { conta: '1200_mais', cidade: 'Uberlândia-MG', urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', tipo: 'empresa' },
     ymd: '2026-10-21', h: '09:00', dono: 'Nilce', event_id: 'agd_abc123xyz',
   };
   const quiz = () => {

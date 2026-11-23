@@ -192,12 +192,21 @@ export const GRADE_LIGACAO = GRADE_NOVO_LIGACAO;
 export const DIAS_DE_ROTA = new Set([2, 3, 4, 5]);
 
 // ── As faixas da conta ──────────────────────────────────────────────────────
-/** Faixas em reais, com os limites casados com o corte: R$ 1.050 é 1.000 kWh a
- *  R$ 1,05, então nenhuma faixa atravessa a régua e a leitura pelo meio nunca
- *  decide de que lado alguém está. `reais` é o valor típico lido do jeito de
- *  sempre (consumoTipico): faixa pelo meio, "até N" vira N/2, "mais de N"
- *  vira N+1. */
+/** As 4 faixas que o quiz oferece (23/11/2026, decisão do dono: o quiz fica mais
+ *  exigente na conta de luz). `reais` é o valor típico lido do jeito de sempre
+ *  (consumoTipico): faixa pelo meio, "até N" vira N/2, "mais de N" vira N+1.
+ *  A faixa `800_1200` atravessa R$ 1.050 (1.000 kWh a R$ 1,05, o KWH_VISITA).
+ *  Isso é aceito: desde 24/10 a visita é só informação e não decide caminho. */
 export const FAIXAS_CONTA = [
+  { v: 'ate400', l: 'Menos de R$ 400', reais: 200 },
+  { v: '400_800', l: 'R$ 400 a R$ 800', reais: 600 },
+  { v: '800_1200', l: 'R$ 800 a R$ 1.200', reais: 1000 },
+  { v: '1200_mais', l: 'Acima de R$ 1.200', reais: 1201 },
+] as const;
+/** As 6 faixas de antes de 23/11/2026. O quiz não as oferece mais, mas o
+ *  rascunho e o lead já gravados guardam essas chaves e o `hidratarLead`
+ *  (solarQuizAviso) os relê: não podem se perder. */
+export const FAIXAS_CONTA_LEGADO = [
   { v: 'ate300', l: 'Até R$ 300', reais: 150 },
   { v: '300_600', l: 'R$ 300 a R$ 600', reais: 450 },
   { v: '600_1050', l: 'R$ 600 a R$ 1.050', reais: 825 },
@@ -205,13 +214,24 @@ export const FAIXAS_CONTA = [
   { v: '2000_5000', l: 'R$ 2.000 a R$ 5.000', reais: 3500 },
   { v: '5000_mais', l: 'Mais de R$ 5.000', reais: 5001 },
 ] as const;
-export type FaixaConta = typeof FAIXAS_CONTA[number]['v'];
+export type FaixaConta =
+  | typeof FAIXAS_CONTA[number]['v']
+  | typeof FAIXAS_CONTA_LEGADO[number]['v'];
+
+/** Procura a faixa nas duas listas: a atual primeiro, depois a legada. */
+export function acharFaixaConta(v: unknown): { v: FaixaConta; l: string; reais: number } | null {
+  return FAIXAS_CONTA.find(x => x.v === v) ?? FAIXAS_CONTA_LEGADO.find(x => x.v === v) ?? null;
+}
+
+/** Faixa aberta em cima ("Acima de R$ 1.200", "Mais de R$ 5.000"): o valor típico (`reais`) é só um PISO, não a conta do cliente.
+ *  Texto que mostra número tem que dizer "mais de" ou "a partir de" (23/11/2026). */
+export const ehFaixaPiso = (v: unknown): boolean => v === '1200_mais' || v === '5000_mais';
 
 export function kwhDaFaixa(v: unknown): number | null {
-  const f = FAIXAS_CONTA.find(x => x.v === v);
+  const f = acharFaixaConta(v);
   return f ? Math.round(f.reais / TARIFA_KWH) : null;
 }
-export const rotuloDaFaixa = (v: unknown): string | null => FAIXAS_CONTA.find(x => x.v === v)?.l ?? null;
+export const rotuloDaFaixa = (v: unknown): string | null => acharFaixaConta(v)?.l ?? null;
 
 // ── As cidades do raio ──────────────────────────────────────────────────────
 // 44 municípios a até 150 km de ESTRADA da base mais perto. Gerado em 07/10/2026
@@ -313,18 +333,20 @@ export const ehVisitaUrbana = (c: CidadeRaio, socio: Socio): boolean =>
 
 // ── A pontuação (0 a 100) ───────────────────────────────────────────────────
 /** Pesos por resposta. Somam 100 no melhor caso: quer para já (35), decide
- *  sozinho (20), já sabe como paga à vista (20), imóvel próprio (15) e está
- *  comparando orçamento (10). Pergunta sem resposta vale 0.
+ *  sozinho (20), pagamento qualquer (20), imóvel próprio (15) e concorrente
+ *  qualquer (10). Pergunta sem resposta vale 0.
  *
- *  Para passar de 90 é preciso querer para este mês, ter o imóvel e saber como
- *  paga; "nos próximos 3 meses" com todo o resto no máximo dá 83. É de
- *  propósito: a visita do Diego é para quem está fechando. */
+ *  23/11/2026, decisão do dono: pagamento e concorrente não separam lead; na
+ *  base de 600 leads do formulário, "não sei" chegou a orçamento 3,3% contra
+ *  3,8% do à vista. Por isso as 4 formas de pagamento valem 20 e "sim" e "não"
+ *  em concorrente valem 10. Pior caso 30, melhor 100: quem separa o lead agora
+ *  é urgência, decisor e imóvel. */
 export const PESOS = {
   urgencia: { ja: 35, '3meses': 18, pesquisando: 0 },
   decisor: { eu: 20, junto: 14, outro: 0 },
-  pagamento: { vista: 20, financiamento: 16, cartao: 16, naosei: 0 },
+  pagamento: { vista: 20, financiamento: 20, cartao: 20, naosei: 20 },
   imovel: { proprio: 15, construcao: 8, alugado: 0 },
-  concorrente: { sim: 10, nao: 5 },
+  concorrente: { sim: 10, nao: 10 },
 } as const;
 type CampoPeso = keyof typeof PESOS;
 

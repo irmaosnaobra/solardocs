@@ -50,7 +50,7 @@ const brt = (ymd: string, hhmm: string): number => Date.parse(`${ymd}T${hhmm}:00
 const SEXTA_14H = brt('2026-10-23', '14:00');
 const SEGREDO = 'segredo-de-teste-codigo';
 const RESP_BOA = {
-  conta: '600_1050', cidade: 'Uberlândia-MG', tipo: 'casa', imovel: 'proprio', urgencia: 'ja', concorrente: 'sim', pagamento: 'vista', decisor: 'eu', grupoa: 'nao',
+  conta: '800_1200', cidade: 'Uberlândia-MG', tipo: 'casa', imovel: 'proprio', urgencia: 'ja', concorrente: 'sim', pagamento: 'vista', decisor: 'eu', grupoa: 'nao',
   telhado: 'ceramica', sombra: 'sol', aumento: 'nao', dor: 'sobe', tempo: 'meses', travou: 'caro', desejo: 'viajar', criterio: 'parcela',
 };
 const TEL_QUIZ = '5511991112222';       // o número que o cliente digitou no quiz (DDD 11)

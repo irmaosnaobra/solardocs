@@ -66,6 +66,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -101,14 +109,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -227,6 +227,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -262,14 +270,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -404,6 +404,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -439,14 +447,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -712,6 +712,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -747,14 +755,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -873,6 +873,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -908,14 +916,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1050,6 +1050,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -1085,14 +1093,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1356,6 +1356,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -1391,14 +1399,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1517,6 +1517,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -1552,14 +1560,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1694,6 +1694,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -1729,14 +1737,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -2007,6 +2007,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -2042,14 +2050,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -2168,6 +2168,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -2203,14 +2211,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -2345,6 +2345,14 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "cidade",
             "pergunta": "Em qual cidade fica o imóvel?",
             "curta": "Cidade",
@@ -2380,14 +2388,6 @@
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "aumento",
-            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
-            "curta": "Consumo futuro",
             "chegaram": 0,
             "pararam": 0,
             "erros": []

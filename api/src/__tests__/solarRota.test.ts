@@ -1,34 +1,43 @@
 import { describe, it, expect } from 'vitest';
 import {
-  acharCidadeRaio, caminhoPelasRespostas, decidirCaminho, kwhDaFaixa, FAIXAS_CONTA, KWH_VISITA,
-  CIDADES_RAIO, kmDaBase, RAIO_VISITA_KM, blocoDoCompromisso, chegadaDeRota, pontuar, reservaDe, PONTOS_CURIOSO,
+  acharCidadeRaio, caminhoPelasRespostas, decidirCaminho, kwhDaFaixa, rotuloDaFaixa, FAIXAS_CONTA, FAIXAS_CONTA_LEGADO, KWH_VISITA,
+  CIDADES_RAIO, kmDaBase, RAIO_VISITA_KM, blocoDoCompromisso, chegadaDeRota, pontuar, PESOS, reservaDe, PONTOS_CURIOSO,
   horariosDoCaminho, ocupacaoDaFichaSolar, caminhoDaFicha, socioMaisPerto, MARCA_QUIZ,
 } from '../services/agenda/solarRota';
 
 const H = 60 * 60 * 1000;
 
-describe('faixas da conta', () => {
-  it('nenhuma faixa atravessa o corte de 1.000 kWh', () => {
-    // O limite de cima de cada faixa tem que cair do mesmo lado que o valor típico dela.
-    const lim: Record<string, [number, number]> = {
-      ate300: [0, 300], '300_600': [300, 600], '600_1050': [600, 1050],
-      '1050_2000': [1050, 2000], '2000_5000': [2000, 5000], '5000_mais': [5000, 1e9],
-    };
-    // "Grande" é acima de 1.000 kWh. Cada faixa inteira tem que ficar de um lado só:
-    // o piso e o teto (em kWh) do mesmo lado que o valor típico que a régua usa.
-    const grande = (reais: number) => reais / 1.05 > KWH_VISITA + 1e-9;
-    for (const f of FAIXAS_CONTA) {
-      const [de, ate] = lim[f.v];
-      const tipico = kwhDaFaixa(f.v)! > KWH_VISITA;
-      expect(grande(de + 1)).toBe(tipico);
-      expect(grande(Math.min(ate, 1e6))).toBe(tipico);
-    }
+describe('faixas da conta (23/11/2026)', () => {
+  it('são 4, nesta ordem, com rótulo e valor típico', () => {
+    expect(FAIXAS_CONTA.map(f => [f.v, f.l, f.reais])).toEqual([
+      ['ate400', 'Menos de R$ 400', 200],
+      ['400_800', 'R$ 400 a R$ 800', 600],
+      ['800_1200', 'R$ 800 a R$ 1.200', 1000],
+      ['1200_mais', 'Acima de R$ 1.200', 1201],
+    ]);
   });
   it('lê pelo meio a R$ 1,05', () => {
+    expect(kwhDaFaixa('ate400')).toBe(190);
+    expect(kwhDaFaixa('400_800')).toBe(571);
+    expect(kwhDaFaixa('800_1200')).toBe(952);
+    expect(kwhDaFaixa('1200_mais')).toBe(1144);
+    expect(kwhDaFaixa('xx')).toBeNull();
+  });
+  it('a faixa 800_1200 atravessa R$ 1.050 (o corte de 1.000 kWh) e isso é aceito: a visita é só informação', () => {
+    expect(KWH_VISITA).toBe(1000);
+    expect(kwhDaFaixa('800_1200')!).toBeLessThan(KWH_VISITA);
+    expect(kwhDaFaixa('1200_mais')!).toBeGreaterThan(KWH_VISITA);
+  });
+  it('as 6 chaves antigas seguem lendo, com o mesmo rótulo e o mesmo kWh de antes (o rascunho gravado as guarda)', () => {
+    expect(FAIXAS_CONTA_LEGADO.map(f => f.v)).toEqual(['ate300', '300_600', '600_1050', '1050_2000', '2000_5000', '5000_mais']);
+    expect(rotuloDaFaixa('600_1050')).toBe('R$ 600 a R$ 1.050');
+    expect(rotuloDaFaixa('ate300')).toBe('Até R$ 300');
+    expect(rotuloDaFaixa('5000_mais')).toBe('Mais de R$ 5.000');
+    expect(rotuloDaFaixa('800_1200')).toBe('R$ 800 a R$ 1.200');
+    expect(rotuloDaFaixa('xx')).toBeNull();
     expect(kwhDaFaixa('300_600')).toBe(429);
     expect(kwhDaFaixa('600_1050')).toBe(786);
     expect(kwhDaFaixa('1050_2000')).toBe(1452);
-    expect(kwhDaFaixa('xx')).toBeNull();
   });
 });
 
@@ -55,22 +64,26 @@ describe('cidades do raio', () => {
 
 // Respostas de quem está fechando: para já, decide sozinho, à vista, imóvel próprio, comparando (100).
 const QUENTE = { urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', concorrente: 'sim' };
-// Quem está no meio: 3 meses, decide junto, financia, próprio, primeiro orçamento (18+14+16+15+5 = 68).
+// Quem está no meio: 3 meses, decide junto, financia, próprio, primeiro orçamento (18+14+20+15+10 = 77).
 const MORNO = { urgencia: '3meses', decisor: 'junto', pagamento: 'financiamento', imovel: 'proprio', concorrente: 'nao' };
-// Curioso: pesquisando, outra pessoa decide, não sabe pagar, alugado (0+0+0+0+5 = 5).
+// Curioso: pesquisando, outra pessoa decide, não sabe pagar, alugado (0+0+20+0+10 = 30, o pior caso).
 const FRIO = { urgencia: 'pesquisando', decisor: 'outro', pagamento: 'naosei', imovel: 'alugado', concorrente: 'nao' };
 
 describe('a pontuação (0 a 100)', () => {
-  it('quem está fechando faz 100; o morno 68; o curioso 5', () => {
+  it('quem está fechando faz 100; o morno 77; o pior caso 30', () => {
     expect(pontuar(QUENTE).pontos).toBe(100);
-    expect(pontuar(MORNO).pontos).toBe(68);
-    expect(pontuar(FRIO).pontos).toBe(5);
+    expect(pontuar(MORNO).pontos).toBe(77);
+    expect(pontuar(FRIO).pontos).toBe(30);
   });
   it('"nos próximos 3 meses" com o resto no máximo não passa de 90', () => {
     expect(pontuar({ ...QUENTE, urgencia: '3meses' }).pontos).toBe(83);
   });
-  it('financiar e não estar comparando ainda passa de 90', () => {
-    expect(pontuar({ ...QUENTE, pagamento: 'financiamento', concorrente: 'nao' }).pontos).toBe(91);
+  it('pagamento e concorrente não separam lead (23/11/2026): qualquer resposta vale o mesmo', () => {
+    for (const pagamento of ['vista', 'financiamento', 'cartao', 'naosei']) {
+      for (const concorrente of ['sim', 'nao']) expect(pontuar({ ...QUENTE, pagamento, concorrente }).pontos).toBe(100);
+    }
+    expect(PESOS.pagamento).toEqual({ vista: 20, financiamento: 20, cartao: 20, naosei: 20 });
+    expect(PESOS.concorrente).toEqual({ sim: 10, nao: 10 });
   });
   it('resposta que falta vale zero', () => {
     expect(pontuar({}).pontos).toBe(0);
@@ -80,30 +93,30 @@ describe('a pontuação (0 a 100)', () => {
 describe('o caminho (regras de 08/10)', () => {
   it('abaixo de 40 pontos é curioso, sem agenda, de qualquer tamanho', () => {
     expect(PONTOS_CURIOSO).toBe(40);
-    const d = caminhoPelasRespostas({ conta: '5000_mais', cidade: 'Uberlândia', ...FRIO });
+    const d = caminhoPelasRespostas({ conta: '1200_mais', cidade: 'Uberlândia', ...FRIO });
     expect(d.caminho).toBe('curioso');
     expect(d.candidatos).toEqual([]);
   });
   // 24/10/2026: só a Nilce atende solar. Os casos que eram do Diego (visita), do
   // Thiago (vídeo) e da Giovanna (até 300) viraram todos ligação da Nilce.
   it('acima de 1.000 kWh, acima de 90 pontos e até 150 km de Uberlândia: ligação da Nilce (a visita fica só como informação)', () => {
-    expect(caminhoPelasRespostas({ conta: '1050_2000', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
-    expect(caminhoPelasRespostas({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
-    expect(decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' });
+    expect(caminhoPelasRespostas({ conta: '1200_mais', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
+    expect(caminhoPelasRespostas({ conta: '1200_mais', cidade: 'Catalão', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
+    expect(decidirCaminho({ conta: '1200_mais', cidade: 'Catalão', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' });
   });
   it('acima de 1.000 kWh sem os 90 pontos: ligação da Nilce, sem informação de visita', () => {
-    expect(decidirCaminho({ conta: '2000_5000', cidade: 'Uberlândia', ...MORNO })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
+    expect(decidirCaminho({ conta: '1200_mais', cidade: 'Uberlândia', ...MORNO })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
   });
   it('acima de 1.000 kWh e 90 pontos, mas longe de Uberlândia: Nilce, sem informação de visita (Caldas Novas fica a 173 km)', () => {
-    expect(decidirCaminho({ conta: '2000_5000', cidade: 'Caldas Novas', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
-    expect(decidirCaminho({ conta: '2000_5000', cidade: 'Patos de Minas', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
+    expect(decidirCaminho({ conta: '1200_mais', cidade: 'Caldas Novas', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
+    expect(decidirCaminho({ conta: '1200_mais', cidade: 'Patos de Minas', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
   });
   it('de qualquer faixa de conta é ligação da Nilce, sem sorteio de treino', () => {
-    expect(caminhoPelasRespostas({ conta: '300_600', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
-    expect(caminhoPelasRespostas({ conta: '600_1050', cidade: 'Uberaba', ...MORNO })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
-    expect(caminhoPelasRespostas({ conta: 'ate300', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
+    expect(caminhoPelasRespostas({ conta: '400_800', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
+    expect(caminhoPelasRespostas({ conta: '800_1200', cidade: 'Uberaba', ...MORNO })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
+    expect(caminhoPelasRespostas({ conta: 'ate400', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
     for (let i = 0; i < 40; i++) {
-      const d = caminhoPelasRespostas({ conta: '300_600', cidade: 'Uberlândia', ...QUENTE }, `3499000${String(1000 + i)}`);
+      const d = caminhoPelasRespostas({ conta: '400_800', cidade: 'Uberlândia', ...QUENTE }, `3499000${String(1000 + i)}`);
       expect(d.candidatos).toEqual(['Nilce']);
       expect(d.treino).toBeFalsy();
     }
@@ -112,22 +125,22 @@ describe('o caminho (regras de 08/10)', () => {
 
 describe('quem atende quando o telefone já tem dono', () => {
   it('cliente da Nilce fica com ela e a ficha diz o que ele qualificaria', () => {
-    const d = decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE }, 'Nilce');
+    const d = decidirCaminho({ conta: '1200_mais', cidade: 'Catalão', ...QUENTE }, 'Nilce');
     expect(d).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' });
   });
   it('cliente do Thiago que qualifica visita: o Thiago atende e marca com o Diego (dono anterior vence, não mudou)', () => {
-    const d = decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE }, 'Thiago');
+    const d = decidirCaminho({ conta: '1200_mais', cidade: 'Catalão', ...QUENTE }, 'Thiago');
     expect(d).toMatchObject({ caminho: 'video', candidatos: ['Thiago'], qualifica: 'vistoria' });
   });
   it('curioso continua curioso mesmo com dono', () => {
-    expect(decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...FRIO }, 'Diego').caminho).toBe('curioso');
+    expect(decidirCaminho({ conta: '1200_mais', cidade: 'Catalão', ...FRIO }, 'Diego').caminho).toBe('curioso');
   });
   it('cliente da Giovanna entra como cliente novo: cai na Nilce, que é a única dona da ligação', () => {
-    expect(decidirCaminho({ conta: 'ate300', cidade: 'Uberlândia', ...QUENTE }, 'Giovanna'))
+    expect(decidirCaminho({ conta: 'ate400', cidade: 'Uberlândia', ...QUENTE }, 'Giovanna'))
       .toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
   });
   it('sem horário a visita desce para o Thiago e o Thiago para a Nilce (cliente que já é do Diego)', () => {
-    const v = decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE }, 'Diego');
+    const v = decidirCaminho({ conta: '1200_mais', cidade: 'Catalão', ...QUENTE }, 'Diego');
     const r1 = reservaDe(v)!;
     expect(r1).toMatchObject({ caminho: 'video', candidatos: ['Thiago'], qualifica: 'vistoria' });
     expect(reservaDe(r1)).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' });

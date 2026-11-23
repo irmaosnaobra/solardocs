@@ -635,7 +635,7 @@ describe('runFichaConsultorTick', () => {
     h.agend.push(novoCard(1), novoCard(2, { cliente_telefone: '5534988881111', created_at: ATRAS(4) }));
     const { avisarAgora } = await import('../services/io/solarQuizAviso');
     const { limparRespostas, limparRespostasExtra } = await import('../services/io/solarQuiz');
-    const resp = limparRespostas({ conta: '600_1050', cidade: 'Uberlândia-MG', tipo: 'casa' });
+    const resp = limparRespostas({ conta: '800_1200', cidade: 'Uberlândia-MG', tipo: 'casa' });
     const antes = h.enviados.length;
     const a = await avisarAgora({
       cardId: 1, lead: 'quiz_3491112222', quandoMs: AGORA.getTime() + 5 * 60_000,

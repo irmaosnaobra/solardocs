@@ -73,7 +73,7 @@ const FBC = 'fb.1.1760000000000.AbCdEf123';
 const FBP = 'fb.1.1760000000000.1234567890';
 const base = {
   nome: 'Ana Souza', tel: '5534991112222',
-  respostas: { conta: '2000_5000', cidade: 'Uberlândia-MG', urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', tipo: 'empresa' },
+  respostas: { conta: '1200_mais', cidade: 'Uberlândia-MG', urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', tipo: 'empresa' },
   fbc: FBC, fbp: FBP,
 };
 const agendar = { ...base, ymd: '2026-10-14', h: '09:00', dono: 'Diego', event_id: 'agd_abc123xyz' };

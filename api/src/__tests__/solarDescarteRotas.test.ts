@@ -41,7 +41,7 @@ const SEXTA_14H = brt('2026-10-23', '14:00');
 const SEGREDO = 'segredo-de-teste-descarte';
 
 const RESP_BOA = {
-  conta: '600_1050', cidade: 'Uberlândia-MG', tipo: 'casa', imovel: 'proprio', urgencia: 'ja', concorrente: 'sim', pagamento: 'vista', decisor: 'eu', grupoa: 'nao',
+  conta: '800_1200', cidade: 'Uberlândia-MG', tipo: 'casa', imovel: 'proprio', urgencia: 'ja', concorrente: 'sim', pagamento: 'vista', decisor: 'eu', grupoa: 'nao',
   telhado: 'ceramica', sombra: 'sol', aumento: 'nao', dor: 'sobe', tempo: 'meses', travou: 'caro', desejo: 'viajar', criterio: 'parcela',
 };
 /** 0 + 20 + 20 + 15 + 10 = 65 pontos: abaixo do corte de 70. */
@@ -49,6 +49,8 @@ const RESP_NOTA_65 = { ...RESP_BOA, urgencia: 'pesquisando' };
 /** 3meses (18) + 20 + 20 + 15 + 10 = 83 pontos. */
 const RESP_NOTA_83 = { ...RESP_BOA, urgencia: '3meses' };
 const RESP_FORA = { ...RESP_BOA, cidade: 'Jaboticatubas-MG' };
+/** Conta abaixo de R$ 400 e o consumo não vai aumentar: nota 100, mas descartado por conta (23/11/2026). */
+const RESP_CONTA_BAIXA = { ...RESP_BOA, conta: 'ate400', aumento: 'nao' };
 
 const corpo = (resp: Record<string, unknown> = RESP_BOA, extra: Record<string, unknown> = {}) =>
   ({ nome: 'Ana Souza', tel: '5534991112222', respostas: resp, event_id: 'agd_abc123xyz', ...extra });
@@ -145,6 +147,77 @@ describe('POST /quiz descarta', () => {
     const r = await request(app).post('/io/solar/quiz').send(corpo(RESP_NOTA_65));
     expect(r.status).toBe(200);
     expect(r.body.descartado).toBe(true);
+  });
+});
+
+describe('POST /quiz: descarte por conta (23/11/2026)', () => {
+  it('ate400 com aumento "nao": descartado por conta, sem rascunho, e a marca guarda conta e aumento', async () => {
+    const r = await request(app).post('/io/solar/quiz').send(corpo(RESP_CONTA_BAIXA));
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ ok: true, descartado: true, motivo: 'conta', caminho: 'descartado' });
+    semEscrita();
+    expect(h.ger.tabela('leads_meta')).toHaveLength(0);
+    const m = marcas();
+    expect(m).toHaveLength(1);
+    expect(m[0].value).toMatchObject({ motivo: 'conta', pontos: 100, conta: 'ate400', aumento: 'nao' });
+  });
+
+  it('a marca do descarte por nota também guarda conta e aumento', async () => {
+    await request(app).post('/io/solar/quiz').send(corpo({ ...RESP_NOTA_65, conta: '400_800', aumento: 'carro' }));
+    expect(marcas()[0].value).toMatchObject({ motivo: 'nota', conta: '400_800', aumento: 'carro' });
+  });
+
+  it.each(['clima', 'carro', 'maquinas'])('ate400 com aumento "%s" segue e grava o rascunho', async (aumento) => {
+    const r = await request(app).post('/io/solar/quiz').send(corpo({ ...RESP_BOA, conta: 'ate400', aumento }));
+    expect(r.body.descartado).toBeUndefined();
+    expect(h.ger.tabela('leads_meta')).toHaveLength(1);
+    expect(marcas()).toHaveLength(0);
+  });
+
+  it('ate400 sem aumento (a pergunta não veio) segue', async () => {
+    const { aumento: _a, ...semAumento } = RESP_CONTA_BAIXA;
+    const r = await request(app).post('/io/solar/quiz').send(corpo(semAumento));
+    expect(r.body.descartado).toBeUndefined();
+    expect(h.ger.tabela('leads_meta')).toHaveLength(1);
+  });
+
+  it('400_800 com aumento "nao" segue', async () => {
+    const r = await request(app).post('/io/solar/quiz').send(corpo({ ...RESP_BOA, conta: '400_800', aumento: 'nao' }));
+    expect(r.body.descartado).toBeUndefined();
+    expect(h.ger.tabela('leads_meta')).toHaveLength(1);
+  });
+
+  it('ate300 (chave legada) com "nao" também é descartado por conta', async () => {
+    const r = await request(app).post('/io/solar/quiz').send(corpo({ ...RESP_BOA, conta: 'ate300', aumento: 'nao' }));
+    expect(r.body).toMatchObject({ descartado: true, motivo: 'conta' });
+    semEscrita();
+  });
+
+  it('descartado de novo: a marca é regravada com o horário da tentativa mais recente (upsert, não claim)', async () => {
+    await request(app).post('/io/solar/quiz').send(corpo(RESP_CONTA_BAIXA));
+    const primeiro = marcas()[0].value.em;
+    vi.setSystemTime(SEXTA_14H + 5 * 60_000);
+    await request(app).post('/io/solar/quiz').send(corpo({ ...RESP_CONTA_BAIXA, cidade: 'Jaboticatubas-MG' }));
+    expect(marcas()).toHaveLength(1);
+    expect(marcas()[0].value.em).toBe(new Date(SEXTA_14H + 5 * 60_000).toISOString());
+    expect(marcas()[0].value.em).not.toBe(primeiro);
+    expect(marcas()[0].value.motivo).toBe('regiao');
+  });
+
+  it('a região tem prioridade sobre a conta', async () => {
+    const r = await request(app).post('/io/solar/quiz').send(corpo({ ...RESP_CONTA_BAIXA, cidade: 'Jaboticatubas-MG' }));
+    expect(r.body.motivo).toBe('regiao');
+    expect(marcas()[0].value).toMatchObject({ motivo: 'regiao', conta: 'ate400', aumento: 'nao' });
+  });
+
+  it('/agora e /agendar também respondem 409 com motivo conta', async () => {
+    const a = await request(app).post('/io/solar/quiz/agora').send(corpo(RESP_CONTA_BAIXA));
+    expect(a.status).toBe(409);
+    expect(a.body).toMatchObject({ ok: false, error: 'descartado', motivo: 'conta' });
+    const b = await request(app).post('/io/solar/quiz/agendar').send(corpo(RESP_CONTA_BAIXA, { ymd: '2026-10-24', h: '07:00', dono: 'Nilce' }));
+    expect(b.status).toBe(409);
+    expect(b.body).toMatchObject({ ok: false, error: 'descartado', motivo: 'conta' });
+    semEscrita();
   });
 });
 

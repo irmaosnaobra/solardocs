@@ -11,7 +11,7 @@
 //   T3  lista das 07:00                                 (T4 é o segundo aviso de 5 min)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { rotuloDaFaixa, KWH_VISITA } from '../agenda/solarRota';
+import { rotuloDaFaixa, ehFaixaPiso, KWH_VISITA } from '../agenda/solarRota';
 import {
   emojiDaNota, palavraDaNota, FONTE_DO_ANUNCIO, nomeEUfDaCidade, rotuloDaResposta, rotExtra, brl0, linhaDoDiagnostico,
   type Respostas, type RespostasExtra, type Diagnostico,
@@ -113,7 +113,7 @@ export function aberturaSugerida(d: Pick<DadosDaFicha, 'nome' | 'cidadeUf' | 'di
     `Oi, ${primeiroNomeDe(d.nome)}!`,
     'Aqui é a Nilce, da Irmãos na Obra.',
     'Fiz a conta com as suas respostas.',
-    d.diag && d.diag.economia_mes !== null ? `Em ${cidade}, dá para economizar cerca de ${brl0(d.diag.economia_mes)} por mês.` : '',
+    d.diag && d.diag.economia_mes !== null ? `Em ${cidade}, dá para economizar ${d.diag.piso ? 'mais de' : 'cerca de'} ${brl0(d.diag.economia_mes)} por mês.` : '',
     gancho,
     pergunta,
   ].filter(Boolean).join('\n');
@@ -142,7 +142,7 @@ export function fichaDoAviso(d: DadosDaFicha): string[] {
       `Telhado: ${x('telhado', extra.telhado)} · Sombra: ${x('sombra', extra.sombra)}`,
     ]),
     secao('⚡', 'CONTA DE LUZ', [
-      `Conta: ${rotuloDaFaixa(resp.conta) ?? NAO_RESPONDEU} · Consumo: cerca de ${kwh !== null ? kwh.toLocaleString('pt-BR') : '?'} kWh`,
+      `Conta: ${rotuloDaFaixa(resp.conta) ?? NAO_RESPONDEU} · Consumo: ${ehFaixaPiso(resp.conta) ? 'a partir de' : 'cerca de'} ${kwh !== null ? kwh.toLocaleString('pt-BR') : '?'} kWh`,
       kwh !== null && kwh > KWH_VISITA && '*Qualifica visita técnica, acima de 1.000 kWh*',
       `Vai aumentar o consumo: ${x('aumento', extra.aumento)}`,
       d.diag && `Diagnóstico: ${linhaDoDiagnostico(d.diag)}`,
