@@ -14,7 +14,8 @@
 import {
   decidirCaminho, reservaDe, horariosDoCaminho, blocoDoCompromisso, ocupacaoDaFichaSolar,
   rotuloDaFaixa, MARCA_QUIZ, RAIO_VISITA_KM, BASE_DO_SOCIO, socioMaisPerto, caminhoDaFicha, semTreino, LIMITE_TREINO_DIAS,
-  acharFaixaConta, ehFaixaPiso, kwhDaFaixa, DONA_SOLAR, LIGACAO_MIN,
+  acharFaixaConta, ehFaixaPiso, kwhDaFaixa, DONA_SOLAR, LIGACAO_MIN, GRADE_NOVO_LIGACAO, GRADE_SOCIOS_SOLAR, SOCIOS_VISITA,
+  donoQueAindaAtendeSolar, divisaoSolarDesligada, candidatosPadrao, grupoDaFaixaConta,
   type Caminho, type Decisao, type FichaAgenda,
 } from '../agenda/solarRota';
 import { geracaoMensal } from '../propostaSolarData';
@@ -206,12 +207,23 @@ export const diaUtil = (ymd: string): boolean => {
   return w !== 0 && w !== 6 && !ehFeriadoBR(ymd);
 };
 
-// ── A grade e o horário do quiz de 24/10/2026 ───────────────────────────────
-// Só a Nilce atende solar. A vitrine do quiz tem a grade PRÓPRIA abaixo (segunda a sexta 07:00 às 17:30, sábado
-// 07:00 às 11:30, de 30 em 30 min); GRADE_NOVO_LIGACAO e GRADE_FOLLOWUP_LIGACAO (solarRota.ts) ficam como estão,
-// porque o formulário do Meta, o ManyChat e o robô de follow-up leem delas. O "agora" (atendimento direto) vale
-// segunda a sexta das 07:00 às 18:00 e sábado das 07:00 às 12:00, horário de Brasília.
-export interface OpcoesGrade { grade?: 'quiz' }
+// ── A grade e o horário do quiz de 24/10/2026 (por pessoa desde 23/11/2026) ─────────────────────────────────────────
+// A vitrine do quiz tem a grade PRÓPRIA da Nilce (segunda a sexta 07:00 às 17:30, sábado 07:00 às 11:30, de 30 em 30 min).
+// Desde 23/11/2026 o lead solar é dividido por conta de luz (solarRota.ts, GRUPOS_SOLAR) e cada pessoa tem a sua grade:
+//   · Nilce    a do quiz, acima.
+//   · Giovanna GRADE_NOVO_LIGACAO (08:00 às 16:30, :00 e :30), dia útil.
+//   · Thiago e Diego  GRADE_SOCIOS_SOLAR (as meias-horas que o eletroposto não vende), dia útil, e NUNCA em dia de agenda
+//     fechada (agendaFechada.ts). A ocupação real deles (eletroposto incluso) vem de `lerOcupacoes` com a pessoa.
+// GRADE_NOVO_LIGACAO e GRADE_FOLLOWUP_LIGACAO (solarRota.ts) ficam como estão, porque o formulário do Meta, o ManyChat e o
+// robô de follow-up leem delas. O "agora" (atendimento direto) vale segunda a sexta das 07:00 às 18:00 e sábado das 07:00 às
+// 12:00, horário de Brasília, e é da Nilce. Dos outros três donos (23/11/2026) o "agora" só existe com a trava de `agoraPermitido`: o
+// momento cai dentro da grade de trabalho do dono, o dia não é de agenda fechada (sócios) e ele não tem nada marcado nos 30 minutos
+// seguintes. Fora disso: sem `horario_agora` no /quiz e 409 `fora_do_horario` no /quiz/agora (a página abre a vitrine do dono).
+export interface OpcoesGrade {
+  grade?: 'quiz';
+  /** Quem pode atender, em ordem de preferência (a lista por déficit de `divisaoSolar.candidatosPorFaixa`). Sem ela vale a ordem da tabela. */
+  candidatos?: readonly string[];
+}
 
 const gradeDe = (iniMin: number, fimMin: number): readonly string[] => {
   const out: string[] = [];
@@ -226,6 +238,28 @@ export const ANTECEDENCIA_QUIZ_MIN = 30;
 export const diaDoQuiz = (ymd: string): boolean => diaDaSemana(ymd) !== 0 && !ehFeriadoBR(ymd);
 export const horariosDoQuiz = (ymd: string): readonly string[] =>
   !diaDoQuiz(ymd) ? [] : diaDaSemana(ymd) === 6 ? GRADE_QUIZ_SABADO : GRADE_QUIZ_SEMANA;
+
+/** Os horários que a vitrine do quiz oferece àquela pessoa naquele dia. Pessoa fora da tabela: nenhum. */
+export function horariosDoQuizDe(pessoa: string, ymd: string): readonly string[] {
+  if (pessoa === 'Nilce') return horariosDoQuiz(ymd);
+  if (pessoa === 'Giovanna') return diaUtil(ymd) ? GRADE_NOVO_LIGACAO : [];
+  if ((SOCIOS_VISITA as readonly string[]).includes(pessoa)) return diaUtil(ymd) && !agendaFechadaEm(ymd) ? GRADE_SOCIOS_SOLAR : [];
+  return [];
+}
+
+/** O dono do cliente que volta, no quiz. Com `SOLAR_DIVISAO_OFF=1` só a Nilce vale (a regra de 24/10); ligada, os quatro. */
+export function donoDoQuiz(dono: string | null | undefined): string | null {
+  if (divisaoSolarDesligada()) return dono === DONA_SOLAR ? dono : null;
+  return donoQueAindaAtendeSolar(dono);
+}
+
+/** Quem atende: o dono que o cliente já tem; senão a lista por déficit (ou a ordem da tabela). */
+export function candidatosDoQuiz(resp: Pick<Respostas, 'conta'>, dono: string | null, opt?: OpcoesGrade): string[] {
+  const d = donoDoQuiz(dono);
+  if (d) return [d];
+  if (divisaoSolarDesligada()) return [DONA_SOLAR];
+  return opt?.candidatos?.length ? [...opt.candidatos] : candidatosPadrao(grupoDaFaixaConta(resp.conta));
+}
 
 /** Fim do atendimento direto, em minutos desde a meia-noite de Brasília. */
 const AGORA_ABRE_MIN = 7 * 60;
@@ -242,6 +276,32 @@ export function horarioAgoraAberto(ms: number): boolean {
   return min >= AGORA_ABRE_MIN && min < (w === 6 ? AGORA_FECHA_MIN.sabado : AGORA_FECHA_MIN.semana);
 }
 
+/** Folga de agenda do "agora" para quem não é a Nilce: nada marcado nestes minutos a partir do clique. */
+export const AGORA_FOLGA_MIN = 30;
+
+/** O instante `ms` cai dentro da grade de trabalho deste dono? Nilce: a janela do atendimento direto (`horarioAgoraAberto`, igual à grade do
+ *  quiz dela). Giovanna, Thiago e Diego: dentro de uma meia hora da grade do quiz deles (`horariosDoQuizDe`: dia útil, e sócio nunca em dia de
+ *  agenda fechada), então o intervalo do almoço dos sócios (10:00, 11:00...) fica de fora. Pessoa fora da tabela: não. */
+export function agoraNaGrade(dono: string, ms: number): boolean {
+  if (!Number.isFinite(ms)) return false;
+  if (dono === DONA_SOLAR) return horarioAgoraAberto(ms);
+  const ymd = ymdBRT(ms);
+  return horariosDoQuizDe(dono, ymd).some(h => { const ini = msDe(ymd, h); return ms >= ini && ms < ini + 30 * MIN; });
+}
+
+/** O dono não tem nada ocupando os próximos `AGORA_FOLGA_MIN` minutos? `ocupacoes` são as dele (qualquer origem, eletroposto incluso). */
+export function agoraLivreNaAgenda(ms: number, ocupacoes: ReadonlyArray<{ ini: number; fim: number }>): boolean {
+  const fim = ms + AGORA_FOLGA_MIN * MIN;
+  return !ocupacoes.some(o => o.ini < fim && ms < o.fim);
+}
+
+/** O "ligar agora" vale para este dono neste instante? Só a grade para a Nilce (o encaixe de +5 min dela segue como sempre); para os outros,
+ *  a grade E a folga de agenda. Pura: quem chama traz as ocupações já lidas (`agoraLiberadoSolar` lê, nos lugares que não as têm). */
+export function agoraPermitido(dono: string, ms: number, ocupacoesDoDono: ReadonlyArray<{ ini: number; fim: number }>): boolean {
+  if (!agoraNaGrade(dono, ms)) return false;
+  return dono === DONA_SOLAR || agoraLivreNaAgenda(ms, ocupacoesDoDono);
+}
+
 /** O instante da ligação do "agora": o próximo múltiplo de 5 min que esteja PELO MENOS 5 min à frente. `encaixe`
  *  soma 5 min por vez (o minuto estava ocupado: o índice único (vendedor, quando) recusou). */
 export const PASSO_AGORA_MS = 5 * MIN;
@@ -250,11 +310,11 @@ export function quandoDoAgora(agoraMs: number, encaixe = 0): number {
 }
 
 /** O horário cabe para esta pessoa, neste caminho? Mesma pergunta na vitrine e
- *  na gravação. Com `{ grade: 'quiz' }` vale a grade nova do quiz (ligação da Nilce). */
+ *  na gravação. Com `{ grade: 'quiz' }` vale a grade do quiz de cada pessoa (`horariosDoQuizDe`). */
 export function cabe(caminho: Caminho, ymd: string, hhmm: string, pessoa: string, dec: Decisao,
   ocupacoes: readonly Ocupacao[], agoraMs: number, opt?: OpcoesGrade): boolean {
   if (opt?.grade === 'quiz') {
-    if (!horariosDoQuiz(ymd).includes(hhmm)) return false;
+    if (!horariosDoQuizDe(pessoa, ymd).includes(hhmm)) return false;
     const t = msDe(ymd, hhmm);
     if (t < agoraMs + ANTECEDENCIA_QUIZ_MIN * MIN) return false;
     const fim = t + LIGACAO_MIN * MIN;
@@ -274,16 +334,25 @@ export function cabe(caminho: Caminho, ymd: string, hhmm: string, pessoa: string
 export interface DiaVitrine { ymd: string; horas: Array<{ h: string; dono: string }> }
 
 /** Os dois próximos dias com vaga. Cada horário fica com o primeiro candidato
- *  que cabe nele, na ordem da decisão (sócio mais perto, depois o outro). */
+ *  que cabe nele, na ordem da decisão (sócio mais perto, depois o outro).
+ *  No quiz (23/11/2026) NÃO mistura donos: mostra os horários do 1º candidato que tem algum nos 14 dias; se ele não tem
+ *  nenhum, mostra os do próximo. */
 export function montarVitrine(dec: Decisao, ocupacoes: readonly Ocupacao[], agoraMs: number, opt?: OpcoesGrade): DiaVitrine[] {
-  const out: DiaVitrine[] = [];
   const quiz = opt?.grade === 'quiz';
+  if (quiz && dec.candidatos.length > 1) {
+    for (const pessoa of dec.candidatos) {
+      const dias = montarVitrine({ ...dec, candidatos: [pessoa] }, ocupacoes, agoraMs, opt);
+      if (dias.length) return dias;
+    }
+    return [];
+  }
+  const out: DiaVitrine[] = [];
   let ymd = ymdBRT(agoraMs);
   for (let i = 0; i < DIAS_VARRIDOS && out.length < DIAS_NA_VITRINE; i++, ymd = somaDias(ymd, 1)) {
-    if (quiz ? !diaDoQuiz(ymd) : !diaUtil(ymd)) continue;
+    if (!quiz && !diaUtil(ymd)) continue;
     const porHora = new Map<string, string>();
     for (const pessoa of dec.candidatos) {
-      for (const h of quiz ? horariosDoQuiz(ymd) : horariosDoCaminho(dec.caminho, ymd, pessoa, dec.cidade)) {
+      for (const h of quiz ? horariosDoQuizDe(pessoa, ymd) : horariosDoCaminho(dec.caminho, ymd, pessoa, dec.cidade)) {
         if (porHora.has(h)) continue;
         if (cabe(dec.caminho, ymd, h, pessoa, dec, ocupacoes, agoraMs, opt)) porHora.set(h, pessoa);
       }
@@ -299,17 +368,22 @@ export function montarVitrine(dec: Decisao, ocupacoes: readonly Ocupacao[], agor
  *  reservas (reservaDe em solarRota.ts): visita, atendimento do Thiago,
  *  ligação da Nilce. Curioso não tem vitrine. */
 export function decidirEMontar(resp: Respostas, dono: string | null, ocupacoes: readonly Ocupacao[], agoraMs: number, chave?: string | null,
-  opt?: OpcoesGrade): { dec: Decisao; dias: DiaVitrine[]; semHorario: boolean } {
+  opt?: OpcoesGrade): { dec: Decisao; dias: DiaVitrine[]; semHorario: boolean; dono: string } {
   if (opt?.grade === 'quiz') {
-    // Quiz de 24/10/2026: só a Nilce atende, por ligação, na grade do quiz. Cliente que era de sócio vira cliente da
-    // Nilce. O CURIOSO (abaixo de 40 pontos) também escolhe horário: o caminho dele continua 'curioso' (sem botão
-    // "agora", sem LeadQuente), mas a vitrine sai igual à dos outros.
-    const d = decidirCaminho(resp, dono === DONA_SOLAR ? dono : null, chave);
-    const dias = montarVitrine({ ...d, caminho: 'ligacao', candidatos: [DONA_SOLAR] }, ocupacoes, agoraMs, opt);
-    return { dec: d, dias, semHorario: dias.length === 0 };
+    // Quiz: sempre ligação, na grade de cada pessoa (23/11/2026). Cliente que já tem dono fica com ele; o novo vai para a
+    // lista por conta de luz. O CURIOSO (abaixo de 40 pontos) também escolhe horário: o caminho dele continua 'curioso' (sem
+    // botão "agora", sem LeadQuente), mas a vitrine sai igual à dos outros. `dono` (do retorno) é de quem é a vitrine: o 1º
+    // candidato com horário; se ninguém tem, o 1º da lista.
+    const lista = candidatosDoQuiz(resp, dono, opt);
+    const d = decidirCaminho(resp, donoDoQuiz(dono), chave, lista);
+    const dias = montarVitrine({ ...d, caminho: 'ligacao', candidatos: lista }, ocupacoes, agoraMs, opt);
+    const dono1 = dias.length ? dias[0].horas[0].dono : lista[0];
+    const dec: Decisao = { ...d, caminho: d.caminho === 'curioso' ? 'curioso' : 'ligacao',
+      candidatos: d.caminho === 'curioso' ? [] : [dono1, ...lista.filter(x => x !== dono1)] };
+    return { dec, dias, semHorario: dias.length === 0, dono: dono1 };
   }
   const dec = decidirCaminho(resp, dono, chave);
-  if (dec.caminho === 'curioso') return { dec, dias: [], semHorario: false };
+  if (dec.caminho === 'curioso') return { dec, dias: [], semHorario: false, dono: dec.candidatos[0] ?? DONA_SOLAR };
   let atual: Decisao | null = dec;
   let primeira = true;
   while (atual) {
@@ -319,11 +393,11 @@ export function decidirEMontar(resp: Respostas, dono: string | null, ocupacoes: 
       atual = semTreino(atual);
       continue;
     }
-    if (dias.length) return { dec: atual, dias, semHorario: !primeira };
+    if (dias.length) return { dec: atual, dias, semHorario: !primeira, dono: dias[0].horas[0].dono };
     atual = reservaDe(atual);
     primeira = false;
   }
-  return { dec, dias: [], semHorario: true };
+  return { dec, dias: [], semHorario: true, dono: dec.candidatos[0] ?? DONA_SOLAR };
 }
 
 const NOME_PESO: Record<string, string> = { urgencia: 'prazo', decisor: 'decisor', pagamento: 'pagamento', imovel: 'imóvel', concorrente: 'orçamento' };

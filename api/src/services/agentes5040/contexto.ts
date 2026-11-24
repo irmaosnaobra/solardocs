@@ -30,6 +30,7 @@ import {
 import { desligado as pausaDesligada } from '../agents/whatsapp/pausaHumana';
 import { proximasVagas } from '../io/eletropostoVagas';
 import { vagasSolar } from './agendaSolarVagas';
+import { temDuasFaixas } from '../agenda/solarRota';
 import { INV_SESSAO_PREFIX, sessaoSeguraOutrosRobos } from '../io/investidorAgentePosse';
 import { quandoPorExtenso } from './personas/comum';
 import { origemDoLeadMeta } from './porteiro';
@@ -258,9 +259,11 @@ function origemDe(card: CardResumo | null, lead: LeadMetaResumo | null, cadastro
 // ── horários livres ──────────────────────────────────────────────────────────
 // Só leitura da agenda (eletropostoVagas.proximasVagas: agendamentos + fichas do solar). O dono vem do
 // card; sem card, a Helena cai pela cidade (Araguari = Thiago, Uberlândia = Diego). A Duda sem dono no
-// card fica sem horário (o consumo decide Nilce ou Giovanna, e isso a conversa ainda não respondeu).
+// card fica sem horário aqui (a conta de luz decide o dono, e isso a conversa ainda não respondeu; quando ela responde, quem oferece
+// é o vivo.ts com `consultoraDaFaixa`). Desde 23/11/2026 o solar é dividido por conta: o card da Duda pode ser de qualquer um dos
+// quatro, e ela mostra os horários do dono do CARD.
 
-const DONOS_HORARIO: Record<'duda' | 'helena', readonly string[]> = { duda: ['Nilce', 'Giovanna'], helena: ['Thiago', 'Diego'] };
+const DONOS_HORARIO: Record<'duda' | 'helena', readonly string[]> = { duda: ['Nilce', 'Giovanna', 'Thiago', 'Diego'], helena: ['Thiago', 'Diego'] };
 const semAcentoMin = (s: unknown): string => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 function donoDoHorario(
@@ -287,7 +290,7 @@ export async function lerHorariosLivres(
     // A Duda marca ligação do SOLAR: grade e ocupação do solar (agendaSolarVagas), nunca a do eletroposto.
     // Lead sem card = cliente novo (:00/:30); quem já tem card (inclusive nao_atendeu) remarca nos :15/:45.
     const vagas = persona === 'duda'
-      ? await vagasSolar({ dono, caminho: 'ligacao', n: 4, agora: Date.parse(agora), faixa: card ? 'remarcacao' : 'novo' })
+      ? await vagasSolar({ dono, caminho: 'ligacao', n: 4, agora: Date.parse(agora), faixa: card && temDuasFaixas(dono) ? 'remarcacao' : 'novo' })
       : await proximasVagas(dono, 4, { agora: Date.parse(agora) });
     return (vagas ?? []).map(iso => quandoPorExtenso(iso, agora)).filter(Boolean);
   } catch (e) {

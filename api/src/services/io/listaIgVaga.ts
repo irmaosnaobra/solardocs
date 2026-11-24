@@ -14,7 +14,7 @@ import { prefixosTotalDaLinha } from '../agents/whatsapp/lineThrottle';
 import { linhaPausada } from '../agentes5040/vivoEnvio';
 import { horarioAgoraAberto } from './solarQuiz';
 
-export type PessoaLista = 'nilce' | 'thiago' | 'diego';
+export type PessoaLista = 'nilce' | 'giovanna' | 'thiago' | 'diego';
 export const PREFIXO_VAGA = 'io_lista_vaga:';
 export const PREFIXO_ENV = 'io_lista_env:';
 export const PREFIXO_PEND = 'io_lista_pend:';
@@ -33,7 +33,7 @@ export function baldeDe5(ms: number): string {
 }
 
 export function dentroDaJanela(pessoa: PessoaLista, ms: number): boolean {
-  if (pessoa === 'nilce') return horarioAgoraAberto(ms);
+  if (pessoa === 'nilce' || pessoa === 'giovanna') return horarioAgoraAberto(ms);
   const h = Number(brt(ms).slice(11, 13));
   return h >= 7 && h < 21;
 }

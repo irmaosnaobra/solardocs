@@ -60,6 +60,7 @@ vi.mock('../services/agentes5040/agendaSolarVagas', async (orig) => ({
 
 import { iaFalsa, novoBanco, respostaIA, saidaJson, type BancoFalso } from './_agentes5040Fake';
 import { LIMITES_VIVO, runVivoTick } from '../services/agentes5040/vivo';
+import { _limparCacheDivisao } from '../services/agenda/divisaoSolar';
 import { CHAVE_VIVO_ALVO, DONAS_LIBERADAS_PARA_TODOS, zerarCacheInterruptores, type DonaViva } from '../services/agentes5040/interruptores';
 import { zerarCacheArmazem } from '../services/agentes5040/armazem';
 import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
@@ -113,6 +114,7 @@ let ia = modelo(['Oi']);
 const rodar = (extra: Record<string, unknown> = {}) => runVivoTick({ agora: AGORA, cliente: ia.cliente, ...extra });
 
 beforeEach(() => {
+  _limparCacheDivisao();   // a divisão por conta de luz guarda a contagem de cards por 60 s
   banco = novoBanco(); gerador = novoBanco();
   h.principal = banco; h.gerador = gerador;
   h.enviar.mockReset().mockImplementation(async (p: any) => (p.dry ? { ok: false, motivo: 'dry' } : { ok: true, enviadas: 1, carimbos: [`ag5040_sent:${p.waIdAlvo}:1`] }));

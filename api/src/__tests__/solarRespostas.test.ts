@@ -93,27 +93,43 @@ async function tick(opts: any = {}) {
 }
 
 describe('pra quem vai o recado', () => {
-  it('vai só pra Giovanna e pra Nilce, um envio por pessoa (a Nilce é a dona da ficha: não repete); o Thiago não recebe', async () => {
+  // 23/11/2026: UM destino só, o dono do card (a divisão por conta de luz deu o solar aos quatro). Era a Giovanna e a Nilce juntas.
+  it('ficha da Nilce: o recado vai só para a Nilce, um envio; a Giovanna e o Thiago não recebem', async () => {
     const r = await tick();
     expect(r.avisados).toBe(1);
-    expect(avisos.map(a => a.phone)).toEqual(['5534900000009', '5534991516846']);
+    expect(avisos.map(a => a.phone)).toEqual(['5534991516846']);
     expect(avisos.map(a => a.phone)).not.toContain('5534991360223');
     expect(avisos[0]!.texto).toContain('Irineu de Almeida');
     expect(avisos[0]!.texto).toContain('480 kWh');
     expect(avisos[0]!.texto).toContain('Nilce');
   });
 
-  it('ficha de outro consultor (Diego): ele NÃO recebe; só a Giovanna e a Nilce', async () => {
+  it('ficha do Diego: só ele recebe', async () => {
     consultores.push({ nome: 'Diego', whatsapp: '5534900000002' });
     fichas = [ficha({ vendedor_nome: 'Diego' })];
     await tick();
-    expect(avisos.map(a => a.phone)).toEqual(['5534900000009', '5534991516846']);
+    expect(avisos.map(a => a.phone)).toEqual(['5534900000002']);
   });
 
-  it('ficha da própria Giovanna: um recado só para ela, mais a Nilce', async () => {
+  it('ficha da Giovanna: um recado só, para ela', async () => {
     fichas = [ficha({ vendedor_nome: 'Giovanna' })];
     await tick();
-    expect(avisos.map(a => a.phone)).toEqual(['5534900000009', '5534991516846']);
+    expect(avisos.map(a => a.phone)).toEqual(['5534900000009']);
+  });
+
+  it('dono que não é de solar, ou sem nome: o recado vai para a Giovanna', async () => {
+    fichas = [ficha({ vendedor_nome: 'Luma' })];
+    await tick();
+    expect(avisos.map(a => a.phone)).toEqual(['5534900000009']);
+  });
+
+  it('destinoDoRecado(): sempre UM número, e nunca vazio', async () => {
+    const { destinoDoRecado } = await import('../services/io/solarRespostas');
+    const mapa = new Map<string, string>([['nilce', '5534991516846'], ['giovanna', '5534900000009']]);
+    expect(destinoDoRecado('Nilce', mapa)).toHaveLength(1);
+    expect(destinoDoRecado('Luma', mapa)).toEqual(['5534900000009']);
+    expect(destinoDoRecado(null, mapa)).toEqual(['5534900000009']);
+    expect(destinoDoRecado('Nilce', new Map())).toHaveLength(1);   // sem tabela, a reserva de telefoneDoConsultor ou o dono da operação
   });
 
   it('destinatarios(): só os fixos, sem repetir número', async () => {
@@ -136,8 +152,8 @@ describe('tudo que o cliente manda chega no consultor', () => {
   it('a foto da conta de luz é ENCAMINHADA, não só contada', async () => {
     inbound = [foto()];
     const r = await tick();
-    expect(r.encaminhadas).toBe(2);                       // Nilce (dona) + Giovanna
-    expect(midias.map(m => m.phone)).toEqual(['5534900000009', '5534991516846']);
+    expect(r.encaminhadas).toBe(1);                       // só quem recebeu o recado: a Nilce (dona)
+    expect(midias.map(m => m.phone)).toEqual(['5534991516846']);
     expect(midias[0]).toMatchObject({ tipo: 'imagem', url: 'https://z.api/conta-de-luz.jpg' });
     // A legenda diz de quem é: o consultor recebe arquivo de vários clientes no
     // mesmo dia, e foto de conta sem nome não serve pra nada.
@@ -171,7 +187,7 @@ describe('tudo que o cliente manda chega no consultor', () => {
     inbound = Array.from({ length: 9 }, (_, i) =>
       foto({ media_url: `https://z.api/foto-${i}.jpg`, momment: antes(9 - i) }));
     const r = await tick();
-    expect(r.encaminhadas).toBe(12);                      // 6 arquivos × 2 destinatários
+    expect(r.encaminhadas).toBe(6);                       // 6 arquivos × 1 destinatário
     expect(avisos[0]!.texto).toContain('https://z.api/foto-8.jpg');
   });
 
@@ -187,8 +203,9 @@ describe('tudo que o cliente manda chega no consultor', () => {
     inbound = [foto()];
     const { sendWhatsApp } = await import('../services/agents/zapiClient');
     (sendWhatsApp as any).mockImplementationOnce(async () => { throw new Error('fora'); });
-    await tick();
-    expect(midias.map(m => m.phone)).toEqual(['5534991516846']);
+    const r = await tick();
+    expect(r.erros).toBe(1);                              // o único destino não recebeu: nada de arquivo solto
+    expect(midias).toHaveLength(0);
   });
 });
 

@@ -29,7 +29,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabaseGerador } from '../../utils/supabaseGerador';
-import { proximoDaContaBaixa } from './filaContaBaixa';
+import { candidatosPorReais } from './divisaoSolar';
 import { logger } from '../../utils/logger';
 import { cidadeParaGravar } from '../io/cidadeCanonica';
 import { sendWhatsApp } from '../agents/zapiClient';
@@ -38,7 +38,7 @@ import {
   normalizeTelBR,
   dentroDaArea,
   dataBaseDaFaixa,
-  slotLivreConsultor,
+  slotLivreConsultor, consultorESlotDaLista,
   donoDoTelefone,
 } from './leadsMetaService';
 import { donoQueAindaAtendeSolar } from './solarRota';
@@ -111,20 +111,11 @@ function tempEletroposto(capital: string): 'quente' | 'morno' | 'frio' {
   return 'morno';                                  // até 150 mil
 }
 
-// 24/10/2026: só a Nilce atende solar. FILA_CONTA_ALTA tem uma posição só, então
-// as duas pontas abaixo (conta alta e conta baixa) caem na Nilce.
-// Roteamento por tamanho de conta (regra do Thiago, 23/09/2026: acima de 1.200
-// kWh/mês entra no rodízio da conta alta, 50% Nilce, 25% Thiago, 25% Diego;
-// abaixo é tudo da Nilce). Aqui o lead responde em REAIS ("R$ 800 a R$ 1.500"),
-// então a unidade vai explícita: o corte é em kWh/mês e quem converte é o
-// consumoTipico.
-function ehContaAltaReais(valorConta: string): boolean {
-  return consumoTipico(valorConta || '', 'reais') > KWH_CORTE_TIME;
-}
-async function consultorDoLeadSolar(valorConta: string, rodizioIdx: number): Promise<string> {
-  return ehContaAltaReais(valorConta)
-    ? FILA_CONTA_ALTA[rodizioIdx % FILA_CONTA_ALTA.length]
-    : proximoDaContaBaixa();
+// 23/11/2026: o lead solar novo é dividido por conta de luz (divisaoSolar.ts): R$ 800 ou mais = Nilce 40%, Thiago 30%, Diego 30%;
+// abaixo (ou sem valor legível) = Nilce 50% e Giovanna 50%. Aqui o lead responde em REAIS ("R$ 800 a R$ 1.500"), então a unidade vai
+// explícita (`candidatosPorReais`). `rodizio_idx` não manda mais no solar. Devolve a lista por déficit; o horário decide quem fica.
+async function candidatosDoLeadSolar(valorConta: string, reservar: boolean): Promise<string[]> {
+  return candidatosPorReais(valorConta || '', { reservar });
 }
 
 // Sintetiza o field_data (formato do Meta) a partir da ficha do ManyChat, pra
@@ -270,13 +261,11 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
     // existe): lê o dono do telefone e o tamanho da conta, sem gravar nada. O
     // rodízio é espiado sem avançar o contador.
     const donoTeste = naArea ? donoQueAindaAtendeSolar(await donoDoTelefone(whatsapp)) : null;
-    const { data: stTeste } = await supabaseGerador
-      .from('leads_meta_state').select('rodizio_idx').eq('id', 1).limit(1);
     return {
       ok: true, test: true, produto: 'solar', destino: 'GERADOR',
       na_area: naArea, temperatura,
       consultor: naArea
-        ? (donoTeste || await consultorDoLeadSolar(p.valor_conta || '', (stTeste && stTeste[0]?.rodizio_idx) || 0))
+        ? (donoTeste || (await candidatosDoLeadSolar(p.valor_conta || '', false))[0])
         : undefined,
       motivo: naArea ? undefined : 'fora de área (não agenda, avisa manual)',
     };
@@ -298,27 +287,15 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
     // uma vez do rodízio. Só lead realmente novo gira o contador.
     // Dono anterior Giovanna vale como sem dono (24/10/2026): cai na Nilce.
     const dono = donoQueAindaAtendeSolar(await donoDoTelefone(whatsapp));
+    const base = dataBaseDaFaixa(p.faixa_horario || '');
     if (dono) {
       consultor = dono;
-    } else if (!ehContaAltaReais(p.valor_conta || '')) {
-      // Abaixo de 1.200 kWh/mês (ou sem faixa respondida): é da fila da conta
-      // baixa, hoje só a Nilce, e não gasta uma vez da fila de cima.
-      consultor = await proximoDaContaBaixa();
+      quando = await slotLivreConsultor(consultor, base);
     } else {
-      // Conta alta: rodízio Thiago→Nilce→Diego→Nilce compartilhando o contador
-      // com o cron do Meta (leads_meta_state), um lead é um lead, os três
-      // recebem na mesma proporção venha de qual porta vier. Read-modify-write
-      // não-atômico (mesmo risco/volume do cron).
-      const { data: stateRows } = await supabaseGerador
-        .from('leads_meta_state').select('rodizio_idx').eq('id', 1).limit(1);
-      const idx = (stateRows && stateRows[0]?.rodizio_idx) || 0;
-      consultor = FILA_CONTA_ALTA[idx % FILA_CONTA_ALTA.length];
-      await supabaseGerador.from('leads_meta_state')
-        .update({ rodizio_idx: idx + 1, updated_at: new Date().toISOString() }).eq('id', 1);
+      // Lead NOVO (23/11/2026): a divisão por conta de luz (ver candidatosDoLeadSolar). O 1º da lista com horário livre fica com o card.
+      const lista = await candidatosDoLeadSolar(p.valor_conta || '', true);
+      ({ consultor, slot: quando } = await consultorESlotDaLista(lista, base));
     }
-
-    const base = dataBaseDaFaixa(p.faixa_horario || '');
-    quando = await slotLivreConsultor(consultor, base);
     const obs = montarObservacaoSolar(fields);
 
     const { data: agIns, error: agErr } = await supabaseGerador

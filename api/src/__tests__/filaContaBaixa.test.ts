@@ -1,65 +1,49 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Quem recebe o lead novo de conta baixa. Ordem do Thiago (23/09/2026): "a Nilce
-// recebe TODOS". A Giovanna saiu do rodízio de lead novo, o que ela já tem
-// continua dela, mas lead novo não entra mais.
-//
-// O que já deu errado nesta mesma regra, e por isso continua testado:
-//   • a contagem começando numa fase qualquer do rodízio (existia um piso de
-//     data só pra isso);
-//   • o lead ficar SEM DONO quando o banco não respondia.
-// Com uma dona só as duas deixam de ser possíveis, e o teste do banco vira o
-// oposto: provar que ele nem é consultado.
+// Quem recebe o lead novo de conta baixa (abaixo de R$ 800). Até 23/11/2026 era a Nilce sozinha (ordem do Thiago, 23/09: "a Nilce
+// recebe TODOS"). Desde 23/11/2026 é a divisão por conta de luz: Nilce 50% e Giovanna 50%, por déficit de cards nos últimos 30 dias
+// (services/agenda/divisaoSolar.ts). `proximoDaContaBaixa` só devolve o 1º da lista, e nunca lança.
 
-let consultas = 0;
-
-// O mock existe pra PROVAR que o banco não é tocado. Qualquer `from()` aqui é
-// uma regressão: fila de uma pessoa só não tem fase pra descobrir, e consultar
-// pra responder sempre a mesma coisa é latência e um modo de falha de graça.
+let linhas: Array<Record<string, unknown>> = [];
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
     from: () => {
-      consultas++;
-      throw new Error('a fila de conta baixa não deve consultar o banco');
+      const c: Record<string, unknown> = {};
+      for (const m of ['select', 'in', 'neq', 'gte', 'order']) c[m] = () => c;
+      c.range = () => Promise.resolve({ data: linhas, error: null });
+      return c;
     },
   },
 }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 
 import { proximoDaContaBaixa, FILA_DEPOIS_DA_SEMANA } from '../services/agenda/filaContaBaixa';
+import { _limparCacheDivisao } from '../services/agenda/divisaoSolar';
 
-/** Instante real de um horário de Brasília. -03:00 fixo: o Brasil não tem horário de verão. */
-const brt = (ymd: string, hms: string) => new Date(`${ymd}T${hms}-03:00`);
+const card = (v: string) => ({ vendedor_nome: v, observacao: 'LP SOLAR QUIZ · Casa · LIGAÇÃO\nConta de luz: R$ 400 a R$ 800', status: 'agendado' });
 
-beforeEach(() => { consultas = 0; });
+beforeEach(() => { _limparCacheDivisao(); linhas = []; delete process.env.SOLAR_DIVISAO_OFF; });
 
-describe('lead novo de conta baixa é todo da Nilce', () => {
-  it('é dela, em qualquer dia e hora', async () => {
-    const momentos = [
-      brt('2026-09-23', '00:00:00'),
-      brt('2026-09-23', '09:30:00'),
-      brt('2026-09-27', '23:59:59'),   // sábado
-      brt('2026-12-31', '18:00:00'),
-      brt('2027-03-01', '08:00:00'),
-    ];
-    for (const m of momentos) expect(await proximoDaContaBaixa(m)).toBe('Nilce');
-  });
-
-  it('sem argumento nenhum também responde (o padrão é agora)', async () => {
+describe('lead novo de conta baixa: Nilce e Giovanna por déficit', () => {
+  it('sem nenhum card, a Nilce abre (ordem da tabela)', async () => {
     expect(await proximoDaContaBaixa()).toBe('Nilce');
   });
 
-  it('não encosta no banco: a resposta não depende de contagem', async () => {
-    await proximoDaContaBaixa(brt('2026-09-24', '10:00:00'));
-    await proximoDaContaBaixa(brt('2026-09-24', '10:01:00'));
-    expect(consultas).toBe(0);
+  it('com a Nilce na frente, a vez é da Giovanna; com a Giovanna na frente, da Nilce', async () => {
+    linhas = [card('Nilce'), card('Nilce'), card('Giovanna')];
+    expect(await proximoDaContaBaixa(new Date('2026-11-23T12:00:00-03:00'))).toBe('Giovanna');
+    _limparCacheDivisao();
+    linhas = [card('Giovanna'), card('Giovanna'), card('Nilce')];
+    expect(await proximoDaContaBaixa()).toBe('Nilce');
   });
 
-  it('a Giovanna não recebe lead novo', async () => {
-    expect(FILA_DEPOIS_DA_SEMANA).not.toContain('Giovanna');
+  it('com o freio SOLAR_DIVISAO_OFF=1 é sempre a Nilce', async () => {
+    process.env.SOLAR_DIVISAO_OFF = '1';
+    linhas = [card('Nilce'), card('Nilce'), card('Nilce')];
+    expect(await proximoDaContaBaixa()).toBe('Nilce');
   });
 
-  it('a fila tem um nome só, é o tamanho dela que carrega a proporção', () => {
+  it('a reserva (banco fora, freio) é só a Nilce', () => {
     expect(FILA_DEPOIS_DA_SEMANA).toEqual(['Nilce']);
   });
 });

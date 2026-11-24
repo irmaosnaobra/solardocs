@@ -8,6 +8,7 @@ import { BancoFalso } from './bancoFalsoQuiz';
 // Banco e WhatsApp em memória; nada alcança a rede.
 
 const h = vi.hoisted(() => ({
+  fechados: new Set<string>(),   // dias de agenda fechada dos sócios (agendaFechadaEm)
   cooldown: false,
   falhar: false,
   main: null as any,
@@ -28,6 +29,11 @@ vi.mock('../services/agents/whatsapp/silenciar', async (orig) => ({
   ...(await orig<typeof import('../services/agents/whatsapp/silenciar')>()),
   estaBloqueado: vi.fn().mockResolvedValue(false),
 }));
+vi.mock('../services/agenda/agendaFechada', async (orig) => ({
+  ...(await orig<typeof import('../services/agenda/agendaFechada')>()),
+  agendaFechadaEm: (ymd: string) => h.fechados.has(ymd),
+  agendaFechadaNoIso: () => false,
+}));
 vi.mock('../services/agenda/solarOcupacao', () => ({ ocupacoesSolar: vi.fn().mockResolvedValue([]) }));
 
 import { sendWhatsApp } from '../services/agents/zapiClient';
@@ -39,6 +45,7 @@ import {
 } from '../services/io/solarQuiz';
 import { decidirCaminho } from '../services/agenda/solarRota';
 import { TEL_AVISO } from '../services/io/solarEquipe';
+import { _limparCacheDivisao, SOLAR_DIVISAO_INICIO } from '../services/agenda/divisaoSolar';
 import {
   runSolarQuizAvisosTick, avisarAgora, avisarAgendado, marcarFalei, camposDeRecuperacao, CHAVES, type PedidoAvisoAgora,
 } from '../services/io/solarQuizAviso';
@@ -65,8 +72,10 @@ const corpo = (extra: Record<string, unknown> = {}, resp: Record<string, unknown
   ({ nome: 'Ana Souza', tel: '5534991112222', respostas: resp, event_id: 'agd_abc123xyz', ...extra });
 
 beforeEach(() => {
+  _limparCacheDivisao();   // a divisão por conta de luz guarda a contagem de cards por 60 s
   h.main = new BancoFalso();
   h.ger = new BancoFalso();
+  h.fechados.clear();
   h.enviados.length = 0; h.cooldown = false; h.falhar = false; vi.mocked(sendWhatsApp).mockClear();
   h.capi.mockReset().mockResolvedValue({ ok: true, status: 200 });
   process.env.AGENTES5040_FICHA = '0';
@@ -369,10 +378,11 @@ const codigoDoAviso = (card = 77): string => h.main.tabela('system_state').find(
 const paraNilce = () => h.enviados.filter(e => e.numero === TEL_AVISO['nilce']);
 const paraThiago = () => h.enviados.filter(e => e.numero === TEL_AVISO['thiago']);
 
-function semearLead(ger: any, id: string, p: { nome?: string; tel?: string; atividade: number; resp?: Record<string, unknown>; agendado?: number | null; caminho?: string; cidade?: string }) {
+function semearLead(ger: any, id: string, p: { nome?: string; tel?: string; atividade: number; resp?: Record<string, unknown>; agendado?: number | null; caminho?: string; cidade?: string; consultor?: string }) {
   const resp = p.resp ?? RESP_BOA;
   ger.tabela('leads_meta').push({
     lead_id: id, nome: p.nome ?? 'Ana Souza', whatsapp: p.tel ?? '5534991112222', cidade: p.cidade ?? 'Uberlândia-MG', agendado_id: p.agendado ?? null,
+    ...(p.consultor ? { consultor: p.consultor } : {}),
     form_id: 'quiz_solar', created_time: new Date(p.atividade).toISOString(),
     field_data: [{ name: 'Pontos', values: ['93'] }, { name: 'Caminho', values: [p.caminho ?? 'ligacao'] },
       ...camposDeRecuperacao(limparRespostas(resp), limparRespostasExtra(resp), p.atividade)],
@@ -483,6 +493,35 @@ describe('os lembretes de 5 e 10 minutos', () => {
     expect(paraThiago()[0].texto).toContain('LEAD PARADO · Ana Souza');
     expect(paraThiago()[0].texto).toContain('Parado há 12 min');
   });
+  // 23/11/2026: o 2º aviso vai para QUEM ATENDE (o dono gravado no rascunho), e o de 10 min é a escalada para o Thiago.
+  it('lead da Giovanna: o 2º aviso vai para a Giovanna (não para a Nilce), e aos 10 min o Thiago recebe o LEAD PARADO', async () => {
+    h.main = new BancoFalso(); h.ger = new BancoFalso(); h.enviados.length = 0;
+    semearLead(h.ger, LEAD, { atividade: SEXTA_14H - MIN, agendado: 77, consultor: 'Giovanna' });
+    await avisarAgora(pedido({ dono: 'Giovanna' }), SEXTA_14H);
+    expect(h.enviados.map(e => e.numero)).toEqual([TEL_AVISO['giovanna']]);   // o T1 também vai para quem atende
+    h.enviados.length = 0;
+    await runSolarQuizAvisosTick({ agora: SEXTA_14H + 6 * MIN });
+    expect(h.enviados.map(e => e.numero)).toEqual([TEL_AVISO['giovanna']]);
+    expect(paraNilce()).toHaveLength(0);
+    await runSolarQuizAvisosTick({ agora: SEXTA_14H + 11 * MIN });
+    expect(paraThiago()).toHaveLength(1);
+    expect(paraThiago()[0].texto).toContain('LEAD PARADO · Ana Souza');
+    expect(paraThiago()[0].texto).toContain('a Giovanna ainda não tocou no link');
+    expect(paraThiago()[0].texto).not.toContain('Só a Nilce atende solar');
+  });
+  it('lead do PRÓPRIO Thiago: o aviso de 10 min (LEAD PARADO) não sai, e o 2º aviso de 5 min vai para ele', async () => {
+    h.main = new BancoFalso(); h.ger = new BancoFalso(); h.enviados.length = 0;
+    semearLead(h.ger, LEAD, { atividade: SEXTA_14H - MIN, agendado: 77, consultor: 'Thiago' });
+    await avisarAgora(pedido({ dono: 'Thiago' }), SEXTA_14H);
+    h.enviados.length = 0;
+    await runSolarQuizAvisosTick({ agora: SEXTA_14H + 6 * MIN });
+    await runSolarQuizAvisosTick({ agora: SEXTA_14H + 11 * MIN });
+    await runSolarQuizAvisosTick({ agora: SEXTA_14H + 13 * MIN });
+    expect(paraThiago()).toHaveLength(1);                                      // só o 2º aviso, ao dono
+    expect(paraThiago()[0].texto).toContain('ESPERANDO · NOTA 93 · LIGAR AGORA');
+    expect(h.enviados.some(e => /LEAD PARADO/.test(e.texto))).toBe(false);
+    expect(paraNilce()).toHaveLength(0);
+  });
   it('SOLAR_QUIZ_ESCALA_THIAGO=0 desliga só o aviso ao Thiago', async () => {
     process.env.SOLAR_QUIZ_ESCALA_THIAGO = '0';
     await runSolarQuizAvisosTick({ agora: SEXTA_14H + 11 * MIN });
@@ -548,6 +587,30 @@ describe('o abandono (saiu sem marcar)', () => {
     expect(t).toContain('(já está na sua agenda)');
     expect(h.capi).not.toHaveBeenCalled();                         // e não dispara Schedule
     expect(h.main.tabela('system_state').some((l: any) => l.key === CHAVES.abandono + LEAD)).toBe(true);
+  });
+  it('rascunho de dono Thiago FORA da grade dele (14:11): o card SAIU nasce na vaga real, nunca no "agora"', async () => {
+    semearLead(h.ger, LEAD, { atividade: SEXTA_14H, resp: { ...RESP_BOA, conta: '800_1200' }, consultor: 'Thiago' });
+    await runSolarQuizAvisosTick({ agora: SEXTA_14H + 11 * MIN });
+    const card = h.ger.tabela('agendamentos')[0];
+    expect(card.vendedor_nome).toBe('Thiago');
+    expect(new Date(card.quando).getTime()).toBeGreaterThan(SEXTA_14H + 11 * MIN);
+    expect([0, 30]).toContain(new Date(card.quando).getUTCMinutes());   // vaga da faixa de lead novo (:00/:30), não o múltiplo de 5 min do "agora"
+  });
+  it('rascunho de dono Thiago DENTRO da grade dele e livre (14:35): o card SAIU nasce no "agora" dele; com card daqui a 20 min, na vaga real', async () => {
+    const t0 = brt('2026-10-23', '14:20');
+    semearLead(h.ger, LEAD, { atividade: t0, resp: { ...RESP_BOA, conta: '800_1200' }, consultor: 'Thiago' });
+    await runSolarQuizAvisosTick({ agora: t0 + 15 * MIN });
+    const livre = h.ger.tabela('agendamentos')[0];
+    expect(livre.vendedor_nome).toBe('Thiago');
+    expect(new Date(livre.quando).toISOString()).toBe(new Date(quandoDoAgora(t0 + 15 * MIN)).toISOString());
+    h.ger.zerar(); h.main.zerar(); h.enviados.length = 0;
+    semearLead(h.ger, LEAD, { atividade: t0, resp: { ...RESP_BOA, conta: '800_1200' }, consultor: 'Thiago' });
+    h.ger.tabela('agendamentos').push({ id: 8700, vendedor_nome: 'Thiago', status: 'agendado', created_by: 'lp_eletroposto', cliente_telefone: '5534988776655', quando: new Date(t0 + 35 * MIN).toISOString(), observacao: 'reunião' });
+    await runSolarQuizAvisosTick({ agora: t0 + 15 * MIN });
+    const ocupado = h.ger.tabela('agendamentos').find((c: any) => c.id !== 8700);
+    expect(ocupado.vendedor_nome).toBe('Thiago');
+    expect(new Date(ocupado.quando).getTime()).not.toBe(quandoDoAgora(t0 + 15 * MIN));
+    expect([0, 30]).toContain(new Date(ocupado.quando).getUTCMinutes());
   });
   it('com marca de saída, avisa 5 min depois dela e diz onde saiu', async () => {
     semearLead(h.ger, LEAD, { atividade: SEXTA_14H });
@@ -751,6 +814,27 @@ describe('avisarAgendado (T7 sai pelo solarQuizAviso, nunca direto da rota)', ()
     expect(marcas()).toContain('aviso_antigo:88');
     expect(marcas().some(k => k.startsWith(CHAVES.envio))).toBe(false);
   });
+  it('T7 para cada um dos quatro: um envio só, para o telefone DO DONO, com o carimbo e a marca aviso_antigo gravada ANTES de enviar', async () => {
+    for (const pessoa of ['nilce', 'giovanna', 'thiago', 'diego'] as const) {
+      h.main = new BancoFalso(); h.enviados.length = 0;
+      const r = await avisarAgendado(pessoa, 91, LEAD, textoT7);
+      expect(r, pessoa).toEqual({ enviado: true, motivo: 'enviado' });
+      expect(h.enviados, pessoa).toEqual([{ numero: TEL_AVISO[pessoa], texto: textoT7 }]);
+      expect(marcas(), pessoa).toContain(`${CHAVES.envio}${pessoa}:agendado:${LEAD}`);
+      expect(marcas(), pessoa).toContain('aviso_antigo:91');
+    }
+  });
+  it('a marca aviso_antigo nasce ANTES do envio: se o envio falha, o cartão do 5040 não manda o 2º aviso do mesmo card', async () => {
+    h.falhar = true;
+    await avisarAgendado('thiago', 92, LEAD, textoT7);
+    expect(marcas()).toContain('aviso_antigo:92');
+  });
+  it('pessoaDoDono: os quatro nomes viram a chave de envio; fora deles, null', async () => {
+    const { pessoaDoDono } = await import('../services/io/solarQuizAviso');
+    expect(['Nilce', 'Giovanna', 'Thiago', 'Diego', ' diego '].map(pessoaDoDono)).toEqual(['nilce', 'giovanna', 'thiago', 'diego', 'diego']);
+    expect(pessoaDoDono('Luma')).toBeNull();
+    expect(pessoaDoDono(null)).toBeNull();
+  });
   it('a rota não envia por conta própria: sem sendWhatsApp para o T7 em ioSolar.ts depois de avisarAgendado', async () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
@@ -758,6 +842,163 @@ describe('avisarAgendado (T7 sai pelo solarQuizAviso, nunca direto da rota)', ()
     const trecho = fonte.slice(fonte.indexOf("router.post('/quiz/agendar'"), fonte.indexOf("router.post('/quiz/saiu'"));
     expect(trecho).toContain('avisarAgendado(');
     expect(trecho).not.toMatch(/sendWhatsApp|sendHuman|sendFrio/);
+  });
+});
+
+describe('POST /quiz/agendar com o dono da divisão (23/11/2026)', () => {
+  /** `n` cards solares de `vendedor` depois do início da divisão (23/11/2026), na faixa de conta pedida. */
+  const semearCards = (vendedor: string, contaTxt: string, n: number): void => {
+    for (let i = 0; i < n; i++) {
+      h.ger.tabela('agendamentos').push({
+        id: 9000 + h.ger.tabela('agendamentos').length, vendedor_nome: vendedor, status: 'agendado', created_by: 'lp_solar', cliente_telefone: `553499800${String(i).padStart(4, '0')}`,
+        observacao: `LP SOLAR QUIZ · Casa · LIGAÇÃO
+Conta de luz: ${contaTxt} (~1.000 kWh/mês)`, created_at: new Date(Date.parse(SOLAR_DIVISAO_INICIO) + 3_600_000).toISOString(),
+      });
+    }
+  };
+  beforeEach(() => { _limparCacheDivisao(); delete process.env.SOLAR_DIVISAO_OFF; });
+  afterEach(() => { delete process.env.SOLAR_DIVISAO_OFF; });
+
+  it('/quiz grava o dono da vitrine em leads_meta.consultor e devolve o mesmo dono; conta pequena é da Nilce ou da Giovanna', async () => {
+    const r = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '400_800' }));
+    expect(r.status).toBe(200);
+    expect(['Nilce', 'Giovanna']).toContain(r.body.dono);
+    expect(h.ger.tabela('leads_meta')[0].consultor).toBe(r.body.dono);
+    for (const d of r.body.dias) for (const x of d.horas) expect(x.dono).toBe(r.body.dono);
+  });
+
+  it('o horário do sócio (grupo maior): o card é do Thiago, o T7 vai SÓ para o Thiago e o rascunho guarda o dono', async () => {
+    const r = await request(app).post('/io/solar/quiz/agendar').send(corpo({ ymd: '2026-10-26', h: '08:30', dono: 'Thiago' }, RESP_BOA));
+    expect(r.status).toBe(200);
+    expect(r.body.dono).toBe('Thiago');
+    expect(h.ger.tabela('agendamentos')[0]).toMatchObject({ vendedor_nome: 'Thiago', created_by: 'lp_solar' });
+    expect(h.ger.tabela('leads_meta')[0].consultor).toBe('Thiago');
+    expect(h.enviados.map(e => e.numero)).toEqual([TEL_AVISO['thiago']]);
+  });
+
+  it('a Giovanna não atende conta de R$ 800 para cima: o horário dela é recusado (409), e nada é gravado', async () => {
+    const r = await request(app).post('/io/solar/quiz/agendar').send(corpo({ ymd: '2026-10-26', h: '09:00', dono: 'Giovanna' }, RESP_BOA));
+    expect(r.status).toBe(409);
+    expect(h.ger.tabela('agendamentos')).toHaveLength(0);
+  });
+
+  it('horário que não é da grade do sócio (10:00) é recusado; e o do sócio não vale em dia de domingo', async () => {
+    const a = await request(app).post('/io/solar/quiz/agendar').send(corpo({ ymd: '2026-10-26', h: '10:00', dono: 'Diego' }, RESP_BOA));
+    expect(a.status).toBe(409);
+    const b = await request(app).post('/io/solar/quiz/agendar').send(corpo({ ymd: '2026-10-25', h: '08:30', dono: 'Diego' }, RESP_BOA));
+    expect(b.status).toBe(409);
+  });
+
+  it('o "agora" vai para o dono que o /quiz gravou no rascunho (a Nilce), sem sortear de novo, mesmo que o déficit já aponte a Giovanna', async () => {
+    await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '400_800' }));
+    expect(h.ger.tabela('leads_meta')[0].consultor).toBe('Nilce');
+    semearCards('Nilce', 'R$ 400 a R$ 800', 4);   // depois do /quiz, a conta da Nilce passa da fatia: o 1º da divisão agora seria a Giovanna
+    _limparCacheDivisao();
+    const a = await request(app).post('/io/solar/quiz/agora').send(corpo({}, { ...RESP_BOA, conta: '400_800' }));
+    expect(a.status).toBe(200);
+    expect(a.body.dono).toBe('Nilce');
+    expect(h.ger.tabela('agendamentos').find((c: any) => c.cliente_telefone === '5534991112222')?.vendedor_nome).toBe('Nilce');
+  });
+
+  // 23/11/2026: o "ligar agora" vale para os quatro donos, com a trava de agoraPermitido: o instante dentro da grade de trabalho do dono,
+  // o dia sem agenda fechada (sócios) e nada marcado nos 30 minutos seguintes (fora a Nilce).
+  const SEG_1435 = brt('2026-10-26', '14:35');   // segunda: a meia hora das 14:30 é da grade dos sócios (GRADE_SOCIOS_SOLAR)
+  const poeThiagoNaFrente = (): void => semearCards('Nilce', 'R$ 800 a R$ 1.200', 5);   // Nilce acima da fatia do grupo maior: o 1º é o Thiago
+  const corpoAlta = () => corpo({}, { ...RESP_BOA, conta: '800_1200' });
+  const cartaoDe = (dono: string, quandoMs: number): void => {
+    h.ger.tabela('agendamentos').push({
+      id: 8700, vendedor_nome: dono, status: 'agendado', created_by: 'lp_eletroposto', cliente_telefone: '5534988776655',
+      quando: new Date(quandoMs).toISOString(), observacao: 'reunião', created_at: '2026-10-20T10:00:00.000Z',
+    });
+  };
+
+  it('Thiago livre dentro da grade ganha o "agora": horario_agora, card dele no minuto real e aviso para ele', async () => {
+    vi.setSystemTime(SEG_1435);
+    poeThiagoNaFrente();
+    const v = await request(app).post('/io/solar/quiz').send(corpoAlta());
+    expect(v.body).toMatchObject({ dono: 'Thiago', horario_agora: true });
+    const r = await request(app).post('/io/solar/quiz/agora').send(corpoAlta());
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ ok: true, dono: 'Thiago', quando: new Date(SEG_1435 + 5 * MIN).toISOString() });
+    expect(h.ger.tabela('agendamentos').find((c: any) => c.cliente_telefone === '5534991112222')).toMatchObject({ vendedor_nome: 'Thiago', created_by: 'lp_solar' });
+    expect(h.enviados.some(e => e.numero === TEL_AVISO['thiago'])).toBe(true);
+    expect(h.enviados.some(e => e.numero === TEL_AVISO['nilce'])).toBe(false);
+  });
+
+  it('Thiago com card daqui a 20 min não ganha: sem horario_agora, /quiz/agora dá 409 fora_do_horario e nada é criado', async () => {
+    vi.setSystemTime(SEG_1435);
+    poeThiagoNaFrente();
+    cartaoDe('Thiago', SEG_1435 + 20 * MIN);
+    const v = await request(app).post('/io/solar/quiz').send(corpoAlta());
+    expect(v.body.dono).toBe('Thiago');
+    expect(v.body.horario_agora).toBe(false);
+    expect(v.body.dias.length).toBeGreaterThan(0);   // a vitrine dele continua
+    const antes = h.ger.tabela('agendamentos').length;
+    const r = await request(app).post('/io/solar/quiz/agora').send(corpoAlta());
+    expect(r.status).toBe(409);
+    expect(r.body).toMatchObject({ ok: false, error: 'fora_do_horario' });
+    expect(h.ger.tabela('agendamentos')).toHaveLength(antes);
+    expect(h.enviados).toHaveLength(0);
+  });
+
+  it('Thiago fora da grade dele (14:00, entre as meias-horas 13:30 e 14:30) não ganha o "agora"', async () => {
+    vi.setSystemTime(brt('2026-10-26', '14:00'));
+    poeThiagoNaFrente();
+    const v = await request(app).post('/io/solar/quiz').send(corpoAlta());
+    expect(v.body).toMatchObject({ dono: 'Thiago', horario_agora: false });
+    expect((await request(app).post('/io/solar/quiz/agora').send(corpoAlta())).status).toBe(409);
+  });
+
+  it('Diego em dia de agenda fechada não ganha o "agora" (a vitrine dele segue nos outros dias)', async () => {
+    vi.setSystemTime(SEG_1435);
+    h.fechados.add('2026-10-26');
+    semearCards('Nilce', 'R$ 800 a R$ 1.200', 5);
+    semearCards('Thiago', 'R$ 800 a R$ 1.200', 5);
+    const v = await request(app).post('/io/solar/quiz').send(corpoAlta());
+    expect(v.body).toMatchObject({ dono: 'Diego', horario_agora: false });
+    expect(v.body.dias.length).toBeGreaterThan(0);
+    const r = await request(app).post('/io/solar/quiz/agora').send(corpoAlta());
+    expect(r.status).toBe(409);
+    expect(r.body.error).toBe('fora_do_horario');
+    expect(h.ger.tabela('agendamentos').some((c: any) => c.cliente_telefone === '5534991112222')).toBe(false);
+  });
+
+  it('Diego livre num dia aberto ganha o "agora", e o card é dele', async () => {
+    vi.setSystemTime(SEG_1435);
+    semearCards('Nilce', 'R$ 800 a R$ 1.200', 5);
+    semearCards('Thiago', 'R$ 800 a R$ 1.200', 5);
+    expect((await request(app).post('/io/solar/quiz').send(corpoAlta())).body.dono).toBe('Diego');
+    const r = await request(app).post('/io/solar/quiz/agora').send(corpoAlta());
+    expect(r.status).toBe(200);
+    expect(r.body.dono).toBe('Diego');
+  });
+
+  it('Giovanna só ganha o "agora" dentro da grade dela (08:00 às 17:00): às 17:30 a Nilce ainda atende, a Giovanna não', async () => {
+    semearCards('Nilce', 'R$ 400 a R$ 800', 5);   // grupo menor: a Giovanna passa a ser a 1ª
+    vi.setSystemTime(brt('2026-10-26', '14:35'));
+    const dentro = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '400_800' }));
+    expect(dentro.body).toMatchObject({ dono: 'Giovanna', horario_agora: true });
+    h.ger.tabela('leads_meta').length = 0;
+    _limparCacheDivisao();
+    vi.setSystemTime(brt('2026-10-26', '17:30'));
+    const fora = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '400_800' }));
+    expect(fora.body).toMatchObject({ dono: 'Giovanna', horario_agora: false });
+    expect((await request(app).post('/io/solar/quiz/agora').send(corpo({}, { ...RESP_BOA, conta: '400_800' }))).status).toBe(409);
+  });
+
+  it('dono Nilce continua igual: horario_agora true e o /quiz/agora cria o card dela', async () => {
+    const v = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '800_1200' }));
+    expect(v.body).toMatchObject({ dono: 'Nilce', horario_agora: true });
+    const r = await request(app).post('/io/solar/quiz/agora').send(corpo({}, { ...RESP_BOA, conta: '800_1200' }));
+    expect(r.status).toBe(200);
+    expect(r.body.dono).toBe('Nilce');
+  });
+
+  it('com o freio SOLAR_DIVISAO_OFF=1 o /quiz volta a ser da Nilce, de qualquer conta', async () => {
+    process.env.SOLAR_DIVISAO_OFF = '1';
+    const r = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '1200_mais' }));
+    expect(r.body.dono).toBe('Nilce');
+    for (const d of r.body.dias) for (const x of d.horas) expect(x.dono).toBe('Nilce');
   });
 });
 

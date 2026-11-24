@@ -122,7 +122,7 @@ import { agendaFechadaNoIso } from './agendaFechada';
 import { APALAVRADO_PREFIX, esperaAte } from './salaDeEspera';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from './salaDeEspera';
-import { caminhoDaFicha, DONA_SOLAR, GRADE_FOLLOWUP_LIGACAO, parceiraDaLigacao, temDuasFaixas } from './solarRota';
+import { caminhoDaFicha, DONA_SOLAR, GRADE_FOLLOWUP_LIGACAO, divisaoSolarDesligada, parceiraDaLigacao, temDuasFaixas } from './solarRota';
 import { jaVirou, alvoDoDegrau, ordenarPeloLugar } from './viradaDoDia';
 
 const TZ = 'America/Sao_Paulo';
@@ -173,7 +173,8 @@ const desligado = (): boolean => (process.env.SOLAR_REAGENDA_OFF || '').trim() =
 const trocaLigada = (): boolean => (process.env.SOLAR_NAO_ATENDEU_TROCA_ON || '').trim() === '1';
 
 /**
- * Quem fica com o card nesta volta. Desde 24/10/2026, por padrão: só a Nilce
+ * Quem fica com o card nesta volta. DESDE 23/11/2026 O MESMO DONO (ver o corpo); o resto deste texto
+ * conta a regra de 24/10/2026, que só vale com SOLAR_DIVISAO_OFF=1: só a Nilce
  * atende solar, então o card da GIOVANNA que cai no NÃO ATENDEU é remarcado com a
  * NILCE (na faixa :15/:45 dela), e o da Nilce fica com a Nilce (não volta mais
  * para a Giovanna). Thiago e Diego, e qualquer outro nome, mantêm o dono. Só vale
@@ -186,7 +187,10 @@ const trocaLigada = (): boolean => (process.env.SOLAR_NAO_ATENDEU_TROCA_ON || ''
 export function donoDaVolta(dono: string, status: string): string {
   if (status !== 'nao_atendeu') return dono;
   if (trocaLigada()) return parceiraDaLigacao(dono) ?? dono;
-  return String(dono ?? '').trim() === 'Giovanna' ? DONA_SOLAR : dono;
+  // 23/11/2026: o lead solar é dividido por conta de luz e o NÃO ATENDEU MANTÉM O MESMO DONO (a Giovanna volta a atender). Só com o freio
+  // SOLAR_DIVISAO_OFF=1 vale a regra de 24/10: o card da Giovanna é remarcado com a Nilce.
+  if (divisaoSolarDesligada() && String(dono ?? '').trim() === 'Giovanna') return DONA_SOLAR;
+  return dono;
 }
 
 /** A rampa. Ver o comentário do cabeçalho: é o único freio de volume que existe

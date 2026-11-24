@@ -8,7 +8,7 @@ import {
   consumoDaFicha, consumoTipico,
   TIME_CONTA_ALTA, FILA_CONTA_ALTA, KWH_CORTE_TIME,
 } from './leadSolarFicha';
-import { proximoDaContaBaixa } from './filaContaBaixa';
+import { candidatosPorKwh } from './divisaoSolar';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 import { ocupacaoDaFichaSolar, MARGEM_LEITURA_MS, GRADE_NOVO_LIGACAO, donoQueAindaAtendeSolar } from './solarRota';
 
@@ -400,6 +400,15 @@ export async function slotLivreConsultor(
   base: { y: number; m: number; d: number; h: number },
   produto: 'solar' | 'eletroposto' = 'solar',
 ): Promise<Date> {
+  return (await procurarSlotConsultor(consultor, base, produto)) ?? spDate(base.y, base.m, base.d, HORA_INI, 0);
+}
+
+/** Como `slotLivreConsultor`, mas devolve null quando não há horário livre nos 14 dias (a reserva do 08:00 de hoje não é horário livre). */
+export async function procurarSlotConsultor(
+  consultor: string,
+  base: { y: number; m: number; d: number; h: number },
+  produto: 'solar' | 'eletroposto' = 'solar',
+): Promise<Date | null> {
   const agora = new Date();
   const occ = await carregarOcupacao(consultor, agora.toISOString());
   const encaixada = usaGradeEncaixada(consultor, produto);
@@ -415,7 +424,21 @@ export async function slotLivreConsultor(
     }
     ({ y, m, d } = proximoDia(y, m, d));
   }
-  return spDate(base.y, base.m, base.d, HORA_INI, 0);
+  return null;
+}
+
+/** O consultor do lead solar NOVO e o horário dele (23/11/2026): percorre a lista da divisão por conta de luz (quem está mais abaixo da
+ *  fatia primeiro) e fica com o 1º que tem horário livre nos 14 dias; se nenhum tem, fica com o 1º da lista e a reserva de sempre. */
+export async function consultorESlotDaLista(
+  lista: readonly string[],
+  base: { y: number; m: number; d: number; h: number },
+): Promise<{ consultor: string; slot: Date }> {
+  for (const c of lista) {
+    const slot = await procurarSlotConsultor(c, base);
+    if (slot) return { consultor: c, slot };
+  }
+  const primeiro = lista[0] ?? 'Nilce';
+  return { consultor: primeiro, slot: await slotLivreConsultor(primeiro, base) };
 }
 
 // Data-base (dia + hora preferida) em SP a partir da faixa do lead.
@@ -561,24 +584,21 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
           // Dono anterior Giovanna vale como sem dono (24/10/2026): cai na Nilce,
           // como no quiz. Thiago, Diego e Nilce seguem valendo.
           const dono = donoQueAindaAtendeSolar(await donoDoTelefone(whatsapp));
-          const kwh = consumoTipico(consumoDaFicha(fields), 'kwh');
           if (dono) {
             consultor = dono;
-          } else if (kwh > KWH_CORTE_TIME) {
-            // Conta alta: rodízio SEMPRE em ordem (Thiago→Nilce→Diego→Nilce), sem
-            // pular ninguém. O consultor da vez é fixo; se bloqueado/ocupado no
-            // horário pedido, agenda ele em OUTRO horário livre dele (não passa
-            // pro próximo), senão a proporção 50/25/25 viraria "quem estava
-            // livre", que é outra regra.
-            consultor = FILA_CONTA_ALTA[rodizioIdx % FILA_CONTA_ALTA.length];
-            rodizioIdx++;
-          } else {
-            // Abaixo do corte (ou sem resposta de consumo): é da fila da conta
-            // baixa, hoje só a Nilce, e não consome uma vez da fila de cima.
-            consultor = await proximoDaContaBaixa();
           }
           const base = dataBaseDaFaixa(faixa);
-          const slot = await slotLivreConsultor(consultor, base);
+          let slot: Date;
+          if (consultor) {
+            slot = await slotLivreConsultor(consultor, base);
+          } else {
+            // Lead NOVO (23/11/2026): a divisão por conta de luz. O consumo do formulário vem em kWh e é convertido pela tarifa para
+            // reais (R$ 800 ou mais = grupo maior: Nilce 40%, Thiago 30%, Diego 30%; abaixo, ou sem consumo legível: Nilce 50% e Giovanna
+            // 50%). `reservar` já conta a escolha, para o lote do mesmo sync não cair todo na mesma pessoa. Quem está mais abaixo da fatia
+            // vem primeiro; se ele não tem horário nos 14 dias, o card cai no próximo da lista. `rodizio_idx` não manda mais no solar.
+            const lista = await candidatosPorKwh(consumoDaFicha(fields), { reservar: true });
+            ({ consultor, slot } = await consultorESlotDaLista(lista, base));
+          }
 
           const { data: agIns, error: agErr } = await supabaseGerador
             .from('agendamentos')

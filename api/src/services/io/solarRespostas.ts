@@ -44,7 +44,7 @@ import { sendWhatsApp, sendImage, sendDocument, sendAudio, sendVideo } from '../
 import { carregarTelefonesConsultores, telefoneDoConsultor } from '../agentes5040/fichaEnvio';
 import { EQUIPE } from '../../routes/ioSolar';
 import { SOLAR_ORIGENS, desligado as boasVindasDesligado } from './solarBoasVindas';
-import { caminhoDaFicha } from '../agenda/solarRota';
+import { caminhoDaFicha, DONOS_DE_SOLAR } from '../agenda/solarRota';
 
 /** Exportado desde 11/09: o `solarAgendaGiovanna` precisa ler o MESMO inbox pra
  *  saber quem respondeu o bom dia. Duas cópias deste id divergem no dia em que a
@@ -249,15 +249,23 @@ export type ResultadoSolarRespostas = {
 const zero = (motivo?: string): ResultadoSolarRespostas =>
   ({ avisados: 0, encaminhadas: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
-/** Telefones fixos do recado (Giovanna e Nilce), pela tabela `consultores` com a reserva de `telefoneDoConsultor`. */
-async function carregarFixos(): Promise<string[]> {
+/** A tabela `consultores` (telefone de cada um) com a reserva de `telefoneDoConsultor`. */
+async function carregarMapa(): Promise<Map<string, string>> {
   const t = await carregarTelefonesConsultores();
-  if (!t.ok) logger.warn('solar-respostas', `ler a tabela de consultores falhou (${t.codigo}) — Giovanna e Nilce pela reserva`);
-  const mapa = t.ok ? t.mapa : new Map<string, string>();
-  return ['Giovanna', 'Nilce'].map(n => telefoneDoConsultor(mapa, n) || '').filter(Boolean);
+  if (!t.ok) logger.warn('solar-respostas', `ler a tabela de consultores falhou (${t.codigo}) — telefones pela reserva`);
+  return t.ok ? t.mapa : new Map<string, string>();
 }
 
-/** Só Giovanna e Nilce (ordem do dono, 08/11/2026), sem repetir número e sem olhar o dono da ficha. Nunca devolve
+/** O destino do recado (23/11/2026): UM só, o dono do card (Nilce, Giovanna, Thiago ou Diego). Dono fora dos quatro, ou sem telefone, vai para a
+ *  Giovanna. Era a Giovanna e a Nilce juntas (ordem de 08/11); com o lead dividido por conta de luz o recado vai a quem atende. */
+export function destinoDoRecado(dono: unknown, mapa: Map<string, string>): string[] {
+  const nome = String(dono ?? '').trim();
+  const alvo = DONOS_DE_SOLAR.includes(nome) ? nome : 'Giovanna';
+  const tel = telefoneDoConsultor(mapa, alvo) || telefoneDoConsultor(mapa, 'Giovanna') || '';
+  return destinatarios(tel ? [tel] : []);
+}
+
+/** Tira o número repetido e nunca devolve
  *  vazio: recado que não tem pra quem ir é resposta perdida (último recurso: o dono da operação). */
 export function destinatarios(fixos: string[] = []): string[] {
   const chave = (t: string) => t.replace(/\D/g, '').replace(/^55/, '').slice(-8);
@@ -369,7 +377,7 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
   }
   if (porFicha.size === 0) return zero('ninguem_respondeu');
 
-  const fixos = await carregarFixos();
+  const mapaTel = await carregarMapa();
 
   // 4) Avisa.
   let avisados = 0, encaminhadas = 0, erros = 0;
@@ -379,7 +387,7 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
     if (avisados >= MAX_AVISOS_POR_TICK) break;
     const ficha = [...porChave.values()].find(f => f.id === id)!;
     const recado = montarRecado(ficha, lista);
-    const para = destinatarios(fixos);
+    const para = destinoDoRecado(ficha.vendedor_nome, mapaTel);   // UM destino: o dono do card
 
     if (opts.dry) {
       previa.push({ id, cliente: String(ficha.cliente_nome || '—'), para, mensagens: lista.length, recado });

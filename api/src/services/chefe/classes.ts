@@ -350,6 +350,11 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // 5 min, 12 mensagens por hora e 60 em 24 h somando os três; nada com 40 na linha na última hora. Sem o rodapé "o lead foi avisado".
   io_lista_aviso: robo('aviso_interno_p2', ['services/io/listaIgAviso.ts'], { nasceDeEvento: true, maxBolhas: 1 }),
 
+  // [23/11] Resumo semanal do SOLAR por vendedor (Diego, Thiago, Nilce e Giovanna), em privado, sexta das 16h às 17h59 de Brasília. 1 bolha por pessoa,
+  // 1 envio por rodada do /process-messages (pg_cron */2), chave `solar_relatorio_semanal:<sexta>:<pessoa>` por INSERT antes do envio (e carimbo da linha).
+  // Para no 1º erro; cooldown solta a chave, 5xx e timeout mantêm. Kill-switch SOLAR_RELATORIO_OFF=1.
+  solar_relatorio_semanal: robo('aviso_interno_p2', ['services/io/solarRelatorioSemanal.ts'], { maxBolhas: 1 }),
+
   // ── P3 · transacional do dia (agenda; vira P1 com prazo perto) ─────────────
   // Confirmação de backlog, bom dia, diário; e os lembretes de 1h e 5 min e a
   // ficha fresca, que chegam aqui com prazo e saem como P1. A pausa segue o HEAD

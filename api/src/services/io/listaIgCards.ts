@@ -17,9 +17,10 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { gravarCardAgora, gravarCardSolar, vagasSolar, type CardGravado } from '../agentes5040/agendaSolar';
+import { gravarCardAgora, gravarCardSolar, vagasSolar, agoraLiberadoSolar, type CardGravado } from '../agentes5040/agendaSolar';
 import { marcarAvisoAntigo } from '../agentes5040/chaves';
 import { DONA_SOLAR } from '../agenda/solarRota';
+import { candidatosPorFaixa } from '../agenda/divisaoSolar';
 import { ORIGEM_LISTA_IG_EP, ehCardDoLote, ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { guardarEtiquetaDoCard, guardarTipoDoCard } from '../agenda/etiquetaCard';
 import { estaBloqueado } from '../agents/whatsapp/silenciar';
@@ -110,17 +111,31 @@ const utmDoCard = (u: Record<string, string> | null): Record<string, string> =>
 export async function criarCardSolar(e: EntradaCard, r: Record<string, string>, agora = Date.now()): Promise<ResultadoCard> {
   const pode = await podeCriar(e, 'solar', agora);
   if (pode !== 'ok') return pode;
+  // 23/11/2026: o dono do card solar sai da divisão por conta de luz (a conta vem na resposta `conta`, nas faixas legadas); o 1º da
+  // lista com vaga fica com o card. Sem lista, a Nilce.
+  const lista = (await candidatosPorFaixa(r.conta, { reservar: true })).slice();
+  let dono = lista[0] ?? DONA_SOLAR;
+  let vagas: string[] = [];
+  // O card "agora" só vale com o "agora" liberado para o dono (grade dele, agenda aberta e nada nos próximos 30 min; a Nilce só pela grade).
+  // Senão, a vaga real do 1º candidato que tiver uma.
+  const agoraAberto = horarioAgoraAberto(agora) && await agoraLiberadoSolar(dono, agora);
+  if (!agoraAberto) {
+    for (const cand of lista.length ? lista : [DONA_SOLAR]) {
+      const v = (await vagasSolar({ dono: cand, caminho: 'ligacao', n: VAGAS_LIDAS, agora, faixa: 'novo' })) ?? [];
+      if (v.length) { dono = cand; vagas = v; break; }
+    }
+  }
   const ficha = {
-    dono: DONA_SOLAR, nome: e.pessoa.nome, tel: e.pessoa.telefone, cidade: `${e.pessoa.cidade}-${e.pessoa.uf}`,
+    dono, nome: e.pessoa.nome, tel: e.pessoa.telefone, cidade: `${e.pessoa.cidade}-${e.pessoa.uf}`,
     observacao: observacaoSolar(e.pessoa, r), src: 'ig', utm: utmDoCard(e.utm), createdBy: 'lp_solar' as const,
   };
   let card: CardGravado | null = null;
   try {
-    if (horarioAgoraAberto(agora)) {
+    if (agoraAberto) {
       const g = await gravarCardAgora(ficha, agora, { modo: 'mudo' });
       if (g.status === 'ok') card = g.valor;
     } else {
-      for (const quando of (await vagasSolar({ dono: DONA_SOLAR, caminho: 'ligacao', n: VAGAS_LIDAS, agora, faixa: 'novo' })) ?? []) {
+      for (const quando of vagas) {
         const g = await gravarCardSolar({ ...ficha, quando }, { modo: 'mudo' });
         if (g.status === 'ok') { card = g.card; break; }
         if (g.status === 'erro') break;
@@ -130,7 +145,7 @@ export async function criarCardSolar(e: EntradaCard, r: Record<string, string>, 
   if (!card) { await apagar(`${PREFIXO_CARD}solar:${e.listaId}`); return { status: 'erro' }; }
   await marcarAvisoAntigo(card.id);
   await ligarNaLista(e.listaId, 'card_solar_id', card.id);
-  return { status: 'ok', card: { id: card.id, quando: String(card.quando), dono: DONA_SOLAR } };
+  return { status: 'ok', card: { id: card.id, quando: String(card.quando), dono } };
 }
 
 /** O tipo do card pelo caminho: cotista, investidor e chave na mão = cotista; arrendamento; parceiro = integrador. */

@@ -1,3 +1,5 @@
+import { candidatosDoGrupo } from './divisaoSolar';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // A FILA DA CONTA BAIXA — quem recebe o próximo lead abaixo do corte.
 //
@@ -29,20 +31,17 @@
 // posicionar o rodízio.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Quem recebe lead novo de conta baixa. É o TAMANHO desta lista que define a
- *  proporção; com um nome só, é 100% dele. Para voltar a ter rodízio, acrescente
- *  nomes aqui e volte a girar por contagem, o histórico está no git. */
+/** A reserva de quando o banco não responde e do freio SOLAR_DIVISAO_OFF=1: só a Nilce. */
 export const FILA_DEPOIS_DA_SEMANA = ['Nilce'];
 
 /**
- * Quem recebe o PRÓXIMO lead de conta baixa.
+ * Quem recebe o PRÓXIMO lead de conta baixa (abaixo de R$ 800).
  *
- * Continua `async` de propósito, mesmo sem esperar por nada: as três portas já
- * chamam com `await` (o `ioSolar` inclusive dentro de um `Promise.all`), e
- * voltar pra síncrono mudaria a assinatura em três arquivos só pra economizar
- * uma microtask. Quando a fila voltar a ter mais de um nome, ela precisa do
- * banco outra vez e a assinatura já está pronta.
+ * 23/11/2026: deixou de ser a Nilce sozinha. A divisão por conta de luz (services/agenda/divisaoSolar.ts) aponta quem está mais
+ * abaixo da fatia entre a Nilce e a Giovanna (50% cada), pela contagem de cards dos últimos 30 dias. Esta função só devolve o
+ * primeiro da lista; quem precisa da lista inteira (para cair no próximo sem horário) chama `candidatosDoGrupo('menor')`.
+ * Nunca lança: com o banco fora, vale a ordem da tabela.
  */
 export async function proximoDaContaBaixa(_agora: Date = new Date()): Promise<string> {
-  return FILA_DEPOIS_DA_SEMANA[0];
+  return (await candidatosDoGrupo('menor'))[0] ?? FILA_DEPOIS_DA_SEMANA[0];
 }

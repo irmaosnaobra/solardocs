@@ -38,9 +38,10 @@ import { logger } from '../../utils/logger';
 import { sendWhatsApp, linhaEmCooldown } from '../agents/zapiClient';
 import { marcarAvisoAntigo, chaveAvisoAntigo } from '../agentes5040/chaves';
 import { agenteAtendeEste, lerPosse, chaveDaPosse } from '../agentes5040/posse';
-import { gravarCardAgora, gravarCardSolar, vagasSolar, rebaixarSaiuAMudo, type CardGravado } from '../agentes5040/agendaSolar';
+import { gravarCardAgora, gravarCardSolar, vagasSolar, agoraLiberadoSolar, rebaixarSaiuAMudo, type CardGravado } from '../agentes5040/agendaSolar';
 import { estaBloqueado } from '../agents/whatsapp/silenciar';
-import { rotuloDaFaixa, decidirCaminho, DONA_SOLAR, MARCA_QUIZ, MARCA_SAIU, PONTOS_CURIOSO, CHAVE_PRIMEIRO_CONTATO, ehCardSaiu } from '../agenda/solarRota';
+import { rotuloDaFaixa, decidirCaminho, DONA_SOLAR, DONOS_DE_SOLAR, divisaoSolarDesligada, artigoDe, MARCA_QUIZ, MARCA_SAIU, PONTOS_CURIOSO, CHAVE_PRIMEIRO_CONTATO, ehCardSaiu } from '../agenda/solarRota';
+import { candidatosPorFaixa } from '../agenda/divisaoSolar';
 import { TEL_AVISO } from './solarEquipe';
 import { chaveDescartadoSolar, marcaDescartaRascunho } from './solarDescarte';
 import { donoDoTelefone, telKeySolar } from './solarTelefone';
@@ -216,7 +217,14 @@ export async function marcarFalei(codigo: string, quando = Date.now()): Promise<
 }
 
 // ── o envio, com o limite por hora ──────────────────────────────────────────
-export type Pessoa = 'nilce' | 'thiago';
+export type Pessoa = 'nilce' | 'thiago' | 'giovanna' | 'diego';
+/** A ordem em que as filas por pessoa são percorridas (cartão agrupado e lista das 07:00). */
+const PESSOAS: readonly Pessoa[] = ['nilce', 'giovanna', 'thiago', 'diego'];
+/** O dono do card (nome) como chave de envio. Dono fora dos quatro: null. */
+export function pessoaDoDono(dono: unknown): Pessoa | null {
+  const n = String(dono ?? '').trim().toLowerCase();
+  return (PESSOAS as readonly string[]).includes(n) && DONOS_DE_SOLAR.some(d => d.toLowerCase() === n) ? n as Pessoa : null;
+}
 
 async function enviosNaUltimaHora(pessoa: Pessoa, agora: number): Promise<number | null> {
   const l = await listarChaves(`${CHAVES.envio}${pessoa}:`, agora - 3_600_000, 100);
@@ -266,6 +274,8 @@ export interface PedidoAvisoAgora {
   ficha: DadosDaFicha;
   /** O horário da ligação que o card guarda. */
   quandoMs: number;
+  /** Quem atende (23/11/2026): o aviso vai para ele. Sem dono, a Nilce. */
+  dono?: string;
 }
 export type ResultadoAviso = { enviado: boolean; motivo: 'enviado' | 'desligado' | 'ja_avisado' | 'falhou' | 'sem_destino' | 'cooldown' };
 
@@ -283,7 +293,7 @@ export async function avisarAgora(p: PedidoAvisoAgora, agora = Date.now()): Prom
   // e assim a Nilce recebe UM aviso só, o que tem o link "falei".
   if (claim === 'ganhou') await marcarAvisoAntigo(p.cardId);
   await gravarChave(CHAVES.token + codigo, { lead: p.lead, nome: p.ficha.nome, em: agoraIso(agora) });
-  const r = await enviarUm('nilce', avisoAgora(p.ficha, horaBonita(p.quandoMs), codigo), 'agora', p.lead);
+  const r = await enviarUm(pessoaDoDono(p.dono) ?? 'nilce', avisoAgora({ ...p.ficha, dono: p.ficha.dono ?? p.dono }, horaBonita(p.quandoMs), codigo), 'agora', p.lead);
   return { enviado: r === 'enviado', motivo: r };
 }
 
@@ -323,6 +333,8 @@ export function camposDeRecuperacao(resp: Respostas, extra: RespostasExtra, ativ
 
 export interface LeadHidratado {
   lead: string; nome: string; tel: string; nota: number; cidadeUf: string; curioso: boolean;
+  /** O dono gravado no rascunho (`leads_meta.consultor`), se for um dos quatro; senão null. */
+  dono: string | null;
   atividadeMs: number; ficha: DadosDaFicha; contaTxt: string;
 }
 
@@ -345,11 +357,13 @@ export function hidratarLead(row: Record<string, any>): LeadHidratado | null {
   const cidadeUf = String(row.cidade ?? '') || resp.cidade;
   const nome = String(row.nome ?? '').trim();
   if (!tel || !nome || !Number.isFinite(atividade)) return null;
+  const donoLido = String(row.consultor ?? '').trim();
+  const dono = DONOS_DE_SOLAR.includes(donoLido) ? donoLido : null;
   return {
-    lead: String(row.lead_id), nome, tel, nota: Number.isFinite(nota) ? nota : 0, cidadeUf, curioso: caminho === 'curioso',
+    lead: String(row.lead_id), nome, tel, nota: Number.isFinite(nota) ? nota : 0, cidadeUf, curioso: caminho === 'curioso', dono,
     atividadeMs: atividade, contaTxt: rotuloDaFaixa(resp.conta) ?? '',
     ficha: {
-      nome, tel, nota: Number.isFinite(nota) ? nota : 0, cidadeUf, resp, extra, diag, kwh: diag?.kwh_mes ?? null,
+      nome, tel, nota: Number.isFinite(nota) ? nota : 0, cidadeUf, resp, extra, diag, kwh: diag?.kwh_mes ?? null, ...(dono ? { dono } : {}),
       utmSource: campoDe(row.field_data, 'utm_source') || null, utmCampaign: campoDe(row.field_data, 'utm_campaign') || null,
     },
   };
@@ -357,7 +371,7 @@ export function hidratarLead(row: Record<string, any>): LeadHidratado | null {
 
 const curtoDe = (l: LeadHidratado): DadosCurtos => ({ nome: l.nome, nota: l.nota, cidadeUf: l.cidadeUf, tel: l.tel, conta: l.contaTxt });
 
-const COLUNAS_LEAD = 'lead_id, nome, whatsapp, cidade, field_data, agendado_id, created_time, form_id';
+const COLUNAS_LEAD = 'lead_id, nome, whatsapp, cidade, field_data, agendado_id, created_time, form_id, consultor';
 async function lerLeads(ids: string[]): Promise<Map<string, Record<string, any>>> {
   const out = new Map<string, Record<string, any>>();
   if (!ids.length) return out;
@@ -419,16 +433,19 @@ async function lembretes(agora: number, r: ResultadoTick, c: Rodada): Promise<vo
     const hid = leads.get(lead) ? hidratarLead(leads.get(lead)!) : null;
     if (!hid) continue;
     const curto = curtoDe(hid);
+    const donoPessoa: Pessoa = pessoaDoDono(hid.dono) ?? 'nilce';
     const chave5 = CHAVES.lembrete5 + a.key.slice(CHAVES.avisoAgora.length);
     const chave10 = CHAVES.lembrete10 + a.key.slice(CHAVES.avisoAgora.length);
     if ((await reivindicar(chave5, { em: agoraIso(agora) }, agora)) === 'ganhou') {
-      const res = await despachar('nilce', segundoAviso(curto, codigo), 'lembrete5', lead, agora);
+      // O 2º aviso vai para QUEM ATENDE o lead (23/11/2026), não mais sempre para a Nilce. O contador `lembretes.nilce` conta este.
+      const res = await despachar(donoPessoa, segundoAviso(curto, codigo), 'lembrete5', lead, agora);
       if (falhou(res)) { await apagarChave(chave5); c.parou = true; r.parou = res === 'cooldown' ? 'cooldown' : 'falha'; return; }
       if (res === 'enviado') { r.lembretes.nilce++; c.gasto = true; return; }
     }
-    if (idade >= LEMBRETE_THIAGO_MS && escalaThiagoLigada() && livre(c)
+    // O aviso de 10 min é a escalada para o Thiago: quando o dono do card É o Thiago, não há para quem escalar (23/11/2026).
+    if (donoPessoa !== 'thiago' && idade >= LEMBRETE_THIAGO_MS && escalaThiagoLigada() && livre(c)
       && (await reivindicar(chave10, { em: agoraIso(agora) }, agora)) === 'ganhou') {
-      const res = await despachar('thiago', avisoParaOThiago(curto, Math.round(idade / 60_000)), 'lembrete10', lead, agora);
+      const res = await despachar('thiago', avisoParaOThiago(curto, Math.round(idade / 60_000), hid.dono ?? DONA_SOLAR), 'lembrete10', lead, agora);
       if (falhou(res)) { await apagarChave(chave10); c.parou = true; r.parou = res === 'cooldown' ? 'cooldown' : 'falha'; return; }
       if (res === 'enviado') { r.lembretes.thiago++; c.gasto = true; return; }
     }
@@ -474,19 +491,27 @@ function vencimentoDoLead(hid: LeadHidratado, marca?: Linha): { vence: number; o
 const UTMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
 
 /** A observação do card: a ficha do quiz com a 1ª linha trocada. Fala: `... SAIU SEM MARCAR · <tipo> · LIGAÇÃO`. Mudo: `... SAIU SEM MARCAR · MUDO · LIGAÇÃO`. */
-export function observacaoDoCardSaiu(hid: LeadHidratado, mudo: boolean): string {
+export function observacaoDoCardSaiu(hid: LeadHidratado, mudo: boolean, dono: string = hid.dono ?? DONA_SOLAR): string {
   const resp = hid.ficha.resp;
-  const dec0 = decidirCaminho(resp, null, telKeySolar(hid.tel));
-  // Todo lead novo é ligação da Nilce; o curioso também (a ficha diz que a nota é de curioso).
+  const dec0 = decidirCaminho(resp, null, telKeySolar(hid.tel), [dono]);
+  // Todo lead novo é ligação de quem a divisão por conta apontou (23/11/2026); o curioso também (a ficha diz que a nota é de curioso).
   const dec = {
-    ...dec0, caminho: 'ligacao' as const, candidatos: [DONA_SOLAR],
-    ...(dec0.caminho === 'curioso' ? { motivo: `Curioso (${dec0.pontos} pontos, abaixo de ${PONTOS_CURIOSO}) que saiu do quiz sem marcar: ligação da ${DONA_SOLAR}.` } : {}),
+    ...dec0, caminho: 'ligacao' as const, candidatos: [dono],
+    ...(dec0.caminho === 'curioso' ? { motivo: `Curioso (${dec0.pontos} pontos, abaixo de ${PONTOS_CURIOSO}) que saiu do quiz sem marcar: ligação ${artigoDe(dono)} ${dono}.` } : {}),
   };
   const base = montarObservacao(resp, dec, null, false, { respostas: hid.ficha.extra, diag: hid.ficha.diag });
   const [linha0, ...resto] = base.split('\n');
   if (!mudo) return [`${MARCA_SAIU}${linha0.slice(MARCA_QUIZ.length)}`, ...resto].join('\n');
   const tipo = linha0.split(' · ')[1] ?? 'Imóvel';
   return [`${MARCA_SAIU} · MUDO · LIGAÇÃO`, `Onde: ${tipo}`, ...resto].join('\n');
+}
+
+/** Quem fica com o card de quem saiu sem marcar: o dono que o /quiz gravou no rascunho; sem ele, o 1º da divisão por conta de luz. Com
+ *  `SOLAR_DIVISAO_OFF=1`, a Nilce. Nunca lança. */
+export async function donoDoCardSaiu(hid: LeadHidratado): Promise<string> {
+  if (divisaoSolarDesligada()) return DONA_SOLAR;
+  if (hid.dono) return hid.dono;
+  return (await candidatosPorFaixa(hid.ficha.resp.conta, { reservar: true }))[0] ?? DONA_SOLAR;
 }
 
 /** Liga o lead ao card, SÓ se ele ainda não tem card (o cliente pode ter marcado no meio do caminho). */
@@ -645,22 +670,25 @@ async function cards(agora: number, r: ResultadoTick): Promise<void> {
       }
       const utm: Record<string, string> = {};
       for (const k of UTMS) { const v = campoDe(row.field_data, k).trim().slice(0, 200); if (v) utm[k] = v; }
+      // O dono do card SAIU (23/11/2026): o que o /quiz gravou no rascunho; sem ele, a divisão por conta de luz. Nunca a Nilce por padrão.
+      const donoDoCard = await donoDoCardSaiu(hid);
       const ficha = {
-        dono: DONA_SOLAR, nome: hid.nome, tel: hid.tel, cidade: String(row.cidade ?? '') || null, observacao: observacaoDoCardSaiu(hid, modo === 'mudo'),
+        dono: donoDoCard, nome: hid.nome, tel: hid.tel, cidade: String(row.cidade ?? '') || null, observacao: observacaoDoCardSaiu(hid, modo === 'mudo', donoDoCard),
         utm, createdBy: teste ? 'lp_solar_teste' as const : 'lp_solar' as const,
       };
       const dentroDaJanela = agora <= vence + ABANDONO_VALE_ATE_MS;
       let card: CardGravado | null = null;
       let quandoMs = 0;
       let erro = false;
-      // a) dentro do horário de ligação, não curioso e na janela do aviso: o mesmo encaixe do /quiz/agora ("ligar agora").
-      if (dentro && !hid.curioso && dentroDaJanela) {
+      // a) dentro do horário de ligação, não curioso, na janela do aviso e com o "agora" liberado para o dono (grade dele, agenda aberta e
+      //    sem nada nos próximos 30 min; a Nilce só pela grade): o mesmo encaixe do /quiz/agora ("ligar agora").
+      if (dentro && !hid.curioso && dentroDaJanela && await agoraLiberadoSolar(donoDoCard, agora)) {
         const g = await gravarCardAgora(ficha, agora, { modo });
         if (g.status === 'ok') { card = g.valor; quandoMs = g.quandoMs; } else if (g.status === 'erro') { erro = true; logger.error(LOG, 'criar o card (agora) falhou', g.erro); }
       }
-      // b) nos outros casos: a próxima vaga real da Nilce, na faixa de lead novo (:00/:30).
+      // b) nos outros casos: a próxima vaga real do dono, na faixa de lead novo (:00/:30).
       if (!card && !erro) {
-        const vagas = await vagasSolar({ dono: DONA_SOLAR, caminho: 'ligacao', n: VAGAS_LIDAS, agora, faixa: 'novo' });
+        const vagas = await vagasSolar({ dono: donoDoCard, caminho: 'ligacao', n: VAGAS_LIDAS, agora, faixa: 'novo' });
         if (!vagas?.length) logger.warn(LOG, `sem vaga para o card de ${lead}`);
         for (const iso of vagas ?? []) {
           const g = await gravarCardSolar({ ...ficha, quando: iso }, { modo });
@@ -750,7 +778,8 @@ async function abandonos(agora: number, r: ResultadoTick, c: Rodada): Promise<vo
     const codigo = randomBytes(9).toString('base64url');
     await gravarChave(CHAVES.token + codigo, { lead, nome: hid.nome, em: agoraIso(agora) });
     // T2 nunca é agrupado em cartão: sai direto, deixa o carimbo e conta nos 12 por hora.
-    const res = await enviarUm('nilce', avisoSaiuSemMarcar(hid.ficha, onde, horaBonita(agora), codigo, cardQuando, agora), 'abandono', lead);
+    // O aviso vai para o dono do card (23/11/2026); sem dono gravado, a Nilce (reserva).
+    const res = await enviarUm(pessoaDoDono(hid.dono) ?? 'nilce', avisoSaiuSemMarcar(hid.ficha, onde, horaBonita(agora), codigo, cardQuando, agora), 'abandono', lead);
     if (res !== 'enviado') {
       await apagarChave(CHAVES.abandono + lead);
       c.parou = true; r.parou = res === 'cooldown' ? 'cooldown' : 'falha';
@@ -762,19 +791,19 @@ async function abandonos(agora: number, r: ResultadoTick, c: Rodada): Promise<vo
   }
 }
 
-/** A lista das 07:00: UMA mensagem com todos os que saíram fora do horário. */
+/** A lista das 07:00: UMA mensagem por dono com os que saíram fora do horário, e no máximo UMA mensagem por rodada (23/11/2026: era uma
+ *  só, para a Nilce). O claim do dia é por dono (`manha_lote:<ymd>` para a Nilce, como sempre; `manha_lote:<ymd>:<pessoa>` para os outros);
+ *  o dono que não coube nesta rodada fica na fila para a próxima. */
 async function soltarManha(agora: number, r: ResultadoTick, c: Rodada): Promise<void> {
   if (!livre(c) || !horarioAgoraAberto(agora) || !filaManhaLigada()) return;
   const fila = await listarChaves(CHAVES.manha);
   if (!fila?.length) return;
   const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(agora));
-  const loteChave = CHAVES.manhaLote + ymd;
-  if ((await reivindicar(loteChave, { n: fila.length, em: agoraIso(agora) }, agora)) !== 'ganhou') return;
   const ids = fila.map(f => f.key.slice(CHAVES.manha.length));
   const rows = await lerLeads(ids);
   const cardsPorId = await lerCardsSaiu([...rows.values()].map(x => Number(x.agendado_id)).filter(Boolean));
-  const itens: ItemDaLista[] = [];
-  const consumidos: string[] = [];
+  const grupos = new Map<Pessoa, { itens: ItemDaLista[]; chaves: string[] }>();
+  const descartadas: string[] = [];
   for (const f of fila) {
     const lead = f.key.slice(CHAVES.manha.length);
     const row = rows.get(lead);
@@ -782,29 +811,39 @@ async function soltarManha(agora: number, r: ResultadoTick, c: Rodada): Promise<
     // o lead fica na lista, agora com o horário do card.
     const cardQuando = row?.agendado_id ? cardsPorId.get(Number(row.agendado_id)) : undefined;
     const hid = row && (!row.agendado_id || cardQuando !== undefined) ? hidratarLead(row) : null;
-    consumidos.push(f.key);
-    if (!hid || (await jaFalou(lead, hid.atividadeMs)) !== false) continue;
+    if (!hid || (await jaFalou(lead, hid.atividadeMs)) !== false) { descartadas.push(f.key); continue; }
     const onde = String((f.value as { onde?: string })?.onde ?? '');
-    itens.push({ nome: hid.nome, nota: hid.nota, cidadeUf: hid.cidadeUf, conta: hid.contaTxt, tel: hid.tel,
+    const pessoa: Pessoa = pessoaDoDono(hid.dono) ?? 'nilce';
+    const g = grupos.get(pessoa) ?? { itens: [], chaves: [] };
+    g.itens.push({ nome: hid.nome, nota: hid.nota, cidadeUf: hid.cidadeUf, conta: hid.contaTxt, tel: hid.tel,
       onde: onde === 'whatsapp' || onde === 'horarios' ? onde : 'diagnostico', ...(cardQuando !== undefined ? { quando: cardQuando } : {}) });
+    g.chaves.push(f.key);
+    grupos.set(pessoa, g);
   }
-  if (itens.length) {
-    const res = await enviarUm('nilce', listaDas7(itens, agora), 'manha', ymd);
+  for (const k of descartadas) await apagarChave(k);
+  for (const pessoa of PESSOAS) {
+    const g = grupos.get(pessoa);
+    if (!g) continue;
+    const sufixo = pessoa === 'nilce' ? '' : `:${pessoa}`;
+    const loteChave = `${CHAVES.manhaLote}${ymd}${sufixo}`;
+    if ((await reivindicar(loteChave, { n: g.itens.length, em: agoraIso(agora) }, agora)) !== 'ganhou') continue;
+    const res = await enviarUm(pessoa, listaDas7(g.itens, agora), 'manha', `${ymd}${sufixo}`);
     if (res !== 'enviado') {   // as linhas ficam; o próximo tick tenta de novo
       await apagarChave(loteChave);
       c.parou = true; r.parou = res === 'cooldown' ? 'cooldown' : 'falha';
       return;
     }
-    r.manha.enviada = itens.length;
+    r.manha.enviada += g.itens.length;
     c.gasto = true;
+    for (const k of g.chaves) await apagarChave(k);
+    return;   // 1 envio por rodada: o próximo dono sai na rodada seguinte
   }
-  for (const k of consumidos) await apagarChave(k);
 }
 
 /** O cartão agrupado: a cada 10 min, o que passou de 12 por hora para a mesma pessoa. Só leva quem AINDA não foi atendido. */
 async function soltarCartoes(agora: number, r: ResultadoTick, c: Rodada): Promise<void> {
   if (!livre(c) || !horarioAgoraAberto(agora)) return;
-  for (const pessoa of ['nilce', 'thiago'] as const) {
+  for (const pessoa of PESSOAS) {
     if (!livre(c)) return;
     const fila = await listarChaves(`${CHAVES.cartaoFila}${pessoa}:`);
     if (!fila?.length) continue;

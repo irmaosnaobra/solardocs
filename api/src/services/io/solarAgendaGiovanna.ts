@@ -89,12 +89,19 @@ import { chaveContato } from '../agents/whatsapp/silenciar';
 import { lerConversa } from '../agentes5040/contexto';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { ehCardMudo } from '../agenda/solarRota';
+import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { INSTANCE_ID_IO } from './solarRespostas';
+import { SOLAR_ORIGENS } from './solarBoasVindas';
 
 /** De quem são as carteiras. Corte por NOME, igual ao `ehSocio` do agendaFechada:
  *  quando a regra é sobre uma pessoa, o corte é o nome dela. A Nilce entrou em
  *  15/09/2026. */
 export const DONAS = ['Giovanna', 'Nilce'];
+/** Os sócios entram desde 23/11/2026 (o solar é dividido por conta de luz e eles recebem lead), mas SÓ com card de origem solar
+ *  (`SOLAR_ORIGENS`), nunca pelo nome: o Thiago e o Diego têm eletroposto e card de gente, que nunca recebem este bom dia. */
+export const SOCIOS_DO_SOLAR = ['Thiago', 'Diego'];
+/** Quem pode ter a ficha lida por este tick. */
+export const DONOS_DO_TICK = [...DONAS, ...SOCIOS_DO_SOLAR];
 
 const TZ = 'America/Sao_Paulo';
 const INSTANCE = 'io' as const;
@@ -107,7 +114,7 @@ export const SOLAR_GIOVANNA_PREFIX = 'solar_giovanna_sent:';
 /** Bom dia das 7h, com o nome de quem vai ligar. Uma bolha, duas linhas (ver o
  *  cabeçalho). */
 export const bolhaBomDia = (dona: string): string =>
-  `Oi, como vai?\nSou a ${dona} da energia solar, vou fazer seu atendimento e trazer a melhor solução.`;
+  `Oi, como vai?\nSou ${SOCIOS_DO_SOLAR.includes(dona) ? 'o' : 'a'} ${dona} da energia solar, vou fazer seu atendimento e trazer a melhor solução.`;
 
 /** O texto exato de 11/09, na carteira da Giovanna. */
 export const BOLHA_BOM_DIA = bolhaBomDia('Giovanna');
@@ -361,7 +368,8 @@ export async function runSolarAgendaGiovannaTick(
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('id, cliente_nome, cliente_telefone, vendedor_nome, quando, status, created_by, bomdia_at, lembrete_5min_at, observacao, created_at')
-    .in('vendedor_nome', DONAS)
+    // O sócio só entra com card de origem solar: o filtro vai na consulta, senão os cards de eletroposto deles (muitos) ocupariam as 200 linhas.
+    .or(`vendedor_nome.in.(${DONAS.join(',')}),and(vendedor_nome.in.(${SOCIOS_DO_SOLAR.join(',')}),created_by.in.(${SOLAR_ORIGENS.join(',')}))`)
     .eq('status', 'agendado')
     .gte('quando', new Date(agora - 15 * 60 * 1000).toISOString())
     .order('quando', { ascending: true })
@@ -379,7 +387,9 @@ export async function runSolarAgendaGiovannaTick(
     !!f.quando && diaBRT(f.quando) === hojeBRT && !ehOrigemEletroposto(f.created_by)
     && f.created_by !== 'lp_solar_teste'   // a sonda do quiz (24/10/2026) nunca recebe toque
     && !ehCardMudo(f.observacao)   // card de quem saiu do quiz sem marcar e não pode ser abordado (27/10/2026): sem bom dia e sem "oi" de 5 min, mesmo se os carimbos forem zerados
-    && DONAS.includes(String(f.vendedor_nome)));
+    && (DONAS.includes(String(f.vendedor_nome))
+      // Sócio (23/11/2026): só card de origem solar, e nunca em dia de agenda fechada (eles estão fora).
+      || (SOCIOS_DO_SOLAR.includes(String(f.vendedor_nome)) && SOLAR_ORIGENS.includes(String(f.created_by)) && !agendaFechadaNoIso(f.quando))));
 
   if (!fichas.length) return { ...zero('nada_hoje'), ...(dry ? { previa: [] } : {}) };
 
@@ -403,6 +413,13 @@ export async function runSolarAgendaGiovannaTick(
   // foi avisada e o cliente já recebeu a confirmação) nem para quem a Nilce já marcou como atendido (`solar_falei:<lead>`).
   // Só tira mensagem: se a leitura falhar, segue como antes.
   const semOi = await semOiDoQuiz(fichas.filter(naJanelaDos5));
+
+  // No máximo 1 bom dia por telefone por dia (23/11/2026): quem já levou o bom dia hoje, em qualquer card, não leva outro por cima.
+  const bomDiaDeHoje = new Set<string>();
+  for (const f of fichas) {
+    const k = telKey(f.cliente_telefone);
+    if (k && f.bomdia_at && diaBRT(f.bomdia_at) === hojeBRT) bomDiaDeHoje.add(k);
+  }
 
   const previa: ToquePrevisto[] = [];
   let bomDia = 0, cincoMin = 0, jaResponderam = 0, segurados = 0, esperando = 0, erros = 0, toques = 0;
@@ -472,6 +489,7 @@ export async function runSolarAgendaGiovannaTick(
       } catch (e) {
         logger.error('solar-giovanna', 'falha no toque de 5 min', { id: f.id, erro: String(e) });
         erros++;
+        break;   // o laço PARA no 1º erro de envio (23/11/2026): o que não saiu tenta no próximo tick
       }
       continue;
     }
@@ -479,6 +497,8 @@ export async function runSolarAgendaGiovannaTick(
     // ── Bom dia das 7h ────────────────────────────────────────────────────────
     if (naJanelaDaManha && !f.bomdia_at && minutos >= MANHA_ANTECEDENCIA_MIN) {
       if (bomDia >= MANHA_POR_TICK) continue;
+      const kBomDia = telKey(f.cliente_telefone);
+      if (kBomDia && bomDiaDeHoje.has(kBomDia)) continue;   // este telefone já levou o bom dia hoje
       // Idem: com o próximo tick ainda servindo (>= 4 min para as 30 min mínimos de antecedência e 4 min antes das 11h), espera 1 tick.
       if (minutos >= MANHA_ANTECEDENCIA_MIN + 4 && minutosAteFimDaManha(agora) >= 4 && await respostaEmCurso(tel, agora)) { esperando++; continue; }
       if (!dry && !(await dentroDoTetoHorarioLinha({ transacional: true, pisoHora: TETO_HORA_BOM_DIA, pisoDia: TETO_DIA }))) {
@@ -488,9 +508,11 @@ export async function runSolarAgendaGiovannaTick(
       try {
         await entregar(f, 'bom_dia', tel, bolhaBomDia(String(f.vendedor_nome)), 'bomdia_at');
         bomDia++; toques++;
+        if (kBomDia) bomDiaDeHoje.add(kBomDia);
       } catch (e) {
         logger.error('solar-giovanna', 'falha no bom dia', { id: f.id, erro: String(e) });
         erros++;
+        break;   // o laço PARA no 1º erro de envio (23/11/2026): o que não saiu tenta no próximo tick
       }
     }
   }

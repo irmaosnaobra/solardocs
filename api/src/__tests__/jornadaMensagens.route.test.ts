@@ -34,6 +34,8 @@ vi.mock('../services/agents/whatsapp/silenciar', async (orig) => ({
 vi.mock('../services/agenda/leadsMetaService', async (orig) => ({
   ...(await orig<typeof import('../services/agenda/leadsMetaService')>()),
   slotLivreConsultor: vi.fn(async () => new Date(Date.parse('2026-11-06T14:00:00.000Z') + (++h.slot) * 60_000)),
+  // 23/11/2026: o indicado entra na divisão por conta de luz; o horário continua sendo o do duble acima, e o dono é o 1º da lista.
+  consultorESlotDaLista: vi.fn(async (lista: string[]) => ({ consultor: lista[0] ?? 'Nilce', slot: new Date(Date.parse('2026-11-06T14:00:00.000Z') + (++h.slot) * 60_000) })),
 }));
 vi.mock('../services/gerador/jornadaSolarBanco', async (orig) => ({
   ...(await orig<typeof import('../services/gerador/jornadaSolarBanco')>()),
@@ -49,6 +51,7 @@ import { estadoMaterializado } from '../services/gerador/jornadaSolar';
 import { marcarVendaCompleta } from '../services/gerador/jornadaVendaCompleta';
 import { tokenIndicacao, lerIndicacaoDoCard } from '../services/gerador/indicacaoJornada';
 import { assinarLigacao, invalidarCachesHub } from '../services/gerador/vendaSolarHub';
+import { _limparCacheDivisao } from '../services/agenda/divisaoSolar';
 
 const r = Router();
 mountJornadaMensagens(r);
@@ -72,6 +75,7 @@ const semearJs = (id: number, mut: (e: any) => void = () => undefined): void => 
 const card = (id: number, o: Record<string, unknown> = {}) => ({ id, cliente_nome: `Cliente ${id}`, cliente_telefone: '(34) 99999-0001', cidade: 'Uberlândia - MG', vendedor_nome: 'Nilce', created_by: 'lp_solar', status: 'fechou', created_at: '2026-10-01T10:00:00.000Z', ...o });
 
 beforeEach(() => {
+  _limparCacheDivisao();
   h.main = new BancoFalso(); h.ger = new BancoFalso(); h.zapi.mockReset();
   h.usuarios = { 'tk-thiago': 'thiago@irmaosnaobra.app', 'tk-nilce': 'nilce@irmaosnaobra.app' };
   h.privado = null;
@@ -186,10 +190,20 @@ describe('o link público de indicação', () => {
     expect(await lerIndicacaoDoCard(ag.id)).toMatchObject({ indicador: INDICADOR });
     expect(h.zapi).not.toHaveBeenCalled();
   });
-  it('quem vendeu o Diego ou o Thiago também cai na Nilce (é quem atende o solar)', async () => {
+  it('quem vendeu o Diego ou o Thiago não amarra o indicado: ele entra na divisão por conta de luz (sem conta no link: grupo menor; ninguém com card, a Nilce abre a tabela)', async () => {
     h.ger.tabela('agendamentos').find((a: any) => a.id === INDICADOR).vendedor_nome = 'Diego';
     await envia();
     expect(agendados()[0].vendedor_nome).toBe('Nilce');
+  });
+  it('com a Nilce acima da fatia no grupo menor, o indicado vai para a Giovanna (o dono sai da contagem, não de sorte)', async () => {
+    h.ger.tabela('agendamentos').find((a: any) => a.id === INDICADOR).vendedor_nome = 'Diego';
+    // Cards solares da Nilce depois do início da divisão (data futura: o filtro é só "a partir de"); sem "Conta de luz" na observação = grupo menor.
+    for (let i = 0; i < 3; i++) {
+      h.ger.tabela('agendamentos').push(card(950 + i, { cliente_telefone: `5534977000${i}00`, vendedor_nome: 'Nilce', created_by: 'lp_solar', status: 'agendado', observacao: 'LP SOLAR QUIZ', created_at: new Date(Date.now() + 3_600_000).toISOString() }));
+    }
+    _limparCacheDivisao();
+    await envia();
+    expect(agendados()[0].vendedor_nome).toBe('Giovanna');
   });
   it('honeypot não grava nada; bloqueado grava só a linha; telefone repetido (pela cauda) não cria card novo', async () => {
     expect((await envia({ website: 'http://spam' })).body).toEqual({ ok: true });

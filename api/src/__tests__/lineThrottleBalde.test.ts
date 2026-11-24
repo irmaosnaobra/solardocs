@@ -47,12 +47,12 @@ const carregar = () => import('../services/agents/whatsapp/lineThrottle');
 describe('terceiro balde: ag5040_sent: e ficha_lead:', () => {
   it('a lista própria existe e NÃO está em prefixosDaLinha() (de onde saem os prefixos do frio)', async () => {
     const { PREFIXOS_RESPOSTA_AGENTES, prefixosDaLinha, prefixosTotalDaLinha } = await carregar();
-    expect([...PREFIXOS_RESPOSTA_AGENTES]).toEqual(['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:', 'jornada_env:', 'inv_agente_env:', 'io_lista_env:']);
+    expect([...PREFIXOS_RESPOSTA_AGENTES]).toEqual(['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:', 'jornada_env:', 'inv_agente_env:', 'io_lista_env:', 'solar_relatorio_semanal:']);
     for (const p of PREFIXOS_RESPOSTA_AGENTES) {
       expect(prefixosDaLinha()).not.toContain(p);
       expect(prefixosTotalDaLinha()).toContain(p);
     }
-    expect(prefixosTotalDaLinha().length).toBe(prefixosDaLinha().length + 7);
+    expect(prefixosTotalDaLinha().length).toBe(prefixosDaLinha().length + 8);
     const { PREFIXOS_AGENDA } = await carregar();
     for (const p of PREFIXOS_RESPOSTA_AGENTES) expect([...PREFIXOS_AGENDA]).not.toContain(p);
   });

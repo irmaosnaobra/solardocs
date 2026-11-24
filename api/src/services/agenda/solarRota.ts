@@ -54,17 +54,74 @@ export const PONTOS_CURIOSO = 40;
 /** Quem atende cada faixa. Todas as visitas são do Diego. */
 export const QUEM = { pequena: 'Giovanna', media: 'Nilce', visita: 'Diego', grande: 'Thiago' } as const;
 
-/** SÓ A NILCE ATENDE SOLAR (ordem do dono, 24/10/2026): todo lead novo vai para
- *  ela, por ligação, seja qual for a conta. Giovanna, Thiago e Diego continuam
- *  existindo aqui só para o cliente que JÁ é deles (`decidirCaminho` com dono). */
+/** A Nilce: a dona de todo o solar de 24/10 a 23/11/2026, e hoje a reserva: o kill-switch `SOLAR_DIVISAO_OFF=1` e
+ *  qualquer lugar que não consiga ler o banco caem nela. */
 export const DONA_SOLAR = 'Nilce';
 
-/** Quem atende pela conta, sem olhar pontuação: é quem a agente chama quando
- *  um curioso pede gente (o curioso não tem horário, mas tem dono). Desde
- *  24/10/2026 é sempre a Nilce; o `kwh` fica na assinatura porque quem chama
- *  já o tem em mãos. */
-export function donoDaFaixa(_kwh: number | null): string {
-  return DONA_SOLAR;
+/** O início da divisão: a contagem do déficit só olha cards de DEPOIS dele (o 1º lead que chega com a divisão no ar). Desde 24/10 todo card
+ *  solar é da Nilce, e contar esse passado faria ela estrear a divisão sem receber lead por semanas. A env `SOLAR_DIVISAO_INICIO` (ISO)
+ *  sobrescreve. VALOR PROVISÓRIO (24/11/2026 00:00 em Brasília): trocar pelo horário exato da entrada no ar antes do commit. */
+export const SOLAR_DIVISAO_INICIO: string = process.env.SOLAR_DIVISAO_INICIO || '2026-11-24T03:58:00.000Z';
+
+// ── A DIVISÃO DOS LEADS SOLARES POR CONTA DE LUZ (decisão do dono, 23/11/2026) ──────────────────────────────────────
+// Substitui o "só a Nilce atende solar" de 24/10. Dois grupos, pelo valor da conta em REAIS:
+//   · menor: conta abaixo de R$ 800 (inclui "menos de R$ 400", que o quiz só deixa passar se o cliente vai aumentar o consumo)
+//            Nilce 50% e Giovanna 50%
+//   · maior: conta de R$ 800 para cima    Nilce 40%, Thiago 30% e Diego 30%
+// Aqui mora a parte PURA (tabela, grupo pela conta, ordem por déficit). A contagem no banco e o cache moram em
+// `divisaoSolar.ts`. A ordem dos nomes na tabela é o desempate.
+export const GRUPOS_SOLAR = {
+  menor: { Nilce: 50, Giovanna: 50 },
+  maior: { Nilce: 40, Thiago: 30, Diego: 30 },
+} as const;
+export type GrupoSolar = keyof typeof GRUPOS_SOLAR;
+/** Conta em reais a partir da qual o lead é do grupo maior. */
+export const CORTE_GRUPO_REAIS = 800;
+/** Quem pode ser dono de lead solar (a união dos dois grupos). */
+export const DONOS_DE_SOLAR: readonly string[] = ['Nilce', 'Giovanna', 'Thiago', 'Diego'];
+
+/** `SOLAR_DIVISAO_OFF=1`: o freio. Volta a ser só a Nilce, sem deploy de código. Lê o env na hora da chamada. */
+export const divisaoSolarDesligada = (): boolean => (process.env.SOLAR_DIVISAO_OFF || '').trim() === '1';
+
+/** kWh em reais pela tarifa, com os centavos arredondados: R$ 800 ida e volta pela tarifa dá 800,0000000001 ou 799,99999999, e o corte é
+ *  "800 ou mais". */
+export const reaisDoKwh = (kwh: number): number => Math.round(kwh * TARIFA_KWH * 100) / 100;
+
+/** O grupo pela conta em reais. Sem valor legível (`null`/`NaN`/0): grupo menor. */
+export function grupoDaConta(reais: number | null | undefined): GrupoSolar {
+  return typeof reais === 'number' && Number.isFinite(reais) && reais >= CORTE_GRUPO_REAIS ? 'maior' : 'menor';
+}
+/** O grupo de uma faixa do quiz (`ate400`, `400_800`, `800_1200`, `1200_mais` ou as legadas, pelo valor típico). */
+export function grupoDaFaixaConta(v: unknown): GrupoSolar {
+  return grupoDaConta(acharFaixaConta(v)?.reais ?? null);
+}
+/** Os nomes do grupo, na ordem da tabela. */
+export const membrosDoGrupo = (g: GrupoSolar): string[] => Object.keys(GRUPOS_SOLAR[g]);
+/** A fatia (0 a 100) de uma pessoa no grupo. */
+export const fatiaNoGrupo = (g: GrupoSolar, nome: string): number =>
+  (GRUPOS_SOLAR[g] as Record<string, number>)[nome] ?? 0;
+
+/** A lista de candidatos SEM olhar o banco: os membros na ordem da tabela, ou só a Nilce com o freio ligado. */
+export function candidatosPadrao(g: GrupoSolar): string[] {
+  return divisaoSolarDesligada() ? [DONA_SOLAR] : membrosDoGrupo(g);
+}
+
+/** Ordena os membros do grupo por DÉFICIT: quem está mais abaixo da fatia vem primeiro. `contagem` é quantos cards cada um
+ *  recebeu no grupo na janela. Déficit = fatia% do total menos o que a pessoa já tem. Empate: ordem da tabela. Pura. */
+export function ordenarPorDeficit(g: GrupoSolar, contagem: Readonly<Record<string, number>>): string[] {
+  const nomes = membrosDoGrupo(g);
+  const total = nomes.reduce((s, n) => s + (contagem[n] ?? 0), 0);
+  return nomes
+    .map((nome, i) => ({ nome, i, deficit: (fatiaNoGrupo(g, nome) / 100) * total - (contagem[nome] ?? 0) }))
+    .sort((a, b) => b.deficit - a.deficit || a.i - b.i)
+    .map(x => x.nome);
+}
+
+/** Quem atende pela conta, sem olhar pontuação e sem olhar o banco: é quem a agente chama quando um curioso pede gente
+ *  (o curioso não tem horário, mas tem dono). Devolve o 1º da tabela do grupo (a Nilce, nos dois). Quem escolhe de verdade,
+ *  por déficit, é `divisaoSolar.candidatosPorKwh`. */
+export function donoDaFaixa(kwh: number | null): string {
+  return candidatosPadrao(grupoDaConta(kwh === null ? null : reaisDoKwh(kwh)))[0];
 }
 
 /** Quilômetros de ESTRADA contados de Uberlândia, a base do Diego, que faz
@@ -115,22 +172,20 @@ export const ehCardDaDuda = (obs: unknown): boolean => RE_ORIGEM_DUDA.test(Strin
 
 export const SOCIOS_VISITA = ['Thiago', 'Diego'] as const;
 export type Socio = typeof SOCIOS_VISITA[number];
-/** O dono anterior do telefone, no SOLAR (24/10/2026): a Giovanna não atende mais,
- *  então o cliente dela vale como cliente novo (`null`, cai na Nilce). Thiago,
- *  Diego e Nilce valem como sempre. Regra ÚNICA do quiz, do formulário do Meta e
- *  do ManyChat. Só solar: o eletroposto não passa por aqui. */
+/** O dono anterior do telefone, no SOLAR. Desde 23/11/2026 os quatro (Nilce, Giovanna, Thiago e Diego) são donos válidos: o
+ *  cliente que volta fica com quem já o atende. Vazio = sem dono (cliente novo, cai na divisão por conta).
+ *  Com `SOLAR_DIVISAO_OFF=1` volta a regra de 24/10: a Giovanna não atende mais e o cliente dela vale como novo.
+ *  Regra ÚNICA do quiz, do formulário do Meta e do ManyChat. Só solar: o eletroposto não passa por aqui. */
 export function donoQueAindaAtendeSolar(dono: string | null | undefined): string | null {
   const nome = String(dono ?? '').trim();
-  if (!nome || nome === 'Giovanna') return null;
+  if (!nome) return null;
+  if (divisaoSolarDesligada() && nome === 'Giovanna') return null;
   return dono ?? null;
 }
 
-/** Quem atende solar por ligação: desde 24/10/2026, SÓ a Nilce. A carteira dela
- *  não circula pelo repasse de 12h do banco (dono_fixo): cliente dela nunca vai
- *  pra sócio. A Giovanna saiu: o cliente que ainda é dela é tratado como cliente
- *  novo do quiz (cai na Nilce). De 13/10 a 24/10 as duas se entregavam o card
- *  no NÃO ATENDEU (`parceiraDaLigacao`), e isso acabou. */
-export const DONAS_LIGACAO = ['Nilce'] as const;
+/** Quem atende solar por ligação: Nilce e Giovanna (desde 23/11/2026; de 24/10 a 23/11 só a Nilce). A carteira de cada uma
+ *  não circula pelo repasse de 12h do banco (dono_fixo). O NÃO ATENDEU mantém o mesmo dono (`donoDaVolta`). */
+export const DONAS_LIGACAO = ['Nilce', 'Giovanna'] as const;
 
 /** De onde cada sócio sai para a visita. */
 export const BASE_DO_SOCIO: Record<Socio, string> = { Diego: 'Uberlândia', Thiago: 'Araguari' };
@@ -428,12 +483,12 @@ export const noRaioDaVisita = (c: CidadeRaio | null): boolean => !!c && c.kmUdi 
 /** O caminho e o dono do cliente NOVO, pela pontuação, pela conta e pela cidade,
  *  sem olhar quem já é dono do telefone.
  *
- *  24/10/2026: só a Nilce atende solar. Todo lead acima do corte de curioso vai
- *  para ela, por ligação, seja 250 ou 2.000 kWh. O kWh, a nota e a cidade
- *  continuam calculados (a ficha e o evento LeadQuente usam), e a decisão guarda
- *  em `grande`/`pontos`/`cidade` o que mostra se o lead qualificaria visita
- *  (ver `qualificariaVisita`); isso é só informação para a Nilce. */
-export function caminhoPelasRespostas(r: RespostasDoCaminho, _chave?: string | null): Omit<Decisao, 'qualifica'> {
+ *  23/11/2026: o dono sai da divisão por conta de luz (`GRUPOS_SOLAR`). `candidatos` é a lista JÁ ordenada por déficit que
+ *  `divisaoSolar.candidatosPorFaixa` devolve (quem chama com banco passa; esta função é pura). Sem ela, vale a ordem da tabela
+ *  (a Nilce primeiro). Todo lead acima do corte de curioso é ligação. O kWh, a nota e a cidade continuam calculados (a ficha
+ *  e o evento LeadQuente usam), e a decisão guarda em `grande`/`pontos`/`cidade` o que mostra se o lead qualificaria visita
+ *  (ver `qualificariaVisita`); isso é só informação. */
+export function caminhoPelasRespostas(r: RespostasDoCaminho, _chave?: string | null, candidatos?: readonly string[]): Omit<Decisao, 'qualifica'> {
   const kwh = kwhDaFaixa(r.conta);
   const cidade = acharCidadeRaio(r.cidade);
   const grande = kwh !== null && kwh > KWH_VISITA;
@@ -445,12 +500,17 @@ export function caminhoPelasRespostas(r: RespostasDoCaminho, _chave?: string | n
     return { ...base, caminho: 'curioso', candidatos: [],
       motivo: `${pontos} pontos, abaixo de ${PONTOS_CURIOSO}: vai para a lista de curiosos, sem agenda.` };
   }
+  const grupo = grupoDaFaixaConta(r.conta);
+  const lista = !divisaoSolarDesligada() && candidatos?.length ? [...candidatos] : candidatosPadrao(grupo);
   const info = qualificariaVisita(base)
     ? ` Acima de ${kwhTxt(KWH_VISITA)} kWh, ${pontos} pontos e a ${cidade!.kmUdi} km de Uberlândia: qualificaria para visita do Diego.`
     : '';
-  return { ...base, caminho: 'ligacao', candidatos: [DONA_SOLAR],
-    motivo: `Ligação da ${DONA_SOLAR}: ela atende todo o solar.${info}` };
+  return { ...base, caminho: 'ligacao', candidatos: lista,
+    motivo: `Ligação ${artigoDe(lista[0])} ${lista[0]}: conta do grupo ${grupo === 'maior' ? 'de R$ 800 para cima' : 'abaixo de R$ 800'}.${info}` };
 }
+
+/** "da" Nilce / "do" Thiago: o artigo certo do nome (a Nilce e a Giovanna são mulheres; o Thiago e o Diego, homens). */
+export const artigoDe = (nome: string): 'da' | 'do' => (nome === 'Thiago' || nome === 'Diego' ? 'do' : 'da');
 
 /** O lead faria visita se a visita ainda fosse um caminho de entrada: conta
  *  grande, nota acima do corte e dentro do raio. Só informação (24/10/2026). */
@@ -501,14 +561,12 @@ function caminhoLegadoPorTamanho(r: RespostasDoCaminho): Omit<Decisao, 'qualific
  * "QUALIFICA PARA ..." para ele chamar quem faz: Nilce e Giovanna ligam; o
  * Thiago não faz visita (todas são do Diego). Curioso continua curioso.
  */
-export function decidirCaminho(r: RespostasDoCaminho, dono?: string | null, chave?: string | null): Decisao {
-  // Cliente NOVO: sempre a Nilce (24/10/2026). A visita que ele faria vai só
-  // como informação em `qualifica`.
+export function decidirCaminho(r: RespostasDoCaminho, dono?: string | null, chave?: string | null, candidatos?: readonly string[]): Decisao {
+  // Cliente NOVO: o dono sai da divisão por conta (23/11/2026). A visita que ele faria vai só como informação em `qualifica`.
   if (!donoQueAindaAtendeSolar(dono)) {
-    const nova = caminhoPelasRespostas(r, chave);
+    const nova = caminhoPelasRespostas(r, chave, candidatos);
     return { ...nova, qualifica: nova.caminho !== 'curioso' && qualificariaVisita(nova) ? 'vistoria' : null };
   }
-  // (Dono que não faz mais solar, a Giovanna, já entrou no ramo acima: cliente novo.)
   // Cliente que já tem dono fica com o dono, do jeito que o roteamento anterior
   // o trataria (a regra "dono anterior vence" não mudou).
   const base = caminhoLegadoPorTamanho(r);

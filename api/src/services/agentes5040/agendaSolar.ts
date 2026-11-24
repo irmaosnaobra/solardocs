@@ -24,7 +24,7 @@ import { telKeySolar } from '../io/solarTelefone';
 import { aindaLivreSolar, vagasSolar, type FaixaSolar } from './agendaSolarVagas';
 import { adIdDeUtmContent, gravarRastreioCard, type DadosRastreio } from '../rastreio/gravarRastreioCard';
 
-export { vagasSolar, consultoraDaFaixa, aindaLivreSolar, type FaixaSolar } from './agendaSolarVagas';
+export { vagasSolar, consultoraDaFaixa, aindaLivreSolar, agoraLiberadoSolar, type FaixaSolar } from './agendaSolarVagas';
 
 /** O que o card leva. `observacao` e as UTMs já vêm prontas de quem chama. */
 export interface FichaSolar {
