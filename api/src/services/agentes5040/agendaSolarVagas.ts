@@ -20,11 +20,12 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { carregarCompromissos, type Compromisso } from '../io/eletropostoVagas';
-import { ANTECEDENCIA_MIN, DIAS_VARRIDOS, diaUtil, msDe, ymdBRT } from '../io/solarQuiz';
+import { ANTECEDENCIA_MIN, DIAS_VARRIDOS, diaUtil, msDe, ymdBRT, agoraNaGrade, agoraLivreNaAgenda, AGORA_FOLGA_MIN } from '../io/solarQuiz';
 import {
-  GRADE_FOLLOWUP_LIGACAO, GRADE_NOVO_LIGACAO, blocoDoCompromisso, donoDaFaixa, horariosDoCaminho, temDuasFaixas,
+  DONA_SOLAR, GRADE_FOLLOWUP_LIGACAO, GRADE_NOVO_LIGACAO, GRADE_SOCIOS_SOLAR, blocoDoCompromisso, grupoDaConta, reaisDoKwh, horariosDoCaminho, temDuasFaixas,
   type Caminho,
 } from '../agenda/solarRota';
+import { candidatosEmCache } from '../agenda/divisaoSolar';
 import { agendaFechadaEm, ehSocio } from '../agenda/agendaFechada';
 
 /** `novo` = :00/:30 (lead novo). `remarcacao` = :15/:45 (follow-up e remarcação). */
@@ -33,8 +34,10 @@ export type FaixaSolar = 'novo' | 'remarcacao';
 const MIN_MS = 60_000;
 const DIA_MS = 86_400_000;
 
-/** Quem atende cada conta (o mesmo donoDaFaixa de solarRota.ts): desde 24/10/2026, sempre a Nilce. */
-export const consultoraDaFaixa = (kwh: number | null): string => donoDaFaixa(kwh);
+/** Quem atende esta conta (23/11/2026): o 1º do grupo pela ÚLTIMA contagem da divisão (divisaoSolar.candidatosEmCache, que o turno da Duda
+ *  aquece antes com `aquecerDivisao`). Síncrono de propósito: a oferta guarda o `alvo` e todas as ações do turno usam o mesmo dono. */
+export const consultoraDaFaixa = (kwh: number | null): string =>
+  candidatosEmCache(grupoDaConta(kwh === null ? null : reaisDoKwh(kwh)))[0];
 
 interface Bloco { ini: number; fim: number }
 
@@ -42,6 +45,8 @@ interface Bloco { ini: number; fim: number }
 function horasDaFaixa(caminho: Caminho, faixa: FaixaSolar, ymd: string, dono: string): readonly string[] {
   if (caminho === 'ligacao' && temDuasFaixas(dono)) return faixa === 'remarcacao' ? GRADE_FOLLOWUP_LIGACAO : GRADE_NOVO_LIGACAO;
   // Sócio ou outro caminho: só existe a grade de cliente novo. Não há :15/:45 de sócio no solar.
+  // Ligação de sócio (23/11/2026): as meias-horas encaixadas do eletroposto, a mesma grade do quiz e do Meta.
+  if (caminho === 'ligacao' && ehSocio(dono)) return faixa === 'remarcacao' ? [] : GRADE_SOCIOS_SOLAR;
   return faixa === 'remarcacao' ? [] : horariosDoCaminho(caminho, ymd, dono, null);
 }
 
@@ -110,6 +115,19 @@ export async function vagasSolar(
     }
   }
   return vagas;
+}
+
+/**
+ * O "ligar agora" vale para este dono neste instante? (23/11/2026) Uma só regra para o /quiz/agora, o card SAIU SEM MARCAR e a lista do
+ * Instagram: o instante cai dentro da grade de trabalho do dono (`agoraNaGrade`: sócio nunca em dia de agenda fechada) e, fora a Nilce,
+ * ele não tem nada marcado nos próximos `AGORA_FOLGA_MIN` minutos, pela ocupação real (a mesma leitura das vagas). Só leitura. Não deu para
+ * ler a agenda: false (sem "agora", a vitrine ou a vaga real).
+ */
+export async function agoraLiberadoSolar(dono: string, agoraMs: number): Promise<boolean> {
+  if (!agoraNaGrade(dono, agoraMs)) return false;
+  if (dono === DONA_SOLAR) return true;   // a Nilce segue como sempre: o encaixe de +5 min resolve o minuto ocupado
+  const blocos = await blocosDe(dono, agoraMs - 2 * 3_600_000, agoraMs + (AGORA_FOLGA_MIN + 5) * MIN_MS);
+  return blocos !== null && agoraLivreNaAgenda(agoraMs, blocos);
 }
 
 /**

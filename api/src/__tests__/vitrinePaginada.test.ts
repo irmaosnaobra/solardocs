@@ -25,6 +25,12 @@ vi.mock('../services/agents/zapiClient', () => ({ sendWhatsApp: vi.fn().mockReso
 vi.mock('../services/agents/whatsapp/silenciar', () => ({ estaBloqueado: vi.fn().mockResolvedValue(false) }));
 vi.mock('../services/agenda/solarOcupacao', () => ({ ocupacoesSolar: vi.fn().mockResolvedValue([]) }));
 vi.mock('../services/agenda/filaContaBaixa', () => ({ proximoDaContaBaixa: vi.fn().mockResolvedValue('Nilce') }));
+// A divisão por conta de luz (23/11/2026) lê os cards do mesmo banco: aqui só a leitura da AGENDA está sendo contada em páginas, então a lista dos donos é fixa.
+vi.mock('../services/agenda/divisaoSolar', async (orig) => ({
+  ...(await orig<typeof import('../services/agenda/divisaoSolar')>()),
+  candidatosDoGrupo: vi.fn().mockResolvedValue(['Nilce']),
+  candidatosPorFaixa: vi.fn().mockResolvedValue(['Nilce']),
+}));
 vi.mock('../services/io/eletropostoEstudoGarantir', () => ({ extraDoCard: vi.fn(), garantirEstudo: vi.fn() }));
 vi.mock('../services/io/eletropostoPares', () => ({
   blocoParesSeguro: vi.fn().mockResolvedValue([]), pool: vi.fn(), montarPares: vi.fn(), MAX_PARES: 3, TETO_KM: 100,

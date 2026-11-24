@@ -4,7 +4,8 @@ import { supabaseGerador } from '../utils/supabaseGerador';
 import { indicacaoRateLimit } from '../middleware/indicacaoRateLimit';
 import { logger } from '../utils/logger';
 import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
-import { slotLivreConsultor, dataBaseDaFaixa } from '../services/agenda/leadsMetaService';
+import { consultorESlotDaLista, dataBaseDaFaixa } from '../services/agenda/leadsMetaService';
+import { candidatosDoGrupo } from '../services/agenda/divisaoSolar';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { reservarChave, liberarChave } from '../services/agentes5040/cota';
 import { lerCardSolarVendido, lerLigacao } from '../services/gerador/vendaSolarHub';
@@ -17,7 +18,7 @@ import { cardDoToken, gravarIndicacao } from '../services/gerador/indicacaoJorna
 //   GET  /indicacao-link/:token    o primeiro nome de quem indicou (404 se o link não vale)
 //   POST /indicacao-link           grava a indicação e cria o card do amigo
 //
-// Esta rota NÃO MANDA MENSAGEM e NÃO importa o `zapiClient`. Mas o card que ela cria cai na carteira da Nilce, e a agenda da Giovanna
+// Esta rota NÃO MANDA MENSAGEM e NÃO importa o `zapiClient`. Mas o card que ela cria cai na carteira de quem a divisão por conta de luz apontar (23/11/2026; era sempre a Nilce), e a agenda da Giovanna
 // (`solarAgendaGiovanna`) fala com o indicado (bom dia e o "oi" de 5 minutos antes): isso é esperado e legítimo (veredito do chefe-antiban de 05/11).
 // Vaga reservada por INSERT em chave única antes de criar o card: 3 por link por dia, 10 por link em 30 dias e 20 por dia no total (acima disso grava só a
 // linha, sem card). Duplicado de 30 dias: telefone normalizado inteiro (tolera só o 9º dígito); o card que já existe nunca é ligado ao dono do link. Nunca loga o corpo (telefone e nome).
@@ -30,7 +31,6 @@ export const TETO_LINK_DIA = 3;
 export const TETO_LINK_30D = 10;
 export const TETO_DIA_TOTAL = 20;
 const DIA_MS = 24 * 3600_000;
-const CARTEIRA_DO_SOLAR = 'Nilce';
 
 const clean = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 
@@ -149,9 +149,11 @@ router.post('/', indicacaoRateLimit, async (req: Request, res: Response) => {
 
     const lig = await lerLigacao(card.id).catch(() => null);
     const rot = lig?.lig.venda && /^#\d{3,6}$/.test(lig.lig.venda) ? lig.lig.venda : `card ${card.id}`;
-    const quando = await slotLivreConsultor(CARTEIRA_DO_SOLAR, dataBaseDaFaixa(''));
+    // 23/11/2026: o indicado é lead solar novo e entra na divisão por conta de luz. O link não traz a conta, então vale o grupo menor (Nilce e
+    // Giovanna, por déficit); o 1º da lista com horário fica com o card. Com o freio SOLAR_DIVISAO_OFF=1, só a Nilce.
+    const { consultor: donoNovo, slot: quando } = await consultorESlotDaLista(await candidatosDoGrupo('menor', { reservar: true }), dataBaseDaFaixa(''));
     const { data, error } = await supabaseGerador.from('agendamentos').insert({
-      vendedor_nome: CARTEIRA_DO_SOLAR, quando: quando.toISOString(), cliente_nome: nome, cliente_telefone: tel, temperatura: 'quente', status: 'agendado',
+      vendedor_nome: donoNovo, quando: quando.toISOString(), cliente_nome: nome, cliente_telefone: tel, temperatura: 'quente', status: 'agendado',
       created_by: 'indicacao',
       observacao: `🎁 INDICADO\nIndicação de ${String(card.cliente_nome ?? '').replace(/[*_~]/g, '').trim()} (${rot})\n→ Atendimento personalizado`,
     }).select('id').single();

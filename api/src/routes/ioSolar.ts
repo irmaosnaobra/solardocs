@@ -3,13 +3,12 @@ import { slotDoSegredo } from '../utils/cronSegredo';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { fichaSubstituiAviso } from '../services/agentes5040/chaves';
-import { gravarCardSolar, gravarCardAgora, cancelarCardsSaiuSemMarcar } from '../services/agentes5040/agendaSolar';
+import { gravarCardSolar, gravarCardAgora, agoraLiberadoSolar, cancelarCardsSaiuSemMarcar } from '../services/agentes5040/agendaSolar';
 import { gravarCodigoDoCard } from '../services/agentes5040/quizCodigo';
 import { logger } from '../utils/logger';
 import { cidadeParaGravar } from '../services/io/cidadeCanonica';
 import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
-import { proximoDaContaBaixa } from '../services/agenda/filaContaBaixa';
-import { FILA_CONTA_ALTA } from '../services/agenda/leadSolarFicha';
+import { candidatosDoGrupo, candidatosPorFaixa } from '../services/agenda/divisaoSolar';
 import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
@@ -20,15 +19,15 @@ import { PONTOS_QUIZ_BOM } from '../services/meta/clientesQuentesPuro';
 import { registrarSchedulePagina } from '../services/meta/capiPagina';
 import { campoCapiDe } from '../services/meta/capiNavegador';
 import { adIdDeUtmContent, gravarRastreioCard, rastreioDaRequisicao } from '../services/rastreio/gravarRastreioCard';
-import { DONA_SOLAR, PONTOS_CURIOSO, MARCA_QUIZ, decidirCaminho, pontuar, acharCidadeRaio, kwhDaFaixa } from '../services/agenda/solarRota';
+import { DONA_SOLAR, PONTOS_CURIOSO, MARCA_QUIZ, decidirCaminho, pontuar, acharCidadeRaio, kwhDaFaixa, artigoDe, divisaoSolarDesligada } from '../services/agenda/solarRota';
 import {
   limparRespostas, limparRespostasExtra, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
-  msDe, DIAS_VARRIDOS, ROTULO_CAMINHO, avisoDaEquipe, calcularDiagnostico, horarioAgoraAberto, quandoDoAgora,
+  msDe, DIAS_VARRIDOS, ROTULO_CAMINHO, avisoDaEquipe, calcularDiagnostico, horarioAgoraAberto, agoraPermitido, quandoDoAgora, donoDoQuiz, candidatosDoQuiz,
   type Ocupacao, type Respostas, type RespostasExtra, type FichaDoAviso, type Diagnostico,
 } from '../services/io/solarQuiz';
 import { EQUIPE, TEL_AVISO } from '../services/io/solarEquipe';
 import {
-  avisarAgora, avisarAgendado, camposDeRecuperacao, gravarSaida, marcarFalei, nomeDoToken, gravarChave, lerChave, apagarChave,
+  avisarAgora, avisarAgendado, pessoaDoDono, camposDeRecuperacao, gravarSaida, marcarFalei, nomeDoToken, gravarChave, lerChave, apagarChave,
 } from '../services/io/solarQuizAviso';
 import { motivoDescarteSolar, cidadeUfDoDescarte, chaveDescartadoSolar, type MotivoDescarte } from '../services/io/solarDescarte';
 import { soDigitosSolar, telKeySolar, donoDoTelefone } from '../services/io/solarTelefone';
@@ -174,13 +173,10 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
  *  Desde 23/09/2026 a Nilce está nos DOIS lados do corte, então os três nomes
  *  aqui cobrem o funil inteiro. A Giovanna não entra: ela não recebe mais lead
  *  novo e nunca teve grade própria nesta página. */
-const DONOS_SOLAR = ['Nilce', 'Thiago', 'Diego'];
-/** Conta baixa: quem PODE atender. De QUEM É A VEZ não mora aqui: desde
- *  15/09/2026 a página pergunta ao `proximoDaContaBaixa()`
- *  (services/agenda/filaContaBaixa.ts), a mesma pergunta que o Meta e o ManyChat
- *  fazem. Eram duas filas copiadas, e mudar a proporção numa só dava dois
- *  rodízios discordando. Hoje a resposta é sempre 'Nilce'; a Giovanna fica na
- *  lista porque ainda tem ficha e a página precisa aceitá-la como dono válido. */
+const DONOS_SOLAR = ['Nilce', 'Giovanna', 'Thiago', 'Diego'];
+/** Conta baixa: quem PODE atender. De QUEM É A VEZ não mora aqui: vem de `candidatosDoGrupo` (services/agenda/divisaoSolar.ts),
+ *  a mesma pergunta que o quiz, o Meta e o ManyChat fazem. Eram filas copiadas, e mudar a proporção numa só dava rodízios
+ *  discordando. */
 const TIME_BAIXA = ['Nilce', 'Giovanna'];
 
 router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
@@ -188,7 +184,7 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
   const ate = String(req.query.ate || '').slice(0, 30);
   if (!de || !ate) { res.status(400).json({ error: 'de/ate obrigatorios' }); return; }
   try {
-    const [ocupadosLidos, altaQ, proximoBaixa] = await Promise.all([
+    const [ocupadosLidos, proximoAlta, proximoBaixa] = await Promise.all([
       // Paginado (21/10/2026): era `.limit(500)`, que o PostgREST corta em 1000 e
       // que cortava calado a partir da 501ª linha. Erro em qualquer página lança
       // e cai no catch, que devolve `ocupados: null` (a página abre a grade e a gravação revalida).
@@ -200,26 +196,11 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
         // Ordem estável (quando + id): sem ela a paginação pula ou repete linha.
         .order('quando', { ascending: true }).order('id', { ascending: true })
         .range(p0, p1)),
-      // A vez da conta alta agora sai do MESMO contador que o cron do Meta e o
-      // ManyChat giram (`leads_meta_state.rodizio_idx`), e não mais de uma
-      // contagem própria de fichas `lp_solar`. Duas razões, e a segunda é a que
-      // obriga: (1) três portas com contadores separados dão três rodízios
-      // discordando, o mesmo furo que a conta baixa já tinha fechado em 15/09;
-      // (2) desde 23/09 a Nilce está na fila de cima, e contar ficha por dono
-      // não distingue uma ficha grande dela de uma pequena, o contador próprio
-      // passaria a ser girado pelo lead pequeno e a proporção 50/25/25 viraria
-      // uma função do volume da conta baixa.
-      //
-      // LEITURA PURA, de propósito: quem incrementa são as duas portas com
-      // volume. Esta página tem 1 agendamento na história inteira (jul/2026);
-      // gravar daqui pediria refazer o consumo no servidor pra saber se a ficha
-      // é alta, e não paga o risco.
-      supabaseGerador.from('leads_meta_state')
-        .select('rodizio_idx').eq('id', 1).limit(1),
-      // A vez da conta baixa sai do mesmo lugar que a do Meta e a do ManyChat: o
-      // lead entra por três portas, e três rodízios separados discordariam. Este
-      // não lança; se o banco falhar, ele mesmo responde 'Nilce'.
-      proximoDaContaBaixa(),
+      // A vez de cada grupo (23/11/2026) sai da divisão por conta de luz (divisaoSolar.ts), a mesma pergunta que o quiz, o Meta e o
+      // ManyChat fazem; o contador `leads_meta_state.rodizio_idx` não manda mais no solar. LEITURA PURA: não reserva nada. Não
+      // lançam: com o banco fora, respondem a ordem da tabela.
+      candidatosDoGrupo('maior').then(l => l[0]),
+      candidatosDoGrupo('menor').then(l => l[0]),
     ]);
 
     const ocupados = ocupadosLidos
@@ -233,17 +214,12 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
       }));
 
     res.set('Cache-Control', 'no-store');
-    const idxAlta = Number(altaQ.data?.[0]?.rodizio_idx ?? 0) || 0;
-    res.json({
-      ocupados,
-      proximoAlta: FILA_CONTA_ALTA[idxAlta % FILA_CONTA_ALTA.length],
-      proximoBaixa,
-    });
+    res.json({ ocupados, proximoAlta, proximoBaixa });
   } catch (err) {
     logger.error('io-solar-agenda', 'falha lendo a agenda', err);
     // `null` diz "não consegui ler" — diferente de "não tem nada marcado".
     // 'Nilce' é a mesma reserva do proximoDaContaBaixa quando o banco falha.
-    res.json({ ocupados: null, proximoAlta: FILA_CONTA_ALTA[0], proximoBaixa: 'Nilce' });
+    res.json({ ocupados: null, proximoAlta: DONA_SOLAR, proximoBaixa: DONA_SOLAR });
   }
 });
 
@@ -394,6 +370,27 @@ async function lerOcupacoes(pessoas: string[]): Promise<Ocupacao[] | null> {
   return out;
 }
 
+/** O dono gravado no rascunho do lead (`leads_meta.consultor`), ou null. Falha de leitura não segura o quiz. */
+async function lerConsultorDoRascunho(leadId: string): Promise<string | null> {
+  try {
+    const { data } = await supabaseGerador.from('leads_meta').select('consultor').eq('lead_id', leadId).limit(1);
+    const c = String((data?.[0] as { consultor?: unknown } | undefined)?.consultor ?? '').trim();
+    return c || null;
+  } catch { return null; }
+}
+
+/** Quem pode atender este lead, em ordem (23/11/2026): o dono que o telefone já tem; senão a lista por conta de luz. Com `leadId`
+ *  (o /agora e o /agendar), o dono que o /quiz gravou no rascunho vai na frente, se ainda for do grupo da conta: o cliente
+ *  escolheu o horário olhando a vitrine dele, e sortear de novo trocaria a pessoa no meio do caminho. */
+async function listaDoLead(e: ReturnType<typeof lerEntrada>, donoAnterior: string | null, leadId: string | null): Promise<string[]> {
+  const d = donoDoQuiz(donoAnterior);
+  if (d) return [d];
+  if (divisaoSolarDesligada()) return [DONA_SOLAR];
+  const ordem = candidatosDoQuiz(e.resp, null, { candidatos: await candidatosPorFaixa(e.resp.conta) });
+  const rasc = leadId ? await lerConsultorDoRascunho(leadId) : null;
+  return rasc && ordem.includes(rasc) ? [rasc, ...ordem.filter(x => x !== rasc)] : ordem;
+}
+
 /** Rascunho do lead em `leads_meta`. Falha aqui não segura o quiz. */
 async function gravarLead(leadId: string, campos: Record<string, unknown>): Promise<boolean> {
   try {
@@ -527,17 +524,20 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
   }
   try {
     const quem = await donoDoTelefone(e.alvo!);
-    // Só a Nilce atende solar: a agenda lida é a dela (e a vitrine tem a grade própria do quiz).
-    const ocupacoes = await lerOcupacoes([DONA_SOLAR]);
+    // Quem atende (23/11/2026): o dono que o telefone já tem; senão a lista por conta de luz (déficit da fatia). A agenda lida é a
+    // de todos os candidatos, e a vitrine mostra os horários do 1º que tem algum (cada um com a grade própria do quiz).
+    const lista = await listaDoLead(e, quem.dono, null);
+    const ocupacoes = await lerOcupacoes(lista);
     if (!ocupacoes) { res.status(503).json({ ok: false, error: 'agenda indisponivel' }); return; }
-    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, agoraMs, e.alvo, { grade: 'quiz' });
+    const { dec, dias, semHorario, dono: donoDaVitrine } = decidirEMontar(e.resp, quem.dono, ocupacoes, agoraMs, e.alvo, { grade: 'quiz', candidatos: lista });
     const leadId = leadDoQuiz(e.alvo!, teste);
     // ?dry=1 confere caminho e vitrine no ar sem gravar o rascunho (sonda pós-deploy).
     const gravou = String(req.query.dry || '') !== '1' && await gravarLead(leadId, {
       form_id: teste ? FORM_QUIZ_TESTE : FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel,
       cidade: cidadeGravada(e, dec),
-      // Curioso não tem "agora", mas escolhe horário com a Nilce, que é a dona de todo o solar.
-      field_data: camposDoRascunho(e, dec, semHorario, diag, b, req), consultor: DONA_SOLAR, fora_area: false,
+      // Curioso não tem "agora", mas escolhe horário com quem a divisão apontar. O dono vai em `consultor`: é de lá que o /agora e o
+      // /agendar leem, para não sortear de novo.
+      field_data: camposDoRascunho(e, dec, semHorario, diag, b, req), consultor: donoDaVitrine, fora_area: false,
     });
     // LeadQuente: nota de 70 para cima (o mesmo corte do descarte) que não é curioso. Só depois de o rascunho gravar, e
     // nunca no ?dry=1 nem no teste. O eventId fixo por telefone faz o Meta descartar o reenvio de
@@ -553,9 +553,10 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
     res.json({
       ok: true, lead_id: leadId, caminho: dec.caminho, motivo: dec.motivo, qualifica: dec.qualifica, semHorario,
       kwh: dec.kwh, cidade: dec.cidade ? { nome: dec.cidade.nome, uf: dec.cidade.uf } : null,
-      // 24/10/2026: quem atende é sempre a Nilce (antes era o dono anterior do telefone; a página antiga só lê jaMarcado.dono).
-      dono: DONA_SOLAR, jaMarcado: quem.jaMarcado, dias,
-      diagnostico: diag, horario_agora: horarioAgoraAberto(agoraMs), curioso: dec.caminho === 'curioso',
+      // 23/11/2026: quem atende é o dono da vitrine (a página antiga só lê jaMarcado.dono).
+      dono: donoDaVitrine, jaMarcado: quem.jaMarcado, dias,
+      // O "ligar agora" (23/11/2026): dentro da grade do dono da vitrine e, fora a Nilce, sem nada marcado nos próximos 30 min (agoraPermitido).
+      diagnostico: diag, horario_agora: agoraPermitido(donoDaVitrine, agoraMs, ocupacoes.filter(o => o.dono === donoDaVitrine)), curioso: dec.caminho === 'curioso',
     });
   } catch (err) {
     logger.error('io-solar-quiz', 'falha montando o caminho', err);
@@ -589,6 +590,7 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
   if (!horarioAgoraAberto(agoraMs)) { res.status(409).json({ ok: false, error: 'fora_do_horario' }); return; }
   const dec = decidirCaminho(e.resp, null, e.alvo);
   if (dec.caminho === 'curioso') { res.status(409).json({ ok: false, error: 'curioso' }); return; }
+  const leadIdAgora = leadDoQuiz(e.alvo!, teste);
   if (await estaBloqueado(e.tel)) {
     // Mesma regra do /agendar: quem está FORA DO PADRÃO não ganha ficha e não fica sabendo.
     logger.info('io-solar-quiz', `${e.tel} esta FORA DO PADRAO: ficha nao criada`);
@@ -600,17 +602,22 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
   // e o lead ficou ligado a ele, o SAIU é cancelado (abaixo). Se o card novo não nasce (409, 503, erro), o SAIU fica como está.
   try {
     const quem = await donoDoTelefone(e.alvo!);
+    // O "agora" é de quem o /quiz gravou no rascunho (ou do dono que o telefone já tem); sem nenhum dos dois, o 1º da divisão.
+    const donoAgora = (await listaDoLead(e, quem.dono, leadIdAgora))[0];
     if (quem.jaMarcado) {
-      if (quem.agoraRecente) { res.json({ ok: true, id: quem.agoraRecente.id, quando: quem.agoraRecente.quando, dono: DONA_SOLAR, repetido: true }); return; }
+      if (quem.agoraRecente) { res.json({ ok: true, id: quem.agoraRecente.id, quando: quem.agoraRecente.quando, dono: quem.jaMarcado.dono || donoAgora, repetido: true }); return; }
       res.status(409).json({ ok: false, error: 'ja marcado', jaMarcado: quem.jaMarcado });
       return;
     }
+    // O "agora" vale para o dono do rascunho só dentro da grade dele e, fora a Nilce, sem nada marcado nos próximos 30 min (23/11/2026): o
+    // card "agora" só barra o mesmo minuto exato. Fora disso, 409 antes de qualquer escrita, e a página abre a vitrine do dono.
+    if (!(await agoraLiberadoSolar(donoAgora, agoraMs))) { res.status(409).json({ ok: false, error: 'fora_do_horario' }); return; }
     const diag = calcularDiagnostico(e.resp, e.extra);
     const observacao = montarObservacao(e.resp, dec, null, false, { respostas: e.extra, diag, agora: true });
     const src = String(b.src || '').trim().toLowerCase();
     // O encaixe mora em agendaSolar.ts (27/10/2026), o mesmo laço do tick do "saiu sem marcar".
     const resultado = await gravarCardAgora({
-      dono: DONA_SOLAR, nome: e.nome, tel: e.tel, cidade: cidadeGravada(e, dec), observacao,
+      dono: donoAgora, nome: e.nome, tel: e.tel, cidade: cidadeGravada(e, dec), observacao,
       src: /^[a-z0-9_-]{1,20}$/.test(src) ? src : null, utm: utmDe(b), createdBy: teste ? 'lp_solar_teste' : 'lp_solar',
       ...(teste ? {} : { rastreio: rastreioDaRequisicao(req, b) }),
     }, agoraMs);
@@ -620,10 +627,10 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
     const quandoMs = resultado.status === 'ok' ? resultado.quandoMs : 0;
     if (!card) { res.status(503).json({ ok: false, error: 'sem horario' }); return; }
     const quando = new Date(quandoMs).toISOString();
-    const leadId = leadDoQuiz(e.alvo!, teste);
+    const leadId = leadIdAgora;
     await gravarLead(leadId, {
       form_id: teste ? FORM_QUIZ_TESTE : FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel, cidade: cidadeGravada(e, dec),
-      agendado_id: card.id, consultor: DONA_SOLAR, fora_area: false, field_data: camposDoRascunho(e, dec, false, diag, b, req),
+      agendado_id: card.id, consultor: donoAgora, fora_area: false, field_data: camposDoRascunho(e, dec, false, diag, b, req),
     });
     // Antes de qualquer resposta (a Vercel corta o que roda depois dela): o card SAIU SEM MARCAR deste telefone sai da agenda. A sonda não mexe em card real.
     if (!teste) await cancelarCardsSaiuSemMarcar(e.alvo!, card.id);
@@ -646,7 +653,7 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
       };
       // Esperado (a Vercel corta o que roda depois da resposta), com teto de 4 s como o aviso do /agendar.
       const aviso = Promise.race([
-        avisarAgora({ cardId: card.id, lead: leadId, ficha, quandoMs }).catch(err => { logger.error('io-solar-quiz', 'aviso do agora falhou', err); }),
+        avisarAgora({ cardId: card.id, lead: leadId, ficha, quandoMs, dono: donoAgora }).catch(err => { logger.error('io-solar-quiz', 'aviso do agora falhou', err); }),
         new Promise(resolve => setTimeout(resolve, 4000)),
       ]);
       await Promise.all([capi, pagina, aviso]);
@@ -654,7 +661,7 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
     // 03/11/2026: o código que a página põe no texto do botão do WhatsApp (religarQuiz.ts). Gravado ANTES da resposta, no teste também
     // (a sonda lê). Falha ao gravar não derruba a rota: o botão sai sem código, como antes.
     const codigoWhats = await gravarCodigoDoCard(card.id);
-    res.json({ ok: true, id: card.id, quando, dono: DONA_SOLAR, ...(codigoWhats ? { codigo_whats: codigoWhats } : {}), ...(teste ? { teste: true } : {}) });
+    res.json({ ok: true, id: card.id, quando, dono: donoAgora, ...(codigoWhats ? { codigo_whats: codigoWhats } : {}), ...(teste ? { teste: true } : {}) });
   } catch (err) {
     logger.error('io-solar-quiz', `falha gravando o agora de ${e.tel}`, err);
     res.status(500).json({ ok: false, error: 'nao consegui gravar' });
@@ -688,14 +695,18 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
     // Já tem horário de solar marcado: não nasce a segunda ficha. A página avisa
     // no passo do horário; isto aqui é para a página velha ou o clique duplo.
     if (quem.jaMarcado) { res.status(409).json({ ok: false, error: 'ja marcado', jaMarcado: quem.jaMarcado }); return; }
-    const ocupacoes = await lerOcupacoes([DONA_SOLAR]);
+    // O dono do /quiz (rascunho) vai na frente da lista: a vitrine que o cliente viu era dele. O horário escolhido vale para
+    // qualquer um da lista que ainda o tenha livre (`cabe` abaixo).
+    const lista = await listaDoLead(e, quem.dono, leadDoQuiz(e.alvo!, teste));
+    const ocupacoes = await lerOcupacoes(lista);
     if (!ocupacoes) { res.status(503).json({ ok: false, error: 'agenda indisponivel' }); return; }
     const agora = Date.now();
-    const { dec: dec0, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, agora, e.alvo, { grade: 'quiz' });
-    // O curioso também escolhe horário (24/10/2026): o card dele é uma ligação da Nilce, e a ficha diz que a nota é de curioso.
+    const { dec: dec0, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, agora, e.alvo, { grade: 'quiz', candidatos: lista });
+    // O curioso também escolhe horário (24/10/2026): o card dele é uma ligação de quem a divisão apontar, e a ficha diz que a nota é de curioso.
+    const donoCuri = lista.includes(dono) ? dono : lista[0];
     const dec = dec0.caminho === 'curioso'
-      ? { ...dec0, caminho: 'ligacao' as const, candidatos: [DONA_SOLAR],
-        motivo: `Curioso (${dec0.pontos} pontos, abaixo de ${PONTOS_CURIOSO}) que escolheu horário: ligação da ${DONA_SOLAR}.` }
+      ? { ...dec0, caminho: 'ligacao' as const, candidatos: [donoCuri, ...lista.filter(x => x !== donoCuri)],
+        motivo: `Curioso (${dec0.pontos} pontos, abaixo de ${PONTOS_CURIOSO}) que escolheu horário: ligação ${artigoDe(donoCuri)} ${donoCuri}.` }
       : dec0;
     // A mesma pergunta da vitrine (a grade nova do quiz), com a agenda lida agora: quem escolheu um
     // horário que outra pessoa tomou no meio do caminho recebe a vitrine nova.
@@ -756,10 +767,11 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
     // `aviso_antigo:<card>` (o cartão do 5040 pula o card, então é UMA mensagem só), passa pelo cooldown da linha e deixa o
     // carimbo do envio. Esta rota não envia nada por conta própria.
     // Esperado (a Vercel corta o que roda depois da resposta), teto de 4 s.
-    // Hoje a grade do quiz só tem a Nilce. Se outro dono voltar, este aviso não sai e fica o cartão do 5040, que vai ao dono certo.
-    const donoEhNilce = String(dono || '').trim().toLowerCase() === 'nilce';
+    // 23/11/2026: o aviso T7 sai para QUEM ATENDE (Nilce, Giovanna, Thiago ou Diego), pela chave `pessoa` do dono; dono fora dos quatro
+    // não recebe o T7 e fica o cartão do 5040, que vai ao dono certo. Um aviso por card: `avisarAgendado` grava `aviso_antigo` ANTES de enviar.
+    const pessoaDoAviso = pessoaDoDono(dono);
     await Promise.race([
-      (donoEhNilce ? avisarAgendado('nilce', data.id, leadId, avisoDaEquipe(data as FichaDoAviso)) : Promise.resolve()).catch(err => logger.error('io-solar-quiz', `aviso ao dono falhou para o card ${data.id}`, err)),
+      (pessoaDoAviso ? avisarAgendado(pessoaDoAviso, data.id, leadId, avisoDaEquipe(data as FichaDoAviso)) : Promise.resolve()).catch(err => logger.error('io-solar-quiz', `aviso ao dono falhou para o card ${data.id}`, err)),
       new Promise(resolve => setTimeout(resolve, 4000)),
     ]);
     await Promise.all([capi, pagina]);

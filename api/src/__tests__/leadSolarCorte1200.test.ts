@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// 24/10/2026, ordem do dono: SÓ A NILCE ATENDE SOLAR. A fila da conta alta tem uma
-// posição só (Nilce), então o lead novo de qualquer tamanho cai nela. O rodízio
-// 50/25/25 abaixo (Thiago, Nilce, Diego, Nilce) valeu de 23/09 a 24/10, e os
-// testes dele viraram "tudo Nilce". O contador `rodizio_idx` continua girando nas
-// duas portas com volume (sem efeito, módulo 1).
+// 23/11/2026, decisão do dono: o lead solar NOVO é dividido por conta de luz (services/agenda/divisaoSolar.ts). Abaixo de R$ 800 (ou sem
+// conta legível): Nilce 50% e Giovanna 50%. De R$ 800 para cima: Nilce 40%, Thiago 30% e Diego 30%. Escolhe quem está mais abaixo da
+// fatia nos últimos 30 dias e, se ele não tem horário, cai no próximo. O `rodizio_idx` não manda mais no solar. De 24/10 a 23/11 era só
+// a Nilce; o rodízio 50/25/25 (Thiago, Nilce, Diego, Nilce) valeu de 23/09 a 24/10.
 //
 // Regra do Thiago (23/09/2026): a NILCE RECEBE TODOS. Acima de 1.200 kWh/mês o
 // lead entra no rodízio da conta alta, que é 50% dela, 25% do Thiago e 25% do
@@ -65,6 +64,7 @@ function query(table: string) {
       return api;
     },
     order() { return api; },
+    range() { return api; },
     limit() { return api; },
     single() { const r = executa(); return { data: (r.data || [])[0] ?? null, error: r.error }; },
     then(resolve: any) { return Promise.resolve(executa()).then(resolve); },
@@ -86,9 +86,10 @@ vi.mock('../utils/supabase', () => ({
 
 import {
   consumoTipico, ehContaAlta, consumoDaFicha, FieldItem,
-  KWH_CORTE_TIME, CONTA_CORTE_REAIS, FILA_CONTA_ALTA,
+  KWH_CORTE_TIME, CONTA_CORTE_REAIS,
 } from '../services/agenda/leadSolarFicha';
 import { ingestManychatLead } from '../services/agenda/manychatLeadService';
+import { _limparCacheDivisao } from '../services/agenda/divisaoSolar';
 
 // DDD 34 = área de atendimento (não depende da tabela de cidades).
 let telSeq = 0;
@@ -103,6 +104,8 @@ async function leadSolar(valorConta: string, tel = novoTel()) {
 }
 
 beforeEach(() => {
+  _limparCacheDivisao();
+  delete process.env.SOLAR_DIVISAO_OFF;
   db.agendamentos = []; db.agenda_bloqueios = []; db.cidades_atendimento = [];
   db.leads_meta = []; db.leads_meta_state = [{ id: 1, rodizio_idx: 0 }];
   seqId = 1;
@@ -193,51 +196,61 @@ describe('lead do Meta Lead Ads: a ficha que chega de verdade', () => {
 describe('lead de DM/formulário: quem recebe o card', () => {
   /** Uma faixa de conta alta, escrita como o lead escreve. ≈1.667 kWh. */
   const ALTA = 'R$ 1.500 a R$ 2.000';
+  const donosDosCards = () => db.agendamentos.map(a => a.vendedor_nome);
 
-  it('conta baixa vai pra Nilce e NÃO gasta a vez do rodízio', async () => {
+  it('conta baixa alterna Nilce e Giovanna e NÃO gasta a vez do rodízio', async () => {
     expect((await leadSolar('R$ 200 a R$ 400')).consultor).toBe('Nilce');
+    expect((await leadSolar('R$ 400 a R$ 800')).consultor).toBe('Giovanna');
     expect((await leadSolar('R$ 400 a R$ 800')).consultor).toBe('Nilce');
     expect(db.leads_meta_state[0].rodizio_idx).toBe(0);
     // o card gravado é dela mesmo, não só a resposta da API
-    expect(db.agendamentos.map(a => a.vendedor_nome)).toEqual(['Nilce', 'Nilce']);
+    expect(donosDosCards()).toEqual(['Nilce', 'Giovanna', 'Nilce']);
   });
 
-  it('a faixa que ERA dos sócios (R$ 800 a R$ 1.500) agora é da Nilce', async () => {
+  it('a faixa que ERA da Nilce (R$ 800 a R$ 1.500) agora é do grupo maior: Nilce, Thiago e Diego', async () => {
     expect((await leadSolar('R$ 800 a R$ 1.500')).consultor).toBe('Nilce');
-    expect(db.leads_meta_state[0].rodizio_idx).toBe(0);   // nem chegou no rodízio
+    expect((await leadSolar('R$ 800 a R$ 1.500')).consultor).toBe('Thiago');
+    expect((await leadSolar('R$ 800 a R$ 1.500')).consultor).toBe('Diego');
+    expect(db.leads_meta_state[0].rodizio_idx).toBe(0);   // o contador não gira mais
   });
 
-  it('sem faixa respondida também é da Nilce (não gasta manhã de sócio no escuro)', async () => {
-    expect((await leadSolar('')).consultor).toBe('Nilce');
+  it('exatamente R$ 800 é do grupo maior; R$ 799 é do menor', async () => {
+    expect(['Nilce', 'Thiago', 'Diego']).toContain((await leadSolar('R$ 800')).consultor);
+    _limparCacheDivisao();
+    db.agendamentos = []; db.leads_meta = [];
+    expect(['Nilce', 'Giovanna']).toContain((await leadSolar('R$ 799')).consultor);
   });
 
-  it('conta alta também é toda da Nilce, sem rodízio com os sócios', async () => {
+  it('sem faixa respondida é do grupo menor (não gasta manhã de sócio no escuro)', async () => {
+    expect(['Nilce', 'Giovanna']).toContain((await leadSolar('')).consultor);
+  });
+
+  it('conta alta divide 40/30/30 entre Nilce, Thiago e Diego, sem Giovanna', async () => {
     const donos: string[] = [];
-    for (let i = 0; i < 8; i++) donos.push((await leadSolar(ALTA)).consultor as string);
-    expect(donos).toEqual(Array(8).fill('Nilce'));
-    expect(db.agendamentos.map(a => a.vendedor_nome)).toEqual(Array(8).fill('Nilce'));
+    for (let i = 0; i < 10; i++) donos.push((await leadSolar(ALTA)).consultor as string);
+    expect(donos).not.toContain('Giovanna');
+    const conta = (n: string) => donos.filter(d => d === n).length;
+    expect([conta('Nilce'), conta('Thiago'), conta('Diego')]).toEqual([4, 3, 3]);
+    expect(donosDosCards()).toEqual(donos);
   });
 
-  it('nenhum tamanho de conta manda lead novo para Thiago, Diego ou Giovanna', async () => {
-    const donos: string[] = [];
-    for (let i = 0; i < 12; i++) donos.push((await leadSolar(ALTA)).consultor as string);
-    expect(new Set(donos)).toEqual(new Set(['Nilce']));
+  it('o Thiago abaixo da fatia recebe o próximo lead grande', async () => {
+    const ontem = new Date().toISOString();
+    const card = (v: string, i: number) => ({ id: 900 + i, vendedor_nome: v, cliente_telefone: '55349800' + String(1000 + i), quando: ontem, status: 'agendado', created_by: 'manychat', created_at: ontem, observacao: 'Consumo: R$ 1.500 a R$ 2.000' });
+    db.agendamentos = [card('Nilce', 1), card('Nilce', 2), card('Nilce', 3), card('Diego', 4), card('Diego', 5), card('Diego', 6)];
+    expect((await leadSolar(ALTA)).consultor).toBe('Thiago');
   });
 
-  it('a fila da conta alta tem uma posição só: a Nilce', () => {
-    expect(FILA_CONTA_ALTA).toEqual(['Nilce']);
-  });
-
-  it('lead pequeno no meio dos grandes: tudo Nilce', async () => {
-    expect((await leadSolar(ALTA)).consultor).toBe('Nilce');
-    await leadSolar('Até R$ 200');
-    await leadSolar('R$ 400 a R$ 800');
-    expect((await leadSolar(ALTA)).consultor).toBe('Nilce');
-    expect((await leadSolar(ALTA)).consultor).toBe('Nilce');
+  it('sócio sem horário nos próximos 14 dias: o card passa para o próximo da lista', async () => {
+    const agora = Date.now();
+    db.agenda_bloqueios = [{ id: 1, vendedor_nome: 'Thiago', inicio: new Date(agora - 86_400_000).toISOString(), fim: new Date(agora + 40 * 86_400_000).toISOString() }];
+    expect((await leadSolar(ALTA)).consultor).toBe('Nilce');       // a vez da Nilce
+    expect((await leadSolar(ALTA)).consultor).toBe('Diego');       // a vez era do Thiago, que está sem horário: cai no Diego
+    expect(db.agendamentos.map(a => a.vendedor_nome)).toEqual(['Nilce', 'Diego']);
   });
 
   it('1 telefone = 1 consultor continua mandando mais que o tamanho da conta', async () => {
-    const { tel } = await leadSolar(ALTA);                        // nasce card da Nilce
+    const { tel } = await leadSolar(ALTA);
     db.agendamentos[db.agendamentos.length - 1].vendedor_nome = 'Thiago';   // cliente que já era do Thiago
     db.leads_meta = [];                                           // ManyChat manda de novo (lead_id repete)
     const volta = await ingestManychatLead({
@@ -247,32 +260,31 @@ describe('lead de DM/formulário: quem recebe o card', () => {
     expect(volta.consultor).toBe('Thiago');   // conta caiu, mas o cliente é dele
   });
 
-  // 24/10/2026: o cliente que ainda é da Giovanna vale como cliente novo e cai na
-  // Nilce (a mesma regra do quiz e do formulário do Meta). Thiago/Diego/Nilce
-  // continuam valendo, como acima.
-  it('dono anterior Giovanna vale como sem dono: o ManyChat manda para a Nilce', async () => {
+  // 23/11/2026: o cliente que é da Giovanna fica com a Giovanna (os quatro valem como dono anterior).
+  it('dono anterior Giovanna vale: o ManyChat manda para a Giovanna, de qualquer conta', async () => {
     for (const faixa of ['Até R$ 200', 'R$ 1.500 a R$ 2.000']) {
       db.agendamentos = []; db.leads_meta = [];
-      const { tel } = await leadSolar('Até R$ 200');                 // nasce card da Nilce
+      _limparCacheDivisao();
+      const { tel } = await leadSolar('Até R$ 200');
       db.agendamentos[db.agendamentos.length - 1].vendedor_nome = 'Giovanna';
       db.leads_meta = [];
       const volta = await ingestManychatLead({
         produto: 'solar', nome: 'Cliente Teste', whatsapp: tel,
         cidade: 'Uberlândia-MG', valor_conta: faixa, contact_id: 'g' + faixa + tel,
       });
-      expect(volta.consultor, faixa).toBe('Nilce');
-      expect(db.agendamentos[db.agendamentos.length - 1].vendedor_nome, faixa).toBe('Nilce');
+      expect(volta.consultor, faixa).toBe('Giovanna');
+      expect(db.agendamentos[db.agendamentos.length - 1].vendedor_nome, faixa).toBe('Giovanna');
     }
   });
 
-  it('dry-run do ManyChat também mostra a Nilce para o cliente da Giovanna', async () => {
+  it('dry-run do ManyChat mostra o dono anterior, inclusive a Giovanna', async () => {
     const { tel } = await leadSolar('Até R$ 200');
     db.agendamentos[db.agendamentos.length - 1].vendedor_nome = 'Giovanna';
     const r = await ingestManychatLead({
       produto: 'solar', nome: 'Cliente Teste', whatsapp: tel,
       cidade: 'Uberlândia-MG', valor_conta: 'R$ 1.500 a R$ 2.000', test: true,
     });
-    expect(r.consultor).toBe('Nilce');
+    expect(r.consultor).toBe('Giovanna');
   });
 
   it('dono anterior Diego continua valendo no ManyChat', async () => {
@@ -286,12 +298,22 @@ describe('lead de DM/formulário: quem recebe o card', () => {
     expect(volta.consultor).toBe('Diego');
   });
 
-  it('a Giovanna não recebe lead novo, de nenhum tamanho', async () => {
+  it('lead novo: a conta baixa nunca vai para sócio e a conta alta nunca vai para a Giovanna', async () => {
+    const baixos: string[] = [];
+    const altos: string[] = [];
+    for (let i = 0; i < 6; i++) baixos.push((await leadSolar('R$ 400 a R$ 800')).consultor as string);
+    for (let i = 0; i < 6; i++) altos.push((await leadSolar(ALTA)).consultor as string);
+    expect(new Set(baixos)).toEqual(new Set(['Nilce', 'Giovanna']));
+    expect(altos).not.toContain('Giovanna');
+    expect(baixos).not.toContain('Thiago');
+    expect(baixos).not.toContain('Diego');
+  });
+
+  it('com o freio SOLAR_DIVISAO_OFF=1 todo lead novo volta a ser da Nilce', async () => {
+    process.env.SOLAR_DIVISAO_OFF = '1';
     const donos: string[] = [];
-    for (const faixa of ['Até R$ 200', 'R$ 400 a R$ 800', 'R$ 800 a R$ 1.500', ALTA, ALTA, ALTA, ALTA, '']) {
-      donos.push((await leadSolar(faixa)).consultor as string);
-    }
-    expect(donos).not.toContain('Giovanna');
+    for (const faixa of ['Até R$ 200', 'R$ 400 a R$ 800', 'R$ 800 a R$ 1.500', ALTA, '']) donos.push((await leadSolar(faixa)).consultor as string);
+    expect(donos).toEqual(Array(5).fill('Nilce'));
   });
 
   it('dry-run mostra o roteamento de verdade, sem gravar', async () => {

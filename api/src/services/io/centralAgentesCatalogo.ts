@@ -404,6 +404,13 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: ['placar_giovanna'],
   }),
   e({
+    id: 'solar_relatorio_semanal', nome: 'Resumo semanal do solar', area: 'avisos', canal: 'whatsapp', linha: 'io',
+    resumo: 'Manda na sexta o resultado da semana de cada vendedor',
+    papel: 'Toda sexta, das 16h às 17h59 (Brasília), manda a cada um dos quatro vendedores do solar (Diego, Thiago, Nilce e Giovanna), em privado, o resumo da semana de sexta a quinta: quantos leads agendados cada um recebeu, quantos viraram orçamento e quantos fecharam contrato. Sai uma mensagem por rodada, uma pessoa de cada vez, e cada pessoa recebe uma vez por semana. Não fala com cliente nenhum.',
+    regra: off1('SOLAR_RELATORIO_OFF'), fonte: 'services/io/solarRelatorioSemanal.ts',
+    robos: ['solar_relatorio_semanal'],
+  }),
+  e({
     id: 'ficha_consultor_5040', nome: 'Ficha ao consultor', area: 'avisos', canal: 'whatsapp', linha: 'io',
     resumo: 'Manda ao consultor o resumo do cliente que agendou',
     papel: 'Todo cliente agendado de solar e eletroposto gera um resumo de contexto, gravado no card e mandado no celular do consultor dono dele, com o link da conversa. Substitui os avisos de lead novo que ele já recebia pelo mesmo evento: um aviso só por lead. Não fala com cliente nenhum. Nasce desligada: o dono liga pelo interruptor da ficha (AGENTES5040_FICHA=1 ou a chave ag5040_interruptores).',

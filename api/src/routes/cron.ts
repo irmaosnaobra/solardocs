@@ -26,6 +26,7 @@ import { runAvisosTick } from '../services/io/avisosTickService';
 import { agendarEmLote, moverEmLote, conferirLote, loteEncerrado, TIPOS_DO_LOTE } from '../services/io/agendaEmLote';
 import { runSentinelaVacuo } from '../services/io/sentinelaVacuo';
 import { runPlacarGiovanna } from '../services/io/placarGiovanna';
+import { runSolarRelatorioSemanalTick, sondarTravaDoRelatorio } from '../services/io/solarRelatorioSemanal';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { rodarPausaHumanaTick } from '../services/agents/whatsapp/pausaHumanaTick';
 import { runBlastRespostas } from '../services/io/blastRespostas';
@@ -488,6 +489,10 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // Jornada da obra solar, fase 3 (05/11/2026): as mensagens da equipe e do pós-venda. DEPOIS dos outros ticks, sozinho, no máximo 1 envio
     // por rodada (vez por INSERT jornada_vez:, porque o pg_cron e o Actions chamam em paralelo). Nasce desligado: jornada_solar_mensagens; JORNADA_MSG_OFF=1.
     const jornadaMensagens = await runJornadaMensagensTick().catch((err) => ({ error: String(err) }));
+    // Resumo semanal do solar por vendedor (23/11/2026, robô solar_relatorio_semanal): sexta das 16h às 17h59 de Brasília, UM envio por rodada (os quatro
+    // saem em ~8 min com o pg_cron */2), chave por pessoa por INSERT antes do envio, para no 1º erro. DEPOIS dos outros ticks de WhatsApp, sozinho, e só aqui,
+    // fora do /master. Fora da janela sai em microssegundos. SOLAR_RELATORIO_OFF=1 desliga.
+    const solarRelatorio = await runSolarRelatorioSemanalTick().catch((err) => ({ error: String(err) }));
     // Schedule do SERVIDOR para o card do quiz que a página não contou (SAIU SEM MARCAR e card da Duda), 29/10/2026. Por último, DEPOIS de todo
     // tick de WhatsApp: uma chamada lenta ao Graph (até 8 s de orçamento) nunca segura uma mensagem. Só aqui, fora do /master (CAPI_CARD_OFF=1 desliga).
     const capiCardNovo = await runCapiCardNovo().catch((err) => ({ error: String(err) }));
@@ -505,6 +510,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     resultados['quiz_recuperacao_carla'] = recuperacaoCarla;
     resultados['carla_retomada_usuarios'] = retomadaUsuarios;
     resultados['jornada_mensagens'] = jornadaMensagens;
+    resultados['solar_relatorio_semanal'] = solarRelatorio;
     resultados['capi_card_novo'] = capiCardNovo;
     res.json({
       ok: true,
@@ -1344,6 +1350,23 @@ router.get('/placar-giovanna', async (req: Request, res: Response) => {
     })) });
   } catch (err) {
     logger.error('cron', 'placar-giovanna falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Resumo semanal do solar por vendedor (Diego, Thiago, Nilce e Giovanna), sexta das 16h às 17h59 de Brasília. Quem dispara de verdade é o /process-messages
+// (um envio por rodada). Esta rota serve para a prévia, a sonda e o disparo manual (que também respeita a janela e a chave por pessoa).
+//   ?dry=1    monta e devolve o texto, sem reservar chave e sem enviar
+//   ?sonda=1  grava, regrava (tem que voltar "já existe"), lê e apaga uma chave de teste; não envia nada
+// Kill-switch: SOLAR_RELATORIO_OFF=1.
+router.get('/solar-relatorio-semanal', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    if (req.query.sonda === '1') { res.json(await sondarTravaDoRelatorio()); return; }
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runSolarRelatorioSemanalTick({ dry })) });
+  } catch (err) {
+    logger.error('cron', 'solar-relatorio-semanal falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });

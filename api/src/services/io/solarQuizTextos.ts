@@ -72,6 +72,8 @@ export interface DadosDaFicha {
   kwh: number | null;
   utmSource?: string | null;
   utmCampaign?: string | null;
+  /** Quem atende este lead (23/11/2026): o nome vai na abertura sugerida. Sem ele, a Nilce (reserva). */
+  dono?: string;
 }
 
 const o = (campo: Parameters<typeof rotuloDaResposta>[0], v: string | null | undefined): string =>
@@ -104,14 +106,22 @@ const PERGUNTA: Record<string, string> = {
 };
 const PERGUNTA_PADRAO = 'Posso te fazer umas perguntas rápidas para fechar o seu estudo?';
 
+/** "a Nilce", "a Giovanna", "o Thiago", "o Diego": o artigo certo com o nome de quem atende. Nome fora dos quatro: a Nilce. */
+export function artigoEOuNome(dono?: string): string {
+  const n = String(dono ?? '').trim();
+  if (n === 'Thiago' || n === 'Diego') return `o ${n}`;
+  if (n === 'Giovanna') return 'a Giovanna';
+  return 'a Nilce';
+}
+
 /** T1a: uma frase por linha. */
-export function aberturaSugerida(d: Pick<DadosDaFicha, 'nome' | 'cidadeUf' | 'diag' | 'extra'>): string {
+export function aberturaSugerida(d: Pick<DadosDaFicha, 'nome' | 'cidadeUf' | 'diag' | 'extra'> & { dono?: string }): string {
   const cidade = nomeEUfDaCidade(d.cidadeUf).nome || d.cidadeUf;
   const gancho = d.extra.desejo ? GANCHO[d.extra.desejo] : '';
   const pergunta = (d.extra.travou && PERGUNTA[d.extra.travou]) || PERGUNTA_PADRAO;
   return [
     `Oi, ${primeiroNomeDe(d.nome)}!`,
-    'Aqui é a Nilce, da Irmãos na Obra.',
+    `Aqui é ${artigoEOuNome(d.dono)}, da Irmãos na Obra.`,
     'Fiz a conta com as suas respostas.',
     d.diag && d.diag.economia_mes !== null ? `Em ${cidade}, dá para economizar ${d.diag.piso ? 'mais de' : 'cerca de'} ${brl0(d.diag.economia_mes)} por mês.` : '',
     gancho,
@@ -238,12 +248,12 @@ export function segundoAviso(d: DadosCurtos, codigo: string): string {
 }
 
 /** T5. */
-export function avisoParaOThiago(d: DadosCurtos, minutos: number): string {
+export function avisoParaOThiago(d: DadosCurtos, minutos: number, dono?: string): string {
   return [
     `⚠️ *LEAD PARADO · ${d.nome}*`,
-    `Parado há ${minutos} min, e a Nilce ainda não tocou no link.`,
+    `Parado há ${minutos} min, e ${artigoEOuNome(dono)} ainda não tocou no link.`,
     `Nota ${d.nota}, ${d.cidadeUf || NAO_RESPONDEU}.`,
-    'Só a Nilce atende solar, então não tem para quem passar.',
+    'Avisa quem atende ou assume.',
     `WhatsApp: ${linkWa(d.tel)}`,
   ].join('\n');
 }

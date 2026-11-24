@@ -35,9 +35,9 @@ describe('a vitrine', () => {
     expect(dias[0].horas.every(x => x.dono === 'Nilce')).toBe(true);
     expect(dias[0].horas).toHaveLength(18);   // 08:00 a 16:30 em :00 e :30 (09/10)
   });
-  it('lead novo de 2.000 kWh em Catalão: vitrine da Nilce, nada de visita do Diego (24/10/2026)', () => {
+  it('lead novo de 2.000 kWh em Catalão: ligação do grupo maior, nada de visita do Diego (23/11/2026)', () => {
     const dec = decidirCaminho({ conta: '1200_mais', cidade: 'Catalão', ...QUENTE });
-    expect(dec).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' });
+    expect(dec).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce', 'Thiago', 'Diego'], qualifica: 'vistoria' });
     expect(montarVitrine(dec, [], AGORA)[0].horas.every(x => x.dono === 'Nilce')).toBe(true);
   });
   it('visita em Catalão (cliente que já é do Diego): uma chegada por manhã, com o Diego saindo de Uberlândia', () => {
@@ -69,12 +69,12 @@ describe('a vitrine', () => {
     expect(b.dias[0].horas[0].dono).toBe('Nilce');
     expect(montarObservacao(r, b.dec, null, true)).toContain('SEM HORÁRIO DE VISITA DO DIEGO: marcar no atendimento');
   });
-  it('lead novo: nunca desce a escada de reservas, a Nilce é a primeira e a única', () => {
+  it('lead novo: nunca desce a escada de reservas, o 1º da lista tem horário e fica com a vitrine', () => {
     const r = resp({ conta: '1200_mais', cidade: 'Catalão', ...QUENTE });
     const sociosCheios: Ocupacao[] = ['Thiago', 'Diego'].map(dono => ({ dono, ini: AGORA, fim: AGORA + 20 * 86_400_000 }));
     const a = decidirEMontar(r, null, sociosCheios, AGORA);
-    expect(a).toMatchObject({ semHorario: false, dec: { caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' } });
-    // A visita que ele faria vai escrita na ficha, só como informação para a Nilce.
+    expect(a).toMatchObject({ semHorario: false, dec: { caminho: 'ligacao', candidatos: ['Nilce', 'Thiago', 'Diego'], qualifica: 'vistoria' } });
+    // A visita que ele faria vai escrita na ficha, só como informação para quem atende.
     expect(montarObservacao(r, a.dec, null)).toContain('QUALIFICA PARA VISITA DO DIEGO');
   });
   it('curioso não ganha vitrine', () => {
@@ -219,7 +219,7 @@ describe('o aviso no celular de quem atende', () => {
   });
 });
 
-describe('o treino da Giovanna (09/10) ACABOU em 24/10/2026: só a Nilce atende solar', () => {
+describe('o treino da Giovanna (09/10) ACABOU em 24/10/2026; desde 23/11/2026 o lead é dividido por conta de luz, sem sorteio por telefone', () => {
   const chaves = Array.from({ length: 4000 }, (_, i) => `34${String(90000000 + i * 7919).slice(-8)}`);
   const treino = chaves.find(k => vaiParaTreino(k))!;
   const normal = chaves.find(k => !vaiParaTreino(k))!;
@@ -234,13 +234,13 @@ describe('o treino da Giovanna (09/10) ACABOU em 24/10/2026: só a Nilce atende 
     expect(vaiParaTreino(null)).toBe(false);
   });
 
-  it('a vez que era de treino também vai para a Nilce: o sorteio não manda mais ninguém', () => {
+  it('a vez que era de treino não muda nada: o sorteio por telefone não manda mais ninguém', () => {
     const t = decidirCaminho(media, null, treino);
-    expect(t).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
+    expect(t).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce', 'Giovanna'] });
     expect(t.treino).toBeFalsy();
     expect(t.motivo).not.toContain('treino');
-    expect(decidirCaminho(media, null, normal).candidatos).toEqual(['Nilce']);
-    expect(decidirCaminho(media).candidatos).toEqual(['Nilce']);
+    expect(decidirCaminho(media, null, normal).candidatos).toEqual(['Nilce', 'Giovanna']);
+    expect(decidirCaminho(media).candidatos).toEqual(['Nilce', 'Giovanna']);
   });
 
   it('cliente que já é da Nilce fica com ela, mesmo na vez de treino', () => {
@@ -250,24 +250,24 @@ describe('o treino da Giovanna (09/10) ACABOU em 24/10/2026: só a Nilce atende 
     expect(d.motivo).not.toContain('treino');
   });
 
-  it('até 300 kWh e acima de 1.000 também são da Nilce, com ou sem a vez de treino', () => {
+  it('conta pequena é do grupo menor e conta acima de R$ 800 é do grupo maior, com ou sem a vez de treino', () => {
     const pequena = resp({ conta: 'ate400', cidade: 'Uberaba', ...MORNO });
-    expect(decidirCaminho(pequena, null, normal).candidatos).toEqual(['Nilce']);
-    expect(decidirCaminho(pequena, null, treino).candidatos).toEqual(['Nilce']);
-    expect(decidirCaminho(resp({ conta: '1200_mais', cidade: 'Uberaba', ...MORNO }), null, treino).candidatos).toEqual(['Nilce']);
+    expect(decidirCaminho(pequena, null, normal).candidatos).toEqual(['Nilce', 'Giovanna']);
+    expect(decidirCaminho(pequena, null, treino).candidatos).toEqual(['Nilce', 'Giovanna']);
+    expect(decidirCaminho(resp({ conta: '1200_mais', cidade: 'Uberaba', ...MORNO }), null, treino).candidatos).toEqual(['Nilce', 'Thiago', 'Diego']);
   });
 
-  it('com horário logo, a vitrine é da Nilce', () => {
+  it('com horário logo, a vitrine é do 1º da lista (a Nilce)', () => {
     const r = decidirEMontar(media, null, [], AGORA, treino);
-    expect(r.dec.candidatos).toEqual(['Nilce']);
+    expect(r.dec.candidatos).toEqual(['Nilce', 'Giovanna']);
     expect(r.dias[0].horas.every(x => x.dono === 'Nilce')).toBe(true);
     expect(r.semHorario).toBe(false);
   });
 
-  it('a agenda da Giovanna, cheia ou não, não muda nada para o lead novo', () => {
+  it('a agenda cheia da Giovanna não muda a vitrine da Nilce (ela é a 1ª da lista)', () => {
     const giovannaCheia: Ocupacao[] = [{ dono: 'Giovanna', ini: AGORA, fim: AGORA + 10 * 86_400_000 }];
     const r = decidirEMontar(media, null, giovannaCheia, AGORA, treino);
-    expect(r.dec.candidatos).toEqual(['Nilce']);
+    expect(r.dec.candidatos).toEqual(['Nilce', 'Giovanna']);
     expect(r.dias[0].horas.every(x => x.dono === 'Nilce')).toBe(true);
     expect(r.semHorario).toBe(false);
   });

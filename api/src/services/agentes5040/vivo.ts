@@ -59,6 +59,7 @@
 // O número de ENVIO sai de wa_mensagens (ou do mapa de LID), nunca da chave da posse (ela perdeu o nono dígito).
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { aquecerDivisao } from '../agenda/divisaoSolar';
 import { randomBytes } from 'node:crypto';
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
@@ -954,6 +955,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     let oferta: Oferta = { alvo: null, vagas: [] };
     if (dona === 'duda') {
       const textos = textosDoLead(comTranscricoes(msgs, cacheMidia));
+      await aquecerDivisao();   // 23/11/2026: a consultora da faixa sai da divisão por conta (lista por déficit, lida em cache); nunca lança
       oferta = await ofertaDeHorarios(alvoDaAgenda(cardSolarDoCtx(ctx0), kwhDoLead(dadosAnt, valoresDaPessoaDe(textos, dadosAnt))), ctx0.agora);
     }
     // A Helena (B2): o card dela é o de ELETROPOSTO (nunca o do solar); sem card, o consultor e os horários saem daqui, uma vez só.

@@ -333,7 +333,9 @@ export const PREFIXOS_AGENDA = [
 // NUNCA `inv_agente_sent:`, que é o carimbo do FRIO (abertura e retomada) e já está em BOT_SENT_PREFIXES.
 // 19/11/2026: os avisos da lista de interesse do Instagram a Thiago, Diego e Nilce (io/listaIgAviso.ts) deixam `io_lista_env:` aqui,
 // uma chave por mensagem, gravada por INSERT antes do envio (o aviso imediato da Nilce sai pelo solarQuizAviso, com `solar_quiz_env:`).
-export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:', 'jornada_env:', 'inv_agente_env:', 'io_lista_env:'] as const;
+// 23/11/2026: o resumo semanal do solar por vendedor (io/solarRelatorioSemanal.ts) deixa `solar_relatorio_semanal:<sexta>:<pessoa>` aqui, uma chave por
+// mensagem, gravada por INSERT antes do envio (sexta das 16h às 17h59 de Brasília, 1 envio por rodada do /process-messages, 4 pessoas).
+export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:', 'jornada_env:', 'inv_agente_env:', 'io_lista_env:', 'solar_relatorio_semanal:'] as const;
 
 /** Janela do espaçamento contra o balde das respostas das agentes (env só para afrouxar/apertar sem deploy). */
 const espacamentoRespostaMs = (): number => Number(process.env.ESPACAMENTO_RESPOSTA_MS || 2 * 60 * 1000);

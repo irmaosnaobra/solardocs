@@ -23,7 +23,7 @@ import { erroProvaQueNaoSaiu } from '../agentes5040/fichaEnvio';
 import { contarErroDaLinha, zerarErrosDaLinha } from '../agentes5040/guardaDaLinha';
 import { avisarAgendado } from './solarQuizAviso';
 import { consertarRepasses } from './listaIgCards';
-import { EQUIPE } from './solarEquipe';
+import { TEL_AVISO } from './solarEquipe';
 import { textoDoResumo, type ItemDoResumo } from './listaIgTextos';
 import {
   PREFIXO_ENV, apagar, baldeDe5, deixarPendente, dentroDaJanela, inserir, lerPendentes, linhaPronta, reservarVaga, type PessoaLista,
@@ -43,7 +43,7 @@ type Envio = 'enviado' | 'ja' | 'falhou' | 'nada_saiu';
 
 /** Thiago, Diego e o resumo: carimbo por INSERT, envio, e a chave só sai se o erro provar que nada saiu. */
 async function enviarEquipe(pessoa: PessoaLista, texto: string, chave: string, agora: number): Promise<Envio> {
-  const tel = EQUIPE[pessoa];
+  const tel = TEL_AVISO[pessoa];
   if (!tel) return 'nada_saiu';
   const t = await inserir(chave, { em: iso(agora), robo: ROBO }, agora);
   if (t === 'ja') return 'ja';
@@ -59,13 +59,13 @@ async function enviarEquipe(pessoa: PessoaLista, texto: string, chave: string, a
   return 'enviado';
 }
 
-/** A Nilce pelo avisarAgendado (cooldown da linha, aviso_antigo, carimbo solar_quiz_env: e os 12 por hora dela). */
-async function enviarNilce(cardId: number, lead: string, texto: string, agora: number): Promise<Envio> {
-  const chave = `solar_quiz_env:nilce:agendado:${lead}`;
+/** A consultora do solar (Nilce ou Giovanna) pelo avisarAgendado (cooldown da linha, aviso_antigo, carimbo solar_quiz_env: e os 12 por hora dela). */
+async function enviarConsultora(pessoa: 'nilce' | 'giovanna', cardId: number, lead: string, texto: string, agora: number): Promise<Envio> {
+  const chave = `solar_quiz_env:${pessoa}:agendado:${lead}`;
   const t = await inserir(chave, { em: iso(agora) }, agora);
   if (t === 'ja') return 'ja';
   if (t === 'erro') return 'nada_saiu';
-  const r = await avisarAgendado('nilce', cardId, lead, texto);
+  const r = await avisarAgendado(pessoa, cardId, lead, texto);
   if (r.enviado) return 'enviado';
   if (r.motivo === 'cooldown' || r.motivo === 'sem_destino') {
     await apagar(chave);
@@ -80,7 +80,7 @@ export interface PedidoAviso {
   porta: 'solar' | 'eletroposto';
   cardId: number;
   listaId: string | number;
-  /** Solar: 'nilce'. Eletroposto: o dono do card (thiago ou diego). */
+  /** Solar: o dono do card (23/11/2026: nilce, giovanna, thiago ou diego, pela divisão por conta). Eletroposto: o dono do card (thiago ou diego). */
   dono: PessoaLista;
   texto: string;
   /** A pessoa já tinha card parado (não nasceu outro): sem aviso_antigo e a Nilce também pelo robô da lista. */
@@ -89,7 +89,7 @@ export interface PedidoAviso {
 export interface ResultadoAvisoLista { motivo: 'enviado' | 'desligado' | 'fora_da_janela' | 'linha' | 'teto' | 'erro' | 'falhou' | 'parcial'; enviados: PessoaLista[] }
 
 export async function avisarLeadDaLista(p: PedidoAviso, agora = Date.now()): Promise<ResultadoAvisoLista> {
-  const pessoas: PessoaLista[] = p.porta === 'solar' ? ['nilce'] : [p.dono, p.dono === 'thiago' ? 'diego' : 'thiago'];
+  const pessoas: PessoaLista[] = p.porta === 'solar' ? [p.dono] : [p.dono, p.dono === 'thiago' ? 'diego' : 'thiago'];
   if (!p.voltou) await marcarAvisoAntigo(p.cardId);
   const pendura = async (quem: PessoaLista[]): Promise<void> => deixarPendente(quem, p.cardId, p.porta, Date.now());
   if (avisosDesligados()) { await pendura(pessoas); return { motivo: 'desligado', enviados: [] }; }
@@ -105,8 +105,8 @@ export async function avisarLeadDaLista(p: PedidoAviso, agora = Date.now()): Pro
       await esperar(ESPERA_MIN_MS + Math.floor(Math.random() * ESPERA_SORTEIO_MS));
       if (!(await linhaPronta(Date.now()))) { await pendura([pessoa]); return { motivo: 'parcial', enviados }; }
     }
-    const r = pessoa === 'nilce' && !p.voltou
-      ? await enviarNilce(p.cardId, `ig_${p.listaId}`, p.texto, Date.now())
+    const r = (pessoa === 'nilce' || pessoa === 'giovanna') && p.porta === 'solar' && !p.voltou
+      ? await enviarConsultora(pessoa, p.cardId, `ig_${p.listaId}`, p.texto, Date.now())
       : await enviarEquipe(pessoa, p.texto, `${PREFIXO_ENV}${pessoa}:${p.voltou ? `volta:${p.listaId}:` : ''}${p.cardId}`, Date.now());
     if (r === 'enviado' || r === 'ja') { enviados.push(pessoa); continue; }
     logger.warn(LOG, `aviso do card ${p.cardId} parou (${r})`);
@@ -129,7 +129,7 @@ export async function runListaIgResumoTick(opts: { agora?: number } = {}): Promi
 
 async function resumir(agora: number): Promise<ResultadoResumo> {
   if (avisosDesligados()) return { enviado: false, motivo: 'desligado' };
-  for (const pessoa of ['nilce', 'thiago', 'diego'] as PessoaLista[]) {
+  for (const pessoa of ['nilce', 'giovanna', 'thiago', 'diego'] as PessoaLista[]) {
     if (!dentroDaJanela(pessoa, agora)) continue;
     const pend = await lerPendentes(pessoa);
     if (!pend || !pend.length) continue;

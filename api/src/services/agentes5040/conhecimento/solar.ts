@@ -4,7 +4,6 @@
 // em reais nem prazo de instalação.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { DONA_SOLAR } from '../../agenda/solarRota';
 
 export const FRASES_PUBLICAS_SOLAR: readonly string[] = [
   '25 anos de garantia de geração',
@@ -32,7 +31,7 @@ export function textoConhecimentoSolar(): string {
     'ENERGIA SOLAR, IRMÃOS NA OBRA (só isto pode ser afirmado):',
     ...FRASES_PUBLICAS_SOLAR.map(f => `- ${f}`),
     `- Cidades: ${CIDADES_ATENDIDAS.join(', ')} e região.`,
-    `- Quem atende (regra de agenda/solarRota.ts, desde 24/10/2026): ${DONA_SOLAR} atende todo cliente novo de energia solar, por ligação, em qualquer faixa de consumo.`,
+    '- Quem atende (regra de agenda/solarRota.ts, desde 23/11/2026): o consultor do card, por ligação. A equipe é a Nilce, a Giovanna, o Thiago e o Diego, divididos pela conta de luz do cliente. Cite só o nome que estiver nos fatos; sem nome nos fatos, diga "um consultor".',
     '- NUNCA diga preço, parcela, economia em reais nem prazo de instalação. Diga que o orçamento é grátis e que a consultora mostra os números.',
   ].join('\n');
 }

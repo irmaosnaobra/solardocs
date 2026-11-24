@@ -49,6 +49,7 @@ vi.mock('../services/io/eletropostoVagas', async (orig) => ({
 
 import router from '../routes/ioSolar';
 import { runSolarQuizAvisosTick, camposDeRecuperacao, hidratarLead, CHAVES } from '../services/io/solarQuizAviso';
+import { _limparCacheDivisao } from '../services/agenda/divisaoSolar';
 import { vagasSolar, rebaixarSaiuAMudo, cancelarCardsSaiuSemMarcar, remarcarCardSolar, tirarMarcaSaiuDoCard, silenciarLembretesDoCard } from '../services/agentes5040/agendaSolar';
 import { textoDeAbertura, bolhaDeAbertura } from '../services/agentes5040/textosAgenda';
 import { limparRespostas, limparRespostasExtra, quandoDoAgora } from '../services/io/solarQuiz';
@@ -98,6 +99,8 @@ const primeiraLinha = (c: any): string => String(c.observacao).split('\n')[0];
 const tick = (agora: number) => runSolarQuizAvisosTick({ agora });
 
 beforeEach(() => {
+  delete process.env.SOLAR_DIVISAO_OFF;
+  _limparCacheDivisao();   // a divisão por conta de luz guarda a contagem de cards por 60 s
   h.main = new BancoFalso();
   h.ger = new BancoFalso();
   h.enviados.length = 0; h.cooldown = false; h.duda = false; h.bloqueado = false; h.posse = null;
@@ -224,7 +227,10 @@ describe('o card MUDO: cada condição do A que falha', () => {
     expect(paraNilce()[0].texto).toContain('Horário: hoje, 15:00 (já está na sua agenda)');
   });
 
-  it('o 2º lead na mesma vaga cai na vaga seguinte (índice único), e o minuto ocupado do "agora" empurra +5 min', async () => {
+  it('o 2º lead na mesma vaga cai na vaga seguinte (índice único), e o minuto ocupado do "agora" empurra +5 min (com o freio SOLAR_DIVISAO_OFF=1: todos na mesma agenda, a da Nilce)', async () => {
+    // Com a divisão por conta de luz (23/11/2026) dois leads seguidos podem cair em donos diferentes, e aí não há conflito de horário
+    // para provar. O índice único é por (vendedor, quando): o freio põe os dois na Nilce.
+    process.env.SOLAR_DIVISAO_OFF = '1';
     const a = leadsDeN(1), b = leadsDeN(2);
     semearLead(a.id, { tel: a.tel, atividade: SEXTA_14H, caminho: 'curioso', pontos: '5', resp: RESP_CURIOSA });
     semearLead(b.id, { tel: b.tel, atividade: SEXTA_14H, caminho: 'curioso', pontos: '5', resp: RESP_CURIOSA });
@@ -236,6 +242,18 @@ describe('o card MUDO: cada condição do A que falha', () => {
     await tick(SEXTA_14H + 12 * MIN);
     const agoras = cartoes().filter((x: any) => x.cliente_telefone === c.tel || x.cliente_telefone === d.tel).map((x: any) => hhmmBRT(x.quando)).sort();
     expect(agoras).toEqual(['14:20', '14:25']);
+    delete process.env.SOLAR_DIVISAO_OFF;
+  });
+
+  it('com a divisão ligada, dois leads seguidos de conta pequena caem em donos DIFERENTES (Nilce e Giovanna) e cada um tem o seu 14:20', async () => {
+    delete process.env.SOLAR_DIVISAO_OFF;
+    const c = leadsDeN(3), d = leadsDeN(4);
+    semearLead(c.id, { tel: c.tel, atividade: SEXTA_14H, resp: { ...RESP_BOA, conta: '400_800' } });
+    semearLead(d.id, { tel: d.tel, atividade: SEXTA_14H, resp: { ...RESP_BOA, conta: '400_800' } });
+    await tick(SEXTA_14H + 12 * MIN);
+    const novos = cartoes().filter((x: any) => x.cliente_telefone === c.tel || x.cliente_telefone === d.tel);
+    expect(novos.map((x: any) => x.vendedor_nome).sort()).toEqual(['Giovanna', 'Nilce']);
+    expect(novos.map((x: any) => hhmmBRT(x.quando))).toEqual(['14:20', '14:20']);
   });
 });
 
@@ -471,12 +489,19 @@ describe('o cliente volta ao quiz e marca: cancela o card SAIU SEM MARCAR e cria
     expect(schedules()).toHaveLength(1);
   });
 
-  it('de qualquer dono (card SAIU do Diego, o da vistoria): cancelado, e o card novo nasce normal', async () => {
+  it('de qualquer dono (card SAIU do Diego): cancelado, e o card novo nasce normal, com o mesmo dono (o cliente já é do Diego e a vitrine foi a dele)', async () => {
     semearCardSaiu({ vendedor_nome: 'Diego' });
-    const r = await agendar();
+    const r = await agendar({ dono: 'Diego' });
     expect(r.status).toBe(200);
     expect(status(900)).toBe('cancelado');
-    expect(cartoes().find((c: any) => c.id === r.body.id).vendedor_nome).toBe('Nilce');
+    expect(cartoes().find((c: any) => c.id === r.body.id).vendedor_nome).toBe('Diego');
+  });
+
+  it('o card SAIU do Diego: horário escolhido na agenda da Nilce é recusado (o cliente é do Diego), 409 e nada é cancelado', async () => {
+    semearCardSaiu({ vendedor_nome: 'Diego' });
+    const r = await agendar({ dono: 'Nilce' });
+    expect(r.status).toBe(409);
+    expect(status(900)).toBe('agendado');
   });
 
   it('card SAIU criado há mais de 48 h não é mexido, e card que não é SAIU (o que o cliente escolheu) nunca é cancelado: 409 "ja marcado"', async () => {

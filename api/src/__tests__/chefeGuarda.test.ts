@@ -392,6 +392,7 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/io/recepcaoIo.ts': { robos: ['duda_ficha_consultor', 'duda_recepcao'], classeMaxima: 'reativo_p1' },
   'services/io/solarAgenteQuiz.ts': { robos: ['solar_agente_quiz', 'solar_agente_recado'], classeMaxima: 'reativo_p1' },
   'services/io/sementeSolarService.ts': { robos: ['semente'], classeMaxima: 'frio_p5' },
+  'services/io/solarRelatorioSemanal.ts': { robos: ['solar_relatorio_semanal'], classeMaxima: 'aviso_interno_p2' },
   'services/io/sentinelaEnvio.ts': { robos: ['sentinela_ferramentas'], classeMaxima: 'aviso_interno_p2' },
   'services/io/sentinelaVacuo.ts': { robos: ['sentinela_vacuo'], classeMaxima: 'aviso_interno_p2' },
   'services/io/solarAgendaGiovanna.ts': { robos: ['giovanna_agenda'], classeMaxima: 'lembrete_p1' },

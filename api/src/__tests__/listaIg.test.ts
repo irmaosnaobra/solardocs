@@ -52,6 +52,7 @@ vi.mock('../services/io/solarQuizAviso', () => ({
 }));
 
 import { criarCardEletroposto, criarCardSolar } from '../services/io/listaIgCards';
+import { SOLAR_DIVISAO_INICIO, _limparCacheDivisao } from '../services/agenda/divisaoSolar';
 import { avisarLeadDaLista, runListaIgResumoTick } from '../services/io/listaIgAviso';
 import { baldeDe5, reservarVaga } from '../services/io/listaIgVaga';
 import { ehCardMudo } from '../services/agenda/solarRota';
@@ -108,6 +109,59 @@ describe('card solar (condições 1, 5, 11, 12)', () => {
     expect(await criarCardEletroposto(entrada(2), 'cotista', { local: 'meu', capital: '100', recurso: 'proprio' }, AGORA)).toEqual({ status: 'pulou', motivo: 'bloqueado' });
     expect(h.ger.tabela('agendamentos')).toHaveLength(0);
     expect(ss()).toHaveLength(0);
+  });
+});
+
+describe('card solar: o "agora" com a trava do dono (23/11/2026)', () => {
+  beforeEach(() => { _limparCacheDivisao(); });   // a contagem da divisão fica 60 s em cache (e a reserva a altera)
+  const semearCards = (dono: string, n: number, conta = 'R$ 400 a R$ 800') => {
+    for (let i = 0; i < n; i++) {
+      h.ger.tabela('agendamentos').push({
+        id: 9000 + h.ger.tabela('agendamentos').length, vendedor_nome: dono, status: 'agendado', created_by: 'lp_solar', cliente_telefone: `553499800${String(i).padStart(4, '0')}`,
+        observacao: ['LP SOLAR QUIZ', `Conta de luz: ${conta} (~700 kWh/mês)`].join('\n'), created_at: new Date(Date.parse(SOLAR_DIVISAO_INICIO) + 3_600_000).toISOString(),
+      });
+    }
+  };
+  const doCliente = () => h.ger.tabela('agendamentos').find((c: any) => c.cliente_telefone === pessoa.telefone);
+  const AGORA_1435 = AGORA + 35 * 60_000;   // quinta 14:35: a meia hora das 14:30 está na grade dos sócios
+  const maior = { tipo: 'casa', conta: '800_1200', pagamento: 'vista' };
+
+  it('dono Nilce em horário de atendimento: o card "agora" (minuto real, daqui a 5 min)', async () => {
+    const r = await criarCardSolar(entrada(1), { tipo: 'casa', conta: '300_600', pagamento: 'vista' }, AGORA);
+    expect(r).toMatchObject({ status: 'ok', card: { dono: 'Nilce' } });
+    expect(h.ger.tabela('agendamentos')[0].quando).toBe(new Date(AGORA + 5 * 60_000).toISOString());
+  });
+
+  it('dono Giovanna dentro da grade dela (14h): o "agora" também é dela', async () => {
+    semearCards('Nilce', 5);
+    const r = await criarCardSolar(entrada(1), { tipo: 'casa', conta: '300_600', pagamento: 'vista' }, AGORA);
+    expect(r).toMatchObject({ status: 'ok', card: { dono: 'Giovanna' } });
+    expect(doCliente().quando).toBe(new Date(AGORA + 5 * 60_000).toISOString());
+  });
+
+  it('dono Thiago livre dentro da grade (14:35): o card "agora" é dele', async () => {
+    semearCards('Nilce', 5, 'R$ 800 a R$ 1.200');
+    const r = await criarCardSolar(entrada(1), maior, AGORA_1435);
+    expect(r).toMatchObject({ status: 'ok', card: { dono: 'Thiago' } });
+    expect(doCliente().quando).toBe(new Date(AGORA_1435 + 5 * 60_000).toISOString());
+  });
+
+  it('dono Thiago com card daqui a 15 min: vaga real dele (:00/:30), nunca o "agora"', async () => {
+    semearCards('Nilce', 5, 'R$ 800 a R$ 1.200');
+    h.ger.tabela('agendamentos').push({ id: 8700, vendedor_nome: 'Thiago', status: 'agendado', created_by: 'lp_eletroposto', cliente_telefone: '5511900000001', quando: new Date(AGORA_1435 + 15 * 60_000).toISOString() });
+    const r = await criarCardSolar(entrada(1), maior, AGORA_1435);
+    expect(r.status).toBe('ok');
+    expect(doCliente().vendedor_nome).toBe('Thiago');
+    expect(doCliente().quando).not.toBe(new Date(AGORA_1435 + 5 * 60_000).toISOString());
+    expect([0, 30]).toContain(new Date(doCliente().quando).getUTCMinutes());
+  });
+
+  it('dono Thiago às 14:00 (fora das meias-horas da grade dele): vaga real, nunca o "agora"', async () => {
+    semearCards('Nilce', 5, 'R$ 800 a R$ 1.200');
+    const r = await criarCardSolar(entrada(1), maior, AGORA);
+    expect(r.status).toBe('ok');
+    expect(doCliente().vendedor_nome).toBe('Thiago');
+    expect(doCliente().quando).not.toBe(new Date(AGORA + 5 * 60_000).toISOString());
   });
 });
 

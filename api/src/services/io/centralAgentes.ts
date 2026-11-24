@@ -30,6 +30,7 @@ import { solardocViaIo } from '../agents/zapiClient';
 import { EP_ORIGENS, EP_AGENDA_INICIO, EP_AGENDA_PREFIX } from './eletropostoAgenda';
 import { ORIGEM_IG } from './eletropostoIgConvite';
 import { SOLAR_ORIGENS, SOLAR_BOASVINDAS_INICIO, SOLAR_ENTREGA_AMPLA_INICIO } from './solarBoasVindas';
+import { DONOS_DE_SOLAR, SOLAR_DIVISAO_INICIO } from '../agenda/solarRota';
 import {
   consumoTipico, KWH_CORTE_TIME, TIME_CONTA_ALTA, TIME_CONTA_BAIXA,
 } from '../agenda/leadSolarFicha';
@@ -129,6 +130,14 @@ export const ROTEAMENTO_REGRA_INICIO = '2026-09-23T00:00:00.000Z';
  * 24/10 00:00 em Brasília.
  */
 export const SOLAR_SO_NILCE_INICIO = '2026-10-24T03:00:00.000Z';
+
+/**
+ * 23/11/2026, ordem do dono: o lead solar passa a ser DIVIDIDO por conta de luz (solarRota.ts, GRUPOS_SOLAR; services/agenda/divisaoSolar.ts).
+ * Ficha criada daqui pra frente é julgada assim: os quatro (Nilce, Giovanna, Thiago e Diego) são donos válidos de solar, e só dono fora
+ * deles é acusado (salvo cliente que voltou). A auditoria NÃO confere a proporção 50/50 e 40/30/30: isso é a divisão que faz. Ficha
+ * anterior continua julgada pela regra de 24/10 (só a Nilce), então nada vira enxurrada de alertas. 23/11 00:00 em Brasília.
+ */
+export { SOLAR_DIVISAO_INICIO };   // a mesma constante da contagem da divisão (solarRota.ts, sobrescrevível pela env)
 const ultimos8 = (t: unknown): string => String(t ?? '').replace(/\D/g, '').slice(-8);
 
 /**
@@ -426,6 +435,12 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
           if (kwh === null) return false;                    // sem resposta não acusa ninguém
           const dono = String(f.vendedor_nome || '');
           if (!dono) return false;
+          if (String(f.created_at) >= SOLAR_DIVISAO_INICIO) {
+            // Regra de 23/11: os quatro atendem solar. Quem não é um deles só passa se o cliente voltou (o telefone já tinha ficha antes).
+            if (DONOS_DE_SOLAR.includes(dono)) return false;
+            const k = ultimos8((f as any).cliente_telefone);
+            return !(k && (primeira.get(k) ?? '') < String(f.created_at));
+          }
           if (String(f.created_at) >= SOLAR_SO_NILCE_INICIO) {
             // Regra de 24/10: lead novo é da Nilce. Cliente que voltou (o telefone
             // já tinha ficha antes desta) fica com o dono, então não é acusado.
@@ -748,12 +763,12 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ],
       destaque: [0, 1],
       toques: [
-        { titulo: 'Na entrada da ficha', quando: 'no momento em que o lead vira ficha', copy: `Lê o consumo respondido, converte pra kWh/mês (faixa vale pelo MEIO, não pelo teto) e escolhe o dono. Cliente que já tem consultor fica com ele, antes de qualquer regra de tamanho. Sem resposta de consumo cai na fila da conta baixa (hoje só a Nilce): a regra é exceção, quem não prova que é grande não gasta manhã de dono.` },
+        { titulo: 'Na entrada da ficha', quando: 'no momento em que o lead vira ficha', copy: `Lê o consumo respondido, converte pra kWh/mês (faixa vale pelo MEIO, não pelo teto) e escolhe o dono. Cliente que já tem consultor fica com ele, antes de qualquer regra de tamanho. Desde 23/11 o lead novo é dividido por conta em reais: abaixo de R$ 800 (ou sem resposta de consumo), Nilce 50% e Giovanna 50%; de R$ 800 para cima, Nilce 40%, Thiago 30% e Diego 30%, pelo cartão mais abaixo da fatia nos últimos 30 dias.` },
       ],
       alerta: (() => {
         const partes: string[] = [];
         if (roteamento.foraDaRegra > 0) {
-          partes.push(`${roteamento.foraDaRegra} ficha(s) com o consultor errado pra regra do solar (desde 24/10 lead novo é só da Nilce; antes, corte de ${KWH_CORTE_TIME} kWh): ${roteamento.exemplos.join(' · ')}.`);
+          partes.push(`${roteamento.foraDaRegra} ficha(s) com o consultor errado pra regra do solar (desde 23/11 o lead solar é dividido entre Nilce, Giovanna, Thiago e Diego por conta de luz; de 24/10 a 23/11 era só da Nilce; antes, corte de ${KWH_CORTE_TIME} kWh): ${roteamento.exemplos.join(' · ')}.`);
         }
         // A conversão só vira alerta com amostra que sustenta o número: 1 venda a
         // menos em 10 leads derruba 10 pontos, e alerta que oscila assim ninguém lê.

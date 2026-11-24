@@ -30,6 +30,12 @@ export const ioInteresseLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/** O dono do card solar da lista (23/11/2026): a divisão por conta de luz aponta um dos quatro; fora deles, a Nilce. */
+const donoDoCardSolar = (d: string): PessoaLista => {
+  const n = String(d ?? '').trim().toLowerCase();
+  return n === 'giovanna' || n === 'thiago' || n === 'diego' ? n : 'nilce';
+};
+
 interface Gravado { id?: string | number; posicao?: number; card_solar_id?: number | null; card_eletroposto_id?: number | null }
 
 /** Card e aviso da porta (solar ou eletroposto). Nunca lança. */
@@ -40,11 +46,11 @@ export async function depoisDeGravar(p: PortaLida, c: Contato, g: Gravado, agora
     if (p.porta === 'solar' && p.solar && !g.card_solar_id) {
       const r = await criarCardSolar(e, p.solar, agora);
       if (r.status === 'voltou') {
-        await avisarLeadDaLista({ porta: 'solar', cardId: r.card.id, listaId: g.id, dono: 'nilce', voltou: true, texto: avisoVoltou(c, 'solar', linhasDoSolar(p.solar), r.card) });
+        await avisarLeadDaLista({ porta: 'solar', cardId: r.card.id, listaId: g.id, dono: donoDoCardSolar(r.card.dono), voltou: true, texto: avisoVoltou(c, 'solar', linhasDoSolar(p.solar), r.card) });
         return;
       }
       if (r.status !== 'ok') { if (r.status === 'erro') console.error(LOG, 'card solar não nasceu'); return; }
-      await avisarLeadDaLista({ porta: 'solar', cardId: r.card.id, listaId: g.id, dono: 'nilce', texto: avisoNilce(c, p.solar, r.card) });
+      await avisarLeadDaLista({ porta: 'solar', cardId: r.card.id, listaId: g.id, dono: donoDoCardSolar(r.card.dono), texto: avisoNilce(c, p.solar, r.card) });
     }
     if (p.porta === 'eletroposto' && p.caminho && p.respostas && !g.card_eletroposto_id) {
       const r = await criarCardEletroposto(e, p.caminho, p.respostas, agora);
