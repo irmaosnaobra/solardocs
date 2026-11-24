@@ -226,6 +226,37 @@ export const CSS_COMPLETO = `
 .cta .ph{ margin-top:8px; font-size:15px; font-weight:800; letter-spacing:.3px; }
 `;
 
+/**
+ * Desconto do Pix sobre o preço normal na oferta 21x do /gerador, quando o à vista é igual ao preço (decisão do dono,
+ * 24/11/2026: 5%). Tem que ser o mesmo de DESCONTO_PIX_PADRAO no index.html e no proposta.html do /gerador.
+ */
+export const DESCONTO_PIX_PADRAO = 0.05;
+
+// CSS do destaque da parcela de 21x (só o fluxo do /gerador com a 21x marcada). Fica fora do CSS_COMPLETO de propósito:
+// sem o destaque, o HTML da Completa sai byte a byte igual ao de antes (goldens da SolarDoc).
+const CSS_DESTAQUE_21X = `
+.invBig.h21{ display:block; text-align:center; padding:18px 18px 16px; }
+.invBig .pre{ font-size:17px; font-weight:800; }
+.invBig.h21 .v{ font-size:34px; }
+.invBig .ps{ font-size:13px; font-weight:700; opacity:.92; margin-top:4px; }
+.invBig .ap{ font-size:11.5px; opacity:.85; margin:6px auto 0; max-width:440px; line-height:1.4; }
+.invBig .tot{ margin-top:8px; font-size:12px; opacity:.85; }
+.invBig .tot b{ font-weight:800; }
+.pix21{ position:relative; margin:18px auto 0; max-width:460px; border:2px solid #127A3E; border-radius:12px; background:#fff; padding:16px 16px 11px; text-align:center; }
+.pix21 .selo{ position:absolute; top:0; left:50%; transform:translate(-50%,-50%); background:#127A3E; color:#fff; font-size:10.5px; font-weight:800; letter-spacing:.3px; padding:4px 11px; border-radius:999px; white-space:nowrap; }
+.pix21 .k{ font-size:11.5px; font-weight:800; color:var(--ink); }
+.pix21 .v{ font-size:26px; font-weight:900; color:#127A3E; line-height:1.1; margin-top:2px; }
+.pix21 .s{ font-size:11px; font-weight:600; color:var(--ink); margin-top:3px; }
+.ref21{ text-align:center; margin-top:10px; }
+.ref21 .n{ font-size:12.5px; color:var(--ink); }
+.ref21 .n b{ font-weight:800; color:var(--c1); }
+.ref21 .t{ font-size:10.5px; color:var(--muted); margin-top:2px; }
+.ref21 .q{ font-size:12px; font-weight:800; color:var(--c1); margin-top:10px; }
+.heroR.h21 .v{ font-size:30px; white-space:nowrap; }
+.heroR .pre{ font-size:15px; font-weight:800; }
+.heroR .s2{ font-size:10.5px; font-weight:700; margin-top:7px; padding-top:6px; border-top:1px solid rgba(0,0,0,.14); color:var(--accent-text); opacity:.85; }
+`;
+
 // CSS só da Completa solar (o Off-Grid lê CSS_COMPLETO e não leva nada daqui): bancos em 6 colunas com tile baixo
 // (`.bgrid.b6`) e número de colunas das obras por variável (`--oc`, 3 por padrão).
 const CSS_SOLAR_BANCOS = `.bgrid.b6{ grid-template-columns:repeat(6,1fr); gap:6px; }
@@ -478,9 +509,29 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
       ? `ou ${parcelasCartao[parcelasCartao.length - 1].n}× de ${brl(parcelasCartao[parcelasCartao.length - 1].v)}`
       : '';
   const temEntrada = entradaOn && investimento > 0 && entradaValor > 0 && entradaRestante > 0;
+  // Parcela de 21x em destaque (pedido do dono do /gerador, 24/11/2026): só quando o /gerador mandou a 21x pronta
+  // e ela está marcada. Aí ela é o número grande do preço e o total desce. A SolarDoc (sem parcela pronta) sai igual.
+  const parcela21 = prontasCartao[21] != null ? parcelasCartao.find((x) => x.n === 21) : undefined;
+  // Com a 21x em destaque, a grade do cartão não repete a 21x e escreve "x" como o destaque.
+  const parcelasCartaoGrade = parcela21 ? parcelasCartao.filter((x) => x.n !== 21) : parcelasCartao;
+  const vezes = parcela21 ? 'x' : '×';
+  // Oferta 21x em três níveis (estratégia do dono, 24/11/2026). Pix = preço à vista mandado pelo /gerador. Sem à vista
+  // menor que o preço (o normal): preço normal = Pix / (1 - DESCONTO_PIX_PADRAO) em real inteiro, com esse desconto no
+  // selo. Com à vista menor: preço normal = preço do projeto, percentual e economia reais. Total em 21x = parcela
+  // (2 casas) x 21. Nada disso é salvo.
+  const pix21Valor = parcela21 && vistaOn && precoAvistaInput > 0 ? precoAvistaInput : 0;
+  const pix21Distinto = pix21Valor > 0 && pix21Valor < investimento - 0.005;
+  const pix21Normal = pix21Valor > 0 ? Math.round(pix21Distinto ? investimento : pix21Valor / (1 - DESCONTO_PIX_PADRAO)) : 0;
+  const pix21Economia = pix21Valor > 0 ? Math.round(((pix21Distinto ? investimento : pix21Normal) - pix21Valor) * 100) / 100 : 0;
+  const pix21Pct = pix21Distinto ? Math.max(1, Math.round(((investimento - pix21Valor) / investimento) * 100)) : Math.round(DESCONTO_PIX_PADRAO * 100);
+  const total21 = parcela21 ? (Math.round(parcela21.v * 100) * 21) / 100 : 0;
 
   // ── Formatação ──
   function brl(n: number): string { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+  /** Real com centavos só quando existem (R$ 9.512; R$ 17.866,29). Só o destaque da 21x usa. */
+  function brlPreco(n: number): string {
+    return Math.round(n * 100) % 100 === 0 ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }) : brl(n);
+  }
   function n1(n: number): string { return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
   const hoje = propostaEmissao(f).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const validade = validadeDoCompleta(f);
@@ -544,7 +595,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     </div>
   </div>
 
-  ${analiseModelo1({ economia25, investimento, parcelaLabel: cap1(parcelaLabel), economiaMensal, taxaMinima: fin.contaComSolar, notaConta: fioBSerie ? (cip > 0 ? `Taxa mínima + Fio B + iluminação pública ${brl(cip)}` : 'Taxa mínima + Fio B') : undefined, cip, paybackTexto, semEconomia: !mostraEconomia, semConsumo: !temConsumo, semEconomiaMensal: temConsumo && !mostraEconomia, semRetorno: temConsumo && (!mostraEconomia || paybackTexto === '—'), capitalizar: true })}`;
+  ${analiseModelo1({ economia25, investimento, parcelaLabel: cap1(parcelaLabel), economiaMensal, taxaMinima: fin.contaComSolar, notaConta: fioBSerie ? (cip > 0 ? `Taxa mínima + Fio B + iluminação pública ${brl(cip)}` : 'Taxa mínima + Fio B') : undefined, cip, paybackTexto, semEconomia: !mostraEconomia, semConsumo: !temConsumo, semEconomiaMensal: temConsumo && !mostraEconomia, semRetorno: temConsumo && (!mostraEconomia || paybackTexto === '—'), capitalizar: true, ...(parcela21 ? { parcelaDestaque: { pre: '21x de', v: brl(parcela21.v), s: 'No cartão de crédito', s2: pix21Valor > 0 ? `À vista no Pix ${brlPreco(pix21Valor)} · Preço normal ${brlPreco(pix21Normal)}` : `Total ${brl(investimento)}` } } : {}) })}`;
 
   // ═══ Blocos (cada um vira parte de uma folha; as folhas leves se juntam no fim) ═══
   const parcelaLabelCap = cap1(parcelaLabel);
@@ -561,8 +612,17 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
       <div class="gcap">Geração média anual: <strong>${pNum(geracaoAnual)} kWh</strong> · HSP da região: <strong>${hspTxt} h/dia</strong></div>
     </div>`;
 
+  // Linha de apoio da parcela: o dado que a proposta já tem, nesta ordem (conta de hoje, economia mensal, placas e geração).
+  const apoio21 = !parcela21 ? ''
+    : temConsumo && contaHojeExib > 0 ? `Sua conta hoje é ${brlPreco(contaHojeExib)}. Essa parcela paga um sistema que gera sua energia.`
+      : mostraEconomia ? `Estimamos ${brlPreco(economiaMensal)} a menos na conta de luz por mês enquanto você paga a parcela.`
+        : qtdModulos > 0 && mediaMensalGerada > 0 ? `Parcela para ter ${qtdModulos} placas gerando cerca de ${pNum(mediaMensalGerada)} kWh por mês.` : '';
   const tileInvestimento = investimento > 0
-    ? `<div class="invBig"><div><div class="k">Preço do projeto</div><div class="v num">${brl(investimento)}</div></div>${parcelaLabelCap && temPagamentos ? `<div class="s num">${pEsc(parcelaLabelCap)}</div>` : ''}</div>`
+    ? (parcela21
+      ? `<div class="invBig h21"><div class="v num"><span class="pre">21x de</span> ${brl(parcela21.v)}</div><div class="ps">No cartão de crédito</div>${apoio21 ? `<div class="ap">${pEsc(apoio21)}</div>` : ''}${pix21Valor > 0 ? '' : `<div class="tot">Preço do projeto <b class="num">${brl(investimento)}</b></div>`}</div>`
+        + (pix21Valor > 0 ? `<div class="pix21"><span class="selo">${pix21Pct}% de desconto no Pix</span><div class="k">À vista no Pix</div><div class="v num">${brlPreco(pix21Valor)}</div><div class="s">${pEsc(`Pagando à vista no Pix, você economiza ${brlPreco(pix21Economia)} sobre o preço normal.`)}</div></div>` : '')
+        + `<div class="ref21">${pix21Valor > 0 ? `<div class="n">Preço normal <b class="num">${brlPreco(pix21Normal)}</b></div>` : ''}<div class="t">Total em 21x no cartão <b class="num">${brl(total21)}</b></div><div class="q">Depois da 21ª parcela, o sistema está quitado e continua gerando energia para você.</div></div>`
+      : `<div class="invBig"><div><div class="k">Preço do projeto</div><div class="v num">${brl(investimento)}</div></div>${parcelaLabelCap && temPagamentos ? `<div class="s num">${pEsc(parcelaLabelCap)}</div>` : ''}</div>`)
     : '';
 
   // Fio B (Lei 14.300): bloco da folha de economia, quando ligado. Os números da conta já descontam esse custo.
@@ -616,7 +676,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
   const blocoEntrada = temEntrada
     ? `<div class="hi"><div class="k">Entrada + saldo</div><div class="v num">${brl(entradaValor)} + ${brl(entradaRestante)}</div><div class="s">Entrada de ${brl(entradaValor)} · Restante de ${brl(entradaRestante)} ${entradaPrazoLabel}</div></div>`
     : '';
-  const dois = [blocoVista, blocoEntrada].filter(Boolean);
+  const dois = [pix21Valor > 0 ? '' : blocoVista, blocoEntrada].filter(Boolean);
   const linhasDadosBanc: string[] = [];
   if (mostraDadosBanc && dadosBanc) {
     const l = (k: string, v: string, valorHtml?: string) => `<div class="r"><span class="lab">${pEsc(k)}</span><span class="val">${valorHtml ?? pEsc(v)}</span></div>`;
@@ -635,10 +695,10 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
   const montarCorpoF3 = (comBancos: boolean) => `<div class="sec">
     ${tileInvestimento}
     ${dois.length ? `<div class="dois" style="margin-top:10px${dois.length === 1 ? ';grid-template-columns:1fr' : ''}">${dois.join('')}</div>` : ''}
-    ${parcelasCartao.length ? `${sub('Cartão de crédito', 'Sem entrada')}
-    <div class="pgrid">${parcelasCartao.map((x) => `<div class="pt"><span class="n">${x.n}× de</span><span class="v num">${pBRL(x.v)}</span></div>`).join('')}</div>` : ''}
+    ${parcelasCartaoGrade.length ? `${sub('Cartão de crédito', 'Sem entrada')}
+    <div class="pgrid">${parcelasCartaoGrade.map((x) => `<div class="pt"><span class="n">${x.n}${vezes} de</span><span class="v num">${pBRL(x.v)}</span></div>`).join('')}</div>` : ''}
     ${parcelasFin.length ? `${sub('Financiamento bancário', carenciaTextoFin(f))}
-    <div class="pgrid">${parcelasFin.map((x) => `<div class="pt"><span class="n">${x.n}× de</span><span class="v num">${pBRLParcela(x.v)}</span></div>`).join('')}</div>` : ''}
+    <div class="pgrid">${parcelasFin.map((x) => `<div class="pt"><span class="n">${x.n}${vezes} de</span><span class="v num">${pBRLParcela(x.v)}</span></div>`).join('')}</div>` : ''}
     ${pagCustom ? `${sub('Condição especial')}
     <div class="hi"><div class="v t">${pEsc(pagCustom)}</div><div class="s">A combinar com o vendedor</div></div>` : ''}
     ${comBancos ? bancosHtml : ''}
@@ -646,8 +706,8 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
     <div class="rows dpag">${linhasDadosBanc.join('\n      ')}</div>` : ''}
   </div>`;
   // Altura da folha 3 sem os bancos; com eles soma estBancos.
-  const estF3Sem = 55 + (tileInvestimento ? 85 : 0) + (dois.length ? 100 : 0)
-    + (parcelasCartao.length ? 36 + Math.ceil(parcelasCartao.length / 3) * 36 : 0)
+  const estF3Sem = 55 + (tileInvestimento ? 85 : 0) + (parcela21 ? (pix21Valor > 0 ? 190 : 80) : 0) + (dois.length ? 100 : 0)
+    + (parcelasCartaoGrade.length ? 36 + Math.ceil(parcelasCartaoGrade.length / 3) * 36 : 0)
     + (parcelasFin.length ? 36 + Math.ceil(parcelasFin.length / 3) * 36 : 0)
     + (pagCustom ? 120 : 0)
     + (linhasDadosBanc.length ? 36 + linhasDadosBanc.length * 34 : 0);
@@ -883,7 +943,7 @@ export function propostaSolarCompleta(company: CompanyCompleta, client: ClienteP
 <style>
 ${cssRaizModelo1(cores)}
 ${CSS_MODELO1}
-${CSS_COMPLETO}${CSS_SOLAR_BANCOS}</style></head><body>
+${CSS_COMPLETO}${CSS_SOLAR_BANCOS}${parcela21 ? CSS_DESTAQUE_21X : ''}</style></head><body>
 ${folhas}
 </body></html>`;
 }

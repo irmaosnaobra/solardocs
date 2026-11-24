@@ -522,7 +522,29 @@ describe('contratos do /gerador: tabela de pagamento', () => {
     const antigo = String(SB.montarBlocoPagamentoWpp(base));
     const fmt = (v: number) => (Math.round(v) >= 1000 ? Math.round(v).toLocaleString('pt-BR') : String(Math.round(v))) + ',00';
     expect(antigo).toContain('12x: R$ ' + fmt(28900 * 1.1269 / 12));
-    expect(antigo).toContain('21x: R$ ' + fmt(28900 * 1.1928 / 21));
+    // A 21x marcada vira o destaque no topo do pagamento (montarTextoProposta, negrito, com centavos) e sai da lista: não repete.
+    expect(antigo).not.toContain('21x');
+    const cent = (v: number) => (Math.round(v * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const msg = String(SB.montarTextoProposta({
+      ...base, nome: 'Cliente Teste', cidade: 'Uberlândia, MG', item: { n: 6, kwp: 3.72, g: 480 },
+      tab: { mod: 'Ronma 620W', pot: 620, inv: 'NEP BDM-2500' }, qtdInv: 1, economia: 400, garInv: 15,
+    }));
+    // Oferta 21x em três níveis (24/11/2026): parcela, Pix (à vista = preço, então preço normal = Pix / 0,95 em real
+    // inteiro e 5%), preço normal, total em 21x; as demais parcelas depois; o convite fecha o bloco.
+    const parcela = Math.round(28900 * 1.1928 / 21 * 100) / 100;
+    const normal = Math.round(28900 / 0.95);
+    const destaque = [
+      'Sua parcela fica em *21x de R$ ' + cent(parcela) + '* no cartão de crédito.',
+      'No Pix, à vista, sai por *R$ 28.900*, com 5% de desconto. Você economiza R$ ' + (normal - 28900).toLocaleString('pt-BR') + '.',
+      'O preço normal é R$ ' + normal.toLocaleString('pt-BR') + '.',
+      'No cartão, o total em 21x fica R$ ' + cent(Math.round(parcela * 100) * 21 / 100) + '.',
+    ].join('\n');
+    expect(msg).toContain(destaque);
+    expect(msg.indexOf(destaque)).toBeLessThan(msg.indexOf('12x: R$'));
+    expect(msg.trimEnd().endsWith('Se quiser, me responde aqui que eu tiro qualquer dúvida com calma.')).toBe(true);
+    expect(msg).not.toContain('*À vista:*');
+    expect(msg).not.toContain('Investimento: R$');
+    expect(msg.split('21x').length - 1).toBe(2);
     const guardado = String(SB.montarBlocoPagamentoWpp({ ...base, parcelasCartao: { 12: 2000, 21: 1500 } }));
     expect(guardado).toContain('12x: R$ ' + fmt(2000));
   });

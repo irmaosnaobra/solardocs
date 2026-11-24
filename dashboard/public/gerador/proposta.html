@@ -614,6 +614,77 @@ html.link-cliente #formSection { display: none; }
     letter-spacing: -.5px;
   }
 
+  /* Parcela de 21x em destaque (renderProposta liga .preco-box--parc quando a 21x
+     está marcada). Ela vira o número grande; total e à vista descem para uma linha
+     de dois valores menores. Sem a classe, o bloco fica como sempre foi. */
+  .preco-parc { display: none; }
+  .preco-box--parc .preco-parc { display: block; padding: 4px 0 2px; }
+  .preco-parc-valor { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 10px; row-gap: 4px; line-height: 1; }
+  .preco-parc-n { font-size: 24px; font-weight: 800; color: #f5c518; white-space: nowrap; }
+  .preco-parc-v { font-size: 52px; font-weight: 900; color: #fff; letter-spacing: -1px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .preco-parc-sub { margin-top: 8px; font-size: 16px; font-weight: 700; color: rgba(255,255,255,.9); }
+  /* Oferta 21x em três níveis: parcela, cartão do Pix (o amarelo do à vista de sempre),
+     preço normal e total no cartão em letra pequena; fecho com a quitação e o que já
+     está no preço. Com o cartão do Pix (preco-box--pix), a linha de baixo some. */
+  .preco-parc-apoio { margin: 10px auto 0; max-width: 440px; font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.8); text-wrap: pretty; }
+  .preco-pix, .preco-ref-normal, .preco-fecho { display: none; }
+  .preco-box--pix .preco-pix, .preco-box--pix .preco-ref-normal { display: block; }
+  .preco-box--parc.preco-box--pix .preco-resto { display: none; }
+  .preco-box--parc .preco-fecho { display: block; }
+  .preco-pix {
+    position: relative; max-width: 440px; margin: 24px auto 0; padding: 26px 16px 16px;
+    background: #ffd400; color: #000; border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(255,212,0,.35);
+  }
+  .preco-pix-selo {
+    position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%);
+    background: #000; color: #ffd400; font-size: 12px; font-weight: 800; letter-spacing: .3px;
+    padding: 6px 14px; border-radius: 99px; white-space: nowrap; line-height: 1.1;
+  }
+  .preco-pix-label { font-size: 15px; font-weight: 800; }
+  .preco-pix-valor { font-size: 40px; font-weight: 900; line-height: 1.05; margin-top: 2px; letter-spacing: -.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .preco-pix-eco { margin: 8px auto 0; max-width: 340px; font-size: 14px; font-weight: 600; line-height: 1.4; text-wrap: pretty; }
+  .preco-ref { margin-top: 16px; }
+  .preco-ref-normal { font-size: 15px; color: rgba(255,255,255,.9); }
+  .preco-ref-normal b { color: #fff; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .preco-ref-total { margin-top: 4px; font-size: 13px; color: rgba(255,255,255,.75); }
+  .preco-ref-total b { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .preco-fecho { margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.18); }
+  .preco-quitado { margin: 0 auto; max-width: 460px; font-size: 15px; font-weight: 700; line-height: 1.45; color: #fff; text-wrap: pretty; }
+  .preco-nopreco-t { margin-top: 12px; font-size: 12px; font-weight: 700; color: rgba(255,255,255,.75); }
+  .preco-nopreco { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; }
+  .preco-nopreco li { font-size: 14px; color: rgba(255,255,255,.92); }
+  .preco-nopreco li span { color: #f5c518; font-weight: 900; margin-right: 6px; }
+  .preco-box--parc .preco-resto {
+    display: flex;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,.18);
+  }
+  .preco-box--parc .preco-vista-block,
+  .preco-box--parc .preco-fin-block { flex: 1 1 0; min-width: 0; }
+  .preco-box--parc .preco-fin-block {
+    order: -1;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 0 8px;
+  }
+  .preco-box--parc .preco-vista-block {
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 0 8px;
+    border-left: 1px solid rgba(255,255,255,.18);
+  }
+  .preco-box--parc .vista-badge { display: none; }
+  .preco-box--parc .vista-lbl,
+  .preco-box--parc .fin-lbl { font-size: 13px; font-weight: 700; letter-spacing: 0; text-transform: none; color: rgba(255,255,255,.8); opacity: 1; line-height: 1.3; }
+  .preco-box--parc .vista-val { font-size: 22px; font-weight: 800; color: #ffd400; margin: 4px 0 2px; letter-spacing: -.3px; white-space: nowrap; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .preco-box--parc .fin-val { font-size: 22px; font-weight: 800; opacity: 1; letter-spacing: -.3px; white-space: nowrap; margin: 4px 0 2px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .preco-box--parc .vista-economia { background: none; color: rgba(255,255,255,.8); padding: 0; margin: 0; font-size: 11px; font-weight: 600; }
+
   /* PARCELAS */
   .parcelas {
     display: grid;
@@ -868,6 +939,17 @@ html.link-cliente #formSection { display: none; }
     .preco-box { padding: 18px 14px 14px; }
     .preco-vista-block { padding: 20px 12px 14px; }
     .preco-fin-block { flex-direction: column; gap: 2px; padding-top: 6px; }
+    .preco-parc-n { font-size: 20px; }
+    .preco-parc-v { font-size: 44px; }
+    .preco-parc-sub { font-size: 15px; }
+    .preco-pix-valor { font-size: 34px; }
+    .preco-nopreco { flex-direction: column; align-items: flex-start; width: fit-content; margin-left: auto; margin-right: auto; }
+    .preco-box--parc .preco-fin-block { padding: 0 6px; }
+    .preco-box--parc .preco-vista-block { padding: 0 6px; }
+    .preco-box--parc .vista-val,
+    .preco-box--parc .fin-val { font-size: 18px; }
+    .preco-box--parc .vista-lbl,
+    .preco-box--parc .fin-lbl { font-size: 12px; }
 
     /* Cards menos padding */
     .card { padding: 16px; }
@@ -883,6 +965,9 @@ html.link-cliente #formSection { display: none; }
     .vista-val { font-size: 30px; }
     .fin-val { font-size: 16px; }
     .vista-economia { font-size: 11px; }
+    .preco-parc-v { font-size: 40px; }
+    .preco-box--parc .vista-val { font-size: 17px; }
+    .preco-box--parc .fin-val { font-size: 17px; }
   }
 
   /* PRINT */
@@ -1087,7 +1172,7 @@ html.link-cliente #formSection { display: none; }
 
     <div class="card">
       <h2>O que está incluído</h2>
-      <div class="inc-grid">
+      <div class="inc-grid" id="inc-grid">
         <div class="inc"><span class="check">✓</span> Estruturas de fixação</div>
         <div class="inc"><span class="check">✓</span> Cabeamento completo</div>
         <div class="inc"><span class="check">✓</span> Caixa de corrente alternada</div>
@@ -1144,7 +1229,25 @@ html.link-cliente #formSection { display: none; }
       <div class="pb-legenda" id="pb-leg"></div>
     </div>
 
-    <div class="preco-box">
+    <div class="preco-box" id="preco-box">
+      <!-- Parcela de 21x em destaque: só aparece com a classe preco-box--parc (renderProposta) -->
+      <div class="preco-parc">
+        <div class="preco-parc-valor"><span class="preco-parc-n">21x de</span> <span class="preco-parc-v" id="p-parc21"></span></div>
+        <div class="preco-parc-sub">no cartão de crédito</div>
+        <p class="preco-parc-apoio" id="p-parc-apoio"></p>
+        <!-- Segundo destaque: à vista no Pix (só com preco-box--pix) -->
+        <div class="preco-pix">
+          <div class="preco-pix-selo" id="p-pix-selo"></div>
+          <div class="preco-pix-label">À vista no Pix</div>
+          <div class="preco-pix-valor" id="p-pix"></div>
+          <p class="preco-pix-eco" id="p-pix-eco"></p>
+        </div>
+        <div class="preco-ref">
+          <div class="preco-ref-normal">Preço normal <b id="p-normal"></b></div>
+          <div class="preco-ref-total">Total em 21x no cartão <b id="p-total21"></b></div>
+        </div>
+      </div>
+      <div class="preco-resto">
       <div class="preco-vista-block">
         <div class="vista-badge">💎 MELHOR OPÇÃO</div>
         <div class="vista-lbl">Investimento à vista</div>
@@ -1154,6 +1257,15 @@ html.link-cliente #formSection { display: none; }
       <div class="preco-fin-block">
         <span class="fin-lbl" id="fin-lbl">ou Valor Financiado</span>
         <span class="fin-val" id="p-total"></span>
+      </div>
+      </div>
+      <div class="preco-fecho">
+        <p class="preco-quitado">Depois da 21ª parcela, o sistema está quitado e continua gerando energia para você.</p>
+        <div class="preco-nopreco-t" id="preco-nopreco-t">Já está no preço</div>
+        <ul class="preco-nopreco" aria-labelledby="preco-nopreco-t">
+          <li><span aria-hidden="true">✓</span> Projeto, instalação e aterramento</li>
+          <li><span aria-hidden="true">✓</span> Processo na distribuidora até a liberação</li>
+        </ul>
       </div>
     </div>
 
@@ -1432,6 +1544,7 @@ const TABELAS = {
     {n:32, invs:8, g:2560, kwp:19.84, descMax:57497.00, pVista:57497, pOrc:57497.00, p18x:8906.29}
   ]
 },
+
 // ═══ NEP BDM-2500 + Ronma 620W, OFERTA 21x (24/11/2026) ═══
 // Onze kits fechados que o dono anuncia pela PARCELA de 21x no cartao (4 placas R$ 437,90; 6 R$ 557,90; 8 R$ 847,90;
 // 10 R$ 967,90; 12 R$ 1.047,90; 14 R$ 1.377,90; 16 R$ 1.497,90; 18 R$ 1.637,90; 20 R$ 1.907,90; 22 R$ 2.027,90; 24 R$ 2.177,90).
@@ -1443,6 +1556,8 @@ const TABELAS = {
 // por microinversor (6 MPPT).
 "NEP-BDM2500-RONMA620W-21X": {
   inv: "NEP BDM-2500", mod: "Ronma 620W", pot: 620, precoExato: true,
+  // O que o anuncio promete alem do padrao: entra na lista "O que esta incluido" da proposta.
+  inclui: ["Stringbox CA com DPS", "Aterramento com haste de 2,40 m (5/8\")"],
   rows: [
     {n:4 , invs:1, g:320 , kwp:2.48 , descMax:7466.02, pVista:7466.02, pOrc:7466.02, p18x:1156.49},
     {n:6 , invs:1, g:480 , kwp:3.72 , descMax:9512.00, pVista:9512.00, pOrc:9512.00, p18x:1473.41},
@@ -1552,6 +1667,15 @@ let dadosAtual = null;
 // ============= UTILS =============
 function fmt(n) {
   return Math.round(Number(n)).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+// Valor com os centavos reais (sem arredondar para real inteiro): só a parcela de 21x em destaque usa,
+// porque o anúncio promete o valor exato (ex.: R$ 557,90). Os demais valores seguem no fmt().
+function fmtCent(n) {
+  return (Math.round(Number(n) * 100) / 100).toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
@@ -1741,6 +1865,60 @@ function parcelasDoPagOpts(po) {
   return antigas;
 }
 
+// Parcela de 21x no cartão em destaque na proposta (pedido do dono, 24/11/2026).
+// Só existe quando o vendedor marcou a 21x e ela tem valor; senão devolve 0 e a
+// proposta sai como antes. Mesmo mapa do card de pagamento: nada é recalculado aqui.
+function parcela21xDestaque(d) {
+  if (!d || !d.pagOpts) return 0;
+  if (!parcelasDoPagOpts(d.pagOpts).includes(21)) return 0;
+  const mapa = d.parcelasCartao || calcTodasParcelas(d.precoOrcamento || 0);
+  const v = Number(mapa[21]);
+  return v > 0 ? v : 0;
+}
+
+// Valor em real com centavos só quando existem: 9512 → "9.512"; 17866.29 → "17.866,29".
+function fmtPreco(n) {
+  const c = Math.round(Number(n) * 100);
+  if (c % 100 === 0) return (c / 100).toLocaleString('pt-BR');
+  return (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Bloco de preço da oferta 21x (estratégia do dono, 24/11/2026). Mesma regra do
+// index.html (precoOferta21x): só exibição, nada é recalculado nem salvo.
+// Desconto do Pix sobre o preço normal quando o à vista é igual ao preço (5%, decisão do
+// dono). Tem que ser o mesmo do index.html e do PDF Completa (DESCONTO_PIX_PADRAO).
+const DESCONTO_PIX_PADRAO = 0.05;
+function precoOferta21x(d) {
+  const p21 = parcela21xDestaque(d);
+  if (!(p21 > 0)) return null;
+  const parcela = Math.round(p21 * 100) / 100;
+  const total21 = Math.round(parcela * 100) * 21 / 100;
+  const po = d.pagOpts || {};
+  const orc = Number(d.precoOrcamento) || 0;
+  const pv = Number(d.precoVista) || 0;
+  let pix = null;
+  if (po.vista !== false && pv > 0) {
+    const distinto = orc > 0 && pv < orc - 0.005;
+    const normal = Math.round(distinto ? orc : pv / (1 - DESCONTO_PIX_PADRAO));
+    const economia = Math.round(((distinto ? orc : normal) - pv) * 100) / 100;
+    const pct = distinto ? Math.max(1, Math.round(((orc - pv) / orc) * 100)) : Math.round(DESCONTO_PIX_PADRAO * 100);
+    pix = { valor: pv, normal, economia, pct };
+  }
+  const g = Number(d.mediaMensalGerada || (d.item && d.item.g)) || 0;
+  const apoio = d.contaHoje > 0
+    ? `Sua conta hoje é R$\u00a0${fmtN(d.contaHoje)}. Essa parcela paga um sistema que gera sua energia.`
+    : d.economia > 0
+      ? `Estimamos R$\u00a0${fmtN(d.economia)} a menos na conta de luz por mês enquanto você paga a parcela.`
+      : (d.item && d.item.n > 0 && g > 0 ? `Parcela para ter ${d.item.n} placas gerando cerca de ${fmtN(g)}\u00a0kWh por mês.` : '');
+  return { parcela, total21, pix, apoio };
+}
+
+// Itens que a linha escolhida promete além do padrão (campo opcional `inclui` em TABELAS).
+function incluiDaLinha(d) {
+  const t = (d && d.linha && TABELAS[d.linha]) ? TABELAS[d.linha] : null;
+  return t && Array.isArray(t.inclui) ? t.inclui.filter(x => typeof x === 'string' && x.trim()) : [];
+}
+
 function renderPagamentoCard(d) {
   // Default retro-compatível (propostas antigas sem pagOpts)
   const po = d.pagOpts || {
@@ -1765,9 +1943,12 @@ function renderPagamentoCard(d) {
   // Retro-compat: propostas antigas usavam 84x
   const f84 = d.fin84x != null ? d.fin84x : pmtPriceCarencia(pOrc, 0.025, 84, 4);
 
+  // Com a 21x em destaque, ela e o à vista já estão no bloco de preço logo acima:
+  // os cards não repetem os dois.
+  const comDestaque21 = parcela21xDestaque(d) > 0;
   const blocos = [];
 
-  if (po.vista) blocos.push(`
+  if (po.vista && !comDestaque21) blocos.push(`
     <div class="parc parc-destaque-amarelo">
       <div class="badge">💎 melhor opção</div>
       <div class="qt">À vista</div>
@@ -1776,6 +1957,7 @@ function renderPagamentoCard(d) {
     </div>`);
 
   for (const n of parcelasDoPagOpts(po)) {
+    if (comDestaque21 && n === 21) continue;
     const v = parcMap[n];
     if (!v) continue;
     const obs = n === 1 ? 'à vista no cartão' : 'sobre o valor do investimento';
@@ -1871,8 +2053,48 @@ function renderProposta(d, viaLink) {
 
   document.getElementById('p-total').textContent = `R$ ${fmt(d.precoOrcamento)}`;
 
+  // Com a 21x marcada, ela vira o número grande do bloco; total e à vista descem
+  // para a linha de baixo. Sem a 21x, o bloco fica como sempre foi.
+  const p21 = parcela21xDestaque(d);
+  const of21 = precoOferta21x(d);
+  const pix = of21 && of21.pix;
+  document.getElementById('preco-box').classList.toggle('preco-box--parc', p21 > 0);
+  document.getElementById('preco-box').classList.toggle('preco-box--pix', !!pix);
+  document.getElementById('p-parc21').textContent = p21 > 0 ? `R$ ${fmtCent(p21)}` : '';
+  document.getElementById('p-parc-apoio').textContent = of21 ? of21.apoio : '';
+  document.getElementById('p-pix-selo').textContent = pix ? `${pix.pct}% de desconto no Pix` : '';
+  document.getElementById('p-pix').textContent = pix ? `R$ ${fmtPreco(pix.valor)}` : '';
+  document.getElementById('p-pix-eco').textContent = pix ? `Pagando à vista no Pix, você economiza R$\u00a0${fmtPreco(pix.economia)} sobre o preço normal.` : '';
+  document.getElementById('p-normal').textContent = pix ? `R$ ${pix.normal.toLocaleString('pt-BR')}` : '';
+  document.getElementById('p-total21').textContent = of21 ? `R$ ${fmtCent(of21.total21)}` : '';
+  // Itens que a linha promete além do padrão (campo `inclui` em TABELAS): entram no fim
+  // de "O que está incluído". Linha sem o campo: a lista fica como sempre foi.
+  const incGrid = document.getElementById('inc-grid');
+  if (incGrid) {
+    incGrid.querySelectorAll('[data-inclui-linha]').forEach(el => el.remove());
+    incluiDaLinha(d).forEach(txt => {
+      const div = document.createElement('div');
+      div.className = 'inc';
+      div.dataset.incluiLinha = '1';
+      div.innerHTML = '<span class="check">✓</span> ';
+      div.appendChild(document.createTextNode(txt));
+      incGrid.appendChild(div);
+    });
+  }
+
   const finLbl = document.getElementById('fin-lbl');
-  if (mostrarVista) {
+  if (p21 > 0) {
+    blocoVista.style.display = mostrarVista ? '' : 'none';
+    blocoFin.classList.remove('preco-fin-headline');
+    finLbl.textContent = 'Valor do investimento';
+    if (mostrarVista) {
+      document.getElementById('p-vista').textContent = `R$ ${fmt(d.precoVista)}`;
+      const economiaVista = Math.max(0, (d.precoOrcamento || 0) - (d.precoVista || 0));
+      const elEco = document.getElementById('p-economia');
+      elEco.textContent = economiaVista > 0 ? `Economize R$ ${fmt(economiaVista)} pagando à vista` : '';
+      elEco.style.display = economiaVista > 0 ? '' : 'none';
+    }
+  } else if (mostrarVista) {
     blocoVista.style.display = '';
     blocoFin.classList.remove('preco-fin-headline');
     finLbl.textContent = 'ou Valor Financiado';

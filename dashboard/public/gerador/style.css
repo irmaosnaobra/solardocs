@@ -1976,6 +1976,69 @@
 #propostaSection .invest-avista-sub { font-size: 11px; color: #059669; font-weight: 600; }
 #propostaSection .parcelas { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
 
+/* Parcela de 21x em destaque (renderProposta liga .invest-box--parc quando a 21x
+   está marcada). Ela vira o número grande; total e à vista descem para uma linha
+   de dois valores menores. Sem a classe, o bloco fica como sempre foi. */
+#propostaSection .invest-parc { display: none; }
+#propostaSection .invest-box--parc .invest-parc { display: block; }
+#propostaSection .invest-parc-valor { color: var(--c1); line-height: 1; display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 10px; row-gap: 4px; }
+#propostaSection .invest-parc-n { font-size: 24px; font-weight: 800; white-space: nowrap; }
+#propostaSection .invest-parc-v { font-size: 52px; font-weight: 900; letter-spacing: -1.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#propostaSection .invest-parc-sub { margin-top: 8px; font-size: 16px; font-weight: 700; color: var(--c-text); }
+#propostaSection .invest-box--parc .invest-resto {
+  display: flex; justify-content: center;
+  margin-top: 20px; padding-top: 18px;
+  border-top: 1px solid rgba(30, 58, 138, .16);
+  border-top-color: color-mix(in srgb, var(--c1) 16%, transparent);
+}
+#propostaSection .invest-box--parc .invest-total,
+#propostaSection .invest-box--parc .invest-grid { flex: 1 1 0; min-width: 0; padding: 0 8px; }
+#propostaSection .invest-box--parc .invest-grid { display: block; margin-top: 0; border-left: 1px solid rgba(30, 58, 138, .16); border-left-color: color-mix(in srgb, var(--c1) 16%, transparent); }
+#propostaSection .invest-box--parc .invest-label,
+#propostaSection .invest-box--parc .invest-avista-label { font-size: 13px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+#propostaSection .invest-box--parc .invest-value { font-size: 22px; font-weight: 800; margin: 4px 0 0; letter-spacing: -.3px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#propostaSection .invest-box--parc .invest-avista { background: none; border: 0; border-radius: 0; padding: 0; }
+#propostaSection .invest-box--parc .invest-avista-value { font-size: 22px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -.3px; white-space: nowrap; color: #059669; font-variant-numeric: tabular-nums; }
+/* Oferta 21x em três níveis: parcela, cartão do Pix (vantagem), preço normal e total
+   no cartão em letra pequena; fecho com a quitação e o que já está no preço. Com o
+   cartão do Pix (invest-box--pix), a linha de total e à vista de baixo some: o Pix e o
+   preço normal já dizem os dois. */
+#propostaSection .invest-parc-apoio { margin: 10px auto 0; max-width: 440px; font-size: 14px; line-height: 1.45; color: var(--c-muted); text-wrap: pretty; }
+#propostaSection .invest-pix,
+#propostaSection .invest-ref-normal,
+#propostaSection .invest-fecho { display: none; }
+#propostaSection .invest-box--pix .invest-pix { display: block; }
+#propostaSection .invest-box--pix .invest-ref-normal { display: block; }
+#propostaSection .invest-box--pix .invest-resto { display: none; }
+#propostaSection .invest-box--parc .invest-fecho { display: block; }
+#propostaSection .invest-pix {
+  position: relative; max-width: 440px; margin: 22px auto 0; padding: 26px 18px 18px;
+  background: #fff; border: 2px solid #10b981; border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(16, 185, 129, .14);
+}
+#propostaSection .invest-pix-selo {
+  position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%);
+  background: #fff linear-gradient(rgba(16, 185, 129, .14), rgba(16, 185, 129, .14)); border: 1.5px solid #10b981; color: var(--c1); font-size: 13px; font-weight: 800; line-height: 1;
+  padding: 7px 14px; border-radius: 999px; white-space: nowrap;
+}
+#propostaSection .invest-pix-label { font-size: 15px; font-weight: 800; color: var(--c-text); }
+#propostaSection .invest-pix-valor { font-size: 38px; font-weight: 900; color: #059669; line-height: 1.05; margin-top: 4px; letter-spacing: -1px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#propostaSection .invest-pix-eco { margin: 8px auto 0; max-width: 340px; font-size: 14px; line-height: 1.45; color: var(--c-text); text-wrap: pretty; }
+#propostaSection .invest-ref { margin-top: 16px; }
+#propostaSection .invest-ref-normal { font-size: 15px; color: var(--c-text); }
+#propostaSection .invest-ref-normal b { font-weight: 800; color: var(--c1); white-space: nowrap; font-variant-numeric: tabular-nums; }
+#propostaSection .invest-ref-total { margin-top: 4px; font-size: 13px; color: var(--c-muted); }
+#propostaSection .invest-ref-total b { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#propostaSection .invest-fecho {
+  margin-top: 20px; padding-top: 18px;
+  border-top: 1px solid rgba(30, 58, 138, .16);
+  border-top-color: color-mix(in srgb, var(--c1) 16%, transparent);
+}
+#propostaSection .invest-quitado { margin: 0 auto; max-width: 460px; font-size: 15px; font-weight: 700; line-height: 1.45; color: var(--c1); text-wrap: pretty; }
+#propostaSection .invest-nopreco-t { margin-top: 14px; font-size: 12px; font-weight: 700; color: var(--c-muted); }
+#propostaSection .invest-nopreco { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; }
+#propostaSection .invest-nopreco li { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--c-text); }
+
 /* BREAKDOWN */
 #propostaSection .breakdown { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 #propostaSection .breakdown-card { background: #f9fafb; padding: 14px 10px; border-radius: 10px; text-align: center; border-bottom: 3px solid var(--c-am); }
@@ -2112,6 +2175,17 @@
   #propostaSection .stats { padding: 20px 18px; }
   #propostaSection .section { padding: 22px 18px; }
   #propostaSection .invest-value { font-size: 30px; }
+  #propostaSection .invest-box--parc { padding: 24px 14px 20px; }
+  #propostaSection .invest-parc-n { font-size: 20px; }
+  #propostaSection .invest-parc-v { font-size: 44px; }
+  #propostaSection .invest-parc-sub { font-size: 15px; }
+  #propostaSection .invest-pix { padding: 24px 14px 16px; }
+  #propostaSection .invest-pix-valor { font-size: 34px; }
+  #propostaSection .invest-nopreco { flex-direction: column; align-items: flex-start; width: fit-content; margin-left: auto; margin-right: auto; }
+  #propostaSection .invest-box--parc .invest-value,
+  #propostaSection .invest-box--parc .invest-avista-value { font-size: 18px; }
+  #propostaSection .invest-box--parc .invest-label,
+  #propostaSection .invest-box--parc .invest-avista-label { font-size: 12px; }
   #propostaSection .compare { grid-template-columns: 1fr; }
   #propostaSection .compare-arrow { transform: rotate(90deg); margin: -4px 0; }
   #propostaSection .specs { grid-template-columns: 1fr; }

@@ -2358,6 +2358,26 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .epo-campo.falta select{bor
 .orc1 .heroR .k{font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--accent-text);opacity:.8}
 .orc1 .heroR .v{font-size:27px;font-weight:900;line-height:1.05;margin-top:2px;color:var(--accent-text)}
 .orc1 .heroR .s{font-size:11.5px;font-weight:800;margin-top:3px;color:var(--accent-text);opacity:.9}
+/* Parcela de 21x no lugar do total (solar): "21x de" menor na frente do valor,
+   total e à vista na linha s2, abaixo de um filete. */
+.orc1 .heroR.h21 .v{font-size:30px;white-space:nowrap}
+.orc1 .heroR .pre{font-size:15px;font-weight:800;letter-spacing:0}
+.orc1 .hero.h21{grid-template-columns:1fr 1fr}
+.orc1 .heroR .apoio{font-size:10.5px;font-weight:600;line-height:1.35;margin-top:5px;color:var(--accent-text);opacity:.9}
+/* Pix: faixa logo abaixo do destaque, borda e selo no verde do "Incluído". */
+.orc1 .hero.comPix{grid-template-areas:"l r" "p r";row-gap:12px}
+.orc1 .hero.comPix .heroL{padding:13px 16px}
+.orc1 .hero.comPix .heroL .v{font-size:28px}
+.orc1 .hero.comPix .heroL{grid-area:l}
+.orc1 .hero.comPix .heroR{grid-area:r}
+.orc1 .pixFaixa{grid-area:p;position:relative;display:grid;grid-template-columns:1fr auto;column-gap:12px;row-gap:3px;align-items:end;border:2px solid #127A3E;border-radius:12px;padding:12px 14px 8px}
+.orc1 .pixFaixa .selo{position:absolute;top:0;left:14px;transform:translateY(-50%);background:#127A3E;color:#fff;font-size:10px;font-weight:800;letter-spacing:.3px;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.orc1 .pixFaixa .pk{font-size:10.5px;font-weight:800;color:var(--ink)}
+.orc1 .pixFaixa .pv{font-size:22px;font-weight:900;color:#127A3E;line-height:1.1;white-space:nowrap}
+.orc1 .pixFaixa .pe{grid-column:1/-1;font-size:10px;font-weight:600;color:var(--ink);line-height:1.35}
+.orc1 .pixFaixa .pn{font-size:10px;font-weight:700;color:var(--muted);text-align:right;white-space:nowrap}
+.orc1 .pixFaixa .pn b{display:block;font-size:15px;font-weight:900;color:var(--c1)}
+.orc1 .heroR .s2{font-size:10.5px;font-weight:700;margin-top:7px;padding-top:6px;border-top:1px solid rgba(30,58,138,.22);border-top-color:color-mix(in srgb,var(--accent-text) 22%,transparent);color:var(--accent-text);opacity:.85}
 .orc1 .finGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .orc1 .fc{border:1px solid var(--line);border-radius:12px;padding:10px 13px}
 .orc1 .fc .k{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
@@ -4953,7 +4973,7 @@ html.io2[data-mode="app"]:not(#_):not(#_) #eletroSection .orc-fin-outro label{co
     <!-- O QUE ESTÁ INCLUÍDO -->
     <div class="section">
       <h2>O que está incluído</h2>
-      <div class="inc-grid">
+      <div class="inc-grid" id="inc-grid">
         <div class="inc"><span class="check">✓</span> Estruturas de fixação</div>
         <div class="inc"><span class="check">✓</span> Cabeamento completo</div>
         <div class="inc"><span class="check">✓</span> Caixa de corrente alternada</div>
@@ -4977,15 +4997,44 @@ html.io2[data-mode="app"]:not(#_):not(#_) #eletroSection .orc-fin-outro label{co
     <!-- INVESTIMENTO (preço + à vista + formas de pagamento integradas) -->
     <div class="section">
       <h2>Investimento</h2>
-      <div class="invest-box">
-        <div class="invest-label">Valor do investimento</div>
-        <div class="invest-value" id="p-total"></div>
-        <div class="invest-grid invest-grid-2" id="invest-avista-grid">
-          <div class="invest-avista">
-            <div class="invest-avista-label">À vista</div>
-            <div class="invest-avista-value" id="p-vista"></div>
-            <div class="invest-avista-sub">pago no ato do contrato</div>
+      <div class="invest-box" id="invest-box">
+        <!-- Parcela de 21x em destaque: só aparece com a classe invest-box--parc (renderProposta) -->
+        <div class="invest-parc">
+          <div class="invest-parc-valor"><span class="invest-parc-n">21x de</span> <span class="invest-parc-v" id="p-parc21"></span></div>
+          <div class="invest-parc-sub">no cartão de crédito</div>
+          <p class="invest-parc-apoio" id="p-parc-apoio"></p>
+          <!-- Segundo destaque: à vista no Pix (só com invest-box--pix) -->
+          <div class="invest-pix">
+            <div class="invest-pix-selo" id="p-pix-selo"></div>
+            <div class="invest-pix-label">À vista no Pix</div>
+            <div class="invest-pix-valor" id="p-pix"></div>
+            <p class="invest-pix-eco" id="p-pix-eco"></p>
           </div>
+          <div class="invest-ref">
+            <div class="invest-ref-normal">Preço normal <b id="p-normal"></b></div>
+            <div class="invest-ref-total">Total em 21x no cartão <b id="p-total21"></b></div>
+          </div>
+        </div>
+        <div class="invest-resto">
+          <div class="invest-total">
+            <div class="invest-label">Valor do investimento</div>
+            <div class="invest-value" id="p-total"></div>
+          </div>
+          <div class="invest-grid invest-grid-2" id="invest-avista-grid">
+            <div class="invest-avista">
+              <div class="invest-avista-label">À vista</div>
+              <div class="invest-avista-value" id="p-vista"></div>
+              <div class="invest-avista-sub">pago no ato do contrato</div>
+            </div>
+          </div>
+        </div>
+        <div class="invest-fecho">
+          <p class="invest-quitado">Depois da 21ª parcela, o sistema está quitado e continua gerando energia para você.</p>
+          <div class="invest-nopreco-t" id="invest-nopreco-t">Já está no preço</div>
+          <ul class="invest-nopreco" aria-labelledby="invest-nopreco-t">
+            <li><span class="check" aria-hidden="true">✓</span> Projeto, instalação e aterramento</li>
+            <li><span class="check" aria-hidden="true">✓</span> Processo na distribuidora até a liberação</li>
+          </ul>
         </div>
       </div>
       <div id="card-pagamento-cliente" style="display:none; margin-top: 18px;">
@@ -9048,6 +9097,15 @@ function fmt(n) {
   });
 }
 
+// Valor com os centavos reais (sem arredondar para real inteiro): só a parcela de 21x em destaque usa,
+// porque o anúncio promete o valor exato (ex.: R$ 557,90). Os demais valores seguem no fmt().
+function fmtCent(n) {
+  return (Math.round(Number(n) * 100) / 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
 function fmtN(n) {
   return Math.round(n).toLocaleString('pt-BR');
 }
@@ -9447,6 +9505,68 @@ window.addEventListener('DOMContentLoaded', () => {
   carregarEquipConfig().then(aplicarEquipConfigNoSelect).catch(()=>{});
 });
 
+// Parcela de 21x no cartão em destaque na proposta (pedido do dono, 24/11/2026).
+// Só existe quando o vendedor marcou a 21x e ela tem valor; senão devolve 0 e a
+// proposta sai como antes. Lê o mesmo mapa do card de pagamento (parcelasCartao
+// salvo ou, em proposta antiga, a tabela até 11/11): nada é recalculado aqui.
+function parcela21xDestaque(d) {
+  if (!d) return 0;
+  const po = d.pagOpts || { cartao: { ativo: true, parcelas: [10, 12, 18] } };
+  if (!parcelasDoPagOpts(po).includes(21)) return 0;
+  const mapa = d.parcelasCartao || calcTodasParcelas(d.precoOrcamento || 0, TABELA_CARTAO_ATE_11_11);
+  const v = Number(mapa[21]);
+  return v > 0 ? v : 0;
+}
+
+// Valor em real com centavos só quando existem: 9512 → "9.512"; 17866.29 → "17.866,29".
+function fmtPreco(n) {
+  const c = Math.round(Number(n) * 100);
+  if (c % 100 === 0) return (c / 100).toLocaleString('pt-BR');
+  return (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Bloco de preço da oferta 21x (estratégia do dono, 24/11/2026): parcela, depois o
+// Pix, depois o preço normal e o total no cartão. Só exibição: lê o que a proposta já
+// tem salvo, não muda cálculo nem campo. null quando a proposta não tem a 21x.
+//   Pix = precoVista. Sem à vista distinto (o normal): preço normal = Pix / (1 -
+//   DESCONTO_PIX_PADRAO) em real inteiro, com esse desconto no selo. Com à vista menor
+//   que o total: preço normal = total, o percentual e a economia são os reais.
+// Desconto do Pix sobre o preço normal quando o à vista é igual ao preço (decisão do
+// dono, 24/11/2026: 5%). Mudou? Troque aqui, no proposta.html e em DESCONTO_PIX_PADRAO
+// do api/src/services/templates/propostaSolarCompleta.ts (o PDF Completa).
+const DESCONTO_PIX_PADRAO = 0.05;
+function precoOferta21x(d) {
+  const p21 = parcela21xDestaque(d);
+  if (!(p21 > 0)) return null;
+  const parcela = Math.round(p21 * 100) / 100;
+  const total21 = Math.round(parcela * 100) * 21 / 100;
+  const po = d.pagOpts || {};
+  const orc = Number(d.precoOrcamento) || 0;
+  const pv = Number(d.precoVista) || 0;
+  let pix = null;
+  if (po.vista !== false && pv > 0) {
+    const distinto = orc > 0 && pv < orc - 0.005;
+    const normal = Math.round(distinto ? orc : pv / (1 - DESCONTO_PIX_PADRAO));
+    const economia = Math.round(((distinto ? orc : normal) - pv) * 100) / 100;
+    const pct = distinto ? Math.max(1, Math.round(((orc - pv) / orc) * 100)) : Math.round(DESCONTO_PIX_PADRAO * 100);
+    pix = { valor: pv, normal, economia, pct };
+  }
+  // Linha de apoio do herói: usa o dado que a proposta já tem, nesta ordem.
+  const g = Number(d.mediaMensalGerada || (d.item && d.item.g)) || 0;
+  const apoio = d.contaHoje > 0
+    ? `Sua conta hoje é R$\u00a0${fmtN(d.contaHoje)}. Essa parcela paga um sistema que gera sua energia.`
+    : d.economia > 0
+      ? `Estimamos R$\u00a0${fmtN(d.economia)} a menos na conta de luz por mês enquanto você paga a parcela.`
+      : (d.item && d.item.n > 0 && g > 0 ? `Parcela para ter ${d.item.n} placas gerando cerca de ${fmtN(g)}\u00a0kWh por mês.` : '');
+  return { parcela, total21, pix, apoio, orc };
+}
+
+// Itens que a linha escolhida promete além do padrão (campo opcional `inclui` em TABELAS).
+function incluiDaLinha(d) {
+  const t = (typeof TABELAS !== 'undefined' && d && d.linha) ? TABELAS[d.linha] : null;
+  return t && Array.isArray(t.inclui) ? t.inclui.filter(x => typeof x === 'string' && x.trim()) : [];
+}
+
 function renderPagamentoCard(d) {
   // Lê d.pagOpts; se ausente (proposta antiga), assume default permissivo.
   const po = d.pagOpts || {
@@ -9468,8 +9588,11 @@ function renderPagamentoCard(d) {
   const f48 = d.fin48x != null ? d.fin48x : pmtPriceCarencia(pOrc, 0.022, 48, 4);
   const f60 = d.fin60x != null ? d.fin60x : pmtPriceCarencia(pOrc, 0.022, 60, 4);
 
+  // Com a 21x em destaque, ela e o à vista já estão no bloco do investimento logo
+  // acima: os cards não repetem os dois.
+  const comDestaque21 = parcela21xDestaque(d) > 0;
   const blocos = [];
-  if (po.vista) blocos.push(`
+  if (po.vista && !comDestaque21) blocos.push(`
     <div class="parc parc-destaque-amarelo">
       <div class="badge">💎 melhor opção</div>
       <div class="qt">À vista</div>
@@ -9479,6 +9602,7 @@ function renderPagamentoCard(d) {
 
   const parcsCartao = parcelasDoPagOpts(po);
   for (const n of parcsCartao) {
+    if (comDestaque21 && n === 21) continue;
     const v = parcMap[n];
     if (!v) continue;
     const obs = n === 1 ? 'à vista no cartão' : 'sobre o valor do investimento';
@@ -10160,6 +10284,38 @@ function renderProposta(d, viaLink) {
   document.getElementById('pb-leg').textContent = `${d.paybackTextoLong || (d.payback + ' anos')} de payback em 25 anos de geração`;
 
   document.getElementById('p-total').textContent = `R$ ${fmt(d.precoOrcamento)}`;
+  // Com a 21x marcada, ela vira o número grande do bloco; total e à vista descem
+  // para a linha de baixo. Sem a 21x, o bloco fica como sempre foi.
+  const p21 = parcela21xDestaque(d);
+  const of21 = precoOferta21x(d);
+  const investBox = document.getElementById('invest-box');
+  if (investBox) {
+    investBox.classList.toggle('invest-box--parc', p21 > 0);
+    investBox.classList.toggle('invest-box--pix', !!(of21 && of21.pix));
+  }
+  const setTxt = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+  setTxt('p-parc21', p21 > 0 ? `R$ ${fmtCent(p21)}` : '');
+  setTxt('p-parc-apoio', of21 ? of21.apoio : '');
+  const pix = of21 && of21.pix;
+  setTxt('p-pix-selo', pix ? `${pix.pct}% de desconto no Pix` : '');
+  setTxt('p-pix', pix ? `R$ ${fmtPreco(pix.valor)}` : '');
+  setTxt('p-pix-eco', pix ? `Pagando à vista no Pix, você economiza R$\u00a0${fmtPreco(pix.economia)} sobre o preço normal.` : '');
+  setTxt('p-normal', pix ? `R$ ${pix.normal.toLocaleString('pt-BR')}` : '');
+  setTxt('p-total21', of21 ? `R$ ${fmtCent(of21.total21)}` : '');
+  // Itens que a linha promete além do padrão (campo `inclui` em TABELAS): entram no fim
+  // de "O que está incluído". Linha sem o campo: a lista fica como sempre foi.
+  const incGrid = document.getElementById('inc-grid');
+  if (incGrid) {
+    incGrid.querySelectorAll('[data-inclui-linha]').forEach(el => el.remove());
+    incluiDaLinha(d).forEach(txt => {
+      const div = document.createElement('div');
+      div.className = 'inc';
+      div.dataset.incluiLinha = '1';
+      div.innerHTML = '<span class="check">✓</span> ';
+      div.appendChild(document.createTextNode(txt));
+      incGrid.appendChild(div);
+    });
+  }
   const avistaGrid = document.getElementById('invest-avista-grid');
   if (!d.pagOpts || d.pagOpts.vista) {
     if (avistaGrid) avistaGrid.style.display = '';
@@ -20038,7 +20194,8 @@ function o1LinhaInc(label, marca, direita) {
 // Monta o documento. d = {
 //   tema:'solar'|'ep', logo, marca, sub, titulo, data, fichaRows:[[k,v]], validade,
 //   tiles:[{k,v,u}], linhas:[[k,v]], compTab, compHTML,
-//   heroL:{k,v,s}, heroR:{k,v,s}, fin:[{k,v}], obs,
+//   heroL:{k,v,s}, heroR:{k,v,s,pre?,s2?}, fin:[{k,v}], obs,
+//   (heroR.pre = "21x de" antes do valor; heroR.s2 = linha de baixo, menor)
 //   vendedor:{nome,email,contato}, empresa:{nome,endereco,contato,email} }
 function orc1HTML(d) {
   const emp = d.empresa || ORC1_EMPRESA;
@@ -20085,9 +20242,10 @@ function orc1HTML(d) {
 
   ${d.heroL ? `<div class="band"><div class="tab">${o1Esc(d.finTitulo || 'Análise Financeira')}</div><div class="bar"></div></div>
   <div class="fin">
-    <div class="hero">
+    <div class="hero${d.heroR && d.heroR.pre ? ' h21' : ''}${d.pixFaixa ? ' comPix' : ''}">
       <div class="heroL"><div class="k">${o1Esc(d.heroL.k)}</div><div class="v num">${o1Esc(d.heroL.v)}</div>${d.heroL.s ? `<div class="s">${o1Esc(d.heroL.s)}</div>` : ''}</div>
-      <div class="heroR"><div class="k">${o1Esc(d.heroR.k)}</div><div class="v num">${o1Esc(d.heroR.v)}</div>${d.heroR.s ? `<div class="s num">${o1Esc(d.heroR.s)}</div>` : ''}</div>
+      <div class="heroR${d.heroR.pre ? ' h21' : ''}"><div class="k">${o1Esc(d.heroR.k)}</div><div class="v num">${d.heroR.pre ? `<span class="pre">${o1Esc(d.heroR.pre)}</span> ` : ''}${o1Esc(d.heroR.v)}</div>${d.heroR.s ? `<div class="s num">${o1Esc(d.heroR.s)}</div>` : ''}${d.heroR.apoio ? `<div class="apoio">${o1Esc(d.heroR.apoio)}</div>` : ''}${d.heroR.s2 ? `<div class="s2 num">${o1Esc(d.heroR.s2)}</div>` : ''}</div>
+      ${d.pixFaixa ? `<div class="pixFaixa"><span class="selo">${o1Esc(d.pixFaixa.selo)}</span><div class="pc"><div class="pk">À vista no Pix</div><div class="pv num">${o1Esc(d.pixFaixa.v)}</div></div><div class="pn">Preço normal<b class="num">${o1Esc(d.pixFaixa.normal)}</b></div><div class="pe">${o1Esc(d.pixFaixa.eco)}</div></div>` : ''}
     </div>
     <div class="finGrid">${(d.fin || []).map(fc).join('')}</div>
   </div>` : ''}
@@ -43505,8 +43663,23 @@ function orcSolarDocHTML(d) {
   // Investimento: mesma leitura da tela (headline = valor do orçamento; a linha de
   // baixo mostra o à vista quando essa forma está ligada, senão a maior parcela).
   const po = d.pagOpts || {};
+  const vistaDistinto = (po.vista == null || po.vista) && d.precoVista > 0 && d.precoVista !== d.precoOrcamento;
+  // Com a 21x marcada, ela é o número grande; total e à vista vão para a linha de baixo.
+  // Com o Pix: cartão do Pix, e a linha de baixo traz o preço normal e o total no cartão.
+  const of21 = precoOferta21x(d);
+  const pix = of21 && of21.pix;
+  const heroR = of21
+    ? { k: 'Investimento', pre: '21x de', v: o1BRL(of21.parcela), s: 'no cartão de crédito', apoio: of21.apoio,
+        s2: (pix ? '' : `Valor do investimento ${o1BRL(d.precoOrcamento)} · `) + `Total em 21x no cartão ${o1BRL(of21.total21)}` }
+    : null;
+  const pixFaixa = pix
+    ? { selo: `${pix.pct}% de desconto no Pix`, v: `R$ ${fmtPreco(pix.valor)}`,
+        eco: `Pagando à vista no Pix, você economiza R$\u00a0${fmtPreco(pix.economia)} sobre o preço normal.`,
+        normal: `R$ ${pix.normal.toLocaleString('pt-BR')}` }
+    : null;
+  const incluiExtra = incluiDaLinha(d);
   let sub = '';
-  if ((po.vista == null || po.vista) && d.precoVista > 0 && d.precoVista !== d.precoOrcamento) {
+  if (vistaDistinto) {
     sub = 'à vista ' + o1BRL(d.precoVista);
   } else {
     const parcs = (po.cartao && po.cartao.ativo && po.cartao.parcelas) ? po.cartao.parcelas.slice() : [];
@@ -43529,6 +43702,9 @@ function orcSolarDocHTML(d) {
     o1LinhaInc('Projeto de engenharia e conexão à rede', '', 'Incluído'),
     o1LinhaInc('Serviço de instalação', '', 'Incluído'),
     o1LinhaInc(`Garantias (painéis ${d.garPaineis} anos · inversor ${d.garInv} anos)`, '', 'Incluído'),
+    // O que a linha promete além do padrão (campo `inclui` em TABELAS), numa linha só para
+    // o orçamento seguir em uma folha; sem o campo, nada muda.
+    incluiExtra.length ? o1LinhaInc(incluiExtra.join(' · '), '', 'Incluído') : '',
   ].filter(Boolean).join('');
 
   return orc1HTML({
@@ -43551,8 +43727,9 @@ function orcSolarDocHTML(d) {
     linhas,
     compTitulo: 'Composição do Sistema',
     compHTML: `<div class="rows">${comp}</div>`,
-    heroL: { k: 'Economia em 25 anos', v: o1BRL(d.economia25), s: 'com o sistema quitado gerando energia própria' },
-    heroR: { k: 'Investimento', v: o1BRL(d.precoOrcamento), s: sub },
+    heroL: { k: 'Economia em 25 anos', v: o1BRL(d.economia25), s: of21 ? 'Depois da 21ª parcela, o sistema está quitado e continua gerando energia para você.' : 'com o sistema quitado gerando energia própria' },
+    heroR: heroR || { k: 'Investimento', v: o1BRL(d.precoOrcamento), s: sub },
+    pixFaixa,
     fin: [
       { k: 'Economia mensal', v: o1BRL(d.economia) },
       { k: 'Conta após instalação', v: o1BRL(d.taxaMin) },
@@ -43768,10 +43945,13 @@ function montarBlocoPagamentoWpp(d) {
   if (!d.parcelasCartao && d.parc12x != null) parcMap[12] = d.parc12x;
   if (!d.parcelasCartao && d.parc18x != null) parcMap[18] = d.parc18x;
 
+  // A 21x em destaque (e o Pix junto dela) já sai no topo do pagamento
+  // (montarTextoProposta): aqui fica só o resto.
+  const comDestaque21 = parcela21xDestaque(d) > 0;
   const linhas = [];
-  if (po.vista) linhas.push(`💎 *À vista:* R$ ${fmt(pv)}`);
+  if (po.vista && !comDestaque21) linhas.push(`💎 *À vista:* R$ ${fmt(pv)}`);
 
-  const parcs = parcelasDoPagOpts(po);
+  const parcs = parcelasDoPagOpts(po).filter(n => !(comDestaque21 && n === 21));
   if (parcs.length) {
     const sub = parcs.map(n => `• ${n}x: R$ ${fmt(parcMap[n] || 0)}/mês`);
     linhas.push(`💳 *Cartão de crédito:*\n${sub.join('\n')}`);
@@ -43816,6 +43996,24 @@ function montarTextoProposta(d) {
   // Sistema condensado: módulos + inversor numa linha
   const sistema = `${d.item.n}x ${d.tab.mod} + ${d.qtdInv}x ${d.tab.inv}`;
 
+  // Com a 21x marcada, o pagamento abre pela parcela, depois o Pix, o preço normal e o
+  // total no cartão (texto do redator, 24/11/2026); as demais formas vêm depois e o
+  // convite para tirar dúvida fecha o bloco. Sem a 21x, fica como sempre foi.
+  const of21 = precoOferta21x(d);
+  const pix = of21 && of21.pix;
+  const topoPagamento = of21
+    ? [
+        `Sua parcela fica em *21x de R$ ${fmtCent(of21.parcela)}* no cartão de crédito.`,
+        pix ? `No Pix, à vista, sai por *R$ ${fmtPreco(pix.valor)}*, com ${pix.pct}% de desconto. Você economiza R$ ${fmtPreco(pix.economia)}.` : `Investimento: R$ ${fmt(d.precoOrcamento)}`,
+        pix ? `O preço normal é R$ ${pix.normal.toLocaleString('pt-BR')}.` : '',
+        `No cartão, o total em 21x fica R$ ${fmtCent(of21.total21)}.`,
+      ].filter(Boolean).join('\n')
+    : `*Investimento: R$ ${fmt(d.precoOrcamento)}*`;
+  const restoPagamento = montarBlocoPagamentoWpp(d);
+  const blocoPagamento = of21
+    ? [topoPagamento, restoPagamento, 'Se quiser, me responde aqui que eu tiro qualquer dúvida com calma.'].filter(Boolean).join('\n\n')
+    : `${topoPagamento}\n\n${restoPagamento}`;
+
   return (
 `☀️ *PROPOSTA DE ENERGIA SOLAR*
 
@@ -43835,9 +44033,7 @@ function montarTextoProposta(d) {
 • Instalação: ${d.garInstalacao || 1} ano${(d.garInstalacao && +d.garInstalacao > 1) ? 's' : ''}
 
 ━━━━━━━━━━━━━━━━━━
-*Investimento: R$ ${fmt(d.precoOrcamento)}*
-
-${montarBlocoPagamentoWpp(d)}`
+${blocoPagamento}`
   );
 }
 

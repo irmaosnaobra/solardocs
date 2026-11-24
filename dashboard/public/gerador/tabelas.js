@@ -238,6 +238,7 @@ const TABELAS = {
     {n:32, invs:8, g:2560, kwp:19.84, descMax:57497.00, pVista:57497, pOrc:57497.00, p18x:8906.29}
   ]
 },
+
 // ═══ NEP BDM-2500 + Ronma 620W, OFERTA 21x (24/11/2026) ═══
 // Onze kits fechados que o dono anuncia pela PARCELA de 21x no cartao (4 placas R$ 437,90; 6 R$ 557,90; 8 R$ 847,90;
 // 10 R$ 967,90; 12 R$ 1.047,90; 14 R$ 1.377,90; 16 R$ 1.497,90; 18 R$ 1.637,90; 20 R$ 1.907,90; 22 R$ 2.027,90; 24 R$ 2.177,90).
@@ -249,6 +250,8 @@ const TABELAS = {
 // por microinversor (6 MPPT).
 "NEP-BDM2500-RONMA620W-21X": {
   inv: "NEP BDM-2500", mod: "Ronma 620W", pot: 620, precoExato: true,
+  // O que o anuncio promete alem do padrao: entra na lista "O que esta incluido" da proposta.
+  inclui: ["Stringbox CA com DPS", "Aterramento com haste de 2,40 m (5/8\")"],
   rows: [
     {n:4 , invs:1, g:320 , kwp:2.48 , descMax:7466.02, pVista:7466.02, pOrc:7466.02, p18x:1156.49},
     {n:6 , invs:1, g:480 , kwp:3.72 , descMax:9512.00, pVista:9512.00, pOrc:9512.00, p18x:1473.41},

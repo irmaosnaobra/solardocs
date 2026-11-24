@@ -265,7 +265,11 @@ export function montarCamposOrcamento(
     pag_vista: po.vista !== false,
     pag_cartao: cartaoN.length > 0,
     pag_fin: finPrazos.length > 0,
-    parcelas_cartao_prontas: Object.fromEntries(cartaoN.map((n) => [String(n), Math.round(valorCartao(d, n, precoOrcamento))])),
+    // A 21x é o número grande do PDF (anúncio com centavos, ex.: R$ 557,90): vai com 2 casas. As demais seguem em real inteiro.
+    parcelas_cartao_prontas: Object.fromEntries(cartaoN.map((n) => {
+      const v = valorCartao(d, n, precoOrcamento);
+      return [String(n), n === 21 ? Math.round(v * 100) / 100 : Math.round(v)];
+    })),
     parcelas_fin_prontas: Object.fromEntries(finPrazos.map((n) => [String(n), Math.round(valorFin(d, n, precoOrcamento))])),
     pag_entrada: entrada.ativo === true && entradaValor > 0,
     entrada_valor: ptBR(entradaValor),
