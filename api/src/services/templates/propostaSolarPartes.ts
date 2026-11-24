@@ -227,6 +227,11 @@ export interface AnaliseModelo1 {
   semEconomiaMensal?: boolean;
   /** Só o Completo: sem tempo de retorno (nenhum, ou fora dos 25 anos), o cartão não sai (nunca "—" visível). */
   semRetorno?: boolean;
+  /**
+   * Só o Completo vindo do /gerador com a 21x marcada: a parcela vira o número grande do destaque
+   * ("21x de" + valor, "No cartão de crédito") e o total desce para a linha de baixo. Ausente, sai como sempre.
+   */
+  parcelaDestaque?: { pre: string; v: string; s: string; s2: string };
 }
 
 /** Faixa "Análise Financeira" do modelo 1: destaque (economia em 25 anos e investimento) + grade de 3 cartões. */
@@ -236,7 +241,9 @@ export function analiseModelo1(a: AnaliseModelo1): string {
   <div class="fin">
     <div class="hero"${a.semEconomia ? ' style="grid-template-columns:1fr"' : ''}>
       ${a.semEconomia ? '' : `<div class="heroL"><div class="k">Economia em 25 anos</div><div class="v num">${brl(a.economia25)}</div><div class="s">${a.capitalizar ? 'Com o' : 'com o'} sistema quitado gerando energia própria</div></div>
-      `}<div class="heroR"><div class="k">Investimento</div><div class="v num">${brl(a.investimento)}</div>${a.parcelaLabel ? `<div class="s num">${pEsc(a.parcelaLabel)}</div>` : ''}</div>
+      `}${a.parcelaDestaque
+        ? `<div class="heroR h21"><div class="k">Investimento</div><div class="v num"><span class="pre">${pEsc(a.parcelaDestaque.pre)}</span> ${pEsc(a.parcelaDestaque.v)}</div><div class="s">${pEsc(a.parcelaDestaque.s)}</div><div class="s2 num">${pEsc(a.parcelaDestaque.s2)}</div></div>`
+        : `<div class="heroR"><div class="k">Investimento</div><div class="v num">${brl(a.investimento)}</div>${a.parcelaLabel ? `<div class="s num">${pEsc(a.parcelaLabel)}</div>` : ''}</div>`}
     </div>
     <div class="finGrid"${a.semConsumo ? ' style="grid-template-columns:1fr"' : (a.semEconomiaMensal || a.semRetorno ? ` style="grid-template-columns:repeat(${1 + (a.semEconomiaMensal ? 0 : 1) + (a.semRetorno ? 0 : 1)},1fr)"` : '')}>
       ${a.semConsumo || a.semEconomiaMensal ? '' : `<div class="fc"><div class="k">Economia mensal</div><div class="v num">${brl(a.economiaMensal)}</div></div>

@@ -7,6 +7,7 @@ import {
   fotosDeObraDoOrcamento, tipoDoDocumento, MAX_OBRAS_GALERIA,
 } from '../services/geradorPropostaCompleta';
 import { FOTOS_OBRA_IO } from '../services/templates/fotosObraIo';
+import { DESCONTO_PIX_PADRAO } from '../services/templates/propostaSolarCompleta';
 
 // O orçamento do /gerador no papel do modelo 4. Os números mandam: o que o /gerador e o WhatsApp dizem ao cliente é o que o
 // papel imprime. Dados inventados, no formato do `dados` que o /gerador grava (kit de tabela, SAJ 6K, cartão 18x e 21x).
@@ -124,7 +125,7 @@ describe('mapeador: números do /gerador -> campos do modelo 4', () => {
     expect(f.pag_cartao_18).toBe(true);
     expect(f.pag_cartao_21).toBe(true);
     expect(f.pag_cartao_10).toBeUndefined();
-    expect(f.parcelas_cartao_prontas).toEqual({ 18: 25041, 21: 25643 });
+    expect(f.parcelas_cartao_prontas).toEqual({ 18: 25041, 21: 25643.1 });
     expect(f.pag_fin).toBe(false);
     expect(f.parcelas_fin_prontas).toEqual({});
     expect(f.pag_vista).toBe(false);
@@ -147,7 +148,7 @@ describe('mapeador: números do /gerador -> campos do modelo 4', () => {
     (d.pagOpts as Record<string, unknown>).cartao = { ativo: true, parcelas: [21] };
     (d.pagOpts as Record<string, unknown>).fin = { ativo: true, p36: true, p48: false, p60: false };
     const { fields: f } = monta(d);
-    expect(f.parcelas_cartao_prontas).toEqual({ 21: Math.round((21497 * 1.1928) / 21) });
+    expect(f.parcelas_cartao_prontas).toEqual({ 21: Math.round(((21497 * 1.1928) / 21) * 100) / 100 });
     expect((f.parcelas_fin_prontas as Record<string, number>)[36]).toBe(950);
   });
 
@@ -300,10 +301,58 @@ describe('o papel que sai', () => {
   const t = texto(h);
 
   it('imprime as parcelas do /gerador, e só as marcadas', () => {
-    expect(t).toMatch(/18× de R\$ 25\.041/);
-    expect(t).toMatch(/21× de R\$ 25\.643/);
+    expect(t).toMatch(/18x de R\$ 25\.041/);
+    expect(t).not.toContain('10x de');
     expect(t).not.toContain('10× de');
     expect(t).not.toContain('Financiamento bancário');
+  });
+
+  it('com a 21x marcada, ela é o número grande do preço e o total desce (pedido do dono, 24/11/2026)', () => {
+    // Análise financeira: "21x de" + valor + "No cartão de crédito", e o total na linha de baixo.
+    expect(t).toMatch(/Investimento 21x de R\$ 25\.643,10 No cartão de crédito Total R\$ 21\.497,00/);
+    // Folha do investimento: a 21x no destaque com a linha de apoio (conta de hoje), o preço do projeto (sem Pix ligado),
+    // o total em 21x em letra pequena, a quitação, e a grade sem repetir a 21x.
+    expect(t).toMatch(/21x de R\$ 25\.643,10 No cartão de crédito Sua conta hoje é R\$ 1\.145\. Essa parcela paga um sistema que gera sua energia\. Preço do projeto R\$ 21\.497,00 Total em 21x no cartão R\$ 538\.505,10 Depois da 21ª parcela, o sistema está quitado e continua gerando energia para você\. Cartão de crédito Sem entrada 18x de/);
+    expect(t.match(/21x de/g)).toHaveLength(2);
+    expect(t).not.toContain('×');
+    expect(t).not.toContain('Pix');
+  });
+
+  it('com a 21x e o à vista ligado igual ao preço: Pix em destaque, 5% sobre o preço normal (Pix / 0,95)', () => {
+    expect(DESCONTO_PIX_PADRAO).toBe(0.05);
+    const d = dadosBase();
+    (d.pagOpts as { vista: boolean }).vista = true;
+    const x = texto(html(d));
+    // 21.497 / 0,95 = 22.628,42 → R$ 22.628; economia 22.628 - 21.497 = R$ 1.131.
+    expect(x).toMatch(/Investimento 21x de R\$ 25\.643,10 No cartão de crédito À vista no Pix R\$ 21\.497 · Preço normal R\$ 22\.628/);
+    expect(x).toMatch(/5% de desconto no Pix À vista no Pix R\$ 21\.497 Pagando à vista no Pix, você economiza R\$ 1\.131 sobre o preço normal\. Preço normal R\$ 22\.628 Total em 21x no cartão R\$ 538\.505,10/);
+    expect(x).not.toContain('Desconto à vista');
+  });
+
+  it('com a 21x e um à vista menor que o preço: preço normal = preço do projeto, percentual e economia reais', () => {
+    const d: Record<string, unknown> = { ...dadosBase(), precoVista: 20000 };
+    (d.pagOpts as { vista: boolean }).vista = true;
+    const x = texto(html(d));
+    expect(x).toMatch(/7% de desconto no Pix À vista no Pix R\$ 20\.000 Pagando à vista no Pix, você economiza R\$ 1\.497 sobre o preço normal\. Preço normal R\$ 21\.497 Total em 21x/);
+    expect(x).not.toContain('Desconto à vista');
+  });
+
+  it('o CSS do destaque só entra com a 21x do /gerador (sem ela o HTML não leva nada novo)', () => {
+    const d = dadosBase();
+    (d.pagOpts as { cartao: { parcelas: number[] } }).cartao.parcelas = [18];
+    const h = html(d);
+    expect(h).not.toContain('pix21');
+    expect(h).not.toContain('.invBig .pre');
+    expect(html()).toContain('.invBig .pre');
+  });
+
+  it('sem a 21x marcada, o preço sai como antes', () => {
+    const d = dadosBase();
+    (d.pagOpts as { cartao: { parcelas: number[] } }).cartao.parcelas = [18];
+    const x = texto(html(d));
+    expect(x).not.toContain('21x de');
+    expect(x).toMatch(/Preço do projeto R\$ 21\.497,00/);
+    expect(x).toMatch(/18× de R\$ 25\.041/);
   });
 
   it('o financiamento imprime fin36x e fin60x, não a conta da SolarDoc', () => {
@@ -311,9 +360,9 @@ describe('o papel que sai', () => {
     (d.pagOpts as Record<string, unknown>).fin = { ativo: true, p36: true, p48: false, p60: true };
     const x = texto(html(d));
     expect(x).toMatch(/Financiamento bancário/);
-    expect(x).toMatch(/36× de R\$ 950/);
-    expect(x).toMatch(/60× de R\$ 708/);
-    expect(x).not.toContain('48× de');
+    expect(x).toMatch(/36x de R\$ 950/);
+    expect(x).toMatch(/60x de R\$ 708/);
+    expect(x).not.toContain('48x de');
   });
 
   it('preço, validade da sexta às 18h, data de emissão e número da proposta', () => {
