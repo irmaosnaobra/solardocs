@@ -1,11 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // RESUMO SEMANAL DO SOLAR POR VENDEDOR (23/11/2026). Robô `solar_relatorio_semanal` (chefe/classes.ts, aviso_interno_p2).
-//
 // Toda SEXTA, das 16h às 17h59 de Brasília, cada um dos quatro (Diego, Thiago, Nilce e Giovanna) recebe, em privado, pela linha 5040, a mesma
 // mensagem com o resultado da semana do solar por vendedor: leads agendados, orçamentos e contratos. Só equipe: nada vai a cliente (por isso o boletim leva emojis e negrito, pedido do dono; a regra de "sem emoji" segue valendo para cliente).
-//
 // Período: de sexta a quinta. Na sexta D conta de D-7 00:00 até D-1 23:59 (Brasília), então a semana nunca repete lead da anterior.
-//
 // Condições do chefe anti-ban:
 //  · UMA bolha por pessoa (sendWhatsApp, instância 'io'), UM envio por rodada do /process-messages (pg_cron */2): os quatro chegam em ~8 min;
 //  · janela por Intl com America/Sao_Paulo, nunca pela hora do servidor;
