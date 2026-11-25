@@ -48,8 +48,8 @@ import LojaPanel from './_panels/LojaPanel';
 import PontoCertoPanel from './_panels/PontoCertoPanel';
 // Trilha do Parceiro NEXUS: aptos para reunião e Mapa de demanda (iframe de /nexus/adm)
 import NexusParceirosPanel from './_panels/NexusParceirosPanel';
-// Monjour Natural (hub Produtos): visão geral, funil do quiz, vendas, leads, app e anúncios
-import MonjourProdutoPanel from './_panels/MonjourProdutoPanel';
+// Domina IA (hub Produtos): visão geral, funil do quiz, vendas, leads, app e anúncios
+import DominaiaProdutoPanel from './_panels/DominaiaProdutoPanel';
 // NEXUS Instagram: a lista de interesse do link da bio (/nexus/interesse), com contato e CSV
 import NexusInstagramPanel from './_panels/NexusInstagramPanel';
 // Irmãos na Obra Instagram: a lista de interesse do link da bio (/io/interesse), quatro portas e agenda
@@ -157,9 +157,9 @@ export const PRODUCTS: Product[] = [
       { key: 'offgrid',      label: 'Off-Grid',        status: 'pronto', Comp: () => <ProdutoLojaPanel produto="offgrid" /> },
       { key: 'precificacao', label: 'Precificação',    status: 'pronto', Comp: () => <ProdutoLojaPanel produto="precificacao" /> },
       { key: 'inventario',   label: 'Inventário',      status: 'pronto', Comp: () => <ProdutoLojaPanel produto="inventario" /> },
-      // Monjour Natural (19/11/2026): app vendido na América Latina pelo quiz. Era hub próprio e veio
-      // para cá. Vendas e leads da Stripe pelo site do Monjour, funil e app do lp_events da SolarDoc.
-      { key: 'monjour',      label: 'Monjour Natural', status: 'pronto', Comp: MonjourProdutoPanel },
+      // Domina IA (24/11/2026): reto de IA em 28 dias, em espanhol, para 14 países da América Latina.
+      // Visão geral, funil, vendas, leads, app e anúncios; as rotas são /admin/dominaia/*.
+      { key: 'dominaia',     label: 'Domina IA', status: 'pronto', Comp: DominaiaProdutoPanel },
     ],
   },
 ];

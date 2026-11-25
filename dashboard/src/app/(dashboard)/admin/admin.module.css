@@ -137,7 +137,7 @@
 
 /* ─── período: um controle segmentado só ───
    Os painéis montam a fileira de jeitos diferentes: uns com .periodTabs, outros
-   (Monjour, filtros) com classe própria. O :has() acha a fileira pelo botão ativo,
+   (Domina IA, filtros) com classe própria. O :has() acha a fileira pelo botão ativo,
    então toda fileira de escolha única vira a mesma bandeja, sem mexer nos painéis.
    .periodBtn solto (Atualizar, Mostrar mais) é botão de contorno na mesma altura. */
 .periodBtn, .periodActive {
@@ -217,7 +217,7 @@ div:has(> .periodActive)::-webkit-scrollbar { display: none; }
   font-weight: 600;
 }
 
-/* Atualizar logo depois da bandeja (Monjour): colado nela, com o ícone. */
+/* Atualizar logo depois da bandeja (Domina IA): colado nela, com o ícone. */
 div:has(> .periodActive) + .periodBtn { margin-left: 0; }
 div:has(> .periodActive) + .periodBtn::before {
   content: '';
