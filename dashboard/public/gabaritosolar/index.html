@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gabarito Solar | SolarDoc</title>
+<meta name="description" content="Gabarito Solar: 87 páginas visuais da venda de energia solar, organizadas por cor.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%230A1630%22/%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%227%22 fill=%22%23F59E0B%22/%3E%3C/svg%3E">
+<meta name="theme-color" content="#0A1630">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="Gabarito Solar | SolarDoc">
+<meta property="og:description" content="87 páginas visuais da venda de energia solar, organizadas por cor.">
+<meta property="og:type" content="product">
+<link rel="preload" href="/gabaritosolar/assets/nunito-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/gabaritosolar/assets/inter-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" as="image" href="/gabaritosolar/assets/folhas-720.webp" media="(max-width: 959px)" fetchpriority="high">
+<style>
+@font-face{font-family:"Nunito";src:url("/gabaritosolar/assets/nunito-900.woff2") format("woff2");font-weight:900;font-style:normal;font-display:swap}
+@font-face{font-family:"Inter";src:url("/gabaritosolar/assets/inter-var.woff2") format("woff2");font-weight:400 800;font-style:normal;font-display:swap}
+@font-face{font-family:"Nunito fb";src:local("Arial Bold"),local("Arial-BoldMT"),local("Arial");font-weight:900;size-adjust:110%;ascent-override:92%;descent-override:32%;line-gap-override:0%}
+@font-face{font-family:"Inter fb";src:local("Arial"),local("ArialMT");size-adjust:107%;ascent-override:90%;descent-override:22%;line-gap-override:0%}
+
+:root{
+  --bg:#0A1630;
+  --bg-2:#0F1F42;
+  --line:rgba(173,196,235,.16);
+  --title:#FFFFFF;
+  --text:#E3E9F3;
+  --muted:#B4C1D6;
+  --amber:#F59E0B;
+  --amber-hi:#FBB52E;
+  --ink:#1A1206;
+  --bubble:#DCE7FB;
+  --c-banho:#FF7A00;
+  --c-pechincha:#F0453C;
+  --c-pe:#4F7BEA;
+  --display:"Nunito","Nunito fb",system-ui,sans-serif;
+  --body:"Inter","Inter fb",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --wrap:1120px;
+  --pad:20px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.55 var(--body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{display:block;max-width:100%;height:auto}
+h1,h2,h3{font-family:var(--display);font-weight:900;color:var(--title);margin:0;text-wrap:balance;letter-spacing:-.01em}
+p{margin:0}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 var(--pad)}
+.skip{position:absolute;left:-9999px;top:8px;background:var(--amber);color:var(--ink);padding:10px 14px;border-radius:8px;font-weight:700;z-index:10}
+.skip:focus{left:8px}
+.nw{white-space:nowrap}
+
+/* faixa das cores do produto */
+.cores{display:flex;height:4px}
+.cores i{flex:1}
+
+/* marca */
+.marca{font:800 20px/1 var(--body);letter-spacing:-.02em;color:var(--title)}
+.marca b{font-weight:800;color:var(--amber)}
+.topo{padding:14px 0 0}
+.topo .wrap{display:flex;align-items:center;min-height:32px}
+
+/* botao */
+.cta{display:flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 28px;border-radius:12px;
+  background:var(--amber);color:var(--ink);font:800 17px/1.1 var(--body);text-decoration:none;letter-spacing:-.01em;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  transition:background-color .15s ease,transform .15s ease}
+.cta svg{flex:none}
+.cta:hover{background:var(--amber-hi)}
+.cta:active{transform:translateY(1px)}
+.cta:focus-visible{outline:3px solid #fff;outline-offset:3px}
+
+/* preco */
+.preco{font:900 40px/1 var(--display);color:var(--title);font-variant-numeric:tabular-nums;white-space:nowrap}
+.preco small{font-size:.5em;margin-right:4px;vertical-align:.55em;color:var(--muted)}
+.garantia{display:flex;align-items:center;gap:8px;font:600 15px/1.3 var(--body);color:var(--text)}
+.garantia svg{flex:none;color:var(--amber)}
+
+/* ===== bloco 1 ===== */
+.hero{padding:18px 0 40px}
+.hero .wrap{display:grid;grid-template-areas:"tit" "img" "ofe";row-gap:14px}
+.hero-txt{grid-area:tit}
+.hero h1{font-size:clamp(28px,7.4vw,56px);line-height:1.08}
+.hero .lead{margin-top:10px;font-size:16px;line-height:1.45;color:var(--text);max-width:34em}
+.hero-img{grid-area:img;margin:0}
+.hero-img img{width:100%;aspect-ratio:720/503}
+.hero-img figcaption{margin-top:4px;font-size:13px;line-height:1.35;color:var(--muted)}
+.oferta{grid-area:ofe}
+.oferta-linha{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px}
+
+/* ===== secoes ===== */
+.sec{padding:56px 0;border-top:1px solid var(--line)}
+.sec h2{font-size:clamp(26px,6.6vw,40px);line-height:1.12}
+
+/* ===== bloco 2: fichas ===== */
+.fichas-lista{list-style:none;margin:28px 0 0;padding:0;display:grid;gap:28px}
+.ficha{display:grid;grid-template-columns:128px 1fr;column-gap:18px;align-items:start}
+.ficha img{width:128px;aspect-ratio:360/509;border-radius:4px;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+.ficha .fala{display:inline-block;position:relative;font:900 16px/1.3 var(--display);color:var(--title);
+  padding:8px 12px;border-radius:12px;border:2px solid var(--cor);margin-bottom:10px}
+.ficha .fala::after{content:"";position:absolute;left:-7px;top:14px;width:12px;height:12px;background:var(--band);
+  border-left:2px solid var(--cor);border-bottom:2px solid var(--cor);transform:rotate(45deg)}
+.fichas-sec{--band:#0D1C3C;background:var(--band);border-top:0}
+.fichas-sec + .sec{border-top:0}
+.fichas-sec .exemplo{background:var(--bg)}
+.ficha h3{font-size:20px;line-height:1.15;margin-top:6px}
+.ficha p.desc{margin-top:6px;font-size:15px;line-height:1.5;color:var(--text)}
+.ficha--trava{--cor:var(--c-banho)}
+.ficha--bolso{--cor:var(--c-pechincha)}
+.ficha--papel{--cor:var(--c-pe)}
+
+.exemplo{margin-top:36px;padding:20px;border-radius:16px;background:var(--bg-2);border:1px solid var(--line)}
+.etiqueta{display:inline-block;font:700 12px/1 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--amber);
+  border:1px solid rgba(245,158,11,.55);border-radius:999px;padding:6px 10px}
+.exemplo .ex-tit{margin-top:12px;font-weight:600;color:var(--title);font-size:15px}
+.conversa{display:flex;justify-content:flex-end;margin-top:14px}
+.bolha{position:relative;max-width:92%;background:var(--bubble);color:#0B1733;padding:12px 14px;border-radius:16px 16px 4px 16px;
+  font-size:15.5px;line-height:1.5}
+.bolha::after{content:"";position:absolute;right:-6px;bottom:0;width:12px;height:12px;background:var(--bubble);
+  clip-path:polygon(0 0,0 100%,100% 100%)}
+
+/* ===== bloco 3: o que recebe ===== */
+.recebe .destaque{margin-top:14px;font:900 22px/1.2 var(--display);color:var(--title)}
+.recebe .destaque span{color:var(--amber)}
+.recebe-img{margin:24px auto 0;max-width:440px}
+.recebe-img img{width:100%;aspect-ratio:960/865}
+.itens{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:14px}
+.itens li{display:grid;grid-template-columns:14px 1fr;gap:12px;align-items:start;font-size:16px;line-height:1.45}
+.itens li::before{content:"";width:14px;height:14px;border-radius:3px;margin-top:5px;background:var(--m)}
+.itens li:nth-child(1){--m:#FF7A00}
+.itens li:nth-child(2){--m:#14A04B}
+.itens li:nth-child(3){--m:#49B6F2}
+.itens li:nth-child(4){--m:#FFC000}
+.recebe .entrega{margin-top:22px;color:var(--muted);font-size:15px}
+.recebe .cta{margin-top:14px}
+
+/* ===== bloco 4: garantia e perguntas ===== */
+.selo{display:grid;grid-template-columns:52px 1fr;column-gap:14px;row-gap:10px;align-items:center;padding:22px 20px;border-radius:16px;
+  background:var(--bg-2);border:1px solid var(--line)}
+.selo svg{color:var(--amber)}
+.selo p{grid-column:1/-1;font-size:16px;line-height:1.5}
+.selo h2{font-size:clamp(26px,6.6vw,36px)}
+.garantias .selo{border-color:rgba(245,158,11,.45)}
+.rotulo{margin-top:36px;font:700 13px/1 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.selo strong{color:var(--title)}
+.faq{margin:18px 0 0;display:grid;gap:22px}
+.faq dt{font:900 19px/1.25 var(--display);color:var(--title)}
+.faq dd{margin:6px 0 0;font-size:16px;line-height:1.55;color:var(--text)}
+
+/* ===== bloco 5: fecho ===== */
+.fecho{text-align:left}
+.fecho h2{max-width:18em}
+.fecho .preco{margin-top:22px}
+.fecho .cta{margin-top:16px}
+
+.rodape{padding:28px 0 calc(28px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+.rodape .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.rodape .marca{font-size:18px}
+
+/* ===== computador ===== */
+@media (min-width:960px){
+  :root{--pad:40px}
+  .topo{padding-top:22px}
+  .hero{padding:40px 0 72px}
+  .hero .wrap{grid-template-columns:minmax(0,5fr) minmax(0,7fr);grid-template-areas:"tit img" "ofe img";column-gap:40px;row-gap:28px;align-items:center}
+  .hero-txt{align-self:end}
+  .hero h1{font-size:52px}
+  .hero .lead{font-size:19px;margin-top:16px}
+  .oferta{align-self:start;max-width:420px}
+  .oferta-linha{justify-content:flex-start;gap:24px}
+  .preco{font-size:48px}
+  .hero-img figcaption{text-align:right}
+  .sec{padding:88px 0}
+  .sec h2{font-size:40px}
+  .fichas-lista{grid-template-columns:repeat(3,1fr);gap:40px;margin-top:40px}
+  .ficha{grid-template-columns:1fr;row-gap:20px}
+  .ficha img{width:100%;max-width:300px}
+  .ficha .fala{font-size:18px}
+  .ficha h3{font-size:24px}
+  .ficha p.desc{font-size:16px}
+  .exemplo{margin-top:56px;display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:32px;align-items:center;padding:28px 32px}
+  .conversa{margin-top:0}
+  .bolha{font-size:17px;max-width:100%}
+  .recebe .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);column-gap:64px;align-items:center}
+  .recebe-img{grid-column:1;grid-row:1/span 6;margin:0;max-width:480px}
+  .recebe .txt{grid-column:2}
+  .recebe .destaque{font-size:28px}
+  .recebe .cta{display:inline-flex;min-width:320px}
+  .garantias .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);column-gap:64px;align-items:start}
+  .selo{padding:32px}
+  .garantias .selo h2{font-size:34px}
+  .selo p{font-size:18px}
+  .rotulo{margin-top:8px}
+  .faq{gap:26px}
+  .ficha .fala::after{left:22px;top:-7px;border-left:2px solid var(--cor);border-top:2px solid var(--cor);border-bottom:0}
+  .fecho .wrap{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);column-gap:64px;align-items:end}
+  .fecho .compra{justify-self:end;width:100%;max-width:360px}
+  .fecho .preco{margin-top:0}
+  .hero .cta{display:inline-flex;min-width:320px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#conteudo">Ir para o conteúdo</a>
+<div class="cores" aria-hidden="true"><i style="background:#49B6F2"></i><i style="background:#8A5A34"></i><i style="background:#00A5A8"></i><i style="background:#B123A5"></i><i style="background:#14A04B"></i><i style="background:#E5332A"></i><i style="background:#FF7A00"></i><i style="background:#2357D8"></i><i style="background:#FFC000"></i><i style="background:#7C4DDB"></i><i style="background:#1B2A7A"></i><i style="background:#8DC63F"></i><i style="background:#901211"></i></div>
+
+<header class="topo">
+  <div class="wrap"><span class="marca" translate="no">Solar<b>Doc</b></span></div>
+</header>
+
+<main id="conteudo">
+  <!-- Bloco 1. Primeira tela -->
+  <section class="hero" aria-labelledby="t-hero">
+    <div class="wrap">
+      <div class="hero-txt">
+        <h1 id="t-hero">O cliente falou <span class="nw">“vou pensar”</span>. A resposta está na página certa.</h1>
+        <p class="lead">Gabarito Solar: 87 páginas visuais da venda de energia solar, organizadas por cor.</p>
+      </div>
+      <figure class="hero-img">
+        <picture>
+          <source media="(min-width: 960px)" srcset="/gabaritosolar/assets/folhas-1200.webp" width="1200" height="838">
+          <img src="/gabaritosolar/assets/folhas-720.webp" width="720" height="503" fetchpriority="high" decoding="async"
+               alt="Folhas impressas do Gabarito Solar abertas em leque, cada uma com a faixa de cor do capítulo na borda. Na frente, as fichas A Trava Escondida e O Papel Fala.">
+        </picture>
+        <figcaption>Imagem ilustrativa. Você recebe o PDF para imprimir.</figcaption>
+      </figure>
+      <div class="oferta" id="comprar">
+        <div class="oferta-linha">
+          <p class="preco" data-preco><small>R$</small>37</p>
+          <p class="garantia"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3z"/><path d="m8.8 12.2 2.3 2.3 4.3-4.6"/></svg>Garantia de 7 dias.</p>
+        </div>
+        <a class="cta" data-cta="topo" href="https://pay.kiwify.com.br/rAjTO6z">Quero o Gabarito Solar<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bloco 2. Três fichas por dentro -->
+  <section class="sec fichas-sec" aria-labelledby="t-fichas">
+    <div class="wrap">
+      <h2 id="t-fichas">Veja três fichas por dentro</h2>
+      <ol class="fichas-lista">
+        <li class="ficha ficha--trava">
+          <img src="/gabaritosolar/assets/pagina-trava-360.webp" srcset="/gabaritosolar/assets/pagina-trava-360.webp 360w, /gabaritosolar/assets/pagina-trava-720.webp 720w"
+               sizes="(min-width: 960px) 300px, 128px" width="360" height="509" loading="lazy" decoding="async"
+               alt="Página 45 do Gabarito Solar, A Trava Escondida, com a cena do cliente dizendo vou pensar e te retorno.">
+          <div>
+            <p class="fala">“Vou pensar e te retorno.”</p>
+            <h3>A Trava Escondida</h3>
+            <p class="desc">Ensina a perguntar o que ainda trava, sem você empurrar.</p>
+          </div>
+        </li>
+        <li class="ficha ficha--bolso">
+          <img src="/gabaritosolar/assets/pagina-bolso-360.webp" srcset="/gabaritosolar/assets/pagina-bolso-360.webp 360w, /gabaritosolar/assets/pagina-bolso-720.webp 720w"
+               sizes="(min-width: 960px) 300px, 128px" width="360" height="509" loading="lazy" decoding="async"
+               alt="Página 44 do Gabarito Solar, O Bolso Apertado, com a cena do cliente dizendo que está fora do orçamento.">
+          <div>
+            <p class="fala">“Está fora do meu orçamento.”</p>
+            <h3>O Bolso Apertado</h3>
+            <p class="desc">Descobre se assusta o valor total ou a parcela, antes de você mexer no sistema.</p>
+          </div>
+        </li>
+        <li class="ficha ficha--papel">
+          <img src="/gabaritosolar/assets/pagina-papel-360.webp" srcset="/gabaritosolar/assets/pagina-papel-360.webp 360w, /gabaritosolar/assets/pagina-papel-720.webp 720w"
+               sizes="(min-width: 960px) 300px, 128px" width="360" height="509" loading="lazy" decoding="async"
+               alt="Página 49 do Gabarito Solar, O Papel Fala, com a cena do cliente perguntando quem honra a garantia.">
+          <div>
+            <p class="fala">“E se sua empresa fechar?”</p>
+            <h3>O Papel Fala</h3>
+            <p class="desc">Separa as garantias do módulo, do inversor e da instalação.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="exemplo">
+        <div>
+          <span class="etiqueta">Exemplo</span>
+          <p class="ex-tit">A Trava Escondida, versão de WhatsApp:</p>
+        </div>
+        <div class="conversa">
+          <p class="bolha">“Tranquilo, decisão importante. Me diz o que ainda trava: o valor, o prazo de obra ou confiar na empresa? Pode falar até o que parecer bobagem, melhor resolver agora.”</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bloco 3. O que você recebe -->
+  <section class="sec recebe" aria-labelledby="t-recebe">
+    <div class="wrap">
+      <div class="txt">
+        <h2 id="t-recebe">O que você recebe</h2>
+        <p class="destaque"><span>87 páginas</span> em PDF para imprimir</p>
+      </div>
+      <figure class="recebe-img">
+        <img src="/gabaritosolar/assets/faixas-480.webp" srcset="/gabaritosolar/assets/faixas-480.webp 480w, /gabaritosolar/assets/faixas-960.webp 960w"
+             sizes="(min-width: 960px) 480px, 92vw" width="480" height="432" loading="lazy" decoding="async"
+             alt="Borda de oito folhas do Gabarito Solar em degrau, cada uma com a faixa de cor e o nome do capítulo: Quebra-Gelo, Raio-X, Mesa Posta, Hora H, Pechincha, Banho-Maria, Pé Atrás e Meia Verdade.">
+      </figure>
+      <div class="txt">
+        <ul class="itens">
+          <li>Fichas de objeção com a fala pronta e a versão para WhatsApp</li>
+          <li>Fichas de etapa, mensagem, ferramenta e checklist, na ordem da venda</li>
+          <li>Faixa de cor na borda da folha para achar o capítulo</li>
+          <li>Índice pela fala do cliente e A Jogada Coringa</li>
+        </ul>
+        <p class="entrega">Depois da compra aprovada, você recebe o PDF.</p>
+        <a class="cta" data-cta="meio" href="https://pay.kiwify.com.br/rAjTO6z">Quero o Gabarito Solar<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bloco 4. Garantia e perguntas rápidas -->
+  <section class="sec garantias" aria-labelledby="t-garantia">
+    <div class="wrap">
+      <div class="selo">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3z"/><path d="m8.8 12.2 2.3 2.3 4.3-4.6"/></svg>
+        <h2 id="t-garantia">Garantia de 7 dias</h2>
+        <p>Se não for para você, peça o reembolso dentro do prazo e o valor volta inteiro.</p>
+      </div>
+      <div class="perguntas">
+      <h3 class="rotulo">Perguntas rápidas</h3>
+      <dl class="faq">
+        <div>
+          <dt>É material físico?</dt>
+          <dd>Não. Você recebe um PDF A4. Impressão, encadernação e prancheta não estão inclusas.</dd>
+        </div>
+        <div>
+          <dt>Preciso imprimir?</dt>
+          <dd>Não é obrigatório. O PDF abre na tela, mas foi feito para o papel: impresso em cor, a faixa na borda leva você ao capítulo.</dd>
+        </div>
+        <div>
+          <dt>Isso garante venda?</dt>
+          <dd>Não. Nenhum material garante venda. O Gabarito dá a resposta pronta para cada situação. Quem conduz a conversa e fecha é você.</dd>
+        </div>
+      </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bloco 5. Fecho -->
+  <section class="sec fecho" aria-labelledby="t-fecho">
+    <div class="wrap">
+      <h2 id="t-fecho">Na próxima vez que ouvir <span class="nw">“vou pensar”</span>, tenha a página aberta.</h2>
+      <div class="compra">
+        <p class="preco" data-preco><small>R$</small>37</p>
+        <a class="cta" data-cta="fecho" href="https://pay.kiwify.com.br/rAjTO6z">Quero o Gabarito Solar<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="rodape">
+  <div class="wrap"><span class="marca" translate="no">Solar<b>Doc</b></span></div>
+</footer>
+
+<script>
+(() => {
+  // ===== Configuração (único lugar para mudar) =====
+  const PRECO = 37;                                            // [PREÇO] da copy, em reais
+  const CHECKOUT_URL = 'https://pay.kiwify.com.br/rAjTO6z';    // Kiwify, Gabarito Solar
+  const PIXEL_ID = '824905216831401';                          // Pixel do SolarDoc
+  const PRODUTO = 'Gabarito Solar';
+  // Pixel, beacon e telemetria só no ar. Arquivo local, localhost e prévia ficam mudos.
+  const NO_AR = /(^|\.)solardoc\.app$/i.test(location.hostname);
+
+  // ===== Preço =====
+  const casas = Number.isInteger(PRECO) ? 0 : 2;
+  const valor = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }).format(PRECO);
+  document.querySelectorAll('[data-preco]').forEach(el => { el.innerHTML = '<small>R$</small>' + valor; });
+
+  // ===== Checkout + UTMs (mesmo padrão do /kit) =====
+  const KEY = 'gabarito_utms';
+  const CAMPOS = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','utm_id','fbclid','sck','src'];
+  const params = new URLSearchParams(location.search);
+  let utms = {};
+  try { utms = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { utms = {}; }
+  let novo = false;
+  CAMPOS.forEach(k => { const v = params.get(k); if (v) { utms[k] = v; novo = true; } });
+  if (novo) { try { localStorage.setItem(KEY, JSON.stringify(utms)); } catch (_) {} }
+
+  function linkCheckout() {
+    const u = new URL(CHECKOUT_URL);
+    CAMPOS.forEach(k => { if (utms[k]) u.searchParams.set(k, utms[k]); });
+    if (!utms.sck) {
+      const sck = [utms.utm_source, utms.utm_campaign, utms.utm_medium, utms.utm_content, utms.utm_term]
+        .map(v => v || '').join('|');
+      if (sck.replace(/\|/g, '')) u.searchParams.set('sck', sck);
+    }
+    return u.toString();
+  }
+  const destino = linkCheckout();
+  document.querySelectorAll('.cta').forEach(a => {
+    a.setAttribute('href', destino);
+    a.setAttribute('target', '_blank');
+    a.setAttribute('rel', 'noopener');
+  });
+
+  // ===== Pixel do Meta =====
+  if (NO_AR) {
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+    n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+    document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', PIXEL_ID);
+    fbq('track', 'PageView');
+  }
+
+  // ===== page_visits (mesmo beacon das outras LPs, aba LP no /admin) =====
+  const API = '/_api';
+  function send(path, body) {
+    if (!NO_AR) return;
+    try { fetch(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {}); } catch (_) {}
+  }
+  const SKEY = 'gab_sd_session', SENT = 'gab_sd_visit_sent';
+  function uuid() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; const v = c === 'x' ? r : (r&0x3)|0x8; return v.toString(16); });
+  }
+  let sid = '';
+  try { sid = sessionStorage.getItem(SKEY) || ''; if (!sid) { sid = uuid(); sessionStorage.setItem(SKEY, sid); } } catch (_) { sid = uuid(); }
+  const utmVisita = {};
+  ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(k => { const v = params.get(k); if (v) utmVisita[k] = v; });
+  try { if (NO_AR && !sessionStorage.getItem(SENT)) { send('/_t/v', { session_id: sid, landing_url: location.href, referrer: document.referrer || null, ...utmVisita }); sessionStorage.setItem(SENT, '1'); } } catch (_) {}
+  window.evtLP = (type, data) => send('/_t/e', { session_id: sid, event_type: type, event_data: data || null });
+
+  let max = 0;
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement, docH = h.scrollHeight - innerHeight;
+    if (docH <= 0) return;
+    const pct = Math.round(((scrollY || h.scrollTop) / docH) * 100);
+    [25, 50, 75, 100].forEach(m => { if (pct >= m && max < m) { max = m; window.evtLP('scroll', { depth: m }); } });
+  }, { passive: true });
+  const inicio = Date.now();
+  window.addEventListener('pagehide', () => {
+    if (!NO_AR) return;
+    const s = Math.round((Date.now() - inicio) / 1000); if (s < 3) return;
+    try { navigator.sendBeacon(API + '/_t/e', new Blob([JSON.stringify({ session_id: sid, event_type: 'time_on_page', event_data: { seconds: s } })], { type: 'application/json' })); } catch (_) {}
+  });
+
+  // ===== Clique nos botões =====
+  document.addEventListener('click', e => {
+    const a = e.target.closest('.cta');
+    if (!a) return;
+    if (NO_AR && typeof fbq === 'function') {
+      try { fbq('track', 'InitiateCheckout', { content_name: PRODUTO, value: PRECO, currency: 'BRL' }); } catch (_) {}
+    }
+    window.evtLP('cta_click', { label: a.dataset.cta || 'cta', tipo: 'checkout' });
+  }, true);
+
+  // Telemetria comum das LPs do app
+  if (NO_AR) { const t = document.createElement('script'); t.src = '/lib/telemetria.js'; t.defer = true; document.body.appendChild(t); }
+})();
+</script>
+</body>
+</html>
