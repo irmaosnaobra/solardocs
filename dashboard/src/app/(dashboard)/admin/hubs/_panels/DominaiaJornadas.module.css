@@ -1,0 +1,225 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   Jornadas da Domina IA: a gaveta, a linha do tempo e a lista de sessões do funil.
+   Mora dentro de .raiz do DominaiaFunilPanel.module.css (--dm terracota, --salvia
+   compra). O <dialog> aberto com showModal continua herdando as variáveis dali.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── gaveta ───────────────────────────── */
+.gaveta {
+  position: fixed;
+  inset: 0 0 0 auto;
+  margin: 0;
+  padding: 0;
+  width: min(640px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  border: 0;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: -8px 0 40px rgb(11 18 32 / 0.16);
+  overflow: hidden;
+}
+.gavetaLarga { width: min(1080px, 94vw); }
+.gaveta::backdrop { background: rgb(11 18 32 / 0.42); }
+.gaveta[open] { animation: entrarLado 0.32s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes entrarLado { from { transform: translateX(28px); opacity: 0.4; } }
+@keyframes entrarBaixo { from { transform: translateY(40px); opacity: 0.4; } }
+:global(html):has(.gaveta[open]) { overflow: hidden; }
+
+.gavetaCaixa { display: flex; flex-direction: column; height: 100%; }
+.gavetaTopo {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+.alca { display: none; }
+.gavetaTitulos { flex: 1; min-width: 0; }
+.gavetaTitulo { margin: 0; font-size: 18px; font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; color: var(--color-text); text-wrap: balance; }
+.gavetaSub { margin-top: 3px; font-size: 13px; color: var(--color-text-muted); overflow-wrap: anywhere; }
+.voltar, .fechar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.voltar { padding: 0 12px 0 10px; }
+.fechar { width: 40px; }
+.voltar:hover, .fechar:hover { background: var(--color-surface-2); border-color: var(--color-border-strong); }
+.gavetaCorpo {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 20px 32px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+/* ── abas Chegaram e Saíram aqui ──────── */
+.abas { display: flex; gap: 4px; padding: 4px; background: var(--color-surface-2); border-radius: 12px; width: fit-content; max-width: 100%; }
+.aba {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 40px; padding: 0 16px;
+  border: 0; border-radius: 9px; background: transparent;
+  font: inherit; font-size: 14px; font-weight: 700; color: var(--color-text-muted);
+  cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease;
+}
+.aba:hover { color: var(--color-text); }
+.aba[aria-selected='true'] { background: var(--color-surface); color: var(--color-text); box-shadow: 0 1px 3px rgb(11 18 32 / 0.12); }
+.abaNum { font-size: 12px; font-weight: 800; padding: 1px 8px; border-radius: 999px; background: var(--color-border); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.aba[aria-selected='true'] .abaNum { background: var(--dm-suave); color: var(--dm-escura); }
+
+.listaTopo { min-height: 20px; margin: 12px 0 8px; font-size: 13px; color: var(--color-text-muted); }
+.aviso { margin-top: 12px; font-size: 13px; }
+.vazioGaveta { display: flex; flex-direction: column; gap: 4px; align-items: center; text-align: center; padding: 40px 16px; border: 1px dashed var(--color-border-strong); border-radius: 12px; }
+.vazioGaveta strong { font-size: 15px; color: var(--color-text); }
+.vazioGaveta span { font-size: 13px; color: var(--color-text-muted); }
+.mudo { color: var(--color-text-dim); }
+.someVisual { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ── tabela de sessões ────────────────── */
+.rolagem { overflow-x: auto; border: 1px solid var(--color-border); border-radius: 10px; transition: opacity 0.15s ease; }
+.esmaecido { opacity: 0.55; }
+.tabela { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 940px; font-variant-numeric: tabular-nums; }
+.tabela th { text-align: left; padding: 10px 12px; background: var(--color-surface-2); border-bottom: 1px solid var(--color-border); font-size: 11px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.tabela td { padding: 9px 12px; border-bottom: 1px solid var(--color-border); vertical-align: top; color: var(--color-text); }
+.tabela tbody tr:last-child td { border-bottom: none; }
+.linhaClicavel { cursor: pointer; }
+.linhaClicavel:hover td { background: var(--color-surface-2); }
+.abrirSessao {
+  font: inherit; font-weight: 800; color: var(--color-text); white-space: nowrap;
+  background: none; border: 0; padding: 2px 4px; margin: -2px -4px; border-radius: 6px; cursor: pointer;
+  text-decoration: underline dotted; text-decoration-color: var(--dm-meio); text-decoration-thickness: 1.5px; text-underline-offset: 3px;
+}
+.linhaClicavel:hover .abrirSessao { color: var(--dm-escura); text-decoration-style: solid; text-decoration-color: var(--dm); }
+.pilha { display: flex; flex-direction: column; min-width: 0; }
+.pilha small, .celAnuncio small { font-size: 12px; color: var(--color-text-dim); }
+.celTexto { max-width: 150px; }
+.celIdade { white-space: nowrap; }
+.celAnuncio { max-width: 200px; }
+.celAnuncio small { display: block; margin-top: 1px; }
+.duasLinhas { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.celAte { white-space: nowrap; }
+.celAte b { display: inline-block; min-width: 22px; font-weight: 800; }
+.celAte span { color: var(--color-text-muted); }
+
+.selo { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.seloCompra { background: var(--salvia-suave); color: var(--salvia); }
+.seloMarca { background: var(--dm-suave); color: var(--dm-escura); }
+
+.paginas { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 13px; color: var(--color-text-muted); }
+.paginas button { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; }
+.paginas button:disabled { opacity: 0.45; cursor: default; }
+
+/* ── jornada: os fatos da sessão ──────── */
+.fatos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; margin: 0; padding: 14px 16px; background: var(--color-surface-2); border-radius: 12px; }
+.fatos dt { font-size: 11px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+.fatos dd { margin: 0; font-size: 14px; color: var(--color-text); overflow-wrap: anywhere; }
+.fatoLargo { grid-column: span 2; }
+.secaoTitulo { margin: 22px 0 4px; font-size: 15px; font-weight: 800; color: var(--color-text); }
+
+/* ── linha do tempo ───────────────────── */
+.linha { --hora: 64px; --ponto: 28px; }
+.linhaDia {
+  position: sticky; top: -16px; z-index: 2;
+  margin: 10px 0 6px; padding: 8px 0 6px;
+  background: var(--color-surface);
+  font-size: 12px; font-weight: 800; color: var(--color-text-muted); letter-spacing: 0.01em;
+}
+.linhaDia::first-letter { text-transform: uppercase; }
+.linhaLista { list-style: none; margin: 0; padding: 0; }
+.linhaItem { position: relative; display: grid; grid-template-columns: var(--hora) var(--ponto) minmax(0, 1fr); column-gap: 12px; padding-bottom: 14px; }
+.linhaItem::before {
+  content: ''; position: absolute; top: 30px; bottom: 2px;
+  left: calc(var(--hora) + 12px + var(--ponto) / 2 - 1px);
+  width: 2px; border-radius: 2px; background: var(--color-border);
+}
+.linhaItem:last-child { padding-bottom: 4px; }
+.linhaItem:last-child::before { display: none; }
+.linhaHora { padding-top: 5px; text-align: right; font-size: 12px; color: var(--color-text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ponto {
+  position: relative; z-index: 1;
+  display: grid; place-items: center;
+  width: var(--ponto); height: var(--ponto); border-radius: 50%;
+  background: var(--color-surface); border: 1.5px solid var(--color-border-strong);
+  color: var(--ink-slate); font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.pontoMarca { background: var(--dm-suave); border-color: var(--dm-meio); color: var(--dm-escura); }
+.pontoCompra { background: var(--salvia-suave); border-color: var(--salvia-meio); color: var(--salvia); }
+.pontoAlerta { background: #FBF1E2; border-color: #EED3AB; color: #8A5310; }
+.linhaTexto { min-width: 0; padding-top: 4px; }
+.linhaTitulo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; line-height: 1.4; color: var(--color-text); }
+.linhaTitulo > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.linhaLado { flex-shrink: 0; font-size: 12px; color: var(--color-text-dim); font-variant-numeric: tabular-nums; }
+.linhaDetalhe { margin-top: 2px; font-size: 13px; color: var(--color-text-muted); overflow-wrap: anywhere; }
+.linhaVazia { margin: 20px 0; font-size: 14px; color: var(--color-text-muted); }
+.parouAqui { display: inline-block; font-size: 11.5px; font-weight: 800; padding: 1px 8px; border-radius: 999px; background: #FBF1E2; color: #8A5310; }
+
+/* ── celular: gaveta de baixo, sessões em cartão ── */
+@media (max-width: 760px) {
+  .gaveta, .gavetaLarga {
+    inset: auto 0 0 0;
+    width: 100vw;
+    height: auto;
+    max-height: 92dvh;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 40px rgb(11 18 32 / 0.18);
+  }
+  .gaveta[open] { animation-name: entrarBaixo; }
+  .gavetaCaixa { height: auto; max-height: 92dvh; }
+  .gavetaTopo { padding: 22px 16px 12px; }
+  .alca { display: block; position: absolute; top: 8px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 4px; background: var(--color-border-strong); }
+  .gavetaTitulo { font-size: 16px; }
+  .gavetaCorpo { padding: 14px 16px calc(28px + env(safe-area-inset-bottom)); }
+  .voltar { padding: 0 10px; }
+  .abas { width: 100%; }
+  .aba { flex: 1; justify-content: center; padding: 0 10px; }
+
+  .fatos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .linha { --hora: 52px; --ponto: 26px; }
+  .linhaItem { column-gap: 10px; }
+  .linhaTitulo { flex-wrap: wrap; row-gap: 2px; }
+
+  .tabela { min-width: 0; }
+  .rolagem { border: 0; border-radius: 0; overflow: visible; }
+  .tabela thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .tabela tbody { display: flex; flex-direction: column; gap: 10px; }
+  .tabela tbody tr {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px;
+    grid-template-areas: 'entrou resultado' 'local aparelho' 'idade corpo' 'objetivo objetivo' 'anuncio ate';
+    padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 12px;
+  }
+  .tabela td, .tabela tbody tr:last-child td { display: block; padding: 0; border: 0; max-width: none; }
+  .linhaClicavel:hover td { background: none; }
+  .linhaClicavel:hover { border-color: var(--dm-meio); }
+  .tabela td[data-rotulo]::before { content: attr(data-rotulo); display: block; margin-bottom: 2px; font-size: 11px; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .tabela td[data-rotulo='Entrou']::before, .tabela td[data-rotulo='Resultado']::before { display: none; }
+  .tabela td[data-rotulo='Entrou'] { grid-area: entrou; align-self: center; }
+  .tabela td[data-rotulo='Resultado'] { grid-area: resultado; justify-self: end; align-self: center; }
+  .tabela td[data-rotulo='Local'] { grid-area: local; }
+  .tabela td[data-rotulo='Aparelho'] { grid-area: aparelho; }
+  .tabela td[data-rotulo='Idade'] { grid-area: idade; }
+  .tabela td[data-rotulo='Corpo'] { grid-area: corpo; }
+  .tabela td[data-rotulo='Objetivo'] { grid-area: objetivo; }
+  .tabela td[data-rotulo='Anúncio'] { grid-area: anuncio; }
+  .tabela td[data-rotulo='Até a tela'] { grid-area: ate; white-space: normal; }
+  .abrirSessao { display: inline-flex; align-items: center; min-height: 32px; font-size: 14px; }
+  .paginas span { text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gaveta[open] { animation: none; }
+}
