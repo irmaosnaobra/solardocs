@@ -46,10 +46,14 @@ import type { NextRequest } from 'next/server';
 // LP externa entra AQUI ou ela não existe pro visitante: sem token e fora desta
 // lista, o proxy manda pro /auth e a página de venda vira tela de login — foi o
 // "caiu na autenticação, todas, todas e todas" de antes.
+// '/gabaritosolar' = LP de venda do Gabarito Solar (public/gabaritosolar/index.html,
+// imagens e fontes em /gabaritosolar/assets). Quem chega do anúncio não tem conta:
+// sem esta linha o proxy manda a página e as fontes .woff2 (o matcher só poupa
+// imagem) para o /auth.
 // `/inventario-empresarial` não colide com a ferramenta `/inventario`: o
 // startsWith é do mais específico pro mais curto, e '/inventario' não está na
 // lista justamente porque é rota logada.
-const PUBLIC_PATHS = ['/lp/', '/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/m/', '/orc/', '/orcamento/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/dimensionamento', '/calculadora', '/inventario-empresarial', '/oferta', '/eletroposto', '/diagnostico', '/vsl', '/ponto-certo', '/plugcash', '/assinar', '/quase-la', '/pix-automatico', '/pesquisa', '/lib', '/bike', '/kilova', '/nexus', '/nexusev', '/irmaosnaobra', '/robots.txt', '/sitemap.xml'];
+const PUBLIC_PATHS = ['/lp/', '/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/m/', '/orc/', '/orcamento/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/dimensionamento', '/calculadora', '/inventario-empresarial', '/oferta', '/eletroposto', '/diagnostico', '/vsl', '/ponto-certo', '/plugcash', '/assinar', '/quase-la', '/pix-automatico', '/pesquisa', '/lib', '/bike', '/kilova', '/nexus', '/nexusev', '/irmaosnaobra', '/gabaritosolar', '/robots.txt', '/sitemap.xml'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;
