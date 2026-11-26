@@ -119,21 +119,6 @@ p{margin:0}
 .bolha::after{content:"";position:absolute;right:-6px;bottom:0;width:12px;height:12px;background:var(--bubble);
   clip-path:polygon(0 0,0 100%,100% 100%)}
 
-/* ===== bloco 3: o que recebe ===== */
-.recebe .destaque{margin-top:14px;font:900 22px/1.2 var(--display);color:var(--title)}
-.recebe .destaque span{color:var(--amber)}
-.recebe-img{margin:24px auto 0;max-width:440px}
-.recebe-img img{width:100%;aspect-ratio:960/865}
-.itens{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:14px}
-.itens li{display:grid;grid-template-columns:14px 1fr;gap:12px;align-items:start;font-size:16px;line-height:1.45}
-.itens li::before{content:"";width:14px;height:14px;border-radius:3px;margin-top:5px;background:var(--m)}
-.itens li:nth-child(1){--m:#FF7A00}
-.itens li:nth-child(2){--m:#14A04B}
-.itens li:nth-child(3){--m:#49B6F2}
-.itens li:nth-child(4){--m:#FFC000}
-.recebe .entrega{margin-top:22px;color:var(--muted);font-size:15px}
-.recebe .cta{margin-top:14px}
-
 /* ===== bloco 4: garantia e perguntas ===== */
 .selo{display:grid;grid-template-columns:52px 1fr;column-gap:14px;row-gap:10px;align-items:center;padding:22px 20px;border-radius:16px;
   background:var(--bg-2);border:1px solid var(--line)}
@@ -147,11 +132,41 @@ p{margin:0}
 .faq dt{font:900 19px/1.25 var(--display);color:var(--title)}
 .faq dd{margin:6px 0 0;font-size:16px;line-height:1.55;color:var(--text)}
 
-/* ===== bloco 5: fecho ===== */
-.fecho{text-align:left}
-.fecho h2{max-width:18em}
-.fecho .preco{margin-top:22px}
-.fecho .cta{margin-top:16px}
+/* ===== bloco 5: card de oferta ===== */
+.cta--meio{margin-top:28px}
+.oferta-sec{padding:12px 0 56px}
+.card{position:relative;scroll-margin-top:8px;border-radius:20px;overflow:hidden;
+  background:#112552;border:2px solid rgba(245,158,11,.7);box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.card:focus{outline:none}
+.card:focus-visible{outline:3px solid #fff;outline-offset:4px}
+.card-cores{display:flex;height:6px}
+.card-cores i{flex:1}
+.card-img{margin:10px auto 0;width:min(240px,66%)}
+.card-img img{width:100%;aspect-ratio:720/503}
+.card-corpo{padding:8px 20px 20px}
+.card h2{font-size:30px;line-height:1.1;text-align:center}
+.card-linha{margin-top:6px;font-size:15px;line-height:1.45;color:var(--text);text-align:center;text-wrap:balance}
+.card-itens{list-style:none;margin:14px 0 0;padding:12px 0 0;border-top:1px solid var(--line);display:grid;gap:7px}
+.card-itens li{display:grid;grid-template-columns:18px 1fr;gap:10px;align-items:start;font-size:15px;line-height:1.4;color:var(--text)}
+.card-itens li::before{content:"";width:18px;height:18px;margin-top:1px;border-radius:50%;
+  background:var(--m) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12.5 4 4 8-9'/%3E%3C/svg%3E") center/12px no-repeat}
+.card-itens li:nth-child(1){--m:#E8590C}
+.card-itens li:nth-child(2){--m:#13924A}
+.card-itens li:nth-child(3){--m:#2357D8}
+.card-itens li:nth-child(4){--m:#9C3FC4}
+.card-itens b{font-weight:800;color:var(--title)}
+.card-preco{display:flex;align-items:baseline;justify-content:center;gap:12px;margin-top:14px}
+.card .preco{font-size:46px}
+.unico{font-size:14px;color:var(--muted);font-weight:600}
+.entrega{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:center;margin-top:12px;padding:12px 14px;border-radius:14px;
+  background:#173068;border:1px solid rgba(73,182,242,.45)}
+.entrega-ico{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#49B6F2;color:#08203D}
+.entrega-tit{font:800 16px/1.25 var(--body);color:var(--title)}
+.entrega-txt{margin-top:2px;font-size:14px;line-height:1.4;color:var(--text)}
+.card-selo{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:12px;font:600 14px/1.2 var(--body);color:var(--text)}
+.card-selo svg{color:var(--amber);flex:none}
+.cta--compra{margin-top:10px;min-height:60px;font-size:18px;box-shadow:0 8px 22px rgba(245,158,11,.28)}
+.miudo{margin-top:10px;font-size:13px;line-height:1.4;color:var(--muted);text-align:center}
 
 .rodape{padding:28px 0 calc(28px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
 .rodape .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
@@ -181,11 +196,6 @@ p{margin:0}
   .exemplo{margin-top:56px;display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:32px;align-items:center;padding:28px 32px}
   .conversa{margin-top:0}
   .bolha{font-size:17px;max-width:100%}
-  .recebe .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);column-gap:64px;align-items:center}
-  .recebe-img{grid-column:1;grid-row:1/span 6;margin:0;max-width:480px}
-  .recebe .txt{grid-column:2}
-  .recebe .destaque{font-size:28px}
-  .recebe .cta{display:inline-flex;min-width:320px}
   .garantias .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);column-gap:64px;align-items:start}
   .selo{padding:32px}
   .garantias .selo h2{font-size:34px}
@@ -193,10 +203,23 @@ p{margin:0}
   .rotulo{margin-top:8px}
   .faq{gap:26px}
   .ficha .fala::after{left:22px;top:-7px;border-left:2px solid var(--cor);border-top:2px solid var(--cor);border-bottom:0}
-  .fecho .wrap{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);column-gap:64px;align-items:end}
-  .fecho .compra{justify-self:end;width:100%;max-width:360px}
-  .fecho .preco{margin-top:0}
   .hero .cta{display:inline-flex;min-width:320px}
+  .cta--meio{display:flex;width:max-content;min-width:320px;margin:40px auto 0}
+  .oferta-sec{padding:24px 0 96px}
+  .card{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,10fr);max-width:1040px;margin:0 auto}
+  .card-cores{grid-column:1/-1}
+  .card-img{margin:0;width:auto;align-self:center;padding:32px 8px 32px 36px}
+  .card-corpo{padding:40px 48px 36px 24px}
+  .card h2,.card-linha{text-align:left}
+  .card h2{font-size:44px}
+  .card-linha{font-size:17px;margin-top:10px}
+  .card-itens{margin-top:20px;padding-top:18px;gap:10px}
+  .card-itens li{font-size:16px}
+  .card-preco{justify-content:flex-start;margin-top:20px}
+  .card .preco{font-size:56px}
+  .entrega{margin-top:16px}
+  .card-selo{justify-content:flex-start}
+  .miudo{text-align:left}
 }
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important;animation:none!important;scroll-behavior:auto!important}
@@ -227,12 +250,12 @@ p{margin:0}
         </picture>
         <figcaption>Imagem ilustrativa. Você recebe o PDF para imprimir.</figcaption>
       </figure>
-      <div class="oferta" id="comprar">
+      <div class="oferta">
         <div class="oferta-linha">
           <p class="preco" data-preco><small>R$</small>37</p>
           <p class="garantia"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3z"/><path d="m8.8 12.2 2.3 2.3 4.3-4.6"/></svg>Garantia de 7 dias.</p>
         </div>
-        <a class="cta" data-cta="topo" href="https://pay.kiwify.com.br/rAjTO6z">Quero o Gabarito Solar<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="cta cta--rolar" data-cta="topo" href="#oferta">Quero o Gabarito Solar<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></a>
       </div>
     </div>
   </section>
@@ -283,31 +306,7 @@ p{margin:0}
           <p class="bolha">“Tranquilo, decisão importante. Me diz o que ainda trava: o valor, o prazo de obra ou confiar na empresa? Pode falar até o que parecer bobagem, melhor resolver agora.”</p>
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- Bloco 3. O que você recebe -->
-  <section class="sec recebe" aria-labelledby="t-recebe">
-    <div class="wrap">
-      <div class="txt">
-        <h2 id="t-recebe">O que você recebe</h2>
-        <p class="destaque"><span>87 páginas</span> em PDF para imprimir</p>
-      </div>
-      <figure class="recebe-img">
-        <img src="/gabaritosolar/assets/faixas-480.webp" srcset="/gabaritosolar/assets/faixas-480.webp 480w, /gabaritosolar/assets/faixas-960.webp 960w"
-             sizes="(min-width: 960px) 480px, 92vw" width="480" height="432" loading="lazy" decoding="async"
-             alt="Borda de oito folhas do Gabarito Solar em degrau, cada uma com a faixa de cor e o nome do capítulo: Quebra-Gelo, Raio-X, Mesa Posta, Hora H, Pechincha, Banho-Maria, Pé Atrás e Meia Verdade.">
-      </figure>
-      <div class="txt">
-        <ul class="itens">
-          <li>Fichas de objeção com a fala pronta e a versão para WhatsApp</li>
-          <li>Fichas de etapa, mensagem, ferramenta e checklist, na ordem da venda</li>
-          <li>Faixa de cor na borda da folha para achar o capítulo</li>
-          <li>Índice pela fala do cliente e A Jogada Coringa</li>
-        </ul>
-        <p class="entrega">Depois da compra aprovada, você recebe o PDF.</p>
-        <a class="cta" data-cta="meio" href="https://pay.kiwify.com.br/rAjTO6z">Quero o Gabarito Solar<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-      </div>
+      <a class="cta cta--rolar cta--meio" data-cta="meio" href="#oferta">Quero o Gabarito Solar<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></a>
     </div>
   </section>
 
@@ -332,21 +331,50 @@ p{margin:0}
         </div>
         <div>
           <dt>Isso garante venda?</dt>
-          <dd>Não. Nenhum material garante venda. O Gabarito dá a resposta pronta para cada situação. Quem conduz a conversa e fecha é você.</dd>
+          <dd>Não. Nenhum material garante venda. O que o Gabarito faz é pôr na sua mão o argumento pronto para cada momento da conversa. Quanto mais você aplica, mais preparado chega em cada venda.</dd>
         </div>
       </dl>
       </div>
     </div>
   </section>
 
-  <!-- Bloco 5. Fecho -->
-  <section class="sec fecho" aria-labelledby="t-fecho">
+  <!-- Bloco 5. Card de oferta: o único botão que vai ao checkout -->
+  <section class="oferta-sec" aria-labelledby="t-oferta">
     <div class="wrap">
-      <h2 id="t-fecho">Na próxima vez que ouvir <span class="nw">“vou pensar”</span>, tenha a página aberta.</h2>
-      <div class="compra">
-        <p class="preco" data-preco><small>R$</small>37</p>
-        <a class="cta" data-cta="fecho" href="https://pay.kiwify.com.br/rAjTO6z">Quero o Gabarito Solar<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-      </div>
+      <article class="card" id="oferta" tabindex="-1" aria-labelledby="t-oferta">
+        <div class="card-cores" aria-hidden="true"><i style="background:#49B6F2"></i><i style="background:#8A5A34"></i><i style="background:#00A5A8"></i><i style="background:#B123A5"></i><i style="background:#14A04B"></i><i style="background:#E5332A"></i><i style="background:#FF7A00"></i><i style="background:#2357D8"></i><i style="background:#FFC000"></i><i style="background:#7C4DDB"></i><i style="background:#1B2A7A"></i><i style="background:#8DC63F"></i><i style="background:#901211"></i></div>
+        <figure class="card-img">
+          <picture>
+            <source media="(min-width: 960px)" srcset="/gabaritosolar/assets/folhas-1200.webp" width="1200" height="838">
+            <img src="/gabaritosolar/assets/folhas-720.webp" width="720" height="503" loading="lazy" decoding="async"
+                 alt="Folhas do Gabarito Solar abertas em leque, com a faixa de cor de cada capítulo na borda.">
+          </picture>
+        </figure>
+        <div class="card-corpo">
+          <h2 id="t-oferta">Gabarito Solar</h2>
+          <p class="card-linha">87 páginas visuais da venda de energia solar, organizadas por cor, em PDF para imprimir.</p>
+          <ul class="card-itens">
+            <li><span><b>37</b> objeções com resposta pronta</span></li>
+            <li><span><b>16</b> etapas e <b>13</b> mensagens, do primeiro contato ao pós-venda</span></li>
+            <li><span><b>11</b> ferramentas e <b>6</b> checklists para usar na mesa</span></li>
+            <li><span>Índice pela fala do cliente</span></li>
+          </ul>
+          <div class="card-preco">
+            <p class="preco" data-preco><small>R$</small>37</p>
+            <p class="unico">Pagamento único</p>
+          </div>
+          <div class="entrega">
+            <span class="entrega-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-11 6.6L4 19.5l1.4-4.6A7.5 7.5 0 1 1 20 11.5z"/><path d="M8.8 11.6h.01M12.4 11.6h.01M16 11.6h.01"/></svg></span>
+            <div>
+              <p class="entrega-tit" data-entrega-titulo>Receba no seu WhatsApp</p>
+              <p class="entrega-txt" data-entrega-texto>Nossa equipe envia o PDF para o seu número depois do pagamento confirmado.</p>
+            </div>
+          </div>
+          <p class="card-selo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3z"/><path d="m8.8 12.2 2.3 2.3 4.3-4.6"/></svg>Garantia de 7 dias</p>
+          <a class="cta cta--compra" data-cta="oferta" href="https://pay.kiwify.com.br/rAjTO6z">Quero o Gabarito Solar<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <p class="miudo">Pix ou cartão. Você recebe o PDF. Impressão e prancheta não estão inclusas.</p>
+        </div>
+      </article>
     </div>
   </section>
 </main>
@@ -362,6 +390,12 @@ p{margin:0}
   const CHECKOUT_URL = 'https://pay.kiwify.com.br/rAjTO6z';    // Kiwify, Gabarito Solar
   const PIXEL_ID = '824905216831401';                          // Pixel do SolarDoc
   const PRODUTO = 'Gabarito Solar';
+  // Destaque da entrega no card. Hoje a entrega é manual, pela equipe.
+  const ENTREGA_TITULO = 'Receba no seu WhatsApp';
+  const ENTREGA_TEXTO = 'Nossa equipe envia o PDF para o seu número depois do pagamento confirmado.';
+  // Versão futura, quando a entrega for automática:
+  // const ENTREGA_TITULO = 'Entrega imediata';
+  // const ENTREGA_TEXTO = 'O PDF chega no seu e-mail na hora, e também no seu WhatsApp.';
   // Pixel, beacon e telemetria só no ar. Arquivo local, localhost e prévia ficam mudos.
   const NO_AR = /(^|\.)solardoc\.app$/i.test(location.hostname);
 
@@ -369,6 +403,8 @@ p{margin:0}
   const casas = Number.isInteger(PRECO) ? 0 : 2;
   const valor = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }).format(PRECO);
   document.querySelectorAll('[data-preco]').forEach(el => { el.innerHTML = '<small>R$</small>' + valor; });
+  document.querySelectorAll('[data-entrega-titulo]').forEach(el => { el.textContent = ENTREGA_TITULO; });
+  document.querySelectorAll('[data-entrega-texto]').forEach(el => { el.textContent = ENTREGA_TEXTO; });
 
   // ===== Checkout + UTMs (mesmo padrão do /kit) =====
   const KEY = 'gabarito_utms';
@@ -391,7 +427,8 @@ p{margin:0}
     return u.toString();
   }
   const destino = linkCheckout();
-  document.querySelectorAll('.cta').forEach(a => {
+  // Só o botão do card vai ao checkout. Os outros rolam até o card.
+  document.querySelectorAll('.cta--compra').forEach(a => {
     a.setAttribute('href', destino);
     a.setAttribute('target', '_blank');
     a.setAttribute('rel', 'noopener');
@@ -440,14 +477,33 @@ p{margin:0}
     try { navigator.sendBeacon(API + '/_t/e', new Blob([JSON.stringify({ session_id: sid, event_type: 'time_on_page', event_data: { seconds: s } })], { type: 'application/json' })); } catch (_) {}
   });
 
+  // ===== Card de oferta: chegada =====
+  const card = document.getElementById('oferta');
+  if (card && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver(ent => {
+      if (ent.some(x => x.isIntersecting)) { window.evtLP('oferta_view', null); io.disconnect(); }
+    }, { threshold: 0.5 });
+    io.observe(card);
+  }
+
   // ===== Clique nos botões =====
+  const semMovimento = window.matchMedia('(prefers-reduced-motion: reduce)');
   document.addEventListener('click', e => {
     const a = e.target.closest('.cta');
     if (!a) return;
+    if (a.classList.contains('cta--rolar')) {
+      // Botão de rolagem: leva ao card e não conta como início de checkout.
+      window.evtLP('cta_click', { label: 'rolar', posicao: a.dataset.cta || 'cta', tipo: 'rolagem' });
+      if (!card) return;
+      e.preventDefault();
+      card.scrollIntoView({ behavior: semMovimento.matches ? 'auto' : 'smooth', block: 'start' });
+      card.focus({ preventScroll: true });
+      return;
+    }
     if (NO_AR && typeof fbq === 'function') {
       try { fbq('track', 'InitiateCheckout', { content_name: PRODUTO, value: PRECO, currency: 'BRL' }); } catch (_) {}
     }
-    window.evtLP('cta_click', { label: a.dataset.cta || 'cta', tipo: 'checkout' });
+    window.evtLP('cta_click', { label: a.dataset.cta || 'oferta', tipo: 'checkout' });
   }, true);
 
   // Telemetria comum das LPs do app
