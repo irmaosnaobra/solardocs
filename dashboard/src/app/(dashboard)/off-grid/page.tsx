@@ -293,12 +293,14 @@ export default function OffGridPage() {
   const erroAceite = useMemo((): string | null => {
     if (!op.aceite) return null;
     const nome = cli.nome.trim();
+    // CPF/CNPJ do cliente é opcional (em branco a folha sai sem a linha); preenchido, tem que ser válido. Mesma regra do servidor.
+    const temDoc = /[0-9A-Za-z]/.test(cli.doc);
     if (docEhCnpj) {
       if (nome.length < 3) return 'Escreva a razão social do cliente no passo 1.';
-      if (!cnpjValido(cli.doc)) return 'CNPJ do cliente inválido. Confira os números no passo 1.';
+      if (temDoc && !cnpjValido(cli.doc)) return 'CNPJ do cliente inválido. Confira os números no passo 1.';
     } else {
       if (nome.split(' ').filter(Boolean).length < 2) return 'Escreva o nome completo do cliente no passo 1.';
-      if (!cpfValido(cli.doc)) return 'CPF do cliente inválido. Confira os números no passo 1.';
+      if (temDoc && !cpfValido(cli.doc)) return 'CPF do cliente inválido. Confira os números no passo 1.';
     }
     if (op.emp.razao_social.trim().length < 3) return 'Escreva a razão social da sua empresa.';
     if (!cnpjValido(op.emp.cnpj)) return 'CNPJ da sua empresa inválido. Confira os números.';

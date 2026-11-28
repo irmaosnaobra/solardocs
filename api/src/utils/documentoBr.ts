@@ -84,12 +84,15 @@ export function validarAssinatura(a: unknown): string | null {
   const n = normalizarAssinatura(a);
   if (!n) return 'Para gerar a Completa + Banco, preencha as assinaturas do cliente e da empresa.';
   const { cliente, empresa } = n;
+  // O documento do cliente é opcional: em branco a proposta sai sem a linha. Preenchido, tem que ser válido.
+  // (Já normalizado: PF só dígitos, PJ só letras e dígitos. Vazio aqui = nada que vire documento.)
+  const temDocCliente = cliente.documento.length > 0;
   if (cliente.tipo === 'PJ') {
     if (cliente.nome.length < 3) return 'Escreva a razão social do cliente.';
-    if (!cnpjValido(cliente.documento)) return 'CNPJ do cliente inválido. Confira os números.';
+    if (temDocCliente && !cnpjValido(cliente.documento)) return 'CNPJ do cliente inválido. Confira os números.';
   } else {
     if (cliente.nome.split(' ').filter(Boolean).length < 2) return 'Escreva o nome completo do cliente.';
-    if (!cpfValido(cliente.documento)) return 'CPF do cliente inválido. Confira os números.';
+    if (temDocCliente && !cpfValido(cliente.documento)) return 'CPF do cliente inválido. Confira os números.';
   }
   if (empresa.razao_social.length < 3) return 'Escreva a razão social da sua empresa.';
   if (!cnpjValido(empresa.cnpj)) return 'CNPJ da sua empresa inválido. Confira na tela Empresa.';
