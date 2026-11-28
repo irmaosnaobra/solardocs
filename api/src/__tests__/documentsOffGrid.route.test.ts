@@ -225,6 +225,13 @@ describe('POST /documents/generate: proposta off-grid, modelo 2 (Completa)', () 
     expect(gravado().dados_json.assinatura.empresa.cnpj).toBe('11222333000181');
   });
 
+  it('assinatura com o documento do cliente em branco: gera (CPF é opcional) e grava o documento vazio', async () => {
+    const res = await gerar({ modeloNumero: 2, fields: { assinatura: { ...ASSIN_OK, cliente: { ...ASSIN_OK.cliente, documento: '' } } } });
+    expect(res.status).toBe(200);
+    expect(gravado().dados_json.assinatura.cliente.documento).toBe('');
+    expect(gravado().dados_json.assinatura.cliente.nome).toBe(ASSIN_OK.cliente.nome);
+  });
+
   it('assinatura que veio e é inválida: 400 com a frase, antes de gastar número e cota', async () => {
     h.rpc.mockClear();
     const cpf = await gerar({ modeloNumero: 2, fields: { assinatura: { ...ASSIN_OK, cliente: { ...ASSIN_OK.cliente, documento: '111.111.111-11' } } } });

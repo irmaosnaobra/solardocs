@@ -1311,12 +1311,13 @@ export default function PropostaSolarPage() {
     if (modelo === 4 && assinaturaEmUso) {
       const { empresa: emp, cliente: cli } = fields.assinatura;
       const falha = (campo: string, msg: string) => { faltam.add(campo); msgsAssinatura.push(msg); };
+      // Documento do cliente é opcional (em branco sai sem a linha); preenchido, tem que ser válido. Mesma regra do servidor.
       if (cli.tipo === 'PF') {
         if (cli.nome.trim().split(/\s+/).filter(Boolean).length < 2) falha('ass_cli_nome', 'Escreva o nome completo do cliente.');
-        if (!cpfValido(cli.documento)) falha('ass_cli_doc', 'CPF do cliente inválido. Confira os números.');
+        if (/\d/.test(cli.documento) && !cpfValido(cli.documento)) falha('ass_cli_doc', 'CPF do cliente inválido. Confira os números.');
       } else {
         if (cli.nome.trim().length < 3) falha('ass_cli_nome', 'Escreva a razão social do cliente.');
-        if (!cnpjValido(cli.documento)) falha('ass_cli_doc', 'CNPJ do cliente inválido. Confira os números.');
+        if (/[0-9A-Za-z]/.test(cli.documento) && !cnpjValido(cli.documento)) falha('ass_cli_doc', 'CNPJ do cliente inválido. Confira os números.');
       }
       if (emp.razao_social.trim().length < 3) falha('ass_emp_razao', 'Escreva a razão social da sua empresa.');
       if (!cnpjValido(emp.cnpj)) falha('ass_emp_cnpj', 'CNPJ da sua empresa inválido. Confira na tela Empresa.');
@@ -2068,7 +2069,7 @@ export default function PropostaSolarPage() {
                   {...invalidProps('ass_cli_nome')} />
               </div>
               <div className={styles.field}>
-                <label className={styles.label} htmlFor="ass-cli-doc">{fields.assinatura.cliente.tipo === 'PJ' ? 'CNPJ' : 'CPF'}</label>
+                <label className={styles.label} htmlFor="ass-cli-doc">{fields.assinatura.cliente.tipo === 'PJ' ? 'CNPJ (opcional)' : 'CPF (opcional)'}</label>
                 <input id="ass-cli-doc" type="text" inputMode={fields.assinatura.cliente.tipo === 'PJ' ? 'text' : 'numeric'} className="input-field" autoComplete="off"
                   placeholder={fields.assinatura.cliente.tipo === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
                   maxLength={fields.assinatura.cliente.tipo === 'PJ' ? 18 : 14}

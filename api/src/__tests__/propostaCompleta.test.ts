@@ -483,6 +483,28 @@ describe('modelo 4 Completa + Banco', () => {
     expect(html.slice(0, html.indexOf('Detalhamento do Projeto'))).toContain('<div class="rowf"><span>CPF</span><span class="num">529.982.247-25</span></div>');
   });
 
+  it('aceite com o documento do cliente em branco (PF e PJ): sai o nome, sem linha de CPF/CNPJ do cliente e sem XXX', () => {
+    const casos = [
+      { ...ASSIN_PF, cliente: { ...ASSIN_PF.cliente, documento: '' } },
+      { ...ASSIN_PF, cliente: { tipo: 'PJ', nome: 'Padaria Pão Quente Ltda', documento: '  ' } },
+    ];
+    for (const a of casos) {
+      const { html } = render({ assinatura: a });
+      const cabecalho = html.slice(0, html.indexOf('Detalhamento do Projeto'));
+      const aceite = html.slice(html.indexOf('Aceite da proposta'));
+      expect(secoes(html)).toContain('Aceite da proposta');
+      expect(aceite).toContain(`<div class="nm">${a.cliente.nome}</div>`);
+      expect(cabecalho).not.toContain('<span>CPF</span>');
+      expect(cabecalho).not.toContain('<span>CNPJ</span>');
+      expect(aceite).not.toContain('<div class="dc">CPF');
+      expect(aceite).not.toContain('<div class="dc"></div>');
+      // A empresa continua com o CNPJ dela; o cliente fica só com o nome.
+      expect((aceite.match(/<div class="dc">/g) || []).length).toBe(1);
+      expect(aceite).toContain('<div class="dc">CNPJ 11.222.333/0001-81</div>');
+      expect(html).not.toContain('XXX');
+    }
+  });
+
   it('aceite PJ: razão social, CNPJ inteiro e representante; local cai na cidade do cliente', () => {
     const a = { ...ASSIN_PF, cliente: { tipo: 'PJ', nome: 'Padaria Pão Quente Ltda', documento: '11222333000181', representante: 'Ana Lima' } };
     const { html } = render({ assinatura: a });

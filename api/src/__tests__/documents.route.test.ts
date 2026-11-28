@@ -254,6 +254,19 @@ describe('POST /documents/generate', () => {
     expect(generateFromTemplate).not.toHaveBeenCalled();
   });
 
+  it('modelo 4 com o documento do cliente em branco: gera (CPF é opcional) e grava o documento vazio', async () => {
+    mockGeracaoProposta();
+    mockRpc.mockResolvedValueOnce({ data: '20260038', error: null });
+    const res = await request(app)
+      .post('/documents/generate').set('Authorization', AUTH)
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, useTemplate: true, modeloNumero: 4,
+        fields: { assinatura: { ...ASSIN_OK, cliente: { ...ASSIN_OK.cliente, documento: '  ' } } } });
+    expect(res.status).toBe(200);
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, any>;
+    expect(fields.assinatura.cliente.documento).toBe('');
+    expect(fields.assinatura.cliente.nome).toBe(ASSIN_OK.cliente.nome);
+  });
+
   it('modelo 4 com Fio B ligado e valores impossíveis: 400 com a frase da tela, sem gastar número', async () => {
     const gerar = (fio: Record<string, unknown>) => request(app)
       .post('/documents/generate').set('Authorization', AUTH)

@@ -69,6 +69,19 @@ describe('validarAssinatura', () => {
     expect(validarAssinatura(com({ cliente: { ...pj, nome: 'AB' } }))).toBe('Escreva a razão social do cliente.');
     expect(validarAssinatura(com({ cliente: { ...pj, documento: '11.222.333/0001-82' } }))).toBe('CNPJ do cliente inválido. Confira os números.');
   });
+  it('documento do cliente é opcional: em branco passa, preenchido tem que ser válido', () => {
+    for (const documento of ['', '   ', '___.___.___-__']) {
+      expect(validarAssinatura(com({ cliente: { ...pf, documento } }))).toBeNull();
+      expect(validarAssinatura(com({ cliente: { ...pj, documento } }))).toBeNull();
+    }
+    expect(normalizarAssinatura(com({ cliente: { ...pf, documento: '  ' } }))!.cliente.documento).toBe('');
+    expect(validarAssinatura(com({ cliente: { ...pf, documento: '123' } }))).toBe('CPF do cliente inválido. Confira os números.');
+    expect(validarAssinatura(com({ cliente: { ...pj, documento: 'ABC' } }))).toBe('CNPJ do cliente inválido. Confira os números.');
+    // Sem documento, o nome do cliente continua obrigatório.
+    expect(validarAssinatura(com({ cliente: { ...pf, nome: 'Maria', documento: '' } }))).toBe('Escreva o nome completo do cliente.');
+    // A empresa continua exigindo CNPJ válido.
+    expect(validarAssinatura(com({ cliente: { ...pf, documento: '' }, empresa: { ...empresa, cnpj: '' } }))).toBe('CNPJ da sua empresa inválido. Confira na tela Empresa.');
+  });
   it('empresa', () => {
     expect(validarAssinatura(com({ empresa: { ...empresa, razao_social: 'A' } }))).toBe('Escreva a razão social da sua empresa.');
     expect(validarAssinatura(com({ empresa: { ...empresa, cnpj: '123' } }))).toBe('CNPJ da sua empresa inválido. Confira na tela Empresa.');
